@@ -1,0 +1,787 @@
+{
+  "buildings": [
+    {
+      "id": 10,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "type": "https://w3id.org/rec#building",
+      "lat": 49.019533,
+      "long": 12.097487,
+      "locality": "Regensburg",
+      "postal code": 93055,
+      "region": "Bayern",
+      "street address": "anonym anonym",
+      "building area": 8650,
+      "land area": 16700,
+      "has pv system": false,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "office area": 720,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 1998,
+      "nace code": 52,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Wettbewerber-7"
+    },
+    {
+      "id": 10226,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#0",
+      "type": "https://w3id.org/rec#building",
+      "lat": 50.207821,
+      "long": 9.968407,
+      "locality": "Oberthulba",
+      "postal code": 97723,
+      "region": "Bayern",
+      "street address": "Schlimpfhofer Straße 17",
+      "building area": 5750,
+      "land area": 16000,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#leer",
+      "office area": 335,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2016,
+      "nace code": 52,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Friedrich-Zufall-GmbH-Co-KG"
+    },
+    {
+      "id": 11,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "type": "https://w3id.org/rec#building",
+      "lat": 49.793372,
+      "long": 9.930978,
+      "locality": "Würzburg",
+      "postal code": 97070,
+      "region": "Bayern",
+      "street address": "anonym anonym",
+      "building area": 7600,
+      "land area": 25750,
+      "has pv system": false,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "office area": 0,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2003,
+      "nace code": 14.1,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Wettbewerber-8"
+    },
+    {
+      "id": 12708,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#PUMA-SE",
+      "type": "https://w3id.org/rec#building",
+      "lat": 49.772636,
+      "long": 10.497468,
+      "locality": "Geiselwind",
+      "postal code": 96160,
+      "region": "Bayern",
+      "street address": "Rudolf-Dassler-Str. 1",
+      "building area": 69300,
+      "land area": 116000,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Dietz-AG",
+      "office area": 5800,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2019,
+      "nace code": 14.1,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#BLG-Logistics-Group-AG-CO-KG"
+    },
+    {
+      "id": 2,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#PUMA-SE",
+      "type": "https://w3id.org/rec#building",
+      "lat": 49.7468077,
+      "long": 10.6731614,
+      "locality": "Schlüsselfeld",
+      "postal code": 96132,
+      "region": "Bayern",
+      "street address": "Rudolf-Dassler-Str. 1",
+      "building area": 10150,
+      "land area": 30375,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#BLG-Logistics-Group-AG-CO-KG",
+      "office area": 0,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 1996,
+      "nace code": 14.1,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#BLG-Logistics-Group-AG-CO-KG"
+    },
+    {
+      "id": 4,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "type": "https://w3id.org/rec#building",
+      "lat": 48.763017,
+      "long": 11.42504,
+      "locality": "Ingolstadt",
+      "postal code": 85055,
+      "region": "Bayern",
+      "street address": "anonym anonym",
+      "building area": 43750,
+      "land area": 105650,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "office area": 0,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2020,
+      "nace code": 29.1,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Wettbewerber-1"
+    },
+    {
+      "id": 5,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "type": "https://w3id.org/rec#building",
+      "lat": 50.019135,
+      "long": 10.28221,
+      "locality": "Gochsheim",
+      "postal code": 97469,
+      "region": "Bayern",
+      "street address": "anonym anonym",
+      "building area": 15300,
+      "land area": 28500,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "office area": 0,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2023,
+      "nace code": 45.3,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Wettbewerber-2"
+    },
+    {
+      "id": 5166,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Suzuki-International-Europe",
+      "type": "https://w3id.org/rec#building",
+      "lat": 48.9081299,
+      "long": 11.9204172,
+      "locality": "Saal/Donau",
+      "postal code": 93342,
+      "region": "Bayern",
+      "street address": "Hafenstr. 33",
+      "building area": 6380,
+      "land area": 270000,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#leer",
+      "office area": 0,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2009,
+      "nace code": 45.1,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#BLG-Logistics-Group-AG-CO-KG"
+    },
+    {
+      "id": 6,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "type": "https://w3id.org/rec#building",
+      "lat": 48.137108,
+      "long": 11.575382,
+      "locality": "München",
+      "postal code": 81379,
+      "region": "Bayern",
+      "street address": "anonym anonym",
+      "building area": 13600,
+      "land area": 29750,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "office area": 0,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2021,
+      "nace code": 29.0,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Wettbewerber-3"
+    },
+    {
+      "id": 7,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "type": "https://w3id.org/rec#building",
+      "lat": 49.453872,
+      "long": 11.077298,
+      "locality": "Nürnberg",
+      "postal code": 90451,
+      "region": "Bayern",
+      "street address": "anonym anonym",
+      "building area": 35470,
+      "land area": 67800,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "office area": 0,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2008,
+      "nace code": 53.1,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Wettbewerber-4"
+    },
+    {
+      "id": 8,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "type": "https://w3id.org/rec#building",
+      "lat": 50.051855,
+      "long": 10.222092,
+      "locality": "Schweinfurt",
+      "postal code": 97421,
+      "region": "Bayern",
+      "street address": "anonym anonym",
+      "building area": 6460,
+      "land area": 15100,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "office area": 550,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2010,
+      "nace code": 52.0,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Wettbewerber-5"
+    },
+    {
+      "id": 9,
+      "customer": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "type": "https://w3id.org/rec#building",
+      "lat": 50.32963,
+      "long": 11.708413,
+      "locality": "Naila",
+      "postal code": 95119,
+      "region": "Bayern",
+      "street address": "anonym anonym",
+      "building area": 1370,
+      "land area": 9150,
+      "has pv system": true,
+      "investor": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#anonym",
+      "office area": 0,
+      "used as": "https://solid.ti.rw.fau.de/private/granergize/usages.ttl#LDL",
+      "year of construction": 2016,
+      "nace code": 53.0,
+      "operated by": "https://solid.ti.rw.fau.de/private/granergize/agents.ttl#Wettbewerber-6"
+    }
+  ],
+  "agents": [
+    {
+      "id": "anonym",
+      "type": "https://w3id.org/rec#agent",
+      "name": "anonym"
+    },
+    {
+      "id": "0",
+      "type": "https://w3id.org/rec#agent",
+      "name": "0"
+    },
+    {
+      "id": "leer",
+      "type": "https://w3id.org/rec#agent",
+      "name": "leer"
+    },
+    {
+      "id": "PUMA-SE",
+      "type": "https://w3id.org/rec#agent",
+      "name": "PUMA SE"
+    },
+    {
+      "id": "Suzuki-International-Europe",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Suzuki International Europe"
+    },
+    {
+      "id": "Wettbewerber-1",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Wettbewerber 1"
+    },
+    {
+      "id": "Wettbewerber-2",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Wettbewerber 2"
+    },
+    {
+      "id": "Wettbewerber-3",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Wettbewerber 3"
+    },
+    {
+      "id": "Wettbewerber-4",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Wettbewerber 4"
+    },
+    {
+      "id": "Wettbewerber-5",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Wettbewerber 5"
+    },
+    {
+      "id": "Wettbewerber-6",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Wettbewerber 6"
+    },
+    {
+      "id": "Wettbewerber-7",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Wettbewerber 7"
+    },
+    {
+      "id": "Wettbewerber-8",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Wettbewerber 8"
+    },
+    {
+      "id": "Dietz-AG",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Dietz AG"
+    },
+    {
+      "id": "Friedrich-Zufall-GmbH-Co-KG",
+      "type": "https://w3id.org/rec#agent",
+      "name": "Friedrich Zufall GmbH & Co. KG"
+    },
+    {
+      "id": "BLG-Logistics-Group-AG-CO-KG",
+      "type": "https://w3id.org/rec#agent",
+      "name": "BLG Logistics Group AG & Co. KG"
+    }
+  ],
+  "energyNeed": [
+    {
+      "id": 2,
+      "energy need": {
+        "electricity": 702596,
+        "grid supply": 210323,
+        "solar": 670065,
+        "photovoltaic": 670065,
+        "self consumption": 492633,
+        "grid feed in": 112336,
+        "hall heating from waste loss": 53064,
+        "frost protection HRL from waste loss": 12041,
+        "ambient heat": 120330,
+        "ventilation heat": 156576,
+        "person heat": 8192,
+        "wood chips": 534465
+      },
+      "energy generation": {
+        "hall lighting": 66363,
+        "heat generation": 535950
+      },
+      "energy storage": {
+        "heat storage": 358156
+      },
+      "energy distribution": {
+        "intralogistics hall": 218963,
+        "intralogistics HRL": 680903,
+        "hall heat": 267577,
+        "HRL heat": 71858
+      },
+      "energy transfer": {
+        "hall heat": 259769,
+        "HRL heat": 65632
+      },
+      "energy usage": {
+        "hall space heating": 430903,
+        "work": 563082,
+        "HRL frost protection": 339421
+      },
+      "environmental factor": {
+        "cold":  3249
+      }
+    },
+        {
+      "id": 4,
+      "energy need": {
+        "gas": 523749,
+        "electricity": 1062063,
+        "grid supply": 1062063,
+        "solar": 85791,
+        "space heating": 85791,
+        "ambient heat": 189467,
+        "ventilation heat": 167644,
+        "person heat": 8192
+      },
+      "energy generation": {
+        "hall lighting": 66363,
+        "hall heat": 465905,
+        "HRL heat": 57843
+      },
+      "energy transfer": {
+        "intralogistics hall": 297411,
+        "intralogistics HRL": 696547,
+        "hall heat": 421099,
+        "HRL heat": 52064
+      },
+      "energy usage": {
+        "hall space heating": 705739,
+        "work": 594370,
+        "HRL frost protection": 604354
+      },
+      "environmental factor": {
+        "cold":  7119
+      }
+    },
+    {
+      "id": 5,
+      "energy need": {
+        "electricity": 702596,
+        "grid supply": 210323,
+        "solar": 670065,
+        "photovoltaic": 670065,
+        "self consumption": 492633,
+        "grid feed in": 112336,
+        "hall heating from waste loss": 53064,
+        "frost protection HRL from waste loss": 12041,
+        "ambient heat": 120330,
+        "ventilation heat": 156576,
+        "person heat": 8192,
+        "wood chips": 534465
+      },
+      "energy generation": {
+        "hall lighting": 66363,
+        "heat generation": 535950
+      },
+      "energy storage": {
+        "heat storage": 358156
+      },
+      "energy distribution": {
+        "intralogistics hall": 218963,
+        "intralogistics HRL": 680903,
+        "hall heat": 267577,
+        "HRL heat": 71858
+      },
+      "energy transfer": {
+        "hall heat": 259769,
+        "HRL heat": 65632
+      },
+      "energy usage": {
+        "hall space heating": 430903,
+        "work": 563082,
+        "HRL frost protection": 339421
+      },
+      "environmental factor": {
+        "cold":  3249
+      }
+    },
+    {
+      "id": 6,
+      "energy need": {
+        "electricity": 702596,
+        "grid supply": 210323,
+        "solar": 670065,
+        "photovoltaic": 670065,
+        "self consumption": 492633,
+        "grid feed in": 112336,
+        "hall heating from waste loss": 53064,
+        "frost protection HRL from waste loss": 12041,
+        "ambient heat": 120330,
+        "ventilation heat": 156576,
+        "person heat": 8192,
+        "wood chips": 534465
+      },
+      "energy generation": {
+        "hall lighting": 66363,
+        "heat generation": 535950
+      },
+      "energy storage": {
+        "heat storage": 358156
+      },
+      "energy distribution": {
+        "intralogistics hall": 218963,
+        "intralogistics HRL": 680903,
+        "hall heat": 267577,
+        "HRL heat": 71858
+      },
+      "energy transfer": {
+        "hall heat": 259769,
+        "HRL heat": 65632
+      },
+      "energy usage": {
+        "hall space heating": 430903,
+        "work": 563082,
+        "HRL frost protection": 339421
+      },
+      "environmental factor": {
+        "cold":  3249
+      }
+    },
+    {
+      "id": 7,
+      "energy need": {
+        "gas": 523749,
+        "electricity": 1062063,
+        "grid supply": 1062063,
+        "solar": 85791,
+        "space heating": 85791,
+        "ambient heat": 189467,
+        "ventilation heat": 167644,
+        "person heat": 8192
+      },
+      "energy generation": {
+        "hall lighting": 66363,
+        "hall heat": 465905,
+        "HRL heat": 57843
+      },
+      "energy transfer": {
+        "intralogistics hall": 297411,
+        "intralogistics HRL": 696547,
+        "hall heat": 421099,
+        "HRL heat": 52064
+      },
+      "energy usage": {
+        "hall space heating": 705739,
+        "work": 594370,
+        "HRL frost protection": 604354
+      },
+      "environmental factor": {
+        "cold":  7119
+      }
+    },
+    {
+      "id": 8,
+      "energy need": {
+        "electricity": 314266,
+        "grid supply": 115365,
+        "solar": 458817,
+        "space heating": 75442,
+        "photovoltaic": 383375,
+        "self consumption": 198901,
+        "grid feed in": 184474,
+        "ambient heat": 42744,
+        "ventilation heat": 45364,
+        "groundwater": 327282
+      },
+      "energy generation": {
+        "hall lighting": 83080,
+        "heat generation": 427991
+      },
+      "energy storage": {
+        "FFZ battery charging": 126961,
+        "heat storage": 425975
+      },
+      "energy distribution": {
+        "heat distribution": 425410
+      },
+      "energy transfer": {
+        "heat transfer": 394856,
+        "FFZ": 138298
+      },
+      "energy usage": {
+        "hall space heating": 712246,
+        "work": 100619
+      },
+      "environmental factor": {
+        "cold":  4574
+      }
+    },
+    {
+      "id": 9,
+      "energy need": {
+        "electricity": 314266,
+        "grid supply": 115365,
+        "solar": 458817,
+        "space heating": 75442,
+        "photovoltaic": 383375,
+        "self consumption": 198901,
+        "grid feed in": 184474,
+        "ambient heat": 42744,
+        "ventilation heat": 45364,
+        "groundwater": 327282
+      },
+      "energy generation": {
+        "hall lighting": 83080,
+        "heat generation": 427991
+      },
+      "energy storage": {
+        "FFZ battery charging": 126961,
+        "heat storage": 425975
+      },
+      "energy distribution": {
+        "heat distribution": 425410
+      },
+      "energy transfer": {
+        "heat transfer": 394856,
+        "FFZ": 138298
+      },
+      "energy usage": {
+        "hall space heating": 712246,
+        "work": 100619
+      },
+      "environmental factor": {
+        "cold":  4574
+      }
+    },
+    {
+      "id": 10,
+      "energy need": {
+        "electricity": 702596,
+        "grid supply": 210323,
+        "solar": 670065,
+        "photovoltaic": 670065,
+        "self consumption": 492633,
+        "grid feed in": 112336,
+        "hall heating from waste loss": 53064,
+        "frost protection HRL from waste loss": 12041,
+        "ambient heat": 120330,
+        "ventilation heat": 156576,
+        "person heat": 8192,
+        "wood chips": 5334465
+      },
+      "energy generation": {
+        "hall lighting": 66363,
+        "heat generation": 535950
+      },
+      "energy storage": {
+        "heat storage": 358156
+      },
+      "energy distribution": {
+        "intralogistics hall": 218963,
+        "intralogistics HRL": 680903,
+        "hall heat": 267577,
+        "HRL heat": 71858
+      },
+      "energy transfer": {
+        "hall heat": 259769,
+        "HRL heat": 65632
+      },
+      "energy usage": {
+        "hall space heating": 430903,
+        "work": 563082,
+        "HRL frost protection": 339421
+      },
+      "environmental factor": {
+        "cold":  3249
+      }
+    },
+    {
+      "id": 11,
+      "energy need": {
+        "electricity": 702596,
+        "grid supply": 210323,
+        "solar": 670065,
+        "photovoltaic": 670065,
+        "self consumption": 492633,
+        "grid feed in": 112336,
+        "hall heating from waste loss": 53064,
+        "frost protection HRL from waste loss": 12041,
+        "ambient heat": 120330,
+        "ventilation heat": 156576,
+        "person heat": 8192,
+        "wood chips": 5334465
+      },
+      "energy generation": {
+        "hall lighting": 66363,
+        "heat generation": 535950
+      },
+      "energy storage": {
+        "heat storage": 358156
+      },
+      "energy distribution": {
+        "intralogistics hall": 218963,
+        "intralogistics HRL": 680903,
+        "hall heat": 267577,
+        "HRL heat": 71858
+      },
+      "energy transfer": {
+        "hall heat": 259769,
+        "HRL heat": 65632
+      },
+      "energy usage": {
+        "hall space heating": 430903,
+        "work": 563082,
+        "HRL frost protection": 339421
+      },
+      "environmental factor": {
+        "cold":  3249
+      }
+    },
+    {
+      "id": 5166,
+      "energy need": {
+        "electricity": 702596,
+        "grid supply": 210323,
+        "solar": 670065,
+        "photovoltaic": 670065,
+        "self consumption": 492633,
+        "grid feed in": 112336,
+        "hall heating from waste loss": 53064,
+        "frost protection HRL from waste loss": 12041,
+        "ambient heat": 120330,
+        "ventilation heat": 156576,
+        "person heat": 8192,
+        "wood chips": 5334465
+      },
+      "energy generation": {
+        "hall lighting": 66363,
+        "heat generation": 535950
+      },
+      "energy storage": {
+        "heat storage": 358156
+      },
+      "energy distribution": {
+        "intralogistics hall": 218963,
+        "intralogistics HRL": 680903,
+        "hall heat": 267577,
+        "HRL heat": 71858
+      },
+      "energy transfer": {
+        "hall heat": 259769,
+        "HRL heat": 65632
+      },
+      "energy usage": {
+        "hall space heating": 430903,
+        "work": 563082,
+        "HRL frost protection": 339421
+      },
+      "environmental factor": {
+        "cold":  3249
+      }
+    },
+    {
+      "id": 10226,
+      "energy need": {
+        "electricity": 314266,
+        "grid supply": 115365,
+        "solar": 458817,
+        "space heating": 75442,
+        "photovoltaic": 383375,
+        "self consumption": 198901,
+        "grid feed in": 184474,
+        "ambient heat": 42744,
+        "ventilation heat": 45364,
+        "groundwater": 327282
+      },
+      "energy generation": {
+        "hall lighting": 83080,
+        "heat generation": 427991
+      },
+      "energy storage": {
+        "FFZ battery charging": 126961,
+        "heat storage": 425975
+      },
+      "energy distribution": {
+        "heat distribution": 425410
+      },
+      "energy transfer": {
+        "heat transfer": 394856,
+        "FFZ": 138298
+      },
+      "energy usage": {
+        "hall space heating": 712246,
+        "work": 100619
+      },
+      "environmental factor": {
+        "cold":  4574
+      }
+    },
+    {
+      "id": 12708,
+      "energy need": {
+        "gas": 523749,
+        "electricity": 1062063,
+        "grid supply": 1062063,
+        "solar": 85791,
+        "space heating": 85791,
+        "ambient heat": 189467,
+        "ventilation heat": 167644,
+        "person heat": 8192
+      },
+      "energy generation": {
+        "hall lighting": 66363,
+        "hall heat": 465905,
+        "HRL heat": 57843
+      },
+      "energy transfer": {
+        "intralogistics hall": 297411,
+        "intralogistics HRL": 696547,
+        "hall heat": 421099,
+        "HRL heat": 52064
+      },
+      "energy usage": {
+        "hall space heating": 705739,
+        "work": 594370,
+        "HRL frost protection": 604354
+      },
+      "environmental factor": {
+        "cold":  7119
+      }
+    }
+  ]
+}
