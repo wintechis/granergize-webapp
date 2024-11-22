@@ -1,14 +1,15 @@
 import { Application, Router } from "@oak/oak";
 import { oakCors } from "@tajpouria/cors";
-import { parseRDFData } from "./util/parser.ts";
+import { parseEnergyMeasurements, parseEnergyMix } from "./util/parser.ts";
 import routeStaticFilesFrom from "./util/routeStaticFilesFrom.ts";
 
 const app = new Application();
 const router = new Router();
-
 // Initialize data
-const data = await parseRDFData();
+const data = await parseEnergyMeasurements();
 const { agents, buildings, energyNeed } = data;
+
+const energyMix = await parseEnergyMix();
 
 router.get("/api/buildings", (context) => {
   context.response.body = buildings;
@@ -72,6 +73,10 @@ router.get("/api/energy/:building", (context) => {
   );
 
   context.response.body = energy;
+});
+
+router.get("/api/energy-mix", (context) => {
+  context.response.body = energyMix;
 });
 
 // Apply CORS middleware

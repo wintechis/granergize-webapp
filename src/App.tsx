@@ -1,6 +1,6 @@
+import { useState, useEffect } from 'react';
 import Container from '@mui/material/Container';
 import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
-import { useState, useEffect } from 'react';
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Agent from "./pages/Agent.tsx";

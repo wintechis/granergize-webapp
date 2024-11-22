@@ -1,0 +1,213 @@
+@prefix : <#> .
+@prefix schema: <http://schema.org/> .
+@prefix gra: <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix vcard: <http://www.w3.org/2006/vcard/ns#> .
+@prefix usages: <https://solid.ti.rw.fau.de/private/granergize/usages.ttl#> .
+@prefix agents: <https://solid.ti.rw.fau.de/private/granergize/agents.ttl#> .
+@prefix rec: <https://w3id.org/rec#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+:10 schema:customer agents:anonym .
+:10 a rec:Building .
+:10 geo:lat "49.019533" .
+:10 geo:long "12.097487".
+:10 vcard:locality "Regensburg" .
+:10 vcard:postal-code "93055" .
+:10 vcard:region "Bayern" .
+:10 vcard:street-address "anonym anonym" .
+:10 gra:hasBuildingArea "8650"^^xsd:M2 .
+:10 gra:hasLandArea "16700"^^xsd:M2 .
+:10 gra:hasPVSystem "False"^^xsd:boolean .
+:10 gra:investor agents:anonym .
+:10 gra:officeArea "720"^^xsd:M2 .
+:10 gra:usedAs usages:LDL .
+:10 gra:yearOfConstruction "1998"^^xsd:gYear .
+:10 rec:operatedBy agents:Wettbewerber-1 .
+:10 rec:nace-code 52.0 .
+:10226 schema:customer agents:0 .
+:10226 a rec:Building .
+:10226 geo:lat "50.207821".
+:10226 geo:long "9.968407".
+:10226 vcard:locality "Oberthulba" .
+:10226 vcard:postal-code "97723" .
+:10226 vcard:region "Bayern" .
+:10226 vcard:street-address "Schlimpfhofer Straße 17" .
+:10226 gra:hasBuildingArea "5750"^^xsd:M2 .
+:10226 gra:hasLandArea "16000"^^xsd:M2 .
+:10226 gra:hasPVSystem "True"^^xsd:boolean .
+:10226 gra:investor agents:leer .
+:10226 gra:officeArea "335"^^xsd:M2 .
+:10226 gra:usedAs usages:LDL .
+:10226 gra:yearOfConstruction "2016"^^xsd:gYear .
+:10226 rec:operatedBy agents:Friedrich-Zufall-GmbH-Co-KG .
+:10226 rec:nace-code 52.0 .
+:11 schema:customer agents:anonym .
+:11 a rec:Building .
+:11 geo:lat "49.793372".
+:11 geo:long "9.930978".
+:11 vcard:locality "Würzburg" .
+:11 vcard:postal-code "97070" .
+:11 vcard:region "Bayern" .
+:11 vcard:street-address "anonym anonym" .
+:11 gra:hasBuildingArea "7600"^^xsd:M2 .
+:11 gra:hasLandArea "25750"^^xsd:M2 .
+:11 gra:hasPVSystem "False"^^xsd:boolean .
+:11 gra:investor agents:anonym .
+:11 gra:officeArea "0"^^xsd:M2 .
+:11 gra:usedAs usages:LDL .
+:11 gra:yearOfConstruction "2003"^^xsd:gYear .
+:11 rec:operatedBy agents:Wettbewerber-1 .
+:11 rec:nace-code 14.1 .
+:12708 schema:customer agents:PUMA-SE .
+:12708 a rec:Building .
+:12708 geo:lat "49.772636".
+:12708 geo:long "10.497468".
+:12708 vcard:locality "Geiselwind" .
+:12708 vcard:postal-code "96160" .
+:12708 vcard:region "Bayern" .
+:12708 vcard:street-address "Rudolf-Dassler-Str. 1" .
+:12708 gra:hasBuildingArea "69300"^^xsd:M2 .
+:12708 gra:hasLandArea "116000"^^xsd:M2 .
+:12708 gra:hasPVSystem "True"^^xsd:boolean .
+:12708 gra:investor agents:Dietz-AG .
+:12708 gra:officeArea "5800"^^xsd:M2 .
+:12708 gra:usedAs usages:LDL .
+:12708 gra:yearOfConstruction "2019"^^xsd:gYear .
+:12708 rec:operatedBy agents:BLG-Logistics-Group-AG-CO-KG .
+:12708 rec:nace-code 14.1 .
+:2 schema:customer agents:PUMA-SE .
+:2 a rec:Building .
+:2 geo:lat "49.7468077".
+:2 geo:long "10.6731614".
+:2 vcard:locality "Schlüsselfeld" .
+:2 vcard:postal-code "96132" .
+:2 vcard:region "Bayern" .
+:2 vcard:street-address "Rudolf-Dassler-Str. 1" .
+:2 gra:hasBuildingArea "10150"^^xsd:M2 .
+:2 gra:hasLandArea "30375"^^xsd:M2 .
+:2 gra:hasPVSystem "True"^^xsd:boolean .
+:2 gra:officeArea "0"^^xsd:M2 .
+:2 gra:usedAs usages:LDL .
+:2 gra:yearOfConstruction "1996"^^xsd:gYear .
+:2 rec:operatedBy agents:BLG-Logistics-Group-AG-CO-KG .
+:2 rec:nace-code 14.1 .
+:4 schema:customer agents:anonym .
+:4 a rec:Building .
+:4 geo:lat "48.763017".
+:4 geo:long "11.42504".
+:4 vcard:locality "Ingolstadt" .
+:4 vcard:postal-code "85055" .
+:4 vcard:region "Bayern" .
+:4 vcard:street-address "anonym anonym" .
+:4 gra:hasBuildingArea "43750"^^xsd:M2 .
+:4 gra:hasLandArea "105650"^^xsd:M2 .
+:4 gra:hasPVSystem "True"^^xsd:boolean .
+:4 gra:investor agents:anonym .
+:4 gra:officeArea "0"^^xsd:M2 .
+:4 gra:usedAs usages:LDL .
+:4 gra:yearOfConstruction "2020"^^xsd:gYear .
+:4 rec:operatedBy agents:Wettbewerber-1 .
+:4 rec:nace-code 29.1 .
+:5 schema:customer agents:anonym .
+:5 a rec:Building .
+:5 geo:lat "50.019135".
+:5 geo:long "10.28221".
+:5 vcard:locality "Gochsheim" .
+:5 vcard:postal-code "97469" .
+:5 vcard:region "Bayern" .
+:5 vcard:street-address "anonym anonym" .
+:5 gra:hasBuildingArea "15300"^^xsd:M2 .
+:5 gra:hasLandArea "28500"^^xsd:M2 .
+:5 gra:hasPVSystem "True"^^xsd:boolean .
+:5 gra:investor agents:anonym .
+:5 gra:officeArea "0"^^xsd:M2 .
+:5 gra:usedAs usages:LDL .
+:5 gra:yearOfConstruction "2023"^^xsd:gYear .
+:5 rec:operatedBy agents:Wettbewerber-1 .
+:5 rec:nace-code 45.3 .
+:5166 schema:customer agents:Suzuki-International-Europe .
+:5166 a rec:Building .
+:5166 geo:lat "48.9081299".
+:5166 geo:long "11.9204172".
+:5166 vcard:locality "Saal/Donau" .
+:5166 vcard:postal-code "93342" .
+:5166 vcard:region "Bayern" .
+:5166 vcard:street-address "Hafenstr. 33" .
+:5166 gra:hasBuildingArea "6380"^^xsd:M2 .
+:5166 gra:hasLandArea "270000"^^xsd:M2 .
+:5166 gra:hasPVSystem "True"^^xsd:boolean .
+:5166 gra:investor agents:leer .
+:5166 gra:officeArea "0"^^xsd:M2 .
+:5166 gra:usedAs usages:LDL .
+:5166 gra:yearOfConstruction "2009"^^xsd:gYear .
+:5166 rec:operatedBy agents:BLG-Logistics-Group-AG-CO-KG .
+:5166 rec:nace-code 45.1 .
+:6 schema:customer agents:anonym .
+:6 a rec:Building .
+:6 geo:lat "48.137108".
+:6 geo:long "11.575382".
+:6 vcard:locality "München" .
+:6 vcard:postal-code "81379" .
+:6 vcard:region "Bayern" .
+:6 vcard:street-address "anonym anonym" .
+:6 gra:hasBuildingArea "13600"^^xsd:M2 .
+:6 gra:hasLandArea "29750"^^xsd:M2 .
+:6 gra:hasPVSystem "True"^^xsd:boolean .
+:6 gra:investor agents:anonym .
+:6 gra:officeArea "0"^^xsd:M2 .
+:6 gra:usedAs usages:LDL .
+:6 gra:yearOfConstruction "2021"^^xsd:gYear .
+:6 rec:operatedBy agents:Wettbewerber-1 .
+:6 rec:nace-code 29.0 .
+:7 schema:customer agents:anonym .
+:7 a rec:Building .
+:7 geo:lat "49.453872".
+:7 geo:long "11.077298".
+:7 vcard:locality "Nürnberg" .
+:7 vcard:postal-code "90451" .
+:7 vcard:region "Bayern" .
+:7 vcard:street-address "anonym anonym" .
+:7 gra:hasBuildingArea "35470"^^xsd:M2 .
+:7 gra:hasLandArea "67800"^^xsd:M2 .
+:7 gra:hasPVSystem "True"^^xsd:boolean .
+:7 gra:investor agents:anonym .
+:7 gra:officeArea "0"^^xsd:M2 .
+:7 gra:usedAs usages:LDL .
+:7 gra:yearOfConstruction "2008"^^xsd:gYear .
+:7 rec:operatedBy agents:Wettbewerber-1 .
+:7 rec:nace-code 53.1 .
+:8 schema:customer agents:anonym .
+:8 a rec:Building .
+:8 geo:lat "50.051855".
+:8 geo:long "10.222092".
+:8 vcard:locality "Schweinfurt" .
+:8 vcard:postal-code "97421" .
+:8 vcard:region "Bayern" .
+:8 vcard:street-address "anonym anonym" .
+:8 gra:hasBuildingArea "6460"^^xsd:M2 .
+:8 gra:hasLandArea "15100"^^xsd:M2 .
+:8 gra:hasPVSystem "True"^^xsd:boolean .
+:8 gra:investor agents:anonym .
+:8 gra:officeArea "550"^^xsd:M2 .
+:8 gra:usedAs usages:LDL .
+:8 gra:yearOfConstruction "2010"^^xsd:gYear .
+:8 rec:operatedBy agents:Wettbewerber-1 .
+:8 rec:nace-code 52.0 .
+:9 schema:customer agents:anonym .
+:9 a rec:Building .
+:9 geo:lat "50.32963".
+:9 geo:long "11.708413".
+:9 vcard:locality "Naila" .
+:9 vcard:postal-code "95119" .
+:9 vcard:region "Bayern" .
+:9 vcard:street-address "anonym anonym" .
+:9 gra:hasBuildingArea "1370"^^xsd:M2 .
+:9 gra:hasLandArea "9150"^^xsd:M2 .
+:9 gra:hasPVSystem "True"^^xsd:boolean .
+:9 gra:investor agents:anonym .
+:9 gra:officeArea "0"^^xsd:M2 .
+:9 gra:usedAs usages:LDL .
+:9 gra:yearOfConstruction "2016"^^xsd:gYear .
+:9 rec:operatedBy agents:Wettbewerber-1 .
+:9 rec:nace-code 53.0 .
