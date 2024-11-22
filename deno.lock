@@ -21,6 +21,7 @@
     "npm:@fontsource/roboto@^5.1.0": "5.1.0",
     "npm:@mui/icons-material@^6.1.6": "6.1.6_@mui+material@6.1.6__@emotion+react@11.13.3___react@18.3.1__@emotion+styled@11.13.0___@emotion+react@11.13.3____react@18.3.1___react@18.3.1__@types+react@18.3.12__react@18.3.1__react-dom@18.3.1___react@18.3.1_@types+react@18.3.12_react@18.3.1_@emotion+react@11.13.3__react@18.3.1_@emotion+styled@11.13.0__@emotion+react@11.13.3___react@18.3.1__react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@mui/material@^6.1.6": "6.1.6_@emotion+react@11.13.3__react@18.3.1_@emotion+styled@11.13.0__@emotion+react@11.13.3___react@18.3.1__react@18.3.1_@types+react@18.3.12_react@18.3.1_react-dom@18.3.1__react@18.3.1",
+    "npm:@mui/utils@^6.1.7": "6.1.7_@types+react@18.3.12_react@18.3.1",
     "npm:@rdfjs/types@^1.1.2": "1.1.2",
     "npm:@types/leaflet@^1.9.14": "1.9.14",
     "npm:@types/react-dom@^18.3.1": "18.3.1",
@@ -527,7 +528,7 @@
         "@mui/core-downloads-tracker",
         "@mui/system",
         "@mui/types",
-        "@mui/utils",
+        "@mui/utils@6.1.6_@types+react@18.3.12_react@18.3.1",
         "@popperjs/core",
         "@types/react",
         "@types/react-transition-group",
@@ -544,7 +545,7 @@
       "integrity": "sha512-ioAiFckaD/fJSnTrUMWgjl9HYBWt7ixCh7zZw7gDZ+Tae7NuprNV6QJK95EidDT7K0GetR2rU3kAeIR61Myttw==",
       "dependencies": [
         "@babel/runtime",
-        "@mui/utils",
+        "@mui/utils@6.1.6_@types+react@18.3.12_react@18.3.1",
         "@types/react",
         "prop-types",
         "react"
@@ -573,7 +574,7 @@
         "@mui/private-theming",
         "@mui/styled-engine",
         "@mui/types",
-        "@mui/utils",
+        "@mui/utils@6.1.6_@types+react@18.3.12_react@18.3.1",
         "@types/react",
         "clsx",
         "csstype",
@@ -589,6 +590,19 @@
     },
     "@mui/utils@6.1.6_@types+react@18.3.12_react@18.3.1": {
       "integrity": "sha512-sBS6D9mJECtELASLM+18WUcXF6RH3zNxBRFeyCRg8wad6NbyNrdxLuwK+Ikvc38sTZwBzAz691HmSofLqHd9sQ==",
+      "dependencies": [
+        "@babel/runtime",
+        "@mui/types",
+        "@types/prop-types",
+        "@types/react",
+        "clsx",
+        "prop-types",
+        "react",
+        "react-is@18.3.1"
+      ]
+    },
+    "@mui/utils@6.1.7_@types+react@18.3.12_react@18.3.1": {
+      "integrity": "sha512-Gr7cRZxBoZ0BIa3Xqf/2YaUrBLyNPJvXPQH3OsD9WMZukI/TutibbQBVqLYpgqJn8pKSjbD50Yq2auG0wI1xOw==",
       "dependencies": [
         "@babel/runtime",
         "@mui/types",
@@ -1800,6 +1814,7 @@
         "npm:@fontsource/roboto@^5.1.0",
         "npm:@mui/icons-material@^6.1.6",
         "npm:@mui/material@^6.1.6",
+        "npm:@mui/utils@^6.1.7",
         "npm:@rdfjs/types@^1.1.2",
         "npm:@types/leaflet@^1.9.14",
         "npm:@types/react-dom@^18.3.1",

@@ -141,13 +141,13 @@ export default function Energy({ selectedBuilding }: EnergyProps) {
         },
         beginAtZero: true,
         max: Math.max(
-          ...Object.values(energy["energy need"] || []),
-          ...Object.values(energy["energy generation"] || []),
-          ...Object.values(energy["energy storage"] || []),
-          ...Object.values(energy["energy distribution"] || []),
-          ...Object.values(energy["energy transfer"] || []),
-          ...Object.values(energy["energy usage"] || []),
-          ...Object.values(energy["environmental factor"] || [])
+          ...Object.values(energy["energyNeed"] || []),
+          ...Object.values(energy["energyGeneration"] || []),
+          ...Object.values(energy["energyStorage"] || []),
+          ...Object.values(energy["energyDistribution"] || []),
+          ...Object.values(energy["energyTransfer"] || []),
+          ...Object.values(energy["energyUsage"] || []),
+          ...Object.values(energy["environmentalFactor"] || [])
         ),
       },
     },
@@ -220,13 +220,13 @@ export default function Energy({ selectedBuilding }: EnergyProps) {
         <Typography variant="body1"><strong>id: <Link to={`https://solid.ti.rw.fau.de/private/granergize/buildings.ttl#${energy.id}`}>https://solid.ti.rw.fau.de/private/granergize/buildings.ttl#{energy.id}</Link></strong></Typography>
         <Divider />
         <Stack spacing={2}>
-          {createEnergyGrid("energy need")}
-          {createEnergyGrid("energy generation")}
-          {createEnergyGrid("energy storage")}
-          {createEnergyGrid("energy distribution")}
-          {createEnergyGrid("energy transfer")}
-          {createEnergyGrid("energy usage")}
-          {createEnergyGrid("environmental factor")}
+          {createEnergyGrid("energyNeed")}
+          {createEnergyGrid("energyGeneration")}
+          {createEnergyGrid("energyStorage")}
+          {createEnergyGrid("energyDistribution")}
+          {createEnergyGrid("energyTransfer")}
+          {createEnergyGrid("energyUsage")}
+          {createEnergyGrid("environmentalFactor")}
         </Stack>
         <Link to="/">🠠 Back to map overview</Link>
       </CardContent>

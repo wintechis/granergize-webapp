@@ -3,28 +3,36 @@ import type { Quad } from "@rdfjs/types";
 
 const parser = new Parser();
 
-export async function loadTTLFile(url: string): Promise<Array<Quad>> {
+export async function loadTtl(url: string, localPath: string): Promise<Array<Quad>> {
   try {
     const response = await fetch(url);
     
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }
-    
     const graphString = await response.text();
-    const quads: Array<Quad> = [];
-    
-    return new Promise((resolve, reject) => {
-      parser.parse(graphString, (error: Error, quad: Quad, prefixes: any) => {
-        if (error) reject(error);
-        if (quad) quads.push(quad);
-        else resolve(quads);
-      });
-    });
+    return parseQuads(graphString);
   } catch (error: unknown) {
-    if (error instanceof Error) {
-      throw new Error(`Failed to load TTL file from ${url}: ${error.message}`);
+    console.error(`Failed to fetch from ${url}: ${error}`);
+    // Fallback to local file
+    try {
+      const graphString = await Deno.readTextFile(localPath);
+      console.warn(`Loaded data from local file: ${localPath}`);
+      return parseQuads(graphString);
+    } catch (localError) {
+      console.error(`Failed to read local file ${localPath}: ${localError}`);
+      throw new Error(`Failed to load data from both ${url} and ${localPath}.`);
     }
-    throw new Error(`Failed to load TTL file from ${url}: Unknown error`);
   }
+}
+
+function parseQuads(graphString: string): Promise<Array<Quad>> {
+  return new Promise((resolve, reject) => {
+    const quads: Array<Quad> = [];
+    parser.parse(graphString, (error: unknown, quad: Quad) => {
+      if (error) reject(error);
+      if (quad) quads.push(quad);
+      else resolve(quads);
+    });
+  });
 }

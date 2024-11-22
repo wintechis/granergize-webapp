@@ -1,0 +1,52 @@
+@prefix : <#> .
+@prefix schema: <https://schema.org/> .
+@prefix rec: <https://w3id.org/rec#> .
+
+:0 a rec:Agent ;
+    schema:name "0" .
+
+:BLG-Logistics-Group-AG-CO-KG a rec:Agent ;
+    schema:name "BLG Logistics Group AG & CO. KG" .
+
+:Dietz-AG a rec:Agent ;
+    schema:name "Dietz AG" .
+
+:Friedrich-Zufall-GmbH-Co-KG a rec:Agent ;
+    schema:name "Friedrich Zufall GmbH & Co. KG" .
+
+:PUMA-SE a rec:Agent ;
+    schema:name "PUMA SE" .
+
+:Suzuki-International-Europe a rec:Agent ;
+    schema:name "Suzuki International Europe" .
+
+:Wettbewerber-1 a rec:Agent ;
+    schema:name "Wettbewerber 1" .
+
+:Wettbewerber-2 a rec:Agent ;
+    schema:name "Wettbewerber 2" .
+
+:Wettbewerber-3 a rec:Agent ;
+    schema:name "Wettbewerber 3" .
+
+:Wettbewerber-4 a rec:Agent ;
+    schema:name "Wettbewerber 4" .
+
+:Wettbewerber-5 a rec:Agent ;
+    schema:name "Wettbewerber 5" .
+
+:Wettbewerber-6 a rec:Agent ;
+    schema:name "Wettbewerber 6" .
+
+:Wettbewerber-7 a rec:Agent ;
+    schema:name "Wettbewerber 7" .
+
+:Wettbewerber-8 a rec:Agent ;
+    schema:name "Wettbewerber 8" .
+
+:anonym a rec:Agent ;
+    schema:name "anonym" .
+
+:leer a rec:Agent ;
+    schema:name "leer" .
+

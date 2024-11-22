@@ -27,66 +27,92 @@ export type AgentType = {
 
 export type EnergyType = {
     "id": number;
-    "energy need": EnergyNeed;
-    "energy generation": EnergyGeneration;
-    "energy storage": EnergyStorage;
-    "energy distribution": EnergyDistribution;
-    "energy transfer": EnergyTransfer;
-    "energy usage": EnergyUsage;
-    "environmental factor": EnvironmentalFactor;
+    "energyNeed": EnergyNeed;
+    "energyGeneration": EnergyGeneration;
+    "energyStorage": EnergyStorage;
+    "energyDistribution": EnergyDistribution;
+    "energyTransfer": EnergyTransfer;
+    "energyUsage": EnergyUsage;
+    "environmentalFactor": EnvironmentalFactor;
 };
 
 type EnergyNeed = {
     "gas"?: number;
     "electricity"?: number;
-    "grid supply"?: number;
+    "gridSupply"?: number;
     "solar"?: number;
+    "solarSpaceHeating"?: number;
     "photovoltaic"?: number;
-    "self consumption"?: number;
-    "grid feed in"?: number;
-    "hall heating from waste loss"?: number;
-    "frost protection HRL from waste loss"?: number;
-    "ambient heat"?: number;
-    "ventilation heat"?: number;
-    "person heat"?: number;
-    "wood chips"?: number;
+    "selfConsumption"?: number;
+    "gridFeedIn"?: number;
+    "hallHeatingFromWasteLoss"?: number;
+    "frostProtectionHBWFromWasteLoss"?: number;
+    "ambientHeat"?: number;
+    "ventilationHeat"?: number;
+    "personHeat"?: number;
+    "groundwater"?: number;
+    "woodChips"?: number;
 };
 
 type EnergyGeneration = {
-    "hall lighting"?: number;
-    "heat generation"?: number;
-    "HRL heat"?: number;
-    "hall heat"?: number;
+    "hallLighting"?: number;
+    "heatGeneration"?: number;
+    "HbwHeat"?: number;
+    "hallHeat"?: number;
 };
 
 type EnergyStorage = {
-    "FFZ battery charging"?: number;
-    "heat storage"?: number;
+    "forklistBatteryCharging"?: number;
+    "heatStorage"?: number;
 };
 
 type EnergyDistribution = {
-    "heat distribution"?: number;
-    "intralogistics hall"?: number,
-    "intralogistics HRL"?: number,
-    "hall heat"?: number,
-    "HRL heat"?: number
+    "heatDistribution"?: number;
+    "intralogisticsHallDistribution"?: number,
+    "intralogisticsHbwDistribution"?: number,
+    "hallHeatDistribution"?: number,
+    "HbwHeatDistribution"?: number
 };
 
 type EnergyTransfer = {
-    "intralogistics hall"?: number,
-    "intralogistics HRL"?: number,
-    "hall heat"?: number,
-    "HRL heat"?: number
-    "heat transfer"?: number,
-    "FFZ"?: number
+    "intralogisticsHallTransfer"?: number,
+    "intralogisticsHbwTransfer"?: number,
+    "hallHeatTransfer"?: number,
+    "HbwHeatTransfer"?: number
+    "heatTransfer"?: number,
+    "ForkliftTransfer"?: number
 };
 
 type EnergyUsage = {
-    "hall space heating"? : number,
+    "hallSpaceHeating"? : number,
     "work"?: number,
-    "HRL frost protection"?: number,
+    "HbwFrostProtection"?: number,
 };
 
 type EnvironmentalFactor = {
     "cold"?: number;
-}
+};
+
+type EnergyMix = {
+    energyConsumption: EnergyConsumption;
+    energyProduction: EnergyProduction;
+};
+
+type EnergyConsumption = {
+    value: number;
+    renewableEnergyShare: number;
+};
+
+type EnergyProduction = {
+    hydroShare: number;
+    windShare: number;
+    solarShare: number;
+    biomassShare: number;
+    geothermalShare: number;
+    hydroProduction: number;
+    windProduction: number;
+    solarProduction: number;
+    biomassProduction: number;
+    geothermalProduction: number;
+    totalRenewableProduction: number;
+};

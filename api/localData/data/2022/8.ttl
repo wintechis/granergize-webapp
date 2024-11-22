@@ -1,0 +1,317 @@
+@prefix : <#> .
+@prefix gra: <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rec: <https://w3id.org/rec#> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix ssn: <http://www.w3.org/ns/ssn/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix buildings: <https://solid.ti.rw.fau.de/private/granergize/buildings.ttl#> .
+
+#########################################################
+# Energy Need Observations
+#########################################################
+
+# Electricity Need Observation
+:ElectricityNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:Electricity ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "314266"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Grid Supply Need Observation
+:GridSupplyNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:GridSupply ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "115365"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Solar Need Observation
+:SolarNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:Solar ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "458817"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Space Heating Need Observation
+:SpaceHeatingNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:solarSpaceHeating ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "75442"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Photovoltaic Need Observation
+:PhotovoltaicNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:Photovoltaic ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "383375"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Self Consumption Need Observation
+:SelfConsumptionNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:SelfConsumption ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "198901"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Grid Feed In Need Observation
+:GridFeedInNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:GridFeedIn ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "184474"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Ambient Heat Need Observation
+:AmbientHeatNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:AmbientHeat ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "42744"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Ventilation Heat Need Observation
+:VentilationHeatNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:VentilationHeat ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "45364"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Groundwater Need Observation
+:GroundwaterNeedObs a sosa:Observation ;
+    sosa:observedProperty gra:Groundwater ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "327282"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+#########################################################
+# Energy Generation Observations
+#########################################################
+
+# Hall Lighting Generation Observation
+:HallLightingGenerationObs a sosa:Observation ;
+    sosa:observedProperty gra:HallLighting ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "83080"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Heat Generation Observation
+:HeatGenerationObs a sosa:Observation ;
+    sosa:observedProperty gra:HeatGeneration ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "427991"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+#########################################################
+# Energy Storage Observations
+#########################################################
+
+# FFZ Battery Charging Observation
+:forklistBatteryChargingObs a sosa:Observation ;
+    sosa:observedProperty gra:forklistBatteryCharging ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "126961"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Heat Storage Observation
+:HeatStorageObs a sosa:Observation ;
+    sosa:observedProperty gra:HeatStorage ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "425975"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+#########################################################
+# Energy Distribution Observations
+#########################################################
+
+# Heat Distribution Observation
+:HeatDistributionObs a sosa:Observation ;
+    sosa:observedProperty gra:HeatDistribution ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "425410"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+#########################################################
+# Energy Transfer Observations
+#########################################################
+
+# Heat Transfer Observation
+:HeatTransferObs a sosa:Observation ;
+    sosa:observedProperty gra:HeatTransfer ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "394856"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# FFZ Transfer Observation
+:ForkliftTransferObs a sosa:Observation ;
+    sosa:observedProperty gra:ForkliftTransfer ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "138298"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+#########################################################
+# Energy Usage Observations
+#########################################################
+
+# Hall Space Heating Usage Observation
+:HallSpaceHeatingUsageObs a sosa:Observation ;
+    sosa:observedProperty gra:HallSpaceHeating ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "712246"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+# Work Usage Observation
+:WorkUsageObs a sosa:Observation ;
+    sosa:observedProperty gra:Work ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "100619"^^xsd:float ;
+        ssn:hasUnit "kWh"
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
+
+#########################################################
+# Environmental Factor Observations
+#########################################################
+
+# Cold Environmental Factor Observation
+:ColdEnvironmentalFactorObs a sosa:Observation ;
+    sosa:observedProperty gra:Cold ;
+    sosa:hasFeatureOfInterest buildings:8 ;
+    sosa:hasResult [
+        a sosa:Result ;
+        sosa:hasSimpleResult "4574"^^xsd:float ;
+        ssn:hasUnit "K"  # Assuming the unit is Kelvin
+    ] ;
+    sosa:phenomenonTime [
+        time:hasBeginning "2023-01-01T00:00:00Z"^^xsd:dateTime ;
+        time:hasEnd "2023-12-31T23:59:59Z"^^xsd:dateTime
+    ] .
