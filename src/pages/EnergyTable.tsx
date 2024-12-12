@@ -12,11 +12,14 @@ import {
   TableSortLabel,
   TablePagination,
 } from '@mui/material';
+import { TableCellProps } from '@mui/material/TableCell';
 import { visuallyHidden } from '@mui/utils';
+
+type SortDirection = TableCellProps['sortDirection'];
 
 type Order = 'asc' | 'desc';
 
-interface Field<DataType> {
+export interface Field<DataType> {
   id: keyof DataType | 'name';
   label: string;
   numeric: boolean;
@@ -38,7 +41,7 @@ interface EnergyTableProps<DataType> {
   linkPrefix?: string;
 }
 
-function EnergyTable<DataType>(props: EnergyTableProps<DataType>) {
+function EnergyTable<DataType extends { [key: string]: React.ReactNode }>(props: EnergyTableProps<DataType>) {
   const {
     title,
     data,

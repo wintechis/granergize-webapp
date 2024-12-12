@@ -65,7 +65,7 @@ export default function Map() {
         Map of Granergize buildings
       </Typography>
       <Typography variant="body1" paragraph>
-        Created by the <a href="https://www.ti.rw.fau.de/">FAU Chair of Technical Information Systems</a> for the research project <a href="#">Granergize</a>. Contact: <a href="mailto:thomas.wehr@fau.de">Thomas Wehr</a>
+        Created by the <a href="https://www.ti.rw.fau.de/">FAU Chair of Technical Information Systems</a> in cooperation with the <a href="https://www.scs.fraunhofer.de/">Fraunhofer Department for Risk and Location Analyses</a> for the research project <a href="#">Granergize</a>. Contact: <a href="mailto:thomas.wehr@fau.de">Thomas Wehr</a>
       </Typography>
       <Grid2 container spacing={2} sx={{ height: 'calc(100vh - 200px)' }}>
         <Grid2 size={8} sx={{ height: '100%', overflow: 'auto' }}>
@@ -81,7 +81,7 @@ export default function Map() {
               url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
             />
             {buildings.map((building: BuildingType) => (
-              <Marker
+              (building.lat && building.long && <Marker
                 key={building.id}
                 position={[building.lat, building.long]}
                 icon={selectedBuilding && selectedBuilding.id === building.id ? selectedIcon : defaultIcon}
@@ -91,7 +91,7 @@ export default function Map() {
                   },
                 }}
               >
-              </Marker>
+              </Marker>)
             ))}
             {selectedBuilding && (
               <Building building={selectedBuilding} onHide={() => setSelectedBuilding(null)} />

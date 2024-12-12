@@ -1,22 +1,22 @@
-export type BuildingType = {
+export interface BuildingType {
     id: number;
-    customer: string;
     type: string;
-    lat: number;
-    long: number;
-    locality: string;
-    "postal code": number;
-    region: string;
-    "street address": string;
-    "building area": number;
-    "land area": number;
-    "has pv system": boolean;
-    investor: string;
-    "office area": number;
-    "used as": string;
-    "year of construction": number;
-    "nace code": number;
-    "operated by": string;
+    customer?: string;
+    lat?: number;
+    long?: number;
+    locality?: string;
+    postalCode?: number;
+    region?: string;
+    streetAddress?: string;
+    buildingArea?: number;
+    landArea?: number;
+    hasPVSystem?: boolean;
+    investor?: string;
+    officeArea?: number;
+    usedAs?: string;
+    yearOfConstruction?: number;
+    naceCode?: number;
+    operatedBy?: string;
 };
 
 export type AgentType = {
@@ -26,84 +26,84 @@ export type AgentType = {
 };
 
 export type EnergyType = {
-    "id": number;
-    "energyNeed": EnergyNeed;
-    "energyGeneration": EnergyGeneration;
-    "energyStorage": EnergyStorage;
-    "energyDistribution": EnergyDistribution;
-    "energyTransfer": EnergyTransfer;
-    "energyUsage": EnergyUsage;
-    "environmentalFactor": EnvironmentalFactor;
+    id: number;
+    energyNeed: EnergyNeed;
+    energyGeneration: EnergyGeneration;
+    energyStorage: EnergyStorage;
+    energyDistribution: EnergyDistribution;
+    energyTransfer: EnergyTransfer;
+    energyUsage: EnergyUsage;
+    environmentalFactor: EnvironmentalFactor;
 };
 
 type EnergyNeed = {
-    "gas"?: number;
-    "electricity"?: number;
-    "gridSupply"?: number;
-    "solar"?: number;
-    "solarSpaceHeating"?: number;
-    "photovoltaic"?: number;
-    "selfConsumption"?: number;
-    "gridFeedIn"?: number;
-    "hallHeatingFromWasteLoss"?: number;
-    "frostProtectionHBWFromWasteLoss"?: number;
-    "ambientHeat"?: number;
-    "ventilationHeat"?: number;
-    "personHeat"?: number;
-    "groundwater"?: number;
-    "woodChips"?: number;
+    gas?: number;
+    electricity?: number;
+    gridSupply?: number;
+    solar?: number;
+    solarSpaceHeating?: number;
+    photovoltaic?: number;
+    selfConsumption?: number;
+    gridFeedIn?: number;
+    hallHeatingFromWasteLoss?: number;
+    frostProtectionHBWFromWasteLoss?: number;
+    ambientHeat?: number;
+    ventilationHeat?: number;
+    personHeat?: number;
+    groundwater?: number;
+    woodChips?: number;
 };
 
 type EnergyGeneration = {
-    "hallLighting"?: number;
-    "heatGeneration"?: number;
-    "HbwHeat"?: number;
-    "hallHeat"?: number;
+    hallLighting?: number;
+    heatGeneration?: number;
+    HbwHeat?: number;
+    hallHeat?: number;
 };
 
 type EnergyStorage = {
-    "forklistBatteryCharging"?: number;
-    "heatStorage"?: number;
+    forklistBatteryCharging?: number;
+    heatStorage?: number;
 };
 
 type EnergyDistribution = {
-    "heatDistribution"?: number;
-    "intralogisticsHallDistribution"?: number,
-    "intralogisticsHbwDistribution"?: number,
-    "hallHeatDistribution"?: number,
-    "HbwHeatDistribution"?: number
+    heatDistribution?: number;
+    intralogisticsHallDistribution?: number,
+    intralogisticsHbwDistribution?: number,
+    hallHeatDistribution?: number,
+    HbwHeatDistribution?: number
 };
 
 type EnergyTransfer = {
-    "intralogisticsHallTransfer"?: number,
-    "intralogisticsHbwTransfer"?: number,
-    "hallHeatTransfer"?: number,
-    "HbwHeatTransfer"?: number
-    "heatTransfer"?: number,
-    "ForkliftTransfer"?: number
+    intralogisticsHallTransfer?: number,
+    intralogisticsHbwTransfer?: number,
+    hallHeatTransfer?: number,
+    HbwHeatTransfer?: number
+    heatTransfer?: number,
+    ForkliftTransfer?: number
 };
 
 type EnergyUsage = {
-    "hallSpaceHeating"? : number,
-    "work"?: number,
-    "HbwFrostProtection"?: number,
+    hallSpaceHeating? : number,
+    work?: number,
+    HbwFrostProtection?: number,
 };
 
 type EnvironmentalFactor = {
-    "cold"?: number;
+    cold?: number;
 };
 
-type EnergyMix = {
+export type EnergyMix = {
     energyConsumption: EnergyConsumption;
     energyProduction: EnergyProduction;
 };
 
-type EnergyConsumption = {
+export type EnergyConsumption = {
     value: number;
     renewableEnergyShare: number;
 };
 
-type EnergyProduction = {
+export type EnergyProduction = {
     hydroShare: number;
     windShare: number;
     solarShare: number;
