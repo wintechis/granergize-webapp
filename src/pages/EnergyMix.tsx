@@ -3,22 +3,10 @@ import EnergyTable from './EnergyTable'; // Adjust the path as needed
 import { Box } from '@mui/material';
 import cities from '../data/cities.json';
 import districts from '../data/districts.json';
+import type { EnergyConsumption, EnergyProduction } from '../../types/types.ts';
+import { Field } from "./EnergyTable.tsx";
 
 type Order = 'asc' | 'desc';
-
-interface EnergyConsumption {
-  value: number;
-  renewableEnergyShare: number;
-}
-
-interface EnergyProductionData {
-  hydroShare: number;
-  windShare: number;
-  solarShare: number;
-  biomassShare: number;
-  geothermalShare: number;
-  totalRenewableProduction: number;
-}
 
 const citiesMap = new Map(cities.map((city) => [city.id, city.name]));
 const districtsMap = new Map(districts.map((district) => [district.id, district.name]));
@@ -27,7 +15,7 @@ export default function EnergyMix() {
   // State for fetched data
   const [energyMix, setEnergyMix] = useState<{
     energyConsumption: Record<string, EnergyConsumption>;
-    energyProduction: Record<string, EnergyProductionData>;
+    energyProduction: Record<string, EnergyProduction>;
   } | null>(null);
 
   // State and functions for Consumption Table
@@ -37,7 +25,7 @@ export default function EnergyMix() {
   const [rowsPerConsumptionPage, setRowsPerConsumptionPage] = useState(10);
 
   // State and functions for Production Table
-  const [orderProductionBy, setOrderProductionBy] = useState<'name' | keyof EnergyProductionData>('totalRenewableProduction');
+  const [orderProductionBy, setOrderProductionBy] = useState<'name' | keyof EnergyProduction>('totalRenewableProduction');
   const [productionOrder, setProductionOrder] = useState<Order>('desc');
   const [productionPage, setProductionPage] = useState(0);
   const [rowsPerProductionPage, setRowsPerProductionPage] = useState(10);
@@ -110,13 +98,13 @@ export default function EnergyMix() {
   );
 
   // Define fields for Consumption Table
-  const consumptionFields = [
+  const consumptionFields: Field<EnergyConsumption>[] = [
     { id: 'value', label: 'Consumption (MWh)', numeric: true },
     { id: 'renewableEnergyShare', label: 'Renewable Share (%)', numeric: true, isPercentage: true },
   ];
 
   // Define fields for Production Table
-  const productionFields = [
+  const productionFields: Field<EnergyProduction>[] = [
     { id: 'hydroShare', label: 'Hydro (%)', numeric: true, isPercentage: true },
     { id: 'windShare', label: 'Wind (%)', numeric: true, isPercentage: true },
     { id: 'solarShare', label: 'Solar (%)', numeric: true, isPercentage: true },
@@ -150,7 +138,7 @@ export default function EnergyMix() {
       />
 
       {/* Energy Production Table */}
-      <EnergyTable<EnergyProductionData>
+      <EnergyTable<EnergyProduction>
         title="Energy Production"
         data={paginatedProductionData}
         fields={productionFields}

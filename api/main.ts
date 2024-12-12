@@ -1,7 +1,7 @@
 import { Application, Router } from "@oak/oak";
 import { oakCors } from "@tajpouria/cors";
-import { parseEnergyMeasurements, parseEnergyMix } from "./util/parser.ts";
-import routeStaticFilesFrom from "./util/routeStaticFilesFrom.ts";
+import { parseEnergyMeasurements, parseEnergyMix } from "./utils/parser.ts";
+import routeStaticFilesFrom from "./utils/routeStaticFilesFrom.ts";
 
 const app = new Application();
 const router = new Router();
@@ -91,5 +91,5 @@ app.use(routeStaticFilesFrom(["./public", "./dist"]));
 
 // Start server
 const port = 8000;
-console.log(`Server running on http://localhost:${port}`);
+console.log(`Backend running on http://localhost:${port}`);
 await app.listen({ port });

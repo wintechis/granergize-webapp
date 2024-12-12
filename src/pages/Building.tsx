@@ -44,24 +44,24 @@ export default function Building({ building, onHide }: BuildingProps) {
         }
         subheader={
           <>
-            {building["street address"]}
+            {building["streetAddress"]}
             <br />
-            {`${building["postal code"]} ${building.locality}, ${building.region}`}
+            {`${building["postalCode"]} ${building.locality}, ${building.region}`}
           </>
         }
       />
       <CardContent>
-        <Typography variant="body1"><strong>Customer:</strong> {createAgentLink(building.customer)}</Typography>
-        <Typography variant="body1"><strong>Operated By:</strong> {createAgentLink(building["operated by"])}</Typography>
-        <Typography variant="body1"><strong>Type:</strong> {createTypeLink(building.type)}</Typography>
-        <Typography variant="body1"><strong>Coordinates:</strong> {createCoordinatesLink(building.lat, building.long)} </Typography>
-        <Typography variant="body1"><strong>Building Area:</strong> {building["building area"]} m²</Typography>
-        <Typography variant="body1"><strong>Land Area:</strong> {building["land area"]} m²</Typography>
-        <Typography variant="body1"><strong>Office Area:</strong> {building["office area"]} m²</Typography>
-        <Typography sx={{ display: "flex", alignItems: "center" }} variant="body1"><strong>Has PV System:</strong> {building["has pv system"] == true ? <CheckIcon /> : <ClearIcon />}</Typography>
-        <Typography variant="body1"><strong>Investor:</strong> {createAgentLink(building.investor)}</Typography>
-        <Typography variant="body1"><strong>Year of Construction:</strong> {building["year of construction"]}</Typography>
-        <Typography variant="body1"><strong>NACE Code:</strong> {createNaceLink(building["nace code"])}</Typography>
+        <Typography variant="body1"><strong>Customer:</strong> {building.customer && createAgentLink(building.customer)}</Typography>
+        <Typography variant="body1"><strong>Operated By:</strong> {building["operatedBy"] && createAgentLink(building["operatedBy"])}</Typography>
+        <Typography variant="body1"><strong>Type:</strong> {building.type && createTypeLink(building.type)}</Typography>
+        <Typography variant="body1"><strong>Coordinates:</strong> {building.lat && building.long && createCoordinatesLink(building.lat, building.long)} </Typography>
+        <Typography variant="body1"><strong>Building Area:</strong> {building["buildingArea"]} m²</Typography>
+        <Typography variant="body1"><strong>Land Area:</strong> {building["landArea"]} m²</Typography>
+        <Typography variant="body1"><strong>Office Area:</strong> {building["officeArea"]} m²</Typography>
+        <Typography sx={{ display: "flex", alignItems: "center" }} variant="body1"><strong>Has PV System:</strong> {building["hasPVSystem"] == true ? <CheckIcon /> : <ClearIcon />}</Typography>
+        <Typography variant="body1"><strong>Investor:</strong> {building.investor && createAgentLink(building.investor)}</Typography>
+        <Typography variant="body1"><strong>Year of Construction:</strong> {building["yearOfConstruction"]}</Typography>
+        <Typography variant="body1"><strong>NACE Code:</strong> {building["naceCode"] && createNaceLink(building["naceCode"])}</Typography>
         <Link to="#" onClick={onHide}>hide</Link>
       </CardContent>
     </Card>
