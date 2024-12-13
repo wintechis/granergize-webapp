@@ -189,8 +189,8 @@
 #########################################################
 
 # FFZ Battery Charging Observation
-:forklistBatteryChargingObs a sosa:Observation ;
-    sosa:observedProperty gra:forklistBatteryCharging ;
+:forkliftBatteryChargingObs a sosa:Observation ;
+    sosa:observedProperty gra:forkliftBatteryCharging ;
     sosa:hasFeatureOfInterest buildings:10226 ;
     sosa:hasResult [
         a sosa:Result ;
