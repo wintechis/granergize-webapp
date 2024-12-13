@@ -1,4 +1,3 @@
-// parser.ts
 import { loadTtl } from "../loader.ts";
 import { parseBuildings } from "./buildingParser.ts";
 import { parseAgents } from "./agentParser.ts";
@@ -24,16 +23,64 @@ export async function parseEnergyMeasurements() {
   const agents = parseAgents(agentsQuads);
   const energyData = new Map<number, EnergyType>();
 
+  // Object to store aggregated values for each measurement
+  const aggregatedValues: Record<string, number[]> = {};
+  const agentAggregatedValues: Record<string, Record<string, number[]>> = {};
+
   // Load energy data
-  for (const [buildingId, _building] of buildings) {
+  for (const [buildingId, building] of buildings) {
     try {
       const energyQuads = await loadTtl(
         `https://solid.ti.rw.fau.de/private/granergize/data/2023/${buildingId}.ttl`,
         `${Deno.cwd()}/api/localData/data/2022/${buildingId}.ttl`
       );
-      energyData.set(parseInt(buildingId), parseEnergyData(buildingId, energyQuads));
+      const parsedEnergyData = parseEnergyData(buildingId, energyQuads);
+      energyData.set(parseInt(buildingId), parsedEnergyData);
+
+      // Aggregate values for each measurement
+      for (const category in parsedEnergyData) {
+        const categoryData = parsedEnergyData[category as keyof EnergyType] as Record<string, number>;
+        for (const property in categoryData) {
+          if (!aggregatedValues[property]) {
+            aggregatedValues[property] = [];
+          }
+          aggregatedValues[property].push(categoryData[property]);
+
+          // Aggregate values by agent
+          const agent = building.operatedBy;
+          if (!agent) {
+            continue;
+          }
+          if (!agentAggregatedValues[agent]) {
+            agentAggregatedValues[agent] = {};
+          }
+          if (!agentAggregatedValues[agent][property]) {
+            agentAggregatedValues[agent][property] = [];
+          }
+          agentAggregatedValues[agent][property].push(categoryData[property]);
+        }
+      }
     } catch (error: unknown) {
       throw new Error(`Failed to load energy data for building ${buildingId}: ${error}`);
+    }
+  }
+
+  // Calculate averages
+  const averages: Record<string, number> = {};
+  for (const property in aggregatedValues) {
+    const values = aggregatedValues[property];
+    const sum = values.reduce((acc, val) => acc + val, 0);
+    averages[property] = sum / values.length;
+  }
+
+  // Calculate averages by agent
+  const agentAverages: Record<string, Record<string, number>> = {};
+  for (const agent in agentAggregatedValues) {
+    agentAverages[agent] = {};
+    for (const property in agentAggregatedValues[agent]) {
+      const values = agentAggregatedValues[agent][property];
+      const sum = values.reduce((acc, val) => acc + val, 0);
+      agentAverages[agent][property] = sum / values.length;
     }
   }
 
@@ -41,6 +88,8 @@ export async function parseEnergyMeasurements() {
     buildings: Array.from(buildings.values()),
     agents: Array.from(agents.values()),
     energyNeed: Array.from(energyData.values()),
+    averages,
+    agentAverages,
   };
 }
 

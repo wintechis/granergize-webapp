@@ -68,7 +68,7 @@ export default function Map() {
         Created by the <a href="https://www.ti.rw.fau.de/">FAU Chair of Technical Information Systems</a> in cooperation with the <a href="https://www.scs.fraunhofer.de/">Fraunhofer Department for Risk and Location Analyses</a> for the research project <a href="#">Granergize</a>. Contact: <a href="mailto:thomas.wehr@fau.de">Thomas Wehr</a>
       </Typography>
       <Grid2 container spacing={2} sx={{ height: 'calc(100vh - 200px)' }}>
-        <Grid2 size={8} sx={{ height: '100%', overflow: 'auto' }}>
+        <Grid2 size={7} sx={{ height: '100%', overflow: 'auto' }}>
           <MapContainer
             className="map-container"
             center={[50.976558, 10.404674]}
@@ -98,7 +98,7 @@ export default function Map() {
             )}
           </MapContainer>
         </Grid2>
-        <Grid2 size={4} sx={{ height: '100%', overflow: 'auto' }}>
+        <Grid2 size={5} sx={{ height: '100%', overflow: 'auto' }}>
           {
             !selectedEnergy && 
             <Typography variant="h4">Select a marker to show details</Typography>
@@ -106,7 +106,7 @@ export default function Map() {
           {
             selectedEnergy &&
             selectedBuilding && (
-              <Energy selectedBuilding={selectedBuilding.id.toString()} />
+              <Energy selectedBuilding={selectedBuilding.id.toString()} operatedBy={selectedBuilding.operatedBy?.toString()} />
             )
           }
         </Grid2>

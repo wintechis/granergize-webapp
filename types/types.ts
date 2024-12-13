@@ -62,7 +62,7 @@ type EnergyGeneration = {
 };
 
 type EnergyStorage = {
-    forklistBatteryCharging?: number;
+    forkliftBatteryCharging?: number;
     heatStorage?: number;
 };
 

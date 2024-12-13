@@ -7,7 +7,7 @@ const app = new Application();
 const router = new Router();
 // Initialize data
 const data = await parseEnergyMeasurements();
-const { agents, buildings, energyNeed } = data;
+const { agents, buildings, energyNeed, averages, agentAverages } = data;
 
 const energyMix = await parseEnergyMix();
 
@@ -73,6 +73,10 @@ router.get("/api/energy/:building", (context) => {
   );
 
   context.response.body = energy;
+});
+
+router.get("/api/energy-averages", (context) => {
+  context.response.body = {averages, agentAverages};
 });
 
 router.get("/api/energy-mix", (context) => {
