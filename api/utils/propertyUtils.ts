@@ -11,7 +11,7 @@ export function getPropertyCategory(property: string): string {
       "hallLighting", "heatGeneration", "hbwHeat", "hallHeat"
     ],
     energyStorage: [
-      "forklistBatteryCharging", "heatStorage"
+      "forkliftBatteryCharging", "heatStorage"
     ],
     energyDistribution: [
       "heatDistribution", "intralogisticsHallDistribution", "intralogisticsHbwDistribution",

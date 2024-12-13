@@ -30,6 +30,10 @@ import {
   BarElement,
   Title,
 } from 'chart.js';
+import MenuItem from '@mui/material/MenuItem';
+import Select from '@mui/material/Select';
+import FormControl from '@mui/material/FormControl';
+import InputLabel from '@mui/material/InputLabel';
 
 // Register the necessary components
 ChartJS.register(
@@ -59,10 +63,13 @@ const colorPalette = [
 
 type EnergyProps = {
   selectedBuilding: string;
+  operatedBy: string;
 };
 
-export default function Energy({ selectedBuilding }: EnergyProps) {
+export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
   const [energy, setEnergy] = useState<EnergyType | undefined>(undefined);
+  const [averages, setAverages] = useState<Record<string, number> | undefined>(undefined);
+  const [agentAverages, setAgentAverages] = useState<Record<string, Record<string, number>> | undefined>(undefined);
 
   useEffect(() => {
     (async () => {
@@ -72,8 +79,24 @@ export default function Energy({ selectedBuilding }: EnergyProps) {
     })();
   }, [selectedBuilding]);
 
-  if (!energy) {
+  useEffect(() => {
+    (async () => {
+      const resp = await fetch(`/api/energy-averages`);
+      const { averages, agentAverages } = await resp.json() as { averages: Record<string, number>, agentAverages: Record<string, Record<string, number>> };
+      setAverages(averages);
+      setAgentAverages(agentAverages);
+    })();
+  }, []);
+
+  if (!energy || !averages || !agentAverages) {
     return <div>Loading...</div>;
+  }
+
+  function formatNumber(value: number): string {
+    return new Intl.NumberFormat('de-DE', {
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2,
+    }).format(value);
   }
 
   function sumUpPropValues(obj: Record<string, unknown>): number {
@@ -156,6 +179,20 @@ export default function Energy({ selectedBuilding }: EnergyProps) {
     }
   };
 
+  function getBackgroundColor(value: number, average: number): string {
+    const deviation = value - average;
+    const percentageDeviation = Math.abs(deviation / average) * 100;
+    const saturation = Math.min(percentageDeviation, 100); // Cap saturation at 100%
+
+    if (deviation < 0) {
+      // Below average, green
+      return `rgba(0, 255, 0, ${saturation / 100})`;
+    } else {
+      // Above average, red
+      return `rgba(255, 0, 0, ${saturation / 100})`;
+    }
+  }
+
   function createEnergyGrid(title: keyof EnergyType) {
     if (!energy) {
       return null;
@@ -163,6 +200,7 @@ export default function Energy({ selectedBuilding }: EnergyProps) {
     if (!energy[title]) {
       return <></>;
     }
+    const agent = operatedBy; // Assuming energy object has operatedBy property
     return (
       <>
         <Typography variant="h5">{toTitleCase(title)}</Typography>
@@ -174,17 +212,32 @@ export default function Energy({ selectedBuilding }: EnergyProps) {
                   <TableRow>
                     <TableCell>Energy Type</TableCell>
                     <TableCell align="right">kWh</TableCell>
+                    <TableCell align="right">Industry Average kWh</TableCell>
+                    <TableCell align="right">Agent Average kWh</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {Object.entries(energy[title]).map(([key, value]) => (
-                    <TableRow hover key={key}>
-                      <TableCell component="th" scope="row">
-                        {key}
-                      </TableCell>
-                      <TableCell align="right">{value}</TableCell>
-                    </TableRow>
-                  ))}
+                  {Object.entries(energy[title]).map(([key, value]) => {
+                    const industryAverage = averages[key] || 0;
+                    const agentAverage = agentAverages[agent]?.[key] || 0;
+                    const comparisonValue = industryAverage;
+                    return (
+                      <TableRow hover key={key}>
+                        <TableCell component="th" scope="row">
+                          {key}
+                        </TableCell>
+                        <TableCell align="right" style={{ backgroundColor: getBackgroundColor(value, comparisonValue) }}>
+                          {formatNumber(value)}
+                        </TableCell>
+                        <TableCell align="right" style={{ backgroundColor: getBackgroundColor(industryAverage, comparisonValue) }}>
+                          {formatNumber(industryAverage)}
+                        </TableCell>
+                        <TableCell align="right" style={{ backgroundColor: getBackgroundColor(agentAverage, comparisonValue) }}>
+                          {formatNumber(agentAverage)}
+                        </TableCell>
+                      </TableRow>
+                    );
+                  })}
                 </TableBody>
                 <TableHead>
                   <TableRow hover>
@@ -192,8 +245,18 @@ export default function Energy({ selectedBuilding }: EnergyProps) {
                     <TableCell align="right">
                       <strong>
                         {typeof energy[title] === 'object' && energy[title] !== null 
-                          ? sumUpPropValues(energy[title] as Record<string, unknown>)
+                          ? formatNumber(sumUpPropValues(energy[title] as Record<string, unknown>))
                           : 0}
+                      </strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>
+                        {formatNumber(Object.keys(energy[title]).reduce((sum, key) => sum + (averages[key] || 0), 0))}
+                      </strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>
+                        {formatNumber(Object.keys(energy[title]).reduce((sum, key) => sum + (agentAverages[agent]?.[key] || 0), 0))}
                       </strong>
                     </TableCell>
                   </TableRow>
