@@ -78,7 +78,7 @@ export default function Map() {
           {isRightPaneLarge ? 'Shrink Details' : 'Enlarge Details'}
         </Button>
       </Box>
-      <Grid2 container spacing={2} sx={{ height: 'calc(100vh - 200px)' }}>
+      <Grid2 container spacing={2} sx={{ height: 'calc(100vh - 230px)' }}>
         <Grid2 size={isRightPaneLarge ? 3 : 8} sx={{ height: '100%', overflow: 'auto' }}>
           <MapContainer
             className="map-container"
