@@ -4,8 +4,7 @@
   "version": "0.0.0",
   "type": "module",
   "scripts": {
-    "dev": "deno task dev:api & deno task dev:vite",
-    "dev:api": "deno run --allow-env --allow-net --allow-read api/main.ts",
+    "dev": "deno task dev:vite",
     "dev:vite": "deno run -A npm:vite",
     "build": "tsc -b && vite build",
     "lint": "eslint .",
@@ -16,6 +15,7 @@
     "@emotion/react": "^11.13.3",
     "@emotion/styled": "^11.13.0",
     "@fontsource/roboto": "^5.1.0",
+    "@inrupt/solid-client-authn-browser": "^2.3.0",
     "@mui/icons-material": "^6.1.6",
     "@mui/material": "^6.1.6",
     "@mui/utils": "^6.1.7",

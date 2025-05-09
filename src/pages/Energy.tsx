@@ -1,22 +1,25 @@
-import { useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import { EnergyType } from "../../types/types.ts";
-import Card from '@mui/material/Card';
-import CardHeader from '@mui/material/CardHeader';
-import CardContent from '@mui/material/CardContent';
-import Container from '@mui/material/Container';
-import Divider from '@mui/material/Divider';
+import {
+  Box,
+  Card,
+  CardContent,
+  CardHeader,
+  CircularProgress,
+  Container,
+  Divider,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+  Paper
+ } from '@mui/material';
 import ElectricBoltIcon from '@mui/icons-material/ElectricBolt';
 import Item from '@mui/material/ListItem';
-import Stack from '@mui/material/Stack';
-import Table from '@mui/material/Table';
-import TableBody from '@mui/material/TableBody';
-import TableCell from '@mui/material/TableCell';
-import TableContainer from '@mui/material/TableContainer';
-import TableHead from '@mui/material/TableHead';
-import TableRow from '@mui/material/TableRow';
-import Typography from '@mui/material/Typography';
-import Paper from '@mui/material/Paper';
 import { Bar } from 'react-chartjs-2';
 import {
   Chart as ChartJS,
@@ -30,10 +33,8 @@ import {
   BarElement,
   Title,
 } from 'chart.js';
-import MenuItem from '@mui/material/MenuItem';
-import Select from '@mui/material/Select';
-import FormControl from '@mui/material/FormControl';
-import InputLabel from '@mui/material/InputLabel';
+import { useSolidData } from '../context/SolidDataContext.tsx';
+import React from "react";
 
 // Register the necessary components
 ChartJS.register(
@@ -67,29 +68,33 @@ type EnergyProps = {
 };
 
 export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
-  const [energy, setEnergy] = useState<EnergyType | undefined>(undefined);
-  const [averages, setAverages] = useState<Record<string, number> | undefined>(undefined);
-  const [agentAverages, setAgentAverages] = useState<Record<string, Record<string, number>> | undefined>(undefined);
+  const { energyNeed, averages, agentAverages, isLoading, error } = useSolidData();
+  
+  // Find the energy data for the selected building
+  const energy = energyNeed?.find(e => e.id.toString() === selectedBuilding);
 
-  useEffect(() => {
-    (async () => {
-      const resp = await fetch(`/api/energy/${selectedBuilding}`);
-      const energy = await resp.json() as EnergyType;
-      setEnergy(energy);
-    })();
-  }, [selectedBuilding]);
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100%">
+        <CircularProgress />
+      </Box>
+    );
+  }
 
-  useEffect(() => {
-    (async () => {
-      const resp = await fetch(`/api/energy-averages`);
-      const { averages, agentAverages } = await resp.json() as { averages: Record<string, number>, agentAverages: Record<string, Record<string, number>> };
-      setAverages(averages);
-      setAgentAverages(agentAverages);
-    })();
-  }, []);
+  if (error) {
+    return (
+      <Typography color="error">
+        Error loading data: {error}
+      </Typography>
+    );
+  }
 
   if (!energy || !averages || !agentAverages) {
-    return <div>Loading...</div>;
+    return (
+      <Typography>
+        No energy data available for this building. You may not have access to this data.
+      </Typography>
+    );
   }
 
   function formatNumber(value: number): string {
@@ -157,7 +162,7 @@ export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
       y: {
         title: {
           display: true,
-          text: 'kWh'
+          text: 'kWh / a'
         },
         afterFit: (scale) => {
           scale.width = 100;
@@ -204,16 +209,16 @@ export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
     return (
       <>
         <Typography variant="h5">{toTitleCase(title)}</Typography>
-        <Item component="div">
+        <Item component="div" sx={{ m: 0, p: 0}}>
           <Container>
             <TableContainer component={Paper}>
               <Table size="small">
                 <TableHead>
                   <TableRow>
                     <TableCell>Energy Type</TableCell>
-                    <TableCell align="right">kWh</TableCell>
-                    <TableCell align="right">Industry Average kWh</TableCell>
-                    <TableCell align="right">Agent Average kWh</TableCell>
+                    <TableCell align="right">kWh / a</TableCell>
+                    <TableCell align="right">Industry Average kWh / a</TableCell>
+                    <TableCell align="right">Agent Average kWh / a</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
@@ -277,10 +282,10 @@ export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
     <Card>
       <CardHeader
         avatar={<ElectricBoltIcon />}
-        title={<Typography variant="h4">Energy need for building {energy.id} in 2023</Typography>}
+        title={<Typography variant="h4">Energy Need for Building {energy.id} in 2023</Typography>}
       />
       <CardContent>
-        <Typography variant="body1"><strong>id: <Link to={`https://solid.ti.rw.fau.de/private/granergize/buildings.ttl#${energy.id}`}>https://solid.ti.rw.fau.de/private/granergize/buildings.ttl#{energy.id}</Link></strong></Typography>
+        <Typography variant="body1"><strong>id: <Link to={energy.uri}>{energy.uri}</Link></strong></Typography>
         <Divider />
         <Stack spacing={2}>
           {createEnergyGrid("energyNeed")}

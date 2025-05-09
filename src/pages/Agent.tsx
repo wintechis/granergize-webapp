@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { AgentType } from "../../types/types.ts";
 import Card from '@mui/material/Card';
@@ -6,21 +6,45 @@ import CardHeader from '@mui/material/CardHeader';
 import CardContent from '@mui/material/CardContent';
 import PersonIcon from '@mui/icons-material/Person';
 import Typography from '@mui/material/Typography';
+import Box from '@mui/material/Box';
+import CircularProgress from '@mui/material/CircularProgress';
+import { useSolidData } from '../context/SolidDataContext';
 
 export default function Agent() {
   const { selectedAgent } = useParams();
+  const { agents, isLoading, error } = useSolidData();
   const [agent, setAgent] = useState<AgentType | undefined>(undefined);
-
+  
+  // Find the agent in the data from SolidDataContext
   useEffect(() => {
-    (async () => {
-      const resp = await fetch(`/api/agents/${selectedAgent}`);
-      const agent = await resp.json() as AgentType;
-      setAgent(agent);
-    })();
-  }, [selectedAgent]);
+    if (agents && agents.length > 0) {
+      const foundAgent = agents.find(a => a.id.toString() === selectedAgent);
+      setAgent(foundAgent);
+    }
+  }, [agents, selectedAgent]);
+
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+
+  if (error) {
+    return (
+      <Typography color="error">
+        Error loading data: {error}
+      </Typography>
+    );
+  }
 
   if (!agent) {
-    return <div>Loading...</div>;
+    return (
+      <Typography>
+        Agent not found or you don't have access to view this agent.
+      </Typography>
+    );
   }
 
   function createTypeLink(uriString: string) {

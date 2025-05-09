@@ -1,6 +1,7 @@
 {
   "imports": {
     "@oak/oak": "jsr:@oak/oak@^17.1.2",
-    "@tajpouria/cors": "jsr:@tajpouria/cors@^1.2.1"
+    "@tajpouria/cors": "jsr:@tajpouria/cors@^1.2.1",
+    "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.1"
   }
 }
