@@ -1,5 +1,6 @@
 export interface BuildingType {
     id: number;
+    uri: string;
     type: string;
     customer?: string;
     lat?: number;
@@ -17,6 +18,13 @@ export interface BuildingType {
     yearOfConstruction?: number;
     naceCode?: number;
     operatedBy?: string;
+    energyData?: EnergyMeasurementData[];
+};
+
+export interface EnergyMeasurementData {
+    year: number;
+    location: string;
+    type: string;
 };
 
 export type AgentType = {
@@ -25,8 +33,14 @@ export type AgentType = {
     name: string;
 };
 
+export type WeatherType = {
+    id: string;
+    sunshineDuration?: number;
+};
+
 export type EnergyType = {
     id: number;
+    uri: string;
     energyNeed: EnergyNeed;
     energyGeneration: EnergyGeneration;
     energyStorage: EnergyStorage;

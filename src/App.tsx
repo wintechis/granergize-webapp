@@ -1,30 +1,45 @@
-import { useState, useEffect } from 'react';
-import Container from '@mui/material/Container';
-import { BrowserRouter, Route, Routes, useParams } from "react-router-dom";
+import { useParams } from 'react-router-dom';
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Agent from "./pages/Agent.tsx";
 import Energy from "./pages/Energy.tsx";
+import Container from '@mui/material/Container';
 import "./App.css";
-import type { BuildingType } from "../types/types.ts";
+import { useSolidData } from "./context/SolidDataContext";
+import CircularProgress from '@mui/material/CircularProgress';
+import Box from '@mui/material/Box';
+import Typography from '@mui/material/Typography';
 
 // Create wrapper components to handle URL params
 function BuildingWrapper() {
   const { selectedBuilding } = useParams();
-  const [building, setBuilding] = useState<BuildingType | undefined>(undefined);
-
-  useEffect(() => {
-    (async () => {
-      if (selectedBuilding) {
-        const response = await fetch(`/api/buildings/${selectedBuilding}`);
-        const buildingData = await response.json() as BuildingType;
-        setBuilding(buildingData);
-      }
-    })();
-  }, [selectedBuilding]);
-
+  const { buildings, isLoading, error } = useSolidData();
+  
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+  
+  if (error) {
+    return (
+      <Typography color="error">
+        Error loading data: {error}
+      </Typography>
+    );
+  }
+  
+  const building = buildings.find(b => b.id.toString() === selectedBuilding);
+  
   if (!building) {
-    return <div>Loading...</div>;
+    return (
+      <Typography>
+        Building not found or you don't have access to view this building.
+      </Typography>
+    );
   }
 
   return <Building building={building} onHide={() => {}} />;
@@ -32,16 +47,47 @@ function BuildingWrapper() {
 
 function EnergyWrapper() {
   const { selectedBuilding } = useParams();
-  return <Energy selectedBuilding={selectedBuilding || ""} />;
+  const { buildings, isLoading, error } = useSolidData();
+  
+  if (isLoading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="100vh">
+        <CircularProgress />
+      </Box>
+    );
+  }
+  
+  if (error) {
+    return (
+      <Typography color="error">
+        Error loading data: {error}
+      </Typography>
+    );
+  }
+  
+  const building = buildings.find(b => b.id.toString() === selectedBuilding);
+  
+  if (!building) {
+    return (
+      <Typography>
+        Building not found or you don't have access to view this building.
+      </Typography>
+    );
+  }
+
+  return <Energy selectedBuilding={selectedBuilding || ""} operatedBy={building.operatedBy?.toString()} />;
 }
 
+interface AppProps {
+  onLogout: () => void;
+}
 
-function App() {
+function App({ onLogout }: AppProps) {
   return (
     <Container maxWidth={false}>
       <BrowserRouter>
         <Routes>
-          <Route path="/" element={<Index />} />
+          <Route path="/" element={<Index onLogout={onLogout} />} />
           <Route path="/building/:selectedBuilding" element={<BuildingWrapper />} />
           <Route path="/agent/:selectedAgent" element={<Agent />} />
           <Route path="/energy/:selectedBuilding" element={<EnergyWrapper />} />
