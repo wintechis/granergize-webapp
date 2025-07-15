@@ -75,7 +75,7 @@ function EnergyWrapper() {
     );
   }
 
-  return <Energy selectedBuilding={selectedBuilding || ""} operatedBy={building.operatedBy?.toString()} />;
+  return <Energy selectedBuilding={selectedBuilding || ""} operatedBy={building.operatedBy?.toString() || ""} />;
 }
 
 interface AppProps {
