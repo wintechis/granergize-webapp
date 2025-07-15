@@ -92,7 +92,7 @@ export const Login: React.FC<LoginProps> = ({
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [sessionResponded, setSessionResponded] = useState(false);
-  const [clearInitialLoad, setClearInitialLoad] =
+  const [, setClearInitialLoad] =
     useState<ReturnType<typeof setTimeout>>();
 
   // State for new IDP input

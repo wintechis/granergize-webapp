@@ -3,7 +3,20 @@ import type { Quad } from "@rdfjs/types";
 
 const parser = new Parser();
 
-export async function loadTtl(url: string, localPath: string): Promise<Array<Quad>> {
+export async function loadTtl(url: string | null, localPath: string): Promise<Array<Quad>> {
+  // If no URL provided, load directly from local file
+  if (url === null) {
+    try {
+      const graphString = await Deno.readTextFile(localPath);
+      console.log(`Loaded data from local file: ${localPath}`);
+      return parseQuads(graphString);
+    } catch (localError) {
+      console.error(`Failed to read local file ${localPath}: ${localError}`);
+      throw new Error(`Failed to load data from ${localPath}.`);
+    }
+  }
+
+  // If URL provided: Try URL first, then fallback to local
   try {
     const response = await fetch(url);
     

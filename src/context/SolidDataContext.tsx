@@ -6,7 +6,6 @@ import type { BuildingType, EnergyType } from '../../types/types.ts';
 interface ContextState {
   buildings: BuildingType[];
   energyNeed: EnergyType[];
-  weather: any[];
   agents: any[];
   averages: Record<string, number>;
   agentAverages: Record<string, Record<string, number>>;
@@ -22,7 +21,6 @@ interface ContextState {
 const SolidDataContext = createContext<ContextState>({
   buildings: [],
   energyNeed: [],
-  weather: [],
   agents: [],
   averages: {},
   agentAverages: {},
@@ -35,7 +33,7 @@ const SolidDataContext = createContext<ContextState>({
 export const useSolidData = () => useContext(SolidDataContext);
 
 interface SolidDataProviderProps {
-  session: Session;
+  session: Session | null;
   children: React.ReactNode;
 }
 
@@ -46,12 +44,11 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   const [data, setData] = useState<Omit<ContextState, 'isLoading' | 'error' | 'reloadData' | 'energyMix'>>({
     buildings: [],
     energyNeed: [],
-    weather: [],
     agents: [],
     averages: {},
     agentAverages: {},
   });
-  const [energyMix, setEnergyMix] = useState(null);
+  const [energyMix, setEnergyMix] = useState<ContextState['energyMix']>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -68,8 +65,6 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
       // Load primary data
       const parsedData = await fetchAndParseData(session);
       setData(parsedData);
-
-      console.log("weather:", parsedData.weather);
 
       // Load energy mix data
       const mix = await parseEnergyMix(session);

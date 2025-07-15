@@ -34,7 +34,6 @@ import {
   Title,
 } from 'chart.js';
 import { useSolidData } from '../context/SolidDataContext.tsx';
-import React from "react";
 
 // Register the necessary components
 ChartJS.register(

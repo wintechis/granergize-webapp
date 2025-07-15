@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { BuildingType, EnergyType } from "../../types/types.ts";
 import Building from './Building.tsx';
 import {
   MapContainer,
@@ -14,6 +15,9 @@ import Energy from './Energy.tsx';
 import Button from '@mui/material/Button';
 import CircularProgress from '@mui/material/CircularProgress';
 import { useSolidData } from '../context/SolidDataContext.tsx';
+import Tabs from '@mui/material/Tabs';
+import Tab from '@mui/material/Tab';
+import WeatherData from "./WeatherData.tsx";
 
 // Define custom icons
 const defaultIcon = new L.Icon({
@@ -35,10 +39,11 @@ const selectedIcon = new L.Icon({
 });
 
 export default function Map() {
-  const { buildings, energyNeed, isLoading, error, reloadData } = useSolidData();
-  const [selectedBuilding, setSelectedBuilding] = useState(null);
-  const [selectedEnergy, setSelectedEnergy] = useState(null);
+  const { buildings, energyNeed, isLoading, error } = useSolidData();
+  const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(null);
+  const [selectedEnergy, setSelectedEnergy] = useState<EnergyType | null>(null);
   const [isRightPaneLarge, setIsRightPaneLarge] = useState(false);
+  const [activeTab, setActiveTab] = useState(0);
 
   // When a building is selected, find its energy data
   useEffect(() => {
@@ -54,6 +59,10 @@ export default function Map() {
     setIsRightPaneLarge(!isRightPaneLarge);
   };
 
+  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    setActiveTab(newValue);
+  };
+
   return (
     <Box>
       <Typography variant="h3" gutterBottom>
@@ -63,14 +72,6 @@ export default function Map() {
         Created by the <a href="https://www.ti.rw.fau.de/">FAU Chair of Technical Information Systems</a> in cooperation with the <a href="https://www.scs.fraunhofer.de/">Fraunhofer Department for Risk and Location Analyses</a> for the research project <a href="#">Granergize</a>. Contact: <a href="mailto:thomas.wehr@fau.de">Thomas Wehr</a>
       </Typography>
       <Box sx={{ display: 'flex', justifyContent: 'flex-end', padding: 1 }}>
-        <Button 
-          variant="contained" 
-          onClick={reloadData}
-          sx={{ mr: 2 }}
-          disabled={isLoading}
-        >
-          {isLoading ? <CircularProgress size={24} /> : "Refresh Data"}
-        </Button>
         <Button variant="contained" onClick={togglePaneSize}>
           {isRightPaneLarge ? 'Shrink Details' : 'Enlarge Details'}
         </Button>
@@ -120,16 +121,29 @@ export default function Map() {
           )}
         </Grid2>
         <Grid2 size={isRightPaneLarge ? 9 : 4} sx={{ height: '100%', overflow: 'auto' }}>
-          {
-            !selectedEnergy && 
+          {!selectedBuilding ? (
             <Typography variant="h4">Select a marker to show details</Typography>
-          }
-          {
-            selectedEnergy &&
-            selectedBuilding && (
-              <Energy selectedBuilding={selectedBuilding.id.toString()} operatedBy={selectedBuilding.operatedBy?.toString()} />
-            )
-          }
+          ) : (
+            <Box sx={{ width: '100%' }}>
+              <Box sx={{ borderBottom: 1, borderColor: 'divider' }}>
+                <Tabs value={activeTab} onChange={handleTabChange} aria-label="building data tabs">
+                  <Tab label="Energy Data" />
+                  <Tab label="Weather Data" />
+                </Tabs>
+              </Box>
+              <Box sx={{ padding: 2 }}>
+                {activeTab === 0 && selectedEnergy && (
+                  <Energy 
+                    selectedBuilding={selectedBuilding.id.toString()} 
+                    operatedBy={selectedBuilding.operatedBy?.toString() || ""} 
+                  />
+                )}
+                {activeTab === 1 && (
+                  <WeatherData building={selectedBuilding} />
+                )}
+              </Box>
+            </Box>
+          )}
         </Grid2>
       </Grid2>
     </Box>
