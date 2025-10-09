@@ -1,7 +1,7 @@
 @prefix wd: <http://www.wikidata.org/entity/> .
 @prefix gra: <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
 
-wd:Q1728  # Ingolstadt
+wd:Q3004  # Ingolstadt
     gra:renewableEnergyProduction [
         gra:hydroShare 0 ;
         gra:windShare 44.6 ;
@@ -16,7 +16,7 @@ wd:Q1728  # Ingolstadt
         gra:totalRenewableProduction 202146
     ] .
 
-wd:Q10494  # München (Stadt)
+wd:Q1726  # München (Stadt)
     gra:renewableEnergyProduction [
         gra:hydroShare 0 ;
         gra:windShare 45.1 ;
@@ -31,7 +31,7 @@ wd:Q10494  # München (Stadt)
         gra:totalRenewableProduction 143940
     ] .
 
-wd:Q2079  # Rosenheim (Stadt)
+wd:Q4007  # Rosenheim (Stadt)
     gra:renewableEnergyProduction [
         gra:hydroShare 0 ;
         gra:windShare 11.6 ;

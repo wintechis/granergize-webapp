@@ -1,0 +1,689 @@
+{
+  "energyConsumption": {
+    "Q3004": {
+      "value": 1616813,
+      "renewableEnergyShare": 12.5
+    },
+    "Q1726": {
+      "value": 7172096,
+      "renewableEnergyShare": 2
+    },
+    "Q4007": {
+      "value": 279807,
+      "renewableEnergyShare": 34.3
+    },
+    "Q10533": {
+      "value": 4436725,
+      "renewableEnergyShare": 32.3
+    },
+    "Q10530": {
+      "value": 472252,
+      "renewableEnergyShare": 39.3
+    },
+    "Q10522": {
+      "value": 424023,
+      "renewableEnergyShare": 150
+    },
+    "Q10500": {
+      "value": 494723,
+      "renewableEnergyShare": 67.1
+    },
+    "Q10541": {
+      "value": 491674,
+      "renewableEnergyShare": 34.4
+    },
+    "Q10491": {
+      "value": 759119,
+      "renewableEnergyShare": 78.5
+    },
+    "Q10539": {
+      "value": 474594,
+      "renewableEnergyShare": 137
+    },
+    "Q10497": {
+      "value": 861011,
+      "renewableEnergyShare": 70.5
+    },
+    "Q10502": {
+      "value": 633086,
+      "renewableEnergyShare": 37.9
+    },
+    "Q10518": {
+      "value": 263762,
+      "renewableEnergyShare": 42.7
+    },
+    "Q10507": {
+      "value": 580321,
+      "renewableEnergyShare": 149
+    },
+    "Q10523": {
+      "value": 417347,
+      "renewableEnergyShare": 25
+    },
+    "Q10537": {
+      "value": 591755,
+      "renewableEnergyShare": 88.7
+    },
+    "Q10544": {
+      "value": 1869959,
+      "renewableEnergyShare": 24.2
+    },
+    "Q10493": {
+      "value": 563607,
+      "renewableEnergyShare": 110
+    },
+    "Q10496": {
+      "value": 826597,
+      "renewableEnergyShare": 52.7
+    },
+    "Q10526": {
+      "value": 1425204,
+      "renewableEnergyShare": 95.8
+    },
+    "Q10504": {
+      "value": 490327,
+      "renewableEnergyShare": 19.1
+    },
+    "Q10528": {
+      "value": 1471397,
+      "renewableEnergyShare": 43.5
+    },
+    "Q10516": {
+      "value": 959930,
+      "renewableEnergyShare": 60
+    },
+    "Q10485": {
+      "value": 1559741,
+      "renewableEnergyShare": 31.7
+    },
+    "Q10487": {
+      "value": 335665,
+      "renewableEnergyShare": 84
+    },
+    "Q10474": {
+      "value": 935378,
+      "renewableEnergyShare": 59.6
+    },
+    "Q10475": {
+      "value": 597196,
+      "renewableEnergyShare": 156
+    },
+    "Q10489": {
+      "value": 1349503,
+      "renewableEnergyShare": 107
+    },
+    "Q10483": {
+      "value": 406168,
+      "renewableEnergyShare": 52.9
+    },
+    "Q10477": {
+      "value": 447060,
+      "renewableEnergyShare": 245
+    },
+    "Q10482": {
+      "value": 442633,
+      "renewableEnergyShare": 123
+    },
+    "Q10480": {
+      "value": 913988,
+      "renewableEnergyShare": 99.9
+    },
+    "Q10421": {
+      "value": 499467,
+      "renewableEnergyShare": 95.2
+    },
+    "Q10424": {
+      "value": 641284,
+      "renewableEnergyShare": 69.7
+    },
+    "Q10427": {
+      "value": 674817,
+      "renewableEnergyShare": 136
+    },
+    "Q10420": {
+      "value": 498006,
+      "renewableEnergyShare": 81.2
+    },
+    "Q10429": {
+      "value": 648419,
+      "renewableEnergyShare": 83.2
+    },
+    "Q10423": {
+      "value": 1143385,
+      "renewableEnergyShare": 57.2
+    },
+    "Q10419": {
+      "value": 639325,
+      "renewableEnergyShare": 57.1
+    },
+    "Q10444": {
+      "value": 562471,
+      "renewableEnergyShare": 94.5
+    },
+    "Q10439": {
+      "value": 355652,
+      "renewableEnergyShare": 137
+    },
+    "Q10440": {
+      "value": 416566,
+      "renewableEnergyShare": 73.1
+    },
+    "Q10445": {
+      "value": 475134,
+      "renewableEnergyShare": 38.3
+    },
+    "Q10431": {
+      "value": 625899,
+      "renewableEnergyShare": 110
+    },
+    "Q10434": {
+      "value": 539073,
+      "renewableEnergyShare": 24.6
+    },
+    "Q10436": {
+      "value": 359291,
+      "renewableEnergyShare": 90.8
+    },
+    "Q10442": {
+      "value": 343735,
+      "renewableEnergyShare": 53.9
+    },
+    "Q10432": {
+      "value": 453860,
+      "renewableEnergyShare": 59.4
+    },
+    "Q10454": {
+      "value": 923167,
+      "renewableEnergyShare": 156
+    },
+    "Q10447": {
+      "value": 572467,
+      "renewableEnergyShare": 42.6
+    },
+    "Q10455": {
+      "value": 354204,
+      "renewableEnergyShare": 67
+    },
+    "Q10449": {
+      "value": 951745,
+      "renewableEnergyShare": 14.4
+    },
+    "Q10456": {
+      "value": 485117,
+      "renewableEnergyShare": 145
+    },
+    "Q10451": {
+      "value": 505960,
+      "renewableEnergyShare": 63.1
+    },
+    "Q10453": {
+      "value": 493548,
+      "renewableEnergyShare": 131
+    },
+    "Q10471": {
+      "value": 841559,
+      "renewableEnergyShare": 28.8
+    },
+    "Q10466": {
+      "value": 401444,
+      "renewableEnergyShare": 88.8
+    },
+    "Q10465": {
+      "value": 390684,
+      "renewableEnergyShare": 58.3
+    },
+    "Q10462": {
+      "value": 782523,
+      "renewableEnergyShare": 56.1
+    },
+    "Q10459": {
+      "value": 446460,
+      "renewableEnergyShare": 89.1
+    },
+    "Q10472": {
+      "value": 854051,
+      "renewableEnergyShare": 34.1
+    },
+    "Q10469": {
+      "value": 879024,
+      "renewableEnergyShare": 60.2
+    },
+    "Q10461": {
+      "value": 353597,
+      "renewableEnergyShare": 115
+    },
+    "Q10458": {
+      "value": 572695,
+      "renewableEnergyShare": 123
+    },
+    "Q10415": {
+      "value": 607337,
+      "renewableEnergyShare": 116
+    },
+    "Q10414": {
+      "value": 2130924,
+      "renewableEnergyShare": 37.3
+    },
+    "Q10417": {
+      "value": 568453,
+      "renewableEnergyShare": 129
+    },
+    "Q10412": {
+      "value": 696685,
+      "renewableEnergyShare": 78.3
+    },
+    "Q10410": {
+      "value": 1159295,
+      "renewableEnergyShare": 43.5
+    },
+    "Q10401": {
+      "value": 374063,
+      "renewableEnergyShare": 20.2
+    },
+    "Q10405": {
+      "value": 721433,
+      "renewableEnergyShare": 121
+    },
+    "Q10408": {
+      "value": 991105,
+      "renewableEnergyShare": 80.1
+    },
+    "Q10418": {
+      "value": 977811,
+      "renewableEnergyShare": 94.7
+    },
+    "Q10402": {
+      "value": 706904,
+      "renewableEnergyShare": 59.4
+    },
+    "Q3974": {
+      "value": 399899,
+      "renewableEnergyShare": 21.4
+    },
+    "Q4190": {
+      "value": 374947,
+      "renewableEnergyShare": 131
+    },
+    "Q7027": {
+      "value": 296271,
+      "renewableEnergyShare": 51
+    },
+    "Q7042": {
+      "value": 315034,
+      "renewableEnergyShare": 11.7
+    },
+    "Q2978": {
+      "value": 1284731,
+      "renewableEnergyShare": 9.1
+    },
+    "Q14803": {
+      "value": 251681,
+      "renewableEnergyShare": 16.5
+    },
+    "Q3936": {
+      "value": 549352,
+      "renewableEnergyShare": 12.2
+    },
+    "Q3923": {
+      "value": 425973,
+      "renewableEnergyShare": 7.1
+    },
+    "Q14821": {
+      "value": 262585,
+      "renewableEnergyShare": 15.9
+    },
+    "Q6938": {
+      "value": 238424,
+      "renewableEnergyShare": 15.7
+    },
+    "Q14859": {
+      "value": 262532,
+      "renewableEnergyShare": 34.2
+    },
+    "Q3126": {
+      "value": 606277,
+      "renewableEnergyShare": 4.7
+    },
+    "Q3075": {
+      "value": 523610,
+      "renewableEnergyShare": 9.2
+    },
+    "Q2090": {
+      "value": 2723016,
+      "renewableEnergyShare": 4.1
+    },
+    "Q14889": {
+      "value": 163084,
+      "renewableEnergyShare": 10.1
+    },
+    "Q3942": {
+      "value": 563699,
+      "renewableEnergyShare": 6.5
+    },
+    "Q4126": {
+      "value": 653191,
+      "renewableEnergyShare": 13
+    },
+    "Q2999": {
+      "value": 675320,
+      "renewableEnergyShare": 12.1
+    },
+    "Q2749": {
+      "value": 1655655,
+      "renewableEnergyShare": 13.4
+    },
+    "Q14805": {
+      "value": 232126,
+      "renewableEnergyShare": 17.6
+    },
+    "Q3994": {
+      "value": 392478,
+      "renewableEnergyShare": 26.9
+    },
+    "Q14825": {
+      "value": 293908,
+      "renewableEnergyShare": 14
+    }
+  },
+  "energyProduction": {
+    "Q3004": {
+      "hydroShare": 0,
+      "windShare": 44.6,
+      "solarShare": 0,
+      "biomassShare": 27.1,
+      "geothermalShare": 28.3,
+      "hydroProduction": 0,
+      "windProduction": 90154,
+      "solarProduction": 0,
+      "biomassProduction": 54769,
+      "geothermalProduction": 57223,
+      "totalRenewableProduction": 202146
+    },
+    "Q1726": {
+      "hydroShare": 0,
+      "windShare": 45.1,
+      "solarShare": 4.6,
+      "biomassShare": 40.8,
+      "geothermalShare": 9.5,
+      "hydroProduction": 0,
+      "windProduction": 64920,
+      "solarProduction": 6586,
+      "biomassProduction": 58726,
+      "geothermalProduction": 13709,
+      "totalRenewableProduction": 143940
+    },
+    "Q4007": {
+      "hydroShare": 0,
+      "windShare": 11.6,
+      "solarShare": 0,
+      "biomassShare": 15.1,
+      "geothermalShare": 73.3,
+      "hydroProduction": 0,
+      "windProduction": 11109,
+      "solarProduction": 0,
+      "biomassProduction": 14526,
+      "geothermalProduction": 70388,
+      "totalRenewableProduction": 96023
+    },
+    "Q10533": {
+      "hydroShare": 0,
+      "windShare": 71.8,
+      "solarShare": 0,
+      "biomassShare": 17.6,
+      "geothermalShare": 8.6,
+      "hydroProduction": 2,
+      "windProduction": 1028475,
+      "solarProduction": 0,
+      "biomassProduction": 251941,
+      "geothermalProduction": 123333,
+      "totalRenewableProduction": 1432357
+    },
+    "Q10530": {
+      "hydroShare": 0,
+      "windShare": 55,
+      "solarShare": 0,
+      "biomassShare": 33.3,
+      "geothermalShare": 11.7,
+      "hydroProduction": 0,
+      "windProduction": 102052,
+      "solarProduction": 0,
+      "biomassProduction": 61788,
+      "geothermalProduction": 21677,
+      "totalRenewableProduction": 185517
+    },
+    "Q10522": {
+      "hydroShare": 0,
+      "windShare": 84.4,
+      "solarShare": 0,
+      "biomassShare": 11.1,
+      "geothermalShare": 4.6,
+      "hydroProduction": 0,
+      "windProduction": 536198,
+      "solarProduction": 0,
+      "biomassProduction": 70300,
+      "geothermalProduction": 29131,
+      "totalRenewableProduction": 635629
+    },
+    "Q10500": {
+      "hydroShare": 0,
+      "windShare": 6.2,
+      "solarShare": 11.2,
+      "biomassShare": 49.1,
+      "geothermalShare": 33.5,
+      "hydroProduction": 0,
+      "windProduction": 20440,
+      "solarProduction": 37167,
+      "biomassProduction": 163045,
+      "geothermalProduction": 111239,
+      "totalRenewableProduction": 331891
+    },
+    "Q10541": {
+      "hydroShare": 0,
+      "windShare": 1.1,
+      "solarShare": 1.8,
+      "biomassShare": 58.9,
+      "geothermalShare": 38.2,
+      "hydroProduction": 0,
+      "windProduction": 1896,
+      "solarProduction": 3119,
+      "biomassProduction": 99680,
+      "geothermalProduction": 64654,
+      "totalRenewableProduction": 169349
+    },
+    "Q10491": {
+      "hydroShare": 0,
+      "windShare": 0.49,
+      "solarShare": 32.3,
+      "biomassShare": 40.8,
+      "geothermalShare": 26.5,
+      "hydroProduction": 0,
+      "windProduction": 2910,
+      "solarProduction": 192514,
+      "biomassProduction": 242829,
+      "geothermalProduction": 157640,
+      "totalRenewableProduction": 595893
+    },
+    "Q10539": {
+      "hydroShare": 0,
+      "windShare": 39.3,
+      "solarShare": 0,
+      "biomassShare": 23.9,
+      "geothermalShare": 36.8,
+      "hydroProduction": 0,
+      "windProduction": 255272,
+      "solarProduction": 0,
+      "biomassProduction": 155583,
+      "geothermalProduction": 239129,
+      "totalRenewableProduction": 649984
+    },
+    "Q10497": {
+      "hydroShare": 0,
+      "windShare": 33.9,
+      "solarShare": 1.9,
+      "biomassShare": 39.7,
+      "geothermalShare": 24.5,
+      "hydroProduction": 0,
+      "windProduction": 206139,
+      "solarProduction": 11320,
+      "biomassProduction": 241048,
+      "geothermalProduction": 148735,
+      "totalRenewableProduction": 607242
+    },
+    "Q10502": {
+      "hydroShare": 0,
+      "windShare": 5.6,
+      "solarShare": 5.1,
+      "biomassShare": 56.7,
+      "geothermalShare": 32.6,
+      "hydroProduction": 0,
+      "windProduction": 13344,
+      "solarProduction": 12154,
+      "biomassProduction": 136026,
+      "geothermalProduction": 78228,
+      "totalRenewableProduction": 239752
+    },
+    "Q10518": {
+      "hydroShare": 0,
+      "windShare": 27.9,
+      "solarShare": 0,
+      "biomassShare": 34.9,
+      "geothermalShare": 37.2,
+      "hydroProduction": 0,
+      "windProduction": 31431,
+      "solarProduction": 0,
+      "biomassProduction": 39354,
+      "geothermalProduction": 41914,
+      "totalRenewableProduction": 112699
+    },
+    "Q10507": {
+      "hydroShare": 0,
+      "windShare": 59.7,
+      "solarShare": 3.6,
+      "biomassShare": 26.9,
+      "geothermalShare": 9.8,
+      "hydroProduction": 0,
+      "windProduction": 514871,
+      "solarProduction": 30956,
+      "biomassProduction": 231876,
+      "geothermalProduction": 84562,
+      "totalRenewableProduction": 862265
+    },
+    "Q10523": {
+      "hydroShare": 0,
+      "windShare": 24.8,
+      "solarShare": 0,
+      "biomassShare": 48.9,
+      "geothermalShare": 6.2,
+      "hydroProduction": 20,
+      "windProduction": 25867,
+      "solarProduction": 0,
+      "biomassProduction": 50982,
+      "geothermalProduction": 6507,
+      "totalRenewableProduction": 104219
+    },
+    "Q10537": {
+      "hydroShare": 0,
+      "windShare": 35.4,
+      "solarShare": 0,
+      "biomassShare": 40.9,
+      "geothermalShare": 23.7,
+      "hydroProduction": 0,
+      "windProduction": 185692,
+      "solarProduction": 0,
+      "biomassProduction": 214664,
+      "geothermalProduction": 124568,
+      "totalRenewableProduction": 524923
+    },
+    "Q10544": {
+      "hydroShare": 0,
+      "windShare": 21.9,
+      "solarShare": 0,
+      "biomassShare": 22.8,
+      "geothermalShare": 55.2,
+      "hydroProduction": 20.4,
+      "windProduction": 99085,
+      "solarProduction": 0,
+      "biomassProduction": 103485,
+      "geothermalProduction": 157836,
+      "totalRenewableProduction": 452973
+    },
+    "Q10493": {
+      "hydroShare": 0,
+      "windShare": 43.5,
+      "solarShare": 1.2,
+      "biomassShare": 46.5,
+      "geothermalShare": 8.9,
+      "hydroProduction": 0,
+      "windProduction": 268775,
+      "solarProduction": 7280,
+      "biomassProduction": 287199,
+      "geothermalProduction": 54739,
+      "totalRenewableProduction": 617993
+    },
+    "Q10496": {
+      "hydroShare": 0,
+      "windShare": 26.1,
+      "solarShare": 12.7,
+      "biomassShare": 40.9,
+      "geothermalShare": 20.3,
+      "hydroProduction": 0,
+      "windProduction": 113616,
+      "solarProduction": 55481,
+      "biomassProduction": 177942,
+      "geothermalProduction": 88409,
+      "totalRenewableProduction": 435448
+    },
+    "Q10526": {
+      "hydroShare": 0,
+      "windShare": 70.5,
+      "solarShare": 0,
+      "biomassShare": 16.9,
+      "geothermalShare": 12.7,
+      "hydroProduction": 0,
+      "windProduction": 962293,
+      "solarProduction": 0,
+      "biomassProduction": 230172,
+      "geothermalProduction": 172696,
+      "totalRenewableProduction": 1365161
+    },
+    "Q10504": {
+      "hydroShare": 0,
+      "windShare": 1.5,
+      "solarShare": 25.4,
+      "biomassShare": 66.4,
+      "geothermalShare": 6.7,
+      "hydroProduction": 0,
+      "windProduction": 1365,
+      "solarProduction": 23716,
+      "biomassProduction": 62050,
+      "geothermalProduction": 6293,
+      "totalRenewableProduction": 93424
+    },
+    "Q10528": {
+      "hydroShare": 0,
+      "windShare": 21.1,
+      "solarShare": 1,
+      "biomassShare": 39,
+      "geothermalShare": 33.9,
+      "hydroProduction": 5,
+      "windProduction": 135095,
+      "solarProduction": 6410,
+      "biomassProduction": 249735,
+      "geothermalProduction": 217223,
+      "totalRenewableProduction": 640223
+    },
+    "Q10516": {
+      "hydroShare": 0,
+      "windShare": 49.8,
+      "solarShare": 0.12,
+      "biomassShare": 30.7,
+      "geothermalShare": 19.4,
+      "hydroProduction": 0,
+      "windProduction": 286695,
+      "solarProduction": 693,
+      "biomassProduction": 176446,
+      "geothermalProduction": 111700,
+      "totalRenewableProduction": 575534
+    }
+  }
+}

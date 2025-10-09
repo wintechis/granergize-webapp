@@ -9,6 +9,8 @@ const router = new Router();
 // Initialize energy mix data
 const energyMix = await parseEnergyMix();
 
+console.log("Energy Mix Data Loaded:", JSON.stringify(energyMix));
+
 router.get("/api/energy-mix", (context) => {
   context.response.body = energyMix;
 });
