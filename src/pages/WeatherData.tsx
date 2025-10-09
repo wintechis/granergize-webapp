@@ -40,8 +40,16 @@ const parameterTitles: Record<string, string> = {
   [WeatherParameters.PRECIPITATION_ANNUAL]: "Precipitation Annual",
 };
 
+// Map of parameter names to their units
+const parameterUnits: Record<string, string> = {
+  [WeatherParameters.SUNSHINE_DURATION_ANNUAL]: "h",
+  [WeatherParameters.TEMPERATURE_MEAN_ANNUAL]: "°C",
+  [WeatherParameters.PRECIPITATION_ANNUAL]: "mm",
+};
+
 export default function WeatherData({ building }: WeatherDataProps) {
   const [isLoading, setIsLoading] = useState(false);
+  const [isLoadingStations, setIsLoadingStations] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedParameter, setSelectedParameter] = useState<string>(WeatherParameters.TEMPERATURE_MEAN_ANNUAL);
   const [stations, setStations] = useState<Station[]>([]);
@@ -53,7 +61,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
     if (!building || !building.lat || !building.long) return;
     
     const fetchStations = async () => {
-      setIsLoading(true);
+      setIsLoadingStations(true);
       setError(null);
     try {
       const nearbyStations = (await wetterdienstClient.getStations({
@@ -76,7 +84,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
         console.error("Error fetching weather stations:", err);
         setError(err instanceof Error ? err.message : "Failed to fetch weather stations");
       } finally {
-        setIsLoading(false);
+        setIsLoadingStations(false);
       }
     };
     
@@ -132,6 +140,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
                 value={selectedParameter}
                 onChange={(e) => setSelectedParameter(e.target.value)}
                 label="Weather Parameter"
+                disabled={isLoadingStations}
               >
                 {Object.entries(parameterTitles).map(([value, label]) => (
                   <MenuItem key={value} value={value}>{label}</MenuItem>
@@ -147,12 +156,26 @@ export default function WeatherData({ building }: WeatherDataProps) {
                 value={selectedStation || ''}
                 onChange={(e) => setSelectedStation(e.target.value)}
                 label="Weather Station"
+                endAdornment={
+                  isLoadingStations && (
+                    <Box sx={{ mr: 1 }}>
+                      <CircularProgress size={20} />
+                    </Box>
+                  )
+                }
               >
-                {stations.map((station) => (
-                  <MenuItem key={station.station_id} value={station.station_id}>
-                    {station.name} ({station.station_id}) - {station.distance !== undefined ? `${Math.round(station.distance/1000)} km` : 'Distance N/A'}
+                {isLoadingStations ? (
+                  <MenuItem disabled>
+                    <CircularProgress size={16} sx={{ mr: 1 }} />
+                    Loading stations...
                   </MenuItem>
-                ))}
+                ) : (
+                  stations.map((station) => (
+                    <MenuItem key={station.station_id} value={station.station_id}>
+                      {station.name} ({station.station_id}) - {station.distance !== undefined ? `${Math.round(station.distance)} km` : 'Distance N/A'}
+                    </MenuItem>
+                  ))
+                )}
               </Select>
             </FormControl>
           </Grid>
@@ -172,7 +195,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
           </Alert>
         )}
         
-        {!isLoading && !error && weatherData?.values && weatherData?.values.length > 0 && (
+        {!isLoading && !error && weatherData?.values && weatherData?.values.length === 0 && (
           <Alert severity="info">
             No weather data available for the selected station and parameter.
           </Alert>
@@ -198,9 +221,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
                     <TableRow key={index}>
                       <TableCell>{new Date(item.date).getFullYear()}</TableCell>
                       <TableCell>
-                        {item.parameter === 'sunshine_duration' 
-                          ? `${Math.round(item.value / 3600)} hours` 
-                          : item.value}
+                        {item.value} {parameterUnits[selectedParameter]}
                       </TableCell>
                       <TableCell>{item.quality}</TableCell>
                     </TableRow>
