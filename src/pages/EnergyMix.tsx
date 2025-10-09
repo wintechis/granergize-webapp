@@ -3,6 +3,7 @@ import EnergyTable from './EnergyTable.tsx'; // Adjust the path as needed
 import { Box } from '@mui/material';
 import cities from '../data/cities.json' with { type: "json" };
 import districts from '../data/districts.json' with { type: "json" };
+import energyMixData from '../data/energyMix.json' with { type: "json" };
 import type { EnergyConsumption, EnergyProduction } from '../../types/types.ts';
 import { Field } from "./EnergyTable.tsx";
 
@@ -31,30 +32,11 @@ export default function EnergyMix() {
   const [rowsPerProductionPage, setRowsPerProductionPage] = useState(10);
 
   useEffect(() => {
-    async function fetchEnergyMix() {
-      const response = await fetch('/api/energy-mix');
-      if (!response.ok) {
-        console.error('Failed to fetch energy mix data');
-        return;
-      }
-      
-      // Debug: Check content type and log raw response
-      const contentType = response.headers.get('content-type');
-      console.log('Content-Type:', contentType);
-      
-      const rawText = await response.text();
-      console.log('Raw response:', rawText);
-      
-      try {
-        const data = JSON.parse(rawText);
-        console.log('Parsed data:', data);
-        setEnergyMix(data);
-      } catch (parseError) {
-        console.error('Failed to parse JSON:', parseError);
-        console.error('Response was:', rawText);
-      }
-    }
-    fetchEnergyMix();
+    // Simply set the imported data instead of fetching
+    setEnergyMix(energyMixData as {
+      energyConsumption: Record<string, EnergyConsumption>;
+      energyProduction: Record<string, EnergyProduction>;
+    });
   }, []);
 
   function findEntityName(key: string) {
