@@ -8,7 +8,7 @@ import PersonIcon from '@mui/icons-material/Person';
 import Typography from '@mui/material/Typography';
 import Box from '@mui/material/Box';
 import CircularProgress from '@mui/material/CircularProgress';
-import { useSolidData } from '../context/SolidDataContext';
+import { useSolidData } from '../context/SolidDataContext.tsx';
 
 export default function Agent() {
   const { selectedAgent } = useParams();

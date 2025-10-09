@@ -70,7 +70,7 @@ export function parseEnergyData(id: string, uri: string, quads: Quad[]): EnergyT
 
           // Save the result
           if (category && property) {
-            (energyData[category as keyof EnergyType] as any)[property] = value;
+            energyData[category][property] = value;
           }
         }
       }

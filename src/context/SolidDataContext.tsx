@@ -1,17 +1,17 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import { Session } from '@inrupt/solid-client-authn-browser';
 import { fetchAndParseData, parseEnergyMix } from '../services/TurtleParsingService.ts';
-import type { BuildingType, EnergyType } from '../../types/types.ts';
+import type { BuildingType, EnergyType, AgentType, EnergyConsumption, EnergyProduction } from '../../types/types.ts';
 
 interface ContextState {
   buildings: BuildingType[];
   energyNeed: EnergyType[];
-  agents: any[];
+  agents: AgentType[];
   averages: Record<string, number>;
   agentAverages: Record<string, Record<string, number>>;
   energyMix: {
-    energyConsumption: Record<string, {value: number, renewableEnergyShare: number}>;
-    energyProduction: Record<string, any>;
+    energyConsumption: Record<string, EnergyConsumption>;
+    energyProduction: Record<string, EnergyProduction>;
   } | null;
   isLoading: boolean;
   error: string | null;

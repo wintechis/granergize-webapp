@@ -1,5 +1,5 @@
 import type { Quad } from "@rdfjs/types";
-import type { BuildingType } from "../../../types/types.ts";
+import type { BuildingType, EnergyMeasurementData } from "../../../types/types.ts";
 import { predicateMap, parsingFunctions } from "./config/buildingConfig.ts";
 
 export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
@@ -43,15 +43,15 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       const parseFn = parsingFunctions[propertyName];
 
       if (parseFn) {
-        (building as any)[propertyName] = parseFn(obj.value);
+        building[propertyName] = parseFn(obj.value);
       } else {
-        (building as any)[propertyName] = obj.value;
+        building[propertyName] = obj.value;
       }
     }
   });
 
   // Second pass: Process blank node data
-  const energyDataMap = new Map<string, any>();
+  const energyDataMap = new Map<string, Partial<EnergyMeasurementData>>();
   
   quads.forEach((quad: Quad) => {
     if (quad.subject.termType === 'BlankNode') {
@@ -100,9 +100,13 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     const building = buildings.get(buildingId);
     const energyData = energyDataMap.get(blankNodeId);
     
-    if (building && energyData) {
+    if (building && energyData && energyData.year && energyData.location && energyData.type) {
       building.energyData = building.energyData || [];
-      building.energyData.push(energyData);
+      building.energyData.push({
+        year: energyData.year,
+        location: energyData.location,
+        type: energyData.type
+      });
     }
   }
 
