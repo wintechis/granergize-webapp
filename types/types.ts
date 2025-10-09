@@ -1,4 +1,5 @@
 export interface BuildingType {
+    [key: string]: string | number | boolean | EnergyMeasurementData[] | undefined;
     id: number;
     uri: string;
     type: string;
@@ -50,7 +51,10 @@ export type EnergyType = {
     environmentalFactor: EnvironmentalFactor;
 };
 
+export type EnergyCategoryKey = 'energyNeed' | 'energyGeneration' | 'energyStorage' | 'energyDistribution' | 'energyTransfer' | 'energyUsage' | 'environmentalFactor';
+
 type EnergyNeed = {
+    [key: string]: number | undefined;
     gas?: number;
     electricity?: number;
     gridSupply?: number;
@@ -69,6 +73,7 @@ type EnergyNeed = {
 };
 
 type EnergyGeneration = {
+    [key: string]: number | undefined;
     hallLighting?: number;
     heatGeneration?: number;
     HbwHeat?: number;
@@ -76,11 +81,13 @@ type EnergyGeneration = {
 };
 
 type EnergyStorage = {
+    [key: string]: number | undefined;
     forkliftBatteryCharging?: number;
     heatStorage?: number;
 };
 
 type EnergyDistribution = {
+    [key: string]: number | undefined;
     heatDistribution?: number;
     intralogisticsHallDistribution?: number,
     intralogisticsHbwDistribution?: number,
@@ -89,6 +96,7 @@ type EnergyDistribution = {
 };
 
 type EnergyTransfer = {
+    [key: string]: number | undefined;
     intralogisticsHallTransfer?: number,
     intralogisticsHbwTransfer?: number,
     hallHeatTransfer?: number,
@@ -98,12 +106,14 @@ type EnergyTransfer = {
 };
 
 type EnergyUsage = {
+    [key: string]: number | undefined;
     hallSpaceHeating? : number,
     work?: number,
     HbwFrostProtection?: number,
 };
 
 type EnvironmentalFactor = {
+    [key: string]: number | undefined;
     cold?: number;
 };
 

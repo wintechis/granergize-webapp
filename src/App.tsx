@@ -6,7 +6,7 @@ import Agent from "./pages/Agent.tsx";
 import Energy from "./pages/Energy.tsx";
 import Container from '@mui/material/Container';
 import "./App.css";
-import { useSolidData } from "./context/SolidDataContext";
+import { useSolidData } from "./context/SolidDataContext.tsx";
 import CircularProgress from '@mui/material/CircularProgress';
 import Box from '@mui/material/Box';
 import Typography from '@mui/material/Typography';

@@ -1,5 +1,7 @@
 // utils/propertyUtils.ts
-export function getPropertyCategory(property: string): string {
+import type { EnergyCategoryKey } from "../../../types/types.ts";
+
+export function getPropertyCategory(property: string): EnergyCategoryKey {
   const categories: { [key: string]: string[] } = {
     energyNeed: [
       "gas", "electricity", "gridSupply", "solar", "solarSpaceHeating",
@@ -31,7 +33,7 @@ export function getPropertyCategory(property: string): string {
 
   for (const [category, properties] of Object.entries(categories)) {
     if (properties.includes(property)) {
-      return category;
+      return category as EnergyCategoryKey;
     }
   }
 

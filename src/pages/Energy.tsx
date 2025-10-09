@@ -202,7 +202,7 @@ export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
       return null;
     }
     if (!energy[title]) {
-      return <></>;
+      return;
     }
     const agent = operatedBy; // Assuming energy object has operatedBy property
     return (
