@@ -1,14 +1,9 @@
-import React, {
-  useCallback,
-  useContext,
-  useEffect,
-  useState,
-} from "react";
+import React, { useCallback, useContext, useEffect, useState } from "react";
 import {
+  getDefaultSession,
   ILoginInputOptions,
   ISessionInfo,
   Session,
-  getDefaultSession,
 } from "@inrupt/solid-client-authn-browser";
 
 import TextField from "@mui/material/TextField";
@@ -74,14 +69,17 @@ export const Login: React.FC<LoginProps> = ({
       alt="Logo"
     />
   ),
-  recommendedLogins = ["https://login.inrupt.com", "https://solidcommunity.net"],
+  recommendedLogins = [
+    "https://login.inrupt.com",
+    "https://solidcommunity.net",
+  ],
   onLogin,
 }) => {
   const [prevIdps, setPrevIdps] = useState<string[]>(
-    JSON.parse(localStorage.getItem("prevIdps") ?? "[]")
+    JSON.parse(localStorage.getItem("prevIdps") ?? "[]"),
   );
   const [newLogin, setNewLogin] = useState(
-    Boolean(localStorage.getItem("newLogin"))
+    Boolean(localStorage.getItem("newLogin")),
   );
 
   const [activeWebId, setActiveWebId] = useState<string>();
@@ -92,8 +90,7 @@ export const Login: React.FC<LoginProps> = ({
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
   const [sessionResponded, setSessionResponded] = useState(false);
-  const [, setClearInitialLoad] =
-    useState<ReturnType<typeof setTimeout>>();
+  const [, setClearInitialLoad] = useState<ReturnType<typeof setTimeout>>();
 
   // State for new IDP input
   const [login, setLogin] = useState("");
@@ -166,7 +163,7 @@ export const Login: React.FC<LoginProps> = ({
                   setClearInitialLoad(
                     setTimeout(() => {
                       setLoading(false);
-                    }, 1000)
+                    }, 1000),
                   );
                 }
               });
@@ -183,8 +180,8 @@ export const Login: React.FC<LoginProps> = ({
     // If user had a previous session, check for that issuer
     const clientAuth = JSON.parse(
       localStorage.getItem(
-        `solidClientAuthenticationUser:${session.info.sessionId}`
-      ) as string
+        `solidClientAuthenticationUser:${session.info.sessionId}`,
+      ) as string,
     );
     if (clientAuth?.issuer) {
       const alreadyExists = prevIdps.includes(clientAuth.issuer);
@@ -217,7 +214,9 @@ export const Login: React.FC<LoginProps> = ({
   function handleNewIdpSubmit(e: React.FormEvent) {
     e.preventDefault();
     setInvalidIDP(false);
-    const enteredIdp = login.startsWith("https://") ? login : `https://${login}`;
+    const enteredIdp = login.startsWith("https://")
+      ? login
+      : `https://${login}`;
     submitCallback(enteredIdp);
   }
 
@@ -279,10 +278,14 @@ export const Login: React.FC<LoginProps> = ({
             padding: 0,
           }}
         >
-          <Box component="form" sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+          <Box
+            component="form"
+            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+          >
             <Typography component="span">
-              Do you want to save <b>{new URL(showRememberPromptFor).host}</b> as
-              an identity provider for future logins?
+              Do you want to save <b>{new URL(showRememberPromptFor).host}</b>
+              {" "}
+              as an identity provider for future logins?
             </Typography>
             <Box sx={{ display: "flex", gap: 2 }}>
               <Button
@@ -330,13 +333,13 @@ export const Login: React.FC<LoginProps> = ({
         }}
       >
         {logo && (
-          <Box 
-            sx={{ 
-              mb: 2, 
-              width: 80, 
+          <Box
+            sx={{
+              mb: 2,
+              width: 80,
               height: "auto",
               display: "flex",
-              justifyContent: "center"
+              justifyContent: "center",
             }}
           >
             {logo}
@@ -365,69 +368,73 @@ export const Login: React.FC<LoginProps> = ({
           )}
 
           {/* Recommended IDPs */}
-          {!prevIdps.length && recommendedLogins.length ? (
-            <Typography variant="button" component="b" sx={{ mt: 2 }}>
-              RECOMMENDED LOGINS
-            </Typography>
-          ) : null}
+          {!prevIdps.length && recommendedLogins.length
+            ? (
+              <Typography variant="button" component="b" sx={{ mt: 2 }}>
+                RECOMMENDED LOGINS
+              </Typography>
+            )
+            : null}
 
           {prevIdps.length === 0
             ? recommendedLogins.map((idp) => (
-                <Button
-                  key={idp}
-                  variant="outlined"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    submitCallback(idp);
-                  }}
-                >
-                  {idp.replace("https://", "")}
-                </Button>
-              ))
+              <Button
+                key={idp}
+                variant="outlined"
+                onClick={(e) => {
+                  e.preventDefault();
+                  submitCallback(idp);
+                }}
+              >
+                {idp.replace("https://", "")}
+              </Button>
+            ))
             : null}
 
           {/* Previously used IDPs */}
-          {prevIdps.length ? (
-            <Box sx={{ mt: 2 }}>
-              <Typography variant="button" component="b">
-                FROM PREVIOUS LOGINS
-              </Typography>
-              <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
-                {prevIdps.map((idp) => (
+          {prevIdps.length
+            ? (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="button" component="b">
+                  FROM PREVIOUS LOGINS
+                </Typography>
+                <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
+                  {prevIdps.map((idp) => (
+                    <Button
+                      key={idp}
+                      variant="outlined"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        submitCallback(idp);
+                      }}
+                    >
+                      {new URL(idp).host}
+                    </Button>
+                  ))}
                   <Button
-                    key={idp}
-                    variant="outlined"
+                    variant="text"
+                    color="error"
                     onClick={(e) => {
                       e.preventDefault();
-                      submitCallback(idp);
+                      // eslint-disable-next-line no-restricted-globals
+                      if (
+                        confirm(
+                          `Do you really want to clear all your login info for ${
+                            name ?? "this Solid Application"
+                          }?`,
+                        )
+                      ) {
+                        localStorage.removeItem("prevIdps");
+                        setPrevIdps([]);
+                      }
                     }}
                   >
-                    {new URL(idp).host}
+                    CLEAR
                   </Button>
-                ))}
-                <Button
-                  variant="text"
-                  color="error"
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // eslint-disable-next-line no-restricted-globals
-                    if (
-                      confirm(
-                        `Do you really want to clear all your login info for ${
-                          name ?? "this Solid Application"
-                        }?`
-                      )
-                    ) {
-                      localStorage.removeItem("prevIdps");
-                      setPrevIdps([]);
-                    }
-                  }}
-                >
-                  CLEAR
-                </Button>
+                </Box>
               </Box>
-            </Box>
-          ) : null}
+            )
+            : null}
 
           {/* Prompt user for a new IDP */}
           {(prevIdps.length || recommendedLogins.length) && (

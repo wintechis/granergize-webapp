@@ -3,7 +3,10 @@ import type { Quad } from "@rdfjs/types";
 
 const parser = new Parser();
 
-export async function loadTtl(url: string | null, localPath: string): Promise<Array<Quad>> {
+export async function loadTtl(
+  url: string | null,
+  localPath: string,
+): Promise<Array<Quad>> {
   // If no URL provided, load directly from local file
   if (url === null) {
     try {
@@ -19,7 +22,7 @@ export async function loadTtl(url: string | null, localPath: string): Promise<Ar
   // If URL provided: Try URL first, then fallback to local
   try {
     const response = await fetch(url);
-    
+
     if (!response.ok) {
       throw new Error(`HTTP error! status: ${response.status}`);
     }

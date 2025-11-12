@@ -1,26 +1,26 @@
-import React from 'react';
+import React from "react";
 import {
   Box,
-  Typography,
   Paper,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
+  TablePagination,
   TableRow,
   TableSortLabel,
-  TablePagination,
-} from '@mui/material';
-import { TableCellProps } from '@mui/material/TableCell';
-import { visuallyHidden } from '@mui/utils';
+  Typography,
+} from "@mui/material";
+import { TableCellProps } from "@mui/material/TableCell";
+import { visuallyHidden } from "@mui/utils";
 
-type SortDirection = TableCellProps['sortDirection'];
+type SortDirection = TableCellProps["sortDirection"];
 
-type Order = 'asc' | 'desc';
+type Order = "asc" | "desc";
 
 export interface Field<DataType> {
-  id: keyof DataType | 'name';
+  id: keyof DataType | "name";
   label: string;
   numeric: boolean;
   isPercentage?: boolean;
@@ -30,9 +30,9 @@ interface EnergyTableProps<DataType> {
   title: string;
   data: Array<{ key: string; name: string; values: DataType }>;
   fields: Field<DataType>[];
-  orderBy: keyof DataType | 'name';
+  orderBy: keyof DataType | "name";
   order: Order;
-  onRequestSort: (property: keyof DataType | 'name') => void;
+  onRequestSort: (property: keyof DataType | "name") => void;
   page: number;
   rowsPerPage: number;
   onPageChange: (event: unknown, newPage: number) => void;
@@ -41,7 +41,9 @@ interface EnergyTableProps<DataType> {
   linkPrefix?: string;
 }
 
-function EnergyTable<DataType extends { [key: string]: React.ReactNode }>(props: EnergyTableProps<DataType>) {
+function EnergyTable<DataType extends { [key: string]: React.ReactNode }>(
+  props: EnergyTableProps<DataType>,
+) {
   const {
     title,
     data,
@@ -54,7 +56,7 @@ function EnergyTable<DataType extends { [key: string]: React.ReactNode }>(props:
     onPageChange,
     onRowsPerPageChange,
     totalRows,
-    linkPrefix = 'https://www.wikidata.org/wiki/',
+    linkPrefix = "https://www.wikidata.org/wiki/",
   } = props;
 
   return (
@@ -68,38 +70,50 @@ function EnergyTable<DataType extends { [key: string]: React.ReactNode }>(props:
             <TableRow>
               <TableCell
                 key="name"
-                sortDirection={orderBy === 'name' ? (order as SortDirection) : false}
+                sortDirection={orderBy === "name"
+                  ? (order as SortDirection)
+                  : false}
               >
                 <TableSortLabel
-                  active={orderBy === 'name'}
-                  direction={orderBy === 'name' ? order : 'asc'}
-                  onClick={() => onRequestSort('name')}
+                  active={orderBy === "name"}
+                  direction={orderBy === "name" ? order : "asc"}
+                  onClick={() => onRequestSort("name")}
                 >
                   Region
-                  {orderBy === 'name' ? (
-                    <Box component="span" sx={visuallyHidden}>
-                      {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                    </Box>
-                  ) : null}
+                  {orderBy === "name"
+                    ? (
+                      <Box component="span" sx={visuallyHidden}>
+                        {order === "desc"
+                          ? "sorted descending"
+                          : "sorted ascending"}
+                      </Box>
+                    )
+                    : null}
                 </TableSortLabel>
               </TableCell>
               {fields.map((field) => (
                 <TableCell
                   key={String(field.id)}
-                  align={field.numeric ? 'right' : 'left'}
-                  sortDirection={orderBy === field.id ? (order as SortDirection) : false}
+                  align={field.numeric ? "right" : "left"}
+                  sortDirection={orderBy === field.id
+                    ? (order as SortDirection)
+                    : false}
                 >
                   <TableSortLabel
                     active={orderBy === field.id}
-                    direction={orderBy === field.id ? order : 'asc'}
+                    direction={orderBy === field.id ? order : "asc"}
                     onClick={() => onRequestSort(field.id)}
                   >
                     {field.label}
-                    {orderBy === field.id ? (
-                      <Box component="span" sx={visuallyHidden}>
-                        {order === 'desc' ? 'sorted descending' : 'sorted ascending'}
-                      </Box>
-                    ) : null}
+                    {orderBy === field.id
+                      ? (
+                        <Box component="span" sx={visuallyHidden}>
+                          {order === "desc"
+                            ? "sorted descending"
+                            : "sorted ascending"}
+                        </Box>
+                      )
+                      : null}
                   </TableSortLabel>
                 </TableCell>
               ))}
@@ -120,13 +134,16 @@ function EnergyTable<DataType extends { [key: string]: React.ReactNode }>(props:
                 {fields.map((field) => {
                   const value = values[field.id as keyof DataType];
                   let displayValue: React.ReactNode = value;
-                  if (field.isPercentage && typeof value === 'number') {
+                  if (field.isPercentage && typeof value === "number") {
                     displayValue = `${value}%`;
-                  } else if (typeof value === 'number') {
+                  } else if (typeof value === "number") {
                     displayValue = value.toLocaleString();
                   }
                   return (
-                    <TableCell align={field.numeric ? 'right' : 'left'} key={String(field.id)}>
+                    <TableCell
+                      align={field.numeric ? "right" : "left"}
+                      key={String(field.id)}
+                    >
                       {displayValue}
                     </TableCell>
                   );

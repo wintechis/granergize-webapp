@@ -4,30 +4,54 @@ import type { EnergyCategoryKey } from "../../../types/types.ts";
 export function getPropertyCategory(property: string): EnergyCategoryKey {
   const categories: { [key: string]: string[] } = {
     energyNeed: [
-      "gas", "electricity", "gridSupply", "solar", "solarSpaceHeating",
-      "photovoltaic", "selfConsumption", "gridFeedIn", "hallHeatingFromWasteLoss",
-      "frostProtectionHbwFromWasteLoss", "ambientHeat", "ventilationHeat", "personHeat",
-      "groundwater", "woodChips"
+      "gas",
+      "electricity",
+      "gridSupply",
+      "solar",
+      "solarSpaceHeating",
+      "photovoltaic",
+      "selfConsumption",
+      "gridFeedIn",
+      "hallHeatingFromWasteLoss",
+      "frostProtectionHbwFromWasteLoss",
+      "ambientHeat",
+      "ventilationHeat",
+      "personHeat",
+      "groundwater",
+      "woodChips",
     ],
     energyGeneration: [
-      "hallLighting", "heatGeneration", "hbwHeat", "hallHeat"
+      "hallLighting",
+      "heatGeneration",
+      "hbwHeat",
+      "hallHeat",
     ],
     energyStorage: [
-      "forkliftBatteryCharging", "heatStorage"
+      "forkliftBatteryCharging",
+      "heatStorage",
     ],
     energyDistribution: [
-      "heatDistribution", "intralogisticsHallDistribution", "intralogisticsHbwDistribution",
-      "hallHeatDistribution", "hbwHeatDistribution"
+      "heatDistribution",
+      "intralogisticsHallDistribution",
+      "intralogisticsHbwDistribution",
+      "hallHeatDistribution",
+      "hbwHeatDistribution",
     ],
     energyTransfer: [
-      "intralogisticsHallTransfer", "intralogisticsHbwTransfer", "hallHeatTransfer",
-      "hbwHeatTransfer", "heatTransfer", "forkliftTransfer"
+      "intralogisticsHallTransfer",
+      "intralogisticsHbwTransfer",
+      "hallHeatTransfer",
+      "hbwHeatTransfer",
+      "heatTransfer",
+      "forkliftTransfer",
     ],
     energyUsage: [
-      "hallSpaceHeating", "work", "hbwFrostProtection"
+      "hallSpaceHeating",
+      "work",
+      "hbwFrostProtection",
     ],
     environmentalFactor: [
-      "cold"
+      "cold",
     ],
   };
 

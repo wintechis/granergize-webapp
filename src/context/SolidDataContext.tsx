@@ -1,7 +1,16 @@
-import React, { createContext, useContext, useState, useEffect } from 'react';
-import { Session } from '@inrupt/solid-client-authn-browser';
-import { fetchAndParseData, parseEnergyMix } from '../services/TurtleParsingService.ts';
-import type { BuildingType, EnergyType, AgentType, EnergyConsumption, EnergyProduction } from '../../types/types.ts';
+import React, { createContext, useContext, useEffect, useState } from "react";
+import { Session } from "@inrupt/solid-client-authn-browser";
+import {
+  fetchAndParseData,
+  parseEnergyMix,
+} from "../services/TurtleParsingService.ts";
+import type {
+  AgentType,
+  BuildingType,
+  EnergyConsumption,
+  EnergyProduction,
+  EnergyType,
+} from "../../types/types.ts";
 
 interface ContextState {
   buildings: BuildingType[];
@@ -27,7 +36,7 @@ const SolidDataContext = createContext<ContextState>({
   energyMix: null,
   isLoading: false,
   error: null,
-  reloadData: async () => {}
+  reloadData: async () => {},
 });
 
 export const useSolidData = () => useContext(SolidDataContext);
@@ -37,18 +46,20 @@ interface SolidDataProviderProps {
   children: React.ReactNode;
 }
 
-export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({ 
-  session, 
-  children 
+export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
+  session,
+  children,
 }) => {
-  const [data, setData] = useState<Omit<ContextState, 'isLoading' | 'error' | 'reloadData' | 'energyMix'>>({
+  const [data, setData] = useState<
+    Omit<ContextState, "isLoading" | "error" | "reloadData" | "energyMix">
+  >({
     buildings: [],
     energyNeed: [],
     agents: [],
     averages: {},
     agentAverages: {},
   });
-  const [energyMix, setEnergyMix] = useState<ContextState['energyMix']>(null);
+  const [energyMix, setEnergyMix] = useState<ContextState["energyMix"]>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -92,7 +103,7 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
         energyMix,
         isLoading,
         error,
-        reloadData: loadData
+        reloadData: loadData,
       }}
     >
       {children}
