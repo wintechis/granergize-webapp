@@ -1,37 +1,39 @@
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from "react";
 import {
   Station,
   ValuesResponse,
   WeatherParameters,
-  WetterdienstClient
-  } from "@wintechis/wetterdienst-rdf-adapter";
-import { 
-  Card, 
-  CardContent, 
-  Typography, 
-  CircularProgress, 
-  Box, 
-  FormControl, 
-  InputLabel, 
-  Select, 
-  MenuItem,
-  Grid,
+  WetterdienstClient,
+} from "@wintechis/wetterdienst-rdf-adapter";
+import {
   Alert,
+  Box,
+  Card,
+  CardContent,
+  CircularProgress,
+  FormControl,
+  Grid,
+  InputLabel,
+  MenuItem,
   Paper,
+  Select,
   Table,
   TableBody,
   TableCell,
   TableContainer,
   TableHead,
-  TableRow
-} from '@mui/material';
-import { BuildingType } from '../../types/types.ts';
+  TableRow,
+  Typography,
+} from "@mui/material";
+import { BuildingType } from "../../types/types.ts";
 
 interface WeatherDataProps {
   building: BuildingType;
 }
 
-const wetterdienstClient = new WetterdienstClient(`${globalThis.location.origin}/weather-api/`);
+const wetterdienstClient = new WetterdienstClient(
+  `${globalThis.location.origin}/weather-api/`,
+);
 
 // Map of parameter names to more readable titles
 const parameterTitles: Record<string, string> = {
@@ -51,7 +53,9 @@ export default function WeatherData({ building }: WeatherDataProps) {
   const [isLoading, setIsLoading] = useState(false);
   const [isLoadingStations, setIsLoadingStations] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [selectedParameter, setSelectedParameter] = useState<string>(WeatherParameters.TEMPERATURE_MEAN_ANNUAL);
+  const [selectedParameter, setSelectedParameter] = useState<string>(
+    WeatherParameters.TEMPERATURE_MEAN_ANNUAL,
+  );
   const [stations, setStations] = useState<Station[]>([]);
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
   const [weatherData, setWeatherData] = useState<ValuesResponse | null>(null);
@@ -59,20 +63,20 @@ export default function WeatherData({ building }: WeatherDataProps) {
   // Fetch nearby weather stations when building changes
   useEffect(() => {
     if (!building || !building.lat || !building.long) return;
-    
+
     const fetchStations = async () => {
       setIsLoadingStations(true);
       setError(null);
-    try {
-      const nearbyStations = (await wetterdienstClient.getStations({
-        provider: 'dwd',
-        network: 'observation',
-        parameters: selectedParameter,
-        latitude: building.lat as number,
-        longitude: building.long as number,
-        rank: 5
-      })).stations;
-        
+      try {
+        const nearbyStations = (await wetterdienstClient.getStations({
+          provider: "dwd",
+          network: "observation",
+          parameters: selectedParameter,
+          latitude: building.lat as number,
+          longitude: building.long as number,
+          rank: 5,
+        })).stations;
+
         setStations(nearbyStations);
         // Select the closest station by default
         if (nearbyStations.length > 0) {
@@ -82,12 +86,16 @@ export default function WeatherData({ building }: WeatherDataProps) {
         }
       } catch (err) {
         console.error("Error fetching weather stations:", err);
-        setError(err instanceof Error ? err.message : "Failed to fetch weather stations");
+        setError(
+          err instanceof Error
+            ? err.message
+            : "Failed to fetch weather stations",
+        );
       } finally {
         setIsLoadingStations(false);
       }
     };
-    
+
     fetchStations();
   }, [building, selectedParameter]);
 
@@ -97,11 +105,11 @@ export default function WeatherData({ building }: WeatherDataProps) {
       setWeatherData(null);
       return;
     }
-    
+
     const fetchWeatherData = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         const values = await wetterdienstClient.getValues({
           provider: "dwd",
@@ -110,18 +118,19 @@ export default function WeatherData({ building }: WeatherDataProps) {
           periods: "recent",
           station: selectedStation,
         });
-        
+
         setWeatherData(values);
-        
       } catch (err) {
         console.error("Error fetching weather data:", err);
-        setError(err instanceof Error ? err.message : "Failed to fetch weather data");
+        setError(
+          err instanceof Error ? err.message : "Failed to fetch weather data",
+        );
         setWeatherData(null);
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     fetchWeatherData();
   }, [selectedStation, selectedParameter]);
 
@@ -131,7 +140,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
         <Typography variant="h5" gutterBottom>
           Weather Data for Building {building.id}
         </Typography>
-        
+
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={12} md={6}>
             <FormControl fullWidth>
@@ -148,65 +157,74 @@ export default function WeatherData({ building }: WeatherDataProps) {
               </Select>
             </FormControl>
           </Grid>
-          
+
           <Grid item xs={12} md={6}>
             <FormControl fullWidth disabled={stations.length === 0}>
               <InputLabel>Weather Station</InputLabel>
               <Select
-                value={selectedStation || ''}
+                value={selectedStation || ""}
                 onChange={(e) => setSelectedStation(e.target.value)}
                 label="Weather Station"
-                endAdornment={
-                  isLoadingStations && (
-                    <Box sx={{ mr: 1 }}>
-                      <CircularProgress size={20} />
-                    </Box>
-                  )
-                }
-              >
-                {isLoadingStations ? (
-                  <MenuItem disabled>
-                    <CircularProgress size={16} sx={{ mr: 1 }} />
-                    Loading stations...
-                  </MenuItem>
-                ) : (
-                  stations.map((station) => (
-                    <MenuItem key={station.station_id} value={station.station_id}>
-                      {station.name} ({station.station_id}) - {station.distance !== undefined ? `${Math.round(station.distance)} km` : 'Distance N/A'}
-                    </MenuItem>
-                  ))
+                endAdornment={isLoadingStations && (
+                  <Box sx={{ mr: 1 }}>
+                    <CircularProgress size={20} />
+                  </Box>
                 )}
+              >
+                {isLoadingStations
+                  ? (
+                    <MenuItem disabled>
+                      <CircularProgress size={16} sx={{ mr: 1 }} />
+                      Loading stations...
+                    </MenuItem>
+                  )
+                  : (
+                    stations.map((station) => (
+                      <MenuItem
+                        key={station.station_id}
+                        value={station.station_id}
+                      >
+                        {station.name} ({station.station_id}) -{" "}
+                        {station.distance !== undefined
+                          ? `${Math.round(station.distance)} km`
+                          : "Distance N/A"}
+                      </MenuItem>
+                    ))
+                  )}
               </Select>
             </FormControl>
           </Grid>
         </Grid>
-        
+
         {isLoading && (
           <Box display="flex" justifyContent="center" sx={{ py: 4 }}>
             <CircularProgress />
           </Box>
         )}
-        
+
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-        
+
         {!isLoading && !error && stations.length === 0 && (
           <Alert severity="info">
-            No weather stations found near this location for the selected parameter.
+            No weather stations found near this location for the selected
+            parameter.
           </Alert>
         )}
-        
-        {!isLoading && !error && weatherData?.values && weatherData?.values.length === 0 && (
+
+        {!isLoading && !error && weatherData?.values &&
+          weatherData?.values.length === 0 && (
           <Alert severity="info">
             No weather data available for the selected station and parameter.
           </Alert>
         )}
-        
-        {!isLoading && !error && weatherData?.values && weatherData?.values.length > 0 && (
-          <>            
+
+        {!isLoading && !error && weatherData?.values &&
+          weatherData?.values.length > 0 && (
+          <>
             <Typography variant="h6" gutterBottom>
               Recent Weather Data
             </Typography>
-            
+
             <TableContainer component={Paper} sx={{ mb: 2 }}>
               <Table size="small">
                 <TableHead>
@@ -217,25 +235,35 @@ export default function WeatherData({ building }: WeatherDataProps) {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {weatherData.values && weatherData.values.map((item, index) => (
-                    <TableRow key={index}>
-                      <TableCell>{new Date(item.date).getFullYear()}</TableCell>
-                      <TableCell>
-                        {item.value} {parameterUnits[selectedParameter]}
-                      </TableCell>
-                      <TableCell>{item.quality}</TableCell>
-                    </TableRow>
-                  ))}
+                  {weatherData.values &&
+                    weatherData.values.map((item, index) => (
+                      <TableRow key={index}>
+                        <TableCell>
+                          {new Date(item.date).getFullYear()}
+                        </TableCell>
+                        <TableCell>
+                          {item.value} {parameterUnits[selectedParameter]}
+                        </TableCell>
+                        <TableCell>{item.quality}</TableCell>
+                      </TableRow>
+                    ))}
                 </TableBody>
               </Table>
             </TableContainer>
-            
+
             <Typography variant="body2" color="text.secondary">
               Data source: Deutscher Wetterdienst (DWD)
             </Typography>
-            
-            <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-              Station {selectedStation}: {stations.find(s => s.station_id === selectedStation)?.name || ''}
+
+            <Typography
+              variant="caption"
+              color="text.secondary"
+              display="block"
+              sx={{ mt: 1 }}
+            >
+              Station {selectedStation}:{" "}
+              {stations.find((s) => s.station_id === selectedStation)?.name ||
+                ""}
             </Typography>
           </>
         )}

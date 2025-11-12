@@ -1,16 +1,18 @@
 import type { Quad } from "@rdfjs/types";
-import type { BuildingType, EnergyMeasurementData } from "../../../types/types.ts";
-import { predicateMap, parsingFunctions } from "./config/buildingConfig.ts";
+import type {
+  BuildingType,
+  EnergyMeasurementData,
+} from "../../../types/types.ts";
+import { parsingFunctions, predicateMap } from "./config/buildingConfig.ts";
 
 export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   const buildings = new Map<string, BuildingType>();
   const blankNodeMap = new Map<string, string>(); // Maps blank node IDs to building IDs
 
-
   // First pass: Create buildings and map blank nodes to buildings
   quads.forEach((quad: Quad) => {
     // Skip blank nodes as subjects in the first pass
-    if (quad.subject.termType === 'BlankNode') return;
+    if (quad.subject.termType === "BlankNode") return;
 
     const buildingId = quad.subject.value.split("#")[1];
     const uri = quad.graph.value;
@@ -20,7 +22,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
         id: parseInt(buildingId),
         uri: uri,
         type: "https://w3id.org/rec#building",
-        energyData: [] // Add array to store energy data
+        energyData: [], // Add array to store energy data
       });
     }
 
@@ -29,8 +31,8 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     const obj = quad.object;
 
     // Handle hasEnergyMeasurementData predicate specifically
-    if (pred.endsWith('hasEnergyMeasurementData')) {
-      if (obj.termType === 'BlankNode') {
+    if (pred.endsWith("hasEnergyMeasurementData")) {
+      if (obj.termType === "BlankNode") {
         // Map this blank node to the current building
         blankNodeMap.set(obj.value, buildingId);
       }
@@ -52,36 +54,36 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
 
   // Second pass: Process blank node data
   const energyDataMap = new Map<string, Partial<EnergyMeasurementData>>();
-  
+
   quads.forEach((quad: Quad) => {
-    if (quad.subject.termType === 'BlankNode') {
+    if (quad.subject.termType === "BlankNode") {
       const blankNodeId = quad.subject.value;
       const buildingId = blankNodeMap.get(blankNodeId);
-      
+
       if (!buildingId) return; // Skip if not related to a building
-      
+
       // Initialize energy data object for this blank node if not exists
       if (!energyDataMap.has(blankNodeId)) {
         energyDataMap.set(blankNodeId, {});
       }
-      
+
       const energyData = energyDataMap.get(blankNodeId)!;
       const pred = quad.predicate.value;
       const objValue = quad.object.value;
-      const baseUri = quad.graph.value
-      
+      const baseUri = quad.graph.value;
+
       // Parse blank node predicates
-      if (pred.endsWith('measurementYear')) {
+      if (pred.endsWith("measurementYear")) {
         energyData.year = parseInt(objValue);
-      } else if (pred.endsWith('datasetLocation')) {
+      } else if (pred.endsWith("datasetLocation")) {
         // Convert relative path to absolute URI if needed
-        if (objValue.startsWith('./')) {
+        if (objValue.startsWith("./")) {
           // Remove './' prefix and construct full URI
           const relativePath = objValue.substring(2);
           energyData.location = `${baseUri}${relativePath}`;
-        } else if (objValue.startsWith('/')) {
+        } else if (objValue.startsWith("/")) {
           // Handle absolute path within domain
-          energyData.location = `${baseUri.replace(/\/$/, '')}${objValue}`;
+          energyData.location = `${baseUri.replace(/\/$/, "")}${objValue}`;
         } else if (!objValue.match(/^https?:\/\//)) {
           // Handle any other non-URL format
           energyData.location = `${baseUri}${objValue}`;
@@ -89,23 +91,26 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
           // Already a full URL
           energyData.location = objValue;
         }
-      } else if (pred.endsWith('type')) {
+      } else if (pred.endsWith("type")) {
         energyData.type = objValue;
       }
     }
   });
-  
+
   // Add energy data to respective buildings
   for (const [blankNodeId, buildingId] of blankNodeMap.entries()) {
     const building = buildings.get(buildingId);
     const energyData = energyDataMap.get(blankNodeId);
-    
-    if (building && energyData && energyData.year && energyData.location && energyData.type) {
+
+    if (
+      building && energyData && energyData.year && energyData.location &&
+      energyData.type
+    ) {
       building.energyData = building.energyData || [];
       building.energyData.push({
         year: energyData.year,
         location: energyData.location,
-        type: energyData.type
+        type: energyData.type,
       });
     }
   }

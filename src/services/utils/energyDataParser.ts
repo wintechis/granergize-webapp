@@ -5,7 +5,11 @@ import { getPropertyCategory } from "./propertyUtils.ts";
 
 const { namedNode } = DataFactory;
 
-export function parseEnergyData(id: string, uri: string, quads: Quad[]): EnergyType {
+export function parseEnergyData(
+  id: string,
+  uri: string,
+  quads: Quad[],
+): EnergyType {
   const energyData: EnergyType = {
     id: parseInt(id),
     uri: uri,
@@ -24,31 +28,31 @@ export function parseEnergyData(id: string, uri: string, quads: Quad[]): EnergyT
   // Find all observations
   const observationQuads = store.getQuads(
     null,
-    namedNode('http://www.w3.org/1999/02/22-rdf-syntax-ns#type'),
-    namedNode('http://www.w3.org/ns/sosa/Observation'),
-    null
+    namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+    namedNode("http://www.w3.org/ns/sosa/Observation"),
+    null,
   ) as Quad[];
 
   observationQuads.forEach((obs) => {
     // Get observed property
     const propertyQuads = store.getQuads(
       obs.subject,
-      namedNode('http://www.w3.org/ns/sosa/observedProperty'),
+      namedNode("http://www.w3.org/ns/sosa/observedProperty"),
       null,
-      null
+      null,
     );
 
     if (propertyQuads.length > 0) {
       const property = propertyQuads[0].object.value
-        .split('#')[1]
+        .split("#")[1]
         .replace(/^[A-Z]/, (c: string) => c.toLowerCase());
 
       // Get result
       const resultQuads = store.getQuads(
         obs.subject,
-        namedNode('http://www.w3.org/ns/sosa/hasResult'),
+        namedNode("http://www.w3.org/ns/sosa/hasResult"),
         null,
-        null
+        null,
       );
 
       if (resultQuads.length > 0) {
@@ -57,9 +61,9 @@ export function parseEnergyData(id: string, uri: string, quads: Quad[]): EnergyT
         // Get simple result
         const valueQuads = store.getQuads(
           resultNode,
-          namedNode('http://www.w3.org/ns/sosa/hasSimpleResult'),
+          namedNode("http://www.w3.org/ns/sosa/hasSimpleResult"),
           null,
-          null
+          null,
         );
 
         if (valueQuads.length > 0) {
