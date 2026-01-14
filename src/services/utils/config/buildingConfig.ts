@@ -21,6 +21,8 @@ export const predicateMap: { [key: string]: keyof BuildingType } = {
   "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#usedAs": "usedAs",
   "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#yearOfConstruction":
     "yearOfConstruction",
+  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyCertificate":
+    "energyCertificate",
   "https://w3id.org/rec#nace-code": "naceCode",
   "https://w3id.org/rec#operatedBy": "operatedBy",
 };
