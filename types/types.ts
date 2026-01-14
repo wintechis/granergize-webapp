@@ -9,6 +9,7 @@ export interface BuildingType {
   uri: string;
   type: string;
   customer?: string;
+  energyCertificate?: string;
   lat?: number;
   long?: number;
   locality?: string;

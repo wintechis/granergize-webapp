@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
-import Grid2 from "@mui/material/Grid2";
+import Grid from "@mui/material/Grid";
 import Energy from "./Energy.tsx";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -101,8 +101,8 @@ export default function Map({ session }: MapProps) {
         </Typography>
       )}
 
-      <Grid2 container spacing={2} sx={{ height: "calc(100vh - 230px)" }}>
-        <Grid2
+      <Grid container spacing={2} sx={{ height: "calc(100vh - 230px)" }}>
+        <Grid
           size={isRightPaneLarge ? 3 : 8}
           sx={{ height: "100%", overflow: "auto" }}
         >
@@ -156,8 +156,8 @@ export default function Map({ session }: MapProps) {
                 )}
               </MapContainer>
             )}
-        </Grid2>
-        <Grid2
+        </Grid>
+        <Grid
           size={isRightPaneLarge ? 9 : 4}
           sx={{ height: "100%", overflow: "auto" }}
         >
@@ -192,8 +192,8 @@ export default function Map({ session }: MapProps) {
                 </Box>
               </Box>
             )}
-        </Grid2>
-      </Grid2>
+        </Grid>
+      </Grid>
     </Box>
   );
 }

@@ -1,21 +1,37 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
+import { recordSharing } from "./sharingManager.ts";
+
+export interface ShareOptions {
+  includeEnergyData: boolean;
+}
 
 export async function shareBuildingData(
     buildingUri: string,
     webId: string,
     session: Session,
+    options: ShareOptions = { includeEnergyData: true },
 ) {
-    const energyData = await getEnergyData(buildingUri, session);
-    await shareData(energyData, webId, session);
+    // Always share the building's static data
     await shareData(buildingUri, webId, session);
-    await postToInbox(buildingUri, webId, session);
+    
+    // Conditionally share energy data based on options
+    if (options.includeEnergyData) {
+        const energyData = await getEnergyData(buildingUri, session);
+        await shareData(energyData, webId, session);
+    }
+    
+    await postToInbox(buildingUri, webId, session, options);
+    
+    // Record the sharing in our registry
+    await recordSharing(buildingUri, webId, session);
 }
 
 async function postToInbox(
     buildingUri: string,
     webId: string,
     session: Session,
+    options: ShareOptions,
 ) {
     const parser = new Parser({ format: "text/turtle", baseIRI: webId });
     const profileResponse = await session.fetch(webId, { method: "GET" });
@@ -60,6 +76,7 @@ async function postToInbox(
     interop:grantedBy <${session.info.webId}> ;
     interop:grantedAt "${new Date().toISOString()}"^^xsd:dateTime ;
     interop:grantee <${webId}> ;
+    interop:includesEnergyData "${options.includeEnergyData}"^^xsd:boolean ;
     interop:hasDataGrant
         [ a interop:DataGrant ;
           interop:forResource <${buildingUri}> ;
@@ -151,7 +168,7 @@ async function shareData(
 
   // Check if acl exists, if not create it
   const aclUrl = `${resourceUri}.acl`;
-  let existingAclResponse = await session.fetch(aclUrl, {
+  const existingAclResponse = await session.fetch(aclUrl, {
     method: "GET",
   });
 

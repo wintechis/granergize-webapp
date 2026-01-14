@@ -2,8 +2,8 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { parseBuildings } from "./utils/buildingParser.ts";
 import { parseAgents } from "./utils/agentParser.ts";
 import { parseEnergyData } from "./utils/energyDataParser.ts";
-import type { EnergyType } from "../../types/types.ts";
-import { DataFactory, Parser, Store, Term } from "n3";
+import type { BuildingType, EnergyType } from "../../types/types.ts";
+import { DataFactory, Parser, Store, Term, Writer } from "n3";
 import type { Quad } from "@rdfjs/types";
 
 const { namedNode } = DataFactory;
@@ -15,10 +15,10 @@ async function loadTtlFromMultipleSources(
   urls: string[],
   session: Session,
   description: string,
-): Promise<Quad[]> {
+): Promise<{ quads: Quad[]; failedSources: Array<{ url: string; status: number }> }> {
   const allQuads: Quad[] = [];
   const successfulSources: string[] = [];
-  const failedSources: { url: string; error: string }[] = [];
+  const failedSources: { url: string; error: string; status?: number }[] = [];
 
   // Try each source independently
   await Promise.all(
@@ -29,6 +29,7 @@ async function loadTtlFromMultipleSources(
           failedSources.push({
             url,
             error: `HTTP ${response.status}: ${response.statusText}`,
+            status: response.status,
           });
           return;
         }
@@ -85,7 +86,12 @@ async function loadTtlFromMultipleSources(
     );
   }
 
-  return allQuads;
+  return {
+    quads: allQuads,
+    failedSources: failedSources
+      .filter(f => f.status === 403 || f.status === 404)
+      .map(f => ({ url: f.url, status: f.status! }))
+  };
 }
 
 async function loadTtlWithSession(
@@ -106,6 +112,67 @@ async function loadTtlWithSession(
   } catch (error) {
     console.error(`Error loading Turtle from ${url}:`, error);
     throw error;
+  }
+}
+
+/**
+ * Remove inaccessible building sources from the user's dataSources.ttl
+ */
+async function removeInaccessibleBuildingSources(
+  failedSources: Array<{ url: string; status: number }>,
+  session: Session
+): Promise<void> {
+  const webId = session.info.webId;
+  if (!webId) {
+    return;
+  }
+
+  const podBaseUrl = webId.substring(0, webId.lastIndexOf("/") + 1);
+  const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
+
+  try {
+    const response = await session.fetch(registryUrl);
+    if (!response.ok) {
+      return;
+    }
+
+    const text = await response.text();
+    const parser = new Parser({ format: "text/turtle", baseIRI: registryUrl });
+    const quads = parser.parse(text);
+    const store = new Store(quads);
+
+    const buildingSourcePredicate = namedNode(
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource"
+    );
+    const registryNode = namedNode(registryUrl);
+
+    // Remove quads for failed sources
+    let removed = false;
+    for (const failed of failedSources) {
+      const sourceNode = namedNode(failed.url);
+      const quadsToRemove = store.getQuads(registryNode, buildingSourcePredicate, sourceNode, null);
+      if (quadsToRemove.length > 0) {
+        quadsToRemove.forEach(quad => store.removeQuad(quad));
+        removed = true;
+        console.log(`Removed inaccessible building source: ${failed.url}`);
+      }
+    }
+
+    // Only update if we removed something
+    if (removed) {
+      const writer = new Writer({ format: "text/turtle" });
+      const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+
+      await session.fetch(registryUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "text/turtle" },
+        body: updatedTtl,
+      });
+
+      console.log("Updated dataSources.ttl to remove inaccessible sources");
+    }
+  } catch (error) {
+    console.error("Error removing inaccessible building sources:", error);
   }
 }
 
@@ -199,6 +266,58 @@ async function getSourceRegistry(
   }
 }
 
+/**
+ * Load list of hidden building URIs from the user's hidden buildings file
+ */
+async function getHiddenBuildings(session: Session): Promise<Set<string>> {
+  const webId = session.info.webId;
+  if (!webId) {
+    return new Set();
+  }
+
+  // Extract storage root
+  const webIdWithoutFragment = webId.split("#")[0];
+  const pathParts = webIdWithoutFragment.split("/");
+  const storageRoot = pathParts.slice(0, 4).join("/") + "/";
+  const hiddenBuildingsUrl = `${storageRoot}granergize/hiddenBuildings.ttl`;
+
+  try {
+    const response = await session.fetch(hiddenBuildingsUrl);
+    
+    if (response.status === 404) {
+      return new Set();
+    }
+    
+    if (!response.ok) {
+      console.warn(`Failed to fetch hidden buildings: ${response.statusText}`);
+      return new Set();
+    }
+    
+    const text = await response.text();
+    const parser = new Parser({ format: "text/turtle", baseIRI: hiddenBuildingsUrl });
+    const quads = parser.parse(text);
+    const store = new Store(quads);
+
+    const hiddenPredicate = DataFactory.namedNode(
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hiddenBuilding"
+    );
+    
+    const hiddenQuads = store.getQuads(null, hiddenPredicate, null, null);
+    const hiddenSet = new Set<string>();
+
+    for (const quad of hiddenQuads) {
+      if (quad.object.termType === "NamedNode") {
+        hiddenSet.add(quad.object.value);
+      }
+    }
+
+    return hiddenSet;
+  } catch (error) {
+    console.error("Error loading hidden buildings:", error);
+    return new Set();
+  }
+}
+
 export async function fetchAndParseData(session: Session) {
   // get own solid pod url
   const webId = session.info.webId;
@@ -208,30 +327,46 @@ export async function fetchAndParseData(session: Session) {
 
   const dataSources = await getSourceRegistry(session);
 
+  // Load hidden buildings list
+  const hiddenBuildingUris = await getHiddenBuildings(session);
+
   // Load and merge data from all accessible sources
-  const buildingsQuads = await loadTtlFromMultipleSources(
+  const buildingsResult = await loadTtlFromMultipleSources(
     dataSources.buildings,
     session,
     "buildings",
   );
 
-  const agentsQuads = await loadTtlFromMultipleSources(
+  const agentsResult = await loadTtlFromMultipleSources(
     dataSources.agents,
     session,
     "agents",
   );
 
+  // Remove inaccessible building sources from registry (403/404 errors)
+  if (buildingsResult.failedSources.length > 0) {
+    await removeInaccessibleBuildingSources(buildingsResult.failedSources, session);
+  }
+
   // Parse the merged quad collections
-  const buildings = parseBuildings(buildingsQuads);
-  const agents = parseAgents(agentsQuads);
+  const buildings = parseBuildings(buildingsResult.quads);
+  const agents = parseAgents(agentsResult.quads);
   const energyData = new Map<number, EnergyType>();
+
+  // Filter out hidden buildings
+  const visibleBuildings = new Map<string, BuildingType>();
+  for (const [buildingId, building] of buildings) {
+    if (!hiddenBuildingUris.has(building.uri)) {
+      visibleBuildings.set(buildingId, building);
+    }
+  }
 
   // Object to store aggregated values for each measurement
   const aggregatedValues: Record<string, number[]> = {};
   const agentAggregatedValues: Record<string, Record<string, number[]>> = {};
 
-  // Load energy data for each building
-  for (const [buildingId, building] of buildings) {
+  // Load energy data for each building (only visible ones)
+  for (const [buildingId, building] of visibleBuildings) {
     if (!building.energyData) {
       continue;
     }
@@ -243,14 +378,14 @@ export async function fetchAndParseData(session: Session) {
           data.location,
         ];
 
-        const energyQuads = await loadTtlFromMultipleSources(
+        const energyResult = await loadTtlFromMultipleSources(
           energyDataSources,
           session,
           `energy data for building ${buildingId}`,
         );
 
-        const uri = energyQuads[0].graph.value;
-        const parsedEnergyData = parseEnergyData(buildingId, uri, energyQuads);
+        const uri = energyResult.quads[0].graph.value;
+        const parsedEnergyData = parseEnergyData(buildingId, uri, energyResult.quads);
         energyData.set(parseInt(buildingId), parsedEnergyData);
 
         // Aggregate values for each measurement
@@ -310,7 +445,7 @@ export async function fetchAndParseData(session: Session) {
   }
 
   return {
-    buildings: Array.from(buildings.values()),
+    buildings: Array.from(visibleBuildings.values()),
     agents: Array.from(agents.values()),
     energyNeed: Array.from(energyData.values()),
     averages,
