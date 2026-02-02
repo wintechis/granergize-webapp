@@ -4,6 +4,7 @@ import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Agent from "./pages/Agent.tsx";
 import Energy from "./pages/Energy.tsx";
+import AggregatedView from "./pages/AggregatedView.tsx";
 import Container from "@mui/material/Container";
 import "./App.css";
 import { useSolidData } from "./context/SolidDataContext.tsx";
@@ -95,6 +96,10 @@ function EnergyWrapper() {
   );
 }
 
+function AggregatedViewWrapper({ session }: { session: Session }) {
+  return <AggregatedView session={session} />;
+}
+
 interface AppProps {
   onLogout: () => void;
   session: Session;
@@ -112,6 +117,7 @@ function App({ onLogout, session }: AppProps) {
           />
           <Route path="/agent/:selectedAgent" element={<Agent />} />
           <Route path="/energy/:selectedBuilding" element={<EnergyWrapper />} />
+          <Route path="/view/:viewId" element={<AggregatedViewWrapper session={session} />} />
         </Routes>
       </BrowserRouter>
     </Container>

@@ -1,0 +1,393 @@
+%% The first command in your LaTeX source must be the \documentclass command.
+%%
+%% Options:
+%% twocolumn : Two column layout. Do not use twocolumn for papers submitted to CEUR-WS!
+%% hf: enable header and footer.
+\documentclass[
+% twocolumn,
+% hf,
+]{ceurart}
+\usepackage[utf8]{inputenc}
+
+%%
+%% One can fix some overfulls
+\sloppy
+
+%%
+%% Minted listings support 
+%% Need pygment <http://pygments.org/> <http://pypi.python.org/pypi/Pygments>
+\usepackage{listings}
+%% auto break lines
+\lstset{breaklines=true}
+\usepackage{todonotes}
+
+% Enable that parameters of \cref{}, \ref{}, \cite{}, ... are linked so that a reader can click on the number an jump to the target in the document
+\usepackage{hyperref}
+
+\usepackage{caption}
+
+% Enable hyperref without colors and without bookmarks
+\hypersetup{
+  hidelinks,
+  colorlinks=true,       % Links erhalten Farben statt Kaeten
+  raiselinks=true,       % calculate real height of the link
+  allcolors=black,
+  pdfstartview=Fit,
+  breaklinks=true,       % Links ueberstehen Zeilenumbruch
+  hypertexnames=false,   % Fix jumping to algorithm line - http://tex.stackexchange.com/a/156404/9075
+}
+
+% Extensions for references inside the document (\cref{fig:sample}, ...)
+% Enable usage \cref{...} and \Cref{...} instead of \ref: Type of reference included in the link
+% That means, "Figure 5" is a full link instead of just "5".
+\usepackage[capitalise,nameinlink,noabbrev]{cleveref}
+
+\crefname{section}{Sect.}{Sect.}
+\Crefname{section}{Section}{Sections}
+\crefname{listing}{List.}{List.}
+\crefname{listing}{Listing}{Listings}
+\Crefname{listing}{Listing}{Listings}
+\crefname{lstlisting}{Listing}{Listings}
+\Crefname{lstlisting}{Listing}{Listings}
+
+%% TikZ for diagrams
+\usepackage{tikz}
+\usetikzlibrary{shapes.geometric, arrows.meta, positioning, fit, backgrounds, calc, decorations.pathreplacing}
+
+\usepackage[]{minted}
+\setminted{
+  % Line numbers not flowing out of the margin
+  frame=lines,
+  framesep=1.5mm,
+  fontsize=\footnotesize,
+  baselinestretch=1.2,
+  bgcolor=,
+  numbersep=5pt,
+  xleftmargin=8pt,
+  breaklines=true,
+  python3=true,
+  %
+  %
+  % Alternative: Rely on pygment's tokenizer. Does not work well with LaTeX and comments
+  % breakbytoken=true,
+  % breakbytokenanywhere=true
+}
+\setmintedinline{
+  bgcolor=,
+  breaklines=true,
+  fontsize=\small,
+  breakanywhere=true,
+}
+
+
+\usemintedstyle{sas}
+
+%%
+%% end of the preamble, start of the body of the document source.
+\begin{document}
+
+\copyrightyear{2026}
+
+\copyrightclause{Copyright for this paper by its authors. Use permitted under Creative Commons License Attribution 4.0 International (CC BY 4.0).}
+
+\conference{The 3rd Solid Symposium Poster Session, co-located with the 4th Solid Symposium, April 30 - May 01 2026, London, UK}
+
+%%
+%% The "title" command
+\title{A Solid-Based Web Application for Decentralized and Privacy-Preserving Energy Data Sharing in Logistics}
+
+%%
+%% The "author" command and its associated commands are used to define
+%% the authors and their affiliations.
+\author[1]{Thomas Wehr}[%
+orcid=0000-0002-0678-5019,
+email=thomas.wehr@fau.de,
+]
+\author[2]{Heike Weber}[%
+email=heike.weber@iis.fraunhofer.de,
+]
+\author[2]{Uwe Veres-Homm}[%
+orcid=0009-0000-9216-0615,
+email=uwe.veres-homm@iis.fraunhofer.de,
+]
+\author[1,2]{Andreas Harth}[%
+orcid=0000-0002-0702-510X,
+email=andreas.harth@fau.de,
+]
+\address[1]{Friedrich-Alexander-Universität Erlangen-Nürnberg, Nuremberg, Germany}
+\address[2]{Fraunhofer Institute for Integrated Circuits IIS, Nuremberg, Germany}
+
+\begin{abstract}
+  Energy consumption data in logistics properties remains fragmented across organizational silos, hindering effective comparison and benchmarking.
+  Existing centralized platforms require stakeholders to relinquish control of their data control, which conflicts with privacy requirements and commercial interests.
+  We present the GRANERGIZE WebApp: A Solid-based application that enables decentralized sharing of building energy data while preserving data sovereignty.
+  The application uses Web Access Control for fine-grained permissions and the Solid Application Interoperability specification for access notifications.
+  In addition to sharing individual building data, the system supports the creation and sharing of aggregated views that only expose computed statistics without revealing underlying buildings.
+  Our implementation demonstrates how the Solid protocol can solve real-world data-sharing issues in the logistics sector, allowing collaboration without centralized data custody.
+\end{abstract}
+
+%%
+%% Keywords. The author(s) should pick words that accurately describe
+%% the work being presented. Separate the keywords with commas.
+\begin{keywords}
+  Solid \sep
+  Linked Data \sep
+  Access Control \sep
+\end{keywords}
+
+%%
+%% This command processes the author and affiliation and title
+%% information and builds the first part of the formatted document.
+\maketitle
+
+\section{Introduction}
+Energy consumption data in logistics properties remains trapped in isolated silos, hindering access and exchange.
+The logistics ecosystem's complexity -- with its diverse stakeholders and varied data formats -- creates heterogeneity that prevents effective data sharing.
+Consequently, comparing energy consumption data across properties and organizations remains rudimentary at best.
+
+Logistics properties form central hubs of logistics networks and therefore play a decisive role in the provision of logistics services (source: Nehm et al.)\todo{Quelle?}. With the rapid rise in electricity and gas prices~\cite{destatis_energyprices_2023} and the increasing importance of sustainability and CO2 accounting through specific EU taxonomies \cite{eu_taxonomy_2022}, the relevance of energy efficiency in logistics real estate is becoming ever clearer.
+
+Yet substantial barriers persist:
+The stakeholder landscape's complexity -- with landlords, tenants, and operators holding different perspectives on energy use -- limits access to the data that is essential for efficient management.
+Even within organizations, mobilizing consumption data requires extensive manual effort.
+Furthermore, the diversity of building types and usage patterns makes meaningful comparison difficult.
+
+Existing centralized platforms fail to address these barriers because they require stakeholders to relinquish data control and adopt singular data models.
+The Solid protocol, with its emphasis on decentralized data ownership and standardized access control, offers an alternative: stakeholders retain sovereignty over their data while enabling controlled sharing.
+This paradigm shift aligns with both GDPR principles and the commercial realities of competitive logistics markets.
+
+To address these challenges, the GRANERGIZE project has developed an ontology that provides a unified data model for energy consumption data, as well as a WebApp for visualizing and sharing this data, which is stored on the user's Solid Pods.
+The WebApp provides visualizations of the energy consumption data and allows users to define access rights for real or aggregated data via an intuitive user interface.
+Whereas aggregated data is computed based on the user's preferences and shared as a snapshot without provenance information, individual building data can be shared directly from the owner's Pod with fine-grained access control.
+
+This paper describes the Solid-based architecture ...\todo{describe contributions and maybe sections overview}.
+\section{Scenario}
+
+\section{Implementation}
+
+In the following, we describe the implementation of the GRANERGIZE WebApp.
+Following the Solid principles of separating identity, data, and application, the WebApp operates as a pure client-side application that communicates directly with Solid Pods without requiring a central backend.
+All user data -- building metadata, energy measurements, and sharing configurations -- resides exclusively in the users' personal Solid Pods.
+
+\subsection{System Architecture}
+
+The GRANERGIZE WebApp is implemented as a single-page application using React~18 with Vite as the build tool and Material-UI for the user interface components.
+Users authenticate via the Solid-OIDC protocol, which allows them to log in with their WebID and connect to the Identity Provider of their choice.
+All RDF processing occurs client-side using the N3.js library, which provides parsing and serialization of Turtle documents as well as an in-memory quad store for pattern matching.\todo{might drop this subsection entirely if space is tight}
+
+\subsection{Data Model}
+
+To maximize interoperability, the GRANERGIZE data model builds upon established ontologies and introduces custom terms only where necessary.
+For example, the data model reuses the vcard ontology for postal addresses, the RealEstateCore (REC) ontology for building classifications, and Schema.org for organizational entities.
+Additionally, geographic regions -- cities and administrative districts -- are identified using Wikidata IRIs, enabling links to external knowledge graphs.
+The GRANERGIZE vocabulary (\mintinline{turtle}{gra:}) defines domain-specific vocabulary for logistics buildings and energy measurements.
+
+Static information on each building, such as: type, geographic coordinates, postal address, total area, and year of construction is stored as a separate Turtle file within the user's Pod, see \url{https://granergize-homer.solidcommunity.net/private/granergize/buildings/2.ttl} for an example.
+Additionally, the building files contain optional properties capturing domain-specific information such as photovoltaic system availability, NACE industry code, or energy certificate references.
+A building's energy measurement data is stored in separate datasets per year, linked to from the building file.
+Separating these datasets allows sharing building metadata independently of detailed energy data, supporting fine-grained access control as required by the data providers.
+
+A building's energy data captures the full energy flow within a logistics property using a comprehensive ontology.
+An example file, containing the detailed energy measurements is available at \url{https://granergize-homer.solidcommunity.net/private/granergize/energy/2023/2.ttl}.
+The model distinguishes six categories: energy need, energy generation, energy storage, energy distribution, energy transfer, and energy usage.
+Each category contains granular measurement types, such as electricity consumption, photovoltaic generation, heat pump output.
+
+\subsection{Data Sharing and Access Control}
+
+Access control relies on the Web Access Control (WAC) specification~\cite{BernersLee2024WAC}, which is part of the Solid platform.
+WAC associates each resource with an Access Control List (ACL) stored in a corresponding \mintinline{text}{.acl} file.
+For defining access rules, ACLs provide a standardized vocabulary (\mintinline{turtle}{acl:agent}, \mintinline{turtle}{acl:accessTo}\todo{handle overflows when all sections complete}, \mintinline{turtle}{acl:mode}) to specify read-write permissions on web resources within a Solid Pod.
+When the data provider grants access to a building, the application appends a new \mintinline{turtle}{acl:Authorization} block specifying the data requester's WebID and the granted access mode (typically \mintinline{turtle}{acl:Read}).
+The resource owner retains \mintinline{turtle}{acl:Control} permission, allowing them to modify or revoke access at any time.
+If the data provider chooses to share energy data as well, a separate authorization is added to the energy data file's ACL, enabling fine-grained control over which data elements are accessible.
+
+The sharing workflow follows the Solid Application Interoperability (INTEROP) specification~\cite{Bingham2025Interop} for notifying data requesters about granted access.
+\cref{fig:sharing-process} illustrates the sharing process.
+The data provider initiates sharing through the web interface by selecting a building and entering the recipient's WebID.
+Upon confirmation, the application executes three operations on the data provider's Pod (steps 1--3 in the figure): first, it updates the resource's ACL file (\mintinline{text}{building.ttl.acl}) to grant read permission to the recipient; second, it records the sharing action in \mintinline{text}{sharingRegistry.ttl}; third, it posts an \mintinline{turtle}{interop:AccessGrant} notification to the recipient's inbox.
+The notification specifies the granter's WebID (\mintinline{turtle}{interop:grantedBy}), a timestamp (\mintinline{turtle}{interop:grantedAt}), and a data grant pointing to the shared resource.
+
+When the data requester's application polls the inbox (steps 4--5), it discovers the new access grant and automatically adds the shared building URI to \mintinline{text}{dataSources.ttl}.
+From this point on, the data requester can fetch the building data directly from the data provider's Pod (step 6).
+The ACL on Pod~A ensures that only authorized requesters -- those whose WebID appears in the ACL -- can successfully retrieve the resource.
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[
+    % Styles
+    entity/.style={
+        rectangle,
+        draw=black,
+        fill=#1,
+        minimum width=1.8cm,
+        minimum height=0.6cm,
+        align=center,
+        font=\footnotesize\bfseries
+    },
+    entity/.default=orange!20,
+    lifeline/.style={
+        dashed,
+        gray
+    },
+    msg/.style={
+        -Stealth,
+        thick
+    },
+    msgback/.style={
+        Stealth-,
+        thick,
+        dashed
+    }
+]
+
+% Entities (participants)
+\node[entity] (provider) at (0, 0) {Data Provider};
+\node[entity=green!20] (podA) at (3, 0) {Pod A};
+\node[entity=green!20] (podB) at (7, 0) {Pod B};
+\node[entity] (requester) at (10, 0) {Data Requester};
+
+% Lifelines
+\draw[lifeline] (provider.south) -- (0, -7);
+\draw[lifeline] (podA.south) -- (3, -7);
+\draw[lifeline] (podB.south) -- (7, -7);
+\draw[lifeline] (requester.south) -- (10, -7);
+
+% Messages - Sharing flow
+\draw[msg] (0, -0.8) -- node[above, font=\scriptsize] {1. PUT building.ttl.acl} (3, -0.8);
+\draw[msg] (0, -0.8) -- node[below, font=\scriptsize] {} (3, -0.8);
+
+\draw[msg] (0, -1.6) -- node[above, font=\scriptsize] {2. PUT sharingRegistry.ttl} (3, -1.6);
+\draw[msg] (0, -1.6) -- node[below, font=\scriptsize] {} (3, -1.6);
+
+\draw[msg] (3, -2.4) -- node[above, font=\scriptsize] {3. POST AccessGrant} (7, -2.4);
+\draw[msg] (3, -2.4) -- node[below, font=\scriptsize] {to inbox/} (7, -2.4);
+
+% Messages - Requester processing
+\draw[msg] (10, -3.2) -- node[above, font=\scriptsize] {4. GET inbox/} (7, -3.2);
+\draw[msgback] (10, -4) -- node[above, font=\scriptsize] {AccessGrant} (7, -4);
+
+\draw[msg] (10, -4.8) -- node[above, font=\scriptsize] {5. update dataSources.ttl} (7, -4.8);
+
+% Messages - Data access
+\draw[msg] (10, -5.6) -- node[above, font=\scriptsize] {6. GET building.ttl} (3, -5.6);
+\draw[msgback] (10, -6.4) -- node[above, font=\scriptsize] {building data} (3, -6.4);
+
+% Annotations
+\draw[decorate, decoration={brace, amplitude=5pt, mirror}] (-0.5, -0.6) -- (-0.5, -2.4) node[midway, left=6pt, font=\scriptsize, align=right] {Granting\\access};
+\draw[decorate, decoration={brace, amplitude=5pt}] (10.5, -3.2) -- (10.5, -4.8) node[midway, right=6pt, font=\scriptsize, align=left] {Processing\\notification};
+
+\end{tikzpicture}
+\caption{Sequence diagram of the data sharing process: the data provider grants access by updating the ACL and sending a notification; the data requester processes the notification and can then fetch the shared data.}
+\label{fig:sharing-process}
+\end{figure}
+
+The application maintains local registries to track sharing relationships on both sides.
+The data provider's \mintinline{text}{sharingRegistry.ttl} contains triples of the form \mintinline{turtle}{<buildingUri> gra:sharedWith <recipientWebId>}, enabling the WebApp to display which buildings have been shared and allowing users to easily revoke access.
+On the data requester's side, \mintinline{text}{dataSources.ttl} lists all external building URIs the user has been granted access to.
+Together, these registries ensure that both parties maintain a consistent view of their data sharing relationships without requiring a central coordination service.
+
+Revocation mirrors the granting process by reversing each step.
+The application removes the recipient's \mintinline{turtle}{acl:Authorization} block from the resource's ACL file and updates \mintinline{text}{sharingRegistry.ttl} to delete the sharing record.
+On the data requester's side, subsequent access attempts return HTTP~403, prompting the application to remove the inaccessible building from \mintinline{text}{dataSources.ttl}.
+
+\subsection{Sharing Aggregated Data}
+
+While sharing individual building data enables direct collaboration, many scenarios require sharing only statistical summaries without exposing the underlying building details.
+For instance, a logistics provider managing multiple warehouses may wish to share total energy consumption across their portfolio with an industry benchmarking initiative, without revealing individual building locations or identities.\todo{as described in 2. scenario?}
+The GRANERGIZE WebApp addresses this requirement through aggregated views -- snapshots that only contain computed values.
+
+An aggregated view is defined by three parameters: a set of source buildings, an aggregation function (\mintinline{text}{sum}, \mintinline{text}{average}, \mintinline{text}{minimum}, or \mintinline{text}{maximum}), and a selection of energy metrics to include.
+\cref{fig:create-agg-view} shows a screenshot of the user interface for creating an aggregated view. In this screenshot the user selected three buildings and the \mintinline{text}{average} function for gas and electricity metrics.
+The view definition is stored as a separate Turtle file in the owner's Pod, as shown in \cref{lst:view-definition}.
+Crucially, the view definition itself -- including the source building URIs -- is never shared.
+Only the computed snapshot, containing aggregated values without provenance information, is made accessible to recipients.
+
+\noindent\begin{minipage}[t]{0.46\textwidth}
+\vspace{0pt}
+\centering
+\includegraphics[width=\textwidth]{create-agg-view.png}
+\captionof{figure}{Create Aggregated View Dialog}
+\label{fig:create-agg-view}
+\bigskip
+\end{minipage}\hfill%
+\begin{minipage}[t]{0.53\textwidth}
+\vspace{0pt}
+\centering
+\begin{minted}[linenos, frame=lines, fontsize=\footnotesize, breaklines]{turtle}
+<#view-1770048602886-f5n4sea> a gra:AggregatedViewDefinition ;
+  gra:viewId "view-1770048602886-f5n4sea" ;
+  gra:viewName "Average Gas and Electricity 467" ;
+  gra:aggregationType "average" ;
+  gra:createdAt "2026-02-02T16:10:02.886Z"^^xsd:dateTime ;
+  gra:includesBuilding <../private/granergize/buildings/4.ttl>,
+    <../private/granergize/buildings/2.ttl>,
+    <../private/granergize/buildings/6.ttl> ;
+  gra:includesMetric "gas", "electricity" ;
+  gra:lastComputedAt "2026-02-02T16:10:04.064Z"^^xsd:dateTime .
+\end{minted}
+\captionof{listing}{View Definition Example}
+\label{lst:view-definition}
+\bigskip
+\end{minipage}
+The aggregation workflow proceeds as follows.
+When the data owner creates or refreshes a view, the application fetches energy data from each source building, applies the selected aggregation function across all buildings for each metric, and stores the result as a separate Turtle file (the snapshot).
+\noindent\begin{minipage}[t]{0.46\textwidth}
+\vspace{0pt}
+\centering
+\includegraphics[width=\textwidth]{create-agg-data.png}
+\captionof{figure}{Create Aggregated View Dialog}
+\label{fig:agg-data}
+\bigskip
+\end{minipage}\hfill%
+\begin{minipage}[t]{0.53\textwidth}
+\vspace{0pt}
+\centering
+\begin{minted}[linenos, frame=lines, fontsize=\footnotesize, breaklines]{turtle}
+<#snapshot> a gra:AggregatedViewSnapshot ;
+  gra:viewId "view-1770048602886-f5n4sea" ;
+  gra:viewName "Average Gas and Electricity 467" ;
+  gra:aggregationType "average" ;
+  gra:computedAt "2026-02-02T16:10:04.064Z"^^xsd:dateTime ;
+  gra:buildingCount 3 ;
+  gra:includesMetric "gas", "electricity" ;
+  gra:gasValue 523749.00 ;
+  gra:electricityValue 822418.33 .
+\end{minted}
+\captionof{listing}{View Definition Example}
+\label{lst:view-snapshot}
+\bigskip
+\end{minipage}
+\Cref{fig:agg-data} shows an example of such a snapshot for the view defined in \cref{lst:view-definition}.
+The snapshot contains only the aggregated values and metadata such as the computation timestamp, building count, and time period -- no individual building identifiers appear in the output.
+This materialized snapshot approach ensures that recipients cannot infer which specific buildings contributed to the aggregation.
+
+Sharing an aggregated view follows the same access control pattern as individual buildings.
+The application updates the snapshot's ACL file to grant read permission to the recipient's WebID and posts an access notification to their inbox.
+
+View owners retain full control over their aggregated data.
+Because snapshots are materialized rather than computed on-demand, the shared values reflect the state at the time of creation or last refresh.
+Owners can update the snapshot at any time by triggering a manual refresh, which recomputes the aggregation from current source data and overwrites the previous snapshot.
+Recipients automatically see the updated values on their next fetch, while the owner maintains the ability to review changes before publishing.
+Access revocation works identically to individual building sharing: removing the recipient's authorization from the ACL immediately prevents further access.
+
+\section{Conclusion}
+
+Energy consumption data in the logistics sector remains fragmented across organizational boundaries, preventing effective benchmarking and collaboration.
+Centralized platforms require stakeholders to surrender data control, conflicting with privacy requirements and competitive interests.
+
+This paper presented the GRANERGIZE WebApp, a Solid-based application that addresses these challenges through decentralized data sharing while preserving data sovereignty.
+The implementation demonstrates how the Solid protocol's core components -- Web Access Control for fine-grained permissions and the Application Interoperability specification for access notifications -- can solve real-world data-sharing problems.
+By separating identity, data, and application concerns, the system enables collaboration without centralized data custody.
+The aggregated views feature extends the sharing model to support statistical summaries, allowing stakeholders to contribute to benchmarking initiatives without exposing individual building details.
+
+Future work includes integrating automated access request workflows, data integration pipelines, and supporting additional aggregation functions such as weighted averages based on building size.
+We also plan to evaluate the system's usability with logistics stakeholders in a field study to identify practical adoption barriers.
+%%
+%% Define the bibliography file to be used
+\bibliography{references}
+
+\end{document}
+
+%%D
+%% End of file
+

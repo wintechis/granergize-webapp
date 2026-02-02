@@ -8,5 +8,6 @@
   "imports": {
     "@oak/oak": "jsr:@oak/oak@^17.1.5",
     "@tajpouria/cors": "jsr:@tajpouria/cors@^1.2.1"
-  }
+  },
+  "allowScripts": ["npm:core-js@3.46.0", "npm:esbuild@0.21.5"]
 }

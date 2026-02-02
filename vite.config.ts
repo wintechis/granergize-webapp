@@ -3,6 +3,12 @@ import react from "@vitejs/plugin-react";
 
 export default defineConfig({
   plugins: [react()],
+  optimizeDeps: {
+    include: ["chart.js", "react-chartjs-2"],
+  },
+  resolve: {
+    dedupe: ["chart.js"],
+  },
   server: {
     proxy: {
       "/weather-api": {

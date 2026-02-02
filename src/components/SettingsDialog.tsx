@@ -15,13 +15,21 @@ import {
   Switch,
   FormControlLabel,
   CircularProgress,
+  Button,
+  TextField,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import RefreshIcon from "@mui/icons-material/Refresh";
+import ShareIcon from "@mui/icons-material/Share";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { getSharedBuildings, revokeAccess, getSharedWithMe, toggleBuildingVisibility } from "../services/interop/sharingManager.ts";
+import { getSharedBuildings, revokeAccess, getSharedWithMe, toggleBuildingVisibility, getSharedViews, revokeViewAccess } from "../services/interop/sharingManager.ts";
+import { getViewDefinitions, deleteView, getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
+import { shareAggregatedView } from "../services/interop/share.ts";
+import type { AggregatedViewDefinition } from "../../types/types.ts";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -42,15 +50,29 @@ interface SharedWithMeBuilding {
   isVisible: boolean;
 }
 
+interface SharedView {
+  snapshotUrl: string;
+  viewId: string;
+  sharedWith: string[];
+}
+
 export default function SettingsDialog({ open, onClose, session }: SettingsDialogProps) {
   const [tabValue, setTabValue] = useState(0);
   const [sharedBuildings, setSharedBuildings] = useState<SharedBuilding[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<SharedWithMeBuilding[]>([]);
+  const [viewDefinitions, setViewDefinitions] = useState<AggregatedViewDefinition[]>([]);
+  const [sharedViews, setSharedViews] = useState<SharedView[]>([]);
   const [loading, setLoading] = useState(false);
+  const [refreshingViewId, setRefreshingViewId] = useState<string | null>(null);
+  const [shareDialogOpen, setShareDialogOpen] = useState(false);
+  const [viewToShare, setViewToShare] = useState<AggregatedViewDefinition | null>(null);
+  const [shareWebId, setShareWebId] = useState("");
+  const [sharing, setSharing] = useState(false);
 
   useEffect(() => {
     if (open) {
       loadSharedBuildings();
+      loadViewData();
     }
   }, [open]);
 
@@ -67,6 +89,19 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
       console.error("Error loading shared buildings:", error);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const loadViewData = async () => {
+    try {
+      const [views, shared] = await Promise.all([
+        getViewDefinitions(session),
+        getSharedViews(session),
+      ]);
+      setViewDefinitions(views);
+      setSharedViews(shared);
+    } catch (error) {
+      console.error("Error loading view data:", error);
     }
   };
 
@@ -88,6 +123,79 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
       console.error("Error toggling visibility:", error);
       alert(`Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`);
     }
+  };
+
+  const handleRefreshView = async (viewId: string) => {
+    setRefreshingViewId(viewId);
+    try {
+      await refreshSnapshot(session, viewId);
+      await loadViewData();
+    } catch (error) {
+      console.error("Error refreshing view:", error);
+      alert(`Failed to refresh view: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setRefreshingViewId(null);
+    }
+  };
+
+  const handleDeleteView = async (viewId: string) => {
+    if (!confirm("Are you sure you want to delete this view? This will also revoke access for all shared users.")) {
+      return;
+    }
+    try {
+      await deleteView(session, viewId);
+      await loadViewData();
+    } catch (error) {
+      console.error("Error deleting view:", error);
+      alert(`Failed to delete view: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const handleOpenShareDialog = (view: AggregatedViewDefinition) => {
+    setViewToShare(view);
+    setShareWebId("");
+    setShareDialogOpen(true);
+  };
+
+  const handleCloseShareDialog = () => {
+    setShareDialogOpen(false);
+    setViewToShare(null);
+    setShareWebId("");
+  };
+
+  const handleShareView = async () => {
+    if (!viewToShare || !shareWebId.trim()) return;
+    
+    setSharing(true);
+    try {
+      const snapshotUrl = getSnapshotUrl(session.info.webId!, viewToShare.id);
+      await shareAggregatedView(snapshotUrl, viewToShare.id, shareWebId.trim(), session);
+      await loadViewData();
+      handleCloseShareDialog();
+    } catch (error) {
+      console.error("Error sharing view:", error);
+      alert(`Failed to share view: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setSharing(false);
+    }
+  };
+
+  const handleRevokeViewAccess = async (snapshotUrl: string, webId: string) => {
+    try {
+      await revokeViewAccess(snapshotUrl, webId, session);
+      await loadViewData();
+    } catch (error) {
+      console.error("Error revoking view access:", error);
+      alert(`Failed to revoke access: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  };
+
+  const getViewSharedWith = (viewId: string): string[] => {
+    const webId = session.info.webId;
+    if (!webId) return [];
+    const snapshotUrl = getSnapshotUrl(webId, viewId);
+    const shared = sharedViews.find((sv) => sv.snapshotUrl === snapshotUrl);
+    return shared?.sharedWith || [];
   };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
@@ -113,6 +221,7 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
       <Tabs value={tabValue} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: "divider" }}>
         <Tab label="Buildings I Share" />
         <Tab label="Buildings Shared With Me" />
+        <Tab label="Aggregated Views" />
       </Tabs>
       <DialogContent sx={{ minHeight: 400 }}>
         {loading ? (
@@ -207,9 +316,139 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                 )}
               </Box>
             )}
+            {tabValue === 2 && (
+              <Box>
+                {viewDefinitions.length === 0 ? (
+                  <Typography color="textSecondary" sx={{ mt: 2 }}>
+                    You haven't created any aggregated views yet.
+                    Use the "Create View" button on the main page to create one.
+                  </Typography>
+                ) : (
+                  <List>
+                    {viewDefinitions.map((view) => {
+                      const sharedWith = getViewSharedWith(view.id);
+                      return (
+                        <Box key={view.id}>
+                          <ListItem>
+                            <ListItemText
+                              primary={view.name}
+                              secondary={
+                                <Box component="span">
+                                  <Typography variant="body2" component="span" display="block">
+                                    Type: {view.aggregationType} | Buildings: {view.buildingUris.length} | Metrics: {view.metrics.length}
+                                  </Typography>
+                                  <Typography variant="body2" component="span" display="block" color="textSecondary">
+                                    Created: {new Date(view.createdAt).toLocaleDateString()}
+                                    {view.lastComputedAt && ` | Last computed: ${new Date(view.lastComputedAt).toLocaleDateString()}`}
+                                  </Typography>
+                                  {sharedWith.length > 0 && (
+                                    <Box sx={{ mt: 1 }}>
+                                      <Typography variant="body2" component="span" color="primary">
+                                        Shared with:
+                                      </Typography>
+                                      {sharedWith.map((webId) => (
+                                        <Box
+                                          key={webId}
+                                          display="flex"
+                                          alignItems="center"
+                                          justifyContent="space-between"
+                                          sx={{ mt: 0.5 }}
+                                        >
+                                          <Typography variant="body2" sx={{ flex: 1, fontSize: "0.8rem" }}>
+                                            {webId}
+                                          </Typography>
+                                          <IconButton
+                                            size="small"
+                                            onClick={() => handleRevokeViewAccess(
+                                              getSnapshotUrl(session.info.webId!, view.id),
+                                              webId
+                                            )}
+                                            title="Revoke access"
+                                          >
+                                            <DeleteIcon fontSize="small" />
+                                          </IconButton>
+                                        </Box>
+                                      ))}
+                                    </Box>
+                                  )}
+                                </Box>
+                              }
+                            />
+                            <Box display="flex" flexDirection="column" gap={1}>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleRefreshView(view.id)}
+                                title="Refresh snapshot"
+                                disabled={refreshingViewId === view.id}
+                              >
+                                {refreshingViewId === view.id ? (
+                                  <CircularProgress size={20} />
+                                ) : (
+                                  <RefreshIcon />
+                                )}
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleOpenShareDialog(view)}
+                                title="Share view"
+                              >
+                                <ShareIcon />
+                              </IconButton>
+                              <IconButton
+                                size="small"
+                                onClick={() => handleDeleteView(view.id)}
+                                title="Delete view"
+                              >
+                                <DeleteIcon />
+                              </IconButton>
+                            </Box>
+                          </ListItem>
+                          <Divider />
+                        </Box>
+                      );
+                    })}
+                  </List>
+                )}
+              </Box>
+            )}
           </>
         )}
       </DialogContent>
+
+      {/* Share View Dialog */}
+      <Dialog open={shareDialogOpen} onClose={handleCloseShareDialog}>
+        <DialogTitle>Share Aggregated View</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            Share "{viewToShare?.name}" with another user. They will receive access
+            to the computed snapshot values only, without seeing which buildings
+            were included.
+          </Typography>
+          <TextField
+            autoFocus
+            margin="dense"
+            label="Recipient WebID"
+            type="url"
+            fullWidth
+            variant="outlined"
+            value={shareWebId}
+            onChange={(e) => setShareWebId(e.target.value)}
+            placeholder="https://example.solidcommunity.net/profile/card#me"
+          />
+        </DialogContent>
+        <Box sx={{ display: "flex", justifyContent: "flex-end", p: 2, gap: 1 }}>
+          <Button onClick={handleCloseShareDialog} disabled={sharing}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleShareView}
+            variant="contained"
+            disabled={!shareWebId.trim() || sharing}
+          >
+            {sharing ? <CircularProgress size={20} /> : "Share"}
+          </Button>
+        </Box>
+      </Dialog>
     </Dialog>
   );
 }

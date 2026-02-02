@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
-import { recordSharing } from "./sharingManager.ts";
+import { recordSharing, recordViewSharing } from "./sharingManager.ts";
 
 export interface ShareOptions {
   includeEnergyData: boolean;
@@ -218,3 +218,102 @@ async function shareData(
 
   console.log(`Successfully shared building ${resourceUri} with ${webId}`);
 }
+
+/**
+ * Share an aggregated view snapshot with another user
+ * Only the computed snapshot is shared (not the view definition with building URIs)
+ */
+export async function shareAggregatedView(
+  snapshotUrl: string,
+  viewId: string,
+  webId: string,
+  session: Session
+): Promise<void> {
+  if (!session.info.isLoggedIn) {
+    throw new Error("User is not logged in");
+  }
+
+  console.log(`Sharing aggregated view ${snapshotUrl} with WebID ${webId}`);
+
+  // Share the snapshot resource (sets ACL)
+  await shareData(snapshotUrl, webId, session);
+
+  // Post notification to recipient's inbox
+  await postViewGrantToInbox(snapshotUrl, viewId, webId, session);
+
+  // Record the sharing in our registry
+  await recordViewSharing(snapshotUrl, viewId, webId, session);
+}
+
+/**
+ * Post an access grant notification for an aggregated view to recipient's inbox
+ */
+async function postViewGrantToInbox(
+  snapshotUrl: string,
+  viewId: string,
+  webId: string,
+  session: Session
+): Promise<void> {
+  const parser = new Parser({ format: "text/turtle", baseIRI: webId });
+  const profileResponse = await session.fetch(webId, { method: "GET" });
+
+  if (!profileResponse.ok) {
+    throw new Error(
+      `Failed to fetch WebID profile at ${webId}: ${profileResponse.statusText}`
+    );
+  }
+
+  const profileText = await profileResponse.text();
+  const quads = parser.parse(profileText);
+  const store = new Store(quads);
+
+  const inboxPredicate = DataFactory.namedNode("http://www.w3.org/ns/ldp#inbox");
+  const webIdNode = DataFactory.namedNode(webId);
+  const inboxQuads = store.getQuads(webIdNode, inboxPredicate, null, null);
+
+  if (inboxQuads.length === 0) {
+    throw new Error(`No inbox found for WebID ${webId}`);
+  }
+
+  const inboxUrl = inboxQuads[0].object.value;
+
+  // Create the notification message for aggregated view
+  const message = `
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix acl: <http://www.w3.org/ns/auth/acl#> .
+@prefix interop: <http://www.w3.org/ns/solid/interop#> .
+@prefix gra: <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
+
+<#grant${Date.now()}>
+    a interop:AccessGrant ;
+    interop:grantedBy <${session.info.webId}> ;
+    interop:grantedAt "${new Date().toISOString()}"^^xsd:dateTime ;
+    interop:grantee <${webId}> ;
+    gra:resourceType gra:AggregatedViewSnapshot ;
+    gra:viewId "${viewId}" ;
+    interop:hasDataGrant
+        [ a interop:DataGrant ;
+          interop:forResource <${snapshotUrl}> ;
+          interop:accessMode acl:Read
+        ] .`;
+
+  // Post the message to the inbox
+  const postResponse = await session.fetch(inboxUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/turtle",
+    },
+    body: message,
+  });
+
+  if (!postResponse.ok) {
+    throw new Error(
+      `Failed to post view grant message to inbox at ${inboxUrl}: ${postResponse.statusText}`
+    );
+  }
+
+  console.log(`Successfully posted view access grant to inbox at ${inboxUrl}`);
+}
+

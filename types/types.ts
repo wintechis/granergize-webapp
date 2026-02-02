@@ -26,6 +26,7 @@ export interface BuildingType {
   naceCode?: number;
   operatedBy?: string;
   energyData?: EnergyMeasurementData[];
+  isShared?: boolean;
 }
 
 export interface EnergyMeasurementData {
@@ -153,3 +154,32 @@ export type EnergyProduction = {
   geothermalProduction: number;
   totalRenewableProduction: number;
 };
+
+// Aggregated View types
+export type AggregationType = "average" | "sum" | "min" | "max";
+
+export interface AggregatedViewDefinition {
+  id: string;
+  name: string;
+  buildingUris: string[]; // Private - not included in shared snapshots
+  aggregationType: AggregationType;
+  metrics: string[]; // e.g., ["gas", "electricity", "solar"]
+  createdAt: string; // ISO timestamp
+  lastComputedAt?: string; // ISO timestamp of last snapshot computation
+}
+
+export interface AggregatedViewSnapshot {
+  id: string;
+  name: string;
+  aggregationType: AggregationType;
+  metrics: string[];
+  computedAt: string;
+  buildingCount: number; // How many buildings were aggregated (privacy-preserving)
+  values: Record<string, number>; // metric name -> computed value
+}
+
+export interface SharedAggregatedView {
+  viewUri: string;
+  viewId: string;
+  sharedWith: string[]; // WebIDs
+}

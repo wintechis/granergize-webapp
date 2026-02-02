@@ -1,5 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
+import { getStorageRoot, getPodBaseUrl } from "../utils/solidUtils.ts";
 
 interface SharedBuilding {
   buildingUri: string;
@@ -23,7 +24,7 @@ export async function getSharedBuildings(session: Session): Promise<SharedBuildi
   }
 
   const webId = session.info.webId;
-  const podBaseUrl = webId.substring(0, webId.lastIndexOf("/") + 1);
+  const podBaseUrl = getPodBaseUrl(webId);
   const sharingRegistryUrl = `${podBaseUrl}granergize/sharingRegistry.ttl`;
 
   try {
@@ -83,9 +84,7 @@ export async function getSharedWithMe(session: Session): Promise<SharedWithMeBui
   // Extract storage root by finding the base URL before any path segments
   // webId is like: https://solid.ti.rw.fau.de/homer/profile/card#me
   // storageRoot should be: https://solid.ti.rw.fau.de/homer/
-  const webIdWithoutFragment = webId.split("#")[0]; // Remove fragment (#me)
-  const pathParts = webIdWithoutFragment.split("/");
-  const storageRoot = pathParts.slice(0, 4).join("/") + "/"; // protocol://domain/username/
+  const storageRoot = getStorageRoot(webId);
   
   const registryUrl = `${storageRoot}granergize/dataSources.ttl`;
   const hiddenBuildingsUrl = `${storageRoot}granergize/hiddenBuildings.ttl`;
@@ -175,7 +174,7 @@ async function getHiddenBuildings(session: Session, hiddenBuildingsUrl: string):
     });
     
     return hiddenBuildings;
-  } catch (error) {
+  } catch (_error) {
     return new Set();
   }
 }
@@ -223,7 +222,7 @@ async function removeFromSharingRegistry(
   session: Session
 ): Promise<void> {
   const userWebId = session.info.webId!;
-  const podBaseUrl = userWebId.substring(0, userWebId.lastIndexOf("/") + 1);
+  const podBaseUrl = getPodBaseUrl(userWebId);
   const sharingRegistryUrl = `${podBaseUrl}granergize/sharingRegistry.ttl`;
 
   const response = await session.fetch(sharingRegistryUrl);
@@ -310,7 +309,7 @@ async function getEnergyDataUri(buildingUri: string, session: Session): Promise<
     
     const locationQuads = store.getQuads(energyDataQuads[0].object, datasetLocationPredicate, null, null);
     return locationQuads.length > 0 ? locationQuads[0].object.value : null;
-  } catch (error) {
+  } catch (_error) {
     return null;
   }
 }
@@ -327,7 +326,7 @@ export async function toggleBuildingVisibility(
   }
 
   const webId = session.info.webId;
-  const podBaseUrl = webId.substring(0, webId.lastIndexOf("/") + 1);
+  const podBaseUrl = getPodBaseUrl(webId);
   const hiddenBuildingsUrl = `${podBaseUrl}granergize/hiddenBuildings.ttl`;
 
   const response = await session.fetch(hiddenBuildingsUrl);
@@ -482,4 +481,208 @@ async function notifyAccessRevoked(
   }
 
   console.log(`Successfully posted access revocation notification to inbox at ${inboxUrl}`);
+}
+
+/**
+ * Record that an aggregated view has been shared with someone
+ */
+export async function recordViewSharing(
+  snapshotUrl: string,
+  viewId: string,
+  webId: string,
+  session: Session
+): Promise<void> {
+  if (!session.info.isLoggedIn || !session.info.webId) {
+    throw new Error("User is not logged in");
+  }
+
+  const userWebId = session.info.webId;
+  const podBaseUrl = userWebId.substring(0, userWebId.lastIndexOf("/") + 1);
+  const viewSharingRegistryUrl = `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
+
+  let store: Store;
+  const response = await session.fetch(viewSharingRegistryUrl);
+  
+  if (response.status === 404) {
+    store = new Store();
+  } else if (response.ok) {
+    const text = await response.text();
+    const parser = new Parser({ format: "text/turtle", baseIRI: viewSharingRegistryUrl });
+    const quads = parser.parse(text);
+    store = new Store(quads);
+  } else {
+    store = new Store();
+  }
+
+  const snapshotNode = DataFactory.namedNode(snapshotUrl);
+  const sharedWithPredicate = DataFactory.namedNode(
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith"
+  );
+  const viewIdPredicate = DataFactory.namedNode(
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId"
+  );
+  const webIdNode = DataFactory.namedNode(webId);
+
+  // Add the sharedWith triple if it doesn't exist
+  const existingQuads = store.getQuads(snapshotNode, sharedWithPredicate, webIdNode, null);
+  if (existingQuads.length === 0) {
+    store.addQuad(snapshotNode, sharedWithPredicate, webIdNode);
+  }
+
+  // Add viewId reference if not exists
+  const existingViewIdQuads = store.getQuads(snapshotNode, viewIdPredicate, null, null);
+  if (existingViewIdQuads.length === 0) {
+    store.addQuad(
+      snapshotNode,
+      viewIdPredicate,
+      DataFactory.literal(viewId)
+    );
+  }
+
+  const writer = new Writer({ format: "text/turtle" });
+  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+
+  await session.fetch(viewSharingRegistryUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: updatedTtl,
+  });
+}
+
+interface SharedView {
+  snapshotUrl: string;
+  viewId: string;
+  sharedWith: string[];
+}
+
+/**
+ * Get list of views the user has shared with others
+ */
+export async function getSharedViews(session: Session): Promise<SharedView[]> {
+  if (!session.info.isLoggedIn || !session.info.webId) {
+    throw new Error("User is not logged in");
+  }
+
+  const webId = session.info.webId;
+  const podBaseUrl = getPodBaseUrl(webId);
+  const viewSharingRegistryUrl = `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
+
+  try {
+    const response = await session.fetch(viewSharingRegistryUrl);
+    
+    if (response.status === 404) {
+      return [];
+    }
+    
+    if (!response.ok) {
+      throw new Error(`Failed to fetch view sharing registry: ${response.statusText}`);
+    }
+
+    const text = await response.text();
+    const parser = new Parser({ format: "text/turtle", baseIRI: viewSharingRegistryUrl });
+    const quads = parser.parse(text);
+    const store = new Store(quads);
+
+    const sharedWithPredicate = DataFactory.namedNode(
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith"
+    );
+    const viewIdPredicate = DataFactory.namedNode(
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId"
+    );
+
+    const viewsMap = new Map<string, { viewId: string; sharedWith: Set<string> }>();
+
+    // Get all sharedWith relations
+    const sharedQuads = store.getQuads(null, sharedWithPredicate, null, null);
+    sharedQuads.forEach((quad) => {
+      const snapshotUrl = quad.subject.value;
+      const targetWebId = quad.object.value;
+
+      if (!viewsMap.has(snapshotUrl)) {
+        // Get viewId for this snapshot
+        const viewIdQuads = store.getQuads(quad.subject, viewIdPredicate, null, null);
+        const viewId = viewIdQuads.length > 0 ? viewIdQuads[0].object.value : "";
+        viewsMap.set(snapshotUrl, { viewId, sharedWith: new Set() });
+      }
+      viewsMap.get(snapshotUrl)!.sharedWith.add(targetWebId);
+    });
+
+    return Array.from(viewsMap.entries()).map(([snapshotUrl, data]) => ({
+      snapshotUrl,
+      viewId: data.viewId,
+      sharedWith: Array.from(data.sharedWith),
+    }));
+  } catch (error) {
+    console.error("Error getting shared views:", error);
+    return [];
+  }
+}
+
+/**
+ * Revoke access to an aggregated view for a specific user
+ */
+export async function revokeViewAccess(
+  snapshotUrl: string,
+  webId: string,
+  session: Session
+): Promise<void> {
+  if (!session.info.isLoggedIn) {
+    throw new Error("User is not logged in");
+  }
+
+  // Remove from view sharing registry
+  await removeFromViewSharingRegistry(snapshotUrl, webId, session);
+
+  // Remove from ACL
+  await removeFromACL(snapshotUrl, webId, session);
+}
+
+async function removeFromViewSharingRegistry(
+  snapshotUrl: string,
+  webId: string,
+  session: Session
+): Promise<void> {
+  const userWebId = session.info.webId!;
+  const podBaseUrl = getPodBaseUrl(userWebId);
+  const viewSharingRegistryUrl = `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
+
+  const response = await session.fetch(viewSharingRegistryUrl);
+  
+  if (response.status === 404) {
+    return;
+  }
+
+  const text = await response.text();
+  const parser = new Parser({ format: "text/turtle", baseIRI: viewSharingRegistryUrl });
+  const quads = parser.parse(text);
+  const store = new Store(quads);
+
+  const snapshotNode = DataFactory.namedNode(snapshotUrl);
+  const sharedWithPredicate = DataFactory.namedNode(
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith"
+  );
+  const webIdNode = DataFactory.namedNode(webId);
+
+  // Remove the specific triple
+  store.removeQuad(snapshotNode, sharedWithPredicate, webIdNode, DataFactory.defaultGraph());
+
+  // Check if there are any remaining sharedWith for this snapshot
+  const remainingQuads = store.getQuads(snapshotNode, sharedWithPredicate, null, null);
+  if (remainingQuads.length === 0) {
+    // Remove the viewId triple too since no one has access anymore
+    const viewIdPredicate = DataFactory.namedNode(
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId"
+    );
+    const viewIdQuads = store.getQuads(snapshotNode, viewIdPredicate, null, null);
+    viewIdQuads.forEach((quad) => store.removeQuad(quad));
+  }
+
+  const writer = new Writer({ format: "text/turtle" });
+  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+
+  await session.fetch(viewSharingRegistryUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: updatedTtl,
+  });
 }

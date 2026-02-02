@@ -1,5 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
+import { getPodBaseUrl } from "../utils/solidUtils.ts";
 
 export async function readInbox(session: Session) {
   if (!session.info.isLoggedIn) {
@@ -112,7 +113,7 @@ async function addResourceToRegistry(session: Session, resource: string, accessM
     `Adding resource ${resource} with access mode ${accessMode} to registry`,
   );
   const webId = session.info.webId!;
-  const podBaseUrl = webId.substring(0, webId.lastIndexOf("/") + 1);
+  const podBaseUrl = getPodBaseUrl(webId);
   const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
 
   const registryResponse = await session.fetch(registryUrl, {
