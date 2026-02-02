@@ -1,20 +1,25 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import Button from "@mui/material/Button";
 import Map from "./Map.tsx";
 import { useSolidData } from "../context/SolidDataContext.tsx";
 import { readInbox } from "../services/interop/inbox.ts";
 import EnergyMix from "./EnergyMix.tsx";
-import QueryService from "./QueryService.tsx";
+import ViewsPage from "./QueryService.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import PersonIcon from "@mui/icons-material/Person";
+import AddIcon from "@mui/icons-material/Add";
 import SettingsDialog from "../components/SettingsDialog.tsx";
+import CreateViewDialog from "../components/CreateViewDialog.tsx";
+import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
+import type { AggregatedViewDefinition } from "../../types/types.ts";
 
 interface IndexPageProps {
   session: Session;
@@ -26,9 +31,24 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const [inboxLoading, setInboxLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const { reloadData } = useSolidData();
+  const [createViewOpen, setCreateViewOpen] = useState(false);
+  const [viewDefinitions, setViewDefinitions] = useState<AggregatedViewDefinition[]>([]);
+  const { reloadData, buildings } = useSolidData();
   
   const menuOpen = Boolean(anchorEl);
+
+  useEffect(() => {
+    loadViewDefinitions();
+  }, [session]);
+
+  const loadViewDefinitions = async () => {
+    try {
+      const views = await getViewDefinitions(session);
+      setViewDefinitions(views);
+    } catch (err) {
+      console.error("Error loading view definitions:", err);
+    }
+  };
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
     setTabValue(newValue);
@@ -67,6 +87,19 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const handleSettingsClose = () => {
     setSettingsOpen(false);
     reloadData(); // Reload data when settings close in case visibility changed
+    loadViewDefinitions(); // Reload views in case they were modified
+  };
+
+  const handleCreateViewOpen = () => {
+    setCreateViewOpen(true);
+  };
+
+  const handleCreateViewClose = () => {
+    setCreateViewOpen(false);
+  };
+
+  const handleViewCreated = () => {
+    loadViewDefinitions();
   };
 
   return (
@@ -82,7 +115,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         <Tabs value={tabValue} onChange={handleTabChange} centered>
           <Tab label="Home" />
           <Tab label="Energy Mix" />
-          <Tab label="Query Service" />
+          <Tab label="Views" />
         </Tabs>
         <Box
           sx={{
@@ -93,6 +126,14 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             gap: 2,
           }}
         >
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={handleCreateViewOpen}
+          size="small"
+        >
+          Create View
+        </Button>
         <IconButton
           onClick={handleRefresh}
           disabled={inboxLoading}
@@ -148,11 +189,24 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       </Box>
       {tabValue === 0 && <Map session={session} />}
       {tabValue === 1 && <EnergyMix />}
-      {tabValue === 2 && <QueryService />}
+      {tabValue === 2 && (
+        <ViewsPage 
+          session={session} 
+          viewDefinitions={viewDefinitions} 
+          onRefreshViews={loadViewDefinitions} 
+        />
+      )}
       <SettingsDialog
         open={settingsOpen}
         onClose={handleSettingsClose}
         session={session}
+      />
+      <CreateViewDialog
+        open={createViewOpen}
+        buildings={buildings}
+        session={session}
+        onClose={handleCreateViewClose}
+        onViewCreated={handleViewCreated}
       />
     </Box>
   );

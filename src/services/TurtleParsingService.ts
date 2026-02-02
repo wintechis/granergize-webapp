@@ -5,6 +5,7 @@ import { parseEnergyData } from "./utils/energyDataParser.ts";
 import type { BuildingType, EnergyType } from "../../types/types.ts";
 import { DataFactory, Parser, Store, Term, Writer } from "n3";
 import type { Quad } from "@rdfjs/types";
+import { getStorageRoot, getPodBaseUrl } from "./utils/solidUtils.ts";
 
 const { namedNode } = DataFactory;
 
@@ -127,7 +128,7 @@ async function removeInaccessibleBuildingSources(
     return;
   }
 
-  const podBaseUrl = webId.substring(0, webId.lastIndexOf("/") + 1);
+  const podBaseUrl = getPodBaseUrl(webId);
   const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
 
   try {
@@ -184,7 +185,7 @@ async function getSourceRegistry(
     throw new Error("No WebID found in session.");
   }
 
-  const podBaseUrl = webId.substring(0, webId.lastIndexOf("/") + 1);
+  const podBaseUrl = getPodBaseUrl(webId);
   const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
 
   try {
@@ -276,9 +277,7 @@ async function getHiddenBuildings(session: Session): Promise<Set<string>> {
   }
 
   // Extract storage root
-  const webIdWithoutFragment = webId.split("#")[0];
-  const pathParts = webIdWithoutFragment.split("/");
-  const storageRoot = pathParts.slice(0, 4).join("/") + "/";
+  const storageRoot = getStorageRoot(webId);
   const hiddenBuildingsUrl = `${storageRoot}granergize/hiddenBuildings.ttl`;
 
   try {
@@ -353,10 +352,18 @@ export async function fetchAndParseData(session: Session) {
   const agents = parseAgents(agentsResult.quads);
   const energyData = new Map<number, EnergyType>();
 
-  // Filter out hidden buildings
+  // Determine user's storage root to identify shared buildings
+  const storageRoot = getStorageRoot(webId);
+
+  // Filter out hidden buildings and mark shared buildings
   const visibleBuildings = new Map<string, BuildingType>();
   for (const [buildingId, building] of buildings) {
     if (!hiddenBuildingUris.has(building.uri)) {
+      // Check if building is from external source (shared with user)
+      const isOwnBuilding = building.uri.startsWith(storageRoot);
+      const isPublicResource = building.uri.includes("/private/granergize/");
+      building.isShared = !isOwnBuilding && !isPublicResource;
+      
       visibleBuildings.set(buildingId, building);
     }
   }

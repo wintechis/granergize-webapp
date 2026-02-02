@@ -5,6 +5,7 @@ import App from "./App.tsx";
 import CssBaseline from "@mui/material/CssBaseline";
 import { ThemeProvider } from "@mui/material/styles";
 import "./index.css";
+import "./chartSetup.ts"; // Register Chart.js globally
 import theme from "./theme.ts";
 import Login from "./pages/Login.tsx";
 import { getDefaultSession, Session } from "@inrupt/solid-client-authn-browser";

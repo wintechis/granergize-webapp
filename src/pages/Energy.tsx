@@ -20,24 +20,10 @@ import {
 } from "@mui/material";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import Item from "@mui/material/ListItem";
-import {
-  ArcElement,
-  BarElement,
-  Chart as ChartJS,
-  CategoryScale,
-  ChartData,
-  ChartOptions,
-  LinearScale,
-  Title,
-  Tooltip,
-  Legend,
-  registerables
-} from "chart.js";
+import "chart.js/auto";
+import type { ChartData, ChartOptions } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import { useSolidData } from "../context/SolidDataContext.tsx";
-
-// Register the necessary components
-ChartJS.register(...registerables);
 
 const colorPalette = [
   "rgba(166, 206, 227, 1)",
