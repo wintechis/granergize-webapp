@@ -26,6 +26,10 @@
 
 \usepackage{caption}
 
+\usepackage{multirow}
+\usepackage{array}
+\usepackage{longtable}
+
 % Enable hyperref without colors and without bookmarks
 \hypersetup{
   hidelinks,
@@ -162,6 +166,8 @@ Whereas aggregated data is computed based on the user's preferences and shared a
 
 This paper describes the Solid-based architecture ...\todo{describe contributions and maybe sections overview}.
 \section{Scenario}
+
+\input{scenario}
 
 \section{Implementation}
 
@@ -382,6 +388,11 @@ The aggregated views feature extends the sharing model to support statistical su
 
 Future work includes integrating automated access request workflows, data integration pipelines, and supporting additional aggregation functions such as weighted averages based on building size.
 We also plan to evaluate the system's usability with logistics stakeholders in a field study to identify practical adoption barriers.
+
+
+\section{Acknowledgements}
+We acknowledge funding from the German Federal Ministry for Economic Affairs and Energy (FKZ 01IF23286N).
+
 %%
 %% Define the bibliography file to be used
 \bibliography{references}
