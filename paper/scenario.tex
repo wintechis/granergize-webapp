@@ -6,79 +6,85 @@ In order to record the respective interests and data requirements in a structure
 
  
 
-Three pairs of stakeholders are listed here as examples, each of which has complementary data requirements and could complement each other well and with low barriers in a suitably designed data room (see Table~\ref{tbl:room}).
+Three pairs of stakeholders are listed here as examples, each of which has complementary data requirements and could complement each other well and with low barriers in a suitably designed data room (see Table~\ref{tbl:facroom} for the data room involving the facility manager).
 
-\begin{longtable}{c p{2cm} p{2cm} p{3.5cm} p{3.5cm} p{2cm}}
-\caption{Overview of stakeholder data exchange pairs.}
-\label{tbl:room} \\
-\textbf{Pair} & \textbf{Data provider} & \textbf{Data recipient} & \textbf{Data points} & \textbf{Granularity} & \textbf{Periodicity} \\
-\hline
-\multirow{3}{*}{1} 
-& Investor 
-& Benchmark service provider 
-& Building specifics (area, age, shift regime, etc.) 
-& Total property 
-& once \\
-\cline{4-6}
-& %Investor 
-& %Benchmark service provider 
-& Consumption data 
-& Consumption types (electricity, water, gas) 
-& annually \\
-\cline{2-6}
-& Benchmark service provider 
-& Investor 
-& Min/max/median consumption per m\textsuperscript{2} per property 
-& Consumption types (electricity, water, gas) 
-& annually \\
+\begin{table}
+\caption{Overview of stakeholder data exchange pairs involving the facility manager.}
+\label{tbl:facroom} 
+\begin{tabular}{p{5cm} p{3.5cm} p{3.5cm} p{2cm}}
+\textbf{Data flow} & \textbf{Data points} & \textbf{Granularity} & \textbf{Periodicity} \\
 \hline
 
-\multirow{2}{*}{2}
-& Facility Manager 
-& Broker 
+Facility Manager \textrightarrow{} Broker 
 & Consumption data (for energy performance certificate) 
 & Consumption types (electricity, water, gas) 
 & annually \\
-\cline{2-6}
-& Broker 
-& Facility Manager 
+
+Broker \textrightarrow{} Facility Manager 
 & User for new properties (as sales support) 
 & Total property 
 & once \\
 \hline
 
-\multirow{5}{*}{3}
-& Facility Manager 
-& Property user 
+Facility Manager \textrightarrow{} Tenant
 & Consumption data 
 & Consumption types (electricity, water, gas), as granular as possible 
 & At least monthly, ideally every 15 minutes via dashboard \\
-\cline{4-6}
-& %Facility Manager 
-& %Property user 
+
+%Facility Manager \textrightarrow{} Tenant
 & Blind loads 
 & Total property 
 & once \\
-\cline{4-6}
-& %Facility Manager 
-& %Property user 
+
+%Facility Manager \textrightarrow{} Tenant
 & Peak loads 
 & Types of consumption: electricity (lighting, intralogistics, etc.) 
-& As detailed as possible \\
-\cline{2-6}
-& Property user 
-& Facility Manager 
+& As detailed as possible\footnote{@@@how is that a period?} \\
+
+Tenant \textrightarrow{} Facility Manager 
 & Consumption data (for properties not under management by FM) 
 & Total consumption per user 
-& Once a month \\
-\cline{4-6}
-& %Property user 
-& %Facility Manager 
+& Once a month\footnote{@@@vs. monthly?} \\
+
+%Tenant \textrightarrow{} Facility Manager 
 & Building specifics (area, age, shift regime, etc.) 
 & Number, size, location 
 & annually \\
-\end{longtable}
+\hline
+\end{tabular}
+\end{table}
 
+
+\begin{table}
+\caption{Overview of stakeholder data exchange pairs between investor and benchmark service provider.}
+\label{tbl:invroom}
+\begin{tabular}{p{5cm} p{3.5cm} p{3.5cm} p{2cm}}
+\textbf{Data flow} & \textbf{Data points} & \textbf{Granularity} & \textbf{Periodicity} \\
+\hline
+Investor \textrightarrow{} Benchmark service provider 
+& Building specifics (area, age, shift regime, etc.) 
+& Total property 
+& once \\
+
+%Investor 
+%Benchmark service provider 
+& Consumption data 
+& Consumption types (electricity, water, gas) 
+& annually \\
+
+\rowcolor{gray!20}
+Benchmark service provider \textrightarrow{} Investor 
+& Min/max/median building specifics (area, age, shift regime\footnote{@@@shift regime could change over time, no?}, etc.) 
+& Total property 
+& once \\
+
+%Benchmark service provider \textrightarrow{} Investor 
+& Min/max/median consumption per m\textsuperscript{2} per property 
+& Consumption types (electricity, water, gas) 
+& annually \\
+\hline
+\end{tabular}
+\end{table}
 
 This list can be supplemented by at least nine other identified pairs, each of which has expressed mutual data requirements in the context of energy consumption or property data for logistics real estate.
 
