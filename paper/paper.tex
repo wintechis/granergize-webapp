@@ -26,9 +26,12 @@
 
 \usepackage{caption}
 
-\usepackage{multirow}
-\usepackage{array}
-\usepackage{longtable}
+\usepackage[table]{xcolor}
+
+% enable footnotes for ceurart template
+\usepackage{footnote} % to handle footnotes properly
+\makesavenoteenv{table} % optional if you want footnotes inside tables
+%\newcommand{\footn}[1]{\protected@xfootnote{#1}}
 
 % Enable hyperref without colors and without bookmarks
 \hypersetup{
@@ -98,8 +101,8 @@
 
 %%
 %% The "title" command
-\title{A Solid-Based Web Application for Decentralized and Privacy-Preserving Energy Data Sharing in Logistics}
-
+%\title{A Solid-Based Web Application for Decentralized and Privacy-Preserving Energy Data Sharing in Logistics}
+\title{Sharing Energy Data in Data Rooms}
 %%
 %% The "author" command and its associated commands are used to define
 %% the authors and their affiliations.
@@ -108,6 +111,7 @@ orcid=0000-0002-0678-5019,
 email=thomas.wehr@fau.de,
 ]
 \author[2]{Heike Weber}[%
+  orcid=0009-0008-3992-6771,
 email=heike.weber@iis.fraunhofer.de,
 ]
 \author[2]{Uwe Veres-Homm}[%
