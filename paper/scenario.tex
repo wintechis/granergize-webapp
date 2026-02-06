@@ -11,7 +11,7 @@ Three pairs of stakeholders are listed here as examples, each of which has compl
 \begin{table}
 \caption{Overview of stakeholder data exchange pairs involving the facility manager.}
 \label{tbl:facroom} 
-\begin{tabular}{p{5cm} p{3.5cm} p{3.5cm} p{2cm}}
+\begin{tabular}{p{3.5cm} p{4cm} p{4cm} p{2cm}}
 \textbf{Data flow} & \textbf{Data points} & \textbf{Granularity} & \textbf{Periodicity} \\
 \hline
 
@@ -39,12 +39,12 @@ Facility Manager \textrightarrow{} Tenant
 %Facility Manager \textrightarrow{} Tenant
 & Peak loads 
 & Types of consumption: electricity (lighting, intralogistics, etc.) 
-& As detailed as possible\footnote{@@@how is that a period?} \\
+& As detailed as possible\footnote{@@@how is that a period? peak load needs to be measured precisely when it happened, precise timestamp, difference between when measured and when communicated; two timestamps in a way, measure timestamp is relevant, you can communicate every month } \\
 
 Tenant \textrightarrow{} Facility Manager 
 & Consumption data (for properties not under management by FM) 
 & Total consumption per user 
-& Once a month\footnote{@@@vs. monthly?} \\
+& monthly \\
 
 %Tenant \textrightarrow{} Facility Manager 
 & Building specifics (area, age, shift regime, etc.) 
@@ -56,9 +56,11 @@ Tenant \textrightarrow{} Facility Manager
 
 
 \begin{table}
-\caption{Overview of stakeholder data exchange pairs between investor and benchmark service provider.}
+\caption{Overview of stakeholder data exchange pairs between investor and benchmark service provider.
+The benchmark service provider takes the shared data points (building specifics and consumption data) as basis for the calculated consumption per $m^2$, which is in turn shared back.
+}
 \label{tbl:invroom}
-\begin{tabular}{p{5cm} p{3.5cm} p{3.5cm} p{2cm}}
+\begin{tabular}{p{3.5cm} p{4cm} p{4cm} p{2cm}}
 \textbf{Data flow} & \textbf{Data points} & \textbf{Granularity} & \textbf{Periodicity} \\
 \hline
 Investor \textrightarrow{} Benchmark service provider 
@@ -72,11 +74,12 @@ Investor \textrightarrow{} Benchmark service provider
 & Consumption types (electricity, water, gas) 
 & annually \\
 
-\rowcolor{gray!20}
+%\rowcolor{gray!20}
 Benchmark service provider \textrightarrow{} Investor 
-& Min/max/median building specifics (area, age, shift regime\footnote{@@@shift regime could change over time, no?}, etc.) 
-& Total property 
-& once \\
+
+%& Min/max/median building specifics (area, age, shift regime\footnote{@@@shift regime could change over time, no? yes, might change, but is not very important; rather, the min/max/median building specifics is not shared back, but is needed to calculate the square meter aggregated value.}, etc.) 
+%& Total property 
+%& once \\
 
 %Benchmark service provider \textrightarrow{} Investor 
 & Min/max/median consumption per m\textsuperscript{2} per property 
@@ -96,4 +99,8 @@ In any case, it is necessary to exchange data beyond the boundaries of one's own
 
 This is to be addressed and resolved through collaborative data sharing using the GRANERGIZE web app developed as part of the project.
 
- 
+\subsection{Data Room}
+
+The term Data Room was chosen deliberately, as these Data Rooms are conceptualised as demarcated areas with clearly defined access conditions. Access to such a room is controlled by a gatekeeper. The Data Room therefore represents a protected and restricted area in which only approved participants are permitted to enter on the basis of a corresponding authorisation.
+
+In the scenario considered here, the facility manager (FM) acts as the owner of his Data Room. Various tenants and brokers are granted access to this room in order to find out what data the FM provides at which level of granularity and with what periodicity. If the data offered by the FM meets their requirements, the actors involved can submit their own data offers in return and agree to exchange data if there is mutual consent. If, on the other hand, the available data does not meet the visitors’ expectations, they can leave the Data Room at any time without further interaction.
