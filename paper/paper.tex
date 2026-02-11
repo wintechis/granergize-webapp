@@ -151,24 +151,23 @@ email=andreas.harth@fau.de,
 \section{Introduction}
 Energy consumption data in logistics properties remains trapped in isolated silos, hindering access and exchange.
 The logistics ecosystem's complexity -- with its diverse stakeholders and varied data formats -- creates heterogeneity that prevents effective data sharing.
-Consequently, comparing energy consumption data across properties and organizations remains rudimentary at best.
+Consequently, sharing and comparing energy consumption data across properties and organizations remains rudimentary at best.
 
-Logistics properties form central hubs of logistics networks and therefore play a decisive role in the provision of logistics services (source: Nehm et al.)\todo[inline]{Quelle? Nehm, A., Veres-Homm, U. and Kille, C. (2009). Logistikimmobilien in Deutschland: Markt und Standorte; eine Studie mit der Unterstützung von Deka Immobilien, Goldbeck, ING Real Estate, Jones Lang LaSalle, ProLogis. Fraunhofer-Verlag, Stuttgart.}. With the rapid rise in electricity and gas prices~\cite{destatis_energyprices_2023}\todo[inline]{
-Für die direkt darauffolgende Quelle vom Statistischen Bundesamt gibt es mittlerweile eine aktualisierte Version von 2026:
+Logistics properties form central hubs of logistics networks and therefore play a decisive role in the provision of logistics services.~\cite{nehm2009logistikimmobilien}\todo[inline]{
+In view of the rapid rise in electricity and gas prices~\cite{destatis_energyprices_2023} and the increasing importance of sustainability and CO2 accounting through specific EU taxonomies~\cite{eu_taxonomy_2022}, the relevance of energy efficiency in logistics real estate is becoming ever clearer.
 
-Statistisches Bundesamt (30.01.2026). Statistischer Bericht – Daten zur Energiepreisentwicklung – Dezember 2025. URL: https://www.destatis.de/DE/Themen/Wirtschaft/Preise/Publikationen/Energiepreise/statistischer-bericht-energiepreisentwicklung-5619001.html [02.02.2026]
-} and the increasing importance of sustainability and CO2 accounting through specific EU taxonomies~\cite{eu_taxonomy_2022}, the relevance of energy efficiency in logistics real estate is becoming ever clearer.
-
-Yet substantial barriers persist:
-The stakeholder landscape's complexity -- with landlords, tenants, and operators holding different perspectives on energy use -- limits access to the data that is essential for efficient management.
+Yet substantial barriers to sharing and comparing energy consumption data persist:
+The stakeholder landscape's complexity -- with facility managers, users, investors, brokers, etc. holding different perspectives on energy use -- makes it difficult to access all the relevant data for a comprehensive view of energy consumption.
 Even within organizations, mobilizing consumption data requires extensive manual effort.
 Furthermore, the diversity of building types and usage patterns makes meaningful comparison difficult.
+In addition to these technical and organizational barriers, a fundamental challenge is establishing trust and agreement among stakeholders to share sensitive energy data. Traditional approaches often lack transparent mechanisms for negotiating and enforcing data sharing agreements, which further discourages collaboration across organizational boundaries.
 
 Existing centralized platforms fail to address these barriers because they require stakeholders to relinquish data control and adopt singular data models.
 The Solid protocol, with its emphasis on decentralized data ownership and standardized access control, offers an alternative: stakeholders retain sovereignty over their data while enabling controlled sharing.
 This paradigm shift aligns with both GDPR principles and the commercial realities of competitive logistics markets.
 
-To address these challenges, the GRANERGIZE project has developed an ontology that provides a unified data model for energy consumption data, as well as a WebApp for visualizing and sharing this data, which is stored on the user's Solid Pods.
+To address these challenges, the GRANERGIZE project has  developed a process that enables stakeholders to negotiate and formalize data sharing agreements, ensuring that consent is established before any data is exchanged. 
+Additionally, we have also developed an ontology that provides a unified data model for energy consumption data, as well as a WebApp for visualizing and sharing this data, which is stored on the user's Solid Pods. 
 The WebApp provides visualizations of the energy consumption data and allows users to define access rights for real or aggregated data via an intuitive user interface.
 Whereas aggregated data is computed based on the user's preferences and shared as a snapshot without provenance information, individual building data can be shared directly from the owner's Pod with fine-grained access control.
 
