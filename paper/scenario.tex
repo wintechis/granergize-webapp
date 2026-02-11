@@ -1,106 +1,202 @@
-The energy consumption of logistics properties is relevant for a wide range of stakeholders. While users, owners, and facility managers are primarily interested in specific consumption data for reporting and calculation purposes, developers, financiers, brokers, energy suppliers, and benchmark service providers rely on data for property comparisons, accurate energy reporting, and consumption optimization.
+A central concept in GRANERGIZE is the \emph{Data Room}. Data Rooms are demarcated virtual areas with clearly defined access conditions, controlled by a gatekeeper. Only approved participants are permitted to enter, based on explicit authorization. Within a Data Room, stakeholders can negotiate and formalize data sharing agreements, ensuring that trust and consent are established before any data is exchanged.
 
- 
+We deliberately chose the term Data Room, as these spaces are conceptualized as protected and restricted areas. Access is managed by a gatekeeper -- typically the data owner -- who determines which participants may enter and under what conditions. The Data Room thus provides a secure environment for stakeholders to discover available data, specify their own data requirements, and negotiate mutually acceptable terms for data exchange. If the data offered meets a participant's needs, they can submit their own data offers in return and, if there is mutual consent, agree to exchange data. Otherwise, participants can leave the Data Room without further interaction.
 
-In order to record the respective interests and data requirements in a structured manner, the project surveyed each stakeholder group about the implications of energy consumption data for their daily business, the associated pains and gains, and any data requirements they might have from other stakeholders. It was assumed that data would only be made available to external stakeholders if they could in turn cover their own data requirements.
+To illustrate this, consider the following scenario: the facility manager (FM) acts as the owner of a Data Room. Various tenants and brokers are granted access to this room to view descriptions of the data the FM provides, specifying the data's granularity and periodicity. If the data description matches their requirements, they can offer their own data descriptions and, upon agreement, exchange data.
 
- 
+\cref{fig:dataroom-process} illustrates this negotiation process.
 
-Three pairs of stakeholders are listed here as examples, each of which has complementary data requirements and could complement each other well and with low barriers in a suitably designed data room (see Table~\ref{tbl:facroom} for the data room involving the facility manager).
+\begin{figure}[t]
+\centering
+\begin{tikzpicture}[
+    % Styles
+    entity/.style={
+        rectangle,
+        draw=black,
+        fill=#1,
+        minimum width=2cm,
+        minimum height=0.6cm,
+        align=center,
+        font=\footnotesize\bfseries
+    },
+    entity/.default=orange!20,
+    lifeline/.style={
+        dashed,
+        gray
+    },
+    msg/.style={
+        -Stealth,
+        thick
+    },
+    msgback/.style={
+        Stealth-,
+        thick,
+        dashed
+    },
+    note/.style={
+        rectangle,
+        draw=black!50,
+        fill=yellow!15,
+        font=\scriptsize,
+        align=center,
+        rounded corners=2pt,
+        inner sep=3pt
+    },
+    altbox/.style={
+        rectangle,
+        draw=black!60,
+        dashed,
+        rounded corners=2pt,
+        inner sep=4pt
+    }
+]
 
+% Entities (participants)
+\node[entity] (gatekeeper) at (0, 0) {Gatekeeper};
+\node[entity=blue!15] (dataroom) at (4, 0) {Data Room};
+\node[entity=green!20] (participant) at (9, 0) {Participant};
+
+% Lifelines
+\draw[lifeline] (gatekeeper.south) -- (0, -8.3);
+\draw[lifeline] (dataroom.south) -- (4, -8.3);
+\draw[lifeline] (participant.south) -- (9, -8.3);
+
+% Step 1: Gatekeeper publishes data descriptions
+\draw[msg] (0, -1) -- node[above, font=\scriptsize] {1. Publish data descriptions} (4, -1);
+\draw[msg] (0, -1) -- node[below, font=\scriptsize] {(granularity, periodicity)} (4, -1);
+
+% Step 2: Participant requests access
+\draw[msg] (9, -1.4) -- node[above, font=\scriptsize] {2. Request access} (4, -1.4);
+
+% Step 3: Gatekeeper evaluates and grants access
+\draw[msg] (4, -2) -- node[above, font=\scriptsize] {3. Access request} (0, -2);
+\draw[msgback] (4, -2.6) -- node[above, font=\scriptsize] {4. Grant access} (0, -2.6);
+
+% Step 4: Participant discovers data
+\draw[msg] (9, -3.0) -- node[above, font=\scriptsize] {5. Discover data descriptions} (4, -3.0);
+\draw[msgback] (9, -3.6) -- node[above, font=\scriptsize] {data descriptions} (4, -3.6);
+
+% Step 5: Participant evaluates and submits own offer
+\node[note] (eval) at (9, -4.2) {Evaluate\\data offers};
+
+% Alt box for the two outcomes
+\draw[altbox] (-0.8, -4.7) rectangle (9.8, -7.9);
+\node[font=\scriptsize\bfseries, anchor=north west] at (-0.7, -4.7) {alt};
+
+% Happy path: mutual consent
+\node[font=\scriptsize, anchor=north west, text=black!70] at (0, -4.7) {[data meets requirements]};
+\draw[msg] (9, -5.4) -- node[above, font=\scriptsize] {6. Submit own data offer} (4, -5.4);
+\draw[msg] (4, -5.8) -- node[above, font=\scriptsize] {7. Forward offer} (0, -5.8);
+\draw[msg] (0, -6.4) -- node[above, font=\scriptsize] {8. Mutual consent} (4, -6.4);
+\draw[msg] (4, -6.4) -- node[above, font=\scriptsize] {} (9, -6.4);
+
+% Divider
+\draw[dashed, black!40] (-0.7, -6.6) -- (9.7, -6.6);
+
+% Unhappy path: no match
+\node[font=\scriptsize, anchor=north west, text=black!70] at (0, -6.8) {[no match]};
+\draw[msg] (9, -7.5) -- node[above, font=\scriptsize] {Leave Data Room} (4, -7.5);
+
+% Annotations
+\draw[decorate, decoration={brace, amplitude=5pt, mirror}] (-1.2, -0.4) -- (-1.2, -1.4) node[midway, left=6pt, font=\scriptsize, align=right] {Setup};
+\draw[decorate, decoration={brace, amplitude=5pt}] (9.8, -1.4) -- (9.8, -2.6) node[midway, right=6pt, font=\scriptsize, align=left] {Access\\control};
+\draw[decorate, decoration={brace, amplitude=5pt}] (9.8, -2.7) -- (9.8, -4.5) node[midway, right=6pt, font=\scriptsize, align=left] {Discovery \&\\evaluation};
+
+\end{tikzpicture}
+\caption{Sequence diagram of the Data Room negotiation process: the gatekeeper publishes data descriptions and controls access; participants discover available data, evaluate offers, and -- if requirements are met -- submit their own data offers leading to mutual consent.}
+\label{fig:dataroom-process}
+\end{figure}
+
+Energy consumption data in logistics properties is relevant for a wide range of stakeholders. While users, owners, and FMs are primarily interested in specific consumption data for reporting and calculation purposes, developers, financiers, brokers, energy suppliers, and benchmark service providers (BSP) rely on data for property comparisons, accurate energy reporting, and consumption optimization.
+
+To capture these interests and requirements, the project team surveyed each stakeholder group about the implications of energy consumption data for their daily business, the associated pains and gains, and any data requirements they might have from other stakeholders. \Cref{tbl:facroom} shows an example Data Room owned by a FM, who exchanges consumption data with brokers (e.g., for energy performance certificates) and tenants (e.g., detailed consumption breakdowns including blind and peak loads), while receiving building specifics and tenant-side consumption data in return. \Cref{tbl:invroom} illustrates a second Data Room in which an investor shares building specifics and consumption data with a BSP, who in turn computes and shares back aggregated consumption per~m\textsuperscript{2}.
+
+\begingroup\renewcommand{\thefootnote}{\fnsymbol{footnote}}
 \begin{table}
-\caption{Overview of stakeholder data exchange pairs involving the facility manager.}
+\caption{Overview of stakeholder data exchange pairs involving the facility manager (FM).}
 \label{tbl:facroom} 
-\begin{tabular}{p{3.5cm} p{4cm} p{4cm} p{2cm}}
+\begin{tabular}{p{2.4cm} p{5cm} p{4cm} p{2.7cm}}
 \textbf{Data flow} & \textbf{Data points} & \textbf{Granularity} & \textbf{Periodicity} \\
 \hline
 
-Facility Manager \textrightarrow{} Broker 
+FM \textrightarrow{} Broker 
 & Consumption data (for energy performance certificate) 
-& Consumption types (electricity, water, gas) 
+& Consumption types\footnotemark[1] 
 & annually \\
 
-Broker \textrightarrow{} Facility Manager 
+Broker \textrightarrow{} FM 
 & User for new properties (as sales support) 
 & Total property 
 & once \\
 \hline
 
-Facility Manager \textrightarrow{} Tenant
+FM \textrightarrow{} Tenant
 & Consumption data 
-& Consumption types (electricity, water, gas), as granular as possible 
-& At least monthly, ideally every 15 minutes via dashboard \\
+& Consumption types\footnotemark[1], as granular as possible 
+& At least monthly, ideally every 15 minutes \\
 
-%Facility Manager \textrightarrow{} Tenant
-& Blind loads\footnote{@@@link to Wikipedia? link to ontology?}
+%FM \textrightarrow{} Tenant
+& Blind loads
 & Total property 
 & once \\
 
-%Facility Manager \textrightarrow{} Tenant
+%FM \textrightarrow{} Tenant
 & Peak loads 
-& Types of consumption: electricity (lighting, intralogistics, etc.) 
-& As detailed as possible\footnote{@@@how is that a period? peak load needs to be measured precisely when it happened, precise timestamp, difference between when measured and when communicated; two timestamps in a way, measure timestamp is relevant, you can communicate every month } \\
+& Consumer types\footnotemark[2]
+& As detailed as possible\\
 
-Tenant \textrightarrow{} Facility Manager 
-& Consumption data (for properties not under management by FM) 
+Tenant \textrightarrow{} FM 
+& Consumption data
 & Total consumption per user 
 & monthly \\
 
-%Tenant \textrightarrow{} Facility Manager 
-& Building specifics (area, age, shift regime, etc.) 
+%Tenant \textrightarrow{} FM 
+& Building specifics\footnotemark[3]
 & Number, size, location 
 & annually \\
 \hline
 \end{tabular}
 \end{table}
 
-
 \begin{table}
-\caption{Overview of stakeholder data exchange pairs between investor and benchmark service provider.
-The benchmark service provider takes the shared data points (building specifics and consumption data) as basis for the calculated consumption per $m^2$, which is in turn shared back.
+\caption{Overview of stakeholder data exchange pairs between investor and benchmark service provider (BSP).
+The BSP takes building specifics and consumption data and then provides the calculated consumption per m\textsuperscript{2}.
 }
 \label{tbl:invroom}
 \begin{tabular}{p{3.5cm} p{4cm} p{4cm} p{2cm}}
 \textbf{Data flow} & \textbf{Data points} & \textbf{Granularity} & \textbf{Periodicity} \\
 \hline
-Investor \textrightarrow{} Benchmark service provider 
-& Building specifics (area, age, shift regime, etc.) 
+Investor \textrightarrow{} BSP 
+& Building specifics\footnotemark[3]
 & Total property 
 & once \\
 
 %Investor 
-%Benchmark service provider 
+%BSP 
 & Consumption data 
-& Consumption types (electricity, water, gas) 
+& Consumption types\footnotemark[1] 
 & annually \\
 
 %\rowcolor{gray!20}
-Benchmark service provider \textrightarrow{} Investor 
+BSP \textrightarrow{} Investor 
 
 %& Min/max/median building specifics (area, age, shift regime\footnote{@@@shift regime could change over time, no? yes, might change, but is not very important; rather, the min/max/median building specifics is not shared back, but is needed to calculate the square meter aggregated value.}, etc.) 
 %& Total property 
 %& once \\
 
-%Benchmark service provider \textrightarrow{} Investor 
+%BSP \textrightarrow{} Investor 
 & Min/max/median consumption per m\textsuperscript{2} per property 
-& Consumption types (electricity, water, gas) 
+& Consumption types\footnotemark[1] 
 & annually \\
 \hline
 \end{tabular}
 \end{table}
+\footnotetext[1]{Electricity, water, and gas.}
+\footnotetext[2]{lighting, intralogistics, etc.}
+\footnotetext[3]{area, age, shift regime, etc.}
+\endgroup
 
-This list can be supplemented by at least nine other identified pairs, each of which has expressed mutual data requirements in the context of energy consumption or property data for logistics real estate.
+% This list can be supplemented by at least nine other identified pairs, each of which has expressed mutual data requirements in the context of energy consumption or property data for logistics real estate.
+% In any case, it is necessary to exchange data beyond the boundaries of one's own company, which, due to the data silos that have been common up to now, different data formats and granularities, and general reservations about sharing data, is only possible with a great deal of individual effort.
 
- 
-
-In any case, it is necessary to exchange data beyond the boundaries of one's own company, which, due to the data silos that have been common up to now, different data formats and granularities, and general reservations about sharing data, is only possible with a great deal of individual effort.
-
- 
-
-This is to be addressed and resolved through collaborative data sharing using the GRANERGIZE web app developed as part of the project.
-
-\subsection{Data Room}
-
-The term Data Room was chosen deliberately, as these Data Rooms are conceptualised as demarcated areas with clearly defined access conditions. Access to such a room is controlled by a gatekeeper. The Data Room therefore represents a protected and restricted area in which only approved participants are permitted to enter on the basis of a corresponding authorisation.
-
-In the scenario considered here, the facility manager (FM) acts as the owner of his Data Room. Various tenants and brokers are granted access to this room in order to find out what data the FM provides at which level of granularity and with what periodicity. If the data offered by the FM meets their requirements, the actors involved can submit their own data offers in return and agree to exchange data if there is mutual consent. If, on the other hand, the available data does not meet the visitors’ expectations, they can leave the Data Room at any time without further interaction.
+% This is to be addressed and resolved through collaborative data sharing using the GRANERGIZE web app developed as part of the project.
