@@ -57,9 +57,9 @@ To illustrate this, consider the following scenario: the facility manager (FM) a
 \node[entity=green!20] (participant) at (9, 0) {Participant};
 
 % Lifelines
-\draw[lifeline] (gatekeeper.south) -- (0, -8.3);
-\draw[lifeline] (dataroom.south) -- (4, -8.3);
-\draw[lifeline] (participant.south) -- (9, -8.3);
+\draw[lifeline] (gatekeeper.south) -- (0, -7.9);
+\draw[lifeline] (dataroom.south) -- (4, -7.9);
+\draw[lifeline] (participant.south) -- (9, -7.9);
 
 % Step 1: Gatekeeper publishes data descriptions
 \draw[msg] (0, -1) -- node[above, font=\scriptsize] {1. Publish data descriptions} (4, -1);
@@ -80,7 +80,7 @@ To illustrate this, consider the following scenario: the facility manager (FM) a
 \node[note] (eval) at (9, -4.2) {Evaluate\\data offers};
 
 % Alt box for the two outcomes
-\draw[altbox] (-0.8, -4.7) rectangle (9.8, -7.9);
+\draw[altbox] (-0.8, -4.7) rectangle (9.8, -7.6);
 \node[font=\scriptsize\bfseries, anchor=north west] at (-0.7, -4.7) {alt};
 
 % Happy path: mutual consent
@@ -94,8 +94,8 @@ To illustrate this, consider the following scenario: the facility manager (FM) a
 \draw[dashed, black!40] (-0.7, -6.6) -- (9.7, -6.6);
 
 % Unhappy path: no match
-\node[font=\scriptsize, anchor=north west, text=black!70] at (0, -6.8) {[no match]};
-\draw[msg] (9, -7.5) -- node[above, font=\scriptsize] {Leave Data Room} (4, -7.5);
+\node[font=\scriptsize, anchor=north west, text=black!70] at (0, -6.6) {[no match]};
+\draw[msg] (9, -7.3) -- node[above, font=\scriptsize] {Leave Data Room} (4, -7.3);
 
 % Annotations
 \draw[decorate, decoration={brace, amplitude=5pt, mirror}] (-1.2, -0.4) -- (-1.2, -1.4) node[midway, left=6pt, font=\scriptsize, align=right] {Setup};
