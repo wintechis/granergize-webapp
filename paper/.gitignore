@@ -1,0 +1,9 @@
+*.abs
+*.aux
+*.bbl
+*.blg
+*.brf
+*.fdb_latexmk
+*.xmpdata
+*.xmpi
+*.log
