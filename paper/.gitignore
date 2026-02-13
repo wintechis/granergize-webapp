@@ -7,3 +7,4 @@
 *.xmpdata
 *.xmpi
 *.log
+_minted/*

@@ -127,11 +127,10 @@ email=andreas.harth@fau.de,
 \begin{abstract}
   Energy consumption data in logistics properties remains fragmented across organizational silos, hindering effective comparison and benchmarking.
   Existing centralized platforms require stakeholders to relinquish control of their data, which conflicts with privacy requirements and commercial interests.
-  We introduce the concept of Data Rooms -- a structured process for stakeholders to negotiate and formalize data sharing agreements before any data is exchanged.
+  Moreover, stakeholders lack visibility into what data others need or can offer, making it difficult to identify potential data exchange partners.
+  We introduce the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements before any data is exchanged.
   Building on this foundation, we present the GRANERGIZE WebApp: a Solid-based application that enables decentralized sharing of building energy data while preserving data sovereignty.
-  The application uses Web Access Control for fine-grained permissions and the Solid Application Interoperability specification for access notifications.
-  In addition to sharing individual building data, the system supports the creation and sharing of aggregated views that only expose computed statistics without revealing underlying buildings.
-  Our implementation demonstrates how the Solid protocol can solve real-world data-sharing issues in the logistics sector, allowing collaboration without centralized data custody.
+  The system also supports aggregated views that expose only computed statistics without revealing underlying building data.
 \end{abstract}
 
 %%
@@ -155,18 +154,18 @@ The logistics ecosystem's complexity -- with its diverse stakeholders and varied
 Logistics properties form central hubs of logistics networks and therefore play a decisive role in the provision of logistics services.~\cite{nehm2009logistikimmobilien}
 With rising electricity and gas prices~\cite{destatis_energyprices_2023} and increasing sustainability requirements through EU taxonomies~\cite{eu_taxonomy_2022}, energy efficiency in logistics real estate is becoming ever more relevant.
 
-Yet substantial barriers to sharing and comparing energy consumption data persist:
+Yet substantial technical, and trust barriers to sharing and comparing energy consumption data persist:
 The stakeholder landscape's complexity -- with Facility Managers (FMs), users, investors, brokers, etc. holding different perspectives on energy use -- makes it difficult to access all the relevant data for a comprehensive view of energy consumption.
 Even within organizations, mobilizing consumption data requires extensive manual effort, and the diversity of building types and usage patterns makes meaningful comparison difficult.
-In addition to these technical and organizational barriers, establishing trust agreement among stakeholders to share sensitive energy data remains a fundamental challenge, as traditional approaches lack transparent mechanisms for negotiating and enforcing data sharing agreements.
+In addition to the technical barriers, establishing trust among stakeholders to share sensitive energy data remains a fundamental challenge, as traditional approaches lack mechanisms for identifying data sharing requirements and matching potential partners.
 
-Existing centralized platforms fail to address these barriers because they require stakeholders to relinquish data control and adopt singular data models.
+Existing centralized platforms fail to address the technical barriers because they require stakeholders to relinquish data control and adopt singular data models.
 The Solid protocol offers an alternative: stakeholders retain data sovereignty while enabling controlled sharing, aligning with both GDPR principles and the commercial realities of competitive logistics markets.
 
-To address these challenges, the GRANERGIZE project has developed a process that enables stakeholders to negotiate and formalize data sharing agreements, ensuring that consent is established before any data is exchanged.
-Additionally, we have developed an ontology that provides a unified data model for energy consumption data, as well as a WebApp for visualizing and sharing this data, stored on the user's Solid Pods.
+To address the trust challenges, the GRANERGIZE project has developed an ontology that provides a unified data model for energy consumption data, as well as a WebApp for visualizing and sharing this data, stored on the user's Solid Pods.
 The WebApp provides visualizations of the energy consumption data and allows users to define access rights for real or aggregated data via an intuitive user interface.
 Whereas aggregated data is computed based on the user's preferences and shared as a snapshot without provenance information, individual building data can be shared directly from the owner's Pod with fine-grained access control.
+Additionally, to address the trust challenges, we have developed a process we call Data Rooms. Data Rooms enable stakeholders to identify and formalize data sharing requirements, allowing the stakeholders to discover potential partners for data exchange.
 
 \section{Scenario}
 \label{sec:scenario}
@@ -186,7 +185,7 @@ Data sharing is only configured after trust has been established in a Data Room:
 Each building is represented as a Turtle file within the user's Pod containing static metadata such as type, location, area, and year of construction (see \url{https://granergize-homer.solidcommunity.net/private/granergize/buildings/2.ttl} for an example).
 The data model builds upon established ontologies -- including RealEstateCore for building classifications and Schema.org for organizational entities -- and introduces domain-specific terms via the GRANERGIZE vocabulary (\mintinline{turtle}{gra:}).
 Crucially, a building's energy measurement data is stored in separate datasets per year, linked from the building file.
-This separation allows sharing building metadata independently of detailed energy data, supporting the fine-grained access control required by data providers.
+This separation allows sharing building metadata independently of detailed energy data, supporting the fine-grained access control required by Data Providers.
 % As shown in \cref{tbl:facroom,tbl:invroom}, stakeholder pairs require data points ranging from annual consumption totals to 15-minute interval measurements, each at different granularities and periodicities.
 % To accommodate this diversity while maximizing interoperability, the GRANERGIZE data model builds upon established ontologies and introduces custom terms only where necessary.
 % For example, the data model reuses the vcard ontology for postal addresses, the RealEstateCore (REC) ontology for building classifications, and Schema.org for organizational entities.
@@ -196,7 +195,7 @@ This separation allows sharing building metadata independently of detailed energ
 % Static information on each building, such as: type, geographic coordinates, postal address, total area, and year of construction is stored as a separate Turtle file within the user's Pod, see \url{https://granergize-homer.solidcommunity.net/private/granergize/buildings/2.ttl} for an example.
 % Additionally, the building files contain optional properties capturing domain-specific information such as photovoltaic system availability, NACE industry code, or energy certificate references.
 % A building's energy measurement data is stored in separate datasets per year, linked to from the building file.
-% Separating these datasets allows sharing building metadata independently of detailed energy data, supporting fine-grained access control as required by the data providers.
+% Separating these datasets allows sharing building metadata independently of detailed energy data, supporting fine-grained access control as required by the Data Providers.
 
 % The energy data model captures the full energy flow within a logistics property using six categories: energy need, generation, storage, distribution, transfer, and usage.
 % Each category contains granular measurement types such as electricity consumption, photovoltaic generation, and heat pump output.
@@ -205,13 +204,13 @@ This separation allows sharing building metadata independently of detailed energ
 \subsection{Data Sharing and Access Control}
 
 Once stakeholders have reached mutual consent within a Data Room, data sharing is implemented using the Web Access Control (WAC) specification~\cite{BernersLee2024WAC}.
-When the data provider grants access, the application appends an \mintinline{turtle}{acl:Authorization} block to the resource's \mintinline{text}{.acl} file, specifying the recipient's WebID and the granted access mode.
+When the Data Provider grants access, the application appends an \mintinline{turtle}{acl:Authorization} block to the resource's \mintinline{text}{.acl} file, specifying the recipient's WebID and the granted access mode.
 Building metadata and energy data reside in separate files, each with its own ACL, so the provider can share metadata without exposing detailed measurements.
 
-The sharing workflow follows the Solid Application Interoperability (INTEROP) specification~\cite{Bingham2025Interop} for notifying data requesters about granted access.
+The sharing workflow follows the Solid Application Interoperability (INTEROP) specification~\cite{Bingham2025Interop} for notifying Data Requesters about granted access.
 \cref{fig:sharing-process} illustrates the sharing process.
-The data provider initiates sharing through the web interface by selecting a building and entering the recipient's WebID.
-Upon confirmation, the application executes three operations on the data provider's Pod (steps 1--3 in the figure): it updates the resource's ACL file to grant read permission, records the sharing action in \mintinline{text}{sharingRegistry.ttl}, and posts an \mintinline{turtle}{interop:AccessGrant} notification to the recipient's inbox.
+The Data Provider initiates sharing through the web interface by selecting a building and entering the recipient's WebID.
+Upon confirmation, the application executes three operations on the Data Provider's Pod (steps 1--3 in the figure): it updates the resource's ACL file to grant read permission, records the sharing action in \mintinline{text}{sharingRegistry.ttl}, and posts an \mintinline{turtle}{interop:AccessGrant} notification to the recipient's inbox.
 When the recipient's application polls the inbox (steps 4--5), it discovers the grant and adds the shared building URI to its local \mintinline{text}{dataSources.ttl}, after which it can fetch the data directly from the provider's Pod (step 6).
 
 \begin{figure}[t]
@@ -276,11 +275,11 @@ When the recipient's application polls the inbox (steps 4--5), it discovers the 
 \draw[msgback] (10, -5) -- node[above, font=\scriptsize] {building data} (3, -5);
 
 % Annotations
-\draw[decorate, decoration={brace, amplitude=5pt, mirror}] (-0.5, -0.6) -- (-0.5, -2.4) node[midway, left=6pt, font=\scriptsize, align=right] {Granting\\access};
-\draw[decorate, decoration={brace, amplitude=5pt}] (10.5, -2) -- (10.5, -3.8) node[midway, right=6pt, font=\scriptsize, align=left] {Processing\\notification};
+% \draw[decorate, decoration={brace, amplitude=5pt, mirror}] (-0.5, -0.6) -- (-0.5, -2.4) node[midway, left=6pt, font=\scriptsize, align=right] {Granting\\access};
+% \draw[decorate, decoration={brace, amplitude=5pt}] (10.5, -2) -- (10.5, -3.8) node[midway, right=6pt, font=\scriptsize, align=left] {Processing\\notification};
 
 \end{tikzpicture}
-\caption{Sequence diagram of the data sharing process: the data provider grants access by updating the ACL and sending a notification; the data requester processes the notification and can then fetch the shared data.}
+\caption{Sequence diagram of the data sharing process: the Data Provider grants access by updating the ACL and sending a notification; the Data Requester processes the notification and can then fetch the shared data.}
 \label{fig:sharing-process}
 \end{figure}
 
@@ -360,11 +359,11 @@ Because snapshots are materialized, shared values reflect the state at the time 
 Energy consumption data in the logistics sector remains fragmented across organizational boundaries, preventing effective benchmarking and collaboration.
 Centralized platforms require stakeholders to surrender data control, conflicting with privacy requirements and competitive interests.
 
-This paper introduces the concept of Data Rooms -- a structured process for stakeholders to negotiate and formalize data sharing agreements, establishing trust and mutual consent before any data is exchanged. Additionally, we present the GRANERGIZE WebApp, a Solid-based application that addresses these challenges through decentralized data sharing while preserving data sovereignty.
+This paper introduces the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements, establishing trust and enabling partner discovery before any data is exchanged. Additionally, we present the GRANERGIZE WebApp, a Solid-based application that addresses these challenges through decentralized data sharing while preserving data sovereignty.
 The implementation demonstrates how WAC for fine-grained permissions and the INTEROP specification for access notifications can solve real-world data-sharing problems without centralized data custody.
 The aggregated views feature extends the sharing model to support statistical summaries without exposing individual building details.
 
-A key area for future development is integrating Data Room functionality directly into the WebApp, enabling stakeholders to negotiate and manage data sharing agreements within the application.
+A key area for future development is integrating Data Room functionality directly into the WebApp, enabling stakeholders to discover potential partners, and manage data sharing agreements within the application.
 Additional future work includes integrating automated access request workflows, data integration pipelines, and supporting additional aggregation functions such as weighted averages based on building size.
 We also plan to evaluate the system's usability with logistics stakeholders in a field study.
 
