@@ -1,6 +1,6 @@
 Energy consumption data in logistics properties remains fragmented across organizational silos, hindering effective comparison and benchmarking.
-  Existing centralized platforms require stakeholders to relinquish control of their data control, which conflicts with privacy requirements and commercial interests.
-  We present the GRANERGIZE WebApp: A Solid-based application that enables decentralized sharing of building energy data while preserving data sovereignty.
-  The application uses Web Access Control for fine-grained permissions and the Solid Application Interoperability specification for access notifications.
-  In addition to sharing individual building data, the system supports the creation and sharing of aggregated views that only expose computed statistics without revealing underlying buildings.
-  Our implementation demonstrates how the Solid protocol can solve real-world data-sharing issues in the logistics sector, allowing collaboration without centralized data custody.
+  Existing centralized platforms require stakeholders to relinquish control of their data, which conflicts with privacy requirements and commercial interests.
+  Moreover, stakeholders lack visibility into what data others need or can offer, making it difficult to identify potential data exchange partners.
+  We introduce the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements before any data is exchanged.
+  Building on this foundation, we present the GRANERGIZE WebApp: a Solid-based application that enables decentralized sharing of building energy data while preserving data sovereignty.
+  The system also supports aggregated views that expose only computed statistics without revealing underlying building data.

@@ -69,16 +69,16 @@
   <rdf:Description rdf:about="" xmlns:dc="http://purl.org/dc/elements/1.1/"> 
    <dc:format>application/pdf</dc:format> 
    <dc:type><rdf:Bag><rdf:li>journal</rdf:li></rdf:Bag></dc:type>
-   <dc:title><rdf:Alt><rdf:li xml:lang="x-default">Sharing Energy Data in Data Rooms</rdf:li></rdf:Alt></dc:title>
+   <dc:title><rdf:Alt><rdf:li xml:lang="x-default">A Decentralized Approach to Sharing Energy Consumption Data of Logistic Buildings</rdf:li></rdf:Alt></dc:title>
    <dc:creator><rdf:Seq><rdf:li>Thomas Wehr</rdf:li>
      <rdf:li>Heike Weber</rdf:li>
      <rdf:li>Uwe Veres-Homm</rdf:li>
      <rdf:li>Andreas Harth</rdf:li></rdf:Seq></dc:creator>
    <dc:rights><rdf:Alt><rdf:li xml:lang="x-default">© 2026 Copyright for this paper by its authors. Use permitted under Creative Commons License Attribution 4.0 International (CC BY 4.0).</rdf:li></rdf:Alt></dc:rights>
    <dc:description><rdf:Alt><rdf:li xml:lang="x-default">Layout by CEURART v0.6.2</rdf:li></rdf:Alt></dc:description>
-   <dc:subject><rdf:Bag><rdf:li>Solid </rdf:li>
-     <rdf:li>Linked Data </rdf:li>
-     <rdf:li>Access Control </rdf:li>
+   <dc:subject><rdf:Bag><rdf:li>Decentralized Data Sharing </rdf:li>
+     <rdf:li>Energy Consumption Data </rdf:li>
+     <rdf:li>Logistics Buildings</rdf:li>
      <rdf:li></rdf:li></rdf:Bag></dc:subject>
   </rdf:Description> 
   <rdf:Description rdf:about="" xmlns:prism="http://prismstandard.org/namespaces/basic/2.2/"> 
@@ -93,9 +93,9 @@
   </rdf:Description> 
   <rdf:Description rdf:about="" xmlns:xmp="http://ns.adobe.com/xap/1.0/"> 
    <xmp:CreatorTool>LaTeX with hyperref</xmp:CreatorTool> 
-   <xmp:ModifyDate>2026-02-11T14:02:05+01:00</xmp:ModifyDate> 
-   <xmp:CreateDate>2026-02-11T14:02:05+01:00</xmp:CreateDate> 
-   <xmp:MetadataDate>2026-02-11T14:02:05+01:00</xmp:MetadataDate> 
+   <xmp:ModifyDate>2026-02-13T12:03:13+01:00</xmp:ModifyDate> 
+   <xmp:CreateDate>2026-02-13T12:03:13+01:00</xmp:CreateDate> 
+   <xmp:MetadataDate>2026-02-13T12:03:13+01:00</xmp:MetadataDate> 
   </rdf:Description> 
   <rdf:Description rdf:about="" xmlns:xmpRights = "http://ns.adobe.com/xap/1.0/rights/"> 
    <xmpRights:Marked>True</xmpRights:Marked>
@@ -104,7 +104,7 @@
   </rdf:Description> 
   <rdf:Description rdf:about="" xmlns:xmpMM="http://ns.adobe.com/xap/1.0/mm/"> 
    <xmpMM:DocumentID>uuid:98DEB932-3600-76CB-8D05-2781C1CC2138</xmpMM:DocumentID> 
-   <xmpMM:InstanceID>uuid:DB3C9F7B-E0D7-6846-EB75-B53ECF288D85</xmpMM:InstanceID> 
+   <xmpMM:InstanceID>uuid:E0600D4F-359D-78D9-8EE9-0D7BCD774213</xmpMM:InstanceID> 
   </rdf:Description> 
  </rdf:RDF> 
 </x:xmpmeta> 
