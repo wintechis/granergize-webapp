@@ -1,6 +1,6 @@
 Energy consumption data in logistics properties remains fragmented across organizational silos, hindering effective comparison and benchmarking.
-  Existing centralized platforms require stakeholders to relinquish control of their data, which conflicts with privacy requirements and commercial interests.
-  Moreover, stakeholders lack visibility into what data others need or can offer, making it difficult to identify potential data exchange partners.
-  We introduce the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements before any data is exchanged.
-  Building on this foundation, we present the GRANERGIZE WebApp: a Solid-based application that enables decentralized sharing of building energy data while preserving data sovereignty.
-  The system also supports aggregated views that expose only computed statistics without revealing underlying building data.
+Existing centralized platforms require stakeholders to relinquish control of their data, which conflicts with privacy requirements and commercial interests.
+Moreover, stakeholders lack visibility into what data others need or can offer, making it difficult to identify potential data exchange partners.
+We introduce the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements before any data is exchanged.
+Building on this foundation, we present the GRANERGIZE WebApp: a Solid-based application that enables decentralized sharing of building energy data while preserving data sovereignty.
+The system also supports aggregated views that expose only computed statistics without revealing underlying building data.

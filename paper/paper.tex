@@ -101,7 +101,7 @@
 %%
 %% The "title" command
 %\title{A Solid-Based Web Application for Decentralized and Privacy-Preserving Energy Data Sharing in Logistics}
-\title{A Decentralized Approach to Sharing Energy Consumption Data of Logistic Buildings}
+\title{A Decentralized Approach to Sharing Energy Consumption Data of Logistics Real Estate}
 %%
 %% The "author" command and its associated commands are used to define
 %% the authors and their affiliations.
@@ -125,12 +125,12 @@ email=andreas.harth@fau.de,
 \address[2]{Fraunhofer Institute for Integrated Circuits IIS, Nuremberg, Germany}
 
 \begin{abstract}
-  Energy consumption data in logistics properties remains fragmented across organizational silos, hindering effective comparison and benchmarking.
-  Existing centralized platforms require stakeholders to relinquish control of their data, which conflicts with privacy requirements and commercial interests.
-  Moreover, stakeholders lack visibility into what data others need or can offer, making it difficult to identify potential data exchange partners.
-  We introduce the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements before any data is exchanged.
-  Building on this foundation, we present the GRANERGIZE WebApp: a Solid-based application that enables decentralized sharing of building energy data while preserving data sovereignty.
-  The system also supports aggregated views that expose only computed statistics without revealing underlying building data.
+Energy consumption data in logistics properties remains fragmented across organizational silos, hindering effective comparison and benchmarking.
+Existing centralized platforms require stakeholders to relinquish control of their data, which conflicts with privacy requirements and commercial interests.
+Moreover, stakeholders lack visibility into what data others need or can offer, making it difficult to identify potential data exchange partners.
+We introduce the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements before any data is exchanged.
+Building on this foundation, we present the GRANERGIZE WebApp: a Solid-based application that enables decentralized sharing of building energy data while preserving data sovereignty.
+The system also supports aggregated views that expose only computed statistics without revealing underlying building data.
 \end{abstract}
 
 %%
@@ -139,7 +139,7 @@ email=andreas.harth@fau.de,
 \begin{keywords}
   Decentralized Data Sharing \sep
   Energy Consumption Data \sep
-  Logistics Buildings\sep
+  Logistics Real Estate
 \end{keywords}
 
 %%
@@ -154,8 +154,8 @@ The logistics ecosystem's complexity -- with its diverse stakeholders and varied
 Logistics properties form central hubs of logistics networks and therefore play a decisive role in the provision of logistics services.~\cite{nehm2009logistikimmobilien}
 With rising electricity and gas prices~\cite{destatis_energyprices_2023} and increasing sustainability requirements through EU taxonomies~\cite{eu_taxonomy_2022}, energy efficiency in logistics real estate is becoming ever more relevant.
 
-Yet substantial technical, and trust barriers to sharing and comparing energy consumption data persist:
-The stakeholder landscape's complexity -- with Facility Managers (FMs), users, investors, brokers, etc. holding different perspectives on energy use -- makes it difficult to access all the relevant data for a comprehensive view of energy consumption.
+Yet substantial technical and trust barriers to sharing and comparing energy consumption data persist:
+The stakeholder landscape's complexity -- with Facility Managers (FM), users, investors, brokers, etc. holding different perspectives on energy use -- makes it difficult to access all the relevant data for a comprehensive view of energy consumption.
 Even within organizations, mobilizing consumption data requires extensive manual effort, and the diversity of building types and usage patterns makes meaningful comparison difficult.
 In addition to the technical barriers, establishing trust among stakeholders to share sensitive energy data remains a fundamental challenge, as traditional approaches lack mechanisms for identifying data sharing requirements and matching potential partners.
 
@@ -165,7 +165,7 @@ The Solid protocol offers an alternative: stakeholders retain data sovereignty w
 To address the trust challenges, the GRANERGIZE project has developed an ontology that provides a unified data model for energy consumption data, as well as a WebApp for visualizing and sharing this data, stored on the user's Solid Pods.
 The WebApp provides visualizations of the energy consumption data and allows users to define access rights for real or aggregated data via an intuitive user interface.
 Whereas aggregated data is computed based on the user's preferences and shared as a snapshot without provenance information, individual building data can be shared directly from the owner's Pod with fine-grained access control.
-Additionally, to address the trust challenges, we have developed a process we call Data Rooms. Data Rooms enable stakeholders to identify and formalize data sharing requirements, allowing the stakeholders to discover potential partners for data exchange.
+Additionally, to address the trust challenges, we have developed a process we coined \emph{Data Rooms}. Data Rooms enable stakeholders to identify and formalize data sharing requirements, allowing the stakeholders to discover potential partners for data exchange.
 
 \section{Scenario}
 \label{sec:scenario}
@@ -178,7 +178,7 @@ The scenarios in \cref{sec:scenario} impose three key requirements: (1)~a data m
 
 Following the Solid principles of separating identity, data, and application, the WebApp operates as a pure client-side application that communicates directly with Solid Pods without requiring a central backend.
 All user data resides exclusively in the users' personal Solid Pods.
-Data sharing is only configured after trust has been established in a Data Room: the implementation assumes that stakeholders have already agreed on the terms of data exchange before any access is granted.
+Data sharing is only configured after trust has been established in a Data Room: the implementation assumes that stakeholders have already agreed on the terms of data exchange beforehand.
 
 \subsection{Data Model}
 
@@ -287,7 +287,7 @@ Revocation removes the recipient's authorization from the ACL; subsequent access
 
 \subsection{Sharing Aggregated Data}
 
-While sharing individual building data enables direct collaboration between pairs such as the FM and tenant, the investor--benchmark provider scenario (\cref{tbl:invroom}) demonstrates a different need: computing aggregated statistics across multiple properties without exposing the individual buildings.
+While sharing individual building data enables direct collaboration between pairs such as the FM and tenant, the investor -- BSP scenario (\cref{tbl:invroom}) demonstrates a different need: computing aggregated statistics across multiple properties without exposing the individual buildings.
 The GRANERGIZE WebApp addresses this through aggregated views -- snapshots containing only computed values.
 
 An aggregated view is defined by three parameters: a set of source buildings, an aggregation function (\mintinline{text}{sum}, \mintinline{text}{average}, \mintinline{text}{minimum}, or \mintinline{text}{maximum}), and a selection of energy metrics.
