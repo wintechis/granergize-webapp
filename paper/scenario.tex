@@ -61,9 +61,9 @@
 \draw[msg] (0, -1.4) -- node[above, font=\scriptsize] {2. Invite members} (9, -1.4);
 \draw[msg] (0, -1.4) -- (12.5, -1.4);
 
-% Step 3: Assign roles
-\draw[msg] (0, -2) -- node[above, font=\scriptsize] {3. Assign roles} (9, -2);
-\draw[msg] (0, -2) -- node[below, font=\scriptsize] {(FM, tenant, investor, ...)} (12.5, -2);
+% Step 3: Self-assign roles
+\draw[msg] (9, -2) -- node[above, font=\scriptsize] {3. Self-assign roles} (4.5, -2);
+\draw[msg] (12.5, -2) -- node[below, font=\scriptsize] {(FM, tenant, investor, ...)} (4.5, -2);
 
 % Loop box for requirements elicitation
 \draw[loopbox] (-0.6, -2.6) rectangle (13.2, -4);
@@ -94,19 +94,21 @@
 % \draw[decorate, decoration={brace, amplitude=5pt}] (13.5, -4.8) -- (13.5, -6.8) node[midway, right=6pt, font=\scriptsize, align=left] {Partner\\selection};
 
 \end{tikzpicture}
-\caption{Sequence diagram of the Data Room process: the Provider opens the Data Room, invites members, and assigns roles. Members are asked which data they would like to receive from each role. The collected requirements are published, enabling members to identify matching partners and initiate data sharing agreements.}
+\caption{Sequence diagram of the Data Room process: the Provider opens the Data Room and invites members. Members then self-assign roles before they are asked by the Provider which data they would like to receive from each role. The collected requirements are published, enabling members to identify matching partners and initiate data sharing agreements.}
 \label{fig:dataroom-process}
 \end{figure}
 
-A central concept in GRANERGIZE is the Data Room. Data Rooms are demarcated virtual areas with clearly defined access conditions, controlled by a \emph{Provider}. Only approved participants are permitted to enter, based on explicit authorization. Within a Data Room, stakeholders can negotiate and formalize data sharing agreements, ensuring that trust and consent are established before any data is exchanged.
+A central concept of our approach is the Data Room. Data Rooms are demarcated virtual areas with clearly defined access conditions, controlled by a \emph{Provider}. Only approved participants are permitted to enter, based on explicit authorization. Within a Data Room, stakeholders can negotiate and formalize data sharing agreements, ensuring that trust and consent are established before any data is exchanged.
 
-We deliberately chose the term Data Room, as these spaces are conceptualized as protected and restricted areas. A Data Room is opened by a Provider -- typically a neutral party such as an industry association (e.g., Bundesvereinigung Logistik) or a project consortium -- who invites members and can remove them from the Data Room. Each member is assigned one or more roles reflecting their position in the logistics ecosystem, like FM, broker, tenant, investor, or benchmark service provider (BSP).
+We deliberately chose the term Data Room, as these spaces are conceptualized as protected and restricted areas. A Data Room is opened by a Provider -- typically a neutral party such as an industry association (e.g., Bundesvereinigung Logistik) or a project consortium -- who invites members and can remove them from the Data Room. Each member assigns themselves one or more roles reflecting their position in the logistics ecosystem.
+In the logistics domain, these roles are users, owners, and facility managers (FM) as well as developers, financiers, brokers, energy suppliers, and benchmark service providers (BSPs).
 Then, the Provider asks each member which data they would like to receive from each role. This role-based elicitation produces a comprehensive map of data exchange pairs. The collected exchange pairs are then published to all participants, allowing participants to identify potential partners and to initiate contact.
 
 % To illustrate this, consider the following scenario: The GRANERGIZE project team opens a Data Room, invites stakeholders from across the logistics real estate sector and assigns roles to each participant. Then we ask what data each participant would require from each role -- for example, what data a tenant wants from an FM, or what data an investor wants from a BSP. This role-based elicitation produces a comprehensive map of data exchange pairs. Collected exchange pairs are then published to all participants, allowing participants to identify potential partners and to initiate contact.
 % \cref{fig:dataroom-process} illustrates this process.
 
-In the logistics domain, energy consumption data of properties is relevant for a wide range of stakeholders. While users, owners, and FMs are primarily interested in specific consumption data for reporting and calculation purposes, developers, financiers, brokers, energy suppliers, and BSPs rely on data for property comparisons, accurate energy reporting, and consumption optimization.
+For each stakeholder, different real estate data is relevant for their purposes.
+While users, owners, and FMs are primarily interested in specific consumption data for reporting and calculation purposes, developers, financiers, brokers, energy suppliers, and BSPs rely on data for property comparisons, accurate energy reporting, and consumption optimization.
 
 To capture these interests and requirements, the project team opened a Data Room and invited stakeholders from across the logistics real estate sector.
 \Cref{tbl:facroom} and \Cref{tbl:invroom} provide examples of the data exchange pairs that emerged from the elicitation process. In these tables, each row represents a data exchange where the party on the left acts as the \emph{Data Provider} and the party on the right as the \emph{Data Requester}. The arrow (\textrightarrow{}) indicates the direction of data flow from provider to requester.
@@ -116,7 +118,7 @@ To capture these interests and requirements, the project team opened a Data Room
 \begin{table}
 \caption{Overview of stakeholder data exchange pairs involving the facility manager (FM).}
 \label{tbl:facroom} 
-\begin{tabular}{p{2.4cm} p{5cm} p{4cm} p{2.7cm}}
+\begin{tabular}{p{2.6cm} p{5cm} p{4cm} p{2.5cm}}
 \textbf{Data flow} & \textbf{Data points} & \textbf{Granularity} & \textbf{Periodicity} \\
 \hline
 
@@ -166,10 +168,10 @@ Tenant \textrightarrow{} FM
 The BSP takes building specifics and consumption data and then provides the calculated consumption per m\textsuperscript{2}.
 }
 \label{tbl:invroom}
-\begin{tabular}{p{2.4cm} p{5cm} p{4cm} p{2.7cm}}
+\begin{tabular}{p{2.6cm} p{5cm} p{4cm} p{2.5cm}}
 \textbf{Data flow} & \textbf{Data points} & \textbf{Granularity} & \textbf{Periodicity} \\
 \hline
-Investor \textrightarrow{} BSP 
+Investors \textrightarrow{} BSP
 & Building specifics$^\ddagger$
 & Total property 
 & once \\
@@ -181,7 +183,7 @@ Investor \textrightarrow{} BSP
 & annually \\
 
 %\rowcolor{gray!20}
-BSP \textrightarrow{} Investor 
+BSP \textrightarrow{} Investors
 
 %& Min/max/median building specifics (area, age, shift regime\footnote{@@@shift regime could change over time, no? yes, might change, but is not very important; rather, the min/max/median building specifics is not shared back, but is needed to calculate the square meter aggregated value.}, etc.) 
 %& Total property 

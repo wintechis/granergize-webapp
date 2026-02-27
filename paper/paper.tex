@@ -128,9 +128,9 @@ email=andreas.harth@fau.de,
 Energy consumption data in logistics properties remains fragmented across organizational silos, hindering effective comparison and benchmarking.
 Existing centralized platforms require stakeholders to relinquish control of their data, which conflicts with privacy requirements and commercial interests.
 Moreover, stakeholders lack visibility into what data others need or can offer, making it difficult to identify potential data exchange partners.
-We introduce the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements before any data is exchanged.
-Building on this foundation, we present the GRANERGIZE WebApp: a Solid-based application that enables decentralized sharing of building energy data while preserving data sovereignty.
-The system also supports aggregated views that expose only computed statistics without revealing underlying building data.
+We introduce the concept of Data Rooms, which enable a a group of stakeholders to identify data sharing possibilities.
+We present a Solid-based application that enables bidirectional sharing of building energy data.
+The system also supports aggregated views that expose only computed statistics without revealing underlying fine-grained building data. 
 \end{abstract}
 
 %%
@@ -155,14 +155,14 @@ Logistics properties form central hubs of logistics networks and therefore play 
 With rising electricity and gas prices~\cite{destatis_energyprices_2023} and increasing sustainability requirements through EU taxonomies~\cite{eu_taxonomy_2022}, energy efficiency in logistics real estate is becoming ever more relevant.
 
 Yet substantial technical and trust barriers to sharing and comparing energy consumption data persist:
-The stakeholder landscape's complexity -- with Facility Managers (FM), users, investors, brokers, etc. holding different perspectives on energy use -- makes it difficult to access all the relevant data for a comprehensive view of energy consumption.
+The stakeholder landscape's complexity makes it difficult to access all the relevant data for a comprehensive view of energy consumption.
 Even within organizations, mobilizing consumption data requires extensive manual effort, and the diversity of building types and usage patterns makes meaningful comparison difficult.
 In addition to the technical barriers, establishing trust among stakeholders to share sensitive energy data remains a fundamental challenge, as traditional approaches lack mechanisms for identifying data sharing requirements and matching potential partners.
 
 Existing centralized platforms fail to address the technical barriers because they require stakeholders to relinquish data control and adopt singular data models.
 The Solid protocol offers an alternative: stakeholders retain data sovereignty while enabling controlled sharing, aligning with both GDPR principles and the commercial realities of competitive logistics markets.
 
-To address the trust challenges, the GRANERGIZE project has developed an ontology that provides a unified data model for energy consumption data, as well as a WebApp for visualizing and sharing this data, stored on the user's Solid Pods.
+To address the trust challenges, we have developed an ontology that provides a unified data model for energy consumption data, as well as a WebApp for visualizing and sharing this data, stored on the user's Solid Pods.
 The WebApp provides visualizations of the energy consumption data and allows users to define access rights for real or aggregated data via an intuitive user interface.
 Whereas aggregated data is computed based on the user's preferences and shared as a snapshot without provenance information, individual building data can be shared directly from the owner's Pod with fine-grained access control.
 Additionally, to address the trust challenges, we have developed a process we coined \emph{Data Rooms}. Data Rooms enable stakeholders to identify and formalize data sharing requirements, allowing the stakeholders to discover potential partners for data exchange.
@@ -183,7 +183,7 @@ Data sharing is only configured after trust has been established in a Data Room:
 \subsection{Data Model}
 
 Each building is represented as a Turtle file within the user's Pod containing static metadata such as type, location, area, and year of construction (see \url{https://granergize-homer.solidcommunity.net/private/granergize/buildings/2.ttl} for an example).
-The data model builds upon established ontologies -- including RealEstateCore for building classifications and Schema.org for organizational entities -- and introduces domain-specific terms via the GRANERGIZE vocabulary (\mintinline{turtle}{gra:}).
+The data model builds upon established ontologies -- including RealEstateCore for building classifications and Schema.org for organizational entities -- and introduces domain-specific terms via our GRANERGIZE vocabulary (\mintinline{turtle}{gra:}).
 Crucially, a building's energy measurement data is stored in separate datasets per year, linked from the building file.
 This separation allows sharing building metadata independently of detailed energy data, supporting the fine-grained access control required by Data Providers.
 % As shown in \cref{tbl:facroom,tbl:invroom}, stakeholder pairs require data points ranging from annual consumption totals to 15-minute interval measurements, each at different granularities and periodicities.
@@ -288,7 +288,7 @@ Revocation removes the recipient's authorization from the ACL; subsequent access
 \subsection{Sharing Aggregated Data}
 
 While sharing individual building data enables direct collaboration between pairs such as the FM and tenant, the investor -- BSP scenario (\cref{tbl:invroom}) demonstrates a different need: computing aggregated statistics across multiple properties without exposing the individual buildings.
-The GRANERGIZE WebApp addresses this through aggregated views -- snapshots containing only computed values.
+Our WebApp addresses this through aggregated views -- snapshots containing only computed values.
 
 An aggregated view is defined by three parameters: a set of source buildings, an aggregation function (\mintinline{text}{sum}, \mintinline{text}{average}, \mintinline{text}{minimum}, or \mintinline{text}{maximum}), and a selection of energy metrics.
 \cref{fig:create-agg-view} shows the user interface for creating a view, and \cref{lst:view-definition} shows the resulting Turtle definition stored in the owner's Pod.
@@ -359,7 +359,7 @@ Because snapshots are materialized, shared values reflect the state at the time 
 Energy consumption data in the logistics sector remains fragmented across organizational boundaries, preventing effective benchmarking and collaboration.
 Centralized platforms require stakeholders to surrender data control, conflicting with privacy requirements and competitive interests.
 
-This paper introduces the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements, establishing trust and enabling partner discovery before any data is exchanged. Additionally, we present the GRANERGIZE WebApp, a Solid-based application that addresses these challenges through decentralized data sharing while preserving data sovereignty.
+This paper introduces the concept of Data Rooms -- a structured process for stakeholders to identify and formalize data sharing requirements, establishing trust and enabling partner discovery before any data is exchanged. Additionally, a Solid-based Web application that addresses these challenges through decentralized data sharing while preserving data sovereignty.
 The implementation demonstrates how WAC for fine-grained permissions and the INTEROP specification for access notifications can solve real-world data-sharing problems without centralized data custody.
 The aggregated views feature extends the sharing model to support statistical summaries without exposing individual building details.
 
@@ -369,7 +369,7 @@ We also plan to evaluate the system's usability with logistics stakeholders in a
 
 
 \section{Acknowledgements}
-We acknowledge funding from the German Federal Ministry for Economic Affairs and Energy (FKZ 01IF23286N).
+We acknowledge funding from the German Federal Ministry for Economic Affairs and Energy for the project GRANERGIZE (FKZ 01IF23286N).
 
 %%
 %% Define the bibliography file to be used
