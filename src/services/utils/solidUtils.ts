@@ -13,10 +13,8 @@ import { getPodUrlAll } from "@inrupt/solid-client";
  * @returns The storage root URL with trailing slash
  */
 export function getStorageRoot(webId: string): string {
-  const webIdWithoutFragment = webId.split("#")[0];
-  const pathParts = webIdWithoutFragment.split("/");
-  // protocol://domain/username/
-  return pathParts.slice(0, 4).join("/") + "/";
+  const uri = new URL(webId);
+  return uri.origin + "/";
 }
 
 /**

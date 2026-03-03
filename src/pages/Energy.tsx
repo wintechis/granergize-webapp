@@ -1,5 +1,5 @@
 import { Link } from "react-router-dom";
-import { EnergyType } from "../../types/types.ts";
+import { BuildingType, EnergyType } from "../../types/types.ts";
 import {
   Box,
   Card,
@@ -24,6 +24,8 @@ import "chart.js/auto";
 import type { ChartData, ChartOptions } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import { useSolidData } from "../context/SolidDataContext.tsx";
+import UserEnergyChart from "./UserEnergyChart.tsx";
+import { Session } from "@inrupt/solid-client-authn-browser";
 
 const colorPalette = [
   "rgba(166, 206, 227, 1)",
@@ -43,10 +45,12 @@ const colorPalette = [
 type EnergyProps = {
   selectedBuilding: string;
   operatedBy: string;
+  building: BuildingType;
+  session: Session;
 };
 
-export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
-  const { energyNeed, averages, agentAverages, isLoading, error } =
+export default function Energy({ selectedBuilding, operatedBy, building, session }: EnergyProps) {
+  const { energyNeed, averages, agentAverages, isLoading, error, role } =
     useSolidData();
 
   // Find the energy data for the selected building
@@ -74,6 +78,24 @@ export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
   }
 
   if (!energy || !averages || !agentAverages) {
+    // User-role energy is loaded on demand in UserEnergyChart; bypass the guard
+    if (role === "user" && building.energyData && building.energyData.length > 0) {
+      return (
+        <Card>
+          <CardHeader
+            avatar={<ElectricBoltIcon />}
+            title={
+              <Typography variant="h4">
+                Electricity Consumption for Building {building.id}
+              </Typography>
+            }
+          />
+          <CardContent>
+            <UserEnergyChart availableDates={building.energyData} session={session} />
+          </CardContent>
+        </Card>
+      );
+    }
     return (
       <Typography>
         No energy data available for this building. You may not have access to
@@ -115,12 +137,16 @@ export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
       };
     }
 
+    const sectionData = energy[string] as Record<string, number> | undefined;
+    if (!sectionData) {
+      return { labels: [], datasets: [] };
+    }
     return {
-      labels: Object.keys(energy[string]),
+      labels: Object.keys(sectionData),
       datasets: [
         {
           label: "Energy Need",
-          data: Object.values(energy[string]),
+          data: Object.values(sectionData),
           backgroundColor: colorPalette,
           borderColor: colorPalette,
           borderWidth: 1,
@@ -328,7 +354,9 @@ export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
         avatar={<ElectricBoltIcon />}
         title={
           <Typography variant="h4">
-            Energy Need for Building {energy.id} in 2023
+            {energy.timeSeries
+              ? `Electricity Consumption for Building ${energy.id}`
+              : `Energy Need for Building ${energy.id} in 2023`}
           </Typography>
         }
       />
@@ -340,13 +368,13 @@ export default function Energy({ selectedBuilding, operatedBy }: EnergyProps) {
         </Typography>
         <Divider />
         <Stack spacing={2}>
-          {createEnergyGrid("energyNeed")}
-          {createEnergyGrid("energyGeneration")}
-          {createEnergyGrid("energyStorage")}
-          {createEnergyGrid("energyDistribution")}
-          {createEnergyGrid("energyTransfer")}
-          {createEnergyGrid("energyUsage")}
-          {createEnergyGrid("environmentalFactor")}
+            {createEnergyGrid("energyNeed")}
+            {createEnergyGrid("energyGeneration")}
+            {createEnergyGrid("energyStorage")}
+            {createEnergyGrid("energyDistribution")}
+            {createEnergyGrid("energyTransfer")}
+            {createEnergyGrid("energyUsage")}
+            {createEnergyGrid("environmentalFactor")}
         </Stack>
         <Link to="/">🠠 Back to map overview</Link>
       </CardContent>

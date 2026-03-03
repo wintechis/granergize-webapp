@@ -1,9 +1,46 @@
+export type UserRole =
+  | "dummy"
+  | "investor"
+  | "user"
+  | "benchmark_service_provider";
+
+export interface InvestorAnnualData {
+  year: number;
+  electricityConsumption?: number;      // kWh
+  renewableSelfGeneratedShare?: number; // %
+  heatConsumption?: number;             // kWh
+  waterConsumption?: number;            // m³
+}
+
+export interface InvestorOperatingCosts {
+  wasteDisposal?: string;
+  insurance?: string;
+  operationInspectionAndMaintenance?: boolean;
+  routineCleaningOffice?: string;
+  routineCleaningWarehouse?: string;
+  glassCleaning?: string;
+  exteriorMaintenance?: string;
+  security?: string;
+  propertyManagement?: string;
+  caretaker?: string;
+  repairAndMaintenance?: string;
+}
+
+export interface InvestorCertification {
+  type: string;   // "BREEAM" | "DGNB" | "LEED"
+  level?: string;
+  scope?: string;
+}
+
 export interface BuildingType {
   [key: string]:
     | string
     | number
     | boolean
     | EnergyMeasurementData[]
+    | InvestorAnnualData[]
+    | InvestorCertification[]
+    | InvestorOperatingCosts
     | undefined;
   id: number;
   uri: string;
@@ -27,6 +64,27 @@ export interface BuildingType {
   operatedBy?: string;
   energyData?: EnergyMeasurementData[];
   isShared?: boolean;
+  // Investor role fields
+  label?: string;
+  buildingCode?: string;
+  hallArea?: number;
+  officeSocialArea?: number;
+  buildingHeight?: number;
+  numberOfLoadingDocks?: number;
+  yearOfRenovation?: number;
+  shiftRegime?: string;
+  tenancyType?: string;
+  leaseType?: string;
+  tenantIndustry?: string;
+  indoorTemperatureClass?: string;
+  hasOilBoiler?: boolean;
+  hasGasBoiler?: boolean;
+  hasElectricBoiler?: boolean;
+  hasHeatPump?: boolean;
+  hasDistrictHeating?: boolean;
+  certifications?: InvestorCertification[];
+  annualData?: InvestorAnnualData[];
+  operatingCosts?: InvestorOperatingCosts;
 }
 
 export interface EnergyMeasurementData {
@@ -56,6 +114,10 @@ export type EnergyType = {
   energyTransfer: EnergyTransfer;
   energyUsage: EnergyUsage;
   environmentalFactor: EnvironmentalFactor;
+  /** Populated only for the User role: ordered 15-minute electricity readings */
+  timeSeries?: {
+    electricityConsumption: Array<{ begin: string; value: number }>;
+  };
 };
 
 export type EnergyCategoryKey =

@@ -15,6 +15,7 @@ router.get("/api/energy-mix", (context) => {
   context.response.body = energyMix;
 });
 
+
 // Apply CORS middleware
 app.use(oakCors());
 

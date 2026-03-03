@@ -1,10 +1,11 @@
 import { useParams } from "react-router-dom";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { HashRouter, Route, Routes } from "react-router-dom";
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Agent from "./pages/Agent.tsx";
 import Energy from "./pages/Energy.tsx";
 import AggregatedView from "./pages/AggregatedView.tsx";
+import RoleSelection from "./pages/RoleSelection.tsx";
 import Container from "@mui/material/Container";
 import "./App.css";
 import { useSolidData } from "./context/SolidDataContext.tsx";
@@ -106,9 +107,15 @@ interface AppProps {
 }
 
 function App({ onLogout, session }: AppProps) {
+  const { role, setRole } = useSolidData();
+
+  if (role === null) {
+    return <RoleSelection onSelect={setRole} />;
+  }
+
   return (
     <Container maxWidth={false}>
-      <BrowserRouter>
+      <HashRouter>
         <Routes>
           <Route path="/" element={<Index onLogout={onLogout} session={session} />} />
           <Route
@@ -119,7 +126,7 @@ function App({ onLogout, session }: AppProps) {
           <Route path="/energy/:selectedBuilding" element={<EnergyWrapper />} />
           <Route path="/view/:viewId" element={<AggregatedViewWrapper session={session} />} />
         </Routes>
-      </BrowserRouter>
+      </HashRouter>
     </Container>
   );
 }

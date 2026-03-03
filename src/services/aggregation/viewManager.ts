@@ -220,7 +220,14 @@ export async function getViewDefinitions(
 
   try {
     const response = await session.fetch(definitionsUrl);
+
     if (response.status === 404) {
+      await session.fetch(definitionsUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "text/turtle" },
+        body: "",
+      });
+
       return [];
     }
     if (!response.ok) {
@@ -229,7 +236,6 @@ export async function getViewDefinitions(
 
     const text = await response.text();
     const parser = new Parser({ format: "text/turtle", baseIRI: definitionsUrl });
-    console.log(text);
     const quads = parser.parse(text);
     const store = new Store(quads);
 
