@@ -30,6 +30,8 @@ import { getViewDefinitions, deleteView, getSnapshotUrl } from "../services/aggr
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
 import type { AggregatedViewDefinition } from "../../types/types.ts";
+import { useSolidData } from "../context/SolidDataContext.tsx";
+import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -56,7 +58,15 @@ interface SharedView {
   sharedWith: string[];
 }
 
+const ROLE_LABELS: Record<string, string> = {
+  dummy: "Dummy",
+  investor: "Investor",
+  user: "User",
+  benchmark_service_provider: "Benchmark Service Provider",
+};
+
 export default function SettingsDialog({ open, onClose, session }: SettingsDialogProps) {
+  const { role, setRole } = useSolidData();
   const [tabValue, setTabValue] = useState(0);
   const [sharedBuildings, setSharedBuildings] = useState<SharedBuilding[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<SharedWithMeBuilding[]>([]);
@@ -222,6 +232,7 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
         <Tab label="Buildings I Share" />
         <Tab label="Buildings Shared With Me" />
         <Tab label="Aggregated Views" />
+        <Tab label="Role" />
       </Tabs>
       <DialogContent sx={{ minHeight: 400 }}>
         {loading ? (
@@ -252,13 +263,14 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                                 ) : (
                                   building.sharedWith.map((webId) => (
                                     <Box
+                                      component="span"
                                       key={webId}
                                       display="flex"
                                       alignItems="center"
                                       justifyContent="space-between"
                                       sx={{ mt: 1 }}
                                     >
-                                      <Typography variant="body2" sx={{ flex: 1 }}>
+                                      <Typography variant="body2" component="span" sx={{ flex: 1 }}>
                                         {webId}
                                       </Typography>
                                       <IconButton
@@ -342,19 +354,20 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                                     {view.lastComputedAt && ` | Last computed: ${new Date(view.lastComputedAt).toLocaleDateString()}`}
                                   </Typography>
                                   {sharedWith.length > 0 && (
-                                    <Box sx={{ mt: 1 }}>
+                                    <Box component="span" sx={{ mt: 1 }}>
                                       <Typography variant="body2" component="span" color="primary">
                                         Shared with:
                                       </Typography>
                                       {sharedWith.map((webId) => (
                                         <Box
+                                          component="span"
                                           key={webId}
                                           display="flex"
                                           alignItems="center"
                                           justifyContent="space-between"
                                           sx={{ mt: 0.5 }}
                                         >
-                                          <Typography variant="body2" sx={{ flex: 1, fontSize: "0.8rem" }}>
+                                          <Typography variant="body2" component="span" sx={{ flex: 1, fontSize: "0.8rem" }}>
                                             {webId}
                                           </Typography>
                                           <IconButton
@@ -409,6 +422,44 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                     })}
                   </List>
                 )}
+              </Box>
+            )}
+            {tabValue === 3 && (
+              <Box sx={{ mt: 2 }}>
+                <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
+                  Current role
+                </Typography>
+                <Box
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    gap: 2,
+                    p: 2,
+                    border: 1,
+                    borderColor: "divider",
+                    borderRadius: 1,
+                    mb: 3,
+                  }}
+                >
+                  <SwitchAccountIcon color="primary" />
+                  <Typography variant="body1">
+                    {role ? ROLE_LABELS[role] ?? role : "None"}
+                  </Typography>
+                </Box>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+                  Changing your role will reload all data. The current role is stored
+                  locally in your browser.
+                </Typography>
+                <Button
+                  variant="outlined"
+                  startIcon={<SwitchAccountIcon />}
+                  onClick={() => {
+                    setRole(null);
+                    onClose();
+                  }}
+                >
+                  Change role
+                </Button>
               </Box>
             )}
           </>

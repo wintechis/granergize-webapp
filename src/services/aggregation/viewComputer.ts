@@ -21,6 +21,7 @@ async function loadBuildingEnergyData(
   buildingUri: string,
   session: Session
 ): Promise<EnergyType | null> {
+  buildingUri = buildingUri.split('#')[0];
   try {
     // Fetch building data to get energy data location
     const buildingResponse = await session.fetch(buildingUri);

@@ -14,6 +14,7 @@ import { useSolidData } from "../context/SolidDataContext.tsx";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import WeatherData from "./WeatherData.tsx";
+import InvestorEnergy from "./InvestorEnergy.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
 
 // Define custom icons
@@ -55,7 +56,7 @@ interface MapProps {
 }
 
 export default function Map({ session }: MapProps) {
-  const { buildings, energyNeed, isLoading, error } = useSolidData();
+  const { buildings, energyNeed, isLoading, error, role } = useSolidData();
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(
     null,
   );
@@ -244,10 +245,15 @@ export default function Map({ session }: MapProps) {
                   </Tabs>
                 </Box>
                 <Box sx={{ padding: 2 }}>
-                  {activeTab === 0 && selectedEnergy && (
+                  {activeTab === 0 && role === "investor" && (
+                    <InvestorEnergy building={selectedBuilding} />
+                  )}
+                  {activeTab === 0 && role !== "investor" && (selectedEnergy || role === "user") && (
                     <Energy
                       selectedBuilding={selectedBuilding.id.toString()}
                       operatedBy={selectedBuilding.operatedBy?.toString() || ""}
+                      building={selectedBuilding}
+                      session={session}
                     />
                   )}
                   {activeTab === 1 && (

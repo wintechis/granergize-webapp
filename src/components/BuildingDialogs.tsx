@@ -19,11 +19,14 @@ import {
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { shareBuildingData } from "../services/interop/share.ts";
 import { uploadEnergyCertificate } from "../services/utils/certificateUploader.ts";
+import type { UserRole } from "../../types/types.ts";
 
 interface ShareBuildingDialogProps {
   open: boolean;
   buildingUri: string;
   session: Session;
+  /** The role under which the building is being shared */
+  role?: UserRole | null;
   onClose: () => void;
 }
 
@@ -31,6 +34,7 @@ export function ShareBuildingDialog({
   open,
   buildingUri,
   session,
+  role,
   onClose,
 }: ShareBuildingDialogProps) {
   const [sharing, setSharing] = useState(false);
@@ -47,6 +51,7 @@ export function ShareBuildingDialog({
     setSharing(true);
     await shareBuildingData(buildingUri, webId, session, {
       includeEnergyData,
+      role: role ?? undefined,
     });
     setSharing(false);
     handleClose();

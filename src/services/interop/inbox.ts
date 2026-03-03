@@ -60,7 +60,21 @@ export async function readInbox(session: Session) {
                 null,
                 null,
               ).forEach((dataGrantQuad) => {
-                const dataGrantNode = dataGrantQuad.object;
+                const grantNode = dataGrantQuad.subject;    // The AccessGrant node
+                const dataGrantNode = dataGrantQuad.object; // The DataGrant blank node
+
+                // Extract the role annotation from the AccessGrant node
+                const roleQuads = msgStore.getQuads(
+                  grantNode,
+                  DataFactory.namedNode(
+                    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
+                  ),
+                  null,
+                  null,
+                );
+                const roleIri = roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode"
+                  ? roleQuads[0].object.value
+                  : undefined;
 
                 // Check the details of the DataGrant
                 const forResourceQuads = msgStore.getQuads(
@@ -85,10 +99,11 @@ export async function readInbox(session: Session) {
                   accessModeQuads.forEach((accessModeQuad) => {
                     const accessMode = accessModeQuad.object.value;
                     console.log(
-                      `Granted ${accessMode} access to resource: ${resource}`,
+                      `Granted ${accessMode} access to resource: ${resource}` +
+                      (roleIri ? ` (role: ${roleIri})` : ""),
                     );
                     // Chain both registry update and message removal
-                    allPromises.push(addResourceToRegistry(session, resource, accessMode));
+                    allPromises.push(addResourceToRegistry(session, resource, accessMode, roleIri));
                     allPromises.push(removeMessageFromInbox(session, messageUrl, podInbox));
                   });
                 });
@@ -108,9 +123,10 @@ export async function readInbox(session: Session) {
   }
 }
 
-async function addResourceToRegistry(session: Session, resource: string, accessMode: string) {
+async function addResourceToRegistry(session: Session, resource: string, accessMode: string, roleIri?: string) {
   console.log(
-    `Adding resource ${resource} with access mode ${accessMode} to registry`,
+    `Adding resource ${resource} with access mode ${accessMode} to registry` +
+    (roleIri ? ` (role: ${roleIri})` : ""),
   );
   const webId = session.info.webId!;
   const podBaseUrl = getPodBaseUrl(webId);
@@ -149,6 +165,17 @@ async function addResourceToRegistry(session: Session, resource: string, accessM
     accessModeNode,
     resourceNode,
   );
+
+  // Persist the role annotation as a side triple on the building URL if provided
+  if (roleIri) {
+    store.addQuad(
+      resourceNode,
+      DataFactory.namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
+      ),
+      DataFactory.namedNode(roleIri),
+    );
+  }
 
   const serializedRegistry = store.toString();
 

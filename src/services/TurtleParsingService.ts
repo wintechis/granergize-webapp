@@ -2,12 +2,22 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { parseBuildings } from "./utils/buildingParser.ts";
 import { parseAgents } from "./utils/agentParser.ts";
 import { parseEnergyData } from "./utils/energyDataParser.ts";
-import type { BuildingType, EnergyType } from "../../types/types.ts";
+import type { BuildingType, EnergyType, UserRole } from "../../types/types.ts";
 import { DataFactory, Parser, Store, Term, Writer } from "n3";
 import type { Quad } from "@rdfjs/types";
 import { getStorageRoot, getPodBaseUrl } from "./utils/solidUtils.ts";
 
 const { namedNode } = DataFactory;
+
+const GRAN_NS = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
+
+/** Maps gran: role IRIs back to TypeScript UserRole values */
+const IRI_TO_ROLE: Record<string, UserRole> = {
+  [`${GRAN_NS}DummyRole`]:          "dummy",
+  [`${GRAN_NS}InvestorRole`]:       "investor",
+  [`${GRAN_NS}UserRoleInstance`]:   "user",
+  [`${GRAN_NS}BenchmarkRole`]:      "benchmark_service_provider",
+};
 
 /**
  * Attempts to load Turtle data from multiple sources, continuing if some fail
@@ -43,13 +53,23 @@ async function loadTtlFromMultipleSources(
         // Parse with default graph set to the URL
         const quads = parser.parse(text);
 
+        // Unique prefix for blank nodes from this source, to avoid ID collisions
+        // when multiple files use the same generic blank node names (_:obs0_0, etc.)
+        const bnPrefix = encodeURIComponent(url) + "__";
+        const scopedNode = (term: Quad["subject"]): Quad["subject"] => {
+          if (term.termType === "BlankNode") {
+            return DataFactory.blankNode(bnPrefix + term.value);
+          }
+          return term;
+        };
+
         // Add source information to each quad
         const quadsWithGraph = quads.map((quad: Quad) => {
-          // Create a new quad with the source URL as the graph
+          // Create a new quad with the source URL as the graph and scoped blank nodes
           return DataFactory.quad(
-            quad.subject,
+            scopedNode(quad.subject) as Quad["subject"],
             quad.predicate,
-            quad.object,
+            scopedNode(quad.object as Quad["subject"]) as Quad["object"],
             DataFactory.namedNode(url),
           );
         });
@@ -143,17 +163,21 @@ async function removeInaccessibleBuildingSources(
     const store = new Store(quads);
 
     const buildingSourcePredicate = namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource"
+      `${GRAN_NS}hasBuildingDataSource`
     );
     const registryNode = namedNode(registryUrl);
 
     // Remove quads for failed sources
+    const dataSourceRolePredicate = namedNode(`${GRAN_NS}dataSourceRole`);
     let removed = false;
     for (const failed of failedSources) {
       const sourceNode = namedNode(failed.url);
       const quadsToRemove = store.getQuads(registryNode, buildingSourcePredicate, sourceNode, null);
       if (quadsToRemove.length > 0) {
-        quadsToRemove.forEach(quad => store.removeQuad(quad));
+        quadsToRemove.forEach((q) => store.removeQuad(q as Parameters<typeof store.removeQuad>[0]));
+        // Also remove the role annotation for this building URL
+        const roleQuads = store.getQuads(sourceNode, dataSourceRolePredicate, null, null);
+        roleQuads.forEach((q) => store.removeQuad(q as Parameters<typeof store.removeQuad>[0]));
         removed = true;
         console.log(`Removed inaccessible building source: ${failed.url}`);
       }
@@ -179,7 +203,7 @@ async function removeInaccessibleBuildingSources(
 
 async function getSourceRegistry(
   session: Session,
-): Promise<{ agents: string[]; buildings: string[] }> {
+): Promise<{ agents: string[]; buildings: Array<{ url: string; role: UserRole }> }> {
   const webId = session.info.webId;
   if (!webId) {
     throw new Error("No WebID found in session.");
@@ -189,22 +213,26 @@ async function getSourceRegistry(
   const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
 
   try {
-    const response = await session.fetch(registryUrl+ "?t=" + Date.now());
-    if (!response.ok) {
-      session.fetch(registryUrl, {
-        method: "PUT",
-        headers: {
-          "Content-Type": "text/turtle",
-        },
-        // fill with default values
-        body: `@prefix dcterms: <http://purl.org/dc/terms/> .
-          @prefix gran: <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
+    const response = await session.fetch(registryUrl + "?t=" + Date.now());
 
-          <${registryUrl}> a gran:DataSourceRegistry ;
-            dcterms:creator <${webId}> ;
-            gran:hasBuildingDataSource <https://solid.ti.rw.fau.de/private/granergize/buildings.ttl> ;
-            gran:hasAgentDataSource <https://solid.ti.rw.fau.de/private/granergize/agents.ttl> .`,
-      }).then((res) => {
+    let registryText = "";
+    if (!response.ok) {
+      // Bootstrap default registry with the shared buildings annotated as DummyRole
+      const defaultBody = `@prefix dcterms: <http://purl.org/dc/terms/> .
+@prefix gran: <${GRAN_NS}> .
+
+<${registryUrl}> a gran:DataSourceRegistry ;
+  dcterms:creator <${webId}> ;
+  gran:hasBuildingDataSource <https://solid.ti.rw.fau.de/private/granergize/buildings.ttl> ;
+  gran:hasAgentDataSource <https://solid.ti.rw.fau.de/private/granergize/agents.ttl> .
+
+<https://solid.ti.rw.fau.de/private/granergize/buildings.ttl> gran:dataSourceRole gran:DummyRole .`;
+
+      await session.fetch(registryUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "text/turtle" },
+        body: defaultBody,
+      }).then((res: Response) => {
         if (!res.ok) {
           console.error(
             `Failed to create data source registry at ${registryUrl}: ${res.status} ${res.statusText}`,
@@ -213,41 +241,48 @@ async function getSourceRegistry(
           console.log(`Created new data source registry at ${registryUrl}`);
         }
       });
+      registryText = defaultBody;
+    } else {
+      registryText = await response.text();
     }
 
-    const text = await response.text();
     const parser = new Parser({ baseIRI: registryUrl });
-    const quads = parser.parse(text);
+    const quads = parser.parse(registryText);
     const store = new Store(quads);
 
-    const buildingSources: string[] = [];
+    const buildingSources: Array<{ url: string; role: UserRole }> = [];
     const agentSources: string[] = [];
+    const registryNode = namedNode(registryUrl);
+    const dataSourceRolePredicate = namedNode(`${GRAN_NS}dataSourceRole`);
 
     const buildingQuads = store.getQuads(
-      namedNode(registryUrl),
-      namedNode(
-        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource",
-      ),
+      registryNode,
+      namedNode(`${GRAN_NS}hasBuildingDataSource`),
       null,
       null,
     );
 
-    buildingQuads.forEach((quad) => {
+    buildingQuads.forEach((quad: Quad) => {
       if (quad.object.termType === "NamedNode") {
-        buildingSources.push(quad.object.value);
-      }
+        const url = quad.object.value;
+        // Look up the role annotation for this building URL
+        const roleQuads = store.getQuads(namedNode(url), dataSourceRolePredicate, null, null);
+        let role: UserRole = "dummy"; // default for backward compat
+        if (roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode") {
+          role = IRI_TO_ROLE[roleQuads[0].object.value] ?? "dummy";
+        }
+        buildingSources.push({ url, role });
+      } 
     });
 
     const agentQuads = store.getQuads(
-      namedNode(registryUrl),
-      namedNode(
-        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasAgentDataSource",
-      ),
+      registryNode,
+      namedNode(`${GRAN_NS}hasAgentDataSource`),
       null,
       null,
     );
 
-    agentQuads.forEach((quad) => {
+    agentQuads.forEach((quad: Quad) => {
       if (quad.object.termType === "NamedNode") {
         agentSources.push(quad.object.value);
       }
@@ -259,7 +294,6 @@ async function getSourceRegistry(
     };
   } catch (error) {
     console.error("Error loading data source registry:", error);
-
     return {
       buildings: [],
       agents: [],
@@ -278,12 +312,18 @@ async function getHiddenBuildings(session: Session): Promise<Set<string>> {
 
   // Extract storage root
   const storageRoot = getStorageRoot(webId);
-  const hiddenBuildingsUrl = `${storageRoot}granergize/hiddenBuildings.ttl`;
+  const hiddenBuildingsUrl = `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
 
   try {
     const response = await session.fetch(hiddenBuildingsUrl);
     
     if (response.status === 404) {
+      // Create an empty hidden buildings file for future use
+      await session.fetch(hiddenBuildingsUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "text/turtle" },
+        body: "",
+      });
       return new Set();
     }
     
@@ -317,7 +357,7 @@ async function getHiddenBuildings(session: Session): Promise<Set<string>> {
   }
 }
 
-export async function fetchAndParseData(session: Session) {
+export async function fetchAndParseData(session: Session, role: UserRole | null = null) {
   // get own solid pod url
   const webId = session.info.webId;
   if (!webId) {
@@ -326,12 +366,17 @@ export async function fetchAndParseData(session: Session) {
 
   const dataSources = await getSourceRegistry(session);
 
+  // Filter building sources by the selected role (null = load all)
+  const roleFilteredBuildings = dataSources.buildings
+    .filter(b => role === null || b.role === role)
+    .map(b => b.url);
+
   // Load hidden buildings list
   const hiddenBuildingUris = await getHiddenBuildings(session);
 
   // Load and merge data from all accessible sources
   const buildingsResult = await loadTtlFromMultipleSources(
-    dataSources.buildings,
+    roleFilteredBuildings,
     session,
     "buildings",
   );
@@ -358,11 +403,10 @@ export async function fetchAndParseData(session: Session) {
   // Filter out hidden buildings and mark shared buildings
   const visibleBuildings = new Map<string, BuildingType>();
   for (const [buildingId, building] of buildings) {
-    if (!hiddenBuildingUris.has(building.uri)) {
+    if (!hiddenBuildingUris.has(building.uri.split('#')[0])) {
       // Check if building is from external source (shared with user)
       const isOwnBuilding = building.uri.startsWith(storageRoot);
-      const isPublicResource = building.uri.includes("/private/granergize/");
-      building.isShared = !isOwnBuilding && !isPublicResource;
+      building.isShared = !isOwnBuilding;
       
       visibleBuildings.set(buildingId, building);
     }
@@ -372,6 +416,8 @@ export async function fetchAndParseData(session: Session) {
   const aggregatedValues: Record<string, number[]> = {};
   const agentAggregatedValues: Record<string, Record<string, number[]>> = {};
 
+  // User-role energy data is loaded on demand in UserEnergyChart; skip bulk loading
+  if (role !== "user") {
   // Load energy data for each building (only visible ones)
   for (const [buildingId, building] of visibleBuildings) {
     if (!building.energyData) {
@@ -393,7 +439,31 @@ export async function fetchAndParseData(session: Session) {
 
         const uri = energyResult.quads[0].graph.value;
         const parsedEnergyData = parseEnergyData(buildingId, uri, energyResult.quads);
-        energyData.set(parseInt(buildingId), parsedEnergyData);
+
+        // Derive a stable numeric id matching buildingParser's logic
+        const numericBuildingId = /^\d+$/.test(buildingId)
+          ? parseInt(buildingId)
+          : buildingId.split("").reduce(
+              (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0, 0,
+            ) >>> 0;
+        parsedEnergyData.id = numericBuildingId;
+
+        // User-role buildings produce one EnergyType entry per daily file;
+        // merge all timeSeries arrays instead of overwriting the entry.
+        if (parsedEnergyData.timeSeries) {
+          const existing = energyData.get(numericBuildingId);
+          if (existing?.timeSeries) {
+            existing.timeSeries.electricityConsumption.push(
+              ...parsedEnergyData.timeSeries.electricityConsumption,
+            );
+          } else {
+            energyData.set(numericBuildingId, parsedEnergyData);
+          }
+          // Skip categorical aggregation for time-series data
+          continue;
+        }
+
+        energyData.set(numericBuildingId, parsedEnergyData);
 
         // Aggregate values for each measurement
         for (const category in parsedEnergyData) {
@@ -431,6 +501,7 @@ export async function fetchAndParseData(session: Session) {
       }
     }
   }
+  } // end if (role !== "user")
 
   // Calculate averages
   const averages: Record<string, number> = {};

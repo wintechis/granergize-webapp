@@ -81,13 +81,10 @@ export async function getSharedWithMe(session: Session): Promise<SharedWithMeBui
   }
 
   const webId = session.info.webId;
-  // Extract storage root by finding the base URL before any path segments
-  // webId is like: https://solid.ti.rw.fau.de/homer/profile/card#me
-  // storageRoot should be: https://solid.ti.rw.fau.de/homer/
   const storageRoot = getStorageRoot(webId);
   
-  const registryUrl = `${storageRoot}granergize/dataSources.ttl`;
-  const hiddenBuildingsUrl = `${storageRoot}granergize/hiddenBuildings.ttl`;
+  const registryUrl = `${storageRoot}profile/granergize/dataSources.ttl`;
+  const hiddenBuildingsUrl = `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
 
   try {
     // Get list of hidden buildings
@@ -122,13 +119,9 @@ export async function getSharedWithMe(session: Session): Promise<SharedWithMeBui
       const buildingUri = quad.object.value;
       
       // Check if this building is from an external source (shared with me)
-      // Exclude buildings from:
-      // 1. User's own storage root
-      // 2. Default/public shared resources (e.g., /private/granergize/)
       const isOwnBuilding = buildingUri.startsWith(storageRoot);
-      const isPublicResource = buildingUri.includes("/private/granergize/");
       
-      if (!isOwnBuilding && !isPublicResource) {
+      if (!isOwnBuilding) {
         // Extract building ID and owner
         const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "") || "";
         const ownerMatch = buildingUri.match(/https?:\/\/[^/]+\/([^/]+)\//);
@@ -155,6 +148,12 @@ async function getHiddenBuildings(session: Session, hiddenBuildingsUrl: string):
     const response = await session.fetch(hiddenBuildingsUrl);
     
     if (response.status === 404) {
+      // Create an empty hidden buildings file for future use
+      await session.fetch(hiddenBuildingsUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "text/turtle" },
+        body: "",
+      });
       return new Set();
     }
     
@@ -199,9 +198,9 @@ export async function revokeAccess(
 
   // If building has energy data, revoke that too
   try {
-    const energyDataUri = await getEnergyDataUri(buildingUri, session);
-    if (energyDataUri) {
-      await removeFromACL(energyDataUri, webId, session);
+    const energyTargets = await getEnergyAclTargets(buildingUri, session);
+    for (const target of energyTargets) {
+      await removeFromACL(target, webId, session);
     }
   } catch (error) {
     console.warn("Could not revoke energy data access:", error);
@@ -268,25 +267,30 @@ async function removeFromACL(
     return;
   }
 
-  let aclContent = await response.text();
+  const aclText = await response.text();
 
-  // Remove the authorization block for this webId
-  // This is a simple text-based removal - in production you'd parse and manipulate the RDF
-  const authPattern = new RegExp(
-    `:Read[^:]*acl:agent\\s*<${webId.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}>.*?acl:mode\\s+acl:Read\\s*\\.`,
-    'gs'
-  );
-  
-  aclContent = aclContent.replace(authPattern, '');
+  // Split into blocks on blank lines, drop any block that mentions this WebID,
+  // then reassemble. This avoids re-serialising with n3 Writer (which changes
+  // relative IRIs to absolute ones and can cause 400s on some Solid servers).
+  const blocks = aclText.split(/\n{2,}/);
+  const escapedWebId = webId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  const webIdPattern = new RegExp(`acl:agent\\s*<${escapedWebId}>`);
+  const filtered = blocks.filter((block) => !webIdPattern.test(block));
+  const updatedAcl = filtered.join("\n\n");
 
   await session.fetch(aclUrl, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
-    body: aclContent,
+    body: updatedAcl,
   });
 }
 
-async function getEnergyDataUri(buildingUri: string, session: Session): Promise<string | null> {
+/**
+ * Returns the URI(s) whose ACL entry needs to be removed when revoking energy access.
+ * - Dummy/investor role: single energy file URI
+ * - User role: the parent container URI (covers all daily files via acl:default)
+ */
+async function getEnergyAclTargets(buildingUri: string, session: Session): Promise<string[]> {
   try {
     const response = await session.fetch(buildingUri);
     const text = await response.text();
@@ -296,21 +300,38 @@ async function getEnergyDataUri(buildingUri: string, session: Session): Promise<
 
     const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "");
     const buildingNode = DataFactory.namedNode(`${buildingUri}#${buildingId}`);
-    const energyDataPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyMeasurementData"
-    );
-
-    const energyDataQuads = store.getQuads(buildingNode, energyDataPredicate, null, null);
-    if (energyDataQuads.length === 0) return null;
-
     const datasetLocationPredicate = DataFactory.namedNode(
       "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#datasetLocation"
     );
-    
-    const locationQuads = store.getQuads(energyDataQuads[0].object, datasetLocationPredicate, null, null);
-    return locationQuads.length > 0 ? locationQuads[0].object.value : null;
+
+    // Dummy/investor role: hasEnergyMeasurementData - single file
+    const measurementPredicate = DataFactory.namedNode(
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyMeasurementData"
+    );
+    const measurementQuads = store.getQuads(buildingNode, measurementPredicate, null, null);
+    if (measurementQuads.length > 0) {
+      const locQuads = store.getQuads(measurementQuads[0].object, datasetLocationPredicate, null, null);
+      if (locQuads.length > 0) return [locQuads[0].object.value];
+    }
+
+    // User role: hasEnergyConsumptionDataset - derive common container from first daily file
+    const consumptionPredicate = DataFactory.namedNode(
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyConsumptionDataset"
+    );
+    const datasetQuads = store.getQuads(buildingNode, consumptionPredicate, null, null);
+    if (datasetQuads.length > 0) {
+      const locQuads = store.getQuads(datasetQuads[0].object, datasetLocationPredicate, null, null);
+      if (locQuads.length > 0) {
+        const fileUrl = locQuads[0].object.value;
+        // Return the container URL (e.g. .../energy/) so acl:default covers all files
+        const containerUrl = fileUrl.substring(0, fileUrl.lastIndexOf("/") + 1);
+        return [containerUrl];
+      }
+    }
+
+    return [];
   } catch (_error) {
-    return null;
+    return [];
   }
 }
 
@@ -571,6 +592,12 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
     const response = await session.fetch(viewSharingRegistryUrl);
     
     if (response.status === 404) {
+      // Create an empty view sharing registry for future use
+      await session.fetch(viewSharingRegistryUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "text/turtle" },
+        body: "",
+      });
       return [];
     }
     

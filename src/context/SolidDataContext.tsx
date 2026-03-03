@@ -10,7 +10,10 @@ import type {
   EnergyConsumption,
   EnergyProduction,
   EnergyType,
+  UserRole,
 } from "../../types/types.ts";
+
+const ROLE_STORAGE_KEY = "granergize.role";
 
 interface ContextState {
   buildings: BuildingType[];
@@ -25,6 +28,8 @@ interface ContextState {
   isLoading: boolean;
   error: string | null;
   reloadData: () => Promise<void>;
+  role: UserRole | null;
+  setRole: (role: UserRole | null) => void;
 }
 
 const SolidDataContext = createContext<ContextState>({
@@ -37,6 +42,8 @@ const SolidDataContext = createContext<ContextState>({
   isLoading: false,
   error: null,
   reloadData: async () => {},
+  role: null,
+  setRole: () => {},
 });
 
 export const useSolidData = () => useContext(SolidDataContext);
@@ -51,7 +58,7 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   children,
 }) => {
   const [data, setData] = useState<
-    Omit<ContextState, "isLoading" | "error" | "reloadData" | "energyMix">
+    Omit<ContextState, "isLoading" | "error" | "reloadData" | "energyMix" | "role" | "setRole">
   >({
     buildings: [],
     energyNeed: [],
@@ -62,6 +69,26 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   const [energyMix, setEnergyMix] = useState<ContextState["energyMix"]>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [role, setRoleState] = useState<UserRole | null>(() => {
+    try {
+      return (localStorage.getItem(ROLE_STORAGE_KEY) as UserRole | null) ?? null;
+    } catch {
+      return null;
+    }
+  });
+
+  const setRole = (newRole: UserRole | null) => {
+    try {
+      if (newRole === null) {
+        localStorage.removeItem(ROLE_STORAGE_KEY);
+      } else {
+        localStorage.setItem(ROLE_STORAGE_KEY, newRole);
+      }
+    } catch {
+      // localStorage unavailable — proceed in-memory only
+    }
+    setRoleState(newRole);
+  };
 
   const loadData = async () => {
     if (!session || !session.info.isLoggedIn) {
@@ -69,12 +96,17 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
       return;
     }
 
+    if (role === null) {
+      // No role selected yet — nothing to load
+      return;
+    }
+
     setIsLoading(true);
     setError(null);
 
     try {
-      // Load primary data
-      const parsedData = await fetchAndParseData(session);
+      // Load primary data filtered by role
+      const parsedData = await fetchAndParseData(session, role);
       setData(parsedData);
 
       // Load energy mix data
@@ -89,12 +121,12 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
     }
   };
 
-  // Initial load
+  // Reload when session becomes logged in or role changes
   useEffect(() => {
-    if (session?.info.isLoggedIn) {
+    if (session?.info.isLoggedIn && role !== null) {
       loadData();
     }
-  }, [session?.info.isLoggedIn]);
+  }, [session?.info.isLoggedIn, role]);
 
   return (
     <SolidDataContext.Provider
@@ -104,6 +136,8 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
         isLoading,
         error,
         reloadData: loadData,
+        role,
+        setRole,
       }}
     >
       {children}
