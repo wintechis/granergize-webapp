@@ -4,5 +4,5 @@
     "build": "deno run -A npm:vite build"
   },
   "imports": {},
-  "allowScripts": ["npm:core-js@3.46.0", "npm:esbuild@0.21.5"]
+  "allowScripts": ["npm:esbuild@0.21.5"]
 }
