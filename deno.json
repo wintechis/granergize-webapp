@@ -3,6 +3,8 @@
     "dev": "deno run -A npm:vite dev",
     "build": "deno run -A npm:vite build"
   },
-  "imports": {},
+  "imports": {
+    "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.52"
+  },
   "allowScripts": ["npm:esbuild@0.21.5"]
 }
