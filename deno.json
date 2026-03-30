@@ -4,7 +4,7 @@
     "build": "deno run -A npm:vite build"
   },
   "imports": {
-    "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.52"
+    "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.53"
   },
   "allowScripts": ["npm:esbuild@0.21.5"]
 }

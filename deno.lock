@@ -1,13 +1,14 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.52": "0.0.52",
+    "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.53": "0.0.53",
     "npm:@emotion/react@^11.13.3": "11.14.0_react@18.3.1",
     "npm:@emotion/styled@^11.13.0": "11.14.1_@emotion+react@11.14.0__react@18.3.1_react@18.3.1",
     "npm:@eslint/js@^9.13.0": "9.38.0",
     "npm:@fontsource/roboto@^5.1.0": "5.2.6",
     "npm:@inrupt/solid-client-authn-browser@^3.1.0": "3.1.0",
     "npm:@inrupt/solid-client@3": "3.0.0",
+    "npm:@jsr/wintechis__wetterdienst-rdf-adapter@^0.0.53": "0.0.53",
     "npm:@mui/icons-material@^6.1.6": "6.5.0_@mui+material@6.5.0__@emotion+react@11.14.0___react@18.3.1__@emotion+styled@11.14.1___@emotion+react@11.14.0____react@18.3.1___react@18.3.1__@types+react@18.3.26__react@18.3.1__react-dom@18.3.1___react@18.3.1_@types+react@18.3.26_react@18.3.1_@emotion+react@11.14.0__react@18.3.1_@emotion+styled@11.14.1__@emotion+react@11.14.0___react@18.3.1__react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@mui/material@^6.1.6": "6.5.0_@emotion+react@11.14.0__react@18.3.1_@emotion+styled@11.14.1__@emotion+react@11.14.0___react@18.3.1__react@18.3.1_@types+react@18.3.26_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@mui/utils@^6.1.7": "6.4.9_@types+react@18.3.26_react@18.3.1",
@@ -25,6 +26,7 @@
     "npm:leaflet-defaulticon-compatibility@~0.1.2": "0.1.2",
     "npm:leaflet@^1.9.4": "1.9.4",
     "npm:n3@^1.23.0": "1.26.0",
+    "npm:n3@^1.25.2": "1.26.0",
     "npm:react-chartjs-2@^5.2.0": "5.3.0_chart.js@4.5.1_react@18.3.1",
     "npm:react-dom@^18.3.1": "18.3.1_react@18.3.1",
     "npm:react-leaflet@^4.2.1": "4.2.1_leaflet@1.9.4_react@18.3.1_react-dom@18.3.1__react@18.3.1",
@@ -36,8 +38,11 @@
     "npm:xlsx@0.18.5": "0.18.5"
   },
   "jsr": {
-    "@wintechis/wetterdienst-rdf-adapter@0.0.52": {
-      "integrity": "ad85c7d0888171a89e7b86a9419ef9c13ace51e675728f8b720ab8fb8864b339"
+    "@wintechis/wetterdienst-rdf-adapter@0.0.53": {
+      "integrity": "dcf01db85f4f7842b12eb0ccf6c9278e821ca37f67c41f726685620dc3dcb854",
+      "dependencies": [
+        "npm:n3@^1.25.2"
+      ]
     }
   },
   "npm": {
@@ -553,6 +558,13 @@
         "@jridgewell/resolve-uri",
         "@jridgewell/sourcemap-codec"
       ]
+    },
+    "@jsr/wintechis__wetterdienst-rdf-adapter@0.0.53": {
+      "integrity": "sha512-sN5F6GednIFO0++YiOrxa3ujeSunfKn+LMDgREWq7nfm+MtvyBe+MiAurv0nwQjpCfYBp6hLrjZ+yq5N9idYbQ==",
+      "dependencies": [
+        "n3"
+      ],
+      "tarball": "https://npm.jsr.io/~/11/@jsr/wintechis__wetterdienst-rdf-adapter/0.0.53.tgz"
     },
     "@kurkle/color@0.3.4": {
       "integrity": "sha512-M5UknZPHRu3DEDWoipU6sE8PdkZ6Z/S+v4dD+Ke8IaNlpdSQah50lz1KtcFBa2vsdOnwbbnxJwVM4wty6udA5w=="
@@ -1738,9 +1750,6 @@
     "path-parse@1.0.7": {
       "integrity": "sha512-LDJzPVEEEPR+y48z93A0Ed0yXb8pAByGWo/k5YYdYgpY2/2EsOsksJrq7lOHxryrVOn1ejG6oAp8ahvOIQD8sw=="
     },
-    "path-to-regexp@6.3.0": {
-      "integrity": "sha512-Yhpw4T9C6hPpgPeA28us07OJeqZ5EzQTkbfwuhsUg0c237RomFoETJgmp2sa3F/41gfLE6G5cqcYwznmeEeOlQ=="
-    },
     "path-type@4.0.0": {
       "integrity": "sha512-gDKb8aZMDeD/tZWs9P6+q0J9Mwkdl6xMV8TjnGP3qJVJ06bdMgkbBlLU8IdfOsIsFz2BW1rNVT3XuNEl8zPAvw=="
     },
@@ -2206,7 +2215,7 @@
   },
   "workspace": {
     "dependencies": [
-      "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.52"
+      "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.53"
     ],
     "packageJson": {
       "dependencies": [
@@ -2216,7 +2225,7 @@
         "npm:@fontsource/roboto@^5.1.0",
         "npm:@inrupt/solid-client-authn-browser@^3.1.0",
         "npm:@inrupt/solid-client@3",
-        "npm:@jsr/wintechis__wetterdienst-rdf-adapter@^0.0.52",
+        "npm:@jsr/wintechis__wetterdienst-rdf-adapter@^0.0.53",
         "npm:@mui/icons-material@^6.1.6",
         "npm:@mui/material@^6.1.6",
         "npm:@mui/utils@^6.1.7",
