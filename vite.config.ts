@@ -32,7 +32,7 @@ export default defineConfig({
   server: {
     proxy: {
       "/weather-api": {
-        target: "https://wetterdienst-rdf-adapter.deno.dev",
+        target: "https://wetterdienst-rdf-adapter.deno.dev/",
         changeOrigin: true,
         rewrite: (p) => p.replace(/^\/weather-api/, ""),
         secure: true,
