@@ -14,7 +14,7 @@
     "@mui/utils": "^6.1.7",
     "@rdfjs/types": "^1.1.2",
     "@types/leaflet": "^1.9.14",
-    "@wintechis/wetterdienst-rdf-adapter": "jsr:^0.0.52",
+    "@wintechis/wetterdienst-rdf-adapter": "jsr:^0.0.53",
     "chart.js": "^4.4.6",
     "leaflet": "^1.9.4",
     "leaflet-defaulticon-compatibility": "^0.1.2",
