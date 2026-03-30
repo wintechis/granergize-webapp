@@ -1,13 +1,8 @@
 {
   "tasks": {
-    "dev": "deno task dev:vite",
-    "dev:api": "deno run --allow-env --allow-net --allow-read api/main.ts",
-    "dev:vite": "deno run -A npm:vite dev",
+    "dev": "deno run -A npm:vite dev",
     "build": "deno run -A npm:vite build"
   },
-  "imports": {
-    "@oak/oak": "jsr:@oak/oak@^17.1.5",
-    "@tajpouria/cors": "jsr:@tajpouria/cors@^1.2.1"
-  },
+  "imports": {},
   "allowScripts": ["npm:core-js@3.46.0", "npm:esbuild@0.21.5"]
 }

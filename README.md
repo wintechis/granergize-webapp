@@ -1,9 +1,6 @@
 # Granergize WebApp
 
-The Granergize WebApp allows consists of a frontend for browsing and comparing
-energy consumption data of different buildings and a backend for fetching data
-from the Granergize Knowledge, converting the data to JSON and serving it to the
-frontend.
+The Granergize WebApp allows browsing and comparing energy consumption data of different buildings using the [Granergize Ontology](https://solid.ti.rw.fau.de/gra/vocab.ttl#).
 
 ![Granergize WebApp](./screenshot.png)
 
@@ -14,6 +11,6 @@ frontend.
 ## Setup
 
 - Clone the repository
-- Run `deno install` to install the dependencies
-- Run `deno run --allow-net --allow-read serve`
-- Open `http://localhost:8000` in your browser
+- Run `deno install` to install dependencies
+- Run `deno task dev` to start the development server
+- Open `http://localhost:5173` in your browser
