@@ -43,10 +43,6 @@ export default defineConfig({
           "Accept": "application/json",
         },
       },
-      "/api": {
-        target: "http://localhost:8000",
-        changeOrigin: true,
-      },
     },
   },
 });

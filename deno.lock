@@ -1,18 +1,6 @@
 {
   "version": "5",
   "specifiers": {
-    "jsr:@oak/commons@1": "1.0.0",
-    "jsr:@oak/oak@*": "17.1.5",
-    "jsr:@oak/oak@^17.1.5": "17.1.5",
-    "jsr:@std/assert@1": "1.0.13",
-    "jsr:@std/bytes@1": "1.0.4",
-    "jsr:@std/crypto@1": "1.0.3",
-    "jsr:@std/encoding@1": "1.0.5",
-    "jsr:@std/encoding@^1.0.5": "1.0.5",
-    "jsr:@std/http@1": "1.0.11",
-    "jsr:@std/media-types@1": "1.1.0",
-    "jsr:@std/path@1": "1.0.8",
-    "jsr:@tajpouria/cors@^1.2.1": "1.2.1",
     "npm:@emotion/react@^11.13.3": "11.14.0_react@18.3.1",
     "npm:@emotion/styled@^11.13.0": "11.14.1_@emotion+react@11.14.0__react@18.3.1_react@18.3.1",
     "npm:@eslint/js@^9.13.0": "9.38.0",
@@ -36,7 +24,6 @@
     "npm:leaflet-defaulticon-compatibility@~0.1.2": "0.1.2",
     "npm:leaflet@^1.9.4": "1.9.4",
     "npm:n3@^1.23.0": "1.26.0",
-    "npm:path-to-regexp@^6.3.0": "6.3.0",
     "npm:react-chartjs-2@^5.2.0": "5.3.0_chart.js@4.5.1_react@18.3.1",
     "npm:react-dom@^18.3.1": "18.3.1_react@18.3.1",
     "npm:react-leaflet@^4.2.1": "4.2.1_leaflet@1.9.4_react@18.3.1_react-dom@18.3.1__react@18.3.1",
@@ -46,58 +33,6 @@
     "npm:typescript@~5.6.2": "5.6.3",
     "npm:vite@^5.4.9": "5.4.21",
     "npm:xlsx@0.18.5": "0.18.5"
-  },
-  "jsr": {
-    "@oak/commons@1.0.0": {
-      "integrity": "49805b55603c3627a9d6235c0655aa2b6222d3036b3a13ff0380c16368f607ac",
-      "dependencies": [
-        "jsr:@std/assert",
-        "jsr:@std/bytes",
-        "jsr:@std/crypto",
-        "jsr:@std/encoding@1",
-        "jsr:@std/http",
-        "jsr:@std/media-types"
-      ]
-    },
-    "@oak/oak@17.1.5": {
-      "integrity": "676263340dcfd069fb422b4274b4f75f7048a68e605dece6a2897ccfe669e7cc",
-      "dependencies": [
-        "jsr:@oak/commons",
-        "jsr:@std/assert",
-        "jsr:@std/bytes",
-        "jsr:@std/http",
-        "jsr:@std/media-types",
-        "jsr:@std/path",
-        "npm:path-to-regexp"
-      ]
-    },
-    "@std/assert@1.0.13": {
-      "integrity": "ae0d31e41919b12c656c742b22522c32fb26ed0cba32975cb0de2a273cb68b29"
-    },
-    "@std/bytes@1.0.4": {
-      "integrity": "11a0debe522707c95c7b7ef89b478c13fb1583a7cfb9a85674cd2cc2e3a28abc"
-    },
-    "@std/crypto@1.0.3": {
-      "integrity": "a2a32f51ddef632d299e3879cd027c630dcd4d1d9a5285d6e6788072f4e51e7f"
-    },
-    "@std/encoding@1.0.5": {
-      "integrity": "ecf363d4fc25bd85bd915ff6733a7e79b67e0e7806334af15f4645c569fefc04"
-    },
-    "@std/http@1.0.11": {
-      "integrity": "f1928e69e7dcf1664e22d153934cb866bf31e1bbe4bc59f8ac1b4d0e98cb7558",
-      "dependencies": [
-        "jsr:@std/encoding@^1.0.5"
-      ]
-    },
-    "@std/media-types@1.1.0": {
-      "integrity": "c9d093f0c05c3512932b330e3cc1fe1d627b301db33a4c2c2185c02471d6eaa4"
-    },
-    "@std/path@1.0.8": {
-      "integrity": "548fa456bb6a04d3c1a1e7477986b6cffbce95102d0bb447c67c4ee70e0364be"
-    },
-    "@tajpouria/cors@1.2.1": {
-      "integrity": "eca42e4fb7cb3906ef0ee3d1e565dd6bb4632ccd8e70a95cf4279759743328f0"
-    }
   },
   "npm": {
     "@babel/code-frame@7.27.1": {
@@ -2264,10 +2199,6 @@
     "https://deno.land/std@0.224.0/streams/text_delimiter_stream.ts": "94dfc900204e306496c1b58c80473db57b6097afdcb8ea9eaff453a193a659f1"
   },
   "workspace": {
-    "dependencies": [
-      "jsr:@oak/oak@^17.1.5",
-      "jsr:@tajpouria/cors@^1.2.1"
-    ],
     "packageJson": {
       "dependencies": [
         "npm:@emotion/react@^11.13.3",
