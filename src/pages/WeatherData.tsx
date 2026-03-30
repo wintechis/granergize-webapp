@@ -31,8 +31,12 @@ interface WeatherDataProps {
   building: BuildingType;
 }
 
+const WEATHER_API_URL = import.meta.env.VITE_WEATHER_API_URL || '/weather-api/';
+
 const wetterdienstClient = new WetterdienstClient(
-  `${globalThis.location.origin}/weather-api/`,
+  WEATHER_API_URL.startsWith('http') 
+    ? WEATHER_API_URL 
+    : `${globalThis.location.origin}${WEATHER_API_URL}`
 );
 
 // Map of parameter names to more readable titles
