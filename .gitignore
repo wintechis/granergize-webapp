@@ -10,6 +10,10 @@ lerna-debug.log*
 node_modules
 dist
 dist-ssr
+exampleGraphs
+paper
+usability eval
+scripts
 *.local
 
 # Editor directories and files
