@@ -1,6 +1,7 @@
 {
   "version": "5",
   "specifiers": {
+    "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.52": "0.0.52",
     "npm:@emotion/react@^11.13.3": "11.14.0_react@18.3.1",
     "npm:@emotion/styled@^11.13.0": "11.14.1_@emotion+react@11.14.0__react@18.3.1_react@18.3.1",
     "npm:@eslint/js@^9.13.0": "9.38.0",
@@ -33,6 +34,11 @@
     "npm:typescript@~5.6.2": "5.6.3",
     "npm:vite@^5.4.9": "5.4.21",
     "npm:xlsx@0.18.5": "0.18.5"
+  },
+  "jsr": {
+    "@wintechis/wetterdienst-rdf-adapter@0.0.52": {
+      "integrity": "ad85c7d0888171a89e7b86a9419ef9c13ace51e675728f8b720ab8fb8864b339"
+    }
   },
   "npm": {
     "@babel/code-frame@7.27.1": {
@@ -2199,6 +2205,9 @@
     "https://deno.land/std@0.224.0/streams/text_delimiter_stream.ts": "94dfc900204e306496c1b58c80473db57b6097afdcb8ea9eaff453a193a659f1"
   },
   "workspace": {
+    "dependencies": [
+      "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.52"
+    ],
     "packageJson": {
       "dependencies": [
         "npm:@emotion/react@^11.13.3",
@@ -2207,6 +2216,7 @@
         "npm:@fontsource/roboto@^5.1.0",
         "npm:@inrupt/solid-client-authn-browser@^3.1.0",
         "npm:@inrupt/solid-client@3",
+        "npm:@jsr/wintechis__wetterdienst-rdf-adapter@^0.0.52",
         "npm:@mui/icons-material@^6.1.6",
         "npm:@mui/material@^6.1.6",
         "npm:@mui/utils@^6.1.7",
