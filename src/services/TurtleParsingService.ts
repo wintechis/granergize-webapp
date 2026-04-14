@@ -531,6 +531,11 @@ export async function fetchAndParseData(session: Session, role: UserRole | null 
   };
 }
 
+function getQuadFloat(store: Store, subject: Term, predicate: Term): number {
+  const quads = store.match(subject, predicate, null).toArray();
+  return quads.length > 0 ? parseFloat(quads[0].object.value) : NaN;
+}
+
 export async function parseEnergyMix(session: Session) {
   const energyConsumptionQuads = await loadTtlWithSession(
     "https://solid.ti.rw.fau.de/private/granergize/data/energy/2023/districtsEnergyConsumption.ttl",
@@ -575,24 +580,8 @@ export async function parseEnergyMix(session: Session) {
   consumptionQuads.forEach((quad: Quad) => {
     const cityUrl = quad.subject.value;
     const cityId = cityUrl.substring(cityUrl.lastIndexOf("/") + 1);
-    const value = parseFloat(
-      consumptionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#value",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const renewableEnergyShare = parseFloat(
-      consumptionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#renewableEnergyShare",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
+    const value = getQuadFloat(consumptionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#value"));
+    const renewableEnergyShare = getQuadFloat(consumptionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#renewableEnergyShare"));
     energyConsumption[cityId] = { value, renewableEnergyShare };
   });
 
@@ -608,105 +597,17 @@ export async function parseEnergyMix(session: Session) {
   productionQuads.forEach((quad: Quad) => {
     const cityUrl = quad.subject.value;
     const cityId = cityUrl.substring(cityUrl.lastIndexOf("/") + 1);
-    const hydroShare = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hydroShare",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const windShare = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#windShare",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const solarShare = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#solarShare",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const biomassShare = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#biomassShare",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const geothermalShare = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#geothermalShare",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const hydroProduction = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hydroProduction",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const windProduction = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#windProduction",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const solarProduction = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#solarProduction",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const biomassProduction = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#biomassProduction",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const geothermalProduction = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#geothermalProduction",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
-    const totalRenewableProduction = parseFloat(
-      productionStore.match(
-        quad.object as Term,
-        namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#totalRenewableProduction",
-        ),
-        null,
-      ).toArray()[0].object.value,
-    );
+    const hydroShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hydroShare"));
+    const windShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#windShare"));
+    const solarShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#solarShare"));
+    const biomassShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#biomassShare"));
+    const geothermalShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#geothermalShare"));
+    const hydroProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hydroProduction"));
+    const windProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#windProduction"));
+    const solarProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#solarProduction"));
+    const biomassProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#biomassProduction"));
+    const geothermalProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#geothermalProduction"));
+    const totalRenewableProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#totalRenewableProduction"));
     energyProduction[cityId] = {
       hydroShare,
       windShare,

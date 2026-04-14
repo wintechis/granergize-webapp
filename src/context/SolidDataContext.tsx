@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from "react";
+import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import {
   fetchAndParseData,
@@ -90,7 +90,7 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
     setRoleState(newRole);
   };
 
-  const loadData = async () => {
+  const loadData = useCallback(async () => {
     if (!session || !session.info.isLoggedIn) {
       setError("Not authenticated");
       return;
@@ -119,14 +119,14 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
     } finally {
       setIsLoading(false);
     }
-  };
+  }, [session, role]);
 
   // Reload when session becomes logged in or role changes
   useEffect(() => {
     if (session?.info.isLoggedIn && role !== null) {
       loadData();
     }
-  }, [session?.info.isLoggedIn, role]);
+  }, [session?.info.isLoggedIn, role, loadData]);
 
   return (
     <SolidDataContext.Provider

@@ -29,6 +29,20 @@ export default defineConfig({
   resolve: {
     dedupe: ["chart.js"],
   },
+  build: {
+    rollupOptions: {
+      output: {
+        manualChunks(id) {
+          if (!id.includes("node_modules")) return;
+          if (id.includes("@mui") || id.includes("@emotion")) return "vendor-mui";
+          if (id.includes("chart.js") || id.includes("react-chartjs-2")) return "vendor-charts";
+          if (id.includes("leaflet") || id.includes("react-leaflet")) return "vendor-map";
+          if (id.includes("@inrupt") || id.includes("/n3/") || id.includes("/n3@")) return "vendor-rdf";
+          return "vendor";
+        },
+      },
+    },
+  },
   server: {
     proxy: {
       "/weather-api": {
