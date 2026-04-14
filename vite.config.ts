@@ -37,7 +37,7 @@ export default defineConfig({
           if (id.includes("@mui") || id.includes("@emotion")) return "vendor-mui";
           if (id.includes("chart.js") || id.includes("react-chartjs-2")) return "vendor-charts";
           if (id.includes("leaflet") || id.includes("react-leaflet")) return "vendor-map";
-          if (id.includes("@inrupt") || id.includes("/n3/") || id.includes("/n3@")) return "vendor-rdf";
+          if (id.includes("@inrupt")) return "vendor-rdf";
           return "vendor";
         },
       },
