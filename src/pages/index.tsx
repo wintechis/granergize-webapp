@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, lazy, Suspense } from "react";
 import Avatar from "@mui/material/Avatar";
+import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Button from "@mui/material/Button";
-import Map from "./Map.tsx";
+const Map = lazy(() => import("./Map.tsx"));
 import { useSolidData } from "../context/SolidDataContext.tsx";
 import { readInbox } from "../services/interop/inbox.ts";
 import EnergyMix from "./EnergyMix.tsx";
@@ -187,7 +188,11 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           </Menu>
         </Box>
       </Box>
-      {tabValue === 0 && <Map session={session} />}
+      {tabValue === 0 && (
+        <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
+          <Map session={session} />
+        </Suspense>
+      )}
       {tabValue === 1 && <EnergyMix />}
       {tabValue === 2 && (
         <ViewsPage 

@@ -29,6 +29,9 @@ export async function shareBuildingData(
     // Conditionally share energy data based on options
     if (options.includeEnergyData) {
         const energyUrls = await getEnergyDataUrls(buildingUri.split("#")[0], session);
+        if (energyUrls.length === 0) {
+            throw new Error(`No energy data URLs found for building: ${buildingUri}`);
+        }
         if (!options.role || options.role === "dummy" || options.role === "investor") {
             // Single file (dummy/investor role) - share the file directly
             await shareData(energyUrls[0].split("#")[0], webId, session);

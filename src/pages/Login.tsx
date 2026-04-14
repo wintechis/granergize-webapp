@@ -178,11 +178,15 @@ export const Login: React.FC<LoginProps> = ({
 
   useEffect(() => {
     // If user had a previous session, check for that issuer
-    const clientAuth = JSON.parse(
-      localStorage.getItem(
-        `solidClientAuthenticationUser:${session.info.sessionId}`,
-      ) as string,
+    const raw = localStorage.getItem(
+      `solidClientAuthenticationUser:${session.info.sessionId}`,
     );
+    let clientAuth: { issuer?: string } | null = null;
+    try {
+      if (raw) clientAuth = JSON.parse(raw);
+    } catch {
+      // stored value is corrupt — ignore
+    }
     if (clientAuth?.issuer) {
       const alreadyExists = prevIdps.includes(clientAuth.issuer);
       if (!alreadyExists) {
