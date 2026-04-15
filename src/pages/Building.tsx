@@ -58,7 +58,11 @@ export default function Building({ building, session, onHide }: BuildingProps) {
   }
 
   function createEnergyCertificateLink(uriString: string) {
-    return <Link to={uriString}>pdf</Link>;
+    return (
+      <Link to={uriString} target="_blank" rel="noopener noreferrer">
+        pdf
+      </Link>
+    );
   }
 
 
@@ -92,11 +96,13 @@ export default function Building({ building, session, onHide }: BuildingProps) {
             </>
           }
           action={
-            <Tooltip title="Share building data">
-              <IconButton onClick={() => setShareDialogOpen(true)}>
-                <ShareIcon />
-              </IconButton>
-            </Tooltip>
+            !building.isShared && (
+              <Tooltip title="Share building data">
+                <IconButton onClick={() => setShareDialogOpen(true)}>
+                  <ShareIcon />
+                </IconButton>
+              </Tooltip>
+            )
           }
         />
         <CardContent sx={{ overflowY: "auto", maxHeight: "60vh" }}>
