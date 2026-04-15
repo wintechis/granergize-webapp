@@ -40,6 +40,12 @@ export async function getSharedBuildings(session: Session): Promise<SharedBuildi
     const response = await session.fetch(sharingRegistryUrl);
     
     if (response.status === 404) {
+      // Create an empty sharing registry
+      await session.fetch(sharingRegistryUrl, {
+        method: "PUT",
+        headers: { "Content-Type": "text/turtle" },
+        body: "",
+      });
       return [];
     }
     
