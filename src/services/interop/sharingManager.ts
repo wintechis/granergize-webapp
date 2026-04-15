@@ -13,7 +13,16 @@ interface SharedWithMeBuilding {
   buildingId: string;
   sharedBy: string;
   isVisible: boolean;
+  sharedRole?: string;
 }
+
+const GRAN_NS = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
+const IRI_TO_ROLE: Record<string, string> = {
+  [`${GRAN_NS}DummyRole`]:     "dummy",
+  [`${GRAN_NS}InvestorRole`]:  "investor",
+  [`${GRAN_NS}UserRoleInstance`]: "user",
+  [`${GRAN_NS}BenchmarkRole`]: "benchmark_service_provider",
+};
 
 /**
  * Get list of buildings the user has shared with others
@@ -126,12 +135,23 @@ export async function getSharedWithMe(session: Session): Promise<SharedWithMeBui
         const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "") || "";
         const ownerMatch = buildingUri.match(/https?:\/\/[^/]+\/([^/]+)\//);
         const sharedBy = ownerMatch ? `${ownerMatch[0]}profile/card#me` : "Unknown";
-        
+
+        // Read the role annotation stored alongside the building data source
+        const roleQuads = store.getQuads(
+          DataFactory.namedNode(buildingUri),
+          DataFactory.namedNode(`${GRAN_NS}dataSourceRole`),
+          null,
+          null,
+        );
+        const roleIri = roleQuads.length > 0 ? roleQuads[0].object.value : undefined;
+        const sharedRole = roleIri ? IRI_TO_ROLE[roleIri] : undefined;
+
         sharedBuildings.push({
           buildingUri,
           buildingId,
           sharedBy,
           isVisible: !hiddenBuildings.has(buildingUri),
+          sharedRole,
         });
       }
     }
