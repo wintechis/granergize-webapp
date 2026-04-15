@@ -1,24 +1,18 @@
 import { useState, useEffect } from "react";
-import { Line } from "react-chartjs-2";
+import { Line, Bar } from "react-chartjs-2";
 import {
   Box,
   CircularProgress,
-  FormControl,
-  InputLabel,
-  MenuItem,
-  Select,
+  LinearProgress,
+  TextField,
   Typography,
 } from "@mui/material";
+import Tabs from "@mui/material/Tabs";
+import Tab from "@mui/material/Tab";
 import type { ChartData, ChartOptions } from "chart.js";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { Parser, Store, DataFactory } from "n3";
 import type { EnergyMeasurementData } from "../../types/types.ts";
-
-const USERVOC_NS = "https://solid.ti.rw.fau.de/private/granergize/user-vocab.ttl#";
-const SOSA_NS    = "http://www.w3.org/ns/sosa/";
-const TIME_NS    = "http://www.w3.org/2006/time#";
-const RDF_TYPE   = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-const { namedNode } = DataFactory;
+import { parseTtlReadings } from "../services/utils/userEnergyParser.ts";
 
 interface UserEnergyChartProps {
   availableDates: EnergyMeasurementData[];
@@ -26,7 +20,6 @@ interface UserEnergyChartProps {
 }
 
 export default function UserEnergyChart({ availableDates, session }: UserEnergyChartProps) {
-  // Derive sorted date labels from the location URLs (e.g. ".../2024-01-01.ttl" - "2024-01-01")
   const dateEntries = availableDates
     .map((d) => ({
       label: d.location.split("/").pop()?.replace(".ttl", "") ?? d.location,
@@ -34,6 +27,10 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
+  const availableMonths = [...new Set(dateEntries.map((d) => d.label.substring(0, 7)))];
+
+  // ── Tab 0: Day View ──────────────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
   const [selectedLabel, setSelectedLabel] = useState<string>(dateEntries[0]?.label ?? "");
   const [readings, setReadings] = useState<Array<{ begin: string; value: number }>>([]);
   const [loading, setLoading] = useState(false);
@@ -49,39 +46,8 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
 
     (async () => {
       try {
-        const response = await session.fetch(entry.location);
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
-        }
-        const text = await response.text();
-        const parser = new Parser({ baseIRI: entry.location });
-        const quads = parser.parse(text);
-        const store = new Store(quads);
-
-        const readingQuads = store.getQuads(
-          null,
-          namedNode(RDF_TYPE),
-          namedNode(`${USERVOC_NS}EnergyConsumptionReading`),
-          null,
-        );
-
-        const parsed: Array<{ begin: string; value: number }> = [];
-        readingQuads.forEach((obs) => {
-          const resultQs = store.getQuads(obs.subject, namedNode(`${SOSA_NS}hasResult`), null, null);
-          if (!resultQs.length) return;
-          const valueQs = store.getQuads(resultQs[0].object, namedNode(`${SOSA_NS}hasSimpleResult`), null, null);
-          if (!valueQs.length) return;
-
-          const timeQs = store.getQuads(obs.subject, namedNode(`${SOSA_NS}phenomenonTime`), null, null);
-          if (!timeQs.length) return;
-          const beginQs = store.getQuads(timeQs[0].object, namedNode(`${TIME_NS}hasBeginning`), null, null);
-          if (!beginQs.length) return;
-
-          parsed.push({ begin: beginQs[0].object.value, value: parseFloat(valueQs[0].object.value) });
-        });
-
-        parsed.sort((a, b) => a.begin.localeCompare(b.begin));
-        if (!cancelled) setReadings(parsed);
+        const data = await parseTtlReadings(entry.location, session.fetch.bind(session));
+        if (!cancelled) setReadings(data);
       } catch (err) {
         if (!cancelled) setFetchError(err instanceof Error ? err.message : String(err));
       } finally {
@@ -93,24 +59,89 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLabel]);
 
-  const dailyTotal = readings.reduce((sum, r) => sum + r.value, 0);
+  // ── Tabs 1 & 2: Monthly bulk fetch ───────────────────────────────────────
+  const [selectedMonth, setSelectedMonth] = useState<string>(
+    availableMonths[availableMonths.length - 1] ?? "",
+  );
+  const [allDaysData, setAllDaysData] = useState<Map<string, Array<{ begin: string; value: number }>> | null>(null);
+  const [bulkLoading, setBulkLoading] = useState(false);
+  const [bulkProgress, setBulkProgress] = useState({ loaded: 0, total: 0 });
+  const [bulkError, setBulkError] = useState<string | null>(null);
 
-  const chartData: ChartData<"line", number[], string> = {
-    labels: readings.map((r) => r.begin.substring(11, 16)), // "HH:MM"
-    datasets: [
-      {
-        label: "Electricity Consumption (kWh)",
-        data: readings.map((r) => r.value),
-        borderColor: "rgba(31, 120, 180, 1)",
-        backgroundColor: "rgba(31, 120, 180, 0.1)",
-        fill: true,
-        tension: 0.3,
-        pointRadius: 2,
-      },
-    ],
+  const monthEntries = dateEntries.filter((d) => d.label.startsWith(selectedMonth));
+
+  async function fetchMonthDays() {
+    if (bulkLoading) return;
+    setBulkLoading(true);
+    setAllDaysData(null);
+    setBulkError(null);
+    setBulkProgress({ loaded: 0, total: monthEntries.length });
+
+    const result = new Map<string, Array<{ begin: string; value: number }>>();
+    try {
+      const settled = await Promise.allSettled(
+        monthEntries.map((e) =>
+          parseTtlReadings(e.location, session.fetch.bind(session)).then((data) => ({ label: e.label, data }))
+        ),
+      );
+      settled.forEach((r, i) => {
+        if (r.status === "fulfilled") result.set(r.value.label, r.value.data);
+        setBulkProgress({ loaded: i + 1, total: monthEntries.length });
+      });
+    } catch (err) {
+      setBulkError(err instanceof Error ? err.message : String(err));
+    }
+
+    setAllDaysData(result);
+    setBulkLoading(false);
+  }
+
+  useEffect(() => {
+    if (activeTab === 1 || activeTab === 2) fetchMonthDays();
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [activeTab, selectedMonth]);
+
+  // ── Derived data ──────────────────────────────────────────────────────────
+  const dailyTotals = allDaysData
+    ? Array.from(allDaysData.entries())
+        .map(([label, rs]) => ({ label, total: rs.reduce((s, r) => s + r.value, 0) }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+    : [];
+
+  const avgDailyTotal = dailyTotals.length
+    ? dailyTotals.reduce((s, d) => s + d.total, 0) / dailyTotals.length
+    : 0;
+
+  const avgProfile = (() => {
+    if (!allDaysData) return [];
+    const acc = new Map<string, { sum: number; count: number }>();
+    allDaysData.forEach((rs) =>
+      rs.forEach((r) => {
+        const slot = r.begin.substring(11, 16);
+        const cur = acc.get(slot) ?? { sum: 0, count: 0 };
+        acc.set(slot, { sum: cur.sum + r.value, count: cur.count + 1 });
+      }),
+    );
+    return Array.from(acc.entries())
+      .map(([slot, { sum, count }]) => ({ slot, avg: sum / count }))
+      .sort((a, b) => a.slot.localeCompare(b.slot));
+  })();
+
+  // ── Chart configs ─────────────────────────────────────────────────────────
+  const dayViewChartData: ChartData<"line", number[], string> = {
+    labels: readings.map((r) => r.begin.substring(11, 16)),
+    datasets: [{
+      label: "Electricity Consumption (kWh)",
+      data: readings.map((r) => r.value),
+      borderColor: "rgba(31, 120, 180, 1)",
+      backgroundColor: "rgba(31, 120, 180, 0.1)",
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+    }],
   };
 
-  const options: ChartOptions<"line"> = {
+  const dayViewOptions: ChartOptions<"line"> = {
     plugins: { legend: { display: false } },
     scales: {
       x: { title: { display: true, text: "Time of day" } },
@@ -118,49 +149,193 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
     },
   };
 
-  return (
-    <Box>
-      <FormControl size="small" sx={{ mb: 2, minWidth: 160 }}>
-        <InputLabel>Date</InputLabel>
-        <Select
-          value={selectedLabel}
-          label="Date"
-          onChange={(e) => setSelectedLabel(e.target.value)}
-        >
-          {dateEntries.map((d) => (
-            <MenuItem key={d.label} value={d.label}>
-              {d.label}
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+  const dailyTotalsChartData: ChartData<"bar", number[], string> = {
+    labels: dailyTotals.map((d) => d.label),
+    datasets: [{
+      label: "Daily Consumption (kWh)",
+      data: dailyTotals.map((d) => d.total),
+      backgroundColor: "rgba(31, 120, 180, 0.7)",
+      borderColor: "rgba(31, 120, 180, 1)",
+      borderWidth: 1,
+    }],
+  };
 
-      {loading && (
-        <Box display="flex" alignItems="center" gap={1} sx={{ mb: 1 }}>
-          <CircularProgress size={18} />
-          <Typography variant="body2">Loading…</Typography>
+  const dailyTotalsOptions: ChartOptions<"bar"> = {
+    elements: { bar: { inflateAmount: 0 } },
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { title: { display: true, text: "Date" } },
+      y: { title: { display: true, text: "kWh" }, beginAtZero: true },
+    },
+  };
+
+  const avgProfileChartData: ChartData<"line", number[], string> = {
+    labels: avgProfile.map((d) => d.slot),
+    datasets: [{
+      label: "Average kWh",
+      data: avgProfile.map((d) => d.avg),
+      borderColor: "rgba(31, 120, 180, 1)",
+      backgroundColor: "rgba(31, 120, 180, 0.1)",
+      fill: true,
+      tension: 0.3,
+      pointRadius: 2,
+    }],
+  };
+
+  const avgProfileOptions: ChartOptions<"line"> = {
+    plugins: { legend: { display: false } },
+    scales: {
+      x: { title: { display: true, text: "Time of day" } },
+      y: { title: { display: true, text: "avg kWh" }, beginAtZero: true },
+    },
+  };
+
+  const dailyTotal = readings.reduce((sum, r) => sum + r.value, 0);
+
+  // ── Shared month picker + progress ────────────────────────────────────────
+  const monthPickerAndProgress = (
+    <>
+      <TextField
+        type="month"
+        size="small"
+        label="Month"
+        value={selectedMonth}
+        onChange={(e) => { setAllDaysData(null); setSelectedMonth(e.target.value); }}
+        slotProps={{
+          inputLabel: { shrink: true },
+          htmlInput: {
+            min: availableMonths[0],
+            max: availableMonths[availableMonths.length - 1],
+          },
+        }}
+        sx={{ mb: 2, minWidth: 160 }}
+      />
+      {bulkLoading && (
+        <Box sx={{ mb: 2 }}>
+          <Typography variant="body2" sx={{ mb: 0.5 }}>
+            Loading {bulkProgress.loaded} / {bulkProgress.total} days…
+          </Typography>
+          <LinearProgress
+            variant="determinate"
+            value={bulkProgress.total > 0 ? (bulkProgress.loaded / bulkProgress.total) * 100 : 0}
+          />
         </Box>
       )}
-      {fetchError && (
+      {bulkError && (
         <Typography color="error" variant="body2" sx={{ mb: 1 }}>
-          {fetchError}
+          {bulkError}
         </Typography>
       )}
-      {!loading && !fetchError && readings.length > 0 && (
-        <>
-          <Typography variant="body2" sx={{ mb: 1 }}>
-            Daily total:{" "}
-            <strong>
-              {dailyTotal.toLocaleString("de-DE", {
-                minimumFractionDigits: 2,
-                maximumFractionDigits: 2,
-              })}{" "}
-              kWh
-            </strong>{" "}
-            ({readings.length} readings)
-          </Typography>
-          <Line data={chartData} options={options} />
-        </>
+    </>
+  );
+
+  // ── Render ────────────────────────────────────────────────────────────────
+  return (
+    <Box>
+      <Tabs
+        value={activeTab}
+        onChange={(_e, v) => setActiveTab(v as 0 | 1 | 2)}
+        sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
+      >
+        <Tab label="Day View" />
+        <Tab label="Daily Totals" />
+        <Tab label="Average Profile" />
+      </Tabs>
+
+      {activeTab === 0 && (
+        <Box>
+          <TextField
+            type="date"
+            size="small"
+            label="Date"
+            value={selectedLabel}
+            onChange={(e) => setSelectedLabel(e.target.value)}
+            slotProps={{
+              inputLabel: { shrink: true },
+              htmlInput: {
+                min: dateEntries[0]?.label,
+                max: dateEntries[dateEntries.length - 1]?.label,
+              },
+            }}
+            sx={{ mb: 2, minWidth: 160 }}
+          />
+
+          {loading && (
+            <Box display="flex" alignItems="center" gap={1} sx={{ mb: 1 }}>
+              <CircularProgress size={18} />
+              <Typography variant="body2">Loading…</Typography>
+            </Box>
+          )}
+          {fetchError && (
+            <Typography color="error" variant="body2" sx={{ mb: 1 }}>
+              {fetchError}
+            </Typography>
+          )}
+          {!loading && !fetchError && selectedLabel && !dateEntries.find((d) => d.label === selectedLabel) && (
+            <Typography variant="body2" color="text.secondary">
+              No data available for this date.
+            </Typography>
+          )}
+          {!loading && !fetchError && readings.length > 0 && (
+            <>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Daily total:{" "}
+                <strong>
+                  {dailyTotal.toLocaleString("de-DE", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  kWh
+                </strong>{" "}
+                ({readings.length} readings)
+              </Typography>
+              <Box sx={{ position: "relative", width: "100%" }}>
+                <Line data={dayViewChartData} options={dayViewOptions} />
+              </Box>
+            </>
+          )}
+        </Box>
+      )}
+
+      {activeTab === 1 && (
+        <Box>
+          {monthPickerAndProgress}
+          {!bulkLoading && allDaysData && dailyTotals.length > 0 && (
+            <>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Average daily consumption:{" "}
+                <strong>
+                  {avgDailyTotal.toLocaleString("de-DE", {
+                    minimumFractionDigits: 2,
+                    maximumFractionDigits: 2,
+                  })}{" "}
+                  kWh
+                </strong>{" "}
+                ({dailyTotals.length} days)
+              </Typography>
+              <Box sx={{ position: "relative", width: "100%" }}>
+                <Bar data={dailyTotalsChartData} options={dailyTotalsOptions} />
+              </Box>
+            </>
+          )}
+        </Box>
+      )}
+
+      {activeTab === 2 && (
+        <Box>
+          {monthPickerAndProgress}
+          {!bulkLoading && allDaysData && avgProfile.length > 0 && (
+            <>
+              <Typography variant="body2" sx={{ mb: 1 }}>
+                Average 15-minute profile across{" "}
+                <strong>{allDaysData.size} days</strong>
+              </Typography>
+              <Box sx={{ position: "relative", width: "100%" }}>
+                <Line data={avgProfileChartData} options={avgProfileOptions} />
+              </Box>
+            </>
+          )}
+        </Box>
       )}
     </Box>
   );
