@@ -50,6 +50,7 @@ interface SharedWithMeBuilding {
   buildingId: string;
   sharedBy: string;
   isVisible: boolean;
+  sharedRole?: string;
 }
 
 interface SharedView {
@@ -307,7 +308,16 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                         <ListItem>
                           <ListItemText
                             primary={`Building ${building.buildingId}`}
-                            secondary={`Shared by: ${building.sharedBy}`}
+                            secondary={
+                              <>
+                                {`Shared by: ${building.sharedBy}`}
+                                {building.sharedRole && (
+                                  <Typography variant="body2" component="span" display="block">
+                                    {`Role: ${ROLE_LABELS[building.sharedRole] ?? building.sharedRole}`}
+                                  </Typography>
+                                )}
+                              </>
+                            }
                           />
                           <FormControlLabel
                             control={
