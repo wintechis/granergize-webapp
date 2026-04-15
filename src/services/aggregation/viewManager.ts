@@ -104,7 +104,8 @@ export async function createViewDefinition(
   name: string,
   buildingUris: string[],
   aggregationType: AggregatedViewDefinition["aggregationType"],
-  metrics: string[]
+  metrics: string[],
+  period?: string
 ): Promise<AggregatedViewDefinition> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
@@ -123,6 +124,7 @@ export async function createViewDefinition(
     aggregationType,
     metrics,
     createdAt: now,
+    ...(period ? { period } : {}),
   };
 
   // Load existing definitions or create new
@@ -171,6 +173,15 @@ export async function createViewDefinition(
     namedNode(`${VOCAB_PREFIX}createdAt`),
     literal(now, namedNode(XSD_DATETIME))
   ));
+
+  // Add period (user-role views only)
+  if (period) {
+    store.addQuad(quad(
+      viewNode,
+      namedNode(`${VOCAB_PREFIX}viewPeriod`),
+      literal(period)
+    ));
+  }
 
   // Add building URIs (private, only in definition file)
   for (const buildingUri of buildingUris) {
@@ -282,6 +293,11 @@ export async function getViewDefinitions(
         return q.map((quad) => quad.object.value);
       };
 
+      const getPeriod = () => {
+        const q = store.getQuads(viewNode, namedNode(`${VOCAB_PREFIX}viewPeriod`), null, null);
+        return q[0]?.object.value;
+      };
+
       views.push({
         id: getId(),
         name: getName(),
@@ -290,6 +306,7 @@ export async function getViewDefinitions(
         lastComputedAt: getLastComputedAt(),
         buildingUris: getBuildingUris(),
         metrics: getMetrics(),
+        period: getPeriod(),
       });
     }
 
