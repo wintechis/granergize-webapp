@@ -24,7 +24,7 @@ const ROLES: RoleOption[] = [
     role: "dummy",
     label: "Dummy",
     description:
-      "Explore the app with sample building and energy data. No real Solid POD data is used.",
+      "Explore the app with sample building and energy data.",
     icon: <EngineeringIcon sx={{ fontSize: 40 }} />,
     available: true,
   },
@@ -83,12 +83,18 @@ export default function RoleSelection({ onSelect }: RoleSelectionProps) {
         later in Settings.
       </Typography>
 
-      <Grid container spacing={2} justifyContent="center" sx={{ maxWidth: 880 }}>
+      <Grid
+        container
+        spacing={2}
+        justifyContent="center"
+        sx={{ width: "100%", maxWidth: 880 }}
+      >
         {ROLES.map((opt) => (
-          <Grid key={opt.role} size={{ xs: 12, sm: 6 }}>
+          <Grid item key={opt.role} xs={12} sm={6} sx={{ display: "flex" }}>
             <Card
               variant="outlined"
               sx={{
+                width: "100%",
                 height: "100%",
                 opacity: opt.available ? 1 : 0.55,
                 transition: "box-shadow 0.2s, border-color 0.2s",
