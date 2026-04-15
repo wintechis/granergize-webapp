@@ -9,6 +9,7 @@ import type {
 } from "../../../types/types.ts";
 import { getViewDefinition, storeComputedSnapshot } from "./viewManager.ts";
 import { parseEnergyData } from "../utils/energyDataParser.ts";
+import { parseTtlReadings } from "../utils/userEnergyParser.ts";
 
 const { namedNode } = DataFactory;
 
@@ -137,17 +138,113 @@ function extractMetricValue(
 }
 
 /**
+ * Load the total electricity consumption (kWh) for a user-role building for a given month.
+ * Returns null if the building or data cannot be loaded.
+ */
+async function loadUserBuildingMonthlyTotal(
+  buildingUri: string,
+  period: string,
+  session: Session,
+): Promise<number | null> {
+  const cleanUri = buildingUri.split("#")[0];
+  try {
+    const buildingResponse = await session.fetch(cleanUri);
+    if (!buildingResponse.ok) {
+      console.warn(`Could not fetch building ${cleanUri}: ${buildingResponse.status}`);
+      return null;
+    }
+
+    const buildingText = await buildingResponse.text();
+    const buildingParser = new Parser({ format: "text/turtle", baseIRI: cleanUri });
+    const buildingQuads = buildingParser.parse(buildingText);
+    const buildingStore = new Store(buildingQuads);
+
+    const buildingId = cleanUri.split("/").pop()?.replace(".ttl", "") || "0";
+    const buildingNode = namedNode(`${cleanUri}#${buildingId}`);
+
+    const datasetPredicate = namedNode(`${VOCAB_PREFIX}hasEnergyConsumptionDataset`);
+    const locationPredicate = namedNode(`${VOCAB_PREFIX}datasetLocation`);
+
+    const datasetQuads = buildingStore.getQuads(buildingNode, datasetPredicate, null, null);
+    if (datasetQuads.length === 0) {
+      console.warn(`No energy consumption dataset found for building ${cleanUri}`);
+      return null;
+    }
+
+    // Collect all datasetLocation URLs
+    const allUrls: string[] = [];
+    for (const dq of datasetQuads) {
+      const locQuads = buildingStore.getQuads(dq.object, locationPredicate, null, null);
+      for (const lq of locQuads) {
+        allUrls.push(lq.object.value);
+      }
+    }
+
+    // Filter to URLs for the requested period (e.g., "2024-03")
+    const periodUrls = allUrls.filter((url) => url.includes(period));
+    if (periodUrls.length === 0) {
+      console.warn(`No data for period ${period} in building ${cleanUri}`);
+      return null;
+    }
+
+    // Fetch each daily file and sum all readings
+    const settled = await Promise.allSettled(
+      periodUrls.map((url) => parseTtlReadings(url, session.fetch.bind(session))),
+    );
+
+    let total = 0;
+    let anySucceeded = false;
+    for (const result of settled) {
+      if (result.status === "fulfilled") {
+        total += result.value.reduce((s, r) => s + r.value, 0);
+        anySucceeded = true;
+      }
+    }
+
+    return anySucceeded ? total : null;
+  } catch (error) {
+    console.error(`Error loading user energy data for building ${buildingUri}:`, error);
+    return null;
+  }
+}
+
+/**
  * Compute aggregated values for a view definition
  */
 export async function computeAggregation(
   session: Session,
   viewDefinition: AggregatedViewDefinition
 ): Promise<AggregatedViewSnapshot> {
-  const { id, name, buildingUris, aggregationType, metrics } = viewDefinition;
+  const { id, name, buildingUris, aggregationType, metrics, period } = viewDefinition;
 
-  // Load energy data for all buildings
+  // User-role path: aggregate monthly electricity totals per building
+  if (period) {
+    const monthlyTotals: number[] = [];
+    for (const buildingUri of buildingUris) {
+      const total = await loadUserBuildingMonthlyTotal(buildingUri, period, session);
+      if (total !== null) {
+        monthlyTotals.push(total);
+      }
+    }
+
+    const snapshot: AggregatedViewSnapshot = {
+      id,
+      name,
+      aggregationType,
+      metrics: ["electricity"],
+      computedAt: new Date().toISOString(),
+      buildingCount: monthlyTotals.length,
+      values: monthlyTotals.length > 0
+        ? { electricity: aggregateValues(monthlyTotals, aggregationType) }
+        : {},
+    };
+
+    return snapshot;
+  }
+
+  // Standard path: categorical annual energy metrics
   const energyDataResults: EnergyType[] = [];
-  
+
   for (const buildingUri of buildingUris) {
     const energyData = await loadBuildingEnergyData(buildingUri, session);
     if (energyData) {
@@ -160,7 +257,7 @@ export async function computeAggregation(
 
   for (const metric of metrics) {
     const values: number[] = [];
-    
+
     for (const energyData of energyDataResults) {
       const value = extractMetricValue(energyData, metric);
       if (value !== null) {
