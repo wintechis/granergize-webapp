@@ -16,6 +16,7 @@ import Tab from "@mui/material/Tab";
 import WeatherData from "./WeatherData.tsx";
 import InvestorEnergy from "./InvestorEnergy.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
+import { MARKER_OWNED_COLOR, MARKER_SHARED_COLOR, MARKER_SELECTED_COLOR } from "../constants/chartColors.ts";
 
 // Define custom icons
 const ownedIcon = new L.Icon({
@@ -86,21 +87,6 @@ export default function Map({ session }: MapProps) {
 
   return (
     <Box>
-      <Typography variant="h3" gutterBottom>
-        Map of Granergize buildings
-      </Typography>
-      <Typography variant="body1" paragraph>
-        Created by the{" "}
-        <a href="https://www.ti.rw.fau.de/">
-          FAU Chair of Technical Information Systems
-        </a>{" "}
-        in cooperation with the{" "}
-        <a href="https://www.scs.fraunhofer.de/">
-          Fraunhofer Department for Risk and Location Analyses
-        </a>{" "}
-        for the research project <a href="https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html">Granergize</a>. Contact:{" "}
-        <a href="mailto:thomas.wehr@fau.de">Thomas Wehr</a>
-      </Typography>
       <Box sx={{ display: "flex", justifyContent: "flex-end", padding: 1 }}>
         <Button variant="contained" onClick={togglePaneSize}>
           {isRightPaneLarge ? "Shrink Details" : "Enlarge Details"}
@@ -113,7 +99,7 @@ export default function Map({ session }: MapProps) {
         </Typography>
       )}
 
-      <Grid container spacing={2} sx={{ height: "calc(100vh - 230px)" }}>
+      <Grid container spacing={2} sx={{ height: "calc(100vh - 160px)" }}>
         <Grid
           size={isRightPaneLarge ? 3 : 8}
           sx={{ height: "100%", overflow: "auto" }}
@@ -162,7 +148,7 @@ export default function Map({ session }: MapProps) {
                       sx={{
                         width: 12,
                         height: 12,
-                        backgroundColor: "#3388ff",
+                        backgroundColor: MARKER_OWNED_COLOR,
                         borderRadius: "50%",
                         mr: 1,
                       }}
@@ -174,7 +160,7 @@ export default function Map({ session }: MapProps) {
                       sx={{
                         width: 12,
                         height: 12,
-                        backgroundColor: "#2AAD27",
+                        backgroundColor: MARKER_SHARED_COLOR,
                         borderRadius: "50%",
                         mr: 1,
                       }}
@@ -186,7 +172,7 @@ export default function Map({ session }: MapProps) {
                       sx={{
                         width: 12,
                         height: 12,
-                        backgroundColor: "#CB2B3E",
+                        backgroundColor: MARKER_SELECTED_COLOR,
                         borderRadius: "50%",
                         mr: 1,
                       }}
@@ -264,6 +250,19 @@ export default function Map({ session }: MapProps) {
             )}
         </Grid>
       </Grid>
+
+      <Typography variant="body1" paragraph>
+        Created by the{" "}
+        <a href="https://www.ti.rw.fau.de/">
+          FAU Chair of Technical Information Systems
+        </a>{" "}
+        in cooperation with the{" "}
+        <a href="https://www.scs.fraunhofer.de/">
+          Fraunhofer Department for Risk and Location Analyses
+        </a>{" "}
+        for the research project <a href="https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html">Granergize</a>. Contact:{" "}
+        <a href="mailto:thomas.wehr@fau.de">Thomas Wehr</a>
+      </Typography>
     </Box>
   );
 }

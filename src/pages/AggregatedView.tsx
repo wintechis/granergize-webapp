@@ -32,21 +32,7 @@ import type { AggregatedViewSnapshot, AggregatedViewDefinition } from "../../typ
 import { getViewDefinition, getComputedSnapshotByViewId, getSnapshotUrl } from "../services/aggregation/viewManager.ts";
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
-
-const colorPalette = [
-  "rgba(166, 206, 227, 1)",
-  "rgba(31, 120, 180, 1)",
-  "rgba(178, 223, 138, 1)",
-  "rgba(51, 160, 44, 1)",
-  "rgba(251, 154, 153, 1)",
-  "rgba(227, 26, 28, 1)",
-  "rgba(253, 191, 111, 1)",
-  "rgba(255, 127, 0, 1)",
-  "rgba(202, 178, 214, 1)",
-  "rgba(106, 61, 154, 1)",
-  "rgba(255, 255, 153, 1)",
-  "rgba(177, 89, 40, 1)",
-];
+import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 
 interface AggregatedViewProps {
   session: Session;
@@ -184,8 +170,8 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
       {
         label: `${viewDefinition.aggregationType.charAt(0).toUpperCase() + viewDefinition.aggregationType.slice(1)} Values`,
         data: snapshot ? Object.values(snapshot.values) : [],
-        backgroundColor: colorPalette.slice(0, snapshot ? Object.keys(snapshot.values).length : 0),
-        borderColor: colorPalette.slice(0, snapshot ? Object.keys(snapshot.values).length : 0),
+        backgroundColor: CHART_COLOR_PALETTE.slice(0, snapshot ? Object.keys(snapshot.values).length : 0),
+        borderColor: CHART_COLOR_PALETTE.slice(0, snapshot ? Object.keys(snapshot.values).length : 0),
         borderWidth: 1,
       },
     ],
