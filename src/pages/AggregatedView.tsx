@@ -194,7 +194,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         beginAtZero: true,
         title: {
           display: true,
-          text: "kWh",
+          text: viewDefinition.period ? "kWh/month" : "kWh",
         },
       },
     },
@@ -257,6 +257,17 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
                 <Typography variant="body2" color="textSecondary">Last Computed</Typography>
                 <Typography variant="body1">
                   {new Date(viewDefinition.lastComputedAt).toLocaleString()}
+                </Typography>
+              </Box>
+            )}
+            {viewDefinition.period && (
+              <Box>
+                <Typography variant="body2" color="textSecondary">Period</Typography>
+                <Typography variant="body1">
+                  {new Date(`${viewDefinition.period}-01`).toLocaleString("default", {
+                    month: "long",
+                    year: "numeric",
+                  })}
                 </Typography>
               </Box>
             )}
