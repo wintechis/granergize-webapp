@@ -405,7 +405,9 @@ export async function fetchAndParseData(session: Session, role: UserRole | null 
   for (const [buildingId, building] of buildings) {
     if (!hiddenBuildingUris.has(building.uri.split('#')[0])) {
       // Check if building is from external source (shared with user)
-      const isOwnBuilding = building.uri.startsWith(storageRoot);
+      // Use sourceUri for ownership check (tracks where the file came from)
+      const sourceForOwnershipCheck = building.sourceUri || building.uri;
+      const isOwnBuilding = sourceForOwnershipCheck.startsWith(storageRoot);
       building.isShared = !isOwnBuilding;
       
       visibleBuildings.set(buildingId, building);
