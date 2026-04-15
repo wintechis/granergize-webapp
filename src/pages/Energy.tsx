@@ -325,9 +325,9 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
                 </TableHead>
               </Table>
             </TableContainer>
-            <Item>
+            <Box sx={{ position: "relative", width: "100%" }}>
               <Bar data={chartData(title)} options={options} />
-            </Item>
+            </Box>
             <Divider />
           </Container>
         </Item>
