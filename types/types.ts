@@ -44,6 +44,7 @@ export interface BuildingType {
     | undefined;
   id: number;
   uri: string;
+  sourceUri?: string;
   type: string;
   customer?: string;
   energyCertificate?: string;
@@ -228,6 +229,7 @@ export interface AggregatedViewDefinition {
   metrics: string[]; // e.g., ["gas", "electricity", "solar"]
   createdAt: string; // ISO timestamp
   lastComputedAt?: string; // ISO timestamp of last snapshot computation
+  period?: string; // "YYYY-MM" — set for user-role electricity views
 }
 
 export interface AggregatedViewSnapshot {

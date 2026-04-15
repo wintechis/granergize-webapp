@@ -23,9 +23,23 @@ const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 /** Extract building ID from a NamedNode IRI (fragment or last path segment under /buildings/) */
 function extractBuildingId(iri: string): string | null {
   const fragment = iri.split("#")[1];
-  if (fragment) return fragment;
-  const match = iri.match(/\/buildings\/([^\/]+)$/);
-  return match ? match[1] : null;
+  if (fragment) {
+    return fragment.replace(/^building-/, "");
+  }
+
+  // Canonical pattern: .../buildings/<id>
+  const canonicalMatch = iri.match(/\/buildings\/([^\/#]+)$/);
+  if (canonicalMatch) {
+    return canonicalMatch[1];
+  }
+
+  // Investor file/subject patterns: .../building-<id> or .../building-<id>.ttl
+  const investorMatch = iri.match(/\/building-([^\/#]+?)(?:\.ttl)?$/);
+  if (investorMatch) {
+    return investorMatch[1];
+  }
+
+  return null;
 }
 
 /** Get the local name (after # or last /) from an IRI */
@@ -63,10 +77,10 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
             ) >>> 0;
       buildings.set(buildingId, {
         id: numericId,
-        // For investor buildings use the subject IRI; for legacy use the graph URI
-        uri: quad.subject.value.includes("/buildings/")
-          ? quad.subject.value
-          : quad.graph.value,
+        // Use the RDF subject as the building URI so it links correctly with observations.
+        // Store the source file URL separately for ownership checks.
+        uri: quad.subject.value,
+        sourceUri: quad.graph.value,
         type: "https://w3id.org/rec#building",
         energyData: [],
         annualData: [],
@@ -317,20 +331,24 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   }
 
   // Investor annual data from SOSA observations
-  // Build lookup: building URI - buildingId
+  // Keep URI lookup for direct matches and fall back to ID extraction so
+  // mixed URI styles (/buildings/<id> vs /granergize/building-<id>) still join.
   const uriBuildingIdMap = new Map<string, string>();
   for (const [id, b] of buildings.entries()) {
     uriBuildingIdMap.set(b.uri as string, id);
   }
 
-  // Group observations by building+year key
+  // Group observations by normalized buildingId + year
   const annualByKey = new Map<string, InvestorAnnualData>();
 
   for (const [, od] of obsData.entries()) {
     if (!od.featureOfInterest || !od.observedProperty) continue;
 
-    const buildingId = uriBuildingIdMap.get(od.featureOfInterest);
+    const buildingId =
+      uriBuildingIdMap.get(od.featureOfInterest) ||
+      extractBuildingId(od.featureOfInterest);
     if (!buildingId) continue;
+    if (!buildings.has(buildingId)) continue;
 
     let year: number | undefined;
     if (od.timeBlank) {
@@ -345,7 +363,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     }
     if (value === undefined) continue;
 
-    const key = `${od.featureOfInterest}::${year}`;
+    const key = `${buildingId}::${year}`;
     if (!annualByKey.has(key)) annualByKey.set(key, { year });
     const ann = annualByKey.get(key)!;
 
@@ -362,9 +380,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
 
   // Attach annual data to buildings, sorted by year
   for (const [key, ann] of annualByKey.entries()) {
-    const buildingUri = key.split("::")[0];
-    const buildingId = uriBuildingIdMap.get(buildingUri);
-    if (!buildingId) continue;
+    const buildingId = key.split("::")[0];
     const building = buildings.get(buildingId);
     if (!building) continue;
     building.annualData = building.annualData || [];
