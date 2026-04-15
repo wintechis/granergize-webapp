@@ -214,7 +214,7 @@ export default function Map({ session }: MapProps) {
         >
           {!selectedBuilding
             ? (
-              <Typography variant="h4">
+              <Typography variant="body1" sx={{ mt: 2 }}>
                 Select a marker to show details
               </Typography>
             )
