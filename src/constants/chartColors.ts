@@ -1,0 +1,27 @@
+/**
+ * Shared ColorBrewer-derived palette used across bar charts throughout the app.
+ * Centralised here so all charts stay visually consistent.
+ */
+export const CHART_COLOR_PALETTE: string[] = [
+  "rgba(166, 206, 227, 1)",
+  "rgba(31, 120, 180, 1)",
+  "rgba(178, 223, 138, 1)",
+  "rgba(51, 160, 44, 1)",
+  "rgba(251, 154, 153, 1)",
+  "rgba(227, 26, 28, 1)",
+  "rgba(253, 191, 111, 1)",
+  "rgba(255, 127, 0, 1)",
+  "rgba(202, 178, 214, 1)",
+  "rgba(106, 61, 154, 1)",
+  "rgba(255, 255, 153, 1)",
+  "rgba(177, 89, 40, 1)",
+];
+
+/** Aligned with theme.palette.primary.main — owned building markers / primary actions */
+export const MARKER_OWNED_COLOR = "#0277bd";
+
+/** Aligned with theme.palette.secondary.main — buildings shared with the user */
+export const MARKER_SHARED_COLOR = "#388e3c";
+
+/** Aligned with theme.palette.error.main — currently selected building */
+export const MARKER_SELECTED_COLOR = "#c62828";

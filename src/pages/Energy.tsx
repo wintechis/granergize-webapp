@@ -18,6 +18,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import Item from "@mui/material/ListItem";
 import "chart.js/auto";
@@ -26,21 +27,7 @@ import { Bar } from "react-chartjs-2";
 import { useSolidData } from "../context/SolidDataContext.tsx";
 import UserEnergyChart from "./UserEnergyChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
-
-const colorPalette = [
-  "rgba(166, 206, 227, 1)",
-  "rgba(31, 120, 180, 1)",
-  "rgba(178, 223, 138, 1)",
-  "rgba(51, 160, 44, 1)",
-  "rgba(251, 154, 153, 1)",
-  "rgba(227, 26, 28, 1)",
-  "rgba(253, 191, 111, 1)",
-  "rgba(255, 127, 0, 1)",
-  "rgba(202, 178, 214, 1)",
-  "rgba(106, 61, 154, 1)",
-  "rgba(255, 255, 153, 1)",
-  "rgba(177, 89, 40, 1)",
-];
+import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 
 type EnergyProps = {
   selectedBuilding: string;
@@ -147,8 +134,8 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
         {
           label: "Energy Need",
           data: Object.values(sectionData),
-          backgroundColor: colorPalette,
-          borderColor: colorPalette,
+          backgroundColor: CHART_COLOR_PALETTE,
+          borderColor: CHART_COLOR_PALETTE,
           borderWidth: 1,
         },
       ],
@@ -219,11 +206,11 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
     const saturation = Math.min(percentageDeviation, 100); // Cap saturation at 100%
 
     if (deviation < 0) {
-      // Below average, green
-      return `rgba(0, 255, 0, ${saturation / 100})`;
+      // Below average — use theme success.light (#a5d6a7)
+      return alpha("#a5d6a7", saturation / 100);
     } else {
-      // Above average, red
-      return `rgba(255, 0, 0, ${saturation / 100})`;
+      // Above average — use theme error.light (#ef9a9a)
+      return alpha("#ef9a9a", saturation / 100);
     }
   }
 
