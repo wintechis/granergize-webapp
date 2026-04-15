@@ -35,6 +35,22 @@ export default function Building({ building, session, onHide }: BuildingProps) {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [energyCertificateUploaderOpen, setEnergyCertificateUploaderOpen] = useState(false);
 
+  const hasValue = (value: unknown): boolean => {
+    if (value == null) {
+      return false;
+    }
+    if (typeof value === "string") {
+      return value.trim().length > 0;
+    }
+    if (typeof value === "number") {
+      return !Number.isNaN(value);
+    }
+    return true;
+  };
+
+  const operatingCostEntries = Object.entries((building["operatingCosts"] ?? {}) as InvestorOperatingCosts)
+    .filter(([, value]) => hasValue(value));
+
   function createAgentLink(uriString: string) {
     const hash = new URL(uriString).hash.replace("#", "");
     return <Link to={`agent/${hash}`}>{hash}</Link>;
@@ -107,56 +123,68 @@ export default function Building({ building, session, onHide }: BuildingProps) {
         />
         <CardContent sx={{ overflowY: "auto", maxHeight: "60vh" }}>
           {/* Common fields */}
-          <Typography variant="body1">
-            <strong>Customer:</strong>{" "}
-            {building.customer && createAgentLink(building.customer)}
-          </Typography>
-          <Typography variant="body1">
-            <strong>Operated By:</strong>{" "}
-            {building["operatedBy"] && createAgentLink(building["operatedBy"])}
-          </Typography>
-          <Typography variant="body1">
-            <strong>Type:</strong>{" "}
-            {building.type && createTypeLink(building.type)}
-          </Typography>
-          <Typography variant="body1">
-            <strong>Coordinates:</strong> {building.lat && building.long &&
-              createCoordinatesLink(building.lat, building.long)}
-          </Typography>
-          <Typography variant="body1">
-            <strong>Building Area:</strong> {building["buildingArea"]} m²
-          </Typography>
-          <Typography variant="body1">
-            <strong>Land Area:</strong> {building["landArea"]} m²
-          </Typography>
-          <Typography variant="body1">
-            <strong>Office Area:</strong> {building["officeArea"]} m²
-          </Typography>
-          <Typography
-            sx={{ display: "flex", alignItems: "center" }}
-            variant="body1"
-          >
-            <strong>Has PV System:</strong>{" "}
-            {building["hasPVSystem"] == true ? <CheckIcon /> : <ClearIcon />}
-          </Typography>
-          <Typography variant="body1">
-            <strong>Investor:</strong>{" "}
-            {building.investor && createAgentLink(building.investor)}
-          </Typography>
-          <Typography variant="body1">
-            <strong>Year of Construction:</strong>{" "}
-            {building["yearOfConstruction"]}
-          </Typography>
-          <Typography variant="body1">
-            <strong>NACE Code:</strong>{" "}
-            {building["naceCode"] && createNaceLink(building["naceCode"])}
-          </Typography>
-          <Typography variant="body1">
-            <strong>Energy Certificate:</strong>{" "}
-            {building["energyCertificate"] && createEnergyCertificateLink(
-              building["energyCertificate"],
-            ) || <Link to="#" onClick={() => setEnergyCertificateUploaderOpen(true)}>upload</Link>}
-          </Typography>
+          {hasValue(building.customer) && (
+            <Typography variant="body1">
+              <strong>Customer:</strong> {createAgentLink(building.customer as string)}
+            </Typography>
+          )}
+          {hasValue(building.operatedBy) && (
+            <Typography variant="body1">
+              <strong>Operated By:</strong> {createAgentLink(building.operatedBy as string)}
+            </Typography>
+          )}
+          {hasValue(building.type) && (
+            <Typography variant="body1">
+              <strong>Type:</strong> {createTypeLink(building.type)}
+            </Typography>
+          )}
+          {building.lat != null && building.long != null && (
+            <Typography variant="body1">
+              <strong>Coordinates:</strong> {createCoordinatesLink(building.lat, building.long)}
+            </Typography>
+          )}
+          {building.buildingArea != null && (
+            <Typography variant="body1">
+              <strong>Building Area:</strong> {building.buildingArea} m²
+            </Typography>
+          )}
+          {building.landArea != null && (
+            <Typography variant="body1">
+              <strong>Land Area:</strong> {building.landArea} m²
+            </Typography>
+          )}
+          {building.officeArea != null && (
+            <Typography variant="body1">
+              <strong>Office Area:</strong> {building.officeArea} m²
+            </Typography>
+          )}
+          {building.hasPVSystem != null && (
+            <Typography sx={{ display: "flex", alignItems: "center" }} variant="body1">
+              <strong>Has PV System:</strong>{" "}
+              {building.hasPVSystem ? <CheckIcon /> : <ClearIcon />}
+            </Typography>
+          )}
+          {hasValue(building.investor) && (
+            <Typography variant="body1">
+              <strong>Investor:</strong> {createAgentLink(building.investor as string)}
+            </Typography>
+          )}
+          {building.yearOfConstruction != null && (
+            <Typography variant="body1">
+              <strong>Year of Construction:</strong> {building.yearOfConstruction}
+            </Typography>
+          )}
+          {building.naceCode != null && (
+            <Typography variant="body1">
+              <strong>NACE Code:</strong> {createNaceLink(building.naceCode)}
+            </Typography>
+          )}
+          {hasValue(building.energyCertificate) && (
+            <Typography variant="body1">
+              <strong>Energy Certificate:</strong>{" "}
+              {createEnergyCertificateLink(building.energyCertificate as string)}
+            </Typography>
+          )}
 
           {/* Investor-role fields */}
           {role === "investor" && (
@@ -187,27 +215,27 @@ export default function Building({ building, session, onHide }: BuildingProps) {
                   <strong>Year of Renovation:</strong> {building["yearOfRenovation"]}
                 </Typography>
               )}
-              {building["shiftRegime"] && (
+              {hasValue(building["shiftRegime"]) && (
                 <Typography variant="body1">
                   <strong>Shift Regime:</strong> {building["shiftRegime"]}
                 </Typography>
               )}
-              {building["tenancyType"] && (
+              {hasValue(building["tenancyType"]) && (
                 <Typography variant="body1">
                   <strong>Tenancy Type:</strong> {building["tenancyType"]}
                 </Typography>
               )}
-              {building["leaseType"] && (
+              {hasValue(building["leaseType"]) && (
                 <Typography variant="body1">
                   <strong>Lease Type:</strong> {building["leaseType"]}
                 </Typography>
               )}
-              {building["tenantIndustry"] && (
+              {hasValue(building["tenantIndustry"]) && (
                 <Typography variant="body1">
                   <strong>Tenant Industry:</strong> {building["tenantIndustry"]}
                 </Typography>
               )}
-              {building["indoorTemperatureClass"] && (
+              {hasValue(building["indoorTemperatureClass"]) && (
                 <Typography variant="body1">
                   <strong>Indoor Temperature:</strong> {building["indoorTemperatureClass"]}
                 </Typography>
@@ -271,15 +299,13 @@ export default function Building({ building, session, onHide }: BuildingProps) {
                 </>
               )}
               {/* Operating Costs */}
-              {building["operatingCosts"] && (
+              {operatingCostEntries.length > 0 && (
                 <>
                   <Divider sx={{ my: 0.5 }} />
                   <Typography variant="body2" color="text.secondary" sx={{ mt: 0.5 }}>
                     Operating Costs
                   </Typography>
-                  {Object.entries(building["operatingCosts"] as InvestorOperatingCosts)
-                    .filter(([, v]) => v !== undefined)
-                    .map(([k, v]) => (
+                  {operatingCostEntries.map(([k, v]) => (
                       <Typography key={k} sx={{ display: "flex", alignItems: "center" }} variant="body2">
                         <strong style={{ textTransform: "capitalize", marginRight: 4 }}>
                           {k.replace(/([A-Z])/g, " $1").trim()}:
