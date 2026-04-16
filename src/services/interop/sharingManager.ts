@@ -294,15 +294,25 @@ async function removeFromACL(
   }
 
   const aclText = await response.text();
+  const parser = new Parser({ format: "text/turtle", baseIRI: aclUrl });
+  const store = new Store(parser.parse(aclText));
 
-  // Split into blocks on blank lines, drop any block that mentions this WebID,
-  // then reassemble. This avoids re-serialising with n3 Writer (which changes
-  // relative IRIs to absolute ones and can cause 400s on some Solid servers).
-  const blocks = aclText.split(/\n{2,}/);
-  const escapedWebId = webId.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  const webIdPattern = new RegExp(`acl:agent\\s*<${escapedWebId}>`);
-  const filtered = blocks.filter((block) => !webIdPattern.test(block));
-  const updatedAcl = filtered.join("\n\n");
+  // Find all authorization subjects that have acl:agent <webId>
+  const agentPredicate = DataFactory.namedNode("http://www.w3.org/ns/auth/acl#agent");
+  const agentNode = DataFactory.namedNode(webId);
+  const authsToRemove = store
+    .getQuads(null, agentPredicate, agentNode, null)
+    .map((q) => q.subject);
+
+  if (authsToRemove.length === 0) return;
+
+  // Remove all quads where those subjects appear as subject
+  for (const subject of authsToRemove) {
+    store.getQuads(subject, null, null, null).forEach((q) => store.removeQuad(q));
+  }
+
+  const writer = new Writer({ format: "text/turtle" });
+  const updatedAcl = writer.quadsToString(store.getQuads(null, null, null, null));
 
   await session.fetch(aclUrl, {
     method: "PUT",
