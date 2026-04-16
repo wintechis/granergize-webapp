@@ -33,6 +33,7 @@ import { getViewDefinition, getComputedSnapshotByViewId, getSnapshotUrl } from "
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
+import { useNotification } from "../context/NotificationContext.tsx";
 
 interface AggregatedViewProps {
   session: Session;
@@ -41,6 +42,7 @@ interface AggregatedViewProps {
 export default function AggregatedView({ session }: AggregatedViewProps) {
   const { viewId } = useParams<{ viewId: string }>();
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   
   const [viewDefinition, setViewDefinition] = useState<AggregatedViewDefinition | null>(null);
   const [snapshot, setSnapshot] = useState<AggregatedViewSnapshot | null>(null);
@@ -95,8 +97,9 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
       if (definition) {
         setViewDefinition(definition);
       }
+      showNotification("Snapshot refreshed", "success");
     } catch (err) {
-      alert(`Failed to refresh: ${err instanceof Error ? err.message : String(err)}`);
+      showNotification(`Failed to refresh: ${err instanceof Error ? err.message : String(err)}`, "error");
     } finally {
       setRefreshing(false);
     }
@@ -111,9 +114,9 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
       await shareAggregatedView(snapshotUrl, viewId, shareWebId.trim(), session);
       setShareDialogOpen(false);
       setShareWebId("");
-      alert("View shared successfully!");
+      showNotification("View shared successfully", "success");
     } catch (err) {
-      alert(`Failed to share: ${err instanceof Error ? err.message : String(err)}`);
+      showNotification(`Failed to share: ${err instanceof Error ? err.message : String(err)}`, "error");
     } finally {
       setSharing(false);
     }

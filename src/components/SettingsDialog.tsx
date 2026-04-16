@@ -31,6 +31,7 @@ import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
 import type { AggregatedViewDefinition } from "../../types/types.ts";
 import { useSolidData } from "../context/SolidDataContext.tsx";
+import { useNotification } from "../context/NotificationContext.tsx";
 import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 
 interface SettingsDialogProps {
@@ -68,6 +69,7 @@ const ROLE_LABELS: Record<string, string> = {
 
 export default function SettingsDialog({ open, onClose, session }: SettingsDialogProps) {
   const { role, setRole } = useSolidData();
+  const { showNotification } = useNotification();
   const [tabValue, setTabValue] = useState(0);
   const [sharedBuildings, setSharedBuildings] = useState<SharedBuilding[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<SharedWithMeBuilding[]>([]);
@@ -126,9 +128,10 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     try {
       await revokeAccess(buildingUri, webId, session);
       await loadSharedBuildings();
+      showNotification("Access revoked", "success");
     } catch (error) {
       console.error("Error revoking access:", error);
-      alert(`Failed to revoke access: ${error instanceof Error ? error.message : String(error)}`);
+      showNotification(`Failed to revoke access: ${error instanceof Error ? error.message : String(error)}`, "error");
     } finally {
       setRevokingBuildingKey(null);
     }
@@ -139,9 +142,10 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     try {
       await toggleBuildingVisibility(buildingUri, session);
       await loadSharedBuildings();
+      showNotification("Visibility updated", "success");
     } catch (error) {
       console.error("Error toggling visibility:", error);
-      alert(`Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`);
+      showNotification(`Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`, "error");
     } finally {
       setTogglingVisibility(null);
     }
@@ -152,9 +156,10 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     try {
       await refreshSnapshot(session, viewId);
       await loadViewData();
+      showNotification("View snapshot refreshed", "success");
     } catch (error) {
       console.error("Error refreshing view:", error);
-      alert(`Failed to refresh view: ${error instanceof Error ? error.message : String(error)}`);
+      showNotification(`Failed to refresh view: ${error instanceof Error ? error.message : String(error)}`, "error");
     } finally {
       setRefreshingViewId(null);
     }
@@ -168,9 +173,10 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     try {
       await deleteView(session, viewId);
       await loadViewData();
+      showNotification("View deleted", "success");
     } catch (error) {
       console.error("Error deleting view:", error);
-      alert(`Failed to delete view: ${error instanceof Error ? error.message : String(error)}`);
+      showNotification(`Failed to delete view: ${error instanceof Error ? error.message : String(error)}`, "error");
     } finally {
       setDeletingViewId(null);
     }
@@ -197,9 +203,10 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
       await shareAggregatedView(snapshotUrl, viewToShare.id, shareWebId.trim(), session);
       await loadViewData();
       handleCloseShareDialog();
+      showNotification("View shared successfully", "success");
     } catch (error) {
       console.error("Error sharing view:", error);
-      alert(`Failed to share view: ${error instanceof Error ? error.message : String(error)}`);
+      showNotification(`Failed to share view: ${error instanceof Error ? error.message : String(error)}`, "error");
     } finally {
       setSharing(false);
     }
@@ -211,9 +218,10 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     try {
       await revokeViewAccess(snapshotUrl, webId, session);
       await loadViewData();
+      showNotification("View access revoked", "success");
     } catch (error) {
       console.error("Error revoking view access:", error);
-      alert(`Failed to revoke access: ${error instanceof Error ? error.message : String(error)}`);
+      showNotification(`Failed to revoke access: ${error instanceof Error ? error.message : String(error)}`, "error");
     } finally {
       setRevokingViewKey(null);
     }
