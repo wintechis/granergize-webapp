@@ -1,6 +1,7 @@
 import type { BuildingType } from "../../../../types/types.ts";
 
 const INVESTOR_NS = "https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#";
+const BENCH_NS = "https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#";
 
 export const predicateMap: { [key: string]: keyof BuildingType } = {
   "http://schema.org/customer": "customer",
@@ -42,6 +43,14 @@ export const predicateMap: { [key: string]: keyof BuildingType } = {
   [`${INVESTOR_NS}hasElectricBoiler`]: "hasElectricBoiler",
   [`${INVESTOR_NS}hasHeatPump`]: "hasHeatPump",
   [`${INVESTOR_NS}hasDistrictHeating`]: "hasDistrictHeating",
+  // BSP-role predicates
+  [`${BENCH_NS}logisticsFunction`]: "logisticsFunction",
+  [`${BENCH_NS}climateControlType`]: "climateControlType",
+  [`${BENCH_NS}greenLeaseShare`]: "greenLeaseShare",
+  [`${BENCH_NS}indoorTemperature`]: "indoorTemperature",
+  [`${BENCH_NS}pvInstallationYear`]: "pvInstallationYear",
+  [`${BENCH_NS}pvCapacityKW`]: "pvCapacityKW",
+  [`${BENCH_NS}companyName`]: "companyName",
 };
 
 /** Investor object-property predicates whose IRI objects should be mapped to local name strings */
@@ -92,4 +101,8 @@ export const parsingFunctions: {
   "hasElectricBoiler": (value: string) => value.toLowerCase() === "true",
   "hasHeatPump": (value: string) => value.toLowerCase() === "true",
   "hasDistrictHeating": (value: string) => value.toLowerCase() === "true",
+  // BSP numeric fields
+  "greenLeaseShare": parseFloat,
+  "pvInstallationYear": parseInt,
+  "pvCapacityKW": parseFloat,
 };

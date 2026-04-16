@@ -28,7 +28,7 @@ import {
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { AggregationType, BuildingType } from "../../types/types.ts";
 import { createViewDefinition } from "../services/aggregation/viewManager.ts";
-import { computeAndStoreSnapshot, getAvailableMetrics } from "../services/aggregation/viewComputer.ts";
+import { computeAndStoreSnapshot, getAvailableMetrics, getAvailableInvestorAnnualMetrics, getAvailableBspMetrics } from "../services/aggregation/viewComputer.ts";
 import { useSolidData } from "../context/SolidDataContext.tsx";
 
 interface CreateViewDialogProps {
@@ -52,12 +52,8 @@ const MenuProps = {
 
 const ROLE_DEFAULT_METRICS: Record<string, string[]> = {
   dummy: ["gas", "electricity"],
-  investor: [
-    "electricity", "gas",
-    "photovoltaic", "selfConsumption", "gridFeedIn",
-    "hallSpaceHeating", "work",
-  ],
-  benchmark_service_provider: getAvailableMetrics().flatMap((c) => c.metrics),
+  investor: getAvailableInvestorAnnualMetrics().flatMap((c) => c.metrics),
+  benchmark_service_provider: getAvailableBspMetrics().flatMap((c) => c.metrics),
 };
 
 const ROLE_DESCRIPTION: Record<string, string> = {
@@ -69,8 +65,8 @@ const ROLE_DESCRIPTION: Record<string, string> = {
     "Create a portfolio overview comparing energy performance across your buildings. " +
     "Cost-driving and generation metrics are pre-selected.",
   benchmark_service_provider:
-    "Create a comprehensive benchmark view combining all energy metrics across multiple " +
-    "buildings for industry comparison. All metrics are pre-selected by default.",
+    "Create a benchmark view aggregating annual consumption across multiple buildings. " +
+    "Metrics: electricity, heat, water, and wastewater consumption (kWh / m³).",
 };
 
 export default function CreateViewDialog({
@@ -91,7 +87,11 @@ export default function CreateViewDialog({
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(defaultMetrics);
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
 
-  const availableMetrics = getAvailableMetrics();
+  const availableMetrics = role === "benchmark_service_provider"
+    ? getAvailableBspMetrics()
+    : role === "investor"
+      ? getAvailableInvestorAnnualMetrics()
+      : getAvailableMetrics();
 
   const handleClose = () => {
     setViewName("");
@@ -163,7 +163,11 @@ export default function CreateViewDialog({
         period,
       );
 
-      await computeAndStoreSnapshot(session, viewDef.id);
+      await computeAndStoreSnapshot(
+        session,
+        viewDef.id,
+        (role === "benchmark_service_provider" || role === "investor") ? buildings : undefined,
+      );
 
       onViewCreated();
       handleClose();
