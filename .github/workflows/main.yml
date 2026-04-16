@@ -8,9 +8,9 @@ jobs:
       - name: Copy files via SSH
         uses: appleboy/scp-action@v1
         with:
-          host: ${{ secrets.HOST }}
-          username: ${{ secrets.USERNAME }}
-          password: ${{ secrets.PASSWORD }}
+          host: ${{ secrets.SSH_HOST }}
+          username: ${{ secrets.SSH_USERNAME }}
+          password: ${{ secrets.SSH_PASSWORD }}
           port: ${{ secrets.PORT }}
           source: "./dist/"
           target: "./public_html/testing/granergize/"
