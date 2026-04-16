@@ -37,3 +37,4 @@ jobs:
           source: "dist"
           target: "public_html/testing/granergize/"
           rm: true
+          strip_components: 1
