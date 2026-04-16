@@ -177,20 +177,6 @@ export default function Map({ session }: MapProps) {
                     />
                     <Typography variant="body2">Shared with Me</Typography>
                   </Box>
-                  <Box sx={{ display: "flex", alignItems: "center" }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        backgroundColor: MARKER_OWNED_COLOR,
-                        borderRadius: "50%",
-                        mr: 1,
-                        outline: `2px solid ${MARKER_SELECTED_COLOR}`,
-                        outlineOffset: "2px",
-                      }}
-                    />
-                    <Typography variant="body2">Selected</Typography>
-                  </Box>
                 </Box>
                 {buildings.map((building) => (
                   building.lat && building.long && (
