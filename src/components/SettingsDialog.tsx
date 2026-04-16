@@ -75,6 +75,10 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
   const [sharedViews, setSharedViews] = useState<SharedView[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshingViewId, setRefreshingViewId] = useState<string | null>(null);
+  const [revokingBuildingKey, setRevokingBuildingKey] = useState<string | null>(null);
+  const [revokingViewKey, setRevokingViewKey] = useState<string | null>(null);
+  const [deletingViewId, setDeletingViewId] = useState<string | null>(null);
+  const [togglingVisibility, setTogglingVisibility] = useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [viewToShare, setViewToShare] = useState<AggregatedViewDefinition | null>(null);
   const [shareWebId, setShareWebId] = useState("");
@@ -117,22 +121,29 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
   };
 
   const handleRevokeAccess = async (buildingUri: string, webId: string) => {
+    const key = `${buildingUri}__${webId}`;
+    setRevokingBuildingKey(key);
     try {
       await revokeAccess(buildingUri, webId, session);
       await loadSharedBuildings();
     } catch (error) {
       console.error("Error revoking access:", error);
       alert(`Failed to revoke access: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setRevokingBuildingKey(null);
     }
   };
 
   const handleToggleVisibility = async (buildingUri: string) => {
+    setTogglingVisibility(buildingUri);
     try {
       await toggleBuildingVisibility(buildingUri, session);
       await loadSharedBuildings();
     } catch (error) {
       console.error("Error toggling visibility:", error);
       alert(`Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setTogglingVisibility(null);
     }
   };
 
@@ -153,12 +164,15 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     if (!confirm("Are you sure you want to delete this view? This will also revoke access for all shared users.")) {
       return;
     }
+    setDeletingViewId(viewId);
     try {
       await deleteView(session, viewId);
       await loadViewData();
     } catch (error) {
       console.error("Error deleting view:", error);
       alert(`Failed to delete view: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setDeletingViewId(null);
     }
   };
 
@@ -192,12 +206,16 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
   };
 
   const handleRevokeViewAccess = async (snapshotUrl: string, webId: string) => {
+    const key = `${snapshotUrl}__${webId}`;
+    setRevokingViewKey(key);
     try {
       await revokeViewAccess(snapshotUrl, webId, session);
       await loadViewData();
     } catch (error) {
       console.error("Error revoking view access:", error);
       alert(`Failed to revoke access: ${error instanceof Error ? error.message : String(error)}`);
+    } finally {
+      setRevokingViewKey(null);
     }
   };
 
@@ -278,8 +296,13 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                                         size="small"
                                         onClick={() => handleRevokeAccess(building.buildingUri, webId)}
                                         title="Revoke access"
+                                        disabled={revokingBuildingKey === `${building.buildingUri}__${webId}`}
                                       >
-                                        <DeleteIcon fontSize="small" />
+                                        {revokingBuildingKey === `${building.buildingUri}__${webId}` ? (
+                                          <CircularProgress size={16} />
+                                        ) : (
+                                          <DeleteIcon fontSize="small" />
+                                        )}
                                       </IconButton>
                                     </Box>
                                   ))
@@ -319,17 +342,21 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                               </>
                             }
                           />
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={building.isVisible}
-                                onChange={() => handleToggleVisibility(building.buildingUri)}
-                                icon={<VisibilityOffIcon />}
-                                checkedIcon={<VisibilityIcon />}
-                              />
-                            }
-                            label={building.isVisible ? "Visible" : "Hidden"}
-                          />
+                          {togglingVisibility === building.buildingUri ? (
+                            <CircularProgress size={24} sx={{ mx: 1 }} />
+                          ) : (
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={building.isVisible}
+                                  onChange={() => handleToggleVisibility(building.buildingUri)}
+                                  icon={<VisibilityOffIcon />}
+                                  checkedIcon={<VisibilityIcon />}
+                                />
+                              }
+                              label={building.isVisible ? "Visible" : "Hidden"}
+                            />
+                          )}
                         </ListItem>
                         <Divider />
                       </Box>
@@ -387,8 +414,13 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                                               webId
                                             )}
                                             title="Revoke access"
+                                            disabled={revokingViewKey === `${getSnapshotUrl(session.info.webId!, view.id)}__${webId}`}
                                           >
-                                            <DeleteIcon fontSize="small" />
+                                            {revokingViewKey === `${getSnapshotUrl(session.info.webId!, view.id)}__${webId}` ? (
+                                              <CircularProgress size={16} />
+                                            ) : (
+                                              <DeleteIcon fontSize="small" />
+                                            )}
                                           </IconButton>
                                         </Box>
                                       ))}
@@ -421,8 +453,13 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                                 size="small"
                                 onClick={() => handleDeleteView(view.id)}
                                 title="Delete view"
+                                disabled={deletingViewId === view.id}
                               >
-                                <DeleteIcon />
+                                {deletingViewId === view.id ? (
+                                  <CircularProgress size={20} />
+                                ) : (
+                                  <DeleteIcon />
+                                )}
                               </IconButton>
                             </Box>
                           </ListItem>
