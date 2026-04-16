@@ -145,6 +145,7 @@ async function getEnergyDataUrls(
     const quads = parser.parse(buildingText);
     const store = new Store(quads);
 
+    console.log(`[getEnergyDataUrls] all predicates:`, [...new Set(store.getQuads(null, null, null, null).map(q => q.predicate.value))]);
     const datasetLocationPredicate = DataFactory.namedNode(
         "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#datasetLocation"
     );
@@ -154,9 +155,11 @@ async function getEnergyDataUrls(
         "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyMeasurementData"
     );
     const measurementQuads = store.getQuads(null, energyDataPredicate, null, null);
+    console.log(`[getEnergyDataUrls] hasEnergyMeasurementData quads (${measurementQuads.length}):`, measurementQuads.map(q => `${q.subject.value} → ${q.object.value}`));
     if (measurementQuads.length > 0) {
         const blankNode = measurementQuads[0].object;
         const locationQuads = store.getQuads(blankNode, datasetLocationPredicate, null, null);
+        console.log(`[getEnergyDataUrls] datasetLocation quads for blank node (${locationQuads.length}):`, locationQuads.map(q => q.object.value));
         if (locationQuads.length > 0) {
             return [locationQuads[0].object.value];
         }
@@ -167,6 +170,7 @@ async function getEnergyDataUrls(
         "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyConsumptionDataset"
     );
     const datasetQuads = store.getQuads(null, consumptionDataPredicate, null, null);
+    console.log(`[getEnergyDataUrls] hasEnergyConsumptionDataset quads (${datasetQuads.length}):`, datasetQuads.map(q => `${q.subject.value} → ${q.object.value}`));
     if (datasetQuads.length > 0) {
         const urls: string[] = [];
         for (const dq of datasetQuads) {
