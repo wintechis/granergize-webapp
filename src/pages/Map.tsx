@@ -42,16 +42,18 @@ const sharedIcon = new L.Icon({
   shadowSize: [41, 41],
 });
 
-const selectedIcon = new L.Icon({
-  iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-red.png",
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+function createSelectedIcon(isShared: boolean): L.DivIcon {
+  const imgUrl = isShared
+    ? "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png"
+    : "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png";
+  return L.divIcon({
+    className: "",
+    html: `<img src="${imgUrl}" style="width:25px;height:41px;filter:drop-shadow(0 0 3px ${MARKER_SELECTED_COLOR}) drop-shadow(0 0 5px ${MARKER_SELECTED_COLOR});" />`,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+  });
+}
 
 interface MapProps {
   session: Session;
@@ -180,9 +182,11 @@ export default function Map({ session }: MapProps) {
                       sx={{
                         width: 12,
                         height: 12,
-                        backgroundColor: MARKER_SELECTED_COLOR,
+                        backgroundColor: MARKER_OWNED_COLOR,
                         borderRadius: "50%",
                         mr: 1,
+                        outline: `2px solid ${MARKER_SELECTED_COLOR}`,
+                        outlineOffset: "2px",
                       }}
                     />
                     <Typography variant="body2">Selected</Typography>
@@ -195,7 +199,7 @@ export default function Map({ session }: MapProps) {
                       position={[building.lat, building.long]}
                       icon={selectedBuilding &&
                           selectedBuilding.id === building.id
-                        ? selectedIcon
+                        ? createSelectedIcon(building.isShared)
                         : (building.isShared ? sharedIcon : ownedIcon)}
                       eventHandlers={{
                         click: () => {

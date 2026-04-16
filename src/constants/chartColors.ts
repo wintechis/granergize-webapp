@@ -23,5 +23,5 @@ export const MARKER_OWNED_COLOR = "#0277bd";
 /** Aligned with theme.palette.secondary.main — buildings shared with the user */
 export const MARKER_SHARED_COLOR = "#388e3c";
 
-/** Aligned with theme.palette.error.main — currently selected building */
-export const MARKER_SELECTED_COLOR = "#c62828";
+/** Gold glow border applied to the selected building marker */
+export const MARKER_SELECTED_COLOR = "#FFD700";
