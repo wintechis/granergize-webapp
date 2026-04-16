@@ -1,5 +1,5 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
+import { DataFactory, Parser, Store, Writer } from "n3";
 import { getPodBaseUrl } from "../utils/solidUtils.ts";
 
 export async function readInbox(session: Session) {
@@ -108,6 +108,27 @@ export async function readInbox(session: Session) {
                   });
                 });
               });
+
+              // Check for revocation messages
+              msgStore.getQuads(
+                null,
+                DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+                DataFactory.namedNode("http://www.w3.org/ns/solid/interop#AccessRevocation"),
+                null,
+              ).forEach((revocationQuad) => {
+                const revocationNode = revocationQuad.subject;
+                msgStore.getQuads(
+                  revocationNode,
+                  DataFactory.namedNode("http://www.w3.org/ns/solid/interop#forResource"),
+                  null,
+                  null,
+                ).forEach((forResourceQuad) => {
+                  const resource = forResourceQuad.object.value;
+                  console.log(`Revoking access to resource: ${resource}`);
+                  allPromises.push(removeResourceFromRegistry(session, resource));
+                  allPromises.push(removeMessageFromInbox(session, messageUrl, podInbox));
+                });
+              });
             } else {
               console.error(
                 `Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`,
@@ -121,6 +142,44 @@ export async function readInbox(session: Session) {
     // Wait for all registry updates and message removals to finish
     await Promise.all(allPromises);
   }
+}
+
+async function removeResourceFromRegistry(session: Session, resource: string) {
+  const webId = session.info.webId!;
+  const podBaseUrl = getPodBaseUrl(webId);
+  const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
+
+  const response = await session.fetch(registryUrl);
+  if (!response.ok) return;
+
+  const text = await response.text();
+  const parser = new Parser({ format: "text/turtle", baseIRI: registryUrl });
+  const store = new Store(parser.parse(text));
+
+  const registryNode = DataFactory.namedNode(registryUrl);
+  const buildingSourcePredicate = DataFactory.namedNode(
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource",
+  );
+  const dataSourceRolePredicate = DataFactory.namedNode(
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
+  );
+  const resourceNode = DataFactory.namedNode(resource);
+
+  store.getQuads(registryNode, buildingSourcePredicate, resourceNode, null)
+    .forEach((q) => store.removeQuad(q));
+  store.getQuads(resourceNode, dataSourceRolePredicate, null, null)
+    .forEach((q) => store.removeQuad(q));
+
+  const writer = new Writer({ format: "text/turtle" });
+  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+
+  await session.fetch(registryUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: updatedTtl,
+  });
+
+  console.log(`Removed resource ${resource} from registry at ${registryUrl}`);
 }
 
 async function addResourceToRegistry(session: Session, resource: string, accessMode: string, roleIri?: string) {
