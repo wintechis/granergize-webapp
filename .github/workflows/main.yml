@@ -34,5 +34,5 @@ jobs:
           username: ${{ secrets.SSH_USERNAME }}
           password: ${{ secrets.SSH_PASSWORD }}
           port: 22
-          source: "./dist/"
-          target: "./public_html/testing/granergize/"
+          source: "dist"
+          target: "public_html/testing/granergize/"
