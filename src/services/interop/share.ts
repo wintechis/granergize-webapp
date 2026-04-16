@@ -199,36 +199,34 @@ async function shareContainer(
   const aclUrl = `${containerUrl}.acl`;
   const existingAclResponse = await session.fetch(aclUrl, { method: "GET" });
 
+  const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+  const ACL = "http://www.w3.org/ns/auth/acl#";
+
   let aclContent = "";
   if (existingAclResponse.status === 404) {
     const ownerWebId = session.info.webId as string;
-    aclContent = `
-@prefix : <#>.
-@prefix acl: <http://www.w3.org/ns/auth/acl#>.
-
-:ControlReadWrite
-    a acl:Authorization;
-    acl:agent <${ownerWebId}>;
-    acl:accessTo <${containerUrl}>;
-    acl:default <${containerUrl}>;
-    acl:mode acl:Read, acl:Write, acl:Control.
-`;
+    aclContent = [
+      `<${aclUrl}#ControlReadWrite> <${RDF_TYPE}> <${ACL}Authorization> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}agent> <${ownerWebId}> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}accessTo> <${containerUrl}> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}default> <${containerUrl}> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Read> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Write> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Control> .`,
+    ].join("\n") + "\n";
   } else {
     aclContent = await existingAclResponse.text();
   }
 
   // Grant read on the container itself and all its children (acl:default)
   const authLabel = `Read_${webId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-  const newAuthorization = `
-:${authLabel}
-    a acl:Authorization;
-    acl:agent <${webId}>;
-    acl:accessTo <${containerUrl}>;
-    acl:default <${containerUrl}>;
-    acl:mode acl:Read.
-`;
-
-  aclContent += newAuthorization;
+  aclContent += [
+    `<${aclUrl}#${authLabel}> <${RDF_TYPE}> <${ACL}Authorization> .`,
+    `<${aclUrl}#${authLabel}> <${ACL}agent> <${webId}> .`,
+    `<${aclUrl}#${authLabel}> <${ACL}accessTo> <${containerUrl}> .`,
+    `<${aclUrl}#${authLabel}> <${ACL}default> <${containerUrl}> .`,
+    `<${aclUrl}#${authLabel}> <${ACL}mode> <${ACL}Read> .`,
+  ].join("\n") + "\n";
 
   const putResponse = await session.fetch(aclUrl, {
     method: "PUT",
@@ -262,40 +260,33 @@ async function shareData(
     method: "GET",
   });
 
-  let aclContent = "";
-  console.log(`[shareData] GET ${aclUrl} → ${existingAclResponse.status}`);
-  if (existingAclResponse.status === 404) {
-    // Create a basic ACL granting the owner full access
-    const ownerWebId = session.info.webId as string;
-    aclContent = `
-@prefix : <#>.
-@prefix acl: <http://www.w3.org/ns/auth/acl#>.
+  const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+  const ACL = "http://www.w3.org/ns/auth/acl#";
 
-:ControlReadWrite
-    a acl:Authorization;
-    acl:agent <${ownerWebId}>;
-    acl:accessTo <${resourceUri}>;
-    acl:mode acl:Read, acl:Write, acl:Control.
-`;
-    console.log(`[shareData] No existing ACL, building fresh`);
+  let aclContent = "";
+  if (existingAclResponse.status === 404) {
+    // Create a basic ACL granting the owner full access (N-Triples format)
+    const ownerWebId = session.info.webId as string;
+    aclContent = [
+      `<${aclUrl}#ControlReadWrite> <${RDF_TYPE}> <${ACL}Authorization> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}agent> <${ownerWebId}> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}accessTo> <${resourceUri}> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Read> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Write> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Control> .`,
+    ].join("\n") + "\n";
   } else {
     aclContent = await existingAclResponse.text();
-    console.log(`[shareData] Existing ACL content:\n${aclContent}`);
   }
 
-  // Append a new authorization for the shared WebID
+  // Append new authorization in N-Triples format (no prefixes needed, valid Turtle subset)
   const authLabel = `Read_${webId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-  const newAuthorization = `
-:${authLabel}
-    a acl:Authorization;
-    acl:agent <${webId}>;
-    acl:accessTo <${resourceUri}>;
-    acl:mode acl:Read.
-`;
-
-  aclContent += newAuthorization;
-
-  console.log(`[shareData] PUT body:\n${aclContent}`);
+  aclContent += [
+    `<${aclUrl}#${authLabel}> <${RDF_TYPE}> <${ACL}Authorization> .`,
+    `<${aclUrl}#${authLabel}> <${ACL}agent> <${webId}> .`,
+    `<${aclUrl}#${authLabel}> <${ACL}accessTo> <${resourceUri}> .`,
+    `<${aclUrl}#${authLabel}> <${ACL}mode> <${ACL}Read> .`,
+  ].join("\n") + "\n";
 
   // Save the updated ACL
   const putResponse = await session.fetch(aclUrl, {
