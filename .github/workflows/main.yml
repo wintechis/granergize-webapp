@@ -12,7 +12,7 @@ jobs:
           deno-version: latest
       - name: install && build  
         run: deno install && deno task build
-      - uses: actions/upload-artifact@v8
+      - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist
