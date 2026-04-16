@@ -66,6 +66,13 @@ export default function Map({ session }: MapProps) {
   const [isRightPaneLarge, setIsRightPaneLarge] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
 
+  // Clear selection if the selected building is no longer in the loaded list (e.g. after access revocation)
+  useEffect(() => {
+    if (selectedBuilding && !buildings.find((b) => b.id === selectedBuilding.id)) {
+      setSelectedBuilding(null);
+    }
+  }, [buildings, selectedBuilding]);
+
   // When a building is selected, find its energy data
   useEffect(() => {
     if (selectedBuilding && energyNeed) {
