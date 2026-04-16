@@ -218,8 +218,9 @@ async function shareContainer(
   }
 
   // Grant read on the container itself and all its children (acl:default)
+  const authLabel = `Read_${webId.replace(/[^a-zA-Z0-9]/g, "_")}`;
   const newAuthorization = `
-:Read
+:${authLabel}
     a acl:Authorization;
     acl:agent <${webId}>;
     acl:accessTo <${containerUrl}>;
@@ -280,8 +281,9 @@ async function shareData(
   }
 
   // Append a new authorization for the shared WebID
+  const authLabel = `Read_${webId.replace(/[^a-zA-Z0-9]/g, "_")}`;
   const newAuthorization = `
-:Read
+:${authLabel}
     a acl:Authorization;
     acl:agent <${webId}>;
     acl:accessTo <${resourceUri}>;
