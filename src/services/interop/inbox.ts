@@ -35,10 +35,8 @@ export async function readInbox(session: Session) {
     ).forEach((messageQuad) => {
       const messageUrl = messageQuad.object.value;
 
-      // For each message, fetch and parse its content
-      store.getQuads(DataFactory.namedNode(messageUrl), null, null, null)
-        .forEach((msgQuad) => {
-          const promise = (async () => {
+      // For each message, fetch and parse its content once
+      const promise = (async () => {
             const msgResponse = await session.fetch(messageUrl, {
               method: "GET",
             });
@@ -134,9 +132,8 @@ export async function readInbox(session: Session) {
                 `Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`,
               );
             }
-          })();
-          allPromises.push(promise);
-        });
+      })();
+      allPromises.push(promise);
     });
 
     // Wait for all registry updates and message removals to finish
@@ -263,6 +260,11 @@ async function removeMessageFromInbox(session: Session, messageUrl: string, inbo
   const response = await session.fetch(messageUrl, {
     method: "DELETE",
   });
+
+  if (response.status === 404) {
+    // Already deleted (e.g. duplicate processing) — treat as success
+    return;
+  }
 
   if (!response.ok) {
     console.error(
