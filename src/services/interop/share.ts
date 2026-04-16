@@ -263,6 +263,7 @@ async function shareData(
   });
 
   let aclContent = "";
+  console.log(`[shareData] GET ${aclUrl} → ${existingAclResponse.status}`);
   if (existingAclResponse.status === 404) {
     // Create a basic ACL granting the owner full access
     const ownerWebId = session.info.webId as string;
@@ -276,8 +277,10 @@ async function shareData(
     acl:accessTo <${resourceUri}>;
     acl:mode acl:Read, acl:Write, acl:Control.
 `;
+    console.log(`[shareData] No existing ACL, building fresh`);
   } else {
     aclContent = await existingAclResponse.text();
+    console.log(`[shareData] Existing ACL content:\n${aclContent}`);
   }
 
   // Append a new authorization for the shared WebID
@@ -292,6 +295,8 @@ async function shareData(
 
   aclContent += newAuthorization;
 
+  console.log(`[shareData] PUT body:\n${aclContent}`);
+
   // Save the updated ACL
   const putResponse = await session.fetch(aclUrl, {
     method: "PUT",
@@ -302,6 +307,8 @@ async function shareData(
   });
 
   if (!putResponse.ok) {
+    const errorBody = await putResponse.text();
+    console.error(`[shareData] PUT error body: ${errorBody}`);
     throw new Error(
       `Failed to update ACL: ${putResponse.status} ${putResponse.statusText}`,
     );
