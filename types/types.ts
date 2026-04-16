@@ -10,6 +10,7 @@ export interface InvestorAnnualData {
   renewableSelfGeneratedShare?: number; // %
   heatConsumption?: number;             // kWh
   waterConsumption?: number;            // m³
+  wastewaterConsumption?: number;       // m³
 }
 
 export interface InvestorOperatingCosts {
@@ -65,6 +66,14 @@ export interface BuildingType {
   operatedBy?: string;
   energyData?: EnergyMeasurementData[];
   isShared?: boolean;
+  // BSP role fields
+  logisticsFunction?: string;
+  climateControlType?: string;
+  greenLeaseShare?: number;   // %
+  indoorTemperature?: string;
+  pvInstallationYear?: number;
+  pvCapacityKW?: number;
+  companyName?: string;
   // Investor role fields
   label?: string;
   buildingCode?: string;

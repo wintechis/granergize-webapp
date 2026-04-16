@@ -4,8 +4,10 @@ import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
   AggregationType,
+  BuildingType,
   EnergyType,
   EnergyCategoryKey,
+  InvestorAnnualData,
 } from "../../../types/types.ts";
 import { getViewDefinition, storeComputedSnapshot } from "./viewManager.ts";
 import { parseEnergyData } from "../utils/energyDataParser.ts";
@@ -213,7 +215,8 @@ async function loadUserBuildingMonthlyTotal(
  */
 export async function computeAggregation(
   session: Session,
-  viewDefinition: AggregatedViewDefinition
+  viewDefinition: AggregatedViewDefinition,
+  buildings?: BuildingType[]
 ): Promise<AggregatedViewSnapshot> {
   const { id, name, buildingUris, aggregationType, metrics, period } = viewDefinition;
 
@@ -240,6 +243,44 @@ export async function computeAggregation(
     };
 
     return snapshot;
+  }
+
+  // BSP path: aggregate from pre-parsed annualData (no network fetch needed)
+  if (buildings && buildings.length > 0) {
+    const selectedBuildings = buildings.filter((b) =>
+      buildingUris.includes(b.uri as string)
+    );
+    const metricValues: Record<string, number[]> = {};
+    for (const b of selectedBuildings) {
+      const annualData = (b.annualData ?? []) as InvestorAnnualData[];
+      if (annualData.length === 0) continue;
+      // Use most recent year
+      const latest = annualData[annualData.length - 1];
+      for (const metric of metrics) {
+        const val = latest[metric as keyof InvestorAnnualData];
+        if (typeof val === "number") {
+          if (!metricValues[metric]) metricValues[metric] = [];
+          metricValues[metric].push(val);
+        }
+      }
+    }
+    const aggregatedValues: Record<string, number> = {};
+    for (const [metric, vals] of Object.entries(metricValues)) {
+      if (vals.length > 0) aggregatedValues[metric] = aggregateValues(vals, aggregationType);
+    }
+    const buildingCount = selectedBuildings.filter((b) => {
+      const ad = (b.annualData ?? []) as InvestorAnnualData[];
+      return ad.length > 0;
+    }).length;
+    return {
+      id,
+      name,
+      aggregationType,
+      metrics,
+      computedAt: new Date().toISOString(),
+      buildingCount,
+      values: aggregatedValues,
+    };
   }
 
   // Standard path: categorical annual energy metrics
@@ -288,15 +329,16 @@ export async function computeAggregation(
  */
 export async function computeAndStoreSnapshot(
   session: Session,
-  viewId: string
+  viewId: string,
+  buildings?: BuildingType[]
 ): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUrl: string }> {
   const viewDefinition = await getViewDefinition(session, viewId);
-  
+
   if (!viewDefinition) {
     throw new Error(`View definition not found: ${viewId}`);
   }
 
-  const snapshot = await computeAggregation(session, viewDefinition);
+  const snapshot = await computeAggregation(session, viewDefinition, buildings);
   const snapshotUrl = await storeComputedSnapshot(session, snapshot);
 
   return { snapshot, snapshotUrl };
@@ -387,6 +429,45 @@ export function getAvailableMetrics(): { category: string; metrics: string[] }[]
       category: "Environmental Factor",
       metrics: [
         "cold",
+      ],
+    },
+  ];
+}
+
+/**
+ * Get available metrics for the Investor role (reads from building.annualData)
+ */
+export function getAvailableInvestorAnnualMetrics(): { category: string; metrics: string[] }[] {
+  return [
+    {
+      category: "Annual Consumption",
+      metrics: [
+        "electricityConsumption",
+        "heatConsumption",
+        "waterConsumption",
+      ],
+    },
+    {
+      category: "Renewable Generation",
+      metrics: [
+        "renewableSelfGeneratedShare",
+      ],
+    },
+  ];
+}
+
+/**
+ * Get available metrics for the BSP role (reads from building.annualData)
+ */
+export function getAvailableBspMetrics(): { category: string; metrics: string[] }[] {
+  return [
+    {
+      category: "Annual Consumption",
+      metrics: [
+        "electricityConsumption",
+        "heatConsumption",
+        "waterConsumption",
+        "wastewaterConsumption",
       ],
     },
   ];

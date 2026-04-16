@@ -15,6 +15,7 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import WeatherData from "./WeatherData.tsx";
 import InvestorEnergy from "./InvestorEnergy.tsx";
+import BspEnergy from "./BspEnergy.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { MARKER_OWNED_COLOR, MARKER_SHARED_COLOR, MARKER_SELECTED_COLOR } from "../constants/chartColors.ts";
 
@@ -231,10 +232,13 @@ export default function Map({ session }: MapProps) {
                   </Tabs>
                 </Box>
                 <Box sx={{ padding: 2 }}>
+                  {activeTab === 0 && role === "benchmark_service_provider" && (
+                    <BspEnergy building={selectedBuilding} />
+                  )}
                   {activeTab === 0 && role === "investor" && (
                     <InvestorEnergy building={selectedBuilding} />
                   )}
-                  {activeTab === 0 && role !== "investor" && (selectedEnergy || role === "user") && (
+                  {activeTab === 0 && role !== "investor" && role !== "benchmark_service_provider" && (selectedEnergy || role === "user") && (
                     <Energy
                       selectedBuilding={selectedBuilding.id.toString()}
                       operatedBy={selectedBuilding.operatedBy?.toString() || ""}
