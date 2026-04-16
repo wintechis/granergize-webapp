@@ -24,120 +24,99 @@ export async function readInbox(session: Session) {
     const quads = parser.parse(inboxText);
     const store = new Store(quads);
 
-    // Collect all async operations
-    const allPromises: Promise<any>[] = [];
-
-    store.getQuads(
+    const messageUrls = store.getQuads(
       null,
       DataFactory.namedNode("http://www.w3.org/ns/ldp#contains"),
       null,
       null,
-    ).forEach((messageQuad) => {
-      const messageUrl = messageQuad.object.value;
+    ).map((q) => q.object.value);
 
-      // For each message, fetch and parse its content once
-      const promise = (async () => {
-            const msgResponse = await session.fetch(messageUrl, {
-              method: "GET",
-            });
-            if (msgResponse.status === 200) {
-              const msgText = await msgResponse.text();
-              const msgParser = new Parser({
-                format: "text/turtle",
-                baseIRI: messageUrl,
-              });
-              const msgQuads = msgParser.parse(msgText);
-              const msgStore = new Store(msgQuads);
+    // Process each message fully (fetch → parse → registry update → delete) before returning
+    await Promise.all(messageUrls.map(async (messageUrl) => {
+      const msgResponse = await session.fetch(messageUrl, { method: "GET" });
+      if (msgResponse.status !== 200) {
+        console.error(`Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`);
+        return;
+      }
 
-              // Check if this message grants access to buildings data
-              msgStore.getQuads(
-                null,
-                DataFactory.namedNode(
-                  "http://www.w3.org/ns/solid/interop#hasDataGrant",
-                ),
-                null,
-                null,
-              ).forEach((dataGrantQuad) => {
-                const grantNode = dataGrantQuad.subject;    // The AccessGrant node
-                const dataGrantNode = dataGrantQuad.object; // The DataGrant blank node
+      const msgText = await msgResponse.text();
+      const msgParser = new Parser({ format: "text/turtle", baseIRI: messageUrl });
+      const msgStore = new Store(msgParser.parse(msgText));
 
-                // Extract the role annotation from the AccessGrant node
-                const roleQuads = msgStore.getQuads(
-                  grantNode,
-                  DataFactory.namedNode(
-                    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
-                  ),
-                  null,
-                  null,
-                );
-                const roleIri = roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode"
-                  ? roleQuads[0].object.value
-                  : undefined;
+      const innerPromises: Promise<void>[] = [];
 
-                // Check the details of the DataGrant
-                const forResourceQuads = msgStore.getQuads(
-                  dataGrantNode,
-                  DataFactory.namedNode(
-                    "http://www.w3.org/ns/solid/interop#forResource",
-                  ),
-                  null,
-                  null,
-                );
-                const accessModeQuads = msgStore.getQuads(
-                  dataGrantNode,
-                  DataFactory.namedNode(
-                    "http://www.w3.org/ns/solid/interop#accessMode",
-                  ),
-                  null,
-                  null,
-                );
+      // Check if this message grants access to buildings data
+      msgStore.getQuads(
+        null,
+        DataFactory.namedNode("http://www.w3.org/ns/solid/interop#hasDataGrant"),
+        null,
+        null,
+      ).forEach((dataGrantQuad) => {
+        const grantNode = dataGrantQuad.subject;
+        const dataGrantNode = dataGrantQuad.object;
 
-                forResourceQuads.forEach((forResourceQuad) => {
-                  const resource = forResourceQuad.object.value;
-                  accessModeQuads.forEach((accessModeQuad) => {
-                    const accessMode = accessModeQuad.object.value;
-                    console.log(
-                      `Granted ${accessMode} access to resource: ${resource}` +
-                      (roleIri ? ` (role: ${roleIri})` : ""),
-                    );
-                    // Chain both registry update and message removal
-                    allPromises.push(addResourceToRegistry(session, resource, accessMode, roleIri));
-                    allPromises.push(removeMessageFromInbox(session, messageUrl, podInbox));
-                  });
-                });
-              });
+        const roleQuads = msgStore.getQuads(
+          grantNode,
+          DataFactory.namedNode(
+            "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
+          ),
+          null,
+          null,
+        );
+        const roleIri = roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode"
+          ? roleQuads[0].object.value
+          : undefined;
 
-              // Check for revocation messages
-              msgStore.getQuads(
-                null,
-                DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-                DataFactory.namedNode("http://www.w3.org/ns/solid/interop#AccessRevocation"),
-                null,
-              ).forEach((revocationQuad) => {
-                const revocationNode = revocationQuad.subject;
-                msgStore.getQuads(
-                  revocationNode,
-                  DataFactory.namedNode("http://www.w3.org/ns/solid/interop#forResource"),
-                  null,
-                  null,
-                ).forEach((forResourceQuad) => {
-                  const resource = forResourceQuad.object.value;
-                  console.log(`Revoking access to resource: ${resource}`);
-                  allPromises.push(removeResourceFromRegistry(session, resource));
-                  allPromises.push(removeMessageFromInbox(session, messageUrl, podInbox));
-                });
-              });
-            } else {
-              console.error(
-                `Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`,
-              );
-            }
-      })();
-      allPromises.push(promise);
-    });
+        const forResourceQuads = msgStore.getQuads(
+          dataGrantNode,
+          DataFactory.namedNode("http://www.w3.org/ns/solid/interop#forResource"),
+          null,
+          null,
+        );
+        const accessModeQuads = msgStore.getQuads(
+          dataGrantNode,
+          DataFactory.namedNode("http://www.w3.org/ns/solid/interop#accessMode"),
+          null,
+          null,
+        );
 
-    // Wait for all registry updates and message removals to finish
-    await Promise.all(allPromises);
+        forResourceQuads.forEach((forResourceQuad) => {
+          const resource = forResourceQuad.object.value;
+          accessModeQuads.forEach((accessModeQuad) => {
+            const accessMode = accessModeQuad.object.value;
+            console.log(
+              `Granted ${accessMode} access to resource: ${resource}` +
+              (roleIri ? ` (role: ${roleIri})` : ""),
+            );
+            innerPromises.push(addResourceToRegistry(session, resource, accessMode, roleIri));
+          });
+        });
+      });
+
+      // Check for revocation messages
+      msgStore.getQuads(
+        null,
+        DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+        DataFactory.namedNode("http://www.w3.org/ns/solid/interop#AccessRevocation"),
+        null,
+      ).forEach((revocationQuad) => {
+        const revocationNode = revocationQuad.subject;
+        msgStore.getQuads(
+          revocationNode,
+          DataFactory.namedNode("http://www.w3.org/ns/solid/interop#forResource"),
+          null,
+          null,
+        ).forEach((forResourceQuad) => {
+          const resource = forResourceQuad.object.value;
+          console.log(`Revoking access to resource: ${resource}`);
+          innerPromises.push(removeResourceFromRegistry(session, resource));
+        });
+      });
+
+      // Await registry updates first, then delete the message
+      await Promise.all(innerPromises);
+      await removeMessageFromInbox(session, messageUrl, podInbox);
+    }));
   }
 }
 
