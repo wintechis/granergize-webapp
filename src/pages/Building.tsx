@@ -327,7 +327,7 @@ export default function Building({ building, session, onHide }: BuildingProps) {
 
       <ShareBuildingDialog
         open={shareDialogOpen}
-        buildingUri={building.uri}
+        buildingUri={building.sourceUri ?? building.uri}
         session={session}
         role={role}
         onClose={() => setShareDialogOpen(false)}
