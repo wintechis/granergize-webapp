@@ -30,6 +30,7 @@ import type { AggregationType, BuildingType } from "../../types/types.ts";
 import { createViewDefinition } from "../services/aggregation/viewManager.ts";
 import { computeAndStoreSnapshot, getAvailableMetrics, getAvailableInvestorAnnualMetrics, getAvailableBspMetrics } from "../services/aggregation/viewComputer.ts";
 import { useSolidData } from "../context/SolidDataContext.tsx";
+import { useNotification } from "../context/NotificationContext.tsx";
 
 interface CreateViewDialogProps {
   open: boolean;
@@ -77,6 +78,7 @@ export default function CreateViewDialog({
   onViewCreated,
 }: CreateViewDialogProps) {
   const { role } = useSolidData();
+  const { showNotification } = useNotification();
 
   const defaultMetrics = ROLE_DEFAULT_METRICS[role ?? "dummy"] ?? ["gas", "electricity"];
 
@@ -133,19 +135,19 @@ export default function CreateViewDialog({
 
   const handleCreate = async () => {
     if (!viewName.trim()) {
-      alert("Please enter a view name");
+      showNotification("Please enter a view name", "warning");
       return;
     }
     if (selectedBuildings.length === 0) {
-      alert("Please select at least one building");
+      showNotification("Please select at least one building", "warning");
       return;
     }
     if (role === "user" && !selectedPeriod) {
-      alert("Please select a month");
+      showNotification("Please select a month", "warning");
       return;
     }
     if (role !== "user" && selectedMetrics.length === 0) {
-      alert("Please select at least one metric");
+      showNotification("Please select at least one metric", "warning");
       return;
     }
 
@@ -169,11 +171,12 @@ export default function CreateViewDialog({
         (role === "benchmark_service_provider" || role === "investor") ? buildings : undefined,
       );
 
+      showNotification("View created successfully", "success");
       onViewCreated();
       handleClose();
     } catch (error) {
       console.error("Error creating view:", error);
-      alert(`Failed to create view: ${error instanceof Error ? error.message : String(error)}`);
+      showNotification(`Failed to create view: ${error instanceof Error ? error.message : String(error)}`, "error");
     } finally {
       setCreating(false);
     }

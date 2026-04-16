@@ -21,6 +21,7 @@ import { AggregatedViewDefinition } from "../../types/types.ts";
 import { deleteView } from "../services/aggregation/viewManager.ts";
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import ShareViewDialog from "../components/ShareViewDialog.tsx";
+import { useNotification } from "../context/NotificationContext.tsx";
 
 interface ViewsPageProps {
   session: Session;
@@ -30,8 +31,8 @@ interface ViewsPageProps {
 
 export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: ViewsPageProps) {
   const navigate = useNavigate();
+  const { showNotification } = useNotification();
   const [loading, setLoading] = useState<string | null>(null);
-  const [error, setError] = useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [selectedViewForShare, setSelectedViewForShare] = useState<AggregatedViewDefinition | null>(null);
 
@@ -42,12 +43,12 @@ export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: 
   const handleRefreshView = async (view: AggregatedViewDefinition) => {
     if (!session.info.webId) return;
     setLoading(view.id);
-    setError(null);
     try {
       await refreshSnapshot(session, view.id);
+      showNotification("Snapshot refreshed", "success");
       onRefreshViews();
     } catch (err) {
-      setError(`Failed to refresh view: ${err}`);
+      showNotification(`Failed to refresh view: ${err}`, "error");
     } finally {
       setLoading(null);
     }
@@ -61,14 +62,14 @@ export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: 
   const handleDeleteView = async (view: AggregatedViewDefinition) => {
     if (!session.info.webId) return;
     if (!globalThis.confirm(`Delete view "${view.name}"?`)) return;
-    
+
     setLoading(view.id);
-    setError(null);
     try {
       await deleteView(session, view.id);
+      showNotification("View deleted", "success");
       onRefreshViews();
     } catch (err) {
-      setError(`Failed to delete view: ${err}`);
+      showNotification(`Failed to delete view: ${err}`, "error");
     } finally {
       setLoading(null);
     }
@@ -95,12 +96,6 @@ export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: 
         </IconButton>
       </Box>
 
-      {error && (
-        <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-          {error}
-        </Alert>
-      )}
-
       {viewDefinitions.length === 0 ? (
         <Alert severity="info">
           No aggregated views yet. Click "Create View" in the header to create your first view.
@@ -109,10 +104,10 @@ export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: 
         <Grid container spacing={3}>
           {viewDefinitions.map((view) => (
             <Grid size={{ xs: 12, sm: 6, md: 4 }} key={view.id}>
-              <Card 
-                sx={{ 
-                  height: "100%", 
-                  display: "flex", 
+              <Card
+                sx={{
+                  height: "100%",
+                  display: "flex",
                   flexDirection: "column",
                   cursor: "pointer",
                   "&:hover": { boxShadow: 4 },
@@ -124,16 +119,16 @@ export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: 
                     {view.name}
                   </Typography>
                   <Box sx={{ mb: 1 }}>
-                    <Chip 
-                      label={view.aggregationType} 
-                      size="small" 
-                      color="primary" 
+                    <Chip
+                      label={view.aggregationType}
+                      size="small"
+                      color="primary"
                       variant="outlined"
                       sx={{ mr: 1 }}
                     />
-                    <Chip 
-                      label={`${view.buildingUris.length} buildings`} 
-                      size="small" 
+                    <Chip
+                      label={`${view.buildingUris.length} buildings`}
+                      size="small"
                       variant="outlined"
                     />
                   </Box>
@@ -147,15 +142,15 @@ export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: 
                   )}
                 </CardContent>
                 <CardActions sx={{ justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={() => handleViewClick(view.id)}
                     title="View details"
                   >
                     <VisibilityIcon fontSize="small" />
                   </IconButton>
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={() => handleRefreshView(view)}
                     disabled={loading === view.id}
                     title="Refresh data"
@@ -166,15 +161,15 @@ export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: 
                       <RefreshIcon fontSize="small" />
                     )}
                   </IconButton>
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={() => handleShareView(view)}
                     title="Share view"
                   >
                     <ShareIcon fontSize="small" />
                   </IconButton>
-                  <IconButton 
-                    size="small" 
+                  <IconButton
+                    size="small"
                     onClick={() => handleDeleteView(view)}
                     disabled={loading === view.id}
                     color="error"

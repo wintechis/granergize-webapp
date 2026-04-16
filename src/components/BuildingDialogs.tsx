@@ -20,6 +20,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { shareBuildingData } from "../services/interop/share.ts";
 import { uploadEnergyCertificate } from "../services/utils/certificateUploader.ts";
 import type { UserRole } from "../../types/types.ts";
+import { useNotification } from "../context/NotificationContext.tsx";
 
 interface ShareBuildingDialogProps {
   open: boolean;
@@ -37,6 +38,7 @@ export function ShareBuildingDialog({
   role,
   onClose,
 }: ShareBuildingDialogProps) {
+  const { showNotification } = useNotification();
   const [sharing, setSharing] = useState(false);
   const [webId, setWebId] = useState("");
   const [includeEnergyData, setIncludeEnergyData] = useState(true);
@@ -49,12 +51,19 @@ export function ShareBuildingDialog({
 
   const handleShare = async () => {
     setSharing(true);
-    await shareBuildingData(buildingUri, webId, session, {
-      includeEnergyData,
-      role: role ?? undefined,
-    });
-    setSharing(false);
-    handleClose();
+    try {
+      await shareBuildingData(buildingUri, webId, session, {
+        includeEnergyData,
+        role: role ?? undefined,
+      });
+      showNotification("Building shared successfully", "success");
+      handleClose();
+    } catch (error) {
+      console.error("Error sharing building:", error);
+      showNotification(`Failed to share building: ${error instanceof Error ? error.message : String(error)}`, "error");
+    } finally {
+      setSharing(false);
+    }
   };
 
   return (
@@ -142,6 +151,7 @@ export function EnergyCertificateDialog({
   onClose,
   onUploadSuccess,
 }: EnergyCertificateDialogProps) {
+  const { showNotification } = useNotification();
   const [uploading, setUploading] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
 
@@ -155,27 +165,27 @@ export function EnergyCertificateDialog({
     if (file && file.type === "application/pdf") {
       setSelectedFile(file);
     } else {
-      alert("Please select a valid PDF file");
+      showNotification("Please select a valid PDF file", "warning");
     }
   };
 
   const handleUpload = async () => {
     if (!selectedFile) {
-      alert("Please select a file first");
+      showNotification("Please select a file first", "warning");
       return;
     }
 
     setUploading(true);
     try {
       await uploadEnergyCertificate(buildingUri, selectedFile, session);
+      showNotification("Certificate uploaded successfully", "success");
       onUploadSuccess();
       handleClose();
     } catch (error) {
       console.error("Error uploading energy certificate:", error);
-      alert(
-        `Failed to upload energy certificate: ${
-          error instanceof Error ? error.message : String(error)
-        }`
+      showNotification(
+        `Failed to upload energy certificate: ${error instanceof Error ? error.message : String(error)}`,
+        "error"
       );
     } finally {
       setUploading(false);

@@ -6,7 +6,6 @@ import {
   DialogActions,
   Button,
   TextField,
-  Alert,
   CircularProgress,
   Typography,
   List,
@@ -23,6 +22,7 @@ import { AggregatedViewDefinition } from "../../types/types.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
 import { getSharedViews, revokeViewAccess } from "../services/interop/sharingManager.ts";
 import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import { useNotification } from "../context/NotificationContext.tsx";
 
 interface ShareViewDialogProps {
   open: boolean;
@@ -32,10 +32,9 @@ interface ShareViewDialogProps {
 }
 
 export default function ShareViewDialog({ open, onClose, view, session }: ShareViewDialogProps) {
+  const { showNotification } = useNotification();
   const [recipientWebId, setRecipientWebId] = useState("");
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [success, setSuccess] = useState<string | null>(null);
   const [sharedWith, setSharedWith] = useState<string[]>([]);
   const [loadingShared, setLoadingShared] = useState(false);
 
@@ -70,17 +69,15 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
     }
 
     setLoading(true);
-    setError(null);
-    setSuccess(null);
 
     try {
       const snapshotUrl = getSnapshotUrl(session.info.webId!, view.id);
       await shareAggregatedView(snapshotUrl, view.id, recipientWebId.trim(), session);
-      setSuccess(`View shared with ${recipientWebId}`);
+      showNotification(`View shared with ${recipientWebId}`, "success");
       setRecipientWebId("");
       loadSharedUsers();
     } catch (err) {
-      setError(`Failed to share view: ${err}`);
+      showNotification(`Failed to share view: ${err}`, "error");
     } finally {
       setLoading(false);
     }
@@ -91,12 +88,12 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
     if (!globalThis.confirm(`Revoke access for ${webId}?`)) return;
 
     setLoading(true);
-    setError(null);
     try {
       await revokeViewAccess(view.id, webId, session);
+      showNotification("View access revoked", "success");
       loadSharedUsers();
     } catch (err) {
-      setError(`Failed to revoke access: ${err}`);
+      showNotification(`Failed to revoke access: ${err}`, "error");
     } finally {
       setLoading(false);
     }
@@ -104,8 +101,6 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
 
   const handleClose = () => {
     setRecipientWebId("");
-    setError(null);
-    setSuccess(null);
     onClose();
   };
 
@@ -119,17 +114,6 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
     >
       <DialogTitle>Share "{view.name}"</DialogTitle>
       <DialogContent>
-        {error && (
-          <Alert severity="error" sx={{ mb: 2 }} onClose={() => setError(null)}>
-            {error}
-          </Alert>
-        )}
-        {success && (
-          <Alert severity="success" sx={{ mb: 2 }} onClose={() => setSuccess(null)}>
-            {success}
-          </Alert>
-        )}
-
         <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
           Share this aggregated view with another user by entering their WebID.
           They will receive read access to the computed snapshot (values only, no building details).
