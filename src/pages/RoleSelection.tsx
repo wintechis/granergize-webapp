@@ -72,15 +72,15 @@ export default function RoleSelection({ onSelect }: RoleSelectionProps) {
       }}
     >
       <Typography variant="h4" fontWeight="bold" gutterBottom>
-        Select your role
+        Select your view
       </Typography>
       <Typography
         variant="body1"
         color="text.secondary"
         sx={{ mb: 4, textAlign: "center", maxWidth: 480 }}
       >
-        Choose how you want to interact with Granergize. You can change this
-        later in Settings.
+        Choose how you want to interact with Granergize. You can switch your
+        view at any time from the toolbar.
       </Typography>
 
       <Grid
