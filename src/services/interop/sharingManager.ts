@@ -1,6 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
-import { getStorageRoot, getPodBaseUrl } from "../utils/solidUtils.ts";
+import { getPodBaseUrl, getStorageRoot } from "../utils/solidUtils.ts";
+import { GRAN_NS } from "../utils/vocabularies.ts";
 
 interface SharedBuilding {
   buildingUri: string;
@@ -16,10 +17,9 @@ interface SharedWithMeBuilding {
   sharedRole?: string;
 }
 
-const GRAN_NS = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
 const IRI_TO_ROLE: Record<string, string> = {
-  [`${GRAN_NS}DummyRole`]:     "dummy",
-  [`${GRAN_NS}InvestorRole`]:  "investor",
+  [`${GRAN_NS}DummyRole`]: "dummy",
+  [`${GRAN_NS}InvestorRole`]: "investor",
   [`${GRAN_NS}UserRoleInstance`]: "user",
   [`${GRAN_NS}BenchmarkRole`]: "benchmark_service_provider",
 };
@@ -27,7 +27,9 @@ const IRI_TO_ROLE: Record<string, string> = {
 /**
  * Get list of buildings the user has shared with others
  */
-export async function getSharedBuildings(session: Session): Promise<SharedBuilding[]> {
+export async function getSharedBuildings(
+  session: Session,
+): Promise<SharedBuilding[]> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
   }
@@ -38,7 +40,7 @@ export async function getSharedBuildings(session: Session): Promise<SharedBuildi
 
   try {
     const response = await session.fetch(sharingRegistryUrl);
-    
+
     if (response.status === 404) {
       // Create an empty sharing registry
       await session.fetch(sharingRegistryUrl, {
@@ -48,20 +50,25 @@ export async function getSharedBuildings(session: Session): Promise<SharedBuildi
       });
       return [];
     }
-    
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch sharing registry: ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch sharing registry: ${response.statusText}`,
+      );
     }
 
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: sharingRegistryUrl });
+    const parser = new Parser({
+      format: "text/turtle",
+      baseIRI: sharingRegistryUrl,
+    });
     const quads = parser.parse(text);
 
     const buildingsMap = new Map<string, Set<string>>();
 
     // Parse sharing records
     const sharedWithPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith"
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith",
     );
 
     quads.forEach((quad) => {
@@ -90,28 +97,34 @@ export async function getSharedBuildings(session: Session): Promise<SharedBuildi
 /**
  * Get list of buildings shared with the user
  */
-export async function getSharedWithMe(session: Session): Promise<SharedWithMeBuilding[]> {
+export async function getSharedWithMe(
+  session: Session,
+): Promise<SharedWithMeBuilding[]> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
   }
 
   const webId = session.info.webId;
   const storageRoot = getStorageRoot(webId);
-  
+
   const registryUrl = `${storageRoot}profile/granergize/dataSources.ttl`;
-  const hiddenBuildingsUrl = `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
+  const hiddenBuildingsUrl =
+    `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
 
   try {
     // Get list of hidden buildings
-    const hiddenBuildings = await getHiddenBuildings(session, hiddenBuildingsUrl);
+    const hiddenBuildings = await getHiddenBuildings(
+      session,
+      hiddenBuildingsUrl,
+    );
 
     // Load the data sources registry
     const response = await session.fetch(registryUrl);
-    
+
     if (response.status === 404) {
       return [];
     }
-    
+
     if (!response.ok) {
       throw new Error(`Failed to fetch data sources: ${response.statusText}`);
     }
@@ -122,25 +135,33 @@ export async function getSharedWithMe(session: Session): Promise<SharedWithMeBui
     const store = new Store(quads);
 
     const buildingSourcePredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource"
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource",
     );
     const registryNode = DataFactory.namedNode(registryUrl);
-    
-    const buildingQuads = store.getQuads(registryNode, buildingSourcePredicate, null, null);
+
+    const buildingQuads = store.getQuads(
+      registryNode,
+      buildingSourcePredicate,
+      null,
+      null,
+    );
 
     const sharedBuildings: SharedWithMeBuilding[] = [];
 
     for (const quad of buildingQuads) {
       const buildingUri = quad.object.value;
-      
+
       // Check if this building is from an external source (shared with me)
       const isOwnBuilding = buildingUri.startsWith(storageRoot);
-      
+
       if (!isOwnBuilding) {
         // Extract building ID and owner
-        const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "") || "";
+        const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "") ||
+          "";
         const ownerMatch = buildingUri.match(/https?:\/\/[^/]+\/([^/]+)\//);
-        const sharedBy = ownerMatch ? `${ownerMatch[0]}profile/card#me` : "Unknown";
+        const sharedBy = ownerMatch
+          ? `${ownerMatch[0]}profile/card#me`
+          : "Unknown";
 
         // Read the role annotation stored alongside the building data source
         const roleQuads = store.getQuads(
@@ -149,7 +170,9 @@ export async function getSharedWithMe(session: Session): Promise<SharedWithMeBui
           null,
           null,
         );
-        const roleIri = roleQuads.length > 0 ? roleQuads[0].object.value : undefined;
+        const roleIri = roleQuads.length > 0
+          ? roleQuads[0].object.value
+          : undefined;
         const sharedRole = roleIri ? IRI_TO_ROLE[roleIri] : undefined;
 
         sharedBuildings.push({
@@ -169,10 +192,13 @@ export async function getSharedWithMe(session: Session): Promise<SharedWithMeBui
   }
 }
 
-async function getHiddenBuildings(session: Session, hiddenBuildingsUrl: string): Promise<Set<string>> {
+async function getHiddenBuildings(
+  session: Session,
+  hiddenBuildingsUrl: string,
+): Promise<Set<string>> {
   try {
     const response = await session.fetch(hiddenBuildingsUrl);
-    
+
     if (response.status === 404) {
       // Create an empty hidden buildings file for future use
       await session.fetch(hiddenBuildingsUrl, {
@@ -182,22 +208,25 @@ async function getHiddenBuildings(session: Session, hiddenBuildingsUrl: string):
       });
       return new Set();
     }
-    
+
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: hiddenBuildingsUrl });
+    const parser = new Parser({
+      format: "text/turtle",
+      baseIRI: hiddenBuildingsUrl,
+    });
     const quads = parser.parse(text);
-    
+
     const hiddenPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hiddenBuilding"
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hiddenBuilding",
     );
-    
+
     const hiddenBuildings = new Set<string>();
     quads.forEach((quad) => {
       if (quad.predicate.equals(hiddenPredicate)) {
         hiddenBuildings.add(quad.object.value);
       }
     });
-    
+
     return hiddenBuildings;
   } catch (_error) {
     return new Set();
@@ -210,7 +239,7 @@ async function getHiddenBuildings(session: Session, hiddenBuildingsUrl: string):
 export async function revokeAccess(
   buildingUri: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   if (!session.info.isLoggedIn) {
     throw new Error("User is not logged in");
@@ -244,34 +273,44 @@ export async function revokeAccess(
 async function removeFromSharingRegistry(
   buildingUri: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   const userWebId = session.info.webId!;
   const podBaseUrl = getPodBaseUrl(userWebId);
   const sharingRegistryUrl = `${podBaseUrl}granergize/sharingRegistry.ttl`;
 
   const response = await session.fetch(sharingRegistryUrl);
-  
+
   if (response.status === 404) {
     return;
   }
 
   const text = await response.text();
-  const parser = new Parser({ format: "text/turtle", baseIRI: sharingRegistryUrl });
+  const parser = new Parser({
+    format: "text/turtle",
+    baseIRI: sharingRegistryUrl,
+  });
   const quads = parser.parse(text);
   const store = new Store(quads);
 
   const buildingNode = DataFactory.namedNode(buildingUri);
   const sharedWithPredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith"
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith",
   );
   const webIdNode = DataFactory.namedNode(webId);
 
   // Remove the specific triple
-  store.removeQuad(buildingNode, sharedWithPredicate, webIdNode, DataFactory.defaultGraph());
+  store.removeQuad(
+    buildingNode,
+    sharedWithPredicate,
+    webIdNode,
+    DataFactory.defaultGraph(),
+  );
 
   const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+  const updatedTtl = writer.quadsToString(
+    store.getQuads(null, null, null, null),
+  );
 
   await session.fetch(sharingRegistryUrl, {
     method: "PUT",
@@ -283,7 +322,7 @@ async function removeFromSharingRegistry(
 async function removeFromACL(
   resourceUri: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   const aclUrl = `${resourceUri}.acl`;
   const response = await session.fetch(aclUrl);
@@ -298,7 +337,9 @@ async function removeFromACL(
   const store = new Store(parser.parse(aclText));
 
   // Find all authorization subjects that have acl:agent <webId>
-  const agentPredicate = DataFactory.namedNode("http://www.w3.org/ns/auth/acl#agent");
+  const agentPredicate = DataFactory.namedNode(
+    "http://www.w3.org/ns/auth/acl#agent",
+  );
   const agentNode = DataFactory.namedNode(webId);
   const authsToRemove = store
     .getQuads(null, agentPredicate, agentNode, null)
@@ -308,11 +349,15 @@ async function removeFromACL(
 
   // Remove all quads where those subjects appear as subject
   for (const subject of authsToRemove) {
-    store.getQuads(subject, null, null, null).forEach((q) => store.removeQuad(q));
+    store.getQuads(subject, null, null, null).forEach((q) =>
+      store.removeQuad(q)
+    );
   }
 
   const writer = new Writer({ format: "text/turtle" });
-  const updatedAcl = writer.quadsToString(store.getQuads(null, null, null, null));
+  const updatedAcl = writer.quadsToString(
+    store.getQuads(null, null, null, null),
+  );
 
   await session.fetch(aclUrl, {
     method: "PUT",
@@ -326,7 +371,10 @@ async function removeFromACL(
  * - Dummy/investor role: single energy file URI
  * - User role: the parent container URI (covers all daily files via acl:default)
  */
-async function getEnergyAclTargets(buildingUri: string, session: Session): Promise<string[]> {
+async function getEnergyAclTargets(
+  buildingUri: string,
+  session: Session,
+): Promise<string[]> {
   try {
     const response = await session.fetch(buildingUri);
     const text = await response.text();
@@ -337,26 +385,46 @@ async function getEnergyAclTargets(buildingUri: string, session: Session): Promi
     const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "");
     const buildingNode = DataFactory.namedNode(`${buildingUri}#${buildingId}`);
     const datasetLocationPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#datasetLocation"
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#datasetLocation",
     );
 
     // Dummy/investor role: hasEnergyMeasurementData - single file
     const measurementPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyMeasurementData"
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyMeasurementData",
     );
-    const measurementQuads = store.getQuads(buildingNode, measurementPredicate, null, null);
+    const measurementQuads = store.getQuads(
+      buildingNode,
+      measurementPredicate,
+      null,
+      null,
+    );
     if (measurementQuads.length > 0) {
-      const locQuads = store.getQuads(measurementQuads[0].object, datasetLocationPredicate, null, null);
+      const locQuads = store.getQuads(
+        measurementQuads[0].object,
+        datasetLocationPredicate,
+        null,
+        null,
+      );
       if (locQuads.length > 0) return [locQuads[0].object.value];
     }
 
     // User role: hasEnergyConsumptionDataset - derive common container from first daily file
     const consumptionPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyConsumptionDataset"
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyConsumptionDataset",
     );
-    const datasetQuads = store.getQuads(buildingNode, consumptionPredicate, null, null);
+    const datasetQuads = store.getQuads(
+      buildingNode,
+      consumptionPredicate,
+      null,
+      null,
+    );
     if (datasetQuads.length > 0) {
-      const locQuads = store.getQuads(datasetQuads[0].object, datasetLocationPredicate, null, null);
+      const locQuads = store.getQuads(
+        datasetQuads[0].object,
+        datasetLocationPredicate,
+        null,
+        null,
+      );
       if (locQuads.length > 0) {
         const fileUrl = locQuads[0].object.value;
         // Return the container URL (e.g. .../energy/) so acl:default covers all files
@@ -376,7 +444,7 @@ async function getEnergyAclTargets(buildingUri: string, session: Session): Promi
  */
 export async function toggleBuildingVisibility(
   buildingUri: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
@@ -387,24 +455,32 @@ export async function toggleBuildingVisibility(
   const hiddenBuildingsUrl = `${podBaseUrl}granergize/hiddenBuildings.ttl`;
 
   const response = await session.fetch(hiddenBuildingsUrl);
-  
+
   let store: Store;
   if (response.status === 404) {
     store = new Store();
   } else {
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: hiddenBuildingsUrl });
+    const parser = new Parser({
+      format: "text/turtle",
+      baseIRI: hiddenBuildingsUrl,
+    });
     const quads = parser.parse(text);
     store = new Store(quads);
   }
 
   const registryNode = DataFactory.namedNode(hiddenBuildingsUrl);
   const hiddenPredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hiddenBuilding"
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hiddenBuilding",
   );
   const buildingNode = DataFactory.namedNode(buildingUri);
 
-  const existingQuads = store.getQuads(registryNode, hiddenPredicate, buildingNode, null);
+  const existingQuads = store.getQuads(
+    registryNode,
+    hiddenPredicate,
+    buildingNode,
+    null,
+  );
 
   if (existingQuads.length > 0) {
     // Building is hidden, make it visible
@@ -415,7 +491,9 @@ export async function toggleBuildingVisibility(
   }
 
   const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+  const updatedTtl = writer.quadsToString(
+    store.getQuads(null, null, null, null),
+  );
 
   await session.fetch(hiddenBuildingsUrl, {
     method: "PUT",
@@ -430,7 +508,7 @@ export async function toggleBuildingVisibility(
 export async function recordSharing(
   buildingUri: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
@@ -442,30 +520,40 @@ export async function recordSharing(
 
   let store: Store;
   const response = await session.fetch(sharingRegistryUrl);
-  
+
   if (response.status === 404) {
     store = new Store();
   } else {
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: sharingRegistryUrl });
+    const parser = new Parser({
+      format: "text/turtle",
+      baseIRI: sharingRegistryUrl,
+    });
     const quads = parser.parse(text);
     store = new Store(quads);
   }
 
   const buildingNode = DataFactory.namedNode(buildingUri);
   const sharedWithPredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith"
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith",
   );
   const webIdNode = DataFactory.namedNode(webId);
 
   // Add the triple if it doesn't exist
-  const existingQuads = store.getQuads(buildingNode, sharedWithPredicate, webIdNode, null);
+  const existingQuads = store.getQuads(
+    buildingNode,
+    sharedWithPredicate,
+    webIdNode,
+    null,
+  );
   if (existingQuads.length === 0) {
     store.addQuad(buildingNode, sharedWithPredicate, webIdNode);
   }
 
   const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+  const updatedTtl = writer.quadsToString(
+    store.getQuads(null, null, null, null),
+  );
 
   await session.fetch(sharingRegistryUrl, {
     method: "PUT",
@@ -480,7 +568,7 @@ export async function recordSharing(
 async function notifyAccessRevoked(
   buildingUri: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   // Get the user's inbox URL
   const parser = new Parser({ format: "text/turtle", baseIRI: webId });
@@ -488,7 +576,7 @@ async function notifyAccessRevoked(
 
   if (!profileResponse.ok) {
     throw new Error(
-      `Failed to fetch WebID profile at ${webId}: ${profileResponse.statusText}`
+      `Failed to fetch WebID profile at ${webId}: ${profileResponse.statusText}`,
     );
   }
 
@@ -497,7 +585,7 @@ async function notifyAccessRevoked(
   const store = new Store(quads);
 
   const inboxPredicate = DataFactory.namedNode(
-    "http://www.w3.org/ns/ldp#inbox"
+    "http://www.w3.org/ns/ldp#inbox",
   );
   const webIdNode = DataFactory.namedNode(webId);
   const inboxQuads = store.getQuads(webIdNode, inboxPredicate, null, null);
@@ -533,11 +621,13 @@ async function notifyAccessRevoked(
 
   if (!postResponse.ok) {
     throw new Error(
-      `Failed to post revocation message to inbox at ${inboxUrl}: ${postResponse.statusText}`
+      `Failed to post revocation message to inbox at ${inboxUrl}: ${postResponse.statusText}`,
     );
   }
 
-  console.log(`Successfully posted access revocation notification to inbox at ${inboxUrl}`);
+  console.log(
+    `Successfully posted access revocation notification to inbox at ${inboxUrl}`,
+  );
 }
 
 /**
@@ -547,7 +637,7 @@ export async function recordViewSharing(
   snapshotUrl: string,
   viewId: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
@@ -555,16 +645,20 @@ export async function recordViewSharing(
 
   const userWebId = session.info.webId;
   const podBaseUrl = userWebId.substring(0, userWebId.lastIndexOf("/") + 1);
-  const viewSharingRegistryUrl = `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
+  const viewSharingRegistryUrl =
+    `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
 
   let store: Store;
   const response = await session.fetch(viewSharingRegistryUrl);
-  
+
   if (response.status === 404) {
     store = new Store();
   } else if (response.ok) {
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: viewSharingRegistryUrl });
+    const parser = new Parser({
+      format: "text/turtle",
+      baseIRI: viewSharingRegistryUrl,
+    });
     const quads = parser.parse(text);
     store = new Store(quads);
   } else {
@@ -573,31 +667,43 @@ export async function recordViewSharing(
 
   const snapshotNode = DataFactory.namedNode(snapshotUrl);
   const sharedWithPredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith"
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith",
   );
   const viewIdPredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId"
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId",
   );
   const webIdNode = DataFactory.namedNode(webId);
 
   // Add the sharedWith triple if it doesn't exist
-  const existingQuads = store.getQuads(snapshotNode, sharedWithPredicate, webIdNode, null);
+  const existingQuads = store.getQuads(
+    snapshotNode,
+    sharedWithPredicate,
+    webIdNode,
+    null,
+  );
   if (existingQuads.length === 0) {
     store.addQuad(snapshotNode, sharedWithPredicate, webIdNode);
   }
 
   // Add viewId reference if not exists
-  const existingViewIdQuads = store.getQuads(snapshotNode, viewIdPredicate, null, null);
+  const existingViewIdQuads = store.getQuads(
+    snapshotNode,
+    viewIdPredicate,
+    null,
+    null,
+  );
   if (existingViewIdQuads.length === 0) {
     store.addQuad(
       snapshotNode,
       viewIdPredicate,
-      DataFactory.literal(viewId)
+      DataFactory.literal(viewId),
     );
   }
 
   const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+  const updatedTtl = writer.quadsToString(
+    store.getQuads(null, null, null, null),
+  );
 
   await session.fetch(viewSharingRegistryUrl, {
     method: "PUT",
@@ -622,11 +728,12 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
 
   const webId = session.info.webId;
   const podBaseUrl = getPodBaseUrl(webId);
-  const viewSharingRegistryUrl = `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
+  const viewSharingRegistryUrl =
+    `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
 
   try {
     const response = await session.fetch(viewSharingRegistryUrl);
-    
+
     if (response.status === 404) {
       // Create an empty view sharing registry for future use
       await session.fetch(viewSharingRegistryUrl, {
@@ -636,24 +743,32 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
       });
       return [];
     }
-    
+
     if (!response.ok) {
-      throw new Error(`Failed to fetch view sharing registry: ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch view sharing registry: ${response.statusText}`,
+      );
     }
 
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: viewSharingRegistryUrl });
+    const parser = new Parser({
+      format: "text/turtle",
+      baseIRI: viewSharingRegistryUrl,
+    });
     const quads = parser.parse(text);
     const store = new Store(quads);
 
     const sharedWithPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith"
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith",
     );
     const viewIdPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId"
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId",
     );
 
-    const viewsMap = new Map<string, { viewId: string; sharedWith: Set<string> }>();
+    const viewsMap = new Map<
+      string,
+      { viewId: string; sharedWith: Set<string> }
+    >();
 
     // Get all sharedWith relations
     const sharedQuads = store.getQuads(null, sharedWithPredicate, null, null);
@@ -663,8 +778,15 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
 
       if (!viewsMap.has(snapshotUrl)) {
         // Get viewId for this snapshot
-        const viewIdQuads = store.getQuads(quad.subject, viewIdPredicate, null, null);
-        const viewId = viewIdQuads.length > 0 ? viewIdQuads[0].object.value : "";
+        const viewIdQuads = store.getQuads(
+          quad.subject,
+          viewIdPredicate,
+          null,
+          null,
+        );
+        const viewId = viewIdQuads.length > 0
+          ? viewIdQuads[0].object.value
+          : "";
         viewsMap.set(snapshotUrl, { viewId, sharedWith: new Set() });
       }
       viewsMap.get(snapshotUrl)!.sharedWith.add(targetWebId);
@@ -687,7 +809,7 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
 export async function revokeViewAccess(
   snapshotUrl: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   if (!session.info.isLoggedIn) {
     throw new Error("User is not logged in");
@@ -703,45 +825,66 @@ export async function revokeViewAccess(
 async function removeFromViewSharingRegistry(
   snapshotUrl: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   const userWebId = session.info.webId!;
   const podBaseUrl = getPodBaseUrl(userWebId);
-  const viewSharingRegistryUrl = `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
+  const viewSharingRegistryUrl =
+    `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
 
   const response = await session.fetch(viewSharingRegistryUrl);
-  
+
   if (response.status === 404) {
     return;
   }
 
   const text = await response.text();
-  const parser = new Parser({ format: "text/turtle", baseIRI: viewSharingRegistryUrl });
+  const parser = new Parser({
+    format: "text/turtle",
+    baseIRI: viewSharingRegistryUrl,
+  });
   const quads = parser.parse(text);
   const store = new Store(quads);
 
   const snapshotNode = DataFactory.namedNode(snapshotUrl);
   const sharedWithPredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith"
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#sharedWith",
   );
   const webIdNode = DataFactory.namedNode(webId);
 
   // Remove the specific triple
-  store.removeQuad(snapshotNode, sharedWithPredicate, webIdNode, DataFactory.defaultGraph());
+  store.removeQuad(
+    snapshotNode,
+    sharedWithPredicate,
+    webIdNode,
+    DataFactory.defaultGraph(),
+  );
 
   // Check if there are any remaining sharedWith for this snapshot
-  const remainingQuads = store.getQuads(snapshotNode, sharedWithPredicate, null, null);
+  const remainingQuads = store.getQuads(
+    snapshotNode,
+    sharedWithPredicate,
+    null,
+    null,
+  );
   if (remainingQuads.length === 0) {
     // Remove the viewId triple too since no one has access anymore
     const viewIdPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId"
+      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId",
     );
-    const viewIdQuads = store.getQuads(snapshotNode, viewIdPredicate, null, null);
+    const viewIdQuads = store.getQuads(
+      snapshotNode,
+      viewIdPredicate,
+      null,
+      null,
+    );
     viewIdQuads.forEach((quad) => store.removeQuad(quad));
   }
 
   const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+  const updatedTtl = writer.quadsToString(
+    store.getQuads(null, null, null, null),
+  );
 
   await session.fetch(viewSharingRegistryUrl, {
     method: "PUT",

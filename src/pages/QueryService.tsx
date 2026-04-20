@@ -1,14 +1,14 @@
 import { useState } from "react";
 import {
-  Box,
-  Typography,
-  Card,
-  CardContent,
-  CardActions,
-  IconButton,
-  Chip,
   Alert,
+  Box,
+  Card,
+  CardActions,
+  CardContent,
+  Chip,
   CircularProgress,
+  IconButton,
+  Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
 import RefreshIcon from "@mui/icons-material/Refresh";
@@ -29,12 +29,16 @@ interface ViewsPageProps {
   onRefreshViews: () => void;
 }
 
-export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: ViewsPageProps) {
+export default function ViewsPage(
+  { session, viewDefinitions, onRefreshViews }: ViewsPageProps,
+) {
   const navigate = useNavigate();
   const { showNotification } = useNotification();
   const [loading, setLoading] = useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [selectedViewForShare, setSelectedViewForShare] = useState<AggregatedViewDefinition | null>(null);
+  const [selectedViewForShare, setSelectedViewForShare] = useState<
+    AggregatedViewDefinition | null
+  >(null);
 
   const handleViewClick = (viewId: string) => {
     navigate(`/view/${encodeURIComponent(viewId)}`);
@@ -96,93 +100,104 @@ export default function ViewsPage({ session, viewDefinitions, onRefreshViews }: 
         </IconButton>
       </Box>
 
-      {viewDefinitions.length === 0 ? (
-        <Alert severity="info">
-          No aggregated views yet. Click "Create View" in the header to create your first view.
-        </Alert>
-      ) : (
-        <Grid container spacing={3}>
-          {viewDefinitions.map((view) => (
-            <Grid size={{ xs: 12, sm: 6, md: 4 }} key={view.id}>
-              <Card
-                sx={{
-                  height: "100%",
-                  display: "flex",
-                  flexDirection: "column",
-                  cursor: "pointer",
-                  "&:hover": { boxShadow: 4 },
-                }}
-                onClick={() => handleViewClick(view.id)}
-              >
-                <CardContent sx={{ flexGrow: 1 }}>
-                  <Typography variant="h6" gutterBottom>
-                    {view.name}
-                  </Typography>
-                  <Box sx={{ mb: 1 }}>
-                    <Chip
-                      label={view.aggregationType}
-                      size="small"
-                      color="primary"
-                      variant="outlined"
-                      sx={{ mr: 1 }}
-                    />
-                    <Chip
-                      label={`${view.buildingUris.length} buildings`}
-                      size="small"
-                      variant="outlined"
-                    />
-                  </Box>
-                  <Typography variant="body2" color="text.secondary">
-                    Metrics: {view.metrics.join(", ")}
-                  </Typography>
-                  {view.lastComputedAt && (
-                    <Typography variant="caption" color="text.secondary" display="block" sx={{ mt: 1 }}>
-                      Last updated: {formatDate(view.lastComputedAt)}
+      {viewDefinitions.length === 0
+        ? (
+          <Alert severity="info">
+            No aggregated views yet. Click "Create View" in the header to create
+            your first view.
+          </Alert>
+        )
+        : (
+          <Grid container spacing={3}>
+            {viewDefinitions.map((view) => (
+              <Grid size={{ xs: 12, sm: 6, md: 4 }} key={view.id}>
+                <Card
+                  sx={{
+                    height: "100%",
+                    display: "flex",
+                    flexDirection: "column",
+                    cursor: "pointer",
+                    "&:hover": { boxShadow: 4 },
+                  }}
+                  onClick={() =>
+                    handleViewClick(view.id)}
+                >
+                  <CardContent sx={{ flexGrow: 1 }}>
+                    <Typography variant="h6" gutterBottom>
+                      {view.name}
                     </Typography>
-                  )}
-                </CardContent>
-                <CardActions sx={{ justifyContent: "flex-end" }} onClick={(e) => e.stopPropagation()}>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleViewClick(view.id)}
-                    title="View details"
-                  >
-                    <VisibilityIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleRefreshView(view)}
-                    disabled={loading === view.id}
-                    title="Refresh data"
-                  >
-                    {loading === view.id ? (
-                      <CircularProgress size={18} />
-                    ) : (
-                      <RefreshIcon fontSize="small" />
+                    <Box sx={{ mb: 1 }}>
+                      <Chip
+                        label={view.aggregationType}
+                        size="small"
+                        color="primary"
+                        variant="outlined"
+                        sx={{ mr: 1 }}
+                      />
+                      <Chip
+                        label={`${view.buildingUris.length} buildings`}
+                        size="small"
+                        variant="outlined"
+                      />
+                    </Box>
+                    <Typography variant="body2" color="text.secondary">
+                      Metrics: {view.metrics.join(", ")}
+                    </Typography>
+                    {view.lastComputedAt && (
+                      <Typography
+                        variant="caption"
+                        color="text.secondary"
+                        display="block"
+                        sx={{ mt: 1 }}
+                      >
+                        Last updated: {formatDate(view.lastComputedAt)}
+                      </Typography>
                     )}
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleShareView(view)}
-                    title="Share view"
+                  </CardContent>
+                  <CardActions
+                    sx={{ justifyContent: "flex-end" }}
+                    onClick={(e) =>
+                      e.stopPropagation()}
                   >
-                    <ShareIcon fontSize="small" />
-                  </IconButton>
-                  <IconButton
-                    size="small"
-                    onClick={() => handleDeleteView(view)}
-                    disabled={loading === view.id}
-                    color="error"
-                    title="Delete view"
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </CardActions>
-              </Card>
-            </Grid>
-          ))}
-        </Grid>
-      )}
+                    <IconButton
+                      size="small"
+                      onClick={() => handleViewClick(view.id)}
+                      title="View details"
+                    >
+                      <VisibilityIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleRefreshView(view)}
+                      disabled={loading === view.id}
+                      title="Refresh data"
+                    >
+                      {loading === view.id
+                        ? <CircularProgress size={18} />
+                        : <RefreshIcon fontSize="small" />}
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleShareView(view)}
+                      title="Share view"
+                    >
+                      <ShareIcon fontSize="small" />
+                    </IconButton>
+                    <IconButton
+                      size="small"
+                      onClick={() => handleDeleteView(view)}
+                      disabled={loading === view.id}
+                      color="error"
+                      title="Delete view"
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </CardActions>
+                </Card>
+              </Grid>
+            ))}
+          </Grid>
+        )}
 
       {selectedViewForShare && (
         <ShareViewDialog

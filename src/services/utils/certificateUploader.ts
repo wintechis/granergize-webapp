@@ -22,11 +22,12 @@ export async function uploadEnergyCertificate(
   const pathParts = buildingUrl.pathname.split("/");
   const buildingFileName = pathParts[pathParts.length - 1];
   const buildingId = buildingFileName.replace(".ttl", "");
-  
+
   // Create a certificates folder at the same level as the building file
   const certificatesPath = pathParts.slice(0, -1).join("/") + "/certificates/";
   const certificateFileName = `${buildingId}_energy_certificate.pdf`;
-  const certificateUrl = `${buildingUrl.origin}${certificatesPath}${certificateFileName}`;
+  const certificateUrl =
+    `${buildingUrl.origin}${certificatesPath}${certificateFileName}`;
 
   console.log(`Uploading certificate to: ${certificateUrl}`);
 
@@ -63,7 +64,7 @@ async function updateBuildingWithCertificateLink(
 ): Promise<void> {
   // Step 1: Fetch the current building TTL
   const response = await session.fetch(buildingUri);
-  
+
   if (!response.ok) {
     throw new Error(
       `Failed to fetch building data at ${buildingUri}: ${response.statusText}`,
@@ -80,11 +81,13 @@ async function updateBuildingWithCertificateLink(
   // Step 3: Find the building subject node
   // The building ID is typically the hash fragment of the URI
   const buildingFileName = buildingUri.split("/").pop()?.replace(".ttl", "");
-  const buildingSubject = DataFactory.namedNode(`${buildingUri}#${buildingFileName}`);
+  const buildingSubject = DataFactory.namedNode(
+    `${buildingUri}#${buildingFileName}`,
+  );
 
   // Step 4: Check if energy certificate predicate already exists and remove it
   const energyCertificatePredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyCertificate"
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyCertificate",
   );
 
   // Remove existing energy certificate triples
@@ -94,7 +97,7 @@ async function updateBuildingWithCertificateLink(
     null,
     null,
   );
-  
+
   existingQuads.forEach((quad) => {
     store.removeQuad(quad);
   });
@@ -109,7 +112,9 @@ async function updateBuildingWithCertificateLink(
 
   // Step 6: Serialize the updated store back to TTL
   const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+  const updatedTtl = writer.quadsToString(
+    store.getQuads(null, null, null, null),
+  );
 
   // Step 7: Write the updated TTL back to the pod
   const updateResponse = await session.fetch(buildingUri, {

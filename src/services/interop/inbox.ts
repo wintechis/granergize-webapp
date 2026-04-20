@@ -35,12 +35,17 @@ export async function readInbox(session: Session) {
     await Promise.all(messageUrls.map(async (messageUrl) => {
       const msgResponse = await session.fetch(messageUrl, { method: "GET" });
       if (msgResponse.status !== 200) {
-        console.error(`Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`);
+        console.error(
+          `Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`,
+        );
         return;
       }
 
       const msgText = await msgResponse.text();
-      const msgParser = new Parser({ format: "text/turtle", baseIRI: messageUrl });
+      const msgParser = new Parser({
+        format: "text/turtle",
+        baseIRI: messageUrl,
+      });
       const msgStore = new Store(msgParser.parse(msgText));
 
       const innerPromises: Promise<void>[] = [];
@@ -48,7 +53,9 @@ export async function readInbox(session: Session) {
       // Check if this message grants access to buildings data
       msgStore.getQuads(
         null,
-        DataFactory.namedNode("http://www.w3.org/ns/solid/interop#hasDataGrant"),
+        DataFactory.namedNode(
+          "http://www.w3.org/ns/solid/interop#hasDataGrant",
+        ),
         null,
         null,
       ).forEach((dataGrantQuad) => {
@@ -63,19 +70,24 @@ export async function readInbox(session: Session) {
           null,
           null,
         );
-        const roleIri = roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode"
-          ? roleQuads[0].object.value
-          : undefined;
+        const roleIri =
+          roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode"
+            ? roleQuads[0].object.value
+            : undefined;
 
         const forResourceQuads = msgStore.getQuads(
           dataGrantNode,
-          DataFactory.namedNode("http://www.w3.org/ns/solid/interop#forResource"),
+          DataFactory.namedNode(
+            "http://www.w3.org/ns/solid/interop#forResource",
+          ),
           null,
           null,
         );
         const accessModeQuads = msgStore.getQuads(
           dataGrantNode,
-          DataFactory.namedNode("http://www.w3.org/ns/solid/interop#accessMode"),
+          DataFactory.namedNode(
+            "http://www.w3.org/ns/solid/interop#accessMode",
+          ),
           null,
           null,
         );
@@ -86,9 +98,11 @@ export async function readInbox(session: Session) {
             const accessMode = accessModeQuad.object.value;
             console.log(
               `Granted ${accessMode} access to resource: ${resource}` +
-              (roleIri ? ` (role: ${roleIri})` : ""),
+                (roleIri ? ` (role: ${roleIri})` : ""),
             );
-            innerPromises.push(addResourceToRegistry(session, resource, accessMode, roleIri));
+            innerPromises.push(
+              addResourceToRegistry(session, resource, accessMode, roleIri),
+            );
           });
         });
       });
@@ -96,14 +110,20 @@ export async function readInbox(session: Session) {
       // Check for revocation messages
       msgStore.getQuads(
         null,
-        DataFactory.namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-        DataFactory.namedNode("http://www.w3.org/ns/solid/interop#AccessRevocation"),
+        DataFactory.namedNode(
+          "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
+        ),
+        DataFactory.namedNode(
+          "http://www.w3.org/ns/solid/interop#AccessRevocation",
+        ),
         null,
       ).forEach((revocationQuad) => {
         const revocationNode = revocationQuad.subject;
         msgStore.getQuads(
           revocationNode,
-          DataFactory.namedNode("http://www.w3.org/ns/solid/interop#forResource"),
+          DataFactory.namedNode(
+            "http://www.w3.org/ns/solid/interop#forResource",
+          ),
           null,
           null,
         ).forEach((forResourceQuad) => {
@@ -147,7 +167,9 @@ async function removeResourceFromRegistry(session: Session, resource: string) {
     .forEach((q) => store.removeQuad(q));
 
   const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+  const updatedTtl = writer.quadsToString(
+    store.getQuads(null, null, null, null),
+  );
 
   await session.fetch(registryUrl, {
     method: "PUT",
@@ -158,10 +180,15 @@ async function removeResourceFromRegistry(session: Session, resource: string) {
   console.log(`Removed resource ${resource} from registry at ${registryUrl}`);
 }
 
-async function addResourceToRegistry(session: Session, resource: string, accessMode: string, roleIri?: string) {
+async function addResourceToRegistry(
+  session: Session,
+  resource: string,
+  accessMode: string,
+  roleIri?: string,
+) {
   console.log(
     `Adding resource ${resource} with access mode ${accessMode} to registry` +
-    (roleIri ? ` (role: ${roleIri})` : ""),
+      (roleIri ? ` (role: ${roleIri})` : ""),
   );
   const webId = session.info.webId!;
   const podBaseUrl = getPodBaseUrl(webId);
@@ -191,8 +218,8 @@ async function addResourceToRegistry(session: Session, resource: string, accessM
 
   const registryNode = DataFactory.namedNode(registryUrl);
   const accessModeNode = DataFactory.namedNode(
-        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource",
-      );
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource",
+  );
   const resourceNode = DataFactory.namedNode(resource);
 
   store.addQuad(
@@ -234,7 +261,11 @@ async function addResourceToRegistry(session: Session, resource: string, accessM
   console.log(`Successfully updated registry at ${registryUrl}`);
 }
 
-async function removeMessageFromInbox(session: Session, messageUrl: string, inboxUrl: string) {
+async function removeMessageFromInbox(
+  session: Session,
+  messageUrl: string,
+  inboxUrl: string,
+) {
   console.log(`Removing message ${messageUrl} from inbox ${inboxUrl}`);
   const response = await session.fetch(messageUrl, {
     method: "DELETE",

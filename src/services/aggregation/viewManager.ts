@@ -5,19 +5,24 @@ import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
 } from "../../../types/types.ts";
+import {
+  GRAN_NS,
+  RDF_TYPE,
+  XSD_DATETIME,
+  XSD_DECIMAL,
+  XSD_INTEGER,
+} from "../utils/vocabularies.ts";
+import { getQuadValue, getQuadValues } from "../utils/rdfHelpers.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
-const VOCAB_PREFIX = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-const XSD_DATETIME = "http://www.w3.org/2001/XMLSchema#dateTime";
-const XSD_INTEGER = "http://www.w3.org/2001/XMLSchema#integer";
-const XSD_DECIMAL = "http://www.w3.org/2001/XMLSchema#decimal";
+const VOCAB_PREFIX = GRAN_NS;
 
 /**
  * Standard prefixes for Turtle serialization
  */
-const TTL_PREFIXES = `@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+const TTL_PREFIXES =
+  `@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix gra: <${VOCAB_PREFIX}> .
 
@@ -28,7 +33,8 @@ const TTL_PREFIXES = `@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#>
  */
 function serializeWithPrefixes(store: Store): string {
   const writer = new Writer({ format: "text/turtle" });
-  return TTL_PREFIXES + writer.quadsToString(store.getQuads(null, null, null, null));
+  return TTL_PREFIXES +
+    writer.quadsToString(store.getQuads(null, null, null, null));
 }
 
 /**
@@ -105,7 +111,7 @@ export async function createViewDefinition(
   buildingUris: string[],
   aggregationType: AggregatedViewDefinition["aggregationType"],
   metrics: string[],
-  period?: string
+  period?: string,
 ): Promise<AggregatedViewDefinition> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
@@ -133,7 +139,10 @@ export async function createViewDefinition(
     const response = await session.fetch(definitionsUrl);
     if (response.ok) {
       const text = await response.text();
-      const parser = new Parser({ format: "text/turtle", baseIRI: definitionsUrl });
+      const parser = new Parser({
+        format: "text/turtle",
+        baseIRI: definitionsUrl,
+      });
       existingQuads = parser.parse(text);
     }
   } catch {
@@ -147,31 +156,31 @@ export async function createViewDefinition(
   store.addQuad(quad(
     viewNode,
     namedNode(RDF_TYPE),
-    namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`)
+    namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`),
   ));
 
   store.addQuad(quad(
     viewNode,
     namedNode(`${VOCAB_PREFIX}viewId`),
-    literal(viewId)
+    literal(viewId),
   ));
 
   store.addQuad(quad(
     viewNode,
     namedNode(`${VOCAB_PREFIX}viewName`),
-    literal(name)
+    literal(name),
   ));
 
   store.addQuad(quad(
     viewNode,
     namedNode(`${VOCAB_PREFIX}aggregationType`),
-    literal(aggregationType)
+    literal(aggregationType),
   ));
 
   store.addQuad(quad(
     viewNode,
     namedNode(`${VOCAB_PREFIX}createdAt`),
-    literal(now, namedNode(XSD_DATETIME))
+    literal(now, namedNode(XSD_DATETIME)),
   ));
 
   // Add period (user-role views only)
@@ -179,7 +188,7 @@ export async function createViewDefinition(
     store.addQuad(quad(
       viewNode,
       namedNode(`${VOCAB_PREFIX}viewPeriod`),
-      literal(period)
+      literal(period),
     ));
   }
 
@@ -188,7 +197,7 @@ export async function createViewDefinition(
     store.addQuad(quad(
       viewNode,
       namedNode(`${VOCAB_PREFIX}includesBuilding`),
-      namedNode(buildingUri)
+      namedNode(buildingUri),
     ));
   }
 
@@ -197,7 +206,7 @@ export async function createViewDefinition(
     store.addQuad(quad(
       viewNode,
       namedNode(`${VOCAB_PREFIX}includesMetric`),
-      literal(metric)
+      literal(metric),
     ));
   }
 
@@ -211,7 +220,9 @@ export async function createViewDefinition(
   });
 
   if (!putResponse.ok) {
-    throw new Error(`Failed to save view definition: ${putResponse.statusText}`);
+    throw new Error(
+      `Failed to save view definition: ${putResponse.statusText}`,
+    );
   }
 
   return newView;
@@ -221,7 +232,7 @@ export async function createViewDefinition(
  * Get all view definitions for the current user
  */
 export async function getViewDefinitions(
-  session: Session
+  session: Session,
 ): Promise<AggregatedViewDefinition[]> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
@@ -242,11 +253,16 @@ export async function getViewDefinitions(
       return [];
     }
     if (!response.ok) {
-      throw new Error(`Failed to fetch view definitions: ${response.statusText}`);
+      throw new Error(
+        `Failed to fetch view definitions: ${response.statusText}`,
+      );
     }
 
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: definitionsUrl });
+    const parser = new Parser({
+      format: "text/turtle",
+      baseIRI: definitionsUrl,
+    });
     const quads = parser.parse(text);
     const store = new Store(quads);
 
@@ -258,55 +274,42 @@ export async function getViewDefinitions(
     for (const viewQuad of viewQuads) {
       const viewNode = viewQuad.subject;
 
-      const getId = () => {
-        const q = store.getQuads(viewNode, namedNode(`${VOCAB_PREFIX}viewId`), null, null);
-        return q[0]?.object.value || "";
-      };
-
-      const getName = () => {
-        const q = store.getQuads(viewNode, namedNode(`${VOCAB_PREFIX}viewName`), null, null);
-        return q[0]?.object.value || "";
-      };
-
-      const getAggType = () => {
-        const q = store.getQuads(viewNode, namedNode(`${VOCAB_PREFIX}aggregationType`), null, null);
-        return (q[0]?.object.value || "average") as AggregatedViewDefinition["aggregationType"];
-      };
-
-      const getCreatedAt = () => {
-        const q = store.getQuads(viewNode, namedNode(`${VOCAB_PREFIX}createdAt`), null, null);
-        return q[0]?.object.value || "";
-      };
-
-      const getLastComputedAt = () => {
-        const q = store.getQuads(viewNode, namedNode(`${VOCAB_PREFIX}lastComputedAt`), null, null);
-        return q[0]?.object.value;
-      };
-
-      const getBuildingUris = () => {
-        const q = store.getQuads(viewNode, namedNode(`${VOCAB_PREFIX}includesBuilding`), null, null);
-        return q.map((quad) => quad.object.value);
-      };
-
-      const getMetrics = () => {
-        const q = store.getQuads(viewNode, namedNode(`${VOCAB_PREFIX}includesMetric`), null, null);
-        return q.map((quad) => quad.object.value);
-      };
-
-      const getPeriod = () => {
-        const q = store.getQuads(viewNode, namedNode(`${VOCAB_PREFIX}viewPeriod`), null, null);
-        return q[0]?.object.value;
-      };
-
       views.push({
-        id: getId(),
-        name: getName(),
-        aggregationType: getAggType(),
-        createdAt: getCreatedAt(),
-        lastComputedAt: getLastComputedAt(),
-        buildingUris: getBuildingUris(),
-        metrics: getMetrics(),
-        period: getPeriod(),
+        id: getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewId`)) ??
+          "",
+        name:
+          getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewName`)) ??
+            "",
+        aggregationType: (getQuadValue(
+          store,
+          viewNode,
+          namedNode(`${VOCAB_PREFIX}aggregationType`),
+        ) ?? "average") as AggregatedViewDefinition["aggregationType"],
+        createdAt: getQuadValue(
+          store,
+          viewNode,
+          namedNode(`${VOCAB_PREFIX}createdAt`),
+        ) ?? "",
+        lastComputedAt: getQuadValue(
+          store,
+          viewNode,
+          namedNode(`${VOCAB_PREFIX}lastComputedAt`),
+        ),
+        buildingUris: getQuadValues(
+          store,
+          viewNode,
+          namedNode(`${VOCAB_PREFIX}includesBuilding`),
+        ),
+        metrics: getQuadValues(
+          store,
+          viewNode,
+          namedNode(`${VOCAB_PREFIX}includesMetric`),
+        ),
+        period: getQuadValue(
+          store,
+          viewNode,
+          namedNode(`${VOCAB_PREFIX}viewPeriod`),
+        ),
       });
     }
 
@@ -322,7 +325,7 @@ export async function getViewDefinitions(
  */
 export async function getViewDefinition(
   session: Session,
-  viewId: string
+  viewId: string,
 ): Promise<AggregatedViewDefinition | null> {
   const views = await getViewDefinitions(session);
   return views.find((v) => v.id === viewId) || null;
@@ -333,7 +336,7 @@ export async function getViewDefinition(
  */
 export async function storeComputedSnapshot(
   session: Session,
-  snapshot: AggregatedViewSnapshot
+  snapshot: AggregatedViewSnapshot,
 ): Promise<string> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
@@ -350,37 +353,37 @@ export async function storeComputedSnapshot(
   store.addQuad(quad(
     snapshotNode,
     namedNode(RDF_TYPE),
-    namedNode(`${VOCAB_PREFIX}AggregatedViewSnapshot`)
+    namedNode(`${VOCAB_PREFIX}AggregatedViewSnapshot`),
   ));
 
   store.addQuad(quad(
     snapshotNode,
     namedNode(`${VOCAB_PREFIX}viewId`),
-    literal(snapshot.id)
+    literal(snapshot.id),
   ));
 
   store.addQuad(quad(
     snapshotNode,
     namedNode(`${VOCAB_PREFIX}viewName`),
-    literal(snapshot.name)
+    literal(snapshot.name),
   ));
 
   store.addQuad(quad(
     snapshotNode,
     namedNode(`${VOCAB_PREFIX}aggregationType`),
-    literal(snapshot.aggregationType)
+    literal(snapshot.aggregationType),
   ));
 
   store.addQuad(quad(
     snapshotNode,
     namedNode(`${VOCAB_PREFIX}computedAt`),
-    literal(snapshot.computedAt, namedNode(XSD_DATETIME))
+    literal(snapshot.computedAt, namedNode(XSD_DATETIME)),
   ));
 
   store.addQuad(quad(
     snapshotNode,
     namedNode(`${VOCAB_PREFIX}buildingCount`),
-    literal(snapshot.buildingCount.toString(), namedNode(XSD_INTEGER))
+    literal(snapshot.buildingCount.toString(), namedNode(XSD_INTEGER)),
   ));
 
   // Add metrics
@@ -388,7 +391,7 @@ export async function storeComputedSnapshot(
     store.addQuad(quad(
       snapshotNode,
       namedNode(`${VOCAB_PREFIX}includesMetric`),
-      literal(metric)
+      literal(metric),
     ));
   }
 
@@ -397,7 +400,7 @@ export async function storeComputedSnapshot(
     store.addQuad(quad(
       snapshotNode,
       namedNode(`${VOCAB_PREFIX}${metric}Value`),
-      literal(value.toFixed(2), namedNode(XSD_DECIMAL))
+      literal(value.toFixed(2), namedNode(XSD_DECIMAL)),
     ));
   }
 
@@ -413,7 +416,9 @@ export async function storeComputedSnapshot(
   });
 
   if (!putResponse.ok) {
-    throw new Error(`Failed to save computed snapshot: ${putResponse.statusText}`);
+    throw new Error(
+      `Failed to save computed snapshot: ${putResponse.statusText}`,
+    );
   }
 
   // Update lastComputedAt in the definition
@@ -428,7 +433,7 @@ export async function storeComputedSnapshot(
 async function updateViewLastComputed(
   session: Session,
   viewId: string,
-  timestamp: string
+  timestamp: string,
 ): Promise<void> {
   if (!session.info.webId) return;
 
@@ -453,7 +458,7 @@ async function updateViewLastComputed(
   store.addQuad(quad(
     viewNode,
     lastComputedPred,
-    literal(timestamp, namedNode(XSD_DATETIME))
+    literal(timestamp, namedNode(XSD_DATETIME)),
   ));
 
   const ttl = serializeWithPrefixes(store);
@@ -470,7 +475,7 @@ async function updateViewLastComputed(
  */
 export async function loadComputedSnapshot(
   session: Session,
-  snapshotUrl: string
+  snapshotUrl: string,
 ): Promise<AggregatedViewSnapshot | null> {
   try {
     const response = await session.fetch(snapshotUrl);
@@ -484,7 +489,12 @@ export async function loadComputedSnapshot(
     const store = new Store(quads);
 
     const snapshotType = namedNode(`${VOCAB_PREFIX}AggregatedViewSnapshot`);
-    const snapshotQuads = store.getQuads(null, namedNode(RDF_TYPE), snapshotType, null);
+    const snapshotQuads = store.getQuads(
+      null,
+      namedNode(RDF_TYPE),
+      snapshotType,
+      null,
+    );
 
     if (snapshotQuads.length === 0) {
       return null;
@@ -492,53 +502,48 @@ export async function loadComputedSnapshot(
 
     const snapshotNode = snapshotQuads[0].subject;
 
-    const getId = () => {
-      const q = store.getQuads(snapshotNode, namedNode(`${VOCAB_PREFIX}viewId`), null, null);
-      return q[0]?.object.value || "";
-    };
-
-    const getName = () => {
-      const q = store.getQuads(snapshotNode, namedNode(`${VOCAB_PREFIX}viewName`), null, null);
-      return q[0]?.object.value || "";
-    };
-
-    const getAggType = () => {
-      const q = store.getQuads(snapshotNode, namedNode(`${VOCAB_PREFIX}aggregationType`), null, null);
-      return (q[0]?.object.value || "average") as AggregatedViewSnapshot["aggregationType"];
-    };
-
-    const getComputedAt = () => {
-      const q = store.getQuads(snapshotNode, namedNode(`${VOCAB_PREFIX}computedAt`), null, null);
-      return q[0]?.object.value || "";
-    };
-
-    const getBuildingCount = () => {
-      const q = store.getQuads(snapshotNode, namedNode(`${VOCAB_PREFIX}buildingCount`), null, null);
-      return parseInt(q[0]?.object.value || "0", 10);
-    };
-
-    const getMetrics = () => {
-      const q = store.getQuads(snapshotNode, namedNode(`${VOCAB_PREFIX}includesMetric`), null, null);
-      return q.map((quad) => quad.object.value);
-    };
-
-    // Extract computed values
-    const metrics = getMetrics();
+    const metrics = getQuadValues(
+      store,
+      snapshotNode,
+      namedNode(`${VOCAB_PREFIX}includesMetric`),
+    );
     const values: Record<string, number> = {};
-
     for (const metric of metrics) {
-      const q = store.getQuads(snapshotNode, namedNode(`${VOCAB_PREFIX}${metric}Value`), null, null);
-      if (q.length > 0) {
-        values[metric] = parseFloat(q[0].object.value);
-      }
+      const v = getQuadValue(
+        store,
+        snapshotNode,
+        namedNode(`${VOCAB_PREFIX}${metric}Value`),
+      );
+      if (v !== undefined) values[metric] = parseFloat(v);
     }
 
     return {
-      id: getId(),
-      name: getName(),
-      aggregationType: getAggType(),
-      computedAt: getComputedAt(),
-      buildingCount: getBuildingCount(),
+      id:
+        getQuadValue(store, snapshotNode, namedNode(`${VOCAB_PREFIX}viewId`)) ??
+          "",
+      name: getQuadValue(
+        store,
+        snapshotNode,
+        namedNode(`${VOCAB_PREFIX}viewName`),
+      ) ?? "",
+      aggregationType: (getQuadValue(
+        store,
+        snapshotNode,
+        namedNode(`${VOCAB_PREFIX}aggregationType`),
+      ) ?? "average") as AggregatedViewSnapshot["aggregationType"],
+      computedAt: getQuadValue(
+        store,
+        snapshotNode,
+        namedNode(`${VOCAB_PREFIX}computedAt`),
+      ) ?? "",
+      buildingCount: parseInt(
+        getQuadValue(
+          store,
+          snapshotNode,
+          namedNode(`${VOCAB_PREFIX}buildingCount`),
+        ) ?? "0",
+        10,
+      ),
       metrics,
       values,
     };
@@ -553,7 +558,7 @@ export async function loadComputedSnapshot(
  */
 export async function getComputedSnapshotByViewId(
   session: Session,
-  viewId: string
+  viewId: string,
 ): Promise<AggregatedViewSnapshot | null> {
   if (!session.info.webId) return null;
   const snapshotUrl = getComputedViewUrl(session.info.webId, viewId);
@@ -565,7 +570,7 @@ export async function getComputedSnapshotByViewId(
  */
 export async function deleteView(
   session: Session,
-  viewId: string
+  viewId: string,
 ): Promise<void> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
@@ -578,7 +583,10 @@ export async function deleteView(
   const response = await session.fetch(definitionsUrl);
   if (response.ok) {
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: definitionsUrl });
+    const parser = new Parser({
+      format: "text/turtle",
+      baseIRI: definitionsUrl,
+    });
     const quads = parser.parse(text);
     const store = new Store(quads);
 

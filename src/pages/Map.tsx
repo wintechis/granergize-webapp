@@ -17,7 +17,11 @@ import WeatherData from "./WeatherData.tsx";
 import InvestorEnergy from "./InvestorEnergy.tsx";
 import BspEnergy from "./BspEnergy.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { MARKER_OWNED_COLOR, MARKER_SHARED_COLOR, MARKER_SELECTED_COLOR } from "../constants/chartColors.ts";
+import {
+  MARKER_OWNED_COLOR,
+  MARKER_SELECTED_COLOR,
+  MARKER_SHARED_COLOR,
+} from "../constants/chartColors.ts";
 
 // Define custom icons
 const ownedIcon = new L.Icon({
@@ -48,7 +52,8 @@ function createSelectedIcon(isShared: boolean): L.DivIcon {
     : "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png";
   return L.divIcon({
     className: "",
-    html: `<img src="${imgUrl}" style="width:25px;height:41px;filter:drop-shadow(0 0 3px ${MARKER_SELECTED_COLOR}) drop-shadow(0 0 5px ${MARKER_SELECTED_COLOR});" />`,
+    html:
+      `<img src="${imgUrl}" style="width:25px;height:41px;filter:drop-shadow(0 0 3px ${MARKER_SELECTED_COLOR}) drop-shadow(0 0 5px ${MARKER_SELECTED_COLOR});" />`,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
@@ -70,7 +75,9 @@ export default function Map({ session }: MapProps) {
 
   // Clear selection if the selected building is no longer in the loaded list (e.g. after access revocation)
   useEffect(() => {
-    if (selectedBuilding && !buildings.find((b) => b.id === selectedBuilding.id)) {
+    if (
+      selectedBuilding && !buildings.find((b) => b.id === selectedBuilding.id)
+    ) {
       setSelectedBuilding(null);
     }
   }, [buildings, selectedBuilding]);
@@ -150,7 +157,10 @@ export default function Map({ session }: MapProps) {
                     zIndex: 1000,
                   }}
                 >
-                  <Typography variant="subtitle2" sx={{ fontWeight: "bold", mb: 1 }}>
+                  <Typography
+                    variant="subtitle2"
+                    sx={{ fontWeight: "bold", mb: 1 }}
+                  >
                     Legend
                   </Typography>
                   <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
@@ -235,7 +245,9 @@ export default function Map({ session }: MapProps) {
                   {activeTab === 0 && role === "investor" && (
                     <InvestorEnergy building={selectedBuilding} />
                   )}
-                  {activeTab === 0 && role !== "investor" && role !== "benchmark_service_provider" && (selectedEnergy || role === "user") && (
+                  {activeTab === 0 && role !== "investor" &&
+                    role !== "benchmark_service_provider" &&
+                    (selectedEnergy || role === "user") && (
                     <Energy
                       selectedBuilding={selectedBuilding.id.toString()}
                       operatedBy={selectedBuilding.operatedBy?.toString() || ""}
@@ -261,8 +273,10 @@ export default function Map({ session }: MapProps) {
         <a href="https://www.scs.fraunhofer.de/">
           Fraunhofer Department for Risk and Location Analyses
         </a>{" "}
-        for the research project <a href="https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html">Granergize</a>. Contact:{" "}
-        <a href="mailto:thomas.wehr@fau.de">Thomas Wehr</a>
+        for the research project{" "}
+        <a href="https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html">
+          Granergize
+        </a>. Contact: <a href="mailto:thomas.wehr@fau.de">Thomas Wehr</a>
       </Typography>
     </Box>
   );

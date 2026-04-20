@@ -10,7 +10,10 @@ import theme from "./theme.ts";
 import Login from "./pages/Login.tsx";
 import { getDefaultSession, Session } from "@inrupt/solid-client-authn-browser";
 import { SolidDataProvider } from "./context/SolidDataContext.tsx";
-import { NotificationProvider, useNotification } from "./context/NotificationContext.tsx";
+import {
+  NotificationProvider,
+  useNotification,
+} from "./context/NotificationContext.tsx";
 import { readInbox } from "./services/interop/inbox.ts";
 
 function AppContent() {

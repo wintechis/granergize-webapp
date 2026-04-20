@@ -10,14 +10,14 @@ jobs:
         uses: denoland/setup-deno@v2
         with:
           deno-version: latest
-      - name: install && build  
+      - name: install && build
         run: deno install && deno task build
       - uses: actions/upload-artifact@v7
         with:
           name: dist
           path: dist
   deploy:
-    needs: build  
+    needs: build
     runs-on: ubuntu-latest
     steps:
       - name: Setup Repo

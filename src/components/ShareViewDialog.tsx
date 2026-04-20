@@ -4,25 +4,28 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogTitle,
-  DialogContent,
-  DialogActions,
-  TextField,
   CircularProgress,
-  Typography,
+  Dialog,
+  DialogActions,
+  DialogContent,
+  DialogTitle,
+  Divider,
+  IconButton,
   List,
   ListItem,
-  ListItemText,
   ListItemSecondaryAction,
-  IconButton,
-  Divider,
+  ListItemText,
+  TextField,
+  Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { AggregatedViewDefinition } from "../../types/types.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
-import { getSharedViews, revokeViewAccess } from "../services/interop/sharingManager.ts";
+import {
+  getSharedViews,
+  revokeViewAccess,
+} from "../services/interop/sharingManager.ts";
 import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 
@@ -33,7 +36,9 @@ interface ShareViewDialogProps {
   session: Session;
 }
 
-export default function ShareViewDialog({ open, onClose, view, session }: ShareViewDialogProps) {
+export default function ShareViewDialog(
+  { open, onClose, view, session }: ShareViewDialogProps,
+) {
   const { showNotification } = useNotification();
   const [recipientWebId, setRecipientWebId] = useState("");
   const [loading, setLoading] = useState(false);
@@ -53,8 +58,8 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
     setLoadingShared(true);
     try {
       const shares = await getSharedViews(session);
-      const viewShares = shares.filter(s => s.viewId === view.id);
-      const allSharedWith = viewShares.flatMap(s => s.sharedWith);
+      const viewShares = shares.filter((s) => s.viewId === view.id);
+      const allSharedWith = viewShares.flatMap((s) => s.sharedWith);
       setSharedWith([...new Set(allSharedWith)]);
     } catch (err) {
       console.error("Failed to load shared users:", err);
@@ -74,10 +79,17 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
       return;
     }
     const invalid = recipients.filter((r) => {
-      try { new URL(r); return false; } catch { return true; }
+      try {
+        new URL(r);
+        return false;
+      } catch {
+        return true;
+      }
     });
     if (invalid.length > 0) {
-      setWebIdError(`Invalid WebID${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`);
+      setWebIdError(
+        `Invalid WebID${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`,
+      );
       return;
     }
     setWebIdError(null);
@@ -155,8 +167,9 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
       {!loading && (
         <DialogContent>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Share this aggregated view with another user by entering their WebID.
-            They will receive read access to the computed snapshot (values only, no building details).
+            Share this aggregated view with another user by entering their
+            WebID. They will receive read access to the computed snapshot
+            (values only, no building details).
           </Typography>
 
           {shareSuccess && (
@@ -187,7 +200,8 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
                 placeholder="https://example.solidcommunity.net/profile/card#me"
                 disabled={loading}
                 error={!!webIdError}
-                helperText={webIdError || "One WebID per line, or comma-separated"}
+                helperText={webIdError ||
+                  "One WebID per line, or comma-separated"}
                 sx={{ mb: 2 }}
               />
               <Button
@@ -216,7 +230,8 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
                 ))}
               </Box>
               <Typography variant="body2" sx={{ mb: 2 }}>
-                Recipients will see computed snapshot values only — no building details.
+                Recipients will see computed snapshot values only — no building
+                details.
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
                 <Button onClick={() => setConfirmStep(false)}>Back</Button>
@@ -233,42 +248,46 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
             Currently shared with:
           </Typography>
 
-          {loadingShared ? (
-            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-              <CircularProgress size={24} />
-            </Box>
-          ) : sharedWith.length === 0 ? (
-            <Typography variant="body2" color="text.secondary">
-              Not shared with anyone yet.
-            </Typography>
-          ) : (
-            <List dense>
-              {sharedWith.map((webId) => (
-                <ListItem key={webId}>
-                  <ListItemText
-                    primary={webId}
-                    primaryTypographyProps={{
-                      sx: {
-                        overflow: "hidden",
-                        textOverflow: "ellipsis",
-                        fontSize: "0.875rem"
-                      }
-                    }}
-                  />
-                  <ListItemSecondaryAction>
-                    <IconButton
-                      edge="end"
-                      size="small"
-                      onClick={() => handleRevoke(webId)}
-                      disabled={loading}
-                    >
-                      <DeleteIcon fontSize="small" />
-                    </IconButton>
-                  </ListItemSecondaryAction>
-                </ListItem>
-              ))}
-            </List>
-          )}
+          {loadingShared
+            ? (
+              <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+                <CircularProgress size={24} />
+              </Box>
+            )
+            : sharedWith.length === 0
+            ? (
+              <Typography variant="body2" color="text.secondary">
+                Not shared with anyone yet.
+              </Typography>
+            )
+            : (
+              <List dense>
+                {sharedWith.map((webId) => (
+                  <ListItem key={webId}>
+                    <ListItemText
+                      primary={webId}
+                      primaryTypographyProps={{
+                        sx: {
+                          overflow: "hidden",
+                          textOverflow: "ellipsis",
+                          fontSize: "0.875rem",
+                        },
+                      }}
+                    />
+                    <ListItemSecondaryAction>
+                      <IconButton
+                        edge="end"
+                        size="small"
+                        onClick={() => handleRevoke(webId)}
+                        disabled={loading}
+                      >
+                        <DeleteIcon fontSize="small" />
+                      </IconButton>
+                    </ListItemSecondaryAction>
+                  </ListItem>
+                ))}
+              </List>
+            )}
         </DialogContent>
       )}
 

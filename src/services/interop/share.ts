@@ -2,12 +2,12 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { recordSharing, recordViewSharing } from "./sharingManager.ts";
 import type { UserRole } from "../../../types/types.ts";
+import { ACL_NS, GRAN_NS, RDF_TYPE } from "../utils/vocabularies.ts";
 
-const GRAN_NS = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
 const ROLE_TO_IRI: Record<string, string> = {
-  dummy:                      `${GRAN_NS}DummyRole`,
-  investor:                   `${GRAN_NS}InvestorRole`,
-  user:                       `${GRAN_NS}UserRoleInstance`,
+  dummy: `${GRAN_NS}DummyRole`,
+  investor: `${GRAN_NS}InvestorRole`,
+  user: `${GRAN_NS}UserRoleInstance`,
   benchmark_service_provider: `${GRAN_NS}BenchmarkRole`,
 };
 
@@ -18,79 +18,91 @@ export interface ShareOptions {
 }
 
 export async function shareBuildingData(
-    buildingUri: string,
-    webId: string,
-    session: Session,
-    options: ShareOptions = { includeEnergyData: true },
+  buildingUri: string,
+  webId: string,
+  session: Session,
+  options: ShareOptions = { includeEnergyData: true },
 ) {
-    // Always share the building's static data
-    await shareData(buildingUri.split("#")[0], webId, session);
-    
-    // Conditionally share energy data based on options
-    if (options.includeEnergyData) {
-        const energyUrls = await getEnergyDataUrls(buildingUri.split("#")[0], session);
-        if (energyUrls.length === 0) {
-            // Energy data is inline in the building file (e.g. investor role) — already shared above
-            console.log(`[shareBuildingData] No separate energy file found; data is inline in building TTL`);
-        } else if (!options.role || options.role === "dummy" || options.role === "investor") {
-            // Single file (dummy/investor role) - share the file directly
-            await shareData(energyUrls[0].split("#")[0], webId, session);
-        } else {
-            // Multiple daily files (user role) - share the parent container once
-            // All URLs share a common directory, so derive it from the first URL
-            const containerUrl = energyUrls[0].substring(0, energyUrls[0].lastIndexOf("/") + 1);
-            await shareContainer(containerUrl, webId, session);
-        }
+  // Always share the building's static data
+  await grantReadAccess(buildingUri.split("#")[0], webId, session);
+
+  // Conditionally share energy data based on options
+  if (options.includeEnergyData) {
+    const energyUrls = await getEnergyDataUrls(
+      buildingUri.split("#")[0],
+      session,
+    );
+    if (energyUrls.length === 0) {
+      // Energy data is inline in the building file (e.g. investor role) — already shared above
+      console.log(
+        `[shareBuildingData] No separate energy file found; data is inline in building TTL`,
+      );
+    } else if (
+      !options.role || options.role === "dummy" || options.role === "investor"
+    ) {
+      // Single file (dummy/investor role) - share the file directly
+      await grantReadAccess(energyUrls[0].split("#")[0], webId, session);
+    } else {
+      // Multiple daily files (user role) - share the parent container once
+      // All URLs share a common directory, so derive it from the first URL
+      const containerUrl = energyUrls[0].substring(
+        0,
+        energyUrls[0].lastIndexOf("/") + 1,
+      );
+      await grantReadAccess(containerUrl, webId, session, true);
     }
-    
-    await postToInbox(buildingUri.split("#")[0], webId, session, options);
-    
-    // Record the sharing in our registry
-    await recordSharing(buildingUri.split("#")[0], webId, session);
+  }
+
+  await postToInbox(buildingUri.split("#")[0], webId, session, options);
+
+  // Record the sharing in our registry
+  await recordSharing(buildingUri.split("#")[0], webId, session);
 }
 
 async function postToInbox(
-    buildingUri: string,
-    webId: string,
-    session: Session,
-    options: ShareOptions,
+  buildingUri: string,
+  webId: string,
+  session: Session,
+  options: ShareOptions,
 ) {
-    const parser = new Parser({ format: "text/turtle", baseIRI: webId });
-    const profileResponse = await session.fetch(webId, { method: "GET" });
+  const parser = new Parser({ format: "text/turtle", baseIRI: webId });
+  const profileResponse = await session.fetch(webId, { method: "GET" });
 
-    if (!profileResponse.ok) {
-        throw new Error(
-            `Failed to fetch WebID profile at ${webId}: ${profileResponse.statusText}`,
-        );
-    }
-
-    const profileText = await profileResponse.text();
-    const quads = parser.parse(profileText);
-    const store = new Store(quads);
-
-    const inboxPredicate = DataFactory.namedNode(
-        "http://www.w3.org/ns/ldp#inbox",
+  if (!profileResponse.ok) {
+    throw new Error(
+      `Failed to fetch WebID profile at ${webId}: ${profileResponse.statusText}`,
     );
-    const webIdNode = DataFactory.namedNode(webId);
-    const inboxQuads = store.getQuads(
-        webIdNode,
-        inboxPredicate,
-        null,
-        null,
-    );
+  }
 
-    if (inboxQuads.length === 0) {
-        throw new Error(`No inbox found for WebID ${webId}`);
-    }
+  const profileText = await profileResponse.text();
+  const quads = parser.parse(profileText);
+  const store = new Store(quads);
 
-    const inboxUrl = inboxQuads[0].object.value;
+  const inboxPredicate = DataFactory.namedNode(
+    "http://www.w3.org/ns/ldp#inbox",
+  );
+  const webIdNode = DataFactory.namedNode(webId);
+  const inboxQuads = store.getQuads(
+    webIdNode,
+    inboxPredicate,
+    null,
+    null,
+  );
 
-    // Build optional role triple
-    const roleIri = options.role ? (ROLE_TO_IRI[options.role] ?? `${GRAN_NS}DummyRole`) : null;
-    const roleTriple = roleIri ? `\n    gran:dataSourceRole <${roleIri}> ;` : "";
+  if (inboxQuads.length === 0) {
+    throw new Error(`No inbox found for WebID ${webId}`);
+  }
 
-    // Create the notification message
-    const message = `
+  const inboxUrl = inboxQuads[0].object.value;
+
+  // Build optional role triple
+  const roleIri = options.role
+    ? (ROLE_TO_IRI[options.role] ?? `${GRAN_NS}DummyRole`)
+    : null;
+  const roleTriple = roleIri ? `\n    gran:dataSourceRole <${roleIri}> ;` : "";
+
+  // Create the notification message
+  const message = `
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
@@ -110,126 +122,169 @@ async function postToInbox(
           interop:accessMode acl:Read
         ] .`;
 
-    // Post the message to the inbox
-    const postResponse = await session.fetch(inboxUrl, {
-        method: "POST",
-        headers: {
-            "Content-Type": "text/turtle",
-        },
-        body: message,
-    });
+  // Post the message to the inbox
+  const postResponse = await session.fetch(inboxUrl, {
+    method: "POST",
+    headers: {
+      "Content-Type": "text/turtle",
+    },
+    body: message,
+  });
 
-    if (!postResponse.ok) {
-        throw new Error(
-            `Failed to post message to inbox at ${inboxUrl}: ${postResponse.statusText}`,
-        );
-    }
+  if (!postResponse.ok) {
+    throw new Error(
+      `Failed to post message to inbox at ${inboxUrl}: ${postResponse.statusText}`,
+    );
+  }
 
-    console.log(`Successfully posted access grant message to inbox at ${inboxUrl}`);
+  console.log(
+    `Successfully posted access grant message to inbox at ${inboxUrl}`,
+  );
 }
 
 async function getEnergyDataUrls(
   buildingUri: string,
   session: Session,
 ): Promise<string[]> {
-    const parser = new Parser({ format: "text/turtle", baseIRI: buildingUri });
-    const buildingResponse = await session.fetch(buildingUri, { method: "GET" });
+  const parser = new Parser({ format: "text/turtle", baseIRI: buildingUri });
+  const buildingResponse = await session.fetch(buildingUri, { method: "GET" });
 
-    if (!buildingResponse.ok) {
-        throw new Error(
-            `Failed to fetch building data at ${buildingUri}: ${buildingResponse.statusText}`,
-        );
-    }
-    
-    const buildingText = await buildingResponse.text();
-    const quads = parser.parse(buildingText);
-    const store = new Store(quads);
-
-    console.log(`[getEnergyDataUrls] all predicates:`, [...new Set(store.getQuads(null, null, null, null).map(q => q.predicate.value))]);
-    const datasetLocationPredicate = DataFactory.namedNode(
-        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#datasetLocation"
+  if (!buildingResponse.ok) {
+    throw new Error(
+      `Failed to fetch building data at ${buildingUri}: ${buildingResponse.statusText}`,
     );
+  }
 
-    // Dummy/Investor role: single energy file via hasEnergyMeasurementData
-    const energyDataPredicate = DataFactory.namedNode(
-        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyMeasurementData"
+  const buildingText = await buildingResponse.text();
+  const quads = parser.parse(buildingText);
+  const store = new Store(quads);
+
+  console.log(`[getEnergyDataUrls] all predicates:`, [
+    ...new Set(
+      store.getQuads(null, null, null, null).map((q) => q.predicate.value),
+    ),
+  ]);
+  const datasetLocationPredicate = DataFactory.namedNode(
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#datasetLocation",
+  );
+
+  // Dummy/Investor role: single energy file via hasEnergyMeasurementData
+  const energyDataPredicate = DataFactory.namedNode(
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyMeasurementData",
+  );
+  const measurementQuads = store.getQuads(
+    null,
+    energyDataPredicate,
+    null,
+    null,
+  );
+  console.log(
+    `[getEnergyDataUrls] hasEnergyMeasurementData quads (${measurementQuads.length}):`,
+    measurementQuads.map((q) => `${q.subject.value} → ${q.object.value}`),
+  );
+  if (measurementQuads.length > 0) {
+    const blankNode = measurementQuads[0].object;
+    const locationQuads = store.getQuads(
+      blankNode,
+      datasetLocationPredicate,
+      null,
+      null,
     );
-    const measurementQuads = store.getQuads(null, energyDataPredicate, null, null);
-    console.log(`[getEnergyDataUrls] hasEnergyMeasurementData quads (${measurementQuads.length}):`, measurementQuads.map(q => `${q.subject.value} → ${q.object.value}`));
-    if (measurementQuads.length > 0) {
-        const blankNode = measurementQuads[0].object;
-        const locationQuads = store.getQuads(blankNode, datasetLocationPredicate, null, null);
-        console.log(`[getEnergyDataUrls] datasetLocation quads for blank node (${locationQuads.length}):`, locationQuads.map(q => q.object.value));
-        if (locationQuads.length > 0) {
-            return [locationQuads[0].object.value];
-        }
-    }
-
-    // User role: multiple daily files via hasEnergyConsumptionDataset
-    const consumptionDataPredicate = DataFactory.namedNode(
-        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyConsumptionDataset"
+    console.log(
+      `[getEnergyDataUrls] datasetLocation quads for blank node (${locationQuads.length}):`,
+      locationQuads.map((q) => q.object.value),
     );
-    const datasetQuads = store.getQuads(null, consumptionDataPredicate, null, null);
-    console.log(`[getEnergyDataUrls] hasEnergyConsumptionDataset quads (${datasetQuads.length}):`, datasetQuads.map(q => `${q.subject.value} → ${q.object.value}`));
-    if (datasetQuads.length > 0) {
-        const urls: string[] = [];
-        for (const dq of datasetQuads) {
-            const locationQuads = store.getQuads(dq.object, datasetLocationPredicate, null, null);
-            if (locationQuads.length > 0) {
-                urls.push(locationQuads[0].object.value);
-            }
-        }
-        if (urls.length > 0) return urls;
+    if (locationQuads.length > 0) {
+      return [locationQuads[0].object.value];
     }
+  }
 
-    return [];
+  // User role: multiple daily files via hasEnergyConsumptionDataset
+  const consumptionDataPredicate = DataFactory.namedNode(
+    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyConsumptionDataset",
+  );
+  const datasetQuads = store.getQuads(
+    null,
+    consumptionDataPredicate,
+    null,
+    null,
+  );
+  console.log(
+    `[getEnergyDataUrls] hasEnergyConsumptionDataset quads (${datasetQuads.length}):`,
+    datasetQuads.map((q) => `${q.subject.value} → ${q.object.value}`),
+  );
+  if (datasetQuads.length > 0) {
+    const urls: string[] = [];
+    for (const dq of datasetQuads) {
+      const locationQuads = store.getQuads(
+        dq.object,
+        datasetLocationPredicate,
+        null,
+        null,
+      );
+      if (locationQuads.length > 0) {
+        urls.push(locationQuads[0].object.value);
+      }
+    }
+    if (urls.length > 0) return urls;
+  }
+
+  return [];
 }
 
 /**
- * Share a Solid container with acl:default so all child resources are accessible.
+ * Grant read access to a resource (or container with acl:default) for a WebID.
+ * Fetches existing ACL (creating owner block if absent) and appends the new auth entry.
  */
-async function shareContainer(
-  containerUrl: string,
+async function grantReadAccess(
+  resourceUri: string,
   webId: string,
   session: Session,
-) {
+  isContainer = false,
+): Promise<void> {
   if (!session.info.isLoggedIn) {
     throw new Error("User is not logged in");
   }
 
-  console.log(`Sharing container ${containerUrl} with WebID ${webId}`);
+  console.log(
+    `Sharing ${
+      isContainer ? "container" : "resource"
+    } ${resourceUri} with WebID ${webId}`,
+  );
 
-  const aclUrl = `${containerUrl}.acl`;
+  const aclUrl = `${resourceUri}.acl`;
   const existingAclResponse = await session.fetch(aclUrl, { method: "GET" });
-
-  const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-  const ACL = "http://www.w3.org/ns/auth/acl#";
 
   let aclContent = "";
   if (existingAclResponse.status === 404) {
     const ownerWebId = session.info.webId as string;
-    aclContent = [
-      `<${aclUrl}#ControlReadWrite> <${RDF_TYPE}> <${ACL}Authorization> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}agent> <${ownerWebId}> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}accessTo> <${containerUrl}> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}default> <${containerUrl}> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Read> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Write> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Control> .`,
-    ].join("\n") + "\n";
+    const ownerLines = [
+      `<${aclUrl}#ControlReadWrite> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL_NS}agent> <${ownerWebId}> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL_NS}accessTo> <${resourceUri}> .`,
+      ...(isContainer
+        ? [`<${aclUrl}#ControlReadWrite> <${ACL_NS}default> <${resourceUri}> .`]
+        : []),
+      `<${aclUrl}#ControlReadWrite> <${ACL_NS}mode> <${ACL_NS}Read> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL_NS}mode> <${ACL_NS}Write> .`,
+      `<${aclUrl}#ControlReadWrite> <${ACL_NS}mode> <${ACL_NS}Control> .`,
+    ];
+    aclContent = ownerLines.join("\n") + "\n";
   } else {
     aclContent = await existingAclResponse.text();
   }
 
-  // Grant read on the container itself and all its children (acl:default)
   const authLabel = `Read_${webId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-  aclContent += [
-    `<${aclUrl}#${authLabel}> <${RDF_TYPE}> <${ACL}Authorization> .`,
-    `<${aclUrl}#${authLabel}> <${ACL}agent> <${webId}> .`,
-    `<${aclUrl}#${authLabel}> <${ACL}accessTo> <${containerUrl}> .`,
-    `<${aclUrl}#${authLabel}> <${ACL}default> <${containerUrl}> .`,
-    `<${aclUrl}#${authLabel}> <${ACL}mode> <${ACL}Read> .`,
-  ].join("\n") + "\n";
+  const authLines = [
+    `<${aclUrl}#${authLabel}> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
+    `<${aclUrl}#${authLabel}> <${ACL_NS}agent> <${webId}> .`,
+    `<${aclUrl}#${authLabel}> <${ACL_NS}accessTo> <${resourceUri}> .`,
+    ...(isContainer
+      ? [`<${aclUrl}#${authLabel}> <${ACL_NS}default> <${resourceUri}> .`]
+      : []),
+    `<${aclUrl}#${authLabel}> <${ACL_NS}mode> <${ACL_NS}Read> .`,
+  ];
+  aclContent += authLines.join("\n") + "\n";
 
   const putResponse = await session.fetch(aclUrl, {
     method: "PUT",
@@ -238,77 +293,18 @@ async function shareContainer(
   });
 
   if (!putResponse.ok) {
-    throw new Error(
-      `Failed to update container ACL: ${putResponse.status} ${putResponse.statusText}`,
-    );
-  }
-
-  console.log(`Successfully shared container ${containerUrl} with ${webId}`);
-}
-
-async function shareData(
-  resourceUri: string,
-  webId: string,
-  session: Session,
-) {
-  if (!session.info.isLoggedIn) {
-    throw new Error("User is not logged in");
-  }
-
-  console.log(`Sharing resource ${resourceUri} with WebID ${webId}`);
-
-  // Check if acl exists, if not create it
-  const aclUrl = `${resourceUri}.acl`;
-  const existingAclResponse = await session.fetch(aclUrl, {
-    method: "GET",
-  });
-
-  const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-  const ACL = "http://www.w3.org/ns/auth/acl#";
-
-  let aclContent = "";
-  if (existingAclResponse.status === 404) {
-    // Create a basic ACL granting the owner full access (N-Triples format)
-    const ownerWebId = session.info.webId as string;
-    aclContent = [
-      `<${aclUrl}#ControlReadWrite> <${RDF_TYPE}> <${ACL}Authorization> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}agent> <${ownerWebId}> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}accessTo> <${resourceUri}> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Read> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Write> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL}mode> <${ACL}Control> .`,
-    ].join("\n") + "\n";
-  } else {
-    aclContent = await existingAclResponse.text();
-  }
-
-  // Append new authorization in N-Triples format (no prefixes needed, valid Turtle subset)
-  const authLabel = `Read_${webId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-  aclContent += [
-    `<${aclUrl}#${authLabel}> <${RDF_TYPE}> <${ACL}Authorization> .`,
-    `<${aclUrl}#${authLabel}> <${ACL}agent> <${webId}> .`,
-    `<${aclUrl}#${authLabel}> <${ACL}accessTo> <${resourceUri}> .`,
-    `<${aclUrl}#${authLabel}> <${ACL}mode> <${ACL}Read> .`,
-  ].join("\n") + "\n";
-
-  // Save the updated ACL
-  const putResponse = await session.fetch(aclUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "text/turtle",
-    },
-    body: aclContent,
-  });
-
-  if (!putResponse.ok) {
     const errorBody = await putResponse.text();
-    console.error(`[shareData] PUT error body: ${errorBody}`);
+    console.error(`[grantReadAccess] PUT error body: ${errorBody}`);
     throw new Error(
       `Failed to update ACL: ${putResponse.status} ${putResponse.statusText}`,
     );
   }
 
-  console.log(`Successfully shared building ${resourceUri} with ${webId}`);
+  console.log(
+    `Successfully shared ${
+      isContainer ? "container" : "resource"
+    } ${resourceUri} with ${webId}`,
+  );
 }
 
 /**
@@ -319,7 +315,7 @@ export async function shareAggregatedView(
   snapshotUrl: string,
   viewId: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   if (!session.info.isLoggedIn) {
     throw new Error("User is not logged in");
@@ -328,7 +324,7 @@ export async function shareAggregatedView(
   console.log(`Sharing aggregated view ${snapshotUrl} with WebID ${webId}`);
 
   // Share the snapshot resource (sets ACL)
-  await shareData(snapshotUrl, webId, session);
+  await grantReadAccess(snapshotUrl, webId, session);
 
   // Post notification to recipient's inbox
   await postViewGrantToInbox(snapshotUrl, viewId, webId, session);
@@ -344,14 +340,14 @@ async function postViewGrantToInbox(
   snapshotUrl: string,
   viewId: string,
   webId: string,
-  session: Session
+  session: Session,
 ): Promise<void> {
   const parser = new Parser({ format: "text/turtle", baseIRI: webId });
   const profileResponse = await session.fetch(webId, { method: "GET" });
 
   if (!profileResponse.ok) {
     throw new Error(
-      `Failed to fetch WebID profile at ${webId}: ${profileResponse.statusText}`
+      `Failed to fetch WebID profile at ${webId}: ${profileResponse.statusText}`,
     );
   }
 
@@ -359,7 +355,9 @@ async function postViewGrantToInbox(
   const quads = parser.parse(profileText);
   const store = new Store(quads);
 
-  const inboxPredicate = DataFactory.namedNode("http://www.w3.org/ns/ldp#inbox");
+  const inboxPredicate = DataFactory.namedNode(
+    "http://www.w3.org/ns/ldp#inbox",
+  );
   const webIdNode = DataFactory.namedNode(webId);
   const inboxQuads = store.getQuads(webIdNode, inboxPredicate, null, null);
 
@@ -402,10 +400,9 @@ async function postViewGrantToInbox(
 
   if (!postResponse.ok) {
     throw new Error(
-      `Failed to post view grant message to inbox at ${inboxUrl}: ${postResponse.statusText}`
+      `Failed to post view grant message to inbox at ${inboxUrl}: ${postResponse.statusText}`,
     );
   }
 
   console.log(`Successfully posted view access grant to inbox at ${inboxUrl}`);
 }
-

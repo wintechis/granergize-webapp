@@ -4,6 +4,7 @@ import {
   Box,
   Button,
   Chip,
+  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -16,7 +17,6 @@ import {
   RadioGroup,
   TextField,
   Typography,
-  CircularProgress,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { shareBuildingData } from "../services/interop/share.ts";
@@ -69,10 +69,17 @@ export function ShareBuildingDialog({
       return;
     }
     const invalid = recipients.filter((r) => {
-      try { new URL(r); return false; } catch { return true; }
+      try {
+        new URL(r);
+        return false;
+      } catch {
+        return true;
+      }
     });
     if (invalid.length > 0) {
-      setWebIdError(`Invalid WebID${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`);
+      setWebIdError(
+        `Invalid WebID${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`,
+      );
       return;
     }
     setWebIdError("");
@@ -128,7 +135,8 @@ export function ShareBuildingDialog({
         <>
           <DialogContent>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              Enter the WebID(s) of the recipients. Separate multiple WebIDs with a comma or new line.
+              Enter the WebID(s) of the recipients. Separate multiple WebIDs
+              with a comma or new line.
             </Typography>
             <TextField
               autoFocus
@@ -145,15 +153,15 @@ export function ShareBuildingDialog({
                 if (webIdError) setWebIdError("");
               }}
               error={!!webIdError}
-              helperText={webIdError || "One WebID per line, or comma-separated"}
+              helperText={webIdError ||
+                "One WebID per line, or comma-separated"}
             />
             <FormControl component="fieldset" sx={{ mt: 3 }}>
               <FormLabel component="legend">What to share</FormLabel>
               <RadioGroup
                 value={includeEnergyData ? "both" : "static"}
                 onChange={(e) =>
-                  setIncludeEnergyData(e.target.value === "both")
-                }
+                  setIncludeEnergyData(e.target.value === "both")}
               >
                 <FormControlLabel
                   value="static"
@@ -198,8 +206,7 @@ export function ShareBuildingDialog({
               ))}
             </Box>
             <Typography variant="body2">
-              <strong>Includes:</strong>{" "}
-              {includeEnergyData
+              <strong>Includes:</strong> {includeEnergyData
                 ? "Static building data and energy readings"
                 : "Static building data only"}
             </Typography>
@@ -264,8 +271,10 @@ export function EnergyCertificateDialog({
     } catch (error) {
       console.error("Error uploading energy certificate:", error);
       showNotification(
-        `Failed to upload energy certificate: ${error instanceof Error ? error.message : String(error)}`,
-        "error"
+        `Failed to upload energy certificate: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        "error",
       );
     } finally {
       setUploading(false);

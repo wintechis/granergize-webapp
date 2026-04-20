@@ -36,7 +36,9 @@ type EnergyProps = {
   session: Session;
 };
 
-export default function Energy({ selectedBuilding, operatedBy, building, session }: EnergyProps) {
+export default function Energy(
+  { selectedBuilding, operatedBy, building, session }: EnergyProps,
+) {
   const { energyNeed, averages, agentAverages, isLoading, error, role } =
     useSolidData();
 
@@ -66,7 +68,9 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
 
   if (!energy || !averages || !agentAverages) {
     // User-role energy is loaded on demand in UserEnergyChart; bypass the guard
-    if (role === "user" && building.energyData && building.energyData.length > 0) {
+    if (
+      role === "user" && building.energyData && building.energyData.length > 0
+    ) {
       return (
         <Card>
           <CardHeader
@@ -78,7 +82,10 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
             }
           />
           <CardContent>
-            <UserEnergyChart availableDates={building.energyData} session={session} />
+            <UserEnergyChart
+              availableDates={building.energyData}
+              session={session}
+            />
           </CardContent>
         </Card>
       );
@@ -233,9 +240,11 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
                   <TableRow>
                     <TableCell>Energy Type</TableCell>
                     <TableCell align="right">kWh / a</TableCell>
-                    {/* <TableCell align="right">
+                    {
+                      /* <TableCell align="right">
                       Industry Average kWh / a
-                    </TableCell> */}
+                    </TableCell> */
+                    }
                     <TableCell align="right">Agent Average kWh / a</TableCell>
                   </TableRow>
                 </TableHead>
@@ -260,7 +269,8 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
                         >
                           {formatNumber(value)}
                         </TableCell>
-                        {/* <TableCell
+                        {
+                          /* <TableCell
                           align="right"
                           style={{
                             backgroundColor: getBackgroundColor(
@@ -270,7 +280,8 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
                           }}
                         >
                           {formatNumber(industryAverage)}
-                        </TableCell> */}
+                        </TableCell> */
+                        }
                         <TableCell
                           align="right"
                           style={{
@@ -303,7 +314,8 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
                           : 0}
                       </strong>
                     </TableCell>
-                    {/* <TableCell align="right">
+                    {
+                      /* <TableCell align="right">
                       <strong>
                         {formatNumber(
                           Object.keys(energy[title]).reduce(
@@ -312,7 +324,8 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
                           ),
                         )}
                       </strong>
-                    </TableCell> */}
+                    </TableCell> */
+                    }
                     <TableCell align="right">
                       <strong>
                         {formatNumber(
@@ -355,13 +368,13 @@ export default function Energy({ selectedBuilding, operatedBy, building, session
         </Typography>
         <Divider />
         <Stack spacing={2}>
-            {createEnergyGrid("energyNeed")}
-            {createEnergyGrid("energyGeneration")}
-            {createEnergyGrid("energyStorage")}
-            {createEnergyGrid("energyDistribution")}
-            {createEnergyGrid("energyTransfer")}
-            {createEnergyGrid("energyUsage")}
-            {createEnergyGrid("environmentalFactor")}
+          {createEnergyGrid("energyNeed")}
+          {createEnergyGrid("energyGeneration")}
+          {createEnergyGrid("energyStorage")}
+          {createEnergyGrid("energyDistribution")}
+          {createEnergyGrid("energyTransfer")}
+          {createEnergyGrid("energyUsage")}
+          {createEnergyGrid("environmentalFactor")}
         </Stack>
         <Link to="/">🠠 Back to map overview</Link>
       </CardContent>

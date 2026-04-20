@@ -1,5 +1,5 @@
-import { useState, useEffect } from "react";
-import { Line, Bar } from "react-chartjs-2";
+import { useEffect, useState } from "react";
+import { Bar, Line } from "react-chartjs-2";
 import {
   Box,
   CircularProgress,
@@ -19,7 +19,9 @@ interface UserEnergyChartProps {
   session: Session;
 }
 
-export default function UserEnergyChart({ availableDates, session }: UserEnergyChartProps) {
+export default function UserEnergyChart(
+  { availableDates, session }: UserEnergyChartProps,
+) {
   const dateEntries = availableDates
     .map((d) => ({
       label: d.location.split("/").pop()?.replace(".ttl", "") ?? d.location,
@@ -27,12 +29,18 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
     }))
     .sort((a, b) => a.label.localeCompare(b.label));
 
-  const availableMonths = [...new Set(dateEntries.map((d) => d.label.substring(0, 7)))];
+  const availableMonths = [
+    ...new Set(dateEntries.map((d) => d.label.substring(0, 7))),
+  ];
 
   // ── Tab 0: Day View ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
-  const [selectedLabel, setSelectedLabel] = useState<string>(dateEntries[0]?.label ?? "");
-  const [readings, setReadings] = useState<Array<{ begin: string; value: number }>>([]);
+  const [selectedLabel, setSelectedLabel] = useState<string>(
+    dateEntries[0]?.label ?? "",
+  );
+  const [readings, setReadings] = useState<
+    Array<{ begin: string; value: number }>
+  >([]);
   const [loading, setLoading] = useState(false);
   const [fetchError, setFetchError] = useState<string | null>(null);
 
@@ -46,29 +54,40 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
 
     (async () => {
       try {
-        const data = await parseTtlReadings(entry.location, session.fetch.bind(session));
+        const data = await parseTtlReadings(
+          entry.location,
+          session.fetch.bind(session),
+        );
         if (!cancelled) setReadings(data);
       } catch (err) {
-        if (!cancelled) setFetchError(err instanceof Error ? err.message : String(err));
+        if (!cancelled) {
+          setFetchError(err instanceof Error ? err.message : String(err));
+        }
       } finally {
         if (!cancelled) setLoading(false);
       }
     })();
 
-    return () => { cancelled = true; };
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedLabel]);
 
   // ── Tabs 1 & 2: Monthly bulk fetch ───────────────────────────────────────
   const [selectedMonth, setSelectedMonth] = useState<string>(
     availableMonths[availableMonths.length - 1] ?? "",
   );
-  const [allDaysData, setAllDaysData] = useState<Map<string, Array<{ begin: string; value: number }>> | null>(null);
+  const [allDaysData, setAllDaysData] = useState<
+    Map<string, Array<{ begin: string; value: number }>> | null
+  >(null);
   const [bulkLoading, setBulkLoading] = useState(false);
   const [bulkProgress, setBulkProgress] = useState({ loaded: 0, total: 0 });
   const [bulkError, setBulkError] = useState<string | null>(null);
 
-  const monthEntries = dateEntries.filter((d) => d.label.startsWith(selectedMonth));
+  const monthEntries = dateEntries.filter((d) =>
+    d.label.startsWith(selectedMonth)
+  );
 
   async function fetchMonthDays() {
     if (bulkLoading) return;
@@ -81,7 +100,9 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
     try {
       const settled = await Promise.allSettled(
         monthEntries.map((e) =>
-          parseTtlReadings(e.location, session.fetch.bind(session)).then((data) => ({ label: e.label, data }))
+          parseTtlReadings(e.location, session.fetch.bind(session)).then((
+            data,
+          ) => ({ label: e.label, data }))
         ),
       );
       settled.forEach((r, i) => {
@@ -98,14 +119,17 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
 
   useEffect(() => {
     if (activeTab === 1 || activeTab === 2) fetchMonthDays();
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, selectedMonth]);
 
   // ── Derived data ──────────────────────────────────────────────────────────
   const dailyTotals = allDaysData
     ? Array.from(allDaysData.entries())
-        .map(([label, rs]) => ({ label, total: rs.reduce((s, r) => s + r.value, 0) }))
-        .sort((a, b) => a.label.localeCompare(b.label))
+      .map(([label, rs]) => ({
+        label,
+        total: rs.reduce((s, r) => s + r.value, 0),
+      }))
+      .sort((a, b) => a.label.localeCompare(b.label))
     : [];
 
   const avgDailyTotal = dailyTotals.length
@@ -120,7 +144,7 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
         const slot = r.begin.substring(11, 16);
         const cur = acc.get(slot) ?? { sum: 0, count: 0 };
         acc.set(slot, { sum: cur.sum + r.value, count: cur.count + 1 });
-      }),
+      })
     );
     return Array.from(acc.entries())
       .map(([slot, { sum, count }]) => ({ slot, avg: sum / count }))
@@ -200,7 +224,10 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
         size="small"
         label="Month"
         value={selectedMonth}
-        onChange={(e) => { setAllDaysData(null); setSelectedMonth(e.target.value); }}
+        onChange={(e) => {
+          setAllDaysData(null);
+          setSelectedMonth(e.target.value);
+        }}
         slotProps={{
           inputLabel: { shrink: true },
           htmlInput: {
@@ -217,7 +244,9 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
           </Typography>
           <LinearProgress
             variant="determinate"
-            value={bulkProgress.total > 0 ? (bulkProgress.loaded / bulkProgress.total) * 100 : 0}
+            value={bulkProgress.total > 0
+              ? (bulkProgress.loaded / bulkProgress.total) * 100
+              : 0}
           />
         </Box>
       )}
@@ -271,7 +300,9 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
               {fetchError}
             </Typography>
           )}
-          {!loading && !fetchError && selectedLabel && !dateEntries.find((d) => d.label === selectedLabel) && (
+          {!loading && !fetchError && selectedLabel && !dateEntries.find((d) =>
+            d.label === selectedLabel
+          ) && (
             <Typography variant="body2" color="text.secondary">
               No data available for this date.
             </Typography>
@@ -284,8 +315,7 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
                   {dailyTotal.toLocaleString("de-DE", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
-                  })}{" "}
-                  kWh
+                  })} kWh
                 </strong>{" "}
                 ({readings.length} readings)
               </Typography>
@@ -308,8 +338,7 @@ export default function UserEnergyChart({ availableDates, session }: UserEnergyC
                   {avgDailyTotal.toLocaleString("de-DE", {
                     minimumFractionDigits: 2,
                     maximumFractionDigits: 2,
-                  })}{" "}
-                  kWh
+                  })} kWh
                 </strong>{" "}
                 ({dailyTotals.length} days)
               </Typography>
