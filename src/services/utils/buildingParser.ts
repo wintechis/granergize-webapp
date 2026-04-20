@@ -12,15 +12,13 @@ import {
   parsingFunctions,
   predicateMap,
 } from "./config/buildingConfig.ts";
-
-const INVESTOR_NS =
-  "https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#";
-const BENCH_NS =
-  "https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#";
-const SOSA_NS = "http://www.w3.org/ns/sosa/";
-const TIME_NS = "http://www.w3.org/2006/time#";
-const SSN_NS = "http://www.w3.org/ns/ssn/";
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+import {
+  INVESTOR_NS,
+  RDF_TYPE,
+  SOSA_NS,
+  SSN_NS,
+  TIME_NS,
+} from "./vocabularies.ts";
 
 /** Extract building ID from a NamedNode IRI (fragment or last path segment under /buildings/) */
 function extractBuildingId(iri: string): string | null {
@@ -72,11 +70,11 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       const numericId = /^\d+$/.test(buildingId)
         ? parseInt(buildingId)
         : buildingId
-            .split("")
-            .reduce(
-              (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0,
-              0,
-            ) >>> 0;
+          .split("")
+          .reduce(
+            (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0,
+            0,
+          ) >>> 0;
       buildings.set(buildingId, {
         id: numericId,
         // Use the RDF subject as the building URI so it links correctly with observations.
@@ -207,28 +205,29 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       if (!opCostData.has(bId)) opCostData.set(bId, {});
       const oc = opCostData.get(bId)!;
       const ln = localName(objVal);
-      if (pred === `${INVESTOR_NS}wasteDisposal`)
+      if (pred === `${INVESTOR_NS}wasteDisposal`) {
         oc.wasteDisposal = investorLocalNameLabels[ln] ?? ln;
-      else if (pred === `${INVESTOR_NS}insurance`)
+      } else if (pred === `${INVESTOR_NS}insurance`) {
         oc.insurance = investorLocalNameLabels[ln] ?? ln;
-      else if (pred === `${INVESTOR_NS}operationInspectionAndMaintenance`)
+      } else if (pred === `${INVESTOR_NS}operationInspectionAndMaintenance`) {
         oc.operationInspectionAndMaintenance = objVal.toLowerCase() === "true";
-      else if (pred === `${INVESTOR_NS}routineCleaningOffice`)
+      } else if (pred === `${INVESTOR_NS}routineCleaningOffice`) {
         oc.routineCleaningOffice = investorLocalNameLabels[ln] ?? ln;
-      else if (pred === `${INVESTOR_NS}routineCleaningWarehouse`)
+      } else if (pred === `${INVESTOR_NS}routineCleaningWarehouse`) {
         oc.routineCleaningWarehouse = investorLocalNameLabels[ln] ?? ln;
-      else if (pred === `${INVESTOR_NS}glassCleaning`)
+      } else if (pred === `${INVESTOR_NS}glassCleaning`) {
         oc.glassCleaning = investorLocalNameLabels[ln] ?? ln;
-      else if (pred === `${INVESTOR_NS}exteriorMaintenance`)
+      } else if (pred === `${INVESTOR_NS}exteriorMaintenance`) {
         oc.exteriorMaintenance = investorLocalNameLabels[ln] ?? ln;
-      else if (pred === `${INVESTOR_NS}security`)
+      } else if (pred === `${INVESTOR_NS}security`) {
         oc.security = investorLocalNameLabels[ln] ?? ln;
-      else if (pred === `${INVESTOR_NS}propertyManagement`)
+      } else if (pred === `${INVESTOR_NS}propertyManagement`) {
         oc.propertyManagement = investorLocalNameLabels[ln] ?? ln;
-      else if (pred === `${INVESTOR_NS}caretaker`)
+      } else if (pred === `${INVESTOR_NS}caretaker`) {
         oc.caretaker = investorLocalNameLabels[ln] ?? ln;
-      else if (pred === `${INVESTOR_NS}repairAndMaintenance`)
+      } else if (pred === `${INVESTOR_NS}repairAndMaintenance`) {
         oc.repairAndMaintenance = investorLocalNameLabels[ln] ?? ln;
+      }
       return;
     }
 
@@ -259,23 +258,27 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       if (!obsData.has(bId)) obsData.set(bId, {});
       const od = obsData.get(bId)!;
       if (pred === `${SOSA_NS}observedProperty`) od.observedProperty = objVal;
-      else if (pred === `${SOSA_NS}hasFeatureOfInterest`)
+      else if (pred === `${SOSA_NS}hasFeatureOfInterest`) {
         od.featureOfInterest = objVal;
-      else if (pred === `${SOSA_NS}hasResult` && obj.termType === "BlankNode")
+      } else if (
+        pred === `${SOSA_NS}hasResult` && obj.termType === "BlankNode"
+      ) {
         od.resultBlank = objVal;
-      else if (
+      } else if (
         pred === `${SOSA_NS}phenomenonTime` &&
         obj.termType === "BlankNode"
-      )
+      ) {
         od.timeBlank = objVal;
+      }
       return;
     }
 
     // ── SOSA Result blank node ──
     if (pred === `${SOSA_NS}hasSimpleResult` || pred === `${SSN_NS}hasUnit`) {
       if (!resultData.has(bId)) resultData.set(bId, {});
-      if (pred === `${SOSA_NS}hasSimpleResult`)
+      if (pred === `${SOSA_NS}hasSimpleResult`) {
         resultData.get(bId)!.value = parseFloat(objVal);
+      }
       return;
     }
 
@@ -346,8 +349,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   for (const [, od] of obsData.entries()) {
     if (!od.featureOfInterest || !od.observedProperty) continue;
 
-    const buildingId =
-      uriBuildingIdMap.get(od.featureOfInterest) ||
+    const buildingId = uriBuildingIdMap.get(od.featureOfInterest) ||
       extractBuildingId(od.featureOfInterest);
     if (!buildingId) continue;
     if (!buildings.has(buildingId)) continue;
@@ -370,16 +372,17 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     const ann = annualByKey.get(key)!;
 
     const propLocal = localName(od.observedProperty);
-    if (propLocal === "AnnualElectricityConsumption")
+    if (propLocal === "AnnualElectricityConsumption") {
       ann.electricityConsumption = value;
-    else if (propLocal === "RenewableSelfGeneratedShare")
+    } else if (propLocal === "RenewableSelfGeneratedShare") {
       ann.renewableSelfGeneratedShare = value;
-    else if (propLocal === "AnnualHeatConsumption")
+    } else if (propLocal === "AnnualHeatConsumption") {
       ann.heatConsumption = value;
-    else if (propLocal === "AnnualWaterConsumption")
+    } else if (propLocal === "AnnualWaterConsumption") {
       ann.waterConsumption = value;
-    else if (propLocal === "AnnualWastewaterConsumption")
+    } else if (propLocal === "AnnualWastewaterConsumption") {
       ann.wastewaterConsumption = value;
+    }
   }
 
   // Attach annual data to buildings, sorted by year

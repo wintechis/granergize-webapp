@@ -2,13 +2,9 @@ import type { Quad } from "@rdfjs/types";
 import { DataFactory, Store } from "n3";
 import type { EnergyType } from "../../../types/types.ts";
 import { getPropertyCategory } from "./propertyUtils.ts";
+import { RDF_TYPE, SOSA_NS, TIME_NS, USERVOC_NS } from "./vocabularies.ts";
 
 const { namedNode } = DataFactory;
-
-const USERVOC_NS = "https://solid.ti.rw.fau.de/private/granergize/user-vocab.ttl#";
-const SOSA_NS    = "http://www.w3.org/ns/sosa/";
-const TIME_NS    = "http://www.w3.org/2006/time#";
-const RDF_TYPE   = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 
 export function parseEnergyData(
   id: string,

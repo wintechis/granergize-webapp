@@ -18,7 +18,10 @@ export default defineConfig({
       enforce: "pre",
       resolveId(id) {
         if (id === "chart.js") {
-          return { id: path.join(chartJsReal, "dist/chart.js"), moduleSideEffects: false };
+          return {
+            id: path.join(chartJsReal, "dist/chart.js"),
+            moduleSideEffects: false,
+          };
         }
       },
     },
@@ -34,9 +37,15 @@ export default defineConfig({
       output: {
         manualChunks(id) {
           if (!id.includes("node_modules")) return;
-          if (id.includes("@mui") || id.includes("@emotion")) return "vendor-mui";
-          if (id.includes("chart.js") || id.includes("react-chartjs-2")) return "vendor-charts";
-          if (id.includes("leaflet") || id.includes("react-leaflet")) return "vendor-map";
+          if (id.includes("@mui") || id.includes("@emotion")) {
+            return "vendor-mui";
+          }
+          if (id.includes("chart.js") || id.includes("react-chartjs-2")) {
+            return "vendor-charts";
+          }
+          if (id.includes("leaflet") || id.includes("react-leaflet")) {
+            return "vendor-map";
+          }
           if (id.includes("@inrupt")) return "vendor-rdf";
           return "vendor";
         },

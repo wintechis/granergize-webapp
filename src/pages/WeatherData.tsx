@@ -31,15 +31,15 @@ interface WeatherDataProps {
   building: BuildingType;
 }
 
-const WEATHER_API_URL = import.meta.env.VITE_WEATHER_API_URL || '/weather-api/';
+const WEATHER_API_URL = import.meta.env.VITE_WEATHER_API_URL || "/weather-api/";
 
 const wetterdienstClient = new WetterdienstClient(
-  WEATHER_API_URL.startsWith('http') 
-    ? WEATHER_API_URL 
+  WEATHER_API_URL.startsWith("http")
+    ? WEATHER_API_URL
     : `${globalThis.location.origin}${WEATHER_API_URL}`,
   3, // maxRetries
   10000, // timeout
-  { 'Accept': 'application/json' } // headers
+  { "Accept": "application/json" }, // headers
 );
 
 // Map of parameter names to more readable titles

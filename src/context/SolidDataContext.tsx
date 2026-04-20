@@ -1,4 +1,10 @@
-import React, { createContext, useCallback, useContext, useEffect, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import {
   fetchAndParseData,
@@ -58,7 +64,10 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   children,
 }) => {
   const [data, setData] = useState<
-    Omit<ContextState, "isLoading" | "error" | "reloadData" | "energyMix" | "role" | "setRole">
+    Omit<
+      ContextState,
+      "isLoading" | "error" | "reloadData" | "energyMix" | "role" | "setRole"
+    >
   >({
     buildings: [],
     energyNeed: [],
@@ -71,7 +80,8 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   const [error, setError] = useState<string | null>(null);
   const [role, setRoleState] = useState<UserRole | null>(() => {
     try {
-      return (localStorage.getItem(ROLE_STORAGE_KEY) as UserRole | null) ?? null;
+      return (localStorage.getItem(ROLE_STORAGE_KEY) as UserRole | null) ??
+        null;
     } catch {
       return null;
     }

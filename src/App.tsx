@@ -15,10 +15,23 @@ import Typography from "@mui/material/Typography";
 
 // Create wrapper components to handle URL params
 import { Session } from "@inrupt/solid-client-authn-browser";
+import type { BuildingType } from "./types/types.ts";
+
+function useBuildingParam(): {
+  building: BuildingType | null;
+  selectedBuilding: string;
+  isLoading: boolean;
+  error: string | null;
+} {
+  const { selectedBuilding = "" } = useParams();
+  const { buildings, isLoading, error } = useSolidData();
+  const building =
+    buildings.find((b) => b.id.toString() === selectedBuilding) ?? null;
+  return { building, selectedBuilding, isLoading, error };
+}
 
 function BuildingWrapper({ session }: { session: Session }) {
-  const { selectedBuilding } = useParams();
-  const { buildings, isLoading, error } = useSolidData();
+  const { building, isLoading, error } = useBuildingParam();
 
   if (isLoading) {
     return (
@@ -34,14 +47,8 @@ function BuildingWrapper({ session }: { session: Session }) {
   }
 
   if (error) {
-    return (
-      <Typography color="error">
-        Error loading data: {error}
-      </Typography>
-    );
+    return <Typography color="error">Error loading data: {error}</Typography>;
   }
-
-  const building = buildings.find((b) => b.id.toString() === selectedBuilding);
 
   if (!building) {
     return (
@@ -55,8 +62,7 @@ function BuildingWrapper({ session }: { session: Session }) {
 }
 
 function EnergyWrapper() {
-  const { selectedBuilding } = useParams();
-  const { buildings, isLoading, error } = useSolidData();
+  const { building, selectedBuilding, isLoading, error } = useBuildingParam();
 
   if (isLoading) {
     return (
@@ -72,14 +78,8 @@ function EnergyWrapper() {
   }
 
   if (error) {
-    return (
-      <Typography color="error">
-        Error loading data: {error}
-      </Typography>
-    );
+    return <Typography color="error">Error loading data: {error}</Typography>;
   }
-
-  const building = buildings.find((b) => b.id.toString() === selectedBuilding);
 
   if (!building) {
     return (
@@ -91,7 +91,7 @@ function EnergyWrapper() {
 
   return (
     <Energy
-      selectedBuilding={selectedBuilding || ""}
+      selectedBuilding={selectedBuilding}
       operatedBy={building.operatedBy?.toString() || ""}
     />
   );
@@ -117,14 +117,20 @@ function App({ onLogout, session }: AppProps) {
     <Container maxWidth={false}>
       <HashRouter>
         <Routes>
-          <Route path="/" element={<Index onLogout={onLogout} session={session} />} />
+          <Route
+            path="/"
+            element={<Index onLogout={onLogout} session={session} />}
+          />
           <Route
             path="/building/:selectedBuilding"
             element={<BuildingWrapper session={session} />}
           />
           <Route path="/agent/:selectedAgent" element={<Agent />} />
           <Route path="/energy/:selectedBuilding" element={<EnergyWrapper />} />
-          <Route path="/view/:viewId" element={<AggregatedViewWrapper session={session} />} />
+          <Route
+            path="/view/:viewId"
+            element={<AggregatedViewWrapper session={session} />}
+          />
         </Routes>
       </HashRouter>
     </Container>

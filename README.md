@@ -1,6 +1,8 @@
 # Granergize WebApp
 
-The Granergize WebApp allows browsing and comparing energy consumption data of different buildings using the [Granergize Ontology](https://solid.ti.rw.fau.de/gra/vocab.ttl#).
+The Granergize WebApp allows browsing and comparing energy consumption data of
+different buildings using the
+[Granergize Ontology](https://solid.ti.rw.fau.de/gra/vocab.ttl#).
 
 ![Granergize WebApp](./screenshot.png)
 

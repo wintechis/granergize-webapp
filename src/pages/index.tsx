@@ -1,4 +1,4 @@
-import { useState, useEffect, lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect, useState } from "react";
 import Avatar from "@mui/material/Avatar";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
@@ -34,9 +34,11 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [createViewOpen, setCreateViewOpen] = useState(false);
-  const [viewDefinitions, setViewDefinitions] = useState<AggregatedViewDefinition[]>([]);
+  const [viewDefinitions, setViewDefinitions] = useState<
+    AggregatedViewDefinition[]
+  >([]);
   const { reloadData, buildings } = useSolidData();
-  
+
   const menuOpen = Boolean(anchorEl);
 
   useEffect(() => {
@@ -128,23 +130,25 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             gap: 2,
           }}
         >
-        <Button
-          variant="outlined"
-          startIcon={<AddIcon />}
-          onClick={handleCreateViewOpen}
-          size="small"
-        >
-          Create View
-        </Button>
-        <IconButton
-          onClick={handleRefresh}
-          disabled={inboxLoading}
-          color="primary"
-          size="large"
-          sx={{ border: "none", background: "transparent" }}
-        >
-          {inboxLoading ? <CircularProgress size={24} color="inherit" /> : <RefreshIcon />}
-        </IconButton>
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={handleCreateViewOpen}
+            size="small"
+          >
+            Create View
+          </Button>
+          <IconButton
+            onClick={handleRefresh}
+            disabled={inboxLoading}
+            color="primary"
+            size="large"
+            sx={{ border: "none", background: "transparent" }}
+          >
+            {inboxLoading
+              ? <CircularProgress size={24} color="inherit" />
+              : <RefreshIcon />}
+          </IconButton>
           <ViewSwitcher />
           <IconButton
             onClick={handleMenuOpen}
@@ -157,9 +161,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
                 height: 40,
               }}
             >
-              <PersonIcon
-                 
-              />
+              <PersonIcon />
             </Avatar>
           </IconButton>
           <Menu
@@ -197,10 +199,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       )}
       {tabValue === 1 && <EnergyMix />}
       {tabValue === 2 && (
-        <ViewsPage 
-          session={session} 
-          viewDefinitions={viewDefinitions} 
-          onRefreshViews={loadViewDefinitions} 
+        <ViewsPage
+          session={session}
+          viewDefinitions={viewDefinitions}
+          onRefreshViews={loadViewDefinitions}
         />
       )}
       <SettingsDialog

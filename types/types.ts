@@ -6,11 +6,11 @@ export type UserRole =
 
 export interface InvestorAnnualData {
   year: number;
-  electricityConsumption?: number;      // kWh
+  electricityConsumption?: number; // kWh
   renewableSelfGeneratedShare?: number; // %
-  heatConsumption?: number;             // kWh
-  waterConsumption?: number;            // m³
-  wastewaterConsumption?: number;       // m³
+  heatConsumption?: number; // kWh
+  waterConsumption?: number; // m³
+  wastewaterConsumption?: number; // m³
 }
 
 export interface InvestorOperatingCosts {
@@ -28,7 +28,7 @@ export interface InvestorOperatingCosts {
 }
 
 export interface InvestorCertification {
-  type: string;   // "BREEAM" | "DGNB" | "LEED"
+  type: string; // "BREEAM" | "DGNB" | "LEED"
   level?: string;
   scope?: string;
 }
@@ -69,7 +69,7 @@ export interface BuildingType {
   // BSP role fields
   logisticsFunction?: string;
   climateControlType?: string;
-  greenLeaseShare?: number;   // %
+  greenLeaseShare?: number; // %
   indoorTemperature?: string;
   pvInstallationYear?: number;
   pvCapacityKW?: number;

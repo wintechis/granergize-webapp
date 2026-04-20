@@ -1,7 +1,9 @@
 import type { BuildingType } from "../../../../types/types.ts";
 
-const INVESTOR_NS = "https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#";
-const BENCH_NS = "https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#";
+const INVESTOR_NS =
+  "https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#";
+const BENCH_NS =
+  "https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#";
 
 export const predicateMap: { [key: string]: keyof BuildingType } = {
   "http://schema.org/customer": "customer",

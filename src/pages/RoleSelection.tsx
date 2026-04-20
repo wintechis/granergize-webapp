@@ -23,8 +23,7 @@ const ROLES: RoleOption[] = [
   {
     role: "dummy",
     label: "Dummy",
-    description:
-      "Explore the app with sample building and energy data.",
+    description: "Explore the app with sample building and energy data.",
     icon: <EngineeringIcon sx={{ fontSize: 40 }} />,
     available: true,
   },
@@ -108,7 +107,8 @@ export default function RoleSelection({ onSelect }: RoleSelectionProps) {
             >
               <CardActionArea
                 disabled={!opt.available}
-                onClick={() => onSelect(opt.role)}
+                onClick={() =>
+                  onSelect(opt.role)}
                 sx={{ height: "100%" }}
               >
                 <CardContent
@@ -128,7 +128,9 @@ export default function RoleSelection({ onSelect }: RoleSelectionProps) {
                       width: "100%",
                     }}
                   >
-                    <Box color={opt.available ? "primary.main" : "text.disabled"}>
+                    <Box
+                      color={opt.available ? "primary.main" : "text.disabled"}
+                    >
                       {opt.icon}
                     </Box>
                     <Typography variant="h6" fontWeight="medium">

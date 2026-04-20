@@ -1,13 +1,10 @@
 import { useEffect, useState } from "react";
 import {
-  Alert,
   Box,
-  Button,
-  Chip,
   CircularProgress,
   Dialog,
-  DialogTitle,
   DialogContent,
+  DialogTitle,
   Divider,
   FormControlLabel,
   IconButton,
@@ -15,7 +12,6 @@ import {
   ListItem,
   ListItemText,
   Switch,
-  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -26,12 +22,23 @@ import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ShareIcon from "@mui/icons-material/Share";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { getSharedBuildings, revokeAccess, getSharedWithMe, toggleBuildingVisibility, getSharedViews, revokeViewAccess } from "../services/interop/sharingManager.ts";
-import { getViewDefinitions, deleteView, getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import {
+  getSharedBuildings,
+  getSharedViews,
+  getSharedWithMe,
+  revokeAccess,
+  revokeViewAccess,
+  toggleBuildingVisibility,
+} from "../services/interop/sharingManager.ts";
+import {
+  deleteView,
+  getSnapshotUrl,
+  getViewDefinitions,
+} from "../services/aggregation/viewManager.ts";
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
-import { shareAggregatedView } from "../services/interop/share.ts";
 import type { AggregatedViewDefinition } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import ShareViewDialog from "./ShareViewDialog.tsx";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -66,27 +73,30 @@ const ROLE_LABELS: Record<string, string> = {
   benchmark_service_provider: "Benchmark Service Provider",
 };
 
-export default function SettingsDialog({ open, onClose, session }: SettingsDialogProps) {
+export default function SettingsDialog(
+  { open, onClose, session }: SettingsDialogProps,
+) {
   const { showNotification } = useNotification();
   const [sharedBuildings, setSharedBuildings] = useState<SharedBuilding[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<SharedWithMeBuilding[]>([]);
-  const [viewDefinitions, setViewDefinitions] = useState<AggregatedViewDefinition[]>([]);
+  const [viewDefinitions, setViewDefinitions] = useState<
+    AggregatedViewDefinition[]
+  >([]);
   const [sharedViews, setSharedViews] = useState<SharedView[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshingViewId, setRefreshingViewId] = useState<string | null>(null);
-  const [revokingBuildingKey, setRevokingBuildingKey] = useState<string | null>(null);
+  const [revokingBuildingKey, setRevokingBuildingKey] = useState<string | null>(
+    null,
+  );
   const [revokingViewKey, setRevokingViewKey] = useState<string | null>(null);
   const [deletingViewId, setDeletingViewId] = useState<string | null>(null);
-  const [togglingVisibility, setTogglingVisibility] = useState<string | null>(null);
+  const [togglingVisibility, setTogglingVisibility] = useState<string | null>(
+    null,
+  );
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [viewToShare, setViewToShare] = useState<AggregatedViewDefinition | null>(null);
-  const [shareWebId, setShareWebId] = useState("");
-  const [sharing, setSharing] = useState(false);
-  const [shareWebIdError, setShareWebIdError] = useState("");
-  const [shareDialogError, setShareDialogError] = useState("");
-  const [shareDialogSuccess, setShareDialogSuccess] = useState(false);
-  const [shareDialogSuccessRecipients, setShareDialogSuccessRecipients] = useState<string[]>([]);
-  const [shareConfirmStep, setShareConfirmStep] = useState(false);
+  const [viewToShare, setViewToShare] = useState<
+    AggregatedViewDefinition | null
+  >(null);
 
   useEffect(() => {
     if (open) {
@@ -134,7 +144,12 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
       showNotification("Access revoked", "success");
     } catch (error) {
       console.error("Error revoking access:", error);
-      showNotification(`Failed to revoke access: ${error instanceof Error ? error.message : String(error)}`, "error");
+      showNotification(
+        `Failed to revoke access: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        "error",
+      );
     } finally {
       setRevokingBuildingKey(null);
     }
@@ -147,7 +162,12 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
       await loadSharedBuildings();
     } catch (error) {
       console.error("Error toggling visibility:", error);
-      showNotification(`Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`, "error");
+      showNotification(
+        `Failed to toggle visibility: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        "error",
+      );
     } finally {
       setTogglingVisibility(null);
     }
@@ -161,14 +181,23 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
       showNotification("View snapshot refreshed", "success");
     } catch (error) {
       console.error("Error refreshing view:", error);
-      showNotification(`Failed to refresh view: ${error instanceof Error ? error.message : String(error)}`, "error");
+      showNotification(
+        `Failed to refresh view: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        "error",
+      );
     } finally {
       setRefreshingViewId(null);
     }
   };
 
   const handleDeleteView = async (viewId: string) => {
-    if (!confirm("Are you sure you want to delete this view? This will also revoke access for all shared users.")) {
+    if (
+      !confirm(
+        "Are you sure you want to delete this view? This will also revoke access for all shared users.",
+      )
+    ) {
       return;
     }
     setDeletingViewId(viewId);
@@ -178,78 +207,26 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
       showNotification("View deleted", "success");
     } catch (error) {
       console.error("Error deleting view:", error);
-      showNotification(`Failed to delete view: ${error instanceof Error ? error.message : String(error)}`, "error");
+      showNotification(
+        `Failed to delete view: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        "error",
+      );
     } finally {
       setDeletingViewId(null);
     }
   };
 
-  const getShareRecipients = () =>
-    shareWebId.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
-
   const handleOpenShareDialog = (view: AggregatedViewDefinition) => {
     setViewToShare(view);
-    setShareWebId("");
-    setShareWebIdError("");
-    setShareDialogError("");
-    setShareDialogSuccess(false);
-    setShareDialogSuccessRecipients([]);
-    setShareConfirmStep(false);
     setShareDialogOpen(true);
   };
 
   const handleCloseShareDialog = () => {
     setShareDialogOpen(false);
     setViewToShare(null);
-    setShareWebId("");
-    setShareWebIdError("");
-    setShareDialogError("");
-    setShareDialogSuccess(false);
-    setShareDialogSuccessRecipients([]);
-    setShareConfirmStep(false);
-  };
-
-  const handleProceedToShareConfirm = () => {
-    const recipients = getShareRecipients();
-    if (recipients.length === 0) {
-      setShareWebIdError("Enter at least one WebID");
-      return;
-    }
-    const invalid = recipients.filter((r) => {
-      try { new URL(r); return false; } catch { return true; }
-    });
-    if (invalid.length > 0) {
-      setShareWebIdError(`Invalid WebID${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`);
-      return;
-    }
-    setShareWebIdError("");
-    setShareConfirmStep(true);
-  };
-
-  const handleShareView = async () => {
-    if (!viewToShare) return;
-    const recipients = getShareRecipients();
-
-    setSharing(true);
-    setShareDialogError("");
-    try {
-      const snapshotUrl = getSnapshotUrl(session.info.webId!, viewToShare.id);
-      for (const recipient of recipients) {
-        await shareAggregatedView(snapshotUrl, viewToShare.id, recipient, session);
-      }
-      setShareDialogSuccessRecipients(recipients);
-      setShareDialogSuccess(true);
-      setShareConfirmStep(false);
-      setShareWebId("");
-      await loadViewData();
-      showNotification("View shared successfully", "success");
-    } catch (error) {
-      console.error("Error sharing view:", error);
-      setShareDialogError(error instanceof Error ? error.message : String(error));
-      setShareConfirmStep(false);
-    } finally {
-      setSharing(false);
-    }
+    loadViewData();
   };
 
   const handleRevokeViewAccess = async (snapshotUrl: string, webId: string) => {
@@ -262,7 +239,12 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
       showNotification("View access revoked", "success");
     } catch (error) {
       console.error("Error revoking view access:", error);
-      showNotification(`Failed to revoke access: ${error instanceof Error ? error.message : String(error)}`, "error");
+      showNotification(
+        `Failed to revoke access: ${
+          error instanceof Error ? error.message : String(error)
+        }`,
+        "error",
+      );
     } finally {
       setRevokingViewKey(null);
     }
@@ -292,21 +274,31 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
         </Box>
       </DialogTitle>
       <Divider />
-      <DialogContent sx={{ minHeight: 400, maxHeight: "70vh", overflowY: "auto" }}>
+      <DialogContent
+        sx={{ minHeight: 400, maxHeight: "70vh", overflowY: "auto" }}
+      >
         <Box>
-            {/* Buildings you share */}
-            <Typography variant="subtitle1" fontWeight="medium" sx={{ mt: 1, mb: 1 }}>
-              Buildings you share
-            </Typography>
-            {loading ? (
+          {/* Buildings you share */}
+          <Typography
+            variant="subtitle1"
+            fontWeight="medium"
+            sx={{ mt: 1, mb: 1 }}
+          >
+            Buildings you share
+          </Typography>
+          {loading
+            ? (
               <Box display="flex" justifyContent="center" py={2}>
                 <CircularProgress size={24} />
               </Box>
-            ) : sharedBuildings.length === 0 ? (
+            )
+            : sharedBuildings.length === 0
+            ? (
               <Typography color="textSecondary" variant="body2" sx={{ mb: 1 }}>
                 No buildings shared yet.
               </Typography>
-            ) : (
+            )
+            : (
               <List sx={{ maxHeight: 240, overflowY: "auto" }}>
                 {sharedBuildings.map((building) => (
                   <Box key={building.buildingUri}>
@@ -315,40 +307,56 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                         primary={`Building ${building.buildingId}`}
                         secondary={
                           <Box component="span">
-                            {building.sharedWith.length === 0 ? (
-                              <Typography variant="body2" component="span">
-                                Not shared with anyone
-                              </Typography>
-                            ) : (
-                              building.sharedWith.map((webId) => (
-                                <Box
-                                  component="span"
-                                  key={webId}
-                                  display="flex"
-                                  alignItems="center"
-                                  justifyContent="space-between"
-                                  sx={{ mt: 1 }}
-                                >
-                                  <Tooltip title={webId}>
-                                    <Typography variant="body2" component="span" sx={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 320 }}>
-                                      {webId}
-                                    </Typography>
-                                  </Tooltip>
-                                  <IconButton
-                                    size="small"
-                                    onClick={() => handleRevokeAccess(building.buildingUri, webId)}
-                                    title="Revoke access"
-                                    disabled={revokingBuildingKey === `${building.buildingUri}__${webId}`}
+                            {building.sharedWith.length === 0
+                              ? (
+                                <Typography variant="body2" component="span">
+                                  Not shared with anyone
+                                </Typography>
+                              )
+                              : (
+                                building.sharedWith.map((webId) => (
+                                  <Box
+                                    component="span"
+                                    key={webId}
+                                    display="flex"
+                                    alignItems="center"
+                                    justifyContent="space-between"
+                                    sx={{ mt: 1 }}
                                   >
-                                    {revokingBuildingKey === `${building.buildingUri}__${webId}` ? (
-                                      <CircularProgress size={16} />
-                                    ) : (
-                                      <DeleteIcon fontSize="small" />
-                                    )}
-                                  </IconButton>
-                                </Box>
-                              ))
-                            )}
+                                    <Tooltip title={webId}>
+                                      <Typography
+                                        variant="body2"
+                                        component="span"
+                                        sx={{
+                                          flex: 1,
+                                          overflow: "hidden",
+                                          textOverflow: "ellipsis",
+                                          whiteSpace: "nowrap",
+                                          maxWidth: 320,
+                                        }}
+                                      >
+                                        {webId}
+                                      </Typography>
+                                    </Tooltip>
+                                    <IconButton
+                                      size="small"
+                                      onClick={() =>
+                                        handleRevokeAccess(
+                                          building.buildingUri,
+                                          webId,
+                                        )}
+                                      title="Revoke access"
+                                      disabled={revokingBuildingKey ===
+                                        `${building.buildingUri}__${webId}`}
+                                    >
+                                      {revokingBuildingKey ===
+                                          `${building.buildingUri}__${webId}`
+                                        ? <CircularProgress size={16} />
+                                        : <DeleteIcon fontSize="small" />}
+                                    </IconButton>
+                                  </Box>
+                                ))
+                              )}
                           </Box>
                         }
                       />
@@ -359,21 +367,26 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
               </List>
             )}
 
-            <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 3 }} />
 
-            {/* Buildings shared with you */}
-            <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
-              Buildings shared with you
-            </Typography>
-            {loading ? (
+          {/* Buildings shared with you */}
+          <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
+            Buildings shared with you
+          </Typography>
+          {loading
+            ? (
               <Box display="flex" justifyContent="center" py={2}>
                 <CircularProgress size={24} />
               </Box>
-            ) : sharedWithMe.length === 0 ? (
+            )
+            : sharedWithMe.length === 0
+            ? (
               <Typography color="textSecondary" variant="body2" sx={{ mb: 1 }}>
-                No buildings have been shared with you yet. Ask a building owner to share their data with your WebID.
+                No buildings have been shared with you yet. Ask a building owner
+                to share their data with your WebID.
               </Typography>
-            ) : (
+            )
+            : (
               <List sx={{ maxHeight: 240, overflowY: "auto" }}>
                 {sharedWithMe.map((building) => (
                   <Box key={building.buildingUri}>
@@ -384,30 +397,42 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                           <>
                             {`Shared by: ${building.sharedBy}`}
                             {building.sharedRole && (
-                              <Typography variant="body2" component="span" display="block">
-                                {`Role: ${ROLE_LABELS[building.sharedRole] ?? building.sharedRole}`}
+                              <Typography
+                                variant="body2"
+                                component="span"
+                                display="block"
+                              >
+                                {`Role: ${
+                                  ROLE_LABELS[building.sharedRole] ??
+                                    building.sharedRole
+                                }`}
                               </Typography>
                             )}
                           </>
                         }
                       />
-                      {togglingVisibility === building.buildingUri ? (
-                        <CircularProgress size={24} sx={{ mx: 1 }} />
-                      ) : (
-                        <Tooltip title="Controls whether this building appears in your dashboard. Does not affect the owner's sharing settings.">
-                          <FormControlLabel
-                            control={
-                              <Switch
-                                checked={building.isVisible}
-                                onChange={() => handleToggleVisibility(building.buildingUri)}
-                                icon={<VisibilityOffIcon />}
-                                checkedIcon={<VisibilityIcon />}
-                              />
-                            }
-                            label={building.isVisible ? "Shown in my dashboard" : "Hidden from my dashboard"}
-                          />
-                        </Tooltip>
-                      )}
+                      {togglingVisibility === building.buildingUri
+                        ? <CircularProgress size={24} sx={{ mx: 1 }} />
+                        : (
+                          <Tooltip title="Controls whether this building appears in your dashboard. Does not affect the owner's sharing settings.">
+                            <FormControlLabel
+                              control={
+                                <Switch
+                                  checked={building.isVisible}
+                                  onChange={() =>
+                                    handleToggleVisibility(
+                                      building.buildingUri,
+                                    )}
+                                  icon={<VisibilityOffIcon />}
+                                  checkedIcon={<VisibilityIcon />}
+                                />
+                              }
+                              label={building.isVisible
+                                ? "Shown in my dashboard"
+                                : "Hidden from my dashboard"}
+                            />
+                          </Tooltip>
+                        )}
                     </ListItem>
                     <Divider />
                   </Box>
@@ -415,17 +440,20 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
               </List>
             )}
 
-            <Divider sx={{ my: 3 }} />
+          <Divider sx={{ my: 3 }} />
 
-            {/* Aggregated views */}
-            <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
-              Aggregated views
-            </Typography>
-            {viewDefinitions.length === 0 ? (
+          {/* Aggregated views */}
+          <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
+            Aggregated views
+          </Typography>
+          {viewDefinitions.length === 0
+            ? (
               <Typography color="textSecondary" variant="body2">
-                No aggregated views yet. Create one from the Views tab on the main page.
+                No aggregated views yet. Create one from the Views tab on the
+                main page.
               </Typography>
-            ) : (
+            )
+            : (
               <List sx={{ maxHeight: 300, overflowY: "auto" }}>
                 {viewDefinitions.map((view) => {
                   const sharedWith = getViewSharedWith(view.id);
@@ -436,16 +464,36 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                           primary={view.name}
                           secondary={
                             <Box component="span">
-                              <Typography variant="body2" component="span" display="block">
-                                Type: {view.aggregationType} | Buildings: {view.buildingUris.length} | Metrics: {view.metrics.length}
+                              <Typography
+                                variant="body2"
+                                component="span"
+                                display="block"
+                              >
+                                Type: {view.aggregationType} | Buildings:{" "}
+                                {view.buildingUris.length} | Metrics:{" "}
+                                {view.metrics.length}
                               </Typography>
-                              <Typography variant="body2" component="span" display="block" color="textSecondary">
-                                Created: {new Date(view.createdAt).toLocaleDateString()}
-                                {view.lastComputedAt && ` | Last computed: ${new Date(view.lastComputedAt).toLocaleDateString()}`}
+                              <Typography
+                                variant="body2"
+                                component="span"
+                                display="block"
+                                color="textSecondary"
+                              >
+                                Created:{" "}
+                                {new Date(view.createdAt).toLocaleDateString()}
+                                {view.lastComputedAt &&
+                                  ` | Last computed: ${
+                                    new Date(view.lastComputedAt)
+                                      .toLocaleDateString()
+                                  }`}
                               </Typography>
                               {sharedWith.length > 0 && (
                                 <Box component="span" sx={{ mt: 1 }}>
-                                  <Typography variant="body2" component="span" color="primary">
+                                  <Typography
+                                    variant="body2"
+                                    component="span"
+                                    color="primary"
+                                  >
                                     Shared with:
                                   </Typography>
                                   {sharedWith.map((webId) => (
@@ -458,24 +506,49 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                                       sx={{ mt: 0.5 }}
                                     >
                                       <Tooltip title={webId}>
-                                        <Typography variant="body2" component="span" sx={{ flex: 1, fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 280 }}>
+                                        <Typography
+                                          variant="body2"
+                                          component="span"
+                                          sx={{
+                                            flex: 1,
+                                            fontSize: "0.8rem",
+                                            overflow: "hidden",
+                                            textOverflow: "ellipsis",
+                                            whiteSpace: "nowrap",
+                                            maxWidth: 280,
+                                          }}
+                                        >
                                           {webId}
                                         </Typography>
                                       </Tooltip>
                                       <IconButton
                                         size="small"
-                                        onClick={() => handleRevokeViewAccess(
-                                          getSnapshotUrl(session.info.webId!, view.id),
-                                          webId
-                                        )}
+                                        onClick={() =>
+                                          handleRevokeViewAccess(
+                                            getSnapshotUrl(
+                                              session.info.webId!,
+                                              view.id,
+                                            ),
+                                            webId,
+                                          )}
                                         title="Revoke access"
-                                        disabled={revokingViewKey === `${getSnapshotUrl(session.info.webId!, view.id)}__${webId}`}
+                                        disabled={revokingViewKey ===
+                                          `${
+                                            getSnapshotUrl(
+                                              session.info.webId!,
+                                              view.id,
+                                            )
+                                          }__${webId}`}
                                       >
-                                        {revokingViewKey === `${getSnapshotUrl(session.info.webId!, view.id)}__${webId}` ? (
-                                          <CircularProgress size={16} />
-                                        ) : (
-                                          <DeleteIcon fontSize="small" />
-                                        )}
+                                        {revokingViewKey ===
+                                            `${
+                                              getSnapshotUrl(
+                                                session.info.webId!,
+                                                view.id,
+                                              )
+                                            }__${webId}`
+                                          ? <CircularProgress size={16} />
+                                          : <DeleteIcon fontSize="small" />}
                                       </IconButton>
                                     </Box>
                                   ))}
@@ -491,11 +564,9 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                             title="Refresh snapshot"
                             disabled={refreshingViewId === view.id}
                           >
-                            {refreshingViewId === view.id ? (
-                              <CircularProgress size={20} />
-                            ) : (
-                              <RefreshIcon />
-                            )}
+                            {refreshingViewId === view.id
+                              ? <CircularProgress size={20} />
+                              : <RefreshIcon />}
                           </IconButton>
                           <IconButton
                             size="small"
@@ -510,11 +581,9 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                             title="Delete view"
                             disabled={deletingViewId === view.id}
                           >
-                            {deletingViewId === view.id ? (
-                              <CircularProgress size={20} />
-                            ) : (
-                              <DeleteIcon />
-                            )}
+                            {deletingViewId === view.id
+                              ? <CircularProgress size={20} />
+                              : <DeleteIcon />}
                           </IconButton>
                         </Box>
                       </ListItem>
@@ -524,104 +593,17 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
                 })}
               </List>
             )}
-          </Box>
+        </Box>
       </DialogContent>
 
-      {/* Share View Dialog */}
-      <Dialog open={shareDialogOpen} onClose={handleCloseShareDialog} maxWidth="sm" fullWidth>
-        <DialogTitle>Share Aggregated View</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Share "{viewToShare?.name}" with another user. They will receive access
-            to the computed snapshot values only, without seeing which buildings
-            were included.
-          </Typography>
-
-          {shareDialogSuccess && (
-            <Alert severity="success" sx={{ mb: 2 }}>
-              Shared successfully with {shareDialogSuccessRecipients.join(", ")}
-            </Alert>
-          )}
-
-          {shareDialogError && !shareConfirmStep && (
-            <Alert severity="error" sx={{ mb: 2 }}>
-              {shareDialogError}
-            </Alert>
-          )}
-
-          {!shareConfirmStep && (
-            <TextField
-              autoFocus
-              margin="dense"
-              label="Recipient WebID(s)"
-              type="url"
-              fullWidth
-              multiline
-              minRows={2}
-              variant="outlined"
-              value={shareWebId}
-              onChange={(e) => {
-                setShareWebId(e.target.value);
-                if (shareWebIdError) setShareWebIdError("");
-                if (shareDialogSuccess) setShareDialogSuccess(false);
-              }}
-              placeholder="https://example.solidcommunity.net/profile/card#me"
-              error={!!shareWebIdError}
-              helperText={shareWebIdError || "One WebID per line, or comma-separated"}
-            />
-          )}
-
-          {shareConfirmStep && (
-            <Box sx={{ mt: 1 }}>
-              {shareDialogError && (
-                <Alert severity="error" sx={{ mb: 2 }}>
-                  {shareDialogError}
-                </Alert>
-              )}
-              <Typography variant="body2" color="text.secondary" gutterBottom>
-                Confirm sharing with:
-              </Typography>
-              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
-                {getShareRecipients().map((r) => (
-                  <Chip key={r} label={r} size="small" variant="outlined" />
-                ))}
-              </Box>
-              <Typography variant="body2">
-                Recipients see computed snapshot values only — no building details.
-              </Typography>
-            </Box>
-          )}
-        </DialogContent>
-        <Box sx={{ display: "flex", justifyContent: "flex-end", p: 2, gap: 1 }}>
-          {shareConfirmStep ? (
-            <>
-              <Button onClick={() => setShareConfirmStep(false)} disabled={sharing}>
-                Back
-              </Button>
-              <Button
-                onClick={handleShareView}
-                variant="contained"
-                disabled={sharing}
-              >
-                {sharing ? <CircularProgress size={20} /> : "Confirm Share"}
-              </Button>
-            </>
-          ) : (
-            <>
-              <Button onClick={handleCloseShareDialog}>
-                Cancel
-              </Button>
-              <Button
-                onClick={handleProceedToShareConfirm}
-                variant="contained"
-                disabled={!shareWebId.trim() || sharing}
-              >
-                Review & Share
-              </Button>
-            </>
-          )}
-        </Box>
-      </Dialog>
+      {viewToShare && (
+        <ShareViewDialog
+          view={viewToShare}
+          open={shareDialogOpen}
+          onClose={handleCloseShareDialog}
+          session={session}
+        />
+      )}
     </Dialog>
   );
 }

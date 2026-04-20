@@ -5,18 +5,17 @@ import { parseEnergyData } from "./utils/energyDataParser.ts";
 import type { BuildingType, EnergyType, UserRole } from "../../types/types.ts";
 import { DataFactory, Parser, Store, Term, Writer } from "n3";
 import type { Quad } from "@rdfjs/types";
-import { getStorageRoot, getPodBaseUrl } from "./utils/solidUtils.ts";
+import { getPodBaseUrl, getStorageRoot } from "./utils/solidUtils.ts";
+import { GRAN_NS } from "./utils/vocabularies.ts";
 
 const { namedNode } = DataFactory;
 
-const GRAN_NS = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
-
 /** Maps gran: role IRIs back to TypeScript UserRole values */
 const IRI_TO_ROLE: Record<string, UserRole> = {
-  [`${GRAN_NS}DummyRole`]:          "dummy",
-  [`${GRAN_NS}InvestorRole`]:       "investor",
-  [`${GRAN_NS}UserRoleInstance`]:   "user",
-  [`${GRAN_NS}BenchmarkRole`]:      "benchmark_service_provider",
+  [`${GRAN_NS}DummyRole`]: "dummy",
+  [`${GRAN_NS}InvestorRole`]: "investor",
+  [`${GRAN_NS}UserRoleInstance`]: "user",
+  [`${GRAN_NS}BenchmarkRole`]: "benchmark_service_provider",
 };
 
 /**
@@ -26,7 +25,9 @@ async function loadTtlFromMultipleSources(
   urls: string[],
   session: Session,
   description: string,
-): Promise<{ quads: Quad[]; failedSources: Array<{ url: string; status: number }> }> {
+): Promise<
+  { quads: Quad[]; failedSources: Array<{ url: string; status: number }> }
+> {
   const allQuads: Quad[] = [];
   const successfulSources: string[] = [];
   const failedSources: { url: string; error: string; status?: number }[] = [];
@@ -110,8 +111,8 @@ async function loadTtlFromMultipleSources(
   return {
     quads: allQuads,
     failedSources: failedSources
-      .filter(f => f.status === 403 || f.status === 404)
-      .map(f => ({ url: f.url, status: f.status! }))
+      .filter((f) => f.status === 403 || f.status === 404)
+      .map((f) => ({ url: f.url, status: f.status! })),
   };
 }
 
@@ -141,7 +142,7 @@ async function loadTtlWithSession(
  */
 async function removeInaccessibleBuildingSources(
   failedSources: Array<{ url: string; status: number }>,
-  session: Session
+  session: Session,
 ): Promise<void> {
   const webId = session.info.webId;
   if (!webId) {
@@ -163,7 +164,7 @@ async function removeInaccessibleBuildingSources(
     const store = new Store(quads);
 
     const buildingSourcePredicate = namedNode(
-      `${GRAN_NS}hasBuildingDataSource`
+      `${GRAN_NS}hasBuildingDataSource`,
     );
     const registryNode = namedNode(registryUrl);
 
@@ -172,12 +173,26 @@ async function removeInaccessibleBuildingSources(
     let removed = false;
     for (const failed of failedSources) {
       const sourceNode = namedNode(failed.url);
-      const quadsToRemove = store.getQuads(registryNode, buildingSourcePredicate, sourceNode, null);
+      const quadsToRemove = store.getQuads(
+        registryNode,
+        buildingSourcePredicate,
+        sourceNode,
+        null,
+      );
       if (quadsToRemove.length > 0) {
-        quadsToRemove.forEach((q) => store.removeQuad(q as Parameters<typeof store.removeQuad>[0]));
+        quadsToRemove.forEach((q) =>
+          store.removeQuad(q as Parameters<typeof store.removeQuad>[0])
+        );
         // Also remove the role annotation for this building URL
-        const roleQuads = store.getQuads(sourceNode, dataSourceRolePredicate, null, null);
-        roleQuads.forEach((q) => store.removeQuad(q as Parameters<typeof store.removeQuad>[0]));
+        const roleQuads = store.getQuads(
+          sourceNode,
+          dataSourceRolePredicate,
+          null,
+          null,
+        );
+        roleQuads.forEach((q) =>
+          store.removeQuad(q as Parameters<typeof store.removeQuad>[0])
+        );
         removed = true;
         console.log(`Removed inaccessible building source: ${failed.url}`);
       }
@@ -186,7 +201,9 @@ async function removeInaccessibleBuildingSources(
     // Only update if we removed something
     if (removed) {
       const writer = new Writer({ format: "text/turtle" });
-      const updatedTtl = writer.quadsToString(store.getQuads(null, null, null, null));
+      const updatedTtl = writer.quadsToString(
+        store.getQuads(null, null, null, null),
+      );
 
       await session.fetch(registryUrl, {
         method: "PUT",
@@ -203,7 +220,9 @@ async function removeInaccessibleBuildingSources(
 
 async function getSourceRegistry(
   session: Session,
-): Promise<{ agents: string[]; buildings: Array<{ url: string; role: UserRole }> }> {
+): Promise<
+  { agents: string[]; buildings: Array<{ url: string; role: UserRole }> }
+> {
   const webId = session.info.webId;
   if (!webId) {
     throw new Error("No WebID found in session.");
@@ -266,13 +285,20 @@ async function getSourceRegistry(
       if (quad.object.termType === "NamedNode") {
         const url = quad.object.value;
         // Look up the role annotation for this building URL
-        const roleQuads = store.getQuads(namedNode(url), dataSourceRolePredicate, null, null);
+        const roleQuads = store.getQuads(
+          namedNode(url),
+          dataSourceRolePredicate,
+          null,
+          null,
+        );
         let role: UserRole = "dummy"; // default for backward compat
-        if (roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode") {
+        if (
+          roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode"
+        ) {
           role = IRI_TO_ROLE[roleQuads[0].object.value] ?? "dummy";
         }
         buildingSources.push({ url, role });
-      } 
+      }
     });
 
     const agentQuads = store.getQuads(
@@ -312,11 +338,12 @@ async function getHiddenBuildings(session: Session): Promise<Set<string>> {
 
   // Extract storage root
   const storageRoot = getStorageRoot(webId);
-  const hiddenBuildingsUrl = `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
+  const hiddenBuildingsUrl =
+    `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
 
   try {
     const response = await session.fetch(hiddenBuildingsUrl);
-    
+
     if (response.status === 404) {
       // Create an empty hidden buildings file for future use
       await session.fetch(hiddenBuildingsUrl, {
@@ -326,21 +353,22 @@ async function getHiddenBuildings(session: Session): Promise<Set<string>> {
       });
       return new Set();
     }
-    
+
     if (!response.ok) {
       console.warn(`Failed to fetch hidden buildings: ${response.statusText}`);
       return new Set();
     }
-    
+
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: hiddenBuildingsUrl });
+    const parser = new Parser({
+      format: "text/turtle",
+      baseIRI: hiddenBuildingsUrl,
+    });
     const quads = parser.parse(text);
     const store = new Store(quads);
 
-    const hiddenPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hiddenBuilding"
-    );
-    
+    const hiddenPredicate = DataFactory.namedNode(`${GRAN_NS}hiddenBuilding`);
+
     const hiddenQuads = store.getQuads(null, hiddenPredicate, null, null);
     const hiddenSet = new Set<string>();
 
@@ -357,7 +385,10 @@ async function getHiddenBuildings(session: Session): Promise<Set<string>> {
   }
 }
 
-export async function fetchAndParseData(session: Session, role: UserRole | null = null) {
+export async function fetchAndParseData(
+  session: Session,
+  role: UserRole | null = null,
+) {
   // get own solid pod url
   const webId = session.info.webId;
   if (!webId) {
@@ -368,8 +399,8 @@ export async function fetchAndParseData(session: Session, role: UserRole | null 
 
   // Filter building sources by the selected role (null = load all)
   const roleFilteredBuildings = dataSources.buildings
-    .filter(b => role === null || b.role === role)
-    .map(b => b.url);
+    .filter((b) => role === null || b.role === role)
+    .map((b) => b.url);
 
   // Load hidden buildings list
   const hiddenBuildingUris = await getHiddenBuildings(session);
@@ -389,7 +420,10 @@ export async function fetchAndParseData(session: Session, role: UserRole | null 
 
   // Remove inaccessible building sources from registry (403/404 errors)
   if (buildingsResult.failedSources.length > 0) {
-    await removeInaccessibleBuildingSources(buildingsResult.failedSources, session);
+    await removeInaccessibleBuildingSources(
+      buildingsResult.failedSources,
+      session,
+    );
   }
 
   // Parse the merged quad collections
@@ -403,13 +437,13 @@ export async function fetchAndParseData(session: Session, role: UserRole | null 
   // Filter out hidden buildings and mark shared buildings
   const visibleBuildings = new Map<string, BuildingType>();
   for (const [buildingId, building] of buildings) {
-    if (!hiddenBuildingUris.has(building.uri.split('#')[0])) {
+    if (!hiddenBuildingUris.has(building.uri.split("#")[0])) {
       // Check if building is from external source (shared with user)
       // Use sourceUri for ownership check (tracks where the file came from)
       const sourceForOwnershipCheck = building.sourceUri || building.uri;
       const isOwnBuilding = sourceForOwnershipCheck.startsWith(storageRoot);
       building.isShared = !isOwnBuilding;
-      
+
       visibleBuildings.set(buildingId, building);
     }
   }
@@ -420,89 +454,96 @@ export async function fetchAndParseData(session: Session, role: UserRole | null 
 
   // User-role energy data is loaded on demand in UserEnergyChart; skip bulk loading
   if (role !== "user") {
-  // Load energy data for each building (only visible ones)
-  for (const [buildingId, building] of visibleBuildings) {
-    if (!building.energyData) {
-      continue;
-    }
+    // Load energy data for each building (only visible ones)
+    for (const [buildingId, building] of visibleBuildings) {
+      if (!building.energyData) {
+        continue;
+      }
 
-    for (const data of building.energyData) {
-      try {
-        // For each building's energy data, try primary and alternative sources
-        const energyDataSources = [
-          data.location,
-        ];
+      for (const data of building.energyData) {
+        try {
+          // For each building's energy data, try primary and alternative sources
+          const energyDataSources = [
+            data.location,
+          ];
 
-        const energyResult = await loadTtlFromMultipleSources(
-          energyDataSources,
-          session,
-          `energy data for building ${buildingId}`,
-        );
+          const energyResult = await loadTtlFromMultipleSources(
+            energyDataSources,
+            session,
+            `energy data for building ${buildingId}`,
+          );
 
-        const uri = energyResult.quads[0].graph.value;
-        const parsedEnergyData = parseEnergyData(buildingId, uri, energyResult.quads);
+          const uri = energyResult.quads[0].graph.value;
+          const parsedEnergyData = parseEnergyData(
+            buildingId,
+            uri,
+            energyResult.quads,
+          );
 
-        // Derive a stable numeric id matching buildingParser's logic
-        const numericBuildingId = /^\d+$/.test(buildingId)
-          ? parseInt(buildingId)
-          : buildingId.split("").reduce(
-              (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0, 0,
+          // Derive a stable numeric id matching buildingParser's logic
+          const numericBuildingId = /^\d+$/.test(buildingId)
+            ? parseInt(buildingId)
+            : buildingId.split("").reduce(
+              (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0,
+              0,
             ) >>> 0;
-        parsedEnergyData.id = numericBuildingId;
+          parsedEnergyData.id = numericBuildingId;
 
-        // User-role buildings produce one EnergyType entry per daily file;
-        // merge all timeSeries arrays instead of overwriting the entry.
-        if (parsedEnergyData.timeSeries) {
-          const existing = energyData.get(numericBuildingId);
-          if (existing?.timeSeries) {
-            existing.timeSeries.electricityConsumption.push(
-              ...parsedEnergyData.timeSeries.electricityConsumption,
-            );
-          } else {
-            energyData.set(numericBuildingId, parsedEnergyData);
+          // User-role buildings produce one EnergyType entry per daily file;
+          // merge all timeSeries arrays instead of overwriting the entry.
+          if (parsedEnergyData.timeSeries) {
+            const existing = energyData.get(numericBuildingId);
+            if (existing?.timeSeries) {
+              existing.timeSeries.electricityConsumption.push(
+                ...parsedEnergyData.timeSeries.electricityConsumption,
+              );
+            } else {
+              energyData.set(numericBuildingId, parsedEnergyData);
+            }
+            // Skip categorical aggregation for time-series data
+            continue;
           }
-          // Skip categorical aggregation for time-series data
-          continue;
-        }
 
-        energyData.set(numericBuildingId, parsedEnergyData);
+          energyData.set(numericBuildingId, parsedEnergyData);
 
-        // Aggregate values for each measurement
-        for (const category in parsedEnergyData) {
-          const categoryData =
-            parsedEnergyData[category as keyof EnergyType] as Record<
-              string,
-              number
-            >;
-          for (const property in categoryData) {
-            if (!aggregatedValues[property]) {
-              aggregatedValues[property] = [];
-            }
-            aggregatedValues[property].push(categoryData[property]);
+          // Aggregate values for each measurement
+          for (const category in parsedEnergyData) {
+            const categoryData =
+              parsedEnergyData[category as keyof EnergyType] as Record<
+                string,
+                number
+              >;
+            for (const property in categoryData) {
+              if (!aggregatedValues[property]) {
+                aggregatedValues[property] = [];
+              }
+              aggregatedValues[property].push(categoryData[property]);
 
-            // Aggregate values by agent
-            const agent = building.operatedBy;
-            if (!agent) {
-              continue;
+              // Aggregate values by agent
+              const agent = building.operatedBy;
+              if (!agent) {
+                continue;
+              }
+              if (!agentAggregatedValues[agent]) {
+                agentAggregatedValues[agent] = {};
+              }
+              if (!agentAggregatedValues[agent][property]) {
+                agentAggregatedValues[agent][property] = [];
+              }
+              agentAggregatedValues[agent][property].push(
+                categoryData[property],
+              );
             }
-            if (!agentAggregatedValues[agent]) {
-              agentAggregatedValues[agent] = {};
-            }
-            if (!agentAggregatedValues[agent][property]) {
-              agentAggregatedValues[agent][property] = [];
-            }
-            agentAggregatedValues[agent][property].push(categoryData[property]);
           }
+        } catch (error: unknown) {
+          console.error(
+            `Failed to load energy data for building ${buildingId}:`,
+            error,
+          );
+          // Continue processing other buildings instead of throwing
         }
-      } catch (error: unknown) {
-        console.error(
-          `Failed to load energy data for building ${buildingId}:`,
-          error,
-        );
-        // Continue processing other buildings instead of throwing
       }
     }
-  }
   } // end if (role !== "user")
 
   // Calculate averages
@@ -582,8 +623,20 @@ export async function parseEnergyMix(session: Session) {
   consumptionQuads.forEach((quad: Quad) => {
     const cityUrl = quad.subject.value;
     const cityId = cityUrl.substring(cityUrl.lastIndexOf("/") + 1);
-    const value = getQuadFloat(consumptionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#value"));
-    const renewableEnergyShare = getQuadFloat(consumptionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#renewableEnergyShare"));
+    const value = getQuadFloat(
+      consumptionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#value",
+      ),
+    );
+    const renewableEnergyShare = getQuadFloat(
+      consumptionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#renewableEnergyShare",
+      ),
+    );
     energyConsumption[cityId] = { value, renewableEnergyShare };
   });
 
@@ -599,17 +652,83 @@ export async function parseEnergyMix(session: Session) {
   productionQuads.forEach((quad: Quad) => {
     const cityUrl = quad.subject.value;
     const cityId = cityUrl.substring(cityUrl.lastIndexOf("/") + 1);
-    const hydroShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hydroShare"));
-    const windShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#windShare"));
-    const solarShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#solarShare"));
-    const biomassShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#biomassShare"));
-    const geothermalShare = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#geothermalShare"));
-    const hydroProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hydroProduction"));
-    const windProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#windProduction"));
-    const solarProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#solarProduction"));
-    const biomassProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#biomassProduction"));
-    const geothermalProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#geothermalProduction"));
-    const totalRenewableProduction = getQuadFloat(productionStore, quad.object as Term, namedNode("https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#totalRenewableProduction"));
+    const hydroShare = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hydroShare",
+      ),
+    );
+    const windShare = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#windShare",
+      ),
+    );
+    const solarShare = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#solarShare",
+      ),
+    );
+    const biomassShare = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#biomassShare",
+      ),
+    );
+    const geothermalShare = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#geothermalShare",
+      ),
+    );
+    const hydroProduction = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hydroProduction",
+      ),
+    );
+    const windProduction = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#windProduction",
+      ),
+    );
+    const solarProduction = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#solarProduction",
+      ),
+    );
+    const biomassProduction = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#biomassProduction",
+      ),
+    );
+    const geothermalProduction = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#geothermalProduction",
+      ),
+    );
+    const totalRenewableProduction = getQuadFloat(
+      productionStore,
+      quad.object as Term,
+      namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#totalRenewableProduction",
+      ),
+    );
     energyProduction[cityId] = {
       hydroShare,
       windShare,

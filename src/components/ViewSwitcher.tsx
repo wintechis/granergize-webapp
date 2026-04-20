@@ -20,10 +20,14 @@ interface ViewOption {
 }
 
 const VIEW_OPTIONS: ViewOption[] = [
-  { role: "dummy",                      label: "Dummy",                      icon: <EngineeringIcon /> },
-  { role: "investor",                   label: "Investor",                   icon: <BusinessIcon /> },
-  { role: "user",                       label: "User",                       icon: <PersonIcon /> },
-  { role: "benchmark_service_provider", label: "Benchmark Service Provider", icon: <AnalyticsIcon /> },
+  { role: "dummy", label: "Dummy", icon: <EngineeringIcon /> },
+  { role: "investor", label: "Investor", icon: <BusinessIcon /> },
+  { role: "user", label: "User", icon: <PersonIcon /> },
+  {
+    role: "benchmark_service_provider",
+    label: "Benchmark Service Provider",
+    icon: <AnalyticsIcon />,
+  },
 ];
 
 export default function ViewSwitcher() {
