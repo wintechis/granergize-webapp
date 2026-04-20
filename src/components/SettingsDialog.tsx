@@ -1,22 +1,23 @@
 import { useEffect, useState } from "react";
 import {
+  Alert,
+  Box,
+  Button,
+  Chip,
+  CircularProgress,
   Dialog,
   DialogTitle,
   DialogContent,
-  Tab,
-  Tabs,
-  Box,
+  Divider,
+  FormControlLabel,
+  IconButton,
   List,
   ListItem,
   ListItemText,
-  IconButton,
-  Typography,
-  Divider,
   Switch,
-  FormControlLabel,
-  CircularProgress,
-  Button,
   TextField,
+  Tooltip,
+  Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -30,9 +31,7 @@ import { getViewDefinitions, deleteView, getSnapshotUrl } from "../services/aggr
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
 import type { AggregatedViewDefinition } from "../../types/types.ts";
-import { useSolidData } from "../context/SolidDataContext.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
-import SwitchAccountIcon from "@mui/icons-material/SwitchAccount";
 
 interface SettingsDialogProps {
   open: boolean;
@@ -68,9 +67,7 @@ const ROLE_LABELS: Record<string, string> = {
 };
 
 export default function SettingsDialog({ open, onClose, session }: SettingsDialogProps) {
-  const { role, setRole } = useSolidData();
   const { showNotification } = useNotification();
-  const [tabValue, setTabValue] = useState(0);
   const [sharedBuildings, setSharedBuildings] = useState<SharedBuilding[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<SharedWithMeBuilding[]>([]);
   const [viewDefinitions, setViewDefinitions] = useState<AggregatedViewDefinition[]>([]);
@@ -85,6 +82,11 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
   const [viewToShare, setViewToShare] = useState<AggregatedViewDefinition | null>(null);
   const [shareWebId, setShareWebId] = useState("");
   const [sharing, setSharing] = useState(false);
+  const [shareWebIdError, setShareWebIdError] = useState("");
+  const [shareDialogError, setShareDialogError] = useState("");
+  const [shareDialogSuccess, setShareDialogSuccess] = useState(false);
+  const [shareDialogSuccessRecipients, setShareDialogSuccessRecipients] = useState<string[]>([]);
+  const [shareConfirmStep, setShareConfirmStep] = useState(false);
 
   useEffect(() => {
     if (open) {
@@ -123,6 +125,7 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
   };
 
   const handleRevokeAccess = async (buildingUri: string, webId: string) => {
+    if (!confirm(`Revoke access for ${webId}?`)) return;
     const key = `${buildingUri}__${webId}`;
     setRevokingBuildingKey(key);
     try {
@@ -142,7 +145,6 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     try {
       await toggleBuildingVisibility(buildingUri, session);
       await loadSharedBuildings();
-      showNotification("Visibility updated", "success");
     } catch (error) {
       console.error("Error toggling visibility:", error);
       showNotification(`Failed to toggle visibility: ${error instanceof Error ? error.message : String(error)}`, "error");
@@ -182,9 +184,17 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     }
   };
 
+  const getShareRecipients = () =>
+    shareWebId.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+
   const handleOpenShareDialog = (view: AggregatedViewDefinition) => {
     setViewToShare(view);
     setShareWebId("");
+    setShareWebIdError("");
+    setShareDialogError("");
+    setShareDialogSuccess(false);
+    setShareDialogSuccessRecipients([]);
+    setShareConfirmStep(false);
     setShareDialogOpen(true);
   };
 
@@ -192,27 +202,58 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     setShareDialogOpen(false);
     setViewToShare(null);
     setShareWebId("");
+    setShareWebIdError("");
+    setShareDialogError("");
+    setShareDialogSuccess(false);
+    setShareDialogSuccessRecipients([]);
+    setShareConfirmStep(false);
+  };
+
+  const handleProceedToShareConfirm = () => {
+    const recipients = getShareRecipients();
+    if (recipients.length === 0) {
+      setShareWebIdError("Enter at least one WebID");
+      return;
+    }
+    const invalid = recipients.filter((r) => {
+      try { new URL(r); return false; } catch { return true; }
+    });
+    if (invalid.length > 0) {
+      setShareWebIdError(`Invalid WebID${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`);
+      return;
+    }
+    setShareWebIdError("");
+    setShareConfirmStep(true);
   };
 
   const handleShareView = async () => {
-    if (!viewToShare || !shareWebId.trim()) return;
-    
+    if (!viewToShare) return;
+    const recipients = getShareRecipients();
+
     setSharing(true);
+    setShareDialogError("");
     try {
       const snapshotUrl = getSnapshotUrl(session.info.webId!, viewToShare.id);
-      await shareAggregatedView(snapshotUrl, viewToShare.id, shareWebId.trim(), session);
+      for (const recipient of recipients) {
+        await shareAggregatedView(snapshotUrl, viewToShare.id, recipient, session);
+      }
+      setShareDialogSuccessRecipients(recipients);
+      setShareDialogSuccess(true);
+      setShareConfirmStep(false);
+      setShareWebId("");
       await loadViewData();
-      handleCloseShareDialog();
       showNotification("View shared successfully", "success");
     } catch (error) {
       console.error("Error sharing view:", error);
-      showNotification(`Failed to share view: ${error instanceof Error ? error.message : String(error)}`, "error");
+      setShareDialogError(error instanceof Error ? error.message : String(error));
+      setShareConfirmStep(false);
     } finally {
       setSharing(false);
     }
   };
 
   const handleRevokeViewAccess = async (snapshotUrl: string, webId: string) => {
+    if (!confirm(`Revoke view access for ${webId}?`)) return;
     const key = `${snapshotUrl}__${webId}`;
     setRevokingViewKey(key);
     try {
@@ -235,10 +276,6 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     return shared?.sharedWith || [];
   };
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    setTabValue(newValue);
-  };
-
   return (
     <Dialog
       open={open}
@@ -248,281 +285,250 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
     >
       <DialogTitle>
         <Box display="flex" justifyContent="space-between" alignItems="center">
-          Settings
+          Sharing
           <IconButton onClick={onClose}>
             <CloseIcon />
           </IconButton>
         </Box>
       </DialogTitle>
       <Divider />
-      <Tabs value={tabValue} onChange={handleTabChange} sx={{ borderBottom: 1, borderColor: "divider" }}>
-        <Tab label="Buildings I Share" />
-        <Tab label="Buildings Shared With Me" />
-        <Tab label="Aggregated Views" />
-        <Tab label="Role" />
-      </Tabs>
-      <DialogContent sx={{ minHeight: 400 }}>
-        {loading ? (
-          <Box display="flex" justifyContent="center" alignItems="center" height={300}>
-            <CircularProgress />
-          </Box>
-        ) : (
-          <>
-            {tabValue === 0 && (
-              <Box>
-                {sharedBuildings.length === 0 ? (
-                  <Typography color="textSecondary" sx={{ mt: 2 }}>
-                    You haven't shared any buildings yet.
-                  </Typography>
-                ) : (
-                  <List>
-                    {sharedBuildings.map((building) => (
-                      <Box key={building.buildingUri}>
-                        <ListItem>
-                          <ListItemText
-                            primary={`Building ${building.buildingId}`}
-                            secondary={
-                              <Box component="span">
-                                {building.sharedWith.length === 0 ? (
-                                  <Typography variant="body2" component="span">
-                                    Not shared with anyone
+      <DialogContent sx={{ minHeight: 400, maxHeight: "70vh", overflowY: "auto" }}>
+        <Box>
+            {/* Buildings you share */}
+            <Typography variant="subtitle1" fontWeight="medium" sx={{ mt: 1, mb: 1 }}>
+              Buildings you share
+            </Typography>
+            {loading ? (
+              <Box display="flex" justifyContent="center" py={2}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : sharedBuildings.length === 0 ? (
+              <Typography color="textSecondary" variant="body2" sx={{ mb: 1 }}>
+                No buildings shared yet.
+              </Typography>
+            ) : (
+              <List sx={{ maxHeight: 240, overflowY: "auto" }}>
+                {sharedBuildings.map((building) => (
+                  <Box key={building.buildingUri}>
+                    <ListItem>
+                      <ListItemText
+                        primary={`Building ${building.buildingId}`}
+                        secondary={
+                          <Box component="span">
+                            {building.sharedWith.length === 0 ? (
+                              <Typography variant="body2" component="span">
+                                Not shared with anyone
+                              </Typography>
+                            ) : (
+                              building.sharedWith.map((webId) => (
+                                <Box
+                                  component="span"
+                                  key={webId}
+                                  display="flex"
+                                  alignItems="center"
+                                  justifyContent="space-between"
+                                  sx={{ mt: 1 }}
+                                >
+                                  <Tooltip title={webId}>
+                                    <Typography variant="body2" component="span" sx={{ flex: 1, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 320 }}>
+                                      {webId}
+                                    </Typography>
+                                  </Tooltip>
+                                  <IconButton
+                                    size="small"
+                                    onClick={() => handleRevokeAccess(building.buildingUri, webId)}
+                                    title="Revoke access"
+                                    disabled={revokingBuildingKey === `${building.buildingUri}__${webId}`}
+                                  >
+                                    {revokingBuildingKey === `${building.buildingUri}__${webId}` ? (
+                                      <CircularProgress size={16} />
+                                    ) : (
+                                      <DeleteIcon fontSize="small" />
+                                    )}
+                                  </IconButton>
+                                </Box>
+                              ))
+                            )}
+                          </Box>
+                        }
+                      />
+                    </ListItem>
+                    <Divider />
+                  </Box>
+                ))}
+              </List>
+            )}
+
+            <Divider sx={{ my: 3 }} />
+
+            {/* Buildings shared with you */}
+            <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
+              Buildings shared with you
+            </Typography>
+            {loading ? (
+              <Box display="flex" justifyContent="center" py={2}>
+                <CircularProgress size={24} />
+              </Box>
+            ) : sharedWithMe.length === 0 ? (
+              <Typography color="textSecondary" variant="body2" sx={{ mb: 1 }}>
+                No buildings have been shared with you yet. Ask a building owner to share their data with your WebID.
+              </Typography>
+            ) : (
+              <List sx={{ maxHeight: 240, overflowY: "auto" }}>
+                {sharedWithMe.map((building) => (
+                  <Box key={building.buildingUri}>
+                    <ListItem>
+                      <ListItemText
+                        primary={`Building ${building.buildingId}`}
+                        secondary={
+                          <>
+                            {`Shared by: ${building.sharedBy}`}
+                            {building.sharedRole && (
+                              <Typography variant="body2" component="span" display="block">
+                                {`Role: ${ROLE_LABELS[building.sharedRole] ?? building.sharedRole}`}
+                              </Typography>
+                            )}
+                          </>
+                        }
+                      />
+                      {togglingVisibility === building.buildingUri ? (
+                        <CircularProgress size={24} sx={{ mx: 1 }} />
+                      ) : (
+                        <Tooltip title="Controls whether this building appears in your dashboard. Does not affect the owner's sharing settings.">
+                          <FormControlLabel
+                            control={
+                              <Switch
+                                checked={building.isVisible}
+                                onChange={() => handleToggleVisibility(building.buildingUri)}
+                                icon={<VisibilityOffIcon />}
+                                checkedIcon={<VisibilityIcon />}
+                              />
+                            }
+                            label={building.isVisible ? "Shown in my dashboard" : "Hidden from my dashboard"}
+                          />
+                        </Tooltip>
+                      )}
+                    </ListItem>
+                    <Divider />
+                  </Box>
+                ))}
+              </List>
+            )}
+
+            <Divider sx={{ my: 3 }} />
+
+            {/* Aggregated views */}
+            <Typography variant="subtitle1" fontWeight="medium" sx={{ mb: 1 }}>
+              Aggregated views
+            </Typography>
+            {viewDefinitions.length === 0 ? (
+              <Typography color="textSecondary" variant="body2">
+                No aggregated views yet. Create one from the Views tab on the main page.
+              </Typography>
+            ) : (
+              <List sx={{ maxHeight: 300, overflowY: "auto" }}>
+                {viewDefinitions.map((view) => {
+                  const sharedWith = getViewSharedWith(view.id);
+                  return (
+                    <Box key={view.id}>
+                      <ListItem>
+                        <ListItemText
+                          primary={view.name}
+                          secondary={
+                            <Box component="span">
+                              <Typography variant="body2" component="span" display="block">
+                                Type: {view.aggregationType} | Buildings: {view.buildingUris.length} | Metrics: {view.metrics.length}
+                              </Typography>
+                              <Typography variant="body2" component="span" display="block" color="textSecondary">
+                                Created: {new Date(view.createdAt).toLocaleDateString()}
+                                {view.lastComputedAt && ` | Last computed: ${new Date(view.lastComputedAt).toLocaleDateString()}`}
+                              </Typography>
+                              {sharedWith.length > 0 && (
+                                <Box component="span" sx={{ mt: 1 }}>
+                                  <Typography variant="body2" component="span" color="primary">
+                                    Shared with:
                                   </Typography>
-                                ) : (
-                                  building.sharedWith.map((webId) => (
+                                  {sharedWith.map((webId) => (
                                     <Box
                                       component="span"
                                       key={webId}
                                       display="flex"
                                       alignItems="center"
                                       justifyContent="space-between"
-                                      sx={{ mt: 1 }}
+                                      sx={{ mt: 0.5 }}
                                     >
-                                      <Typography variant="body2" component="span" sx={{ flex: 1 }}>
-                                        {webId}
-                                      </Typography>
+                                      <Tooltip title={webId}>
+                                        <Typography variant="body2" component="span" sx={{ flex: 1, fontSize: "0.8rem", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", maxWidth: 280 }}>
+                                          {webId}
+                                        </Typography>
+                                      </Tooltip>
                                       <IconButton
                                         size="small"
-                                        onClick={() => handleRevokeAccess(building.buildingUri, webId)}
+                                        onClick={() => handleRevokeViewAccess(
+                                          getSnapshotUrl(session.info.webId!, view.id),
+                                          webId
+                                        )}
                                         title="Revoke access"
-                                        disabled={revokingBuildingKey === `${building.buildingUri}__${webId}`}
+                                        disabled={revokingViewKey === `${getSnapshotUrl(session.info.webId!, view.id)}__${webId}`}
                                       >
-                                        {revokingBuildingKey === `${building.buildingUri}__${webId}` ? (
+                                        {revokingViewKey === `${getSnapshotUrl(session.info.webId!, view.id)}__${webId}` ? (
                                           <CircularProgress size={16} />
                                         ) : (
                                           <DeleteIcon fontSize="small" />
                                         )}
                                       </IconButton>
                                     </Box>
-                                  ))
-                                )}
-                              </Box>
-                            }
-                          />
-                        </ListItem>
-                        <Divider />
-                      </Box>
-                    ))}
-                  </List>
-                )}
-              </Box>
-            )}
-            {tabValue === 1 && (
-              <Box>
-                {sharedWithMe.length === 0 ? (
-                  <Typography color="textSecondary" sx={{ mt: 2 }}>
-                    No buildings have been shared with you yet.
-                  </Typography>
-                ) : (
-                  <List>
-                    {sharedWithMe.map((building) => (
-                      <Box key={building.buildingUri}>
-                        <ListItem>
-                          <ListItemText
-                            primary={`Building ${building.buildingId}`}
-                            secondary={
-                              <>
-                                {`Shared by: ${building.sharedBy}`}
-                                {building.sharedRole && (
-                                  <Typography variant="body2" component="span" display="block">
-                                    {`Role: ${ROLE_LABELS[building.sharedRole] ?? building.sharedRole}`}
-                                  </Typography>
-                                )}
-                              </>
-                            }
-                          />
-                          {togglingVisibility === building.buildingUri ? (
-                            <CircularProgress size={24} sx={{ mx: 1 }} />
-                          ) : (
-                            <FormControlLabel
-                              control={
-                                <Switch
-                                  checked={building.isVisible}
-                                  onChange={() => handleToggleVisibility(building.buildingUri)}
-                                  icon={<VisibilityOffIcon />}
-                                  checkedIcon={<VisibilityIcon />}
-                                />
-                              }
-                              label={building.isVisible ? "Visible" : "Hidden"}
-                            />
-                          )}
-                        </ListItem>
-                        <Divider />
-                      </Box>
-                    ))}
-                  </List>
-                )}
-              </Box>
-            )}
-            {tabValue === 2 && (
-              <Box>
-                {viewDefinitions.length === 0 ? (
-                  <Typography color="textSecondary" sx={{ mt: 2 }}>
-                    You haven't created any aggregated views yet.
-                    Use the "Create View" button on the main page to create one.
-                  </Typography>
-                ) : (
-                  <List>
-                    {viewDefinitions.map((view) => {
-                      const sharedWith = getViewSharedWith(view.id);
-                      return (
-                        <Box key={view.id}>
-                          <ListItem>
-                            <ListItemText
-                              primary={view.name}
-                              secondary={
-                                <Box component="span">
-                                  <Typography variant="body2" component="span" display="block">
-                                    Type: {view.aggregationType} | Buildings: {view.buildingUris.length} | Metrics: {view.metrics.length}
-                                  </Typography>
-                                  <Typography variant="body2" component="span" display="block" color="textSecondary">
-                                    Created: {new Date(view.createdAt).toLocaleDateString()}
-                                    {view.lastComputedAt && ` | Last computed: ${new Date(view.lastComputedAt).toLocaleDateString()}`}
-                                  </Typography>
-                                  {sharedWith.length > 0 && (
-                                    <Box component="span" sx={{ mt: 1 }}>
-                                      <Typography variant="body2" component="span" color="primary">
-                                        Shared with:
-                                      </Typography>
-                                      {sharedWith.map((webId) => (
-                                        <Box
-                                          component="span"
-                                          key={webId}
-                                          display="flex"
-                                          alignItems="center"
-                                          justifyContent="space-between"
-                                          sx={{ mt: 0.5 }}
-                                        >
-                                          <Typography variant="body2" component="span" sx={{ flex: 1, fontSize: "0.8rem" }}>
-                                            {webId}
-                                          </Typography>
-                                          <IconButton
-                                            size="small"
-                                            onClick={() => handleRevokeViewAccess(
-                                              getSnapshotUrl(session.info.webId!, view.id),
-                                              webId
-                                            )}
-                                            title="Revoke access"
-                                            disabled={revokingViewKey === `${getSnapshotUrl(session.info.webId!, view.id)}__${webId}`}
-                                          >
-                                            {revokingViewKey === `${getSnapshotUrl(session.info.webId!, view.id)}__${webId}` ? (
-                                              <CircularProgress size={16} />
-                                            ) : (
-                                              <DeleteIcon fontSize="small" />
-                                            )}
-                                          </IconButton>
-                                        </Box>
-                                      ))}
-                                    </Box>
-                                  )}
+                                  ))}
                                 </Box>
-                              }
-                            />
-                            <Box display="flex" flexDirection="column" gap={1}>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleRefreshView(view.id)}
-                                title="Refresh snapshot"
-                                disabled={refreshingViewId === view.id}
-                              >
-                                {refreshingViewId === view.id ? (
-                                  <CircularProgress size={20} />
-                                ) : (
-                                  <RefreshIcon />
-                                )}
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleOpenShareDialog(view)}
-                                title="Share view"
-                              >
-                                <ShareIcon />
-                              </IconButton>
-                              <IconButton
-                                size="small"
-                                onClick={() => handleDeleteView(view.id)}
-                                title="Delete view"
-                                disabled={deletingViewId === view.id}
-                              >
-                                {deletingViewId === view.id ? (
-                                  <CircularProgress size={20} />
-                                ) : (
-                                  <DeleteIcon />
-                                )}
-                              </IconButton>
+                              )}
                             </Box>
-                          </ListItem>
-                          <Divider />
+                          }
+                        />
+                        <Box display="flex" flexDirection="column" gap={1}>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleRefreshView(view.id)}
+                            title="Refresh snapshot"
+                            disabled={refreshingViewId === view.id}
+                          >
+                            {refreshingViewId === view.id ? (
+                              <CircularProgress size={20} />
+                            ) : (
+                              <RefreshIcon />
+                            )}
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleOpenShareDialog(view)}
+                            title="Share view"
+                          >
+                            <ShareIcon />
+                          </IconButton>
+                          <IconButton
+                            size="small"
+                            onClick={() => handleDeleteView(view.id)}
+                            title="Delete view"
+                            disabled={deletingViewId === view.id}
+                          >
+                            {deletingViewId === view.id ? (
+                              <CircularProgress size={20} />
+                            ) : (
+                              <DeleteIcon />
+                            )}
+                          </IconButton>
                         </Box>
-                      );
-                    })}
-                  </List>
-                )}
-              </Box>
+                      </ListItem>
+                      <Divider />
+                    </Box>
+                  );
+                })}
+              </List>
             )}
-            {tabValue === 3 && (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="subtitle1" fontWeight="medium" gutterBottom>
-                  Current role
-                </Typography>
-                <Box
-                  sx={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: 2,
-                    p: 2,
-                    border: 1,
-                    borderColor: "divider",
-                    borderRadius: 1,
-                    mb: 3,
-                  }}
-                >
-                  <SwitchAccountIcon color="primary" />
-                  <Typography variant="body1">
-                    {role ? ROLE_LABELS[role] ?? role : "None"}
-                  </Typography>
-                </Box>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-                  Changing your role will reload all data. The current role is stored
-                  locally in your browser.
-                </Typography>
-                <Button
-                  variant="outlined"
-                  startIcon={<SwitchAccountIcon />}
-                  onClick={() => {
-                    setRole(null);
-                    onClose();
-                  }}
-                >
-                  Change role
-                </Button>
-              </Box>
-            )}
-          </>
-        )}
+          </Box>
       </DialogContent>
 
       {/* Share View Dialog */}
-      <Dialog open={shareDialogOpen} onClose={handleCloseShareDialog}>
+      <Dialog open={shareDialogOpen} onClose={handleCloseShareDialog} maxWidth="sm" fullWidth>
         <DialogTitle>Share Aggregated View</DialogTitle>
         <DialogContent>
           <Typography variant="body2" sx={{ mb: 2 }}>
@@ -530,29 +536,90 @@ export default function SettingsDialog({ open, onClose, session }: SettingsDialo
             to the computed snapshot values only, without seeing which buildings
             were included.
           </Typography>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Recipient WebID"
-            type="url"
-            fullWidth
-            variant="outlined"
-            value={shareWebId}
-            onChange={(e) => setShareWebId(e.target.value)}
-            placeholder="https://example.solidcommunity.net/profile/card#me"
-          />
+
+          {shareDialogSuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Shared successfully with {shareDialogSuccessRecipients.join(", ")}
+            </Alert>
+          )}
+
+          {shareDialogError && !shareConfirmStep && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {shareDialogError}
+            </Alert>
+          )}
+
+          {!shareConfirmStep && (
+            <TextField
+              autoFocus
+              margin="dense"
+              label="Recipient WebID(s)"
+              type="url"
+              fullWidth
+              multiline
+              minRows={2}
+              variant="outlined"
+              value={shareWebId}
+              onChange={(e) => {
+                setShareWebId(e.target.value);
+                if (shareWebIdError) setShareWebIdError("");
+                if (shareDialogSuccess) setShareDialogSuccess(false);
+              }}
+              placeholder="https://example.solidcommunity.net/profile/card#me"
+              error={!!shareWebIdError}
+              helperText={shareWebIdError || "One WebID per line, or comma-separated"}
+            />
+          )}
+
+          {shareConfirmStep && (
+            <Box sx={{ mt: 1 }}>
+              {shareDialogError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {shareDialogError}
+                </Alert>
+              )}
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Confirm sharing with:
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
+                {getShareRecipients().map((r) => (
+                  <Chip key={r} label={r} size="small" variant="outlined" />
+                ))}
+              </Box>
+              <Typography variant="body2">
+                Recipients see computed snapshot values only — no building details.
+              </Typography>
+            </Box>
+          )}
         </DialogContent>
         <Box sx={{ display: "flex", justifyContent: "flex-end", p: 2, gap: 1 }}>
-          <Button onClick={handleCloseShareDialog} disabled={sharing}>
-            Cancel
-          </Button>
-          <Button
-            onClick={handleShareView}
-            variant="contained"
-            disabled={!shareWebId.trim() || sharing}
-          >
-            {sharing ? <CircularProgress size={20} /> : "Share"}
-          </Button>
+          {shareConfirmStep ? (
+            <>
+              <Button onClick={() => setShareConfirmStep(false)} disabled={sharing}>
+                Back
+              </Button>
+              <Button
+                onClick={handleShareView}
+                variant="contained"
+                disabled={sharing}
+              >
+                {sharing ? <CircularProgress size={20} /> : "Confirm Share"}
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button onClick={handleCloseShareDialog}>
+                Cancel
+              </Button>
+              <Button
+                onClick={handleProceedToShareConfirm}
+                variant="contained"
+                disabled={!shareWebId.trim() || sharing}
+              >
+                Review & Share
+              </Button>
+            </>
+          )}
         </Box>
       </Dialog>
     </Dialog>

@@ -19,6 +19,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import AddIcon from "@mui/icons-material/Add";
 import SettingsDialog from "../components/SettingsDialog.tsx";
 import CreateViewDialog from "../components/CreateViewDialog.tsx";
+import ViewSwitcher from "../components/ViewSwitcher.tsx";
 import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
 import type { AggregatedViewDefinition } from "../../types/types.ts";
 
@@ -144,6 +145,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         >
           {inboxLoading ? <CircularProgress size={24} color="inherit" /> : <RefreshIcon />}
         </IconButton>
+          <ViewSwitcher />
           <IconButton
             onClick={handleMenuOpen}
             sx={{ p: 0 }}

@@ -1,10 +1,13 @@
 import { useState } from "react";
 import {
+  Alert,
+  Box,
+  Button,
+  Chip,
   Dialog,
   DialogTitle,
   DialogContent,
   DialogActions,
-  Button,
   TextField,
   CircularProgress,
   Typography,
@@ -14,7 +17,6 @@ import {
   ListItemSecondaryAction,
   IconButton,
   Divider,
-  Box,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
@@ -37,6 +39,14 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
   const [loading, setLoading] = useState(false);
   const [sharedWith, setSharedWith] = useState<string[]>([]);
   const [loadingShared, setLoadingShared] = useState(false);
+  const [webIdError, setWebIdError] = useState<string | null>(null);
+  const [shareError, setShareError] = useState<string | null>(null);
+  const [confirmStep, setConfirmStep] = useState(false);
+  const [shareSuccess, setShareSuccess] = useState(false);
+  const [successRecipients, setSuccessRecipients] = useState<string[]>([]);
+
+  const getRecipients = () =>
+    recipientWebId.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
 
   const loadSharedUsers = async () => {
     if (!session.info.webId) return;
@@ -44,7 +54,6 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
     try {
       const shares = await getSharedViews(session);
       const viewShares = shares.filter(s => s.viewId === view.id);
-      // Flatten sharedWith arrays from matching shares
       const allSharedWith = viewShares.flatMap(s => s.sharedWith);
       setSharedWith([...new Set(allSharedWith)]);
     } catch (err) {
@@ -54,30 +63,48 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
     }
   };
 
-  // Load shared users when dialog opens
   const handleEntered = () => {
     loadSharedUsers();
   };
 
-  const handleShare = async () => {
-    if (!session.info.webId || !recipientWebId.trim()) return;
-
-    // Basic WebID validation
-    if (!recipientWebId.startsWith("http")) {
-      setError("Please enter a valid WebID (should start with http:// or https://)");
+  const handleProceedToConfirm = () => {
+    const recipients = getRecipients();
+    if (recipients.length === 0) {
+      setWebIdError("Enter at least one WebID");
       return;
     }
+    const invalid = recipients.filter((r) => {
+      try { new URL(r); return false; } catch { return true; }
+    });
+    if (invalid.length > 0) {
+      setWebIdError(`Invalid WebID${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`);
+      return;
+    }
+    setWebIdError(null);
+    setShareError(null);
+    setConfirmStep(true);
+  };
+
+  const handleConfirmShare = async () => {
+    if (!session.info.webId) return;
+    const recipients = getRecipients();
 
     setLoading(true);
-
+    setShareError(null);
     try {
       const snapshotUrl = getSnapshotUrl(session.info.webId!, view.id);
-      await shareAggregatedView(snapshotUrl, view.id, recipientWebId.trim(), session);
-      showNotification(`View shared with ${recipientWebId}`, "success");
+      for (const recipient of recipients) {
+        await shareAggregatedView(snapshotUrl, view.id, recipient, session);
+      }
+      setSuccessRecipients(recipients);
+      setShareSuccess(true);
+      setConfirmStep(false);
+      showNotification(`View shared with ${recipients.join(", ")}`, "success");
       setRecipientWebId("");
       loadSharedUsers();
     } catch (err) {
-      showNotification(`Failed to share view: ${err}`, "error");
+      setShareError(err instanceof Error ? err.message : String(err));
+      setConfirmStep(false);
     } finally {
       setLoading(false);
     }
@@ -101,86 +128,150 @@ export default function ShareViewDialog({ open, onClose, view, session }: ShareV
 
   const handleClose = () => {
     setRecipientWebId("");
+    setWebIdError(null);
+    setShareError(null);
+    setConfirmStep(false);
+    setShareSuccess(false);
+    setSuccessRecipients([]);
     onClose();
   };
 
   return (
-    <Dialog 
-      open={open} 
-      onClose={handleClose} 
-      maxWidth="sm" 
+    <Dialog
+      open={open}
+      onClose={handleClose}
+      maxWidth="sm"
       fullWidth
       TransitionProps={{ onEntered: handleEntered }}
     >
       <DialogTitle>Share "{view.name}"</DialogTitle>
-      <DialogContent>
-        <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-          Share this aggregated view with another user by entering their WebID.
-          They will receive read access to the computed snapshot (values only, no building details).
-        </Typography>
 
-        <TextField
-          label="Recipient WebID"
-          fullWidth
-          value={recipientWebId}
-          onChange={(e) => setRecipientWebId(e.target.value)}
-          placeholder="https://example.solidcommunity.net/profile/card#me"
-          disabled={loading}
-          sx={{ mb: 2 }}
-        />
+      {loading && (
+        <Box display="flex" justifyContent="center" alignItems="center" my={3}>
+          <CircularProgress />
+        </Box>
+      )}
 
-        <Button
-          variant="contained"
-          onClick={handleShare}
-          disabled={loading || !recipientWebId.trim()}
-          startIcon={loading ? <CircularProgress size={20} /> : null}
-        >
-          Share View
-        </Button>
-
-        <Divider sx={{ my: 3 }} />
-
-        <Typography variant="subtitle2" gutterBottom>
-          Currently shared with:
-        </Typography>
-
-        {loadingShared ? (
-          <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-            <CircularProgress size={24} />
-          </Box>
-        ) : sharedWith.length === 0 ? (
-          <Typography variant="body2" color="text.secondary">
-            This view hasn't been shared with anyone yet.
+      {!loading && (
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Share this aggregated view with another user by entering their WebID.
+            They will receive read access to the computed snapshot (values only, no building details).
           </Typography>
-        ) : (
-          <List dense>
-            {sharedWith.map((webId) => (
-              <ListItem key={webId}>
-                <ListItemText 
-                  primary={webId}
-                  primaryTypographyProps={{ 
-                    sx: { 
-                      overflow: "hidden", 
-                      textOverflow: "ellipsis",
-                      fontSize: "0.875rem"
-                    } 
-                  }}
-                />
-                <ListItemSecondaryAction>
-                  <IconButton
-                    edge="end"
-                    size="small"
-                    onClick={() => handleRevoke(webId)}
-                    disabled={loading}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </ListItemSecondaryAction>
-              </ListItem>
-            ))}
-          </List>
-        )}
-      </DialogContent>
+
+          {shareSuccess && (
+            <Alert severity="success" sx={{ mb: 2 }}>
+              Shared successfully with {successRecipients.join(", ")}
+            </Alert>
+          )}
+
+          {shareError && !confirmStep && (
+            <Alert severity="error" sx={{ mb: 2 }}>
+              {shareError}
+            </Alert>
+          )}
+
+          {!confirmStep && (
+            <>
+              <TextField
+                label="Recipient WebID(s)"
+                fullWidth
+                multiline
+                minRows={2}
+                value={recipientWebId}
+                onChange={(e) => {
+                  setRecipientWebId(e.target.value);
+                  if (webIdError) setWebIdError(null);
+                  if (shareSuccess) setShareSuccess(false);
+                }}
+                placeholder="https://example.solidcommunity.net/profile/card#me"
+                disabled={loading}
+                error={!!webIdError}
+                helperText={webIdError || "One WebID per line, or comma-separated"}
+                sx={{ mb: 2 }}
+              />
+              <Button
+                variant="contained"
+                onClick={handleProceedToConfirm}
+                disabled={loading || !recipientWebId.trim()}
+              >
+                Review & Share
+              </Button>
+            </>
+          )}
+
+          {confirmStep && (
+            <Box sx={{ mb: 2 }}>
+              {shareError && (
+                <Alert severity="error" sx={{ mb: 2 }}>
+                  {shareError}
+                </Alert>
+              )}
+              <Typography variant="body2" color="text.secondary" gutterBottom>
+                Confirm sharing with:
+              </Typography>
+              <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
+                {getRecipients().map((r) => (
+                  <Chip key={r} label={r} size="small" variant="outlined" />
+                ))}
+              </Box>
+              <Typography variant="body2" sx={{ mb: 2 }}>
+                Recipients will see computed snapshot values only — no building details.
+              </Typography>
+              <Box sx={{ display: "flex", gap: 1 }}>
+                <Button onClick={() => setConfirmStep(false)}>Back</Button>
+                <Button variant="contained" onClick={handleConfirmShare}>
+                  Confirm Share
+                </Button>
+              </Box>
+            </Box>
+          )}
+
+          <Divider sx={{ my: 3 }} />
+
+          <Typography variant="subtitle2" gutterBottom>
+            Currently shared with:
+          </Typography>
+
+          {loadingShared ? (
+            <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
+              <CircularProgress size={24} />
+            </Box>
+          ) : sharedWith.length === 0 ? (
+            <Typography variant="body2" color="text.secondary">
+              Not shared with anyone yet.
+            </Typography>
+          ) : (
+            <List dense>
+              {sharedWith.map((webId) => (
+                <ListItem key={webId}>
+                  <ListItemText
+                    primary={webId}
+                    primaryTypographyProps={{
+                      sx: {
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        fontSize: "0.875rem"
+                      }
+                    }}
+                  />
+                  <ListItemSecondaryAction>
+                    <IconButton
+                      edge="end"
+                      size="small"
+                      onClick={() => handleRevoke(webId)}
+                      disabled={loading}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </ListItemSecondaryAction>
+                </ListItem>
+              ))}
+            </List>
+          )}
+        </DialogContent>
+      )}
+
       <DialogActions>
         <Button onClick={handleClose}>Close</Button>
       </DialogActions>
