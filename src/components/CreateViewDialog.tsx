@@ -86,8 +86,7 @@ const ROLE_DESCRIPTION: Record<string, string> = {
   benchmark_service_provider:
     "Create a benchmark view aggregating annual consumption across multiple buildings. " +
     "Metrics: electricity, heat, water, and wastewater consumption (kWh / m³).",
-  user:
-    "Create a view that aggregates monthly electricity consumption " +
+  user: "Create a view that aggregates monthly electricity consumption " +
     "across multiple buildings. The result is a privacy-preserving " +
     "snapshot of the combined kWh total.",
 };
@@ -150,7 +149,9 @@ export default function CreateViewDialog({
     setViewName("");
     setSelectedBuildings([]);
     setAggregationType("average");
-    setSelectedMetrics(ROLE_DEFAULT_METRICS[selectedRole] ?? ["gas", "electricity"]);
+    setSelectedMetrics(
+      ROLE_DEFAULT_METRICS[selectedRole] ?? ["gas", "electricity"],
+    );
     setSelectedPeriod("");
     onClose();
   };
@@ -206,7 +207,9 @@ export default function CreateViewDialog({
 
     setCreating(true);
     try {
-      const metrics = selectedRole === "user" ? ["electricity"] : selectedMetrics;
+      const metrics = selectedRole === "user"
+        ? ["electricity"]
+        : selectedMetrics;
       const period = selectedRole === "user" ? selectedPeriod : undefined;
 
       const viewDef = await createViewDefinition(
@@ -274,7 +277,9 @@ export default function CreateViewDialog({
         renderValue={(selected) => (
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
             {selected.map((uri) => {
-              const building = availableBuildings.find((b) => b.uri === uri);
+              const building = availableBuildings.find((b) =>
+                b.uri === uri
+              );
               return (
                 <Chip
                   key={uri}
@@ -306,8 +311,7 @@ export default function CreateViewDialog({
       <RadioGroup
         row
         value={aggregationType}
-        onChange={(e) =>
-          setAggregationType(e.target.value as AggregationType)}
+        onChange={(e) => setAggregationType(e.target.value as AggregationType)}
       >
         <FormControlLabel value="average" control={<Radio />} label="Average" />
         <FormControlLabel value="sum" control={<Radio />} label="Sum" />

@@ -403,7 +403,6 @@ export async function fetchAndParseData(session: Session) {
     ...new Set(dataSources.buildings.map((b) => b.url)),
   ];
 
-
   // Load hidden buildings list
   const hiddenBuildingUris = await getHiddenBuildings(session);
 
@@ -435,7 +434,9 @@ export async function fetchAndParseData(session: Session) {
 
   // Determine user's storage root to identify shared buildings
   const storageRoot = getStorageRoot(webId);
-  const sourceRoleMap = new Map(dataSources.buildings.map((b) => [b.url, b.role]));
+  const sourceRoleMap = new Map(
+    dataSources.buildings.map((b) => [b.url, b.role]),
+  );
 
   // Filter out hidden buildings and mark shared buildings
   const visibleBuildings = new Map<string, BuildingType>();
@@ -446,7 +447,8 @@ export async function fetchAndParseData(session: Session) {
       const sourceForOwnershipCheck = building.sourceUri || building.uri;
       const isOwnBuilding = sourceForOwnershipCheck.startsWith(storageRoot);
       building.isShared = !isOwnBuilding;
-      building.sourceRole = sourceRoleMap.get(building.sourceUri ?? "") ?? "dummy";
+      building.sourceRole = sourceRoleMap.get(building.sourceUri ?? "") ??
+        "dummy";
 
       visibleBuildings.set(buildingId, building);
     }
@@ -558,57 +560,56 @@ export async function fetchAndParseData(session: Session) {
   for (const [buildingId, building] of visibleBuildings) {
     if (building.sourceRole !== "investor") continue;
     const numericBuildingId = /^\d+$/.test(buildingId)
-        ? parseInt(buildingId)
-        : buildingId.split("").reduce(
-          (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0,
-          0,
-        ) >>> 0;
-      if (energyData.has(numericBuildingId)) continue;
-      const annualData = building.annualData as InvestorAnnualData[] | undefined;
-      if (!annualData || annualData.length === 0) continue;
-      const latest = annualData.reduce((a, b) => a.year > b.year ? a : b);
-      const energyNeedEntry: Record<string, number> = {};
-      if (latest.electricityConsumption !== undefined) {
-        energyNeedEntry["Electricity"] = latest.electricityConsumption;
-      }
-      if (latest.heatConsumption !== undefined) {
-        energyNeedEntry["Heat"] = latest.heatConsumption;
-      }
-      if (latest.waterConsumption !== undefined) {
-        energyNeedEntry["Water"] = latest.waterConsumption;
-      }
-      if (latest.wastewaterConsumption !== undefined) {
-        energyNeedEntry["Wastewater"] = latest.wastewaterConsumption;
-      }
-      if (Object.keys(energyNeedEntry).length === 0) continue;
-      energyData.set(numericBuildingId, {
-        id: numericBuildingId,
-        uri: building.uri as string,
-        energyNeed: energyNeedEntry,
-        energyGeneration: {},
-        energyStorage: {},
-        energyDistribution: {},
-        energyTransfer: {},
-        energyUsage: {},
-        environmentalFactor: {},
-      });
-      // Include in aggregate averages
-      for (const [prop, val] of Object.entries(energyNeedEntry)) {
-        if (!aggregatedValues[prop]) aggregatedValues[prop] = [];
-        aggregatedValues[prop].push(val);
-        const agent = building.operatedBy;
-        if (agent) {
-          if (!agentAggregatedValues[agent]) agentAggregatedValues[agent] = {};
-          if (!agentAggregatedValues[agent][prop]) {
-            agentAggregatedValues[agent][prop] = [];
-          }
-          agentAggregatedValues[agent][prop].push(val);
+      ? parseInt(buildingId)
+      : buildingId.split("").reduce(
+        (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0,
+        0,
+      ) >>> 0;
+    if (energyData.has(numericBuildingId)) continue;
+    const annualData = building.annualData as InvestorAnnualData[] | undefined;
+    if (!annualData || annualData.length === 0) continue;
+    const latest = annualData.reduce((a, b) => a.year > b.year ? a : b);
+    const energyNeedEntry: Record<string, number> = {};
+    if (latest.electricityConsumption !== undefined) {
+      energyNeedEntry["Electricity"] = latest.electricityConsumption;
+    }
+    if (latest.heatConsumption !== undefined) {
+      energyNeedEntry["Heat"] = latest.heatConsumption;
+    }
+    if (latest.waterConsumption !== undefined) {
+      energyNeedEntry["Water"] = latest.waterConsumption;
+    }
+    if (latest.wastewaterConsumption !== undefined) {
+      energyNeedEntry["Wastewater"] = latest.wastewaterConsumption;
+    }
+    if (Object.keys(energyNeedEntry).length === 0) continue;
+    energyData.set(numericBuildingId, {
+      id: numericBuildingId,
+      uri: building.uri as string,
+      energyNeed: energyNeedEntry,
+      energyGeneration: {},
+      energyStorage: {},
+      energyDistribution: {},
+      energyTransfer: {},
+      energyUsage: {},
+      environmentalFactor: {},
+    });
+    // Include in aggregate averages
+    for (const [prop, val] of Object.entries(energyNeedEntry)) {
+      if (!aggregatedValues[prop]) aggregatedValues[prop] = [];
+      aggregatedValues[prop].push(val);
+      const agent = building.operatedBy;
+      if (agent) {
+        if (!agentAggregatedValues[agent]) agentAggregatedValues[agent] = {};
+        if (!agentAggregatedValues[agent][prop]) {
+          agentAggregatedValues[agent][prop] = [];
         }
+        agentAggregatedValues[agent][prop].push(val);
       }
+    }
   }
 
   // Calculate averages
-
 
   const averages: Record<string, number> = {};
   for (const property in aggregatedValues) {

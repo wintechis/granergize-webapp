@@ -148,7 +148,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               ? <CircularProgress size={24} color="inherit" />
               : <RefreshIcon />}
           </IconButton>
-<IconButton
+          <IconButton
             onClick={handleMenuOpen}
             sx={{ p: 0 }}
           >

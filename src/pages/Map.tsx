@@ -206,7 +206,11 @@ export default function Map({ session }: MapProps) {
                         ["investor", `${BASE}legend-investor.png`, "Investor"],
                         ["dummy", `${BASE}legend-dummy.png`, "Demo"],
                         ["user", `${BASE}legend-user.png`, "User"],
-                        ["benchmark_service_provider", `${BASE}legend-bsp.png`, "BSP"],
+                        [
+                          "benchmark_service_provider",
+                          `${BASE}legend-bsp.png`,
+                          "BSP",
+                        ],
                       ] as const
                     ).map(([role, src, label]) => (
                       <Box
@@ -216,7 +220,13 @@ export default function Map({ session }: MapProps) {
                         <Box
                           component="img"
                           src={src}
-                          sx={{ width: 10, height: 16, mr: 1, objectFit: "contain", flexShrink: 0 }}
+                          sx={{
+                            width: 10,
+                            height: 16,
+                            mr: 1,
+                            objectFit: "contain",
+                            flexShrink: 0,
+                          }}
                         />
                         <Typography variant="body2">{label}</Typography>
                       </Box>
@@ -274,24 +284,28 @@ export default function Map({ session }: MapProps) {
                 </Box>
                 <Box sx={{ padding: 2 }}>
                   {activeTab === 0 &&
-                    selectedBuilding.sourceRole === "benchmark_service_provider" && (
-                    <BspEnergy building={selectedBuilding} />
-                  )}
+                    selectedBuilding.sourceRole ===
+                      "benchmark_service_provider" &&
+                    <BspEnergy building={selectedBuilding} />}
                   {activeTab === 0 &&
                     selectedBuilding.sourceRole === "investor" && (
                     <InvestorEnergy building={selectedBuilding} />
                   )}
                   {activeTab === 0 &&
                     selectedBuilding.sourceRole !== "investor" &&
-                    selectedBuilding.sourceRole !== "benchmark_service_provider" &&
-                    (selectedEnergy || selectedBuilding.sourceRole === "user") && (
-                    <Energy
-                      selectedBuilding={selectedBuilding.id.toString()}
-                      operatedBy={selectedBuilding.operatedBy?.toString() || ""}
-                      building={selectedBuilding}
-                      session={session}
-                    />
-                  )}
+                    selectedBuilding.sourceRole !==
+                      "benchmark_service_provider" &&
+                    (selectedEnergy ||
+                      selectedBuilding.sourceRole === "user") &&
+                    (
+                      <Energy
+                        selectedBuilding={selectedBuilding.id.toString()}
+                        operatedBy={selectedBuilding.operatedBy?.toString() ||
+                          ""}
+                        building={selectedBuilding}
+                        session={session}
+                      />
+                    )}
                   {activeTab === 1 && (
                     <WeatherData building={selectedBuilding} />
                   )}
