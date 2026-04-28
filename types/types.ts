@@ -46,6 +46,7 @@ export interface BuildingType {
   id: number;
   uri: string;
   sourceUri?: string;
+  sourceRole?: UserRole;
   type: string;
   customer?: string;
   energyCertificate?: string;

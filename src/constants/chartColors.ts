@@ -18,7 +18,7 @@ export const CHART_COLOR_PALETTE: string[] = [
 ];
 
 /** Aligned with theme.palette.primary.main — owned building markers / primary actions */
-export const MARKER_OWNED_COLOR = "#0277bd";
+export const MARKER_OWNED_COLOR = "#ca2f44";
 
 /** Aligned with theme.palette.secondary.main — buildings shared with the user */
 export const MARKER_SHARED_COLOR = "#388e3c";

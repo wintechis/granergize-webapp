@@ -19,8 +19,6 @@ import type {
   UserRole,
 } from "../../types/types.ts";
 
-const ROLE_STORAGE_KEY = "granergize.role";
-
 interface ContextState {
   buildings: BuildingType[];
   energyNeed: EnergyType[];
@@ -35,7 +33,6 @@ interface ContextState {
   error: string | null;
   reloadData: () => Promise<void>;
   role: UserRole | null;
-  setRole: (role: UserRole | null) => void;
 }
 
 const SolidDataContext = createContext<ContextState>({
@@ -49,7 +46,6 @@ const SolidDataContext = createContext<ContextState>({
   error: null,
   reloadData: async () => {},
   role: null,
-  setRole: () => {},
 });
 
 export const useSolidData = () => useContext(SolidDataContext);
@@ -66,7 +62,7 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   const [data, setData] = useState<
     Omit<
       ContextState,
-      "isLoading" | "error" | "reloadData" | "energyMix" | "role" | "setRole"
+      "isLoading" | "error" | "reloadData" | "energyMix" | "role"
     >
   >({
     buildings: [],
@@ -78,36 +74,11 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   const [energyMix, setEnergyMix] = useState<ContextState["energyMix"]>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const [role, setRoleState] = useState<UserRole | null>(() => {
-    try {
-      return (localStorage.getItem(ROLE_STORAGE_KEY) as UserRole | null) ??
-        null;
-    } catch {
-      return null;
-    }
-  });
-
-  const setRole = (newRole: UserRole | null) => {
-    try {
-      if (newRole === null) {
-        localStorage.removeItem(ROLE_STORAGE_KEY);
-      } else {
-        localStorage.setItem(ROLE_STORAGE_KEY, newRole);
-      }
-    } catch {
-      // localStorage unavailable — proceed in-memory only
-    }
-    setRoleState(newRole);
-  };
+  const role: UserRole = "investor";
 
   const loadData = useCallback(async () => {
     if (!session || !session.info.isLoggedIn) {
       setError("Not authenticated");
-      return;
-    }
-
-    if (role === null) {
-      // No role selected yet — nothing to load
       return;
     }
 
@@ -129,14 +100,13 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
     } finally {
       setIsLoading(false);
     }
-  }, [session, role]);
+  }, [session]);
 
-  // Reload when session becomes logged in or role changes
   useEffect(() => {
-    if (session?.info.isLoggedIn && role !== null) {
+    if (session?.info.isLoggedIn) {
       loadData();
     }
-  }, [session?.info.isLoggedIn, role, loadData]);
+  }, [session?.info.isLoggedIn, loadData]);
 
   return (
     <SolidDataContext.Provider
@@ -147,7 +117,6 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
         error,
         reloadData: loadData,
         role,
-        setRole,
       }}
     >
       {children}
