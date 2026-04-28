@@ -5,10 +5,8 @@ import Building from "./pages/Building.tsx";
 import Agent from "./pages/Agent.tsx";
 import Energy from "./pages/Energy.tsx";
 import AggregatedView from "./pages/AggregatedView.tsx";
-import RoleSelection from "./pages/RoleSelection.tsx";
 import Container from "@mui/material/Container";
 import "./App.css";
-import { useSolidData } from "./context/SolidDataContext.tsx";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
@@ -107,12 +105,6 @@ interface AppProps {
 }
 
 function App({ onLogout, session }: AppProps) {
-  const { role, setRole } = useSolidData();
-
-  if (role === null) {
-    return <RoleSelection onSelect={setRole} />;
-  }
-
   return (
     <Container maxWidth={false}>
       <HashRouter>

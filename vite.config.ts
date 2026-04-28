@@ -2,7 +2,6 @@ import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
 import fs from "node:fs";
 import path from "node:path";
-
 // Resolve the real (non-symlink) path so both our code and react-chartjs-2
 // share exactly one Chart.js module across the .deno/.pnpm stores.
 const chartJsReal = fs.realpathSync(path.resolve("node_modules/chart.js"));

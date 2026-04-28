@@ -23,33 +23,46 @@ import {
   MARKER_SHARED_COLOR,
 } from "../constants/chartColors.ts";
 
-// Define custom icons
-const ownedIcon = new L.Icon({
-  iconUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
-  shadowSize: [41, 41],
-});
+const SHADOW =
+  "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png";
 
-const sharedIcon = new L.Icon({
-  iconUrl:
-    "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png",
-  shadowUrl:
-    "https://cdnjs.cloudflare.com/ajax/libs/leaflet/0.7.7/images/marker-shadow.png",
-  iconSize: [25, 41],
-  iconAnchor: [12, 41],
-  popupAnchor: [1, -34],
-  shadowSize: [41, 41],
-});
+function makeIcon(url: string): L.Icon {
+  return new L.Icon({
+    iconUrl: url,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+    shadowUrl: SHADOW,
+    shadowSize: [41, 41],
+  });
+}
 
-function createSelectedIcon(isShared: boolean): L.DivIcon {
-  const imgUrl = isShared
-    ? "https://raw.githubusercontent.com/pointhi/leaflet-color-markers/master/img/marker-icon-green.png"
-    : "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png";
+const ROLE_ICONS: Record<string, { base: L.Icon; shared: L.Icon }> = {
+  investor: {
+    base: makeIcon("/marker-investor.png"),
+    shared: makeIcon("/marker-investor.png"),
+  },
+  dummy: {
+    base: makeIcon("/marker-dummy.png"),
+    shared: makeIcon("/marker-dummy-shared.png"),
+  },
+  user: {
+    base: makeIcon("/marker-user.png"),
+    shared: makeIcon("/marker-user-shared.png"),
+  },
+  benchmark_service_provider: {
+    base: makeIcon("/marker-bsp.png"),
+    shared: makeIcon("/marker-bsp-shared.png"),
+  },
+};
+
+function getIcon(building: BuildingType): L.Icon {
+  const set = ROLE_ICONS[building.sourceRole ?? "dummy"] ?? ROLE_ICONS.dummy;
+  return building.isShared ? set.shared : set.base;
+}
+
+function createSelectedIcon(building: BuildingType): L.DivIcon {
+  const imgUrl = getIcon(building).options.iconUrl as string;
   return L.divIcon({
     className: "",
     html:
@@ -65,7 +78,7 @@ interface MapProps {
 }
 
 export default function Map({ session }: MapProps) {
-  const { buildings, energyNeed, isLoading, error, role } = useSolidData();
+  const { buildings, energyNeed, isLoading, error } = useSolidData();
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(
     null,
   );
@@ -163,29 +176,50 @@ export default function Map({ session }: MapProps) {
                   >
                     Legend
                   </Typography>
-                  <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
+                  {(
+                    [
+                      [MARKER_OWNED_COLOR, "My Buildings"],
+                      [MARKER_SHARED_COLOR, "Shared with Me"],
+                    ] as const
+                  ).map(([color, label]) => (
                     <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        backgroundColor: MARKER_OWNED_COLOR,
-                        borderRadius: "50%",
-                        mr: 1,
-                      }}
-                    />
-                    <Typography variant="body2">My Buildings</Typography>
-                  </Box>
-                  <Box sx={{ display: "flex", alignItems: "center", mb: 0.5 }}>
-                    <Box
-                      sx={{
-                        width: 12,
-                        height: 12,
-                        backgroundColor: MARKER_SHARED_COLOR,
-                        borderRadius: "50%",
-                        mr: 1,
-                      }}
-                    />
-                    <Typography variant="body2">Shared with Me</Typography>
+                      key={label}
+                      sx={{ display: "flex", alignItems: "center", mb: 0.5 }}
+                    >
+                      <Box
+                        sx={{
+                          width: 12,
+                          height: 12,
+                          backgroundColor: color,
+                          borderRadius: "50%",
+                          mr: 1,
+                          flexShrink: 0,
+                        }}
+                      />
+                      <Typography variant="body2">{label}</Typography>
+                    </Box>
+                  ))}
+                  <Box sx={{ borderTop: "1px solid #eee", mt: 0.5, pt: 0.5 }}>
+                    {(
+                      [
+                        ["investor", "/legend-investor.png", "Investor"],
+                        ["dummy", "/legend-dummy.png", "Demo"],
+                        ["user", "/legend-user.png", "User"],
+                        ["benchmark_service_provider", "/legend-bsp.png", "BSP"],
+                      ] as const
+                    ).map(([role, src, label]) => (
+                      <Box
+                        key={role}
+                        sx={{ display: "flex", alignItems: "center", mb: 0.5 }}
+                      >
+                        <Box
+                          component="img"
+                          src={src}
+                          sx={{ width: 10, height: 16, mr: 1, objectFit: "contain", flexShrink: 0 }}
+                        />
+                        <Typography variant="body2">{label}</Typography>
+                      </Box>
+                    ))}
                   </Box>
                 </Box>
                 {buildings.map((building) => (
@@ -193,10 +227,9 @@ export default function Map({ session }: MapProps) {
                     <Marker
                       key={building.id}
                       position={[building.lat, building.long]}
-                      icon={selectedBuilding &&
-                          selectedBuilding.id === building.id
-                        ? createSelectedIcon(building.isShared)
-                        : (building.isShared ? sharedIcon : ownedIcon)}
+                      icon={selectedBuilding?.id === building.id
+                        ? createSelectedIcon(building)
+                        : getIcon(building)}
                       eventHandlers={{
                         click: () => {
                           setSelectedBuilding(building);
@@ -239,15 +272,18 @@ export default function Map({ session }: MapProps) {
                   </Tabs>
                 </Box>
                 <Box sx={{ padding: 2 }}>
-                  {activeTab === 0 && role === "benchmark_service_provider" && (
+                  {activeTab === 0 &&
+                    selectedBuilding.sourceRole === "benchmark_service_provider" && (
                     <BspEnergy building={selectedBuilding} />
                   )}
-                  {activeTab === 0 && role === "investor" && (
+                  {activeTab === 0 &&
+                    selectedBuilding.sourceRole === "investor" && (
                     <InvestorEnergy building={selectedBuilding} />
                   )}
-                  {activeTab === 0 && role !== "investor" &&
-                    role !== "benchmark_service_provider" &&
-                    (selectedEnergy || role === "user") && (
+                  {activeTab === 0 &&
+                    selectedBuilding.sourceRole !== "investor" &&
+                    selectedBuilding.sourceRole !== "benchmark_service_provider" &&
+                    (selectedEnergy || selectedBuilding.sourceRole === "user") && (
                     <Energy
                       selectedBuilding={selectedBuilding.id.toString()}
                       operatedBy={selectedBuilding.operatedBy?.toString() || ""}

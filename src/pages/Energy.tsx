@@ -39,7 +39,7 @@ type EnergyProps = {
 export default function Energy(
   { selectedBuilding, operatedBy, building, session }: EnergyProps,
 ) {
-  const { energyNeed, averages, agentAverages, isLoading, error, role } =
+  const { energyNeed, averages, agentAverages, isLoading, error } =
     useSolidData();
 
   // Find the energy data for the selected building
@@ -67,9 +67,9 @@ export default function Energy(
   }
 
   if (!energy || !averages || !agentAverages) {
-    // User-role energy is loaded on demand in UserEnergyChart; bypass the guard
     if (
-      role === "user" && building.energyData && building.energyData.length > 0
+      building.sourceRole === "user" && building.energyData &&
+      building.energyData.length > 0
     ) {
       return (
         <Card>

@@ -18,6 +18,7 @@
     "npm:@types/react-dom@^18.3.1": "18.3.7_@types+react@18.3.26",
     "npm:@types/react@^18.3.11": "18.3.26",
     "npm:@vitejs/plugin-react@^4.3.3": "4.7.0_vite@5.4.21_@babel+core@7.28.5",
+    "npm:baseline-browser-mapping@^2.10.23": "2.10.23",
     "npm:chart.js@^4.4.6": "4.5.1",
     "npm:eslint-plugin-react-hooks@5": "5.2.0_eslint@9.38.0",
     "npm:eslint-plugin-react-refresh@~0.4.13": "0.4.24_eslint@9.38.0",
@@ -1120,8 +1121,8 @@
     "base64-js@1.5.1": {
       "integrity": "sha512-AKpaYlHn8t4SVbOHCy+b5+KKgvR4vrsD8vbvrbiQJps7fKDTkjkDry6ji0rUJjC0kzbNePLwzxq8iypo41qeWA=="
     },
-    "baseline-browser-mapping@2.8.20": {
-      "integrity": "sha512-JMWsdF+O8Orq3EMukbUN1QfbLK9mX2CkUmQBcW2T0s8OmdAUL5LLM/6wFwSrqXzlXB13yhyK9gTKS1rIizOduQ==",
+    "baseline-browser-mapping@2.10.23": {
+      "integrity": "sha512-xwVXGqevyKPsiuQdLj+dZMVjidjJV508TBqexND5HrF89cGdCYCJFB3qhcxRHSeMctdCfbR1jrxBajhDy7o29g==",
       "bin": true
     },
     "brace-expansion@1.1.12": {
@@ -2235,6 +2236,7 @@
         "npm:@types/react-dom@^18.3.1",
         "npm:@types/react@^18.3.11",
         "npm:@vitejs/plugin-react@^4.3.3",
+        "npm:baseline-browser-mapping@^2.10.23",
         "npm:chart.js@^4.4.6",
         "npm:eslint-plugin-react-hooks@5",
         "npm:eslint-plugin-react-refresh@~0.4.13",
