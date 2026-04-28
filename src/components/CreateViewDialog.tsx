@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -26,7 +26,11 @@ import {
   Typography,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { AggregationType, BuildingType } from "../../types/types.ts";
+import type {
+  AggregationType,
+  BuildingType,
+  UserRole,
+} from "../../types/types.ts";
 import { createViewDefinition } from "../services/aggregation/viewManager.ts";
 import {
   computeAndStoreSnapshot,
@@ -34,7 +38,6 @@ import {
   getAvailableInvestorAnnualMetrics,
   getAvailableMetrics,
 } from "../services/aggregation/viewComputer.ts";
-import { useSolidData } from "../context/SolidDataContext.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
 
 interface CreateViewDialogProps {
@@ -62,6 +65,14 @@ const ROLE_DEFAULT_METRICS: Record<string, string[]> = {
   benchmark_service_provider: getAvailableBspMetrics().flatMap((c) =>
     c.metrics
   ),
+  user: ["electricity"],
+};
+
+const ROLE_LABEL: Record<UserRole, string> = {
+  dummy: "Demo",
+  investor: "Investor",
+  benchmark_service_provider: "BSP",
+  user: "User",
 };
 
 const ROLE_DESCRIPTION: Record<string, string> = {
@@ -75,7 +86,17 @@ const ROLE_DESCRIPTION: Record<string, string> = {
   benchmark_service_provider:
     "Create a benchmark view aggregating annual consumption across multiple buildings. " +
     "Metrics: electricity, heat, water, and wastewater consumption (kWh / m³).",
+  user:
+    "Create a view that aggregates monthly electricity consumption " +
+    "across multiple buildings. The result is a privacy-preserving " +
+    "snapshot of the combined kWh total.",
 };
+
+function getMetricsForRole(role: UserRole) {
+  if (role === "benchmark_service_provider") return getAvailableBspMetrics();
+  if (role === "investor") return getAvailableInvestorAnnualMetrics();
+  return getAvailableMetrics();
+}
 
 export default function CreateViewDialog({
   open,
@@ -84,12 +105,26 @@ export default function CreateViewDialog({
   onClose,
   onViewCreated,
 }: CreateViewDialogProps) {
-  const { role } = useSolidData();
   const { showNotification } = useNotification();
 
-  const defaultMetrics = ROLE_DEFAULT_METRICS[role ?? "dummy"] ??
-    ["gas", "electricity"];
+  // Derive roles that actually exist in the buildings list
+  const availableRoles = useMemo<UserRole[]>(() => {
+    const roles = new Set<UserRole>();
+    buildings.forEach((b) => {
+      if (b.sourceRole) roles.add(b.sourceRole);
+    });
+    const order: UserRole[] = [
+      "dummy",
+      "investor",
+      "benchmark_service_provider",
+      "user",
+    ];
+    return order.filter((r) => roles.has(r));
+  }, [buildings]);
 
+  const initialRole: UserRole = availableRoles[0] ?? "dummy";
+
+  const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
   const [creating, setCreating] = useState(false);
   const [viewName, setViewName] = useState("");
   const [selectedBuildings, setSelectedBuildings] = useState<string[]>([]);
@@ -97,21 +132,25 @@ export default function CreateViewDialog({
     "average",
   );
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
-    defaultMetrics,
+    ROLE_DEFAULT_METRICS[initialRole] ?? ["gas", "electricity"],
   );
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
 
-  const availableMetrics = role === "benchmark_service_provider"
-    ? getAvailableBspMetrics()
-    : role === "investor"
-    ? getAvailableInvestorAnnualMetrics()
-    : getAvailableMetrics();
+  const availableMetrics = getMetricsForRole(selectedRole);
+
+  const handleRoleChange = (event: SelectChangeEvent<UserRole>) => {
+    const role = event.target.value as UserRole;
+    setSelectedRole(role);
+    setSelectedBuildings([]);
+    setSelectedMetrics(ROLE_DEFAULT_METRICS[role] ?? ["gas", "electricity"]);
+    setSelectedPeriod("");
+  };
 
   const handleClose = () => {
     setViewName("");
     setSelectedBuildings([]);
     setAggregationType("average");
-    setSelectedMetrics(defaultMetrics);
+    setSelectedMetrics(ROLE_DEFAULT_METRICS[selectedRole] ?? ["gas", "electricity"]);
     setSelectedPeriod("");
     onClose();
   };
@@ -129,12 +168,14 @@ export default function CreateViewDialog({
     );
   };
 
-  // Filter out buildings without URIs
-  const availableBuildings = buildings.filter((b) => b.uri);
+  // Only buildings matching the selected role
+  const availableBuildings = buildings.filter(
+    (b) => b.uri && b.sourceRole === selectedRole,
+  );
 
   // Available months derived from user-role building energyData locations
   const availableMonths = (() => {
-    if (role !== "user") return [];
+    if (selectedRole !== "user") return [];
     const months = new Set<string>();
     availableBuildings.forEach((b) => {
       (b.energyData ?? []).forEach((ed) => {
@@ -154,19 +195,19 @@ export default function CreateViewDialog({
       showNotification("Please select at least one building", "warning");
       return;
     }
-    if (role === "user" && !selectedPeriod) {
+    if (selectedRole === "user" && !selectedPeriod) {
       showNotification("Please select a month", "warning");
       return;
     }
-    if (role !== "user" && selectedMetrics.length === 0) {
+    if (selectedRole !== "user" && selectedMetrics.length === 0) {
       showNotification("Please select at least one metric", "warning");
       return;
     }
 
     setCreating(true);
     try {
-      const metrics = role === "user" ? ["electricity"] : selectedMetrics;
-      const period = role === "user" ? selectedPeriod : undefined;
+      const metrics = selectedRole === "user" ? ["electricity"] : selectedMetrics;
+      const period = selectedRole === "user" ? selectedPeriod : undefined;
 
       const viewDef = await createViewDefinition(
         session,
@@ -180,8 +221,9 @@ export default function CreateViewDialog({
       await computeAndStoreSnapshot(
         session,
         viewDef.id,
-        (role === "benchmark_service_provider" || role === "investor")
-          ? buildings
+        (selectedRole === "benchmark_service_provider" ||
+            selectedRole === "investor")
+          ? availableBuildings
           : undefined,
       );
 
@@ -201,13 +243,82 @@ export default function CreateViewDialog({
     }
   };
 
+  const roleDropdown = (
+    <FormControl fullWidth sx={{ mb: 3 }}>
+      <InputLabel id="role-label">Role</InputLabel>
+      <Select<UserRole>
+        labelId="role-label"
+        value={selectedRole}
+        onChange={handleRoleChange}
+        input={<OutlinedInput label="Role" />}
+      >
+        {availableRoles.map((r) => (
+          <MenuItem key={r} value={r}>
+            {ROLE_LABEL[r]}
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+
+  const buildingSelect = (
+    <FormControl fullWidth sx={{ mb: 3 }}>
+      <InputLabel id="buildings-label">Select Buildings</InputLabel>
+      <Select
+        labelId="buildings-label"
+        id="buildings-select"
+        multiple
+        value={selectedBuildings}
+        onChange={handleBuildingChange}
+        input={<OutlinedInput label="Select Buildings" />}
+        renderValue={(selected) => (
+          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
+            {selected.map((uri) => {
+              const building = availableBuildings.find((b) => b.uri === uri);
+              return (
+                <Chip
+                  key={uri}
+                  label={building ? `Building ${building.id}` : uri}
+                  size="small"
+                />
+              );
+            })}
+          </Box>
+        )}
+        MenuProps={MenuProps}
+      >
+        {availableBuildings.map((building) => (
+          <MenuItem key={building.uri} value={building.uri}>
+            <Checkbox checked={selectedBuildings.includes(building.uri)} />
+            <ListItemText
+              primary={`Building ${building.id}`}
+              secondary={building.streetAddress || building.locality || ""}
+            />
+          </MenuItem>
+        ))}
+      </Select>
+    </FormControl>
+  );
+
+  const aggregationRadio = (
+    <FormControl component="fieldset" sx={{ mb: 3 }}>
+      <FormLabel component="legend">Aggregation Type</FormLabel>
+      <RadioGroup
+        row
+        value={aggregationType}
+        onChange={(e) =>
+          setAggregationType(e.target.value as AggregationType)}
+      >
+        <FormControlLabel value="average" control={<Radio />} label="Average" />
+        <FormControlLabel value="sum" control={<Radio />} label="Sum" />
+        <FormControlLabel value="min" control={<Radio />} label="Minimum" />
+        <FormControlLabel value="max" control={<Radio />} label="Maximum" />
+      </RadioGroup>
+    </FormControl>
+  );
+
   return (
-    <Dialog
-      open={open}
-      onClose={handleClose}
-      maxWidth="sm"
-      fullWidth
-    >
+    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
       <DialogTitle>Create Aggregated View</DialogTitle>
       {creating
         ? (
@@ -226,15 +337,15 @@ export default function CreateViewDialog({
             </Box>
           </DialogContent>
         )
-        : role === "user"
+        : selectedRole === "user"
         ? (
           <>
             <DialogContent>
               <DialogContentText sx={{ mb: 2 }}>
-                Create a view that aggregates monthly electricity consumption
-                across multiple buildings. The result is a privacy-preserving
-                snapshot of the combined kWh total.
+                {ROLE_DESCRIPTION.user}
               </DialogContentText>
+
+              {roleDropdown}
 
               <TextField
                 autoFocus
@@ -250,47 +361,7 @@ export default function CreateViewDialog({
                 sx={{ mb: 3 }}
               />
 
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel id="buildings-label">Select Buildings</InputLabel>
-                <Select
-                  labelId="buildings-label"
-                  id="buildings-select"
-                  multiple
-                  value={selectedBuildings}
-                  onChange={handleBuildingChange}
-                  input={<OutlinedInput label="Select Buildings" />}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {selected.map((uri) => {
-                        const building = availableBuildings.find((b) =>
-                          b.uri === uri
-                        );
-                        return (
-                          <Chip
-                            key={uri}
-                            label={building ? `Building ${building.id}` : uri}
-                            size="small"
-                          />
-                        );
-                      })}
-                    </Box>
-                  )}
-                  MenuProps={MenuProps}
-                >
-                  {availableBuildings.map((building) => (
-                    <MenuItem key={building.uri} value={building.uri}>
-                      <Checkbox
-                        checked={selectedBuildings.includes(building.uri)}
-                      />
-                      <ListItemText
-                        primary={`Building ${building.id}`}
-                        secondary={building.streetAddress ||
-                          building.locality || ""}
-                      />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              {buildingSelect}
 
               <TextField
                 type="month"
@@ -356,8 +427,10 @@ export default function CreateViewDialog({
           <>
             <DialogContent>
               <DialogContentText sx={{ mb: 2 }}>
-                {ROLE_DESCRIPTION[role ?? "dummy"]}
+                {ROLE_DESCRIPTION[selectedRole]}
               </DialogContentText>
+
+              {roleDropdown}
 
               <TextField
                 autoFocus
@@ -373,78 +446,9 @@ export default function CreateViewDialog({
                 sx={{ mb: 3 }}
               />
 
-              <FormControl fullWidth sx={{ mb: 3 }}>
-                <InputLabel id="buildings-label">Select Buildings</InputLabel>
-                <Select
-                  labelId="buildings-label"
-                  id="buildings-select"
-                  multiple
-                  value={selectedBuildings}
-                  onChange={handleBuildingChange}
-                  input={<OutlinedInput label="Select Buildings" />}
-                  renderValue={(selected) => (
-                    <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-                      {selected.map((uri) => {
-                        const building = availableBuildings.find((b) =>
-                          b.uri === uri
-                        );
-                        return (
-                          <Chip
-                            key={uri}
-                            label={building ? `Building ${building.id}` : uri}
-                            size="small"
-                          />
-                        );
-                      })}
-                    </Box>
-                  )}
-                  MenuProps={MenuProps}
-                >
-                  {availableBuildings.map((building) => (
-                    <MenuItem key={building.uri} value={building.uri}>
-                      <Checkbox
-                        checked={selectedBuildings.includes(building.uri)}
-                      />
-                      <ListItemText
-                        primary={`Building ${building.id}`}
-                        secondary={building.streetAddress ||
-                          building.locality || ""}
-                      />
-                    </MenuItem>
-                  ))}
-                </Select>
-              </FormControl>
+              {buildingSelect}
 
-              <FormControl component="fieldset" sx={{ mb: 3 }}>
-                <FormLabel component="legend">Aggregation Type</FormLabel>
-                <RadioGroup
-                  row
-                  value={aggregationType}
-                  onChange={(e) =>
-                    setAggregationType(e.target.value as AggregationType)}
-                >
-                  <FormControlLabel
-                    value="average"
-                    control={<Radio />}
-                    label="Average"
-                  />
-                  <FormControlLabel
-                    value="sum"
-                    control={<Radio />}
-                    label="Sum"
-                  />
-                  <FormControlLabel
-                    value="min"
-                    control={<Radio />}
-                    label="Minimum"
-                  />
-                  <FormControlLabel
-                    value="max"
-                    control={<Radio />}
-                    label="Maximum"
-                  />
-                </RadioGroup>
-              </FormControl>
+              {aggregationRadio}
 
               <FormControl component="fieldset">
                 <FormLabel component="legend">Metrics to Include</FormLabel>
@@ -461,7 +465,7 @@ export default function CreateViewDialog({
                           <Typography variant="subtitle2" color="textSecondary">
                             {category.category}
                           </Typography>
-                          {role === "benchmark_service_provider" && (
+                          {selectedRole === "benchmark_service_provider" && (
                             <Typography
                               variant="caption"
                               color="primary"

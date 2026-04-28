@@ -390,10 +390,7 @@ async function getHiddenBuildings(session: Session): Promise<Set<string>> {
   }
 }
 
-export async function fetchAndParseData(
-  session: Session,
-  role: UserRole | null = null,
-) {
+export async function fetchAndParseData(session: Session) {
   // get own solid pod url
   const webId = session.info.webId;
   if (!webId) {
@@ -558,9 +555,9 @@ export async function fetchAndParseData(
 
   // For investor buildings: synthesize energyNeed entries from inline annualData
   // (investor buildings have no separate energy files; data is in SOSA observations)
-  if (role === "investor" || role === null) {
-    for (const [buildingId, building] of visibleBuildings) {
-      const numericBuildingId = /^\d+$/.test(buildingId)
+  for (const [buildingId, building] of visibleBuildings) {
+    if (building.sourceRole !== "investor") continue;
+    const numericBuildingId = /^\d+$/.test(buildingId)
         ? parseInt(buildingId)
         : buildingId.split("").reduce(
           (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0,
@@ -608,10 +605,11 @@ export async function fetchAndParseData(
           agentAggregatedValues[agent][prop].push(val);
         }
       }
-    }
   }
 
   // Calculate averages
+
+
   const averages: Record<string, number> = {};
   for (const property in aggregatedValues) {
     const values = aggregatedValues[property];

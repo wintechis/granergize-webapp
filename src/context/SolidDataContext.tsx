@@ -16,7 +16,6 @@ import type {
   EnergyConsumption,
   EnergyProduction,
   EnergyType,
-  UserRole,
 } from "../../types/types.ts";
 
 interface ContextState {
@@ -32,7 +31,6 @@ interface ContextState {
   isLoading: boolean;
   error: string | null;
   reloadData: () => Promise<void>;
-  role: UserRole | null;
 }
 
 const SolidDataContext = createContext<ContextState>({
@@ -45,7 +43,6 @@ const SolidDataContext = createContext<ContextState>({
   isLoading: false,
   error: null,
   reloadData: async () => {},
-  role: null,
 });
 
 export const useSolidData = () => useContext(SolidDataContext);
@@ -60,10 +57,7 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   children,
 }) => {
   const [data, setData] = useState<
-    Omit<
-      ContextState,
-      "isLoading" | "error" | "reloadData" | "energyMix" | "role"
-    >
+    Omit<ContextState, "isLoading" | "error" | "reloadData" | "energyMix">
   >({
     buildings: [],
     energyNeed: [],
@@ -74,7 +68,6 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   const [energyMix, setEnergyMix] = useState<ContextState["energyMix"]>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
-  const role: UserRole = "investor";
 
   const loadData = useCallback(async () => {
     if (!session || !session.info.isLoggedIn) {
@@ -86,11 +79,9 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
     setError(null);
 
     try {
-      // Load primary data filtered by role
-      const parsedData = await fetchAndParseData(session, role);
+      const parsedData = await fetchAndParseData(session);
       setData(parsedData);
 
-      // Load energy mix data
       const mix = await parseEnergyMix(session);
       setEnergyMix(mix);
     } catch (err) {
@@ -116,7 +107,6 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
         isLoading,
         error,
         reloadData: loadData,
-        role,
       }}
     >
       {children}
