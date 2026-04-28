@@ -37,22 +37,23 @@ function makeIcon(url: string): L.Icon {
   });
 }
 
+const BASE = import.meta.env.BASE_URL;
 const ROLE_ICONS: Record<string, { base: L.Icon; shared: L.Icon }> = {
   investor: {
-    base: makeIcon("/marker-investor.png"),
-    shared: makeIcon("/marker-investor.png"),
+    base: makeIcon(`${BASE}marker-investor.png`),
+    shared: makeIcon(`${BASE}marker-investor.png`),
   },
   dummy: {
-    base: makeIcon("/marker-dummy.png"),
-    shared: makeIcon("/marker-dummy-shared.png"),
+    base: makeIcon(`${BASE}marker-dummy.png`),
+    shared: makeIcon(`${BASE}marker-dummy-shared.png`),
   },
   user: {
-    base: makeIcon("/marker-user.png"),
-    shared: makeIcon("/marker-user-shared.png"),
+    base: makeIcon(`${BASE}marker-user.png`),
+    shared: makeIcon(`${BASE}marker-user-shared.png`),
   },
   benchmark_service_provider: {
-    base: makeIcon("/marker-bsp.png"),
-    shared: makeIcon("/marker-bsp-shared.png"),
+    base: makeIcon(`${BASE}marker-bsp.png`),
+    shared: makeIcon(`${BASE}marker-bsp-shared.png`),
   },
 };
 
@@ -202,10 +203,10 @@ export default function Map({ session }: MapProps) {
                   <Box sx={{ borderTop: "1px solid #eee", mt: 0.5, pt: 0.5 }}>
                     {(
                       [
-                        ["investor", "/legend-investor.png", "Investor"],
-                        ["dummy", "/legend-dummy.png", "Demo"],
-                        ["user", "/legend-user.png", "User"],
-                        ["benchmark_service_provider", "/legend-bsp.png", "BSP"],
+                        ["investor", `${BASE}legend-investor.png`, "Investor"],
+                        ["dummy", `${BASE}legend-dummy.png`, "Demo"],
+                        ["user", `${BASE}legend-user.png`, "User"],
+                        ["benchmark_service_provider", `${BASE}legend-bsp.png`, "BSP"],
                       ] as const
                     ).map(([role, src, label]) => (
                       <Box
