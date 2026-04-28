@@ -35,7 +35,7 @@ interface BuildingProps {
 }
 
 export default function Building({ building, session, onHide }: BuildingProps) {
-  const { reloadData, role } = useSolidData();
+  const { reloadData } = useSolidData();
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [energyCertificateUploaderOpen, setEnergyCertificateUploaderOpen] =
     useState(false);
@@ -199,7 +199,7 @@ export default function Building({ building, session, onHide }: BuildingProps) {
           )}
 
           {/* Investor-role fields */}
-          {role === "investor" && (
+          {building.sourceRole === "investor" && (
             <>
               <Divider sx={{ my: 1 }} />
               {building["hallArea"] != null && (
@@ -393,7 +393,7 @@ export default function Building({ building, session, onHide }: BuildingProps) {
         open={shareDialogOpen}
         buildingUri={building.sourceUri ?? building.uri}
         session={session}
-        role={role}
+        role={building.sourceRole}
         onClose={() => setShareDialogOpen(false)}
       />
 
