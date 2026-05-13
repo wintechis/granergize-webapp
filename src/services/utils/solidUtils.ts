@@ -1,20 +1,26 @@
 /**
  * Utility functions for working with Solid POD URLs and WebIDs
  */
-import { getPodUrlAll } from "@inrupt/solid-client";
 
 /**
- * Extract the storage root URL from a WebID
- * Example:
- *   Input: https://solid.ti.rw.fau.de/homer/profile/card#me
- *   Output: https://solid.ti.rw.fau.de/homer/
+ * Extract the storage root URL from a WebID.
+ * Works for both subdomain-based and path-based PODs by locating
+ * the conventional /profile/ segment in the WebID path.
+ *
+ * Examples:
+ *   https://homer.solid.example.org/profile/card#me → https://homer.solid.example.org/
+ *   https://solid.example.org/homer/profile/card#me → https://solid.example.org/homer/
  *
  * @param webId - The WebID URL (with or without fragment)
  * @returns The storage root URL with trailing slash
  */
 export function getStorageRoot(webId: string): string {
-  const uri = new URL(webId);
-  return uri.origin + "/";
+  const url = new URL(webId);
+  const profileIndex = url.pathname.indexOf("/profile/");
+  if (profileIndex !== -1) {
+    return url.origin + url.pathname.substring(0, profileIndex + 1);
+  }
+  return url.origin + "/";
 }
 
 /**
