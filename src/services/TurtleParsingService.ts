@@ -170,7 +170,7 @@ async function removeInaccessibleBuildingSources(
 
     const buildingSourcePredicate = namedNode(
       `${GRAN_NS}hasBuildingDataSource`,
-    );
+    )
     const registryNode = namedNode(registryUrl);
 
     // Remove quads for failed sources
@@ -276,11 +276,10 @@ async function getSourceRegistry(
 
     const buildingSources: Array<{ url: string; role: UserRole }> = [];
     const agentSources: string[] = [];
-    const registryNode = namedNode(registryUrl);
     const dataSourceRolePredicate = namedNode(`${GRAN_NS}dataSourceRole`);
 
     const buildingQuads = store.getQuads(
-      registryNode,
+      null,
       namedNode(`${GRAN_NS}hasBuildingDataSource`),
       null,
       null,
@@ -307,7 +306,7 @@ async function getSourceRegistry(
     });
 
     const agentQuads = store.getQuads(
-      registryNode,
+      null,
       namedNode(`${GRAN_NS}hasAgentDataSource`),
       null,
       null,
