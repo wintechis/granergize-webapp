@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BuildingType, EnergyType } from "../../types/types.ts";
 import Building from "./Building.tsx";
 import { MapContainer, Marker, TileLayer } from "react-leaflet";
@@ -27,6 +27,26 @@ import {
 
 const SHADOW =
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png";
+
+const BOUNCE_KEYFRAMES = `
+@keyframes markerBounce {
+  0%   { transform: translateY(-60px); opacity: 0; }
+  50%  { transform: translateY(0);     opacity: 1; }
+  65%  { transform: translateY(-14px); }
+  80%  { transform: translateY(0); }
+  90%  { transform: translateY(-6px); }
+  100% { transform: translateY(0); }
+}
+`;
+
+let bounceStyleInjected = false;
+function ensureBounceStyle() {
+  if (bounceStyleInjected) return;
+  const style = document.createElement("style");
+  style.textContent = BOUNCE_KEYFRAMES;
+  document.head.appendChild(style);
+  bounceStyleInjected = true;
+}
 
 function makeIcon(url: string): L.Icon {
   return new L.Icon({
@@ -64,6 +84,18 @@ function getIcon(building: BuildingType): L.Icon {
   return building.isShared ? set.shared : set.base;
 }
 
+function createBounceIcon(building: BuildingType): L.DivIcon {
+  ensureBounceStyle();
+  const imgUrl = getIcon(building).options.iconUrl as string;
+  return L.divIcon({
+    className: "",
+    html: `<img src="${imgUrl}" style="width:25px;height:41px;animation:markerBounce 0.8s ease-out forwards;" />`,
+    iconSize: [25, 41],
+    iconAnchor: [12, 41],
+    popupAnchor: [1, -34],
+  });
+}
+
 function createSelectedIcon(building: BuildingType): L.DivIcon {
   const imgUrl = getIcon(building).options.iconUrl as string;
   return L.divIcon({
@@ -89,6 +121,8 @@ export default function Map({ session }: MapProps) {
   const [isRightPaneLarge, setIsRightPaneLarge] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
   const [addBuildingOpen, setAddBuildingOpen] = useState(false);
+  const [newBuildingUris, setNewBuildingUris] = useState<Set<string>>(new Set());
+  const bounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Clear selection if the selected building is no longer in the loaded list (e.g. after access revocation)
   useEffect(() => {
@@ -251,6 +285,8 @@ export default function Map({ session }: MapProps) {
                       position={[building.lat, building.long]}
                       icon={selectedBuilding?.id === building.id
                         ? createSelectedIcon(building)
+                        : newBuildingUris.has(building.uri as string)
+                        ? createBounceIcon(building)
                         : getIcon(building)}
                       eventHandlers={{
                         click: () => {
@@ -345,7 +381,12 @@ export default function Map({ session }: MapProps) {
         open={addBuildingOpen}
         session={session}
         onClose={() => setAddBuildingOpen(false)}
-        onBuildingAdded={reloadData}
+        onBuildingAdded={(uris) => {
+          if (bounceTimerRef.current) clearTimeout(bounceTimerRef.current);
+          reloadData();
+          setNewBuildingUris(new Set(uris));
+          bounceTimerRef.current = setTimeout(() => setNewBuildingUris(new Set()), 3000);
+        }}
       />
     </Box>
   );
