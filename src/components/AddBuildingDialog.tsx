@@ -44,7 +44,7 @@ interface AddBuildingDialogProps {
   open: boolean;
   session: Session;
   onClose: () => void;
-  onBuildingAdded: () => void;
+  onBuildingAdded: (newSubjectUris: string[]) => void;
 }
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -107,7 +107,7 @@ export default function AddBuildingDialog(
 ) {
   const { showNotification } = useNotification();
   const { buildings } = useSolidData();
-  const [role, setRole] = useState<UserRole>("user");
+  const [role, setRole] = useState<UserRole>("investor");
   const [buildingsList, setBuildingsList] = useState<Record<string, string>[]>([{}]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [lastgangReadings, setLastgangReadings] = useState<LastgangReading[] | null>(null);
@@ -251,11 +251,13 @@ export default function AddBuildingDialog(
     }
 
     setUploading(true);
+    const addedSubjectUris: string[] = [];
     try {
       for (const b of buildingsList) {
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const uri = newBuildingUri(webId, id);
         const buildingSubjectUri = `${uri}#${id}`;
+        addedSubjectUris.push(buildingSubjectUri);
 
         // Upload energy files for Lastgang buildings (parallel, max 8 concurrent)
         const energyDatasets: { date: string; location: string }[] = [];
@@ -298,7 +300,7 @@ export default function AddBuildingDialog(
         buildingsList.length === 1 ? "Building added" : `${buildingsList.length} buildings added`,
         "success",
       );
-      onBuildingAdded();
+      onBuildingAdded(addedSubjectUris);
       handleClose();
     } catch (err) {
       showNotification(`Failed to add building: ${err}`, "error");
