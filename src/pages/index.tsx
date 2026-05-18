@@ -6,7 +6,6 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import Button from "@mui/material/Button";
 const Map = lazy(() => import("./Map.tsx"));
 import { useSolidData } from "../context/SolidDataContext.tsx";
 import { readInbox } from "../services/interop/inbox.ts";
@@ -16,9 +15,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import PersonIcon from "@mui/icons-material/Person";
-import AddIcon from "@mui/icons-material/Add";
 import SettingsDialog from "../components/SettingsDialog.tsx";
-import CreateViewDialog from "../components/CreateViewDialog.tsx";
 import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
 import type { AggregatedViewDefinition } from "../../types/types.ts";
 
@@ -32,11 +29,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const [inboxLoading, setInboxLoading] = useState(false);
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
-  const [createViewOpen, setCreateViewOpen] = useState(false);
   const [viewDefinitions, setViewDefinitions] = useState<
     AggregatedViewDefinition[]
   >([]);
-  const { reloadData, buildings } = useSolidData();
+  const { reloadData } = useSolidData();
 
   const menuOpen = Boolean(anchorEl);
 
@@ -93,18 +89,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     loadViewDefinitions(); // Reload views in case they were modified
   };
 
-  const handleCreateViewOpen = () => {
-    setCreateViewOpen(true);
-  };
-
-  const handleCreateViewClose = () => {
-    setCreateViewOpen(false);
-  };
-
-  const handleViewCreated = () => {
-    loadViewDefinitions();
-  };
-
   return (
     <Box sx={{ height: "calc(100vh - 50px)" }}>
       <Box
@@ -129,14 +113,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             gap: 2,
           }}
         >
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={handleCreateViewOpen}
-            size="small"
-          >
-            Create View
-          </Button>
           <IconButton
             onClick={handleRefresh}
             disabled={inboxLoading}
@@ -207,13 +183,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         open={settingsOpen}
         onClose={handleSettingsClose}
         session={session}
-      />
-      <CreateViewDialog
-        open={createViewOpen}
-        buildings={buildings}
-        session={session}
-        onClose={handleCreateViewClose}
-        onViewCreated={handleViewCreated}
       />
     </Box>
   );

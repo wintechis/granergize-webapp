@@ -26,10 +26,24 @@ import {
  * Keep this strict because we use it during building creation (Pass 1) and
  * we don't want to accidentally treat arbitrary named nodes as buildings.
  */
+function hashIri(iri: string): string {
+  let h = 0;
+  for (let i = 0; i < iri.length; i++) {
+    h = (Math.imul(31, h) + iri.charCodeAt(i)) | 0;
+  }
+  return (h >>> 0).toString(36);
+}
+
 function extractBuildingIdStrict(iri: string): string | null {
   const fragment = iri.split("#")[1];
   if (fragment) {
-    return fragment.replace(/^building-/, "");
+    const id = fragment.replace(/^building-/, "");
+    // Generic fragment names (e.g. "building1") are not unique across files.
+    // Incorporate the document URL to avoid collisions when multiple files use the same fragment.
+    if (/^building\d*$/.test(id)) {
+      return `${id}_${hashIri(iri.split("#")[0])}`;
+    }
+    return id;
   }
 
   // Canonical pattern: .../buildings/<id>

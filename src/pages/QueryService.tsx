@@ -2,6 +2,7 @@ import { useState } from "react";
 import {
   Alert,
   Box,
+  Button,
   Card,
   CardActions,
   CardContent,
@@ -11,6 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import Grid from "@mui/material/Grid2";
+import AddIcon from "@mui/icons-material/Add";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ShareIcon from "@mui/icons-material/Share";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -20,8 +22,10 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { AggregatedViewDefinition } from "../../types/types.ts";
 import { deleteView } from "../services/aggregation/viewManager.ts";
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
+import CreateViewDialog from "../components/CreateViewDialog.tsx";
 import ShareViewDialog from "../components/ShareViewDialog.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { useSolidData } from "../context/SolidDataContext.tsx";
 
 interface ViewsPageProps {
   session: Session;
@@ -34,7 +38,9 @@ export default function ViewsPage(
 ) {
   const navigate = useNavigate();
   const { showNotification } = useNotification();
+  const { buildings } = useSolidData();
   const [loading, setLoading] = useState<string | null>(null);
+  const [createViewOpen, setCreateViewOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [selectedViewForShare, setSelectedViewForShare] = useState<
     AggregatedViewDefinition | null
@@ -98,13 +104,22 @@ export default function ViewsPage(
         <IconButton onClick={onRefreshViews} sx={{ ml: 2 }}>
           <RefreshIcon />
         </IconButton>
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          size="small"
+          onClick={() => setCreateViewOpen(true)}
+          sx={{ ml: 2 }}
+        >
+          Create View
+        </Button>
       </Box>
 
       {viewDefinitions.length === 0
         ? (
           <Alert severity="info">
-            No aggregated views yet. Click "Create View" in the header to create
-            your first view.
+            No aggregated views yet. Click "Create View" to create your first
+            view.
           </Alert>
         )
         : (
@@ -210,6 +225,13 @@ export default function ViewsPage(
           session={session}
         />
       )}
+      <CreateViewDialog
+        open={createViewOpen}
+        buildings={buildings}
+        session={session}
+        onClose={() => setCreateViewOpen(false)}
+        onViewCreated={onRefreshViews}
+      />
     </Box>
   );
 }

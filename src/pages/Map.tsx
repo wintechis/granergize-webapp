@@ -17,6 +17,8 @@ import WeatherData from "./WeatherData.tsx";
 import InvestorEnergy from "./InvestorEnergy.tsx";
 import BspEnergy from "./BspEnergy.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
+import AddIcon from "@mui/icons-material/Add";
+import AddBuildingDialog from "../components/AddBuildingDialog.tsx";
 import {
   MARKER_OWNED_COLOR,
   MARKER_SELECTED_COLOR,
@@ -79,13 +81,14 @@ interface MapProps {
 }
 
 export default function Map({ session }: MapProps) {
-  const { buildings, energyNeed, isLoading, error } = useSolidData();
+  const { buildings, energyNeed, isLoading, error, reloadData } = useSolidData();
   const [selectedBuilding, setSelectedBuilding] = useState<BuildingType | null>(
     null,
   );
   const [selectedEnergy, setSelectedEnergy] = useState<EnergyType | null>(null);
   const [isRightPaneLarge, setIsRightPaneLarge] = useState(false);
   const [activeTab, setActiveTab] = useState(0);
+  const [addBuildingOpen, setAddBuildingOpen] = useState(false);
 
   // Clear selection if the selected building is no longer in the loaded list (e.g. after access revocation)
   useEffect(() => {
@@ -118,7 +121,15 @@ export default function Map({ session }: MapProps) {
 
   return (
     <Box>
-      <Box sx={{ display: "flex", justifyContent: "flex-end", padding: 1 }}>
+      <Box sx={{ display: "flex", justifyContent: "flex-end", gap: 1, padding: 1 }}>
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          size="small"
+          onClick={() => setAddBuildingOpen(true)}
+        >
+          Add Building
+        </Button>
         <Button variant="contained" onClick={togglePaneSize}>
           {isRightPaneLarge ? "Shrink Details" : "Enlarge Details"}
         </Button>
@@ -329,6 +340,13 @@ export default function Map({ session }: MapProps) {
           Granergize
         </a>. Contact: <a href="mailto:thomas.wehr@fau.de">Thomas Wehr</a>
       </Typography>
+
+      <AddBuildingDialog
+        open={addBuildingOpen}
+        session={session}
+        onClose={() => setAddBuildingOpen(false)}
+        onBuildingAdded={reloadData}
+      />
     </Box>
   );
 }
