@@ -20,8 +20,13 @@ import {
   TIME_NS,
 } from "./vocabularies.ts";
 
-/** Extract building ID from a NamedNode IRI (fragment or last path segment under /buildings/) */
-function extractBuildingId(iri: string): string | null {
+/**
+ * Extract building ID from a NamedNode IRI using *strict* patterns.
+ *
+ * Keep this strict because we use it during building creation (Pass 1) and
+ * we don't want to accidentally treat arbitrary named nodes as buildings.
+ */
+function extractBuildingIdStrict(iri: string): string | null {
   const fragment = iri.split("#")[1];
   if (fragment) {
     return fragment.replace(/^building-/, "");
@@ -38,6 +43,24 @@ function extractBuildingId(iri: string): string | null {
   if (investorMatch) {
     return investorMatch[1];
   }
+
+  return null;
+}
+
+/**
+ * Looser extraction used for joining observations (e.g. sosa:hasFeatureOfInterest).
+ *
+ * Some investor graphs use a second IRI for the same building, e.g.
+ *   .../building-312  (rec:Building)
+ *   .../312           (feature of interest)
+ */
+function extractBuildingIdForJoin(iri: string): string | null {
+  const strict = extractBuildingIdStrict(iri);
+  if (strict) return strict;
+
+  // Common pattern: .../<numericId> (optionally with a trailing slash)
+  const numericTail = iri.match(/\/(\d+)\/?$/);
+  if (numericTail) return numericTail[1];
 
   return null;
 }
@@ -63,7 +86,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   quads.forEach((quad: Quad) => {
     if (quad.subject.termType === "BlankNode") return;
 
-    const buildingId = extractBuildingId(quad.subject.value);
+    const buildingId = extractBuildingIdStrict(quad.subject.value);
     if (!buildingId) return;
 
     if (!buildings.has(buildingId)) {
@@ -350,7 +373,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     if (!od.featureOfInterest || !od.observedProperty) continue;
 
     const buildingId = uriBuildingIdMap.get(od.featureOfInterest) ||
-      extractBuildingId(od.featureOfInterest);
+      extractBuildingIdForJoin(od.featureOfInterest);
     if (!buildingId) continue;
     if (!buildings.has(buildingId)) continue;
 
