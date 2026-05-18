@@ -8,7 +8,6 @@
     "npm:@fontsource/roboto@^5.1.0": "5.2.6",
     "npm:@inrupt/solid-client-authn-browser@^3.1.0": "3.1.0",
     "npm:@inrupt/solid-client@3": "3.0.0",
-    "npm:@jsr/wintechis__wetterdienst-rdf-adapter@^0.0.53": "0.0.53",
     "npm:@mui/icons-material@^6.1.6": "6.5.0_@mui+material@6.5.0__@emotion+react@11.14.0___react@18.3.1__@emotion+styled@11.14.1___@emotion+react@11.14.0____react@18.3.1___react@18.3.1__@types+react@18.3.26__react@18.3.1__react-dom@18.3.1___react@18.3.1_@types+react@18.3.26_react@18.3.1_@emotion+react@11.14.0__react@18.3.1_@emotion+styled@11.14.1__@emotion+react@11.14.0___react@18.3.1__react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@mui/material@^6.1.6": "6.5.0_@emotion+react@11.14.0__react@18.3.1_@emotion+styled@11.14.1__@emotion+react@11.14.0___react@18.3.1__react@18.3.1_@types+react@18.3.26_react@18.3.1_react-dom@18.3.1__react@18.3.1",
     "npm:@mui/utils@^6.1.7": "6.4.9_@types+react@18.3.26_react@18.3.1",
