@@ -124,12 +124,12 @@ export default function Map({ session }: MapProps) {
   const [newBuildingUris, setNewBuildingUris] = useState<Set<string>>(new Set());
   const bounceTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // Clear selection if the selected building is no longer in the loaded list (e.g. after access revocation)
+  // Keep selectedBuilding in sync with context: update on reload, clear on removal
   useEffect(() => {
-    if (
-      selectedBuilding && !buildings.find((b) => b.id === selectedBuilding.id)
-    ) {
-      setSelectedBuilding(null);
+    if (!selectedBuilding) return;
+    const updated = buildings.find((b) => b.id === selectedBuilding.id);
+    if (updated !== selectedBuilding) {
+      setSelectedBuilding(updated ?? null);
     }
   }, [buildings, selectedBuilding]);
 
