@@ -6,6 +6,7 @@ import {
   InvestorOperatingCosts,
 } from "../../types/types.ts";
 import {
+  Box,
   Card,
   CardActions,
   CardContent,
@@ -19,6 +20,7 @@ import {
   Check as CheckIcon,
   Clear as ClearIcon,
   CorporateFare as CorporateFareIcon,
+  Edit as EditIcon,
   Share as ShareIcon,
 } from "@mui/icons-material";
 import { Session } from "@inrupt/solid-client-authn-browser";
@@ -27,6 +29,7 @@ import {
   EnergyCertificateDialog,
   ShareBuildingDialog,
 } from "../components/BuildingDialogs.tsx";
+import EditBuildingDialog from "../components/EditBuildingDialog.tsx";
 
 interface BuildingProps {
   building: BuildingType;
@@ -39,6 +42,7 @@ export default function Building({ building, session, onHide }: BuildingProps) {
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [energyCertificateUploaderOpen, setEnergyCertificateUploaderOpen] =
     useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const hasValue = (value: unknown): boolean => {
     if (value == null) {
@@ -116,13 +120,24 @@ export default function Building({ building, session, onHide }: BuildingProps) {
               } ${building.locality}, ${building.region}`}
             </>
           }
-          action={!building.isShared && (
-            <Tooltip title="Share building data">
-              <IconButton onClick={() => setShareDialogOpen(true)}>
-                <ShareIcon />
-              </IconButton>
-            </Tooltip>
-          )}
+          action={
+            <Box sx={{ display: "flex" }}>
+              {!building.isShared && (
+                <Tooltip title="Edit building">
+                  <IconButton onClick={() => setEditDialogOpen(true)}>
+                    <EditIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {!building.isShared && (
+                <Tooltip title="Share building data">
+                  <IconButton onClick={() => setShareDialogOpen(true)}>
+                    <ShareIcon />
+                  </IconButton>
+                </Tooltip>
+              )}
+            </Box>
+          }
         />
         <CardContent sx={{ overflowY: "auto", maxHeight: "60vh" }}>
           {/* Common fields */}
@@ -388,6 +403,17 @@ export default function Building({ building, session, onHide }: BuildingProps) {
           <Link to="#" onClick={onHide}>hide</Link>
         </CardActions>
       </Card>
+
+      {!building.isShared && (
+        <EditBuildingDialog
+          key={building.uri as string}
+          open={editDialogOpen}
+          building={building}
+          session={session}
+          onClose={() => setEditDialogOpen(false)}
+          onBuildingUpdated={reloadData}
+        />
+      )}
 
       <ShareBuildingDialog
         open={shareDialogOpen}

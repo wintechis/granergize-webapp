@@ -520,6 +520,52 @@ export async function addBuildingToRegistry(
   }
 }
 
+/**
+ * Patch scalar fields on an existing building Turtle file.
+ * Fetches the current file, updates only the provided fields (preserving energy
+ * observations and other complex blank-node structures), and PUTs it back.
+ */
+export async function updateBuilding(
+  session: Session,
+  buildingFileUri: string,
+  subjectUri: string,
+  updatedFields: Record<string, string>,
+): Promise<void> {
+  const res = await session.fetch(buildingFileUri);
+  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
+  const text = await res.text();
+
+  const store = new Store(new Parser({ baseIRI: buildingFileUri }).parse(text));
+  const subject = namedNode(subjectUri);
+
+  for (const [field, value] of Object.entries(updatedFields)) {
+    if (field.startsWith("_")) continue;
+
+    const isObjProp = field in fieldToObjectPredicate;
+    const predIri = isObjProp ? fieldToObjectPredicate[field] : fieldToPredicate[field];
+    if (!predIri) continue;
+
+    store.removeQuads(store.getQuads(subject, namedNode(predIri), null, null));
+    if (!value?.trim()) continue;
+
+    if (isObjProp) {
+      store.addQuad(subject, namedNode(predIri), namedNode(`${INVESTOR_NS}${value}`));
+    } else {
+      store.addQuad(subject, namedNode(predIri), literal(value, namedNode(xsdType(field))));
+    }
+  }
+
+  const newTtl = new Writer({ format: "text/turtle" }).quadsToString(
+    store.getQuads(null, null, null, null),
+  );
+  const putRes = await session.fetch(buildingFileUri, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: newTtl,
+  });
+  if (!putRes.ok) throw new Error(`Update failed: ${putRes.status} ${putRes.statusText}`);
+}
+
 /** Construct the POD URL for a new building file. */
 export function newBuildingUri(webId: string, id: string): string {
   return `${getStorageRoot(webId)}granergize/buildings/${id}.ttl`;
