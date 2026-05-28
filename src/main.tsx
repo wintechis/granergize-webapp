@@ -3,6 +3,8 @@ import { useCallback, useEffect, useState } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import CssBaseline from "@mui/material/CssBaseline";
+import Typography from "@mui/material/Typography";
+import Link from "@mui/material/Link";
 import { ThemeProvider } from "@mui/material/styles";
 import "./index.css";
 import "./chartSetup.ts"; // Register Chart.js globally
@@ -49,7 +51,42 @@ function AppContent() {
   };
 
   return (
-    <Login onLogin={handleLogin}>
+    <Login
+      onLogin={handleLogin}
+      name="GRANERGIZE"
+      recommendedLogins={[
+        "https://solid.iis.fraunhofer.de",
+        "https://solidcommunity.net",
+      ]}
+      lead={
+        <>
+          <Typography variant="body1" sx={{ mb: 1 }}>
+            GRANERGIZE lets you browse, compare, and selectively share energy
+            consumption data of logistics real estate — kept in your own Solid
+            Pod under your control. Choose your Identity Provider below to sign
+            in.
+          </Typography>
+          <Typography variant="body2">
+            Learn more about the project:{" "}
+            <Link
+              href="https://www.ti.rw.fau.de/granergize/"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              FAU
+            </Link>
+            {" · "}
+            <Link
+              href="https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html"
+              target="_blank"
+              rel="noopener noreferrer"
+            >
+              Fraunhofer IIS
+            </Link>
+          </Typography>
+        </>
+      }
+    >
       <SolidDataProvider session={session}>
         <App session={session!} onLogout={handleLogout} />
       </SolidDataProvider>
