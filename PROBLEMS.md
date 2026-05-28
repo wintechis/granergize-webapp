@@ -1,13 +1,22 @@
 # User-Reported Problems
 
-Running list of problems and feedback reported by users.
+Running list of problems and feedback for the GRANERGIZE WebApp.
+
+Sources referenced below:
+- **Handbuch** = `GRANERGIZE_Handbuch.pdf` (Praxishandbuch, April 2026); `HWnn` =
+  the review comments ("Kommentiert [HWnn]") embedded in that document.
+- **Paper** = `paper.pdf` ("A Decentralized Approach to Sharing Energy Consumption
+  Data of Logistics Real Estate", Solid Symposium 2026).
+
+All 23 problems were checked against the source code on 2026-05-28. 21 reproduce as
+described; #4 and #21 (marked `Open*`) were corrected to match the actual code behavior.
 
 | # | Status | Title |
 |---|--------|-------|
 | 1 | Open | Role should be set per-user in profile, not chosen in the add-data UI |
 | 2 | Open | Add more user roles (e.g. facility manager, broker/Makler) |
 | 3 | Open | No way to delete a building (only edit is possible) |
-| 4 | Open | Only the benchmark service provider can add energy data; every role should be able to |
+| 4 | Open* | Energy data entry is inconsistent across roles (original "only BSP" claim corrected) |
 | 5 | Open | No way to update consumption data per month/year or add a new year |
 | 6 | Open | Excel import is slow and cannot be cancelled / deferred |
 | 7 | Open | Each building should carry address, building specifics, and annual energy consumption |
@@ -20,6 +29,13 @@ Running list of problems and feedback reported by users.
 | 14 | Open | Login screen lacks an explanation text and a link to the project |
 | 15 | Open | Soll-Ist-Vergleich use case is missing from the app (no data sent) |
 | 16 | Open | Need planned-vs-actual consumption comparison per building per year |
+| 17 | Open | Individual sharing has only two levels; cannot share a single year's energy data |
+| 18 | Open | External-knowledge linking (weather / benchmark standards) is not available in the app |
+| 19 | Open | No standardized input mask per role |
+| 20 | Open | Data Room functionality (partner discovery) is not integrated into the WebApp |
+| 21 | Open* | Aggregated-view revocation sends no notification (building revocation now does) |
+| 22 | Open | Demonstrator stores data on external/public Pods; should run on a controlled hoster |
+| 23 | Open | Unclear whether the Vertriebsoptimierung (sales-support) use case is supported |
 
 ---
 
@@ -32,13 +48,21 @@ everything and picks a role (e.g. investor, user, BSP) when adding data through 
 add-data UI. Instead, the role should be assigned per-user in the user profile and
 applied automatically, rather than being a selectable option in the add-data flow.
 
+**Source:** Handbuch HW5 ("Wie kann ich meine eigene Rolle festlegen? Bisher nur 3
+Rollen bei Dateneingabe und Teilen der aggregierten Daten").
+
 ## 2. Add more user roles (e.g. facility manager, broker/Makler)
 
 **Status:** Open
 
 **Description:** The app currently only supports the investor, user, and benchmark
 service provider roles. Additional roles should be supported — for example facility
-manager or broker (Makler).
+manager or broker (Makler). The paper's logistics-ecosystem model lists a fuller set
+of roles: users, owners, facility managers, developers, financiers, brokers, energy
+suppliers, and benchmark service providers.
+
+**Source:** Handbuch HW11 ("Nicht alle Rollen vorhanden, nur Investor, Nutzer und
+BSP"); Paper §2 (role list).
 
 ## 3. No way to delete a building (only edit is possible)
 
@@ -47,23 +71,39 @@ manager or broker (Makler).
 **Description:** Buildings can be edited but not deleted. There should be a way to
 delete a building.
 
-## 4. Only the benchmark service provider can add energy data; every role should be able to
+**Source:** Handbuch HW10 ("Wie können Gebäude wieder gelöscht werden?").
 
-**Status:** Open
+## 4. Energy data entry is inconsistent across roles
 
-**Description:** In the add-building flow, the investor and user roles can only add
-building specifics — they cannot add energy consumption. Only the benchmark service
-provider can add energy and water data (annual observations). Every role should be
-able to add energy data.
+**Status:** Open (claim corrected after code verification)
+
+**Description:** Energy-data entry differs by role in the add-building flow: the
+**investor** and **benchmark service provider** roles have annual energy/water form
+fields, the **user** role has none and can only supply energy via the Lastgang
+(load-profile) file upload. The original report ("only BSP can add energy; investor and
+user can only add building specifics") is inaccurate — investor has annual energy
+fields, and the user role can import energy via file. The underlying ask stands: energy
+entry should be consistent and available to every role (ideally via a standardized
+form, see #19), not split between form fields and file-only paths.
+
+**Source:** Handbuch HW12 ("Sowohl als Nutzer als auch als Investor können nur
+Gebäudespezifika eingegeben werden, keine Energieverbrauchsdaten"). Code:
+`AddBuildingDialog.tsx` (investor energy fields ~533-569, BSP energy fields ~572-596,
+user Lastgang upload ~264-293).
 
 ## 5. No way to update consumption data per month/year or add a new year
 
 **Status:** Open
 
 **Description:** The benchmarker can add benchmarking data, but there is no way to
-add or update consumption data per month or per year, nor to add a new year. Only the
-benchmark service provider can add energy data at all, and even then existing energy
-data cannot be updated for a new year. (Related to #4.)
+add or update consumption data per month or per year, nor to add a new year. As BSP
+the energy fields are available once, when first creating a building, but they
+**disappear when editing an existing building** — so there is no way to update
+consumption data afterwards. (Related to #4.)
+
+**Source:** Handbuch HW13/R12 ("Als BSP kann man Energieverbrauchsdaten einmal beim
+Anlegen des Gebäudes eingeben, aber beim Bearbeiten verschwinden diese Felder → wie
+kann man Verbrauchsdaten updaten?").
 
 ## 6. Excel import is slow and cannot be cancelled / deferred
 
@@ -71,6 +111,9 @@ data cannot be updated for a new year. (Related to #4.)
 
 **Description:** The Excel import takes a long time, and there is no way to cancel an
 in-progress upload (e.g. to say "I'll do the upload later").
+
+**Source:** Handbuch HW14/R12 ("Nutzer kann granulare Daten über Excel-Template
+hochladen → lange Ladezeit ohne Abbruchmöglichkeit").
 
 ## 7. Each building should carry address, building specifics, and annual energy consumption
 
@@ -88,14 +131,23 @@ completeness; relates to #4 and #5.)
 — the current templates are the exact Excel files received from the data providers,
 rather than clean/blank standardized templates.
 
+**Source:** Handbuch HW17 ("hier werden die mit echten Daten ausgefüllten Templates,
+die uns die Partner zur Verfügung gestellt haben, runtergeladen").
+
 ## 9. Role-based sharing from the Praxishandbuch is not implemented in the app
 
 **Status:** Open
 
-**Description:** The Praxishandbuch describes three different sharing mechanisms,
-including role-based access. The app only implements single (per-building) sharing and
-aggregated views — the role-based sharing mechanism is missing. It is unclear how the
-documented role-based access is supposed to work in the app.
+**Description:** The Handbuch describes three sharing mechanisms (Abbildung 5):
+individual building data, aggregated views, and **role-based access**. The app only
+implements individual (per-building) sharing and aggregated views — the role-based
+sharing mechanism is missing. It is also unclear whether aggregated views can be
+shared with roles other than BSP. The documented role-based access (share data at a
+granularity adapted to the recipient's role — e.g. yearly figures for an investor,
+15-minute data for an energy manager) is not available.
+
+**Source:** Handbuch §5.1 + Abbildung 5, HW18 ("Wie funktioniert das?"), HW22
+("Limitiert auf BSP oder Teilen auch mit anderen Rollen möglich?").
 
 ## 10. Deactivate the Energy Mix tab (not in Praxishandbuch, confusing for users)
 
@@ -117,6 +169,9 @@ Praxishandbuch and is rather confusing for users.
 **Description:** Instead of the current "hats" (role/marker icons), it would be nice
 to display the user's company logo. (Relates to #11.)
 
+**Source:** Handbuch HW16 ("Anstatt der Hüte auf den Gebäuden in der Karte würden die
+jeweiligen Firmenlogos gut aussehen").
+
 ## 13. Map markers should show the company logo too
 
 **Status:** Open
@@ -124,21 +179,29 @@ to display the user's company logo. (Relates to #11.)
 **Description:** The markers on the map should also display the company logo.
 (Relates to #11 and #12.)
 
+**Source:** Handbuch HW16.
+
 ## 14. Login screen lacks an explanation text and a link to the project
 
 **Status:** Open
 
 **Description:** When not logged in, the user only sees the login screen. It has no
-short explanation text and no link to the project.
+short explanation text and no link to the project. (The Handbuch assumes an
+explanation is shown on the start page, but it is not.)
+
+**Source:** Handbuch HW6 ("Man sieht keine Erklärung, nur Solid Login - Choose an
+Identity Provider for this Solid Application").
 
 ## 15. Soll-Ist-Vergleich use case is missing from the app (no data sent)
 
 **Status:** Open
 
 **Description:** The project started with nine use cases and is now down to three (as in
-the paper): benchmarking, supporting Vertrieb (sales), and Soll-Ist-Vergleich
-(target/actual comparison). The Soll-Ist-Vergleich use case is not in the app — partly
-because the required data has not been sent.
+the paper / Handbuch §2.3): Energieverbrauchsbenchmark, Vertriebsoptimierung, and
+Soll-Ist-Vergleich (target/actual comparison). The Soll-Ist-Vergleich use case is not
+in the app — partly because the required data has not been sent.
+
+**Source:** Paper §2; Handbuch §2.3.
 
 ## 16. Need planned-vs-actual consumption comparison per building per year
 
@@ -146,4 +209,93 @@ because the required data has not been sent.
 
 **Description:** The Soll-Ist-Vergleich needs the planned consumption data per building
 (as planned in the architecting phase). There should be functionality to compare energy
-consumption — planned vs. actual — for a given year. (Enables #15.)
+consumption — planned vs. actual — for a given year. Per the Handbuch this also requires
+weather data to account for external influences on consumption. (Enables #15.)
+
+**Source:** Handbuch §2.3 (Soll-Ist-Vergleiche); relates to #18 (weather data).
+
+## 17. Individual sharing has only two levels; cannot share a single year's energy data
+
+**Status:** Open
+
+**Description:** When sharing individual building data, the app offers only two levels:
+(a) static building data only, and (b) static building data plus energy readings. Energy
+data is stored per year in separate files (paper §3.1), so it should be possible to
+share only the energy data of a specific year — but the UI does not offer this.
+
+**Source:** Handbuch HW8 ("Bei Teilen von individuellen Gebäudedaten gibt es nur
+folgende Auswahlmöglichkeit: static building data only / static building data and
+energy readings. Wie teilt man nur Energiedaten eines bestimmten Jahres?"); Paper §3.1.
+
+## 18. External-knowledge linking (weather / benchmark standards) is not available in the app
+
+**Status:** Open
+
+**Description:** The Handbuch describes linking building data with external knowledge —
+e.g. automatically fetching weather data for a region to compute heating degree days, or
+pulling international benchmark reference values for a building classification. It is
+unclear whether the WebApp actually does this; it appears not to be implemented.
+
+**Source:** Handbuch §4.4 ("Verknüpfung mit externem Wissen"), HW9 ("Kann WebApp
+das?"). Note: a weather-data integration exists in the app (WeatherData page / weather
+API proxy) — verify how far this requirement is already met.
+
+## 19. No standardized input mask per role
+
+**Status:** Open
+
+**Description:** There is no standardized data-entry form per role; each role's input
+mask differs / is incomplete. (Relates to #1, #2, #4.)
+
+**Source:** Handbuch HW15/R12 ("Keine standardisierte Eingabemaske für die Rollen").
+
+## 20. Data Room functionality (partner discovery) is not integrated into the WebApp
+
+**Status:** Open
+
+**Description:** The paper's central concept of "Data Rooms" — a Provider opens a room,
+invites members, members self-assign roles, the Provider elicits each member's data
+requirements per role, and the collected exchange pairs are published so members can
+discover matching partners — is not part of the WebApp. The paper explicitly names
+integrating Data Room functionality into the WebApp as the key area for future work.
+
+**Source:** Paper §2 (Data Room scenario) and §4 (future work).
+
+## 21. Aggregated-view revocation sends no notification to the recipient
+
+**Status:** Open (partially fixed; scope narrowed after code verification)
+
+**Description:** The paper/Handbuch describe revocation sending no notification as a
+known limitation. In the current code this has been **fixed for individual buildings**:
+building-access revocation posts an `AccessRevocation` message to the recipient's inbox
+(`sharingManager.ts:264-270`, via `notifyAccessRevoked`). However, **aggregated-view**
+revocation still sends no notification (`sharingManager.ts:809-823` removes the ACL and
+registry entry but posts nothing). So the gap remains only for shared views.
+
+**Source:** Paper §3.2; Handbuch Abbildung 9. Code: building revoke notifies
+(`sharingManager.ts:264-270`); view revoke does not (`sharingManager.ts:809-823`).
+
+## 22. Demonstrator stores data on external/public Pods; should run on a controlled hoster
+
+**Status:** Open
+
+**Description:** The current demonstrator stores data on external Solid Pods (e.g.
+solidcommunity.net), which does not yet meet data-protection requirements. In future
+the data storage should run via a controlled hoster (e.g. Hetzner or own
+infrastructure) so that data protection is guaranteed.
+
+**Source:** Handbuch §3.2 (highlighted: "Aktueller Demonstrator hat Sicherheiten noch
+nicht, weil Datenspeicherung auf externen Datenspeichern erfolgt. Zukünftig soll dies
+über einen Hoster ... passieren, damit der Datenschutz gewährleistet wird").
+
+## 23. Unclear whether the Vertriebsoptimierung (sales-support) use case is supported
+
+**Status:** Open
+
+**Description:** Vertriebsoptimierung (sales support) is one of the three target use
+cases (visualizing energy performance of properties to support sales/marketing and
+collaboration between brokers, FMs, and users). It is unclear whether the current
+WebApp version supports this use case.
+
+**Source:** Handbuch §2.3 + HW1 ("Können wir das mit bisheriger WebApp-Version?");
+Paper §2.
