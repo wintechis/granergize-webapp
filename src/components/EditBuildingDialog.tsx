@@ -203,7 +203,6 @@ export default function EditBuildingDialog(
         {sectionHeader("Location & Physical")}
         <Button
           variant="outlined"
-          size="small"
           startIcon={geocoding ? <CircularProgress size={14} color="inherit" /> : <MyLocationIcon />}
           onClick={handleGeocode}
           disabled={geocoding}

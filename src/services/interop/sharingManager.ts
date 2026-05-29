@@ -2,6 +2,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import { getPodBaseUrl, getStorageRoot } from "../utils/solidUtils.ts";
 import { GRAN_NS } from "../utils/vocabularies.ts";
+import { fetchFresh } from "../utils/podFetch.ts";
 
 interface SharedBuilding {
   buildingUri: string;
@@ -39,7 +40,7 @@ export async function getSharedBuildings(
   const sharingRegistryUrl = `${podBaseUrl}granergize/sharingRegistry.ttl`;
 
   try {
-    const response = await session.fetch(sharingRegistryUrl);
+    const response = await fetchFresh(sharingRegistryUrl, session);
 
     if (response.status === 404) {
       // Create an empty sharing registry
@@ -119,7 +120,7 @@ export async function getSharedWithMe(
     );
 
     // Load the data sources registry
-    const response = await session.fetch(registryUrl);
+    const response = await fetchFresh(registryUrl, session);
 
     if (response.status === 404) {
       return [];
@@ -197,7 +198,7 @@ async function getHiddenBuildings(
   hiddenBuildingsUrl: string,
 ): Promise<Set<string>> {
   try {
-    const response = await session.fetch(hiddenBuildingsUrl);
+    const response = await fetchFresh(hiddenBuildingsUrl, session);
 
     if (response.status === 404) {
       // Create an empty hidden buildings file for future use
@@ -228,7 +229,7 @@ async function getHiddenBuildings(
     });
 
     return hiddenBuildings;
-  } catch (_error) {
+  } catch {
     return new Set();
   }
 }
@@ -279,7 +280,7 @@ async function removeFromSharingRegistry(
   const podBaseUrl = getPodBaseUrl(userWebId);
   const sharingRegistryUrl = `${podBaseUrl}granergize/sharingRegistry.ttl`;
 
-  const response = await session.fetch(sharingRegistryUrl);
+  const response = await fetchFresh(sharingRegistryUrl, session);
 
   if (response.status === 404) {
     return;
@@ -325,7 +326,7 @@ async function removeFromACL(
   session: Session,
 ): Promise<void> {
   const aclUrl = `${resourceUri}.acl`;
-  const response = await session.fetch(aclUrl);
+  const response = await fetchFresh(aclUrl, session);
 
   if (!response.ok) {
     console.warn(`ACL not found for ${resourceUri}`);
@@ -434,7 +435,7 @@ async function getEnergyAclTargets(
     }
 
     return [];
-  } catch (_error) {
+  } catch {
     return [];
   }
 }
@@ -451,10 +452,14 @@ export async function toggleBuildingVisibility(
   }
 
   const webId = session.info.webId;
-  const podBaseUrl = getPodBaseUrl(webId);
-  const hiddenBuildingsUrl = `${podBaseUrl}granergize/hiddenBuildings.ttl`;
+  // Must match the file read by getSharedWithMe / TurtleParsingService.getHiddenBuildings,
+  // otherwise the toggle writes to a different file than the UI re-reads and the change
+  // appears to revert.
+  const storageRoot = getStorageRoot(webId);
+  const hiddenBuildingsUrl =
+    `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
 
-  const response = await session.fetch(hiddenBuildingsUrl);
+  const response = await fetchFresh(hiddenBuildingsUrl, session);
 
   let store: Store;
   if (response.status === 404) {
@@ -519,7 +524,7 @@ export async function recordSharing(
   const sharingRegistryUrl = `${podBaseUrl}granergize/sharingRegistry.ttl`;
 
   let store: Store;
-  const response = await session.fetch(sharingRegistryUrl);
+  const response = await fetchFresh(sharingRegistryUrl, session);
 
   if (response.status === 404) {
     store = new Store();
@@ -649,7 +654,7 @@ export async function recordViewSharing(
     `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
 
   let store: Store;
-  const response = await session.fetch(viewSharingRegistryUrl);
+  const response = await fetchFresh(viewSharingRegistryUrl, session);
 
   if (response.status === 404) {
     store = new Store();
@@ -732,7 +737,7 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
     `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
 
   try {
-    const response = await session.fetch(viewSharingRegistryUrl);
+    const response = await fetchFresh(viewSharingRegistryUrl, session);
 
     if (response.status === 404) {
       // Create an empty view sharing registry for future use
@@ -832,7 +837,7 @@ async function removeFromViewSharingRegistry(
   const viewSharingRegistryUrl =
     `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
 
-  const response = await session.fetch(viewSharingRegistryUrl);
+  const response = await fetchFresh(viewSharingRegistryUrl, session);
 
   if (response.status === 404) {
     return;

@@ -47,13 +47,13 @@ function extractBuildingIdStrict(iri: string): string | null {
   }
 
   // Canonical pattern: .../buildings/<id>
-  const canonicalMatch = iri.match(/\/buildings\/([^\/#]+)$/);
+  const canonicalMatch = iri.match(/\/buildings\/([^/#]+)$/);
   if (canonicalMatch) {
     return canonicalMatch[1];
   }
 
   // Investor file/subject patterns: .../building-<id> or .../building-<id>.ttl
-  const investorMatch = iri.match(/\/building-([^\/#]+?)(?:\.ttl)?$/);
+  const investorMatch = iri.match(/\/building-([^/#]+?)(?:\.ttl)?$/);
   if (investorMatch) {
     return investorMatch[1];
   }

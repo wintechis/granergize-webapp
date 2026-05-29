@@ -1,5 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
+import { fetchFresh } from "./podFetch.ts";
 
 /**
  * Uploads an energy certificate PDF to the Solid pod and links it in the building's TTL file
@@ -62,8 +63,9 @@ async function updateBuildingWithCertificateLink(
   certificateUrl: string,
   session: Session,
 ): Promise<void> {
-  // Step 1: Fetch the current building TTL
-  const response = await session.fetch(buildingUri);
+  // Step 1: Fetch the current building TTL (fresh, so the certificate link is
+  // added to the current file, not a stale cached copy).
+  const response = await fetchFresh(buildingUri, session);
 
   if (!response.ok) {
     throw new Error(

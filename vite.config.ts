@@ -46,6 +46,9 @@ export default defineConfig({
             return "vendor-map";
           }
           if (id.includes("@inrupt")) return "vendor-rdf";
+          // Keep the camera QR scanner (and its core-js polyfills) out of the
+          // eager vendor chunk so it stays lazy-loaded with QrScanner.
+          if (id.includes("html5-qrcode") || id.includes("core-js")) return;
           return "vendor";
         },
       },

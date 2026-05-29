@@ -4,6 +4,7 @@ import type { UserRole } from "../../../types/types.ts";
 import { objectPropertyMap, predicateMap } from "./config/buildingConfig.ts";
 import { GRAN_NS, USERVOC_NS } from "./vocabularies.ts";
 import { getPodBaseUrl, getStorageRoot } from "./solidUtils.ts";
+import { fetchFresh } from "./podFetch.ts";
 import * as XLSX from "xlsx";
 
 const { namedNode, literal, blankNode } = DataFactory;
@@ -488,7 +489,7 @@ export async function addBuildingToRegistry(
 ): Promise<void> {
   const registryUrl = `${getPodBaseUrl(webId)}granergize/dataSources.ttl`;
 
-  const res = await session.fetch(registryUrl);
+  const res = await fetchFresh(registryUrl, session);
   if (!res.ok) throw new Error(`Registry fetch failed: ${res.status}`);
 
   const text = await res.text();
@@ -531,7 +532,7 @@ export async function updateBuilding(
   subjectUri: string,
   updatedFields: Record<string, string>,
 ): Promise<void> {
-  const res = await session.fetch(buildingFileUri);
+  const res = await fetchFresh(buildingFileUri, session);
   if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
   const text = await res.text();
 

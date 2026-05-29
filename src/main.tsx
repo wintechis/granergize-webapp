@@ -53,27 +53,25 @@ function AppContent() {
   return (
     <Login
       onLogin={handleLogin}
-      name="GRANERGIZE"
+      name="Granergize Data Rooms"
       recommendedLogins={[
-        "https://solid.iis.fraunhofer.de",
         "https://solidcommunity.net",
+        "https://solid.iis.fraunhofer.de",
       ]}
       lead={
         <>
           <Typography variant="body1" sx={{ mb: 1 }}>
-            GRANERGIZE lets you browse, compare, and selectively share energy
-            consumption data of logistics real estate — kept in your own Solid
-            Pod under your control. Choose your Identity Provider below to sign
-            in.
+            Use Granergize Data Rooms to browse, compare and share energy
+            consumption data of logistics real estate. With Granergize Data
+            Rooms, you keep your data under your control.
           </Typography>
-          <Typography variant="body2">
-            Learn more about the project:{" "}
+          <Typography variant="body1" sx={{ mb: 1 }}>
             <Link
               href="https://www.ti.rw.fau.de/granergize/"
               target="_blank"
               rel="noopener noreferrer"
             >
-              FAU
+              Granergize@FAU
             </Link>
             {" · "}
             <Link
@@ -81,8 +79,11 @@ function AppContent() {
               target="_blank"
               rel="noopener noreferrer"
             >
-              Fraunhofer IIS
+              Granergize@IIS
             </Link>
+          </Typography>
+          <Typography variant="body1">
+            Choose your Identity Provider below to sign in.
           </Typography>
         </>
       }

@@ -1,0 +1,80 @@
+/* Styling for the in-app how-to guide (Kurzanleitung) and its print/PDF output.
+   One HTML source serves both screen and "Als PDF speichern" (window.print()). */
+
+/* The print-only cover page is hidden on screen. */
+.guide-cover {
+  display: none;
+}
+
+/* Captioned screenshots. */
+.guide-figure {
+  margin: 1rem 0 1.5rem;
+}
+.guide-figure img {
+  display: block;
+  max-width: 100%;
+  height: auto;
+  border: 1px solid #ddd;
+  border-radius: 4px;
+}
+.guide-figure figcaption {
+  margin-top: 0.4rem;
+  font-size: 0.85rem;
+  color: #666;
+}
+
+@media screen {
+  .guide {
+    max-width: 820px;
+    margin: 0 auto;
+  }
+}
+
+@media print {
+  @page {
+    size: A4;
+    margin: 2cm;
+  }
+
+  /* Keep heading colors / any backgrounds when printing. */
+  body {
+    -webkit-print-color-adjust: exact;
+    print-color-adjust: exact;
+  }
+
+  /* Hide on-screen chrome (toolbar, back link) — print just the guide. */
+  .no-print {
+    display: none !important;
+  }
+
+  /* Show the cover page and start the guide on a fresh page. */
+  .guide-cover {
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    height: 90vh;
+    break-after: page;
+    text-align: center;
+  }
+
+  .guide {
+    max-width: none;
+    margin: 0;
+    text-align: justify;
+  }
+
+  /* Don't split a step/section or figure across pages where avoidable. */
+  .guide section,
+  .guide-figure {
+    break-inside: avoid;
+  }
+  .guide h2,
+  .guide h3 {
+    break-after: avoid;
+  }
+
+  /* Browsers otherwise append the raw href after links in print. */
+  a[href]::after {
+    content: "";
+  }
+}

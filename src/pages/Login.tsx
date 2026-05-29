@@ -78,12 +78,8 @@ export const Login: React.FC<LoginProps> = ({
   const [prevIdps, setPrevIdps] = useState<string[]>(
     JSON.parse(localStorage.getItem("prevIdps") ?? "[]"),
   );
-  const [newLogin, setNewLogin] = useState(
-    Boolean(localStorage.getItem("newLogin")),
-  );
 
   const [activeWebId, setActiveWebId] = useState<string>();
-  const [showRememberPromptFor, setShowRememberPromptFor] = useState<string>();
 
   const [manualTrigger, setManualTrigger] = useState(false);
   const [invalidIDP, setInvalidIDP] = useState(false);
@@ -187,11 +183,12 @@ export const Login: React.FC<LoginProps> = ({
     } catch {
       // stored value is corrupt — ignore
     }
-    if (clientAuth?.issuer) {
-      const alreadyExists = prevIdps.includes(clientAuth.issuer);
-      if (!alreadyExists) {
-        setShowRememberPromptFor(clientAuth.issuer);
-      }
+    // Auto-remember any newly-used identity provider (the CLEAR button forgets
+    // them) — no interstitial "save login info?" prompt.
+    if (clientAuth?.issuer && !prevIdps.includes(clientAuth.issuer)) {
+      const next = [...prevIdps, clientAuth.issuer];
+      setPrevIdps(next);
+      localStorage.setItem("prevIdps", JSON.stringify(next));
     }
   }, [prevIdps, session.info.sessionId]);
 
@@ -205,11 +202,6 @@ export const Login: React.FC<LoginProps> = ({
 
   function submitCallback(idp?: string) {
     const targetIdp = idp || login;
-    if (!prevIdps.includes(targetIdp)) {
-      localStorage.setItem("newLogin", "true");
-    } else {
-      localStorage.removeItem("newLogin");
-    }
     session.login({ oidcIssuer: targetIdp, ...loginOptions }).catch(() => {
       setInvalidIDP(true);
     });
@@ -224,7 +216,7 @@ export const Login: React.FC<LoginProps> = ({
     submitCallback(enteredIdp);
   }
 
-  if (!auto && !manualTrigger && !showRememberPromptFor) {
+  if (!auto && !manualTrigger) {
     return (
       <LoginContext.Provider
         value={{
@@ -263,63 +255,6 @@ export const Login: React.FC<LoginProps> = ({
     );
   }
 
-  // Prompt user to remember new IDP
-  if (activeWebId && showRememberPromptFor && newLogin) {
-    return (
-      <Box
-        sx={{
-          position: "relative",
-          width: "100%",
-          minHeight: "100vh",
-        }}
-      >
-        <Box
-          sx={{
-            position: "absolute",
-            transform: "translate(-50%, -50%)",
-            top: "50%",
-            left: "50%",
-            padding: 0,
-          }}
-        >
-          <Box
-            component="form"
-            sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-          >
-            <Typography component="span">
-              Do you want to save <b>{new URL(showRememberPromptFor).host}</b>
-              {" "}
-              as an identity provider for future logins?
-            </Typography>
-            <Box sx={{ display: "flex", gap: 2 }}>
-              <Button
-                variant="contained"
-                onClick={(e) => {
-                  e.preventDefault();
-                  const newIdps = [...prevIdps, showRememberPromptFor];
-                  setPrevIdps(newIdps);
-                  localStorage.setItem("prevIdps", JSON.stringify(newIdps));
-                  setNewLogin(false);
-                }}
-              >
-                Save Login Info
-              </Button>
-              <Button
-                variant="outlined"
-                onClick={(e) => {
-                  e.preventDefault();
-                  localStorage.removeItem("newLogin");
-                  setNewLogin(false);
-                }}
-              >
-                No, thanks
-              </Button>
-            </Box>
-          </Box>
-        </Box>
-      </Box>
-    );
-  }
 
   // If user is not logged in, show login UI
   if (!activeWebId) {
@@ -344,6 +279,7 @@ export const Login: React.FC<LoginProps> = ({
               height: "auto",
               display: "flex",
               justifyContent: "center",
+              "& img": { width: "100%", height: "auto", display: "block" },
             }}
           >
             {logo}
@@ -375,7 +311,7 @@ export const Login: React.FC<LoginProps> = ({
           {!prevIdps.length && recommendedLogins.length
             ? (
               <Typography variant="button" component="b" sx={{ mt: 2 }}>
-                RECOMMENDED LOGINS
+                SIGN IN WITH A RECOMMENDED PROVIDER
               </Typography>
             )
             : null}
@@ -400,7 +336,7 @@ export const Login: React.FC<LoginProps> = ({
             ? (
               <Box sx={{ mt: 2 }}>
                 <Typography variant="button" component="b">
-                  FROM PREVIOUS LOGINS
+                  SIGN IN AGAIN WITH
                 </Typography>
                 <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
                   {prevIdps.map((idp) => (
@@ -420,17 +356,10 @@ export const Login: React.FC<LoginProps> = ({
                     color="error"
                     onClick={(e) => {
                       e.preventDefault();
-                      // eslint-disable-next-line no-restricted-globals
-                      if (
-                        confirm(
-                          `Do you really want to clear all your login info for ${
-                            name ?? "this Solid Application"
-                          }?`,
-                        )
-                      ) {
-                        localStorage.removeItem("prevIdps");
-                        setPrevIdps([]);
-                      }
+                      // Non-destructive: just forgets the remembered IDP list
+                      // locally — no confirmation needed.
+                      localStorage.removeItem("prevIdps");
+                      setPrevIdps([]);
                     }}
                   >
                     CLEAR
@@ -443,7 +372,7 @@ export const Login: React.FC<LoginProps> = ({
           {/* Prompt user for a new IDP */}
           {(prevIdps.length || recommendedLogins.length) && (
             <Typography variant="button" component="b" sx={{ mt: 2 }}>
-              NEW LOGIN
+              SIGN IN WITH A NEW PROVIDER
             </Typography>
           )}
 
@@ -459,7 +388,6 @@ export const Login: React.FC<LoginProps> = ({
               <Button
                 type="submit"
                 variant="contained"
-                size="large"
                 sx={{ height: "56px" }}
               >
                 +

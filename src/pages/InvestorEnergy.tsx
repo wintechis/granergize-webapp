@@ -20,13 +20,7 @@ ChartJS.register(
   Legend,
 );
 import {
-  Box,
-  Card,
-  CardContent,
-  CardHeader,
-  Divider,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -39,6 +33,11 @@ import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import { BuildingType, InvestorAnnualData } from "../../types/types.ts";
+import {
+  ChartBox,
+  DetailCard,
+  SectionTitle,
+} from "../components/detail/DetailView.tsx";
 
 interface InvestorEnergyProps {
   building: BuildingType;
@@ -177,122 +176,109 @@ export default function InvestorEnergy({ building }: InvestorEnergyProps) {
 
   return (
     <ChartErrorBoundary>
-      <Stack spacing={2}>
-        {/* Summary Table */}
-        <Card variant="outlined">
-          <CardHeader
-            avatar={<ElectricBoltIcon />}
-            title={`Annual Energy & Water — Building ${
-              building.label ?? building.id
-            }`}
-          />
-          <CardContent>
-            <TableContainer component={Paper} variant="outlined">
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>
-                      <strong>Year</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Electricity (kWh)</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Renewable (%)</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Heat (kWh)</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>Water (m³)</strong>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {annualData.map((d) => (
-                    <TableRow hover key={d.year}>
-                      <TableCell>{d.year}</TableCell>
-                      <TableCell align="right">
-                        {d.electricityConsumption != null
-                          ? formatNumber(d.electricityConsumption)
-                          : "—"}
-                      </TableCell>
-                      <TableCell align="right">
-                        {d.renewableSelfGeneratedShare != null
-                          ? formatNumber(d.renewableSelfGeneratedShare, 1) +
-                            " %"
-                          : "—"}
-                      </TableCell>
-                      <TableCell align="right">
-                        {d.heatConsumption != null
-                          ? formatNumber(d.heatConsumption)
-                          : "—"}
-                      </TableCell>
-                      <TableCell align="right">
-                        {d.waterConsumption != null
-                          ? formatNumber(d.waterConsumption, 1)
-                          : "—"}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-            </TableContainer>
-          </CardContent>
-        </Card>
-
-        <Divider />
+      <DetailCard
+        icon={<ElectricBoltIcon />}
+        title={`Annual Energy & Water — Building ${
+          building.label ?? building.id
+        }`}
+        spacing={2}
+      >
+        {/* Summary table */}
+        <TableContainer component={Paper} variant="outlined">
+          <Table size="small">
+            <TableHead>
+              <TableRow>
+                <TableCell>
+                  <strong>Year</strong>
+                </TableCell>
+                <TableCell align="right">
+                  <strong>Electricity (kWh)</strong>
+                </TableCell>
+                <TableCell align="right">
+                  <strong>Renewable (%)</strong>
+                </TableCell>
+                <TableCell align="right">
+                  <strong>Heat (kWh)</strong>
+                </TableCell>
+                <TableCell align="right">
+                  <strong>Water (m³)</strong>
+                </TableCell>
+              </TableRow>
+            </TableHead>
+            <TableBody>
+              {annualData.map((d) => (
+                <TableRow hover key={d.year}>
+                  <TableCell>{d.year}</TableCell>
+                  <TableCell align="right">
+                    {d.electricityConsumption != null
+                      ? formatNumber(d.electricityConsumption)
+                      : "—"}
+                  </TableCell>
+                  <TableCell align="right">
+                    {d.renewableSelfGeneratedShare != null
+                      ? formatNumber(d.renewableSelfGeneratedShare, 1) +
+                        " %"
+                      : "—"}
+                  </TableCell>
+                  <TableCell align="right">
+                    {d.heatConsumption != null
+                      ? formatNumber(d.heatConsumption)
+                      : "—"}
+                  </TableCell>
+                  <TableCell align="right">
+                    {d.waterConsumption != null
+                      ? formatNumber(d.waterConsumption, 1)
+                      : "—"}
+                  </TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </TableContainer>
 
         {/* Electricity chart */}
-        <Box>
-          <Typography
-            variant="h6"
-            gutterBottom
-            sx={{ display: "flex", alignItems: "center", gap: 1 }}
-          >
-            <ElectricBoltIcon fontSize="small" />{" "}
-            Electricity Consumption (kWh/year)
-          </Typography>
+        <SectionTitle divider icon={<ElectricBoltIcon fontSize="small" />}>
+          Electricity Consumption (kWh/year)
+        </SectionTitle>
+        <ChartBox>
           <Bar data={electricityData} options={barOptions} />
-        </Box>
+        </ChartBox>
 
         {/* Renewable share chart */}
-        <Box>
-          <Typography variant="h6" gutterBottom>
-            Renewable Self-Generated Share (%)
-          </Typography>
+        <SectionTitle divider>
+          Renewable Self-Generated Share (%)
+        </SectionTitle>
+        <ChartBox>
           <Bar data={renewableData} options={renewableOptions} />
-        </Box>
+        </ChartBox>
 
         {/* Heat chart */}
         {annualData.some((d) => d.heatConsumption != null) && (
-          <Box>
-            <Typography
-              variant="h6"
-              gutterBottom
-              sx={{ display: "flex", alignItems: "center", gap: 1 }}
+          <>
+            <SectionTitle
+              divider
+              icon={<LocalFireDepartmentIcon fontSize="small" />}
             >
-              <LocalFireDepartmentIcon fontSize="small" />{" "}
               Heat Consumption (kWh/year)
-            </Typography>
-            <Bar data={heatData} options={barOptions} />
-          </Box>
+            </SectionTitle>
+            <ChartBox>
+              <Bar data={heatData} options={barOptions} />
+            </ChartBox>
+          </>
         )}
 
         {/* Water chart */}
         {annualData.some((d) => d.waterConsumption != null) && (
-          <Box>
-            <Typography
-              variant="h6"
-              gutterBottom
-              sx={{ display: "flex", alignItems: "center", gap: 1 }}
-            >
-              <WaterDropIcon fontSize="small" /> Water Consumption (m³/year)
-            </Typography>
-            <Bar data={waterData} options={waterOptions} />
-          </Box>
+          <>
+            <SectionTitle divider icon={<WaterDropIcon fontSize="small" />}>
+              Water Consumption (m³/year)
+            </SectionTitle>
+            <ChartBox>
+              <Bar data={waterData} options={waterOptions} />
+            </ChartBox>
+          </>
         )}
-      </Stack>
+      </DetailCard>
     </ChartErrorBoundary>
   );
 }

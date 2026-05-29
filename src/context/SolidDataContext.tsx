@@ -6,15 +6,10 @@ import React, {
   useState,
 } from "react";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import {
-  fetchAndParseData,
-  parseEnergyMix,
-} from "../services/TurtleParsingService.ts";
+import { fetchAndParseData } from "../services/TurtleParsingService.ts";
 import type {
   AgentType,
   BuildingType,
-  EnergyConsumption,
-  EnergyProduction,
   EnergyType,
 } from "../../types/types.ts";
 
@@ -24,10 +19,6 @@ interface ContextState {
   agents: AgentType[];
   averages: Record<string, number>;
   agentAverages: Record<string, Record<string, number>>;
-  energyMix: {
-    energyConsumption: Record<string, EnergyConsumption>;
-    energyProduction: Record<string, EnergyProduction>;
-  } | null;
   isLoading: boolean;
   error: string | null;
   reloadData: () => Promise<void>;
@@ -39,7 +30,6 @@ const SolidDataContext = createContext<ContextState>({
   agents: [],
   averages: {},
   agentAverages: {},
-  energyMix: null,
   isLoading: false,
   error: null,
   reloadData: async () => {},
@@ -57,7 +47,7 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   children,
 }) => {
   const [data, setData] = useState<
-    Omit<ContextState, "isLoading" | "error" | "reloadData" | "energyMix">
+    Omit<ContextState, "isLoading" | "error" | "reloadData">
   >({
     buildings: [],
     energyNeed: [],
@@ -65,7 +55,6 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
     averages: {},
     agentAverages: {},
   });
-  const [energyMix, setEnergyMix] = useState<ContextState["energyMix"]>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -79,11 +68,18 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
     setError(null);
 
     try {
-      const parsedData = await fetchAndParseData(session);
+      const parsedData = await fetchAndParseData(session, (partial) => {
+        // Phase 1: buildings + agents are ready — show the map immediately and
+        // drop the loading overlay; energy data fills in when phase 2 resolves.
+        setData((prev) => ({
+          ...prev,
+          buildings: partial.buildings,
+          agents: partial.agents,
+        }));
+        setIsLoading(false);
+      });
+      // Phase 2: energy data and averages are now included.
       setData(parsedData);
-
-      const mix = await parseEnergyMix(session);
-      setEnergyMix(mix);
     } catch (err) {
       const message = err instanceof Error ? err.message : String(err);
       setError(`Error loading data: ${message}`);
@@ -103,7 +99,6 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
     <SolidDataContext.Provider
       value={{
         ...data,
-        energyMix,
         isLoading,
         error,
         reloadData: loadData,

@@ -7,17 +7,15 @@ import MenuItem from "@mui/material/MenuItem";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 const Map = lazy(() => import("./Map.tsx"));
+import { useLocation, useNavigate } from "react-router-dom";
 import { useSolidData } from "../context/SolidDataContext.tsx";
-import { readInbox } from "../services/interop/inbox.ts";
-import EnergyMix from "./EnergyMix.tsx";
-import ViewsPage from "./QueryService.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import PersonIcon from "@mui/icons-material/Person";
-import SettingsDialog from "../components/SettingsDialog.tsx";
-import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
-import type { AggregatedViewDefinition } from "../../types/types.ts";
+import SharingPage from "../components/SharingPage.tsx";
+import DataRoomPage from "../components/DataRoomPage.tsx";
+import Footer from "../components/Footer.tsx";
+import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 
 interface IndexPageProps {
   session: Session;
@@ -25,43 +23,31 @@ interface IndexPageProps {
 }
 
 function IndexPage({ session, onLogout }: IndexPageProps) {
-  const [tabValue, setTabValue] = useState(0);
-  const [inboxLoading, setInboxLoading] = useState(false);
+  const location = useLocation();
+  const navigate = useNavigate();
+  // Arriving from a room deep link (#/room/:uri) lands on the Data Room tab.
+  const [tabValue, setTabValue] = useState(
+    (location.state as { openRoom?: boolean } | null)?.openRoom ? 2 : 0,
+  );
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const [settingsOpen, setSettingsOpen] = useState(false);
-  const [viewDefinitions, setViewDefinitions] = useState<
-    AggregatedViewDefinition[]
-  >([]);
   const { reloadData } = useSolidData();
+
+  // Load the current-room pointer from the Pod into memory once after login, so
+  // the sharing dialogs (which read it synchronously) know the room app-wide.
+  useEffect(() => {
+    hydrateActiveRoom(session).catch(() => {});
+  }, [session]);
 
   const menuOpen = Boolean(anchorEl);
 
-  useEffect(() => {
-    loadViewDefinitions();
-  }, [session]);
-
-  const loadViewDefinitions = async () => {
-    try {
-      const views = await getViewDefinitions(session);
-      setViewDefinitions(views);
-    } catch (err) {
-      console.error("Error loading view definitions:", err);
-    }
-  };
-
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
+    // Leaving the Sharing or Data Room tab: refresh data in case sharing
+    // visibility, views, or the user's data-room role changed.
+    const leavingSharing = (tabValue === 1 || tabValue === 2) &&
+      newValue !== tabValue;
     setTabValue(newValue);
-  };
-
-  const handleRefresh = async () => {
-    setInboxLoading(true);
-    try {
-      await readInbox(session);
-      await reloadData();
-    } catch (err) {
-      console.error("Error reading inbox:", err);
-    } finally {
-      setInboxLoading(false);
+    if (leavingSharing) {
+      reloadData();
     }
   };
 
@@ -78,15 +64,16 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     onLogout();
   };
 
-  const handleSettingsOpen = () => {
+  const handleProfile = () => {
     handleMenuClose();
-    setSettingsOpen(true);
+    if (session.info.webId) {
+      globalThis.open(session.info.webId, "_blank", "noopener,noreferrer");
+    }
   };
 
-  const handleSettingsClose = () => {
-    setSettingsOpen(false);
-    reloadData(); // Reload data when settings close in case visibility changed
-    loadViewDefinitions(); // Reload views in case they were modified
+  const handleGuide = () => {
+    handleMenuClose();
+    navigate("/guide");
   };
 
   return (
@@ -100,9 +87,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         }}
       >
         <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label="Home" />
-          <Tab label="Energy Mix" />
-          <Tab label="Views" />
+          <Tab label="Map" />
+          <Tab label="Sharing" />
+          <Tab label="Room" />
         </Tabs>
         <Box
           sx={{
@@ -113,17 +100,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             gap: 2,
           }}
         >
-          <IconButton
-            onClick={handleRefresh}
-            disabled={inboxLoading}
-            color="primary"
-            size="large"
-            sx={{ border: "none", background: "transparent" }}
-          >
-            {inboxLoading
-              ? <CircularProgress size={24} color="inherit" />
-              : <RefreshIcon />}
-          </IconButton>
           <IconButton
             onClick={handleMenuOpen}
             sx={{ p: 0 }}
@@ -157,8 +133,11 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               },
             }}
           >
-            <MenuItem onClick={handleSettingsOpen}>
-              Settings
+            <MenuItem onClick={handleProfile}>
+              Profile
+            </MenuItem>
+            <MenuItem onClick={handleGuide}>
+              Anleitung
             </MenuItem>
             <MenuItem onClick={handleLogout}>
               Logout
@@ -166,24 +145,17 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           </Menu>
         </Box>
       </Box>
-      {tabValue === 0 && (
+      {/* Keep the map mounted so returning to Home is instant (no Leaflet re-init / tile re-fetch). */}
+      <Box
+        sx={{ display: tabValue === 0 ? "block" : "none", height: "100%" }}
+      >
         <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
-          <Map session={session} />
+          <Map session={session} active={tabValue === 0} />
         </Suspense>
-      )}
-      {tabValue === 1 && <EnergyMix />}
-      {tabValue === 2 && (
-        <ViewsPage
-          session={session}
-          viewDefinitions={viewDefinitions}
-          onRefreshViews={loadViewDefinitions}
-        />
-      )}
-      <SettingsDialog
-        open={settingsOpen}
-        onClose={handleSettingsClose}
-        session={session}
-      />
+      </Box>
+      {tabValue === 1 && <SharingPage session={session} />}
+      {tabValue === 2 && <DataRoomPage session={session} />}
+      <Footer />
     </Box>
   );
 }

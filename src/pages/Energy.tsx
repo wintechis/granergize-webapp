@@ -1,4 +1,3 @@
-import { Link } from "react-router-dom";
 import { BuildingType, EnergyType } from "../../types/types.ts";
 import {
   Box,
@@ -25,6 +24,7 @@ import "chart.js/auto";
 import type { ChartData, ChartOptions } from "chart.js";
 import { Bar } from "react-chartjs-2";
 import { useSolidData } from "../context/SolidDataContext.tsx";
+import { RefLink, UriLink } from "../components/detail/DetailView.tsx";
 import UserEnergyChart from "./UserEnergyChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
@@ -231,7 +231,7 @@ export default function Energy(
     const agent = operatedBy; // Assuming energy object has operatedBy property
     return (
       <>
-        <Typography variant="h5">{toTitleCase(title)}</Typography>
+        <Typography variant="h6">{toTitleCase(title)}</Typography>
         <Item component="div" sx={{ m: 0, p: 0 }}>
           <Container>
             <TableContainer component={Paper}>
@@ -353,7 +353,7 @@ export default function Energy(
       <CardHeader
         avatar={<ElectricBoltIcon />}
         title={
-          <Typography variant="h4">
+          <Typography variant="h5">
             {energy.timeSeries
               ? `Electricity Consumption for Building ${energy.id}`
               : `Energy Need for Building ${energy.id} in 2023`}
@@ -363,7 +363,7 @@ export default function Energy(
       <CardContent>
         <Typography variant="body1">
           <strong>
-            id: <Link to={energy.uri}>{energy.uri}</Link>
+            id: <UriLink href={energy.uri}>{energy.uri}</UriLink>
           </strong>
         </Typography>
         <Divider />
@@ -376,7 +376,7 @@ export default function Energy(
           {createEnergyGrid("energyUsage")}
           {createEnergyGrid("environmentalFactor")}
         </Stack>
-        <Link to="/">🠠 Back to map overview</Link>
+        <RefLink to="/">🠠 Back to map overview</RefLink>
       </CardContent>
     </Card>
   );

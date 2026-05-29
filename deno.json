@@ -1,7 +1,10 @@
 {
   "tasks": {
     "dev": "deno run -A npm:vite dev",
-    "build": "deno run -A npm:vite build"
+    "build": "deno run -A npm:vite build",
+    "test": "deno test -A",
+    "e2e": "npx playwright test",
+    "e2e:install": "npx playwright install --with-deps chromium"
   },
   "imports": {
     "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.53"

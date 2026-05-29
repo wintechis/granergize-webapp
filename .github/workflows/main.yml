@@ -1,6 +1,28 @@
 name: scp to paul
 on: [push]
 jobs:
+  e2e:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Setup Repo
+        uses: actions/checkout@v4
+      - name: Setup Deno
+        uses: denoland/setup-deno@v2
+        with:
+          deno-version: latest
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: install deps
+        run: deno install
+      - name: install Playwright Chromium
+        run: deno task e2e:install
+      # Smoke E2E (no login). The screenshot spec auto-skips without
+      # E2E_USERNAME/E2E_PASSWORD, so no credentials are needed here.
+      - name: run e2e
+        run: deno task e2e
+
   build:
     runs-on: ubuntu-latest
     steps:
