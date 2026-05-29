@@ -10,6 +10,7 @@ import {
   Box,
   Card,
   CardContent,
+  CardHeader,
   CircularProgress,
   FormControl,
   Grid,
@@ -25,6 +26,7 @@ import {
   TableRow,
   Typography,
 } from "@mui/material";
+import WbSunnyIcon from "@mui/icons-material/WbSunny";
 import { BuildingType } from "../../types/types.ts";
 
 interface WeatherDataProps {
@@ -142,12 +144,13 @@ export default function WeatherData({ building }: WeatherDataProps) {
   }, [selectedStation, selectedParameter]);
 
   return (
-    <Card>
+    <Card variant="outlined">
+      <CardHeader
+        avatar={<WbSunnyIcon />}
+        titleTypographyProps={{ variant: "h5" }}
+        title={`Weather Data for Building ${building.id}`}
+      />
       <CardContent>
-        <Typography variant="h5" gutterBottom>
-          Weather Data for Building {building.id}
-        </Typography>
-
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid item xs={12} md={6}>
             <FormControl fullWidth>

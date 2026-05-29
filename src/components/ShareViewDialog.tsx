@@ -27,7 +27,19 @@ import {
   revokeViewAccess,
 } from "../services/interop/sharingManager.ts";
 import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import {
+  type DataRoomMember,
+  getActiveRoom,
+  getMembers,
+} from "../services/interop/dataRoom.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+
+const ROLE_LABELS: Record<string, string> = {
+  dummy: "Dummy",
+  investor: "Investor",
+  user: "User",
+  benchmark_service_provider: "Benchmark Service Provider",
+};
 
 interface ShareViewDialogProps {
   open: boolean;
@@ -49,9 +61,20 @@ export default function ShareViewDialog(
   const [confirmStep, setConfirmStep] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
   const [successRecipients, setSuccessRecipients] = useState<string[]>([]);
+  const [members, setMembers] = useState<DataRoomMember[]>([]);
+  const [membersLoading, setMembersLoading] = useState(false);
 
   const getRecipients = () =>
     recipientWebId.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
+
+  /** Append a member's WebID to the recipient field (deduped). */
+  const addRecipient = (webId: string) => {
+    const current = getRecipients();
+    if (current.includes(webId)) return;
+    setRecipientWebId([...current, webId].join("\n"));
+    setWebIdError(null);
+    setShareSuccess(false);
+  };
 
   const loadSharedUsers = async () => {
     if (!session.info.webId) return;
@@ -68,8 +91,23 @@ export default function ShareViewDialog(
     }
   };
 
+  const loadMembers = async () => {
+    setMembersLoading(true);
+    try {
+      const all = await getMembers(getActiveRoom(), session);
+      // Exclude yourself — you can't share a view with your own WebID.
+      setMembers(all.filter((m) => m.webId !== session.info.webId));
+    } catch (err) {
+      console.error("Failed to load data room members:", err);
+      setMembers([]);
+    } finally {
+      setMembersLoading(false);
+    }
+  };
+
   const handleEntered = () => {
     loadSharedUsers();
+    loadMembers();
   };
 
   const handleProceedToConfirm = () => {
@@ -186,6 +224,63 @@ export default function ShareViewDialog(
 
           {!confirmStep && (
             <>
+              <Typography variant="subtitle2" gutterBottom>
+                Data room members
+              </Typography>
+              {membersLoading
+                ? (
+                  <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
+                    <CircularProgress size={20} />
+                  </Box>
+                )
+                : members.length === 0
+                ? (
+                  <Typography
+                    variant="body2"
+                    color="text.secondary"
+                    sx={{ mb: 2 }}
+                  >
+                    No other members in your active data room. Enter a WebID
+                    below instead.
+                  </Typography>
+                )
+                : (
+                  <List dense sx={{ mb: 1 }}>
+                    {members.map((m) => {
+                      const inField = getRecipients().includes(m.webId);
+                      const alreadyShared = sharedWith.includes(m.webId);
+                      return (
+                        <ListItem key={m.webId}>
+                          <ListItemText
+                            primary={m.webId}
+                            secondary={m.roles.map((r) => ROLE_LABELS[r] ?? r)
+                              .join(", ") || "no role"}
+                            primaryTypographyProps={{
+                              sx: {
+                                overflow: "hidden",
+                                textOverflow: "ellipsis",
+                                fontSize: "0.875rem",
+                              },
+                            }}
+                          />
+                          <ListItemSecondaryAction>
+                            <Button
+                              onClick={() => addRecipient(m.webId)}
+                              disabled={inField || alreadyShared}
+                            >
+                              {alreadyShared
+                                ? "Shared"
+                                : inField
+                                ? "Added"
+                                : "Add"}
+                            </Button>
+                          </ListItemSecondaryAction>
+                        </ListItem>
+                      );
+                    })}
+                  </List>
+                )}
+
               <TextField
                 label="Recipient WebID(s)"
                 fullWidth

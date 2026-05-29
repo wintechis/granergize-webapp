@@ -18,10 +18,16 @@ The project runs on **Deno 2** (not Node), though dependencies are npm/jsr packa
 - `deno install` — install dependencies
 - `deno task dev` — start Vite dev server at http://localhost:5173
 - `deno task build` — production build to `dist/`
+- `deno task test` — run the test suite (`deno test -A`)
 - `deno run -A npm:eslint .` — lint (ESLint flat config in `eslint.config.js`; ignores `dist`)
 
-There is **no test suite** and no configured lint/typecheck task in `deno.json`; TypeScript
-checking happens via the IDE / Vite build (`tsconfig.app.json`).
+Tests live next to the code as `*.test.ts` and run under Deno's built-in test runner
+(`deno test`). They use **offline fixtures** — e.g. `TurtleParsingService.test.ts` drives
+`fetchAndParseData` with a fake `Session` whose `fetch` serves in-memory Turtle per URL, so
+no network/Pod is needed. Browser-typed test files need `/// <reference lib="deno.ns" />` at
+the top and should import assertions from `node:assert` to avoid remote deps. There is no
+configured lint/typecheck task in `deno.json`; TypeScript checking happens via the IDE /
+Vite build (`tsconfig.app.json`).
 
 ## Environment
 

@@ -1,6 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import { getPodBaseUrl } from "../utils/solidUtils.ts";
+import { fetchFresh } from "../utils/podFetch.ts";
 
 export async function readInbox(session: Session) {
   if (!session.info.isLoggedIn) {
@@ -145,7 +146,7 @@ async function removeResourceFromRegistry(session: Session, resource: string) {
   const podBaseUrl = getPodBaseUrl(webId);
   const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
 
-  const response = await session.fetch(registryUrl);
+  const response = await fetchFresh(registryUrl, session);
   if (!response.ok) return;
 
   const text = await response.text();
@@ -194,9 +195,7 @@ async function addResourceToRegistry(
   const podBaseUrl = getPodBaseUrl(webId);
   const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
 
-  const registryResponse = await session.fetch(registryUrl, {
-    method: "GET",
-  });
+  const registryResponse = await fetchFresh(registryUrl, session);
 
   let registryText = "";
   if (registryResponse.status === 200) {

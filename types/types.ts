@@ -204,30 +204,6 @@ type EnvironmentalFactor = {
   cold?: number;
 };
 
-export type EnergyMix = {
-  energyConsumption: EnergyConsumption;
-  energyProduction: EnergyProduction;
-};
-
-export type EnergyConsumption = {
-  value: number;
-  renewableEnergyShare: number;
-};
-
-export type EnergyProduction = {
-  hydroShare: number;
-  windShare: number;
-  solarShare: number;
-  biomassShare: number;
-  geothermalShare: number;
-  hydroProduction: number;
-  windProduction: number;
-  solarProduction: number;
-  biomassProduction: number;
-  geothermalProduction: number;
-  totalRenewableProduction: number;
-};
-
 // Aggregated View types
 export type AggregationType = "average" | "sum" | "min" | "max";
 

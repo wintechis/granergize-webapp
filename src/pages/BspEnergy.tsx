@@ -22,11 +22,7 @@ ChartJS.register(
 
 import {
   Box,
-  Card,
-  CardContent,
-  CardHeader,
   Chip,
-  Divider,
   Paper,
   Stack,
   Table,
@@ -48,6 +44,11 @@ import {
   InvestorAnnualData,
   InvestorCertification,
 } from "../../types/types.ts";
+import {
+  ChartBox,
+  DetailCard,
+  SectionTitle,
+} from "../components/detail/DetailView.tsx";
 
 interface BspEnergyProps {
   building: BuildingType;
@@ -198,95 +199,86 @@ export default function BspEnergy({ building }: BspEnergyProps) {
 
   return (
     <ChartErrorBoundary>
-      <Stack spacing={2}>
+      <DetailCard
+        icon={<AnalyticsIcon />}
+        title={`Benchmark Data — ${
+          companyName ?? building.label ?? building.id
+        }`}
+        subheader={logisticsFunction}
+        spacing={2}
+      >
         {/* Building metadata */}
-        <Card variant="outlined">
-          <CardHeader
-            avatar={<AnalyticsIcon />}
-            title={`Benchmark Data — ${
-              companyName ?? building.label ?? building.id
-            }`}
-            subheader={logisticsFunction}
-          />
-          <CardContent>
-            <Stack spacing={0.5}>
-              {climateControlType && (
-                <MetaRow label="Climate Control" value={climateControlType} />
-              )}
-              {indoorTemperature && (
-                <MetaRow label="Indoor Temperature" value={indoorTemperature} />
-              )}
-              {tenancyType && (
-                <MetaRow label="Tenancy Type" value={tenancyType} />
-              )}
-              {leaseType && <MetaRow label="Lease Type" value={leaseType} />}
-              {tenantIndustry && (
-                <MetaRow label="Tenant Industry" value={tenantIndustry} />
-              )}
-              {indoorTemperatureClass && (
-                <MetaRow
-                  label="Indoor Temp. Class"
-                  value={indoorTemperatureClass}
-                />
-              )}
-              {numberOfLoadingDocks != null && (
-                <MetaRow
-                  label="Loading Docks"
-                  value={numberOfLoadingDocks}
-                />
-              )}
-              {greenLeaseShare != null && (
-                <MetaRow
-                  label="Green Lease Share"
-                  value={`${formatNumber(greenLeaseShare, 1)} %`}
-                />
-              )}
-              {hasPVSystem != null && (
-                <MetaRow
-                  label="PV System"
-                  value={hasPVSystem
-                    ? (
-                      <Chip
-                        icon={<SolarPowerIcon />}
-                        label={pvInstallationYear != null
-                          ? `Yes (since ${pvInstallationYear}${
-                            pvCapacityKW != null
-                              ? `, ${formatNumber(pvCapacityKW, 1)} kW`
-                              : ""
-                          })`
-                          : "Yes"}
-                        size="small"
-                        color="success"
-                        variant="outlined"
-                      />
-                    )
-                    : <Chip label="No" size="small" variant="outlined" />}
-                />
-              )}
-              {certifications.length > 0 && (
-                <MetaRow
-                  label="Certifications"
-                  value={
-                    <Stack direction="row" spacing={0.5} flexWrap="wrap">
-                      {certifications.map((cert, i) => (
-                        <Chip
-                          key={i}
-                          icon={<WorkspacePremiumIcon />}
-                          label={[cert.type, cert.level, cert.scope]
-                            .filter(Boolean)
-                            .join(" · ")}
-                          size="small"
-                          color="primary"
-                          variant="outlined"
-                        />
-                      ))}
-                    </Stack>
-                  }
-                />
-              )}
-            </Stack>
-          </CardContent>
-        </Card>
+        <Stack spacing={0.5}>
+          {climateControlType && (
+            <MetaRow label="Climate Control" value={climateControlType} />
+          )}
+          {indoorTemperature && (
+            <MetaRow label="Indoor Temperature" value={indoorTemperature} />
+          )}
+          {tenancyType && <MetaRow label="Tenancy Type" value={tenancyType} />}
+          {leaseType && <MetaRow label="Lease Type" value={leaseType} />}
+          {tenantIndustry && (
+            <MetaRow label="Tenant Industry" value={tenantIndustry} />
+          )}
+          {indoorTemperatureClass && (
+            <MetaRow
+              label="Indoor Temp. Class"
+              value={indoorTemperatureClass}
+            />
+          )}
+          {numberOfLoadingDocks != null && (
+            <MetaRow label="Loading Docks" value={numberOfLoadingDocks} />
+          )}
+          {greenLeaseShare != null && (
+            <MetaRow
+              label="Green Lease Share"
+              value={`${formatNumber(greenLeaseShare, 1)} %`}
+            />
+          )}
+          {hasPVSystem != null && (
+            <MetaRow
+              label="PV System"
+              value={hasPVSystem
+                ? (
+                  <Chip
+                    icon={<SolarPowerIcon />}
+                    label={pvInstallationYear != null
+                      ? `Yes (since ${pvInstallationYear}${
+                        pvCapacityKW != null
+                          ? `, ${formatNumber(pvCapacityKW, 1)} kW`
+                          : ""
+                      })`
+                      : "Yes"}
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                  />
+                )
+                : <Chip label="No" size="small" variant="outlined" />}
+            />
+          )}
+          {certifications.length > 0 && (
+            <MetaRow
+              label="Certifications"
+              value={
+                <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                  {certifications.map((cert, i) => (
+                    <Chip
+                      key={i}
+                      icon={<WorkspacePremiumIcon />}
+                      label={[cert.type, cert.level, cert.scope]
+                        .filter(Boolean)
+                        .join(" · ")}
+                      size="small"
+                      color="primary"
+                      variant="outlined"
+                    />
+                  ))}
+                </Stack>
+              }
+            />
+          )}
+        </Stack>
 
         {annualData.length === 0
           ? (
@@ -297,131 +289,122 @@ export default function BspEnergy({ building }: BspEnergyProps) {
           : (
             <>
               {/* Summary table */}
-              <Card variant="outlined">
-                <CardHeader
-                  avatar={<ElectricBoltIcon />}
-                  title="Annual Energy & Water Consumption"
-                />
-                <CardContent>
-                  <TableContainer component={Paper} variant="outlined">
-                    <Table size="small">
-                      <TableHead>
-                        <TableRow>
-                          <TableCell>
-                            <strong>Year</strong>
-                          </TableCell>
-                          <TableCell align="right">
-                            <strong>Electricity (kWh)</strong>
-                          </TableCell>
-                          <TableCell align="right">
-                            <strong>Heat (kWh)</strong>
-                          </TableCell>
-                          <TableCell align="right">
-                            <strong>Water (m³)</strong>
-                          </TableCell>
-                          <TableCell align="right">
-                            <strong>Wastewater (m³)</strong>
-                          </TableCell>
-                        </TableRow>
-                      </TableHead>
-                      <TableBody>
-                        {annualData.map((d) => (
-                          <TableRow hover key={d.year}>
-                            <TableCell>{d.year}</TableCell>
-                            <TableCell align="right">
-                              {d.electricityConsumption != null
-                                ? formatNumber(d.electricityConsumption)
-                                : "—"}
-                            </TableCell>
-                            <TableCell align="right">
-                              {d.heatConsumption != null
-                                ? formatNumber(d.heatConsumption)
-                                : "—"}
-                            </TableCell>
-                            <TableCell align="right">
-                              {d.waterConsumption != null
-                                ? formatNumber(d.waterConsumption, 1)
-                                : "—"}
-                            </TableCell>
-                            <TableCell align="right">
-                              {d.wastewaterConsumption != null
-                                ? formatNumber(d.wastewaterConsumption, 1)
-                                : "—"}
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
-                  </TableContainer>
-                </CardContent>
-              </Card>
-
-              <Divider />
+              <SectionTitle divider icon={<ElectricBoltIcon fontSize="small" />}>
+                Annual Energy & Water Consumption
+              </SectionTitle>
+              <TableContainer component={Paper} variant="outlined">
+                <Table size="small">
+                  <TableHead>
+                    <TableRow>
+                      <TableCell>
+                        <strong>Year</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Electricity (kWh)</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Heat (kWh)</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Water (m³)</strong>
+                      </TableCell>
+                      <TableCell align="right">
+                        <strong>Wastewater (m³)</strong>
+                      </TableCell>
+                    </TableRow>
+                  </TableHead>
+                  <TableBody>
+                    {annualData.map((d) => (
+                      <TableRow hover key={d.year}>
+                        <TableCell>{d.year}</TableCell>
+                        <TableCell align="right">
+                          {d.electricityConsumption != null
+                            ? formatNumber(d.electricityConsumption)
+                            : "—"}
+                        </TableCell>
+                        <TableCell align="right">
+                          {d.heatConsumption != null
+                            ? formatNumber(d.heatConsumption)
+                            : "—"}
+                        </TableCell>
+                        <TableCell align="right">
+                          {d.waterConsumption != null
+                            ? formatNumber(d.waterConsumption, 1)
+                            : "—"}
+                        </TableCell>
+                        <TableCell align="right">
+                          {d.wastewaterConsumption != null
+                            ? formatNumber(d.wastewaterConsumption, 1)
+                            : "—"}
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </TableContainer>
 
               {/* Electricity chart */}
               {annualData.some((d) => d.electricityConsumption != null) && (
-                <Box>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                <>
+                  <SectionTitle
+                    divider
+                    icon={<ElectricBoltIcon fontSize="small" />}
                   >
-                    <ElectricBoltIcon fontSize="small" />{" "}
                     Electricity Consumption (kWh/year)
-                  </Typography>
-                  <Bar data={electricityData} options={baseOptions} />
-                </Box>
+                  </SectionTitle>
+                  <ChartBox>
+                    <Bar data={electricityData} options={baseOptions} />
+                  </ChartBox>
+                </>
               )}
 
               {/* Heat chart */}
-              {annualData.some((d) =>
-                d.heatConsumption != null
-              ) && (
-                <Box>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
+              {annualData.some((d) => d.heatConsumption != null) && (
+                <>
+                  <SectionTitle
+                    divider
+                    icon={<LocalFireDepartmentIcon fontSize="small" />}
                   >
-                    <LocalFireDepartmentIcon fontSize="small" />{" "}
                     Heat Consumption (kWh/year)
-                  </Typography>
-                  <Bar data={heatData} options={baseOptions} />
-                </Box>
+                  </SectionTitle>
+                  <ChartBox>
+                    <Bar data={heatData} options={baseOptions} />
+                  </ChartBox>
+                </>
               )}
 
               {/* Water chart */}
               {annualData.some((d) => d.waterConsumption != null) && (
-                <Box>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                <>
+                  <SectionTitle
+                    divider
+                    icon={<WaterDropIcon fontSize="small" />}
                   >
-                    <WaterDropIcon fontSize="small" />{" "}
                     Water Consumption (m³/year)
-                  </Typography>
-                  <Bar data={waterData} options={volumeOptions} />
-                </Box>
+                  </SectionTitle>
+                  <ChartBox>
+                    <Bar data={waterData} options={volumeOptions} />
+                  </ChartBox>
+                </>
               )}
 
               {/* Wastewater chart */}
               {annualData.some((d) => d.wastewaterConsumption != null) && (
-                <Box>
-                  <Typography
-                    variant="h6"
-                    gutterBottom
-                    sx={{ display: "flex", alignItems: "center", gap: 1 }}
+                <>
+                  <SectionTitle
+                    divider
+                    icon={<WaterDropIcon fontSize="small" />}
                   >
-                    <WaterDropIcon fontSize="small" />{" "}
                     Wastewater Consumption (m³/year)
-                  </Typography>
-                  <Bar data={wastewaterData} options={volumeOptions} />
-                </Box>
+                  </SectionTitle>
+                  <ChartBox>
+                    <Bar data={wastewaterData} options={volumeOptions} />
+                  </ChartBox>
+                </>
               )}
             </>
           )}
-      </Stack>
+      </DetailCard>
     </ChartErrorBoundary>
   );
 }

@@ -1,4 +1,4 @@
-import { useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -22,13 +22,12 @@ import {
   Typography,
 } from "@mui/material";
 import CloseIcon from "@mui/icons-material/Close";
-import DownloadIcon from "@mui/icons-material/Download";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useSolidData } from "../context/SolidDataContext.tsx";
+import { getActiveRoom, getMyRole } from "../services/interop/dataRoom.ts";
 import {
   addBuildingToRegistry,
   buildingEnergyFileUrl,
@@ -43,6 +42,8 @@ import {
 interface AddBuildingDialogProps {
   open: boolean;
   session: Session;
+  /** When true, open the file picker immediately (bulk "autofill from file"). */
+  autostartImport?: boolean;
   onClose: () => void;
   onBuildingAdded: (newSubjectUris: string[]) => void;
 }
@@ -62,12 +63,7 @@ const CSV_HINT: Record<UserRole, string> = {
   dummy: "Upload CSV with BuildingType field names as column headers",
 };
 
-const TEMPLATE_FILE: Partial<Record<UserRole, { href: string; label: string }>> = {
-  investor: { href: "/templates/investor-template.xlsx", label: "investor-template.xlsx" },
-  benchmark_service_provider: { href: "/templates/bsp-template.xlsx", label: "bsp-template.xlsx" },
-  user: { href: "/templates/user-lastgang-template.xlsx", label: "user-lastgang-template.xlsx" },
-};
-
+/** Roles a building can be added under (excludes the demo "dummy" role). */
 const DIALOG_ROLES: UserRole[] = [
   "investor",
   "user",
@@ -103,11 +99,53 @@ function tabLabel(b: Record<string, string>, idx: number): string {
 }
 
 export default function AddBuildingDialog(
-  { open, session, onClose, onBuildingAdded }: AddBuildingDialogProps,
+  { open, session, autostartImport, onClose, onBuildingAdded }:
+    AddBuildingDialogProps,
 ) {
   const { showNotification } = useNotification();
   const { buildings } = useSolidData();
-  const [role, setRole] = useState<UserRole>("investor");
+
+  // The roles the user has self-assigned in the data room — the only roles a
+  // building may be added under. Loaded from the data room when the dialog opens.
+  const [myRoles, setMyRoles] = useState<UserRole[]>([]);
+  const [rolesLoading, setRolesLoading] = useState(false);
+
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    setRolesLoading(true);
+    getMyRole(getActiveRoom(), session)
+      .then((roles) => {
+        if (!cancelled) setMyRoles(roles);
+      })
+      .catch((err) => {
+        if (!cancelled) {
+          showNotification(`Failed to load your data room roles: ${err}`, "error");
+          setMyRoles([]);
+        }
+      })
+      .finally(() => {
+        if (!cancelled) setRolesLoading(false);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [open, session]);
+
+  // Keep the canonical ordering and drop the demo "dummy" role.
+  const dialogRoles = useMemo<UserRole[]>(
+    () => DIALOG_ROLES.filter((r) => myRoles.includes(r)),
+    [myRoles],
+  );
+
+  const [role, setRole] = useState<UserRole>(DIALOG_ROLES[0]);
+
+  // Keep the selected role valid once the data room roles load.
+  useEffect(() => {
+    if (dialogRoles.length > 0 && !dialogRoles.includes(role)) {
+      setRole(dialogRoles[0]);
+    }
+  }, [dialogRoles, role]);
   const [buildingsList, setBuildingsList] = useState<Record<string, string>[]>([{}]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [lastgangReadings, setLastgangReadings] = useState<LastgangReading[] | null>(null);
@@ -163,7 +201,7 @@ export default function AddBuildingDialog(
 
   const handleClose = () => {
     if (isProcessing) return;
-    setRole("user");
+    setRole(dialogRoles[0] ?? DIALOG_ROLES[0]);
     setBuildingsList([{}]);
     setActiveIdx(0);
     setLastgangReadings(null);
@@ -376,6 +414,11 @@ export default function AddBuildingDialog(
       maxWidth="sm"
       fullWidth
       PaperProps={{ sx: { position: "relative" } }}
+      TransitionProps={{
+        onEntered: () => {
+          if (autostartImport) fileInputRef.current?.click();
+        },
+      }}
     >
       {isProcessing && (
         <Box
@@ -406,19 +449,29 @@ export default function AddBuildingDialog(
       )}
       <DialogTitle>Add Building</DialogTitle>
       <DialogContent sx={{ overflowY: "auto" }}>
-        {/* Role */}
-        <FormControl size="small" fullWidth sx={{ mt: 1, mb: 2 }}>
-          <InputLabel>Role</InputLabel>
-          <Select
-            label="Role"
-            value={role}
-            onChange={handleRoleChange}
-          >
-            {DIALOG_ROLES.map((r) => (
-              <MenuItem key={r} value={r}>{ROLE_LABEL[r]}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
+        {/* Role — only the roles the user holds in the data room */}
+        {!rolesLoading && dialogRoles.length === 0
+          ? (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
+              You have no role assigned in the data room. Assign one in the Data
+              Room tab before adding a building.
+            </Typography>
+          )
+          : (
+            <FormControl size="small" fullWidth sx={{ mt: 1, mb: 2 }}>
+              <InputLabel>Role</InputLabel>
+              <Select
+                label="Role"
+                value={dialogRoles.includes(role) ? role : ""}
+                onChange={handleRoleChange}
+                disabled={rolesLoading || dialogRoles.length === 0}
+              >
+                {dialogRoles.map((r) => (
+                  <MenuItem key={r} value={r}>{ROLE_LABEL[r]}</MenuItem>
+                ))}
+              </Select>
+            </FormControl>
+          )}
 
         {/* File autofill */}
         <Box sx={{ mb: 2 }}>
@@ -429,29 +482,9 @@ export default function AddBuildingDialog(
             style={{ display: "none" }}
             onChange={handleFileUpload}
           />
-          <Button
-            variant="outlined"
-            size="small"
-            startIcon={<UploadFileIcon />}
-            onClick={() => fileInputRef.current?.click()}
-          >
-            Autofill from file
-          </Button>
-          <Typography variant="caption" display="block" sx={{ mt: 0.5 }} color="text.secondary">
+          <Typography variant="caption" display="block" color="text.secondary">
             {CSV_HINT[role]}
           </Typography>
-          {TEMPLATE_FILE[role] && (
-            <Button
-              component="a"
-              href={TEMPLATE_FILE[role]!.href}
-              download={TEMPLATE_FILE[role]!.label}
-              size="small"
-              startIcon={<DownloadIcon />}
-              sx={{ mt: 0.5, textTransform: "none" }}
-            >
-              Download template
-            </Button>
-          )}
           {lastgangReadings && (
             <Typography variant="caption" display="block" sx={{ mt: 0.5 }} color="success.main">
               {lastgangReadings.length} readings ({new Set(lastgangReadings.map((r) => r.date)).size} days) ready to upload
@@ -513,7 +546,6 @@ export default function AddBuildingDialog(
         {sectionHeader("Location & Physical")}
         <Button
           variant="outlined"
-          size="small"
           startIcon={geocoding ? <CircularProgress size={14} color="inherit" /> : <MyLocationIcon />}
           onClick={handleGeocode}
           disabled={geocoding || !["streetAddress", "postalCode", "locality", "region"].some((f) => fields[f]?.trim())}
@@ -600,7 +632,8 @@ export default function AddBuildingDialog(
         <Button
           variant="contained"
           onClick={handleSubmit}
-          disabled={isProcessing || !isValid || isDuplicate}
+          disabled={isProcessing || !isValid || isDuplicate ||
+            dialogRoles.length === 0}
         >
           {buildingsList.length === 1 ? "Add Building" : `Add ${buildingsList.length} Buildings`}
         </Button>

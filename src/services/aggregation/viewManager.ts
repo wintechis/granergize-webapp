@@ -13,6 +13,7 @@ import {
   XSD_INTEGER,
 } from "../utils/vocabularies.ts";
 import { getQuadValue, getQuadValues } from "../utils/rdfHelpers.ts";
+import { fetchFresh } from "../utils/podFetch.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
@@ -136,7 +137,7 @@ export async function createViewDefinition(
   // Load existing definitions or create new
   let existingQuads: import("@rdfjs/types").Quad[] = [];
   try {
-    const response = await session.fetch(definitionsUrl);
+    const response = await fetchFresh(definitionsUrl, session);
     if (response.ok) {
       const text = await response.text();
       const parser = new Parser({
@@ -241,7 +242,10 @@ export async function getViewDefinitions(
   const definitionsUrl = getViewDefinitionsUrl(session.info.webId);
 
   try {
-    const response = await session.fetch(definitionsUrl);
+    // Cache-buster + no-store so the list reflects recent edits (e.g. a just
+    // deleted view) instead of a stale cached copy. baseIRI below stays
+    // canonical (without the query) so parsed IRIs are unchanged.
+    const response = await fetchFresh(definitionsUrl, session);
 
     if (response.status === 404) {
       await session.fetch(definitionsUrl, {
@@ -439,7 +443,7 @@ async function updateViewLastComputed(
 
   const definitionsUrl = getViewDefinitionsUrl(session.info.webId);
 
-  const response = await session.fetch(definitionsUrl);
+  const response = await fetchFresh(definitionsUrl, session);
   if (!response.ok) return;
 
   const text = await response.text();
@@ -478,7 +482,7 @@ export async function loadComputedSnapshot(
   snapshotUrl: string,
 ): Promise<AggregatedViewSnapshot | null> {
   try {
-    const response = await session.fetch(snapshotUrl);
+    const response = await fetchFresh(snapshotUrl, session);
     if (!response.ok) {
       return null;
     }
@@ -579,8 +583,9 @@ export async function deleteView(
   const definitionsUrl = getViewDefinitionsUrl(session.info.webId);
   const snapshotUrl = getComputedViewUrl(session.info.webId, viewId);
 
-  // Remove from definitions
-  const response = await session.fetch(definitionsUrl);
+  // Remove from definitions. Read fresh (no-store) so we edit the current file,
+  // not a cached copy.
+  const response = await fetchFresh(definitionsUrl, session);
   if (response.ok) {
     const text = await response.text();
     const parser = new Parser({

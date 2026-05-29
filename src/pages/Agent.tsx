@@ -1,17 +1,27 @@
 import { useEffect, useState } from "react";
-import { Link, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
 import { AgentType } from "../../types/types.ts";
-import Card from "@mui/material/Card";
-import CardHeader from "@mui/material/CardHeader";
-import CardContent from "@mui/material/CardContent";
 import PersonIcon from "@mui/icons-material/Person";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
 import { useSolidData } from "../context/SolidDataContext.tsx";
+import {
+  DetailCard,
+  DetailRow,
+  RefLink,
+  UriLink,
+} from "../components/detail/DetailView.tsx";
 
-export default function Agent() {
-  const { selectedAgent } = useParams();
+interface AgentProps {
+  /** Render inline in a pane; when set, this id is used instead of the route param. */
+  agentId?: string;
+  embedded?: boolean;
+}
+
+export default function Agent({ agentId, embedded = false }: AgentProps = {}) {
+  const { selectedAgent: routeAgent } = useParams();
+  const selectedAgent = agentId ?? routeAgent;
   const { agents, isLoading, error } = useSolidData();
   const [agent, setAgent] = useState<AgentType | undefined>(undefined);
 
@@ -54,24 +64,14 @@ export default function Agent() {
 
   function createTypeLink(uriString: string) {
     const hash = new URL(uriString).hash.replace("#", "");
-    return <Link to={uriString}>{hash}</Link>;
+    return <UriLink href={uriString}>{hash}</UriLink>;
   }
 
   return (
-    <Card>
-      <CardHeader
-        avatar={<PersonIcon />}
-        title={`Agent ${agent.id}`}
-      />
-      <CardContent>
-        <Typography variant="body1">
-          <strong>Name:</strong> {agent.name}
-        </Typography>
-        <Typography variant="body1">
-          <strong>Type:</strong> {createTypeLink(agent.type)}
-        </Typography>
-        <Link to="/">🠠 Back to map overview</Link>
-      </CardContent>
-    </Card>
+    <DetailCard icon={<PersonIcon />} title={`Agent ${agent.id}`}>
+      <DetailRow label="Name" value={agent.name} />
+      <DetailRow label="Type" value={createTypeLink(agent.type)} />
+      {!embedded && <RefLink to="/">🠠 Back to map overview</RefLink>}
+    </DetailCard>
   );
 }

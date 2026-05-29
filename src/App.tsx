@@ -1,10 +1,13 @@
-import { useParams } from "react-router-dom";
+import { useEffect } from "react";
+import { useNavigate, useParams } from "react-router-dom";
 import { HashRouter, Route, Routes } from "react-router-dom";
+import { openRoom } from "./services/interop/dataRoom.ts";
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Agent from "./pages/Agent.tsx";
 import Energy from "./pages/Energy.tsx";
 import AggregatedView from "./pages/AggregatedView.tsx";
+import GuidePage from "./components/GuidePage.tsx";
 import Container from "@mui/material/Container";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -99,6 +102,39 @@ function AggregatedViewWrapper({ session }: { session: Session }) {
   return <AggregatedView session={session} />;
 }
 
+/**
+ * Deep link `#/room/:roomUri` — opens (and joins) the linked room, then lands the
+ * user on the Data Room tab. This is what the room QR code / invite link points at.
+ */
+function RoomDeepLink({ session }: { session: Session }) {
+  const { roomUri = "" } = useParams();
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    let active = true;
+    (async () => {
+      if (roomUri) {
+        await openRoom(roomUri, session).catch(() => {});
+      }
+      if (active) navigate("/", { replace: true, state: { openRoom: true } });
+    })();
+    return () => {
+      active = false;
+    };
+  }, [roomUri, session, navigate]);
+
+  return (
+    <Box
+      display="flex"
+      justifyContent="center"
+      alignItems="center"
+      height="100vh"
+    >
+      <CircularProgress />
+    </Box>
+  );
+}
+
 interface AppProps {
   onLogout: () => void;
   session: Session;
@@ -123,6 +159,11 @@ function App({ onLogout, session }: AppProps) {
             path="/view/:viewId"
             element={<AggregatedViewWrapper session={session} />}
           />
+          <Route
+            path="/room/:roomUri"
+            element={<RoomDeepLink session={session} />}
+          />
+          <Route path="/guide" element={<GuidePage />} />
         </Routes>
       </HashRouter>
     </Container>
