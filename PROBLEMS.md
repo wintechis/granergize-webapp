@@ -11,28 +11,31 @@ Sources referenced below:
 All 23 problems were checked against the source code on 2026-05-28. 21 reproduce as
 described; #4 and #21 (marked `Open*`) were corrected to match the actual code behavior.
 
+**Update 2026-05-29:** statuses revised after the data-room / sharing / login work —
+#8, #10, #14 are **Done**; #1, #9, #20 are **Partial**. Details in each section below.
+
 | # | Status | Title |
 |---|--------|-------|
-| 1 | Open | Role should be set per-user in profile, not chosen in the add-data UI |
+| 1 | Partial | Role should be set per-user in profile, not chosen in the add-data UI |
 | 2 | Open | Add more user roles (e.g. facility manager, broker/Makler) |
 | 3 | Open | No way to delete a building (only edit is possible) |
 | 4 | Open* | Energy data entry is inconsistent across roles (original "only BSP" claim corrected) |
 | 5 | Open | No way to update consumption data per month/year or add a new year |
 | 6 | Open | Excel import is slow and cannot be cancelled / deferred |
 | 7 | Open | Each building should carry address, building specifics, and annual energy consumption |
-| 8 | Open | Download template uses the exact Excel received from providers (real data), not a clean template |
-| 9 | Open | Role-based sharing from the Praxishandbuch is not implemented in the app |
-| 10 | Open | Deactivate the Energy Mix tab (not in Praxishandbuch, confusing for users) |
+| 8 | Done | Download template uses the exact Excel received from providers (real data), not a clean template |
+| 9 | Partial | Role-based sharing from the Praxishandbuch is not implemented in the app |
+| 10 | Done | Deactivate the Energy Mix tab (not in Praxishandbuch, confusing for users) |
 | 11 | Open | Users cannot upload their company logo |
 | 12 | Open | Show the company logo instead of the hats |
 | 13 | Open | Map markers should show the company logo too |
-| 14 | Open | Login screen lacks an explanation text and a link to the project |
+| 14 | Done | Login screen lacks an explanation text and a link to the project |
 | 15 | Open | Soll-Ist-Vergleich use case is missing from the app (no data sent) |
 | 16 | Open | Need planned-vs-actual consumption comparison per building per year |
 | 17 | Open | Individual sharing has only two levels; cannot share a single year's energy data |
 | 18 | Open | External-knowledge linking (weather / benchmark standards) is not available in the app |
 | 19 | Open | No standardized input mask per role |
-| 20 | Open | Data Room functionality (partner discovery) is not integrated into the WebApp |
+| 20 | Partial | Data Room functionality (partner discovery) is not integrated into the WebApp |
 | 21 | Open* | Aggregated-view revocation sends no notification (building revocation now does) |
 | 22 | Open | Demonstrator stores data on external/public Pods; should run on a controlled hoster |
 | 23 | Open | Unclear whether the Vertriebsoptimierung (sales-support) use case is supported |
@@ -41,7 +44,9 @@ described; #4 and #21 (marked `Open*`) were corrected to match the actual code b
 
 ## 1. Role should be set per-user in profile, not chosen in the add-data UI
 
-**Status:** Open
+**Status:** Partial (2026-05-29) — roles are now self-assigned per user in the Room
+tab, independent of the add-data flow, and persist as audited events. Not yet bound to
+the WebID profile / applied fully automatically.
 
 **Description:** Currently a user's role is not fixed — everyone gets access to
 everything and picks a role (e.g. investor, user, BSP) when adding data through the
@@ -125,7 +130,8 @@ completeness; relates to #4 and #5.)
 
 ## 8. Download template uses the exact Excel received from providers (real data), not a clean template
 
-**Status:** Open
+**Status:** Done (2026-05-29) — the real-data "Download template" was removed;
+buildings instead offer a per-building Turtle data export.
 
 **Description:** The "Download template" Excel is exactly the data as submitted to us
 — the current templates are the exact Excel files received from the data providers,
@@ -136,7 +142,10 @@ die uns die Partner zur Verfügung gestellt haben, runtergeladen").
 
 ## 9. Role-based sharing from the Praxishandbuch is not implemented in the app
 
-**Status:** Open
+**Status:** Partial (2026-05-29) — the data room resolves a role to its member WebIDs
+(`getMembersByRole`), so you can share with the people holding a given role via the
+room's member list. Not yet a one-click "share with all of role X", nor role-adapted
+granularity (e.g. yearly vs 15-minute) — see #17.
 
 **Description:** The Handbuch describes three sharing mechanisms (Abbildung 5):
 individual building data, aggregated views, and **role-based access**. The app only
@@ -151,7 +160,9 @@ granularity adapted to the recipient's role — e.g. yearly figures for an inves
 
 ## 10. Deactivate the Energy Mix tab (not in Praxishandbuch, confusing for users)
 
-**Status:** Open
+**Status:** Done (2026-05-29) — the Energy Mix tab/page was removed (the standalone
+Views page was also folded into Sharing). An energy-mix summary now appears only as a
+panel under the map for the currently visible buildings.
 
 **Description:** The Energy Mix tab could be deactivated — it is not described in the
 Praxishandbuch and is rather confusing for users.
@@ -183,7 +194,8 @@ jeweiligen Firmenlogos gut aussehen").
 
 ## 14. Login screen lacks an explanation text and a link to the project
 
-**Status:** Open
+**Status:** Done (2026-05-29) — the login screen now shows an intro describing the app
+and project links (Granergize@FAU, Granergize@IIS) above the provider choices.
 
 **Description:** When not logged in, the user only sees the login screen. It has no
 short explanation text and no link to the project. (The Handbuch assumes an
@@ -251,7 +263,11 @@ mask differs / is incomplete. (Relates to #1, #2, #4.)
 
 ## 20. Data Room functionality (partner discovery) is not integrated into the WebApp
 
-**Status:** Open
+**Status:** Partial (2026-05-29) — data rooms are now in the WebApp (Room tab): create
+a room on your Pod, join via URI/QR, self-assign role(s), see members, and resolve a
+role to its members (`getMembersByRole`) — the partner-discovery primitive. Not yet
+implemented: the provider eliciting each member's data requirements per role and
+publishing the resulting exchange-pairs. See ROOM.md.
 
 **Description:** The paper's central concept of "Data Rooms" — a Provider opens a room,
 invites members, members self-assign roles, the Provider elicits each member's data
