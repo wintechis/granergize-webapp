@@ -1,75 +1,21 @@
 import { expect, type Page, test } from "@playwright/test";
+import { account, hasAccount, login } from "./helpers/login.ts";
 
 /**
  * Captures the in-app guide screenshots (public/guide/*.png) by driving the
  * logged-in app. Requires a THROWAWAY Solid Pod — never a real account — passed
- * via env so no credentials live in the repo:
+ * via env so no credentials live in the repo (see e2e/README.md):
  *
  *   E2E_USERNAME=...  E2E_PASSWORD=...  [E2E_ISSUER=https://solidcommunity.net] \
  *     npm run screenshots
  *
  * Skipped automatically when those env vars are absent (so CI / `npm run
- * test:e2e` never needs credentials).
- *
- * NOTE: the identity-provider login + consent pages are provider-specific and
- * change over time; the selectors below are best-effort for solidcommunity.net
- * and may need adjusting. Run headed to debug:  npm run screenshots -- --headed
+ * test:e2e` never needs credentials). Run headed to debug:
+ *   npm run screenshots -- --headed
  */
 
-const ISSUER = process.env.E2E_ISSUER ?? "https://solidcommunity.net";
-const USERNAME = process.env.E2E_USERNAME ?? "";
-const PASSWORD = process.env.E2E_PASSWORD ?? "";
+const A = account("A");
 const OUT = "public/guide";
-
-async function login(page: Page) {
-  await page.goto("/");
-
-  // Pick the matching recommended provider, or type a custom issuer.
-  const host = new URL(ISSUER).host;
-  const recommended = page.getByRole("button", {
-    name: new RegExp(host.replace(/\./g, "\\."), "i"),
-  });
-  if (await recommended.count()) {
-    await recommended.first().click();
-  } else {
-    await page.getByLabel(/Identity Provider/i).fill(ISSUER);
-    await page.getByRole("button", { name: "+" }).click();
-  }
-
-  // Identity-provider login form (best-effort selectors).
-  await page.waitForLoadState("domcontentloaded");
-  const user = page.locator(
-    'input[name="username"], input[name="email"], input[type="email"], input#username, input#email',
-  ).first();
-  await user.waitFor({ timeout: 30_000 });
-  await user.fill(USERNAME);
-  await page.locator('input[type="password"], input[name="password"]').first()
-    .fill(PASSWORD);
-  await page.getByRole("button", { name: /log ?in|sign ?in|anmelden/i }).first()
-    .click();
-
-  // CSS ("Pivot") consent page — "An application is requesting full access" with
-  // an Authorize button. It can take a few redirects to appear.
-  const authorize = page.getByRole("button", {
-    name: /authorize|consent|allow|continue|zustimmen|erlauben/i,
-  });
-  await authorize.first().click({ timeout: 45_000 }).catch(() => {});
-
-  // Back in the app, it may show "Loading…", then a first-login "remember this
-  // identity provider?" prompt, then the tabs. Poll: dismiss the prompt if/when
-  // it appears, and only finish once it's gone AND the tabs are present (so we
-  // don't return on a transient flicker between the two screens).
-  const remember = page.getByRole("button", {
-    name: /save login info|no,? thanks/i,
-  });
-  await expect(async () => {
-    if (await remember.count()) await remember.first().click().catch(() => {});
-    await expect(remember).toHaveCount(0, { timeout: 1000 });
-    await expect(page.getByRole("tab", { name: "Room" })).toBeVisible({
-      timeout: 1000,
-    });
-  }).toPass({ timeout: 120_000 });
-}
 
 async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${OUT}/${name}`, animations: "disabled" });
@@ -77,21 +23,21 @@ async function shot(page: Page, name: string) {
 
 test.describe("guide screenshots", () => {
   test.skip(
-    !USERNAME || !PASSWORD,
+    !hasAccount(A),
     "Set E2E_USERNAME and E2E_PASSWORD (a throwaway Solid Pod) to capture screenshots.",
   );
 
   test("capture", async ({ page }) => {
     test.setTimeout(240_000);
     await page.setViewportSize({ width: 1200, height: 900 });
-    await login(page);
+    await login(page, A);
 
-    // --- Room: be in a room with a role (seeds an empty Pod so the rest of the
+    // --- Meet: be in a room with a role (seeds an empty Pod so the rest of the
     //     app has something to show) ---
-    await page.getByRole("tab", { name: "Room" }).click();
-    const leave = page.getByRole("button", { name: /leave room/i });
+    await page.getByRole("tab", { name: "Meet" }).click();
+    const leave = page.getByRole("button", { name: /leave data room/i });
     if (!(await leave.count())) {
-      await page.getByRole("button", { name: /create a room/i }).click();
+      await page.getByRole("button", { name: /host a data room/i }).click();
       await expect(leave).toBeVisible({ timeout: 30_000 });
     }
     // Assign the User role (MUI multi-select: open, tick, close, save).
@@ -109,8 +55,8 @@ test.describe("guide screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "room.png");
 
-    // --- Seed one building (only if none yet) so Sharing/Map/Views have data ---
-    await page.getByRole("tab", { name: "Sharing" }).click();
+    // --- Seed one building (only if none yet) so Share/View/Views have data ---
+    await page.getByRole("tab", { name: "Share" }).click();
     const dialog = page.getByRole("dialog");
 
     // Add Building dialog — capture it (role is now assigned, so it shows the form).
@@ -141,8 +87,8 @@ test.describe("guide screenshots", () => {
     await shot(page, "create-view.png");
     await page.keyboard.press("Escape");
 
-    // --- Map: select a building marker → its Building/Energy/Weather tabs ---
-    await page.getByRole("tab", { name: "Map" }).click();
+    // --- View: select a building marker → its Building/Energy/Weather tabs ---
+    await page.getByRole("tab", { name: "View" }).click();
     const markers = page.locator(".leaflet-marker-icon");
     await markers.first().waitFor({ timeout: 20_000 }).catch(() => {});
     await page.waitForTimeout(1500); // let the map settle so clicks register

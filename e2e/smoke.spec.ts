@@ -12,7 +12,7 @@ test.describe("smoke (no login)", () => {
 
     // The app name (the login screen shows it once auth state has settled).
     await expect(
-      page.getByRole("heading", { name: "Granergize Data Rooms" }),
+      page.getByRole("heading", { name: "Granergize App" }),
     ).toBeVisible({ timeout: 20_000 });
 
     // The two recommended identity providers and the custom-provider input.
@@ -30,7 +30,7 @@ test.describe("smoke (no login)", () => {
     // sign-in screen rather than 404/white-screening.
     await page.goto("/#/guide");
     await expect(
-      page.getByRole("heading", { name: "Granergize Data Rooms" }),
+      page.getByRole("heading", { name: "Granergize App" }),
     ).toBeVisible({ timeout: 20_000 });
   });
 });

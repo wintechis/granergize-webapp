@@ -149,6 +149,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         >
           <IconButton
             onClick={handleMenuOpen}
+            aria-label="Account menu"
             sx={{ p: 0 }}
           >
             <Avatar

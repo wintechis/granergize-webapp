@@ -1,6 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import { fetchFresh } from "./podFetch.ts";
+import { GRAN_NS } from "./vocabularies.ts";
 
 /**
  * Uploads an energy certificate PDF to the Solid pod and links it in the building's TTL file
@@ -89,7 +90,7 @@ async function updateBuildingWithCertificateLink(
 
   // Step 4: Check if energy certificate predicate already exists and remove it
   const energyCertificatePredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyCertificate",
+    `${GRAN_NS}hasEnergyCertificate`,
   );
 
   // Remove existing energy certificate triples

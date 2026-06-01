@@ -34,6 +34,8 @@ import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import type { AggregatedViewDefinition } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useSolidData } from "../context/SolidDataContext.tsx";
+import { podResources } from "../services/utils/solidUtils.ts";
+import { RdfSourceLink } from "./detail/DetailView.tsx";
 import ShareViewDialog from "./ShareViewDialog.tsx";
 import CreateViewDialog from "./CreateViewDialog.tsx";
 import AddBuildingDialog from "./AddBuildingDialog.tsx";
@@ -104,6 +106,8 @@ export default function SharingPage({ session }: SharingPageProps) {
   const [importMode, setImportMode] = useState(false);
   // Buildings on your own Pod (not shared in from someone else).
   const ownedBuildings = buildings.filter((b) => !b.isShared);
+  // Backing RDF resources, linked under each section so storage is inspectable.
+  const rdf = session.info.webId ? podResources(session.info.webId) : null;
   const navigate = useNavigate();
   const [createViewOpen, setCreateViewOpen] = useState(false);
   const [sharedBuildings, setSharedBuildings] = useState<SharedBuilding[]>([]);
@@ -322,6 +326,7 @@ export default function SharingPage({ session }: SharingPageProps) {
         <Typography variant="h6" sx={{ mb: 1 }}>
           Your buildings
         </Typography>
+        {rdf && <RdfSourceLink href={rdf.buildings} />}
         {ownedBuildings.length === 0
           ? <p>You haven't added any buildings yet.</p>
           : (
@@ -373,6 +378,7 @@ export default function SharingPage({ session }: SharingPageProps) {
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
           Aggregated views
         </Typography>
+        {rdf && <RdfSourceLink href={rdf.viewDefinitions} />}
         {viewDefinitions.length === 0
           ? <p>No aggregated views yet.</p>
           : (
@@ -497,6 +503,7 @@ export default function SharingPage({ session }: SharingPageProps) {
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
           Buildings you share
         </Typography>
+        {rdf && <RdfSourceLink href={rdf.sharingRegistry} />}
         {loading
           ? <CircularProgress size={24} />
           : sharedBuildings.length === 0

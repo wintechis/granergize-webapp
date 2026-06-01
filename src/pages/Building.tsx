@@ -112,12 +112,18 @@ export default function Building(
   const actions = building.isShared ? null : (
     <Box sx={{ display: "flex" }}>
       <Tooltip title="Edit building">
-        <IconButton onClick={() => setEditDialogOpen(true)}>
+        <IconButton
+          aria-label="Edit building"
+          onClick={() => setEditDialogOpen(true)}
+        >
           <EditIcon />
         </IconButton>
       </Tooltip>
       <Tooltip title="Share building data">
-        <IconButton onClick={() => setShareDialogOpen(true)}>
+        <IconButton
+          aria-label="Share building data"
+          onClick={() => setShareDialogOpen(true)}
+        >
           <ShareIcon />
         </IconButton>
       </Tooltip>

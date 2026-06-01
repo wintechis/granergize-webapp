@@ -31,7 +31,8 @@
   "scripts": {
     "test:e2e": "playwright test",
     "test:e2e:install": "playwright install chromium",
-    "screenshots": "playwright test e2e/screenshots.spec.ts --project=chromium"
+    "screenshots": "playwright test e2e/screenshots.spec.ts --project=chromium",
+    "sharing": "playwright test e2e/sharing.spec.ts --project=chromium"
   },
   "devDependencies": {
     "@eslint/js": "^9.13.0",
