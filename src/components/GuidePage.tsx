@@ -143,12 +143,12 @@ export default function GuidePage() {
         </Typography>
         <Typography variant="body1" sx={{ mb: 1 }}>
           Ein <strong>Raum</strong> bündelt die Akteure, die untereinander Daten
-          teilen. Im Tab <strong>Room</strong>:
+          teilen. Im Tab <strong>Meet</strong>:
         </Typography>
         <ul>
           <li>
-            <strong>Raum erstellen:</strong> „Create a room“ legt einen Raum auf
-            Ihrem Pod an. Teilen Sie dessen URI oder QR-Code, damit andere
+            <strong>Raum erstellen:</strong> „Host a data room“ legt einen Raum
+            auf Ihrem Pod an. Teilen Sie dessen URI oder QR-Code, damit andere
             beitreten können.
           </li>
           <li>
@@ -161,7 +161,7 @@ export default function GuidePage() {
             unabhängig von der Mitgliedschaft und jederzeit änderbar.
           </li>
         </ul>
-        <Figure src="room.png" caption="Room-Tab: Raum erstellen oder beitreten" />
+        <Figure src="room.png" caption="Meet-Tab: Raum erstellen oder beitreten" />
       </Box>
 
       <Box component="section">
@@ -169,7 +169,7 @@ export default function GuidePage() {
           5. Gebäude hinzufügen
         </Typography>
         <Typography variant="body1" sx={{ mb: 1 }}>
-          Im Tab <strong>Sharing</strong> unter „Buildings you own“:
+          Im Tab <strong>Share</strong> unter „Buildings you own“:
         </Typography>
         <ul>
           <li>
@@ -190,12 +190,12 @@ export default function GuidePage() {
           6. Daten ansehen
         </Typography>
         <Typography variant="body1">
-          Wählen Sie im Tab <strong>Map</strong> einen Gebäude-Marker. Im rechten
+          Wählen Sie im Tab <strong>View</strong> einen Gebäude-Marker. Im rechten
           Bereich wechseln Sie über die Reiter zwischen <strong>Building data</strong>,{" "}
           <strong>Energy data</strong> und <strong>Weather data</strong>. Unter der
           Karte sehen Sie den Energiemix für den aktuell sichtbaren Kartenausschnitt.
         </Typography>
-        <Figure src="map-tabs.png" caption="Gebäudedetails im Map-Tab mit Reitern" />
+        <Figure src="map-tabs.png" caption="Gebäudedetails im View-Tab mit Reitern" />
       </Box>
 
       <Box component="section">
@@ -203,7 +203,7 @@ export default function GuidePage() {
           7. Gebäude teilen und Zugriff widerrufen
         </Typography>
         <Typography variant="body1" sx={{ mb: 1 }}>
-          Im Tab <strong>Sharing</strong>:
+          Im Tab <strong>Share</strong>:
         </Typography>
         <ol>
           <li>
@@ -225,7 +225,7 @@ export default function GuidePage() {
             darüber nicht benachrichtigt.
           </li>
         </ol>
-        <Figure src="sharing.png" caption="Sharing-Tab: teilen, exportieren, widerrufen" />
+        <Figure src="sharing.png" caption="Share-Tab: teilen, exportieren, widerrufen" />
       </Box>
 
       <Box component="section">
@@ -235,7 +235,7 @@ export default function GuidePage() {
         <Typography variant="body1" sx={{ mb: 1 }}>
           Aggregierte Ansichten („Views“) fassen mehrere Gebäude zu Durchschnitt,
           Summe, Minimum oder Maximum zusammen – ohne Einzelgebäude offenzulegen.
-          Im Tab <strong>Sharing</strong>:
+          Im Tab <strong>Share</strong>:
         </Typography>
         <ol>
           <li>

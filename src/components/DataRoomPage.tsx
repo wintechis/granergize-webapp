@@ -35,6 +35,8 @@ import {
 } from "../services/interop/dataRoom.ts";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { podResources } from "../services/utils/solidUtils.ts";
+import { RdfSourceLink } from "./detail/DetailView.tsx";
 import QrScanner from "./QrScanner.tsx";
 
 /** Roles a user can self-assign in the data room (excludes the internal "dummy" role). */
@@ -235,6 +237,8 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
   };
 
   const busy = pending !== null;
+  // Backing RDF resource (the rooms registry), linked so storage is inspectable.
+  const rdf = session.info.webId ? podResources(session.info.webId) : null;
 
   return (
     <section style={{ padding: "1.5rem" }}>
@@ -350,6 +354,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
 
       {/* Your rooms — bookmarks; click one to enter it */}
       <Typography variant="h6" sx={{ mb: 1 }}>Your data rooms</Typography>
+      {rdf && <RdfSourceLink href={rdf.rooms} />}
       {knownRooms.length === 0
         ? <p>No data rooms yet. Add or create one below.</p>
         : (

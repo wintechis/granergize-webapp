@@ -1,6 +1,10 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
-import { getPodBaseUrl, getStorageRoot } from "../utils/solidUtils.ts";
+import {
+  getPodBaseUrl,
+  getStorageRoot,
+  registryUrl as registryUrlFor,
+} from "../utils/solidUtils.ts";
 import { GRAN_NS } from "../utils/vocabularies.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
 
@@ -108,7 +112,7 @@ export async function getSharedWithMe(
   const webId = session.info.webId;
   const storageRoot = getStorageRoot(webId);
 
-  const registryUrl = `${storageRoot}profile/granergize/dataSources.ttl`;
+  const registryUrl = registryUrlFor(webId);
   const hiddenBuildingsUrl =
     `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
 

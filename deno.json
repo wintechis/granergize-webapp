@@ -3,6 +3,7 @@
     "dev": "deno run -A npm:vite dev",
     "build": "deno run -A npm:vite build",
     "test": "deno test -A",
+    "lint": "deno run -A npm:eslint .",
     "e2e": "npx playwright test",
     "e2e:install": "npx playwright install --with-deps chromium"
   },

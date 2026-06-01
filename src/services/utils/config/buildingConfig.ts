@@ -1,34 +1,26 @@
 import type { BuildingType } from "../../../../types/types.ts";
-
-const INVESTOR_NS =
-  "https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#";
-const BENCH_NS =
-  "https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#";
+import { BENCH_NS, GRAN_NS, INVESTOR_NS, VCARD_NS } from "../vocabularies.ts";
 
 export const predicateMap: { [key: string]: keyof BuildingType } = {
+  // NOTE: schema.org is inconsistently http/https across the codebase
+  // (agentParser uses https). Left as http here to preserve matching of
+  // existing Pod data — reconciling it is a separate, data-affecting change.
   "http://schema.org/customer": "customer",
   "http://www.w3.org/2003/01/geo/wgs84_pos#lat": "lat",
   "http://www.w3.org/2003/01/geo/wgs84_pos#long": "long",
-  "http://www.w3.org/2006/vcard/ns#locality": "locality",
-  "http://www.w3.org/2006/vcard/ns#postal-code": "postalCode",
-  "http://www.w3.org/2006/vcard/ns#region": "region",
-  "http://www.w3.org/2006/vcard/ns#street-address": "streetAddress",
+  [`${VCARD_NS}locality`]: "locality",
+  [`${VCARD_NS}postal-code`]: "postalCode",
+  [`${VCARD_NS}region`]: "region",
+  [`${VCARD_NS}street-address`]: "streetAddress",
   "http://www.w3.org/2000/01/rdf-schema#label": "label",
-  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingArea":
-    "buildingArea",
-  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasLandArea":
-    "landArea",
-  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasPVSystem":
-    "hasPVSystem",
-  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#investor":
-    "investor",
-  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#officeArea":
-    "officeArea",
-  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#usedAs": "usedAs",
-  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#yearOfConstruction":
-    "yearOfConstruction",
-  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyCertificate":
-    "energyCertificate",
+  [`${GRAN_NS}hasBuildingArea`]: "buildingArea",
+  [`${GRAN_NS}hasLandArea`]: "landArea",
+  [`${GRAN_NS}hasPVSystem`]: "hasPVSystem",
+  [`${GRAN_NS}investor`]: "investor",
+  [`${GRAN_NS}officeArea`]: "officeArea",
+  [`${GRAN_NS}usedAs`]: "usedAs",
+  [`${GRAN_NS}yearOfConstruction`]: "yearOfConstruction",
+  [`${GRAN_NS}hasEnergyCertificate`]: "energyCertificate",
   "https://w3id.org/rec#nace-code": "naceCode",
   "https://w3id.org/rec#operatedBy": "operatedBy",
   // Investor-role predicates

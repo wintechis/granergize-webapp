@@ -168,3 +168,20 @@ export function UriLink({ href, children }: { href: string; children: ReactNode 
     </Link>
   );
 }
+
+/**
+ * A muted one-line link to a backing RDF resource on the Pod, shown under a
+ * section so the underlying storage (Turtle file / LDP container) is visible and
+ * inspectable. The URL is the link text.
+ */
+export function RdfSourceLink({ href }: { href: string }) {
+  return (
+    <Typography
+      variant="body2"
+      color="text.secondary"
+      sx={{ mb: 1, wordBreak: "break-all" }}
+    >
+      <UriLink href={href}>{href}</UriLink>
+    </Typography>
+  );
+}

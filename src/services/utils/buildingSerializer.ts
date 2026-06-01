@@ -2,26 +2,29 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import type { UserRole } from "../../../types/types.ts";
 import { objectPropertyMap, predicateMap } from "./config/buildingConfig.ts";
-import { GRAN_NS, USERVOC_NS } from "./vocabularies.ts";
-import { getPodBaseUrl, getStorageRoot } from "./solidUtils.ts";
+import {
+  GRAN_NS,
+  INVESTOR_NS,
+  RDF_TYPE as RDF_TYPE_IRI,
+  SOSA_NS,
+  SSN_NS,
+  TIME_NS,
+  USERVOC_NS,
+  XSD_DECIMAL,
+  XSD_INTEGER,
+} from "./vocabularies.ts";
+import { getStorageRoot, registryUrl as registryUrlFor } from "./solidUtils.ts";
 import { fetchFresh } from "./podFetch.ts";
 import * as XLSX from "xlsx";
 
 const { namedNode, literal, blankNode } = DataFactory;
 
+// XSD datatypes not centralised in vocabularies.ts (only used here).
 const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
-const XSD_INTEGER = "http://www.w3.org/2001/XMLSchema#integer";
-const XSD_DECIMAL = "http://www.w3.org/2001/XMLSchema#decimal";
 const XSD_BOOLEAN = "http://www.w3.org/2001/XMLSchema#boolean";
 const XSD_DATE = "http://www.w3.org/2001/XMLSchema#date";
 const XSD_GYEAR = "http://www.w3.org/2001/XMLSchema#gYear";
 const REC_BUILDING = "https://w3id.org/rec#Building";
-const RDF_TYPE_IRI = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-const INVESTOR_NS =
-  "https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#";
-const SOSA_NS = "http://www.w3.org/ns/sosa/";
-const SSN_NS = "http://www.w3.org/ns/ssn/";
-const TIME_NS = "http://www.w3.org/2006/time#";
 const UNIT_NS = "https://qudt.org/vocab/unit#";
 
 // Inverse maps: BuildingType field name → predicate IRI
@@ -487,7 +490,7 @@ export async function addBuildingToRegistry(
   buildingUri: string,
   role: UserRole,
 ): Promise<void> {
-  const registryUrl = `${getPodBaseUrl(webId)}granergize/dataSources.ttl`;
+  const registryUrl = registryUrlFor(webId);
 
   const res = await fetchFresh(registryUrl, session);
   if (!res.ok) throw new Error(`Registry fetch failed: ${res.status}`);

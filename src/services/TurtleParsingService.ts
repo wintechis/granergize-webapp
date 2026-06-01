@@ -11,7 +11,7 @@ import type {
 } from "../../types/types.ts";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import type { Quad } from "@rdfjs/types";
-import { getPodBaseUrl, getStorageRoot } from "./utils/solidUtils.ts";
+import { getStorageRoot, registryUrl } from "./utils/solidUtils.ts";
 import { fetchFresh } from "./utils/podFetch.ts";
 import { GRAN_NS } from "./utils/vocabularies.ts";
 
@@ -135,24 +135,23 @@ async function removeInaccessibleBuildingSources(
     return;
   }
 
-  const podBaseUrl = getPodBaseUrl(webId);
-  const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
+  const registry = registryUrl(webId);
 
   try {
-    const response = await fetchFresh(registryUrl, session);
+    const response = await fetchFresh(registry, session);
     if (!response.ok) {
       return;
     }
 
     const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: registryUrl });
+    const parser = new Parser({ format: "text/turtle", baseIRI: registry });
     const quads = parser.parse(text);
     const store = new Store(quads);
 
     const buildingSourcePredicate = namedNode(
       `${GRAN_NS}hasBuildingDataSource`,
     )
-    const registryNode = namedNode(registryUrl);
+    const registryNode = namedNode(registry);
 
     // Remove quads for failed sources
     const dataSourceRolePredicate = namedNode(`${GRAN_NS}dataSourceRole`);
@@ -191,7 +190,7 @@ async function removeInaccessibleBuildingSources(
         store.getQuads(null, null, null, null),
       );
 
-      await session.fetch(registryUrl, {
+      await session.fetch(registry, {
         method: "PUT",
         headers: { "Content-Type": "text/turtle" },
         body: updatedTtl,
@@ -214,11 +213,10 @@ async function getSourceRegistry(
     throw new Error("No WebID found in session.");
   }
 
-  const podBaseUrl = getPodBaseUrl(webId);
-  const registryUrl = `${podBaseUrl}granergize/dataSources.ttl`;
+  const registry = registryUrl(webId);
 
   try {
-    const response = await session.fetch(registryUrl + "?t=" + Date.now());
+    const response = await session.fetch(registry + "?t=" + Date.now());
 
     let registryText = "";
     if (!response.ok) {
@@ -226,24 +224,24 @@ async function getSourceRegistry(
       const defaultBody = `@prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix gran: <${GRAN_NS}> .
 
-<${registryUrl}> a gran:DataSourceRegistry ;
+<${registry}> a gran:DataSourceRegistry ;
   dcterms:creator <${webId}> ;
   gran:hasBuildingDataSource <https://solid.ti.rw.fau.de/private/granergize/buildings.ttl> ;
   gran:hasAgentDataSource <https://solid.ti.rw.fau.de/private/granergize/agents.ttl> .
 
 <https://solid.ti.rw.fau.de/private/granergize/buildings.ttl> gran:dataSourceRole gran:DummyRole .`;
 
-      await session.fetch(registryUrl, {
+      await session.fetch(registry, {
         method: "PUT",
         headers: { "Content-Type": "text/turtle" },
         body: defaultBody,
       }).then((res: Response) => {
         if (!res.ok) {
           console.error(
-            `Failed to create data source registry at ${registryUrl}: ${res.status} ${res.statusText}`,
+            `Failed to create data source registry at ${registry}: ${res.status} ${res.statusText}`,
           );
         } else {
-          console.log(`Created new data source registry at ${registryUrl}`);
+          console.log(`Created new data source registry at ${registry}`);
         }
       });
       registryText = defaultBody;
@@ -251,7 +249,7 @@ async function getSourceRegistry(
       registryText = await response.text();
     }
 
-    const parser = new Parser({ baseIRI: registryUrl });
+    const parser = new Parser({ baseIRI: registry });
     const quads = parser.parse(registryText);
     const store = new Store(quads);
 
