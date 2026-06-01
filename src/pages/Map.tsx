@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { BuildingType, EnergyType } from "../../types/types.ts";
 import Building from "./Building.tsx";
 import Agent from "./Agent.tsx";
@@ -118,6 +118,30 @@ function InvalidateOnActive({ active }: { active: boolean }) {
       setTimeout(() => map.invalidateSize(), 0);
     }
   }, [active, map]);
+  return null;
+}
+
+/**
+ * Frame the map on the located buildings — once. Runs the first time the tab is
+ * active and at least one building has coordinates; afterwards the user's
+ * panning/zooming sticks (we never re-fit). Does nothing when no building has
+ * coordinates, leaving the current view untouched.
+ */
+function FitToBuildings(
+  { active, buildings }: { active: boolean; buildings: BuildingType[] },
+) {
+  const map = useMap();
+  const done = useRef(false);
+  useEffect(() => {
+    if (done.current || !active) return;
+    const pts = buildings
+      .filter((b) => b.lat != null && b.long != null)
+      .map((b) => [b.lat as number, b.long as number] as [number, number]);
+    if (pts.length === 0) return;
+    done.current = true;
+    // Defer so it runs after invalidateSize() has corrected the container size.
+    setTimeout(() => map.fitBounds(L.latLngBounds(pts), { padding: [40, 40] }), 0);
+  }, [active, buildings, map]);
   return null;
 }
 
@@ -280,6 +304,7 @@ export default function Map({ session, active = true }: MapProps) {
                   url={BASEMAP.url}
                 />
                 <InvalidateOnActive active={active} />
+                <FitToBuildings active={active} buildings={buildings} />
                 <BoundsWatcher active={active} onChange={setBbox} />
                 {buildings.map((building) => (
                   building.lat && building.long && (

@@ -83,7 +83,7 @@ Deno.test("getOrganization follows org:memberOf and reads the org fields", async
       <${WEBID}> org:memberOf <${ORG}> .
       <${ORG}> a org:Organization, foaf:Organization ;
         foaf:name "ACME Logistics" ;
-        foaf:logo <https://pod.example/profile/granergize/logo.png> ;
+        foaf:logo <https://pod.example/profile/logo.png> ;
         foaf:homepage <https://acme.example/> ;
         owl:sameAs <https://acme.example/profile/card#me> .
     `,
@@ -92,7 +92,7 @@ Deno.test("getOrganization follows org:memberOf and reads the org fields", async
   const org = await getOrganization(session);
   assert.deepEqual(org, {
     name: "ACME Logistics",
-    logoUrl: "https://pod.example/profile/granergize/logo.png",
+    logoUrl: "https://pod.example/profile/logo.png",
     homepage: "https://acme.example/",
     sameAs: "https://acme.example/profile/card#me",
   });
@@ -140,7 +140,7 @@ Deno.test("saveOrganization writes membership + org node into the WebID doc", as
 
 Deno.test("saveOrganization replaces values and preserves an existing logo", async () => {
   const writes: { url: string; contentType: string; body: unknown }[] = [];
-  const logo = "https://pod.example/profile/granergize/logo.png";
+  const logo = "https://pod.example/profile/logo.png";
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -171,7 +171,7 @@ Deno.test("uploadOrgLogo stores the image and links foaf:logo on the org node", 
   }, writes);
 
   const stored = await uploadOrgLogo({ type: "image/png" } as File, session);
-  assert.deepEqual(stored, "https://pod.example/profile/granergize/logo.png");
+  assert.deepEqual(stored, "https://pod.example/profile/logo.png");
 
   // Image PUT with the right content type.
   const imgPut = writes.find((w) => w.url === stored);

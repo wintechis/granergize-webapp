@@ -36,3 +36,5 @@ scripts
 *.njsproj
 *.sln
 *.sw?
+
+notes/*.html
