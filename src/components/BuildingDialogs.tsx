@@ -24,6 +24,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
+import { guardedDialogClose } from "./dialogClose.ts";
 import { shareBuildingData } from "../services/interop/share.ts";
 import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
 import { uploadEnergyCertificate } from "../services/utils/certificateUploader.ts";
@@ -166,7 +167,13 @@ export function ShareBuildingDialog({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose}>
+    <Dialog
+      open={open}
+      onClose={guardedDialogClose(handleClose, {
+        dirty: webId.trim() !== "" || recipients.length > 0 || targetRole !== "",
+        busy: sharing,
+      })}
+    >
       <DialogTitle>Share Building Data</DialogTitle>
 
       {sharing && (
@@ -404,7 +411,13 @@ export function EnergyCertificateDialog({
   };
 
   return (
-    <Dialog open={open} onClose={handleClose}>
+    <Dialog
+      open={open}
+      onClose={guardedDialogClose(handleClose, {
+        dirty: selectedFile != null,
+        busy: uploading,
+      })}
+    >
       <DialogTitle>Upload Energy Certificate</DialogTitle>
       {uploading && (
         <Box

@@ -24,6 +24,7 @@ import {
 import CloseIcon from "@mui/icons-material/Close";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Session } from "@inrupt/solid-client-authn-browser";
+import { guardedDialogClose } from "./dialogClose.ts";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useSolidData } from "../context/SolidDataContext.tsx";
@@ -402,7 +403,7 @@ export default function AddBuildingDialog(
 
   const sectionHeader = (title: string) => (
     <Box sx={{ mt: 2, mb: 1 }}>
-      <Typography variant="subtitle2" color="text.secondary">{title}</Typography>
+      <Typography variant="h6" color="text.secondary">{title}</Typography>
       <Divider />
     </Box>
   );
@@ -410,7 +411,12 @@ export default function AddBuildingDialog(
   return (
     <Dialog
       open={open}
-      onClose={isProcessing ? undefined : handleClose}
+      onClose={guardedDialogClose(handleClose, {
+        dirty: buildingsList.some((b) =>
+          Object.values(b).some((v) => v && String(v).trim())
+        ) || lastgangReadings != null,
+        busy: isProcessing,
+      })}
       maxWidth="sm"
       fullWidth
       PaperProps={{ sx: { position: "relative" } }}
@@ -516,6 +522,7 @@ export default function AddBuildingDialog(
                         }}
                         sx={{ p: 0.25, ml: 0.25 }}
                       >
+                        {/* eslint-disable-next-line no-restricted-syntax -- icon glyph sizing, not text */}
                         <CloseIcon sx={{ fontSize: 14 }} />
                       </IconButton>
                     </Box>

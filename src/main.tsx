@@ -53,7 +53,13 @@ function AppContent() {
   return (
     <Login
       onLogin={handleLogin}
-      name="Granergize Data Rooms"
+      name="Granergize App"
+      logo={
+        <img
+          src={`${import.meta.env.BASE_URL}favicon.svg`}
+          alt="Granergize"
+        />
+      }
       recommendedLogins={[
         "https://solidcommunity.net",
         "https://solid.iis.fraunhofer.de",
@@ -61,9 +67,9 @@ function AppContent() {
       lead={
         <>
           <Typography variant="body1" sx={{ mb: 1 }}>
-            Use Granergize Data Rooms to browse, compare and share energy
-            consumption data of logistics real estate. With Granergize Data
-            Rooms, you keep your data under your control.
+            Use the Granergize App to browse, compare and share energy
+            consumption data of logistics real estate. With Granergize, you
+            keep your data under your control.
           </Typography>
           <Typography variant="body1" sx={{ mb: 1 }}>
             <Link

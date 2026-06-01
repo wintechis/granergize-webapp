@@ -26,7 +26,7 @@ function Figure({ src, caption }: { src: string; caption: string }) {
 
 /**
  * In-app **how-to-use** guide (German, "Kurzanleitung"). Task/step instructions
- * only. Reached at #/guide from the footer and the avatar menu. The "Als PDF
+ * only. Reached at #/guide from the avatar menu. The "Als PDF
  * speichern" button prints this page via the browser (see guide.css for the
  * print/cover styling), so the PDF stays in sync with the app.
  */

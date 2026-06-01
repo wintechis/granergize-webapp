@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Box,
   Button,
@@ -23,6 +23,7 @@ import type { BuildingType } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/utils/config/buildingConfig.ts";
 import { updateBuilding } from "../services/utils/buildingSerializer.ts";
+import { guardedDialogClose } from "./dialogClose.ts";
 
 interface EditBuildingDialogProps {
   open: boolean;
@@ -77,9 +78,11 @@ export default function EditBuildingDialog(
   { open, building, session, onClose, onBuildingUpdated }: EditBuildingDialogProps,
 ) {
   const { showNotification } = useNotification();
-  const [fields, setFields] = useState<Record<string, string>>(() => buildingToFields(building));
+  const initialFields = useMemo(() => buildingToFields(building), [building]);
+  const [fields, setFields] = useState<Record<string, string>>(initialFields);
   const [saving, setSaving] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
+  const dirty = JSON.stringify(fields) !== JSON.stringify(initialFields);
 
   const role = building.sourceRole ?? "investor";
   const fileUri = building.sourceUri ?? building.uri.split("#")[0];
@@ -180,7 +183,7 @@ export default function EditBuildingDialog(
 
   const sectionHeader = (title: string) => (
     <Box sx={{ mt: 2, mb: 1 }}>
-      <Typography variant="subtitle2" color="text.secondary">{title}</Typography>
+      <Typography variant="h6" color="text.secondary">{title}</Typography>
       <Divider />
     </Box>
   );
@@ -188,7 +191,7 @@ export default function EditBuildingDialog(
   return (
     <Dialog
       open={open}
-      onClose={saving ? undefined : handleClose}
+      onClose={guardedDialogClose(handleClose, { dirty, busy: saving })}
       maxWidth="sm"
       fullWidth
     >

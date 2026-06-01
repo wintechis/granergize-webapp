@@ -156,10 +156,10 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
       "enter",
       async () => {
         if (!(await openRoom(url, session))) {
-          throw new Error("Room is not reachable");
+          throw new Error("Data room is not reachable");
         }
       },
-      "You joined the room",
+      "You joined the data room",
       "Failed to join",
     );
 
@@ -170,31 +170,31 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
       async () => {
         const room = extractRoomUrl(input);
         if (!(await roomExists(room, session))) {
-          throw new Error("Room is not reachable");
+          throw new Error("Data room is not reachable");
         }
         await addKnownRoom(room, session);
         setRoomInput("");
       },
-      "Room added to your list",
-      "Failed to add room",
+      "Data room added to your list",
+      "Failed to add data room",
     );
 
   const handleCreate = () =>
-    runAction("create", () => createRoom(session).then(() => {}), "Room created", "Failed to create room");
+    runAction("create", () => createRoom(session).then(() => {}), "Data room created", "Failed to create data room");
 
   const handleLeave = () =>
     runAction(
       "leave",
       () => exitRoom(activeRoom!, session),
-      "You left the room",
+      "You left the data room",
       "Failed to leave",
     );
 
   const handleDelete = () => {
     if (
       !confirm(
-        "Delete this room for everyone? This removes the room and its entire " +
-          "membership and role history. This cannot be undone.",
+        "Delete this data room for everyone? This removes the data room and its " +
+          "entire membership and role history. This cannot be undone.",
       )
     ) {
       return;
@@ -206,7 +206,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
         await deleteRoom(room, session);
         await removeKnownRoom(room, session);
       },
-      "Room deleted",
+      "Data room deleted",
       "Failed to delete",
     );
   };
@@ -244,7 +244,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
           component="section"
           sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: 2, mb: 3 }}
         >
-          <Typography variant="h6" sx={{ mb: 1 }}>Current room</Typography>
+          <Typography variant="h6" sx={{ mb: 1 }}>Current data room</Typography>
           <p style={{ wordBreak: "break-all", marginTop: 0 }}>
             <strong>URI:</strong>{" "}
             <a href={activeRoom} target="_blank" rel="noopener noreferrer">
@@ -263,7 +263,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
             <QRCodeSVG value={inviteLink} size={160} />
             <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
               Show this QR code, or copy the invite link, so others can join this
-              room.
+              data room.
             </Typography>
           </Box>
 
@@ -274,7 +274,9 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
               onClick={handleLeave}
               disabled={busy}
             >
-              {pending === "leave" ? <CircularProgress size={20} /> : "Leave room"}
+              {pending === "leave"
+                ? <CircularProgress size={20} />
+                : "Leave data room"}
             </Button>
             {ownsRoom(activeRoom, session) && (
               <Button
@@ -285,7 +287,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
               >
                 {pending === "delete"
                   ? <CircularProgress size={20} />
-                  : "Delete room"}
+                  : "Delete data room"}
               </Button>
             )}
           </div>
@@ -347,9 +349,9 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
       )}
 
       {/* Your rooms — bookmarks; click one to enter it */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Your rooms</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>Your data rooms</Typography>
       {knownRooms.length === 0
-        ? <p>No rooms yet. Add or create one below.</p>
+        ? <p>No data rooms yet. Add or create one below.</p>
         : (
           <ul style={listStyle}>
             {knownRooms.map((r) => (
@@ -370,12 +372,12 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
         )}
 
       {/* Add a room — paste a URI or scan a QR; both just add to the list above */}
-      <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Add a room</Typography>
-      <p>Paste a room URI or scan its QR code to add it to your list.</p>
+      <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Add a data room</Typography>
+      <p>Paste a data room URI or scan its QR code to add it to your list.</p>
       <div style={rowStyle}>
         <TextField
           size="small"
-          label="Room URI"
+          label="Data room URI"
           value={roomInput}
           onChange={(e) => setRoomInput(e.target.value)}
           sx={{ minWidth: 320 }}
@@ -400,15 +402,17 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
       )}
 
       {/* Create a room */}
-      <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Create a room</Typography>
-      <p>Create a new room on your own Pod. You're added as a member automatically.</p>
+      <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Host a data room</Typography>
+      <p>Host a new data room. You're added as a member automatically.</p>
       <Button
         variant="outlined"
         startIcon={<AddIcon />}
         onClick={handleCreate}
         disabled={busy}
       >
-        {pending === "create" ? <CircularProgress size={20} /> : "Create a room"}
+        {pending === "create"
+          ? <CircularProgress size={20} />
+          : "Host a data room"}
       </Button>
     </section>
   );

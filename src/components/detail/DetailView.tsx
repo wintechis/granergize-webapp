@@ -163,6 +163,7 @@ export function UriLink({ href, children }: { href: string; children: ReactNode 
       sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}
     >
       {children}
+      {/* eslint-disable-next-line no-restricted-syntax -- icon scales with surrounding text (em), not a fixed tier */}
       <OpenInNewIcon sx={{ fontSize: "0.85em" }} />
     </Link>
   );

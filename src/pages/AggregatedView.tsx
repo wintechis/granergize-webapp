@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { guardedDialogClose } from "../components/dialogClose.ts";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Box,
@@ -251,7 +252,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
           <IconButton onClick={() => navigate("/")}>
             <ArrowBackIcon />
           </IconButton>
-          <Typography variant="h4">{viewDefinition.name}</Typography>
+          <Typography variant="h5">{viewDefinition.name}</Typography>
         </Box>
         <Box display="flex" gap={1}>
           <Button
@@ -415,7 +416,10 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
       {/* Share Dialog */}
       <Dialog
         open={shareDialogOpen}
-        onClose={() => setShareDialogOpen(false)}
+        onClose={guardedDialogClose(() => setShareDialogOpen(false), {
+          dirty: shareWebId.trim() !== "",
+          busy: sharing,
+        })}
         maxWidth="sm"
         fullWidth
       >

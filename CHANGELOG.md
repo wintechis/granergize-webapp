@@ -2,6 +2,17 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-05-31]
+- Specify the organisation you work for (avatar menu → "Organisation…"): name, logo, homepage, optional org WebID, stored inline in the WebID via W3C Org (org:memberOf) + FOAF; the avatar shows the org logo (falls back to the personal photo)
+
+## [2026-05-30]
+- Profile logo upload (foaf:img on WebID); avatar shows it, falls back to vcard:hasPhoto
+- Show the building URI in the detail pane
+- One typography scale in the theme; ESLint guard against inline font sizes
+- Lighter map legend/energy-mix; flexbox layout (no magic-number heights)
+- Dialogs ignore backdrop clicks and confirm discard on Esc
+- Remove the footer "Anleitung" link (kept in avatar menu)
+
 ## [2026-05-29]
 - Brand the login screen with a GRANERGIZE description, project links, and the solid.iis.fraunhofer.de identity provider
 - Add a SIOC-based data room: self-assign your role and share buildings with everyone holding a given role

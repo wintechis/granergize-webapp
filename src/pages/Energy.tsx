@@ -76,7 +76,7 @@ export default function Energy(
           <CardHeader
             avatar={<ElectricBoltIcon />}
             title={
-              <Typography variant="h4">
+              <Typography variant="h5">
                 Electricity Consumption for Building {building.id}
               </Typography>
             }

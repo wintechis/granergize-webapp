@@ -16,6 +16,9 @@ import SharingPage from "../components/SharingPage.tsx";
 import DataRoomPage from "../components/DataRoomPage.tsx";
 import Footer from "../components/Footer.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
+import { getAvatarObjectUrl } from "../services/utils/logoManager.ts";
+import { getOrgLogoObjectUrl } from "../services/utils/organizationManager.ts";
+import OrganizationDialog from "../components/OrganizationDialog.tsx";
 
 interface IndexPageProps {
   session: Session;
@@ -31,6 +34,43 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   );
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   const { reloadData } = useSolidData();
+
+  // Avatar shown top-right: the organisation's logo (foaf:logo) if set, else the
+  // person's avatar (foaf:img / vcard:hasPhoto), else a PersonIcon.
+  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  const [orgOpen, setOrgOpen] = useState(false);
+
+  const loadAvatar = () => {
+    return getOrgLogoObjectUrl(session)
+      .then((org) => org ?? getAvatarObjectUrl(session))
+      .then((url) => {
+        setLogoUrl((prev) => {
+          if (prev) URL.revokeObjectURL(prev);
+          return url;
+        });
+      })
+      .catch(() => {});
+  };
+
+  // Load (and revoke) the avatar object URL for the current session.
+  useEffect(() => {
+    let current: string | null = null;
+    getOrgLogoObjectUrl(session)
+      .then((org) => org ?? getAvatarObjectUrl(session))
+      .then((url) => {
+        current = url;
+        setLogoUrl(url);
+      })
+      .catch(() => {});
+    return () => {
+      if (current) URL.revokeObjectURL(current);
+    };
+  }, [session]);
+
+  const handleOrganisation = () => {
+    handleMenuClose();
+    setOrgOpen(true);
+  };
 
   // Load the current-room pointer from the Pod into memory once after login, so
   // the sharing dialogs (which read it synchronously) know the room app-wide.
@@ -77,19 +117,26 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   };
 
   return (
-    <Box sx={{ height: "calc(100vh - 50px)" }}>
+    <Box
+      sx={{
+        height: "100vh",
+        display: "flex",
+        flexDirection: "column",
+      }}
+    >
       <Box
         sx={{
           display: "flex",
           alignItems: "center",
           borderBottom: 1,
           borderColor: "divider",
+          flexShrink: 0,
         }}
       >
         <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label="Map" />
-          <Tab label="Sharing" />
-          <Tab label="Room" />
+          <Tab label="View" />
+          <Tab label="Share" />
+          <Tab label="Meet" />
         </Tabs>
         <Box
           sx={{
@@ -105,6 +152,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             sx={{ p: 0 }}
           >
             <Avatar
+              src={logoUrl ?? undefined}
               sx={{
                 bgcolor: "primary.main",
                 width: 40,
@@ -136,6 +184,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             <MenuItem onClick={handleProfile}>
               Profile
             </MenuItem>
+            <MenuItem onClick={handleOrganisation}>
+              Organisation…
+            </MenuItem>
             <MenuItem onClick={handleGuide}>
               Anleitung
             </MenuItem>
@@ -145,17 +196,39 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           </Menu>
         </Box>
       </Box>
-      {/* Keep the map mounted so returning to Home is instant (no Leaflet re-init / tile re-fetch). */}
+      {/* Keep the map mounted so returning to Home is instant (no Leaflet re-init / tile re-fetch).
+          Content area fills the remaining column height; the footer below stays pinned. */}
       <Box
-        sx={{ display: tabValue === 0 ? "block" : "none", height: "100%" }}
+        sx={{
+          display: tabValue === 0 ? "flex" : "none",
+          flexDirection: "column",
+          flexGrow: 1,
+          minHeight: 0,
+        }}
       >
         <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
           <Map session={session} active={tabValue === 0} />
         </Suspense>
       </Box>
-      {tabValue === 1 && <SharingPage session={session} />}
-      {tabValue === 2 && <DataRoomPage session={session} />}
-      <Footer />
+      {tabValue === 1 && (
+        <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
+          <SharingPage session={session} />
+        </Box>
+      )}
+      {tabValue === 2 && (
+        <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
+          <DataRoomPage session={session} />
+        </Box>
+      )}
+      <Box sx={{ flexShrink: 0 }}>
+        <Footer />
+      </Box>
+      <OrganizationDialog
+        open={orgOpen}
+        session={session}
+        onClose={() => setOrgOpen(false)}
+        onSaved={loadAvatar}
+      />
     </Box>
   );
 }

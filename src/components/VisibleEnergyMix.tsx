@@ -1,4 +1,4 @@
-import { Box, Typography } from "@mui/material";
+import { Box, Paper, Typography } from "@mui/material";
 import type { BuildingType, EnergyType } from "../../types/types.ts";
 
 /** camelCase energy-source key → human-readable label. */
@@ -39,27 +39,18 @@ export default function VisibleEnergyMix(
   const total = rows.reduce((sum, [, value]) => sum + value, 0);
 
   return (
-    <Box
-      sx={{
-        mt: 2,
-        padding: 2,
-        backgroundColor: "background.paper",
-        borderRadius: 1,
-        border: "1px solid",
-        borderColor: "divider",
-      }}
-    >
-      <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
+    <Paper variant="outlined" sx={{ mt: 2, px: 1.5, py: 1 }}>
+      <Typography variant="h6">
         Energy mix — visible area
       </Typography>
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
         {buildings.length} building{buildings.length === 1 ? "" : "s"} in view
         {withData < buildings.length && `, ${withData} with energy data`}
       </Typography>
       {rows.length === 0
         ? (
           <Typography variant="body2" color="text.secondary">
-            No energy data for the buildings in view.
+            No energy data in view.
           </Typography>
         )
         : (
@@ -88,6 +79,6 @@ export default function VisibleEnergyMix(
             </tbody>
           </Box>
         )}
-    </Box>
+    </Paper>
   );
 }
