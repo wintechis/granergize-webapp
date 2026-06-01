@@ -15,8 +15,9 @@ import { FOAF_NS, ORG_NS, OWL_NS, RDF_TYPE } from "./vocabularies.ts";
  *          foaf:homepage <https://acme.example/> ;
  *          owl:sameAs <https://acme.example/profile/card#me> .  # org's own WebID
  *
- * The logo *image* lives at `<pod>/profile/granergize/logo.<ext>`; only the link
- * (`foaf:logo` on `<#org>`) is what we rewrite here. Writes are PUT-only (the
+ * The logo *image* lives at `<pod>/profile/logo.<ext>` (in the profile folder,
+ * since the org is part of the profile); only the link (`foaf:logo` on `<#org>`)
+ * is what we rewrite here. Writes are PUT-only (the
  * server ignores PATCH): GET the profile, mutate the in-memory store, PUT it back.
  */
 
@@ -274,8 +275,10 @@ export async function uploadOrgLogo(
     throw new Error(`Unsupported image type: ${file.type || "unknown"}`);
   }
 
-  // 1. Store the image in the profile folder.
-  const logoUrl = `${getPodBaseUrl(webId)}granergize/logo.${ext}`;
+  // 1. Store the image in the profile folder, alongside the WebID document — the
+  //    org is part of the profile (the inline <#org> node in card), so its logo
+  //    lives in profile/, not under the app's granergize/ tree.
+  const logoUrl = `${getPodBaseUrl(webId)}logo.${ext}`;
   const put = await session.fetch(logoUrl, {
     method: "PUT",
     headers: { "Content-Type": file.type },

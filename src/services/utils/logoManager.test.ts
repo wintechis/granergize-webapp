@@ -32,13 +32,13 @@ Deno.test("getAvatarUrl prefers foaf:img over vcard:hasPhoto", async () => {
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .
       @prefix vcard: <http://www.w3.org/2006/vcard/ns#> .
-      <${WEBID}> foaf:img <https://pod.example/profile/granergize/logo.png> ;
+      <${WEBID}> foaf:img <https://pod.example/profile/logo.png> ;
                  vcard:hasPhoto <https://pod.example/profile/photo.jpg> .
     `,
   });
   assert.deepEqual(
     await getAvatarUrl(session),
-    "https://pod.example/profile/granergize/logo.png",
+    "https://pod.example/profile/logo.png",
   );
 });
 
