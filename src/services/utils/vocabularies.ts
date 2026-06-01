@@ -9,6 +9,18 @@ export const INVESTOR_NS =
 export const BENCH_NS =
   "https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#";
 
+/** FOAF — personal avatar (foaf:img) and the organisation's name/logo/homepage. */
+export const FOAF_NS = "http://xmlns.com/foaf/0.1/";
+
+/** vCard — profile photo (vcard:hasPhoto) fallback for the avatar. */
+export const VCARD_NS = "http://www.w3.org/2006/vcard/ns#";
+
+/** W3C Org ontology — person→organisation membership (org:memberOf). */
+export const ORG_NS = "http://www.w3.org/ns/org#";
+
+/** OWL — owl:sameAs links the local org node to the org's own WebID, if any. */
+export const OWL_NS = "http://www.w3.org/2002/07/owl#";
+
 export const SOSA_NS = "http://www.w3.org/ns/sosa/";
 export const TIME_NS = "http://www.w3.org/2006/time#";
 export const SSN_NS = "http://www.w3.org/ns/ssn/";

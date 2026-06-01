@@ -38,6 +38,23 @@ const theme = createTheme({
       '"Segoe UI Symbol"',
     ].join(","),
     fontWeightMedium: 500,
+    // Deliberately narrow type scale: MUI's defaults span a dozen widely-spaced
+    // styles, which read as visually "busy". Collapse everything into three calm
+    // tiers — heading / body / muted — with small steps and consistent weights,
+    // so the many existing variant="…" call-sites stop clashing.
+    //
+    //   heading tier (all 600):  h3 1.5 · h4 1.35 · h5 1.2 · h6 1.05 · subtitleN 0.95
+    //   body tier:               body1 0.95
+    //   muted tier:              body2 0.875 · caption 0.8
+    h3: { fontSize: "1.5rem", fontWeight: 600, lineHeight: 1.3 },
+    h4: { fontSize: "1.35rem", fontWeight: 600, lineHeight: 1.3 },
+    h5: { fontSize: "1.2rem", fontWeight: 600, lineHeight: 1.35 },
+    h6: { fontSize: "1.05rem", fontWeight: 600, lineHeight: 1.4 },
+    subtitle1: { fontSize: "0.95rem", fontWeight: 600, lineHeight: 1.4 },
+    subtitle2: { fontSize: "0.95rem", fontWeight: 600, lineHeight: 1.4 },
+    body1: { fontSize: "0.95rem", lineHeight: 1.5 },
+    body2: { fontSize: "0.875rem", lineHeight: 1.45 },
+    caption: { fontSize: "0.8rem", lineHeight: 1.4 },
   },
   components: {
     MuiCard: {

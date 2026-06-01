@@ -4,7 +4,7 @@ import {
   InvestorCertification,
   InvestorOperatingCosts,
 } from "../../types/types.ts";
-import { Box, IconButton, Tooltip } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import {
   Check as CheckIcon,
   Clear as ClearIcon,
@@ -152,6 +152,24 @@ export default function Building(
           <Box sx={{ display: "flex", justifyContent: "flex-end", mb: -1 }}>
             {actions}
           </Box>
+        )}
+        {/* Building IRI, shown prominently. In the map pane the identity header
+            (incl. the URI) is rendered above by Map.tsx, so only show it here in
+            the standalone card. */}
+        {!hideHeader && (
+          <Typography variant="body1" sx={{ mb: 1, wordBreak: "break-all" }}>
+            <UriLink href={building.uri}>{building.uri}</UriLink>
+          </Typography>
+        )}
+        {hasValue(building.sourceUri) && (
+          <DetailRow
+            label="Source"
+            value={
+              <UriLink href={building.sourceUri as string}>
+                {building.sourceUri}
+              </UriLink>
+            }
+          />
         )}
         {/* Common fields */}
         {hasValue(building.customer) && (

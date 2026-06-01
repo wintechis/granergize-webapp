@@ -320,10 +320,10 @@ export default function SharingPage({ session }: SharingPageProps) {
     <section style={{ padding: "1.5rem" }}>
       <section>
         <Typography variant="h6" sx={{ mb: 1 }}>
-          Buildings you own
+          Your buildings
         </Typography>
         {ownedBuildings.length === 0
-          ? <p>You don't own any buildings yet.</p>
+          ? <p>You haven't added any buildings yet.</p>
           : (
             <ul style={listStyle}>
               {ownedBuildings.map((b) => (
@@ -405,6 +405,7 @@ export default function SharingPage({ session }: SharingPageProps) {
                               <li key={webId} style={rowStyle}>
                                 <span
                                   title={webId}
+                                  // eslint-disable-next-line no-restricted-syntax -- plain-HTML span at caption-tier size (0.8rem); intentionally not MUI Typography
                                   style={{ ...ellipsis, fontSize: "0.8rem" }}
                                 >
                                   {webId}

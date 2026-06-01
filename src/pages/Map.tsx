@@ -2,7 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { BuildingType, EnergyType } from "../../types/types.ts";
 import Building from "./Building.tsx";
 import Agent from "./Agent.tsx";
-import { RefLink } from "../components/detail/DetailView.tsx";
+import { RefLink, UriLink } from "../components/detail/DetailView.tsx";
 import VisibleEnergyMix from "../components/VisibleEnergyMix.tsx";
 import {
   MapContainer,
@@ -16,6 +16,7 @@ import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
+import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -39,6 +40,24 @@ import {
 
 const SHADOW =
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png";
+
+// Basemap tiles. A muted grayscale basemap (CartoDB Positron) keeps the colored
+// role-markers as the visual focus instead of competing with full-color terrain.
+// To revert to the previous full-color OpenStreetMap look, switch BASEMAP to
+// `BASEMAPS.osm`.
+const BASEMAPS = {
+  positron: {
+    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
+  },
+  osm: {
+    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
+    attribution:
+      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
+  },
+} as const;
+const BASEMAP = BASEMAPS.osm;
 
 function makeIcon(url: string): L.Icon {
   return new L.Icon({
@@ -207,14 +226,22 @@ export default function Map({ session, active = true }: MapProps) {
   };
 
   return (
-    <Box sx={{ p: 3 }}>
+    <Box
+      sx={{
+        p: 3,
+        height: "100%",
+        display: "flex",
+        flexDirection: "column",
+        minHeight: 0,
+      }}
+    >
       {error && (
         <Typography color="error" sx={{ mb: 2 }}>
           Error: {error}
         </Typography>
       )}
 
-      <Grid container spacing={2} sx={{ height: "calc(100vh - 216px)" }}>
+      <Grid container spacing={2} sx={{ flexGrow: 1, minHeight: 0 }}>
         <Grid
           size={isRightPaneLarge ? 3 : 6}
           sx={{
@@ -249,8 +276,8 @@ export default function Map({ session, active = true }: MapProps) {
                 style={{ flex: 1, minHeight: 0 }}
               >
                 <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  attribution={BASEMAP.attribution}
+                  url={BASEMAP.url}
                 />
                 <InvalidateOnActive active={active} />
                 <BoundsWatcher active={active} onChange={setBbox} />
@@ -290,41 +317,32 @@ export default function Map({ session, active = true }: MapProps) {
                   )
                 ))}
           </MapContainer>
-          {/* Map Legend */}
-          <Box
+          {/* Map legend — a single compact row of swatches. */}
+          <Paper
+            variant="outlined"
             sx={{
               mt: 2,
-              padding: 2,
-              backgroundColor: "background.paper",
-              borderRadius: 1,
-              border: "1px solid",
-              borderColor: "divider",
+              px: 1.5,
+              py: 0.75,
               display: "flex",
               flexWrap: "wrap",
-              gap: 2,
+              gap: 1.5,
               alignItems: "center",
             }}
           >
-            <Typography variant="subtitle2" sx={{ fontWeight: "bold" }}>
-              Legend
-            </Typography>
             {(
               [
                 [MARKER_OWNED_COLOR, "My Buildings"],
                 [MARKER_SHARED_COLOR, "Shared with Me"],
               ] as const
             ).map(([color, label]) => (
-              <Box
-                key={label}
-                sx={{ display: "flex", alignItems: "center" }}
-              >
+              <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                 <Box
                   sx={{
-                    width: 12,
-                    height: 12,
+                    width: 10,
+                    height: 10,
                     backgroundColor: color,
                     borderRadius: "50%",
-                    mr: 1,
                     flexShrink: 0,
                   }}
                 />
@@ -336,32 +354,19 @@ export default function Map({ session, active = true }: MapProps) {
                 ["investor", `${BASE}legend-investor.png`, "Investor"],
                 ["dummy", `${BASE}legend-dummy.png`, "Demo"],
                 ["user", `${BASE}legend-user.png`, "User"],
-                [
-                  "benchmark_service_provider",
-                  `${BASE}legend-bsp.png`,
-                  "BSP",
-                ],
+                ["benchmark_service_provider", `${BASE}legend-bsp.png`, "BSP"],
               ] as const
             ).map(([role, src, label]) => (
-              <Box
-                key={role}
-                sx={{ display: "flex", alignItems: "center" }}
-              >
+              <Box key={role} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
                 <Box
                   component="img"
                   src={src}
-                  sx={{
-                    width: 10,
-                    height: 16,
-                    mr: 1,
-                    objectFit: "contain",
-                    flexShrink: 0,
-                  }}
+                  sx={{ width: 9, height: 14, objectFit: "contain", flexShrink: 0 }}
                 />
                 <Typography variant="body2">{label}</Typography>
               </Box>
             ))}
-          </Box>
+          </Paper>
           <VisibleEnergyMix
             buildings={visibleBuildings}
             energyNeed={energyNeed}
@@ -416,6 +421,14 @@ export default function Map({ session, active = true }: MapProps) {
                               ? `, ${currentBuilding.region}`
                               : ""
                           }`}
+                        </Typography>
+                        <Typography
+                          variant="body1"
+                          sx={{ mt: 0.5, wordBreak: "break-all" }}
+                        >
+                          <UriLink href={currentBuilding.uri}>
+                            {currentBuilding.uri}
+                          </UriLink>
                         </Typography>
                       </Box>
                       <IconButton

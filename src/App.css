@@ -5,5 +5,8 @@ html, body, #root {
 .map-container {
   display: block;
   position: relative;
-  height: calc(100vh - 160px);
+  /* Fill the flex cell (left grid column) rather than a hardcoded viewport calc.
+     The MapContainer also sets flex:1 / minHeight:0 inline. */
+  flex: 1 1 auto;
+  min-height: 0;
 }

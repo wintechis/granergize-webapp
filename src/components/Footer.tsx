@@ -30,8 +30,7 @@ function Footer() {
           rel="noopener noreferrer"
         >
           https://iis.fraunhofer.de/
-        </Link>.{" "}
-        <Link href="#/guide">Anleitung</Link>.
+        </Link>.
       </Typography>
     </Box>
   );

@@ -1,0 +1,27 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 32 32" shape-rendering="crispEdges">
+  <!-- Granergize: bold "G" letterform filled with the Schwarz-Rot-Gold flag, with a thin outline -->
+  <defs>
+    <mask id="gshape">
+      <!-- white = show flag (the "G" strokes), black/absent = transparent -->
+      <rect x="4"  y="3"  width="24" height="6"  fill="#ffffff"/>  <!-- top bar -->
+      <rect x="4"  y="3"  width="6"  height="26" fill="#ffffff"/>  <!-- left stem -->
+      <rect x="4"  y="23" width="24" height="6"  fill="#ffffff"/>  <!-- bottom bar -->
+      <rect x="22" y="13" width="6"  height="16" fill="#ffffff"/>  <!-- right lower stem -->
+      <rect x="14" y="13" width="14" height="6"  fill="#ffffff"/>  <!-- inner spur -->
+    </mask>
+  </defs>
+  <!-- Outline: the same "G" grown by 1px on each side, in a neutral colour -->
+  <g fill="#ffffff">
+    <rect x="3"  y="2"  width="26" height="8"  rx="1"/>  <!-- top bar -->
+    <rect x="3"  y="2"  width="8"  height="28" rx="1"/>  <!-- left stem -->
+    <rect x="3"  y="22" width="26" height="8"  rx="1"/>  <!-- bottom bar -->
+    <rect x="21" y="12" width="8"  height="18" rx="1"/>  <!-- right lower stem -->
+    <rect x="13" y="12" width="16" height="8"  rx="1"/>  <!-- inner spur -->
+  </g>
+  <!-- Flag-filled "G" on top, leaving a 1px outline showing around it -->
+  <g mask="url(#gshape)">
+    <rect x="0" y="0"      width="32" height="10.667" fill="#000000"/>
+    <rect x="0" y="10.667" width="32" height="10.667" fill="#DD0000"/>
+    <rect x="0" y="21.333" width="32" height="10.667" fill="#FFCE00"/>
+  </g>
+</svg>

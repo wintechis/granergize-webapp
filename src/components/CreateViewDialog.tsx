@@ -39,6 +39,7 @@ import {
   getAvailableMetrics,
 } from "../services/aggregation/viewComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { guardedDialogClose } from "./dialogClose.ts";
 
 interface CreateViewDialogProps {
   open: boolean;
@@ -322,7 +323,15 @@ export default function CreateViewDialog({
   );
 
   return (
-    <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
+    <Dialog
+      open={open}
+      onClose={guardedDialogClose(handleClose, {
+        dirty: viewName.trim() !== "" || selectedBuildings.length > 0,
+        busy: creating,
+      })}
+      maxWidth="sm"
+      fullWidth
+    >
       <DialogTitle>Create Aggregated View</DialogTitle>
       {creating
         ? (
@@ -466,7 +475,7 @@ export default function CreateViewDialog({
                         <Box
                           sx={{ display: "flex", alignItems: "center", gap: 1 }}
                         >
-                          <Typography variant="subtitle2" color="textSecondary">
+                          <Typography variant="h6" color="textSecondary">
                             {category.category}
                           </Typography>
                           {selectedRole === "benchmark_service_provider" && (

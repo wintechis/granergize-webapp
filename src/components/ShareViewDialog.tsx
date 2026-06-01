@@ -1,4 +1,5 @@
 import { useState } from "react";
+import { guardedDialogClose } from "./dialogClose.ts";
 import {
   Alert,
   Box,
@@ -189,7 +190,10 @@ export default function ShareViewDialog(
   return (
     <Dialog
       open={open}
-      onClose={handleClose}
+      onClose={guardedDialogClose(handleClose, {
+        dirty: recipientWebId.trim() !== "",
+        busy: loading,
+      })}
       maxWidth="sm"
       fullWidth
       TransitionProps={{ onEntered: handleEntered }}
@@ -224,7 +228,7 @@ export default function ShareViewDialog(
 
           {!confirmStep && (
             <>
-              <Typography variant="subtitle2" gutterBottom>
+              <Typography variant="h6" gutterBottom>
                 Data room members
               </Typography>
               {membersLoading
@@ -256,10 +260,10 @@ export default function ShareViewDialog(
                             secondary={m.roles.map((r) => ROLE_LABELS[r] ?? r)
                               .join(", ") || "no role"}
                             primaryTypographyProps={{
+                              variant: "body2",
                               sx: {
                                 overflow: "hidden",
                                 textOverflow: "ellipsis",
-                                fontSize: "0.875rem",
                               },
                             }}
                           />
@@ -339,7 +343,7 @@ export default function ShareViewDialog(
 
           <Divider sx={{ my: 3 }} />
 
-          <Typography variant="subtitle2" gutterBottom>
+          <Typography variant="h6" gutterBottom>
             Currently shared with:
           </Typography>
 
@@ -362,10 +366,10 @@ export default function ShareViewDialog(
                     <ListItemText
                       primary={webId}
                       primaryTypographyProps={{
+                        variant: "body2",
                         sx: {
                           overflow: "hidden",
                           textOverflow: "ellipsis",
-                          fontSize: "0.875rem",
                         },
                       }}
                     />
