@@ -11,9 +11,11 @@ import type {
 } from "../../types/types.ts";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import type { Quad } from "@rdfjs/types";
-import { getStorageRoot, registryUrl } from "./utils/solidUtils.ts";
+import { getStorageRoot, podResources, registryUrl } from "./utils/solidUtils.ts";
 import { fetchFresh } from "./utils/podFetch.ts";
 import { GRAN_NS } from "./utils/vocabularies.ts";
+import { seedDemoBuildings } from "./utils/buildingSerializer.ts";
+import { isSeriesGranularity } from "./utils/roleDetection.ts";
 
 const { namedNode } = DataFactory;
 
@@ -28,6 +30,18 @@ const IRI_TO_ROLE: Record<string, UserRole> = {
 /**
  * Attempts to load Turtle data from multiple sources, continuing if some fail
  */
+/**
+ * Thrown when Pod reads fail with HTTP 401 — the auth token has (almost
+ * certainly) expired. Callers should keep any previously loaded data and prompt
+ * the user to log in again, rather than treat it as "no data".
+ */
+export class SessionExpiredError extends Error {
+  constructor(message = "Session expired — please log in again.") {
+    super(message);
+    this.name = "SessionExpiredError";
+  }
+}
+
 async function loadTtlFromMultipleSources(
   urls: string[],
   session: Session,
@@ -110,6 +124,13 @@ async function loadTtlFromMultipleSources(
   }
 
   if (allQuads.length === 0 && urls.length > 0) {
+    // All sources unreadable. A 401 means the token expired — distinguish it so
+    // the caller can keep prior data and prompt re-login instead of blanking out.
+    if (failedSources.some((f) => f.status === 401)) {
+      throw new SessionExpiredError(
+        `Authentication failed loading ${description} (HTTP 401).`,
+      );
+    }
     throw new Error(
       `Could not access any of the ${description} sources. Check permissions or connectivity.`,
     );
@@ -220,31 +241,34 @@ async function getSourceRegistry(
 
     let registryText = "";
     if (!response.ok) {
-      // Bootstrap default registry with the shared buildings annotated as DummyRole
+      // First run: bootstrap an EMPTY registry (no external sources), then seed
+      // two real, user-owned demo buildings so a fresh pod isn't blank. Seeding
+      // runs only here — when the registry didn't exist — so deleting the demo
+      // buildings doesn't resurrect them on the next load.
       const defaultBody = `@prefix dcterms: <http://purl.org/dc/terms/> .
 @prefix gran: <${GRAN_NS}> .
 
 <${registry}> a gran:DataSourceRegistry ;
-  dcterms:creator <${webId}> ;
-  gran:hasBuildingDataSource <https://solid.ti.rw.fau.de/private/granergize/buildings.ttl> ;
-  gran:hasAgentDataSource <https://solid.ti.rw.fau.de/private/granergize/agents.ttl> .
+  dcterms:creator <${webId}> .`;
 
-<https://solid.ti.rw.fau.de/private/granergize/buildings.ttl> gran:dataSourceRole gran:DummyRole .`;
-
-      await session.fetch(registry, {
+      const put = await session.fetch(registry, {
         method: "PUT",
         headers: { "Content-Type": "text/turtle" },
         body: defaultBody,
-      }).then((res: Response) => {
-        if (!res.ok) {
-          console.error(
-            `Failed to create data source registry at ${registry}: ${res.status} ${res.statusText}`,
-          );
-        } else {
-          console.log(`Created new data source registry at ${registry}`);
-        }
       });
-      registryText = defaultBody;
+      if (!put.ok) {
+        console.error(
+          `Failed to create data source registry at ${registry}: ${put.status} ${put.statusText}`,
+        );
+      } else {
+        console.log(`Created new data source registry at ${registry}`);
+        // Best-effort; seedDemoBuildings appends its own registry entries.
+        await seedDemoBuildings(session, webId);
+      }
+
+      // Re-read so the freshly seeded building sources are included below.
+      const seeded = await fetchFresh(registry, session);
+      registryText = seeded.ok ? await seeded.text() : defaultBody;
     } else {
       registryText = await response.text();
     }
@@ -319,10 +343,7 @@ async function getHiddenBuildings(session: Session): Promise<Set<string>> {
     return new Set();
   }
 
-  // Extract storage root
-  const storageRoot = getStorageRoot(webId);
-  const hiddenBuildingsUrl =
-    `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
+  const hiddenBuildingsUrl = podResources(webId).hiddenBuildings;
 
   try {
     const response = await fetchFresh(hiddenBuildingsUrl, session);
@@ -460,10 +481,15 @@ export async function fetchAndParseData(
       { buildingId: string; building: BuildingType; location: string }
     > = [];
     for (const [buildingId, building] of visibleBuildings) {
-      if (building.sourceRole === "user" || !building.energyData) {
-        continue;
-      }
+      if (!building.energyData) continue;
       for (const data of building.energyData) {
+        // Skip sub-hourly *series* datasets — they're large and loaded lazily on
+        // click. Dispatch on the declared granularity, not the role; fall back to
+        // the role default for legacy datasets that don't declare one.
+        const isSeries = data.granularity
+          ? isSeriesGranularity(data.granularity)
+          : building.sourceRole === "user";
+        if (isSeries) continue;
         energyTasks.push({ buildingId, building, location: data.location });
       }
     }
@@ -560,10 +586,15 @@ export async function fetchAndParseData(
     }
   }
 
-  // For investor buildings: synthesize energyNeed entries from inline annualData
-  // (investor buildings have no separate energy files; data is in SOSA observations)
+  // Synthesize energyNeed entries from inline annualData for any building that
+  // carries it (no separate energy file; the data is in inline SOSA observations).
+  // Driven by the data shape (presence of annualData), not the provenance role —
+  // investor and benchmark buildings both use this inline-aggregate shape.
   for (const [buildingId, building] of visibleBuildings) {
-    if (building.sourceRole !== "investor") continue;
+    const inlineAnnual = building.annualData as
+      | InvestorAnnualData[]
+      | undefined;
+    if (!inlineAnnual || inlineAnnual.length === 0) continue;
     const numericBuildingId = /^\d+$/.test(buildingId)
       ? parseInt(buildingId)
       : buildingId.split("").reduce(
@@ -571,9 +602,7 @@ export async function fetchAndParseData(
         0,
       ) >>> 0;
     if (energyData.has(numericBuildingId)) continue;
-    const annualData = building.annualData as InvestorAnnualData[] | undefined;
-    if (!annualData || annualData.length === 0) continue;
-    const latest = annualData.reduce((a, b) => a.year > b.year ? a : b);
+    const latest = inlineAnnual.reduce((a, b) => a.year > b.year ? a : b);
     const energyNeedEntry: Record<string, number> = {};
     if (latest.electricityConsumption !== undefined) {
       energyNeedEntry["Electricity"] = latest.electricityConsumption;

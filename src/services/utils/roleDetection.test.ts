@@ -4,6 +4,7 @@ import { parseRdfText } from "./rdfHelpers.ts";
 import {
   detectBuildingRole,
   detectEnergyShape,
+  isSeriesGranularity,
   resolveRole,
 } from "./roleDetection.ts";
 
@@ -29,7 +30,7 @@ const PREFIXES = `
 `;
 
 const DUMMY_BUILDING = `${PREFIXES}
-<#building-1> a rec:building ;
+<#building-1> a rec:Building ;
   geo:lat 49.5 ; geo:long 11.0 ;
   vcard:locality "Nuremberg" ;
   gran:hasBuildingArea 1200 ;
@@ -43,7 +44,7 @@ const DUMMY_BUILDING = `${PREFIXES}
 // Structurally identical to the dummy building — the role cannot be told apart
 // from the building file alone.
 const USER_BUILDING = `${PREFIXES}
-<#building-2> a rec:building ;
+<#building-2> a rec:Building ;
   geo:lat 49.5 ; geo:long 11.0 ;
   gran:hasBuildingArea 800 ;
   gran:hasEnergyConsumptionDataset [
@@ -54,7 +55,7 @@ const USER_BUILDING = `${PREFIXES}
 `;
 
 const INVESTOR_BUILDING = `${PREFIXES}
-<#building-312> a rec:building ;
+<#building-312> a rec:Building ;
   geo:lat 50.1 ; geo:long 8.6 ;
   investor:buildingCode "B-312" ;
   investor:hallArea 5400.0 ;
@@ -64,7 +65,7 @@ const INVESTOR_BUILDING = `${PREFIXES}
 `;
 
 const BENCHMARK_BUILDING = `${PREFIXES}
-<#building-9> a rec:building ;
+<#building-9> a rec:Building ;
   geo:lat 48.1 ; geo:long 11.6 ;
   bench:companyName "ACME Logistics" ;
   bench:logisticsFunction "distribution" ;
@@ -170,8 +171,28 @@ Deno.test("roles.shex defines a shape per role", async () => {
       "<InvestorBuilding>",
       "<UserReading>",
       "<CategoricalObservation>",
+      // App registry / view / sharing shapes (mirrored by shapeValidators.ts).
+      "<DataSourcesRegistry>",
+      "<HiddenBuildings>",
+      "<SharingRegistry>",
+      "<ViewSharingRegistry>",
+      "<AggregatedViewDefinition>",
+      "<AggregatedViewSnapshot>",
     ]
   ) {
     assert.ok(shex.includes(shape), `roles.shex missing ${shape}`);
   }
+});
+
+Deno.test("isSeriesGranularity: sub-hourly = series, dated = aggregate", () => {
+  // Sub-hourly time-only durations → series (lazy-loaded).
+  assert.ok(isSeriesGranularity("PT15M"));
+  assert.ok(isSeriesGranularity("PT1H"));
+  // Dated durations → aggregate (bulk-loaded).
+  assert.equal(isSeriesGranularity("P1Y"), false);
+  assert.equal(isSeriesGranularity("P1M"), false);
+  // Absent/garbage → aggregate (safe default).
+  assert.equal(isSeriesGranularity(undefined), false);
+  assert.equal(isSeriesGranularity(""), false);
+  assert.equal(isSeriesGranularity("nonsense"), false);
 });

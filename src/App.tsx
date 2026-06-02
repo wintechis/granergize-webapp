@@ -136,7 +136,7 @@ function RoomDeepLink({ session }: { session: Session }) {
 }
 
 interface AppProps {
-  onLogout: () => void;
+  onLogout: (opts?: { suppressAutoLogin?: boolean }) => void;
   session: Session;
 }
 

@@ -118,7 +118,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
         // Store the source file URL separately for ownership checks.
         uri: quad.subject.value,
         sourceUri: quad.graph.value,
-        type: "https://w3id.org/rec#building",
+        type: "https://w3id.org/rec#Building",
         energyData: [],
         annualData: [],
         certifications: [],
@@ -233,6 +233,8 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
         }
       } else if (pred.endsWith("type")) {
         ed.type = objVal;
+      } else if (pred.endsWith("granularity")) {
+        ed.granularity = objVal;
       }
       return;
     }
@@ -345,6 +347,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
         year: energyData.year,
         location: energyData.location,
         type: energyData.type,
+        granularity: energyData.granularity,
       });
     }
   }

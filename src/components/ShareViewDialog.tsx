@@ -5,7 +5,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -201,9 +200,9 @@ export default function ShareViewDialog(
       <DialogTitle>Share "{view.name}"</DialogTitle>
 
       {loading && (
-        <Box display="flex" justifyContent="center" alignItems="center" my={3}>
-          <CircularProgress />
-        </Box>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">Loading…</Typography>
+        </DialogContent>
       )}
 
       {!loading && (
@@ -233,9 +232,9 @@ export default function ShareViewDialog(
               </Typography>
               {membersLoading
                 ? (
-                  <Box sx={{ display: "flex", justifyContent: "center", py: 1 }}>
-                    <CircularProgress size={20} />
-                  </Box>
+                  <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+                    Loading…
+                  </Typography>
                 )
                 : members.length === 0
                 ? (
@@ -349,9 +348,9 @@ export default function ShareViewDialog(
 
           {loadingShared
             ? (
-              <Box sx={{ display: "flex", justifyContent: "center", py: 2 }}>
-                <CircularProgress size={24} />
-              </Box>
+              <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
+                Loading…
+              </Typography>
             )
             : sharedWith.length === 0
             ? (

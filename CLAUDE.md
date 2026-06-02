@@ -93,3 +93,20 @@ Chart.js via `react-chartjs-2` — registration is centralized in `src/chartSetu
 (imported once in `main.tsx`), and `vite.config.ts` deduplicates `chart.js` to a single
 instance (don't import/register Chart.js elsewhere). Maps use Leaflet via `react-leaflet`.
 User-facing messages go through `NotificationContext`.
+
+Global network-loading feedback goes through one activity store
+(`src/services/utils/networkActivity.ts`): `instrumentSessionFetch` wraps the Solid
+session's `fetch` once at login so every Pod request is tracked automatically, and
+non-Pod requests opt in via `trackedFetch` (geocoding) or `beginActivity`/`endActivity`
+(Leaflet tile events in `Map.tsx`, the weather client). The header
+`NetworkActivityIndicator` shows the live in-flight count + a details list.
+
+**Loading-spinner policy: the header indicator is the ONLY loading spinner inside the
+app shell.** Don't add component-level `CircularProgress`/`LinearProgress` for network
+loads — feed the activity store instead. During an in-flight load a region stays blank
+(or shows a plain "Loading…" text), and action buttons go `disabled` (no inline
+spinner) to prevent double-submit. The exceptions, which keep a local spinner because
+the header isn't mounted there, are the standalone full-page routes
+(`/building`, `/energy`, `/agent`, `/view/:id`, `/room/:uri` — see `App.tsx`,
+`Agent.tsx`, `AggregatedView.tsx`), the pre-auth `Login` screen, and the lazy-chunk
+`Suspense` fallback (code-split load, not data).

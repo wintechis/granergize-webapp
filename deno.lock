@@ -12,6 +12,7 @@
     "npm:@eslint/js@^9.13.0": "9.38.0",
     "npm:@fontsource/roboto@^5.1.0": "5.2.6",
     "npm:@inrupt/solid-client-authn-browser@^3.1.0": "3.1.0",
+    "npm:@inrupt/solid-client-authn-node@2": "2.5.0",
     "npm:@inrupt/solid-client@3": "3.0.0",
     "npm:@jsr/wintechis__wetterdienst-rdf-adapter@^0.0.53": "0.0.53",
     "npm:@mui/icons-material@^6.1.6": "6.5.0_@mui+material@6.5.0__@emotion+react@11.14.0___react@18.3.1__@emotion+styled@11.14.1___@emotion+react@11.14.0____react@18.3.1___react@18.3.1__@types+react@18.3.26__react@18.3.1__react-dom@18.3.1___react@18.3.1_@types+react@18.3.26_react@18.3.1_@emotion+react@11.14.0__react@18.3.1_@emotion+styled@11.14.1__@emotion+react@11.14.0___react@18.3.1__react@18.3.1_react-dom@18.3.1__react@18.3.1",
@@ -31,6 +32,7 @@
     "npm:eslint@^9.13.0": "9.38.0",
     "npm:globals@^15.11.0": "15.15.0",
     "npm:html5-qrcode@^2.3.8": "2.3.8",
+    "npm:jose@4": "4.15.9",
     "npm:leaflet-defaulticon-compatibility@~0.1.2": "0.1.2",
     "npm:leaflet@^1.9.4": "1.9.4",
     "npm:n3@^1.23.0": "1.26.0",
@@ -124,7 +126,7 @@
         "@babel/compat-data",
         "@babel/helper-validator-option",
         "browserslist",
-        "lru-cache",
+        "lru-cache@5.1.1",
         "semver@6.3.1"
       ]
     },
@@ -511,8 +513,8 @@
       "integrity": "sha512-xilTPaPgRJSh+AOtjkbtk4KLTAjLfWy3owb1aOdfz9Vo3Dh5Z80rx/m/Y/Uur3AiVK9LYGrR6AM+HoCEH8MCMw==",
       "dependencies": [
         "@inrupt/oidc-client",
-        "@inrupt/solid-client-authn-core",
-        "jose",
+        "@inrupt/solid-client-authn-core@3.1.0",
+        "jose@5.10.0",
         "uuid"
       ]
     },
@@ -530,9 +532,17 @@
       "integrity": "sha512-TK8LdCuqJxZ6jvxWIJfRqji9lM7h69tbzlM0hoE/orrkQzxBUF7OOZUCXOpkIKDrl39BIfaacIOYhuBA8hkFYw==",
       "dependencies": [
         "@inrupt/oidc-client-ext",
-        "@inrupt/solid-client-authn-core",
+        "@inrupt/solid-client-authn-core@3.1.0",
         "events",
-        "jose",
+        "jose@5.10.0",
+        "uuid"
+      ]
+    },
+    "@inrupt/solid-client-authn-core@2.5.0": {
+      "integrity": "sha512-S02hizURW3IL4d03Cn1xZTz25KqZdmS7qYfkOb/UHwPcy+VA7G8Um1xeDByqu7Bva2yPjNk5iCrKKUMmGb56mA==",
+      "dependencies": [
+        "events",
+        "jose@5.10.0",
         "uuid"
       ]
     },
@@ -540,7 +550,16 @@
       "integrity": "sha512-aoG8RvPBmYXTSqy2uJogpoVGPKsydC4mXNdm63BWCEMZ2QyaSRBjx4R4N6n5N2uy/aoib678Y7U3UtDCLDoFsQ==",
       "dependencies": [
         "events",
-        "jose",
+        "jose@5.10.0",
+        "uuid"
+      ]
+    },
+    "@inrupt/solid-client-authn-node@2.5.0": {
+      "integrity": "sha512-lWdSPX0D2Lx+kHjJ3ByrXu4lmWU+q1RrYuLkhNXdudVqmbqJM3ugb0s9Gzix82a/sVCmiCzLlJMu0MeGItvr+w==",
+      "dependencies": [
+        "@inrupt/solid-client-authn-core@2.5.0",
+        "jose@5.10.0",
+        "openid-client",
         "uuid"
       ]
     },
@@ -1603,6 +1622,9 @@
     "isexe@2.0.0": {
       "integrity": "sha512-RHxMLp9lnKHGHRng9QFhRCMbYAcVpn69smSGcq3f36xjgVVWThj4qqLbTLlq7Ssj8B+fIQ1EuCEGI2lKsyQeIw=="
     },
+    "jose@4.15.9": {
+      "integrity": "sha512-1vUQX+IdDMVPj4k8kOxgUqlcK518yluMuGZwqlr44FS1ppZB/5GWh4rZG89erpOBOJjU/OBsnCVFfapsRz6nEA=="
+    },
     "jose@5.10.0": {
       "integrity": "sha512-s+3Al/p9g32Iq+oqXxkW//7jk2Vig6FF1CFqzVXoTUXt2qz89YWbL+OwS17NFYEvxC35n0FKeGO2LGYSxeM2Gg=="
     },
@@ -1701,7 +1723,13 @@
     "lru-cache@5.1.1": {
       "integrity": "sha512-KpNARQA3Iwv+jTA0utUVVbrh+Jlrr1Fv0e56GGzAFOXN7dk/FviaDW8LHmK52DlcH4WP2n6gI8vN1aesBFgo9w==",
       "dependencies": [
-        "yallist"
+        "yallist@3.1.1"
+      ]
+    },
+    "lru-cache@6.0.0": {
+      "integrity": "sha512-Jo6dJ04CmSjuznwJSS3pUeWmd/H0ffTlkXXgwZi+eq1UCmqQwCh+eLsYOYCwY991i2Fah4h1BEMCx4qThGbsiA==",
+      "dependencies": [
+        "yallist@4.0.0"
       ]
     },
     "merge2@1.4.1": {
@@ -1748,6 +1776,21 @@
     },
     "object-assign@4.1.1": {
       "integrity": "sha512-rJgTQnkUnH1sFw8yT6VSU3zD3sWmu6sZhIseY8VX+GRu3P6F7Fu+JNDoXfklElbLJSnc3FUQHVe4cU5hj+BcUg=="
+    },
+    "object-hash@2.2.0": {
+      "integrity": "sha512-gScRMn0bS5fH+IuwyIFgnh9zBdo4DV+6GhygmWM9HyNJSgS0hScp1f5vjtm7oIIOiT9trXrShAkLFSc2IqKNgw=="
+    },
+    "oidc-token-hash@5.2.0": {
+      "integrity": "sha512-6gj2m8cJZ+iSW8bm0FXdGF0YhIQbKrfP4yWTNzxc31U6MOjfEmB1rHvlYvxI1B7t7BCi1F2vYTT6YhtQRG4hxw=="
+    },
+    "openid-client@5.7.1": {
+      "integrity": "sha512-jDBPgSVfTnkIh71Hg9pRvtJc6wTwqjRkN88+gCFtYWrlP4Yx2Dsrow8uPi3qLr/aeymPF3o2+dS+wOpglK04ew==",
+      "dependencies": [
+        "jose@4.15.9",
+        "lru-cache@6.0.0",
+        "object-hash",
+        "oidc-token-hash"
+      ]
     },
     "optionator@0.9.4": {
       "integrity": "sha512-6IpQ7mKUxRcZNLIObR0hz7lxsapSSIYNZJwXPGeF0mTVqGKFIXj1DQcMoT22S3ROcLyY/rz0PWaWZ9ayWmad9g==",
@@ -2160,6 +2203,9 @@
     },
     "yallist@3.1.1": {
       "integrity": "sha512-a4UGQaWPH59mOXUYnAG2ewncQS4i4F43Tv3JoAM+s2VDAmS9NsK8GpDMLrCHPksFT7h3K6TOoUNn2pb7RoXx4g=="
+    },
+    "yallist@4.0.0": {
+      "integrity": "sha512-3wdGidZyq5PB084XLES5TpOSRA3wjXAlIWMhum2kRcv/41Sn2emQ0dycQW4uZXLejwKvg6EsvbdlVL+FYEct7A=="
     },
     "yaml@1.10.2": {
       "integrity": "sha512-r3vXyErRCYJ7wg28yvBY5VSoAF8ZvlcW9/BwUzEtUsjvX/DKs24dIkuwjtuprwJJHsbyUbLApepYTR1BN4uHrg=="

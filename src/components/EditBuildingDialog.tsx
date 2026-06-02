@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -23,6 +22,7 @@ import type { BuildingType } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/utils/config/buildingConfig.ts";
 import { updateBuilding } from "../services/utils/buildingSerializer.ts";
+import { trackedFetch } from "../services/utils/networkActivity.ts";
 import { guardedDialogClose } from "./dialogClose.ts";
 
 interface EditBuildingDialogProps {
@@ -102,9 +102,10 @@ export default function EditBuildingDialog(
     if (!query) return;
     setGeocoding(true);
     try {
-      const res = await fetch(
+      const res = await trackedFetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
         { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
+        "geocode address",
       );
       const data = await res.json() as { lat: string; lon: string }[];
       if (!data.length) {
@@ -206,7 +207,7 @@ export default function EditBuildingDialog(
         {sectionHeader("Location & Physical")}
         <Button
           variant="outlined"
-          startIcon={geocoding ? <CircularProgress size={14} color="inherit" /> : <MyLocationIcon />}
+          startIcon={<MyLocationIcon />}
           onClick={handleGeocode}
           disabled={geocoding}
           sx={{ mb: 1.5 }}
@@ -278,7 +279,7 @@ export default function EditBuildingDialog(
       <DialogActions>
         <Button onClick={handleClose} disabled={saving}>Cancel</Button>
         <Button variant="contained" onClick={handleSubmit} disabled={saving}>
-          {saving ? <CircularProgress size={20} color="inherit" /> : "Save Changes"}
+          {saving ? "Saving…" : "Save Changes"}
         </Button>
       </DialogActions>
     </Dialog>

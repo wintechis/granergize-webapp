@@ -1,16 +1,23 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { fetchAndParseData } from "./TurtleParsingService.ts";
+import {
+  fetchAndParseData,
+  SessionExpiredError,
+} from "./TurtleParsingService.ts";
+import { _setStorageRootForTesting } from "./utils/solidUtils.ts";
 
 // Offline fixtures for a single Pod. The fake Session below serves these by URL
 // so fetchAndParseData runs end-to-end with no network. WebID resolves to:
 //   storageRoot  = https://pod.example/
 //   podBaseUrl   = https://pod.example/profile/
-//   registry     = https://pod.example/profile/granergize/dataSources.ttl
+//   registry     = https://pod.example/granergize/dataSources.ttl
 const WEBID = "https://pod.example/profile/card#me";
-const REGISTRY_URL = "https://pod.example/profile/granergize/dataSources.ttl";
-const HIDDEN_URL = "https://pod.example/profile/granergize/hiddenBuildings.ttl";
+// Storage root is normally resolved from pim:storage at login; prime it here since
+// these tests call fetchAndParseData directly (no login/resolveStorageRoot step).
+_setStorageRootForTesting(WEBID, "https://pod.example/");
+const REGISTRY_URL = "https://pod.example/granergize/dataSources.ttl";
+const HIDDEN_URL = "https://pod.example/granergize/hiddenBuildings.ttl";
 const BUILDINGS_URL = "https://pod.example/buildings.ttl";
 const AGENTS_URL = "https://pod.example/agents.ttl";
 const ENERGY_B1_URL = "https://pod.example/energy/b1.ttl";
@@ -181,4 +188,37 @@ Deno.test("fetchAndParseData tolerates an inaccessible energy source", async () 
   assert.equal(e1?.energyNeed.electricity, 1000);
   assert.equal(e2, undefined);
   assert.equal(result.averages.electricity, 1000);
+});
+
+Deno.test("fetchAndParseData throws SessionExpiredError when sources return 401", async () => {
+  // Token expired: the building source 401s. fetchAndParseData must signal this
+  // distinctly so the caller keeps prior data instead of blanking the map.
+  const fetch = (input: string | URL): Promise<Response> => {
+    const url = (typeof input === "string" ? input : input.toString())
+      .split("?")[0];
+    if (url === BUILDINGS_URL) {
+      return Promise.resolve(
+        new Response(null, { status: 401, statusText: "Unauthorized" }),
+      );
+    }
+    const body = FIXTURES[url];
+    if (body === undefined) {
+      return Promise.resolve(new Response("Not found", { status: 404 }));
+    }
+    return Promise.resolve(
+      new Response(body, {
+        status: 200,
+        headers: { "Content-Type": "text/turtle" },
+      }),
+    );
+  };
+  const session = {
+    info: { webId: WEBID, isLoggedIn: true },
+    fetch,
+  } as unknown as Session;
+
+  await assert.rejects(
+    () => fetchAndParseData(session),
+    SessionExpiredError,
+  );
 });

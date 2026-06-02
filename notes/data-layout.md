@@ -1,37 +1,36 @@
 # Data layout — on the Pod (LDP)
 
-> Current layout below; the planned move to a single root discovered via
-> `pim:storage` is in "Proposed cleanup" / "Storage root the Solid way".
+> **Current layout below.** The single-root move and `pim:storage` discovery
+> (formerly "Proposed cleanup" / "Storage root the Solid way") are now **built** —
+> those sections are kept for rationale and marked DONE.
 
-On-Pod file layout, derived from the WebID. Companion to
+On-Pod file layout, rooted at the storage location discovered via `pim:storage`.
+Companion to
 [`data-view.md`](./data-view.md) (the building pane) and
 [`data-schema.md`](./data-schema.md) (per-role schemas).
 
 Paths derive in `src/services/utils/solidUtils.ts`. Writes are PUT/POST only (no
 PATCH); cache-sensitive reads use `fetchFresh`.
 
-## Two roots
+## One root
 
-From WebID `https://<pod>/profile/card#me`:
-
-- `getPodBaseUrl(webId)` → `https://<pod>/profile/` (WebID document's directory).
-- `getStorageRoot(webId)` → `https://<pod>/` (storage root, strips `/profile/…`).
-
-Files split across both trees. They coincide only for `<pod>/profile/card`-shaped
-WebIDs; other shapes can desync them. `dataSources.ttl` is reached via *both*
-helpers in different files.
+The storage root is resolved **once at login** from `pim:storage` on the WebID
+(`resolveStorageRoot(session)` in `solidUtils.ts`; throws if the profile declares
+none — no string-munge fallback). All app data then hangs off a single
+`<storageRoot>granergize/` tree via `podResources(webId)`, the one source of truth
+for paths. The lone exception is the organisation logo, which is **profile** data
+and stays under `profile/`.
 
 ## Tree
 
 ```
-https://<pod>/                                        ← getStorageRoot
+<storageRoot>/                                        ← pim:storage
 ├── profile/
 │   ├── card  (#me, #org)                             the WebID document (see below)
-│   ├── logo.<ext>                                    organisation logo image (org is part of the profile)
-│   └── granergize/                                   ← getPodBaseUrl + granergize/
-│       ├── dataSources.ttl       registry: building/agent TTLs, each gran:dataSourceRole-tagged
-│       └── hiddenBuildings.ttl   gran:hiddenBuilding list (pruned on load)
-└── granergize/                                       ← getStorageRoot + granergize/
+│   └── logo.<ext>                                    organisation logo image (org is part of the profile)
+└── granergize/                                       ← podResources(): the single app root
+    ├── dataSources.ttl          registry: building/agent TTLs, each gran:dataSourceRole-tagged
+    ├── hiddenBuildings.ttl       gran:hiddenBuilding list (pruned on load)
     ├── buildings/<id>.ttl        subject <…/buildings/<id>.ttl#<id>>
     │   └── …/<id>/energy/<date>.ttl   per-day 15-min readings (user role; SOSA)
     ├── views/
@@ -51,18 +50,46 @@ never written to your storage (the app has no agent writer; parsed for
 This is *not* demo-only. Agents are a cross-role concept — `schema:customer`,
 `gran:investor`, `rec:operatedBy` are **core** predicates (all roles), rendered as
 links in the building pane and used for per-agent averages
-(`agentAverages`, keyed on `operatedBy`). What *is* demo-only is the **default**:
-a fresh registry seeds shared FAU-hosted URLs — `…/granergize/buildings.ttl`
-(DummyRole) and `…/granergize/agents.ttl` (`TurtleParsingService.ts:230`). A real
-registry can point `hasAgentDataSource` at any pod. **Gap:** there's no UI to
-author your own agents, so agent data always comes from outside your pod.
+(`agentAverages`, keyed on `operatedBy`). A real registry can point
+`hasAgentDataSource` at any pod. **Gap:** there's no UI to author your own agents,
+so agent data always comes from outside your pod.
 
-Origins: registry `TurtleParsingService.ts:139`, `sharingManager.ts:111` (also
-`getPodBaseUrl` in `buildingSerializer.ts:490`, `inbox.ts:147`); hidden
-`TurtleParsingService.ts:327`; buildings `buildingSerializer.ts:571`; energy
-`buildingSerializer.ts:280`; views `viewManager.ts:46,54`; rooms
-`dataRoom.ts:85,526`; sharing `sharingManager.ts:40`; org node + logo
-`organizationManager.ts`.
+**Bootstrap (current).** A fresh pod no longer seeds shared FAU URLs. Instead the
+registry is created **empty** (creator only), and `seedDemoBuildings(session,
+webId)` writes two real, *user-owned* demo buildings through the normal pipeline
+(Nordostpark 84 and Lange Gasse 20, Nürnberg; coordinates geocoded at seed time via
+Nominatim). The two carry energy at **different granularities** so a new user sees
+both shapes the loader dispatches on: Nordostpark has inline annual (P1Y) SOSA
+observations (role `investor`, bulk-loaded, annual chart); Lange Gasse has a daily
+15-minute (PT15M) load-profile file (role `user`, lazy-loaded on click). Seeding
+runs **once**, gated on the registry having just been bootstrapped — so deleting a
+demo building doesn't resurrect it.
+
+Origins (all via `podResources(webId)` unless noted): registry
+`TurtleParsingService.ts`, `sharingManager.ts`, `buildingSerializer.ts`,
+`inbox.ts`; hidden `TurtleParsingService.ts`; buildings/energy
+`buildingSerializer.ts`; views `viewManager.ts`; rooms `dataRoom.ts`; sharing
+`sharingManager.ts`; org node + logo (`profile/`) `organizationManager.ts`.
+
+**Removal.** Two levels, both in the building pane / account menu:
+- *Hide* (`toggleBuildingVisibility`) — adds/removes a `gran:hiddenBuilding` entry
+  in `hiddenBuildings.ttl`; non-destructive, the file stays. The only option for a
+  building *shared from another pod* (you can't delete someone else's resource).
+- *Delete* (`deleteBuilding`, owned buildings only) — de-registers it
+  (`removeBuildingFromRegistry`, the inverse of `addBuildingToRegistry`), recursively
+  deletes its `buildings/<id>/…` energy subtree, then the building file. Guards
+  against touching anything outside the user's own storage root.
+- *Remove all app data* (`removeAppData`) — `deleteContainerRecursive` over the whole
+  `granergize/` tree (buildings, energy, views, rooms, registries), then logs out
+  **with auto-restore suppressed** (a one-shot `granergize:noRestore` sessionStorage
+  flag → `Login`'s `suppressRestore`) so the app can't silently log back in and
+  re-bootstrap what was just wiped; the user must log in again explicitly. `profile/`
+  (incl. the org logo) is outside the tree and kept. Container deletion is depth-first
+  since CSS won't delete a non-empty container.
+
+Both confirmation prompts **list the exact resources** to be removed
+(`listContainedResources` + `formatResourceList`, paths relative to the storage
+root, capped with "…and N more") before anything is deleted.
 
 ## WebID document (`profile/card`)
 
@@ -112,7 +139,12 @@ Distinct from **building agents** (`gran:investor` / `gran:operatedBy` /
 
 ---
 
-## Proposed cleanup (design — not yet built)
+## One-root cleanup (DONE)
+
+> Implemented: all app data now hangs off one `<storageRoot>granergize/` tree via
+> `podResources()`; the `getPodBaseUrl`/`profile/granergize/` split is gone (logo
+> excepted). Clean break — old `profile/granergize/…` files are orphaned, pods
+> re-bootstrap. Kept below for the rationale.
 
 ### Problem
 
@@ -176,7 +208,15 @@ deleted. OK while data is disposable; revisit if real pods exist before ship.
 
 ---
 
-## Storage root the Solid way: read `pim:storage` (design — not yet built)
+## Storage root the Solid way: read `pim:storage` (DONE)
+
+> Implemented in `resolveStorageRoot(session)` (`solidUtils.ts`): GET the WebID
+> doc, parse with n3, read `<webId> pim:storage <root>`, cache in a module var.
+> Resolved once at login (`SolidDataContext.loadData`) before the first fetch;
+> `getStorageRoot` is now cache-or-throw and the string-munge is deleted.
+> **Throws if the profile declares no `pim:storage`** (no fallback). Kept below for
+> rationale.
+
 
 `getStorageRoot` guesses the pod root by string-munging the WebID
 (`origin` up to `/profile/`). This isn't the Solid mechanism and breaks when the

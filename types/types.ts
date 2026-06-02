@@ -102,6 +102,13 @@ export interface EnergyMeasurementData {
   year: number;
   location: string;
   type: string;
+  /**
+   * Observation period as an xsd:duration (e.g. "PT15M" sub-hourly series,
+   * "P1Y" annual aggregate). Drives load strategy (series = lazy per-file;
+   * aggregate = bulk) independently of the producer's role. Optional: legacy
+   * datasets without it fall back to the role default.
+   */
+  granularity?: string;
 }
 
 export type AgentType = {

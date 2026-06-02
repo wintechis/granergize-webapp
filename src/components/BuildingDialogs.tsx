@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -177,9 +176,9 @@ export function ShareBuildingDialog({
       <DialogTitle>Share Building Data</DialogTitle>
 
       {sharing && (
-        <Box display="flex" justifyContent="center" alignItems="center" my={4}>
-          <CircularProgress />
-        </Box>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">Sharing…</Typography>
+        </DialogContent>
       )}
 
       {!sharing && shareSuccess && (
@@ -420,15 +419,9 @@ export function EnergyCertificateDialog({
     >
       <DialogTitle>Upload Energy Certificate</DialogTitle>
       {uploading && (
-        <Box
-          display="flex"
-          justifyContent="center"
-          alignItems="center"
-          mb={2}
-          mt={2}
-        >
-          <CircularProgress />
-        </Box>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary">Uploading…</Typography>
+        </DialogContent>
       )}
       {!uploading && (
         <>

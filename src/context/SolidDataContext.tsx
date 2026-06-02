@@ -6,7 +6,12 @@ import React, {
   useState,
 } from "react";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { fetchAndParseData } from "../services/TurtleParsingService.ts";
+import {
+  fetchAndParseData,
+  SessionExpiredError,
+} from "../services/TurtleParsingService.ts";
+import { resolveStorageRoot } from "../services/utils/solidUtils.ts";
+import { useNotification } from "./NotificationContext.tsx";
 import type {
   AgentType,
   BuildingType,
@@ -57,6 +62,7 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
   });
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const { showNotification } = useNotification();
 
   const loadData = useCallback(async () => {
     if (!session || !session.info.isLoggedIn) {
@@ -68,6 +74,9 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
     setError(null);
 
     try {
+      // Resolve the Pod storage root from pim:storage once, before any path is
+      // built. Throws (and surfaces below) if the profile declares no storage.
+      await resolveStorageRoot(session);
       const parsedData = await fetchAndParseData(session, (partial) => {
         // Phase 1: buildings + agents are ready — show the map immediately and
         // drop the loading overlay; energy data fills in when phase 2 resolves.
@@ -81,13 +90,21 @@ export const SolidDataProvider: React.FC<SolidDataProviderProps> = ({
       // Phase 2: energy data and averages are now included.
       setData(parsedData);
     } catch (err) {
-      const message = err instanceof Error ? err.message : String(err);
-      setError(`Error loading data: ${message}`);
-      console.error("Error loading data:", err);
+      if (err instanceof SessionExpiredError) {
+        // Token expired: keep whatever is already on screen (don't blank the
+        // map) and tell the user to log in again.
+        setError(err.message);
+        showNotification(err.message, "warning");
+      } else {
+        const message = err instanceof Error ? err.message : String(err);
+        setError(`Error loading data: ${message}`);
+        showNotification(`Error loading data: ${message}`, "error");
+        console.error("Error loading data:", err);
+      }
     } finally {
       setIsLoading(false);
     }
-  }, [session]);
+  }, [session, showNotification]);
 
   useEffect(() => {
     if (session?.info.isLoggedIn) {

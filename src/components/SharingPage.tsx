@@ -1,14 +1,12 @@
 import { useEffect, useState } from "react";
 import {
   Button,
-  CircularProgress,
   IconButton,
   Switch,
   Tooltip,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -18,10 +16,8 @@ import ShareIcon from "@mui/icons-material/Share";
 import { useNavigate } from "react-router-dom";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import {
-  getSharedBuildings,
   getSharedViews,
   getSharedWithMe,
-  revokeAccess,
   revokeViewAccess,
   toggleBuildingVisibility,
 } from "../services/interop/sharingManager.ts";
@@ -34,20 +30,13 @@ import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import type { AggregatedViewDefinition } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useSolidData } from "../context/SolidDataContext.tsx";
-import { podResources } from "../services/utils/solidUtils.ts";
-import { RdfSourceLink } from "./detail/DetailView.tsx";
+import { tryPodResources } from "../services/utils/solidUtils.ts";
+import { RdfSourceLink, UriLink } from "./detail/DetailView.tsx";
 import ShareViewDialog from "./ShareViewDialog.tsx";
 import CreateViewDialog from "./CreateViewDialog.tsx";
-import AddBuildingDialog from "./AddBuildingDialog.tsx";
 
 interface SharingPageProps {
   session: Session;
-}
-
-interface SharedBuilding {
-  buildingUri: string;
-  buildingId: string;
-  sharedWith: string[];
 }
 
 interface SharedWithMeBuilding {
@@ -99,18 +88,11 @@ const nestedListStyle: React.CSSProperties = {
 
 export default function SharingPage({ session }: SharingPageProps) {
   const { showNotification } = useNotification();
-  const { buildings, reloadData } = useSolidData();
-  const [addBuildingOpen, setAddBuildingOpen] = useState(false);
-  // When true, the Add Building dialog opens straight into the file picker
-  // (bulk "autofill from file") rather than the single-building manual form.
-  const [importMode, setImportMode] = useState(false);
-  // Buildings on your own Pod (not shared in from someone else).
-  const ownedBuildings = buildings.filter((b) => !b.isShared);
+  const { buildings } = useSolidData();
   // Backing RDF resources, linked under each section so storage is inspectable.
-  const rdf = session.info.webId ? podResources(session.info.webId) : null;
+  const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
   const navigate = useNavigate();
   const [createViewOpen, setCreateViewOpen] = useState(false);
-  const [sharedBuildings, setSharedBuildings] = useState<SharedBuilding[]>([]);
   const [sharedWithMe, setSharedWithMe] = useState<SharedWithMeBuilding[]>([]);
   const [viewDefinitions, setViewDefinitions] = useState<
     AggregatedViewDefinition[]
@@ -118,9 +100,6 @@ export default function SharingPage({ session }: SharingPageProps) {
   const [sharedViews, setSharedViews] = useState<SharedView[]>([]);
   const [loading, setLoading] = useState(false);
   const [refreshingViewId, setRefreshingViewId] = useState<string | null>(null);
-  const [revokingBuildingKey, setRevokingBuildingKey] = useState<string | null>(
-    null,
-  );
   const [revokingViewKey, setRevokingViewKey] = useState<string | null>(null);
   const [deletingViewId, setDeletingViewId] = useState<string | null>(null);
   const [togglingVisibility, setTogglingVisibility] = useState<string | null>(
@@ -132,19 +111,14 @@ export default function SharingPage({ session }: SharingPageProps) {
   >(null);
 
   useEffect(() => {
-    loadSharedBuildings();
+    loadSharedWithMe();
     loadViewData();
   }, [session]);
 
-  const loadSharedBuildings = async () => {
+  const loadSharedWithMe = async () => {
     setLoading(true);
     try {
-      const [outgoing, incoming] = await Promise.all([
-        getSharedBuildings(session),
-        getSharedWithMe(session),
-      ]);
-      setSharedBuildings(outgoing);
-      setSharedWithMe(incoming);
+      setSharedWithMe(await getSharedWithMe(session));
     } catch (error) {
       console.error("Error loading shared buildings:", error);
     } finally {
@@ -162,27 +136,6 @@ export default function SharingPage({ session }: SharingPageProps) {
       setSharedViews(shared);
     } catch (error) {
       console.error("Error loading view data:", error);
-    }
-  };
-
-  const handleRevokeAccess = async (buildingUri: string, webId: string) => {
-    if (!confirm(`Revoke access for ${webId}?`)) return;
-    const key = `${buildingUri}__${webId}`;
-    setRevokingBuildingKey(key);
-    try {
-      await revokeAccess(buildingUri, webId, session);
-      await loadSharedBuildings();
-      showNotification("Access revoked", "success");
-    } catch (error) {
-      console.error("Error revoking access:", error);
-      showNotification(
-        `Failed to revoke access: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        "error",
-      );
-    } finally {
-      setRevokingBuildingKey(null);
     }
   };
 
@@ -221,7 +174,7 @@ export default function SharingPage({ session }: SharingPageProps) {
     setTogglingVisibility(buildingUri);
     try {
       await toggleBuildingVisibility(buildingUri, session);
-      await loadSharedBuildings();
+      await loadSharedWithMe();
     } catch (error) {
       console.error("Error toggling visibility:", error);
       showNotification(
@@ -324,58 +277,6 @@ export default function SharingPage({ session }: SharingPageProps) {
     <section style={{ padding: "1.5rem" }}>
       <section>
         <Typography variant="h6" sx={{ mb: 1 }}>
-          Your buildings
-        </Typography>
-        {rdf && <RdfSourceLink href={rdf.buildings} />}
-        {ownedBuildings.length === 0
-          ? <p>You haven't added any buildings yet.</p>
-          : (
-            <ul style={listStyle}>
-              {ownedBuildings.map((b) => (
-                <li key={b.uri} style={rowStyle}>
-                  <span>Building {b.id}</span>
-                  <Tooltip title="Download this building's data (Turtle)">
-                    <IconButton
-                      size="small"
-                      onClick={() =>
-                        handleDownloadBuilding(
-                          (b.sourceUri ?? b.uri).split("#")[0],
-                          b.id,
-                        )}
-                    >
-                      <DownloadIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                </li>
-              ))}
-            </ul>
-          )}
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              setImportMode(false);
-              setAddBuildingOpen(true);
-            }}
-          >
-            Add Building
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<UploadFileIcon />}
-            onClick={() => {
-              setImportMode(true);
-              setAddBuildingOpen(true);
-            }}
-          >
-            Autofill from file
-          </Button>
-        </div>
-      </section>
-
-      <section>
-        <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
           Aggregated views
         </Typography>
         {rdf && <RdfSourceLink href={rdf.viewDefinitions} />}
@@ -432,15 +333,7 @@ export default function SharingPage({ session }: SharingPageProps) {
                                       getSnapshotUrl(session.info.webId!, view.id)
                                     }__${webId}`}
                                 >
-                                  {revokingViewKey ===
-                                      `${
-                                        getSnapshotUrl(
-                                          session.info.webId!,
-                                          view.id,
-                                        )
-                                      }__${webId}`
-                                    ? <CircularProgress size={16} />
-                                    : <DeleteIcon fontSize="small" />}
+                                  <DeleteIcon fontSize="small" />
                                 </IconButton>
                               </li>
                             ))}
@@ -462,9 +355,7 @@ export default function SharingPage({ session }: SharingPageProps) {
                           title="Refresh snapshot"
                           disabled={refreshingViewId === view.id}
                         >
-                          {refreshingViewId === view.id
-                            ? <CircularProgress size={20} />
-                            : <RefreshIcon />}
+                          <RefreshIcon />
                         </IconButton>
                         <IconButton
                           size="small"
@@ -479,9 +370,7 @@ export default function SharingPage({ session }: SharingPageProps) {
                           title="Delete view"
                           disabled={deletingViewId === view.id}
                         >
-                          {deletingViewId === view.id
-                            ? <CircularProgress size={20} />
-                            : <DeleteIcon />}
+                          <DeleteIcon />
                         </IconButton>
                       </div>
                     </div>
@@ -501,54 +390,10 @@ export default function SharingPage({ session }: SharingPageProps) {
 
       <section>
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
-          Buildings you share
-        </Typography>
-        {rdf && <RdfSourceLink href={rdf.sharingRegistry} />}
-        {loading
-          ? <CircularProgress size={24} />
-          : sharedBuildings.length === 0
-          ? <p>No buildings shared yet.</p>
-          : (
-            <ul style={listStyle}>
-              {sharedBuildings.map((building) => (
-                <li key={building.buildingUri}>
-                  Building {building.buildingId}
-                  {building.sharedWith.length === 0
-                    ? <p><small>Not shared with anyone</small></p>
-                    : (
-                      <ul style={nestedListStyle}>
-                        {building.sharedWith.map((webId) => (
-                          <li key={webId} style={rowStyle}>
-                            <span title={webId} style={ellipsis}>{webId}</span>
-                            <IconButton
-                              size="small"
-                              onClick={() =>
-                                handleRevokeAccess(building.buildingUri, webId)}
-                              title="Revoke access"
-                              disabled={revokingBuildingKey ===
-                                `${building.buildingUri}__${webId}`}
-                            >
-                              {revokingBuildingKey ===
-                                  `${building.buildingUri}__${webId}`
-                                ? <CircularProgress size={16} />
-                                : <DeleteIcon fontSize="small" />}
-                            </IconButton>
-                          </li>
-                        ))}
-                      </ul>
-                    )}
-                </li>
-              ))}
-            </ul>
-          )}
-      </section>
-
-      <section>
-        <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
           Buildings shared with you
         </Typography>
         {loading
-          ? <CircularProgress size={24} />
+          ? <p>Loading…</p>
           : sharedWithMe.length === 0
           ? (
             <p>
@@ -560,8 +405,14 @@ export default function SharingPage({ session }: SharingPageProps) {
             <ul style={listStyle}>
               {sharedWithMe.map((building) => (
                 <li key={building.buildingUri} style={rowStyle}>
-                  <span>
+                  <span style={{ minWidth: 0 }}>
                     Building {building.buildingId}
+                    <br />
+                    <span style={{ wordBreak: "break-all" }}>
+                      <UriLink href={building.buildingUri}>
+                        {building.buildingUri}
+                      </UriLink>
+                    </span>
                     <br />
                     <small>
                       Shared by: {building.sharedBy}
@@ -590,27 +441,24 @@ export default function SharingPage({ session }: SharingPageProps) {
                         <DownloadIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    {togglingVisibility === building.buildingUri
-                      ? <CircularProgress size={24} />
-                      : (
-                        <Tooltip title="Controls whether this building appears in your dashboard. Does not affect the owner's sharing settings.">
-                          <label
-                            style={{
-                              display: "inline-flex",
-                              alignItems: "center",
-                            }}
-                          >
-                            <Switch
-                              checked={building.isVisible}
-                              onChange={() =>
-                                handleToggleVisibility(building.buildingUri)}
-                              icon={<VisibilityOffIcon />}
-                              checkedIcon={<VisibilityIcon />}
-                            />
-                            {building.isVisible ? "Shown" : "Hidden"}
-                          </label>
-                        </Tooltip>
-                      )}
+                    <Tooltip title="Controls whether this building appears in your dashboard. Does not affect the owner's sharing settings.">
+                      <label
+                        style={{
+                          display: "inline-flex",
+                          alignItems: "center",
+                        }}
+                      >
+                        <Switch
+                          checked={building.isVisible}
+                          onChange={() =>
+                            handleToggleVisibility(building.buildingUri)}
+                          disabled={togglingVisibility === building.buildingUri}
+                          icon={<VisibilityOffIcon />}
+                          checkedIcon={<VisibilityIcon />}
+                        />
+                        {building.isVisible ? "Shown" : "Hidden"}
+                      </label>
+                    </Tooltip>
                   </div>
                 </li>
               ))}
@@ -632,16 +480,6 @@ export default function SharingPage({ session }: SharingPageProps) {
         session={session}
         onClose={() => setCreateViewOpen(false)}
         onViewCreated={loadViewData}
-      />
-      <AddBuildingDialog
-        open={addBuildingOpen}
-        session={session}
-        autostartImport={importMode}
-        onClose={() => setAddBuildingOpen(false)}
-        onBuildingAdded={() => {
-          setAddBuildingOpen(false);
-          reloadData();
-        }}
       />
     </section>
   );
