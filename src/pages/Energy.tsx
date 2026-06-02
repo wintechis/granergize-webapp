@@ -4,7 +4,6 @@ import {
   Card,
   CardContent,
   CardHeader,
-  CircularProgress,
   Container,
   Divider,
   Paper,
@@ -45,18 +44,9 @@ export default function Energy(
   // Find the energy data for the selected building
   const energy = energyNeed?.find((e) => e.id.toString() === selectedBuilding);
 
-  if (isLoading) {
-    return (
-      <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        height="100%"
-      >
-        <CircularProgress />
-      </Box>
-    );
-  }
+  // While the global load is in flight, stay blank — the header spinner is the
+  // single loading indicator; this avoids a misleading "no data" flash.
+  if (isLoading) return null;
 
   if (error) {
     return (

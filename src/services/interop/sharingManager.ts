@@ -1,12 +1,13 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import {
-  getPodBaseUrl,
   getStorageRoot,
+  podResources,
   registryUrl as registryUrlFor,
 } from "../utils/solidUtils.ts";
 import { GRAN_NS } from "../utils/vocabularies.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
+import { readModifyWrite } from "../utils/podWrite.ts";
 
 interface SharedBuilding {
   buildingUri: string;
@@ -40,8 +41,7 @@ export async function getSharedBuildings(
   }
 
   const webId = session.info.webId;
-  const podBaseUrl = getPodBaseUrl(webId);
-  const sharingRegistryUrl = `${podBaseUrl}granergize/sharingRegistry.ttl`;
+  const sharingRegistryUrl = podResources(webId).sharingRegistry;
 
   try {
     const response = await fetchFresh(sharingRegistryUrl, session);
@@ -110,11 +110,9 @@ export async function getSharedWithMe(
   }
 
   const webId = session.info.webId;
-  const storageRoot = getStorageRoot(webId);
-
+  const storageRoot = getStorageRoot(webId); // for the own-vs-shared check below
   const registryUrl = registryUrlFor(webId);
-  const hiddenBuildingsUrl =
-    `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
+  const hiddenBuildingsUrl = podResources(webId).hiddenBuildings;
 
   try {
     // Get list of hidden buildings
@@ -281,22 +279,7 @@ async function removeFromSharingRegistry(
   session: Session,
 ): Promise<void> {
   const userWebId = session.info.webId!;
-  const podBaseUrl = getPodBaseUrl(userWebId);
-  const sharingRegistryUrl = `${podBaseUrl}granergize/sharingRegistry.ttl`;
-
-  const response = await fetchFresh(sharingRegistryUrl, session);
-
-  if (response.status === 404) {
-    return;
-  }
-
-  const text = await response.text();
-  const parser = new Parser({
-    format: "text/turtle",
-    baseIRI: sharingRegistryUrl,
-  });
-  const quads = parser.parse(text);
-  const store = new Store(quads);
+  const sharingRegistryUrl = podResources(userWebId).sharingRegistry;
 
   const buildingNode = DataFactory.namedNode(buildingUri);
   const sharedWithPredicate = DataFactory.namedNode(
@@ -304,23 +287,14 @@ async function removeFromSharingRegistry(
   );
   const webIdNode = DataFactory.namedNode(webId);
 
-  // Remove the specific triple
-  store.removeQuad(
-    buildingNode,
-    sharedWithPredicate,
-    webIdNode,
-    DataFactory.defaultGraph(),
-  );
-
-  const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-
-  await session.fetch(sharingRegistryUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: updatedTtl,
+  await readModifyWrite(sharingRegistryUrl, session, (store, { created }) => {
+    if (created) return false; // no registry → nothing to remove
+    store.removeQuad(
+      buildingNode,
+      sharedWithPredicate,
+      webIdNode,
+      DataFactory.defaultGraph(),
+    );
   });
 }
 
@@ -459,24 +433,7 @@ export async function toggleBuildingVisibility(
   // Must match the file read by getSharedWithMe / TurtleParsingService.getHiddenBuildings,
   // otherwise the toggle writes to a different file than the UI re-reads and the change
   // appears to revert.
-  const storageRoot = getStorageRoot(webId);
-  const hiddenBuildingsUrl =
-    `${storageRoot}profile/granergize/hiddenBuildings.ttl`;
-
-  const response = await fetchFresh(hiddenBuildingsUrl, session);
-
-  let store: Store;
-  if (response.status === 404) {
-    store = new Store();
-  } else {
-    const text = await response.text();
-    const parser = new Parser({
-      format: "text/turtle",
-      baseIRI: hiddenBuildingsUrl,
-    });
-    const quads = parser.parse(text);
-    store = new Store(quads);
-  }
+  const hiddenBuildingsUrl = podResources(webId).hiddenBuildings;
 
   const registryNode = DataFactory.namedNode(hiddenBuildingsUrl);
   const hiddenPredicate = DataFactory.namedNode(
@@ -484,30 +441,18 @@ export async function toggleBuildingVisibility(
   );
   const buildingNode = DataFactory.namedNode(buildingUri);
 
-  const existingQuads = store.getQuads(
-    registryNode,
-    hiddenPredicate,
-    buildingNode,
-    null,
-  );
-
-  if (existingQuads.length > 0) {
-    // Building is hidden, make it visible
-    existingQuads.forEach((quad) => store.removeQuad(quad));
-  } else {
-    // Building is visible, hide it
-    store.addQuad(registryNode, hiddenPredicate, buildingNode);
-  }
-
-  const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-
-  await session.fetch(hiddenBuildingsUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: updatedTtl,
+  await readModifyWrite(hiddenBuildingsUrl, session, (store) => {
+    const existing = store.getQuads(
+      registryNode,
+      hiddenPredicate,
+      buildingNode,
+      null,
+    );
+    if (existing.length > 0) {
+      existing.forEach((quad) => store.removeQuad(quad)); // hidden → visible
+    } else {
+      store.addQuad(registryNode, hiddenPredicate, buildingNode); // visible → hidden
+    }
   });
 }
 
@@ -524,23 +469,7 @@ export async function recordSharing(
   }
 
   const userWebId = session.info.webId;
-  const podBaseUrl = userWebId.substring(0, userWebId.lastIndexOf("/") + 1);
-  const sharingRegistryUrl = `${podBaseUrl}granergize/sharingRegistry.ttl`;
-
-  let store: Store;
-  const response = await fetchFresh(sharingRegistryUrl, session);
-
-  if (response.status === 404) {
-    store = new Store();
-  } else {
-    const text = await response.text();
-    const parser = new Parser({
-      format: "text/turtle",
-      baseIRI: sharingRegistryUrl,
-    });
-    const quads = parser.parse(text);
-    store = new Store(quads);
-  }
+  const sharingRegistryUrl = podResources(userWebId).sharingRegistry;
 
   const buildingNode = DataFactory.namedNode(buildingUri);
   const sharedWithPredicate = DataFactory.namedNode(
@@ -548,26 +477,14 @@ export async function recordSharing(
   );
   const webIdNode = DataFactory.namedNode(webId);
 
-  // Add the triple if it doesn't exist
-  const existingQuads = store.getQuads(
-    buildingNode,
-    sharedWithPredicate,
-    webIdNode,
-    null,
-  );
-  if (existingQuads.length === 0) {
-    store.addQuad(buildingNode, sharedWithPredicate, webIdNode);
-  }
-
-  const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-
-  await session.fetch(sharingRegistryUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: updatedTtl,
+  await readModifyWrite(sharingRegistryUrl, session, (store) => {
+    // Add the triple only if it doesn't already exist.
+    if (
+      store.getQuads(buildingNode, sharedWithPredicate, webIdNode, null)
+        .length === 0
+    ) {
+      store.addQuad(buildingNode, sharedWithPredicate, webIdNode);
+    }
   });
 }
 
@@ -653,26 +570,7 @@ export async function recordViewSharing(
   }
 
   const userWebId = session.info.webId;
-  const podBaseUrl = userWebId.substring(0, userWebId.lastIndexOf("/") + 1);
-  const viewSharingRegistryUrl =
-    `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
-
-  let store: Store;
-  const response = await fetchFresh(viewSharingRegistryUrl, session);
-
-  if (response.status === 404) {
-    store = new Store();
-  } else if (response.ok) {
-    const text = await response.text();
-    const parser = new Parser({
-      format: "text/turtle",
-      baseIRI: viewSharingRegistryUrl,
-    });
-    const quads = parser.parse(text);
-    store = new Store(quads);
-  } else {
-    store = new Store();
-  }
+  const viewSharingRegistryUrl = podResources(userWebId).viewSharingRegistry;
 
   const snapshotNode = DataFactory.namedNode(snapshotUrl);
   const sharedWithPredicate = DataFactory.namedNode(
@@ -683,41 +581,18 @@ export async function recordViewSharing(
   );
   const webIdNode = DataFactory.namedNode(webId);
 
-  // Add the sharedWith triple if it doesn't exist
-  const existingQuads = store.getQuads(
-    snapshotNode,
-    sharedWithPredicate,
-    webIdNode,
-    null,
-  );
-  if (existingQuads.length === 0) {
-    store.addQuad(snapshotNode, sharedWithPredicate, webIdNode);
-  }
-
-  // Add viewId reference if not exists
-  const existingViewIdQuads = store.getQuads(
-    snapshotNode,
-    viewIdPredicate,
-    null,
-    null,
-  );
-  if (existingViewIdQuads.length === 0) {
-    store.addQuad(
-      snapshotNode,
-      viewIdPredicate,
-      DataFactory.literal(viewId),
-    );
-  }
-
-  const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-
-  await session.fetch(viewSharingRegistryUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: updatedTtl,
+  await readModifyWrite(viewSharingRegistryUrl, session, (store) => {
+    // Add the sharedWith triple if it doesn't exist.
+    if (
+      store.getQuads(snapshotNode, sharedWithPredicate, webIdNode, null)
+        .length === 0
+    ) {
+      store.addQuad(snapshotNode, sharedWithPredicate, webIdNode);
+    }
+    // Add the viewId reference if not present.
+    if (store.getQuads(snapshotNode, viewIdPredicate, null, null).length === 0) {
+      store.addQuad(snapshotNode, viewIdPredicate, DataFactory.literal(viewId));
+    }
   });
 }
 
@@ -736,9 +611,7 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
   }
 
   const webId = session.info.webId;
-  const podBaseUrl = getPodBaseUrl(webId);
-  const viewSharingRegistryUrl =
-    `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
+  const viewSharingRegistryUrl = podResources(webId).viewSharingRegistry;
 
   try {
     const response = await fetchFresh(viewSharingRegistryUrl, session);
@@ -837,23 +710,7 @@ async function removeFromViewSharingRegistry(
   session: Session,
 ): Promise<void> {
   const userWebId = session.info.webId!;
-  const podBaseUrl = getPodBaseUrl(userWebId);
-  const viewSharingRegistryUrl =
-    `${podBaseUrl}granergize/views/viewSharingRegistry.ttl`;
-
-  const response = await fetchFresh(viewSharingRegistryUrl, session);
-
-  if (response.status === 404) {
-    return;
-  }
-
-  const text = await response.text();
-  const parser = new Parser({
-    format: "text/turtle",
-    baseIRI: viewSharingRegistryUrl,
-  });
-  const quads = parser.parse(text);
-  const store = new Store(quads);
+  const viewSharingRegistryUrl = podResources(userWebId).viewSharingRegistry;
 
   const snapshotNode = DataFactory.namedNode(snapshotUrl);
   const sharedWithPredicate = DataFactory.namedNode(
@@ -861,43 +718,25 @@ async function removeFromViewSharingRegistry(
   );
   const webIdNode = DataFactory.namedNode(webId);
 
-  // Remove the specific triple
-  store.removeQuad(
-    snapshotNode,
-    sharedWithPredicate,
-    webIdNode,
-    DataFactory.defaultGraph(),
-  );
+  await readModifyWrite(viewSharingRegistryUrl, session, (store, { created }) => {
+    if (created) return false; // no registry → nothing to remove
 
-  // Check if there are any remaining sharedWith for this snapshot
-  const remainingQuads = store.getQuads(
-    snapshotNode,
-    sharedWithPredicate,
-    null,
-    null,
-  );
-  if (remainingQuads.length === 0) {
-    // Remove the viewId triple too since no one has access anymore
-    const viewIdPredicate = DataFactory.namedNode(
-      "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId",
-    );
-    const viewIdQuads = store.getQuads(
+    store.removeQuad(
       snapshotNode,
-      viewIdPredicate,
-      null,
-      null,
+      sharedWithPredicate,
+      webIdNode,
+      DataFactory.defaultGraph(),
     );
-    viewIdQuads.forEach((quad) => store.removeQuad(quad));
-  }
 
-  const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-
-  await session.fetch(viewSharingRegistryUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: updatedTtl,
+    // If no one has access to this snapshot anymore, drop its viewId triple too.
+    if (
+      store.getQuads(snapshotNode, sharedWithPredicate, null, null).length === 0
+    ) {
+      const viewIdPredicate = DataFactory.namedNode(
+        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#viewId",
+      );
+      store.getQuads(snapshotNode, viewIdPredicate, null, null)
+        .forEach((quad) => store.removeQuad(quad));
+    }
   });
 }

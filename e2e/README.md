@@ -15,6 +15,18 @@ itself). Three specs, by credential need:
 The two credentialed specs `test.skip` themselves when their env vars are absent,
 so `deno task e2e` / CI never need credentials.
 
+There is also a **headless data-layer integration test** that is *not* Playwright:
+`scripts/data-layer-live.ts` runs the real app data-layer functions (serialize →
+upload → register → read back via `fetchAndParseData` → hide/unhide → hard
+`deleteBuilding`) over a DPoP client-credentials session against account **A**'s
+Pod, then restores it (snapshot / restore of the registry + hidden file, deletes
+its test building). It's the live counterpart to the offline
+`buildingSerializer.test.ts`. It does **not** exercise `removeAppData` (the full
+granergize/ wipe) — that's offline-tested only, to avoid clobbering A's shared
+demo/room data. Auth is hand-rolled in
+`scripts/liveSession.ts` (the Inrupt node client's key isn't extractable under
+Deno).
+
 ## Run
 
 ```
@@ -22,6 +34,8 @@ deno task e2e            # smoke only (no creds)
 npm run screenshots      # guide screenshots  (needs account A)
 npm run sharing          # cross-pod sharing  (needs accounts A + B)
 # add --headed to watch / debug, e.g.  npm run sharing -- --headed
+
+source .env.e2e.local && deno task it:live   # live data-layer test (needs account A)
 ```
 
 ## Accounts (throwaway Pods only — never real accounts)

@@ -17,21 +17,35 @@ import {
   useNotification,
 } from "./context/NotificationContext.tsx";
 import { readInbox } from "./services/interop/inbox.ts";
+import { instrumentSessionFetch } from "./services/utils/networkActivity.ts";
+
+// One-shot flag (survives a manual reload) telling the Login screen NOT to restore
+// the previous session. Set after a destructive logout ("Remove all app data") so
+// the app doesn't silently log back in and re-bootstrap what was just deleted.
+const NO_RESTORE_KEY = "granergize:noRestore";
 
 function AppContent() {
   const { showNotification } = useNotification();
   const [session, setSession] = useState<Session | null>(null);
+  const [suppressRestore, setSuppressRestore] = useState(
+    () => sessionStorage.getItem(NO_RESTORE_KEY) === "1",
+  );
 
   useEffect(() => {
     const solidSession = getDefaultSession();
     if (solidSession.info.isLoggedIn) {
       console.log("User already logged in", solidSession.info.webId);
+      instrumentSessionFetch(solidSession);
       setSession(solidSession);
     }
   }, []);
 
   const handleLogin = useCallback(async (authSession: Session) => {
     console.log("User logged in successfully", authSession.info.webId);
+    // A deliberate login clears the one-shot "don't restore" flag.
+    sessionStorage.removeItem(NO_RESTORE_KEY);
+    setSuppressRestore(false);
+    instrumentSessionFetch(authSession);
     setSession(authSession);
     try {
       await readInbox(authSession);
@@ -40,9 +54,13 @@ function AppContent() {
     }
   }, [showNotification]);
 
-  const handleLogout = () => {
+  const handleLogout = (opts?: { suppressAutoLogin?: boolean }) => {
     if (session) {
       console.log("Logging out user", session.info.webId);
+      if (opts?.suppressAutoLogin) {
+        sessionStorage.setItem(NO_RESTORE_KEY, "1");
+        setSuppressRestore(true);
+      }
       session.logout().then(() => {
         setSession(null);
         showNotification("User logged out successfully", "info");
@@ -53,6 +71,7 @@ function AppContent() {
   return (
     <Login
       onLogin={handleLogin}
+      suppressRestore={suppressRestore}
       name="Granergize App"
       logo={
         <img

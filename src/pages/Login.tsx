@@ -15,6 +15,12 @@ import { styled } from "@mui/material/styles";
 interface LoginProps {
   children: JSX.Element;
   auto?: boolean;
+  /**
+   * When true, do NOT silently restore a previous session on mount (the user must
+   * log in explicitly). Set after a destructive logout so the app can't auto-login
+   * and re-create just-deleted data. Manual login is unaffected.
+   */
+  suppressRestore?: boolean;
   name?: string;
   logo?: JSX.Element;
   lead?: JSX.Element;
@@ -60,6 +66,7 @@ export const Login: React.FC<LoginProps> = ({
   children,
   loadingIndicator,
   auto = true,
+  suppressRestore = false,
   name,
   lead,
   loginOptions,
@@ -146,7 +153,10 @@ export const Login: React.FC<LoginProps> = ({
         }
       } else {
         setTimeout(() => {
-          if (!sessionExpired && !sessionResponded && (auto || manualTrigger)) {
+          // Suppress the silent restore after a destructive logout; a manual
+          // login (manualTrigger) still goes through.
+          const mayRestore = (auto && !suppressRestore) || manualTrigger;
+          if (!sessionExpired && !sessionResponded && mayRestore) {
             session
               .handleIncomingRedirect({ restorePreviousSession: true })
               .then((sessionInfo?: ISessionInfo) => {
@@ -170,7 +180,7 @@ export const Login: React.FC<LoginProps> = ({
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, manualTrigger, onLogin, session]);
+  }, [auto, suppressRestore, manualTrigger, onLogin, session]);
 
   useEffect(() => {
     // If user had a previous session, check for that issuer

@@ -1,7 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store, Writer } from "n3";
+import { DataFactory, Parser, Store } from "n3";
 import { registryUrl as registryUrlFor } from "../utils/solidUtils.ts";
-import { fetchFresh } from "../utils/podFetch.ts";
+import { readModifyWrite } from "../utils/podWrite.ts";
 
 export async function readInbox(session: Session) {
   if (!session.info.isLoggedIn) {
@@ -145,13 +145,6 @@ async function removeResourceFromRegistry(session: Session, resource: string) {
   const webId = session.info.webId!;
   const registryUrl = registryUrlFor(webId);
 
-  const response = await fetchFresh(registryUrl, session);
-  if (!response.ok) return;
-
-  const text = await response.text();
-  const parser = new Parser({ format: "text/turtle", baseIRI: registryUrl });
-  const store = new Store(parser.parse(text));
-
   const registryNode = DataFactory.namedNode(registryUrl);
   const buildingSourcePredicate = DataFactory.namedNode(
     "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource",
@@ -161,20 +154,12 @@ async function removeResourceFromRegistry(session: Session, resource: string) {
   );
   const resourceNode = DataFactory.namedNode(resource);
 
-  store.getQuads(registryNode, buildingSourcePredicate, resourceNode, null)
-    .forEach((q) => store.removeQuad(q));
-  store.getQuads(resourceNode, dataSourceRolePredicate, null, null)
-    .forEach((q) => store.removeQuad(q));
-
-  const writer = new Writer({ format: "text/turtle" });
-  const updatedTtl = writer.quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-
-  await session.fetch(registryUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: updatedTtl,
+  await readModifyWrite(registryUrl, session, (store, { created }) => {
+    if (created) return false; // no registry → nothing to remove
+    store.getQuads(registryNode, buildingSourcePredicate, resourceNode, null)
+      .forEach((q) => store.removeQuad(q));
+    store.getQuads(resourceNode, dataSourceRolePredicate, null, null)
+      .forEach((q) => store.removeQuad(q));
   });
 
   console.log(`Removed resource ${resource} from registry at ${registryUrl}`);
@@ -193,67 +178,25 @@ async function addResourceToRegistry(
   const webId = session.info.webId!;
   const registryUrl = registryUrlFor(webId);
 
-  const registryResponse = await fetchFresh(registryUrl, session);
-
-  let registryText = "";
-  if (registryResponse.status === 200) {
-    registryText = await registryResponse.text();
-  } else if (registryResponse.status === 404) {
-    console.log("Registry file not found, creating a new one.");
-  } else {
-    console.error(
-      `Failed to fetch registry at ${registryUrl}: ${registryResponse.statusText}`,
-    );
-    throw new Error(
-      `Failed to fetch registry at ${registryUrl}: ${registryResponse.statusText}`,
-    );
-  }
-
-  const parser = new Parser({ format: "text/turtle", baseIRI: registryUrl });
-  const quads = parser.parse(registryText);
-  const store = new Store(quads);
-
   const registryNode = DataFactory.namedNode(registryUrl);
   const accessModeNode = DataFactory.namedNode(
     "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource",
   );
   const resourceNode = DataFactory.namedNode(resource);
 
-  store.addQuad(
-    registryNode,
-    accessModeNode,
-    resourceNode,
-  );
-
-  // Persist the role annotation as a side triple on the building URL if provided
-  if (roleIri) {
-    store.addQuad(
-      resourceNode,
-      DataFactory.namedNode(
-        "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
-      ),
-      DataFactory.namedNode(roleIri),
-    );
-  }
-
-  const serializedRegistry = store.toString();
-
-  const updateResponse = await session.fetch(registryUrl, {
-    method: "PUT",
-    headers: {
-      "Content-Type": "text/turtle",
-    },
-    body: serializedRegistry,
+  await readModifyWrite(registryUrl, session, (store) => {
+    store.addQuad(registryNode, accessModeNode, resourceNode);
+    // Persist the role annotation as a side triple on the building URL if given.
+    if (roleIri) {
+      store.addQuad(
+        resourceNode,
+        DataFactory.namedNode(
+          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
+        ),
+        DataFactory.namedNode(roleIri),
+      );
+    }
   });
-
-  if (!updateResponse.ok) {
-    console.error(
-      `Failed to update registry at ${registryUrl}: ${updateResponse.statusText}`,
-    );
-    throw new Error(
-      `Failed to update registry at ${registryUrl}: ${updateResponse.statusText}`,
-    );
-  }
 
   console.log(`Successfully updated registry at ${registryUrl}`);
 }

@@ -1,5 +1,5 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store, Writer } from "n3";
+import { DataFactory, Store, Writer } from "n3";
 import type { UserRole } from "../../../types/types.ts";
 import { objectPropertyMap, predicateMap } from "./config/buildingConfig.ts";
 import {
@@ -14,7 +14,9 @@ import {
   XSD_INTEGER,
 } from "./vocabularies.ts";
 import { getStorageRoot, registryUrl as registryUrlFor } from "./solidUtils.ts";
-import { fetchFresh } from "./podFetch.ts";
+import { readModifyWrite } from "./podWrite.ts";
+import { deleteContainerRecursive } from "./podDelete.ts";
+import { trackedFetch } from "./networkActivity.ts";
 import * as XLSX from "xlsx";
 
 const { namedNode, literal, blankNode } = DataFactory;
@@ -436,6 +438,13 @@ export function serializeBuildingToTurtle(
       store.addQuad(dsNode, namedNode(RDF_TYPE_IRI), namedNode(`${USERVOC_NS}EnergyConsumptionDataset`));
       store.addQuad(dsNode, namedNode(`${GRAN_NS}datasetDate`), literal(ds.date, namedNode(XSD_DATE)));
       store.addQuad(dsNode, namedNode(`${GRAN_NS}datasetLocation`), namedNode(ds.location));
+      // gran:type is required for the parser to surface this dataset on
+      // building.energyData (it filters out datasets lacking year+location+type);
+      // without it the lazy 15-min chart never sees the daily files.
+      store.addQuad(dsNode, namedNode(`${GRAN_NS}type`), literal("electricity"));
+      // Declare the observation period so the loader can dispatch on granularity,
+      // not role: these daily files hold 15-minute readings.
+      store.addQuad(dsNode, namedNode(`${GRAN_NS}granularity`), literal("PT15M"));
     });
   }
 
@@ -491,37 +500,18 @@ export async function addBuildingToRegistry(
   role: UserRole,
 ): Promise<void> {
   const registryUrl = registryUrlFor(webId);
-
-  const res = await fetchFresh(registryUrl, session);
-  if (!res.ok) throw new Error(`Registry fetch failed: ${res.status}`);
-
-  const text = await res.text();
-  const store = new Store(
-    new Parser({ baseIRI: registryUrl }).parse(text),
-  );
-
-  store.addQuad(
-    namedNode(registryUrl),
-    namedNode(`${GRAN_NS}hasBuildingDataSource`),
-    namedNode(buildingUri),
-  );
-  store.addQuad(
-    namedNode(buildingUri),
-    namedNode(`${GRAN_NS}dataSourceRole`),
-    namedNode(ROLE_TO_IRI[role]),
-  );
-
-  const ttl = new Writer({ format: "text/turtle" }).quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-  const putRes = await session.fetch(registryUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: ttl,
+  await readModifyWrite(registryUrl, session, (store) => {
+    store.addQuad(
+      namedNode(registryUrl),
+      namedNode(`${GRAN_NS}hasBuildingDataSource`),
+      namedNode(buildingUri),
+    );
+    store.addQuad(
+      namedNode(buildingUri),
+      namedNode(`${GRAN_NS}dataSourceRole`),
+      namedNode(ROLE_TO_IRI[role]),
+    );
   });
-  if (!putRes.ok) {
-    throw new Error(`Registry update failed: ${putRes.status}`);
-  }
 }
 
 /**
@@ -535,44 +525,253 @@ export async function updateBuilding(
   subjectUri: string,
   updatedFields: Record<string, string>,
 ): Promise<void> {
-  const res = await fetchFresh(buildingFileUri, session);
-  if (!res.ok) throw new Error(`Fetch failed: ${res.status}`);
-  const text = await res.text();
-
-  const store = new Store(new Parser({ baseIRI: buildingFileUri }).parse(text));
   const subject = namedNode(subjectUri);
+  await readModifyWrite(buildingFileUri, session, (store, { created }) => {
+    if (created) throw new Error(`Building not found: ${buildingFileUri}`);
+    for (const [field, value] of Object.entries(updatedFields)) {
+      if (field.startsWith("_")) continue;
 
-  for (const [field, value] of Object.entries(updatedFields)) {
-    if (field.startsWith("_")) continue;
+      const isObjProp = field in fieldToObjectPredicate;
+      const predIri = isObjProp
+        ? fieldToObjectPredicate[field]
+        : fieldToPredicate[field];
+      if (!predIri) continue;
 
-    const isObjProp = field in fieldToObjectPredicate;
-    const predIri = isObjProp ? fieldToObjectPredicate[field] : fieldToPredicate[field];
-    if (!predIri) continue;
+      store.removeQuads(store.getQuads(subject, namedNode(predIri), null, null));
+      if (!value?.trim()) continue;
 
-    store.removeQuads(store.getQuads(subject, namedNode(predIri), null, null));
-    if (!value?.trim()) continue;
-
-    if (isObjProp) {
-      store.addQuad(subject, namedNode(predIri), namedNode(`${INVESTOR_NS}${value}`));
-    } else {
-      store.addQuad(subject, namedNode(predIri), literal(value, namedNode(xsdType(field))));
+      if (isObjProp) {
+        store.addQuad(
+          subject,
+          namedNode(predIri),
+          namedNode(`${INVESTOR_NS}${value}`),
+        );
+      } else {
+        store.addQuad(
+          subject,
+          namedNode(predIri),
+          literal(value, namedNode(xsdType(field))),
+        );
+      }
     }
-  }
-
-  const newTtl = new Writer({ format: "text/turtle" }).quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-  const putRes = await session.fetch(buildingFileUri, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: newTtl,
   });
-  if (!putRes.ok) throw new Error(`Update failed: ${putRes.status} ${putRes.statusText}`);
 }
 
 /** Construct the POD URL for a new building file. */
 export function newBuildingUri(webId: string, id: string): string {
   return `${getStorageRoot(webId)}granergize/buildings/${id}.ttl`;
+}
+
+/**
+ * Remove a building source from the registry — the inverse of
+ * {@link addBuildingToRegistry}. Drops both the `gran:hasBuildingDataSource`
+ * link and the building's `gran:dataSourceRole` triple, then PUTs the registry
+ * back. A missing registry is a no-op.
+ */
+export async function removeBuildingFromRegistry(
+  session: Session,
+  webId: string,
+  buildingUri: string,
+): Promise<void> {
+  const registryUrl = registryUrlFor(webId);
+  await readModifyWrite(registryUrl, session, (store, { created }) => {
+    if (created) return false; // no registry → nothing to remove
+    store.removeQuads(store.getQuads(
+      namedNode(registryUrl),
+      namedNode(`${GRAN_NS}hasBuildingDataSource`),
+      namedNode(buildingUri),
+      null,
+    ));
+    store.removeQuads(store.getQuads(
+      namedNode(buildingUri),
+      namedNode(`${GRAN_NS}dataSourceRole`),
+      null,
+      null,
+    ));
+  });
+}
+
+/**
+ * Permanently delete a building the user owns: de-register it, delete its
+ * per-building energy subtree (`buildings/<id>/…`, if any), then delete the
+ * building file itself. Refuses to touch resources outside the user's own Pod
+ * (e.g. a building shared from another Pod), which must only be *hidden*.
+ */
+export async function deleteBuilding(
+  session: Session,
+  webId: string,
+  buildingFileUri: string,
+): Promise<void> {
+  const fileUri = buildingFileUri.split("#")[0];
+  if (!fileUri.startsWith(getStorageRoot(webId))) {
+    throw new Error("Refusing to delete a building outside your own Pod");
+  }
+
+  await removeBuildingFromRegistry(session, webId, fileUri);
+
+  // Energy lives under a sibling container named after the building file
+  // (buildingEnergyFileUrl strips the ".ttl"); remove it best-effort.
+  await deleteContainerRecursive(`${fileUri.replace(/\.ttl$/, "")}/`, session)
+    .catch(() => {});
+
+  const res = await session.fetch(fileUri, { method: "DELETE" });
+  if (!res.ok && res.status !== 404) {
+    throw new Error(`Failed to delete building (HTTP ${res.status})`);
+  }
+}
+
+// ── Demo seed ─────────────────────────────────────────────────────────────────
+
+/**
+ * Master data for the two demo buildings seeded into a fresh pod. Each carries
+ * energy at a *different granularity* so a new user immediately sees both shapes
+ * the app dispatches on (Phase 4): one annual aggregate, one 15-minute series.
+ * `role` is provenance only — the render/load paths key on the data shape.
+ */
+const DEMO_BUILDINGS: Array<{
+  fields: Record<string, string>;
+  role: UserRole;
+  energy: "annual" | "series";
+}> = [
+  {
+    fields: {
+      streetAddress: "Nordostpark 84",
+      postalCode: "90411",
+      locality: "Nürnberg",
+      region: "Bayern",
+    },
+    role: "investor",
+    energy: "annual", // inline P1Y SOSA observations → annual chart, bulk-loaded
+  },
+  {
+    fields: {
+      streetAddress: "Lange Gasse 20",
+      postalCode: "90403",
+      locality: "Nürnberg",
+      region: "Bayern",
+    },
+    role: "user",
+    energy: "series", // PT15M load profile in a daily file → lazy-loaded on click
+  },
+];
+
+/**
+ * Inline multi-year annual energy for the "annual" demo building, expressed as the
+ * `_inv_*` fields serializeBuildingToTurtle turns into annual SOSA observations
+ * (electricity/heat in kWh, water in m³). Years must be within INV_YEARS.
+ */
+const DEMO_ANNUAL_FIELDS: Record<string, string> = {
+  _inv_elec_2022: "118000", _inv_elec_2023: "121500", _inv_elec_2024: "115200",
+  _inv_heat_2022: "240000", _inv_heat_2023: "232000", _inv_heat_2024: "228500",
+  _inv_water_2022: "1450", _inv_water_2023: "1500", _inv_water_2024: "1410",
+};
+
+/** A representative day of synthetic 15-minute readings (96 slots, UTC) with a
+ * simple daytime-peaked load curve. Used for the "series" demo building. */
+export function synthDayReadings(date: string): LastgangReading[] {
+  const dayStart = new Date(`${date}T00:00:00Z`).getTime();
+  const out: LastgangReading[] = [];
+  for (let slot = 0; slot < 96; slot++) {
+    const begin = new Date(dayStart + slot * 15 * 60 * 1000);
+    const end = new Date(begin.getTime() + 15 * 60 * 1000);
+    const hour = begin.getUTCHours() + begin.getUTCMinutes() / 60;
+    // Base load + a daytime bump peaking ~midday; never negative.
+    const kw = 12 + 18 * Math.max(0, Math.sin(((hour - 6) / 24) * 2 * Math.PI));
+    const beginTs = toISO8601(begin);
+    out.push({
+      date: beginTs.slice(0, 10),
+      slotId: beginTs.slice(11, 16).replace(":", ""),
+      beginTs,
+      endTs: toISO8601(end),
+      valueKwh: (kw * 0.25).toFixed(6),
+    });
+  }
+  return out;
+}
+
+/** Geocode an address to { lat, long } via Nominatim, or null on miss/failure. */
+async function geocode(
+  fields: Record<string, string>,
+): Promise<{ lat: string; long: string } | null> {
+  const query = [
+    fields.streetAddress,
+    fields.postalCode,
+    fields.locality,
+    fields.region,
+  ].filter(Boolean).join(", ");
+  if (!query) return null;
+  try {
+    const res = await trackedFetch(
+      `https://nominatim.openstreetmap.org/search?q=${
+        encodeURIComponent(query)
+      }&format=json&limit=1`,
+      { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
+      "geocode address",
+    );
+    const data = await res.json() as { lat: string; lon: string }[];
+    if (!data.length) return null;
+    return { lat: data[0].lat, long: data[0].lon };
+  } catch {
+    return null;
+  }
+}
+
+/**
+ * Seed two real, user-owned demo buildings into the user's pod. Called once when a
+ * fresh registry is bootstrapped (see TurtleParsingService) so a brand-new user has
+ * something to see; the buildings are ordinary owned resources the user can delete.
+ * Coordinates are geocoded at seed time; a building that can't be geocoded is still
+ * created (just unmapped). Best-effort: failures are logged, never thrown, so a
+ * geocoder/network hiccup can't block login.
+ */
+export async function seedDemoBuildings(
+  session: Session,
+  webId: string,
+): Promise<void> {
+  for (const demo of DEMO_BUILDINGS) {
+    try {
+      const coords = await geocode(demo.fields);
+      let fields: Record<string, string> = coords
+        ? { ...demo.fields, lat: coords.lat, long: coords.long }
+        : { ...demo.fields };
+      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      const uri = newBuildingUri(webId, id);
+
+      let energyDatasets: { date: string; location: string }[] | undefined;
+
+      if (demo.energy === "annual") {
+        // Annual aggregate (P1Y): inline SOSA observations, no separate file.
+        fields = { ...fields, ...DEMO_ANNUAL_FIELDS };
+      } else {
+        // 15-minute series (PT15M): write one daily readings file and link it.
+        const day = "2024-06-03";
+        const subjectUri = `${uri}#${id}`;
+        const readings = synthDayReadings(day);
+        const energyUrl = buildingEnergyFileUrl(uri, day);
+        const dayTtl = generateEnergyDayTtl(
+          day, readings, subjectUri, fields.streetAddress ?? "",
+        );
+        const res = await session.fetch(energyUrl, {
+          method: "PUT",
+          headers: { "Content-Type": "text/turtle" },
+          body: dayTtl,
+        });
+        if (!res.ok) {
+          throw new Error(`Energy upload failed: ${res.status} ${res.statusText}`);
+        }
+        energyDatasets = [{ date: day, location: energyUrl }];
+      }
+
+      const ttl = serializeBuildingToTurtle(fields, uri, energyDatasets);
+      await uploadBuilding(session, uri, ttl, webId);
+      await addBuildingToRegistry(session, webId, uri, demo.role);
+    } catch (err) {
+      console.error(
+        `Failed to seed demo building ${demo.fields.streetAddress}:`,
+        err,
+      );
+    }
+  }
 }
 
 // ── CSV / XLSX autofill ───────────────────────────────────────────────────────

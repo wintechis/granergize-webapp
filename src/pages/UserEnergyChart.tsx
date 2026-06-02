@@ -1,12 +1,6 @@
 import { useEffect, useState } from "react";
 import { Bar, Line } from "react-chartjs-2";
-import {
-  Box,
-  CircularProgress,
-  LinearProgress,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, TextField, Typography } from "@mui/material";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import type { ChartData, ChartOptions } from "chart.js";
@@ -238,17 +232,9 @@ export default function UserEnergyChart(
         sx={{ mb: 2, minWidth: 160 }}
       />
       {bulkLoading && (
-        <Box sx={{ mb: 2 }}>
-          <Typography variant="body2" sx={{ mb: 0.5 }}>
-            Loading {bulkProgress.loaded} / {bulkProgress.total} days…
-          </Typography>
-          <LinearProgress
-            variant="determinate"
-            value={bulkProgress.total > 0
-              ? (bulkProgress.loaded / bulkProgress.total) * 100
-              : 0}
-          />
-        </Box>
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          Loading {bulkProgress.loaded} / {bulkProgress.total} days…
+        </Typography>
       )}
       {bulkError && (
         <Typography color="error" variant="body2" sx={{ mb: 1 }}>
@@ -290,10 +276,7 @@ export default function UserEnergyChart(
           />
 
           {loading && (
-            <Box display="flex" alignItems="center" gap={1} sx={{ mb: 1 }}>
-              <CircularProgress size={18} />
-              <Typography variant="body2">Loading…</Typography>
-            </Box>
+            <Typography variant="body2" sx={{ mb: 1 }}>Loading…</Typography>
           )}
           {fetchError && (
             <Typography color="error" variant="body2" sx={{ mb: 1 }}>

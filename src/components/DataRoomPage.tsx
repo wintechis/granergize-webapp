@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  CircularProgress,
   FormControl,
   IconButton,
   InputLabel,
@@ -35,7 +34,7 @@ import {
 } from "../services/interop/dataRoom.ts";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { podResources } from "../services/utils/solidUtils.ts";
+import { tryPodResources } from "../services/utils/solidUtils.ts";
 import { RdfSourceLink } from "./detail/DetailView.tsx";
 import QrScanner from "./QrScanner.tsx";
 
@@ -238,7 +237,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
 
   const busy = pending !== null;
   // Backing RDF resource (the rooms registry), linked so storage is inspectable.
-  const rdf = session.info.webId ? podResources(session.info.webId) : null;
+  const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
 
   return (
     <section style={{ padding: "1.5rem" }}>
@@ -278,9 +277,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
               onClick={handleLeave}
               disabled={busy}
             >
-              {pending === "leave"
-                ? <CircularProgress size={20} />
-                : "Leave data room"}
+              {pending === "leave" ? "Leaving…" : "Leave data room"}
             </Button>
             {ownsRoom(activeRoom, session) && (
               <Button
@@ -289,9 +286,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
                 onClick={handleDelete}
                 disabled={busy}
               >
-                {pending === "delete"
-                  ? <CircularProgress size={20} />
-                  : "Delete data room"}
+                {pending === "delete" ? "Deleting…" : "Delete data room"}
               </Button>
             )}
           </div>
@@ -329,7 +324,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
               </Select>
             </FormControl>
             <Button variant="outlined" onClick={handleSaveRoles} disabled={busy}>
-              {pending === "roles" ? <CircularProgress size={20} /> : "Save roles"}
+              {pending === "roles" ? "Saving…" : "Save roles"}
             </Button>
           </div>
 
@@ -392,7 +387,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
           disabled={!roomInput.trim() || busy}
           onClick={() => addRoom(roomInput)}
         >
-          {pending === "add" ? <CircularProgress size={20} /> : "Add"}
+          {pending === "add" ? "Adding…" : "Add"}
         </Button>
         <Button variant="outlined" onClick={() => setScanning((s) => !s)}>
           {scanning ? "Close scanner" : "Scan QR code"}
@@ -415,9 +410,7 @@ export default function DataRoomPage({ session }: DataRoomPageProps) {
         onClick={handleCreate}
         disabled={busy}
       >
-        {pending === "create"
-          ? <CircularProgress size={20} />
-          : "Host a data room"}
+        {pending === "create" ? "Creating…" : "Host a data room"}
       </Button>
     </section>
   );

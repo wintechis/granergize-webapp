@@ -23,7 +23,6 @@ import Tab from "@mui/material/Tab";
 import Grid from "@mui/material/Grid2";
 import Energy from "./Energy.tsx";
 import IconButton from "@mui/material/IconButton";
-import CircularProgress from "@mui/material/CircularProgress";
 import { useSolidData } from "../context/SolidDataContext.tsx";
 import WeatherData from "./WeatherData.tsx";
 import InvestorEnergy from "./InvestorEnergy.tsx";
@@ -37,6 +36,10 @@ import {
   MARKER_SELECTED_COLOR,
   MARKER_SHARED_COLOR,
 } from "../constants/chartColors.ts";
+import {
+  beginActivity,
+  endActivity,
+} from "../services/utils/networkActivity.ts";
 
 const SHADOW =
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png";
@@ -184,7 +187,11 @@ type FocusTarget =
   | { kind: "agent"; id: string };
 
 export default function Map({ session, active = true }: MapProps) {
-  const { buildings, agents, energyNeed, isLoading, error } = useSolidData();
+  const { buildings, agents, energyNeed, error } = useSolidData();
+  // One activity token per tile-loading burst (the layer fires `loading` when it
+  // starts fetching tiles and `load` once the visible set is in), so panning/
+  // zooming registers in the global indicator without a token per image.
+  const tileToken = useRef<number | null>(null);
   // The right-pane navigation stack. The last entry is what's shown; earlier
   // entries are the "back" history. Empty = nothing focused.
   const [trail, setTrail] = useState<FocusTarget[]>([]);
@@ -276,22 +283,6 @@ export default function Map({ session, active = true }: MapProps) {
             flexDirection: "column",
           }}
         >
-          {isLoading && (
-            <Box
-              sx={{
-                position: "absolute",
-                inset: 0,
-                display: "flex",
-                justifyContent: "center",
-                alignItems: "center",
-                zIndex: 1200,
-                pointerEvents: "none",
-                backgroundColor: "rgba(255,255,255,0.5)",
-              }}
-            >
-              <CircularProgress />
-            </Box>
-          )}
           <MapContainer
             className="map-container"
                 center={[50.976558, 10.404674]}
@@ -302,6 +293,19 @@ export default function Map({ session, active = true }: MapProps) {
                 <TileLayer
                   attribution={BASEMAP.attribution}
                   url={BASEMAP.url}
+                  eventHandlers={{
+                    loading: () => {
+                      if (tileToken.current === null) {
+                        tileToken.current = beginActivity("map tiles");
+                      }
+                    },
+                    load: () => {
+                      if (tileToken.current !== null) {
+                        endActivity(tileToken.current);
+                        tileToken.current = null;
+                      }
+                    },
+                  }}
                 />
                 <InvalidateOnActive active={active} />
                 <FitToBuildings active={active} buildings={buildings} />
@@ -492,11 +496,16 @@ export default function Map({ session, active = true }: MapProps) {
                     )}
 
                     {detailTab === 1 && (
-                      currentBuilding.sourceRole ===
-                          "benchmark_service_provider"
-                        ? <BspEnergy building={currentBuilding} />
-                        : currentBuilding.sourceRole === "investor"
-                        ? <InvestorEnergy building={currentBuilding} />
+                      // Dispatch on the data the building actually carries, not its
+                      // provenance role: annual aggregates → an annual chart (the BSP
+                      // variant when bench-specific company/logistics fields are
+                      // present, else the investor variant); otherwise the
+                      // time-series / categorical Energy view.
+                      ((currentBuilding.annualData?.length ?? 0) > 0)
+                        ? (currentBuilding.companyName ||
+                            currentBuilding.logisticsFunction)
+                          ? <BspEnergy building={currentBuilding} />
+                          : <InvestorEnergy building={currentBuilding} />
                         : (selectedEnergy ||
                             currentBuilding.sourceRole === "user")
                         ? (

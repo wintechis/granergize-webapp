@@ -21,6 +21,7 @@
 # Everything is optional because real Pod data is routinely partial.
 
 PREFIX gran:     <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#>
+PREFIX dcterms:  <http://purl.org/dc/terms/>
 PREFIX uservoc:  <https://solid.ti.rw.fau.de/private/granergize/user-vocab.ttl#>
 PREFIX investor: <https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#>
 PREFIX bench:    <https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#>
@@ -40,7 +41,7 @@ PREFIX xsd:      <http://www.w3.org/2001/XMLSchema#>
 # Source: predicateMap in buildingConfig.ts.
 # ─────────────────────────────────────────────────────────────────────────────
 <BuildingCore> {
-  rdf:type                  [ rec:building ] ;
+  rdf:type                  [ rec:Building ] ;
   schema:customer           xsd:string  ? ;
   geo:lat                   xsd:decimal ? ;
   geo:long                  xsd:decimal ? ;
@@ -219,4 +220,62 @@ PREFIX xsd:      <http://www.w3.org/2001/XMLSchema#>
 
 <TimeInterval> BlankNode {
   time:hasBeginning . ;        # xsd:dateTime in user files, xsd:date for annual
+}
+
+# ─────────────────────────────────────────────────────────────────────────────
+# App registry / view / sharing files (one tree per user, under granergize/).
+# These were previously only encoded imperatively in the services. Flat triple
+# sets; mirrored by src/services/utils/shapeValidators.ts, which the offline
+# tests run (ShEx engines don't execute under Deno — see the note above).
+# ─────────────────────────────────────────────────────────────────────────────
+
+# granergize/dataSources.ttl — which building/agent files to load.
+# Source: TurtleParsingService bootstrap + buildingSerializer.addBuildingToRegistry.
+<DataSourcesRegistry> {
+  rdf:type                   [ gran:DataSourceRegistry ] ? ;
+  dcterms:creator            IRI ? ;
+  gran:hasBuildingDataSource IRI * ;
+  gran:hasAgentDataSource    IRI * ;
+}
+
+# Per-source role annotation; subject is a building/agent source IRI.
+<DataSourceRoleAnnotation> {
+  gran:dataSourceRole IRI ;
+}
+
+# granergize/hiddenBuildings.ttl — dashboard visibility toggles.
+<HiddenBuildings> {
+  gran:hiddenBuilding IRI * ;
+}
+
+# granergize/sharingRegistry.ttl — building IRI → recipient WebIDs.
+<SharingRegistry> {
+  gran:sharedWith IRI * ;
+}
+
+# granergize/views/viewSharingRegistry.ttl — snapshot IRI → recipients + viewId.
+<ViewSharingRegistry> {
+  gran:sharedWith IRI * ;
+  gran:viewId     xsd:string ? ;
+}
+
+# granergize/views/viewDefinitions.ttl — one node per aggregated view (private).
+<AggregatedViewDefinition> {
+  rdf:type              [ gran:AggregatedViewDefinition ] ;
+  gran:viewId           xsd:string ;
+  gran:viewName         xsd:string   ? ;
+  gran:aggregationType  xsd:string   ? ;
+  gran:createdAt        xsd:dateTime ? ;
+  gran:lastComputedAt   xsd:dateTime ? ;
+  gran:viewPeriod       xsd:string   ? ;
+  gran:includesBuilding IRI          * ;
+  gran:includesMetric   xsd:string   * ;
+}
+
+# granergize/views/computed/<viewId>.ttl — shareable snapshot (values only).
+<AggregatedViewSnapshot> {
+  rdf:type             [ gran:AggregatedViewSnapshot ] ;
+  gran:viewId          xsd:string   ? ;
+  gran:aggregationType xsd:string   ? ;
+  gran:computedAt      xsd:dateTime ? ;
 }

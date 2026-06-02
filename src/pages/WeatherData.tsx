@@ -7,11 +7,9 @@ import {
 } from "@wintechis/wetterdienst-rdf-adapter";
 import {
   Alert,
-  Box,
   Card,
   CardContent,
   CardHeader,
-  CircularProgress,
   FormControl,
   Grid,
   InputLabel,
@@ -28,6 +26,10 @@ import {
 } from "@mui/material";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
 import { BuildingType } from "../../types/types.ts";
+import {
+  beginActivity,
+  endActivity,
+} from "../services/utils/networkActivity.ts";
 
 interface WeatherDataProps {
   building: BuildingType;
@@ -76,6 +78,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
     const fetchStations = async () => {
       setIsLoadingStations(true);
       setError(null);
+      const token = beginActivity("weather stations");
       try {
         const nearbyStations = (await wetterdienstClient.getStations({
           provider: "dwd",
@@ -101,6 +104,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
             : "Failed to fetch weather stations",
         );
       } finally {
+        endActivity(token);
         setIsLoadingStations(false);
       }
     };
@@ -118,7 +122,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
     const fetchWeatherData = async () => {
       setIsLoading(true);
       setError(null);
-
+      const token = beginActivity("weather data");
       try {
         const values = await wetterdienstClient.getValues({
           provider: "dwd",
@@ -136,6 +140,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
         );
         setWeatherData(null);
       } finally {
+        endActivity(token);
         setIsLoading(false);
       }
     };
@@ -175,19 +180,9 @@ export default function WeatherData({ building }: WeatherDataProps) {
                 value={selectedStation || ""}
                 onChange={(e) => setSelectedStation(e.target.value)}
                 label="Weather Station"
-                endAdornment={isLoadingStations && (
-                  <Box sx={{ mr: 1 }}>
-                    <CircularProgress size={20} />
-                  </Box>
-                )}
               >
                 {isLoadingStations
-                  ? (
-                    <MenuItem disabled>
-                      <CircularProgress size={16} sx={{ mr: 1 }} />
-                      Loading stations...
-                    </MenuItem>
-                  )
+                  ? <MenuItem disabled>Loading stations…</MenuItem>
                   : (
                     stations.map((station) => (
                       <MenuItem
@@ -205,12 +200,6 @@ export default function WeatherData({ building }: WeatherDataProps) {
             </FormControl>
           </Grid>
         </Grid>
-
-        {isLoading && (
-          <Box display="flex" justifyContent="center" sx={{ py: 4 }}>
-            <CircularProgress />
-          </Box>
-        )}
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 

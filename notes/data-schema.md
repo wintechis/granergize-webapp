@@ -61,6 +61,17 @@ One shape per role, reverse-engineered from `buildingConfig.ts`,
 `<EnergyDatasetRef>`/`<TimeInterval>`/`<SimpleResult>`. The imperative parsers
 remain the source of truth.
 
+The app's own on-Pod files (one tree per user, under `granergize/`) are now
+formalised too: `<DataSourcesRegistry>` (+ `<DataSourceRoleAnnotation>`),
+`<HiddenBuildings>`, `<SharingRegistry>`, `<ViewSharingRegistry>`,
+`<AggregatedViewDefinition>`, `<AggregatedViewSnapshot>`. Because ShEx can't run
+under Deno, these are mirrored by lightweight n3 validators in
+[`shapeValidators.ts`](../src/services/utils/shapeValidators.ts) (e.g.
+`validateDataSourcesRegistry`, `validateAggregatedViewDefinitions`) which the
+offline tests (`shapeValidators.test.ts`) run on valid + malformed fixtures —
+giving real conformance coverage and a drift guard. They check the load-bearing
+constraints (term kinds, required keys), not every optional triple.
+
 ## ShEx cannot be the primary discriminator
 
 - Shapes overlap on `<BuildingCore>`; open shapes match several roles, closed
@@ -93,7 +104,27 @@ Tested offline (`roleDetection.test.ts`, `deno task test`) incl. the user/dummy
 ambiguity and a drift guard against `roles.shex`. **Not yet wired into the app** —
 intended first use is the `:283` fallback.
 
-## Proposed: decouple role from shape (design — not yet built)
+## Decouple role from shape (BUILT — see "Status" below)
+
+> **Status (current).** The migration path below is implemented. Energy load,
+> synthesis, and render now dispatch on the **data's declared shape/granularity**,
+> not `sourceRole`; role is provenance only.
+> - Datasets declare `gran:granularity` on write (`buildingSerializer.ts`;
+>   user series → `"PT15M"`).
+> - Load strategy follows granularity via `isSeriesGranularity()`
+>   (`roleDetection.ts`): the prefetch-skip in `TurtleParsingService.ts` keys on
+>   the declared period (series ⇒ lazy), falling back to the old role default only
+>   when no granularity is declared.
+> - Inline-aggregate energy synthesis keys on **presence of `annualData`**, not
+>   `role === "investor"` (so benchmark inline data is covered too).
+> - `Building.tsx` renders investor/bench predicates whenever present
+>   (`hasInvestorDetails`), with no role gate.
+> - `Map.tsx`'s energy tab dispatches on `annualData` shape (annual chart vs.
+>   time-series `Energy`), not role.
+> - `sourceRole` (`?? "dummy"`) survives only as a provenance label.
+>
+> Still open: naming first-class dataset-shape *types* and publishing a real vocab
+> (see "Open vocab question"); these stayed out of scope.
 
 ### The problem (from the producers)
 

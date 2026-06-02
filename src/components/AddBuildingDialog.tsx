@@ -3,7 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -39,6 +38,7 @@ import {
   serializeBuildingToTurtle,
   uploadBuilding,
 } from "../services/utils/buildingSerializer.ts";
+import { trackedFetch } from "../services/utils/networkActivity.ts";
 
 interface AddBuildingDialogProps {
   open: boolean;
@@ -263,9 +263,10 @@ export default function AddBuildingDialog(
     if (!query) return;
     setGeocoding(true);
     try {
-      const res = await fetch(
+      const res = await trackedFetch(
         `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
         { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
+        "geocode address",
       );
       const data = await res.json() as { lat: string; lon: string }[];
       if (!data.length) {
@@ -441,7 +442,6 @@ export default function AddBuildingDialog(
             borderRadius: "inherit",
           }}
         >
-          <CircularProgress size={48} />
           <Typography variant="body2" color="text.secondary">
             {parsing
               ? "Processing file…"
@@ -553,7 +553,7 @@ export default function AddBuildingDialog(
         {sectionHeader("Location & Physical")}
         <Button
           variant="outlined"
-          startIcon={geocoding ? <CircularProgress size={14} color="inherit" /> : <MyLocationIcon />}
+          startIcon={<MyLocationIcon />}
           onClick={handleGeocode}
           disabled={geocoding || !["streetAddress", "postalCode", "locality", "region"].some((f) => fields[f]?.trim())}
           sx={{ mb: 1.5 }}

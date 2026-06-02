@@ -4,7 +4,6 @@ import {
   Button,
   Checkbox,
   Chip,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -336,18 +335,9 @@ export default function CreateViewDialog({
       {creating
         ? (
           <DialogContent>
-            <Box
-              display="flex"
-              flexDirection="column"
-              justifyContent="center"
-              alignItems="center"
-              minHeight={200}
-            >
-              <CircularProgress />
-              <Typography sx={{ mt: 2 }}>
-                Creating view and computing snapshot...
-              </Typography>
-            </Box>
+            <Typography sx={{ my: 2 }}>
+              Creating view and computing snapshot…
+            </Typography>
           </DialogContent>
         )
         : selectedRole === "user"

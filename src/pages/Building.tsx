@@ -4,21 +4,15 @@ import {
   InvestorCertification,
   InvestorOperatingCosts,
 } from "../../types/types.ts";
-import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import { Typography } from "@mui/material";
 import {
   Check as CheckIcon,
   Clear as ClearIcon,
   CorporateFare as CorporateFareIcon,
-  Edit as EditIcon,
-  Share as ShareIcon,
 } from "@mui/icons-material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { useSolidData } from "../context/SolidDataContext.tsx";
-import {
-  EnergyCertificateDialog,
-  ShareBuildingDialog,
-} from "../components/BuildingDialogs.tsx";
-import EditBuildingDialog from "../components/EditBuildingDialog.tsx";
+import { EnergyCertificateDialog } from "../components/BuildingDialogs.tsx";
 import {
   DetailCard,
   DetailRow,
@@ -51,10 +45,8 @@ export default function Building(
     BuildingProps,
 ) {
   const { reloadData } = useSolidData();
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [energyCertificateUploaderOpen, setEnergyCertificateUploaderOpen] =
     useState(false);
-  const [editDialogOpen, setEditDialogOpen] = useState(false);
 
   const hasValue = (value: unknown): boolean => {
     if (value == null) {
@@ -73,6 +65,32 @@ export default function Building(
     (building["operatingCosts"] ?? {}) as InvestorOperatingCosts,
   )
     .filter(([, value]) => hasValue(value));
+
+  // Whether any investor-vocab detail is present — drives the "Building" section
+  // by data, not role (a building from any source that carries these shows them).
+  const INVESTOR_DETAIL_FIELDS = [
+    "hallArea",
+    "officeSocialArea",
+    "buildingHeight",
+    "numberOfLoadingDocks",
+    "yearOfRenovation",
+    "shiftRegime",
+    "tenancyType",
+    "leaseType",
+    "tenantIndustry",
+    "indoorTemperatureClass",
+    "hasOilBoiler",
+    "hasGasBoiler",
+    "hasElectricBoiler",
+    "hasHeatPump",
+    "hasDistrictHeating",
+  ] as const;
+  const hasInvestorDetails = INVESTOR_DETAIL_FIELDS.some((f) =>
+    building[f] != null
+  ) ||
+    (Array.isArray(building["certifications"]) &&
+      building["certifications"].length > 0) ||
+    operatingCostEntries.length > 0;
 
   function createAgentLink(uriString: string) {
     const hash = new URL(uriString).hash.replace("#", "");
@@ -106,30 +124,6 @@ export default function Building(
   const boolIcon = (v: boolean) =>
     v ? <CheckIcon fontSize="small" /> : <ClearIcon fontSize="small" />;
 
-  // Edit / Share controls (owned buildings only). Shown in the card header
-  // normally; when the header is hidden they move to a compact body row so the
-  // tab doesn't open with an empty header's worth of whitespace.
-  const actions = building.isShared ? null : (
-    <Box sx={{ display: "flex" }}>
-      <Tooltip title="Edit building">
-        <IconButton
-          aria-label="Edit building"
-          onClick={() => setEditDialogOpen(true)}
-        >
-          <EditIcon />
-        </IconButton>
-      </Tooltip>
-      <Tooltip title="Share building data">
-        <IconButton
-          aria-label="Share building data"
-          onClick={() => setShareDialogOpen(true)}
-        >
-          <ShareIcon />
-        </IconButton>
-      </Tooltip>
-    </Box>
-  );
-
   return (
     <>
       <DetailCard
@@ -144,7 +138,6 @@ export default function Building(
             } ${building.locality}, ${building.region}`}
           </>
         )}
-        action={hideHeader ? undefined : actions}
         sx={embedded ? { width: "100%" } : {
           position: "absolute",
           top: 16,
@@ -154,11 +147,6 @@ export default function Building(
         }}
         contentSx={embedded ? undefined : { overflowY: "auto", maxHeight: "60vh" }}
       >
-        {hideHeader && actions && (
-          <Box sx={{ display: "flex", justifyContent: "flex-end", mb: -1 }}>
-            {actions}
-          </Box>
-        )}
         {/* Building IRI, shown prominently. In the map pane the identity header
             (incl. the URI) is rendered above by Map.tsx, so only show it here in
             the standalone card. */}
@@ -238,8 +226,9 @@ export default function Building(
           />
         )}
 
-        {/* Investor-role fields */}
-        {building.sourceRole === "investor" && (
+        {/* Investor-vocab fields — shown whenever present (predicate-driven, not
+            role-gated), so any building carrying them renders them. */}
+        {hasInvestorDetails && (
           <>
             <SectionTitle divider>Building</SectionTitle>
             {building["hallArea"] != null && (
@@ -371,25 +360,6 @@ export default function Building(
         )}
         {!embedded && <RefLink onClick={onHide}>hide</RefLink>}
       </DetailCard>
-
-      {!building.isShared && (
-        <EditBuildingDialog
-          key={building.uri as string}
-          open={editDialogOpen}
-          building={building}
-          session={session}
-          onClose={() => setEditDialogOpen(false)}
-          onBuildingUpdated={reloadData}
-        />
-      )}
-
-      <ShareBuildingDialog
-        open={shareDialogOpen}
-        buildingUri={building.sourceUri ?? building.uri}
-        session={session}
-        role={building.sourceRole}
-        onClose={() => setShareDialogOpen(false)}
-      />
 
       <EnergyCertificateDialog
         open={energyCertificateUploaderOpen}

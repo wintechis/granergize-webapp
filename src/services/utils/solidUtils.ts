@@ -1,26 +1,86 @@
 /**
  * Utility functions for working with Solid POD URLs and WebIDs
  */
+import type { Session } from "@inrupt/solid-client-authn-browser";
+import { DataFactory, Parser, Store } from "n3";
+
+const PIM_NS = "http://www.w3.org/ns/pim/space#";
 
 /**
- * Extract the storage root URL from a WebID.
- * Works for both subdomain-based and path-based PODs by locating
- * the conventional /profile/ segment in the WebID path.
+ * Storage root resolved from the WebID's `pim:storage`, cached per WebID for the
+ * session. {@link getStorageRoot} reads this synchronously; {@link resolveStorageRoot}
+ * populates it once at login.
+ */
+const storageRootCache = new Map<string, string>();
+
+/**
+ * Resolve the Pod storage root the Solid way: read `pim:storage` from the WebID
+ * profile and cache it. Call once after login, before any data load.
  *
- * Examples:
- *   https://homer.solid.example.org/profile/card#me → https://homer.solid.example.org/
- *   https://solid.example.org/homer/profile/card#me → https://solid.example.org/homer/
+ * Throws if the profile is unreachable or declares no `pim:storage` — a pod that
+ * doesn't advertise its storage is unusable, and we fail loudly here rather than
+ * with a silently-wrong path later. (Previously the storage root was guessed by
+ * string-munging the WebID, which broke for non-`/profile/card` WebID shapes.)
+ *
+ * @returns the storage root URL with a trailing slash
+ */
+export async function resolveStorageRoot(session: Session): Promise<string> {
+  const webId = session.info.webId;
+  if (!webId) throw new Error("No WebID in session");
+
+  const docUrl = webId.split("#")[0];
+  const res = await session.fetch(docUrl);
+  if (!res.ok) {
+    throw new Error(
+      `Cannot read WebID profile at ${docUrl} (HTTP ${res.status})`,
+    );
+  }
+  const store = new Store(
+    new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(
+      await res.text(),
+    ),
+  );
+  const roots = store.getObjects(
+    DataFactory.namedNode(webId),
+    DataFactory.namedNode(`${PIM_NS}storage`),
+    null,
+  );
+  if (roots.length === 0) {
+    throw new Error(
+      `WebID profile ${docUrl} declares no pim:storage; cannot locate the Pod ` +
+        `storage root.`,
+    );
+  }
+  const root = roots[0].value.endsWith("/") ? roots[0].value : `${roots[0].value}/`;
+  storageRootCache.set(webId, root);
+  return root;
+}
+
+/**
+ * The Pod storage root for a WebID (trailing slash), as resolved from
+ * `pim:storage` by {@link resolveStorageRoot}. Synchronous so the many inline
+ * call sites stay simple.
+ *
+ * Throws if not yet resolved — callers must run (and await) `resolveStorageRoot`
+ * once at login before any path is built. There is no WebID string-munge fallback.
  *
  * @param webId - The WebID URL (with or without fragment)
  * @returns The storage root URL with trailing slash
  */
 export function getStorageRoot(webId: string): string {
-  const url = new URL(webId);
-  const profileIndex = url.pathname.indexOf("/profile/");
-  if (profileIndex !== -1) {
-    return url.origin + url.pathname.substring(0, profileIndex + 1);
+  const root = storageRootCache.get(webId);
+  if (!root) {
+    throw new Error(
+      `Storage root for ${webId} not resolved — call resolveStorageRoot(session) ` +
+        `at login before building Pod paths.`,
+    );
   }
-  return url.origin + "/";
+  return root;
+}
+
+/** Test seam: prime the storage-root cache without a network fetch. */
+export function _setStorageRootForTesting(webId: string, root: string): void {
+  storageRootCache.set(webId, root.endsWith("/") ? root : `${root}/`);
 }
 
 /**
@@ -40,23 +100,12 @@ export function getPodBaseUrl(webId: string): string {
 }
 
 /**
- * The data-source registry URL (`<pod>/profile/granergize/dataSources.ttl`) for a
- * WebID. Single source of truth: callers previously built this path two ways
- * (`getPodBaseUrl + "granergize/…"` vs `getStorageRoot + "profile/granergize/…"`),
- * which coincide only for `<pod>/profile/card`-shaped WebIDs. Always derive it
- * here from `getPodBaseUrl`, the directory holding the WebID document.
- */
-export function registryUrl(webId: string): string {
-  return `${getPodBaseUrl(webId)}granergize/dataSources.ttl`;
-}
-
-/**
- * Canonical URLs of the app's on-Pod RDF resources for a WebID, so the UI can
- * link to them (surfacing how data is stored as RDF). The bases match what the
- * services actually read/write — note the deliberate `getPodBaseUrl` vs
- * `getStorageRoot` split (see data-layout.md "Two roots"); keep this in sync with
- * the writers in TurtleParsingService / buildingSerializer / viewManager /
- * sharingManager / dataRoom.
+ * Canonical URLs of the app's on-Pod RDF resources for a WebID. Single source of
+ * truth — every app resource lives under one root, `getStorageRoot + "granergize/"`,
+ * so callers never re-derive paths (which previously mixed `getPodBaseUrl` and
+ * `getStorageRoot`, desyncing for non-`/profile/card` WebIDs). The org logo is the
+ * one exception: it's profile data, stored at `profile/logo.<ext>` (see
+ * organizationManager), not here.
  */
 export function podResources(webId: string): {
   registry: string;
@@ -64,20 +113,41 @@ export function podResources(webId: string): {
   views: string;
   viewDefinitions: string;
   computedViews: string;
+  viewSharingRegistry: string;
   sharingRegistry: string;
   rooms: string;
   hiddenBuildings: string;
 } {
-  const root = getStorageRoot(webId);
-  const base = getPodBaseUrl(webId);
+  const app = `${getStorageRoot(webId)}granergize/`;
   return {
-    registry: registryUrl(webId), // profile/granergize/dataSources.ttl
-    buildings: `${root}granergize/buildings/`,
-    views: `${root}granergize/views/`,
-    viewDefinitions: `${root}granergize/views/viewDefinitions.ttl`,
-    computedViews: `${root}granergize/views/computed/`,
-    sharingRegistry: `${base}granergize/sharingRegistry.ttl`,
-    rooms: `${root}granergize/rooms.ttl`,
-    hiddenBuildings: `${root}profile/granergize/hiddenBuildings.ttl`,
+    registry: `${app}dataSources.ttl`,
+    buildings: `${app}buildings/`,
+    views: `${app}views/`,
+    viewDefinitions: `${app}views/viewDefinitions.ttl`,
+    computedViews: `${app}views/computed/`,
+    viewSharingRegistry: `${app}views/viewSharingRegistry.ttl`,
+    sharingRegistry: `${app}sharingRegistry.ttl`,
+    rooms: `${app}rooms.ttl`,
+    hiddenBuildings: `${app}hiddenBuildings.ttl`,
   };
+}
+
+/** The data-source registry URL — thin alias over {@link podResources}. */
+export function registryUrl(webId: string): string {
+  return podResources(webId).registry;
+}
+
+/**
+ * Like {@link podResources} but returns null instead of throwing when the storage
+ * root isn't resolved yet — for render paths (e.g. the RDF-source links) that may
+ * run before login resolution completes.
+ */
+export function tryPodResources(
+  webId: string,
+): ReturnType<typeof podResources> | null {
+  try {
+    return podResources(webId);
+  } catch {
+    return null;
+  }
 }

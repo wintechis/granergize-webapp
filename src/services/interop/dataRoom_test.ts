@@ -24,6 +24,7 @@ import {
   roomExists,
   setMyRole,
 } from "./dataRoom.ts";
+import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
 
 const ALICE = "https://alice.example/profile/card#me";
 /** A room URL all the room-scoped tests operate on. */
@@ -113,6 +114,9 @@ class FakePod {
 
 /** A fake authenticated Session backed by the in-memory Pod. */
 function sessionFor(pod: FakePod, webId: string): Session {
+  // Storage root is normally resolved from pim:storage at login; prime it from the
+  // WebID origin (matches these fixtures' `<origin>/granergize/…` paths).
+  _setStorageRootForTesting(webId, new URL(webId).origin + "/");
   return {
     info: { isLoggedIn: true, webId },
     fetch: pod.fetch,

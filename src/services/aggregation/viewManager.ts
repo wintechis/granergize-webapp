@@ -14,6 +14,7 @@ import {
 } from "../utils/vocabularies.ts";
 import { getQuadValue, getQuadValues } from "../utils/rdfHelpers.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
+import { readModifyWrite } from "../utils/podWrite.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
@@ -134,97 +135,59 @@ export async function createViewDefinition(
     ...(period ? { period } : {}),
   };
 
-  // Load existing definitions or create new
-  let existingQuads: import("@rdfjs/types").Quad[] = [];
-  try {
-    const response = await fetchFresh(definitionsUrl, session);
-    if (response.ok) {
-      const text = await response.text();
-      const parser = new Parser({
-        format: "text/turtle",
-        baseIRI: definitionsUrl,
-      });
-      existingQuads = parser.parse(text);
-    }
-  } catch {
-    // File doesn't exist yet, that's fine
-  }
-
-  const store = new Store(existingQuads);
   const viewNode = namedNode(`${definitionsUrl}#${viewId}`);
 
-  // Add view definition triples
-  store.addQuad(quad(
-    viewNode,
-    namedNode(RDF_TYPE),
-    namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`),
-  ));
-
-  store.addQuad(quad(
-    viewNode,
-    namedNode(`${VOCAB_PREFIX}viewId`),
-    literal(viewId),
-  ));
-
-  store.addQuad(quad(
-    viewNode,
-    namedNode(`${VOCAB_PREFIX}viewName`),
-    literal(name),
-  ));
-
-  store.addQuad(quad(
-    viewNode,
-    namedNode(`${VOCAB_PREFIX}aggregationType`),
-    literal(aggregationType),
-  ));
-
-  store.addQuad(quad(
-    viewNode,
-    namedNode(`${VOCAB_PREFIX}createdAt`),
-    literal(now, namedNode(XSD_DATETIME)),
-  ));
-
-  // Add period (user-role views only)
-  if (period) {
+  // Append the new view definition to the file, guarded by optimistic locking so
+  // concurrent view creates don't clobber each other.
+  await readModifyWrite(definitionsUrl, session, (store) => {
     store.addQuad(quad(
       viewNode,
-      namedNode(`${VOCAB_PREFIX}viewPeriod`),
-      literal(period),
+      namedNode(RDF_TYPE),
+      namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`),
     ));
-  }
-
-  // Add building URIs (private, only in definition file)
-  for (const buildingUri of buildingUris) {
     store.addQuad(quad(
       viewNode,
-      namedNode(`${VOCAB_PREFIX}includesBuilding`),
-      namedNode(buildingUri),
+      namedNode(`${VOCAB_PREFIX}viewId`),
+      literal(viewId),
     ));
-  }
-
-  // Add metrics
-  for (const metric of metrics) {
     store.addQuad(quad(
       viewNode,
-      namedNode(`${VOCAB_PREFIX}includesMetric`),
-      literal(metric),
+      namedNode(`${VOCAB_PREFIX}viewName`),
+      literal(name),
     ));
-  }
-
-  // Serialize and save
-  const ttl = serializeWithPrefixes(store);
-
-  const putResponse = await session.fetch(definitionsUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: ttl,
-  });
-
-  if (!putResponse.ok) {
-    throw new Error(
-      `Failed to save view definition: ${putResponse.statusText}`,
-    );
-  }
+    store.addQuad(quad(
+      viewNode,
+      namedNode(`${VOCAB_PREFIX}aggregationType`),
+      literal(aggregationType),
+    ));
+    store.addQuad(quad(
+      viewNode,
+      namedNode(`${VOCAB_PREFIX}createdAt`),
+      literal(now, namedNode(XSD_DATETIME)),
+    ));
+    if (period) {
+      store.addQuad(quad(
+        viewNode,
+        namedNode(`${VOCAB_PREFIX}viewPeriod`),
+        literal(period),
+      ));
+    }
+    // Building URIs (private, only in the definition file).
+    for (const buildingUri of buildingUris) {
+      store.addQuad(quad(
+        viewNode,
+        namedNode(`${VOCAB_PREFIX}includesBuilding`),
+        namedNode(buildingUri),
+      ));
+    }
+    for (const metric of metrics) {
+      store.addQuad(quad(
+        viewNode,
+        namedNode(`${VOCAB_PREFIX}includesMetric`),
+        literal(metric),
+      ));
+    }
+  }, { serialize: serializeWithPrefixes });
 
   return newView;
 }
@@ -442,36 +405,19 @@ async function updateViewLastComputed(
   if (!session.info.webId) return;
 
   const definitionsUrl = getViewDefinitionsUrl(session.info.webId);
-
-  const response = await fetchFresh(definitionsUrl, session);
-  if (!response.ok) return;
-
-  const text = await response.text();
-  const parser = new Parser({ format: "text/turtle", baseIRI: definitionsUrl });
-  const quads = parser.parse(text);
-  const store = new Store(quads);
-
   const viewNode = namedNode(`${definitionsUrl}#${viewId}`);
   const lastComputedPred = namedNode(`${VOCAB_PREFIX}lastComputedAt`);
 
-  // Remove existing lastComputedAt
-  const existingQuads = store.getQuads(viewNode, lastComputedPred, null, null);
-  existingQuads.forEach((q) => store.removeQuad(q));
-
-  // Add new timestamp
-  store.addQuad(quad(
-    viewNode,
-    lastComputedPred,
-    literal(timestamp, namedNode(XSD_DATETIME)),
-  ));
-
-  const ttl = serializeWithPrefixes(store);
-
-  await session.fetch(definitionsUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: ttl,
-  });
+  await readModifyWrite(definitionsUrl, session, (store, { created }) => {
+    if (created) return false; // no definitions file → nothing to update
+    store.getQuads(viewNode, lastComputedPred, null, null)
+      .forEach((q) => store.removeQuad(q));
+    store.addQuad(quad(
+      viewNode,
+      lastComputedPred,
+      literal(timestamp, namedNode(XSD_DATETIME)),
+    ));
+  }, { serialize: serializeWithPrefixes });
 }
 
 /**

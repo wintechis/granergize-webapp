@@ -3,7 +3,6 @@ import {
   Avatar,
   Box,
   Button,
-  CircularProgress,
   Dialog,
   DialogActions,
   DialogContent,
@@ -184,7 +183,7 @@ export default function OrganizationDialog(
       <DialogActions>
         <Button onClick={close} disabled={saving}>Cancel</Button>
         <Button onClick={handleSave} variant="contained" disabled={saving || !dirty}>
-          {saving ? <CircularProgress size={20} /> : "Save"}
+          {saving ? "Saving…" : "Save"}
         </Button>
       </DialogActions>
     </Dialog>
