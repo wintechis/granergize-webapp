@@ -389,18 +389,13 @@ async function getHiddenBuildings(session: Session): Promise<Set<string>> {
   }
 }
 
-export async function fetchAndParseData(
+/**
+ * Phase 1: discover, fetch and parse the visible buildings + agents (no energy).
+ * Fast enough to paint the map immediately; energy streams in via {@link loadEnergy}.
+ */
+export async function loadBuildingsAndAgents(
   session: Session,
-  /**
-   * Called once buildings and agents are parsed, before the (slower) energy
-   * files are fetched. Lets the caller render the map immediately while energy
-   * data streams in. The building objects passed here are final — the energy
-   * phase only populates energyData/averages, it never mutates buildings.
-   */
-  onBuildingsAndAgents?: (
-    partial: { buildings: BuildingType[]; agents: AgentType[] },
-  ) => void,
-) {
+): Promise<{ buildings: BuildingType[]; agents: AgentType[] }> {
   // get own solid pod url
   const webId = session.info.webId;
   if (!webId) {
@@ -433,7 +428,6 @@ export async function fetchAndParseData(
   // Parse the merged quad collections
   const buildings = parseBuildings(buildingsResult.quads);
   const agents = parseAgents(agentsResult.quads);
-  const energyData = new Map<number, EnergyType>();
 
   // Determine user's storage root to identify shared buildings
   const storageRoot = getStorageRoot(webId);
@@ -457,30 +451,42 @@ export async function fetchAndParseData(
     }
   }
 
-  // Phase 1 done: buildings and agents are fully parsed. Hand them to the
-  // caller now so the map can paint while the energy files load below.
-  onBuildingsAndAgents?.({
+  return {
     buildings: Array.from(visibleBuildings.values()),
     agents: Array.from(agents.values()),
-  });
+  };
+}
 
+/**
+ * Phase 2: load + parse energy for already-parsed buildings, returning the energy
+ * series, category averages, and per-agent averages. A pure function of the
+ * buildings it's given (their energy files + inline annualData) — no registry
+ * re-read.
+ */
+export async function loadEnergy(
+  session: Session,
+  buildings: BuildingType[],
+): Promise<{
+  energyNeed: EnergyType[];
+  averages: Record<string, number>;
+  agentAverages: Record<string, Record<string, number>>;
+}> {
+  const energyData = new Map<number, EnergyType>();
   // Object to store aggregated values for each measurement
   const aggregatedValues: Record<string, number[]> = {};
   const agentAggregatedValues: Record<string, Record<string, number[]>> = {};
 
   {
-    // Load energy data for each visible building. User-role buildings are
-    // skipped (their data is loaded on demand when clicked); investor buildings
-    // are synthesized below from inline observations.
+    // Load energy data for each building. Sub-hourly *series* datasets are
+    // skipped (loaded on demand when clicked); inline-aggregate buildings are
+    // synthesized below from their annualData.
     //
     // The per-file fetches are independent, so collect them first and run them
     // concurrently — doing one Pod round-trip per building in series was what
     // made the initial load (and therefore the map) take so long. Results are
     // accumulated afterwards in a plain CPU loop, preserving the prior order.
-    const energyTasks: Array<
-      { buildingId: string; building: BuildingType; location: string }
-    > = [];
-    for (const [buildingId, building] of visibleBuildings) {
+    const energyTasks: Array<{ building: BuildingType; location: string }> = [];
+    for (const building of buildings) {
       if (!building.energyData) continue;
       for (const data of building.energyData) {
         // Skip sub-hourly *series* datasets — they're large and loaded lazily on
@@ -490,37 +496,32 @@ export async function fetchAndParseData(
           ? isSeriesGranularity(data.granularity)
           : building.sourceRole === "user";
         if (isSeries) continue;
-        energyTasks.push({ buildingId, building, location: data.location });
+        energyTasks.push({ building, location: data.location });
       }
     }
 
     const parsedEnergyResults = await Promise.all(
-      energyTasks.map(async ({ buildingId, location }) => {
+      energyTasks.map(async ({ building, location }) => {
         try {
           const energyResult = await loadTtlFromMultipleSources(
             [location],
             session,
-            `energy data for building ${buildingId}`,
+            `energy data for building ${building.id}`,
           );
 
           const uri = energyResult.quads[0].graph.value;
           const parsedEnergyData = parseEnergyData(
-            buildingId,
+            String(building.id),
             uri,
             energyResult.quads,
           );
 
-          // Derive a stable numeric id matching buildingParser's logic
-          parsedEnergyData.id = /^\d+$/.test(buildingId)
-            ? parseInt(buildingId)
-            : buildingId.split("").reduce(
-              (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0,
-              0,
-            ) >>> 0;
+          // building.id is already buildingParser's stable numeric id.
+          parsedEnergyData.id = building.id;
           return parsedEnergyData;
         } catch (error: unknown) {
           console.error(
-            `Failed to load energy data for building ${buildingId}:`,
+            `Failed to load energy data for building ${building.id}:`,
             error,
           );
           // Skip this building instead of failing the whole load.
@@ -590,17 +591,12 @@ export async function fetchAndParseData(
   // carries it (no separate energy file; the data is in inline SOSA observations).
   // Driven by the data shape (presence of annualData), not the provenance role —
   // investor and benchmark buildings both use this inline-aggregate shape.
-  for (const [buildingId, building] of visibleBuildings) {
+  for (const building of buildings) {
     const inlineAnnual = building.annualData as
       | InvestorAnnualData[]
       | undefined;
     if (!inlineAnnual || inlineAnnual.length === 0) continue;
-    const numericBuildingId = /^\d+$/.test(buildingId)
-      ? parseInt(buildingId)
-      : buildingId.split("").reduce(
-        (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0,
-        0,
-      ) >>> 0;
+    const numericBuildingId = building.id;
     if (energyData.has(numericBuildingId)) continue;
     const latest = inlineAnnual.reduce((a, b) => a.year > b.year ? a : b);
     const energyNeedEntry: Record<string, number> = {};
@@ -664,10 +660,26 @@ export async function fetchAndParseData(
   }
 
   return {
-    buildings: Array.from(visibleBuildings.values()),
-    agents: Array.from(agents.values()),
     energyNeed: Array.from(energyData.values()),
     averages,
     agentAverages,
   };
+}
+
+/**
+ * Back-compat orchestrator: phase 1 (buildings + agents) then phase 2 (energy),
+ * with the same shape/two-phase callback as before. Used by the live harness and
+ * the offline tests; the app drives the two phases as separate React Query
+ * queries instead.
+ */
+export async function fetchAndParseData(
+  session: Session,
+  onBuildingsAndAgents?: (
+    partial: { buildings: BuildingType[]; agents: AgentType[] },
+  ) => void,
+) {
+  const { buildings, agents } = await loadBuildingsAndAgents(session);
+  onBuildingsAndAgents?.({ buildings, agents });
+  const energy = await loadEnergy(session, buildings);
+  return { buildings, agents, ...energy };
 }

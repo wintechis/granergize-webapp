@@ -11,11 +11,11 @@ import "./chartSetup.ts"; // Register Chart.js globally
 import theme from "./theme.ts";
 import Login from "./pages/Login.tsx";
 import { getDefaultSession, Session } from "@inrupt/solid-client-authn-browser";
-import { SolidDataProvider } from "./context/SolidDataContext.tsx";
 import {
   NotificationProvider,
   useNotification,
 } from "./context/NotificationContext.tsx";
+import { QueryProvider } from "./context/QueryProvider.tsx";
 import { readInbox } from "./services/interop/inbox.ts";
 import { instrumentSessionFetch } from "./services/utils/networkActivity.ts";
 
@@ -113,9 +113,7 @@ function AppContent() {
         </>
       }
     >
-      <SolidDataProvider session={session}>
-        <App session={session!} onLogout={handleLogout} />
-      </SolidDataProvider>
+      <App session={session!} onLogout={handleLogout} />
     </Login>
   );
 }
@@ -126,7 +124,9 @@ function Root() {
       <ThemeProvider theme={theme}>
         <CssBaseline enableColorScheme />
         <NotificationProvider>
-          <AppContent />
+          <QueryProvider>
+            <AppContent />
+          </QueryProvider>
         </NotificationProvider>
       </ThemeProvider>
     </React.Fragment>

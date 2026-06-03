@@ -1,7 +1,13 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Store, Writer } from "n3";
 import type { UserRole } from "../../../types/types.ts";
-import { objectPropertyMap, predicateMap } from "./config/buildingConfig.ts";
+import {
+  BOOLEAN_FIELDS,
+  DECIMAL_FIELDS,
+  INTEGER_FIELDS,
+  objectPropertyMap,
+  predicateMap,
+} from "./config/buildingConfig.ts";
 import {
   GRAN_NS,
   INVESTOR_NS,
@@ -37,34 +43,8 @@ const fieldToObjectPredicate: Record<string, string> = Object.fromEntries(
   Object.entries(objectPropertyMap).map(([iri, field]) => [field as string, iri]),
 );
 
-const INTEGER_FIELDS = new Set([
-  "postalCode",
-  "buildingArea",
-  "landArea",
-  "officeArea",
-  "yearOfConstruction",
-  "numberOfLoadingDocks",
-  "yearOfRenovation",
-  "pvInstallationYear",
-]);
-const DECIMAL_FIELDS = new Set([
-  "lat",
-  "long",
-  "naceCode",
-  "hallArea",
-  "officeSocialArea",
-  "buildingHeight",
-  "greenLeaseShare",
-  "pvCapacityKW",
-]);
-const BOOLEAN_FIELDS = new Set([
-  "hasPVSystem",
-  "hasOilBoiler",
-  "hasGasBoiler",
-  "hasElectricBoiler",
-  "hasHeatPump",
-  "hasDistrictHeating",
-]);
+// INTEGER_FIELDS / DECIMAL_FIELDS / BOOLEAN_FIELDS are derived from the building
+// field descriptor table (buildingConfig.ts) so read and write share one source.
 
 const ROLE_TO_IRI: Record<UserRole, string> = {
   dummy: `${GRAN_NS}DummyRole`,
