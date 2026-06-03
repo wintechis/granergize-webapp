@@ -72,6 +72,63 @@ offline tests (`shapeValidators.test.ts`) run on valid + malformed fixtures —
 giving real conformance coverage and a drift guard. They check the load-bearing
 constraints (term kinds, required keys), not every optional triple.
 
+## Two schemas: RDF graph ⇄ app objects
+
+A building is described twice — as RDF triples on the Pod, and as a typed JS
+object in the app — with a mapping layer between them. It's the usual object↔RDF
+"impedance mismatch" (the same shape as an ORM between a DB schema and a class
+model). The boundary is one-way at load time: RDF → typed object → React props
+(see [`data-deref.md`](./data-deref.md)); the reverse runs only on save.
+
+The building schema therefore lives across four artifacts that must agree:
+
+- **RDF vocabulary + shapes** — predicate IRIs in
+  [`vocabularies.ts`](../src/services/utils/vocabularies.ts); shapes in
+  [`roles.shex`](../roles.shex).
+- **App object type** — `BuildingType` (also `AgentType`, `EnergyType`) in
+  `types/types.ts`.
+- **Predicate ⇄ field mapping** — `predicateMap` / `objectPropertyMap` in
+  [`buildingConfig.ts`](../src/services/utils/config/buildingConfig.ts).
+- **Datatype/coercion** — `parsingFunctions` (read: literal → JS) in
+  `buildingConfig.ts`, and separately `INTEGER_FIELDS`/`DECIMAL_FIELDS`/
+  `BOOLEAN_FIELDS` + `xsdType()` (write: JS → typed literal) in
+  [`buildingSerializer.ts`](../src/services/utils/buildingSerializer.ts).
+
+What's single-sourced vs. duplicated:
+
+- **Predicate ⇄ field is single-sourced.** The serializer doesn't keep its own
+  copy — it *inverts* `predicateMap`/`objectPropertyMap` at runtime
+  (`fieldToPredicate = Object.fromEntries(...)`). Read and write share one table.
+- **Field names are type-checked.** `predicateMap` is typed
+  `{ [iri]: keyof BuildingType }`, so a value that isn't a real `BuildingType` key
+  (or a rename) is a compile error — keeps the type and the map from drifting on
+  names.
+- **Datatypes are duplicated.** Read coercion (`parsingFunctions`) and the
+  write-side datatype sets must agree, but nothing enforces it.
+- **`roles.shex` is documentation only.** Drift-guarded just by "the shape exists"
+  + `shapeValidators` (which cover the registry/view files, not the building field
+  set), so its xsd datatypes are intent, not enforced.
+
+Consequences:
+
+- Adding a displayed/persisted field touches ~3–4 spots: `BuildingType`,
+  `predicateMap` (+ a `parsingFunction` and the write-side datatype set if
+  numeric/boolean), and ideally `roles.shex`.
+- **Unmapped predicates are invisible** — the parser only copies predicates present
+  in the maps; anything else in the Turtle is dropped on read and never written
+  back. The RDF may legitimately carry more than the app model knows about.
+- Drift between the four is otherwise silent.
+
+**Done (descriptor table).** `BUILDING_FIELDS` in
+[`buildingConfig.ts`](../src/services/utils/config/buildingConfig.ts) is now the
+single source: one row per field (`{ field, iri, kind, type }`), from which
+`predicateMap`, `objectPropertyMap`, `parsingFunctions`, and the serializer's
+`INTEGER_FIELDS`/`DECIMAL_FIELDS`/`BOOLEAN_FIELDS` are all derived. `field` is
+`keyof BuildingType` (compile-checked). `BuildingType` (TS) and `roles.shex`
+(documentation) remain separate by design; heavier consolidations (generate
+`BuildingType` from SHACL/ShEx, or an RDF-object mapper like LDO/LDkit) stay out of
+scope.
+
 ## ShEx cannot be the primary discriminator
 
 - Shapes overlap on `<BuildingCore>`; open shapes match several roles, closed
