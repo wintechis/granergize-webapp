@@ -8,6 +8,7 @@ import {
   saveOrganization,
   uploadOrgLogo,
 } from "./organizationManager.ts";
+import { _resetProfileCacheForTesting } from "./profileDocument.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 const PROFILE_DOC = "https://pod.example/profile/card";
@@ -75,6 +76,7 @@ Deno.test("isSupportedLogoType accepts images, rejects others", () => {
 });
 
 Deno.test("getOrganization follows org:memberOf and reads the org fields", async () => {
+  _resetProfileCacheForTesting(); // getOrganization reads via the shared cache
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -99,6 +101,7 @@ Deno.test("getOrganization follows org:memberOf and reads the org fields", async
 });
 
 Deno.test("getOrganization returns null when no membership is set", async () => {
+  _resetProfileCacheForTesting();
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .

@@ -6,9 +6,8 @@ import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-const Map = lazy(() => import("./Map.tsx"));
+const ExplorePage = lazy(() => import("./ExplorePage.tsx"));
 import { useLocation, useNavigate } from "react-router-dom";
-import { useSolidData } from "../context/SolidDataContext.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
 import {
   formatResourceList,
@@ -19,9 +18,9 @@ import { getStorageRoot } from "../services/utils/solidUtils.ts";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import PersonIcon from "@mui/icons-material/Person";
-import SharingPage from "../components/SharingPage.tsx";
-import BuildingsPage from "../components/BuildingsPage.tsx";
-import DataRoomPage from "../components/DataRoomPage.tsx";
+import SharePage from "./SharePage.tsx";
+import ManagePage from "./ManagePage.tsx";
+import ConnectPage from "./ConnectPage.tsx";
 import Footer from "../components/Footer.tsx";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
@@ -37,13 +36,13 @@ interface IndexPageProps {
 function IndexPage({ session, onLogout }: IndexPageProps) {
   const location = useLocation();
   const navigate = useNavigate();
-  // Tabs: 0 = View (map), 1 = Data (your buildings), 2 = Share, 3 = Meet (rooms).
-  // Arriving from a room deep link (#/room/:uri) lands on the Meet tab.
+  // Tabs: 0 = Explore (map), 1 = Manage (your buildings + views), 2 = Share
+  // (inbox), 3 = Connect (rooms). Arriving from a room deep link (#/room/:uri)
+  // lands on the Connect tab.
   const [tabValue, setTabValue] = useState(
     (location.state as { openRoom?: boolean } | null)?.openRoom ? 3 : 0,
   );
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const { reloadData } = useSolidData();
   const { showNotification } = useNotification();
 
   // Avatar shown top-right: the organisation's logo (foaf:logo) if set, else the
@@ -92,14 +91,11 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const menuOpen = Boolean(anchorEl);
 
   const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    // Leaving the Data, Share or Meet tab: refresh in case a building was
-    // added/edited/deleted, sharing/visibility changed, or the room role changed.
-    const leavingMutatingTab = tabValue >= 1 && tabValue <= 3 &&
-      newValue !== tabValue;
+    // No refresh-on-switch: every write already invalidates its own queries
+    // (add/edit call reloadData on success; delete/visibility/share/view use
+    // mutation hooks that invalidate). A blanket reload here just refetched the
+    // whole dataset on every tab change — a request storm for nothing.
     setTabValue(newValue);
-    if (leavingMutatingTab) {
-      reloadData();
-    }
   };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -176,7 +172,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   return (
     <Box
       sx={{
-        height: "100vh",
+        height: "100%",
         display: "flex",
         flexDirection: "column",
       }}
@@ -191,10 +187,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         }}
       >
         <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label="View" />
-          <Tab label="Data" />
+          <Tab label="Explore" />
+          <Tab label="Manage" />
           <Tab label="Share" />
-          <Tab label="Meet" />
+          <Tab label="Connect" />
         </Tabs>
         <Box
           sx={{
@@ -273,22 +269,22 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         }}
       >
         <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
-          <Map session={session} active={tabValue === 0} />
+          <ExplorePage session={session} active={tabValue === 0} />
         </Suspense>
       </Box>
       {tabValue === 1 && (
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-          <BuildingsPage session={session} />
+          <ManagePage session={session} />
         </Box>
       )}
       {tabValue === 2 && (
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-          <SharingPage session={session} />
+          <SharePage session={session} />
         </Box>
       )}
       {tabValue === 3 && (
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-          <DataRoomPage session={session} />
+          <ConnectPage session={session} />
         </Box>
       )}
       <Box sx={{ flexShrink: 0 }}>

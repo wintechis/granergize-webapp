@@ -8,14 +8,18 @@ import {
 } from "./solidUtils.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
-const PROFILE_DOC = "https://pod.example/profile/card";
 
-/** Fake Session serving one profile doc for GET. */
-function makeSession(profileTtl: string | null): Session {
+/**
+ * Fake Session serving one profile doc for GET. Each test passes a distinct
+ * `webId` so the module-global storage-root cache (resolveStorageRoot is now
+ * idempotent) doesn't carry over between cases.
+ */
+function makeSession(webId: string, profileTtl: string | null): Session {
+  const profileDoc = webId.split("#")[0];
   const fetchImpl = (input: string | URL | Request): Promise<Response> => {
     const url = (typeof input === "string" ? input : input.toString())
       .split("?")[0];
-    if (url === PROFILE_DOC && profileTtl !== null) {
+    if (url === profileDoc && profileTtl !== null) {
       return Promise.resolve(
         new Response(profileTtl, {
           status: 200,
@@ -26,42 +30,51 @@ function makeSession(profileTtl: string | null): Session {
     return Promise.resolve(new Response("Not found", { status: 404 }));
   };
   return {
-    info: { isLoggedIn: true, webId: WEBID },
+    info: { isLoggedIn: true, webId },
     fetch: fetchImpl as unknown as Session["fetch"],
   } as unknown as Session;
 }
 
 Deno.test("resolveStorageRoot reads pim:storage from the profile", async () => {
-  const session = makeSession(`
-    @prefix pim: <http://www.w3.org/ns/pim/space#> .
-    <${WEBID}> pim:storage <https://pod.example/> .
-  `);
-  assert.deepEqual(await resolveStorageRoot(session), "https://pod.example/");
+  const webId = "https://reads.example/profile/card#me";
+  const session = makeSession(
+    webId,
+    `@prefix pim: <http://www.w3.org/ns/pim/space#> .
+    <${webId}> pim:storage <https://reads.example/> .`,
+  );
+  assert.deepEqual(await resolveStorageRoot(session), "https://reads.example/");
   // …and it's now cached for synchronous podResources() use.
   assert.deepEqual(
-    podResources(WEBID).registry,
-    "https://pod.example/granergize/dataSources.ttl",
+    podResources(webId).registry,
+    "https://reads.example/granergize/dataSources.ttl",
   );
 });
 
 Deno.test("resolveStorageRoot adds a trailing slash if missing", async () => {
-  const session = makeSession(`
-    @prefix pim: <http://www.w3.org/ns/pim/space#> .
-    <${WEBID}> pim:storage <https://pod.example/store> .
-  `);
-  assert.deepEqual(await resolveStorageRoot(session), "https://pod.example/store/");
+  const webId = "https://slash.example/profile/card#me";
+  const session = makeSession(
+    webId,
+    `@prefix pim: <http://www.w3.org/ns/pim/space#> .
+    <${webId}> pim:storage <https://slash.example/store> .`,
+  );
+  assert.deepEqual(
+    await resolveStorageRoot(session),
+    "https://slash.example/store/",
+  );
 });
 
 Deno.test("resolveStorageRoot throws when the profile declares no pim:storage", async () => {
-  const session = makeSession(`
-    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
-    <${WEBID}> foaf:name "Homer" .
-  `);
+  const webId = "https://nostorage.example/profile/card#me";
+  const session = makeSession(
+    webId,
+    `@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${webId}> foaf:name "Homer" .`,
+  );
   await assert.rejects(() => resolveStorageRoot(session), /no pim:storage/);
 });
 
 Deno.test("resolveStorageRoot throws when the profile is unreachable", async () => {
-  const session = makeSession(null);
+  const session = makeSession("https://unreachable.example/profile/card#me", null);
   await assert.rejects(() => resolveStorageRoot(session), /Cannot read WebID profile/);
 });
 

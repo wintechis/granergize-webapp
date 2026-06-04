@@ -1,6 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import { fetchFresh } from "./podFetch.ts";
+import { invalidateProfile, loadProfileStore } from "./profileDocument.ts";
 import { getPodBaseUrl } from "./solidUtils.ts";
 import { FOAF_NS, ORG_NS, OWL_NS, RDF_TYPE } from "./vocabularies.ts";
 
@@ -63,19 +64,15 @@ function orgNodeIri(webId: string): string {
   return `${profileDocUrl(webId)}#org`;
 }
 
-/** Parse the user's WebID profile into a store, or null if unreadable. */
-async function loadProfile(
-  webId: string,
+/**
+ * Parse the user's WebID profile into a store, or null if unreadable — via the
+ * shared profile cache, so org/avatar/storage-root reads share one fetch.
+ */
+function loadProfile(
+  _webId: string,
   session: Session,
 ): Promise<Store | null> {
-  const docUrl = profileDocUrl(webId);
-  const response = await fetchFresh(docUrl, session);
-  if (!response.ok) return null;
-  return new Store(
-    new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(
-      await response.text(),
-    ),
-  );
+  return loadProfileStore(session);
 }
 
 /** First object value for (subject, predicate), or undefined. */
@@ -211,6 +208,9 @@ async function putProfile(
       `Failed to update WebID profile at ${docUrl}: ${put.statusText}`,
     );
   }
+  // The profile changed on the server — drop the shared cache so the next
+  // read (org panel, avatar) sees the new state instead of the stale Store.
+  invalidateProfile(session.info.webId ?? undefined);
 }
 
 /**

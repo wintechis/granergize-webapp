@@ -2,9 +2,14 @@
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { getAvatarUrl } from "./logoManager.ts";
+import { _resetProfileCacheForTesting } from "./profileDocument.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 const PROFILE_DOC = "https://pod.example/profile/card";
+
+// getAvatarUrl reads through the shared profile cache; each case calls
+// _resetProfileCacheForTesting() first so it sees its own fixture, not a prior
+// case's cached profile.
 
 /** A fake Session that serves in-memory docs for GET. */
 function makeSession(files: Record<string, string>): Session {
@@ -28,6 +33,7 @@ function makeSession(files: Record<string, string>): Session {
 }
 
 Deno.test("getAvatarUrl prefers foaf:img over vcard:hasPhoto", async () => {
+  _resetProfileCacheForTesting();
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -43,6 +49,7 @@ Deno.test("getAvatarUrl prefers foaf:img over vcard:hasPhoto", async () => {
 });
 
 Deno.test("getAvatarUrl falls back to vcard:hasPhoto when no foaf:img", async () => {
+  _resetProfileCacheForTesting();
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix vcard: <http://www.w3.org/2006/vcard/ns#> .
@@ -56,6 +63,7 @@ Deno.test("getAvatarUrl falls back to vcard:hasPhoto when no foaf:img", async ()
 });
 
 Deno.test("getAvatarUrl returns null when the profile has no depiction", async () => {
+  _resetProfileCacheForTesting();
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .

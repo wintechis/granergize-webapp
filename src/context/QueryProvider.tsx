@@ -7,7 +7,7 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
-import { ConflictError } from "../services/utils/podWrite.ts";
+import { classifyQueryError } from "../hooks/queryErrors.ts";
 import { useNotification } from "./NotificationContext.tsx";
 
 /**
@@ -23,19 +23,8 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 
   const [client] = useState(() => {
     const notify = (error: unknown) => {
-      if (error instanceof SessionExpiredError) {
-        showNotification(error.message, "warning");
-      } else if (error instanceof ConflictError) {
-        showNotification(
-          "This changed elsewhere — please reload and try again.",
-          "warning",
-        );
-      } else {
-        showNotification(
-          error instanceof Error ? error.message : String(error),
-          "error",
-        );
-      }
+      const { message, severity } = classifyQueryError(error);
+      showNotification(message, severity);
     };
 
     return new QueryClient({
@@ -43,7 +32,24 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       mutationCache: new MutationCache({ onError: notify }),
       defaultOptions: {
         queries: {
-          staleTime: 2 * 60 * 1000, // 2 min — Pod data is fairly static per session
+          // Freshness is server-driven, not a client guess. The Pod sends only
+          // ETag / Last-Modified (no Cache-Control / Expires), so there is no
+          // freshness window to fabricate — `staleTime: 0` is honest. Instead of
+          // a made-up timer, refetching is driven by EVENTS:
+          //  - `refetchOnMount: false` — revisiting a tab serves the cached data
+          //    (no refetch just because a component remounted),
+          //  - `gcTime: Infinity` — cache is kept for the whole session so that
+          //    cache is actually there to serve,
+          //  - focus/reconnect refetch off,
+          //  - writes invalidate their own queries precisely (the only refetch
+          //    trigger), and the refetch is a conditional GET (fetchFresh →
+          //    If-None-Match → 304) so it's cheap and server-validated.
+          // Net: fetch on first need + after a write; never on tab switch/focus.
+          staleTime: 0,
+          gcTime: Infinity,
+          refetchOnMount: false,
+          refetchOnWindowFocus: false,
+          refetchOnReconnect: false,
           placeholderData: keepPreviousData,
           // Don't hammer an expired session; let other failures retry once.
           retry: (count, error) =>

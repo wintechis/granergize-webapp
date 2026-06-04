@@ -1,0 +1,158 @@
+/// <reference lib="deno.ns" />
+import "./test-dom-setup.ts"; // must precede React / Testing Library
+import { strict as assert } from "node:assert";
+import * as React from "react";
+import { renderHook, waitFor } from "@testing-library/react";
+import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
+import type { Session } from "@inrupt/solid-client-authn-browser";
+import {
+  useBuildingsAndAgents,
+  useEnergy,
+  useSolidData,
+} from "./queries.ts";
+import { useToggleVisibility } from "./mutations.ts";
+import { _setSessionForTesting } from "./session.ts";
+import { _setStorageRootForTesting } from "../services/utils/solidUtils.ts";
+
+const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
+const WEBID = "https://pod.example/profile/card#me";
+const PROFILE = "https://pod.example/profile/card";
+const REG = "https://pod.example/granergize/dataSources.ttl";
+const HIDDEN = "https://pod.example/granergize/hiddenBuildings.ttl";
+const SHARING = "https://pod.example/granergize/sharingRegistry.ttl";
+const B1 = "https://pod.example/granergize/buildings/b1.ttl";
+const AGENTS = "https://pod.example/granergize/agents.ttl";
+const ENERGY = "https://pod.example/granergize/buildings/b1-energy.ttl";
+
+const FIXTURES: Record<string, string> = {
+  [PROFILE]: `@prefix space: <http://www.w3.org/ns/pim/space#> .
+<#me> space:storage </> .`,
+  [REG]: `@prefix gran: <${GRAN}> .
+<${REG}> a gran:DataSourceRegistry ;
+  gran:hasBuildingDataSource <${B1}> ;
+  gran:hasAgentDataSource <${AGENTS}> .
+<${B1}> gran:dataSourceRole gran:DummyRole .`,
+  [HIDDEN]: "",
+  [SHARING]: "",
+  [B1]: `@prefix gran: <${GRAN}> .
+@prefix rec: <https://w3id.org/rec#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+<#b1> a rec:Building ; geo:lat 49.0 ; geo:long 11.0 ;
+  gran:hasEnergyMeasurementData [
+    gran:measurementYear "2023" ;
+    gran:datasetLocation "${ENERGY}" ;
+    gran:type "electricity"
+  ] .`,
+  [AGENTS]: `@prefix schema: <https://schema.org/> .
+<#a1> schema:name "ACME Energy" .`,
+  [ENERGY]: `@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix gran: <${GRAN}> .
+<#obs1> a sosa:Observation ;
+  sosa:observedProperty gran:Electricity ;
+  sosa:hasResult [ sosa:hasSimpleResult 1000 ] .`,
+};
+
+/** A fake logged-in session serving the fixtures above (query string ignored). */
+function fakeSession(store: Record<string, string> = { ...FIXTURES }): Session {
+  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
+    const url = (typeof input === "string" ? input : input.toString())
+      .split("?")[0];
+    const method = (init?.method ?? "GET").toUpperCase();
+    if (method === "PUT" || method === "POST") {
+      if (init?.body != null) store[url] = String(init.body);
+      return Promise.resolve(new Response(null, { status: 201 }));
+    }
+    if (method === "DELETE") {
+      delete store[url];
+      return Promise.resolve(new Response(null, { status: 205 }));
+    }
+    const body = store[url];
+    if (body === undefined) {
+      return Promise.resolve(new Response("Not found", { status: 404 }));
+    }
+    return Promise.resolve(
+      new Response(body, {
+        status: 200,
+        headers: { "Content-Type": "text/turtle" },
+      }),
+    );
+  };
+  return {
+    info: { webId: WEBID, isLoggedIn: true },
+    fetch,
+  } as unknown as Session;
+}
+
+function makeWrapper() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const wrapper = ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+  return { client, wrapper };
+}
+
+Deno.test("useBuildingsAndAgents loads + parses from the session", async () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession());
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useBuildingsAndAgents(), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    assert.equal(result.current.data?.buildings.length, 1);
+    assert.equal(result.current.data?.agents.length, 1);
+    assert.equal(result.current.data?.agents[0].name, "ACME Energy");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useSolidData merges phase-1 buildings + phase-2 energy", async () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession());
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useSolidData(), { wrapper });
+    await waitFor(() => assert.equal(result.current.buildings.length, 1));
+    await waitFor(() => assert.equal(result.current.energyNeed.length, 1));
+    assert.equal(result.current.energyNeed[0].energyNeed.electricity, 1000);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useEnergy is disabled until buildings are provided", () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession());
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useEnergy(undefined), { wrapper });
+    assert.equal(result.current.fetchStatus, "idle"); // not fetching (disabled)
+    assert.equal(result.current.data, undefined);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useToggleVisibility invalidates the shared-with-me query", async () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession());
+  const { client, wrapper } = makeWrapper();
+  const invalidated: unknown[] = [];
+  const orig = client.invalidateQueries.bind(client);
+  client.invalidateQueries = ((arg: Parameters<typeof orig>[0]) => {
+    invalidated.push((arg as { queryKey?: unknown } | undefined)?.queryKey);
+    return orig(arg);
+  }) as typeof client.invalidateQueries;
+
+  try {
+    const { result } = renderHook(() => useToggleVisibility(), { wrapper });
+    await result.current.mutateAsync("https://other.example/b.ttl#b");
+    assert.ok(
+      invalidated.some((k) => Array.isArray(k) && k[0] === "sharedWithMe"),
+      "sharedWithMe was invalidated",
+    );
+  } finally {
+    _setSessionForTesting(null);
+  }
+});

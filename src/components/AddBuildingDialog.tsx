@@ -26,7 +26,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { guardedDialogClose } from "./dialogClose.ts";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { useSolidData } from "../context/SolidDataContext.tsx";
+import { useSolidData } from "../hooks/queries.ts";
 import { getActiveRoom, getMyRole } from "../services/interop/dataRoom.ts";
 import {
   addBuildingToRegistry,

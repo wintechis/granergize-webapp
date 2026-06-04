@@ -57,7 +57,7 @@ the pane; everything below is processed.
 Any predicate not in `predicateMap`/`objectPropertyMap` (or any unhandled
 blank-node shape) is parsed by n3 but never attached — it never reaches the pane.
 
-## 1b. Pane container (`Map.tsx` right grid)
+## 1b. Pane container (`ExplorePage.tsx` right grid)
 
 Clicking a marker calls `focusBuilding(id)`, resetting a **focus trail** (nav
 stack). The right grid renders the last entry:
@@ -141,7 +141,7 @@ Agent rows render only the IRI fragment + a `RefLink`; agent attributes
   doesn't change building data. Grants ACL read (PUT `.acl`), POSTs an access-grant
   to the recipient's `ldp:inbox`; producer's `sharingRegistry.ttl` records it,
   recipient's `inbox.ts` copies the source into their `dataSources.ttl`.
-- **Hide**: `Map.tsx onHide` just clears the focus trail. The persistent list
+- **Hide**: `ExplorePage.tsx onHide` just clears the focus trail. The persistent list
   (`gran:hiddenBuilding` in `hiddenBuildings.ttl`) is managed elsewhere.
 
 After Edit / certificate upload the card calls `reloadData`, re-running the load
@@ -190,7 +190,7 @@ silently un-editable.
 `buildingParser.ts` (extraction, blank-node reassembly);
 `config/buildingConfig.ts` (whitelist, coercion, relabelling);
 `TurtleParsingService.ts` (sourceRole, isShared, hidden filter, energy load);
-`Map.tsx` (container, trail, tabs); `Building.tsx` + `detail/DetailView.tsx` (card);
+`ExplorePage.tsx` (container, trail, tabs); `Building.tsx` + `detail/DetailView.tsx` (card);
 `Energy.tsx`/`InvestorEnergy.tsx`/`BspEnergy.tsx`/`WeatherData.tsx` (tabs);
 `types/types.ts` (`BuildingType`); `EditBuildingDialog.tsx`, `BuildingDialogs.tsx`,
 `interop/share.ts`, `certificateUploader.ts` (actions);

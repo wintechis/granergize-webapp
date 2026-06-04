@@ -1,16 +1,23 @@
 import { useEffect, useRef, useState, useSyncExternalStore } from "react";
 import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
+import Dialog from "@mui/material/Dialog";
+import DialogActions from "@mui/material/DialogActions";
+import DialogContent from "@mui/material/DialogContent";
+import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import ListItemText from "@mui/material/ListItemText";
 import Tooltip from "@mui/material/Tooltip";
+import Typography from "@mui/material/Typography";
+import HistoryIcon from "@mui/icons-material/History";
 import { getDefaultSession } from "@inrupt/solid-client-authn-browser";
 import {
   type ActiveRequest,
+  clearRequestLog,
   getActivitySnapshot,
+  getRequestLog,
+  type RequestLogEntry,
   subscribeActivity,
 } from "../services/utils/networkActivity.ts";
 import { getStorageRoot } from "../services/utils/solidUtils.ts";
@@ -22,6 +29,11 @@ function useNetworkActivity(): ActiveRequest[] {
     getActivitySnapshot,
     getActivitySnapshot,
   );
+}
+
+/** Subscribe to the finished-request history (re-renders on change). */
+function useRequestLog(): RequestLogEntry[] {
+  return useSyncExternalStore(subscribeActivity, getRequestLog, getRequestLog);
 }
 
 /** The resolved Pod storage root, or "" if not available yet. */
@@ -49,76 +61,172 @@ function displayLabel(r: ActiveRequest, root: string): string {
   return `${method} ${where}`;
 }
 
+/** Status text + colour for one finished request. */
+function statusInfo(e: RequestLogEntry): { text: string; color: string } {
+  if (e.error) return { text: "failed", color: "error.main" };
+  if (e.status === undefined) return { text: "done", color: "text.secondary" };
+  if (e.status === 429 || e.status === 503) {
+    return { text: String(e.status), color: "warning.main" };
+  }
+  if (e.status >= 400) return { text: String(e.status), color: "error.main" };
+  return { text: String(e.status), color: "success.main" };
+}
+
+/** One monospace row in the log dialog. */
+function LogRow(
+  { label, status, color, duration }: {
+    label: string;
+    status: string;
+    color: string;
+    duration: string;
+  },
+) {
+  return (
+    <Typography
+      component="li"
+      variant="body2"
+      sx={{
+        display: "flex",
+        alignItems: "baseline",
+        gap: 1.5,
+        py: 0.25,
+        fontFamily: "monospace",
+      }}
+    >
+      <Box component="span" sx={{ color, width: 56, flexShrink: 0 }}>
+        {status}
+      </Box>
+      <Box
+        component="span"
+        sx={{ flexGrow: 1, minWidth: 0, overflowWrap: "anywhere" }}
+      >
+        {label}
+      </Box>
+      <Box component="span" sx={{ color: "text.secondary", flexShrink: 0 }}>
+        {duration}
+      </Box>
+    </Typography>
+  );
+}
+
 /**
- * Header spinner reflecting ALL in-flight network requests (Pod fetches, map
- * tiles, geocoding, weather). A count badge shows how many are active; clicking
- * lists what they are. Hiding is debounced so quick bursts (e.g. map tiles)
- * don't make it flicker. Renders an empty fixed-width slot when idle to avoid
- * shifting the surrounding header.
+ * Header indicator reflecting ALL in-flight network requests (Pod fetches, map
+ * tiles, geocoding, weather). The active requests are listed inline to the LEFT
+ * of a spinner + count badge; the control is always clickable and opens a debug
+ * log of recent finished requests (status, pod-relative path, duration) — handy
+ * for seeing what the app is talking to and spotting repeats/failures. Hiding
+ * the spinner is debounced so quick bursts (map tiles) don't flicker.
  */
 export default function NetworkActivityIndicator() {
   const active = useNetworkActivity();
+  const logEntries = useRequestLog();
   const count = active.length;
-  const [visible, setVisible] = useState(false);
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  const [open, setOpen] = useState(false);
+  const [spinning, setSpinning] = useState(false);
   const hideTimer = useRef<ReturnType<typeof setTimeout> | undefined>(undefined);
 
   useEffect(() => {
     if (count > 0) {
       clearTimeout(hideTimer.current);
-      setVisible(true);
+      setSpinning(true);
     } else {
-      hideTimer.current = setTimeout(() => setVisible(false), 350);
+      hideTimer.current = setTimeout(() => setSpinning(false), 350);
     }
     return () => clearTimeout(hideTimer.current);
   }, [count]);
 
-  // Idle: keep a fixed-width slot so the avatar next to it doesn't jump.
-  if (!visible && count === 0) {
-    return <Box sx={{ width: 40, height: 40, flexShrink: 0 }} />;
-  }
+  const root = currentStorageRoot();
+  // Newest active request nearest the spinner (right-aligned, so the clip eats
+  // the oldest on the left).
+  const inlineText = active.map((r) => displayLabel(r, root)).join("  ·  ");
 
-  const open = Boolean(anchorEl);
-  const root = open ? currentStorageRoot() : "";
   return (
-    <>
-      <Tooltip title={count > 0 ? `${count} request(s) loading` : "Idle"}>
-        <IconButton
-          aria-label={`Network activity: ${count} request(s) loading`}
-          onClick={(e) => setAnchorEl(e.currentTarget)}
-          sx={{ width: 40, height: 40, flexShrink: 0 }}
+    <Box sx={{ display: "flex", alignItems: "center", gap: 1, minWidth: 40 }}>
+      {count > 0 && (
+        <Box
+          sx={{
+            maxWidth: { xs: 160, sm: 320, md: 440 },
+            minWidth: 0,
+            display: "flex",
+            justifyContent: "flex-end",
+          }}
         >
-          <Badge badgeContent={count} color="primary" max={99}>
-            <CircularProgress size={20} thickness={5} />
-          </Badge>
+          <Tooltip title={inlineText}>
+            <Typography
+              variant="caption"
+              noWrap
+              sx={{ fontFamily: "monospace", color: "text.secondary" }}
+            >
+              {inlineText}
+            </Typography>
+          </Tooltip>
+        </Box>
+      )}
+      <Tooltip
+        title={count > 0
+          ? `${count} request(s) loading — click for the request log`
+          : "Show request log"}
+      >
+        <IconButton
+          size="small"
+          onClick={() => setOpen(true)}
+          aria-label="Show network request log"
+        >
+          {spinning || count > 0
+            ? (
+              <Badge badgeContent={count} color="primary" max={99}>
+                <CircularProgress size={20} thickness={5} />
+              </Badge>
+            )
+            : <HistoryIcon fontSize="small" sx={{ opacity: 0.55 }} />}
         </IconButton>
       </Tooltip>
-      <Menu
-        anchorEl={anchorEl}
-        open={open}
-        onClose={() => setAnchorEl(null)}
-        // Always drop below the icon, right-aligned, so it never flips left over
-        // the VIEW/SHARE content.
-        anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-        transformOrigin={{ horizontal: "right", vertical: "top" }}
-        slotProps={{ paper: { sx: { maxWidth: "min(90vw, 640px)" } } }}
-      >
-        {active.length === 0
-          ? <MenuItem disabled>No active requests</MenuItem>
-          : active.map((r) => (
-            <MenuItem key={r.id} dense disableRipple>
-              <ListItemText
-                primary={displayLabel(r, root)}
-                slotProps={{
-                  primary: {
-                    variant: "caption",
-                    sx: { fontFamily: "monospace", wordBreak: "break-all" },
-                  },
-                }}
-              />
-            </MenuItem>
-          ))}
-      </Menu>
-    </>
+
+      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
+        <DialogTitle>
+          Network requests
+          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
+            {count > 0 ? `${count} in flight · ` : ""}
+            {logEntries.length} recent
+          </Typography>
+        </DialogTitle>
+        <DialogContent dividers>
+          {active.length === 0 && logEntries.length === 0
+            ? <Typography color="text.secondary">No requests yet.</Typography>
+            : (
+              <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0 }}>
+                {/* In-flight first, marked pending. */}
+                {active.map((r) => (
+                  <LogRow
+                    key={`active-${r.id}`}
+                    status="…"
+                    color="primary.main"
+                    label={displayLabel(r, root)}
+                    duration="pending"
+                  />
+                ))}
+                {logEntries.map((e) => {
+                  const s = statusInfo(e);
+                  return (
+                    <LogRow
+                      key={`log-${e.id}`}
+                      status={s.text}
+                      color={s.color}
+                      label={displayLabel(e, root)}
+                      duration={`${e.durationMs} ms`}
+                    />
+                  );
+                })}
+              </Box>
+            )}
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={clearRequestLog} disabled={logEntries.length === 0}>
+            Clear
+          </Button>
+          <Button onClick={() => setOpen(false)}>Close</Button>
+        </DialogActions>
+      </Dialog>
+    </Box>
   );
 }

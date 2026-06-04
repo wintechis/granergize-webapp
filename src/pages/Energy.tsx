@@ -18,11 +18,10 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
-import Item from "@mui/material/ListItem";
 import "chart.js/auto";
 import type { ChartData, ChartOptions } from "chart.js";
 import { Bar } from "react-chartjs-2";
-import { useSolidData } from "../context/SolidDataContext.tsx";
+import { useSolidData } from "../hooks/queries.ts";
 import { RefLink, UriLink } from "../components/detail/DetailView.tsx";
 import UserEnergyChart from "./UserEnergyChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
@@ -222,7 +221,6 @@ export default function Energy(
     return (
       <>
         <Typography variant="h6">{toTitleCase(title)}</Typography>
-        <Item component="div" sx={{ m: 0, p: 0 }}>
           <Container>
             <TableContainer component={Paper}>
               <Table size="small">
@@ -230,11 +228,6 @@ export default function Energy(
                   <TableRow>
                     <TableCell>Energy Type</TableCell>
                     <TableCell align="right">kWh / a</TableCell>
-                    {
-                      /* <TableCell align="right">
-                      Industry Average kWh / a
-                    </TableCell> */
-                    }
                     <TableCell align="right">Agent Average kWh / a</TableCell>
                   </TableRow>
                 </TableHead>
@@ -242,7 +235,6 @@ export default function Energy(
                   {Object.entries(energy[title]).map(([key, value]) => {
                     const industryAverage = averages[key] || 0;
                     const agentAverage = agentAverages[agent]?.[key] || 0;
-                    const comparisonValue = industryAverage;
                     return (
                       <TableRow hover key={key}>
                         <TableCell component="th" scope="row">
@@ -253,31 +245,18 @@ export default function Energy(
                           style={{
                             backgroundColor: getBackgroundColor(
                               value,
-                              comparisonValue,
+                              industryAverage,
                             ),
                           }}
                         >
                           {formatNumber(value)}
                         </TableCell>
-                        {
-                          /* <TableCell
-                          align="right"
-                          style={{
-                            backgroundColor: getBackgroundColor(
-                              industryAverage,
-                              comparisonValue,
-                            ),
-                          }}
-                        >
-                          {formatNumber(industryAverage)}
-                        </TableCell> */
-                        }
                         <TableCell
                           align="right"
                           style={{
                             backgroundColor: getBackgroundColor(
                               agentAverage,
-                              comparisonValue,
+                              industryAverage,
                             ),
                           }}
                         >
@@ -304,18 +283,6 @@ export default function Energy(
                           : 0}
                       </strong>
                     </TableCell>
-                    {
-                      /* <TableCell align="right">
-                      <strong>
-                        {formatNumber(
-                          Object.keys(energy[title]).reduce(
-                            (sum, key) => sum + (averages[key] || 0),
-                            0,
-                          ),
-                        )}
-                      </strong>
-                    </TableCell> */
-                    }
                     <TableCell align="right">
                       <strong>
                         {formatNumber(
@@ -333,7 +300,6 @@ export default function Energy(
             </Box>
             <Divider />
           </Container>
-        </Item>
       </>
     );
   }

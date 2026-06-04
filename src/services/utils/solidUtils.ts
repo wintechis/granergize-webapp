@@ -2,7 +2,8 @@
  * Utility functions for working with Solid POD URLs and WebIDs
  */
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
+import { DataFactory } from "n3";
+import { loadProfileStore } from "./profileDocument.ts";
 
 const PIM_NS = "http://www.w3.org/ns/pim/space#";
 
@@ -28,18 +29,18 @@ export async function resolveStorageRoot(session: Session): Promise<string> {
   const webId = session.info.webId;
   if (!webId) throw new Error("No WebID in session");
 
+  // Idempotent: once resolved, return the cached root without re-fetching, so it
+  // can be awaited from multiple places (the app-startup gate + queries) cheaply.
+  const cached = storageRootCache.get(webId);
+  if (cached) return cached;
+
   const docUrl = webId.split("#")[0];
-  const res = await session.fetch(docUrl);
-  if (!res.ok) {
-    throw new Error(
-      `Cannot read WebID profile at ${docUrl} (HTTP ${res.status})`,
-    );
+  // Read the profile via the shared cache so this first read is reused by the
+  // org/avatar lookups that follow at login (one fetch instead of several).
+  const store = await loadProfileStore(session);
+  if (!store) {
+    throw new Error(`Cannot read WebID profile at ${docUrl}`);
   }
-  const store = new Store(
-    new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(
-      await res.text(),
-    ),
-  );
   const roots = store.getObjects(
     DataFactory.namedNode(webId),
     DataFactory.namedNode(`${PIM_NS}storage`),

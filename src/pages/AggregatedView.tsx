@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import { guardedDialogClose } from "../components/dialogClose.ts";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -13,7 +13,6 @@ import {
   DialogContent,
   DialogTitle,
   IconButton,
-  Paper,
   Table,
   TableBody,
   TableCell,
@@ -249,7 +248,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         mb={3}
       >
         <Box display="flex" alignItems="center" gap={2}>
-          <IconButton onClick={() => navigate("/")}>
+          <IconButton onClick={() => navigate("/")} aria-label="Back to overview">
             <ArrowBackIcon />
           </IconButton>
           <Typography variant="h5">{viewDefinition.name}</Typography>
@@ -279,78 +278,49 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         <CardHeader title="View Details" />
         <CardContent>
           <Box
+            component="dl"
             display="grid"
             gridTemplateColumns="repeat(auto-fit, minmax(200px, 1fr))"
             gap={2}
+            sx={{ m: 0 }}
           >
-            <Box>
-              <Typography variant="body2" color="textSecondary">
-                Aggregation Type
-              </Typography>
-              <Typography variant="body1" sx={{ textTransform: "capitalize" }}>
-                {viewDefinition.aggregationType}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="textSecondary">
-                Buildings Included
-              </Typography>
-              <Typography variant="body1">
-                {viewDefinition.buildingUris.length}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="textSecondary">
-                Metrics
-              </Typography>
-              <Typography variant="body1">
-                {viewDefinition.metrics.length}
-              </Typography>
-            </Box>
-            <Box>
-              <Typography variant="body2" color="textSecondary">
-                Created
-              </Typography>
-              <Typography variant="body1">
-                {new Date(viewDefinition.createdAt).toLocaleDateString()}
-              </Typography>
-            </Box>
-            {viewDefinition.lastComputedAt && (
-              <Box>
-                <Typography variant="body2" color="textSecondary">
-                  Last Computed
-                </Typography>
-                <Typography variant="body1">
-                  {new Date(viewDefinition.lastComputedAt).toLocaleString()}
-                </Typography>
-              </Box>
-            )}
-            {viewDefinition.period && (
-              <Box>
-                <Typography variant="body2" color="textSecondary">
-                  Period
-                </Typography>
-                <Typography variant="body1">
-                  {new Date(`${viewDefinition.period}-01`).toLocaleString(
+            {(
+              [
+                [
+                  "Aggregation Type",
+                  <Box component="span" sx={{ textTransform: "capitalize" }}>
+                    {viewDefinition.aggregationType}
+                  </Box>,
+                ],
+                ["Buildings Included", viewDefinition.buildingUris.length],
+                ["Metrics", viewDefinition.metrics.length],
+                [
+                  "Created",
+                  new Date(viewDefinition.createdAt).toLocaleDateString(),
+                ],
+                viewDefinition.lastComputedAt && [
+                  "Last Computed",
+                  new Date(viewDefinition.lastComputedAt).toLocaleString(),
+                ],
+                viewDefinition.period && [
+                  "Period",
+                  new Date(`${viewDefinition.period}-01`).toLocaleString(
                     "default",
-                    {
-                      month: "long",
-                      year: "numeric",
-                    },
-                  )}
+                    { month: "long", year: "numeric" },
+                  ),
+                ],
+                snapshot && ["Buildings in Snapshot", snapshot.buildingCount],
+              ].filter(Boolean) as [string, ReactNode][]
+            ).map(([label, value]) => (
+              <div key={label}>
+                <Typography component="dt" variant="body2" color="textSecondary">
+                  {label}
                 </Typography>
-              </Box>
-            )}
-            {snapshot && (
-              <Box>
-                <Typography variant="body2" color="textSecondary">
-                  Buildings in Snapshot
+                <Typography component="dd" variant="body1" sx={{ m: 0 }}>
+                  {value}
                 </Typography>
-                <Typography variant="body1">
-                  {snapshot.buildingCount}
-                </Typography>
-              </Box>
-            )}
+              </div>
+            ))}
           </Box>
         </CardContent>
       </Card>
@@ -370,7 +340,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
             <Card>
               <CardHeader title="Aggregated Values Table" />
               <CardContent>
-                <TableContainer component={Paper}>
+                <TableContainer>
                   <Table>
                     <TableHead>
                       <TableRow>

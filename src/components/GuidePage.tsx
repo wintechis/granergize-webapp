@@ -124,9 +124,10 @@ export default function GuidePage() {
         <ol>
           <li>Öffnen Sie die Granergize-Webanwendung in Ihrem Browser.</li>
           <li>
-            Wählen Sie einen empfohlenen Identity Provider (z. B.
-            solidcommunity.net) oder geben Sie unter „Sign in with a new
-            provider“ eine eigene Provider-Adresse ein.
+            Wählen Sie unter „Sign in with an Identity Provider“ einen der
+            vorgegebenen Identity Provider (z. B. solidcommunity.net) oder geben
+            Sie unter „Sign in with another Identity Provider“ die Adresse Ihres
+            eigenen Identity Providers ein.
           </li>
           <li>
             Melden Sie sich beim Anbieter an und <strong>bestätigen</strong> Sie,
@@ -143,25 +144,30 @@ export default function GuidePage() {
         </Typography>
         <Typography variant="body1" sx={{ mb: 1 }}>
           Ein <strong>Raum</strong> bündelt die Akteure, die untereinander Daten
-          teilen. Im Tab <strong>Meet</strong>:
+          teilen. Er ist die Grundlage für das rollenbasierte Teilen (siehe
+          Schritt 7). Im Tab <strong>Connect</strong>:
         </Typography>
         <ul>
           <li>
             <strong>Raum erstellen:</strong> „Host a data room“ legt einen Raum
-            auf Ihrem Pod an. Teilen Sie dessen URI oder QR-Code, damit andere
+            auf Ihrem Pod an. Teilen Sie dessen Link oder QR-Code, damit andere
             beitreten können.
           </li>
           <li>
-            <strong>Beitreten:</strong> Fügen Sie eine Raum-URI ein oder scannen
-            Sie den QR-Code und klicken Sie „Add yourself to the data room“.
+            <strong>Beitreten:</strong> Fügen Sie eine Raum-URI in das Feld ein
+            und klicken Sie auf „Add“, oder nutzen Sie „Scan QR code“, um einen
+            angezeigten Code abzuscannen.
           </li>
           <li>
             <strong>Rolle wählen:</strong> Weisen Sie sich Ihre Rolle(n) zu –
-            Investor, User oder Benchmark Service Provider. Die Rolle ist
-            unabhängig von der Mitgliedschaft und jederzeit änderbar.
+            <strong>User</strong>, <strong>Investor</strong> oder{" "}
+            <strong>Benchmark Service Provider</strong> – und speichern Sie mit
+            „Save roles“. Über diese Rollen können andere gezielt „By role“ mit
+            Ihnen teilen. Die Rolle ist unabhängig von der Mitgliedschaft und
+            jederzeit änderbar.
           </li>
         </ul>
-        <Figure src="room.png" caption="Meet-Tab: Raum erstellen oder beitreten" />
+        <Figure src="room.png" caption="Tab „Connect“: Raum erstellen oder beitreten und Rolle wählen" />
       </Box>
 
       <Box component="section">
@@ -169,7 +175,7 @@ export default function GuidePage() {
           5. Gebäude hinzufügen
         </Typography>
         <Typography variant="body1" sx={{ mb: 1 }}>
-          Im Tab <strong>Share</strong> unter „Buildings you own“:
+          Im Tab <strong>Manage</strong> unter „Your buildings“:
         </Typography>
         <ul>
           <li>
@@ -182,7 +188,7 @@ export default function GuidePage() {
             dem Speichern prüfen und anpassen.
           </li>
         </ul>
-        <Figure src="add-building.png" caption="„Buildings you own“ mit Add Building und Autofill from file" />
+        <Figure src="add-building.png" caption="Tab „Manage“: das Formular „Add Building“ zum Erfassen eines Gebäudes" />
       </Box>
 
       <Box component="section">
@@ -190,52 +196,68 @@ export default function GuidePage() {
           6. Daten ansehen
         </Typography>
         <Typography variant="body1">
-          Wählen Sie im Tab <strong>View</strong> einen Gebäude-Marker. Im rechten
+          Wählen Sie im Tab <strong>Explore</strong> einen Gebäude-Marker. Im rechten
           Bereich wechseln Sie über die Reiter zwischen <strong>Building data</strong>,{" "}
           <strong>Energy data</strong> und <strong>Weather data</strong>. Unter der
           Karte sehen Sie den Energiemix für den aktuell sichtbaren Kartenausschnitt.
         </Typography>
-        <Figure src="map-tabs.png" caption="Gebäudedetails im View-Tab mit Reitern" />
+        <Figure src="map-tabs.png" caption="Gebäudedetails im Explore-Tab mit Reitern" />
       </Box>
 
       <Box component="section">
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
-          7. Gebäude teilen und Zugriff widerrufen
+          7. Gebäude teilen, exportieren und Zugriff widerrufen
         </Typography>
         <Typography variant="body1" sx={{ mb: 1 }}>
-          Im Tab <strong>Share</strong>:
+          Im Tab <strong>Manage</strong> hat jedes Gebäude unter „Your buildings“
+          eigene Symbole zum Bearbeiten, Teilen, Herunterladen und Löschen.
         </Typography>
         <ol>
           <li>
-            Klicken Sie beim gewünschten Gebäude auf den Teilen-Button und geben
-            Sie die <strong>WebID</strong> des Empfängers ein (oder wählen Sie ein
-            Raum-Mitglied aus der Liste).
+            <strong>Teilen:</strong> Klicken Sie beim gewünschten Gebäude auf das
+            Teilen-Symbol. Im Dialog wählen Sie, an wen geteilt wird:{" "}
+            <strong>By WebID</strong> (eine oder mehrere WebIDs eingeben) oder{" "}
+            <strong>By role</strong> (eine Rolle wählen – geteilt wird dann mit
+            allen Raum-Mitgliedern, die diese Rolle haben).
           </li>
           <li>
-            Optional „Include Energy Data“ aktivieren, wenn auch die
-            Verbrauchsdaten geteilt werden sollen, dann bestätigen.
+            Wählen Sie, welche Daten geteilt werden: „Static building data only“
+            (nur Stammdaten) oder „Static building data and energy readings“
+            (zusätzlich die Verbrauchsdaten). Dann auf <em>Share</em> klicken.
           </li>
           <li>
-            <strong>Daten exportieren:</strong> Über das Download-Symbol neben
-            einem Gebäude speichern Sie dessen Daten als Datei.
+            <strong>Exportieren:</strong> Über das Download-Symbol speichern Sie
+            die Daten eines Gebäudes als Turtle-Datei.
           </li>
           <li>
-            <strong>Widerrufen:</strong> Unter „Buildings you share“ entfernen Sie
-            einen Empfänger über das Lösch-Symbol. Hinweis: Der Empfänger wird
-            darüber nicht benachrichtigt.
+            <strong>Widerrufen:</strong> Beim jeweiligen Gebäude unter „Shared
+            with:“ entfernen Sie einen Empfänger über das Lösch-Symbol. Hinweis:
+            Der Empfänger wird darüber nicht benachrichtigt.
           </li>
         </ol>
-        <Figure src="sharing.png" caption="Share-Tab: teilen, exportieren, widerrufen" />
+        <Figure src="share-building.png" caption="Tab „Manage“: Pro Gebäude die Symbole zum Bearbeiten, Teilen, Herunterladen und Löschen" />
       </Box>
 
       <Box component="section">
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
-          8. Aggregierte Ansicht erstellen und teilen
+          8. Mit Ihnen geteilte Daten
+        </Typography>
+        <Typography variant="body1">
+          Gebäude, die andere mit Ihnen geteilt haben, finden Sie im Tab{" "}
+          <strong>Share</strong> unter „Buildings shared with you“. Sie erscheinen
+          zusätzlich auf der Karte im Tab <strong>Explore</strong>, sodass Sie sie
+          gemeinsam mit Ihren eigenen Gebäuden auswerten können.
+        </Typography>
+      </Box>
+
+      <Box component="section">
+        <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
+          9. Aggregierte Ansicht erstellen und teilen
         </Typography>
         <Typography variant="body1" sx={{ mb: 1 }}>
           Aggregierte Ansichten („Views“) fassen mehrere Gebäude zu Durchschnitt,
           Summe, Minimum oder Maximum zusammen – ohne Einzelgebäude offenzulegen.
-          Im Tab <strong>Share</strong>:
+          Im Tab <strong>Manage</strong> unter „Aggregated views“:
         </Typography>
         <ol>
           <li>

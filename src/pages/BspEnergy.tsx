@@ -21,7 +21,6 @@ ChartJS.register(
 );
 
 import {
-  Box,
   Chip,
   Paper,
   Stack,
@@ -47,6 +46,7 @@ import {
 import {
   ChartBox,
   DetailCard,
+  DetailRow,
   SectionTitle,
 } from "../components/detail/DetailView.tsx";
 
@@ -107,17 +107,6 @@ class ChartErrorBoundary extends React.Component<
     }
     return this.props.children;
   }
-}
-
-function MetaRow({ label, value }: { label: string; value: React.ReactNode }) {
-  return (
-    <Box sx={{ display: "flex", gap: 1, alignItems: "baseline" }}>
-      <Typography variant="body2" color="text.secondary" sx={{ minWidth: 180 }}>
-        {label}
-      </Typography>
-      <Typography variant="body2">{value}</Typography>
-    </Box>
-  );
 }
 
 export default function BspEnergy({ building }: BspEnergyProps) {
@@ -210,33 +199,33 @@ export default function BspEnergy({ building }: BspEnergyProps) {
         {/* Building metadata */}
         <Stack spacing={0.5}>
           {climateControlType && (
-            <MetaRow label="Climate Control" value={climateControlType} />
+            <DetailRow label="Climate Control" value={climateControlType} />
           )}
           {indoorTemperature && (
-            <MetaRow label="Indoor Temperature" value={indoorTemperature} />
+            <DetailRow label="Indoor Temperature" value={indoorTemperature} />
           )}
-          {tenancyType && <MetaRow label="Tenancy Type" value={tenancyType} />}
-          {leaseType && <MetaRow label="Lease Type" value={leaseType} />}
+          {tenancyType && <DetailRow label="Tenancy Type" value={tenancyType} />}
+          {leaseType && <DetailRow label="Lease Type" value={leaseType} />}
           {tenantIndustry && (
-            <MetaRow label="Tenant Industry" value={tenantIndustry} />
+            <DetailRow label="Tenant Industry" value={tenantIndustry} />
           )}
           {indoorTemperatureClass && (
-            <MetaRow
+            <DetailRow
               label="Indoor Temp. Class"
               value={indoorTemperatureClass}
             />
           )}
           {numberOfLoadingDocks != null && (
-            <MetaRow label="Loading Docks" value={numberOfLoadingDocks} />
+            <DetailRow label="Loading Docks" value={numberOfLoadingDocks} />
           )}
           {greenLeaseShare != null && (
-            <MetaRow
+            <DetailRow
               label="Green Lease Share"
               value={`${formatNumber(greenLeaseShare, 1)} %`}
             />
           )}
           {hasPVSystem != null && (
-            <MetaRow
+            <DetailRow
               label="PV System"
               value={hasPVSystem
                 ? (
@@ -258,7 +247,7 @@ export default function BspEnergy({ building }: BspEnergyProps) {
             />
           )}
           {certifications.length > 0 && (
-            <MetaRow
+            <DetailRow
               label="Certifications"
               value={
                 <Stack direction="row" spacing={0.5} flexWrap="wrap">

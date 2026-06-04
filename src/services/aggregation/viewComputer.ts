@@ -11,6 +11,7 @@ import type {
   InvestorAnnualData,
 } from "../../../types/types.ts";
 import { getViewDefinition, storeComputedSnapshot } from "./viewManager.ts";
+import { fetchFresh } from "../utils/podFetch.ts";
 import { parseEnergyData } from "../utils/energyDataParser.ts";
 import { parseTtlReadings } from "../utils/userEnergyParser.ts";
 
@@ -28,7 +29,7 @@ async function loadBuildingEnergyData(
   buildingUri = buildingUri.split("#")[0];
   try {
     // Fetch building data to get energy data location
-    const buildingResponse = await session.fetch(buildingUri);
+    const buildingResponse = await fetchFresh(buildingUri, session);
     if (!buildingResponse.ok) {
       console.warn(
         `Could not fetch building ${buildingUri}: ${buildingResponse.status}`,
@@ -85,7 +86,7 @@ async function loadBuildingEnergyData(
     const energyDataUrl = locationQuads[0].object.value;
 
     // Fetch energy data
-    const energyResponse = await session.fetch(energyDataUrl);
+    const energyResponse = await fetchFresh(energyDataUrl, session);
     if (!energyResponse.ok) {
       console.warn(
         `Could not fetch energy data ${energyDataUrl}: ${energyResponse.status}`,
@@ -171,7 +172,7 @@ async function loadUserBuildingMonthlyTotal(
 ): Promise<number | null> {
   const cleanUri = buildingUri.split("#")[0];
   try {
-    const buildingResponse = await session.fetch(cleanUri);
+    const buildingResponse = await fetchFresh(cleanUri, session);
     if (!buildingResponse.ok) {
       console.warn(
         `Could not fetch building ${cleanUri}: ${buildingResponse.status}`,

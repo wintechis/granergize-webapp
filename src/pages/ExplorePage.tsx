@@ -7,10 +7,10 @@ import VisibleEnergyMix from "../components/VisibleEnergyMix.tsx";
 import {
   MapContainer,
   Marker,
-  TileLayer,
   Tooltip,
   useMap,
   useMapEvents,
+  WMSTileLayer,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
@@ -23,7 +23,7 @@ import Tab from "@mui/material/Tab";
 import Grid from "@mui/material/Grid2";
 import Energy from "./Energy.tsx";
 import IconButton from "@mui/material/IconButton";
-import { useSolidData } from "../context/SolidDataContext.tsx";
+import { useSolidData } from "../hooks/queries.ts";
 import WeatherData from "./WeatherData.tsx";
 import InvestorEnergy from "./InvestorEnergy.tsx";
 import BspEnergy from "./BspEnergy.tsx";
@@ -44,23 +44,17 @@ import {
 const SHADOW =
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png";
 
-// Basemap tiles. A muted grayscale basemap (CartoDB Positron) keeps the colored
-// role-markers as the visual focus instead of competing with full-color terrain.
-// To revert to the previous full-color OpenStreetMap look, switch BASEMAP to
-// `BASEMAPS.osm`.
-const BASEMAPS = {
-  positron: {
-    url: "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors &copy; <a href="https://carto.com/attributions">CARTO</a>',
-  },
-  osm: {
-    url: "https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png",
-    attribution:
-      '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors',
-  },
+// Basemap: the official German basemap.de Web Raster (BKG) via its WMS endpoint
+// (CRS EPSG:3857, Leaflet's default). The "farbe" (colour) layer; switch to
+// "de_basemapde_web_raster_grau" for the muted grey variant. NOTE: basemap.de
+// covers Germany only — buildings outside Germany render on a blank background.
+// (Previously CartoDB Positron / OpenStreetMap XYZ tiles via <TileLayer>.)
+const BASEMAP_DE = {
+  url: "https://sgx.geodatenzentrum.de/wms_basemapde",
+  layers: "de_basemapde_web_raster_farbe",
+  attribution:
+    '&copy; <a href="https://basemap.de/">basemap.de</a> / &copy; <a href="https://www.bkg.bund.de/">BKG</a>',
 } as const;
-const BASEMAP = BASEMAPS.osm;
 
 function makeIcon(url: string): L.Icon {
   return new L.Icon({
@@ -103,7 +97,7 @@ function createSelectedIcon(building: BuildingType): L.DivIcon {
   return L.divIcon({
     className: "",
     html:
-      `<img src="${imgUrl}" style="width:25px;height:41px;filter:drop-shadow(0 0 3px ${MARKER_SELECTED_COLOR}) drop-shadow(0 0 5px ${MARKER_SELECTED_COLOR});" />`,
+      `<img src="${imgUrl}" alt="Selected building" style="width:25px;height:41px;filter:drop-shadow(0 0 3px ${MARKER_SELECTED_COLOR}) drop-shadow(0 0 5px ${MARKER_SELECTED_COLOR});" />`,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
@@ -172,7 +166,7 @@ function BoundsWatcher(
   return null;
 }
 
-interface MapProps {
+interface ExplorePageProps {
   session: Session;
   /** Whether the Home tab is currently visible (the map stays mounted while hidden). */
   active?: boolean;
@@ -186,7 +180,9 @@ type FocusTarget =
   | { kind: "building"; id: string }
   | { kind: "agent"; id: string };
 
-export default function Map({ session, active = true }: MapProps) {
+export default function ExplorePage(
+  { session, active = true }: ExplorePageProps,
+) {
   const { buildings, agents, energyNeed, error } = useSolidData();
   // One activity token per tile-loading burst (the layer fires `loading` when it
   // starts fetching tiles and `load` once the visible set is in), so panning/
@@ -200,7 +196,9 @@ export default function Map({ session, active = true }: MapProps) {
   // are this bbox and the selected building (the anchor of `trail`).
   const [bbox, setBbox] = useState<L.LatLngBounds | null>(null);
   const [selectedEnergy, setSelectedEnergy] = useState<EnergyType | null>(null);
-  const [isRightPaneLarge, setIsRightPaneLarge] = useState(false);
+  // false = balanced 50/50 split with the map; true = the detail pane fills the
+  // tab body and the map pane is hidden (kept mounted, see InvalidateOnActive).
+  const [detailFull, setDetailFull] = useState(false);
   // Which detail tab is shown for the selected building: 0=building, 1=energy,
   // 2=weather.
   const [detailTab, setDetailTab] = useState(0);
@@ -253,7 +251,7 @@ export default function Map({ session, active = true }: MapProps) {
   }, [currentBuilding, energyNeed]);
 
   const togglePaneSize = () => {
-    setIsRightPaneLarge(!isRightPaneLarge);
+    setDetailFull((v) => !v);
   };
 
   return (
@@ -272,14 +270,24 @@ export default function Map({ session, active = true }: MapProps) {
         </Typography>
       )}
 
-      <Grid container spacing={2} sx={{ flexGrow: 1, minHeight: 0 }}>
+      {/* Wide screens: two panes fill the height side-by-side, each scrolling on
+          its own. Narrow screens: the panes stack and the whole tab scrolls once. */}
+      <Grid
+        container
+        spacing={2}
+        sx={{ flexGrow: 1, minHeight: 0, overflow: { xs: "auto", md: "visible" } }}
+      >
         <Grid
-          size={isRightPaneLarge ? 3 : 6}
+          size={{ xs: 12, md: 6 }}
           sx={{
-            height: "100%",
-            overflow: "auto",
+            // Full-screen detail hides the map pane — but keep it mounted (display
+            // none, not unmounted) so the Leaflet instance survives; InvalidateOnActive
+            // recomputes its size when it reappears.
+            display: detailFull ? "none" : "flex",
+            height: { xs: "auto", md: "100%" },
+            minHeight: { xs: "22.5rem", md: 0 },
+            overflow: { xs: "visible", md: "auto" },
             position: "relative",
-            display: "flex",
             flexDirection: "column",
           }}
         >
@@ -290,9 +298,12 @@ export default function Map({ session, active = true }: MapProps) {
                 zoomSnap={0.5}
                 style={{ flex: 1, minHeight: 0 }}
               >
-                <TileLayer
-                  attribution={BASEMAP.attribution}
-                  url={BASEMAP.url}
+                <WMSTileLayer
+                  url={BASEMAP_DE.url}
+                  layers={BASEMAP_DE.layers}
+                  format="image/png"
+                  transparent={false}
+                  attribution={BASEMAP_DE.attribution}
                   eventHandlers={{
                     loading: () => {
                       if (tileToken.current === null) {
@@ -307,7 +318,7 @@ export default function Map({ session, active = true }: MapProps) {
                     },
                   }}
                 />
-                <InvalidateOnActive active={active} />
+                <InvalidateOnActive active={active && !detailFull} />
                 <FitToBuildings active={active} buildings={buildings} />
                 <BoundsWatcher active={active} onChange={setBbox} />
                 {buildings.map((building) => (
@@ -390,6 +401,7 @@ export default function Map({ session, active = true }: MapProps) {
                 <Box
                   component="img"
                   src={src}
+                  alt={`${label} marker`}
                   sx={{ width: 9, height: 14, objectFit: "contain", flexShrink: 0 }}
                 />
                 <Typography variant="body2">{label}</Typography>
@@ -402,8 +414,11 @@ export default function Map({ session, active = true }: MapProps) {
           />
         </Grid>
         <Grid
-          size={isRightPaneLarge ? 9 : 6}
-          sx={{ height: "100%", overflow: "auto" }}
+          size={{ xs: 12, md: detailFull ? 12 : 6 }}
+          sx={{
+            height: { xs: "auto", md: "100%" },
+            overflow: { xs: "visible", md: "auto" },
+          }}
         >
           {!current
             ? (
@@ -463,11 +478,14 @@ export default function Map({ session, active = true }: MapProps) {
                       <IconButton
                         size="small"
                         onClick={togglePaneSize}
-                        title={isRightPaneLarge
-                          ? "Shrink details pane"
-                          : "Enlarge details pane"}
+                        aria-label={detailFull
+                          ? "Show map"
+                          : "Fill screen with details"}
+                        title={detailFull
+                          ? "Show map"
+                          : "Fill screen with details"}
                       >
-                        {isRightPaneLarge
+                        {detailFull
                           ? <CloseFullscreenIcon fontSize="small" />
                           : <OpenInFullIcon fontSize="small" />}
                       </IconButton>

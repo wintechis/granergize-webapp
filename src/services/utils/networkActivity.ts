@@ -6,6 +6,9 @@
  * {@link trackedFetch} — and React reads it with `useNetworkActivity`
  * (useSyncExternalStore).
  */
+import { withRetry } from "./retryFetch.ts";
+import { isSessionExpired } from "./sessionGate.ts";
+
 export interface ActiveRequest {
   id: number;
   label: string;
@@ -15,13 +18,38 @@ export interface ActiveRequest {
   url?: string;
 }
 
+/** How a finished request turned out — populated when {@link endActivity} runs. */
+export interface RequestOutcome {
+  /** HTTP status, when a Response came back. Absent for thrown/CORS-blocked
+   * failures or label-only activities (map tiles) that expose no status. */
+  status?: number;
+  /** True if the fetch threw (network / CORS-blocked, e.g. a masked 429). */
+  error?: boolean;
+}
+
+/** One finished request, kept in a bounded rolling history for the debug log. */
+export interface RequestLogEntry extends ActiveRequest {
+  endedAt: number;
+  durationMs: number;
+  status?: number;
+  error: boolean;
+  /** Not an error, and (no status | status < 400). */
+  ok: boolean;
+}
+
+/** How many finished requests to keep for the click-to-open debug log. */
+const LOG_MAX = 200;
+
 let nextId = 1;
 const active = new Map<number, ActiveRequest>();
+const log: RequestLogEntry[] = []; // newest first
 const listeners = new Set<() => void>();
 let snapshot: ActiveRequest[] = [];
+let logSnapshot: RequestLogEntry[] = [];
 
 function emit(): void {
   snapshot = [...active.values()];
+  logSnapshot = [...log];
   for (const l of listeners) l();
 }
 
@@ -42,9 +70,30 @@ function inputUrl(input: string | URL | Request): string {
     : (input as Request).url ?? String(input);
 }
 
-/** Mark a request finished (idempotent — unknown/old tokens are ignored). */
-export function endActivity(id: number): void {
-  if (active.delete(id)) emit();
+/**
+ * Mark a request finished (idempotent — unknown/old tokens are ignored). The
+ * optional outcome (HTTP status, or that it threw) is recorded in the rolling
+ * debug log so the header indicator can show what happened, not just that
+ * something happened.
+ */
+export function endActivity(id: number, outcome?: RequestOutcome): void {
+  const a = active.get(id);
+  if (!a) return;
+  active.delete(id);
+
+  const endedAt = Date.now();
+  const error = outcome?.error ?? false;
+  const status = outcome?.status;
+  log.unshift({
+    ...a,
+    endedAt,
+    durationMs: endedAt - a.startedAt,
+    status,
+    error,
+    ok: !error && (status === undefined || status < 400),
+  });
+  if (log.length > LOG_MAX) log.length = LOG_MAX;
+  emit();
 }
 
 export function subscribeActivity(listener: () => void): () => void {
@@ -56,6 +105,17 @@ export function subscribeActivity(listener: () => void): () => void {
 
 export function getActivitySnapshot(): ActiveRequest[] {
   return snapshot;
+}
+
+/** The rolling history of finished requests (newest first) for the debug log. */
+export function getRequestLog(): RequestLogEntry[] {
+  return logSnapshot;
+}
+
+/** Clear the debug log (the indicator's "Clear" button). */
+export function clearRequestLog(): void {
+  log.length = 0;
+  emit();
 }
 
 /** Human-readable label for a fetch call: METHOD + host/path (query stripped). */
@@ -79,7 +139,12 @@ export function describeRequest(
   return `${method} ${where}`;
 }
 
-/** Run a bare (non-Pod) fetch — e.g. geocoding — while tracking its activity. */
+// Bare (non-Pod) fetches back off on transient throttling too (e.g. Nominatim
+// rate-limits geocoding). Pod requests retry inside instrumentSessionFetch
+// instead — above @inrupt's fetch, so each retry gets a fresh DPoP proof.
+const retryingFetch = withRetry((input, init) => fetch(input, init));
+
+/** Run a bare (non-Pod) fetch — e.g. geocoding — with retry + activity tracking. */
 export async function trackedFetch(
   input: string | URL | Request,
   init?: RequestInit,
@@ -90,10 +155,16 @@ export async function trackedFetch(
   const id = label
     ? beginActivity(label)
     : beginActivity(describeRequest(input, init), inputUrl(input));
+  let outcome: RequestOutcome | undefined;
   try {
-    return await fetch(input, init);
+    const res = await retryingFetch(input, init);
+    outcome = { status: res.status };
+    return res;
+  } catch (e) {
+    outcome = { error: true };
+    throw e;
   } finally {
-    endActivity(id);
+    endActivity(id, outcome);
   }
 }
 
@@ -101,7 +172,8 @@ const INSTRUMENTED = Symbol.for("granergize.networkActivity.instrumented");
 
 /**
  * Wrap a Solid session's `fetch` in place (once) so every authenticated Pod
- * request flows through the activity store. Idempotent — safe to call on each
+ * request flows through the activity store AND retries transient rate-limiting
+ * (Cloudflare 429/503; see retryFetch.ts). Idempotent — safe to call on each
  * login / mount. Because callers across the app hold the same session object and
  * call `session.fetch(...)`, this captures them all without touching call sites.
  */
@@ -109,12 +181,26 @@ export function instrumentSessionFetch(session: { fetch: typeof fetch }): void {
   const original = session.fetch?.bind(session);
   const current = session.fetch as (typeof fetch & { [k: symbol]: unknown }) | undefined;
   if (!original || current?.[INSTRUMENTED]) return;
+  const retrying = withRetry(original);
   const wrapped = (async (input: string | URL | Request, init?: RequestInit) => {
+    // Session-expiry gate: once expiry is known (the library's `sessionExpired`
+    // event trips it), short-circuit further requests with a synthetic 401 rather
+    // than hammering a dead token during logout. Not tracked as activity — local.
+    if (isSessionExpired()) {
+      return new Response(null, { status: 401, statusText: "Session expired" });
+    }
+    // One activity entry brackets the whole request, retries included.
     const id = beginActivity(describeRequest(input, init), inputUrl(input));
+    let outcome: RequestOutcome | undefined;
     try {
-      return await original(input, init);
+      const res = await retrying(input, init);
+      outcome = { status: res.status };
+      return res;
+    } catch (e) {
+      outcome = { error: true };
+      throw e;
     } finally {
-      endActivity(id);
+      endActivity(id, outcome);
     }
   }) as typeof fetch & { [k: symbol]: unknown };
   wrapped[INSTRUMENTED] = true;

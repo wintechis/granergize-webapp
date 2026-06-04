@@ -15,7 +15,7 @@ import { getStorageRoot, podResources, registryUrl } from "./utils/solidUtils.ts
 import { fetchFresh } from "./utils/podFetch.ts";
 import { GRAN_NS } from "./utils/vocabularies.ts";
 import { seedDemoBuildings } from "./utils/buildingSerializer.ts";
-import { isSeriesGranularity } from "./utils/roleDetection.ts";
+import { isSeriesGranularity } from "./utils/durationUtils.ts";
 
 const { namedNode } = DataFactory;
 
@@ -53,11 +53,12 @@ async function loadTtlFromMultipleSources(
   const successfulSources: string[] = [];
   const failedSources: { url: string; error: string; status?: number }[] = [];
 
-  // Try each source independently
+  // Try each source independently. fetchFresh revalidates (cache: "no-cache"),
+  // so an unchanged document comes back as a cheap 304 instead of a full body.
   await Promise.all(
     urls.map(async (url) => {
       try {
-        const response = await session.fetch(url);
+        const response = await fetchFresh(url, session);
         if (!response.ok) {
           failedSources.push({
             url,
@@ -237,7 +238,7 @@ async function getSourceRegistry(
   const registry = registryUrl(webId);
 
   try {
-    const response = await session.fetch(registry + "?t=" + Date.now());
+    const response = await fetchFresh(registry, session);
 
     let registryText = "";
     if (!response.ok) {

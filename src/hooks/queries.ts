@@ -1,5 +1,5 @@
-import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { getDefaultSession } from "@inrupt/solid-client-authn-browser";
+import { useQuery } from "@tanstack/react-query";
+import { getSession } from "./session.ts";
 import {
   loadBuildingsAndAgents,
   loadEnergy,
@@ -12,6 +12,7 @@ import {
 } from "../services/interop/sharingManager.ts";
 import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
 import { getOrganization } from "../services/utils/organizationManager.ts";
+import { getRoomState } from "../services/interop/dataRoom.ts";
 import type {
   AgentType,
   BuildingType,
@@ -19,7 +20,7 @@ import type {
 } from "../../types/types.ts";
 
 /**
- * React Query data hooks. The Solid session is the `getDefaultSession()` singleton
+ * React Query data hooks. The Solid session is the `getSession()` singleton
  * (its `fetch` is the authed, activity-instrumented transport); query keys are
  * namespaced by WebID so a re-login doesn't read another user's cache. Error
  * handling (session-expiry / conflict notifications, keep-previous-data) is
@@ -27,7 +28,7 @@ import type {
  */
 
 function webIdOf(): string | undefined {
-  return getDefaultSession().info.webId ?? undefined;
+  return getSession().info.webId ?? undefined;
 }
 
 /** Phase 1: buildings + agents (paints the map). */
@@ -37,7 +38,7 @@ export function useBuildingsAndAgents() {
     queryKey: ["buildingsAndAgents", webId],
     enabled: Boolean(webId),
     queryFn: async () => {
-      const session = getDefaultSession();
+      const session = getSession();
       // Resolve the Pod storage root from pim:storage before any path is built.
       await resolveStorageRoot(session);
       return loadBuildingsAndAgents(session);
@@ -51,7 +52,7 @@ export function useEnergy(buildings: BuildingType[] | undefined) {
   return useQuery({
     queryKey: ["energy", webId],
     enabled: Boolean(webId) && Boolean(buildings),
-    queryFn: () => loadEnergy(getDefaultSession(), buildings ?? []),
+    queryFn: () => loadEnergy(getSession(), buildings ?? []),
   });
 }
 
@@ -60,7 +61,7 @@ export function useSharedWithMe() {
   return useQuery({
     queryKey: ["sharedWithMe", webId],
     enabled: Boolean(webId),
-    queryFn: () => getSharedWithMe(getDefaultSession()),
+    queryFn: () => getSharedWithMe(getSession()),
   });
 }
 
@@ -69,7 +70,7 @@ export function useSharedBuildings() {
   return useQuery({
     queryKey: ["sharedBuildings", webId],
     enabled: Boolean(webId),
-    queryFn: () => getSharedBuildings(getDefaultSession()),
+    queryFn: () => getSharedBuildings(getSession()),
   });
 }
 
@@ -78,7 +79,7 @@ export function useViewDefinitions() {
   return useQuery({
     queryKey: ["viewDefinitions", webId],
     enabled: Boolean(webId),
-    queryFn: () => getViewDefinitions(getDefaultSession()),
+    queryFn: () => getViewDefinitions(getSession()),
   });
 }
 
@@ -87,7 +88,7 @@ export function useSharedViews() {
   return useQuery({
     queryKey: ["sharedViews", webId],
     enabled: Boolean(webId),
-    queryFn: () => getSharedViews(getDefaultSession()),
+    queryFn: () => getSharedViews(getSession()),
   });
 }
 
@@ -96,7 +97,17 @@ export function useOrganization() {
   return useQuery({
     queryKey: ["organization", webId],
     enabled: Boolean(webId),
-    queryFn: () => getOrganization(getDefaultSession()),
+    queryFn: () => getOrganization(getSession()),
+  });
+}
+
+/** Data room: current + known rooms, members, my roles/membership — one log read. */
+export function useRoomState() {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: ["roomState", webId],
+    enabled: Boolean(webId),
+    queryFn: () => getRoomState(getSession()),
   });
 }
 
@@ -109,6 +120,7 @@ export const queryKeys = {
   viewDefinitions: ["viewDefinitions"] as const,
   sharedViews: ["sharedViews"] as const,
   organization: ["organization"] as const,
+  roomState: ["roomState"] as const,
 };
 
 /**
@@ -124,11 +136,9 @@ export interface SolidData {
   agentAverages: Record<string, Record<string, number>>;
   isLoading: boolean;
   error: string | null;
-  reloadData: () => Promise<void>;
 }
 
 export function useSolidData(): SolidData {
-  const queryClient = useQueryClient();
   const ba = useBuildingsAndAgents();
   const energy = useEnergy(ba.data?.buildings);
 
@@ -141,11 +151,5 @@ export function useSolidData(): SolidData {
     agentAverages: energy.data?.agentAverages ?? {},
     isLoading: ba.isLoading,
     error: err ? (err instanceof Error ? err.message : String(err)) : null,
-    reloadData: async () => {
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.buildingsAndAgents,
-      });
-      await queryClient.invalidateQueries({ queryKey: queryKeys.energy });
-    },
   };
 }

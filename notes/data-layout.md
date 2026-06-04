@@ -212,7 +212,7 @@ deleted. OK while data is disposable; revisit if real pods exist before ship.
 
 > Implemented in `resolveStorageRoot(session)` (`solidUtils.ts`): GET the WebID
 > doc, parse with n3, read `<webId> pim:storage <root>`, cache in a module var.
-> Resolved once at login (`SolidDataContext.loadData`) before the first fetch;
+> Resolved once at login (`resolveStorageRoot` in `App.tsx`) before the routed app renders;
 > `getStorageRoot` is now cache-or-throw and the string-munge is deleted.
 > **Throws if the profile declares no `pim:storage`** (no fallback). Kept below for
 > rationale.

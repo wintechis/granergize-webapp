@@ -8,7 +8,7 @@ import { getStorageRoot } from "./solidUtils.ts";
  * Confirm (showing exactly which resources will be removed) and then permanently
  * delete an owned building — its file, energy subtree, and registry entry.
  * Returns `true` if it was deleted, `false` if the user cancelled. Throws if the
- * delete itself fails. Shared by the DATA tab's building list (and anywhere else
+ * delete itself fails. Shared by the MANAGE tab's building list (and anywhere else
  * that needs the same confirm + delete flow).
  */
 export async function confirmAndDeleteBuilding(

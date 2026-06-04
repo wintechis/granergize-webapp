@@ -11,6 +11,7 @@ import {
 } from "../utils/vocabularies.ts";
 import { getStorageRoot } from "../utils/solidUtils.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
+import { mapPooled } from "../utils/pool.ts";
 
 const { blankNode, literal, namedNode } = DataFactory;
 
@@ -199,7 +200,10 @@ export async function enterRoom(
   const room = normalizeRoomUrl(roomUrl);
   const reg = await readRegistry(session);
   if (reg.current && reg.current !== room) {
-    await setMembership(reg.current, false, session); // leave the previous room
+    // Best-effort: leaving the previous room must not block joining the new one.
+    // The old room may be deleted or no longer writable (e.g. access revoked),
+    // which would 403/404 here and otherwise strand the user unable to switch.
+    await setMembership(reg.current, false, session).catch(() => {});
   }
   if (!(await getMyMembership(room, session))) {
     await setMembership(room, true, session);
@@ -307,7 +311,10 @@ async function readLog(
     null,
   ).map((o) => o.value);
 
-  const parsed = await Promise.all(eventUrls.map(async (url) => {
+  // Bounded concurrency, not Promise.all: reading every event at once is a burst
+  // that Cloudflare answers with 429s (opaque CORS errors in the browser). A small
+  // pool keeps each wave under the rate limit. See utils/pool.ts.
+  const parsed = await mapPooled(eventUrls, 4, async (url) => {
     const res = await fetchFresh(url, session);
     if (!res.ok) return null;
     const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
@@ -338,7 +345,7 @@ async function readLog(
       return { kind: "role" as const, event: { agent, at, roles } };
     }
     return null;
-  }));
+  });
 
   const roleEvents: RoleEvent[] = [];
   const membershipEvents: MembershipEvent[] = [];
@@ -362,6 +369,52 @@ function latestByAgent<T extends { agent: string; at: string }>(
   return latest;
 }
 
+/** The complete state of a room, derived from a SINGLE log read. */
+export interface RoomState {
+  current: string | null;
+  known: string[];
+  members: DataRoomMember[];
+  myRoles: UserRole[];
+  myMembership: boolean;
+}
+
+/**
+ * Fold one parsed log into the member list, the caller's roles, and the caller's
+ * membership — so a single `readLog` answers all three (avoids reading the whole
+ * event log two or three times per room load).
+ */
+function deriveState(
+  log: { roleEvents: RoleEvent[]; membershipEvents: MembershipEvent[] },
+  webId: string | null,
+): { members: DataRoomMember[]; myRoles: UserRole[]; myMembership: boolean } {
+  const latestRole = latestByAgent(log.roleEvents);
+  const latestMem = latestByAgent(log.membershipEvents);
+  const members = [...latestMem.values()]
+    .filter((m) => m.joined)
+    .map((m) => ({ webId: m.agent, roles: latestRole.get(m.agent)?.roles ?? [] }));
+  return {
+    members,
+    myRoles: webId ? latestRole.get(webId)?.roles ?? [] : [],
+    myMembership: webId ? latestMem.get(webId)?.joined ?? false : false,
+  };
+}
+
+/**
+ * Read the whole room state in ONE pass: the rooms registry (current + known)
+ * plus, for the current room, a single `readLog` folded into members/myRoles/
+ * myMembership. This is what the UI should call instead of getMembers+getMyRole
+ * (which each read the log independently).
+ */
+export async function getRoomState(session: Session): Promise<RoomState> {
+  const webId = session.info.webId ?? null;
+  const { current, known } = await readRooms(session);
+  if (!current) {
+    return { current, known, members: [], myRoles: [], myMembership: false };
+  }
+  const log = await readLog(current, session);
+  return { current, known, ...deriveState(log, webId) };
+}
+
 /**
  * The current data room members: agents whose latest membership event is
  * "joined". Roles are attached from the (independent) role stream and may be
@@ -372,11 +425,7 @@ export async function getMembers(
   session: Session,
 ): Promise<DataRoomMember[]> {
   if (!roomUrl) return [];
-  const { roleEvents, membershipEvents } = await readLog(roomUrl, session);
-  const latestRole = latestByAgent(roleEvents);
-  return [...latestByAgent(membershipEvents).values()]
-    .filter((m) => m.joined)
-    .map((m) => ({ webId: m.agent, roles: latestRole.get(m.agent)?.roles ?? [] }));
+  return deriveState(await readLog(roomUrl, session), null).members;
 }
 
 /** Resolve a role to the WebIDs of all members of `roomUrl` holding that role. */
@@ -400,8 +449,7 @@ export async function getMyRole(
 ): Promise<UserRole[]> {
   const webId = session.info.webId;
   if (!roomUrl || !webId) return [];
-  const { roleEvents } = await readLog(roomUrl, session);
-  return latestByAgent(roleEvents).get(webId)?.roles ?? [];
+  return deriveState(await readLog(roomUrl, session), webId).myRoles;
 }
 
 /** Whether the logged-in user is currently a member of `roomUrl`. */
@@ -411,8 +459,7 @@ export async function getMyMembership(
 ): Promise<boolean> {
   const webId = session.info.webId;
   if (!roomUrl || !webId) return false;
-  const { membershipEvents } = await readLog(roomUrl, session);
-  return latestByAgent(membershipEvents).get(webId)?.joined ?? false;
+  return deriveState(await readLog(roomUrl, session), webId).myMembership;
 }
 
 /**
@@ -589,7 +636,9 @@ export async function deleteRoom(
     );
     const children = store.getObjects(namedNode(container), LDP_CONTAINS, null)
       .map((o) => o.value);
-    await Promise.all(children.map((c) => session.fetch(c, { method: "DELETE" })));
+    // Bounded concurrency (not Promise.all) to avoid a delete burst tripping the
+    // rate limit. See utils/pool.ts.
+    await mapPooled(children, 4, (c) => session.fetch(c, { method: "DELETE" }));
   }
   // Best-effort ACL removal; deleting the container is what matters.
   await session.fetch(`${container}.acl`, { method: "DELETE" }).catch(() => {});
