@@ -18,15 +18,18 @@ Owner, three writes:
 3. **Record** — append to the owner's `sharingRegistry.ttl`.
 
 Recipient — `readInbox` lists the inbox and, per message: `interop:AccessGrant` → add
-`forResource` (+ `gran:dataSourceRole`) to `dataSources.ttl`; `interop:AccessRevocation`
-→ remove it; then delete the message. The next load (`TurtleParsingService`) reads
-`dataSources.ttl`, so the shared resource appears.
+`forResource` (+ a legacy `gran:dataSourceRole` fallback) to `dataSources.ttl`;
+`interop:AccessRevocation` → remove it; then delete the message. The next load
+(`TurtleParsingService`) reads `dataSources.ttl`, so the shared resource appears — its
+provenance read from the shared building file's PROV attribution (the carried role is
+only a fallback).
 
 ## Building — `shareBuildingData(buildingUri, webId, session, options)`
 
 `grantReadAccess` grants the static building file always; if `includeEnergyData`, also
-the energy file (`dummy`/`investor`) or the parent container with `acl:default`
-(`user`-role daily files). Then notify + record. Grant message:
+the single energy file, or the parent container with `acl:default` when there are
+multiple daily files (a 15-min series — dispatched on the file count, not a role).
+Then notify + record. Grant message:
 
 ```turtle
 <#grant…> a interop:AccessGrant ;
@@ -75,4 +78,7 @@ with that role, so you're discoverable; a *direct* share needs nothing room-rela
   `accessMode`, `includesEnergyData`.
 - **acl** — `acl:Read` / `acl:default` on `.acl` resources.
 - **ldp** — `ldp:inbox`, `ldp:contains`.
-- **gran** — `gran:dataSourceRole` (role carried with a shared building).
+- **gran** — `gran:dataSourceRole` (legacy provenance fallback carried with a shared
+  building; provenance proper is the building file's PROV attribution).
+- **prov** — `prov:qualifiedAttribution` / `prov:agent` / `prov:hadRole` (building
+  provenance, in the building file).

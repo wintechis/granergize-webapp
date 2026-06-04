@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 import {
   getDefaultSession,
   ILoginInputOptions,
@@ -11,6 +11,7 @@ import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
+import { shouldRestoreSession } from "../services/utils/sessionRestore.ts";
 
 interface LoginProps {
   children: JSX.Element;
@@ -24,6 +25,8 @@ interface LoginProps {
   name?: string;
   logo?: JSX.Element;
   lead?: JSX.Element;
+  /** Rendered centered at the bottom of the login screen (e.g. project links). */
+  footer?: JSX.Element;
   loadingIndicator?: JSX.Element;
   recommendedLogins?: string[];
   loginOptions?: Omit<ILoginInputOptions, "oidcIssuer">;
@@ -32,9 +35,10 @@ interface LoginProps {
 
 const IdpInputWrapper = styled(Box)(({ theme }) => ({
   display: "flex",
-  alignItems: "center",
+  // Stretch so the submit button matches the text field's height without a
+  // hardcoded px value.
+  alignItems: "stretch",
   gap: theme.spacing(1),
-  marginTop: theme.spacing(1),
   width: "100%",
 }));
 
@@ -45,6 +49,7 @@ export const Login: React.FC<LoginProps> = ({
   suppressRestore = false,
   name,
   lead,
+  footer,
   loginOptions,
   logo = (
     <img
@@ -66,66 +71,96 @@ export const Login: React.FC<LoginProps> = ({
 
   const [invalidIDP, setInvalidIDP] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [sessionExpired, setSessionExpired] = useState(false);
-  const [sessionResponded, setSessionResponded] = useState(false);
   const [, setClearInitialLoad] = useState<ReturnType<typeof setTimeout>>();
+
+  // The silent-restore decision runs inside a deferred timer, so it must read
+  // the LIVE expiry/responded flags, not the values captured when the effect
+  // ran — otherwise we could restore a session that expired during the 2s delay.
+  // These only gate that timer (never rendered), so refs suffice — no re-render.
+  const sessionExpiredRef = useRef(false);
+  const sessionRespondedRef = useRef(false);
+  const markExpired = () => {
+    sessionExpiredRef.current = true;
+  };
+  const markResponded = () => {
+    sessionRespondedRef.current = true;
+  };
 
   // State for new IDP input
   const [login, setLogin] = useState("");
 
   const session = getDefaultSession();
 
+  // The inrupt library announces a successful auth through BOTH an event
+  // (`login`/`sessionRestore`) AND the `handleIncomingRedirect` promise
+  // resolution — so a single login would otherwise call `onLogin` twice
+  // (double inbox/profile reads, racing registry writes). Funnel every
+  // callsite through this one-shot guard so `onLogin` fires at most once per
+  // session; reset it on logout/expiry so the next login fires again.
+  const loginHandled = useRef(false);
+  const fireLogin = () => {
+    if (loginHandled.current) return;
+    loginHandled.current = true;
+    onLogin?.(session);
+  };
+
   useEffect(() => {
-    session.events.on("logout", () => {
-      setSessionResponded(true);
+    // Watchdog: never trap the user on the "Loading…" screen if a redirect or
+    // restore hangs (e.g. the IdP never resolves `handleIncomingRedirect`).
+    // After this fires we fall through to the login form; a late restore that
+    // still succeeds will set `activeWebId` and swap in the app.
+    const watchdog = setTimeout(() => setLoading(false), 8000);
+
+    const handleLogoutEvent = () => {
+      loginHandled.current = false;
+      markResponded();
       setLoading(false);
       setActiveWebId(undefined);
-    });
-
-    session.events.on("sessionExpired", () => {
-      setSessionResponded(true);
+    };
+    const handleExpired = () => {
+      loginHandled.current = false;
+      markResponded();
       setLoading(false);
-      setSessionExpired(true);
+      markExpired();
       setActiveWebId(undefined);
-    });
-
-    session.events.on("login", () => {
-      setSessionResponded(true);
+    };
+    const handleLoginEvent = () => {
+      markResponded();
       setLoading(false);
-
-      // Call onLogin with the session
-      if (onLogin) {
-        onLogin(session);
-      }
-    });
-
-    session.events.on("sessionRestore", () => {
-      setSessionResponded(true);
+      fireLogin();
+    };
+    const handleRestore = () => {
+      markResponded();
       setLoading(false);
-      if (onLogin) {
-        onLogin(session);
-      }
-    });
+      fireLogin();
+    };
+
+    session.events.on("logout", handleLogoutEvent);
+    session.events.on("sessionExpired", handleExpired);
+    session.events.on("login", handleLoginEvent);
+    session.events.on("sessionRestore", handleRestore);
 
     session.handleIncomingRedirect().then((sessionInfo?: ISessionInfo) => {
       if (sessionInfo?.isLoggedIn) {
         setActiveWebId(sessionInfo.webId);
-        if (onLogin) {
-          onLogin(session);
-        }
+        fireLogin();
       } else {
         setTimeout(() => {
-          // Suppress the silent restore after a destructive logout.
-          const mayRestore = auto && !suppressRestore;
-          if (!sessionExpired && !sessionResponded && mayRestore) {
+          // Decide against LIVE flags (via refs), not the values captured when
+          // this effect ran — the session may have expired during the delay.
+          const mayRestore = shouldRestoreSession({
+            auto,
+            suppressRestore,
+            sessionExpired: sessionExpiredRef.current,
+            sessionResponded: sessionRespondedRef.current,
+          });
+          if (mayRestore) {
             session
               .handleIncomingRedirect({ restorePreviousSession: true })
               .then((sessionInfo?: ISessionInfo) => {
                 if (sessionInfo?.isLoggedIn) {
                   setActiveWebId(sessionInfo.webId);
-                  if (onLogin) {
-                    onLogin(session);
-                  }
+                  fireLogin();
                 } else {
                   setClearInitialLoad(
                     setTimeout(() => {
@@ -140,6 +175,16 @@ export const Login: React.FC<LoginProps> = ({
         }, 2000);
       }
     });
+
+    return () => {
+      clearTimeout(watchdog);
+      // Remove the listeners this effect registered, so a re-run (deps change)
+      // doesn't stack duplicates that leak across the component's lifetime.
+      session.events.off("logout", handleLogoutEvent);
+      session.events.off("sessionExpired", handleExpired);
+      session.events.off("login", handleLoginEvent);
+      session.events.off("sessionRestore", handleRestore);
+    };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [auto, suppressRestore, onLogin, session]);
 
@@ -179,31 +224,23 @@ export const Login: React.FC<LoginProps> = ({
     submitCallback(enteredIdp);
   }
 
-  // Loading screen
+  // Loading screen — same flex centering as the login view below.
   if (loading) {
     return (
       <Box
         sx={{
-          position: "relative",
           width: "100%",
           minHeight: "100vh",
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          p: 2,
         }}
       >
-        <Box
-          sx={{
-            position: "absolute",
-            transform: "translate(-50%, -50%)",
-            top: "50%",
-            left: "50%",
-            padding: 0,
-          }}
-        >
-          {loadingIndicator ?? "Loading..."}
-        </Box>
+        {loadingIndicator ?? "Loading…"}
       </Box>
     );
   }
-
 
   // If user is not logged in, show login UI
   if (!activeWebId) {
@@ -243,7 +280,10 @@ export const Login: React.FC<LoginProps> = ({
           sx={{
             display: "flex",
             flexDirection: "column",
-            gap: 2,
+            // Two-tier rhythm: `gap: 3` between sections here, `gap: 2` within
+            // each section box below. No per-child `mt` (it would compound with
+            // the gap into an uneven rhythm).
+            gap: 3,
             maxWidth: 500,
             width: "100%",
           }}
@@ -256,38 +296,37 @@ export const Login: React.FC<LoginProps> = ({
             </Typography>
           )}
 
-          {/* Recommended IDPs */}
+          {/* Recommended IDPs — only until a provider is remembered */}
           {!prevIdps.length && recommendedLogins.length
             ? (
-              <Typography variant="button" component="b" sx={{ mt: 2 }}>
-                SIGN IN WITH AN IDENTITY PROVIDER
-              </Typography>
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Sign in with an identity provider
+                </Typography>
+                {recommendedLogins.map((idp) => (
+                  <Button
+                    key={idp}
+                    variant="outlined"
+                    onClick={(e) => {
+                      e.preventDefault();
+                      submitCallback(idp);
+                    }}
+                  >
+                    {idp.replace("https://", "")}
+                  </Button>
+                ))}
+              </Box>
             )
             : null}
 
-          {prevIdps.length === 0
-            ? recommendedLogins.map((idp) => (
-              <Button
-                key={idp}
-                variant="outlined"
-                onClick={(e) => {
-                  e.preventDefault();
-                  submitCallback(idp);
-                }}
-              >
-                {idp.replace("https://", "")}
-              </Button>
-            ))
-            : null}
-
-          {/* Previously used IDPs */}
+          {/* Previously used IDPs — same vertical stack as the recommended list */}
           {prevIdps.length
             ? (
-              <Box sx={{ mt: 2 }}>
-                <Typography variant="button" component="b">
-                  SIGN IN AGAIN WITH
+              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+                <Typography variant="body2" color="text.secondary">
+                  Sign in again with
                 </Typography>
-                <Box sx={{ mt: 1, display: "flex", gap: 1, flexWrap: "wrap" }}>
+                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
                   {prevIdps.map((idp) => (
                     <Button
                       key={idp}
@@ -300,56 +339,61 @@ export const Login: React.FC<LoginProps> = ({
                       {new URL(idp).host}
                     </Button>
                   ))}
-                  <Button
-                    variant="text"
-                    color="error"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      // Non-destructive: just forgets the remembered IDP list
-                      // locally — no confirmation needed.
-                      localStorage.removeItem("prevIdps");
-                      setPrevIdps([]);
-                    }}
-                  >
-                    CLEAR
-                  </Button>
                 </Box>
+                <Button
+                  variant="text"
+                  color="error"
+                  sx={{ alignSelf: "flex-start" }}
+                  onClick={(e) => {
+                    e.preventDefault();
+                    // Non-destructive: just forgets the remembered IDP list
+                    // locally — no confirmation needed.
+                    localStorage.removeItem("prevIdps");
+                    setPrevIdps([]);
+                  }}
+                >
+                  Clear
+                </Button>
               </Box>
             )
             : null}
 
-          {/* Prompt user for a new IDP */}
-          {(prevIdps.length || recommendedLogins.length) && (
-            <Typography variant="button" component="b" sx={{ mt: 2 }}>
-              SIGN IN WITH ANOTHER IDENTITY PROVIDER
-            </Typography>
-          )}
-
-          <Box component="form" onSubmit={handleNewIdpSubmit} sx={{ mt: 1 }}>
-            <IdpInputWrapper>
-              <TextField
-                name="login"
-                label="Identity Provider"
-                placeholder="e.g. inrupt.net"
-                onChange={(e) => setLogin(e.target.value)}
-                fullWidth
-              />
-              <Button
-                type="submit"
-                variant="contained"
-                sx={{ height: "56px" }}
-              >
-                +
-              </Button>
-            </IdpInputWrapper>
+          {/* Sign in with a provider not listed above */}
+          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
+            {(prevIdps.length || recommendedLogins.length)
+              ? (
+                <Typography variant="body2" color="text.secondary">
+                  Sign in with another identity provider
+                </Typography>
+              )
+              : null}
+            <Box component="form" onSubmit={handleNewIdpSubmit}>
+              <IdpInputWrapper>
+                <TextField
+                  name="login"
+                  label="Identity Provider"
+                  placeholder="e.g. inrupt.net"
+                  onChange={(e) => setLogin(e.target.value)}
+                  fullWidth
+                />
+                <Button type="submit" variant="contained">
+                  +
+                </Button>
+              </IdpInputWrapper>
+            </Box>
+            {invalidIDP && (
+              <Typography variant="body2" color="error">
+                Please provide a correct URI.
+              </Typography>
+            )}
           </Box>
-
-          {invalidIDP && (
-            <Typography component="span" color="error">
-              Please provide a correct URI.
-            </Typography>
-          )}
         </Box>
+
+        {footer && (
+          <Box sx={{ mt: 3, textAlign: "center" }}>
+            {footer}
+          </Box>
+        )}
       </Box>
     );
   }

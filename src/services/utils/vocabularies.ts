@@ -25,14 +25,27 @@ export const SOSA_NS = "http://www.w3.org/ns/sosa/";
 export const TIME_NS = "http://www.w3.org/2006/time#";
 export const SSN_NS = "http://www.w3.org/ns/ssn/";
 
+/** QUDT units — kWh (`KiloW-HR`), m³ (`M3`), percent (`PERCENT`) on energy results. */
+export const UNIT_NS = "https://qudt.org/vocab/unit#";
+
 /** SIOC — data room roles are sioc:Role values linked via sioc:has_function */
 export const SIOC_NS = "http://rdfs.org/sioc/ns#";
 
 /** Activity Streams 2.0 — data room membership events (as:Join / as:Leave / as:Update) */
 export const AS_NS = "https://www.w3.org/ns/activitystreams#";
 
-/** PROV-O — used for the append-only data room role-assignment log */
+/** PROV-O — building data provenance (qualified attribution to a producing agent). */
 export const PROV_NS = "http://www.w3.org/ns/prov#";
+export const PROV_QUALIFIED_ATTRIBUTION = `${PROV_NS}qualifiedAttribution`;
+export const PROV_ATTRIBUTION = `${PROV_NS}Attribution`;
+export const PROV_AGENT = `${PROV_NS}agent`;
+export const PROV_HAD_ROLE = `${PROV_NS}hadRole`;
+export const PROV_WAS_ASSOCIATED_WITH = `${PROV_NS}wasAssociatedWith`;
+export const PROV_GENERATED_AT_TIME = `${PROV_NS}generatedAtTime`;
+
+// Solid Application Interoperability — the access-grant vocabulary used for the
+// sharing event logs (shared-in/ and shared-out/) and the inbox messages.
+export const INTEROP_NS = "http://www.w3.org/ns/solid/interop#";
 
 export const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 export const ACL_NS = "http://www.w3.org/ns/auth/acl#";
@@ -40,3 +53,4 @@ export const ACL_NS = "http://www.w3.org/ns/auth/acl#";
 export const XSD_DATETIME = "http://www.w3.org/2001/XMLSchema#dateTime";
 export const XSD_INTEGER = "http://www.w3.org/2001/XMLSchema#integer";
 export const XSD_DECIMAL = "http://www.w3.org/2001/XMLSchema#decimal";
+export const XSD_DATE = "http://www.w3.org/2001/XMLSchema#date";

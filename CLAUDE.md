@@ -81,14 +81,37 @@ why `vite.config.ts` sets `base: "./"` and routing uses `HashRouter`.
    sources are tolerated and pruned; hidden buildings come from
    `<storageRoot>/profile/granergize/hiddenBuildings.ttl`.
 
-### Roles
+### Roles, provenance & data-shape dispatch
 `UserRole` (`types/types.ts`) — `dummy | investor | user | benchmark_service_provider` —
-drives which RDF predicates and energy-loading strategy apply per building source. Roles
-map to gran: IRIs (see `IRI_TO_ROLE` maps). Notable per-role behavior in
-`TurtleParsingService.ts`: **user**-role energy data is loaded lazily on building click;
-**investor**-role energy is synthesized from inline SOSA observations (no separate files).
+is used for three *separate* things; do not conflate them:
+- **Provenance** — who produced a building's data, recorded in the building file as a
+  PROV-O qualified attribution: `<#b> prov:qualifiedAttribution [ a prov:Attribution ;
+  prov:agent <webid> ; prov:hadRole gran:<category> ]`. The parser
+  (`buildingParser.ts`) reads it into `BuildingType.provenance` / `attributedTo`;
+  `constants/roles.ts` holds the category↔IRI maps (`PROVENANCE_TO_IRI` /
+  `IRI_TO_PROVENANCE`). **Provenance never drives behaviour.** Legacy pods carry the
+  category as a `gran:dataSourceRole` triple in the registry; `TurtleParsingService.ts`
+  reads that only as a *fallback* when the file has no attribution.
+- **Data-room membership role** — the "My role(s)" you self-assign in a room
+  (`ConnectPage`), used as a sharing target. Unrelated to a building's provenance.
+- **Import/export template** — `parseCsvToFields(file, template)` /
+  `buildingToWorkbook` pick the spreadsheet shape (investor row-label / BSP columns /
+  generic) by category.
+
+**Behaviour dispatches on the data's shape, not the role.** Energy loading
+(`TurtleParsingService.ts`) and the energy-tab render (`Energy.tsx`, `ExplorePage.tsx`)
+key on the dataset's declared **granularity** via `isSeriesGranularity(...)`
+(`durationUtils.ts`): a sub-hourly series (`PT15M`) is lazy-loaded on click and renders
+the time-series chart; an annual aggregate (inline SOSA observations) is bulk-loaded and
+renders the annual chart. The map marker distinguishes only owned vs shared (visibility),
+not provenance.
 
 ### RDF conventions
+- **Terminology: say "URI" (RFC 3986), or "IRI" (RFC 3987) for the
+  internationalized form RDF actually uses — not "URL".** Resources here are
+  identified by URIs/IRIs (a URL is just a locating URI); we have an education
+  mandate to use precise wording, so prefer URI/IRI in user-facing text, error
+  messages, comments, and identifiers. (RDF terms are IRIs.)
 - Vocabulary IRIs are centralized in `src/services/utils/vocabularies.ts` (`GRAN_NS`,
   `INVESTOR_NS`, `BENCH_NS`, SOSA/TIME/SSN, XSD datatypes). Use these constants; don't
   inline IRI strings.
@@ -147,3 +170,56 @@ the header isn't mounted there, are the standalone full-page routes
 (`/building`, `/energy`, `/agent`, `/view/:id`, `/room/:uri` — see `App.tsx`,
 `Agent.tsx`, `AggregatedView.tsx`), the pre-auth `Login` screen, and the lazy-chunk
 `Suspense` fallback (code-split load, not data).
+
+### UI conventions
+
+The app stays **full MUI** but aims to be **plain and consistent**: a small,
+reused widget vocabulary and one way to express each intent — not bespoke one-offs.
+(This supersedes an earlier semantic-HTML/de-MUI exploration.) The goal of these
+rules is that two screens built months apart look and behave the same. Some are
+ESLint-enforced (`eslint.config.js`); the rest are review conventions.
+
+- **Dialogs — one wrapper.** Every dialog goes through `src/components/Modal.tsx`
+  (props `open`/`onClose`/`title`/`children`/`actions`/`overlay`/`dirty`/`busy`/
+  `maxWidth`), which is backed by MUI `Dialog` and bakes in the structure and the
+  close-guard. Raw `@mui/material` `Dialog*` imports are **ESLint-banned** (only
+  `Modal.tsx` may import them). Close-guard semantics live in the pure, tested
+  `src/components/dialogGuard.ts`: a backdrop click never closes, Escape confirms
+  while `dirty`, and closing is suppressed while `busy`; explicit Cancel/X buttons
+  call `onClose` directly. Put the primary action last in `actions` and make it
+  the single `variant="contained"` button.
+- **Loading — one indicator.** The header `NetworkActivityIndicator` is the only
+  spinner in the app shell; `CircularProgress`/`LinearProgress` imports are
+  **ESLint-banned** outside the exempted full-page-route / Suspense files. Regions
+  show plain `Loading…` text (ellipsis `…`, not `...`); action buttons go
+  `disabled` while in flight. Feed the activity store, don't add component spinners.
+- **Notifications — one mechanism.** Transient user-facing messages go through
+  `NotificationContext` (`showNotification(msg, severity)`), never a bespoke
+  snackbar. Keep the message vocabulary small and reused; don't add a one-off
+  notice for a trivial event. Error toasts use `formatError(action, err)`
+  (`src/services/utils/formatError.ts`) → a single `"Failed to {action}: {detail}"`
+  shape, instead of ad-hoc "X failed" / "Error X" wording.
+  - **Carve-out:** *contextual, persistent* feedback rendered inline in a panel
+    or form may use MUI `<Alert>` (e.g. a validation error or a "no data" notice
+    inside the weather panel / share dialog) — a snackbar can't stay put or sit
+    in context. Use `<Alert>` for in-place state; `showNotification` for transient
+    global events.
+- **Typography — the theme scale only.** Use a `Typography` `variant` (or the
+  semantic-HTML the page already uses); inline `fontSize`/`fontWeight` are
+  **ESLint-warned**. One variant per role: page title → `h5`, section header →
+  `h6`, body → `body1`, secondary/help → `body2` + `color="text.secondary"`,
+  caption → `caption`.
+- **Spacing & color — theme tokens.** Use the MUI 8px spacing scale via `sx`
+  (section gap `3`, related elements `2`, tight `1`); take colors from the theme
+  (`color="text.secondary"`, `"error"`), not hardcoded hex / raw `px`.
+- **Buttons.** Primary = `contained`, secondary = `outlined`, cancel/tertiary =
+  `text`; at most one primary per dialog/section.
+- **Lists & rows.** Reuse `src/components/listStyles.ts`
+  (`listStyle`/`rowStyle`/`nestedListStyle`/`ellipsis`) and `usePaging` + `Pager`
+  rather than bespoke flex rows, so every list looks and pages the same.
+- **Icon actions.** `IconButton size="small"` with both a `Tooltip` and an
+  `aria-label`.
+
+When a new widget seems necessary, first check whether an existing
+component/pattern covers it; prefer extending the shared one over adding a
+single-use variant.

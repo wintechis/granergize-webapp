@@ -1,55 +1,65 @@
-# Data schema — data-source roles & graph shapes
+# Data schema — provenance, templates & graph shapes
 
-What a "role" means, why it is per data source, and the graph shape each role
-implies. The imperative parsers (`buildingParser.ts`, `energyDataParser.ts`,
-`userEnergyParser.ts`) are the source of truth for those shapes. Membership roles
-are a separate concept — see [`room.md`](./room.md).
+What a building's provenance means, how the graph shape varies by producer, and how
+the app dispatches on the data's own shape (not on a "role"). The imperative parsers
+(`buildingParser.ts`, `energyDataParser.ts`, `userEnergyParser.ts`) are the source of
+truth for those shapes. Membership roles are a separate concept — see
+[`room.md`](./room.md).
 
-## Two meanings of "role"
+## Three things `UserRole` is reused for
 
 `UserRole = "dummy" | "investor" | "user" | "benchmark_service_provider"`
-(`types/types.ts`) is reused for:
+(`types/types.ts`) labels three *independent* concerns; **none of them gates
+parsing / loading / rendering** — that dispatches on the data's own shape:
 
-- **Source role** — on a data-source *file*. Stored `<src> gran:dataSourceRole
-  gran:InvestorRole` in `dataSources.ttl`. Read by `TurtleParsingService.ts`
-  (`getSourceRegistry`). Means "this file is in the investor shape".
-- **Membership role** — on an *agent* (WebID). Stored as `as:Update` +
-  `sioc:has_function` in a room log. Read by `dataRoom.ts` (`getMyRole`,
-  `getMembersByRole`). Means "this person acts as an investor here".
+- **Provenance** — who produced a building's data. Recorded in the building file as a
+  PROV-O qualified attribution: `<#b> prov:qualifiedAttribution [ a prov:Attribution ;
+  prov:agent <webid> ; prov:hadRole gran:InvestorRole ]`. Read by `buildingParser.ts`
+  into `BuildingType.provenance` / `attributedTo`. Legacy pods carry it instead as
+  `<src> gran:dataSourceRole gran:InvestorRole` in `dataSources.ttl`;
+  `TurtleParsingService.ts` reads that **only as a fallback** when the file has no
+  attribution.
+- **Membership role** — on an *agent* (WebID), in a room log (`as:Update` +
+  `sioc:has_function`). Read by `dataRoom.ts` (`getMyRole`, `getMembersByRole`). Means
+  "this person acts as an investor here". A sharing target.
+- **Import/export template** — `parseCsvToFields(file, template)` /
+  `buildingToWorkbook` pick the spreadsheet shape (investor row-label / BSP columns /
+  generic) by category.
 
-IRI mapping (both): `dummy`→`gran:DummyRole` (`vocab.ttl#`),
-`investor`→`gran:InvestorRole` (`investor-vocab.ttl#`),
-`user`→`gran:UserRoleInstance` (`user-vocab.ttl#`),
-`benchmark_service_provider`→`gran:BenchmarkRole` (`benchmark-vocab.ttl#`).
+Category ↔ IRI maps live in `constants/roles.ts` (`PROVENANCE_TO_IRI` /
+`IRI_TO_PROVENANCE`): `dummy`→`gran:DummyRole`, `investor`→`gran:InvestorRole`,
+`user`→`gran:UserRoleInstance`, `benchmark_service_provider`→`gran:BenchmarkRole`.
 
-## Source role = per-file schema selector
+## Graph shape varies by producer, but dispatch is data-driven
 
 One session's `dataSources.ttl` aggregates files authored by different actors in
-different vocabularies (own `buildings.ttl` as `DummyRole`, an investor's shared
-file, a tenant's readings, a benchmark file) — structurally different graphs. The
-role selects the parser per source.
+different vocabularies (own `buildings.ttl`, an investor's shared file, a tenant's
+readings, a benchmark file) — structurally different graphs. The parser keys on
+**predicate presence** (core + optional `investor:*` / `bench:*`), and energy
+loading/rendering keys on the dataset's declared **granularity** — so the producer
+category is never needed to read the data correctly.
 
-It travels with the data: sharing writes it into the shared registry (`share.ts`)
-and copies it to the recipient's `dataSources.ttl` (`inbox.ts`,
-`sharingManager.ts`); own imports write it (`buildingSerializer.ts`,
-`addBuildingDataSource`). Unannotated sources default to `dummy`
-(`TurtleParsingService.ts:283`) — the main weak spot.
+Provenance travels with the data: `serializeBuildingToTurtle` writes the PROV
+attribution into the building file on create, and a sharing recipient reads it
+straight from the shared file. The legacy `gran:dataSourceRole` is no longer written
+to the registry.
 
-## What the role gates
+## What dispatches on data shape (not role)
 
-- **Building predicates** — dummy/user: core; benchmark: core + `bench:*`;
-  investor: core + `investor:*`.
-- **Energy location** — dummy/benchmark: separate file(s); user: separate **daily**
-  file(s); investor: **inline** observations.
-- **Energy graph** — dummy/benchmark/investor: `sosa:Observation` (investor via
-  `hasFeatureOfInterest`); user: `uservoc:EnergyConsumptionReading`.
-- **When energy loads** — dummy/benchmark: bulk prefetch; user: lazy on click;
-  investor: synthesized from inline obs.
-- **Parsed into** — dummy/benchmark: 7 `EnergyType` categories; investor:
-  `InvestorAnnualData` → `energyNeed`; user: `timeSeries.electricityConsumption`.
+- **Building predicates** — rendered whenever present (`hasInvestorDetails` in
+  `Building.tsx`): core always, `investor:*` / `bench:*` when the subject carries
+  them. No role gate.
+- **Energy location** — separate file(s) (a daily series, or an annual file) vs.
+  inline `sosa:Observation`s; read structurally.
+- **When energy loads** — on the dataset's declared `gran:granularity` via
+  `isSeriesGranularity()` (`durationUtils.ts`): a sub-hourly series (`PT15M`) is
+  lazy-loaded on click; an aggregate is bulk-prefetched. A dataset with no declared
+  granularity is treated as non-series.
+- **Energy render** — `ExplorePage.tsx` / `Energy.tsx` dispatch on the presence of
+  `annualData` (annual chart) vs. a declared series (time-series chart), never a role.
 
-Code: `TurtleParsingService.ts:465` (skip user prefetch), `:568` (synthesize
-investor energy); `energyDataParser.ts`; `ExplorePage.tsx` / `Building.tsx` rendering.
+Code: `TurtleParsingService.ts` (granularity skip-prefetch), `durationUtils.ts`,
+`energyDataParser.ts`; `ExplorePage.tsx` / `Building.tsx` rendering.
 
 ## Graph shapes per role
 
@@ -64,7 +74,7 @@ are the source of truth; there's no separate shape/validator layer.
 > An earlier draft formalised these (and the app's on-Pod registry/view/sharing
 > files) as ShEx in `roles.shex`, with n3 mirrors in `roleDetection.ts` /
 > `shapeValidators.ts`. That was removed: ShEx engines don't run under Deno, role
-> is now taken from the explicit `gran:dataSourceRole` IRI in `dataSources.ttl`
+> is now provenance, recorded as a PROV qualified attribution in the building file
 > (not sniffed from shape), and the validators had no callers. The only survivor
 > is `isSeriesGranularity` in `durationUtils.ts` (load-strategy helper).
 
@@ -127,15 +137,17 @@ scope.
 - **User and dummy are indistinguishable at the building-file level** — both are
   core + `gran:hasEnergyConsumptionDataset`; they diverge only in the referenced
   energy file's content. The role is unrecoverable from the building file alone.
-- The role gates *fetching* (lazy-load user, synthesize investor), decided before
-  the files are in hand — a post-fetch conformance check is too late.
-- `gran:dataSourceRole` is a declared assertion; a ShEx match is a structural guess
-  that flips behaviour silently on sparse/malformed data.
+- Fetching used to be gated on role (lazy-load user, synthesize investor), decided
+  before the files are in hand. **This is no longer true** — fetching now dispatches
+  on the dataset's declared `gran:granularity` (`isSeriesGranularity`), which *is* in
+  hand from the building file, so the discriminator problem is moot.
+- A ShEx match would be a structural guess that flips behaviour silently on sparse /
+  malformed data; the declared granularity is an explicit assertion instead.
 
-Recommended: keep `gran:dataSourceRole` authoritative; use shapes to **validate**
-declared roles and to **infer only when the annotation is missing** (replace the
-`?? "dummy"` fallback, `TurtleParsingService.ts:283`). Inference from shape is sound
-only while shape ⟺ role stays bijective.
+Historically the recommendation was "keep the source role authoritative". That role
+is now **provenance only** (a PROV attribution), and behaviour keys on granularity, so
+shapes are no longer needed as a behaviour discriminator at all — only, optionally, to
+validate declared data.
 
 ## Detector vs. shapes (removed)
 
@@ -146,24 +158,25 @@ role comes from the declared `gran:dataSourceRole` IRI, and the only behaviour
 that survived (the load-strategy split below) is now `isSeriesGranularity` in
 `durationUtils.ts`.
 
-## Decouple role from shape (BUILT — see "Status" below)
+## Decouple role from shape (DONE)
 
-> **Status (current).** The migration path below is implemented. Energy load,
-> synthesis, and render now dispatch on the **data's declared shape/granularity**,
-> not `sourceRole`; role is provenance only.
+> **Status (current).** Energy load, synthesis, and render dispatch on the **data's
+> declared shape/granularity**, not on a role. The producer category is now
+> **provenance only**, recorded as a PROV qualified attribution in the building file
+> (`BuildingType.provenance` / `attributedTo`); old pods fall back to the registry
+> `gran:dataSourceRole`.
 > - Datasets declare `gran:granularity` on write (`buildingSerializer.ts`;
 >   user series → `"PT15M"`).
 > - Load strategy follows granularity via `isSeriesGranularity()`
->   (`durationUtils.ts`): the prefetch-skip in `TurtleParsingService.ts` keys on
->   the declared period (series ⇒ lazy), falling back to the old role default only
->   when no granularity is declared.
+>   (`durationUtils.ts`): the prefetch-skip in `TurtleParsingService.ts` keys purely
+>   on the declared period (series ⇒ lazy; no granularity ⇒ non-series). The old
+>   `role === "user"` fallback is gone.
 > - Inline-aggregate energy synthesis keys on **presence of `annualData`**, not
 >   `role === "investor"` (so benchmark inline data is covered too).
 > - `Building.tsx` renders investor/bench predicates whenever present
 >   (`hasInvestorDetails`), with no role gate.
-> - `ExplorePage.tsx`'s energy tab dispatches on `annualData` shape (annual chart vs.
->   time-series `Energy`), not role.
-> - `sourceRole` (`?? "dummy"`) survives only as a provenance label.
+> - `ExplorePage.tsx` / `Energy.tsx` dispatch on `annualData` (annual chart) vs. a
+>   declared series granularity (time-series `Energy`), never a role.
 >
 > Still open: naming first-class dataset-shape *types* and publishing a real vocab
 > (see "Open vocab question"); these stayed out of scope.

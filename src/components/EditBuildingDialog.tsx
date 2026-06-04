@@ -3,10 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControl,
   FormControlLabel,
@@ -23,7 +19,8 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/utils/config/buildingConfig.ts";
 import { updateBuilding } from "../services/utils/buildingSerializer.ts";
 import { trackedFetch } from "../services/utils/networkActivity.ts";
-import { guardedDialogClose } from "./dialogClose.ts";
+import { formatError } from "../services/utils/formatError.ts";
+import Modal from "./Modal.tsx";
 
 interface EditBuildingDialogProps {
   open: boolean;
@@ -37,7 +34,8 @@ const SKIP_FIELDS = new Set([
   "id",
   "uri",
   "sourceUri",
-  "sourceRole",
+  "provenance",
+  "attributedTo",
   "isShared",
   "energyData",
   "certifications",
@@ -84,7 +82,7 @@ export default function EditBuildingDialog(
   const [geocoding, setGeocoding] = useState(false);
   const dirty = JSON.stringify(fields) !== JSON.stringify(initialFields);
 
-  const role = building.sourceRole ?? "investor";
+  const role = building.provenance ?? "investor";
   const fileUri = building.sourceUri ?? building.uri.split("#")[0];
 
   const setField = (key: string, val: string) =>
@@ -116,7 +114,7 @@ export default function EditBuildingDialog(
       setField("long", data[0].lon);
       showNotification("Coordinates updated", "success");
     } catch (err) {
-      showNotification(`Geocoding failed: ${err}`, "error");
+      showNotification(formatError("look up coordinates", err), "error");
     } finally {
       setGeocoding(false);
     }
@@ -130,7 +128,7 @@ export default function EditBuildingDialog(
       onBuildingUpdated();
       onClose();
     } catch (err) {
-      showNotification(`Update failed: ${err}`, "error");
+      showNotification(formatError("update the building", err), "error");
     } finally {
       setSaving(false);
     }
@@ -190,14 +188,22 @@ export default function EditBuildingDialog(
   );
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onClose={guardedDialogClose(handleClose, { dirty, busy: saving })}
-      maxWidth="sm"
-      fullWidth
+      onClose={handleClose}
+      dirty={dirty}
+      busy={saving}
+      title="Edit Building"
+      actions={
+        <>
+          <Button onClick={handleClose} disabled={saving}>Cancel</Button>
+          <Button variant="contained" onClick={handleSubmit} disabled={saving}>
+            {saving ? "Saving…" : "Save Changes"}
+          </Button>
+        </>
+      }
     >
-      <DialogTitle>Edit Building</DialogTitle>
-      <DialogContent sx={{ overflowY: "auto" }}>
+      <Box sx={{ overflowY: "auto" }}>
         {sectionHeader("Address")}
         {tf("Street address", "streetAddress")}
         {tf("Locality (city)", "locality")}
@@ -275,13 +281,7 @@ export default function EditBuildingDialog(
             ])}
           </>
         )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} disabled={saving}>Cancel</Button>
-        <Button variant="contained" onClick={handleSubmit} disabled={saving}>
-          {saving ? "Saving…" : "Save Changes"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+      </Box>
+    </Modal>
   );
 }

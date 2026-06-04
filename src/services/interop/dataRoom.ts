@@ -11,7 +11,14 @@ import {
 } from "../utils/vocabularies.ts";
 import { getStorageRoot } from "../utils/solidUtils.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
+import { ensureContainer } from "../utils/podWrite.ts";
 import { mapPooled } from "../utils/pool.ts";
+import { readPrefs, setCurrentRoom } from "../utils/prefs.ts";
+import {
+  addBookmark,
+  readBookmarks,
+  removeBookmark,
+} from "../utils/bookmarks.ts";
 
 const { blankNode, literal, namedNode } = DataFactory;
 
@@ -59,9 +66,6 @@ const IRI_TO_ROLE: Record<string, UserRole> = Object.fromEntries(
 //     (a full snapshot; may be empty, and may exist without membership).
 // A role event therefore does NOT make you a member: you must post an as:Join.
 
-const GRAN_KNOWN_ROOM = namedNode(`${GRAN_NS}knownRoom`);
-const GRAN_CURRENT_ROOM = namedNode(`${GRAN_NS}currentRoom`);
-
 /** Normalise a room URL to its canonical LDP-container form (trailing "/"). */
 export function normalizeRoomUrl(url: string): string {
   return url.endsWith("/") ? url : `${url}/`;
@@ -77,14 +81,13 @@ export function getActiveRoom(): string | null {
   return activeRoom;
 }
 
-// The room registry on the user's OWN Pod is the single source of truth for the
-// room list and the current room — no localStorage. It holds:
-//   <registry> gran:knownRoom   <url> …   (bookmarks — survive leaving)
-//   <registry> gran:currentRoom <url> .   (0 or 1 — the room you're in)
-// Membership is single: you are a member of the current room only.
-function roomsRegistryUrl(webId: string): string {
-  return `${getStorageRoot(webId)}granergize/rooms.ttl`;
-}
+// The room state on the user's OWN Pod is the single source of truth — no
+// localStorage. It is split across two single-writer flat files (see prefs.ts /
+// bookmarks.ts):
+//   prefs.ttl     gran:currentRoom <url> .   (0 or 1 — the room you're in)
+//   bookmarks.ttl gran:knownRoom   <url> …   (the "Your rooms" list)
+// Membership is single: you are a member of the current room only. Rooms you
+// host are discovered by listing `rooms/`, not recorded here.
 
 interface RoomRegistry {
   known: string[];
@@ -103,64 +106,35 @@ function toTurtle(
   );
 }
 
-async function readRegistry(session: Session): Promise<RoomRegistry> {
-  const webId = session.info.webId;
-  if (!webId) return { known: [], current: null };
-  const url = roomsRegistryUrl(webId);
-  const res = await fetchFresh(url, session);
-  if (!res.ok) return { known: [], current: null };
-  const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
-  const reg = namedNode(url);
-  return {
-    known: store.getObjects(reg, GRAN_KNOWN_ROOM, null).map((o) => o.value),
-    current: store.getObjects(reg, GRAN_CURRENT_ROOM, null)[0]?.value ?? null,
-  };
-}
-
-async function writeRegistry(
-  reg: RoomRegistry,
-  session: Session,
-): Promise<void> {
-  const url = roomsRegistryUrl(session.info.webId!);
-  const node = namedNode(url);
-  const store = new Store();
-  for (const r of reg.known) store.addQuad(node, GRAN_KNOWN_ROOM, namedNode(r));
-  if (reg.current) store.addQuad(node, GRAN_CURRENT_ROOM, namedNode(reg.current));
-  const body = await toTurtle(store, { gran: GRAN_NS });
-  const res = await session.fetch(url, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body,
-  });
-  if (!res.ok) {
-    throw new Error(`Failed to update room registry (HTTP ${res.status})`);
-  }
-}
-
 /** Bookmarked room URLs (the "Your rooms" list). */
-export async function getKnownRooms(session: Session): Promise<string[]> {
-  return (await readRegistry(session)).known;
+export function getKnownRooms(session: Session): Promise<string[]> {
+  return readBookmarks(session);
 }
 
 /** The current room recorded on the Pod (source of truth for getActiveRoom). */
 export async function getCurrentRoom(session: Session): Promise<string | null> {
-  return (await readRegistry(session)).current;
+  return (await readPrefs(session)).currentRoom;
 }
 
 /**
- * Read the registry once, hydrate the in-memory current-room mirror, and return
- * both the current room and the bookmark list — so the UI gets both from a
- * single GET instead of reading the registry twice.
+ * Read both files, hydrate the in-memory current-room mirror, and return the
+ * current room plus the bookmark list — the shape the room UI consumes.
  */
 export async function readRooms(session: Session): Promise<RoomRegistry> {
-  const reg = await readRegistry(session);
-  activeRoom = reg.current;
-  return reg;
+  const [prefs, known] = await Promise.all([
+    readPrefs(session),
+    readBookmarks(session),
+  ]);
+  activeRoom = prefs.currentRoom;
+  return { known, current: prefs.currentRoom };
 }
 
 /** Load the Pod's current-room pointer into memory so getActiveRoom works. */
-export async function hydrateActiveRoom(session: Session): Promise<string | null> {
-  return (await readRooms(session)).current;
+export async function hydrateActiveRoom(
+  session: Session,
+): Promise<string | null> {
+  activeRoom = (await readPrefs(session)).currentRoom;
+  return activeRoom;
 }
 
 /** Add a room to the bookmarks list (deduped). Does NOT enter/join it. */
@@ -168,10 +142,7 @@ export async function addKnownRoom(
   roomUrl: string,
   session: Session,
 ): Promise<void> {
-  const room = normalizeRoomUrl(roomUrl);
-  const reg = await readRegistry(session);
-  if (reg.known.includes(room)) return;
-  await writeRegistry({ ...reg, known: [...reg.known, room] }, session);
+  await addBookmark(session, normalizeRoomUrl(roomUrl));
 }
 
 /** Remove a room from bookmarks (and clear the current pointer if it was current). */
@@ -180,12 +151,10 @@ export async function removeKnownRoom(
   session: Session,
 ): Promise<void> {
   const room = normalizeRoomUrl(roomUrl);
-  const reg = await readRegistry(session);
-  if (!reg.known.includes(room) && reg.current !== room) return;
-  await writeRegistry({
-    known: reg.known.filter((r) => r !== room),
-    current: reg.current === room ? null : reg.current,
-  }, session);
+  await removeBookmark(session, room);
+  if ((await getCurrentRoom(session)) === room) {
+    await setCurrentRoom(session, null);
+  }
   if (activeRoom === room) activeRoom = null;
 }
 
@@ -198,18 +167,21 @@ export async function enterRoom(
   session: Session,
 ): Promise<void> {
   const room = normalizeRoomUrl(roomUrl);
-  const reg = await readRegistry(session);
-  if (reg.current && reg.current !== room) {
+  const previous = await getCurrentRoom(session);
+  if (previous && previous !== room) {
     // Best-effort: leaving the previous room must not block joining the new one.
     // The old room may be deleted or no longer writable (e.g. access revoked),
     // which would 403/404 here and otherwise strand the user unable to switch.
-    await setMembership(reg.current, false, session).catch(() => {});
+    await setMembership(previous, false, session).catch(() => {});
   }
   if (!(await getMyMembership(room, session))) {
     await setMembership(room, true, session);
   }
-  const known = reg.known.includes(room) ? reg.known : [...reg.known, room];
-  await writeRegistry({ known, current: room }, session);
+  // Ensure it's bookmarked and make it current. The current pointer is owned by
+  // the room mutations and set authoritatively in the React Query cache, so a
+  // slow/stale read-back can't revert a switch.
+  await addBookmark(session, room);
+  await setCurrentRoom(session, room);
   activeRoom = room;
 }
 
@@ -220,8 +192,9 @@ export async function exitRoom(
 ): Promise<void> {
   const room = normalizeRoomUrl(roomUrl);
   await setMembership(room, false, session);
-  const reg = await readRegistry(session);
-  if (reg.current === room) await writeRegistry({ ...reg, current: null }, session);
+  if ((await getCurrentRoom(session)) === room) {
+    await setCurrentRoom(session, null);
+  }
   if (activeRoom === room) activeRoom = null;
 }
 
@@ -369,15 +342,6 @@ function latestByAgent<T extends { agent: string; at: string }>(
   return latest;
 }
 
-/** The complete state of a room, derived from a SINGLE log read. */
-export interface RoomState {
-  current: string | null;
-  known: string[];
-  members: DataRoomMember[];
-  myRoles: UserRole[];
-  myMembership: boolean;
-}
-
 /**
  * Fold one parsed log into the member list, the caller's roles, and the caller's
  * membership — so a single `readLog` answers all three (avoids reading the whole
@@ -400,19 +364,20 @@ function deriveState(
 }
 
 /**
- * Read the whole room state in ONE pass: the rooms registry (current + known)
- * plus, for the current room, a single `readLog` folded into members/myRoles/
- * myMembership. This is what the UI should call instead of getMembers+getMyRole
- * (which each read the log independently).
+ * The members / my-roles / my-membership for a single room (one `readLog`).
+ * The UI reads the registry (`current`/`known`, via `readRooms`) and this log
+ * state as *separate* React Query keys: the registry is owned by the room
+ * mutations (set authoritatively, never refetched, so a slow/stale read-back
+ * can't revert a switch), while this log refetches — keyed on the current room —
+ * for members and roles.
  */
-export async function getRoomState(session: Session): Promise<RoomState> {
+export async function getRoomLogState(
+  session: Session,
+  room: string,
+): Promise<{ members: DataRoomMember[]; myRoles: UserRole[]; myMembership: boolean }> {
   const webId = session.info.webId ?? null;
-  const { current, known } = await readRooms(session);
-  if (!current) {
-    return { current, known, members: [], myRoles: [], myMembership: false };
-  }
-  const log = await readLog(current, session);
-  return { current, known, ...deriveState(log, webId) };
+  const log = await readLog(normalizeRoomUrl(room), session);
+  return deriveState(log, webId);
 }
 
 /**
@@ -649,21 +614,3 @@ export async function deleteRoom(
 }
 
 /** Create the container if it doesn't exist yet (idempotent). */
-async function ensureContainer(
-  containerUrl: string,
-  session: Session,
-): Promise<void> {
-  const head = await session.fetch(containerUrl, { method: "GET" });
-  if (head.ok || head.status !== 404) return;
-  // Mirror viewManager's directory creation: PUT an empty container resource.
-  const put = await session.fetch(containerUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: "",
-  });
-  if (!put.ok) {
-    throw new Error(
-      `Failed to create data room container (HTTP ${put.status})`,
-    );
-  }
-}

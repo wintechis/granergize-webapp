@@ -3,16 +3,13 @@ import {
   Avatar,
   Box,
   Button,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   TextField,
   Typography,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { guardedDialogClose } from "./dialogClose.ts";
+import { formatError } from "../services/utils/formatError.ts";
+import Modal from "./Modal.tsx";
 import {
   getOrganization,
   isSupportedLogoType,
@@ -113,12 +110,7 @@ export default function OrganizationDialog(
       onSaved();
       close();
     } catch (err) {
-      showNotification(
-        `Failed to save organisation: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-        "error",
-      );
+      showNotification(formatError("save your organisation", err), "error");
     } finally {
       setSaving(false);
     }
@@ -127,15 +119,26 @@ export default function OrganizationDialog(
   const shownLogo = pickedPreview ?? logoPreview ?? undefined;
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onClose={guardedDialogClose(close, { dirty, busy: saving })}
-      maxWidth="sm"
-      fullWidth
+      onClose={close}
+      dirty={dirty}
+      busy={saving}
+      title="Your organisation"
+      actions={
+        <>
+          <Button onClick={close} disabled={saving}>Cancel</Button>
+          <Button
+            onClick={handleSave}
+            variant="contained"
+            disabled={saving || !dirty}
+          >
+            {saving ? "Saving…" : "Save"}
+          </Button>
+        </>
+      }
     >
-      <DialogTitle>Your organisation</DialogTitle>
-      <DialogContent>
-        <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
+      <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Avatar src={shownLogo} variant="rounded" sx={{ width: 56, height: 56 }} />
             <Box>
@@ -179,13 +182,6 @@ export default function OrganizationDialog(
             fullWidth
           />
         </Box>
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={close} disabled={saving}>Cancel</Button>
-        <Button onClick={handleSave} variant="contained" disabled={saving || !dirty}>
-          {saving ? "Saving…" : "Save"}
-        </Button>
-      </DialogActions>
-    </Dialog>
+    </Modal>
   );
 }

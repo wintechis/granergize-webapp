@@ -7,7 +7,7 @@
 On-Pod file layout, rooted at the storage location discovered via `pim:storage`.
 Companion to
 [`data-view.md`](./data-view.md) (the building pane) and
-[`data-schema.md`](./data-schema.md) (per-role schemas).
+[`data-schema.md`](./data-schema.md) (provenance & graph shapes).
 
 Paths derive in `src/services/utils/solidUtils.ts`. Writes are PUT/POST only (no
 PATCH); cache-sensitive reads use `fetchFresh`.
@@ -29,7 +29,7 @@ and stays under `profile/`.
 │   ├── card  (#me, #org)                             the WebID document (see below)
 │   └── logo.<ext>                                    organisation logo image (org is part of the profile)
 └── granergize/                                       ← podResources(): the single app root
-    ├── dataSources.ttl          registry: building/agent TTLs, each gran:dataSourceRole-tagged
+    ├── dataSources.ttl          registry: building/agent TTL sources (provenance is in each file, PROV)
     ├── hiddenBuildings.ttl       gran:hiddenBuilding list (pruned on load)
     ├── buildings/<id>.ttl        subject <…/buildings/<id>.ttl#<id>>
     │   └── …/<id>/energy/<date>.ttl   per-day 15-min readings (user role; SOSA)
@@ -125,10 +125,12 @@ Distinct from **building agents** (`gran:investor` / `gran:operatedBy` /
 ## Load flow
 
 1. WebID → `getPodBaseUrl` → read `profile/granergize/dataSources.ttl`.
-2. Registry lists building/agent TTL sources, each `gran:dataSourceRole`-tagged.
+2. Registry lists building/agent TTL sources (provenance is in each building file as
+   a PROV attribution; a legacy `gran:dataSourceRole` tag is read only as a fallback).
 3. Fetch each (per-source blank-node scoping), prune inaccessible, subtract
    `hiddenBuildings.ttl`, parse via `buildingParser`/`agentParser`.
-4. Role decides energy strategy (user = lazy per-click; investor = inline SOSA).
+4. Declared `gran:granularity` decides energy strategy (PT15M series = lazy per-click;
+   annual aggregate = bulk / inline SOSA), not the producer role.
 
 ## Known gaps
 

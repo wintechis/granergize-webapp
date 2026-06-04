@@ -11,9 +11,10 @@ pane row/action back to its Pod file, keyed against
 `building.uri` = the marker's RDF subject (`buildingParser.ts` Pass 1,
 `quad.subject.value`). `building.sourceUri` = the source file URL
 (`quad.graph.value`). `building.id` is derived from the IRI tail (not a triple).
-`building.sourceRole` and `building.isShared` are computed in
-`TurtleParsingService.ts`, not in the building's graph. The URI shows verbatim atop
-the pane; everything below is processed.
+`building.provenance` (from the file's PROV attribution, or a legacy registry-role
+fallback) and `building.isShared` are set during parsing/`TurtleParsingService.ts`,
+not in the building's graph proper. The URI shows verbatim atop the pane; everything
+below is processed.
 
 ## 1. RDF graph off the building URI
 
@@ -69,8 +70,9 @@ stack). The right grid renders the last entry:
         enlarge/shrink toggle
       Tabs: [Building data] [Energy data] [Weather data]
         tab 0 → <Building embedded hideHeader>  (§2)
-        tab 1 → by sourceRole: benchmark→<BspEnergy>, investor→<InvestorEnergy>,
-                 user/has energyNeed→<Energy>, else "No energy data"
+        tab 1 → by data shape: annualData present → <BspEnergy> (company/logistics
+                 fields) else <InvestorEnergy>; declared series / selected energy →
+                 <Energy>; else "No energy data"
         tab 2 → <WeatherData>
 ```
 
@@ -93,7 +95,7 @@ Customer / Operated By / Investor   (agent RefLink → /agent/<hash>)
 Type (UriLink); Coordinates (→ OpenStreetMap); Building/Land/Office Area (m²);
 Has PV System (✓/✗); Year of Construction; NACE Code (→ nacecode.de);
 Energy Certificate (→ "pdf")
-if sourceRole === "investor":
+if investor/benchmark predicates present (hasInvestorDetails, not role):
   §Building, §Heat Generation (✓/✗), §Certifications, §Operating Costs
 ```
 
@@ -129,14 +131,15 @@ Agent rows render only the IRI fragment + a `RefLink`; agent attributes
   PUTs the building file, patching scalar fields via inverse
   `predicateMap`/`objectPropertyMap`; blank-node structures preserved. Scope:
   address, lat/long (+ Nominatim geocode), areas, year, `operatedBy` (raw WebID),
-  `hasPVSystem`, and the investor/benchmark block by role. `SKIP_FIELDS` (shown but
+  `hasPVSystem`, and the investor/benchmark block by its provenance category.
+  `SKIP_FIELDS` (shown but
   not editable): `customer`, `investor`, `type`, `naceCode`, `energyCertificate`,
   and the array/object fields.
 - **Energy certificate** (`EnergyCertificateDialog` → `uploadEnergyCertificate`,
   `certificateUploader.ts`): PUTs the PDF to `certificates/<id>_energy_certificate.pdf`,
   then PUTs the building file with a refreshed `gran:hasEnergyCertificate`.
-  **Currently unreachable** — the dialog is rendered but nothing sets
-  `energyCertificateUploaderOpen`, so it has no trigger.
+  Triggered by an "Upload/Replace energy certificate" button on `Building.tsx`,
+  shown for your own buildings (`!building.isShared`).
 - **Share** (`ShareBuildingDialog` → `shareBuildingData`, `interop/share.ts`):
   doesn't change building data. Grants ACL read (PUT `.acl`), POSTs an access-grant
   to the recipient's `ldp:inbox`; producer's `sharingRegistry.ttl` records it,
@@ -153,43 +156,44 @@ flow (`data-layout.md`).
   operating costs render but aren't editable here (only authored via XLSX import,
   `AddBuildingDialog`).
 - **Certificate upload is dead UI** (un-triggerable).
-- One building file mixes core + investor + benchmark predicates; `sourceRole`
-  (computed, not stored on the subject) selects which block shows.
 
-## Implications of the schema redesign (design — not yet built)
+## Implications of the schema redesign (largely shipped — see `data-schema.md` status)
 
-How this pane changes if the role/schema rework in
-[`data-schema.md`](./data-schema.md) lands. Today the card is **role-driven**: a
-`sourceRole === "investor"` gate (`Building.tsx`) decides which block renders, and
-the energy tab dispatches on `sourceRole`. The redesign makes both **data-driven**:
+How this pane relates to the role/schema rework in
+[`data-schema.md`](./data-schema.md). The card and energy tab used to be
+**role-driven** — a `sourceRole === "investor"` gate (`Building.tsx`) decided which
+block rendered, and the energy tab dispatched on `sourceRole`. Per the
+`data-schema.md` status block, both are now **data-driven**:
 
-- **Predicate-driven render.** Drop the role gate; render whatever predicates are
-  present (REC/core + any `investor:*`/`bench:*` actually on the subject). The card
-  becomes "show the fields this building has," not "show the block for its role."
-  Removes the §3c "one file mixes blocks, sourceRole selects" wart. `predicateMap`
-  already supports this; only the §2 render conditional changes.
-- **Granularity-driven energy tab.** The tab dispatch (`BspEnergy`/`InvestorEnergy`/
-  `Energy` by `sourceRole`) becomes dispatch by the dataset's `gran:granularity`:
-  a series (PT15M) renders the time-series chart, an aggregate (P1Y) the annual
-  chart — and **one building can show both**, regardless of role. Folds the three
-  energy components toward one that switches on declared period.
-- **Role → provenance badge.** `sourceRole` stops gating rendering; it becomes a
-  small attribution label ("shared by … as investor"), matching its new
-  provenance-only meaning.
+- **Predicate-driven render (shipped).** The role gate is gone — `Building.tsx`
+  renders whatever predicates are present (REC/core + any `investor:*`/`bench:*`
+  actually on the subject) via `hasInvestorDetails`. The card shows "the fields this
+  building has," not "the block for its role"; the §3c "one file mixes blocks,
+  sourceRole selects" wart is removed.
+- **Granularity-driven energy tab (shipped).** The energy tab dispatches by the
+  dataset's declared shape (`annualData` presence / `gran:granularity`): a series
+  (PT15M) renders the time-series chart, an aggregate (P1Y) the annual chart — and
+  **one building can show both**, regardless of role.
+
+Provenance is now modelled as a PROV qualified attribution in the building file
+(`building.provenance` / `attributedTo`); it deliberately is **not** shown as a UI
+badge (the map marker no longer varies by it either) — provenance lives in the data,
+not the chrome.
+
+Still open:
+
 - **REC-aligned labels.** Where master-data predicates map to REC
-  (`data-schema.md` "Relation to REC"), the row labels/links can point at the REC
+  (`data-schema.md` "Relation to REC"), the row labels/links could point at the REC
   term, making the pane's external links (`UriLink`) resolve to a real ontology.
-
-Close the existing §3c gaps along the way: wire the **dead certificate upload**
-(add the trigger), and either make the read-only rows (`customer`/`investor`/
-`type`/`naceCode`) editable or mark them explicitly read-only rather than
-silently un-editable.
+- **§3c gaps.** Wire the **dead certificate upload** (add the trigger), and either
+  make the read-only rows (`customer`/`investor`/`type`/`naceCode`) editable or mark
+  them explicitly read-only rather than silently un-editable.
 
 ## Pointers
 
 `buildingParser.ts` (extraction, blank-node reassembly);
 `config/buildingConfig.ts` (whitelist, coercion, relabelling);
-`TurtleParsingService.ts` (sourceRole, isShared, hidden filter, energy load);
+`TurtleParsingService.ts` (provenance fallback, isShared, hidden filter, energy load);
 `ExplorePage.tsx` (container, trail, tabs); `Building.tsx` + `detail/DetailView.tsx` (card);
 `Energy.tsx`/`InvestorEnergy.tsx`/`BspEnergy.tsx`/`WeatherData.tsx` (tabs);
 `types/types.ts` (`BuildingType`); `EditBuildingDialog.tsx`, `BuildingDialogs.tsx`,

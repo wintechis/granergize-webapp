@@ -1,5 +1,5 @@
 /// <reference lib="deno.ns" />
-import { assertEquals, assertRejects } from "jsr:@std/assert";
+import { assert, assertEquals, assertRejects } from "jsr:@std/assert";
 import { FakeTime } from "jsr:@std/testing/time";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import {
@@ -41,6 +41,20 @@ class FakePod {
   readonly containers = new Set<string>();
   readonly resources = new Map<string, string>();
   private counter = 0;
+  /** ETag per resource (bumped on every PUT) — lets readModifyWrite use If-Match. */
+  private etags = new Map<string, string>();
+  private etagSeq = 0;
+  /** Conditional headers seen on each PUT, for asserting optimistic locking. */
+  readonly puts: { url: string; ifMatch: string | null }[] = [];
+
+  private etagFor(url: string): string {
+    let e = this.etags.get(url);
+    if (!e) {
+      e = `etag-${++this.etagSeq}`;
+      this.etags.set(url, e);
+    }
+    return e;
+  }
 
   fetch = (input: RequestInfo | URL, init?: RequestInit): Promise<Response> => {
     const url = input.toString().split("?")[0];
@@ -68,12 +82,22 @@ class FakePod {
         return this.res(body, 200, turtle);
       }
       const body = this.resources.get(url);
-      return body === undefined ? this.res("", 404) : this.res(body, 200, turtle);
+      return body === undefined
+        ? this.res("", 404)
+        : this.res(body, 200, { ...turtle, ETag: this.etagFor(url) });
     }
 
     if (method === "PUT") {
-      if (url.endsWith("/")) this.containers.add(url);
-      else this.resources.set(url, String(init?.body ?? ""));
+      if (url.endsWith("/")) {
+        this.containers.add(url);
+      } else {
+        this.resources.set(url, String(init?.body ?? ""));
+        this.etags.set(url, `etag-${++this.etagSeq}`); // bump on every write
+      }
+      this.puts.push({
+        url,
+        ifMatch: new Headers(init?.headers).get("If-Match"),
+      });
       this.addAncestors(url);
       return this.res("", 201);
     }
@@ -385,6 +409,28 @@ Deno.test("createRoom bookmarks the room and makes it current (single membership
   } finally {
     time.restore();
   }
+});
+
+Deno.test("switching the active room rewrites the current-room pointer conditionally (If-Match)", async () => {
+  const pod = new FakePod();
+  const session = sessionFor(pod, ALICE);
+  const prefs = new URL(ALICE).origin + "/granergize/prefs.ttl";
+
+  const a = await createRoom(session); // prefs created, current = a
+  const b = await createRoom(session); // hosting b leaves a → current = b
+  assertEquals(await getCurrentRoom(session), b);
+
+  pod.puts.length = 0; // watch only the switch
+  await enterRoom(a, session); // switch the active room back to a
+
+  assertEquals(await getCurrentRoom(session), a, "the switch took effect");
+  const regPuts = pod.puts.filter((p) => p.url === prefs);
+  assert(regPuts.length > 0, "the switch rewrote the current-room pointer");
+  assert(
+    regPuts.every((p) => p.ifMatch !== null),
+    "every prefs PUT is guarded by If-Match (optimistic locking), so a " +
+      "concurrent enter/leave can't silently revert the switch",
+  );
 });
 
 Deno.test("addKnownRoom bookmarks without joining; enterRoom joins", async () => {

@@ -1,6 +1,10 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Store, Writer } from "n3";
-import type { UserRole } from "../../../types/types.ts";
+import type {
+  BuildingType,
+  InvestorAnnualData,
+  UserRole,
+} from "../../../types/types.ts";
 import {
   BOOLEAN_FIELDS,
   DECIMAL_FIELDS,
@@ -11,16 +15,30 @@ import {
 import {
   GRAN_NS,
   INVESTOR_NS,
+  PROV_AGENT,
+  PROV_ATTRIBUTION,
+  PROV_HAD_ROLE,
+  PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE as RDF_TYPE_IRI,
-  SOSA_NS,
-  SSN_NS,
-  TIME_NS,
   USERVOC_NS,
   XSD_DECIMAL,
   XSD_INTEGER,
 } from "./vocabularies.ts";
-import { getStorageRoot, registryUrl as registryUrlFor } from "./solidUtils.ts";
-import { readModifyWrite } from "./podWrite.ts";
+import {
+  type AnnualMetrics,
+  datasetFileUrl,
+  datasetNodeUrl,
+  type EnergyDataset,
+  loadEnergyDatasets,
+  serializeEnergyDataset,
+  seriesContainerUrl,
+  seriesDailyFileUrl,
+} from "./energyDataset.ts";
+import { isSeriesGranularity } from "./durationUtils.ts";
+import { PROVENANCE_TO_IRI } from "../../constants/roles.ts";
+import { getStorageRoot } from "./solidUtils.ts";
+import { ensureContainer, readModifyWrite } from "./podWrite.ts";
+import { mapPooled } from "./pool.ts";
 import { deleteContainerRecursive } from "./podDelete.ts";
 import { trackedFetch } from "./networkActivity.ts";
 import * as XLSX from "xlsx";
@@ -30,10 +48,7 @@ const { namedNode, literal, blankNode } = DataFactory;
 // XSD datatypes not centralised in vocabularies.ts (only used here).
 const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
 const XSD_BOOLEAN = "http://www.w3.org/2001/XMLSchema#boolean";
-const XSD_DATE = "http://www.w3.org/2001/XMLSchema#date";
-const XSD_GYEAR = "http://www.w3.org/2001/XMLSchema#gYear";
 const REC_BUILDING = "https://w3id.org/rec#Building";
-const UNIT_NS = "https://qudt.org/vocab/unit#";
 
 // Inverse maps: BuildingType field name → predicate IRI
 const fieldToPredicate: Record<string, string> = Object.fromEntries(
@@ -46,47 +61,33 @@ const fieldToObjectPredicate: Record<string, string> = Object.fromEntries(
 // INTEGER_FIELDS / DECIMAL_FIELDS / BOOLEAN_FIELDS are derived from the building
 // field descriptor table (buildingConfig.ts) so read and write share one source.
 
-const ROLE_TO_IRI: Record<UserRole, string> = {
-  dummy: `${GRAN_NS}DummyRole`,
-  investor: `${GRAN_NS}InvestorRole`,
-  user: `${GRAN_NS}UserRoleInstance`,
-  benchmark_service_provider: `${GRAN_NS}BenchmarkRole`,
-};
 
-// Energy metric definitions for SOSA observation serialization
-interface EnergyMetric {
-  fieldKey: string;
-  propIri: string;
-  unitIri: string;
-}
-
-const INV_METRICS: Omit<EnergyMetric, "fieldKey">[] = [
-  { propIri: `${INVESTOR_NS}AnnualElectricityConsumption`, unitIri: `${UNIT_NS}KiloW-HR` },
-  { propIri: `${INVESTOR_NS}RenewableSelfGeneratedShare`, unitIri: `${UNIT_NS}PERCENT` },
-  { propIri: `${INVESTOR_NS}AnnualHeatConsumption`, unitIri: `${UNIT_NS}KiloW-HR` },
-  { propIri: `${INVESTOR_NS}AnnualWaterConsumption`, unitIri: `${UNIT_NS}M3` },
-];
-
-// Suffix → metric index (matches INV_METRICS order)
-const INV_SUFFIX_IDX: Record<string, number> = {
-  elec: 0,
-  renew: 1,
-  heat: 2,
-  water: 3,
-};
-
-const BSP_METRICS: EnergyMetric[] = [
-  { fieldKey: "_bsp_elec", propIri: `${INVESTOR_NS}AnnualElectricityConsumption`, unitIri: `${UNIT_NS}KiloW-HR` },
-  { fieldKey: "_bsp_heat", propIri: `${INVESTOR_NS}AnnualHeatConsumption`, unitIri: `${UNIT_NS}KiloW-HR` },
-  { fieldKey: "_bsp_water", propIri: `${INVESTOR_NS}AnnualWaterConsumption`, unitIri: `${UNIT_NS}M3` },
-  {
-    fieldKey: "_bsp_wastewater",
-    propIri: `${INVESTOR_NS}AnnualWastewaterConsumption`,
-    unitIri: `${UNIT_NS}M3`,
-  },
-];
-
+// Years scanned for the investor `_inv_<metric>_<year>` annual fields.
 const INV_YEARS = [2018, 2019, 2020, 2021, 2022, 2023, 2024];
+
+// Investor operating-cost categories (one `investor:hasOperatingCosts` blank
+// node). Each is read from a `_opcost_<field>` key; `operationInspectionAndMaintenance`
+// is the only boolean, the rest are controlled-vocab/free-text values. The field
+// names match the predicates buildingParser reads back, so they round-trip.
+const OPCOST_FIELDS = [
+  "wasteDisposal",
+  "insurance",
+  "operationInspectionAndMaintenance",
+  "routineCleaningOffice",
+  "routineCleaningWarehouse",
+  "glassCleaning",
+  "exteriorMaintenance",
+  "security",
+  "propertyManagement",
+  "caretaker",
+  "repairAndMaintenance",
+] as const;
+const OPCOST_BOOLEAN_FIELDS = new Set<string>([
+  "operationInspectionAndMaintenance",
+]);
+
+// Upper bound on certifications scanned per building (`_cert_<i>_*` keys).
+const MAX_CERTS = 10;
 
 // ---------------------------------------------------------------------------
 // Lastgang (15-min load profile) helpers
@@ -309,38 +310,108 @@ function xsdType(field: string): string {
   return XSD_STRING;
 }
 
-function addEnergyObservations(
+
+/**
+ * Serialize investor operating costs as a single `investor:hasOperatingCosts`
+ * blank node, from `_opcost_<field>` keys. The boolean category is typed
+ * `xsd:boolean`; the rest are plain literals of the (already human-readable)
+ * value — which is exactly what `buildingParser` reads back (its controlled-vocab
+ * label lookup is a no-op for values that are already labels). No-op when no
+ * `_opcost_*` keys are present.
+ */
+function addOperatingCosts(
   store: Store,
   subject: ReturnType<typeof namedNode>,
-  yearData: Array<{ year: number; metrics: Array<{ propIri: string; value: number; unitIri: string }> }>,
+  fields: Record<string, string>,
 ): void {
-  yearData.forEach((yd, yi) => {
-    if (yd.metrics.length === 0) return;
-    const ds = blankNode(`dataset${yi}`);
-    store.addQuad(subject, namedNode(`${INVESTOR_NS}hasInvestorAnnualData`), ds);
-    store.addQuad(ds, namedNode(RDF_TYPE_IRI), namedNode(`${INVESTOR_NS}InvestorAnnualDataset`));
-    store.addQuad(ds, namedNode(`${GRAN_NS}measurementYear`), literal(String(yd.year), namedNode(XSD_GYEAR)));
+  const present = OPCOST_FIELDS.filter((f) => fields[`_opcost_${f}`]?.trim());
+  if (present.length === 0) return;
+  const oc = blankNode("opcosts");
+  store.addQuad(subject, namedNode(`${INVESTOR_NS}hasOperatingCosts`), oc);
+  for (const f of present) {
+    const v = fields[`_opcost_${f}`].trim();
+    if (OPCOST_BOOLEAN_FIELDS.has(f)) {
+      store.addQuad(
+        oc,
+        namedNode(`${INVESTOR_NS}${f}`),
+        literal(normalizeBoolean(v) || "false", namedNode(XSD_BOOLEAN)),
+      );
+    } else {
+      store.addQuad(oc, namedNode(`${INVESTOR_NS}${f}`), literal(v));
+    }
+  }
+}
 
-    yd.metrics.forEach((m, mi) => {
-      const obs = blankNode(`obs${yi}_${mi}`);
-      const res = blankNode(`res${yi}_${mi}`);
-      const iv = blankNode(`int${yi}_${mi}`);
+/**
+ * Serialize investor building certifications as `investor:hasBuildingCertification`
+ * blank nodes, from indexed `_cert_<i>_type|level|scope` keys. The certification
+ * type drives the blank node's `rdf:type` (`investor:<Type>Certification`), which
+ * is how `buildingParser` recovers it; level/scope are plain literals. A cert with
+ * no type is skipped (the parser requires a type to materialise it).
+ */
+function addCertifications(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  for (let i = 0; i < MAX_CERTS; i++) {
+    const type = fields[`_cert_${i}_type`]?.trim();
+    if (!type) continue;
+    const c = blankNode(`cert${i}`);
+    store.addQuad(
+      subject,
+      namedNode(`${INVESTOR_NS}hasBuildingCertification`),
+      c,
+    );
+    store.addQuad(
+      c,
+      namedNode(RDF_TYPE_IRI),
+      namedNode(`${INVESTOR_NS}BuildingCertification`),
+    );
+    store.addQuad(
+      c,
+      namedNode(RDF_TYPE_IRI),
+      namedNode(`${INVESTOR_NS}${type}Certification`),
+    );
+    const level = fields[`_cert_${i}_level`]?.trim();
+    if (level) {
+      store.addQuad(
+        c,
+        namedNode(`${INVESTOR_NS}certificationLevel`),
+        literal(level),
+      );
+    }
+    const scope = fields[`_cert_${i}_scope`]?.trim();
+    if (scope) {
+      store.addQuad(
+        c,
+        namedNode(`${INVESTOR_NS}certificationScope`),
+        literal(scope),
+      );
+    }
+  }
+}
 
-      store.addQuad(obs, namedNode(RDF_TYPE_IRI), namedNode(`${SOSA_NS}Observation`));
-      store.addQuad(obs, namedNode(`${SOSA_NS}observedProperty`), namedNode(m.propIri));
-      store.addQuad(obs, namedNode(`${SOSA_NS}hasFeatureOfInterest`), subject);
-      store.addQuad(obs, namedNode(`${SOSA_NS}hasResult`), res);
-      store.addQuad(obs, namedNode(`${SOSA_NS}phenomenonTime`), iv);
-
-      store.addQuad(res, namedNode(RDF_TYPE_IRI), namedNode(`${SOSA_NS}Result`));
-      store.addQuad(res, namedNode(`${SOSA_NS}hasSimpleResult`), literal(String(m.value), namedNode(XSD_DECIMAL)));
-      store.addQuad(res, namedNode(`${SSN_NS}hasUnit`), namedNode(m.unitIri));
-
-      store.addQuad(iv, namedNode(RDF_TYPE_IRI), namedNode(`${TIME_NS}Interval`));
-      store.addQuad(iv, namedNode(`${TIME_NS}hasBeginning`), literal(`${yd.year}-01-01`, namedNode(XSD_DATE)));
-      store.addQuad(iv, namedNode(`${TIME_NS}hasEnd`), literal(`${yd.year}-12-31`, namedNode(XSD_DATE)));
-    });
-  });
+/**
+ * Provenance of the building data, expressed as a PROV-O qualified attribution:
+ * `<#b> prov:qualifiedAttribution [ a prov:Attribution ; prov:agent <webid> ;
+ * prov:hadRole gran:<category> ]`. Provenance only — it records who produced the
+ * data and as what actor category; it never drives parsing/loading/rendering.
+ */
+function addProvenance(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  provenance: { agent: string; category: UserRole },
+): void {
+  const attr = blankNode("attribution");
+  store.addQuad(subject, namedNode(PROV_QUALIFIED_ATTRIBUTION), attr);
+  store.addQuad(attr, namedNode(RDF_TYPE_IRI), namedNode(PROV_ATTRIBUTION));
+  store.addQuad(attr, namedNode(PROV_AGENT), namedNode(provenance.agent));
+  store.addQuad(
+    attr,
+    namedNode(PROV_HAD_ROLE),
+    namedNode(PROVENANCE_TO_IRI[provenance.category]),
+  );
 }
 
 /**
@@ -348,12 +419,16 @@ function addEnergyObservations(
  * All values are strings; numeric/boolean XSD types are applied by field name.
  * Object-property fields (shiftRegime, tenancyType, indoorTemperatureClass)
  * expect local names like "OneShift" and are expanded to full IRIs.
- * Special keys _inv_*_{year} and _bsp_* are serialized as SOSA observations.
+ * Energy is NOT inlined: each dataset is its own resource (see
+ * {@link writeBuildingEnergy}); pass the dataset node URLs to emit as
+ * `gran:hasEnergyDataset` links. `provenance`, when given, is recorded as a
+ * PROV-O qualified attribution.
  */
 export function serializeBuildingToTurtle(
   fields: Record<string, string>,
   buildingUri: string,
-  energyDatasets?: { date: string; location: string }[],
+  energyDatasetUrls?: string[],
+  provenance?: { agent: string; category: UserRole },
 ): string {
   const store = new Store();
   const id = buildingUri.split("/").pop()?.replace(".ttl", "") ?? "building";
@@ -379,58 +454,211 @@ export function serializeBuildingToTurtle(
     }
   }
 
-  // Investor multi-year energy observations
-  const invYearData = INV_YEARS.map((year, yi) => {
-    const metrics: Array<{ propIri: string; value: number; unitIri: string }> = [];
-    for (const [suffix, idx] of Object.entries(INV_SUFFIX_IDX)) {
-      const raw = fields[`_inv_${suffix}_${year}`];
-      if (!raw) continue;
-      const value = parseFloat(raw);
-      if (isNaN(value)) continue;
-      metrics.push({ ...INV_METRICS[idx], value });
-    }
-    return { year, metrics, yi };
-  }).filter((d) => d.metrics.length > 0);
+  // Investor master-data sub-structures (blank nodes), when present.
+  addOperatingCosts(store, subject, fields);
+  addCertifications(store, subject, fields);
 
-  if (invYearData.length > 0) {
-    addEnergyObservations(store, subject, invYearData);
-  }
+  // Provenance (PROV-O qualified attribution), when provided.
+  if (provenance) addProvenance(store, subject, provenance);
 
-  // BSP single-year energy observations
-  const bspYear = parseInt(fields["_bsp_year"] || "2024");
-  const bspMetrics = BSP_METRICS.map((m) => {
-    const raw = fields[m.fieldKey];
-    if (!raw) return null;
-    const value = parseFloat(raw);
-    if (isNaN(value)) return null;
-    return { propIri: m.propIri, unitIri: m.unitIri, value };
-  }).filter(Boolean) as Array<{ propIri: string; unitIri: string; value: number }>;
-
-  if (bspMetrics.length > 0) {
-    addEnergyObservations(store, subject, [{ year: bspYear, metrics: bspMetrics }]);
-  }
-
-  // User-role energy dataset links (one blank node per daily TTL file)
-  if (energyDatasets && energyDatasets.length > 0) {
-    energyDatasets.forEach((ds, i) => {
-      const dsNode = blankNode(`eds${i}`);
-      store.addQuad(subject, namedNode(`${GRAN_NS}hasEnergyConsumptionDataset`), dsNode);
-      store.addQuad(dsNode, namedNode(RDF_TYPE_IRI), namedNode(`${USERVOC_NS}EnergyConsumptionDataset`));
-      store.addQuad(dsNode, namedNode(`${GRAN_NS}datasetDate`), literal(ds.date, namedNode(XSD_DATE)));
-      store.addQuad(dsNode, namedNode(`${GRAN_NS}datasetLocation`), namedNode(ds.location));
-      // gran:type is required for the parser to surface this dataset on
-      // building.energyData (it filters out datasets lacking year+location+type);
-      // without it the lazy 15-min chart never sees the daily files.
-      store.addQuad(dsNode, namedNode(`${GRAN_NS}type`), literal("electricity"));
-      // Declare the observation period so the loader can dispatch on granularity,
-      // not role: these daily files hold 15-minute readings.
-      store.addQuad(dsNode, namedNode(`${GRAN_NS}granularity`), literal("PT15M"));
-    });
+  // Unified energy model: link each gran:EnergyDataset resource (written
+  // separately by writeBuildingEnergy). One predicate, no inline observations.
+  for (const url of energyDatasetUrls ?? []) {
+    store.addQuad(subject, namedNode(`${GRAN_NS}hasEnergyDataset`), namedNode(url));
   }
 
   return new Writer({ format: "text/turtle" }).quadsToString(
     store.getQuads(null, null, null, null),
   );
+}
+
+/**
+ * Write (or overwrite) a single year's annual `gran:EnergyDataset` resource and
+ * ensure the building links it via `gran:hasEnergyDataset`. The slug encodes the
+ * (year, granularity, scenario), so re-saving the same one replaces it — used by
+ * the per-year energy entry form (actual or planned/Soll figures).
+ */
+export async function writeEnergyYear(
+  session: Session,
+  buildingFileUri: string,
+  buildingSubjectUri: string,
+  ds: EnergyDataset,
+): Promise<void> {
+  const fileUrl = datasetFileUrl(
+    buildingFileUri,
+    ds.year,
+    ds.granularity,
+    ds.scenario,
+  );
+  const put = await session.fetch(fileUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: serializeEnergyDataset({ ...ds, building: buildingSubjectUri }),
+  });
+  if (!put.ok) {
+    throw new Error(`Failed to write energy dataset: ${put.status} ${put.statusText}`);
+  }
+
+  const link = namedNode(datasetNodeUrl(fileUrl));
+  const subject = namedNode(buildingSubjectUri);
+  const pred = namedNode(`${GRAN_NS}hasEnergyDataset`);
+  await readModifyWrite(buildingFileUri, session, (store, { created }) => {
+    if (created) return false; // the building file must already exist
+    if (store.getQuads(subject, pred, link, null).length === 0) {
+      store.addQuad(subject, pred, link);
+    }
+  });
+}
+
+/**
+ * Fetch each building's actual annual `gran:EnergyDataset` resources and attach
+ * them as `annualData` — energy is no longer inline, but the synchronous Excel
+ * export reads that field. Mutates the buildings in place and returns them; call
+ * before {@link buildingToXlsx} / {@link buildingsToXlsx}.
+ */
+export function attachAnnualData(
+  buildings: BuildingType[],
+  session: Session,
+): Promise<BuildingType[]> {
+  return Promise.all(buildings.map(async (b) => {
+    const refs = (b.energyDatasets ?? []).filter(
+      (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),
+    );
+    if (refs.length === 0) return b;
+    const datasets = await loadEnergyDatasets(refs, session.fetch.bind(session));
+    const annualData = datasets
+      .filter((d) => d.metrics)
+      .map((d) => ({ year: d.year, ...d.metrics }) as InvestorAnnualData)
+      .sort((a, c) => a.year - c.year);
+    return { ...b, annualData }; // clone — don't mutate React Query's cache
+  }));
+}
+
+/**
+ * Build the annual `gran:EnergyDataset` objects from a building's field map —
+ * the `_inv_<metric>_<year>` (investor, one dataset per year) and `_bsp_*`
+ * (benchmark, single year) conventions. All actual-scenario P1Y aggregates.
+ */
+export function annualDatasetsFromFields(
+  buildingSubjectUri: string,
+  fields: Record<string, string>,
+): EnergyDataset[] {
+  const out: EnergyDataset[] = [];
+  const num = (raw?: string): number | undefined => {
+    if (!raw) return undefined;
+    const v = parseFloat(raw);
+    return isNaN(v) ? undefined : v;
+  };
+  const annual = (year: number, metrics: AnnualMetrics): void => {
+    if (Object.keys(metrics).length > 0) {
+      out.push({
+        building: buildingSubjectUri,
+        year,
+        granularity: "P1Y",
+        scenario: "actual",
+        metrics,
+      });
+    }
+  };
+
+  // Investor: one dataset per year carrying any of elec/heat/water/renew.
+  for (const year of INV_YEARS) {
+    const metrics: AnnualMetrics = {};
+    const elec = num(fields[`_inv_elec_${year}`]);
+    const heat = num(fields[`_inv_heat_${year}`]);
+    const water = num(fields[`_inv_water_${year}`]);
+    const renew = num(fields[`_inv_renew_${year}`]);
+    if (elec !== undefined) metrics.electricityConsumption = elec;
+    if (heat !== undefined) metrics.heatConsumption = heat;
+    if (water !== undefined) metrics.waterConsumption = water;
+    if (renew !== undefined) metrics.renewableSelfGeneratedShare = renew;
+    annual(year, metrics);
+  }
+
+  // Benchmark: a single year (`_bsp_year`, default 2024).
+  const bspYear = parseInt(fields["_bsp_year"] || "2024");
+  const bsp: AnnualMetrics = {};
+  const be = num(fields["_bsp_elec"]);
+  const bh = num(fields["_bsp_heat"]);
+  const bw = num(fields["_bsp_water"]);
+  const bww = num(fields["_bsp_wastewater"]);
+  if (be !== undefined) bsp.electricityConsumption = be;
+  if (bh !== undefined) bsp.heatConsumption = bh;
+  if (bw !== undefined) bsp.waterConsumption = bw;
+  if (bww !== undefined) bsp.wastewaterConsumption = bww;
+  annual(bspYear, bsp);
+
+  return out;
+}
+
+/**
+ * Write a building's energy dataset resources and return their
+ * `gran:hasEnergyDataset` link URLs (to pass to {@link serializeBuildingToTurtle}):
+ *  - annual aggregates from the field map (one `<year>-P1Y.ttl` each), and
+ *  - an optional 15-minute series (daily files under `<year>-PT15M/` + the
+ *    located descriptor `<year>-PT15M.ttl`).
+ */
+export async function writeBuildingEnergy(
+  session: Session,
+  buildingUri: string,
+  buildingSubjectUri: string,
+  fields: Record<string, string>,
+  series?: {
+    year: number;
+    days: Array<{ date: string; readings: LastgangReading[] }>;
+    label: string;
+  },
+  onProgress?: (done: number, total: number) => void,
+): Promise<string[]> {
+  const links: string[] = [];
+
+  const putTtl = async (url: string, body: string): Promise<void> => {
+    const res = await session.fetch(url, {
+      method: "PUT",
+      headers: { "Content-Type": "text/turtle" },
+      body,
+    });
+    if (!res.ok) {
+      throw new Error(`Energy upload failed (${url}): ${res.status} ${res.statusText}`);
+    }
+  };
+
+  for (const ds of annualDatasetsFromFields(buildingSubjectUri, fields)) {
+    const fileUrl = datasetFileUrl(buildingUri, ds.year, ds.granularity, ds.scenario);
+    await putTtl(fileUrl, serializeEnergyDataset(ds));
+    links.push(datasetNodeUrl(fileUrl));
+  }
+
+  if (series && series.days.length > 0) {
+    const container = seriesContainerUrl(buildingUri, series.year);
+    await ensureContainer(container, session);
+    // A full year is ~365 daily files; write them with bounded concurrency.
+    const total = series.days.length;
+    let done = 0;
+    onProgress?.(0, total);
+    await mapPooled(series.days, 8, async (day) => {
+      const dailyUrl = seriesDailyFileUrl(buildingUri, series.year, day.date);
+      await putTtl(
+        dailyUrl,
+        generateEnergyDayTtl(day.date, day.readings, buildingSubjectUri, series.label),
+      );
+      onProgress?.(++done, total);
+    });
+    const descUrl = datasetFileUrl(buildingUri, series.year, "PT15M", "actual");
+    await putTtl(
+      descUrl,
+      serializeEnergyDataset({
+        building: buildingSubjectUri,
+        year: series.year,
+        granularity: "PT15M",
+        scenario: "actual",
+        datasetLocation: container,
+      }),
+    );
+    links.push(datasetNodeUrl(descUrl));
+  }
+
+  return links;
 }
 
 async function ensureBuildingsDirectoryExists(
@@ -467,31 +695,6 @@ export async function uploadBuilding(
   if (!res.ok) {
     throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
   }
-}
-
-/**
- * Add a building source URL to the user's dataSources.ttl registry.
- * Reads the current registry, appends two quads, and PUTs it back.
- */
-export async function addBuildingToRegistry(
-  session: Session,
-  webId: string,
-  buildingUri: string,
-  role: UserRole,
-): Promise<void> {
-  const registryUrl = registryUrlFor(webId);
-  await readModifyWrite(registryUrl, session, (store) => {
-    store.addQuad(
-      namedNode(registryUrl),
-      namedNode(`${GRAN_NS}hasBuildingDataSource`),
-      namedNode(buildingUri),
-    );
-    store.addQuad(
-      namedNode(buildingUri),
-      namedNode(`${GRAN_NS}dataSourceRole`),
-      namedNode(ROLE_TO_IRI[role]),
-    );
-  });
 }
 
 /**
@@ -543,39 +746,12 @@ export function newBuildingUri(webId: string, id: string): string {
 }
 
 /**
- * Remove a building source from the registry — the inverse of
- * {@link addBuildingToRegistry}. Drops both the `gran:hasBuildingDataSource`
- * link and the building's `gran:dataSourceRole` triple, then PUTs the registry
- * back. A missing registry is a no-op.
- */
-export async function removeBuildingFromRegistry(
-  session: Session,
-  webId: string,
-  buildingUri: string,
-): Promise<void> {
-  const registryUrl = registryUrlFor(webId);
-  await readModifyWrite(registryUrl, session, (store, { created }) => {
-    if (created) return false; // no registry → nothing to remove
-    store.removeQuads(store.getQuads(
-      namedNode(registryUrl),
-      namedNode(`${GRAN_NS}hasBuildingDataSource`),
-      namedNode(buildingUri),
-      null,
-    ));
-    store.removeQuads(store.getQuads(
-      namedNode(buildingUri),
-      namedNode(`${GRAN_NS}dataSourceRole`),
-      null,
-      null,
-    ));
-  });
-}
-
-/**
- * Permanently delete a building the user owns: de-register it, delete its
- * per-building energy subtree (`buildings/<id>/…`, if any), then delete the
- * building file itself. Refuses to touch resources outside the user's own Pod
- * (e.g. a building shared from another Pod), which must only be *hidden*.
+ * Permanently delete a building the user owns: delete its per-building energy
+ * subtree (`buildings/<id>/…`, if any), then delete the building file itself.
+ * Own buildings are now discovered by *listing* the `buildings/` container, so
+ * removing the file de-registers it — there's no registry to update. Refuses to
+ * touch resources outside the user's own Pod (e.g. a building shared from
+ * another Pod), which must only be *hidden*.
  */
 export async function deleteBuilding(
   session: Session,
@@ -586,8 +762,6 @@ export async function deleteBuilding(
   if (!fileUri.startsWith(getStorageRoot(webId))) {
     throw new Error("Refusing to delete a building outside your own Pod");
   }
-
-  await removeBuildingFromRegistry(session, webId, fileUri);
 
   // Energy lives under a sibling container named after the building file
   // (buildingEnergyFileUrl strips the ".ttl"); remove it best-effort.
@@ -716,35 +890,38 @@ export async function seedDemoBuildings(
         : { ...demo.fields };
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const uri = newBuildingUri(webId, id);
+      const subjectUri = `${uri}#${id}`;
 
-      let energyDatasets: { date: string; location: string }[] | undefined;
+      let series:
+        | { year: number; days: Array<{ date: string; readings: LastgangReading[] }>; label: string }
+        | undefined;
 
       if (demo.energy === "annual") {
-        // Annual aggregate (P1Y): inline SOSA observations, no separate file.
+        // Annual aggregate (P1Y) — written as one gran:EnergyDataset per year.
         fields = { ...fields, ...DEMO_ANNUAL_FIELDS };
       } else {
-        // 15-minute series (PT15M): write one daily readings file and link it.
+        // 15-minute series (PT15M): one demo day of readings.
         const day = "2024-06-03";
-        const subjectUri = `${uri}#${id}`;
-        const readings = synthDayReadings(day);
-        const energyUrl = buildingEnergyFileUrl(uri, day);
-        const dayTtl = generateEnergyDayTtl(
-          day, readings, subjectUri, fields.streetAddress ?? "",
-        );
-        const res = await session.fetch(energyUrl, {
-          method: "PUT",
-          headers: { "Content-Type": "text/turtle" },
-          body: dayTtl,
-        });
-        if (!res.ok) {
-          throw new Error(`Energy upload failed: ${res.status} ${res.statusText}`);
-        }
-        energyDatasets = [{ date: day, location: energyUrl }];
+        series = {
+          year: 2024,
+          days: [{ date: day, readings: synthDayReadings(day) }],
+          label: fields.streetAddress ?? "",
+        };
       }
 
-      const ttl = serializeBuildingToTurtle(fields, uri, energyDatasets);
+      // Write the energy dataset resources, then the building (with the links).
+      const energyLinks = await writeBuildingEnergy(
+        session,
+        uri,
+        subjectUri,
+        fields,
+        series,
+      );
+      const ttl = serializeBuildingToTurtle(fields, uri, energyLinks, {
+        agent: webId,
+        category: demo.role,
+      });
       await uploadBuilding(session, uri, ttl, webId);
-      await addBuildingToRegistry(session, webId, uri, demo.role);
     } catch (err) {
       console.error(
         `Failed to seed demo building ${demo.fields.streetAddress}:`,
@@ -814,6 +991,42 @@ const INVESTOR_ROW_MAP: Record<string, string> = {
   "Wärmepumpe": "hasHeatPump",
   "Fernwärme": "hasDistrictHeating",
   "Hauptindustrie des Mieters / Nutzers (Branche)": "tenantIndustry",
+};
+
+/**
+ * Investor XLSX row label (column B) → operating-cost category. Produces
+ * `_opcost_<field>` keys that serializeBuildingToTurtle emits under
+ * `investor:hasOperatingCosts`.
+ *
+ * NOTE: these German row labels are ASSUMED — the investor `.xlsx` template is
+ * binary and the original `scripts/investor-to-ttl.ts` is no longer in the repo,
+ * so the exact labels could not be introspected. Verify against
+ * `public/templates/` and adjust if they differ; rows that don't match are simply
+ * skipped (no error), so a wrong label degrades to "not imported", never a crash.
+ */
+const INVESTOR_OPCOST_ROW_MAP: Record<string, string> = {
+  "Abfallentsorgung": "wasteDisposal",
+  "Versicherung": "insurance",
+  "Betrieb, Inspektion und Wartung": "operationInspectionAndMaintenance",
+  "Unterhaltsreinigung Büro": "routineCleaningOffice",
+  "Unterhaltsreinigung Lager": "routineCleaningWarehouse",
+  "Glasreinigung": "glassCleaning",
+  "Außenanlagenpflege": "exteriorMaintenance",
+  "Bewachung": "security",
+  "Hausverwaltung": "propertyManagement",
+  "Hausmeister": "caretaker",
+  "Reparatur und Instandhaltung": "repairAndMaintenance",
+};
+
+/**
+ * Investor XLSX row label (column B) → certification part. Produces a single
+ * certification block (`_cert_0_type|level|scope`). Same caveat as
+ * {@link INVESTOR_OPCOST_ROW_MAP}: labels are assumed pending template review.
+ */
+const INVESTOR_CERT_ROWS: Record<string, "type" | "level" | "scope"> = {
+  "Zertifizierung": "type",
+  "Zertifizierungslevel": "level",
+  "Zertifizierungsumfang": "scope",
 };
 
 // ── Normalizers — mirror scripts exactly ──────────────────────────────────────
@@ -897,22 +1110,22 @@ function applyNormalization(field: string, raw: string): string {
 /**
  * Parse a CSV or XLSX file into one field map per building.
  *
- * Investor role:  row-label format (labels in col B, buildings in cols D–K).
+ * Investor template:  row-label format (labels in col B, buildings in cols D–K).
  *                 Energy observations extracted from per-year rows.
- * BSP role:       column-header format (German headers, one row per building).
+ * BSP template:       column-header format (German headers, one row per building).
  *                 Energy columns mapped to _bsp_* keys; year defaults to 2024.
  * User / Dummy:   flat CSV with BuildingType field names as headers.
  */
 export async function parseCsvToFields(
   file: File,
-  role: UserRole,
+  template: UserRole,
 ): Promise<Record<string, string>[]> {
   const buffer = await file.arrayBuffer();
   const wb = XLSX.read(new Uint8Array(buffer), { type: "array", raw: true });
   const ws = wb.Sheets[wb.SheetNames[0]];
   const results: Record<string, string>[] = [];
 
-  if (role === "investor") {
+  if (template === "investor") {
     // Build row index from column B labels
     const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
     const rowIndex: Record<string, number> = {};
@@ -971,18 +1184,42 @@ export async function parseCsvToFields(
         }
       }
 
+      // Operating costs → _opcost_<field> (one investor:hasOperatingCosts node).
+      for (const [label, field] of Object.entries(INVESTOR_OPCOST_ROW_MAP)) {
+        const row = rowIndex[label];
+        if (row === undefined) continue;
+        const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
+        if (cell?.v == null) continue;
+        const raw = String(cell.v).trim();
+        if (!raw) continue;
+        const value = field === "operationInspectionAndMaintenance"
+          ? normalizeBoolean(raw)
+          : raw;
+        if (value) result[`_opcost_${field}`] = value;
+      }
+
+      // Certification block → _cert_0_<part> (type drives the cert's rdf:type).
+      for (const [label, part] of Object.entries(INVESTOR_CERT_ROWS)) {
+        const row = rowIndex[label];
+        if (row === undefined) continue;
+        const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
+        if (cell?.v == null) continue;
+        const raw = String(cell.v).trim();
+        if (raw) result[`_cert_0_${part}`] = raw;
+      }
+
       if (Object.keys(result).length > 0) results.push(result);
     }
   } else {
     // Detect Lastgang format for User role (utility load-profile export)
-    if (role === "user") {
+    if (template === "user") {
       const wsRange = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
       const parsed = parseLastgangXlsx(ws, wsRange);
       if (parsed.length > 0) return parsed;
     }
 
     // Column-header format (BSP and user/dummy) — one result per data row
-    const colMap = role === "benchmark_service_provider" ? BSP_COL_MAP : {};
+    const colMap = template === "benchmark_service_provider" ? BSP_COL_MAP : {};
     const rows = XLSX.utils.sheet_to_json<Record<string, string>>(ws, {
       raw: false,
       defval: "",
@@ -996,7 +1233,7 @@ export async function parseCsvToFields(
         if (normalized !== "") result[field] = normalized;
       }
       // Default measurement year for BSP energy observations
-      if (role === "benchmark_service_provider" && !result["_bsp_year"]) {
+      if (template === "benchmark_service_provider" && !result["_bsp_year"]) {
         result["_bsp_year"] = "2024";
       }
       if (Object.keys(result).length > 0) results.push(result);
@@ -1004,4 +1241,207 @@ export async function parseCsvToFields(
   }
 
   return results;
+}
+
+// ── XLSX export (inverse of parseCsvToFields) ─────────────────────────────────
+
+function invertMap(m: Record<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const [k, v] of Object.entries(m)) out[v] = k;
+  return out;
+}
+
+// field → spreadsheet label/header (built once from the import maps).
+const INV_FIELD_TO_LABEL = invertMap(INVESTOR_ROW_MAP);
+const BSP_FIELD_TO_HEADER = invertMap(BSP_COL_MAP);
+const OPCOST_FIELD_TO_LABEL = invertMap(INVESTOR_OPCOST_ROW_MAP);
+const CERT_PART_TO_LABEL = invertMap(
+  INVESTOR_CERT_ROWS as Record<string, string>,
+);
+// All scalar BuildingType fields, for the generic (user/dummy) sheet.
+const SCALAR_FIELDS: string[] = [
+  ...new Set(
+    [
+      ...Object.values(predicateMap),
+      ...Object.values(objectPropertyMap),
+    ].map((f) => String(f)),
+  ),
+];
+
+function cellValue(v: unknown): string | number | null {
+  if (v === undefined || v === null || v === "") return null;
+  if (typeof v === "number") return v;
+  if (typeof v === "boolean") return v ? "true" : "false";
+  if (typeof v === "object") return null; // skip nested structures
+  return String(v);
+}
+
+/**
+ * Build an XLSX workbook for a building, shaped to match the role's import
+ * template so the file re-imports via {@link parseCsvToFields}:
+ *   - investor → row-label sheet (label in col B, value in col D), with per-year
+ *     energy rows, operating costs and the first certification block;
+ *   - benchmark → single header row + value row, energy as `_bsp_*` columns;
+ *   - user / dummy / unknown → flat sheet keyed by BuildingType field names.
+ * Exports the *modelled* fields only (the whitelisted projection); the 15-minute
+ * user series lives in separate lazy files and is not included.
+ */
+/** Build the worksheet for one building, shaped to its provenance template. */
+function buildingSheet(b: BuildingType): XLSX.WorkSheet {
+  const role = b.provenance;
+
+  if (role === "investor") {
+    const rows: (string | number)[][] = [];
+    const put = (label: string, raw: unknown) => {
+      const v = cellValue(raw);
+      if (v !== null) rows.push(["", label, "", v]);
+    };
+    for (const [field, label] of Object.entries(INV_FIELD_TO_LABEL)) {
+      put(label, b[field as keyof BuildingType]);
+    }
+    let renewDone = false;
+    for (const y of b.annualData ?? []) {
+      put(`Stromverbrauch ${y.year}`, y.electricityConsumption);
+      put(`Wärme - tatsächlicher Verbrauch ${y.year}`, y.heatConsumption);
+      put(`Wasserverbrauch ${y.year}`, y.waterConsumption);
+      if (!renewDone && y.renewableSelfGeneratedShare != null) {
+        put(
+          "Anteil eigenerzeugter Strom aus erneuerbaren Quellen",
+          y.renewableSelfGeneratedShare,
+        );
+        renewDone = true;
+      }
+    }
+    if (b.operatingCosts) {
+      const oc = b.operatingCosts as Record<string, unknown>;
+      for (const [field, label] of Object.entries(OPCOST_FIELD_TO_LABEL)) {
+        put(label, oc[field]);
+      }
+    }
+    // The row-label template holds a single certification block.
+    const cert = b.certifications?.[0];
+    if (cert) {
+      put(CERT_PART_TO_LABEL.type, cert.type);
+      put(CERT_PART_TO_LABEL.level, cert.level);
+      put(CERT_PART_TO_LABEL.scope, cert.scope);
+    }
+    return XLSX.utils.aoa_to_sheet(rows);
+  }
+
+  const record: Record<string, string | number> = {};
+  if (role === "benchmark_service_provider") {
+    for (const [field, header] of Object.entries(BSP_FIELD_TO_HEADER)) {
+      if (field.startsWith("_")) continue; // energy headers handled below
+      const v = cellValue(b[field as keyof BuildingType]);
+      if (v !== null) record[header] = v;
+    }
+    const y = b.annualData?.[0];
+    if (y) {
+      const e = cellValue(y.electricityConsumption);
+      const h = cellValue(y.heatConsumption);
+      const w = cellValue(y.waterConsumption);
+      const ww = cellValue(y.wastewaterConsumption);
+      if (e !== null) record["Strom - tatsächlicher Verbrauch (kWh)"] = e;
+      if (h !== null) record["Wärme - tatsächlicher Verbrauch (kWh)"] = h;
+      if (w !== null) record["Trinkwasser (m³)"] = w;
+      if (ww !== null) record["Schmutzwasser (m³)"] = ww;
+    }
+  } else {
+    // Generic (user / dummy / unknown): BuildingType field names as headers.
+    for (const field of SCALAR_FIELDS) {
+      const v = cellValue(b[field as keyof BuildingType]);
+      if (v !== null) record[field] = v;
+    }
+  }
+  return XLSX.utils.json_to_sheet([record]);
+}
+
+export function buildingToWorkbook(b: BuildingType): XLSX.WorkBook {
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, buildingSheet(b), "Gebäude");
+  return wb;
+}
+
+/**
+ * Flatten one building to a single spreadsheet row. Master-data columns use the
+ * BuildingType field names (so the row re-imports via the generic path), and the
+ * structured parts use the importer's intermediate keys (`_inv_*` / `_bsp_*` /
+ * `_opcost_*` / `_cert_0_*`) so energy, operating costs and the first
+ * certification round-trip too. `id` / `role` are reference columns (no predicate,
+ * ignored on import).
+ */
+function buildingToFlatRecord(b: BuildingType): Record<string, string | number> {
+  const rec: Record<string, string | number> = {};
+  const set = (k: string, raw: unknown) => {
+    const v = cellValue(raw);
+    if (v !== null) rec[k] = v;
+  };
+  set("id", b.id);
+  set("provenance", b.provenance);
+  for (const field of SCALAR_FIELDS) set(field, b[field as keyof BuildingType]);
+
+  if (b.provenance === "benchmark_service_provider") {
+    const y = b.annualData?.[0];
+    if (y) {
+      set("_bsp_year", y.year);
+      set("_bsp_elec", y.electricityConsumption);
+      set("_bsp_heat", y.heatConsumption);
+      set("_bsp_water", y.waterConsumption);
+      set("_bsp_wastewater", y.wastewaterConsumption);
+    }
+  } else {
+    for (const y of b.annualData ?? []) {
+      set(`_inv_elec_${y.year}`, y.electricityConsumption);
+      set(`_inv_heat_${y.year}`, y.heatConsumption);
+      set(`_inv_water_${y.year}`, y.waterConsumption);
+      set(`_inv_renew_${y.year}`, y.renewableSelfGeneratedShare);
+    }
+  }
+
+  if (b.operatingCosts) {
+    const oc = b.operatingCosts as Record<string, unknown>;
+    for (const f of OPCOST_FIELDS) set(`_opcost_${f}`, oc[f]);
+  }
+  const cert = b.certifications?.[0];
+  if (cert) {
+    set("_cert_0_type", cert.type);
+    set("_cert_0_level", cert.level);
+    set("_cert_0_scope", cert.scope);
+  }
+  return rec;
+}
+
+/**
+ * One workbook with a single sheet, one row per building — a unified table of all
+ * buildings. Mixed-role buildings coexist as sparse columns; each row re-imports
+ * via the generic path (import as user / dummy). See {@link buildingToFlatRecord}.
+ */
+export function buildingsToWorkbook(buildings: BuildingType[]): XLSX.WorkBook {
+  const wb = XLSX.utils.book_new();
+  const rows = buildings.map(buildingToFlatRecord);
+  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Gebäude");
+  return wb;
+}
+
+function workbookToBytes(wb: XLSX.WorkBook): ArrayBuffer {
+  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  const u8: Uint8Array = out instanceof Uint8Array
+    ? out
+    : new Uint8Array(out as ArrayBuffer);
+  const copy = new ArrayBuffer(u8.byteLength);
+  new Uint8Array(copy).set(u8);
+  return copy;
+}
+
+/**
+ * Serialize a building to `.xlsx` bytes (see {@link buildingToWorkbook}), as a
+ * plain `ArrayBuffer` so it drops straight into `new Blob([...])` / `new File([...])`.
+ */
+export function buildingToXlsx(b: BuildingType): ArrayBuffer {
+  return workbookToBytes(buildingToWorkbook(b));
+}
+
+/** Serialize all buildings to one multi-sheet `.xlsx` (see {@link buildingsToWorkbook}). */
+export function buildingsToXlsx(buildings: BuildingType[]): ArrayBuffer {
+  return workbookToBytes(buildingsToWorkbook(buildings));
 }

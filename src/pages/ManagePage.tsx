@@ -32,7 +32,14 @@ import {
   useRevokeViewAccess,
 } from "../hooks/mutations.ts";
 import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import {
+  attachAnnualData,
+  buildingsToXlsx,
+  buildingToXlsx,
+} from "../services/utils/buildingSerializer.ts";
 import { tryPodResources } from "../services/utils/solidUtils.ts";
+import { formatError } from "../services/utils/formatError.ts";
+import { downloadXlsx } from "../services/utils/download.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
 import {
   ellipsis,
@@ -61,7 +68,7 @@ interface ManagePageProps {
  */
 export default function ManagePage({ session }: ManagePageProps) {
   const { showNotification } = useNotification();
-  const { buildings } = useSolidData();
+  const { buildings, isLoading: buildingsLoading } = useSolidData();
   const reloadData = useInvalidateBuildingData();
   const queryClient = useQueryClient();
   const navigate = useNavigate();
@@ -87,9 +94,11 @@ export default function ManagePage({ session }: ManagePageProps) {
     return map;
   }, [sharedQuery.data]);
 
-  const viewDefinitions = useViewDefinitions().data ?? [];
+  const viewDefsQuery = useViewDefinitions();
+  const viewDefinitions = viewDefsQuery.data ?? [];
   const viewPaging = usePaging(viewDefinitions);
-  const sharedViews = useSharedViews().data ?? [];
+  const sharedViewsQuery = useSharedViews();
+  const sharedViews = sharedViewsQuery.data ?? [];
 
   const deleteBuilding = useDeleteBuilding();
   const revoke = useRevokeBuildingAccess();
@@ -112,27 +121,23 @@ export default function ManagePage({ session }: ManagePageProps) {
     });
   };
 
-  const handleDownload = async (fileUrl: string, id: string | number) => {
+  const handleDownload = async (building: BuildingType) => {
     try {
-      const res = await session.fetch(fileUrl, {
-        headers: { Accept: "text/turtle" },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const url = URL.createObjectURL(
-        new Blob([await res.text()], { type: "text/turtle" }),
-      );
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `building-${id}.ttl`;
-      a.click();
-      URL.revokeObjectURL(url);
+      // Energy is no longer inline; fetch the annual datasets for the export.
+      const [enriched] = await attachAnnualData([building], session);
+      downloadXlsx(buildingToXlsx(enriched), `building-${building.id}.xlsx`);
     } catch (error) {
-      showNotification(
-        `Failed to download building data: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        "error",
-      );
+      showNotification(formatError("export the building", error), "error");
+    }
+  };
+
+  const handleDownloadAll = async () => {
+    if (ownedBuildings.length === 0) return;
+    try {
+      const enriched = await attachAnnualData(ownedBuildings, session);
+      downloadXlsx(buildingsToXlsx(enriched), "buildings-mine.xlsx");
+    } catch (error) {
+      showNotification(formatError("export the buildings", error), "error");
     }
   };
 
@@ -187,7 +192,9 @@ export default function ManagePage({ session }: ManagePageProps) {
         <Typography variant="h6" sx={{ mb: 1 }}>Your buildings</Typography>
         {rdf && <RdfSourceLink href={rdf.buildings} />}
 
-        {ownedBuildings.length === 0
+        {buildingsLoading
+          ? <p>Loading…</p>
+          : ownedBuildings.length === 0
           ? <p>You haven't added any buildings yet.</p>
           : (
             <ul style={listStyle}>
@@ -205,7 +212,14 @@ export default function ManagePage({ session }: ManagePageProps) {
                         <span style={{ wordBreak: "break-all" }}>
                           <UriLink href={b.uri as string}>{b.uri}</UriLink>
                         </span>
-                        {sharedWith.length > 0 && (
+                        {sharedQuery.isLoading
+                          ? (
+                            <>
+                              <br />
+                              <small>Shared with: Loading…</small>
+                            </>
+                          )
+                          : sharedWith.length > 0 && (
                           <>
                             <br />
                             <small>Shared with:</small>
@@ -252,11 +266,11 @@ export default function ManagePage({ session }: ManagePageProps) {
                             <ShareIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Download this building's data (Turtle)">
+                        <Tooltip title="Download this building's data (Excel)">
                           <IconButton
                             size="small"
                             aria-label="Download building data"
-                            onClick={() => handleDownload(fileUri, b.id)}
+                            onClick={() => handleDownload(b)}
                           >
                             <DownloadIcon fontSize="small" />
                           </IconButton>
@@ -301,6 +315,14 @@ export default function ManagePage({ session }: ManagePageProps) {
           >
             Autofill from file
           </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadAll}
+            disabled={ownedBuildings.length === 0}
+          >
+            Download all (Excel)
+          </Button>
         </div>
       </section>
 
@@ -308,8 +330,10 @@ export default function ManagePage({ session }: ManagePageProps) {
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
           Aggregated views
         </Typography>
-        {rdf && <RdfSourceLink href={rdf.viewDefinitions} />}
-        {viewDefinitions.length === 0
+        {rdf && <RdfSourceLink href={rdf.views} />}
+        {viewDefsQuery.isLoading
+          ? <p>Loading…</p>
+          : viewDefinitions.length === 0
           ? <p>No aggregated views yet.</p>
           : (
             <ul style={listStyle}>
@@ -335,7 +359,14 @@ export default function ManagePage({ session }: ManagePageProps) {
                               new Date(view.lastComputedAt).toLocaleDateString()
                             }`}
                         </small>
-                        {sharedWith.length > 0 && (
+                        {sharedViewsQuery.isLoading
+                          ? (
+                            <>
+                              <br />
+                              <small>Shared with: Loading…</small>
+                            </>
+                          )
+                          : sharedWith.length > 0 && (
                           <ul style={nestedListStyle}>
                             {sharedWith.map((webId) => (
                               <li key={webId} style={rowStyle}>
@@ -374,39 +405,51 @@ export default function ManagePage({ session }: ManagePageProps) {
                         )}
                       </div>
                       <div style={{ display: "flex", gap: "0.25rem" }}>
-                        <IconButton
-                          size="small"
-                          onClick={() =>
-                            navigate(`/view/${encodeURIComponent(view.id)}`)}
-                          title="View details"
-                        >
-                          <VisibilityIcon fontSize="small" />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleRefreshView(view.id)}
-                          title="Refresh snapshot"
-                          disabled={refreshView.isPending &&
-                            refreshView.variables === view.id}
-                        >
-                          <RefreshIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleOpenShareDialog(view)}
-                          title="Share view"
-                        >
-                          <ShareIcon />
-                        </IconButton>
-                        <IconButton
-                          size="small"
-                          onClick={() => handleDeleteView(view.id)}
-                          title="Delete view"
-                          disabled={deleteViewMut.isPending &&
-                            deleteViewMut.variables === view.id}
-                        >
-                          <DeleteIcon />
-                        </IconButton>
+                        <Tooltip title="View details">
+                          <IconButton
+                            size="small"
+                            aria-label="View details"
+                            onClick={() =>
+                              navigate(`/view/${encodeURIComponent(view.id)}`)}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Refresh snapshot">
+                          <span>
+                            <IconButton
+                              size="small"
+                              aria-label="Refresh snapshot"
+                              onClick={() => handleRefreshView(view.id)}
+                              disabled={refreshView.isPending &&
+                                refreshView.variables === view.id}
+                            >
+                              <RefreshIcon />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
+                        <Tooltip title="Share view">
+                          <IconButton
+                            size="small"
+                            aria-label="Share view"
+                            onClick={() => handleOpenShareDialog(view)}
+                          >
+                            <ShareIcon />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Delete view">
+                          <span>
+                            <IconButton
+                              size="small"
+                              aria-label="Delete view"
+                              onClick={() => handleDeleteView(view.id)}
+                              disabled={deleteViewMut.isPending &&
+                                deleteViewMut.variables === view.id}
+                            >
+                              <DeleteIcon />
+                            </IconButton>
+                          </span>
+                        </Tooltip>
                       </div>
                     </div>
                   </li>
@@ -439,7 +482,7 @@ export default function ManagePage({ session }: ManagePageProps) {
           open
           buildingUri={(shareBuilding.sourceUri ?? shareBuilding.uri) as string}
           session={session}
-          role={shareBuilding.sourceRole}
+          role={shareBuilding.provenance}
           onClose={() => {
             setShareBuilding(null);
             queryClient.invalidateQueries({

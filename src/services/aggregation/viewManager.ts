@@ -15,6 +15,8 @@ import {
 import { getQuadValue, getQuadValues } from "../utils/rdfHelpers.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
 import { readModifyWrite } from "../utils/podWrite.ts";
+import { listDirectChildren } from "../utils/podDelete.ts";
+import { mapPooled } from "../utils/pool.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
@@ -39,61 +41,51 @@ function serializeWithPrefixes(store: Store): string {
     writer.quadsToString(store.getQuads(null, null, null, null));
 }
 
-/**
- * Get the URL for the view definitions file
- */
-function getViewDefinitionsUrl(webId: string): string {
-  const storageRoot = getStorageRoot(webId);
-  return `${storageRoot}granergize/views/viewDefinitions.ttl`;
+/** The `views/` container — one definition resource per view (discover by listing). */
+function viewsContainerUrl(webId: string): string {
+  return `${getStorageRoot(webId)}granergize/views/`;
 }
 
-/**
- * Get the URL for a computed view snapshot
- */
+/** The `views/snapshots/` container — one shareable computed copy per view. */
+function snapshotsContainerUrl(webId: string): string {
+  return `${getStorageRoot(webId)}granergize/views/snapshots/`;
+}
+
+/** A single view definition resource: `views/<viewId>.ttl`. */
+function getViewDefinitionUrl(webId: string, viewId: string): string {
+  return `${viewsContainerUrl(webId)}${viewId}.ttl`;
+}
+
+/** A single computed snapshot resource: `views/snapshots/<viewId>.ttl`. */
 function getComputedViewUrl(webId: string, viewId: string): string {
-  const storageRoot = getStorageRoot(webId);
-  return `${storageRoot}granergize/views/computed/${viewId}.ttl`;
+  return `${snapshotsContainerUrl(webId)}${viewId}.ttl`;
 }
 
-/**
- * Ensure the views directory structure exists
- */
+/** The definition's subject node (a fragment of its own resource). */
+function viewNodeFor(webId: string, viewId: string) {
+  return namedNode(`${getViewDefinitionUrl(webId, viewId)}#view`);
+}
+
+/** Ensure the `views/` and `views/snapshots/` containers exist. */
 async function ensureViewsDirectoryExists(session: Session): Promise<void> {
   const webId = session.info.webId;
   if (!webId) {
     throw new Error("User is not logged in");
   }
 
-  const storageRoot = getStorageRoot(webId);
-  const viewsDir = `${storageRoot}granergize/views/`;
-  const computedDir = `${storageRoot}granergize/views/computed/`;
-
-  // Create views directory
-  try {
-    const response = await session.fetch(viewsDir, { method: "HEAD" });
-    if (response.status === 404) {
-      await session.fetch(viewsDir, {
-        method: "PUT",
-        headers: { "Content-Type": "text/turtle" },
-        body: "",
-      });
+  for (const dir of [viewsContainerUrl(webId), snapshotsContainerUrl(webId)]) {
+    try {
+      const response = await session.fetch(dir, { method: "HEAD" });
+      if (response.status === 404) {
+        await session.fetch(dir, {
+          method: "PUT",
+          headers: { "Content-Type": "text/turtle" },
+          body: "",
+        });
+      }
+    } catch {
+      // Directory might already exist
     }
-  } catch {
-    // Directory might already exist
-  }
-
-  // Create computed subdirectory
-  try {
-    const response = await session.fetch(computedDir, { method: "HEAD" });
-    if (response.status === 404) {
-      await session.fetch(computedDir, {
-        method: "PUT",
-        headers: { "Content-Type": "text/turtle" },
-        body: "",
-      });
-    }
-  } catch {
-    // Directory might already exist
   }
 }
 
@@ -123,7 +115,8 @@ export async function createViewDefinition(
 
   const viewId = generateViewId();
   const now = new Date().toISOString();
-  const definitionsUrl = getViewDefinitionsUrl(session.info.webId);
+  const webId = session.info.webId;
+  const definitionUrl = getViewDefinitionUrl(webId, viewId);
 
   const newView: AggregatedViewDefinition = {
     id: viewId,
@@ -135,152 +128,127 @@ export async function createViewDefinition(
     ...(period ? { period } : {}),
   };
 
-  const viewNode = namedNode(`${definitionsUrl}#${viewId}`);
+  const viewNode = viewNodeFor(webId, viewId);
 
-  // Append the new view definition to the file, guarded by optimistic locking so
-  // concurrent view creates don't clobber each other.
-  await readModifyWrite(definitionsUrl, session, (store) => {
+  // One resource per view (opaque id ⇒ collision-free), so a plain PUT suffices —
+  // no shared mega-file to clobber.
+  const store = new Store();
+  store.addQuad(quad(
+    viewNode,
+    namedNode(RDF_TYPE),
+    namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`),
+  ));
+  store.addQuad(quad(viewNode, namedNode(`${VOCAB_PREFIX}viewId`), literal(viewId)));
+  store.addQuad(quad(viewNode, namedNode(`${VOCAB_PREFIX}viewName`), literal(name)));
+  store.addQuad(quad(
+    viewNode,
+    namedNode(`${VOCAB_PREFIX}aggregationType`),
+    literal(aggregationType),
+  ));
+  store.addQuad(quad(
+    viewNode,
+    namedNode(`${VOCAB_PREFIX}createdAt`),
+    literal(now, namedNode(XSD_DATETIME)),
+  ));
+  if (period) {
     store.addQuad(quad(
       viewNode,
-      namedNode(RDF_TYPE),
-      namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`),
+      namedNode(`${VOCAB_PREFIX}viewPeriod`),
+      literal(period),
     ));
+  }
+  // Building URIs (private, only in the definition file).
+  for (const buildingUri of buildingUris) {
     store.addQuad(quad(
       viewNode,
-      namedNode(`${VOCAB_PREFIX}viewId`),
-      literal(viewId),
+      namedNode(`${VOCAB_PREFIX}includesBuilding`),
+      namedNode(buildingUri),
     ));
+  }
+  for (const metric of metrics) {
     store.addQuad(quad(
       viewNode,
-      namedNode(`${VOCAB_PREFIX}viewName`),
-      literal(name),
+      namedNode(`${VOCAB_PREFIX}includesMetric`),
+      literal(metric),
     ));
-    store.addQuad(quad(
-      viewNode,
-      namedNode(`${VOCAB_PREFIX}aggregationType`),
-      literal(aggregationType),
-    ));
-    store.addQuad(quad(
-      viewNode,
-      namedNode(`${VOCAB_PREFIX}createdAt`),
-      literal(now, namedNode(XSD_DATETIME)),
-    ));
-    if (period) {
-      store.addQuad(quad(
-        viewNode,
-        namedNode(`${VOCAB_PREFIX}viewPeriod`),
-        literal(period),
-      ));
-    }
-    // Building URIs (private, only in the definition file).
-    for (const buildingUri of buildingUris) {
-      store.addQuad(quad(
-        viewNode,
-        namedNode(`${VOCAB_PREFIX}includesBuilding`),
-        namedNode(buildingUri),
-      ));
-    }
-    for (const metric of metrics) {
-      store.addQuad(quad(
-        viewNode,
-        namedNode(`${VOCAB_PREFIX}includesMetric`),
-        literal(metric),
-      ));
-    }
-  }, { serialize: serializeWithPrefixes });
+  }
+
+  const res = await session.fetch(definitionUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: serializeWithPrefixes(store),
+  });
+  if (!res.ok) {
+    throw new Error(`Failed to create view definition: ${res.statusText}`);
+  }
 
   return newView;
 }
 
+/** Extract an {@link AggregatedViewDefinition} from a parsed definition store. */
+function parseViewDefinition(store: Store): AggregatedViewDefinition | null {
+  const viewType = namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`);
+  const viewNode = store.getQuads(null, namedNode(RDF_TYPE), viewType, null)[0]
+    ?.subject;
+  if (!viewNode) return null;
+  return {
+    id: getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewId`)) ?? "",
+    name: getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewName`)) ??
+      "",
+    aggregationType: (getQuadValue(
+      store,
+      viewNode,
+      namedNode(`${VOCAB_PREFIX}aggregationType`),
+    ) ?? "average") as AggregatedViewDefinition["aggregationType"],
+    createdAt:
+      getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}createdAt`)) ?? "",
+    lastComputedAt: getQuadValue(
+      store,
+      viewNode,
+      namedNode(`${VOCAB_PREFIX}lastComputedAt`),
+    ),
+    buildingUris: getQuadValues(
+      store,
+      viewNode,
+      namedNode(`${VOCAB_PREFIX}includesBuilding`),
+    ),
+    metrics: getQuadValues(
+      store,
+      viewNode,
+      namedNode(`${VOCAB_PREFIX}includesMetric`),
+    ),
+    period: getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewPeriod`)),
+  };
+}
+
 /**
- * Get all view definitions for the current user
+ * All view definitions for the current user, discovered by LISTING the `views/`
+ * container (the top-level `*.ttl` resources; the `snapshots/` subfolder is
+ * skipped) and parsing each. A missing container (fresh Pod) yields `[]`.
  */
 export async function getViewDefinitions(
   session: Session,
 ): Promise<AggregatedViewDefinition[]> {
-  if (!session.info.isLoggedIn || !session.info.webId) {
+  const webId = session.info.webId;
+  if (!session.info.isLoggedIn || !webId) {
     throw new Error("User is not logged in");
   }
 
-  const definitionsUrl = getViewDefinitionsUrl(session.info.webId);
-
   try {
-    // Cache-buster + no-store so the list reflects recent edits (e.g. a just
-    // deleted view) instead of a stale cached copy. baseIRI below stays
-    // canonical (without the query) so parsed IRIs are unchanged.
-    const response = await fetchFresh(definitionsUrl, session);
+    const children = await listDirectChildren(viewsContainerUrl(webId), session);
+    if (!children) return []; // container doesn't exist yet
+    const defUrls = children.filter((u) => u.endsWith(".ttl"));
 
-    if (response.status === 404) {
-      await session.fetch(definitionsUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "text/turtle" },
-        body: "",
-      });
-
-      return [];
-    }
-    if (!response.ok) {
-      throw new Error(
-        `Failed to fetch view definitions: ${response.statusText}`,
+    // Bounded concurrency: a burst of GETs trips Cloudflare's rate limiter.
+    const views = await mapPooled(defUrls, 4, async (url) => {
+      const res = await fetchFresh(url, session);
+      if (!res.ok) return null;
+      const store = new Store(
+        new Parser({ baseIRI: url }).parse(await res.text()),
       );
-    }
-
-    const text = await response.text();
-    const parser = new Parser({
-      format: "text/turtle",
-      baseIRI: definitionsUrl,
+      return parseViewDefinition(store);
     });
-    const quads = parser.parse(text);
-    const store = new Store(quads);
-
-    const viewType = namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`);
-    const viewQuads = store.getQuads(null, namedNode(RDF_TYPE), viewType, null);
-
-    const views: AggregatedViewDefinition[] = [];
-
-    for (const viewQuad of viewQuads) {
-      const viewNode = viewQuad.subject;
-
-      views.push({
-        id: getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewId`)) ??
-          "",
-        name:
-          getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewName`)) ??
-            "",
-        aggregationType: (getQuadValue(
-          store,
-          viewNode,
-          namedNode(`${VOCAB_PREFIX}aggregationType`),
-        ) ?? "average") as AggregatedViewDefinition["aggregationType"],
-        createdAt: getQuadValue(
-          store,
-          viewNode,
-          namedNode(`${VOCAB_PREFIX}createdAt`),
-        ) ?? "",
-        lastComputedAt: getQuadValue(
-          store,
-          viewNode,
-          namedNode(`${VOCAB_PREFIX}lastComputedAt`),
-        ),
-        buildingUris: getQuadValues(
-          store,
-          viewNode,
-          namedNode(`${VOCAB_PREFIX}includesBuilding`),
-        ),
-        metrics: getQuadValues(
-          store,
-          viewNode,
-          namedNode(`${VOCAB_PREFIX}includesMetric`),
-        ),
-        period: getQuadValue(
-          store,
-          viewNode,
-          namedNode(`${VOCAB_PREFIX}viewPeriod`),
-        ),
-      });
-    }
-
-    return views;
+    return views.filter((v): v is AggregatedViewDefinition => v !== null);
   } catch (error) {
     console.error("Error getting view definitions:", error);
     return [];
@@ -288,14 +256,27 @@ export async function getViewDefinitions(
 }
 
 /**
- * Get a single view definition by ID
+ * A single view definition by ID — a direct read of `views/<viewId>.ttl` (no
+ * need to list the whole container).
  */
 export async function getViewDefinition(
   session: Session,
   viewId: string,
 ): Promise<AggregatedViewDefinition | null> {
-  const views = await getViewDefinitions(session);
-  return views.find((v) => v.id === viewId) || null;
+  const webId = session.info.webId;
+  if (!webId) return null;
+  try {
+    const res = await fetchFresh(getViewDefinitionUrl(webId, viewId), session);
+    if (!res.ok) return null;
+    const store = new Store(
+      new Parser({ baseIRI: getViewDefinitionUrl(webId, viewId) })
+        .parse(await res.text()),
+    );
+    return parseViewDefinition(store);
+  } catch (error) {
+    console.error("Error getting view definition:", error);
+    return null;
+  }
 }
 
 /**
@@ -374,8 +355,6 @@ export async function storeComputedSnapshot(
   // Serialize and save
   const ttl = serializeWithPrefixes(store);
 
-  console.log(ttl);
-
   const putResponse = await session.fetch(snapshotUrl, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
@@ -402,14 +381,15 @@ async function updateViewLastComputed(
   viewId: string,
   timestamp: string,
 ): Promise<void> {
-  if (!session.info.webId) return;
+  const webId = session.info.webId;
+  if (!webId) return;
 
-  const definitionsUrl = getViewDefinitionsUrl(session.info.webId);
-  const viewNode = namedNode(`${definitionsUrl}#${viewId}`);
+  const definitionUrl = getViewDefinitionUrl(webId, viewId);
+  const viewNode = viewNodeFor(webId, viewId);
   const lastComputedPred = namedNode(`${VOCAB_PREFIX}lastComputedAt`);
 
-  await readModifyWrite(definitionsUrl, session, (store, { created }) => {
-    if (created) return false; // no definitions file → nothing to update
+  await readModifyWrite(definitionUrl, session, (store, { created }) => {
+    if (created) return false; // no definition file → nothing to update
     store.getQuads(viewNode, lastComputedPred, null, null)
       .forEach((q) => store.removeQuad(q));
     store.addQuad(quad(
@@ -522,52 +502,18 @@ export async function deleteView(
   session: Session,
   viewId: string,
 ): Promise<void> {
-  if (!session.info.isLoggedIn || !session.info.webId) {
+  const webId = session.info.webId;
+  if (!session.info.isLoggedIn || !webId) {
     throw new Error("User is not logged in");
   }
 
-  const definitionsUrl = getViewDefinitionsUrl(session.info.webId);
-  const snapshotUrl = getComputedViewUrl(session.info.webId, viewId);
-
-  // Remove from definitions. Read fresh (no-store) so we edit the current file,
-  // not a cached copy.
-  const response = await fetchFresh(definitionsUrl, session);
-  if (response.ok) {
-    const text = await response.text();
-    const parser = new Parser({
-      format: "text/turtle",
-      baseIRI: definitionsUrl,
-    });
-    const quads = parser.parse(text);
-    const store = new Store(quads);
-
-    const viewNode = namedNode(`${definitionsUrl}#${viewId}`);
-
-    // Remove all quads related to this view
-    const viewQuads = store.getQuads(viewNode, null, null, null);
-    viewQuads.forEach((q) => store.removeQuad(q));
-
-    const ttl = serializeWithPrefixes(store);
-
-    await session.fetch(definitionsUrl, {
-      method: "PUT",
-      headers: { "Content-Type": "text/turtle" },
-      body: ttl,
-    });
-  }
-
-  // Delete snapshot file
-  try {
-    await session.fetch(snapshotUrl, { method: "DELETE" });
-  } catch {
-    // Snapshot might not exist, that's fine
-  }
-
-  // Delete ACL if exists
-  try {
-    await session.fetch(`${snapshotUrl}.acl`, { method: "DELETE" });
-  } catch {
-    // ACL might not exist
+  // Container-native: deleting the definition resource de-registers the view
+  // (it's discovered by listing); also drop its snapshot and any ACLs.
+  const definitionUrl = getViewDefinitionUrl(webId, viewId);
+  const snapshotUrl = getComputedViewUrl(webId, viewId);
+  for (const url of [definitionUrl, snapshotUrl]) {
+    await session.fetch(`${url}.acl`, { method: "DELETE" }).catch(() => {});
+    await session.fetch(url, { method: "DELETE" }).catch(() => {});
   }
 }
 

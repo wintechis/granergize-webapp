@@ -5,6 +5,7 @@ import {
   deleteContainerRecursive,
   formatResourceList,
   listContainedResources,
+  listDirectChildren,
   removeAppData,
 } from "./podDelete.ts";
 import { _setStorageRootForTesting } from "./solidUtils.ts";
@@ -45,6 +46,10 @@ const FIXTURES: Record<string, string> = {
   [`${GRAN}buildings/b1/energy/`]: listing(`${GRAN}buildings/b1/energy/`, [
     `${GRAN}buildings/b1/energy/2024-06-03.ttl`,
   ]),
+  // An existing but empty container (present, no ldp:contains children).
+  [`${GRAN}empty/`]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${GRAN}empty/> a ldp:Container, ldp:BasicContainer .
+`,
 };
 
 interface Call {
@@ -116,6 +121,31 @@ Deno.test("deleteContainerRecursive tolerates a missing container", async () => 
   await deleteContainerRecursive(`${ROOT}does-not-exist/`, session);
   // 404 on the listing → early return, nothing deleted, no throw.
   assert.equal(deletes.filter((u) => !u.endsWith(".acl")).length, 0);
+});
+
+Deno.test("listDirectChildren returns immediate children only (non-recursive)", async () => {
+  const { session } = makeSession();
+  const children = await listDirectChildren(`${GRAN}buildings/`, session);
+  assert.deepEqual((children ?? []).slice().sort(), [
+    `${GRAN}buildings/b1.ttl`,
+    `${GRAN}buildings/b1/`,
+  ].sort());
+  // It must NOT descend into b1/ (that's listContainedResources' job).
+  assert.ok(!(children ?? []).includes(`${GRAN}buildings/b1/energy/`));
+});
+
+Deno.test("listDirectChildren distinguishes a missing container (null) from an empty one ([])", async () => {
+  const { session } = makeSession();
+  assert.equal(
+    await listDirectChildren(`${ROOT}does-not-exist/`, session),
+    null,
+    "404 → null (fresh Pod; caller may seed)",
+  );
+  assert.deepEqual(
+    await listDirectChildren(`${GRAN}empty/`, session),
+    [],
+    "present but empty → [] (do not seed)",
+  );
 });
 
 Deno.test("listContainedResources returns the flat subtree, read-only", async () => {

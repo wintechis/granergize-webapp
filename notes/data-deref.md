@@ -44,11 +44,12 @@ Resolved once per session, then cached:
 2. **Storage root → fixed paths.** `podResources(webId)` returns every app path as
    `<root>granergize/…` (`dataSources.ttl`, `buildings/`, `hiddenBuildings.ttl`,
    `views/…`, `sharingRegistry.ttl`, …). One tree; no per-call base munging.
-3. **Registry → source URLs + roles.** `getSourceRegistry`
+3. **Registry → source URLs.** `getSourceRegistry`
    (`src/services/TurtleParsingService.ts`) GETs `dataSources.ttl`, parses it, and
    reads `gran:hasBuildingDataSource` / `gran:hasAgentDataSource` (the building /
-   agent file URLs) plus each source's `gran:dataSourceRole`. **These URLs may live
-   on other Pods.** A fresh Pod is bootstrapped here (empty registry +
+   agent file URLs). **These URLs may live on other Pods.** (Provenance lives in each
+   building file as a PROV attribution; a legacy `gran:dataSourceRole` triple here is
+   read only as a fallback.) A fresh Pod is bootstrapped here (empty registry +
    `seedDemoBuildings`).
 4. **Fetch each source.** `loadTtlFromMultipleSources` fetches all sources
    **concurrently** (`Promise.all`). Inaccessible sources (403/404) are tolerated

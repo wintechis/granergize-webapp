@@ -1,31 +1,26 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { parseBuildings } from "./utils/buildingParser.ts";
-import { parseAgents } from "./utils/agentParser.ts";
-import { parseEnergyData } from "./utils/energyDataParser.ts";
 import type {
   AgentType,
   BuildingType,
+  EnergyDatasetRef,
   EnergyType,
-  InvestorAnnualData,
-  UserRole,
 } from "../../types/types.ts";
-import { DataFactory, Parser, Store, Writer } from "n3";
+import { DataFactory, Parser, Store } from "n3";
 import type { Quad } from "@rdfjs/types";
-import { getStorageRoot, podResources, registryUrl } from "./utils/solidUtils.ts";
+import { getStorageRoot, podResources } from "./utils/solidUtils.ts";
 import { fetchFresh } from "./utils/podFetch.ts";
-import { GRAN_NS } from "./utils/vocabularies.ts";
+import { listDirectChildren } from "./utils/podDelete.ts";
+import { mapPooled } from "./utils/pool.ts";
+import { parseEnergyDataset } from "./utils/energyDataset.ts";
+import { readPrefs } from "./utils/prefs.ts";
+import {
+  appendSharingEvent,
+  foldSharingLog,
+  sharedInUrl,
+} from "./interop/sharingLog.ts";
 import { seedDemoBuildings } from "./utils/buildingSerializer.ts";
 import { isSeriesGranularity } from "./utils/durationUtils.ts";
-
-const { namedNode } = DataFactory;
-
-/** Maps gran: role IRIs back to TypeScript UserRole values */
-const IRI_TO_ROLE: Record<string, UserRole> = {
-  [`${GRAN_NS}DummyRole`]: "dummy",
-  [`${GRAN_NS}InvestorRole`]: "investor",
-  [`${GRAN_NS}UserRoleInstance`]: "user",
-  [`${GRAN_NS}BenchmarkRole`]: "benchmark_service_provider",
-};
 
 /**
  * Attempts to load Turtle data from multiple sources, continuing if some fail
@@ -146,279 +141,106 @@ async function loadTtlFromMultipleSources(
 }
 
 /**
- * Remove inaccessible building sources from the user's dataSources.ttl
+ * Prune shared building sources that 403/404'd — append a self-revocation to the
+ * `shared-in/` log so the fold drops them next load. A grant revoked on the
+ * owner's side thus self-heals (and converges: once revoked, the source isn't
+ * folded back in, so it isn't re-fetched).
  */
 async function removeInaccessibleBuildingSources(
   failedSources: Array<{ url: string; status: number }>,
   session: Session,
 ): Promise<void> {
   const webId = session.info.webId;
-  if (!webId) {
-    return;
-  }
-
-  const registry = registryUrl(webId);
-
-  try {
-    const response = await fetchFresh(registry, session);
-    if (!response.ok) {
-      return;
-    }
-
-    const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: registry });
-    const quads = parser.parse(text);
-    const store = new Store(quads);
-
-    const buildingSourcePredicate = namedNode(
-      `${GRAN_NS}hasBuildingDataSource`,
-    )
-    const registryNode = namedNode(registry);
-
-    // Remove quads for failed sources
-    const dataSourceRolePredicate = namedNode(`${GRAN_NS}dataSourceRole`);
-    let removed = false;
-    for (const failed of failedSources) {
-      const sourceNode = namedNode(failed.url);
-      const quadsToRemove = store.getQuads(
-        registryNode,
-        buildingSourcePredicate,
-        sourceNode,
-        null,
-      );
-      if (quadsToRemove.length > 0) {
-        quadsToRemove.forEach((q) =>
-          store.removeQuad(q as Parameters<typeof store.removeQuad>[0])
-        );
-        // Also remove the role annotation for this building URL
-        const roleQuads = store.getQuads(
-          sourceNode,
-          dataSourceRolePredicate,
-          null,
-          null,
-        );
-        roleQuads.forEach((q) =>
-          store.removeQuad(q as Parameters<typeof store.removeQuad>[0])
-        );
-        removed = true;
-        console.log(`Removed inaccessible building source: ${failed.url}`);
-      }
-    }
-
-    // Only update if we removed something
-    if (removed) {
-      const writer = new Writer({ format: "text/turtle" });
-      const updatedTtl = writer.quadsToString(
-        store.getQuads(null, null, null, null),
-      );
-
-      await session.fetch(registry, {
-        method: "PUT",
-        headers: { "Content-Type": "text/turtle" },
-        body: updatedTtl,
+  if (!webId) return;
+  const sharedIn = sharedInUrl(webId);
+  const at = new Date().toISOString();
+  for (const failed of failedSources) {
+    try {
+      await appendSharingEvent(sharedIn, session, {
+        type: "revocation",
+        owner: webId,
+        grantee: webId,
+        resource: failed.url,
+        at,
       });
-
-      console.log("Updated dataSources.ttl to remove inaccessible sources");
+      console.log(`Pruned inaccessible shared building source: ${failed.url}`);
+    } catch (error) {
+      console.error("Error pruning inaccessible building source:", error);
     }
-  } catch (error) {
-    console.error("Error removing inaccessible building sources:", error);
-  }
-}
-
-async function getSourceRegistry(
-  session: Session,
-): Promise<
-  { agents: string[]; buildings: Array<{ url: string; role: UserRole }> }
-> {
-  const webId = session.info.webId;
-  if (!webId) {
-    throw new Error("No WebID found in session.");
-  }
-
-  const registry = registryUrl(webId);
-
-  try {
-    const response = await fetchFresh(registry, session);
-
-    let registryText = "";
-    if (!response.ok) {
-      // First run: bootstrap an EMPTY registry (no external sources), then seed
-      // two real, user-owned demo buildings so a fresh pod isn't blank. Seeding
-      // runs only here — when the registry didn't exist — so deleting the demo
-      // buildings doesn't resurrect them on the next load.
-      const defaultBody = `@prefix dcterms: <http://purl.org/dc/terms/> .
-@prefix gran: <${GRAN_NS}> .
-
-<${registry}> a gran:DataSourceRegistry ;
-  dcterms:creator <${webId}> .`;
-
-      const put = await session.fetch(registry, {
-        method: "PUT",
-        headers: { "Content-Type": "text/turtle" },
-        body: defaultBody,
-      });
-      if (!put.ok) {
-        console.error(
-          `Failed to create data source registry at ${registry}: ${put.status} ${put.statusText}`,
-        );
-      } else {
-        console.log(`Created new data source registry at ${registry}`);
-        // Best-effort; seedDemoBuildings appends its own registry entries.
-        await seedDemoBuildings(session, webId);
-      }
-
-      // Re-read so the freshly seeded building sources are included below.
-      const seeded = await fetchFresh(registry, session);
-      registryText = seeded.ok ? await seeded.text() : defaultBody;
-    } else {
-      registryText = await response.text();
-    }
-
-    const parser = new Parser({ baseIRI: registry });
-    const quads = parser.parse(registryText);
-    const store = new Store(quads);
-
-    const buildingSources: Array<{ url: string; role: UserRole }> = [];
-    const agentSources: string[] = [];
-    const dataSourceRolePredicate = namedNode(`${GRAN_NS}dataSourceRole`);
-
-    const buildingQuads = store.getQuads(
-      null,
-      namedNode(`${GRAN_NS}hasBuildingDataSource`),
-      null,
-      null,
-    );
-
-    buildingQuads.forEach((quad: Quad) => {
-      if (quad.object.termType === "NamedNode") {
-        const url = quad.object.value;
-        // Look up the role annotation for this building URL
-        const roleQuads = store.getQuads(
-          namedNode(url),
-          dataSourceRolePredicate,
-          null,
-          null,
-        );
-        let role: UserRole = "dummy"; // default for backward compat
-        if (
-          roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode"
-        ) {
-          role = IRI_TO_ROLE[roleQuads[0].object.value] ?? "dummy";
-        }
-        buildingSources.push({ url, role });
-      }
-    });
-
-    const agentQuads = store.getQuads(
-      null,
-      namedNode(`${GRAN_NS}hasAgentDataSource`),
-      null,
-      null,
-    );
-
-    agentQuads.forEach((quad: Quad) => {
-      if (quad.object.termType === "NamedNode") {
-        agentSources.push(quad.object.value);
-      }
-    });
-
-    return {
-      buildings: buildingSources,
-      agents: agentSources,
-    };
-  } catch (error) {
-    console.error("Error loading data source registry:", error);
-    return {
-      buildings: [],
-      agents: [],
-    };
   }
 }
 
 /**
- * Load list of hidden building URIs from the user's hidden buildings file
+ * Discover the user's OWN buildings by LISTING the `buildings/` container — the
+ * top-level `*.ttl` files (skip the `buildings/<id>/` energy subcontainers). No
+ * registry: adding a building is a single PUT, so the listing can't desync. A
+ * *missing* container (404, returned as `null` by listDirectChildren) means a
+ * fresh Pod, so we seed the demo buildings once and re-list; an *empty but
+ * present* container (the user deleted everything) does NOT reseed.
  */
-async function getHiddenBuildings(session: Session): Promise<Set<string>> {
-  const webId = session.info.webId;
-  if (!webId) {
-    return new Set();
+async function discoverOwnBuildings(
+  session: Session,
+  webId: string,
+): Promise<string[]> {
+  const container = podResources(webId).buildings;
+  let children = await listDirectChildren(container, session);
+  if (children === null) {
+    await seedDemoBuildings(session, webId);
+    children = (await listDirectChildren(container, session)) ?? [];
   }
+  return children.filter((url) => url.endsWith(".ttl"));
+}
 
-  const hiddenBuildingsUrl = podResources(webId).hiddenBuildings;
-
+/**
+ * Building URLs shared *with* the user (on other Pods), by folding the
+ * `shared-in/` event log for `gran:kind gran:Building` grants. An empty/missing
+ * log (no shares received) yields `[]`.
+ */
+async function listSharedBuildingSources(
+  session: Session,
+  webId: string,
+): Promise<string[]> {
   try {
-    const response = await fetchFresh(hiddenBuildingsUrl, session);
-
-    if (response.status === 404) {
-      // Create an empty hidden buildings file for future use
-      await session.fetch(hiddenBuildingsUrl, {
-        method: "PUT",
-        headers: { "Content-Type": "text/turtle" },
-        body: "",
-      });
-      return new Set();
-    }
-
-    if (!response.ok) {
-      console.warn(`Failed to fetch hidden buildings: ${response.statusText}`);
-      return new Set();
-    }
-
-    const text = await response.text();
-    const parser = new Parser({
-      format: "text/turtle",
-      baseIRI: hiddenBuildingsUrl,
-    });
-    const quads = parser.parse(text);
-    const store = new Store(quads);
-
-    const hiddenPredicate = DataFactory.namedNode(`${GRAN_NS}hiddenBuilding`);
-
-    const hiddenQuads = store.getQuads(null, hiddenPredicate, null, null);
-    const hiddenSet = new Set<string>();
-
-    for (const quad of hiddenQuads) {
-      if (quad.object.termType === "NamedNode") {
-        hiddenSet.add(quad.object.value);
-      }
-    }
-
-    return hiddenSet;
+    const grants = await foldSharingLog(sharedInUrl(webId), session);
+    return grants.filter((g) => g.kind === "Building").map((g) => g.resource);
   } catch (error) {
-    console.error("Error loading hidden buildings:", error);
-    return new Set();
+    console.error("Error loading shared building sources:", error);
+    return [];
   }
 }
 
 /**
- * Phase 1: discover, fetch and parse the visible buildings + agents (no energy).
- * Fast enough to paint the map immediately; energy streams in via {@link loadEnergy}.
+ * Phase 1: discover, fetch and parse the visible buildings (no energy). Own
+ * buildings come from listing the `buildings/` container; buildings shared with
+ * the user come from folding the `shared-in/` log. Fast enough to paint the map
+ * immediately; energy streams in via {@link loadEnergy}. The `agents` field is
+ * retained for the back-compat return shape but is always empty — the legacy
+ * agent data source is no longer used.
  */
 export async function loadBuildingsAndAgents(
   session: Session,
 ): Promise<{ buildings: BuildingType[]; agents: AgentType[] }> {
-  // get own solid pod url
   const webId = session.info.webId;
   if (!webId) {
     throw new Error("No WebID found in session.");
   }
 
-  const dataSources = await getSourceRegistry(session);
+  // Own buildings (container listing) and shared sources (registry) are
+  // independent; discover them concurrently.
+  const [ownBuildings, sharedBuildings] = await Promise.all([
+    discoverOwnBuildings(session, webId),
+    listSharedBuildingSources(session, webId),
+  ]);
+  const buildingSources = [...new Set([...ownBuildings, ...sharedBuildings])];
 
-  const roleFilteredBuildings = [
-    ...new Set(dataSources.buildings.map((b) => b.url)),
-  ];
-
-  // The hidden-buildings list, the building sources, and the agent sources are
-  // independent of one another, so fetch them concurrently rather than in
-  // series.
-  const [hiddenBuildingUris, buildingsResult, agentsResult] = await Promise.all([
-    getHiddenBuildings(session),
-    loadTtlFromMultipleSources(roleFilteredBuildings, session, "buildings"),
-    loadTtlFromMultipleSources(dataSources.agents, session, "agents"),
+  const [hiddenBuildingUris, buildingsResult] = await Promise.all([
+    readPrefs(session).then((p) => p.hiddenBuildings),
+    loadTtlFromMultipleSources(buildingSources, session, "buildings"),
   ]);
 
-  // Remove inaccessible building sources from registry (403/404 errors)
+  // A shared source that 403/404s (e.g. access revoked since the grant) is
+  // pruned from the registry; own buildings always load, so this self-heals
+  // missed revocations on the next load.
   if (buildingsResult.failedSources.length > 0) {
     await removeInaccessibleBuildingSources(
       buildingsResult.failedSources,
@@ -426,43 +248,33 @@ export async function loadBuildingsAndAgents(
     );
   }
 
-  // Parse the merged quad collections
   const buildings = parseBuildings(buildingsResult.quads);
-  const agents = parseAgents(agentsResult.quads);
-
-  // Determine user's storage root to identify shared buildings
   const storageRoot = getStorageRoot(webId);
-  const sourceRoleMap = new Map(
-    dataSources.buildings.map((b) => [b.url, b.role]),
-  );
 
-  // Filter out hidden buildings and mark shared buildings
+  // Filter out hidden buildings and mark shared buildings.
   const visibleBuildings = new Map<string, BuildingType>();
   for (const [buildingId, building] of buildings) {
     if (!hiddenBuildingUris.has(building.uri.split("#")[0])) {
-      // Check if building is from external source (shared with user)
-      // Use sourceUri for ownership check (tracks where the file came from)
+      // Ownership = whether the source file lives under the user's storage root.
       const sourceForOwnershipCheck = building.sourceUri || building.uri;
-      const isOwnBuilding = sourceForOwnershipCheck.startsWith(storageRoot);
-      building.isShared = !isOwnBuilding;
-      building.sourceRole = sourceRoleMap.get(building.sourceUri ?? "") ??
-        "dummy";
-
+      building.isShared = !sourceForOwnershipCheck.startsWith(storageRoot);
       visibleBuildings.set(buildingId, building);
     }
   }
 
   return {
     buildings: Array.from(visibleBuildings.values()),
-    agents: Array.from(agents.values()),
+    agents: [],
   };
 }
 
 /**
  * Phase 2: load + parse energy for already-parsed buildings, returning the energy
- * series, category averages, and per-agent averages. A pure function of the
- * buildings it's given (their energy files + inline annualData) — no registry
- * re-read.
+ * series, category averages, and per-agent averages. Reads each building's unified
+ * `energyDatasets` refs (from the `gran:hasEnergyDataset` link slugs): sub-hourly
+ * *series* are skipped (lazy-loaded on click); the latest actual annual aggregate
+ * is fetched and parsed into the building's energyNeed + the cross-building
+ * averages. A pure function of the buildings it's given — no registry re-read.
  */
 export async function loadEnergy(
   session: Session,
@@ -477,147 +289,63 @@ export async function loadEnergy(
   const aggregatedValues: Record<string, number[]> = {};
   const agentAggregatedValues: Record<string, Record<string, number[]>> = {};
 
-  {
-    // Load energy data for each building. Sub-hourly *series* datasets are
-    // skipped (loaded on demand when clicked); inline-aggregate buildings are
-    // synthesized below from their annualData.
-    //
-    // The per-file fetches are independent, so collect them first and run them
-    // concurrently — doing one Pod round-trip per building in series was what
-    // made the initial load (and therefore the map) take so long. Results are
-    // accumulated afterwards in a plain CPU loop, preserving the prior order.
-    const energyTasks: Array<{ building: BuildingType; location: string }> = [];
-    for (const building of buildings) {
-      if (!building.energyData) continue;
-      for (const data of building.energyData) {
-        // Skip sub-hourly *series* datasets — they're large and loaded lazily on
-        // click. Dispatch on the declared granularity, not the role; fall back to
-        // the role default for legacy datasets that don't declare one.
-        const isSeries = data.granularity
-          ? isSeriesGranularity(data.granularity)
-          : building.sourceRole === "user";
-        if (isSeries) continue;
-        energyTasks.push({ building, location: data.location });
-      }
-    }
-
-    const parsedEnergyResults = await Promise.all(
-      energyTasks.map(async ({ building, location }) => {
-        try {
-          const energyResult = await loadTtlFromMultipleSources(
-            [location],
-            session,
-            `energy data for building ${building.id}`,
-          );
-
-          const uri = energyResult.quads[0].graph.value;
-          const parsedEnergyData = parseEnergyData(
-            String(building.id),
-            uri,
-            energyResult.quads,
-          );
-
-          // building.id is already buildingParser's stable numeric id.
-          parsedEnergyData.id = building.id;
-          return parsedEnergyData;
-        } catch (error: unknown) {
-          console.error(
-            `Failed to load energy data for building ${building.id}:`,
-            error,
-          );
-          // Skip this building instead of failing the whole load.
-          return null;
-        }
-      }),
+  // For each building, the latest ACTUAL annual (non-series) dataset paints the
+  // map and feeds the averages. Sub-hourly *series* datasets are skipped here and
+  // loaded lazily on click — dispatch is purely on the declared granularity. The
+  // annual datasets are now separate resources, so fetch them with bounded
+  // concurrency (one Pod round-trip per building in series made the map slow).
+  const annualTasks: Array<{ building: BuildingType; ref: EnergyDatasetRef }> = [];
+  for (const building of buildings) {
+    const annual = (building.energyDatasets ?? []).filter(
+      (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),
     );
-
-    for (let i = 0; i < parsedEnergyResults.length; i++) {
-      const parsedEnergyData = parsedEnergyResults[i];
-      if (!parsedEnergyData) {
-        continue;
-      }
-      const { building } = energyTasks[i];
-      const numericBuildingId = parsedEnergyData.id;
-
-      // User-role buildings produce one EnergyType entry per daily file;
-      // merge all timeSeries arrays instead of overwriting the entry.
-      if (parsedEnergyData.timeSeries) {
-        const existing = energyData.get(numericBuildingId);
-        if (existing?.timeSeries) {
-          existing.timeSeries.electricityConsumption.push(
-            ...parsedEnergyData.timeSeries.electricityConsumption,
-          );
-        } else {
-          energyData.set(numericBuildingId, parsedEnergyData);
-        }
-        // Skip categorical aggregation for time-series data
-        continue;
-      }
-
-      energyData.set(numericBuildingId, parsedEnergyData);
-
-      // Aggregate values for each measurement
-      for (const category in parsedEnergyData) {
-        const categoryData =
-          parsedEnergyData[category as keyof EnergyType] as Record<
-            string,
-            number
-          >;
-        for (const property in categoryData) {
-          if (!aggregatedValues[property]) {
-            aggregatedValues[property] = [];
-          }
-          aggregatedValues[property].push(categoryData[property]);
-
-          // Aggregate values by agent
-          const agent = building.operatedBy;
-          if (!agent) {
-            continue;
-          }
-          if (!agentAggregatedValues[agent]) {
-            agentAggregatedValues[agent] = {};
-          }
-          if (!agentAggregatedValues[agent][property]) {
-            agentAggregatedValues[agent][property] = [];
-          }
-          agentAggregatedValues[agent][property].push(
-            categoryData[property],
-          );
-        }
-      }
-    }
+    if (annual.length === 0) continue;
+    const latest = annual.reduce((a, b) => (a.year >= b.year ? a : b));
+    annualTasks.push({ building, ref: latest });
   }
 
-  // Synthesize energyNeed entries from inline annualData for any building that
-  // carries it (no separate energy file; the data is in inline SOSA observations).
-  // Driven by the data shape (presence of annualData), not the provenance role —
-  // investor and benchmark buildings both use this inline-aggregate shape.
-  for (const building of buildings) {
-    const inlineAnnual = building.annualData as
-      | InvestorAnnualData[]
-      | undefined;
-    if (!inlineAnnual || inlineAnnual.length === 0) continue;
-    const numericBuildingId = building.id;
-    if (energyData.has(numericBuildingId)) continue;
-    const latest = inlineAnnual.reduce((a, b) => a.year > b.year ? a : b);
-    const energyNeedEntry: Record<string, number> = {};
-    if (latest.electricityConsumption !== undefined) {
-      energyNeedEntry["Electricity"] = latest.electricityConsumption;
+  const parsedAnnual = await mapPooled(
+    annualTasks,
+    6,
+    async ({ building, ref }) => {
+      try {
+        const fileUrl = ref.url.split("#")[0];
+        const res = await fetchFresh(fileUrl, session);
+        if (!res.ok) return null;
+        const store = new Store(
+          new Parser({ baseIRI: fileUrl }).parse(await res.text()),
+        );
+        const ds = parseEnergyDataset(store, ref.url);
+        return ds?.metrics ? { building, metrics: ds.metrics } : null;
+      } catch (error) {
+        console.error(`Failed to load energy for building ${building.id}:`, error);
+        return null;
+      }
+    },
+  );
+
+  for (const entry of parsedAnnual) {
+    if (!entry) continue;
+    const { building, metrics } = entry;
+    const energyNeed: Record<string, number> = {};
+    if (metrics.electricityConsumption !== undefined) {
+      energyNeed["Electricity"] = metrics.electricityConsumption;
     }
-    if (latest.heatConsumption !== undefined) {
-      energyNeedEntry["Heat"] = latest.heatConsumption;
+    if (metrics.heatConsumption !== undefined) {
+      energyNeed["Heat"] = metrics.heatConsumption;
     }
-    if (latest.waterConsumption !== undefined) {
-      energyNeedEntry["Water"] = latest.waterConsumption;
+    if (metrics.waterConsumption !== undefined) {
+      energyNeed["Water"] = metrics.waterConsumption;
     }
-    if (latest.wastewaterConsumption !== undefined) {
-      energyNeedEntry["Wastewater"] = latest.wastewaterConsumption;
+    if (metrics.wastewaterConsumption !== undefined) {
+      energyNeed["Wastewater"] = metrics.wastewaterConsumption;
     }
-    if (Object.keys(energyNeedEntry).length === 0) continue;
-    energyData.set(numericBuildingId, {
-      id: numericBuildingId,
+    if (Object.keys(energyNeed).length === 0) continue;
+
+    energyData.set(building.id, {
+      id: building.id,
       uri: building.uri as string,
-      energyNeed: energyNeedEntry,
+      energyNeed,
       energyGeneration: {},
       energyStorage: {},
       energyDistribution: {},
@@ -625,18 +353,17 @@ export async function loadEnergy(
       energyUsage: {},
       environmentalFactor: {},
     });
-    // Include in aggregate averages
-    for (const [prop, val] of Object.entries(energyNeedEntry)) {
+
+    for (const [prop, val] of Object.entries(energyNeed)) {
       if (!aggregatedValues[prop]) aggregatedValues[prop] = [];
       aggregatedValues[prop].push(val);
       const agent = building.operatedBy;
-      if (agent) {
-        if (!agentAggregatedValues[agent]) agentAggregatedValues[agent] = {};
-        if (!agentAggregatedValues[agent][prop]) {
-          agentAggregatedValues[agent][prop] = [];
-        }
-        agentAggregatedValues[agent][prop].push(val);
+      if (!agent || typeof agent !== "string") continue;
+      if (!agentAggregatedValues[agent]) agentAggregatedValues[agent] = {};
+      if (!agentAggregatedValues[agent][prop]) {
+        agentAggregatedValues[agent][prop] = [];
       }
+      agentAggregatedValues[agent][prop].push(val);
     }
   }
 

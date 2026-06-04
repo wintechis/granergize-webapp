@@ -9,34 +9,49 @@ import { _setStorageRootForTesting } from "./utils/solidUtils.ts";
 
 // Offline fixtures for a single Pod. The fake Session below serves these by URL
 // so fetchAndParseData runs end-to-end with no network. WebID resolves to:
-//   storageRoot  = https://pod.example/
-//   podBaseUrl   = https://pod.example/profile/
-//   registry     = https://pod.example/granergize/dataSources.ttl
+//   storageRoot       = https://pod.example/
+//   podBaseUrl        = https://pod.example/profile/
+//   buildings/ (own)  = https://pod.example/granergize/buildings/
+// Own buildings are discovered by LISTING the buildings/ container (ldp:contains).
 const WEBID = "https://pod.example/profile/card#me";
 // Storage root is normally resolved from pim:storage at login; prime it here since
 // these tests call fetchAndParseData directly (no login/resolveStorageRoot step).
 _setStorageRootForTesting(WEBID, "https://pod.example/");
-const REGISTRY_URL = "https://pod.example/granergize/dataSources.ttl";
-const HIDDEN_URL = "https://pod.example/granergize/hiddenBuildings.ttl";
+const BUILDINGS_CONTAINER = "https://pod.example/granergize/buildings/";
+const PREFS_URL = "https://pod.example/granergize/prefs.ttl";
 const BUILDINGS_URL = "https://pod.example/buildings.ttl";
-const AGENTS_URL = "https://pod.example/agents.ttl";
-const ENERGY_B1_URL = "https://pod.example/energy/b1.ttl";
-const ENERGY_B2_URL = "https://pod.example/energy/b2.ttl";
+// Annual gran:EnergyDataset resources — the slug `<year>-P1Y` is self-describing.
+const ENERGY_B1_URL = "https://pod.example/energy/b1/2024-P1Y.ttl";
+const ENERGY_B2_URL = "https://pod.example/energy/b2/2024-P1Y.ttl";
 
 const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
 
-const FIXTURES: Record<string, string> = {
-  [REGISTRY_URL]: `
-@prefix dcterms: <http://purl.org/dc/terms/> .
+/** An annual aggregate gran:EnergyDataset declaring one electricity figure. */
+const annualDataset = (kwh: number) => `
 @prefix gran: <${GRAN}> .
-<${REGISTRY_URL}> a gran:DataSourceRegistry ;
-  dcterms:creator <${WEBID}> ;
-  gran:hasBuildingDataSource <${BUILDINGS_URL}> ;
-  gran:hasAgentDataSource <${AGENTS_URL}> .
-<${BUILDINGS_URL}> gran:dataSourceRole gran:DummyRole .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix ssn: <http://www.w3.org/ns/ssn/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix unit: <https://qudt.org/vocab/unit#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<#ds> a gran:EnergyDataset , sosa:ObservationCollection ;
+  gran:granularity "P1Y" ;
+  gran:scenario gran:Actual ;
+  sosa:phenomenonTime [ a time:Interval ;
+    time:hasBeginning "2024-01-01"^^xsd:date ; time:hasEnd "2024-12-31"^^xsd:date ] ;
+  sosa:hasMember [ a sosa:Observation ;
+    sosa:observedProperty gran:ElectricityConsumption ;
+    sosa:hasResult [ sosa:hasSimpleResult "${kwh}"^^xsd:decimal ; ssn:hasUnit unit:KiloW-HR ] ] .
+`;
+
+const FIXTURES: Record<string, string> = {
+  // The buildings/ container lists the user's own building file(s).
+  [BUILDINGS_CONTAINER]: `
+@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${BUILDINGS_CONTAINER}> ldp:contains <${BUILDINGS_URL}> .
 `,
-  // Present but empty: no hidden buildings.
-  [HIDDEN_URL]: "",
+  // Present but empty: no current room, no hidden buildings.
+  [PREFS_URL]: "",
   [BUILDINGS_URL]: `
 @prefix gran: <${GRAN}> .
 @prefix rec: <https://w3id.org/rec#> .
@@ -44,38 +59,14 @@ const FIXTURES: Record<string, string> = {
 <#building-1> a rec:Building ;
   geo:lat 49.0 ;
   geo:long 11.0 ;
-  gran:hasEnergyMeasurementData [
-    gran:measurementYear "2023" ;
-    gran:datasetLocation "${ENERGY_B1_URL}" ;
-    gran:type "electricity"
-  ] .
+  gran:hasEnergyDataset <${ENERGY_B1_URL}#ds> .
 <#building-2> a rec:Building ;
   geo:lat 49.5 ;
   geo:long 11.5 ;
-  gran:hasEnergyMeasurementData [
-    gran:measurementYear "2023" ;
-    gran:datasetLocation "${ENERGY_B2_URL}" ;
-    gran:type "electricity"
-  ] .
+  gran:hasEnergyDataset <${ENERGY_B2_URL}#ds> .
 `,
-  [AGENTS_URL]: `
-@prefix schema: <https://schema.org/> .
-<#agent1> schema:name "ACME Energy" .
-`,
-  [ENERGY_B1_URL]: `
-@prefix sosa: <http://www.w3.org/ns/sosa/> .
-@prefix gran: <${GRAN}> .
-<#obs1> a sosa:Observation ;
-  sosa:observedProperty gran:Electricity ;
-  sosa:hasResult [ sosa:hasSimpleResult 1000 ] .
-`,
-  [ENERGY_B2_URL]: `
-@prefix sosa: <http://www.w3.org/ns/sosa/> .
-@prefix gran: <${GRAN}> .
-<#obs1> a sosa:Observation ;
-  sosa:observedProperty gran:Electricity ;
-  sosa:hasResult [ sosa:hasSimpleResult 2000 ] .
-`,
+  [ENERGY_B1_URL]: annualDataset(1000),
+  [ENERGY_B2_URL]: annualDataset(2000),
 };
 
 interface FetchLog {
@@ -119,7 +110,7 @@ function newLog(): FetchLog {
   return { energyInFlight: 0, maxEnergyInFlight: 0, energyResolved: 0 };
 }
 
-Deno.test("fetchAndParseData parses buildings, agents and energy end-to-end", async () => {
+Deno.test("fetchAndParseData parses own buildings (by listing) and energy end-to-end", async () => {
   const result = await fetchAndParseData(makeSession({ log: newLog() }));
 
   assert.equal(result.buildings.length, 2);
@@ -127,19 +118,20 @@ Deno.test("fetchAndParseData parses buildings, agents and energy end-to-end", as
   assert.ok(b1, "building 1 present");
   assert.equal(b1!.lat, 49.0);
   assert.equal(b1!.long, 11.0);
-  assert.equal(b1!.sourceRole, "dummy");
-  assert.equal(b1!.isShared, false);
+  // No PROV attribution in the file and no legacy registry fallback ⇒ undefined.
+  assert.equal(b1!.provenance, undefined);
+  assert.equal(b1!.isShared, false); // discovered under the storage root = own
 
-  assert.equal(result.agents.length, 1);
-  assert.equal(result.agents[0].name, "ACME Energy");
+  // The legacy agents data source was dropped; agents are always empty now.
+  assert.equal(result.agents.length, 0);
 
   const e1 = result.energyNeed.find((e) => e.id === 1);
   const e2 = result.energyNeed.find((e) => e.id === 2);
-  assert.equal(e1?.energyNeed.electricity, 1000);
-  assert.equal(e2?.energyNeed.electricity, 2000);
+  assert.equal(e1?.energyNeed.Electricity, 1000);
+  assert.equal(e2?.energyNeed.Electricity, 2000);
 
   // Average across both buildings.
-  assert.equal(result.averages.electricity, 1500);
+  assert.equal(result.averages.Electricity, 1500);
 });
 
 Deno.test("fetchAndParseData fetches energy files concurrently, not serially", async () => {
@@ -167,7 +159,7 @@ Deno.test("fetchAndParseData reports buildings/agents before energy resolves", a
 
   assert.ok(phase1Fired, "phase-1 callback fired");
   assert.equal(phase1Buildings, 2);
-  assert.equal(phase1Agents, 1);
+  assert.equal(phase1Agents, 0);
   // The whole point of the two-phase load: buildings/agents are handed over
   // before any energy file has finished loading.
   assert.equal(energyResolvedAtPhase1, 0);
@@ -185,9 +177,9 @@ Deno.test("fetchAndParseData tolerates an inaccessible energy source", async () 
   assert.equal(result.buildings.length, 2);
   const e1 = result.energyNeed.find((e) => e.id === 1);
   const e2 = result.energyNeed.find((e) => e.id === 2);
-  assert.equal(e1?.energyNeed.electricity, 1000);
+  assert.equal(e1?.energyNeed.Electricity, 1000);
   assert.equal(e2, undefined);
-  assert.equal(result.averages.electricity, 1000);
+  assert.equal(result.averages.Electricity, 1000);
 });
 
 Deno.test("fetchAndParseData throws SessionExpiredError when sources return 401", async () => {

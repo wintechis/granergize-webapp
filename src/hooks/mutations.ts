@@ -15,6 +15,7 @@ import {
   deleteRoom,
   exitRoom,
   extractRoomUrl,
+  normalizeRoomUrl,
   openRoom,
   removeKnownRoom,
   roomExists,
@@ -24,9 +25,11 @@ import type { BuildingType, UserRole } from "../../types/types.ts";
 
 /**
  * Write hooks. Each wraps the existing service function as the `mutationFn` — so
- * `readModifyWrite`'s ETag/If-Match optimistic *locking* is preserved — and
- * invalidates the affected queries on settle. Error handling
- * (ConflictError/SessionExpired notifications) is centralised in `QueryProvider`.
+ * `readModifyWrite`'s ETag/If-Match optimistic *locking* is preserved — and then
+ * either invalidates the affected queries or, for the room registry, updates the
+ * cache authoritatively via `setQueryData` (see the data-room section). Error
+ * handling (ConflictError/SessionExpired notifications) is centralised in
+ * `QueryProvider`.
  */
 
 /**
@@ -113,15 +116,37 @@ export function useRevokeViewAccess() {
 }
 
 // ── Data room mutations ──────────────────────────────────────────────────────
-// Each wraps a dataRoom service fn and invalidates the single `roomState` query
-// on settle (one batched re-read), replacing the old loadRoom()-after-every-
-// action. Components pass `onSuccess` for success toasts; errors are centralised.
+// The registry (current + known) is OWNED here: each mutation patches the
+// ["rooms", webId] cache authoritatively via setQueryData and never invalidates
+// it, so a slow or stale read-back can't revert the change (diagnosed on
+// solidcommunity.net — see queries.ts useRooms + project memory). The members/
+// roles log (["roomLog", …, current]) refetches on its own because its key
+// includes the current room; role saves invalidate it explicitly. Each mutationFn
+// returns the canonical room URL it acted on, which onSuccess folds into the cache.
+
+type RoomRegistry = { known: string[]; current: string | null };
+
+/** Patch the logged-in user's room-registry cache. */
+function patchRooms(
+  qc: ReturnType<typeof useQueryClient>,
+  fn: (reg: RoomRegistry) => RoomRegistry,
+): void {
+  const webId = getSession().info.webId;
+  qc.setQueryData<RoomRegistry>(
+    [...queryKeys.rooms, webId],
+    (old) => old ? fn(old) : old,
+  );
+}
+
+const withRoom = (known: string[], room: string) =>
+  known.includes(room) ? known : [...known, room];
 
 export function useCreateRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => createRoom(getSession()).then(() => {}),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomState }),
+    mutationFn: () => createRoom(getSession()),
+    onSuccess: (room) =>
+      patchRooms(qc, (reg) => ({ known: withRoom(reg.known, room), current: room })),
   });
 }
 
@@ -133,16 +158,25 @@ export function useEnterRoom() {
       if (!(await openRoom(roomUrl, getSession()))) {
         throw new Error("Data room is not reachable");
       }
+      return normalizeRoomUrl(extractRoomUrl(roomUrl));
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomState }),
+    onSuccess: (room) =>
+      patchRooms(qc, (reg) => ({ known: withRoom(reg.known, room), current: room })),
   });
 }
 
 export function useExitRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (roomUrl: string) => exitRoom(roomUrl, getSession()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomState }),
+    mutationFn: async (roomUrl: string) => {
+      await exitRoom(roomUrl, getSession());
+      return normalizeRoomUrl(roomUrl);
+    },
+    onSuccess: (room) =>
+      patchRooms(qc, (reg) => ({
+        ...reg,
+        current: reg.current === room ? null : reg.current,
+      })),
   });
 }
 
@@ -154,8 +188,13 @@ export function useDeleteRoom() {
       const session = getSession();
       await deleteRoom(roomUrl, session);
       await removeKnownRoom(roomUrl, session);
+      return normalizeRoomUrl(roomUrl);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomState }),
+    onSuccess: (room) =>
+      patchRooms(qc, (reg) => ({
+        known: reg.known.filter((r) => r !== room),
+        current: reg.current === room ? null : reg.current,
+      })),
   });
 }
 
@@ -170,8 +209,10 @@ export function useAddRoom() {
         throw new Error("Data room is not reachable");
       }
       await addKnownRoom(room, session);
+      return normalizeRoomUrl(room);
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomState }),
+    onSuccess: (room) =>
+      patchRooms(qc, (reg) => ({ ...reg, known: withRoom(reg.known, room) })),
   });
 }
 
@@ -179,8 +220,15 @@ export function useAddRoom() {
 export function useRemoveBookmark() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (roomUrl: string) => removeKnownRoom(roomUrl, getSession()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomState }),
+    mutationFn: async (roomUrl: string) => {
+      await removeKnownRoom(roomUrl, getSession());
+      return normalizeRoomUrl(roomUrl);
+    },
+    onSuccess: (room) =>
+      patchRooms(qc, (reg) => ({
+        known: reg.known.filter((r) => r !== room),
+        current: reg.current === room ? null : reg.current,
+      })),
   });
 }
 
@@ -189,6 +237,7 @@ export function useSaveRoles() {
   return useMutation({
     mutationFn: ({ room, roles }: { room: string; roles: UserRole[] }) =>
       setMyRole(room, roles, getSession()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomState }),
+    // Roles live in the room's log, not the registry — refresh just that.
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomLog }),
   });
 }

@@ -12,6 +12,7 @@ import GuidePage from "./components/GuidePage.tsx";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
+import Button from "@mui/material/Button";
 import Container from "@mui/material/Container";
 import Typography from "@mui/material/Typography";
 
@@ -134,7 +135,9 @@ function RoomDeepLink({ session }: { session: Session }) {
 }
 
 interface AppProps {
-  onLogout: (opts?: { suppressAutoLogin?: boolean }) => void;
+  onLogout: (
+    opts?: { suppressAutoLogin?: boolean; logoutType?: "app" | "idp" },
+  ) => void;
   session: Session;
 }
 
@@ -147,22 +150,43 @@ function App({ onLogout, session }: AppProps) {
   const [rootError, setRootError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
-    resolveStorageRoot(session)
+    // Bound the resolution: a hung profile fetch must surface as the (escapable)
+    // error screen below, not an indefinite spinner with no way back to login.
+    let timer: ReturnType<typeof setTimeout>;
+    const timeout = new Promise<never>((_, reject) => {
+      timer = setTimeout(
+        () => reject(new Error("Timed out locating your Pod storage")),
+        15000,
+      );
+    });
+    Promise.race([resolveStorageRoot(session), timeout])
       .then(() => active && setRootReady(true))
       .catch((e) =>
         active && setRootError(e instanceof Error ? e.message : String(e))
-      );
+      )
+      .finally(() => clearTimeout(timer));
     return () => {
       active = false;
+      clearTimeout(timer);
     };
   }, [session]);
 
   if (rootError) {
     return (
       <Box sx={{ p: 4 }}>
-        <Typography color="error">
+        <Typography color="error" sx={{ mb: 2 }}>
           Could not locate your Pod storage: {rootError}
         </Typography>
+        {/* This screen is otherwise a dead end (the app shell, and its logout
+            menu, never mount). Offer an explicit way back to Login, suppressing
+            auto-restore so we don't immediately log back into the same broken
+            session. */}
+        <Button
+          variant="contained"
+          onClick={() => onLogout({ suppressAutoLogin: true })}
+        >
+          Back to login
+        </Button>
       </Box>
     );
   }

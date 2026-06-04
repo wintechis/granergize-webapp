@@ -33,6 +33,28 @@ export interface RmwContext {
  * from a missing file). Any other return value (incl. n3's `addQuad` boolean) is
  * ignored.
  */
+/**
+ * Ensure an LDP container exists (create it with an empty PUT if it 404s) so a
+ * subsequent POST-to-append has somewhere to land. A non-404 response (it exists,
+ * or an auth error) is left as-is. Shared by the event-log writers (data rooms,
+ * sharing logs).
+ */
+export async function ensureContainer(
+  containerUrl: string,
+  session: Session,
+): Promise<void> {
+  const head = await session.fetch(containerUrl, { method: "GET" });
+  if (head.ok || head.status !== 404) return;
+  const put = await session.fetch(containerUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: "",
+  });
+  if (!put.ok) {
+    throw new Error(`Failed to create container ${containerUrl} (HTTP ${put.status})`);
+  }
+}
+
 export async function readModifyWrite(
   url: string,
   session: Session,

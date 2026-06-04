@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { Session } from "@inrupt/solid-client-authn-browser";
 import {
   BarElement,
   CategoryScale,
@@ -38,9 +39,12 @@ import {
   DetailCard,
   SectionTitle,
 } from "../components/detail/DetailView.tsx";
+import { loadEnergyDatasets } from "../services/utils/energyDataset.ts";
+import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 
 interface InvestorEnergyProps {
   building: BuildingType;
+  session: Session;
 }
 
 function formatNumber(value: number, decimals = 0): string {
@@ -54,10 +58,12 @@ const ELECTRICITY_COLOR = "rgba(31, 120, 180, 0.8)";
 const HEAT_COLOR = "rgba(227, 26, 28, 0.8)";
 const WATER_COLOR = "rgba(51, 160, 44, 0.8)";
 const RENEWABLE_COLOR = "rgba(178, 223, 138, 0.9)";
+// Planned (Soll) figures — one neutral colour across metrics, shown beside actual.
+const PLANNED_COLOR = "rgba(120, 120, 120, 0.55)";
 
 const barOptions: ChartOptions<"bar"> = {
   responsive: true,
-  plugins: { legend: { display: false } },
+  plugins: { legend: { display: true } }, // distinguishes actual vs planned bars
   scales: {
     x: { title: { display: true, text: "Year" } },
     y: { beginAtZero: true },
@@ -90,10 +96,47 @@ class ChartErrorBoundary extends React.Component<
   }
 }
 
-export default function InvestorEnergy({ building }: InvestorEnergyProps) {
-  const annualData = (building.annualData ?? []) as InvestorAnnualData[];
+export default function InvestorEnergy(
+  { building, session }: InvestorEnergyProps,
+) {
+  // Annual figures are separate gran:EnergyDataset resources; fetch the
+  // building's annual years (actual + planned) on demand for the Soll-Ist view.
+  const [annualData, setAnnualData] = useState<InvestorAnnualData[]>([]);
+  const [plannedData, setPlannedData] = useState<InvestorAnnualData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  if (annualData.length === 0) {
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const refs = (building.energyDatasets ?? []).filter(
+        (r) => !isSeriesGranularity(r.granularity),
+      );
+      const datasets = await loadEnergyDatasets(
+        refs,
+        session.fetch.bind(session),
+      );
+      const rows = (scenario: "actual" | "planned") =>
+        datasets
+          .filter((d) => d.scenario === scenario && d.metrics)
+          .map((d) => ({ year: d.year, ...d.metrics }) as InvestorAnnualData)
+          .sort((a, b) => a.year - b.year);
+      if (!cancelled) {
+        setAnnualData(rows("actual"));
+        setPlannedData(rows("planned"));
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [building.id]);
+
+  if (loading) {
+    return <Typography color="text.secondary">Loading…</Typography>;
+  }
+  if (annualData.length === 0 && plannedData.length === 0) {
     return (
       <Typography color="text.secondary">
         No annual energy data available for this building.
@@ -101,7 +144,37 @@ export default function InvestorEnergy({ building }: InvestorEnergyProps) {
     );
   }
 
-  const years = annualData.map((d) => String(d.year));
+  const actualByYear = new Map(annualData.map((d) => [d.year, d]));
+  const plannedByYear = new Map(plannedData.map((d) => [d.year, d]));
+  const yearsNum = [
+    ...new Set([...annualData, ...plannedData].map((d) => d.year)),
+  ].sort((a, b) => a - b);
+  const years = yearsNum.map(String);
+  const hasPlanned = plannedData.length > 0;
+
+  /** Actual values for a metric across the (union) years. */
+  const actualOf = (get: (d: InvestorAnnualData) => number | undefined) =>
+    yearsNum.map((y) => {
+      const d = actualByYear.get(y);
+      return d ? (get(d) ?? 0) : 0;
+    });
+  /** The planned-scenario comparison dataset for a metric (Soll-Ist), or none. */
+  const plannedSet = (
+    label: string,
+    get: (d: InvestorAnnualData) => number | undefined,
+  ) =>
+    hasPlanned
+      ? [{
+        label: `${label} (planned)`,
+        data: yearsNum.map((y) => {
+          const d = plannedByYear.get(y);
+          return d ? (get(d) ?? 0) : 0;
+        }),
+        backgroundColor: PLANNED_COLOR,
+        borderColor: PLANNED_COLOR,
+        borderWidth: 1,
+      }]
+      : [];
 
   // Electricity
   const electricityData: ChartData<"bar", number[], unknown> = {
@@ -109,11 +182,12 @@ export default function InvestorEnergy({ building }: InvestorEnergyProps) {
     datasets: [
       {
         label: "Electricity (kWh)",
-        data: annualData.map((d) => d.electricityConsumption ?? 0),
+        data: actualOf((d) => d.electricityConsumption),
         backgroundColor: ELECTRICITY_COLOR,
         borderColor: ELECTRICITY_COLOR,
         borderWidth: 1,
       },
+      ...plannedSet("Electricity (kWh)", (d) => d.electricityConsumption),
     ],
   };
 
@@ -122,11 +196,15 @@ export default function InvestorEnergy({ building }: InvestorEnergyProps) {
     datasets: [
       {
         label: "Renewable Self-Generated (%)",
-        data: annualData.map((d) => d.renewableSelfGeneratedShare ?? 0),
+        data: actualOf((d) => d.renewableSelfGeneratedShare),
         backgroundColor: RENEWABLE_COLOR,
         borderColor: RENEWABLE_COLOR,
         borderWidth: 1,
       },
+      ...plannedSet(
+        "Renewable Self-Generated (%)",
+        (d) => d.renewableSelfGeneratedShare,
+      ),
     ],
   };
 
@@ -144,11 +222,12 @@ export default function InvestorEnergy({ building }: InvestorEnergyProps) {
     datasets: [
       {
         label: "Heat (kWh)",
-        data: annualData.map((d) => d.heatConsumption ?? 0),
+        data: actualOf((d) => d.heatConsumption),
         backgroundColor: HEAT_COLOR,
         borderColor: HEAT_COLOR,
         borderWidth: 1,
       },
+      ...plannedSet("Heat (kWh)", (d) => d.heatConsumption),
     ],
   };
 
@@ -158,11 +237,12 @@ export default function InvestorEnergy({ building }: InvestorEnergyProps) {
     datasets: [
       {
         label: "Water (m³)",
-        data: annualData.map((d) => d.waterConsumption ?? 0),
+        data: actualOf((d) => d.waterConsumption),
         backgroundColor: WATER_COLOR,
         borderColor: WATER_COLOR,
         borderWidth: 1,
       },
+      ...plannedSet("Water (m³)", (d) => d.waterConsumption),
     ],
   };
 

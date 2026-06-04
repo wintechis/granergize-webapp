@@ -38,3 +38,6 @@ scripts
 *.sw?
 
 notes/*.html
+
+*~
+e2e/.sharing-state.local.json
