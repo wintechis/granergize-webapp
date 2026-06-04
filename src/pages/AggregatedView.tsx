@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { guardedDialogClose } from "../components/dialogClose.ts";
+import Modal from "../components/Modal.tsx";
 import { useNavigate, useParams } from "react-router-dom";
 import {
   Box,
@@ -9,9 +9,6 @@ import {
   CardHeader,
   CircularProgress,
   Container,
-  Dialog,
-  DialogContent,
-  DialogTitle,
   IconButton,
   Table,
   TableBody,
@@ -125,12 +122,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     setSharing(true);
     try {
       const snapshotUrl = getSnapshotUrl(session.info.webId, viewId);
-      await shareAggregatedView(
-        snapshotUrl,
-        viewId,
-        shareWebId.trim(),
-        session,
-      );
+      await shareAggregatedView(snapshotUrl, shareWebId.trim(), session);
       setShareDialogOpen(false);
       setShareWebId("");
       showNotification("View shared successfully", "success");
@@ -384,34 +376,14 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         )}
 
       {/* Share Dialog */}
-      <Dialog
+      <Modal
         open={shareDialogOpen}
-        onClose={guardedDialogClose(() => setShareDialogOpen(false), {
-          dirty: shareWebId.trim() !== "",
-          busy: sharing,
-        })}
-        maxWidth="sm"
-        fullWidth
-      >
-        <DialogTitle>Share Aggregated View</DialogTitle>
-        <DialogContent>
-          <Typography variant="body2" sx={{ mb: 2 }}>
-            Share this view with another user. They will receive access to the
-            computed snapshot values only, without seeing which buildings were
-            included.
-          </Typography>
-          <TextField
-            autoFocus
-            margin="dense"
-            label="Recipient WebID"
-            type="url"
-            fullWidth
-            variant="outlined"
-            value={shareWebId}
-            onChange={(e) => setShareWebId(e.target.value)}
-            placeholder="https://example.solidcommunity.net/profile/card#me"
-          />
-          <Box display="flex" justifyContent="flex-end" gap={1} mt={2}>
+        onClose={() => setShareDialogOpen(false)}
+        dirty={shareWebId.trim() !== ""}
+        busy={sharing}
+        title="Share Aggregated View"
+        actions={
+          <>
             <Button
               onClick={() => setShareDialogOpen(false)}
               disabled={sharing}
@@ -425,9 +397,26 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
             >
               {sharing ? <CircularProgress size={20} /> : "Share"}
             </Button>
-          </Box>
-        </DialogContent>
-      </Dialog>
+          </>
+        }
+      >
+        <Typography variant="body2" sx={{ mb: 2 }}>
+          Share this view with another user. They will receive access to the
+          computed snapshot values only, without seeing which buildings were
+          included.
+        </Typography>
+        <TextField
+          autoFocus
+          margin="dense"
+          label="Recipient WebID"
+          type="url"
+          fullWidth
+          variant="outlined"
+          value={shareWebId}
+          onChange={(e) => setShareWebId(e.target.value)}
+          placeholder="https://example.solidcommunity.net/profile/card#me"
+        />
+      </Modal>
     </Container>
   );
 }

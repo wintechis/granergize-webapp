@@ -4,11 +4,6 @@ import {
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   FormControl,
   FormControlLabel,
   FormLabel,
@@ -23,12 +18,13 @@ import {
   Typography,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { guardedDialogClose } from "./dialogClose.ts";
+import Modal from "./Modal.tsx";
 import { shareBuildingData } from "../services/interop/share.ts";
 import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
 import { uploadEnergyCertificate } from "../services/utils/certificateUploader.ts";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { formatError } from "../services/utils/formatError.ts";
 
 /** Roles selectable as a sharing target (resolved to member WebIDs via the data room). */
 const SHARE_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
@@ -166,37 +162,51 @@ export function ShareBuildingDialog({
   };
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onClose={guardedDialogClose(handleClose, {
-        dirty: webId.trim() !== "" || recipients.length > 0 || targetRole !== "",
-        busy: sharing,
-      })}
+      onClose={handleClose}
+      dirty={webId.trim() !== "" || recipients.length > 0 || targetRole !== ""}
+      busy={sharing}
+      title="Share Building Data"
+      actions={sharing
+        ? undefined
+        : shareSuccess
+        ? <Button onClick={handleClose} variant="contained">Done</Button>
+        : !confirmStep
+        ? (
+          <>
+            <Button onClick={handleClose}>Cancel</Button>
+            <Button
+              onClick={handleProceedToConfirm}
+              variant="contained"
+              disabled={resolving ||
+                (shareMode === "webid" ? !webId.trim() : !targetRole)}
+            >
+              {resolving ? "Resolving…" : "Review & Share"}
+            </Button>
+          </>
+        )
+        : (
+          <>
+            <Button onClick={() => setConfirmStep(false)}>Back</Button>
+            <Button onClick={handleShare} variant="contained">
+              Confirm Share
+            </Button>
+          </>
+        )}
     >
-      <DialogTitle>Share Building Data</DialogTitle>
-
       {sharing && (
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">Sharing…</Typography>
-        </DialogContent>
+        <Typography variant="body2" color="text.secondary">Sharing…</Typography>
       )}
 
       {!sharing && shareSuccess && (
-        <>
-          <DialogContent>
-            <Alert severity="success">
-              Shared successfully with {recipients.join(", ")}
-            </Alert>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose} variant="contained">Done</Button>
-          </DialogActions>
-        </>
+        <Alert severity="success">
+          Shared successfully with {recipients.join(", ")}
+        </Alert>
       )}
 
       {!sharing && !shareSuccess && !confirmStep && (
         <>
-          <DialogContent>
             <ToggleButtonGroup
               value={shareMode}
               exclusive
@@ -298,24 +308,11 @@ export function ShareBuildingDialog({
                 />
               </RadioGroup>
             </FormControl>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button
-              onClick={handleProceedToConfirm}
-              variant="contained"
-              disabled={resolving ||
-                (shareMode === "webid" ? !webId.trim() : !targetRole)}
-            >
-              {resolving ? "Resolving…" : "Review & Share"}
-            </Button>
-          </DialogActions>
         </>
       )}
 
       {!sharing && !shareSuccess && confirmStep && (
         <>
-          <DialogContent>
             {shareError && (
               <Alert severity="error" sx={{ mb: 2 }}>
                 {shareError}
@@ -338,16 +335,9 @@ export function ShareBuildingDialog({
                 ? "Static building data and energy readings"
                 : "Static building data only"}
             </Typography>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={() => setConfirmStep(false)}>Back</Button>
-            <Button onClick={handleShare} variant="contained">
-              Confirm Share
-            </Button>
-          </DialogActions>
         </>
       )}
-    </Dialog>
+    </Modal>
   );
 }
 
@@ -398,37 +388,41 @@ export function EnergyCertificateDialog({
       handleClose();
     } catch (error) {
       console.error("Error uploading energy certificate:", error);
-      showNotification(
-        `Failed to upload energy certificate: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        "error",
-      );
+      showNotification(formatError("upload the certificate", error), "error");
     } finally {
       setUploading(false);
     }
   };
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onClose={guardedDialogClose(handleClose, {
-        dirty: selectedFile != null,
-        busy: uploading,
-      })}
-    >
-      <DialogTitle>Upload Energy Certificate</DialogTitle>
-      {uploading && (
-        <DialogContent>
-          <Typography variant="body2" color="text.secondary">Uploading…</Typography>
-        </DialogContent>
-      )}
-      {!uploading && (
+      onClose={handleClose}
+      dirty={selectedFile != null}
+      busy={uploading}
+      title="Upload Energy Certificate"
+      actions={!uploading && (
         <>
-          <DialogContent>
-            <DialogContentText>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button
+            onClick={handleUpload}
+            variant="contained"
+            disabled={!selectedFile}
+          >
+            Upload
+          </Button>
+        </>
+      )}
+    >
+      {uploading
+        ? (
+          <Typography variant="body2" color="text.secondary">Uploading…</Typography>
+        )
+        : (
+          <>
+            <p style={{ marginTop: 0 }}>
               Upload a PDF file of the energy certificate for this building.
-            </DialogContentText>
+            </p>
             <Box mt={2}>
               <input
                 type="file"
@@ -448,19 +442,8 @@ export function EnergyCertificateDialog({
                 </Typography>
               )}
             </Box>
-          </DialogContent>
-          <DialogActions>
-            <Button onClick={handleClose}>Cancel</Button>
-            <Button
-              onClick={handleUpload}
-              variant="contained"
-              disabled={!selectedFile}
-            >
-              Upload
-            </Button>
-          </DialogActions>
-        </>
-      )}
-    </Dialog>
+          </>
+        )}
+    </Modal>
   );
 }

@@ -1,4 +1,5 @@
-import React from "react";
+import React, { useEffect, useState } from "react";
+import { Session } from "@inrupt/solid-client-authn-browser";
 import {
   BarElement,
   CategoryScale,
@@ -49,9 +50,12 @@ import {
   DetailRow,
   SectionTitle,
 } from "../components/detail/DetailView.tsx";
+import { loadEnergyDatasets } from "../services/utils/energyDataset.ts";
+import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 
 interface BspEnergyProps {
   building: BuildingType;
+  session: Session;
 }
 
 function formatNumber(value: number, decimals = 0): string {
@@ -65,10 +69,12 @@ const ELECTRICITY_COLOR = "rgba(31, 120, 180, 0.8)";
 const HEAT_COLOR = "rgba(227, 26, 28, 0.8)";
 const WATER_COLOR = "rgba(51, 160, 44, 0.8)";
 const WASTEWATER_COLOR = "rgba(0, 150, 136, 0.8)";
+// Planned (Soll) figures — one neutral colour across metrics, shown beside actual.
+const PLANNED_COLOR = "rgba(120, 120, 120, 0.55)";
 
 const baseOptions: ChartOptions<"bar"> = {
   responsive: true,
-  plugins: { legend: { display: false } },
+  plugins: { legend: { display: true } }, // distinguishes actual vs planned bars
   scales: {
     x: { title: { display: true, text: "Year" } },
     y: { beginAtZero: true },
@@ -109,21 +115,86 @@ class ChartErrorBoundary extends React.Component<
   }
 }
 
-export default function BspEnergy({ building }: BspEnergyProps) {
-  const annualData = (building.annualData ?? []) as InvestorAnnualData[];
+export default function BspEnergy({ building, session }: BspEnergyProps) {
+  // Annual figures are separate gran:EnergyDataset resources; fetch the
+  // building's annual years (actual + planned) on demand for the Soll-Ist view.
+  const [annualData, setAnnualData] = useState<InvestorAnnualData[]>([]);
+  const [plannedData, setPlannedData] = useState<InvestorAnnualData[]>([]);
+  const [loading, setLoading] = useState(true);
 
-  const years = annualData.map((d) => String(d.year));
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    (async () => {
+      const refs = (building.energyDatasets ?? []).filter(
+        (r) => !isSeriesGranularity(r.granularity),
+      );
+      const datasets = await loadEnergyDatasets(
+        refs,
+        session.fetch.bind(session),
+      );
+      const rows = (scenario: "actual" | "planned") =>
+        datasets
+          .filter((d) => d.scenario === scenario && d.metrics)
+          .map((d) => ({ year: d.year, ...d.metrics }) as InvestorAnnualData)
+          .sort((a, b) => a.year - b.year);
+      if (!cancelled) {
+        setAnnualData(rows("actual"));
+        setPlannedData(rows("planned"));
+        setLoading(false);
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [building.id]);
+
+  if (loading) {
+    return <Typography color="text.secondary">Loading…</Typography>;
+  }
+
+  const actualByYear = new Map(annualData.map((d) => [d.year, d]));
+  const plannedByYear = new Map(plannedData.map((d) => [d.year, d]));
+  const yearsNum = [
+    ...new Set([...annualData, ...plannedData].map((d) => d.year)),
+  ].sort((a, b) => a - b);
+  const years = yearsNum.map(String);
+  const hasPlanned = plannedData.length > 0;
+
+  const actualOf = (get: (d: InvestorAnnualData) => number | undefined) =>
+    yearsNum.map((y) => {
+      const d = actualByYear.get(y);
+      return d ? (get(d) ?? 0) : 0;
+    });
+  const plannedSet = (
+    label: string,
+    get: (d: InvestorAnnualData) => number | undefined,
+  ) =>
+    hasPlanned
+      ? [{
+        label: `${label} (planned)`,
+        data: yearsNum.map((y) => {
+          const d = plannedByYear.get(y);
+          return d ? (get(d) ?? 0) : 0;
+        }),
+        backgroundColor: PLANNED_COLOR,
+        borderColor: PLANNED_COLOR,
+        borderWidth: 1,
+      }]
+      : [];
 
   const electricityData: ChartData<"bar", number[], unknown> = {
     labels: years,
     datasets: [
       {
         label: "Electricity (kWh)",
-        data: annualData.map((d) => d.electricityConsumption ?? 0),
+        data: actualOf((d) => d.electricityConsumption),
         backgroundColor: ELECTRICITY_COLOR,
         borderColor: ELECTRICITY_COLOR,
         borderWidth: 1,
       },
+      ...plannedSet("Electricity (kWh)", (d) => d.electricityConsumption),
     ],
   };
 
@@ -132,11 +203,12 @@ export default function BspEnergy({ building }: BspEnergyProps) {
     datasets: [
       {
         label: "Heat (kWh)",
-        data: annualData.map((d) => d.heatConsumption ?? 0),
+        data: actualOf((d) => d.heatConsumption),
         backgroundColor: HEAT_COLOR,
         borderColor: HEAT_COLOR,
         borderWidth: 1,
       },
+      ...plannedSet("Heat (kWh)", (d) => d.heatConsumption),
     ],
   };
 
@@ -145,11 +217,12 @@ export default function BspEnergy({ building }: BspEnergyProps) {
     datasets: [
       {
         label: "Water (m³)",
-        data: annualData.map((d) => d.waterConsumption ?? 0),
+        data: actualOf((d) => d.waterConsumption),
         backgroundColor: WATER_COLOR,
         borderColor: WATER_COLOR,
         borderWidth: 1,
       },
+      ...plannedSet("Water (m³)", (d) => d.waterConsumption),
     ],
   };
 
@@ -158,11 +231,12 @@ export default function BspEnergy({ building }: BspEnergyProps) {
     datasets: [
       {
         label: "Wastewater (m³)",
-        data: annualData.map((d) => d.wastewaterConsumption ?? 0),
+        data: actualOf((d) => d.wastewaterConsumption),
         backgroundColor: WASTEWATER_COLOR,
         borderColor: WASTEWATER_COLOR,
         borderWidth: 1,
       },
+      ...plannedSet("Wastewater (m³)", (d) => d.wastewaterConsumption),
     ],
   };
 
@@ -269,7 +343,7 @@ export default function BspEnergy({ building }: BspEnergyProps) {
           )}
         </Stack>
 
-        {annualData.length === 0
+        {annualData.length === 0 && plannedData.length === 0
           ? (
             <Typography color="text.secondary">
               No annual energy data available for this building.

@@ -1,17 +1,15 @@
 import { expect, type Page } from "@playwright/test";
 
 /**
- * Credentials for one throwaway Solid Pod, read from the environment. Never a
- * real account; nothing is committed. Two accounts (A and B) are read with the
- * `_A` / `_B` suffix so the sharing test can drive both sides:
+ * Credentials for the throwaway Solid Pods, read from the environment. Never a
+ * real account; nothing is committed. Three accounts, each via `_A`/`_B`/`_C`:
  *
- *   E2E_USERNAME_A / E2E_PASSWORD_A / [E2E_ISSUER_A]
- *   E2E_USERNAME_B / E2E_PASSWORD_B / [E2E_ISSUER_B]
+ *   E2E_USERNAME_A / E2E_PASSWORD_A / [E2E_ISSUER_A]   — fast Pod
+ *   E2E_USERNAME_B / E2E_PASSWORD_B / [E2E_ISSUER_B]   — fast Pod
+ *   E2E_USERNAME_C / E2E_PASSWORD_C / [E2E_ISSUER_C]   — slow solidcommunity.net (screenshots)
  *
- * No WebID needs configuring: the sharing test discovers WebIDs via the data
- * room (B joins A's room, A shares "by role"). The single-account screenshot run
- * keeps using the unsuffixed E2E_USERNAME / E2E_PASSWORD / E2E_ISSUER (mapped to
- * account "A").
+ * A and B are interchangeable for most specs; `sharing` drives both. No WebID
+ * needs configuring — the sharing test discovers WebIDs via the data room.
  */
 export interface SolidAccount {
   issuer: string;
@@ -21,16 +19,18 @@ export interface SolidAccount {
 
 const DEFAULT_ISSUER = "https://solidcommunity.net";
 
-/** Read account A/B (or the legacy unsuffixed vars) from the environment. */
-export function account(which: "A" | "B"): SolidAccount {
+/**
+ * Read account A/B/C from the environment (suffixed vars only). A and B are fast
+ * Pods (interchangeable for most specs); C is the slow solidcommunity.net Pod
+ * used by the screenshots run.
+ */
+export function account(which: "A" | "B" | "C"): SolidAccount {
   const env = process.env;
-  const issuer = env[`E2E_ISSUER_${which}`] ??
-    (which === "A" ? env.E2E_ISSUER : undefined) ?? DEFAULT_ISSUER;
-  const username = env[`E2E_USERNAME_${which}`] ??
-    (which === "A" ? env.E2E_USERNAME : undefined) ?? "";
-  const password = env[`E2E_PASSWORD_${which}`] ??
-    (which === "A" ? env.E2E_PASSWORD : undefined) ?? "";
-  return { issuer, username, password };
+  return {
+    issuer: env[`E2E_ISSUER_${which}`] ?? DEFAULT_ISSUER,
+    username: env[`E2E_USERNAME_${which}`] ?? "",
+    password: env[`E2E_PASSWORD_${which}`] ?? "",
+  };
 }
 
 export function hasAccount(a: SolidAccount): boolean {

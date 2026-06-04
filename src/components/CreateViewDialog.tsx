@@ -1,14 +1,9 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import {
   Box,
   Button,
   Checkbox,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogContentText,
-  DialogTitle,
   FormControl,
   FormControlLabel,
   FormGroup,
@@ -31,6 +26,8 @@ import type {
   UserRole,
 } from "../../types/types.ts";
 import { createViewDefinition } from "../services/aggregation/viewManager.ts";
+import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
+import { listDirectChildren } from "../services/utils/podDelete.ts";
 import {
   computeAndStoreSnapshot,
   getAvailableBspMetrics,
@@ -38,7 +35,7 @@ import {
   getAvailableMetrics,
 } from "../services/aggregation/viewComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { guardedDialogClose } from "./dialogClose.ts";
+import Modal from "./Modal.tsx";
 
 interface CreateViewDialogProps {
   open: boolean;
@@ -110,7 +107,7 @@ export default function CreateViewDialog({
   const availableRoles = useMemo<UserRole[]>(() => {
     const roles = new Set<UserRole>();
     buildings.forEach((b) => {
-      if (b.sourceRole) roles.add(b.sourceRole);
+      if (b.provenance) roles.add(b.provenance);
     });
     const order: UserRole[] = [
       "dummy",
@@ -169,23 +166,44 @@ export default function CreateViewDialog({
     );
   };
 
-  // Only buildings matching the selected role
+  // Only buildings matching the selected provenance category
   const availableBuildings = buildings.filter(
-    (b) => b.uri && b.sourceRole === selectedRole,
+    (b) => b.uri && b.provenance === selectedRole,
   );
 
-  // Available months derived from user-role building energyData locations
-  const availableMonths = (() => {
-    if (selectedRole !== "user") return [];
-    const months = new Set<string>();
-    availableBuildings.forEach((b) => {
-      (b.energyData ?? []).forEach((ed) => {
-        const label = ed.location.split("/").pop()?.replace(".ttl", "") ?? "";
-        if (label.length >= 7) months.add(label.substring(0, 7));
-      });
-    });
-    return [...months].sort();
-  })();
+  // Available months for user-role views: list each user building's 15-min
+  // series container(s) and collect the months of the daily files (async — the
+  // files are separate resources now, not inline on the building).
+  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
+  useEffect(() => {
+    if (selectedRole !== "user") {
+      setAvailableMonths([]);
+      return;
+    }
+    let cancelled = false;
+    (async () => {
+      const months = new Set<string>();
+      for (const b of availableBuildings) {
+        const seriesRefs = (b.energyDatasets ?? []).filter((r) =>
+          isSeriesGranularity(r.granularity)
+        );
+        for (const ref of seriesRefs) {
+          const container = ref.url.split("#")[0].replace(/\.ttl$/, "/");
+          const children = (await listDirectChildren(container, session)) ?? [];
+          for (const url of children) {
+            if (!url.endsWith(".ttl")) continue;
+            const label = url.split("/").pop()!.replace(".ttl", "");
+            if (label.length >= 7) months.add(label.substring(0, 7));
+          }
+        }
+      }
+      if (!cancelled) setAvailableMonths([...months].sort());
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedRole]);
 
   const handleCreate = async () => {
     if (!viewName.trim()) {
@@ -221,14 +239,7 @@ export default function CreateViewDialog({
         period,
       );
 
-      await computeAndStoreSnapshot(
-        session,
-        viewDef.id,
-        (selectedRole === "benchmark_service_provider" ||
-            selectedRole === "investor")
-          ? availableBuildings
-          : undefined,
-      );
+      await computeAndStoreSnapshot(session, viewDef.id);
 
       showNotification("View created successfully", "success");
       onViewCreated();
@@ -322,33 +333,42 @@ export default function CreateViewDialog({
   );
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onClose={guardedDialogClose(handleClose, {
-        dirty: viewName.trim() !== "" || selectedBuildings.length > 0,
-        busy: creating,
-      })}
-      maxWidth="sm"
-      fullWidth
+      onClose={handleClose}
+      dirty={viewName.trim() !== "" || selectedBuildings.length > 0}
+      busy={creating}
+      title="Create Aggregated View"
+      actions={!creating && (
+        <>
+          <Button onClick={handleClose}>Cancel</Button>
+          <Button
+            onClick={handleCreate}
+            variant="contained"
+            disabled={!viewName.trim() || selectedBuildings.length === 0 ||
+              (selectedRole === "user"
+                ? !selectedPeriod
+                : selectedMetrics.length === 0)}
+          >
+            Create View
+          </Button>
+        </>
+      )}
     >
-      <DialogTitle>Create Aggregated View</DialogTitle>
       {creating
         ? (
-          <DialogContent>
-            <Typography sx={{ my: 2 }}>
-              Creating view and computing snapshot…
-            </Typography>
-          </DialogContent>
+          <Typography sx={{ my: 2 }}>
+            Creating view and computing snapshot…
+          </Typography>
         )
         : selectedRole === "user"
         ? (
           <>
-            <DialogContent>
-              <DialogContentText sx={{ mb: 2 }}>
-                {ROLE_DESCRIPTION.user}
-              </DialogContentText>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {ROLE_DESCRIPTION.user}
+            </Typography>
 
-              {roleDropdown}
+            {roleDropdown}
 
               <TextField
                 autoFocus
@@ -412,28 +432,15 @@ export default function CreateViewDialog({
                   />
                 </RadioGroup>
               </FormControl>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleClose}>Cancel</Button>
-              <Button
-                onClick={handleCreate}
-                variant="contained"
-                disabled={!viewName.trim() || selectedBuildings.length === 0 ||
-                  !selectedPeriod}
-              >
-                Create View
-              </Button>
-            </DialogActions>
           </>
         )
         : (
           <>
-            <DialogContent>
-              <DialogContentText sx={{ mb: 2 }}>
-                {ROLE_DESCRIPTION[selectedRole]}
-              </DialogContentText>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+              {ROLE_DESCRIPTION[selectedRole]}
+            </Typography>
 
-              {roleDropdown}
+            {roleDropdown}
 
               <TextField
                 autoFocus
@@ -511,20 +518,8 @@ export default function CreateViewDialog({
                   })}
                 </Box>
               </FormControl>
-            </DialogContent>
-            <DialogActions>
-              <Button onClick={handleClose}>Cancel</Button>
-              <Button
-                onClick={handleCreate}
-                variant="contained"
-                disabled={!viewName.trim() || selectedBuildings.length === 0 ||
-                  selectedMetrics.length === 0}
-              >
-                Create View
-              </Button>
-            </DialogActions>
           </>
         )}
-    </Dialog>
+    </Modal>
   );
 }

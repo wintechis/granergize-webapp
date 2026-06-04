@@ -26,6 +26,7 @@ import { RefLink, UriLink } from "../components/detail/DetailView.tsx";
 import UserEnergyChart from "./UserEnergyChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
+import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 
 type EnergyProps = {
   selectedBuilding: string;
@@ -56,10 +57,10 @@ export default function Energy(
   }
 
   if (!energy || !averages || !agentAverages) {
-    if (
-      building.sourceRole === "user" && building.energyData &&
-      building.energyData.length > 0
-    ) {
+    const seriesDatasets = building.energyDatasets?.filter((d) =>
+      isSeriesGranularity(d.granularity)
+    ) ?? [];
+    if (seriesDatasets.length > 0) {
       return (
         <Card>
           <CardHeader
@@ -72,7 +73,7 @@ export default function Energy(
           />
           <CardContent>
             <UserEnergyChart
-              availableDates={building.energyData}
+              seriesDatasets={seriesDatasets}
               session={session}
             />
           </CardContent>

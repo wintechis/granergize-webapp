@@ -4,15 +4,18 @@ import {
   InvestorCertification,
   InvestorOperatingCosts,
 } from "../../types/types.ts";
-import { Typography } from "@mui/material";
+import { Button, Typography } from "@mui/material";
 import {
+  Addchart as AddChartIcon,
   Check as CheckIcon,
   Clear as ClearIcon,
   CorporateFare as CorporateFareIcon,
+  UploadFile as UploadFileIcon,
 } from "@mui/icons-material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { useInvalidateBuildingData } from "../hooks/mutations.ts";
 import { EnergyCertificateDialog } from "../components/BuildingDialogs.tsx";
+import EnergyYearDialog from "../components/EnergyYearDialog.tsx";
 import {
   DetailCard,
   DetailRow,
@@ -47,6 +50,7 @@ export default function Building(
   const reloadData = useInvalidateBuildingData();
   const [energyCertificateUploaderOpen, setEnergyCertificateUploaderOpen] =
     useState(false);
+  const [energyYearOpen, setEnergyYearOpen] = useState(false);
 
   const hasValue = (value: unknown): boolean => {
     if (value == null) {
@@ -218,6 +222,33 @@ export default function Building(
             )}
           />
         )}
+        {/* Energieausweis upload — only for your own buildings (writes to your
+            Pod). Provides the trigger the dialog previously lacked. */}
+        {!building.isShared && (
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<UploadFileIcon />}
+            onClick={() => setEnergyCertificateUploaderOpen(true)}
+            sx={{ mt: 1 }}
+          >
+            {hasValue(building.energyCertificate)
+              ? "Replace energy certificate"
+              : "Upload energy certificate"}
+          </Button>
+        )}
+        {/* Per-year energy entry (actual or planned/Soll figures) — own buildings. */}
+        {!building.isShared && (
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<AddChartIcon />}
+            onClick={() => setEnergyYearOpen(true)}
+            sx={{ mt: 1, ml: !building.isShared ? 1 : 0 }}
+          >
+            Add / edit energy year
+          </Button>
+        )}
 
         {/* Investor-vocab fields — shown whenever present (predicate-driven, not
             role-gated), so any building carrying them renders them. */}
@@ -360,6 +391,13 @@ export default function Building(
         session={session}
         onClose={() => setEnergyCertificateUploaderOpen(false)}
         onUploadSuccess={reloadData}
+      />
+
+      <EnergyYearDialog
+        open={energyYearOpen}
+        building={building}
+        session={session}
+        onClose={() => setEnergyYearOpen(false)}
       />
     </>
   );

@@ -29,22 +29,27 @@ const A = account("A");
 const B = account("B");
 const STREET = "Teilenstraße 7";
 
-/** On the Connect tab, host a room if none is active, and return its URI. */
+/** On the Connect tab, ensure an ACTIVE room (host one if none) and return ITS
+ * URI — the room A actually shares from. Must read the active-room section, not
+ * any "/rooms/" link, since the bookmark list also renders room links. */
 async function hostRoomAndGetUri(page: Page): Promise<string> {
   await page.getByRole("tab", { name: "Connect" }).click();
-  const roomLink = page.getByRole("link", { name: /https?:\/\/.*\/rooms\// });
-  // Host a room only if not already in one (a "Current data room" link is shown).
-  if (!(await roomLink.count())) {
+  // The "Leave data room" button only exists when there's an ACTIVE room. Host a
+  // fresh one only when there isn't (a bookmarked-but-not-active room must not
+  // count, or A would "share from" a room it isn't a member of).
+  const leave = page.getByRole("button", { name: /leave data room/i });
+  if (!(await leave.count())) {
     await page.getByRole("button", { name: /host a data room/i }).click();
+    await expect(leave).toBeVisible({ timeout: 60_000 });
   }
-  // The room (existing or freshly hosted) shows as the "Current data room" link.
-  await expect(roomLink.first()).toBeVisible({ timeout: 60_000 });
-  const uri = (await roomLink.first().textContent())?.trim();
+  // Read the active room's URI from its own "URI:" line (scoped to the active
+  // section), not the bookmark list.
+  const activeLink = page.locator('p:has-text("URI:") a[href*="/rooms/"]').first();
+  await expect(activeLink).toBeVisible({ timeout: 60_000 });
+  const uri = (await activeLink.getAttribute("href"))?.trim();
   expect(uri, "active room URI").toBeTruthy();
-  // Settle: wait until no action is in flight (the Leave button is enabled) so a
-  // following logout doesn't fire mid-operation. Tolerant — proceeds anyway.
-  await expect(page.getByRole("button", { name: /leave data room/i }))
-    .toBeEnabled({ timeout: 60_000 }).catch(() => {});
+  // Settle: proceed once no action is in flight (Leave enabled). Tolerant.
+  await expect(leave).toBeEnabled({ timeout: 60_000 }).catch(() => {});
   return uri!;
 }
 
@@ -267,22 +272,19 @@ test.describe("sharing across two pods", () => {
 
   test("part 4: B sees the building under Buildings shared with you", async ({ browser }) => {
     test.setTimeout(300_000);
-    // The grant part 3 left on the Pods propagates into B's "Buildings shared with
-    // you" — it lands in B's inbox and is copied into B's registry on load, so a
-    // reload may be needed.
+    // On login, the app's readInbox archives the grant part 3 left in B's inbox
+    // into B's shared-in/ log and then invalidates the sharedWithMe query, so the
+    // building appears WITHOUT a reload. readInbox is several sequential Pod calls,
+    // so just give it a generous window (don't reload-thrash, which aborts it).
     const { ctx, page } = await freshPage(browser, B);
     try {
       await page.getByRole("tab", { name: "Share" }).click();
       const received = page.getByRole("heading", {
         name: /buildings shared with you/i,
       }).locator("xpath=following-sibling::*[1]");
-      await expect(async () => {
-        await page.reload();
-        await page.getByRole("tab", { name: "Share" }).click();
-        await expect(received.getByText(/^Building /)).toBeVisible({
-          timeout: 5_000,
-        });
-      }).toPass({ timeout: 90_000 });
+      await expect(received.getByText(/^Building /)).toBeVisible({
+        timeout: 120_000,
+      });
     } finally {
       await ctx.close();
     }

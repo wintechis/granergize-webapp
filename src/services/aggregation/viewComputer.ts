@@ -5,14 +5,18 @@ import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
   AggregationType,
-  BuildingType,
   EnergyCategoryKey,
+  EnergyDatasetRef,
   EnergyType,
-  InvestorAnnualData,
 } from "../../../types/types.ts";
 import { getViewDefinition, storeComputedSnapshot } from "./viewManager.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
-import { parseEnergyData } from "../utils/energyDataParser.ts";
+import { listDirectChildren } from "../utils/podDelete.ts";
+import {
+  loadEnergyDatasets,
+  parseDatasetSlug,
+} from "../utils/energyDataset.ts";
+import { isSeriesGranularity } from "../utils/durationUtils.ts";
 import { parseTtlReadings } from "../utils/userEnergyParser.ts";
 
 const { namedNode } = DataFactory;
@@ -45,63 +49,36 @@ async function loadBuildingEnergyData(
     const buildingQuads = buildingParser.parse(buildingText);
     const buildingStore = new Store(buildingQuads);
 
-    // Extract building ID from URI
+    // Discover the building's annual datasets from its gran:hasEnergyDataset
+    // links and load the latest actual year; its metrics become the energyNeed
+    // (keyed by the AnnualMetrics names the view metrics use).
     const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "") || "0";
-    const buildingNode = namedNode(`${buildingUri}#${buildingId}`);
-
-    // Find energy measurement data location
-    const energyDataPredicate = namedNode(
-      `${VOCAB_PREFIX}hasEnergyMeasurementData`,
-    );
-    const datasetLocationPredicate = namedNode(
-      `${VOCAB_PREFIX}datasetLocation`,
-    );
-
-    const energyDataQuads = buildingStore.getQuads(
-      buildingNode,
-      energyDataPredicate,
-      null,
-      null,
-    );
-
-    if (energyDataQuads.length === 0) {
-      console.warn(`No energy data found for building ${buildingUri}`);
-      return null;
-    }
-
-    // Get the dataset location from the blank node
-    const blankNode = energyDataQuads[0].object;
-    const locationQuads = buildingStore.getQuads(
-      blankNode,
-      datasetLocationPredicate,
-      null,
-      null,
-    );
-
-    if (locationQuads.length === 0) {
-      console.warn(`No dataset location found for building ${buildingUri}`);
-      return null;
-    }
-
-    const energyDataUrl = locationQuads[0].object.value;
-
-    // Fetch energy data
-    const energyResponse = await fetchFresh(energyDataUrl, session);
-    if (!energyResponse.ok) {
-      console.warn(
-        `Could not fetch energy data ${energyDataUrl}: ${energyResponse.status}`,
+    const annual = buildingStore
+      .getObjects(null, namedNode(`${VOCAB_PREFIX}hasEnergyDataset`), null)
+      .map((o) => parseDatasetSlug(o.value))
+      .filter((r): r is EnergyDatasetRef =>
+        r !== null && r.scenario === "actual" &&
+        !isSeriesGranularity(r.granularity)
       );
+    if (annual.length === 0) {
+      console.warn(`No annual energy datasets for building ${buildingUri}`);
       return null;
     }
+    const latest = annual.reduce((a, b) => (a.year >= b.year ? a : b));
+    const [ds] = await loadEnergyDatasets([latest], session.fetch.bind(session));
+    if (!ds?.metrics) return null;
 
-    const energyText = await energyResponse.text();
-    const energyParser = new Parser({
-      format: "text/turtle",
-      baseIRI: energyDataUrl,
-    });
-    const energyQuads = energyParser.parse(energyText);
-
-    return parseEnergyData(buildingId, energyDataUrl, energyQuads);
+    return {
+      id: Number(buildingId) || 0,
+      uri: `${buildingUri}#${buildingId}`,
+      energyNeed: { ...ds.metrics },
+      energyGeneration: {},
+      energyStorage: {},
+      energyDistribution: {},
+      energyTransfer: {},
+      energyUsage: {},
+      environmentalFactor: {},
+    } as EnergyType;
   } catch (error) {
     console.error(
       `Error loading energy data for building ${buildingUri}:`,
@@ -188,53 +165,34 @@ async function loadUserBuildingMonthlyTotal(
     const buildingQuads = buildingParser.parse(buildingText);
     const buildingStore = new Store(buildingQuads);
 
-    const buildingId = cleanUri.split("/").pop()?.replace(".ttl", "") || "0";
-    const buildingNode = namedNode(`${cleanUri}#${buildingId}`);
-
-    const datasetPredicate = namedNode(
-      `${VOCAB_PREFIX}hasEnergyConsumptionDataset`,
-    );
-    const locationPredicate = namedNode(`${VOCAB_PREFIX}datasetLocation`);
-
-    const datasetQuads = buildingStore.getQuads(
-      buildingNode,
-      datasetPredicate,
-      null,
-      null,
-    );
-    if (datasetQuads.length === 0) {
-      console.warn(
-        `No energy consumption dataset found for building ${cleanUri}`,
+    // Series datasets locate their daily files in a container; list each and
+    // sum the readings of the days within the requested period (e.g. "2024-03").
+    const seriesRefs = buildingStore
+      .getObjects(null, namedNode(`${VOCAB_PREFIX}hasEnergyDataset`), null)
+      .map((o) => parseDatasetSlug(o.value))
+      .filter((r): r is EnergyDatasetRef =>
+        r !== null && isSeriesGranularity(r.granularity)
       );
+    if (seriesRefs.length === 0) {
+      console.warn(`No series energy datasets for building ${cleanUri}`);
       return null;
     }
 
-    // Collect all datasetLocation URLs
-    const allUrls: string[] = [];
-    for (const dq of datasetQuads) {
-      const locQuads = buildingStore.getQuads(
-        dq.object,
-        locationPredicate,
-        null,
-        null,
-      );
-      for (const lq of locQuads) {
-        allUrls.push(lq.object.value);
+    const dailyUrls: string[] = [];
+    for (const ref of seriesRefs) {
+      const container = ref.url.split("#")[0].replace(/\.ttl$/, "/");
+      const children = (await listDirectChildren(container, session)) ?? [];
+      for (const url of children) {
+        if (url.endsWith(".ttl") && url.includes(period)) dailyUrls.push(url);
       }
     }
-
-    // Filter to URLs for the requested period (e.g., "2024-03")
-    const periodUrls = allUrls.filter((url) => url.includes(period));
-    if (periodUrls.length === 0) {
+    if (dailyUrls.length === 0) {
       console.warn(`No data for period ${period} in building ${cleanUri}`);
       return null;
     }
 
-    // Fetch each daily file and sum all readings
     const settled = await Promise.allSettled(
-      periodUrls.map((url) =>
-        parseTtlReadings(url, session.fetch.bind(session))
-      ),
+      dailyUrls.map((url) => parseTtlReadings(url, session.fetch.bind(session))),
     );
 
     let total = 0;
@@ -262,7 +220,6 @@ async function loadUserBuildingMonthlyTotal(
 export async function computeAggregation(
   session: Session,
   viewDefinition: AggregatedViewDefinition,
-  buildings?: BuildingType[],
 ): Promise<AggregatedViewSnapshot> {
   const { id, name, buildingUris, aggregationType, metrics, period } =
     viewDefinition;
@@ -296,47 +253,7 @@ export async function computeAggregation(
     return snapshot;
   }
 
-  // BSP path: aggregate from pre-parsed annualData (no network fetch needed)
-  if (buildings && buildings.length > 0) {
-    const selectedBuildings = buildings.filter((b) =>
-      buildingUris.includes(b.uri as string)
-    );
-    const metricValues: Record<string, number[]> = {};
-    for (const b of selectedBuildings) {
-      const annualData = (b.annualData ?? []) as InvestorAnnualData[];
-      if (annualData.length === 0) continue;
-      // Use most recent year
-      const latest = annualData[annualData.length - 1];
-      for (const metric of metrics) {
-        const val = latest[metric as keyof InvestorAnnualData];
-        if (typeof val === "number") {
-          if (!metricValues[metric]) metricValues[metric] = [];
-          metricValues[metric].push(val);
-        }
-      }
-    }
-    const aggregatedValues: Record<string, number> = {};
-    for (const [metric, vals] of Object.entries(metricValues)) {
-      if (vals.length > 0) {
-        aggregatedValues[metric] = aggregateValues(vals, aggregationType);
-      }
-    }
-    const buildingCount = selectedBuildings.filter((b) => {
-      const ad = (b.annualData ?? []) as InvestorAnnualData[];
-      return ad.length > 0;
-    }).length;
-    return {
-      id,
-      name,
-      aggregationType,
-      metrics,
-      computedAt: new Date().toISOString(),
-      buildingCount,
-      values: aggregatedValues,
-    };
-  }
-
-  // Standard path: categorical annual energy metrics
+  // Annual path: each building's latest annual dataset, aggregated per metric.
   const energyDataResults: EnergyType[] = [];
 
   for (const buildingUri of buildingUris) {
@@ -383,7 +300,6 @@ export async function computeAggregation(
 export async function computeAndStoreSnapshot(
   session: Session,
   viewId: string,
-  buildings?: BuildingType[],
 ): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUrl: string }> {
   const viewDefinition = await getViewDefinition(session, viewId);
 
@@ -391,7 +307,7 @@ export async function computeAndStoreSnapshot(
     throw new Error(`View definition not found: ${viewId}`);
   }
 
-  const snapshot = await computeAggregation(session, viewDefinition, buildings);
+  const snapshot = await computeAggregation(session, viewDefinition);
   const snapshotUrl = await storeComputedSnapshot(session, snapshot);
 
   return { snapshot, snapshotUrl };

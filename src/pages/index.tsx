@@ -30,7 +30,9 @@ import OrganizationDialog from "../components/OrganizationDialog.tsx";
 
 interface IndexPageProps {
   session: Session;
-  onLogout: (opts?: { suppressAutoLogin?: boolean }) => void;
+  onLogout: (
+    opts?: { suppressAutoLogin?: boolean; logoutType?: "app" | "idp" },
+  ) => void;
 }
 
 function IndexPage({ session, onLogout }: IndexPageProps) {
@@ -109,6 +111,13 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const handleLogout = () => {
     handleMenuClose();
     onLogout();
+  };
+
+  // Switch account: log out at the identity provider too, so it doesn't silently
+  // re-authorize the same account on the next login. Redirects to the provider.
+  const handleSwitchAccount = () => {
+    handleMenuClose();
+    onLogout({ suppressAutoLogin: true, logoutType: "idp" });
   };
 
   // Permanently wipe the whole granergize/ collection from the Pod, then log out.
@@ -251,6 +260,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               sx={{ color: "error.main" }}
             >
               Remove all app data…
+            </MenuItem>
+            <MenuItem onClick={handleSwitchAccount}>
+              Switch account…
             </MenuItem>
             <MenuItem onClick={handleLogout}>
               Logout

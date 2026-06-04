@@ -14,11 +14,17 @@ described; #4 and #21 (marked `Open*`) were corrected to match the actual code b
 **Update 2026-05-29:** statuses revised after the data-room / sharing / login work —
 #8, #10, #14 are **Done**; #1, #9, #20 are **Partial**. Details in each section below.
 
+**Update 2026-06-04:** after the tab reorg, Excel export, and the role→provenance
+(PROV) refactor — **#3** is now **Done** (building delete shipped); **#12/#13** are
+nudged forward (the role "hats" map markers were removed, though company logos are
+still not shown); **#1** stays **Partial** but the building "role" is now modelled
+correctly as PROV provenance (provenance-only, no longer driving behaviour).
+
 | # | Status | Title |
 |---|--------|-------|
 | 1 | Partial | Role should be set per-user in profile, not chosen in the add-data UI |
 | 2 | Open | Add more user roles (e.g. facility manager, broker/Makler) |
-| 3 | Open | No way to delete a building (only edit is possible) |
+| 3 | Done | No way to delete a building (only edit is possible) |
 | 4 | Open* | Energy data entry is inconsistent across roles (original "only BSP" claim corrected) |
 | 5 | Open | No way to update consumption data per month/year or add a new year |
 | 6 | Open | Excel import is slow and cannot be cancelled / deferred |
@@ -44,9 +50,13 @@ described; #4 and #21 (marked `Open*`) were corrected to match the actual code b
 
 ## 1. Role should be set per-user in profile, not chosen in the add-data UI
 
-**Status:** Partial (2026-05-29) — roles are now self-assigned per user in the Room
-tab, independent of the add-data flow, and persist as audited events. Not yet bound to
-the WebID profile / applied fully automatically.
+**Status:** Partial (2026-05-29; refined 2026-06-04) — roles are self-assigned per user
+in the Room tab, independent of the add-data flow, and persist as audited events. As of
+2026-06-04 the building "role" is no longer an overloaded data attribute: it is modelled
+as **PROV provenance** (`prov:qualifiedAttribution` / `prov:hadRole` in the building
+file) and is *provenance only* — it no longer drives parsing, loading, or rendering
+(those dispatch on the data's own shape/granularity). Still not bound to the WebID
+profile / applied fully automatically, so the status is unchanged.
 
 **Description:** Currently a user's role is not fixed — everyone gets access to
 everything and picks a role (e.g. investor, user, BSP) when adding data through the
@@ -71,7 +81,10 @@ BSP"); Paper §2 (role list).
 
 ## 3. No way to delete a building (only edit is possible)
 
-**Status:** Open
+**Status:** Done (2026-06-04) — the Manage tab has a per-building "Delete building"
+action (`ManagePage.tsx` → `useDeleteBuilding` → `deleteBuilding`, `buildingSerializer.ts`)
+that de-registers the source, deletes the building file, and removes its energy subtree
+(refusing to touch buildings outside the user's own Pod).
 
 **Description:** Buildings can be edited but not deleted. There should be a way to
 delete a building.
@@ -175,7 +188,10 @@ Praxishandbuch and is rather confusing for users.
 
 ## 12. Show the company logo instead of the hats
 
-**Status:** Open
+**Status:** Open (partly addressed 2026-06-04) — the role-based "hats" are gone: map
+markers no longer vary by role (`ExplorePage.tsx` dropped `ROLE_ICONS` for a single
+marker style distinguished only by owned vs shared). The remaining ask — showing the
+*company logo* on the marker — still isn't implemented (depends on #11).
 
 **Description:** Instead of the current "hats" (role/marker icons), it would be nice
 to display the user's company logo. (Relates to #11.)
@@ -185,7 +201,8 @@ jeweiligen Firmenlogos gut aussehen").
 
 ## 13. Map markers should show the company logo too
 
-**Status:** Open
+**Status:** Open (partly addressed 2026-06-04) — see #12: markers are now a single
+non-role style (owned vs shared); the company-logo marker still isn't implemented.
 
 **Description:** The markers on the map should also display the company logo.
 (Relates to #11 and #12.)

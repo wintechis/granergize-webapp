@@ -77,6 +77,29 @@ export async function listContainedResources(
 }
 
 /**
+ * The direct `ldp:contains` children of a container (NON-recursive) — file URLs
+ * and immediate sub-container URLs (the latter end in `/`). Returns `null` when
+ * the container itself doesn't exist (HTTP 404), so a caller can tell a *fresh*
+ * Pod (no container) from an *empty* one (container present, no children) — e.g.
+ * to seed demo data only on first run, not after the user deletes everything.
+ * Any other non-OK response yields `[]`.
+ */
+export async function listDirectChildren(
+  container: string,
+  session: Session,
+): Promise<string[] | null> {
+  const listing = await fetchFresh(container, session);
+  if (listing.status === 404) return null;
+  if (!listing.ok) return [];
+  const store = new Store(
+    new Parser({ baseIRI: container }).parse(await listing.text()),
+  );
+  return store
+    .getObjects(DataFactory.namedNode(container), LDP_CONTAINS, null)
+    .map((o) => o.value);
+}
+
+/**
  * Render a resource-URL list for a confirmation prompt: paths shown relative to
  * the storage root, one per line, capped with an "…and N more" summary so a
  * building with hundreds of daily energy files doesn't produce a wall of text.

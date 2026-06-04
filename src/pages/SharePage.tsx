@@ -1,12 +1,29 @@
-import { IconButton, Switch, Tooltip, Typography } from "@mui/material";
+import { useState } from "react";
+import {
+  Button,
+  IconButton,
+  Switch,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
+import { Parser } from "n3";
 import { Session } from "@inrupt/solid-client-authn-browser";
+import type { BuildingType } from "../../types/types.ts";
 import { ROLE_LABELS } from "../constants/roles.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { formatError } from "../services/utils/formatError.ts";
 import { useSharedWithMe } from "../hooks/queries.ts";
 import { useToggleVisibility } from "../hooks/mutations.ts";
+import { parseBuildings } from "../services/utils/buildingParser.ts";
+import {
+  attachAnnualData,
+  buildingsToXlsx,
+  buildingToXlsx,
+} from "../services/utils/buildingSerializer.ts";
+import { downloadXlsx } from "../services/utils/download.ts";
 import { UriLink } from "../components/detail/DetailView.tsx";
 import { listStyle, rowStyle } from "../components/listStyles.ts";
 import Pager from "../components/Pager.tsx";
@@ -29,35 +46,79 @@ export default function SharePage({ session }: SharePageProps) {
   const sharedPaging = usePaging(sharedWithMe);
 
   const toggleVis = useToggleVisibility();
+  const [bundling, setBundling] = useState(false);
 
-  // Export a building's actual data (its Turtle) — available for any building
-  // the user can read. `fileUrl` is the building's source document; what it
-  // contains depends on the building's role.
-  const handleDownloadBuilding = async (
-    fileUrl: string,
-    id: string | number,
-  ) => {
+  // Load a shared building as a typed BuildingType. Unlike the MANAGE tab (which
+  // has the buildings in memory), shared buildings aren't all loaded — hidden
+  // ones are pruned from useSolidData — so fetch the source document and parse it.
+  // The producer's role comes from the sharing entry, so the export uses the
+  // matching template (investor / bsp / generic).
+  const loadSharedBuilding = async (entry: {
+    buildingUri: string;
+    sharedRole?: string;
+  }): Promise<BuildingType | null> => {
+    const res = await session.fetch(entry.buildingUri, {
+      headers: { Accept: "text/turtle" },
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    const parsed = parseBuildings(new Parser().parse(await res.text()));
+    const found = [...parsed.values()].find((b) => b.uri === entry.buildingUri) ??
+      [...parsed.values()][0];
+    if (!found) return null;
+    // Provenance comes from the shared building file (PROV attribution); fall
+    // back to the role it was shared as when the file carries none.
+    return {
+      ...found,
+      provenance: found.provenance ??
+        (entry.sharedRole as BuildingType["provenance"]),
+    };
+  };
+
+  const handleDownloadBuilding = async (entry: {
+    buildingUri: string;
+    buildingId: string;
+    sharedRole?: string;
+  }) => {
     try {
-      const res = await session.fetch(fileUrl, {
-        headers: { Accept: "text/turtle" },
-      });
-      if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const text = await res.text();
-      const url = URL.createObjectURL(
-        new Blob([text], { type: "text/turtle" }),
-      );
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `building-${id}.ttl`;
-      a.click();
-      URL.revokeObjectURL(url);
+      const building = await loadSharedBuilding(entry);
+      if (!building) throw new Error("no building data found in the source file");
+      const [enriched] = await attachAnnualData([building], session);
+      downloadXlsx(buildingToXlsx(enriched), `building-${entry.buildingId}.xlsx`);
     } catch (error) {
-      showNotification(
-        `Failed to download building data: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        "error",
-      );
+      showNotification(formatError("export the building", error), "error");
+    }
+  };
+
+  // Bundle every shared building into one multi-sheet workbook. Unreadable ones
+  // (e.g. access revoked since the grant) are skipped, not fatal.
+  const handleDownloadAll = async () => {
+    if (sharedWithMe.length === 0) return;
+    setBundling(true);
+    try {
+      const built: BuildingType[] = [];
+      for (const entry of sharedWithMe) {
+        try {
+          const b = await loadSharedBuilding(entry);
+          if (b) built.push(b);
+        } catch {
+          // skip a building that can't be read right now
+        }
+      }
+      if (built.length === 0) {
+        throw new Error("none of the shared buildings could be read");
+      }
+      const enriched = await attachAnnualData(built, session);
+      downloadXlsx(buildingsToXlsx(enriched), "buildings-shared.xlsx");
+      if (built.length < sharedWithMe.length) {
+        showNotification(
+          `Exported ${built.length} of ${sharedWithMe.length} buildings; the rest could not be read.`,
+          "info",
+        );
+      }
+    } catch (error) {
+      showNotification(formatError("export the buildings", error), "error");
+    } finally {
+      setBundling(false);
     }
   };
 
@@ -106,15 +167,11 @@ export default function SharePage({ session }: SharePageProps) {
                     gap: "0.25rem",
                   }}
                 >
-                  <Tooltip title="Download this building's data (Turtle)">
+                  <Tooltip title="Download this building's data (Excel)">
                     <IconButton
                       size="small"
                       aria-label="Download this building's data"
-                      onClick={() =>
-                        handleDownloadBuilding(
-                          building.buildingUri,
-                          building.buildingId,
-                        )}
+                      onClick={() => handleDownloadBuilding(building)}
                     >
                       <DownloadIcon fontSize="small" />
                     </IconButton>
@@ -144,6 +201,17 @@ export default function SharePage({ session }: SharePageProps) {
           </ul>
         )}
       <Pager paging={sharedPaging} />
+      {sharedWithMe.length > 0 && (
+        <Button
+          variant="outlined"
+          startIcon={<DownloadIcon />}
+          onClick={handleDownloadAll}
+          disabled={bundling}
+          sx={{ mt: 1 }}
+        >
+          {bundling ? "Preparing…" : "Download all (Excel)"}
+        </Button>
+      )}
     </section>
   );
 }

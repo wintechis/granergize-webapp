@@ -17,6 +17,7 @@ import AddIcon from "@mui/icons-material/Add";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
 import LoginIcon from "@mui/icons-material/Login";
+import LogoutIcon from "@mui/icons-material/Logout";
 import { QRCodeSVG } from "qrcode.react";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { ownsRoom } from "../services/interop/dataRoom.ts";
@@ -74,7 +75,13 @@ export default function ConnectPage({ session }: ConnectPageProps) {
 
   const [roomInput, setRoomInput] = useState("");
   const [scanning, setScanning] = useState(false);
-  const roomPaging = usePaging(knownRooms);
+  // All known rooms in their natural order; the active one expands in place (its
+  // detail box renders beneath its own row). If the active room isn't bookmarked,
+  // it is shown first so it's never hidden.
+  const rooms = activeRoom && !knownRooms.includes(activeRoom)
+    ? [activeRoom, ...knownRooms]
+    : knownRooms;
+  const roomPaging = usePaging(rooms);
 
   const create = useCreateRoom();
   const enter = useEnterRoom();
@@ -153,178 +160,224 @@ export default function ConnectPage({ session }: ConnectPageProps) {
     handleAdd(text); // scanning adds the room to your list; click it to enter
   };
 
-  // Backing RDF resource (the rooms registry), linked so storage is inspectable.
+  // Backing RDF resource (the room bookmarks), linked so storage is inspectable.
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
+
+  // The trailing destructive action for a room row: delete it (if you own it,
+  // for everyone) or just drop the bookmark (if someone else hosts it).
+  const deleteOrRemove = (r: string) =>
+    ownsRoom(r, session)
+      ? (
+        <Tooltip title="Delete data room (for everyone)">
+          <IconButton
+            size="small"
+            color="error"
+            aria-label="Delete data room"
+            onClick={() => handleDeleteRoom(r)}
+            disabled={busy}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )
+      : (
+        <Tooltip title="Remove from your list">
+          <IconButton
+            size="small"
+            color="error"
+            aria-label="Remove data room"
+            onClick={() => handleRemoveBookmark(r)}
+            disabled={busy}
+          >
+            <DeleteIcon fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      );
+
+  /** The "Hosted by …" / "active" sub-line shared by every room row. */
+  const roomMeta = (r: string) => (
+    <Typography variant="caption" color="text.secondary" component="span">
+      {ownsRoom(r, session) ? "Hosted by you" : `Hosted by ${roomHost(r)}`}
+      {r === activeRoom && (
+        <>
+          {" · "}
+          <strong style={{ color: "inherit" }}>active</strong>
+        </>
+      )}
+    </Typography>
+  );
+
+  const hasRooms = activeRoom !== null || knownRooms.length > 0;
 
   return (
     <section style={{ padding: "1.5rem" }}>
-      {/* Active room */}
-      {activeRoom && (
-        <Box
-          component="section"
-          sx={{ border: 1, borderColor: "divider", borderRadius: 1, p: 2, mb: 3 }}
-        >
-          <Typography variant="h6" sx={{ mb: 1 }}>Active data room</Typography>
-          <p style={{ wordBreak: "break-all", marginTop: 0 }}>
-            <strong>URI:</strong>{" "}
-            <a href={activeRoom} target="_blank" rel="noopener noreferrer">
-              {activeRoom}
-            </a>
-            <IconButton
-              size="small"
-              onClick={handleCopyLink}
-              title="Copy invite link"
-              sx={{ ml: 0.5 }}
-            >
-              <ContentCopyIcon fontSize="small" />
-            </IconButton>
-          </p>
-          <Box sx={{ mb: 2 }}>
-            <QRCodeSVG value={inviteLink} size={160} />
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              Show this QR code, or copy the invite link, so others can join this
-              data room.
-            </Typography>
-          </Box>
-
-          <div style={buttonRowStyle}>
-            <Button
-              variant="outlined"
-              color="error"
-              onClick={handleLeave}
-              disabled={busy}
-            >
-              {exit.isPending ? "Leaving…" : "Leave data room"}
-            </Button>
-          </div>
-
-          <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>My role(s)</Typography>
-          <p>
-            Independent of membership — assign or change your role(s) anytime.
-            This is how others share data with you by role.
-          </p>
-          <div style={buttonRowStyle}>
-            <FormControl size="small" sx={{ minWidth: 280 }}>
-              <InputLabel id="my-roles-label">My role(s)</InputLabel>
-              <Select
-                labelId="my-roles-label"
-                multiple
-                value={myRoles}
-                input={<OutlinedInput label="My role(s)" />}
-                renderValue={(selected) =>
-                  (selected as UserRole[]).map((r) => ROLE_LABELS[r] ?? r).join(
-                    ", ",
-                  )}
-                onChange={(e) => {
-                  const v = e.target.value;
-                  setMyRoles(
-                    (typeof v === "string" ? v.split(",") : v) as UserRole[],
-                  );
-                }}
-              >
-                {ROOM_ROLE_OPTIONS.map((r) => (
-                  <MenuItem key={r} value={r}>
-                    <Checkbox checked={myRoles.includes(r)} />
-                    {ROLE_LABELS[r] ?? r}
-                  </MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-            <Button variant="outlined" onClick={handleSaveRoles} disabled={busy}>
-              {saveRoles.isPending ? "Saving…" : "Save roles"}
-            </Button>
-          </div>
-
-          <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Members</Typography>
-          {members.length === 0
-            ? <p>No members yet.</p>
-            : (
-              <ul style={listStyle}>
-                {members.map((m) => (
-                  <li key={m.webId}>
-                    {m.webId} —{" "}
-                    <small>
-                      {m.roles.map((r) => ROLE_LABELS[r] ?? r).join(", ") ||
-                        "no role"}
-                    </small>
-                  </li>
-                ))}
-              </ul>
-            )}
-        </Box>
-      )}
-
-      {/* Your rooms — bookmarks; enter or remove each from its row */}
+      {/* Your data rooms — one ordered list. Each row shows the room URI with
+          enter / delete-or-remove; the active room expands in place, its QR,
+          roles and members in a box directly beneath its own row. */}
       <Typography variant="h6" sx={{ mb: 1 }}>Your data rooms</Typography>
-      {rdf && <RdfSourceLink href={rdf.rooms} />}
-      {roomQuery.isLoading ? null : knownRooms.length === 0
+      {rdf && <RdfSourceLink href={rdf.bookmarks} />}
+      {roomQuery.isLoading
+        ? <p>Loading…</p>
+        : !hasRooms
         ? <p>No data rooms yet. Add or create one below.</p>
         : (
           <ul style={listStyle}>
-            {roomPaging.pageItems.map((r) => (
-              <li key={r} style={{ marginBottom: "1rem" }}>
-                <div style={rowStyle}>
-                  <div style={{ minWidth: 0 }}>
-                    <span style={{ wordBreak: "break-all" }}>
-                      <UriLink href={r}>{r}</UriLink>
-                    </span>
-                    <br />
-                    <small style={{ color: "gray" }}>
-                      {ownsRoom(r, session)
-                        ? "Hosted by you"
-                        : `Hosted by ${roomHost(r)}`}
-                      {r === activeRoom && (
-                        <>
-                          {" · "}
-                          <strong style={{ color: "inherit" }}>active</strong>
-                        </>
-                      )}
-                    </small>
+            {roomPaging.pageItems.map((r) => {
+              const isActive = r === activeRoom;
+              return (
+                <li key={r} style={{ marginBottom: "1rem" }}>
+                  <div style={rowStyle}>
+                    <div style={{ minWidth: 0 }}>
+                      <span style={{ wordBreak: "break-all" }}>
+                        <UriLink href={r}>{r}</UriLink>
+                        {isActive && (
+                          <Tooltip title="Copy invite link">
+                            <IconButton
+                              size="small"
+                              aria-label="Copy invite link"
+                              onClick={handleCopyLink}
+                              sx={{ ml: 0.5 }}
+                            >
+                              <ContentCopyIcon fontSize="small" />
+                            </IconButton>
+                          </Tooltip>
+                        )}
+                      </span>
+                      <br />
+                      {roomMeta(r)}
+                    </div>
+                    <div style={{ display: "flex", gap: "0.25rem" }}>
+                      {isActive
+                        ? (
+                          <Tooltip
+                            title={exit.isPending
+                              ? "Leaving…"
+                              : "Leave this data room"}
+                          >
+                            <span>
+                              <IconButton
+                                size="small"
+                                aria-label="Leave data room"
+                                onClick={handleLeave}
+                                disabled={busy}
+                              >
+                                <LogoutIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        )
+                        : (
+                          <Tooltip title="Enter this data room">
+                            <span>
+                              <IconButton
+                                size="small"
+                                aria-label="Enter data room"
+                                onClick={() => handleEnter(r)}
+                                disabled={busy}
+                              >
+                                <LoginIcon fontSize="small" />
+                              </IconButton>
+                            </span>
+                          </Tooltip>
+                        )}
+                      {deleteOrRemove(r)}
+                    </div>
                   </div>
-                  <div style={{ display: "flex", gap: "0.25rem" }}>
-                    {r !== activeRoom && (
-                      <Tooltip title="Enter this data room">
-                        <IconButton
-                          size="small"
-                          aria-label="Enter data room"
-                          onClick={() => handleEnter(r)}
+
+                  {/* Active room: detail box directly beneath its own row. */}
+                  {isActive && (
+                    <Box
+                      sx={{
+                        border: 1,
+                        borderColor: "primary.main",
+                        borderRadius: 1,
+                        p: 2,
+                        mt: 1,
+                      }}
+                    >
+                      {/* Expanded detail: QR / invite, roles, members. */}
+                      <Box sx={{ mb: 1 }}>
+                        <QRCodeSVG value={inviteLink} size={160} />
+                        <Typography
+                          variant="body2"
+                          color="text.secondary"
+                          sx={{ mt: 1 }}
+                        >
+                          Show this QR code, or copy the invite link, so others
+                          can join this data room.
+                        </Typography>
+                      </Box>
+
+                      <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
+                        My role(s)
+                      </Typography>
+                      <p style={{ marginTop: 0 }}>
+                        Independent of membership — assign or change your role(s)
+                        anytime. This is how others share data with you by role.
+                      </p>
+                      <div style={buttonRowStyle}>
+                        <FormControl size="small" sx={{ minWidth: 280 }}>
+                          <InputLabel id="my-roles-label">
+                            My role(s)
+                          </InputLabel>
+                          <Select
+                            labelId="my-roles-label"
+                            multiple
+                            value={myRoles}
+                            input={<OutlinedInput label="My role(s)" />}
+                            renderValue={(selected) =>
+                              (selected as UserRole[]).map((role) =>
+                                ROLE_LABELS[role] ?? role
+                              ).join(", ")}
+                            onChange={(e) => {
+                              const v = e.target.value;
+                              setMyRoles(
+                                (typeof v === "string"
+                                  ? v.split(",")
+                                  : v) as UserRole[],
+                              );
+                            }}
+                          >
+                            {ROOM_ROLE_OPTIONS.map((role) => (
+                              <MenuItem key={role} value={role}>
+                                <Checkbox checked={myRoles.includes(role)} />
+                                {ROLE_LABELS[role] ?? role}
+                              </MenuItem>
+                            ))}
+                          </Select>
+                        </FormControl>
+                        <Button
+                          variant="outlined"
+                          onClick={handleSaveRoles}
                           disabled={busy}
                         >
-                          <LoginIcon fontSize="small" />
-                        </IconButton>
-                      </Tooltip>
-                    )}
-                    {ownsRoom(r, session)
-                      ? (
-                        <Tooltip title="Delete data room (for everyone)">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            aria-label="Delete data room"
-                            onClick={() => handleDeleteRoom(r)}
-                            disabled={busy}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )
-                      : (
-                        <Tooltip title="Remove from your list">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            aria-label="Remove data room"
-                            onClick={() => handleRemoveBookmark(r)}
-                            disabled={busy}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                  </div>
-                </div>
-              </li>
-            ))}
+                          {saveRoles.isPending ? "Saving…" : "Save roles"}
+                        </Button>
+                      </div>
+
+                      <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
+                        Members
+                      </Typography>
+                      {members.length === 0
+                        ? <p style={{ marginBottom: 0 }}>No members yet.</p>
+                        : (
+                          <ul style={listStyle}>
+                            {members.map((m) => (
+                              <li key={m.webId}>
+                                {m.webId} —{" "}
+                                <small>
+                                  {m.roles.map((role) => ROLE_LABELS[role] ?? role)
+                                    .join(", ") || "no role"}
+                                </small>
+                              </li>
+                            ))}
+                          </ul>
+                        )}
+                    </Box>
+                  )}
+                </li>
+              );
+            })}
           </ul>
         )}
       <Pager paging={roomPaging} />

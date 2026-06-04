@@ -3,10 +3,6 @@ import {
   Box,
   Button,
   Checkbox,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   FormControl,
   FormControlLabel,
@@ -18,27 +14,28 @@ import {
   Tab,
   Tabs,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
+import { alpha } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { guardedDialogClose } from "./dialogClose.ts";
+import Modal from "./Modal.tsx";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useSolidData } from "../hooks/queries.ts";
 import { getActiveRoom, getMyRole } from "../services/interop/dataRoom.ts";
 import {
-  addBuildingToRegistry,
-  buildingEnergyFileUrl,
-  generateEnergyDayTtl,
   type LastgangReading,
   newBuildingUri,
   parseCsvToFields,
   serializeBuildingToTurtle,
   uploadBuilding,
+  writeBuildingEnergy,
 } from "../services/utils/buildingSerializer.ts";
 import { trackedFetch } from "../services/utils/networkActivity.ts";
+import { formatError } from "../services/utils/formatError.ts";
 
 interface AddBuildingDialogProps {
   open: boolean;
@@ -121,7 +118,10 @@ export default function AddBuildingDialog(
       })
       .catch((err) => {
         if (!cancelled) {
-          showNotification(`Failed to load your data room roles: ${err}`, "error");
+          showNotification(
+            formatError("load your data room roles", err),
+            "error",
+          );
           setMyRoles([]);
         }
       })
@@ -155,6 +155,12 @@ export default function AddBuildingDialog(
   const [parsing, setParsing] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // "Autofill from file" opens straight into the file picker. With the native
+  // <dialog> there's no enter-transition hook, so fire it when the modal opens.
+  useEffect(() => {
+    if (open && autostartImport) fileInputRef.current?.click();
+  }, [open, autostartImport]);
 
   const isProcessing = uploading || parsing;
 
@@ -249,7 +255,7 @@ export default function AddBuildingDialog(
         : `Loaded ${parsed.length} building(s) from file`;
       showNotification(msg, "success");
     } catch (err) {
-      showNotification(`Failed to parse file: ${err}`, "error");
+      showNotification(formatError("parse the file", err), "error");
     } finally {
       setParsing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
@@ -277,7 +283,7 @@ export default function AddBuildingDialog(
       setField("long", data[0].lon);
       showNotification("Coordinates filled", "success");
     } catch (err) {
-      showNotification(`Geocoding failed: ${err}`, "error");
+      showNotification(formatError("look up coordinates", err), "error");
     } finally {
       setGeocoding(false);
     }
@@ -299,8 +305,11 @@ export default function AddBuildingDialog(
         const buildingSubjectUri = `${uri}#${id}`;
         addedSubjectUris.push(buildingSubjectUri);
 
-        // Upload energy files for Lastgang buildings (parallel, max 8 concurrent)
-        const energyDatasets: { date: string; location: string }[] = [];
+        // Group the Lastgang (15-min) readings by day into a single series
+        // dataset; annual aggregates come from the field map (`_inv_*`/`_bsp_*`).
+        let series:
+          | { year: number; days: Array<{ date: string; readings: LastgangReading[] }>; label: string }
+          | undefined;
         if (lastgangReadings && lastgangReadings.length > 0) {
           const byDate = new Map<string, LastgangReading[]>();
           for (const r of lastgangReadings) {
@@ -308,33 +317,26 @@ export default function AddBuildingDialog(
             list.push(r);
             byDate.set(r.date, list);
           }
-          const entries = [...byDate.entries()];
-          const total = entries.length;
-          setUploadProgress({ done: 0, total });
-          const CONCURRENCY = 8;
-          for (let i = 0; i < entries.length; i += CONCURRENCY) {
-            const batch = entries.slice(i, i + CONCURRENCY);
-            const results = await Promise.all(
-              batch.map(async ([date, dayReadings]) => {
-                const energyUrl = buildingEnergyFileUrl(uri, date);
-                const dayTtl = generateEnergyDayTtl(date, dayReadings, buildingSubjectUri, b.label ?? "");
-                const res = await session.fetch(energyUrl, {
-                  method: "PUT",
-                  headers: { "Content-Type": "text/turtle" },
-                  body: dayTtl,
-                });
-                if (!res.ok) throw new Error(`Energy upload failed for ${date}: ${res.status}`);
-                return { date, location: energyUrl };
-              }),
-            );
-            energyDatasets.push(...results);
-            setUploadProgress({ done: energyDatasets.length, total });
-          }
+          const days = [...byDate.entries()].map(([date, readings]) => ({ date, readings }));
+          // All readings are one calendar year; take it from the first date.
+          const year = parseInt(days[0].date.slice(0, 4));
+          series = { year, days, label: b.label ?? "" };
         }
 
-        const ttl = serializeBuildingToTurtle(b, uri, energyDatasets.length > 0 ? energyDatasets : undefined);
+        const energyLinks = await writeBuildingEnergy(
+          session,
+          uri,
+          buildingSubjectUri,
+          b,
+          series,
+          (done, total) => setUploadProgress({ done, total }),
+        );
+
+        const ttl = serializeBuildingToTurtle(b, uri, energyLinks, {
+          agent: webId,
+          category: role,
+        });
         await uploadBuilding(session, uri, ttl, webId);
-        await addBuildingToRegistry(session, webId, uri, role);
       }
       showNotification(
         buildingsList.length === 1 ? "Building added" : `${buildingsList.length} buildings added`,
@@ -343,7 +345,7 @@ export default function AddBuildingDialog(
       onBuildingAdded(addedSubjectUris);
       handleClose();
     } catch (err) {
-      showNotification(`Failed to add building: ${err}`, "error");
+      showNotification(formatError("add the building", err), "error");
     } finally {
       setUploading(false);
     }
@@ -410,29 +412,20 @@ export default function AddBuildingDialog(
   );
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onClose={guardedDialogClose(handleClose, {
-        dirty: buildingsList.some((b) =>
-          Object.values(b).some((v) => v && String(v).trim())
-        ) || lastgangReadings != null,
-        busy: isProcessing,
-      })}
-      maxWidth="sm"
-      fullWidth
-      PaperProps={{ sx: { position: "relative" } }}
-      TransitionProps={{
-        onEntered: () => {
-          if (autostartImport) fileInputRef.current?.click();
-        },
-      }}
-    >
-      {isProcessing && (
+      onClose={handleClose}
+      dirty={buildingsList.some((b) =>
+        Object.values(b).some((v) => v && String(v).trim())
+      ) || lastgangReadings != null}
+      busy={isProcessing}
+      title="Add Building"
+      overlay={isProcessing && (
         <Box
           sx={{
             position: "absolute",
             inset: 0,
-            bgcolor: "rgba(255,255,255,0.85)",
+            bgcolor: (theme) => alpha(theme.palette.background.paper, 0.85),
             zIndex: 10,
             display: "flex",
             flexDirection: "column",
@@ -453,8 +446,23 @@ export default function AddBuildingDialog(
           </Typography>
         </Box>
       )}
-      <DialogTitle>Add Building</DialogTitle>
-      <DialogContent sx={{ overflowY: "auto" }}>
+      actions={
+        <>
+          <Button onClick={handleClose} disabled={isProcessing}>Cancel</Button>
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={isProcessing || !isValid || isDuplicate ||
+              dialogRoles.length === 0}
+          >
+            {buildingsList.length === 1
+              ? "Add Building"
+              : `Add ${buildingsList.length} Buildings`}
+          </Button>
+        </>
+      }
+    >
+      <Box sx={{ overflowY: "auto" }}>
         {/* Role — only the roles the user holds in the data room */}
         {!rolesLoading && dialogRoles.length === 0
           ? (
@@ -513,18 +521,21 @@ export default function AddBuildingDialog(
                   label={
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       {tabLabel(b, i)}
-                      <IconButton
-                        size="small"
-                        component="span"
-                        onClick={(e: React.MouseEvent) => {
-                          e.stopPropagation();
-                          removeBuilding(i);
-                        }}
-                        sx={{ p: 0.25, ml: 0.25 }}
-                      >
-                        {/* eslint-disable-next-line no-restricted-syntax -- icon glyph sizing, not text */}
-                        <CloseIcon sx={{ fontSize: 14 }} />
-                      </IconButton>
+                      <Tooltip title="Remove this building">
+                        <IconButton
+                          size="small"
+                          component="span"
+                          aria-label="Remove this building"
+                          onClick={(e: React.MouseEvent) => {
+                            e.stopPropagation();
+                            removeBuilding(i);
+                          }}
+                          sx={{ p: 0.25, ml: 0.25 }}
+                        >
+                          {/* eslint-disable-next-line no-restricted-syntax -- icon glyph sizing, not text */}
+                          <CloseIcon sx={{ fontSize: 14 }} />
+                        </IconButton>
+                      </Tooltip>
                     </Box>
                   }
                   sx={{
@@ -633,18 +644,7 @@ export default function AddBuildingDialog(
             {tf("Wastewater (m³)", "_bsp_wastewater", { type: "number" })}
           </>
         )}
-      </DialogContent>
-      <DialogActions>
-        <Button onClick={handleClose} disabled={isProcessing}>Cancel</Button>
-        <Button
-          variant="contained"
-          onClick={handleSubmit}
-          disabled={isProcessing || !isValid || isDuplicate ||
-            dialogRoles.length === 0}
-        >
-          {buildingsList.length === 1 ? "Add Building" : `Add ${buildingsList.length} Buildings`}
-        </Button>
-      </DialogActions>
-    </Dialog>
+      </Box>
+    </Modal>
   );
 }

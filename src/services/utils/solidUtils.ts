@@ -109,33 +109,24 @@ export function getPodBaseUrl(webId: string): string {
  * organizationManager), not here.
  */
 export function podResources(webId: string): {
-  registry: string;
   buildings: string;
   views: string;
-  viewDefinitions: string;
-  computedViews: string;
-  viewSharingRegistry: string;
-  sharingRegistry: string;
-  rooms: string;
-  hiddenBuildings: string;
+  viewSnapshots: string;
+  sharedIn: string;
+  sharedOut: string;
+  prefs: string;
+  bookmarks: string;
 } {
   const app = `${getStorageRoot(webId)}granergize/`;
   return {
-    registry: `${app}dataSources.ttl`,
     buildings: `${app}buildings/`,
     views: `${app}views/`,
-    viewDefinitions: `${app}views/viewDefinitions.ttl`,
-    computedViews: `${app}views/computed/`,
-    viewSharingRegistry: `${app}views/viewSharingRegistry.ttl`,
-    sharingRegistry: `${app}sharingRegistry.ttl`,
-    rooms: `${app}rooms.ttl`,
-    hiddenBuildings: `${app}hiddenBuildings.ttl`,
+    viewSnapshots: `${app}views/snapshots/`,
+    sharedIn: `${app}shared-in/`,
+    sharedOut: `${app}shared-out/`,
+    prefs: `${app}prefs.ttl`,
+    bookmarks: `${app}bookmarks.ttl`,
   };
-}
-
-/** The data-source registry URL — thin alias over {@link podResources}. */
-export function registryUrl(webId: string): string {
-  return podResources(webId).registry;
 }
 
 /**

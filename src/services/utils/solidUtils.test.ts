@@ -45,8 +45,8 @@ Deno.test("resolveStorageRoot reads pim:storage from the profile", async () => {
   assert.deepEqual(await resolveStorageRoot(session), "https://reads.example/");
   // …and it's now cached for synchronous podResources() use.
   assert.deepEqual(
-    podResources(webId).registry,
-    "https://reads.example/granergize/dataSources.ttl",
+    podResources(webId).buildings,
+    "https://reads.example/granergize/buildings/",
   );
 });
 

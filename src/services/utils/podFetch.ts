@@ -13,9 +13,21 @@ import { Session } from "@inrupt/solid-client-authn-browser";
  * of a unique URL every call. (solidcommunity.net's Cloudflare reports these as
  * cf-cache-status: DYNAMIC, i.e. not edge-cached, so revalidation is honoured.)
  */
-export function fetchFresh(url: string, session: Session): Promise<Response> {
-  return session.fetch(url, {
-    cache: "no-cache",
-    headers: { Accept: "text/turtle" },
-  });
+export async function fetchFresh(
+  url: string,
+  session: Session,
+): Promise<Response> {
+  try {
+    return await session.fetch(url, {
+      cache: "no-cache",
+      headers: { Accept: "text/turtle" },
+    });
+  } catch (e) {
+    // A *thrown* fetch (vs a non-ok Response) is a network/CORS-level failure —
+    // no HTTP status came back. The platform message ("NetworkError when
+    // attempting to fetch resource" / "Failed to fetch") names no resource, so
+    // annotate it with the URL being dereferenced for a useful error upstream.
+    const detail = e instanceof Error ? e.message : String(e);
+    throw new Error(`Network error fetching ${url}: ${detail}`, { cause: e });
+  }
 }

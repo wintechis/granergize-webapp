@@ -11,8 +11,7 @@ import {
   getSharedWithMe,
 } from "../services/interop/sharingManager.ts";
 import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
-import { getOrganization } from "../services/utils/organizationManager.ts";
-import { getRoomState } from "../services/interop/dataRoom.ts";
+import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
 import type {
   AgentType,
   BuildingType,
@@ -92,23 +91,55 @@ export function useSharedViews() {
   });
 }
 
-export function useOrganization() {
+/**
+ * Data-room registry — `current` + `known`. Owned by the room mutations, which
+ * `setQueryData` it authoritatively (see mutations.ts): it is fetched once on
+ * load and thereafter never refetched, so a slow/stale read-back can't revert a
+ * switch. (Diagnosed: solidcommunity.net/Cloudflare can serve a stale
+ * conditional read right after the write — see project memory.)
+ */
+export function useRooms() {
   const webId = webIdOf();
   return useQuery({
-    queryKey: ["organization", webId],
+    queryKey: [...queryKeys.rooms, webId],
     enabled: Boolean(webId),
-    queryFn: () => getOrganization(getSession()),
+    queryFn: () => readRooms(getSession()),
   });
 }
 
-/** Data room: current + known rooms, members, my roles/membership — one log read. */
-export function useRoomState() {
+/** Members / my-roles / my-membership for one room, keyed on the current room. */
+function useRoomLog(current: string | null) {
   const webId = webIdOf();
   return useQuery({
-    queryKey: ["roomState", webId],
-    enabled: Boolean(webId),
-    queryFn: () => getRoomState(getSession()),
+    queryKey: [...queryKeys.roomLog, webId, current],
+    enabled: Boolean(webId && current),
+    queryFn: () => getRoomLogState(getSession(), current as string),
   });
+}
+
+/**
+ * Composes the registry ({@link useRooms}) with the current room's log
+ * ({@link useRoomLog}) into the shape the Connect tab consumes. The registry is
+ * authoritative for `current`/`known`; the log refetches for members/roles.
+ */
+export function useRoomState() {
+  const rooms = useRooms();
+  const current = rooms.data?.current ?? null;
+  const known = rooms.data?.known ?? [];
+  const log = useRoomLog(current);
+  return {
+    data: rooms.data
+      ? {
+        current,
+        known,
+        members: log.data?.members ?? [],
+        myRoles: log.data?.myRoles ?? [],
+        myMembership: log.data?.myMembership ?? false,
+      }
+      : undefined,
+    isLoading: rooms.isLoading,
+    isFetching: rooms.isFetching || log.isFetching,
+  };
 }
 
 /** Query keys other modules (mutations) invalidate. */
@@ -119,8 +150,10 @@ export const queryKeys = {
   sharedBuildings: ["sharedBuildings"] as const,
   viewDefinitions: ["viewDefinitions"] as const,
   sharedViews: ["sharedViews"] as const,
-  organization: ["organization"] as const,
-  roomState: ["roomState"] as const,
+  /** The room registry (current + known). Set via setQueryData, not invalidated. */
+  rooms: ["rooms"] as const,
+  /** A room's log (members + roles), keyed by room. Invalidated on role saves. */
+  roomLog: ["roomLog"] as const,
 };
 
 /**

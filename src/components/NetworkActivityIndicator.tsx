@@ -3,14 +3,11 @@ import Badge from "@mui/material/Badge";
 import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import CircularProgress from "@mui/material/CircularProgress";
-import Dialog from "@mui/material/Dialog";
-import DialogActions from "@mui/material/DialogActions";
-import DialogContent from "@mui/material/DialogContent";
-import DialogTitle from "@mui/material/DialogTitle";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import HistoryIcon from "@mui/icons-material/History";
+import Modal from "./Modal.tsx";
 import { getDefaultSession } from "@inrupt/solid-client-authn-browser";
 import {
   type ActiveRequest,
@@ -182,51 +179,66 @@ export default function NetworkActivityIndicator() {
         </IconButton>
       </Tooltip>
 
-      <Dialog open={open} onClose={() => setOpen(false)} fullWidth maxWidth="md">
-        <DialogTitle>
-          Network requests
-          <Typography component="span" variant="body2" color="text.secondary" sx={{ ml: 1 }}>
-            {count > 0 ? `${count} in flight · ` : ""}
-            {logEntries.length} recent
-          </Typography>
-        </DialogTitle>
-        <DialogContent dividers>
-          {active.length === 0 && logEntries.length === 0
-            ? <Typography color="text.secondary">No requests yet.</Typography>
-            : (
-              <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0 }}>
-                {/* In-flight first, marked pending. */}
-                {active.map((r) => (
+      <Modal
+        open={open}
+        onClose={() => setOpen(false)}
+        dismissable
+        maxWidth="md"
+        title={
+          <>
+            Network requests
+            <Typography
+              component="span"
+              variant="body2"
+              color="text.secondary"
+              sx={{ ml: 1 }}
+            >
+              {count > 0 ? `${count} in flight · ` : ""}
+              {logEntries.length} recent
+            </Typography>
+          </>
+        }
+        actions={
+          <>
+            <Button
+              onClick={clearRequestLog}
+              disabled={logEntries.length === 0}
+            >
+              Clear
+            </Button>
+            <Button onClick={() => setOpen(false)}>Close</Button>
+          </>
+        }
+      >
+        {active.length === 0 && logEntries.length === 0
+          ? <Typography color="text.secondary">No requests yet.</Typography>
+          : (
+            <Box component="ul" sx={{ listStyle: "none", m: 0, p: 0 }}>
+              {/* In-flight first, marked pending. */}
+              {active.map((r) => (
+                <LogRow
+                  key={`active-${r.id}`}
+                  status="…"
+                  color="primary.main"
+                  label={displayLabel(r, root)}
+                  duration="pending"
+                />
+              ))}
+              {logEntries.map((e) => {
+                const s = statusInfo(e);
+                return (
                   <LogRow
-                    key={`active-${r.id}`}
-                    status="…"
-                    color="primary.main"
-                    label={displayLabel(r, root)}
-                    duration="pending"
+                    key={`log-${e.id}`}
+                    status={s.text}
+                    color={s.color}
+                    label={displayLabel(e, root)}
+                    duration={`${e.durationMs} ms`}
                   />
-                ))}
-                {logEntries.map((e) => {
-                  const s = statusInfo(e);
-                  return (
-                    <LogRow
-                      key={`log-${e.id}`}
-                      status={s.text}
-                      color={s.color}
-                      label={displayLabel(e, root)}
-                      duration={`${e.durationMs} ms`}
-                    />
-                  );
-                })}
-              </Box>
-            )}
-        </DialogContent>
-        <DialogActions>
-          <Button onClick={clearRequestLog} disabled={logEntries.length === 0}>
-            Clear
-          </Button>
-          <Button onClick={() => setOpen(false)}>Close</Button>
-        </DialogActions>
-      </Dialog>
+                );
+              })}
+            </Box>
+          )}
+      </Modal>
     </Box>
   );
 }

@@ -38,7 +38,7 @@ export interface BuildingType {
     | string
     | number
     | boolean
-    | EnergyMeasurementData[]
+    | EnergyDatasetRef[]
     | InvestorAnnualData[]
     | InvestorCertification[]
     | InvestorOperatingCosts
@@ -46,7 +46,14 @@ export interface BuildingType {
   id: number;
   uri: string;
   sourceUri?: string;
-  sourceRole?: UserRole;
+  /**
+   * Provenance: the actor category the data was attributed to (the `prov:hadRole`
+   * of the building's `prov:qualifiedAttribution`). Provenance only — it does NOT
+   * drive parsing/loading/rendering (those dispatch on the data's own shape).
+   */
+  provenance?: UserRole;
+  /** Provenance: the WebID the data was attributed to (`prov:agent`). */
+  attributedTo?: string;
   type: string;
   customer?: string;
   energyCertificate?: string;
@@ -65,7 +72,12 @@ export interface BuildingType {
   yearOfConstruction?: number;
   naceCode?: number;
   operatedBy?: string;
-  energyData?: EnergyMeasurementData[];
+  /**
+   * Unified energy model: the building's `gran:hasEnergyDataset` links (one per
+   * year/granularity/scenario), derived from the link slugs. The actual figures
+   * live in separate resources, fetched on demand (charts, export).
+   */
+  energyDatasets?: EnergyDatasetRef[];
   isShared?: boolean;
   // BSP role fields
   logisticsFunction?: string;
@@ -98,17 +110,22 @@ export interface BuildingType {
   operatingCosts?: InvestorOperatingCosts;
 }
 
-export interface EnergyMeasurementData {
+/** Actual readings vs planned (Soll) figures, at the energy-dataset level. */
+export type Scenario = "actual" | "planned";
+
+/**
+ * A reference to one `gran:EnergyDataset`, derived from a building's
+ * `gran:hasEnergyDataset` link. The link slug (`<year>-<granularity>[-planned]`)
+ * is self-describing, so year/granularity/scenario are known without fetching the
+ * dataset (used to dispatch load: series lazy, annual prefetched). See
+ * `services/utils/energyDataset.ts`.
+ */
+export interface EnergyDatasetRef {
+  /** The dataset node URL (the linked `…/<slug>.ttl#ds`). */
+  url: string;
   year: number;
-  location: string;
-  type: string;
-  /**
-   * Observation period as an xsd:duration (e.g. "PT15M" sub-hourly series,
-   * "P1Y" annual aggregate). Drives load strategy (series = lazy per-file;
-   * aggregate = bulk) independently of the producer's role. Optional: legacy
-   * datasets without it fall back to the role default.
-   */
-  granularity?: string;
+  granularity: string;
+  scenario: Scenario;
 }
 
 export type AgentType = {

@@ -15,9 +15,12 @@ import {
   NotificationProvider,
   useNotification,
 } from "./context/NotificationContext.tsx";
+import { useQueryClient } from "@tanstack/react-query";
 import { QueryProvider } from "./context/QueryProvider.tsx";
+import { queryKeys } from "./hooks/queries.ts";
 import { readInbox } from "./services/interop/inbox.ts";
 import { instrumentSessionFetch } from "./services/utils/networkActivity.ts";
+import { formatError } from "./services/utils/formatError.ts";
 import {
   getSessionExpiredSnapshot,
   markSessionExpired,
@@ -32,6 +35,7 @@ const NO_RESTORE_KEY = "granergize:noRestore";
 
 function AppContent() {
   const { showNotification } = useNotification();
+  const queryClient = useQueryClient();
   const [session, setSession] = useState<Session | null>(null);
   const [suppressRestore, setSuppressRestore] = useState(
     () => sessionStorage.getItem(NO_RESTORE_KEY) === "1",
@@ -61,6 +65,11 @@ function AppContent() {
   useEffect(() => {
     if (expired && session) {
       showNotification("Session expired — please log in again", "warning");
+      // Suppress the silent restore: the token is already dead, but set the
+      // one-shot flag too so the Login screen can't attempt a doomed restore
+      // (keeps every logout path consistent — see handleLogout).
+      sessionStorage.setItem(NO_RESTORE_KEY, "1");
+      setSuppressRestore(true);
       session.logout().then(() => setSession(null));
     }
   }, [expired, session, showNotification]);
@@ -76,23 +85,41 @@ function AppContent() {
     setSession(authSession);
     try {
       await readInbox(authSession);
+      // readInbox may have archived newly-granted shares into the user's
+      // shared-in/ log; refresh the queries that fold it so they appear
+      // (otherwise the cached read taken at mount would never reflect the grant).
+      queryClient.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
+      queryClient.invalidateQueries({ queryKey: queryKeys.buildingsAndAgents });
     } catch (error) {
-      showNotification(`Error reading inbox: ${error}`, "error");
+      showNotification(formatError("read your inbox", error), "error");
     }
-  }, [showNotification]);
+  }, [showNotification, queryClient]);
 
-  const handleLogout = (opts?: { suppressAutoLogin?: boolean }) => {
-    if (session) {
-      console.log("Logging out user", session.info.webId);
-      if (opts?.suppressAutoLogin) {
-        sessionStorage.setItem(NO_RESTORE_KEY, "1");
-        setSuppressRestore(true);
-      }
-      session.logout().then(() => {
-        setSession(null);
-        showNotification("User logged out successfully", "info");
-      });
+  const handleLogout = (
+    opts?: { suppressAutoLogin?: boolean; logoutType?: "app" | "idp" },
+  ) => {
+    if (!session) return;
+    console.log("Logging out user", session.info.webId);
+    if (opts?.suppressAutoLogin) {
+      sessionStorage.setItem(NO_RESTORE_KEY, "1");
+      setSuppressRestore(true);
     }
+    if (opts?.logoutType === "idp") {
+      // Full logout AT the identity provider: clears the provider's own login
+      // cookie, which "app" logout can't touch. Without it the IdP silently
+      // re-authorizes the same account on the next login, so you can't switch
+      // accounts at the same provider. This navigates the browser away to the
+      // provider; the `.then` below never runs. With dynamic client
+      // registration there's no registered `postLogoutUrl`, so the provider may
+      // not redirect back — the user reopens the app, where the `noRestore`
+      // flag (set above) keeps them on the login form to choose an account.
+      session.logout({ logoutType: "idp" });
+      return;
+    }
+    session.logout().then(() => {
+      setSession(null);
+      showNotification("User logged out successfully", "info");
+    });
   };
 
   return (
@@ -107,34 +134,36 @@ function AppContent() {
         />
       }
       recommendedLogins={[
+        "https://solidweb.org",
         "https://solidcommunity.net",
+        "https://solid.redpencil.io",
         "https://solid.iis.fraunhofer.de",
       ]}
       lead={
-        <>
-          <Typography variant="body1" sx={{ mb: 1 }}>
-            Use the Granergize App to browse, compare and share energy
-            consumption data of logistics real estate. With Granergize, you
-            keep control over your data.
-          </Typography>
-          <Typography variant="body1" sx={{ mb: 1 }}>
-            <Link
-              href="https://www.ti.rw.fau.de/granergize/"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Granergize@FAU
-            </Link>
-            {" · "}
-            <Link
-              href="https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html"
-              target="_blank"
-              rel="noopener noreferrer"
-            >
-              Granergize@IIS
-            </Link>
-          </Typography>
-        </>
+        <Typography variant="body1">
+          Use the Granergize App to browse, compare and share energy
+          consumption data of logistics real estate. With Granergize, you
+          keep control over your data.
+        </Typography>
+      }
+      footer={
+        <Typography variant="body2" color="text.secondary">
+          <Link
+            href="https://www.ti.rw.fau.de/granergize/"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Granergize@FAU
+          </Link>
+          {" · "}
+          <Link
+            href="https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html"
+            target="_blank"
+            rel="noopener noreferrer"
+          >
+            Granergize@IIS
+          </Link>
+        </Typography>
       }
     >
       <App session={session!} onLogout={handleLogout} />

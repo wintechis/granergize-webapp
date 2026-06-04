@@ -40,6 +40,7 @@ import {
   beginActivity,
   endActivity,
 } from "../services/utils/networkActivity.ts";
+import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 
 const SHADOW =
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png";
@@ -67,29 +68,14 @@ function makeIcon(url: string): L.Icon {
   });
 }
 
+// One marker style; the only distinction is visibility (owned vs shared with you),
+// not the data's provenance.
 const BASE = import.meta.env.BASE_URL;
-const ROLE_ICONS: Record<string, { base: L.Icon; shared: L.Icon }> = {
-  investor: {
-    base: makeIcon(`${BASE}marker-investor.png`),
-    shared: makeIcon(`${BASE}marker-investor.png`),
-  },
-  dummy: {
-    base: makeIcon(`${BASE}marker-dummy.png`),
-    shared: makeIcon(`${BASE}marker-dummy-shared.png`),
-  },
-  user: {
-    base: makeIcon(`${BASE}marker-user.png`),
-    shared: makeIcon(`${BASE}marker-user-shared.png`),
-  },
-  benchmark_service_provider: {
-    base: makeIcon(`${BASE}marker-bsp.png`),
-    shared: makeIcon(`${BASE}marker-bsp-shared.png`),
-  },
-};
+const OWNED_ICON = makeIcon(`${BASE}marker-dummy.png`);
+const SHARED_ICON = makeIcon(`${BASE}marker-dummy-shared.png`);
 
 function getIcon(building: BuildingType): L.Icon {
-  const set = ROLE_ICONS[building.sourceRole ?? "dummy"] ?? ROLE_ICONS.dummy;
-  return building.isShared ? set.shared : set.base;
+  return building.isShared ? SHARED_ICON : OWNED_ICON;
 }
 
 function createSelectedIcon(building: BuildingType): L.DivIcon {
@@ -519,13 +505,27 @@ export default function ExplorePage(
                       // variant when bench-specific company/logistics fields are
                       // present, else the investor variant); otherwise the
                       // time-series / categorical Energy view.
-                      ((currentBuilding.annualData?.length ?? 0) > 0)
+                      (currentBuilding.energyDatasets?.some((d) =>
+                          !isSeriesGranularity(d.granularity)
+                        ))
                         ? (currentBuilding.companyName ||
                             currentBuilding.logisticsFunction)
-                          ? <BspEnergy building={currentBuilding} />
-                          : <InvestorEnergy building={currentBuilding} />
+                          ? (
+                            <BspEnergy
+                              building={currentBuilding}
+                              session={session}
+                            />
+                          )
+                          : (
+                            <InvestorEnergy
+                              building={currentBuilding}
+                              session={session}
+                            />
+                          )
                         : (selectedEnergy ||
-                            currentBuilding.sourceRole === "user")
+                            currentBuilding.energyDatasets?.some((d) =>
+                              isSeriesGranularity(d.granularity)
+                            ))
                         ? (
                           <Energy
                             selectedBuilding={currentBuilding.id.toString()}

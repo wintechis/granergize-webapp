@@ -1,12 +1,33 @@
 # End-to-end tests (Playwright)
 
 Playwright drives Chromium against the app (the config starts the Vite dev server
-itself). Four specs, by credential need:
+itself). Eight specs, by credential need:
 
 - **`smoke.spec.ts`** — no login. Asserts the sign-in screen renders. CI-safe,
   runs with no credentials.
-- **`screenshots.spec.ts`** — needs **one** throwaway Pod (account A). Captures the
-  in-app guide screenshots into `public/guide/*.png`.
+- **`storage-smoke.spec.ts`** — needs **one** throwaway Pod (defaults to account
+  **B** on solidweb.org, the more reliable Pod; override with `E2E_SMOKE_ACCOUNT=A`).
+  A shallow, broad smoke of the container-native storage redesign: own buildings
+  are listed on Manage (the `buildings/` listing + demo seed), the aggregated-views
+  section folds `views/`, the Share tab folds `shared-in/`, and hosting+deleting a
+  room exercises `prefs.ttl` / `bookmarks.ttl` / `rooms/`. Cleans up the room it
+  creates. Expects a used or freshly-wiped Pod (so the demo buildings are present).
+- **`energy-smoke.spec.ts`** — needs **one** throwaway Pod (defaults to account
+  **B**; `E2E_SMOKE_ACCOUNT=A` to switch). Finds a seeded building on Manage and
+  opens its `/energy/:id` deep link, asserting the energy detail (annual
+  table + bar chart, or the 15-min series chart) renders — i.e. `loadEnergy` + the
+  charts run on the unified `gran:EnergyDataset` model. Expects a Pod **seeded by
+  the current code** (wipe + reload first, so the buildings carry
+  `gran:hasEnergyDataset`).
+- **`screenshots.spec.ts`** — needs **account C** (the slow solidcommunity.net Pod),
+  so the guide shows canonical solidcommunity.net WebIDs/URIs. Captures the in-app
+  guide screenshots into `public/guide/*.png`.
+- **`data-rooms.spec.ts`** — needs **one** throwaway Pod (account A). Drives the
+  Connect-tab room lifecycle: host a room then enter/leave it back and forth, and
+  host → leave → re-enter → delete. Each test hosts its own room and deletes it at
+  the end (cleans up after itself). Runs serially behind one login; uses the
+  success notifications as the action signal with a generous settle window (the
+  per-action Pod write + room-log re-read is slow under throttling).
 - **`sharing.spec.ts`** — needs **two** throwaway Pods (A and B). A hosts a data
   room, B joins it and takes the User role, A shares a building "by role"; B must
   see it under "Buildings shared with you". WebIDs are discovered via the room —
@@ -16,8 +37,14 @@ itself). Four specs, by credential need:
   click-through of all tabs and prints which resources are fetched more than once
   (with per-hit timing, so a StrictMode/double-mount burst reads differently from
   per-tab-switch refetches). Use it to spot request storms / duplicated fetches.
+- **`data-room-switch-debug.spec.ts`** — needs **one** Pod (default account **B**;
+  override with `E2E_DEBUG_ACCOUNT=A`). Diagnostic, not an assertion test: hosts two
+  rooms, switches the active room back and forth, and streams the room-registry
+  exchange (`prefs.ttl` active-room pointer + `bookmarks.ttl`) — method/status/ETag
+  + conditional headers — to classify a switch that reverts (client refetch vs
+  stale conditional read vs throttling).
 
-The three credentialed specs `test.skip` themselves when their env vars are absent,
+The seven credentialed specs `test.skip` themselves when their env vars are absent,
 so `deno task e2e` / CI never need credentials.
 
 There is also a **headless data-layer integration test** that is *not* Playwright:
@@ -36,50 +63,65 @@ Deno).
 
 ```
 deno task e2e            # smoke only (no creds)
-npm run screenshots      # guide screenshots  (needs account A)
-npm run sharing          # cross-pod sharing  (needs accounts A + B)
+npm run screenshots      # guide screenshots  (account C, solidcommunity.net)
+npm run sharing          # cross-pod sharing  (accounts A + B)
 # add --headed to watch / debug, e.g.  npm run sharing -- --headed
 
-source .env.e2e.local && deno task e2e request-audit   # request audit (needs account A)
+# Single-account specs run on a fast Pod (A or B — interchangeable):
+source .env.e2e.local && deno task e2e storage-smoke   # storage-redesign smoke
+source .env.e2e.local && deno task e2e energy-smoke    # energy-model smoke (wipe+reseed first)
+source .env.e2e.local && deno task e2e data-rooms      # room lifecycle
+source .env.e2e.local && deno task e2e request-audit   # request audit
+
+# Whole credentialed suite — force serial so logins don't fire in parallel:
+source .env.e2e.local && deno task e2e --workers=1
 
 source .env.e2e.local && deno task it:live   # live data-layer test (needs account A)
 ```
 
 > **Heads-up on rate limiting.** solidcommunity.net sits behind Cloudflare, which
-> throttles bursts of logins/requests with HTTP 429. Running several credentialed
-> specs back-to-back (especially `sharing`, which logs in **two** accounts in a row)
-> can make a later spec fail at the *identity-provider login form* — the form never
-> renders because the IdP page itself got throttled. This is environmental, not a
-> code regression: re-run a single spec after a short pause, or space the runs out.
+> throttles bursts of logins/requests with HTTP 429. The config doesn't pin a
+> worker count, so Playwright parallelizes across spec *files* — several Solid
+> logins then fire **at once**, which reliably trips the limiter. **Run the
+> credentialed suite with `--workers=1`** so logins happen one at a time. Even
+> then, running several credentialed specs back-to-back (especially `sharing`,
+> which logs in **two** accounts in a row) can make a later spec fail at the
+> *identity-provider login form* — the form never renders because the IdP page
+> itself got throttled. This is environmental, not a code regression: re-run a
+> single spec after a short pause, or space the runs out.
 
 ## Accounts (throwaway Pods only — never real accounts)
 
-Create two disposable Pods (e.g. at <https://solidcommunity.net> → Sign up).
-Provide their credentials via the environment — nothing is committed. Quickest way
-is the committed template:
+Three disposable Pods. **A and B are fast Pods and interchangeable** for most
+specs (single-account specs run on either; `sharing` uses both). **C is the slow
+solidcommunity.net Pod**, used only by `screenshots` (so the guide shows canonical
+solidcommunity.net URIs). Provide credentials via the environment — nothing is
+committed; quickest way is the committed template:
 
 ```
 cp .env.e2e.example .env.e2e.local     # .env.e2e.local is gitignored
-# edit .env.e2e.local — fill in the two passwords
+# edit .env.e2e.local — fill in the passwords
 source .env.e2e.local && npm run sharing
 ```
 
 The variables (also settable as plain shell exports):
 
 ```
-# Account A (used by screenshots + as the sharer)
+# Account A — fast Pod
 export E2E_USERNAME_A=alice
 export E2E_PASSWORD_A=…
-export E2E_ISSUER_A=https://solidcommunity.net    # optional; this is the default
+export E2E_ISSUER_A=https://…                      # the fast Pod's issuer
 
-# Account B (the share recipient) — discovered via the room, no WebID needed
+# Account B — fast Pod (the sharing recipient; WebID discovered via the room)
 export E2E_USERNAME_B=bob
 export E2E_PASSWORD_B=…
-export E2E_ISSUER_B=https://solidcommunity.net    # optional
-```
+export E2E_ISSUER_B=https://…
 
-`screenshots.spec.ts` also accepts the legacy unsuffixed `E2E_USERNAME` /
-`E2E_PASSWORD` / `E2E_ISSUER` (treated as account A) for backward compatibility.
+# Account C — slow solidcommunity.net Pod, used by `screenshots`
+export E2E_USERNAME_C=carol
+export E2E_PASSWORD_C=…
+export E2E_ISSUER_C=https://solidcommunity.net     # optional; this is the default
+```
 
 ## Notes
 
@@ -89,8 +131,8 @@ export E2E_ISSUER_B=https://solidcommunity.net    # optional
   after a provider UI change. Run headed to see where it sticks.
 - `sharing.spec.ts` discovers B's WebID through the data room (B joins A's room
   and takes the User role; A shares "by role"). It seeds a building on A only if A
-  owns none, and B's receipt relies on the inbox copying the access grant into B's
-  `dataSources.ttl` on load — so it allows a generous timeout for that round-trip.
+  owns none, and B's receipt relies on `readInbox` archiving the access grant into
+  B's `shared-in/` log on load — so it allows a generous timeout for that round-trip.
 - App tab labels are **Explore / Manage / Share / Connect**; the helpers/specs use
   those. Buildings are added/shared/exported and aggregated views are managed on the
   **Manage** tab; "Buildings shared with you" lives on **Share**; data rooms on

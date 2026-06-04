@@ -1,8 +1,7 @@
 import type { Quad } from "@rdfjs/types";
 import type {
   BuildingType,
-  EnergyMeasurementData,
-  InvestorAnnualData,
+  EnergyDatasetRef,
   InvestorCertification,
   InvestorOperatingCosts,
 } from "../../../types/types.ts";
@@ -13,12 +12,15 @@ import {
   predicateMap,
 } from "./config/buildingConfig.ts";
 import {
+  GRAN_NS,
   INVESTOR_NS,
+  PROV_AGENT,
+  PROV_HAD_ROLE,
+  PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE,
-  SOSA_NS,
-  SSN_NS,
-  TIME_NS,
 } from "./vocabularies.ts";
+import { parseDatasetSlug } from "./energyDataset.ts";
+import { IRI_TO_PROVENANCE } from "../../constants/roles.ts";
 
 /**
  * Extract building ID from a NamedNode IRI using *strict* patterns.
@@ -61,24 +63,6 @@ function extractBuildingIdStrict(iri: string): string | null {
   return null;
 }
 
-/**
- * Looser extraction used for joining observations (e.g. sosa:hasFeatureOfInterest).
- *
- * Some investor graphs use a second IRI for the same building, e.g.
- *   .../building-312  (rec:Building)
- *   .../312           (feature of interest)
- */
-function extractBuildingIdForJoin(iri: string): string | null {
-  const strict = extractBuildingIdStrict(iri);
-  if (strict) return strict;
-
-  // Common pattern: .../<numericId> (optionally with a trailing slash)
-  const numericTail = iri.match(/\/(\d+)\/?$/);
-  if (numericTail) return numericTail[1];
-
-  return null;
-}
-
 /** Get the local name (after # or last /) from an IRI */
 function localName(iri: string): string {
   const hash = iri.split("#")[1];
@@ -89,12 +73,14 @@ function localName(iri: string): string {
 
 export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   const buildings = new Map<string, BuildingType>();
-  /** building ID - blank node IDs that are energy measurement datasets (Dummy/Benchmark role) */
-  const energyBlankNodeMap = new Map<string, string>();
+  /** building ID → its `gran:hasEnergyDataset` link URLs (unified energy model). */
+  const energyDatasetLinks = new Map<string, string[]>();
   /** blank node ID - building ID for operating costs */
   const opCostBuildingMap = new Map<string, string>();
   /** blank node ID - building ID for certifications */
   const certBuildingMap = new Map<string, string>();
+  /** blank node ID - building ID for the PROV qualified attribution */
+  const provBuildingMap = new Map<string, string>();
 
   // ── Pass 1: Create buildings from named-node subjects ─────────────────────
   quads.forEach((quad: Quad) => {
@@ -119,8 +105,6 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
         uri: quad.subject.value,
         sourceUri: quad.graph.value,
         type: "https://w3id.org/rec#Building",
-        energyData: [],
-        annualData: [],
         certifications: [],
       });
     }
@@ -129,13 +113,13 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     const pred = quad.predicate.value;
     const obj = quad.object;
 
-    // Energy-dataset blank-node associations (Dummy/Benchmark role)
-    if (
-      pred.endsWith("hasEnergyMeasurementData") ||
-      pred.endsWith("hasEnergyConsumptionDataset")
-    ) {
-      if (obj.termType === "BlankNode") {
-        energyBlankNodeMap.set(obj.value, buildingId);
+    // Unified energy model: gran:hasEnergyDataset links (one per dataset
+    // resource). The slug is self-describing, so refs are derived in post-processing.
+    if (pred === `${GRAN_NS}hasEnergyDataset`) {
+      if (obj.termType === "NamedNode") {
+        const links = energyDatasetLinks.get(buildingId) ?? [];
+        links.push(obj.value);
+        energyDatasetLinks.set(buildingId, links);
       }
       return;
     }
@@ -156,10 +140,12 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       return;
     }
 
-    // Investor annual-data dataset blank-node — just record association; observations
-    // are linked directly to the building URI via sosa:hasFeatureOfInterest
-    if (pred === `${INVESTOR_NS}hasInvestorAnnualData`) {
-      return; // handled entirely in the SOSA observation pass
+    // PROV qualified attribution blank-node (provenance)
+    if (pred === PROV_QUALIFIED_ATTRIBUTION) {
+      if (obj.termType === "BlankNode") {
+        provBuildingMap.set(obj.value, buildingId);
+      }
+      return;
     }
 
     // Object properties mapping to local-name labels (shiftRegime, tenancyType, etc.)
@@ -187,22 +173,15 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
 
   // ── Pass 2: Collect blank-node data ───────────────────────────────────────
 
-  const energyDataMap = new Map<string, Partial<EnergyMeasurementData>>();
   const opCostData = new Map<string, Partial<InvestorOperatingCosts>>();
   const certData = new Map<
     string,
     { type?: string; level?: string; scope?: string }
   >();
-
-  interface ObsData {
-    observedProperty?: string;
-    featureOfInterest?: string;
-    resultBlank?: string;
-    timeBlank?: string;
-  }
-  const obsData = new Map<string, ObsData>();
-  const resultData = new Map<string, { value?: number }>();
-  const timeData = new Map<string, { beginning?: string }>();
+  const provData = new Map<
+    string,
+    { agent?: string; category?: BuildingType["provenance"] }
+  >();
 
   quads.forEach((quad: Quad) => {
     if (quad.subject.termType !== "BlankNode") return;
@@ -211,33 +190,6 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     const pred = quad.predicate.value;
     const obj = quad.object;
     const objVal = obj.value;
-
-    // ── Energy measurement dataset (Dummy/Benchmark role) ──
-    if (energyBlankNodeMap.has(bId)) {
-      if (!energyDataMap.has(bId)) energyDataMap.set(bId, {});
-      const ed = energyDataMap.get(bId)!;
-      const baseUri = quad.graph.value;
-      if (pred.endsWith("measurementYear")) {
-        ed.year = parseInt(objVal);
-      } else if (pred.endsWith("datasetDate")) {
-        ed.year = parseInt(objVal.substring(0, 4));
-      } else if (pred.endsWith("datasetLocation")) {
-        if (objVal.startsWith("./")) {
-          ed.location = `${baseUri}${objVal.substring(2)}`;
-        } else if (objVal.startsWith("/")) {
-          ed.location = `${baseUri.replace(/\/$/, "")}${objVal}`;
-        } else if (!objVal.match(/^https?:\/\//)) {
-          ed.location = `${baseUri}${objVal}`;
-        } else {
-          ed.location = objVal;
-        }
-      } else if (pred.endsWith("type")) {
-        ed.type = objVal;
-      } else if (pred.endsWith("granularity")) {
-        ed.granularity = objVal;
-      }
-      return;
-    }
 
     // ── Operating costs blank node ──
     if (opCostBuildingMap.has(bId)) {
@@ -287,69 +239,29 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       return;
     }
 
-    // ── SOSA Observation blank node ──
-    if (
-      pred === `${SOSA_NS}observedProperty` ||
-      pred === `${SOSA_NS}hasFeatureOfInterest` ||
-      pred === `${SOSA_NS}hasResult` ||
-      pred === `${SOSA_NS}phenomenonTime`
-    ) {
-      if (!obsData.has(bId)) obsData.set(bId, {});
-      const od = obsData.get(bId)!;
-      if (pred === `${SOSA_NS}observedProperty`) od.observedProperty = objVal;
-      else if (pred === `${SOSA_NS}hasFeatureOfInterest`) {
-        od.featureOfInterest = objVal;
-      } else if (
-        pred === `${SOSA_NS}hasResult` && obj.termType === "BlankNode"
-      ) {
-        od.resultBlank = objVal;
-      } else if (
-        pred === `${SOSA_NS}phenomenonTime` &&
-        obj.termType === "BlankNode"
-      ) {
-        od.timeBlank = objVal;
+    // ── PROV qualified-attribution blank node (provenance) ──
+    if (provBuildingMap.has(bId)) {
+      if (!provData.has(bId)) provData.set(bId, {});
+      const pd = provData.get(bId)!;
+      if (pred === PROV_AGENT) {
+        pd.agent = objVal;
+      } else if (pred === PROV_HAD_ROLE) {
+        pd.category = IRI_TO_PROVENANCE[objVal];
       }
-      return;
-    }
-
-    // ── SOSA Result blank node ──
-    if (pred === `${SOSA_NS}hasSimpleResult` || pred === `${SSN_NS}hasUnit`) {
-      if (!resultData.has(bId)) resultData.set(bId, {});
-      if (pred === `${SOSA_NS}hasSimpleResult`) {
-        resultData.get(bId)!.value = parseFloat(objVal);
-      }
-      return;
-    }
-
-    // ── Time Interval blank node ──
-    if (pred === `${TIME_NS}hasBeginning`) {
-      if (!timeData.has(bId)) timeData.set(bId, {});
-      timeData.get(bId)!.beginning = objVal;
       return;
     }
   });
 
   // ── Post-processing ────────────────────────────────────────────────────────
 
-  // Energy measurement data (Dummy/Benchmark role)
-  for (const [blankNodeId, buildingId] of energyBlankNodeMap.entries()) {
+  // Unified energy model: derive dataset refs from the gran:hasEnergyDataset
+  // link slugs (no fetch — year/granularity/scenario come from the slug).
+  for (const [buildingId, links] of energyDatasetLinks.entries()) {
     const building = buildings.get(buildingId);
-    const energyData = energyDataMap.get(blankNodeId);
-    if (
-      building &&
-      energyData &&
-      energyData.year &&
-      energyData.location &&
-      energyData.type
-    ) {
-      building.energyData = building.energyData || [];
-      (building.energyData as EnergyMeasurementData[]).push({
-        year: energyData.year,
-        location: energyData.location,
-        type: energyData.type,
-        granularity: energyData.granularity,
-      });
-    }
+    if (!building) continue;
+    building.energyDatasets = links
+      .map((url) => parseDatasetSlug(url))
+      .filter((r): r is EnergyDatasetRef => r !== null);
   }
 
   // Operating costs
@@ -375,68 +287,13 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     }
   }
 
-  // Investor annual data from SOSA observations
-  // Keep URI lookup for direct matches and fall back to ID extraction so
-  // mixed URI styles (/buildings/<id> vs /granergize/building-<id>) still join.
-  const uriBuildingIdMap = new Map<string, string>();
-  for (const [id, b] of buildings.entries()) {
-    uriBuildingIdMap.set(b.uri as string, id);
-  }
-
-  // Group observations by normalized buildingId + year
-  const annualByKey = new Map<string, InvestorAnnualData>();
-
-  for (const [, od] of obsData.entries()) {
-    if (!od.featureOfInterest || !od.observedProperty) continue;
-
-    const buildingId = uriBuildingIdMap.get(od.featureOfInterest) ||
-      extractBuildingIdForJoin(od.featureOfInterest);
-    if (!buildingId) continue;
-    if (!buildings.has(buildingId)) continue;
-
-    let year: number | undefined;
-    if (od.timeBlank) {
-      const td = timeData.get(od.timeBlank);
-      if (td?.beginning) year = parseInt(td.beginning.substring(0, 4));
-    }
-    if (!year) continue;
-
-    let value: number | undefined;
-    if (od.resultBlank) {
-      value = resultData.get(od.resultBlank)?.value;
-    }
-    if (value === undefined) continue;
-
-    const key = `${buildingId}::${year}`;
-    if (!annualByKey.has(key)) annualByKey.set(key, { year });
-    const ann = annualByKey.get(key)!;
-
-    const propLocal = localName(od.observedProperty);
-    if (propLocal === "AnnualElectricityConsumption") {
-      ann.electricityConsumption = value;
-    } else if (propLocal === "RenewableSelfGeneratedShare") {
-      ann.renewableSelfGeneratedShare = value;
-    } else if (propLocal === "AnnualHeatConsumption") {
-      ann.heatConsumption = value;
-    } else if (propLocal === "AnnualWaterConsumption") {
-      ann.waterConsumption = value;
-    } else if (propLocal === "AnnualWastewaterConsumption") {
-      ann.wastewaterConsumption = value;
-    }
-  }
-
-  // Attach annual data to buildings, sorted by year
-  for (const [key, ann] of annualByKey.entries()) {
-    const buildingId = key.split("::")[0];
+  // Provenance (PROV qualified attribution)
+  for (const [blankId, buildingId] of provBuildingMap.entries()) {
     const building = buildings.get(buildingId);
-    if (!building) continue;
-    building.annualData = building.annualData || [];
-    (building.annualData as InvestorAnnualData[]).push(ann);
-  }
-  for (const building of buildings.values()) {
-    const ad = building.annualData as InvestorAnnualData[] | undefined;
-    if (ad && ad.length > 1) {
-      ad.sort((a, b) => a.year - b.year);
+    const pd = provData.get(blankId);
+    if (building && pd) {
+      if (pd.category) building.provenance = pd.category;
+      if (pd.agent) building.attributedTo = pd.agent;
     }
   }
 

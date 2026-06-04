@@ -1,12 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "./helpers/login.ts";
+import { account, hasAccount, login, LOGIN_HEADING } from "./helpers/login.ts";
 
 /**
  * Captures the in-app guide screenshots (public/guide/*.png) by driving the
- * logged-in app. Requires a THROWAWAY Solid Pod — never a real account — passed
- * via env so no credentials live in the repo (see e2e/README.md):
+ * logged-in app. Uses account **C** (the slow solidcommunity.net Pod) so the
+ * guide shows canonical solidcommunity.net WebIDs/URIs. THROWAWAY Pod only —
+ * never a real account — passed via env so no credentials live in the repo:
  *
- *   E2E_USERNAME=...  E2E_PASSWORD=...  [E2E_ISSUER=https://solidcommunity.net] \
+ *   E2E_USERNAME_C=...  E2E_PASSWORD_C=...  [E2E_ISSUER_C=https://solidcommunity.net] \
  *     npm run screenshots
  *
  * Skipped automatically when those env vars are absent (so CI / `npm run
@@ -14,7 +15,7 @@ import { account, hasAccount, login } from "./helpers/login.ts";
  *   npm run screenshots -- --headed
  */
 
-const A = account("A");
+const ACC = account("C");
 const OUT = "public/guide";
 
 async function shot(page: Page, name: string) {
@@ -23,14 +24,27 @@ async function shot(page: Page, name: string) {
 
 test.describe("guide screenshots", () => {
   test.skip(
-    !hasAccount(A),
-    "Set E2E_USERNAME and E2E_PASSWORD (a throwaway Solid Pod) to capture screenshots.",
+    !hasAccount(ACC),
+    "Set E2E_USERNAME_C and E2E_PASSWORD_C (a throwaway Solid Pod) to capture screenshots.",
   );
 
   test("capture", async ({ page }) => {
     test.setTimeout(240_000);
     await page.setViewportSize({ width: 1200, height: 900 });
-    await login(page, A);
+
+    // --- Login screen (captured BEFORE logging in) — guide step 3 (anmelden.png).
+    //     The Login component shows a ~2 s "Loading…" while it tries to restore a
+    //     previous session; on a fresh context that resolves to the IdP picker. ---
+    await page.goto("/");
+    await expect(
+      page.getByRole("heading", { name: LOGIN_HEADING }),
+    ).toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: /solidcommunity\.net/i }).first()
+      .waitFor({ timeout: 10_000 }).catch(() => {});
+    await page.waitForTimeout(500);
+    await shot(page, "anmelden.png");
+
+    await login(page, ACC);
 
     // --- Meet: be in a room with a role (seeds an empty Pod so the rest of the
     //     app has something to show) ---

@@ -1,14 +1,10 @@
-import { useState } from "react";
-import { guardedDialogClose } from "./dialogClose.ts";
+import { useEffect, useState } from "react";
+import Modal from "./Modal.tsx";
 import {
   Alert,
   Box,
   Button,
   Chip,
-  Dialog,
-  DialogActions,
-  DialogContent,
-  DialogTitle,
   Divider,
   IconButton,
   List,
@@ -16,6 +12,7 @@ import {
   ListItemSecondaryAction,
   ListItemText,
   TextField,
+  Tooltip,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -33,6 +30,7 @@ import {
   getMembers,
 } from "../services/interop/dataRoom.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { formatError } from "../services/utils/formatError.ts";
 import { ROLE_LABELS } from "../constants/roles.ts";
 
 interface ShareViewDialogProps {
@@ -99,10 +97,14 @@ export default function ShareViewDialog(
     }
   };
 
-  const handleEntered = () => {
+  // Load the current shares and data-room members when the dialog opens (the
+  // native <dialog> has no enter-transition hook to hang this off).
+  useEffect(() => {
+    if (!open) return;
     loadSharedUsers();
     loadMembers();
-  };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [open]);
 
   const handleProceedToConfirm = () => {
     const recipients = getRecipients();
@@ -138,7 +140,7 @@ export default function ShareViewDialog(
     try {
       const snapshotUrl = getSnapshotUrl(session.info.webId!, view.id);
       for (const recipient of recipients) {
-        await shareAggregatedView(snapshotUrl, view.id, recipient, session);
+        await shareAggregatedView(snapshotUrl, recipient, session);
       }
       setSuccessRecipients(recipients);
       setShareSuccess(true);
@@ -160,11 +162,15 @@ export default function ShareViewDialog(
 
     setLoading(true);
     try {
-      await revokeViewAccess(view.id, webId, session);
+      await revokeViewAccess(
+        getSnapshotUrl(session.info.webId, view.id),
+        webId,
+        session,
+      );
       showNotification("View access revoked", "success");
       loadSharedUsers();
     } catch (err) {
-      showNotification(`Failed to revoke access: ${err}`, "error");
+      showNotification(formatError("revoke access", err), "error");
     } finally {
       setLoading(false);
     }
@@ -181,26 +187,20 @@ export default function ShareViewDialog(
   };
 
   return (
-    <Dialog
+    <Modal
       open={open}
-      onClose={guardedDialogClose(handleClose, {
-        dirty: recipientWebId.trim() !== "",
-        busy: loading,
-      })}
-      maxWidth="sm"
-      fullWidth
-      TransitionProps={{ onEntered: handleEntered }}
+      onClose={handleClose}
+      dirty={recipientWebId.trim() !== ""}
+      busy={loading}
+      title={`Share "${view.name}"`}
+      actions={<Button onClick={handleClose}>Close</Button>}
     >
-      <DialogTitle>Share "{view.name}"</DialogTitle>
-
-      {loading && (
-        <DialogContent>
+      {loading
+        ? (
           <Typography variant="body2" color="text.secondary">Loading…</Typography>
-        </DialogContent>
-      )}
-
-      {!loading && (
-        <DialogContent>
+        )
+        : (
+        <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
             Share this aggregated view with another user by entering their
             WebID. They will receive read access to the computed snapshot
@@ -367,25 +367,26 @@ export default function ShareViewDialog(
                       }}
                     />
                     <ListItemSecondaryAction>
-                      <IconButton
-                        edge="end"
-                        size="small"
-                        onClick={() => handleRevoke(webId)}
-                        disabled={loading}
-                      >
-                        <DeleteIcon fontSize="small" />
-                      </IconButton>
+                      <Tooltip title="Revoke access">
+                        <span>
+                          <IconButton
+                            edge="end"
+                            size="small"
+                            aria-label="Revoke access"
+                            onClick={() => handleRevoke(webId)}
+                            disabled={loading}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </span>
+                      </Tooltip>
                     </ListItemSecondaryAction>
                   </ListItem>
                 ))}
               </List>
             )}
-        </DialogContent>
+        </>
       )}
-
-      <DialogActions>
-        <Button onClick={handleClose}>Close</Button>
-      </DialogActions>
-    </Dialog>
+    </Modal>
   );
 }

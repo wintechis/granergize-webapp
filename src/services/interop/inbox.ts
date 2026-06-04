@@ -1,204 +1,61 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
-import { registryUrl as registryUrlFor } from "../utils/solidUtils.ts";
-import { readModifyWrite } from "../utils/podWrite.ts";
+import { fetchFresh } from "../utils/podFetch.ts";
+import { loadProfileStore } from "../utils/profileDocument.ts";
+import {
+  appendSharingEvent,
+  parseSharingEvents,
+  sharedInUrl,
+} from "./sharingLog.ts";
 
+/**
+ * Drain the logged-in user's LDP inbox. Each message is a sharing event (a grant
+ * or revocation in the shared `interop:`/`prov:` shape — see {@link sharingLog}).
+ * We copy each into the user's append-only `shared-in/` log and delete the
+ * message. "Shared with me, now" is the fold of that log; enforcement stays in
+ * the sharer's `.acl` (a building whose grant was revoked 403s on load and is
+ * pruned, so a missed revocation self-heals).
+ */
 export async function readInbox(session: Session) {
-  if (!session.info.isLoggedIn) {
+  if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
   }
+  const myWebId = session.info.webId;
+  const sharedIn = sharedInUrl(myWebId);
 
-  console.log("Reading inbox for WebID:", session.info.webId);
+  const podInbox = await getInboxUrl(session);
+  const response = await fetchFresh(podInbox, session);
+  if (response.status !== 200) return;
 
-  const podInbox = await getInboxUrl(session.info.webId as string);
-
-  if (!session) {
-    console.error("Session is undefined");
-    throw new Error("Session is undefined");
-  }
-  const response = await session.fetch(podInbox, {
-    method: "GET",
-  });
-  if (response.status === 200) {
-    const inboxText = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: podInbox });
-    const quads = parser.parse(inboxText);
-    const store = new Store(quads);
-
-    const messageUrls = store.getQuads(
-      null,
-      DataFactory.namedNode("http://www.w3.org/ns/ldp#contains"),
-      null,
-      null,
-    ).map((q) => q.object.value);
-
-    // Process each message fully (fetch → parse → registry update → delete) before returning
-    await Promise.all(messageUrls.map(async (messageUrl) => {
-      const msgResponse = await session.fetch(messageUrl, { method: "GET" });
-      if (msgResponse.status !== 200) {
-        console.error(
-          `Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`,
-        );
-        return;
-      }
-
-      const msgText = await msgResponse.text();
-      const msgParser = new Parser({
-        format: "text/turtle",
-        baseIRI: messageUrl,
-      });
-      const msgStore = new Store(msgParser.parse(msgText));
-
-      const innerPromises: Promise<void>[] = [];
-
-      // Check if this message grants access to buildings data
-      msgStore.getQuads(
-        null,
-        DataFactory.namedNode(
-          "http://www.w3.org/ns/solid/interop#hasDataGrant",
-        ),
-        null,
-        null,
-      ).forEach((dataGrantQuad) => {
-        const grantNode = dataGrantQuad.subject;
-        const dataGrantNode = dataGrantQuad.object;
-
-        const roleQuads = msgStore.getQuads(
-          grantNode,
-          DataFactory.namedNode(
-            "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
-          ),
-          null,
-          null,
-        );
-        const roleIri =
-          roleQuads.length > 0 && roleQuads[0].object.termType === "NamedNode"
-            ? roleQuads[0].object.value
-            : undefined;
-
-        const forResourceQuads = msgStore.getQuads(
-          dataGrantNode,
-          DataFactory.namedNode(
-            "http://www.w3.org/ns/solid/interop#forResource",
-          ),
-          null,
-          null,
-        );
-        const accessModeQuads = msgStore.getQuads(
-          dataGrantNode,
-          DataFactory.namedNode(
-            "http://www.w3.org/ns/solid/interop#accessMode",
-          ),
-          null,
-          null,
-        );
-
-        forResourceQuads.forEach((forResourceQuad) => {
-          const resource = forResourceQuad.object.value;
-          accessModeQuads.forEach((accessModeQuad) => {
-            const accessMode = accessModeQuad.object.value;
-            console.log(
-              `Granted ${accessMode} access to resource: ${resource}` +
-                (roleIri ? ` (role: ${roleIri})` : ""),
-            );
-            innerPromises.push(
-              addResourceToRegistry(session, resource, accessMode, roleIri),
-            );
-          });
-        });
-      });
-
-      // Check for revocation messages
-      msgStore.getQuads(
-        null,
-        DataFactory.namedNode(
-          "http://www.w3.org/1999/02/22-rdf-syntax-ns#type",
-        ),
-        DataFactory.namedNode(
-          "http://www.w3.org/ns/solid/interop#AccessRevocation",
-        ),
-        null,
-      ).forEach((revocationQuad) => {
-        const revocationNode = revocationQuad.subject;
-        msgStore.getQuads(
-          revocationNode,
-          DataFactory.namedNode(
-            "http://www.w3.org/ns/solid/interop#forResource",
-          ),
-          null,
-          null,
-        ).forEach((forResourceQuad) => {
-          const resource = forResourceQuad.object.value;
-          console.log(`Revoking access to resource: ${resource}`);
-          innerPromises.push(removeResourceFromRegistry(session, resource));
-        });
-      });
-
-      // Await registry updates first, then delete the message
-      await Promise.all(innerPromises);
-      await removeMessageFromInbox(session, messageUrl, podInbox);
-    }));
-  }
-}
-
-async function removeResourceFromRegistry(session: Session, resource: string) {
-  const webId = session.info.webId!;
-  const registryUrl = registryUrlFor(webId);
-
-  const registryNode = DataFactory.namedNode(registryUrl);
-  const buildingSourcePredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource",
+  const store = new Store(
+    new Parser({ baseIRI: podInbox }).parse(await response.text()),
   );
-  const dataSourceRolePredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
-  );
-  const resourceNode = DataFactory.namedNode(resource);
+  const messageUrls = store.getQuads(
+    null,
+    DataFactory.namedNode("http://www.w3.org/ns/ldp#contains"),
+    null,
+    null,
+  ).map((q) => q.object.value);
 
-  await readModifyWrite(registryUrl, session, (store, { created }) => {
-    if (created) return false; // no registry → nothing to remove
-    store.getQuads(registryNode, buildingSourcePredicate, resourceNode, null)
-      .forEach((q) => store.removeQuad(q));
-    store.getQuads(resourceNode, dataSourceRolePredicate, null, null)
-      .forEach((q) => store.removeQuad(q));
-  });
-
-  console.log(`Removed resource ${resource} from registry at ${registryUrl}`);
-}
-
-async function addResourceToRegistry(
-  session: Session,
-  resource: string,
-  accessMode: string,
-  roleIri?: string,
-) {
-  console.log(
-    `Adding resource ${resource} with access mode ${accessMode} to registry` +
-      (roleIri ? ` (role: ${roleIri})` : ""),
-  );
-  const webId = session.info.webId!;
-  const registryUrl = registryUrlFor(webId);
-
-  const registryNode = DataFactory.namedNode(registryUrl);
-  const accessModeNode = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasBuildingDataSource",
-  );
-  const resourceNode = DataFactory.namedNode(resource);
-
-  await readModifyWrite(registryUrl, session, (store) => {
-    store.addQuad(registryNode, accessModeNode, resourceNode);
-    // Persist the role annotation as a side triple on the building URL if given.
-    if (roleIri) {
-      store.addQuad(
-        resourceNode,
-        DataFactory.namedNode(
-          "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#dataSourceRole",
-        ),
-        DataFactory.namedNode(roleIri),
+  // Process each message fully (fetch → record in shared-in/ → delete) so a
+  // re-read doesn't reprocess it. Distinct event resources, so appends are safe
+  // to do concurrently.
+  await Promise.all(messageUrls.map(async (messageUrl) => {
+    const msgResponse = await session.fetch(messageUrl, { method: "GET" });
+    if (msgResponse.status !== 200) {
+      console.error(
+        `Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`,
       );
+      return;
     }
-  });
-
-  console.log(`Successfully updated registry at ${registryUrl}`);
+    const msgStore = new Store(
+      new Parser({ baseIRI: messageUrl }).parse(await msgResponse.text()),
+    );
+    for (const event of parseSharingEvents(msgStore)) {
+      await appendSharingEvent(sharedIn, session, event);
+    }
+    await removeMessageFromInbox(session, messageUrl, podInbox);
+  }));
 }
 
 async function removeMessageFromInbox(
@@ -228,22 +85,51 @@ async function removeMessageFromInbox(
   console.log(`Successfully deleted message at ${messageUrl}`);
 }
 
-async function getInboxUrl(webId: string): Promise<string> {
-  const profileResponse = await fetch(webId);
-
-  if (!profileResponse.ok) {
-    console.error(
-      `Failed to fetch WebID profile: ${profileResponse.statusText}`,
-    );
+/**
+ * Resolve a *recipient's* LDP inbox from their WebID profile (for posting a
+ * sharing notification to someone else). Unlike {@link getInboxUrl} for the
+ * logged-in user, this fetches an arbitrary WebID document, so it can't use the
+ * session-cached profile store. Shared by the share / revoke flows.
+ */
+export async function getRecipientInboxUrl(
+  webId: string,
+  session: Session,
+): Promise<string> {
+  const res = await session.fetch(webId, { method: "GET" });
+  if (!res.ok) {
     throw new Error(
-      `Failed to fetch WebID profile: ${profileResponse.statusText}`,
+      `Failed to fetch WebID profile at ${webId}: ${res.statusText}`,
     );
   }
+  const store = new Store(
+    new Parser({ format: "text/turtle", baseIRI: webId }).parse(
+      await res.text(),
+    ),
+  );
+  const inboxQuads = store.getQuads(
+    DataFactory.namedNode(webId),
+    DataFactory.namedNode("http://www.w3.org/ns/ldp#inbox"),
+    null,
+    null,
+  );
+  if (inboxQuads.length === 0) {
+    throw new Error(`No inbox found for WebID ${webId}`);
+  }
+  return inboxQuads[0].object.value;
+}
 
-  const profileText = await profileResponse.text();
-  const parser = new Parser({ format: "text/turtle", baseIRI: webId });
-  const quads = parser.parse(profileText);
-  const store = new Store(quads);
+async function getInboxUrl(session: Session): Promise<string> {
+  const webId = session.info.webId;
+  if (!webId) throw new Error("Session has no WebID");
+
+  // Reuse the session-cached profile (loadProfileStore) instead of a bespoke
+  // global `fetch(webId)` — so the WebID document is read once per session and
+  // shared with storage-root / org / avatar reads, not re-downloaded here.
+  const store = await loadProfileStore(session);
+  if (!store) {
+    console.error("Failed to load WebID profile");
+    throw new Error("Failed to load WebID profile");
+  }
 
   const inboxPredicate = DataFactory.namedNode(
     "http://www.w3.org/ns/ldp#inbox",

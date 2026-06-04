@@ -2,11 +2,15 @@
 import { strict as assert } from "node:assert";
 import { DataFactory, Parser, Store } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
+import * as XLSX from "xlsx";
+import type { BuildingType } from "../../../types/types.ts";
 import {
-  addBuildingToRegistry,
+  annualDatasetsFromFields,
+  buildingsToXlsx,
+  buildingToXlsx,
   deleteBuilding,
   newBuildingUri,
-  removeBuildingFromRegistry,
+  parseCsvToFields,
   seedDemoBuildings,
   serializeBuildingToTurtle,
   synthDayReadings,
@@ -15,7 +19,12 @@ import {
 import { toggleBuildingVisibility } from "../interop/sharingManager.ts";
 import { parseBuildings } from "./buildingParser.ts";
 import { _setStorageRootForTesting, podResources } from "./solidUtils.ts";
-import { GRAN_NS, INVESTOR_NS, RDF_TYPE, SOSA_NS } from "./vocabularies.ts";
+import {
+  GRAN_NS,
+  INVESTOR_NS,
+  PROV_NS,
+  RDF_TYPE,
+} from "./vocabularies.ts";
 
 const { namedNode } = DataFactory;
 
@@ -25,8 +34,7 @@ const { namedNode } = DataFactory;
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");
 
-const REGISTRY_URL = podResources(WEBID).registry;
-const HIDDEN_URL = podResources(WEBID).hiddenBuildings;
+const PREFS_URL = podResources(WEBID).prefs;
 const REC_BUILDING = "https://w3id.org/rec#Building";
 
 /** Parse a Turtle string into an n3 Store (absolute IRIs, default graph). */
@@ -98,9 +106,6 @@ function makeSession(
   };
 }
 
-const REGISTRY_TTL =
-  `@prefix gran: <${GRAN_NS}> .\n<${REGISTRY_URL}> a gran:DataSourceRegistry .\n`;
-
 // ── serialize (the create path) ────────────────────────────────────────────────
 
 Deno.test("serializeBuildingToTurtle types the subject as rec:Building (capital B)", () => {
@@ -131,49 +136,292 @@ Deno.test("serializeBuildingToTurtle round-trips core fields through the parser"
   assert.equal(b!.long, 11.1);
 });
 
-Deno.test("serializeBuildingToTurtle declares PT15M + type on energy datasets, surfacing them on energyData", () => {
+Deno.test("serializeBuildingToTurtle links energy datasets via gran:hasEnergyDataset", () => {
   const uri = newBuildingUri(WEBID, "b-1");
-  const location = `${uri.replace(/\.ttl$/, "")}/energy/2024-06-03.ttl`;
-  const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, [
-    { date: "2024-06-03", location },
-  ]);
+  const base = uri.replace(/\.ttl$/, "");
+  const dsA = `${base}/energy/2024-P1Y.ttl#ds`;
+  const dsB = `${base}/energy/2024-PT15M.ttl#ds`;
+  const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, [dsA, dsB]);
 
-  // Raw shape: the dataset node declares granularity + type.
+  // Raw shape: one gran:hasEnergyDataset link per dataset (no inline energy).
   const store = parse(ttl);
-  const gran = store.getQuads(null, namedNode(`${GRAN_NS}granularity`), null, null);
-  assert.equal(gran.length, 1);
-  assert.equal(gran[0].object.value, "PT15M");
+  const links = store.getQuads(
+    null,
+    namedNode(`${GRAN_NS}hasEnergyDataset`),
+    null,
+    null,
+  );
+  assert.equal(links.length, 2);
 
-  // Parsed shape: it reaches building.energyData (which the loader dispatches on).
+  // Parsed shape: refs surface on building.energyDatasets (the loader dispatches
+  // on the granularity in the slug).
   const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
   assert.ok(b);
-  assert.equal(b!.energyData!.length, 1);
-  assert.equal(b!.energyData![0].granularity, "PT15M");
-  assert.equal(b!.energyData![0].type, "electricity");
-  assert.equal(b!.energyData![0].location, location);
+  assert.equal(b!.energyDatasets!.length, 2);
+  assert.deepEqual(
+    b!.energyDatasets!.map((d) => d.granularity).sort(),
+    ["P1Y", "PT15M"],
+  );
 });
 
-Deno.test("serializeBuildingToTurtle emits annual SOSA observations from _inv_* fields", () => {
-  const uri = newBuildingUri(WEBID, "b-1");
-  const ttl = serializeBuildingToTurtle(
-    { streetAddress: "X", _inv_elec_2023: "121500" },
-    uri,
-  );
-  const store = parse(ttl);
-  const obs = store.getQuads(
-    null,
-    namedNode(`${SOSA_NS}observedProperty`),
-    namedNode(`${INVESTOR_NS}AnnualElectricityConsumption`),
-    null,
-  );
-  assert.equal(obs.length, 1, "one annual electricity observation");
+Deno.test("annualDatasetsFromFields converts _inv_*/_bsp_* fields to annual P1Y datasets", () => {
+  const subj = `${newBuildingUri(WEBID, "b-1")}#b-1`;
+  const ds = annualDatasetsFromFields(subj, {
+    _inv_elec_2023: "121500",
+    _inv_heat_2023: "232000",
+    _bsp_year: "2024",
+    _bsp_water: "1500",
+  });
 
-  // And it parses back into the building's annualData.
+  const y2023 = ds.find((d) => d.year === 2023);
+  assert.ok(y2023, "investor 2023 dataset");
+  assert.equal(y2023!.granularity, "P1Y");
+  assert.equal(y2023!.scenario, "actual");
+  assert.equal(y2023!.metrics!.electricityConsumption, 121500);
+  assert.equal(y2023!.metrics!.heatConsumption, 232000);
+
+  const y2024 = ds.find((d) => d.year === 2024);
+  assert.ok(y2024, "benchmark 2024 dataset");
+  assert.equal(y2024!.metrics!.waterConsumption, 1500);
+});
+
+Deno.test("serializeBuildingToTurtle round-trips investor operating costs", () => {
+  const uri = newBuildingUri(WEBID, "b-1");
+  const ttl = serializeBuildingToTurtle({
+    streetAddress: "X",
+    _opcost_wasteDisposal: "Landlord",
+    _opcost_security: "All-Risk",
+    _opcost_operationInspectionAndMaintenance: "true",
+  }, uri);
+
+  // Raw shape: one investor:hasOperatingCosts blank node carries the categories.
+  const store = parse(ttl);
+  assert.equal(
+    store.getQuads(null, namedNode(`${INVESTOR_NS}hasOperatingCosts`), null, null)
+      .length,
+    1,
+  );
+
+  // Parsed shape: the values land on building.operatingCosts (boolean coerced).
   const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
   assert.ok(b);
-  const y2023 = b!.annualData!.find((a) => a.year === 2023);
-  assert.ok(y2023, "2023 annual entry present");
-  assert.equal(y2023!.electricityConsumption, 121500);
+  assert.ok(b!.operatingCosts);
+  assert.equal(b!.operatingCosts!.wasteDisposal, "Landlord");
+  assert.equal(b!.operatingCosts!.security, "All-Risk");
+  assert.equal(b!.operatingCosts!.operationInspectionAndMaintenance, true);
+});
+
+Deno.test("serializeBuildingToTurtle round-trips multiple building certifications", () => {
+  const uri = newBuildingUri(WEBID, "b-1");
+  const ttl = serializeBuildingToTurtle({
+    streetAddress: "X",
+    _cert_0_type: "BREEAM",
+    _cert_0_level: "Very Good",
+    _cert_0_scope: "WholeBuilding",
+    _cert_1_type: "DGNB",
+    _cert_1_level: "Gold",
+  }, uri);
+
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  assert.ok(b);
+  const certs = b!.certifications ?? [];
+  assert.equal(certs.length, 2);
+  const breeam = certs.find((c) => c.type === "BREEAM");
+  assert.ok(breeam, "BREEAM certification present");
+  assert.equal(breeam!.level, "Very Good");
+  assert.equal(breeam!.scope, "WholeBuilding");
+  const dgnb = certs.find((c) => c.type === "DGNB");
+  assert.ok(dgnb, "DGNB certification present");
+  assert.equal(dgnb!.level, "Gold");
+});
+
+Deno.test("parseCsvToFields extracts investor operating costs + certification, end-to-end", async () => {
+  // Minimal investor sheet: labels in col B, one building in col D (index 3).
+  const rows: (string | number)[][] = [
+    ["", "Gebäude-Code", "", "INV-1"],
+    ["", "Straße", "", "Teststraße 1"],
+    ["", "Abfallentsorgung", "", "Landlord"],
+    ["", "Betrieb, Inspektion und Wartung", "", "ja"],
+    ["", "Zertifizierung", "", "BREEAM"],
+    ["", "Zertifizierungslevel", "", "Very Good"],
+    ["", "Zertifizierungsumfang", "", "WholeBuilding"],
+  ];
+  const ws = XLSX.utils.aoa_to_sheet(rows);
+  const wb = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb, ws, "Sheet1");
+  const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  const file = new File([buf], "investor.xlsx");
+
+  const parsed = await parseCsvToFields(file, "investor");
+  assert.equal(parsed.length, 1);
+  const f = parsed[0];
+  assert.equal(f._opcost_wasteDisposal, "Landlord");
+  assert.equal(f._opcost_operationInspectionAndMaintenance, "true");
+  assert.equal(f._cert_0_type, "BREEAM");
+  assert.equal(f._cert_0_level, "Very Good");
+  assert.equal(f._cert_0_scope, "WholeBuilding");
+
+  // Full Excel → serialize → parse chain materialises them on the building.
+  const uri = newBuildingUri(WEBID, "inv-1");
+  const b = parseBuildings(new Parser().parse(serializeBuildingToTurtle(f, uri)))
+    .get("inv-1");
+  assert.ok(b);
+  assert.equal(b!.operatingCosts!.wasteDisposal, "Landlord");
+  assert.equal(b!.operatingCosts!.operationInspectionAndMaintenance, true);
+  assert.equal(b!.certifications!.length, 1);
+  assert.equal(b!.certifications![0].type, "BREEAM");
+  assert.equal(b!.certifications![0].level, "Very Good");
+  assert.equal(b!.certifications![0].scope, "WholeBuilding");
+});
+
+Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the building", async () => {
+  const building = {
+    id: 1,
+    uri: "https://pod.example/granergize/buildings/b-1.ttl#b-1",
+    provenance: "investor",
+    buildingCode: "B-1",
+    streetAddress: "Nordostpark 84",
+    yearOfConstruction: 1998,
+    shiftRegime: "1-Shift", // stored as a label; normalises back on import
+    annualData: [
+      { year: 2023, electricityConsumption: 121500, heatConsumption: 232000 },
+    ],
+    operatingCosts: {
+      wasteDisposal: "Landlord",
+      operationInspectionAndMaintenance: true,
+    },
+    certifications: [{ type: "BREEAM", level: "Very Good", scope: "WholeBuilding" }],
+  } as unknown as BuildingType;
+
+  // Export → bytes → re-import via the investor path.
+  const file = new File([buildingToXlsx(building)], "b-1.xlsx");
+  const parsed = await parseCsvToFields(file, "investor");
+  assert.equal(parsed.length, 1);
+  const f = parsed[0];
+  assert.equal(f.streetAddress, "Nordostpark 84");
+  assert.equal(f.yearOfConstruction, "1998");
+  assert.equal(f.shiftRegime, "OneShift");
+  assert.equal(f._inv_elec_2023, "121500");
+  assert.equal(f._opcost_wasteDisposal, "Landlord");
+  assert.equal(f._opcost_operationInspectionAndMaintenance, "true");
+  assert.equal(f._cert_0_type, "BREEAM");
+
+  // …and serialize → parse reproduces the building's modelled data.
+  const uri = newBuildingUri(WEBID, "b-1");
+  const rt = parseBuildings(new Parser().parse(serializeBuildingToTurtle(f, uri)))
+    .get("b-1");
+  assert.ok(rt);
+  assert.equal(rt!.streetAddress, "Nordostpark 84");
+  assert.equal(rt!.shiftRegime, "1-Shift");
+  assert.equal(rt!.operatingCosts!.wasteDisposal, "Landlord");
+  assert.equal(rt!.certifications![0].type, "BREEAM");
+  // Energy now lives in separate dataset resources; the imported fields convert
+  // to the right annual dataset.
+  assert.equal(
+    annualDatasetsFromFields(`${uri}#b-1`, f).find((d) => d.year === 2023)!
+      .metrics!.electricityConsumption,
+    121500,
+  );
+});
+
+Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping via generic import", async () => {
+  const buildings = [
+    {
+      id: 1,
+      provenance: "investor",
+      streetAddress: "A-Straße 1",
+      yearOfConstruction: 1990,
+      annualData: [{ year: 2023, electricityConsumption: 1000 }],
+      operatingCosts: { wasteDisposal: "Landlord" },
+      certifications: [{ type: "BREEAM", level: "Very Good" }],
+    },
+    {
+      id: 2,
+      provenance: "benchmark_service_provider",
+      streetAddress: "B-Weg 2",
+      annualData: [{
+        year: 2024,
+        electricityConsumption: 2000,
+        wastewaterConsumption: 50,
+      }],
+    },
+  ] as unknown as BuildingType[];
+
+  // One sheet, two data rows (one per building).
+  const wb = XLSX.read(new Uint8Array(buildingsToXlsx(buildings)), {
+    type: "array",
+  });
+  assert.deepEqual(wb.SheetNames, ["Gebäude"]);
+  const sheetRows = XLSX.utils.sheet_to_json<Record<string, string>>(
+    wb.Sheets["Gebäude"],
+    { raw: false, defval: "" },
+  );
+  assert.equal(sheetRows.length, 2);
+  assert.equal(sheetRows[0].streetAddress, "A-Straße 1");
+  assert.equal(sheetRows[1].streetAddress, "B-Weg 2");
+
+  // The unified sheet re-imports (generic path) and serialize→parse reproduces
+  // each building's master data, energy, operating costs and certification.
+  const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
+  const parsed = await parseCsvToFields(new File([buf], "all.xlsx"), "user");
+  assert.equal(parsed.length, 2);
+
+  const rt = (f: Record<string, string>, id: string) =>
+    parseBuildings(new Parser().parse(
+      serializeBuildingToTurtle(f, newBuildingUri(WEBID, id)),
+    )).get(id);
+
+  const b1 = rt(parsed[0], "b-1");
+  assert.ok(b1);
+  assert.equal(b1!.streetAddress, "A-Straße 1");
+  assert.equal(b1!.operatingCosts!.wasteDisposal, "Landlord");
+  assert.equal(b1!.certifications![0].type, "BREEAM");
+  assert.equal(
+    annualDatasetsFromFields("b-1#b-1", parsed[0]).find((d) => d.year === 2023)!
+      .metrics!.electricityConsumption,
+    1000,
+  );
+
+  const b2 = rt(parsed[1], "b-2");
+  assert.ok(b2);
+  assert.equal(b2!.streetAddress, "B-Weg 2");
+  assert.equal(
+    annualDatasetsFromFields("b-2#b-2", parsed[1]).find((d) => d.year === 2024)!
+      .metrics!.wastewaterConsumption,
+    50,
+  );
+});
+
+Deno.test("serializeBuildingToTurtle round-trips PROV provenance (attribution + hadRole)", () => {
+  const uri = newBuildingUri(WEBID, "b-1");
+  const agent = "https://pod.example/profile/card#me";
+  const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, undefined, {
+    agent,
+    category: "investor",
+  });
+
+  // Raw shape: a prov:qualifiedAttribution blank node with agent + hadRole.
+  const store = parse(ttl);
+  assert.equal(
+    store.getQuads(
+      null,
+      namedNode(`${PROV_NS}qualifiedAttribution`),
+      null,
+      null,
+    ).length,
+    1,
+  );
+  assert.equal(
+    store.getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)[0].object
+      .value,
+    `${GRAN_NS}InvestorRole`,
+  );
+
+  // Parsed shape: provenance + attributedTo land on the building.
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  assert.ok(b);
+  assert.equal(b!.provenance, "investor");
+  assert.equal(b!.attributedTo, agent);
 });
 
 // ── upload + registry (write to the Pod) ────────────────────────────────────────
@@ -191,35 +439,18 @@ Deno.test("uploadBuilding PUTs the Turtle to the building URI", async () => {
   assert.equal(store[uri], ttl);
 });
 
-Deno.test("addBuildingToRegistry appends the source + role and PUTs the registry", async () => {
-  const { session, store } = makeSession({ [REGISTRY_URL]: REGISTRY_TTL });
-  const uri = newBuildingUri(WEBID, "b-1");
-
-  await addBuildingToRegistry(session, WEBID, uri, "investor");
-
-  const reg = parse(store[REGISTRY_URL]);
-  assert.equal(
-    reg.getQuads(null, namedNode(`${GRAN_NS}hasBuildingDataSource`), namedNode(uri), null).length,
-    1,
-    "registry lists the new building source",
-  );
-  const roleQuads = reg.getQuads(namedNode(uri), namedNode(`${GRAN_NS}dataSourceRole`), null, null);
-  assert.equal(roleQuads.length, 1);
-  assert.equal(roleQuads[0].object.value, `${GRAN_NS}InvestorRole`);
-});
-
 // ── hide / unhide (the "delete" path) ───────────────────────────────────────────
 
 Deno.test("toggleBuildingVisibility hides a visible building", async () => {
-  const { session, store } = makeSession(); // no hidden file yet → 404
+  const { session, store } = makeSession(); // no prefs file yet → 404
   const buildingUri = "https://other.example/granergize/buildings/x.ttl#x";
 
   await toggleBuildingVisibility(buildingUri, session);
 
-  const hidden = parse(store[HIDDEN_URL]);
+  const hidden = parse(store[PREFS_URL]);
   assert.equal(
     hidden.getQuads(
-      namedNode(HIDDEN_URL),
+      namedNode(PREFS_URL),
       namedNode(`${GRAN_NS}hiddenBuilding`),
       namedNode(buildingUri),
       null,
@@ -232,12 +463,12 @@ Deno.test("toggleBuildingVisibility hides a visible building", async () => {
 Deno.test("toggleBuildingVisibility unhides an already-hidden building", async () => {
   const buildingUri = "https://other.example/granergize/buildings/x.ttl#x";
   const existing =
-    `@prefix gran: <${GRAN_NS}> .\n<${HIDDEN_URL}> gran:hiddenBuilding <${buildingUri}> .\n`;
-  const { session, store } = makeSession({ [HIDDEN_URL]: existing });
+    `@prefix gran: <${GRAN_NS}> .\n<${PREFS_URL}> gran:hiddenBuilding <${buildingUri}> .\n`;
+  const { session, store } = makeSession({ [PREFS_URL]: existing });
 
   await toggleBuildingVisibility(buildingUri, session);
 
-  const hidden = parse(store[HIDDEN_URL]);
+  const hidden = parse(store[PREFS_URL]);
   assert.equal(
     hidden.getQuads(null, namedNode(`${GRAN_NS}hiddenBuilding`), null, null).length,
     0,
@@ -259,7 +490,7 @@ Deno.test("synthDayReadings yields a full UTC day of 15-minute slots", () => {
 });
 
 Deno.test("seedDemoBuildings seeds two buildings with different granularities", async () => {
-  const { session, calls, store } = makeSession({ [REGISTRY_URL]: REGISTRY_TTL });
+  const { session, calls } = makeSession();
 
   // Stub the geocoder (global fetch) so the seed runs offline.
   const realFetch = globalThis.fetch;
@@ -289,83 +520,58 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   );
   assert.equal(buildingPuts.length, 2, "two demo buildings uploaded");
 
-  // Exactly one daily 15-minute energy file written (for the series building).
+  // Exactly one daily 15-minute reading file, inside the series container.
   const energyPuts = calls.filter((c) =>
-    c.method === "PUT" && c.url.endsWith("/energy/2024-06-03.ttl")
+    c.method === "PUT" && c.url.endsWith("/2024-PT15M/2024-06-03.ttl")
   );
-  assert.equal(energyPuts.length, 1, "one 15-min energy file uploaded");
+  assert.equal(energyPuts.length, 1, "one 15-min daily reading file uploaded");
 
-  // The two buildings carry different granularities: one PT15M series, one annual.
+  // Energy is NOT inline: each building links its datasets via gran:hasEnergyDataset.
+  // One links a PT15M series; the other links P1Y annual datasets.
   const bodies = buildingPuts.map((c) => c.body ?? "");
   assert.equal(
-    bodies.filter((b) => b.includes("PT15M")).length,
+    bodies.filter((b) => b.includes("hasEnergyDataset") && b.includes("PT15M"))
+      .length,
     1,
-    "exactly one building declares the PT15M series",
+    "exactly one building links a PT15M series dataset",
   );
   assert.equal(
-    bodies.filter((b) => b.includes("AnnualElectricityConsumption")).length,
+    bodies.filter((b) => b.includes("hasEnergyDataset") && b.includes("-P1Y"))
+      .length,
     1,
-    "exactly one building carries inline annual observations",
+    "exactly one building links P1Y annual datasets",
   );
 
-  // The registry accumulated both sources, one per role (provenance).
-  const reg = parse(store[REGISTRY_URL]);
-  const roles = reg
-    .getQuads(null, namedNode(`${GRAN_NS}dataSourceRole`), null, null)
+  // The annual aggregate's figures live in their own gran:EnergyDataset resources
+  // (unified metric IRIs), not inline in the building file.
+  const annualFiles = calls
+    .filter((c) => c.method === "PUT" && /\/energy\/\d{4}-P1Y\.ttl$/.test(c.url))
+    .map((c) => c.body ?? "");
+  assert.ok(annualFiles.length >= 1, "annual dataset resources written");
+  assert.ok(
+    annualFiles.some((b) => b.includes("ElectricityConsumption")),
+    "an annual dataset declares gran:ElectricityConsumption",
+  );
+
+  // Provenance is in the building files as a PROV qualified attribution; the
+  // buildings are discovered by listing the container, so there's no registry.
+  const hadRoles = bodies
+    .flatMap((b) =>
+      parse(b).getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)
+    )
     .map((q) => q.object.value)
     .sort();
-  assert.deepEqual(roles, [`${GRAN_NS}InvestorRole`, `${GRAN_NS}UserRoleInstance`]);
+  assert.deepEqual(hadRoles, [
+    `${GRAN_NS}InvestorRole`,
+    `${GRAN_NS}UserRoleInstance`,
+  ]);
 });
 
 // ── delete a building (hard delete) ─────────────────────────────────────────────
 
-Deno.test("removeBuildingFromRegistry drops both the source and role triples", async () => {
-  const a = newBuildingUri(WEBID, "a");
-  const b = newBuildingUri(WEBID, "b");
-  const reg = `@prefix gran: <${GRAN_NS}> .
-<${REGISTRY_URL}> a gran:DataSourceRegistry ;
-  gran:hasBuildingDataSource <${a}>, <${b}> .
-<${a}> gran:dataSourceRole gran:UserRoleInstance .
-<${b}> gran:dataSourceRole gran:InvestorRole .
-`;
-  const { session, store } = makeSession({ [REGISTRY_URL]: reg });
-
-  await removeBuildingFromRegistry(session, WEBID, a);
-
-  const r = parse(store[REGISTRY_URL]);
-  assert.equal(
-    r.getQuads(null, namedNode(`${GRAN_NS}hasBuildingDataSource`), namedNode(a), null).length,
-    0,
-    "removed building's source link is gone",
-  );
-  assert.equal(
-    r.getQuads(namedNode(a), namedNode(`${GRAN_NS}dataSourceRole`), null, null).length,
-    0,
-    "removed building's role triple is gone",
-  );
-  // The other building is untouched.
-  assert.equal(
-    r.getQuads(null, namedNode(`${GRAN_NS}hasBuildingDataSource`), namedNode(b), null).length,
-    1,
-    "the other building is preserved",
-  );
-});
-
-Deno.test("removeBuildingFromRegistry is a no-op when there is no registry", async () => {
-  const { session } = makeSession(); // GET registry → 404
-  await removeBuildingFromRegistry(session, WEBID, newBuildingUri(WEBID, "a"));
-  // no throw == pass
-});
-
-Deno.test("deleteBuilding de-registers and deletes the building file", async () => {
+Deno.test("deleteBuilding deletes the building file (de-registering it by listing)", async () => {
   const uri = newBuildingUri(WEBID, "gone");
-  const reg = `@prefix gran: <${GRAN_NS}> .
-<${REGISTRY_URL}> a gran:DataSourceRegistry ;
-  gran:hasBuildingDataSource <${uri}> .
-<${uri}> gran:dataSourceRole gran:UserRoleInstance .
-`;
   const { session, calls, store } = makeSession({
-    [REGISTRY_URL]: reg,
     [uri]: "<#gone> a <x> .",
   });
 
@@ -375,12 +581,6 @@ Deno.test("deleteBuilding de-registers and deletes the building file", async () 
   assert.ok(
     calls.some((c) => c.method === "DELETE" && c.url === uri),
     "a DELETE was issued for the building file",
-  );
-  const r = parse(store[REGISTRY_URL]);
-  assert.equal(
-    r.getQuads(null, namedNode(`${GRAN_NS}hasBuildingDataSource`), namedNode(uri), null).length,
-    0,
-    "building no longer registered",
   );
 });
 

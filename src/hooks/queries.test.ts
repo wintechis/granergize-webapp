@@ -18,38 +18,41 @@ const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
 const WEBID = "https://pod.example/profile/card#me";
 const PROFILE = "https://pod.example/profile/card";
 const REG = "https://pod.example/granergize/dataSources.ttl";
-const HIDDEN = "https://pod.example/granergize/hiddenBuildings.ttl";
+const PREFS = "https://pod.example/granergize/prefs.ttl";
 const SHARING = "https://pod.example/granergize/sharingRegistry.ttl";
 const B1 = "https://pod.example/granergize/buildings/b1.ttl";
-const AGENTS = "https://pod.example/granergize/agents.ttl";
-const ENERGY = "https://pod.example/granergize/buildings/b1-energy.ttl";
+const BUILDINGS_CONTAINER = "https://pod.example/granergize/buildings/";
+const ENERGY = "https://pod.example/granergize/buildings/b1/energy/2024-P1Y.ttl";
 
 const FIXTURES: Record<string, string> = {
   [PROFILE]: `@prefix space: <http://www.w3.org/ns/pim/space#> .
 <#me> space:storage </> .`,
+  // Own buildings are discovered by listing the buildings/ container.
+  [BUILDINGS_CONTAINER]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${BUILDINGS_CONTAINER}> ldp:contains <${B1}> .`,
+  // dataSources.ttl now holds only shared-in sources (none here).
   [REG]: `@prefix gran: <${GRAN}> .
-<${REG}> a gran:DataSourceRegistry ;
-  gran:hasBuildingDataSource <${B1}> ;
-  gran:hasAgentDataSource <${AGENTS}> .
-<${B1}> gran:dataSourceRole gran:DummyRole .`,
-  [HIDDEN]: "",
+<${REG}> a gran:DataSourceRegistry .`,
+  [PREFS]: "",
   [SHARING]: "",
   [B1]: `@prefix gran: <${GRAN}> .
 @prefix rec: <https://w3id.org/rec#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <#b1> a rec:Building ; geo:lat 49.0 ; geo:long 11.0 ;
-  gran:hasEnergyMeasurementData [
-    gran:measurementYear "2023" ;
-    gran:datasetLocation "${ENERGY}" ;
-    gran:type "electricity"
-  ] .`,
-  [AGENTS]: `@prefix schema: <https://schema.org/> .
-<#a1> schema:name "ACME Energy" .`,
-  [ENERGY]: `@prefix sosa: <http://www.w3.org/ns/sosa/> .
-@prefix gran: <${GRAN}> .
-<#obs1> a sosa:Observation ;
-  sosa:observedProperty gran:Electricity ;
-  sosa:hasResult [ sosa:hasSimpleResult 1000 ] .`,
+  gran:hasEnergyDataset <${ENERGY}#ds> .`,
+  [ENERGY]: `@prefix gran: <${GRAN}> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix ssn: <http://www.w3.org/ns/ssn/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix unit: <https://qudt.org/vocab/unit#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<#ds> a gran:EnergyDataset , sosa:ObservationCollection ;
+  gran:granularity "P1Y" ; gran:scenario gran:Actual ;
+  sosa:phenomenonTime [ a time:Interval ;
+    time:hasBeginning "2024-01-01"^^xsd:date ; time:hasEnd "2024-12-31"^^xsd:date ] ;
+  sosa:hasMember [ a sosa:Observation ;
+    sosa:observedProperty gran:ElectricityConsumption ;
+    sosa:hasResult [ sosa:hasSimpleResult "1000"^^xsd:decimal ; ssn:hasUnit unit:KiloW-HR ] ] .`,
 };
 
 /** A fake logged-in session serving the fixtures above (query string ignored). */
@@ -100,8 +103,7 @@ Deno.test("useBuildingsAndAgents loads + parses from the session", async () => {
     const { result } = renderHook(() => useBuildingsAndAgents(), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
     assert.equal(result.current.data?.buildings.length, 1);
-    assert.equal(result.current.data?.agents.length, 1);
-    assert.equal(result.current.data?.agents[0].name, "ACME Energy");
+    assert.equal(result.current.data?.agents.length, 0); // agents source dropped
   } finally {
     _setSessionForTesting(null);
   }
@@ -115,7 +117,7 @@ Deno.test("useSolidData merges phase-1 buildings + phase-2 energy", async () => 
     const { result } = renderHook(() => useSolidData(), { wrapper });
     await waitFor(() => assert.equal(result.current.buildings.length, 1));
     await waitFor(() => assert.equal(result.current.energyNeed.length, 1));
-    assert.equal(result.current.energyNeed[0].energyNeed.electricity, 1000);
+    assert.equal(result.current.energyNeed[0].energyNeed.Electricity, 1000);
   } finally {
     _setSessionForTesting(null);
   }

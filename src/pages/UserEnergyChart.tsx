@@ -5,23 +5,48 @@ import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import type { ChartData, ChartOptions } from "chart.js";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { EnergyMeasurementData } from "../../types/types.ts";
+import type { EnergyDatasetRef } from "../../types/types.ts";
 import { parseTtlReadings } from "../services/utils/userEnergyParser.ts";
+import { listDirectChildren } from "../services/utils/podDelete.ts";
 
 interface UserEnergyChartProps {
-  availableDates: EnergyMeasurementData[];
+  seriesDatasets: EnergyDatasetRef[];
   session: Session;
 }
 
 export default function UserEnergyChart(
-  { availableDates, session }: UserEnergyChartProps,
+  { seriesDatasets, session }: UserEnergyChartProps,
 ) {
-  const dateEntries = availableDates
-    .map((d) => ({
-      label: d.location.split("/").pop()?.replace(".ttl", "") ?? d.location,
-      location: d.location,
-    }))
-    .sort((a, b) => a.label.localeCompare(b.label));
+  // The daily reading files live in each series descriptor's container; list
+  // them (async) to build the date/month pickers.
+  const [dateEntries, setDateEntries] = useState<
+    Array<{ label: string; location: string }>
+  >([]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      const entries: Array<{ label: string; location: string }> = [];
+      for (const ref of seriesDatasets) {
+        // Descriptor `…/<year>-PT15M.ttl` → sibling `…/<year>-PT15M/` container.
+        const container = ref.url.split("#")[0].replace(/\.ttl$/, "/");
+        const children = (await listDirectChildren(container, session)) ?? [];
+        for (const url of children) {
+          if (!url.endsWith(".ttl")) continue;
+          entries.push({
+            label: url.split("/").pop()!.replace(".ttl", ""),
+            location: url,
+          });
+        }
+      }
+      entries.sort((a, b) => a.label.localeCompare(b.label));
+      if (!cancelled) setDateEntries(entries);
+    })();
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   const availableMonths = [
     ...new Set(dateEntries.map((d) => d.label.substring(0, 7))),
@@ -29,9 +54,7 @@ export default function UserEnergyChart(
 
   // ── Tab 0: Day View ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
-  const [selectedLabel, setSelectedLabel] = useState<string>(
-    dateEntries[0]?.label ?? "",
-  );
+  const [selectedLabel, setSelectedLabel] = useState<string>("");
   const [readings, setReadings] = useState<
     Array<{ begin: string; value: number }>
   >([]);
@@ -69,9 +92,20 @@ export default function UserEnergyChart(
   }, [selectedLabel]);
 
   // ── Tabs 1 & 2: Monthly bulk fetch ───────────────────────────────────────
-  const [selectedMonth, setSelectedMonth] = useState<string>(
-    availableMonths[availableMonths.length - 1] ?? "",
-  );
+  const [selectedMonth, setSelectedMonth] = useState<string>("");
+
+  // Once the daily files are listed, default the pickers to the first day /
+  // latest month (the listing arrives async, after the initial render).
+  useEffect(() => {
+    if (dateEntries.length === 0) return;
+    if (!dateEntries.find((d) => d.label === selectedLabel)) {
+      setSelectedLabel(dateEntries[0].label);
+    }
+    if (!availableMonths.includes(selectedMonth)) {
+      setSelectedMonth(availableMonths[availableMonths.length - 1]);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [dateEntries]);
   const [allDaysData, setAllDaysData] = useState<
     Map<string, Array<{ begin: string; value: number }>> | null
   >(null);

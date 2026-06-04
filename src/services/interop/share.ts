@@ -1,19 +1,16 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { recordSharing, recordViewSharing } from "./sharingManager.ts";
+import { getRecipientInboxUrl } from "./inbox.ts";
+import { buildSharingEventTurtle } from "./sharingLog.ts";
 import type { UserRole } from "../../../types/types.ts";
 import { ACL_NS, GRAN_NS, RDF_TYPE } from "../utils/vocabularies.ts";
-
-const ROLE_TO_IRI: Record<string, string> = {
-  dummy: `${GRAN_NS}DummyRole`,
-  investor: `${GRAN_NS}InvestorRole`,
-  user: `${GRAN_NS}UserRoleInstance`,
-  benchmark_service_provider: `${GRAN_NS}BenchmarkRole`,
-};
+import { parseDatasetSlug } from "../utils/energyDataset.ts";
+import { isSeriesGranularity } from "../utils/durationUtils.ts";
 
 export interface ShareOptions {
   includeEnergyData: boolean;
-  /** The role for which this building data is being shared */
+  /** Deprecated/ignored: provenance now lives in the building file (PROV). */
   role?: UserRole;
 }
 
@@ -26,37 +23,24 @@ export async function shareBuildingData(
   // Always share the building's static data
   await grantReadAccess(buildingUri.split("#")[0], webId, session);
 
-  // Conditionally share energy data based on options
+  // Conditionally share energy data: grant access to each gran:EnergyDataset
+  // resource (annual file / series descriptor), plus a series' daily-files
+  // container (with acl:default, so the files inside are covered).
   if (options.includeEnergyData) {
-    const energyUrls = await getEnergyDataUrls(
-      buildingUri.split("#")[0],
-      session,
-    );
-    if (energyUrls.length === 0) {
-      // Energy data is inline in the building file (e.g. investor role) — already shared above
-      console.log(
-        `[shareBuildingData] No separate energy file found; data is inline in building TTL`,
-      );
-    } else if (
-      !options.role || options.role === "dummy" || options.role === "investor"
-    ) {
-      // Single file (dummy/investor role) - share the file directly
-      await grantReadAccess(energyUrls[0].split("#")[0], webId, session);
-    } else {
-      // Multiple daily files (user role) - share the parent container once
-      // All URLs share a common directory, so derive it from the first URL
-      const containerUrl = energyUrls[0].substring(
-        0,
-        energyUrls[0].lastIndexOf("/") + 1,
-      );
-      await grantReadAccess(containerUrl, webId, session, true);
+    for (const t of await getEnergyDataUrls(buildingUri.split("#")[0], session)) {
+      await grantReadAccess(t.url, webId, session, t.isContainer);
     }
   }
 
   await postToInbox(buildingUri.split("#")[0], webId, session, options);
 
-  // Record the sharing in our registry
-  await recordSharing(buildingUri.split("#")[0], webId, session);
+  // Record the outgoing share in our append-only shared-out/ log.
+  await recordSharing(
+    buildingUri.split("#")[0],
+    webId,
+    session,
+    options.includeEnergyData,
+  );
 }
 
 async function postToInbox(
@@ -65,69 +49,23 @@ async function postToInbox(
   session: Session,
   options: ShareOptions,
 ) {
-  const parser = new Parser({ format: "text/turtle", baseIRI: webId });
-  const profileResponse = await session.fetch(webId, { method: "GET" });
+  const inboxUrl = await getRecipientInboxUrl(webId, session);
 
-  if (!profileResponse.ok) {
-    throw new Error(
-      `Failed to fetch WebID profile at ${webId}: ${profileResponse.statusText}`,
-    );
-  }
+  // The inbox message IS a sharing event (the recipient archives it into their
+  // shared-in/ log on readInbox) — same shape as shared-out/.
+  const message = buildSharingEventTurtle({
+    type: "grant",
+    owner: session.info.webId!,
+    grantee: webId,
+    resource: buildingUri,
+    kind: "Building",
+    includesEnergy: options.includeEnergyData,
+    at: new Date().toISOString(),
+  });
 
-  const profileText = await profileResponse.text();
-  const quads = parser.parse(profileText);
-  const store = new Store(quads);
-
-  const inboxPredicate = DataFactory.namedNode(
-    "http://www.w3.org/ns/ldp#inbox",
-  );
-  const webIdNode = DataFactory.namedNode(webId);
-  const inboxQuads = store.getQuads(
-    webIdNode,
-    inboxPredicate,
-    null,
-    null,
-  );
-
-  if (inboxQuads.length === 0) {
-    throw new Error(`No inbox found for WebID ${webId}`);
-  }
-
-  const inboxUrl = inboxQuads[0].object.value;
-
-  // Build optional role triple
-  const roleIri = options.role
-    ? (ROLE_TO_IRI[options.role] ?? `${GRAN_NS}DummyRole`)
-    : null;
-  const roleTriple = roleIri ? `\n    gran:dataSourceRole <${roleIri}> ;` : "";
-
-  // Create the notification message
-  const message = `
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix acl: <http://www.w3.org/ns/auth/acl#> .
-@prefix interop: <http://www.w3.org/ns/solid/interop#> .
-@prefix gran: <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
-
-<#grant${Date.now()}>
-    a interop:AccessGrant ;
-    interop:grantedBy <${session.info.webId}> ;
-    interop:grantedAt "${new Date().toISOString()}"^^xsd:dateTime ;
-    interop:grantee <${webId}> ;
-    interop:includesEnergyData "${options.includeEnergyData}"^^xsd:boolean ;${roleTriple}
-    interop:hasDataGrant
-        [ a interop:DataGrant ;
-          interop:forResource <${buildingUri}> ;
-          interop:accessMode acl:Read
-        ] .`;
-
-  // Post the message to the inbox
   const postResponse = await session.fetch(inboxUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "text/turtle",
-    },
+    headers: { "Content-Type": "text/turtle" },
     body: message,
   });
 
@@ -136,100 +74,45 @@ async function postToInbox(
       `Failed to post message to inbox at ${inboxUrl}: ${postResponse.statusText}`,
     );
   }
-
-  console.log(
-    `Successfully posted access grant message to inbox at ${inboxUrl}`,
-  );
 }
 
+/**
+ * The energy resources to grant access to when sharing a building: each
+ * `gran:EnergyDataset` resource (annual `.ttl` or series descriptor), plus — for
+ * a series — its daily-files container (granted with `acl:default`, covering the
+ * files inside). Derived from the building's `gran:hasEnergyDataset` link slugs.
+ */
 async function getEnergyDataUrls(
   buildingUri: string,
   session: Session,
-): Promise<string[]> {
-  const parser = new Parser({ format: "text/turtle", baseIRI: buildingUri });
+): Promise<Array<{ url: string; isContainer: boolean }>> {
   const buildingResponse = await session.fetch(buildingUri, { method: "GET" });
-
   if (!buildingResponse.ok) {
     throw new Error(
       `Failed to fetch building data at ${buildingUri}: ${buildingResponse.statusText}`,
     );
   }
-
-  const buildingText = await buildingResponse.text();
-  const quads = parser.parse(buildingText);
-  const store = new Store(quads);
-
-  console.log(`[getEnergyDataUrls] all predicates:`, [
-    ...new Set(
-      store.getQuads(null, null, null, null).map((q) => q.predicate.value),
-    ),
-  ]);
-  const datasetLocationPredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#datasetLocation",
+  const store = new Store(
+    new Parser({ baseIRI: buildingUri }).parse(await buildingResponse.text()),
   );
 
-  // Dummy/Investor role: single energy file via hasEnergyMeasurementData
-  const energyDataPredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyMeasurementData",
-  );
-  const measurementQuads = store.getQuads(
-    null,
-    energyDataPredicate,
-    null,
-    null,
-  );
-  console.log(
-    `[getEnergyDataUrls] hasEnergyMeasurementData quads (${measurementQuads.length}):`,
-    measurementQuads.map((q) => `${q.subject.value} → ${q.object.value}`),
-  );
-  if (measurementQuads.length > 0) {
-    const blankNode = measurementQuads[0].object;
-    const locationQuads = store.getQuads(
-      blankNode,
-      datasetLocationPredicate,
+  const targets: Array<{ url: string; isContainer: boolean }> = [];
+  for (
+    const link of store.getObjects(
       null,
+      DataFactory.namedNode(`${GRAN_NS}hasEnergyDataset`),
       null,
-    );
-    console.log(
-      `[getEnergyDataUrls] datasetLocation quads for blank node (${locationQuads.length}):`,
-      locationQuads.map((q) => q.object.value),
-    );
-    if (locationQuads.length > 0) {
-      return [locationQuads[0].object.value];
+    )
+  ) {
+    const ref = parseDatasetSlug(link.value);
+    if (!ref) continue;
+    const file = link.value.split("#")[0];
+    targets.push({ url: file, isContainer: false });
+    if (isSeriesGranularity(ref.granularity)) {
+      targets.push({ url: file.replace(/\.ttl$/, "/"), isContainer: true });
     }
   }
-
-  // User role: multiple daily files via hasEnergyConsumptionDataset
-  const consumptionDataPredicate = DataFactory.namedNode(
-    "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#hasEnergyConsumptionDataset",
-  );
-  const datasetQuads = store.getQuads(
-    null,
-    consumptionDataPredicate,
-    null,
-    null,
-  );
-  console.log(
-    `[getEnergyDataUrls] hasEnergyConsumptionDataset quads (${datasetQuads.length}):`,
-    datasetQuads.map((q) => `${q.subject.value} → ${q.object.value}`),
-  );
-  if (datasetQuads.length > 0) {
-    const urls: string[] = [];
-    for (const dq of datasetQuads) {
-      const locationQuads = store.getQuads(
-        dq.object,
-        datasetLocationPredicate,
-        null,
-        null,
-      );
-      if (locationQuads.length > 0) {
-        urls.push(locationQuads[0].object.value);
-      }
-    }
-    if (urls.length > 0) return urls;
-  }
-
-  return [];
+  return targets;
 }
 
 /**
@@ -313,7 +196,6 @@ async function grantReadAccess(
  */
 export async function shareAggregatedView(
   snapshotUrl: string,
-  viewId: string,
   webId: string,
   session: Session,
 ): Promise<void> {
@@ -326,75 +208,33 @@ export async function shareAggregatedView(
   // Share the snapshot resource (sets ACL)
   await grantReadAccess(snapshotUrl, webId, session);
 
-  // Post notification to recipient's inbox
-  await postViewGrantToInbox(snapshotUrl, viewId, webId, session);
-
-  // Record the sharing in our registry
-  await recordViewSharing(snapshotUrl, viewId, webId, session);
+  // Notify the recipient (the message is a sharing event with gran:kind View) and
+  // record the outgoing share in shared-out/. The viewId is recoverable from the
+  // snapshot URL (`views/snapshots/<viewId>.ttl`), so it isn't carried separately.
+  await postViewGrantToInbox(snapshotUrl, webId, session);
+  await recordViewSharing(snapshotUrl, webId, session);
 }
 
-/**
- * Post an access grant notification for an aggregated view to recipient's inbox
- */
+/** Post an aggregated-view access grant (the shared-event shape) to the inbox. */
 async function postViewGrantToInbox(
   snapshotUrl: string,
-  viewId: string,
   webId: string,
   session: Session,
 ): Promise<void> {
-  const parser = new Parser({ format: "text/turtle", baseIRI: webId });
-  const profileResponse = await session.fetch(webId, { method: "GET" });
+  const inboxUrl = await getRecipientInboxUrl(webId, session);
 
-  if (!profileResponse.ok) {
-    throw new Error(
-      `Failed to fetch WebID profile at ${webId}: ${profileResponse.statusText}`,
-    );
-  }
+  const message = buildSharingEventTurtle({
+    type: "grant",
+    owner: session.info.webId!,
+    grantee: webId,
+    resource: snapshotUrl,
+    kind: "View",
+    at: new Date().toISOString(),
+  });
 
-  const profileText = await profileResponse.text();
-  const quads = parser.parse(profileText);
-  const store = new Store(quads);
-
-  const inboxPredicate = DataFactory.namedNode(
-    "http://www.w3.org/ns/ldp#inbox",
-  );
-  const webIdNode = DataFactory.namedNode(webId);
-  const inboxQuads = store.getQuads(webIdNode, inboxPredicate, null, null);
-
-  if (inboxQuads.length === 0) {
-    throw new Error(`No inbox found for WebID ${webId}`);
-  }
-
-  const inboxUrl = inboxQuads[0].object.value;
-
-  // Create the notification message for aggregated view
-  const message = `
-@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
-@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
-@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix acl: <http://www.w3.org/ns/auth/acl#> .
-@prefix interop: <http://www.w3.org/ns/solid/interop#> .
-@prefix gra: <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
-
-<#grant${Date.now()}>
-    a interop:AccessGrant ;
-    interop:grantedBy <${session.info.webId}> ;
-    interop:grantedAt "${new Date().toISOString()}"^^xsd:dateTime ;
-    interop:grantee <${webId}> ;
-    gra:resourceType gra:AggregatedViewSnapshot ;
-    gra:viewId "${viewId}" ;
-    interop:hasDataGrant
-        [ a interop:DataGrant ;
-          interop:forResource <${snapshotUrl}> ;
-          interop:accessMode acl:Read
-        ] .`;
-
-  // Post the message to the inbox
   const postResponse = await session.fetch(inboxUrl, {
     method: "POST",
-    headers: {
-      "Content-Type": "text/turtle",
-    },
+    headers: { "Content-Type": "text/turtle" },
     body: message,
   });
 
@@ -403,6 +243,4 @@ async function postViewGrantToInbox(
       `Failed to post view grant message to inbox at ${inboxUrl}: ${postResponse.statusText}`,
     );
   }
-
-  console.log(`Successfully posted view access grant to inbox at ${inboxUrl}`);
 }
