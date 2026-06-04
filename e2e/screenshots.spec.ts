@@ -34,7 +34,7 @@ test.describe("guide screenshots", () => {
 
     // --- Meet: be in a room with a role (seeds an empty Pod so the rest of the
     //     app has something to show) ---
-    await page.getByRole("tab", { name: "Meet" }).click();
+    await page.getByRole("tab", { name: "Connect" }).click();
     const leave = page.getByRole("button", { name: /leave data room/i });
     if (!(await leave.count())) {
       await page.getByRole("button", { name: /host a data room/i }).click();
@@ -55,17 +55,23 @@ test.describe("guide screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "room.png");
 
-    // --- Seed one building (only if none yet) so Share/View/Views have data ---
-    await page.getByRole("tab", { name: "Share" }).click();
+    // --- Data: seed one building (only if none yet) so Share/View/Views have
+    //     data; the Add Building dialog now lives on the Manage tab ---
+    await page.getByRole("tab", { name: "Manage" }).click();
     const dialog = page.getByRole("dialog");
+    const noBuildings =
+      (await page.getByText(/you haven't added any buildings yet/i).count()) > 0;
 
-    // Add Building dialog — capture it (role is now assigned, so it shows the form).
-    await page.getByRole("button", { name: /add building/i }).click();
+    // Add Building dialog — capture it (role is assigned, so it shows the form).
+    await page.getByRole("button", { name: /^add building$/i }).click();
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.waitForTimeout(500);
     await shot(page, "add-building.png");
 
-    if (await page.getByText(/you don't own any buildings yet/i).count()) {
+    if (noBuildings) {
+      // Pick User explicitly so the form needs only address + coordinates.
+      await dialog.getByLabel("Role").click();
+      await page.getByRole("option", { name: "User" }).click();
       await dialog.getByLabel(/street address/i).fill("Musterstraße 1");
       await dialog.getByLabel(/locality/i).fill("Nürnberg");
       await dialog.getByLabel(/postal code/i).fill("90451");
@@ -74,11 +80,20 @@ test.describe("guide screenshots", () => {
       await dialog.getByLabel(/longitude/i).fill("11.08");
       await dialog.getByRole("button", { name: /^add building$/i }).click();
       await expect(dialog).toBeHidden({ timeout: 30_000 });
-      await page.waitForTimeout(2500); // let reloadData populate the building
+      await page.waitForTimeout(2500); // let the list refetch the new building
     } else {
       await page.keyboard.press("Escape");
     }
-    await shot(page, "sharing.png");
+
+    // Manage tab now lists the building with its per-row actions (edit / share /
+    // download / delete) — the subject of guide step 7.
+    await page.waitForTimeout(500);
+    await page.evaluate(() => globalThis.scrollTo(0, 0));
+    await shot(page, "share-building.png");
+
+    // --- Manage: aggregated views (Create View lives here, with buildings) ---
+    await page.getByRole("tab", { name: "Manage" }).click();
+    await page.waitForTimeout(500);
 
     // --- Create View dialog (a building is now selectable) ---
     await page.getByRole("button", { name: /create view/i }).click();
@@ -87,8 +102,8 @@ test.describe("guide screenshots", () => {
     await shot(page, "create-view.png");
     await page.keyboard.press("Escape");
 
-    // --- View: select a building marker → its Building/Energy/Weather tabs ---
-    await page.getByRole("tab", { name: "View" }).click();
+    // --- Explore: select a building marker → its Building/Energy/Weather tabs ---
+    await page.getByRole("tab", { name: "Explore" }).click();
     const markers = page.locator(".leaflet-marker-icon");
     await markers.first().waitFor({ timeout: 20_000 }).catch(() => {});
     await page.waitForTimeout(1500); // let the map settle so clicks register

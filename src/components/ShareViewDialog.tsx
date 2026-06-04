@@ -33,13 +33,7 @@ import {
   getMembers,
 } from "../services/interop/dataRoom.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-
-const ROLE_LABELS: Record<string, string> = {
-  dummy: "Dummy",
-  investor: "Investor",
-  user: "User",
-  benchmark_service_provider: "Benchmark Service Provider",
-};
+import { ROLE_LABELS } from "../constants/roles.ts";
 
 interface ShareViewDialogProps {
   open: boolean;

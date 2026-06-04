@@ -3,6 +3,11 @@ import { createTheme } from "@mui/material/styles";
 // A custom theme for this app
 const theme = createTheme({
   cssVariables: true,
+  // rem-based spacing so padding/gaps/margins scale with the (fluid) root font
+  // alongside the rem type scale below. 0.5rem * factor === 8px * factor at the
+  // default 16px root, so this is visually identical at baseline — it just
+  // scales now. Driven by the `html { font-size: clamp(...) }` rule in index.css.
+  spacing: (factor: number) => `${factor * 0.5}rem`,
   palette: {
     primary: {
       main: "#0277bd", // Clean professional blue — evokes energy infrastructure

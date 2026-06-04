@@ -6,7 +6,7 @@ event; current state is **derived on read** by folding (latest event per WebID, 
 axis). Append-only POSTs give an audit trail and avoid lost-update races.
 
 Code: [`dataRoom.ts`](src/services/interop/dataRoom.ts); UI
-[`DataRoomPage.tsx`](src/components/DataRoomPage.tsx); IRIs in
+[`ConnectPage.tsx`](src/pages/ConnectPage.tsx); IRIs in
 [`vocabularies.ts`](src/services/utils/vocabularies.ts).
 
 **Single room at a time:** you are a member of at most one room — the *current*

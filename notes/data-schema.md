@@ -1,9 +1,9 @@
 # Data schema — data-source roles & graph shapes
 
 What a "role" means, why it is per data source, and the graph shape each role
-implies. Shapes are drafted in [`roles.shex`](../roles.shex); an n3 detector mirrors
-them in [`roleDetection.ts`](../src/services/utils/roleDetection.ts). Membership
-roles are a separate concept — see [`room.md`](./room.md).
+implies. The imperative parsers (`buildingParser.ts`, `energyDataParser.ts`,
+`userEnergyParser.ts`) are the source of truth for those shapes. Membership roles
+are a separate concept — see [`room.md`](./room.md).
 
 ## Two meanings of "role"
 
@@ -49,28 +49,24 @@ and copies it to the recipient's `dataSources.ttl` (`inbox.ts`,
   `InvestorAnnualData` → `energyNeed`; user: `timeSeries.electricityConsumption`.
 
 Code: `TurtleParsingService.ts:465` (skip user prefetch), `:568` (synthesize
-investor energy); `energyDataParser.ts`; `Map.tsx` / `Building.tsx` rendering.
+investor energy); `energyDataParser.ts`; `ExplorePage.tsx` / `Building.tsx` rendering.
 
-## Shapes (`roles.shex`)
+## Graph shapes per role
 
-One shape per role, reverse-engineered from `buildingConfig.ts`,
-`buildingParser.ts`, `energyDataParser.ts`, `userEnergyParser.ts`:
-`<BuildingCore>`; per-role `<DummyBuilding>`/`<UserBuilding>`/`<BenchmarkBuilding>`/
-`<InvestorBuilding>`; energy `<CategoricalObservation>` (dummy/bench)/`<UserReading>`/
-`<InvestorObservation>`; supporting `<OperatingCosts>`/`<Certification>`/
-`<EnergyDatasetRef>`/`<TimeInterval>`/`<SimpleResult>`. The imperative parsers
-remain the source of truth.
+The shapes aren't formally specified — they're whatever the imperative parsers
+read/write: `buildingConfig.ts`, `buildingParser.ts`, `energyDataParser.ts`,
+`userEnergyParser.ts`. Conceptually there's a shared building core plus per-role
+variants (dummy/user share one; investor and benchmark add namespace-specific
+predicates), and energy is either categorical SOSA observations (dummy/bench/
+investor) or a `uservoc:EnergyConsumptionReading` time series (user). The parsers
+are the source of truth; there's no separate shape/validator layer.
 
-The app's own on-Pod files (one tree per user, under `granergize/`) are now
-formalised too: `<DataSourcesRegistry>` (+ `<DataSourceRoleAnnotation>`),
-`<HiddenBuildings>`, `<SharingRegistry>`, `<ViewSharingRegistry>`,
-`<AggregatedViewDefinition>`, `<AggregatedViewSnapshot>`. Because ShEx can't run
-under Deno, these are mirrored by lightweight n3 validators in
-[`shapeValidators.ts`](../src/services/utils/shapeValidators.ts) (e.g.
-`validateDataSourcesRegistry`, `validateAggregatedViewDefinitions`) which the
-offline tests (`shapeValidators.test.ts`) run on valid + malformed fixtures —
-giving real conformance coverage and a drift guard. They check the load-bearing
-constraints (term kinds, required keys), not every optional triple.
+> An earlier draft formalised these (and the app's on-Pod registry/view/sharing
+> files) as ShEx in `roles.shex`, with n3 mirrors in `roleDetection.ts` /
+> `shapeValidators.ts`. That was removed: ShEx engines don't run under Deno, role
+> is now taken from the explicit `gran:dataSourceRole` IRI in `dataSources.ttl`
+> (not sniffed from shape), and the validators had no callers. The only survivor
+> is `isSeriesGranularity` in `durationUtils.ts` (load-strategy helper).
 
 ## Two schemas: RDF graph ⇄ app objects
 
@@ -82,9 +78,8 @@ model). The boundary is one-way at load time: RDF → typed object → React pro
 
 The building schema therefore lives across four artifacts that must agree:
 
-- **RDF vocabulary + shapes** — predicate IRIs in
-  [`vocabularies.ts`](../src/services/utils/vocabularies.ts); shapes in
-  [`roles.shex`](../roles.shex).
+- **RDF vocabulary** — predicate IRIs in
+  [`vocabularies.ts`](../src/services/utils/vocabularies.ts).
 - **App object type** — `BuildingType` (also `AgentType`, `EnergyType`) in
   `types/types.ts`.
 - **Predicate ⇄ field mapping** — `predicateMap` / `objectPropertyMap` in
@@ -105,15 +100,12 @@ What's single-sourced vs. duplicated:
   names.
 - **Datatypes are duplicated.** Read coercion (`parsingFunctions`) and the
   write-side datatype sets must agree, but nothing enforces it.
-- **`roles.shex` is documentation only.** Drift-guarded just by "the shape exists"
-  + `shapeValidators` (which cover the registry/view files, not the building field
-  set), so its xsd datatypes are intent, not enforced.
 
 Consequences:
 
-- Adding a displayed/persisted field touches ~3–4 spots: `BuildingType`,
+- Adding a displayed/persisted field touches ~3 spots: `BuildingType`,
   `predicateMap` (+ a `parsingFunction` and the write-side datatype set if
-  numeric/boolean), and ideally `roles.shex`.
+  numeric/boolean).
 - **Unmapped predicates are invisible** — the parser only copies predicates present
   in the maps; anything else in the Turtle is dropped on read and never written
   back. The RDF may legitimately carry more than the app model knows about.
@@ -124,8 +116,7 @@ Consequences:
 single source: one row per field (`{ field, iri, kind, type }`), from which
 `predicateMap`, `objectPropertyMap`, `parsingFunctions`, and the serializer's
 `INTEGER_FIELDS`/`DECIMAL_FIELDS`/`BOOLEAN_FIELDS` are all derived. `field` is
-`keyof BuildingType` (compile-checked). `BuildingType` (TS) and `roles.shex`
-(documentation) remain separate by design; heavier consolidations (generate
+`keyof BuildingType` (compile-checked). Heavier consolidations (generate
 `BuildingType` from SHACL/ShEx, or an RDF-object mapper like LDO/LDkit) stay out of
 scope.
 
@@ -146,20 +137,14 @@ declared roles and to **infer only when the annotation is missing** (replace the
 `?? "dummy"` fallback, `TurtleParsingService.ts:283`). Inference from shape is sound
 only while shape ⟺ role stays bijective.
 
-## Detector vs. shapes
+## Detector vs. shapes (removed)
 
-ShEx JS engines don't run under Deno, so `roles.shex` can't be validated in the
-test harness. [`roleDetection.ts`](../src/services/utils/roleDetection.ts) encodes
-the same signatures:
-
-- `detectBuildingRole(store)` — investor/benchmark certain; dummy/user →
-  `{ role: "dummy", certain: false }`.
-- `detectEnergyShape(store)` — `user-readings` vs `categorical-observations`.
-- `resolveRole(buildingStore, energyStore?)` — end-to-end decision.
-
-Tested offline (`roleDetection.test.ts`, `deno task test`) incl. the user/dummy
-ambiguity and a drift guard against `roles.shex`. **Not yet wired into the app** —
-intended first use is the `:283` fallback.
+An earlier `roleDetection.ts` encoded the same signatures as an n3 detector
+(`detectBuildingRole`, `detectEnergyShape`, `resolveRole`) for a "validate +
+infer-on-missing" flow. It was never wired into the app and has been removed —
+role comes from the declared `gran:dataSourceRole` IRI, and the only behaviour
+that survived (the load-strategy split below) is now `isSeriesGranularity` in
+`durationUtils.ts`.
 
 ## Decouple role from shape (BUILT — see "Status" below)
 
@@ -169,14 +154,14 @@ intended first use is the `:283` fallback.
 > - Datasets declare `gran:granularity` on write (`buildingSerializer.ts`;
 >   user series → `"PT15M"`).
 > - Load strategy follows granularity via `isSeriesGranularity()`
->   (`roleDetection.ts`): the prefetch-skip in `TurtleParsingService.ts` keys on
+>   (`durationUtils.ts`): the prefetch-skip in `TurtleParsingService.ts` keys on
 >   the declared period (series ⇒ lazy), falling back to the old role default only
 >   when no granularity is declared.
 > - Inline-aggregate energy synthesis keys on **presence of `annualData`**, not
 >   `role === "investor"` (so benchmark inline data is covered too).
 > - `Building.tsx` renders investor/bench predicates whenever present
 >   (`hasInvestorDetails`), with no role gate.
-> - `Map.tsx`'s energy tab dispatches on `annualData` shape (annual chart vs.
+> - `ExplorePage.tsx`'s energy tab dispatches on `annualData` shape (annual chart vs.
 >   time-series `Energy`), not role.
 > - `sourceRole` (`?? "dummy"`) survives only as a provenance label.
 >
@@ -195,9 +180,9 @@ data — two actors in the *same* role carry *different* data:
 
 The role can't express this: "user" forces one energy shape (`uservoc:` 15-min
 readings, lazy per-click), so an annual-data user, or a benchmark with 15-min data,
-has nowhere to go. `roleDetection.ts` already *names* the real axis separately —
-`detectEnergyShape` → `user-readings | categorical-observations` — but the app
-collapses it back into the role label.
+has nowhere to go. The real axis is the energy dataset's own shape (categorical
+SOSA observations vs. a `uservoc:EnergyConsumptionReading` time series), but the
+app collapses it back into the role label.
 
 ### Direction: make the data self-describing, role = provenance only
 
@@ -232,8 +217,8 @@ their granularity. A producer fills what they have; the app reads what's declare
   change for existing data; new data is self-describing.
 - **Step 2 — dispatch on the declared shape.** Switch `TurtleParsingService`'s
   `sourceRole === "user"` / `!== "investor"` branches (`:463`, `:566`) to dispatch
-  on the dataset type via `detectEnergyShape`/the declared type. Role stops gating
-  energy. `roleDetection.ts` is the seam — it already returns the shape.
+  on the declared dataset type/granularity (`isSeriesGranularity`, `durationUtils.ts`).
+  Role stops gating energy.
 - **Step 3 — predicate-driven render.** Drop the `sourceRole === "investor"` gate
   in `Building.tsx`; render whatever predicates are present. Role becomes a
   provenance label/badge only.
@@ -242,9 +227,6 @@ their granularity. A producer fills what they have; the app reads what's declare
 
 ### Touch points & risks
 
-- `roles.shex` / `roleDetection.ts` — reframe shapes around **energy-dataset
-  types** (annual vs sub-hourly) rather than role; the detector already does most
-  of this.
 - `TurtleParsingService.ts` (`:463`, `:566`), `energyDataParser.ts`,
   `userEnergyParser.ts`, `buildingSerializer.ts`, `Building.tsx` render gate.
 - **Risk:** the load *strategy* (lazy per-click for big 15-min series vs. bulk
@@ -317,9 +299,9 @@ else (P1M … P1Y)         → "aggregate": value inline on the dataset;
 ```
 
 So **load strategy follows the period**, which is the thing that actually makes it
-big or small — exactly the coupling to keep, now explicit. `detectEnergyShape`
-becomes `granularityOf(dataset)` reading `gran:granularity` (falling back to: has
-`gran:observationsAt` ⇒ series; inline result ⇒ aggregate).
+big or small — exactly the coupling to keep, now explicit. This is what
+`isSeriesGranularity` (`durationUtils.ts`) reads from `gran:granularity` (falling
+back to aggregate when none is declared).
 
 ### What each existing shape maps to
 
@@ -357,11 +339,11 @@ So REC supplies the top-level building/agent **type + two identifiers**; `gran:`
 carries the actual domain data. REC is barely load-bearing, and not dereferenced
 (same as `gran:`).
 
-**Inconsistency to fix:** the type IRI is cased three ways — `rec:Building`
-(serializer, `TurtleParsingService.test.ts`), `rec#building`
-(`buildingParser.ts:121`), `rec:building` (`roleDetection.test.ts`). REC's real
-class is **`rec:Building`** (capital); the lowercase variants are latent bugs that
-only pass because building detection keys on URL patterns, not the type.
+**Inconsistency to fix:** the type IRI is cased inconsistently — `rec:Building`
+(serializer, `TurtleParsingService.test.ts`) vs. `rec#building`
+(`buildingParser.ts:121`). REC's real class is **`rec:Building`** (capital); the
+lowercase variant is a latent bug that only passes because building detection
+keys on URL patterns, not the type.
 
 **Bearing on the role/schema redesign above:** REC is the natural home for the
 "self-describing master data, parse on predicate presence" direction — building
@@ -487,9 +469,9 @@ load with the registry present does **not** re-seed.
 
 ## Files
 
-`roles.shex`; `roleDetection.ts` (+`.test.ts`); `types/types.ts` (`UserRole`,
-`BuildingType`); `config/buildingConfig.ts` (predicate → field maps);
-`buildingParser.ts`; `energyDataParser.ts`; `userEnergyParser.ts`;
+`types/types.ts` (`UserRole`, `BuildingType`); `config/buildingConfig.ts`
+(predicate → field maps); `buildingParser.ts`; `energyDataParser.ts`;
+`userEnergyParser.ts`; `durationUtils.ts` (`isSeriesGranularity` load split);
 `vocabularies.ts` (the `*_NS` prefixes above);
 `TurtleParsingService.ts` (registry read, per-role orchestration, bootstrap
 defaults); [`room.md`](./room.md) (membership role).

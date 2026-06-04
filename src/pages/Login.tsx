@@ -1,4 +1,4 @@
-import React, { useCallback, useContext, useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import {
   getDefaultSession,
   ILoginInputOptions,
@@ -29,30 +29,6 @@ interface LoginProps {
   loginOptions?: Omit<ILoginInputOptions, "oidcIssuer">;
   onLogin?: (session: Session) => void;
 }
-
-interface LoginContext {
-  connect(): void;
-  abort(): void;
-  restoreState(): { from?: string; clearState(): void };
-  session?: Session;
-}
-
-const LoginContext = React.createContext<LoginContext>({
-  connect: () => {},
-  abort: () => {},
-  restoreState: () => ({ clearState: () => {} }),
-});
-
-export const useConnect = () => {
-  const { connect, ...rest } = useContext(LoginContext);
-  connect();
-  return rest;
-};
-
-export const useRestoreState = () => {
-  const { restoreState } = useContext(LoginContext);
-  return restoreState();
-};
 
 const IdpInputWrapper = styled(Box)(({ theme }) => ({
   display: "flex",
@@ -88,7 +64,6 @@ export const Login: React.FC<LoginProps> = ({
 
   const [activeWebId, setActiveWebId] = useState<string>();
 
-  const [manualTrigger, setManualTrigger] = useState(false);
   const [invalidIDP, setInvalidIDP] = useState(false);
   const [loading, setLoading] = useState(true);
   const [sessionExpired, setSessionExpired] = useState(false);
@@ -101,19 +76,6 @@ export const Login: React.FC<LoginProps> = ({
   const session = getDefaultSession();
 
   useEffect(() => {
-    if (
-      loginOptions?.redirectUrl &&
-      (auto || manualTrigger) &&
-      location.pathname !== new URL(loginOptions?.redirectUrl).pathname
-    ) {
-      const params = new URLSearchParams(location.search);
-      params.delete("code");
-      const fromParams = params.size > 0 ? "?" + params : "";
-      const fromHash = location.hash ? "#" + location.hash : "";
-      const from = `${location.pathname}${fromHash}${fromParams}`;
-      localStorage.setItem("loginFrom", from);
-    }
-
     session.events.on("logout", () => {
       setSessionResponded(true);
       setLoading(false);
@@ -153,9 +115,8 @@ export const Login: React.FC<LoginProps> = ({
         }
       } else {
         setTimeout(() => {
-          // Suppress the silent restore after a destructive logout; a manual
-          // login (manualTrigger) still goes through.
-          const mayRestore = (auto && !suppressRestore) || manualTrigger;
+          // Suppress the silent restore after a destructive logout.
+          const mayRestore = auto && !suppressRestore;
           if (!sessionExpired && !sessionResponded && mayRestore) {
             session
               .handleIncomingRedirect({ restorePreviousSession: true })
@@ -180,7 +141,7 @@ export const Login: React.FC<LoginProps> = ({
       }
     });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [auto, suppressRestore, manualTrigger, onLogin, session]);
+  }, [auto, suppressRestore, onLogin, session]);
 
   useEffect(() => {
     // If user had a previous session, check for that issuer
@@ -202,14 +163,6 @@ export const Login: React.FC<LoginProps> = ({
     }
   }, [prevIdps, session.info.sessionId]);
 
-  const connectCallBack = useCallback(() => {
-    setManualTrigger(true);
-  }, []);
-
-  const abortCallBack = useCallback(() => {
-    setManualTrigger(false);
-  }, []);
-
   function submitCallback(idp?: string) {
     const targetIdp = idp || login;
     session.login({ oidcIssuer: targetIdp, ...loginOptions }).catch(() => {
@@ -224,20 +177,6 @@ export const Login: React.FC<LoginProps> = ({
       ? login
       : `https://${login}`;
     submitCallback(enteredIdp);
-  }
-
-  if (!auto && !manualTrigger) {
-    return (
-      <LoginContext.Provider
-        value={{
-          connect: connectCallBack,
-          abort: abortCallBack,
-          restoreState: () => ({ clearState: () => {} }),
-        }}
-      >
-        {children}
-      </LoginContext.Provider>
-    );
   }
 
   // Loading screen
@@ -321,7 +260,7 @@ export const Login: React.FC<LoginProps> = ({
           {!prevIdps.length && recommendedLogins.length
             ? (
               <Typography variant="button" component="b" sx={{ mt: 2 }}>
-                SIGN IN WITH A RECOMMENDED PROVIDER
+                SIGN IN WITH AN IDENTITY PROVIDER
               </Typography>
             )
             : null}
@@ -382,7 +321,7 @@ export const Login: React.FC<LoginProps> = ({
           {/* Prompt user for a new IDP */}
           {(prevIdps.length || recommendedLogins.length) && (
             <Typography variant="button" component="b" sx={{ mt: 2 }}>
-              SIGN IN WITH A NEW PROVIDER
+              SIGN IN WITH ANOTHER IDENTITY PROVIDER
             </Typography>
           )}
 
@@ -407,7 +346,7 @@ export const Login: React.FC<LoginProps> = ({
 
           {invalidIDP && (
             <Typography component="span" color="error">
-              Please provide a correct URL.
+              Please provide a correct URI.
             </Typography>
           )}
         </Box>
@@ -416,26 +355,7 @@ export const Login: React.FC<LoginProps> = ({
   }
 
   // If user is logged in, pass control to children
-  return (
-    <LoginContext.Provider
-      value={{
-        session,
-        restoreState: () => {
-          const loginFrom = localStorage.getItem("loginFrom") ?? undefined;
-          return {
-            from: loginFrom,
-            clearState: () => {
-              localStorage.removeItem("loginFrom");
-            },
-          };
-        },
-        connect: () => {},
-        abort: () => {},
-      }}
-    >
-      {children}
-    </LoginContext.Provider>
-  );
+  return children;
 };
 
 export default Login;

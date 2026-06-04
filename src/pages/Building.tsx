@@ -11,7 +11,7 @@ import {
   CorporateFare as CorporateFareIcon,
 } from "@mui/icons-material";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { useSolidData } from "../context/SolidDataContext.tsx";
+import { useInvalidateBuildingData } from "../hooks/mutations.ts";
 import { EnergyCertificateDialog } from "../components/BuildingDialogs.tsx";
 import {
   DetailCard,
@@ -44,7 +44,7 @@ export default function Building(
   { building, session, onHide, embedded = false, onNavigateAgent, hideHeader }:
     BuildingProps,
 ) {
-  const { reloadData } = useSolidData();
+  const reloadData = useInvalidateBuildingData();
   const [energyCertificateUploaderOpen, setEnergyCertificateUploaderOpen] =
     useState(false);
 
@@ -138,17 +138,10 @@ export default function Building(
             } ${building.locality}, ${building.region}`}
           </>
         )}
-        sx={embedded ? { width: "100%" } : {
-          position: "absolute",
-          top: 16,
-          right: 16,
-          width: 300,
-          zIndex: 1000,
-        }}
-        contentSx={embedded ? undefined : { overflowY: "auto", maxHeight: "60vh" }}
+        sx={{ width: "100%" }}
       >
         {/* Building IRI, shown prominently. In the map pane the identity header
-            (incl. the URI) is rendered above by Map.tsx, so only show it here in
+            (incl. the URI) is rendered above by ExplorePage.tsx, so only show it here in
             the standalone card. */}
         {!hideHeader && (
           <Typography variant="body1" sx={{ mb: 1, wordBreak: "break-all" }}>
@@ -358,7 +351,7 @@ export default function Building(
             )}
           </>
         )}
-        {!embedded && <RefLink onClick={onHide}>hide</RefLink>}
+        {!embedded && <RefLink onClick={onHide}>← Back</RefLink>}
       </DetailCard>
 
       <EnergyCertificateDialog

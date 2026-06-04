@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
-import { fetchFresh } from "./podFetch.ts";
+import { DataFactory } from "n3";
+import { loadProfileStore } from "./profileDocument.ts";
 import { FOAF_NS, VCARD_NS } from "./vocabularies.ts";
 
 /**
@@ -21,11 +21,6 @@ const VCARD_HAS_PHOTO = `${VCARD_NS}hasPhoto`;
 /** Person-depiction predicates, in preference order. */
 const AVATAR_PREDICATES = [FOAF_IMG, VCARD_HAS_PHOTO];
 
-/** The WebID document URL (the WebID without its `#me` fragment). */
-function profileDocUrl(webId: string): string {
-  return webId.split("#")[0];
-}
-
 /**
  * The avatar image URL for the person, or null if none. Prefers foaf:img, then
  * falls back to a profile photo (vcard:hasPhoto).
@@ -34,14 +29,8 @@ export async function getAvatarUrl(session: Session): Promise<string | null> {
   const webId = session.info.webId;
   if (!webId) return null;
 
-  const docUrl = profileDocUrl(webId);
-  const response = await fetchFresh(docUrl, session);
-  if (!response.ok) return null;
-  const store = new Store(
-    new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(
-      await response.text(),
-    ),
-  );
+  const store = await loadProfileStore(session);
+  if (!store) return null;
 
   const subject = DataFactory.namedNode(webId);
   for (const pred of AVATAR_PREDICATES) {

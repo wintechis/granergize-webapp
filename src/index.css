@@ -1,3 +1,10 @@
+/* Fluid root font size: everything sized in rem (MUI's type scale AND, via the
+   theme's rem-based `spacing`, all padding/gaps/margins) scales from this single
+   knob. ~14px on a 320px phone → ~18px on a wide desktop, tracking the viewport. */
+html {
+  font-size: clamp(0.875rem, 0.8rem + 0.4vw, 1.125rem);
+}
+
 :root {
   line-height: 1.5;
   font-weight: 400;
@@ -8,25 +15,7 @@
   -moz-osx-font-smoothing: grayscale;
 }
 
-a {
-  font-weight: 500;
-  color: #646cff;
-  text-decoration: inherit;
-}
-a:hover {
-  color: #535bf2;
-}
-
-@media (prefers-color-scheme: light) {
-  a:hover {
-    color: #747bff;
-  }
-}
-
 body {
   margin: 0;
-  display: flex;
-  place-items: center;
   min-width: 320px;
-  min-height: 100vh;
 }

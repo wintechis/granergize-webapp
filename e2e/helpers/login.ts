@@ -46,26 +46,33 @@ export function hasAccount(a: SolidAccount): boolean {
  * time; selectors are best-effort for solidcommunity.net. Run headed to debug.
  */
 export async function login(page: Page, acc: SolidAccount): Promise<void> {
-  await page.goto("/");
-
-  // Pick the matching recommended provider, or type a custom issuer.
   const host = new URL(acc.issuer).host;
-  const recommended = page.getByRole("button", {
-    name: new RegExp(host.replace(/\./g, "\\."), "i"),
-  });
-  if (await recommended.count()) {
-    await recommended.first().click();
-  } else {
-    await page.getByLabel(/Identity Provider/i).fill(acc.issuer);
-    await page.getByRole("button", { name: "+" }).click();
-  }
-
-  // Identity-provider login form (best-effort selectors).
-  await page.waitForLoadState("domcontentloaded");
   const user = page.locator(
     'input[name="username"], input[name="email"], input[type="email"], input#username, input#email',
   ).first();
-  await user.waitFor({ timeout: 30_000 });
+
+  // Reaching the IdP login form can transiently fail under rate limiting: the
+  // provider serves a 429/error page with no form, so the username field never
+  // appears. Retry the whole app→provider→IdP navigation a few times with
+  // backoff (the `intervals` wait grows between attempts) before giving up. This
+  // only cushions *transient* throttling — a saturated limit will still exhaust
+  // the retries.
+  await expect(async () => {
+    await page.goto("/");
+    // Pick the matching preset Identity Provider, or type a custom issuer.
+    const recommended = page.getByRole("button", {
+      name: new RegExp(host.replace(/\./g, "\\."), "i"),
+    });
+    if (await recommended.count()) {
+      await recommended.first().click();
+    } else {
+      await page.getByLabel(/Identity Provider/i).fill(acc.issuer);
+      await page.getByRole("button", { name: "+" }).click();
+    }
+    await page.waitForLoadState("domcontentloaded");
+    await expect(user).toBeVisible({ timeout: 15_000 });
+  }).toPass({ timeout: 150_000, intervals: [5_000, 15_000, 30_000, 30_000] });
+
   await user.fill(acc.username);
   await page.locator('input[type="password"], input[name="password"]').first()
     .fill(acc.password);
@@ -86,7 +93,7 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
   await expect(async () => {
     if (await remember.count()) await remember.first().click().catch(() => {});
     await expect(remember).toHaveCount(0, { timeout: 1000 });
-    await expect(page.getByRole("tab", { name: "Meet" })).toBeVisible({
+    await expect(page.getByRole("tab", { name: "Connect" })).toBeVisible({
       timeout: 1000,
     });
   }).toPass({ timeout: 120_000 });

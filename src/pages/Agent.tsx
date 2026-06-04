@@ -5,7 +5,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import CircularProgress from "@mui/material/CircularProgress";
-import { useSolidData } from "../context/SolidDataContext.tsx";
+import { useSolidData } from "../hooks/queries.ts";
 import {
   DetailCard,
   DetailRow,
@@ -25,7 +25,7 @@ export default function Agent({ agentId, embedded = false }: AgentProps = {}) {
   const { agents, isLoading, error } = useSolidData();
   const [agent, setAgent] = useState<AgentType | undefined>(undefined);
 
-  // Find the agent in the data from SolidDataContext
+  // Find the agent in the data from useSolidData()
   useEffect(() => {
     if (agents && agents.length > 0) {
       const foundAgent = agents.find((a) => a.id.toString() === selectedAgent);

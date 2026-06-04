@@ -355,7 +355,7 @@ async function getEnergyAclTargets(
   session: Session,
 ): Promise<string[]> {
   try {
-    const response = await session.fetch(buildingUri);
+    const response = await fetchFresh(buildingUri, session);
     const text = await response.text();
     const parser = new Parser({ format: "text/turtle", baseIRI: buildingUri });
     const quads = parser.parse(text);

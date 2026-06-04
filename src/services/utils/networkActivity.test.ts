@@ -2,9 +2,11 @@
 import { strict as assert } from "node:assert";
 import {
   beginActivity,
+  clearRequestLog,
   describeRequest,
   endActivity,
   getActivitySnapshot,
+  getRequestLog,
   instrumentSessionFetch,
   subscribeActivity,
   trackedFetch,
@@ -88,4 +90,59 @@ Deno.test("instrumentSessionFetch tracks each pod request and is idempotent", as
   resolve(new Response("ok"));
   await p;
   assert.equal(getActivitySnapshot().length, base, "untracked once resolved");
+});
+
+Deno.test("endActivity records a finished request in the log with status + duration", () => {
+  clearRequestLog();
+  const id = beginActivity("GET pod.example/x.ttl", "https://pod.example/x.ttl");
+  endActivity(id, { status: 200 });
+  const log = getRequestLog();
+  assert.equal(log.length, 1);
+  assert.equal(log[0].status, 200);
+  assert.equal(log[0].ok, true);
+  assert.equal(log[0].error, false);
+  assert.equal(log[0].url, "https://pod.example/x.ttl");
+  assert.ok(log[0].durationMs >= 0);
+});
+
+Deno.test("log marks errors and >=400 (incl. 429) as not ok", () => {
+  clearRequestLog();
+  endActivity(beginActivity("thrown"), { error: true });
+  endActivity(beginActivity("notfound"), { status: 404 });
+  endActivity(beginActivity("throttled"), { status: 429 });
+  endActivity(beginActivity("good"), { status: 200 });
+  // newest first: good, throttled, notfound, thrown
+  const log = getRequestLog().slice(0, 4);
+  assert.deepEqual(log.map((e) => e.ok), [true, false, false, false]);
+  assert.equal(log[3].error, true);
+  assert.equal(log[3].status, undefined);
+});
+
+Deno.test("log is newest-first and clearRequestLog empties it", () => {
+  clearRequestLog();
+  endActivity(beginActivity("first"), { status: 200 });
+  endActivity(beginActivity("second"), { status: 200 });
+  assert.deepEqual(getRequestLog().map((e) => e.label), ["second", "first"]);
+  clearRequestLog();
+  assert.equal(getRequestLog().length, 0);
+});
+
+Deno.test("log is capped at 200 entries (oldest dropped)", () => {
+  clearRequestLog();
+  for (let i = 0; i < 205; i++) {
+    endActivity(beginActivity(`r${i}`), { status: 200 });
+  }
+  const log = getRequestLog();
+  assert.equal(log.length, 200);
+  assert.equal(log[0].label, "r204", "newest kept");
+  assert.equal(log[199].label, "r5", "oldest within cap");
+});
+
+Deno.test("a label-only activity logs as ok with no status (e.g. map tiles)", () => {
+  clearRequestLog();
+  endActivity(beginActivity("map tiles"));
+  const log = getRequestLog();
+  assert.equal(log[0].label, "map tiles");
+  assert.equal(log[0].status, undefined);
+  assert.equal(log[0].ok, true);
 });

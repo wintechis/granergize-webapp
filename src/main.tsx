@@ -1,5 +1,5 @@
 import * as React from "react";
-import { useCallback, useEffect, useState } from "react";
+import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import CssBaseline from "@mui/material/CssBaseline";
@@ -18,6 +18,12 @@ import {
 import { QueryProvider } from "./context/QueryProvider.tsx";
 import { readInbox } from "./services/interop/inbox.ts";
 import { instrumentSessionFetch } from "./services/utils/networkActivity.ts";
+import {
+  getSessionExpiredSnapshot,
+  markSessionExpired,
+  resetSessionGate,
+  subscribeSessionGate,
+} from "./services/utils/sessionGate.ts";
 
 // One-shot flag (survives a manual reload) telling the Login screen NOT to restore
 // the previous session. Set after a destructive logout ("Remove all app data") so
@@ -33,6 +39,10 @@ function AppContent() {
 
   useEffect(() => {
     const solidSession = getDefaultSession();
+    // When the library's background token refresh fails, it emits `sessionExpired`
+    // — the authoritative "logged out for real" signal. Trip the gate so in-flight
+    // requests stop and the effect below cleanly logs out.
+    solidSession.events.on("sessionExpired", markSessionExpired);
     if (solidSession.info.isLoggedIn) {
       console.log("User already logged in", solidSession.info.webId);
       instrumentSessionFetch(solidSession);
@@ -40,10 +50,27 @@ function AppContent() {
     }
   }, []);
 
+  // Session-expiry gate: the transport trips it on the first 401. When it does,
+  // tell the user once and cleanly log out (back to the Login screen) — rather
+  // than leaving an expired session firing 401s that do nothing.
+  const expired = useSyncExternalStore(
+    subscribeSessionGate,
+    getSessionExpiredSnapshot,
+    getSessionExpiredSnapshot,
+  );
+  useEffect(() => {
+    if (expired && session) {
+      showNotification("Session expired — please log in again", "warning");
+      session.logout().then(() => setSession(null));
+    }
+  }, [expired, session, showNotification]);
+
   const handleLogin = useCallback(async (authSession: Session) => {
     console.log("User logged in successfully", authSession.info.webId);
-    // A deliberate login clears the one-shot "don't restore" flag.
+    // A deliberate login clears the one-shot "don't restore" flag and the
+    // expiry gate, so a fresh session starts clean.
     sessionStorage.removeItem(NO_RESTORE_KEY);
+    resetSessionGate();
     setSuppressRestore(false);
     instrumentSessionFetch(authSession);
     setSession(authSession);
@@ -88,7 +115,7 @@ function AppContent() {
           <Typography variant="body1" sx={{ mb: 1 }}>
             Use the Granergize App to browse, compare and share energy
             consumption data of logistics real estate. With Granergize, you
-            keep your data under your control.
+            keep control over your data.
           </Typography>
           <Typography variant="body1" sx={{ mb: 1 }}>
             <Link
@@ -106,9 +133,6 @@ function AppContent() {
             >
               Granergize@IIS
             </Link>
-          </Typography>
-          <Typography variant="body1">
-            Choose your Identity Provider below to sign in.
           </Typography>
         </>
       }

@@ -1,5 +1,15 @@
+/* Establish one full-viewport height chain so the app shell can flex against a
+   sized parent (#root) and own a single scroll region — instead of every child
+   falling back to its own `height: 100vh`, which double-counts and spawns extra
+   scrollbars. */
 html, body, #root {
   width: 100%;
+  height: 100%;
+}
+
+#root {
+  display: flex;
+  flex-direction: column;
 }
 
 .map-container {

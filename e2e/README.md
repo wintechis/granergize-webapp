@@ -1,7 +1,7 @@
 # End-to-end tests (Playwright)
 
 Playwright drives Chromium against the app (the config starts the Vite dev server
-itself). Three specs, by credential need:
+itself). Four specs, by credential need:
 
 - **`smoke.spec.ts`** — no login. Asserts the sign-in screen renders. CI-safe,
   runs with no credentials.
@@ -11,8 +11,13 @@ itself). Three specs, by credential need:
   room, B joins it and takes the User role, A shares a building "by role"; B must
   see it under "Buildings shared with you". WebIDs are discovered via the room —
   none need configuring.
+- **`request-audit.spec.ts`** — needs **one** Pod (account A). Diagnostic, not an
+  assertion test: it captures every network request from login through a
+  click-through of all tabs and prints which resources are fetched more than once
+  (with per-hit timing, so a StrictMode/double-mount burst reads differently from
+  per-tab-switch refetches). Use it to spot request storms / duplicated fetches.
 
-The two credentialed specs `test.skip` themselves when their env vars are absent,
+The three credentialed specs `test.skip` themselves when their env vars are absent,
 so `deno task e2e` / CI never need credentials.
 
 There is also a **headless data-layer integration test** that is *not* Playwright:
@@ -35,8 +40,17 @@ npm run screenshots      # guide screenshots  (needs account A)
 npm run sharing          # cross-pod sharing  (needs accounts A + B)
 # add --headed to watch / debug, e.g.  npm run sharing -- --headed
 
+source .env.e2e.local && deno task e2e request-audit   # request audit (needs account A)
+
 source .env.e2e.local && deno task it:live   # live data-layer test (needs account A)
 ```
+
+> **Heads-up on rate limiting.** solidcommunity.net sits behind Cloudflare, which
+> throttles bursts of logins/requests with HTTP 429. Running several credentialed
+> specs back-to-back (especially `sharing`, which logs in **two** accounts in a row)
+> can make a later spec fail at the *identity-provider login form* — the form never
+> renders because the IdP page itself got throttled. This is environmental, not a
+> code regression: re-run a single spec after a short pause, or space the runs out.
 
 ## Accounts (throwaway Pods only — never real accounts)
 
@@ -77,4 +91,7 @@ export E2E_ISSUER_B=https://solidcommunity.net    # optional
   and takes the User role; A shares "by role"). It seeds a building on A only if A
   owns none, and B's receipt relies on the inbox copying the access grant into B's
   `dataSources.ttl` on load — so it allows a generous timeout for that round-trip.
-- App tab labels are **View / Share / Meet**; the helpers/specs use those.
+- App tab labels are **Explore / Manage / Share / Connect**; the helpers/specs use
+  those. Buildings are added/shared/exported and aggregated views are managed on the
+  **Manage** tab; "Buildings shared with you" lives on **Share**; data rooms on
+  **Connect**.

@@ -29,6 +29,18 @@ the top and should import assertions from `node:assert` to avoid remote deps. Th
 configured lint/typecheck task in `deno.json`; TypeScript checking happens via the IDE /
 Vite build (`tsconfig.app.json`).
 
+**React hook tests** run under Deno too: `import "./test-dom-setup.ts"` FIRST
+(it registers happy-dom globals before React/Testing Library load), then use
+`renderHook` from `@testing-library/react` with a `QueryClientProvider` wrapper
+(`src/hooks/queries.test.ts` is the template). Note: full **component** render of the
+MUI pages does NOT work under `deno test` — Deno can't resolve MUI's extensionless
+subpath imports (`@mui/material/Alert`, …) and the type-checker rejects MUI icons as
+JSX; cover page render/interaction behaviour with the Playwright e2e suite instead. The
+data hooks read the session via
+`getSession()` (`src/hooks/session.ts`); tests substitute a fake offline-fixture session
+with `_setSessionForTesting(...)` (and prime the storage root via `_setStorageRootForTesting`),
+mirroring the service-test pattern.
+
 ## Environment
 
 - `VITE_WEATHER_API_URL` selects the weather data backend. In dev it defaults to the
@@ -45,10 +57,22 @@ why `vite.config.ts` sets `base: "./"` and routing uses `HashRouter`.
 
 ### Data flow
 1. **Auth** — `@inrupt/solid-client-authn-browser`. `src/pages/Login.tsx` handles the
-   Solid login redirect; `main.tsx` wires the session into `SolidDataProvider`.
-2. **Context** — `src/context/SolidDataContext.tsx` is the single source of truth for
-   loaded data (`buildings`, `energyNeed`, `agents`, `averages`, `energyMix`). Components
-   read it via `useSolidData()`. It calls `fetchAndParseData` on session change.
+   Solid login redirect; on login `main.tsx` calls `instrumentSessionFetch` (wraps the
+   session's `fetch`) and renders the provider stack `NotificationProvider` →
+   `QueryProvider` → app. The authed session is reached app-wide through the
+   `getSession()` singleton (`src/hooks/session.ts`), which tests override via
+   `_setSessionForTesting`.
+2. **Data layer (React Query)** — data is read through hooks in `src/hooks/queries.ts`
+   (each calls `getSession()` for the authed transport; query keys are namespaced by
+   WebID so a re-login can't read another user's cache). `useSolidData()` is a
+   back-compat selector composing `useBuildingsAndAgents` (phase 1: buildings + agents,
+   paints the map) and `useEnergy` (phase 2: energy, dependent on phase 1). The single
+   `QueryClient` lives in `src/context/QueryProvider.tsx`, which centralizes error
+   routing (`SessionExpiredError` → warning, `ConflictError`/else → error) and
+   `keepPreviousData` (a failed refetch keeps the last good data on screen). Freshness
+   is server-driven (`staleTime: 0` + conditional GET via `fetchFresh`); the only
+   refetch trigger is a write — mutations in `src/hooks/mutations.ts` invalidate their
+   own query keys (`queryKeys` in `queries.ts`).
 3. **Fetch + parse** — `src/services/TurtleParsingService.ts` orchestrates loading. It
    reads the user's registry at `<pod>/granergize/dataSources.ttl` to discover which
    Turtle files (and their roles) to fetch, loads them with per-source blank-node scoping
@@ -75,6 +99,11 @@ map to gran: IRIs (see `IRI_TO_ROLE` maps). Notable per-role behavior in
   Shared quad helpers are in `src/services/utils/rdfHelpers.ts`.
 - `getStorageRoot` / `getPodBaseUrl` in `solidUtils.ts` derive Pod paths from a WebID and
   handle both subdomain- and path-based Pods — use them rather than string-munging WebIDs.
+- Read the user's WebID profile via `loadProfileStore` (`profileDocument.ts`), not a bespoke
+  fetch: it caches the parsed profile per session so storage-root / org / avatar reads share
+  one GET (call `invalidateProfile` after writing the profile). Mutable Pod reads go through
+  `fetchFresh` (`podFetch.ts`), which now revalidates (`cache: "no-cache"`, so 304s work) —
+  no `?t=` URL cache-buster. Freshness across writes is otherwise owned by React Query.
 
 ### Key feature areas
 - **Routing** — `src/App.tsx` defines hash routes: `/`, `/building/:id`, `/agent/:id`,
@@ -96,10 +125,18 @@ User-facing messages go through `NotificationContext`.
 
 Global network-loading feedback goes through one activity store
 (`src/services/utils/networkActivity.ts`): `instrumentSessionFetch` wraps the Solid
-session's `fetch` once at login so every Pod request is tracked automatically, and
-non-Pod requests opt in via `trackedFetch` (geocoding) or `beginActivity`/`endActivity`
-(Leaflet tile events in `Map.tsx`, the weather client). The header
-`NetworkActivityIndicator` shows the live in-flight count + a details list.
+session's `fetch` once at login so every Pod request is tracked automatically AND
+retries transient throttling (Cloudflare 429/503, see `retryFetch.ts`; the retry sits
+above `@inrupt`'s fetch so each attempt gets a fresh DPoP proof). Non-Pod requests opt
+in via `trackedFetch` (geocoding — also retried) or `beginActivity`/`endActivity`
+(Leaflet tile events in `ExplorePage.tsx`, the weather client). The header
+`NetworkActivityIndicator` shows the live in-flight requests inline + a count badge,
+and is clickable to open a rolling debug log of finished requests (status, pod-relative
+path, duration) — useful for spotting repeated/failed calls. The store keeps that log;
+`endActivity(id, { status | error })` records each outcome.
+
+To audit what the app fetches end-to-end, `e2e/request-audit.spec.ts` logs in and prints
+every request with per-hit timing (`source .env.e2e.local && deno task e2e request-audit`).
 
 **Loading-spinner policy: the header indicator is the ONLY loading spinner inside the
 app shell.** Don't add component-level `CircularProgress`/`LinearProgress` for network

@@ -72,7 +72,7 @@ Rules:
 - **No magic-number viewport heights** (`calc(100vh - 216px)` & friends). Fill
   available space with flexbox: a column container is `display:flex;
   flexDirection:column`, fixed bars are `flexShrink:0`, the growing area is
-  `flexGrow:1; minHeight:0`. See `pages/index.tsx` + `pages/Map.tsx` for the
+  `flexGrow:1; minHeight:0`. See `pages/index.tsx` + `pages/ExplorePage.tsx` for the
   pattern.
 - Prefer **semantic / plain HTML with minimal styling** over heavy MUI chrome
   where it reads cleanly (e.g. the energy-mix `<table>`, the footer). Lean toward
