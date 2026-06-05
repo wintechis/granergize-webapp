@@ -13,6 +13,13 @@ import {
   predicateMap,
 } from "./config/buildingConfig.ts";
 import {
+  GEO_LAT,
+  GEO_LOCATION,
+  GEO_LONG,
+  GEO_POINT,
+  GEOCODE_PRECISION_IRI,
+  type GeocodePrecision,
+  GRAN_GEOCODE_PRECISION,
   GRAN_NS,
   INVESTOR_NS,
   PROV_AGENT,
@@ -319,6 +326,55 @@ function xsdType(field: string): string {
  * label lookup is a no-op for values that are already labels). No-op when no
  * `_opcost_*` keys are present.
  */
+/**
+ * Write the building's coordinates as a `geo:Point` blank node linked by
+ * `geo:location`, carrying `gran:geocodePrecision` when known. Keeping the point
+ * separate from the building lets the precision sit on the coordinate itself.
+ * No-op when lat/long are absent (an unmapped building is still valid).
+ */
+function addGeoPoint(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  const lat = fields.lat?.trim();
+  const long = fields.long?.trim();
+  if (!lat || !long) return;
+  const point = blankNode("point");
+  store.addQuad(subject, namedNode(GEO_LOCATION), point);
+  store.addQuad(point, namedNode(RDF_TYPE_IRI), namedNode(GEO_POINT));
+  store.addQuad(point, namedNode(GEO_LAT), literal(lat, namedNode(XSD_DECIMAL)));
+  store.addQuad(point, namedNode(GEO_LONG), literal(long, namedNode(XSD_DECIMAL)));
+  const precision = fields.geocodePrecision?.trim();
+  if (precision && precision in GEOCODE_PRECISION_IRI) {
+    store.addQuad(
+      point,
+      namedNode(GRAN_GEOCODE_PRECISION),
+      namedNode(GEOCODE_PRECISION_IRI[precision as GeocodePrecision]),
+    );
+  }
+}
+
+/**
+ * Replace the building's coordinates on an EXISTING store (the edit path): drop
+ * the current geo:Point (and any legacy flat geo:lat/long), then re-add a fresh
+ * point from `fields`. Migrates legacy flat-coordinate buildings to the point
+ * model on first edit.
+ */
+function replaceGeoPoint(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  for (const link of store.getQuads(subject, namedNode(GEO_LOCATION), null, null)) {
+    store.removeQuads(store.getQuads(link.object, null, null, null));
+    store.removeQuad(link);
+  }
+  store.removeQuads(store.getQuads(subject, namedNode(GEO_LAT), null, null));
+  store.removeQuads(store.getQuads(subject, namedNode(GEO_LONG), null, null));
+  addGeoPoint(store, subject, fields);
+}
+
 function addOperatingCosts(
   store: Store,
   subject: ReturnType<typeof namedNode>,
@@ -438,6 +494,10 @@ export function serializeBuildingToTurtle(
 
   for (const [field, value] of Object.entries(fields)) {
     if (!value || value.trim() === "" || field.startsWith("_")) continue;
+    // lat/long are written as a geo:Point blank node (see addGeoPoint), not flat
+    // on the building — skip them here even though the config still maps them (so
+    // legacy flat-coordinate Pods can still be parsed).
+    if (field === "lat" || field === "long") continue;
 
     if (field in fieldToObjectPredicate) {
       store.addQuad(
@@ -453,6 +513,9 @@ export function serializeBuildingToTurtle(
       );
     }
   }
+
+  // Coordinates as a geo:Point blank node (carries geocoding precision).
+  addGeoPoint(store, subject, fields);
 
   // Investor master-data sub-structures (blank nodes), when present.
   addOperatingCosts(store, subject, fields);
@@ -720,6 +783,8 @@ export async function updateBuilding(
     if (created) throw new Error(`Building not found: ${buildingFileUri}`);
     for (const [field, value] of Object.entries(updatedFields)) {
       if (field.startsWith("_")) continue;
+      // Coordinates are rewritten as a geo:Point below, not flat on the subject.
+      if (field === "lat" || field === "long") continue;
 
       const isObjProp = field in fieldToObjectPredicate;
       const predIri = isObjProp
@@ -743,6 +808,11 @@ export async function updateBuilding(
           literal(value, namedNode(xsdType(field))),
         );
       }
+    }
+    // Rewrite the geo:Point when coordinates were edited (also migrates a legacy
+    // flat-coordinate building to the point model).
+    if ("lat" in updatedFields || "long" in updatedFields) {
+      replaceGeoPoint(store, subject, updatedFields);
     }
   });
 }
@@ -855,31 +925,52 @@ export function synthDayReadings(date: string): LastgangReading[] {
  * Nominatim, or null on a miss/failure. Shared by the demo seed and the
  * Add-building dialog (manual "look up coordinates" button + bulk file import),
  * so all three resolve coordinates the same way. Best-effort: never throws.
+ *
+ * Tries progressively COARSER queries — full address, then drop the street, then
+ * just the city/region — so a too-precise address (an exact house number the
+ * geocoder can't place, e.g. a new build) still yields a street/postal/city-level
+ * pin instead of nothing. An approximate pin keeps the building mappable (and
+ * importable, where lat/long are required) where an exact-only lookup would fail.
  */
 export async function geocodeFields(
   fields: Record<string, string>,
-): Promise<{ lat: string; long: string } | null> {
-  const query = [
-    fields.streetAddress,
-    fields.postalCode,
-    fields.locality,
-    fields.region,
-  ].filter(Boolean).join(", ");
-  if (!query) return null;
-  try {
-    const res = await trackedFetch(
-      `https://nominatim.openstreetmap.org/search?q=${
-        encodeURIComponent(query)
-      }&format=json&limit=1`,
-      { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
-      "geocode address",
-    );
-    const data = await res.json() as { lat: string; lon: string }[];
-    if (!data.length) return null;
-    return { lat: data[0].lat, long: data[0].lon };
-  } catch {
-    return null;
+): Promise<{ lat: string; long: string; precision: GeocodePrecision } | null> {
+  const street = fields.streetAddress?.trim();
+  const postal = fields.postalCode?.trim();
+  const city = fields.locality?.trim();
+  const region = fields.region?.trim();
+  // Progressively coarser candidates, each tagged with the precision a hit
+  // implies — included only when its distinguishing field is present.
+  const candidates: Array<{ precision: GeocodePrecision; parts: (string | undefined)[] }> = [];
+  if (street) candidates.push({ precision: "address", parts: [street, postal, city, region] });
+  if (postal) candidates.push({ precision: "postcode", parts: [postal, city, region] });
+  if (city) candidates.push({ precision: "city", parts: [city, region] });
+
+  const tried = new Set<string>();
+  let first = true;
+  for (const { precision, parts } of candidates) {
+    const query = parts.filter(Boolean).join(", ");
+    if (!query || tried.has(query)) continue; // skip a coarsening that didn't change the query
+    tried.add(query);
+    // Space retries to respect Nominatim's ≤1 req/s policy (only paid on a miss;
+    // a first-try hit — the common case — adds no delay).
+    if (!first) await new Promise((r) => setTimeout(r, 1100));
+    first = false;
+    try {
+      const res = await trackedFetch(
+        `https://nominatim.openstreetmap.org/search?q=${
+          encodeURIComponent(query)
+        }&format=json&limit=1`,
+        { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
+        "geocode address",
+      );
+      const data = await res.json() as { lat: string; lon: string }[];
+      if (data.length) return { lat: data[0].lat, long: data[0].lon, precision };
+    } catch {
+      // Try the next, coarser query.
+    }
   }
+  return null;
 }
 
 /**
@@ -898,7 +989,12 @@ export async function seedDemoBuildings(
     try {
       const coords = await geocodeFields(demo.fields);
       let fields: Record<string, string> = coords
-        ? { ...demo.fields, lat: coords.lat, long: coords.long }
+        ? {
+          ...demo.fields,
+          lat: coords.lat,
+          long: coords.long,
+          geocodePrecision: coords.precision,
+        }
         : { ...demo.fields };
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const uri = newBuildingUri(webId, id);

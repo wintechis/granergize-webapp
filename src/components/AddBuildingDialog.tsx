@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -35,6 +36,7 @@ import {
   uploadBuilding,
   writeBuildingEnergy,
 } from "../services/utils/buildingSerializer.ts";
+import { getProducingRole } from "../services/utils/organizationManager.ts";
 import { formatError } from "../services/utils/formatError.ts";
 
 interface AddBuildingDialogProps {
@@ -47,10 +49,10 @@ interface AddBuildingDialogProps {
 }
 
 /**
- * The import/export *template* (spreadsheet shape) chosen when adding a building.
- * It picks the parse/serialize shape and is also recorded as the building's PROV
- * provenance category — it is NOT the data-room membership role (a separate
- * concept; adding a building no longer requires holding any room role).
+ * The import/export *template* (spreadsheet shape) chosen when adding a building —
+ * the parse/serialize shape only. It is NOT the building's PROV provenance (that
+ * comes from your profile data-producer role, `getProducingRole`) nor the
+ * data-room membership role.
  */
 type Template = UserRole;
 
@@ -111,10 +113,13 @@ export default function AddBuildingDialog(
   const { showNotification } = useNotification();
   const { buildings } = useSolidData();
 
-  // The chosen import/export template (spreadsheet shape + PROV provenance
-  // category). Independent of any data-room role — adding a building to your own
-  // Pod no longer requires holding a role in a room.
+  // The chosen import/export template — spreadsheet shape only. Provenance comes
+  // from the profile data-producer role (loaded below), not from this.
   const [template, setTemplate] = useState<Template>(TEMPLATE_OPTIONS[0]);
+  // The profile data-producer role → the building's PROV provenance. Loaded on
+  // open; null (no role set) means we record no attribution + show a hint.
+  const [producingRole, setProducingRole] = useState<UserRole | null>(null);
+  const [roleLoaded, setRoleLoaded] = useState(false);
   const [buildingsList, setBuildingsList] = useState<Record<string, string>[]>([{}]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [lastgangReadings, setLastgangReadings] = useState<LastgangReading[] | null>(null);
@@ -131,6 +136,21 @@ export default function AddBuildingDialog(
   useEffect(() => {
     if (open && autostartImport) fileInputRef.current?.click();
   }, [open, autostartImport]);
+
+  // Load the profile data-producer role when the dialog opens (cached read).
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    getProducingRole(session).then((r) => {
+      if (!cancelled) {
+        setProducingRole(r);
+        setRoleLoaded(true);
+      }
+    }).catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+  }, [open, session]);
 
   const isProcessing = uploading || parsing;
 
@@ -219,17 +239,24 @@ export default function AddBuildingDialog(
 
       // Templates carry an address but no coordinates, yet lat/long are required
       // to place a building on the map (and to import an investor sheet at all).
-      // Geocode every parsed building that lacks them — sequentially, to respect
-      // Nominatim's ~1 req/s policy. A building that can't be resolved is left
-      // unmapped (and stays invalid, so the user can fix or geocode it manually).
+      // Geocode every parsed building that lacks them. Throttle to Nominatim's
+      // policy of AT MOST 1 request/second: a burst gets rate-limited (empty
+      // results), and since the form is valid only when EVERY building has
+      // coordinates, a single throttled miss would block the whole import. A
+      // building that still can't be resolved is left unmapped (and stays
+      // invalid, so the user can fix or geocode it manually).
+      let geocodedOne = false;
       for (const b of cleanParsed) {
         if ((b.lat?.trim() && b.long?.trim()) || !(b.streetAddress || b.postalCode || b.locality)) {
           continue;
         }
+        if (geocodedOne) await new Promise((r) => setTimeout(r, 1100));
+        geocodedOne = true;
         const coords = await geocodeFields(b);
         if (coords) {
           b.lat = coords.lat;
           b.long = coords.long;
+          b.geocodePrecision = coords.precision;
         }
       }
 
@@ -258,6 +285,7 @@ export default function AddBuildingDialog(
       }
       setField("lat", coords.lat);
       setField("long", coords.long);
+      setField("geocodePrecision", coords.precision);
       showNotification("Coordinates filled", "success");
     } finally {
       setGeocoding(false);
@@ -270,6 +298,11 @@ export default function AddBuildingDialog(
       showNotification("Not authenticated", "error");
       return;
     }
+
+    // Provenance is the profile data-producer role (authoritative cached read),
+    // not the import template; omit the attribution when no role is set.
+    const category = await getProducingRole(session);
+    const provenance = category ? { agent: webId, category } : undefined;
 
     const controller = new AbortController();
     uploadAbort.current = controller;
@@ -311,10 +344,7 @@ export default function AddBuildingDialog(
           controller.signal,
         );
 
-        const ttl = serializeBuildingToTurtle(b, uri, energyLinks, {
-          agent: webId,
-          category: template,
-        });
+        const ttl = serializeBuildingToTurtle(b, uri, energyLinks, provenance);
         await uploadBuilding(session, uri, ttl, webId, controller.signal);
       }
       showNotification(
@@ -467,8 +497,16 @@ export default function AddBuildingDialog(
       }
     >
       <Box sx={{ overflowY: "auto" }}>
-        {/* Template — the spreadsheet shape (and PROV provenance category) for the
-            building. Independent of any data-room role; always selectable. */}
+        {/* No data-producer role in the profile → buildings get no provenance.
+            Non-blocking nudge to set one (avatar → Organisation). */}
+        {roleLoaded && producingRole === null && (
+          <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
+            No data-producer role set — set one in your profile (avatar →
+            Organisation) to record who produced this data.
+          </Alert>
+        )}
+        {/* Template — the spreadsheet shape only (provenance comes from your
+            profile data-producer role). Always selectable. */}
         <FormControl size="small" fullWidth sx={{ mt: 1, mb: 2 }}>
           <InputLabel id="add-building-template-label">Template</InputLabel>
           <Select

@@ -2,24 +2,24 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "./helpers/login.ts";
 
 /**
- * Energy per-year entry + planned/actual (Soll-Ist) e2e. MUTATES the Pod: writes
- * a fixed far-future year (2099) actual + planned `gran:EnergyDataset` for a
- * seeded building — re-running overwrites the same resources (idempotent). Proves
- * the new entry form writes both scenarios, and that the *actual* figure flows
- * back through `loadEnergy` into the energy view (where the chart is now a
- * Recharts SVG, so we also assert the chart surface draws). The Soll-Ist *planned*
- * overlay legend renders on the Explore detail's annual chart — covered
- * deterministically by the `MetricBarChart` unit test (actual + "(planned)").
+ * Energy per-year entry + planned/actual (Soll-Ist) e2e. Self-cleaning: it adds
+ * its own throwaway building, writes a fixed year (2099) actual + planned
+ * `gran:EnergyDataset` to it, proves the *actual* figure flows back through
+ * `loadEnergy` into the energy view (with the Recharts SVG chart), then deletes
+ * the building in afterAll — which removes its whole energy subtree, so nothing
+ * leaks. The Soll-Ist *planned* overlay legend is covered deterministically by the
+ * `MetricBarChart` unit test (actual + "(planned)").
  *
- *   source .env.e2e.local && deno task e2e energy-entry
+ *   source .env.e2e.local && deno task e2e energy-entry --workers=1
  *
  * Defaults to account B (solidweb.org); E2E_SMOKE_ACCOUNT=A to switch. Skipped
- * without creds. Needs a Pod seeded by the current code (wipe + reseed first).
+ * without creds.
  */
 
 const WHICH = (process.env.E2E_SMOKE_ACCOUNT === "A" ? "A" : "B") as "A" | "B";
 const ACC = account(WHICH);
 const YEAR = "2099"; // fixed far-future year; re-runs overwrite it (idempotent)
+const ADDR = "Energy Entry E2E Strasse 1"; // unique address for the building
 
 test.describe.configure({ mode: "serial" });
 
@@ -35,26 +35,59 @@ test.describe("energy entry + Soll-Ist", () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000);
     page = await browser.newPage();
+    // "Delete building" confirms via window.confirm — accept automatically.
+    page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
-    // An own building's id from Manage ("Building <id> — …").
+
+    // Add a throwaway building to write the year to (deleted in afterAll).
     await page.getByRole("tab", { name: "Manage" }).click();
-    const row = page.getByText(/^Building \d+/).first();
-    await expect(row).toBeVisible({ timeout: 120_000 });
-    id = (await row.textContent())?.match(/Building (\d+)/)?.[1] ?? "";
-    expect(id, "a seeded building id").toBeTruthy();
+    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+      .first();
+    await expect(addBtn).toBeVisible({ timeout: 120_000 });
+    await addBtn.click();
+    const add = page.getByRole("dialog");
+    await add.getByLabel("Template").click();
+    await page.getByRole("option", { name: "User", exact: true }).click();
+    await add.getByLabel(/street address/i).fill(ADDR);
+    await add.getByLabel(/locality/i).fill("Nürnberg");
+    await add.getByLabel(/postal code/i).fill("90451");
+    await add.getByLabel(/region/i).fill("Bayern");
+    await add.getByLabel(/latitude/i).fill("49.45");
+    await add.getByLabel(/longitude/i).fill("11.08");
+    await add.getByRole("button", { name: /^Add Building$/ }).click();
+    await expect(page.getByText(/building added/i))
+      .toBeVisible({ timeout: 120_000 });
+
+    // Capture its (generated, non-numeric) id from the Manage row.
+    const row = page.locator("li", { hasText: ADDR }).first();
+    await expect(row).toBeVisible({ timeout: 60_000 });
+    id = (await row.textContent())?.match(/Building (\S+)/)?.[1] ?? "";
+    expect(id, "the added building's id").toBeTruthy();
   });
 
   test.afterAll(async () => {
-    await page.close();
+    // Delete the building → removes its energy subtree, so the year doesn't leak.
+    try {
+      if (!page.isClosed()) {
+        await page.getByRole("tab", { name: "Manage" }).click();
+        const row = page.locator("li", { hasText: ADDR }).first();
+        if (await row.count()) {
+          await row.getByRole("button", { name: "Delete building" }).click();
+          await expect(page.getByText("Building deleted").first())
+            .toBeVisible({ timeout: 90_000 });
+        }
+      }
+    } catch {
+      // best-effort cleanup; never fail teardown
+    } finally {
+      await page.close();
+    }
   });
 
   async function addEnergyYear(scenario: RegExp, electricity: string) {
-    // The "Add / edit energy year" trigger is a per-building row action on the
-    // Manage tab (write actions live there; the map's detail pane is view-only).
+    // The "Add / edit energy year" trigger is a per-building row action on Manage.
     await page.getByRole("tab", { name: "Manage" }).click();
-    const row = page.locator("li", {
-      hasText: new RegExp(`Building ${id}(?!\\d)`),
-    }).first();
+    const row = page.locator("li", { hasText: ADDR }).first();
     await expect(row).toBeVisible({ timeout: 120_000 });
     await row.getByRole("button", { name: "Add or edit energy year" }).click();
     // The dialog's accessible name contains "year", so target inputs by exact
@@ -77,8 +110,8 @@ test.describe("energy entry + Soll-Ist", () => {
 
   test("the actual figure flows into the building's energy view", async () => {
     test.setTimeout(120_000);
-    // 2099 is now the latest actual year, so loadEnergy surfaces our electricity
-    // figure (de-DE formatted "88.888,00") in the energy-need table.
+    // 2099 is the building's only/latest actual year, so loadEnergy surfaces our
+    // electricity figure (de-DE formatted "88.888,00") in the energy-need table.
     await page.goto(`/#/energy/${id}`);
     await expect(page.getByText("88.888,00").first())
       .toBeVisible({ timeout: 90_000 });

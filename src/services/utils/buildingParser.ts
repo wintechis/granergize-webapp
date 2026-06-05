@@ -12,8 +12,13 @@ import {
   predicateMap,
 } from "./config/buildingConfig.ts";
 import {
+  GEO_LAT,
+  GEO_LOCATION,
+  GEO_LONG,
+  GRAN_GEOCODE_PRECISION,
   GRAN_NS,
   INVESTOR_NS,
+  IRI_TO_GEOCODE_PRECISION,
   PROV_AGENT,
   PROV_HAD_ROLE,
   PROV_QUALIFIED_ATTRIBUTION,
@@ -81,6 +86,8 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   const certBuildingMap = new Map<string, string>();
   /** blank node ID - building ID for the PROV qualified attribution */
   const provBuildingMap = new Map<string, string>();
+  /** blank node ID - building ID for the geo:Point (coordinates + precision) */
+  const geoPointBuildingMap = new Map<string, string>();
 
   // ── Pass 1: Create buildings from named-node subjects ─────────────────────
   quads.forEach((quad: Quad) => {
@@ -148,6 +155,14 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       return;
     }
 
+    // Coordinates blank-node (geo:Point: lat/long + geocode precision)
+    if (pred === GEO_LOCATION) {
+      if (obj.termType === "BlankNode") {
+        geoPointBuildingMap.set(obj.value, buildingId);
+      }
+      return;
+    }
+
     // Object properties mapping to local-name labels (shiftRegime, tenancyType, etc.)
     if (
       obj.termType === "NamedNode" &&
@@ -182,6 +197,10 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     string,
     { agent?: string; category?: BuildingType["provenance"] }
   >();
+  const geoData = new Map<
+    string,
+    { lat?: number; long?: number; precision?: BuildingType["geocodePrecision"] }
+  >();
 
   quads.forEach((quad: Quad) => {
     if (quad.subject.termType !== "BlankNode") return;
@@ -190,6 +209,18 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     const pred = quad.predicate.value;
     const obj = quad.object;
     const objVal = obj.value;
+
+    // ── geo:Point blank node (coordinates + geocode precision) ──
+    if (geoPointBuildingMap.has(bId)) {
+      if (!geoData.has(bId)) geoData.set(bId, {});
+      const gd = geoData.get(bId)!;
+      if (pred === GEO_LAT) gd.lat = parseFloat(objVal);
+      else if (pred === GEO_LONG) gd.long = parseFloat(objVal);
+      else if (pred === GRAN_GEOCODE_PRECISION) {
+        gd.precision = IRI_TO_GEOCODE_PRECISION[objVal];
+      }
+      return;
+    }
 
     // ── Operating costs blank node ──
     if (opCostBuildingMap.has(bId)) {
@@ -294,6 +325,18 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     if (building && pd) {
       if (pd.category) building.provenance = pd.category;
       if (pd.agent) building.attributedTo = pd.agent;
+    }
+  }
+
+  // Coordinates (geo:Point). Preferred over any legacy flat geo:lat/long read in
+  // pass 1, so a building that carries both reflects the current point model.
+  for (const [blankId, buildingId] of geoPointBuildingMap.entries()) {
+    const building = buildings.get(buildingId);
+    const gd = geoData.get(blankId);
+    if (building && gd) {
+      if (gd.lat !== undefined && !Number.isNaN(gd.lat)) building.lat = gd.lat;
+      if (gd.long !== undefined && !Number.isNaN(gd.long)) building.long = gd.long;
+      if (gd.precision) building.geocodePrecision = gd.precision;
     }
   }
 

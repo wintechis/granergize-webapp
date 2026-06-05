@@ -227,7 +227,9 @@ wipe + re-bootstrap the test Pod between steps):
    external → `bookmarks.ttl`, hosted → drop). **DONE.**
 2. **Container-native own data** — discover `buildings/` by listing (new
    `listDirectChildren` in `podDelete.ts` — `null` on a missing container vs `[]`
-   empty, so demo-seed fires only on a fresh Pod), drop the own-building registry
+   empty; a fresh Pod is *offered* the demo buildings via a banner rather than
+   silently seeded, with the decline persisted in `prefs.ttl` `gran:demoSeedDeclined`),
+   drop the own-building registry
    writes (`add/removeBuildingFromRegistry`) and the dead `gran:dataSourceRole` PROV
    fallback; drop the unused agents data source; `views/` becomes
    one-resource-per-definition (`views/<id>.ttl`, list to discover) +

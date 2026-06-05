@@ -1,5 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
+import type { UserRole } from "../../../types/types.ts";
+import { IRI_TO_PROVENANCE, PROVENANCE_TO_IRI } from "../../constants/roles.ts";
 import { fetchFresh } from "./podFetch.ts";
 import { invalidateProfile, loadProfileStore } from "./profileDocument.ts";
 import { getPodBaseUrl } from "./solidUtils.ts";
@@ -29,6 +31,16 @@ const FOAF_NAME = `${FOAF_NS}name`;
 const FOAF_LOGO = `${FOAF_NS}logo`;
 const FOAF_HOMEPAGE = `${FOAF_NS}homepage`;
 const OWL_SAME_AS = `${OWL_NS}sameAs`;
+// W3C Org membership — carries the user's *producing role* (`org:role`), the PROV
+// provenance category recorded on every building they add (separate from the
+// data-room membership role, which lives in the room log via `sioc:has_function`).
+const ORG_HAS_MEMBERSHIP = `${ORG_NS}hasMembership`;
+const ORG_MEMBERSHIP = `${ORG_NS}Membership`;
+const ORG_MEMBER = `${ORG_NS}member`;
+const ORG_ROLE = `${ORG_NS}role`;
+// The `org:organization` PROPERTY (lowercase) linking a Membership to its org —
+// distinct from `ORG_ORGANIZATION` above, which is the `org:Organization` CLASS.
+const ORG_ORGANIZATION_PRED = `${ORG_NS}organization`;
 
 export interface Organization {
   /** Display name (foaf:name). */
@@ -62,6 +74,11 @@ function profileDocUrl(webId: string): string {
 /** The inline org node IRI for this profile (`<…/card#org>`). */
 function orgNodeIri(webId: string): string {
   return `${profileDocUrl(webId)}#org`;
+}
+
+/** The inline org-membership node IRI for this profile (`<…/card#membership>`). */
+function membershipNodeIri(webId: string): string {
+  return `${profileDocUrl(webId)}#membership`;
 }
 
 /**
@@ -254,6 +271,77 @@ export async function saveOrganization(
   else clearPredicate(store, org, FOAF_HOMEPAGE);
   if (sameAs) setNamedNode(store, org, OWL_SAME_AS, sameAs);
   else clearPredicate(store, org, OWL_SAME_AS);
+
+  await putProfile(docUrl, store, session);
+}
+
+/**
+ * The user's *data-producer role* — the PROV provenance category applied to every
+ * building they add — read from `<#me> org:hasMembership <#m> . <#m> org:role <iri>`
+ * in the WebID profile. Returns null when unset (so the Add flow records no
+ * attribution). Distinct from the data-room membership role.
+ */
+export async function getProducingRole(
+  session: Session,
+): Promise<UserRole | null> {
+  const webId = session.info.webId;
+  if (!webId) return null;
+  const store = await loadProfile(webId, session);
+  if (!store) return null;
+
+  const membership = firstObject(store, webId, ORG_HAS_MEMBERSHIP);
+  if (!membership) return null;
+  const roleIri = firstObject(store, membership, ORG_ROLE);
+  if (!roleIri) return null;
+  return IRI_TO_PROVENANCE[roleIri] ?? null;
+}
+
+/**
+ * Persist the user's data-producer role into the WebID profile as a W3C Org
+ * membership (`org:role`, single PUT). Links the membership to the org node only
+ * when an organisation is set; `role === null` clears the membership. Leaves the
+ * `org:memberOf` / FOAF org triples untouched.
+ */
+export async function saveProducingRole(
+  session: Session,
+  role: UserRole | null,
+): Promise<void> {
+  const webId = session.info.webId;
+  if (!session.info.isLoggedIn || !webId) {
+    throw new Error("User is not logged in");
+  }
+  const docUrl = profileDocUrl(webId);
+  const response = await fetchFresh(docUrl, session);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch WebID profile at ${docUrl}: ${response.statusText}`,
+    );
+  }
+  const store = new Store(
+    new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(
+      await response.text(),
+    ),
+  );
+
+  const membership = membershipNodeIri(webId);
+  if (role) {
+    setNamedNode(store, webId, ORG_HAS_MEMBERSHIP, membership);
+    ensureType(store, membership, ORG_MEMBERSHIP);
+    setNamedNode(store, membership, ORG_MEMBER, webId);
+    setNamedNode(store, membership, ORG_ROLE, PROVENANCE_TO_IRI[role]);
+    // Tie the membership to the org node only when the user has an organisation.
+    const org = firstObject(store, webId, ORG_MEMBER_OF);
+    if (org) setNamedNode(store, membership, ORG_ORGANIZATION_PRED, org);
+    else clearPredicate(store, membership, ORG_ORGANIZATION_PRED);
+  } else {
+    // Clear the membership entirely (link + node triples).
+    clearPredicate(store, webId, ORG_HAS_MEMBERSHIP);
+    for (
+      const q of store.getQuads(DataFactory.namedNode(membership), null, null, null)
+    ) {
+      store.removeQuad(q);
+    }
+  }
 
   await putProfile(docUrl, store, session);
 }

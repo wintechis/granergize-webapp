@@ -11,6 +11,8 @@ const RDF_TYPE_NODE = namedNode(RDF_TYPE);
 const GRAN_PREFERENCES = namedNode(`${GRAN_NS}Preferences`);
 const GRAN_CURRENT_ROOM = namedNode(`${GRAN_NS}currentRoom`);
 const GRAN_HIDDEN_BUILDING = namedNode(`${GRAN_NS}hiddenBuilding`);
+const GRAN_DEMO_SEED_DECLINED = namedNode(`${GRAN_NS}demoSeedDeclined`);
+const XSD_BOOLEAN = namedNode("http://www.w3.org/2001/XMLSchema#boolean");
 
 /**
  * Personal, low-contention UI state — one small flat file (`prefs.ttl`) you alone
@@ -24,6 +26,8 @@ export interface Preferences {
   currentRoom: string | null;
   /** Buildings shared with you that you've chosen to hide from the dashboard. */
   hiddenBuildings: Set<string>;
+  /** True once the user dismissed the fresh-Pod "add demo buildings?" offer. */
+  demoSeedDeclined: boolean;
 }
 
 /** `<storageRoot>granergize/prefs.ttl` — your personal preferences resource. */
@@ -34,10 +38,15 @@ export function prefsUrl(webId: string): string {
 /** Read `prefs.ttl`. A missing file yields empty prefs (created on first write). */
 export async function readPrefs(session: Session): Promise<Preferences> {
   const webId = session.info.webId;
-  if (!webId) return { currentRoom: null, hiddenBuildings: new Set() };
+  const empty: Preferences = {
+    currentRoom: null,
+    hiddenBuildings: new Set(),
+    demoSeedDeclined: false,
+  };
+  if (!webId) return empty;
   const url = prefsUrl(webId);
   const res = await fetchFresh(url, session);
-  if (!res.ok) return { currentRoom: null, hiddenBuildings: new Set() };
+  if (!res.ok) return empty;
   const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
   const self = namedNode(url);
   return {
@@ -48,6 +57,8 @@ export async function readPrefs(session: Session): Promise<Preferences> {
         .filter((o) => o.termType === "NamedNode")
         .map((o) => o.value),
     ),
+    demoSeedDeclined:
+      store.getObjects(self, GRAN_DEMO_SEED_DECLINED, null)[0]?.value === "true",
   };
 }
 
@@ -76,6 +87,23 @@ export function setCurrentRoom(
   return mutatePrefs(session, (store, self) => {
     store.removeQuads(store.getQuads(self, GRAN_CURRENT_ROOM, null, null));
     if (room) store.addQuad(self, GRAN_CURRENT_ROOM, namedNode(room));
+  });
+}
+
+/** Remember whether the user dismissed the fresh-Pod demo-buildings offer. */
+export function setDemoSeedDeclined(
+  session: Session,
+  declined: boolean,
+): Promise<void> {
+  return mutatePrefs(session, (store, self) => {
+    store.removeQuads(store.getQuads(self, GRAN_DEMO_SEED_DECLINED, null, null));
+    if (declined) {
+      store.addQuad(
+        self,
+        GRAN_DEMO_SEED_DECLINED,
+        DataFactory.literal("true", XSD_BOOLEAN),
+      );
+    }
   });
 }
 

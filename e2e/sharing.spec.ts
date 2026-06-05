@@ -1,30 +1,24 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, type SolidAccount } from "./helpers/login.ts";
 import { watchAppErrors } from "./helpers/errorGuard.ts";
-import { deleteAllOwnedRooms } from "./helpers/rooms.ts";
+import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "./helpers/rooms.ts";
 
 /**
- * End-to-end sharing across TWO throwaway Solid Pods, using the data room to
- * discover WebIDs (so no WebID needs to be configured):
+ * End-to-end building sharing across TWO throwaway Solid Pods, in ONE test (the
+ * data room is the WebID directory, so no WebID is configured):
  *
- *   1. A hosts a data room and reads its URI.
- *   2. B joins that room and assigns the "User" role.
- *   3. A seeds a building and shares it "By role" → User; the room resolves the
- *      role to B's WebID.
- *   4. B sees the building under "Buildings shared with you".
+ *   • write part — A hosts a room + takes the User role; B joins + takes the User
+ *     role; A adds a building and shares it "By role" → User (the room resolves the
+ *     role to B's WebID);
+ *   • a 2 s cooldown;
+ *   • read part — B logs in fresh (so `readInbox` archives the grant into B's
+ *     `shared-in/`) and sees the building under "Buildings shared with you".
  *
- * Requires two disposable accounts (never real ones) — see e2e/helpers/login.ts
- * and e2e/README.md:
- *
- *   E2E_USERNAME_A / E2E_PASSWORD_A / [E2E_ISSUER_A]
- *   E2E_USERNAME_B / E2E_PASSWORD_B / [E2E_ISSUER_B]
- *
- * Skipped automatically when those are absent. Run:
+ * Previously split into 4 single-account parts to stay under solidcommunity.net's
+ * Cloudflare burst limit; on the reliable Pods (solidweb.org) it runs as one test
+ * driving two browser contexts, and cleans up after itself (A deletes its building
+ * + room in `finally`). Needs E2E_{USERNAME,PASSWORD}_A and _B; skipped without.
  *   npm run sharing            (headed:  npm run sharing -- --headed)
- *
- * NOTE: drives the live login/consent UI; selectors are best-effort for
- * solidcommunity.net and may need adjusting per provider.
  */
 
 const A = account("A");
@@ -36,40 +30,27 @@ const STREET = "Teilenstraße 7";
  * any "/rooms/" link, since the bookmark list also renders room links. */
 async function hostRoomAndGetUri(page: Page): Promise<string> {
   await page.getByRole("tab", { name: "Connect" }).click();
-  // The "Leave data room" button only exists when there's an ACTIVE room. Host a
-  // fresh one only when there isn't (a bookmarked-but-not-active room must not
-  // count, or A would "share from" a room it isn't a member of).
   const leave = page.getByRole("button", { name: /leave data room/i });
   if (!(await leave.count())) {
     await page.getByRole("button", { name: /host a data room/i }).click();
     await expect(leave).toBeVisible({ timeout: 60_000 });
   }
-  // Read the ACTIVE room's URI from its own row — the <li> carrying the "Leave
-  // data room" button — not the bookmark list. (Post-redesign Connect tab: the
-  // URI is a UriLink in the row; there is no "URI:" paragraph any more.)
   const activeRow = page.locator("li").filter({ has: leave });
   const activeLink = activeRow.locator('a[href*="/rooms/"]').first();
   await expect(activeLink).toBeVisible({ timeout: 60_000 });
   const uri = (await activeLink.getAttribute("href"))?.trim();
   expect(uri, "active room URI").toBeTruthy();
-  // Settle: proceed once no action is in flight (Leave enabled). Tolerant.
   await expect(leave).toBeEnabled({ timeout: 60_000 }).catch(() => {});
   return uri!;
 }
 
 /**
  * Assign the User role in the current room (MUI multi-select: open, tick, close,
- * save). Both A and B need a role: A to unlock "Add Building" (which is gated on
- * holding a room role), B to receive the share targeted at the User role.
+ * save). Both A and B need a role: A to share targeted at the User role, B to
+ * receive it.
  */
 async function assignUserRole(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Connect" }).click();
-  // The role for the CURRENT room loads async after entering it, and the select's
-  // displayed text can briefly show the *previous* room's role — so deciding
-  // "already User" from that text wrongly skips the save, leaving the new room
-  // role-less. Wait for the load to settle, then read the actual option state
-  // (aria-selected) inside the open menu, and only save when we actually changed
-  // it (re-clicking an already-checked option would toggle it OFF).
   await page.waitForLoadState("networkidle").catch(() => {});
   const select = page.getByRole("combobox", { name: "My role(s)" });
   await expect(select).toBeVisible({ timeout: 15_000 });
@@ -78,16 +59,11 @@ async function assignUserRole(page: Page): Promise<void> {
   await expect(userOption).toBeVisible({ timeout: 10_000 });
   const alreadyUser = (await userOption.getAttribute("aria-selected")) === "true";
   if (!alreadyUser) await userOption.click();
-  // Close the menu fully before saving — a half-closed menu's backdrop can eat
-  // the first Save click (the symptom: role selected but never persisted).
   await page.keyboard.press("Escape");
   await expect(page.getByRole("listbox")).toBeHidden({ timeout: 5_000 }).catch(
     () => {},
   );
-  if (alreadyUser) return; // already persisted; nothing to save
-
-  // Retry the Save click + success toast: the click can be eaten by the closing
-  // menu, and the role write can be slow under throttle.
+  if (alreadyUser) return;
   await expect(async () => {
     await page.getByRole("button", { name: /save roles/i }).click();
     await expect(page.getByText(/roles updated/i)).toBeVisible({
@@ -96,29 +72,13 @@ async function assignUserRole(page: Page): Promise<void> {
   }).toPass({ timeout: 60_000 });
 }
 
-/**
- * On the Connect tab, add+enter a room URI and assign the User role. Idempotent and
- * tolerant of pre-existing room state (the throwaway Pod accumulates bookmarks
- * across runs): only adds the room if it isn't already bookmarked, then waits for
- * its bookmark button to actually appear before clicking it — so a slow/failed
- * `addRoom` surfaces as a clear "bookmark never showed" timeout rather than a
- * confusing click timeout. The bookmark's button label is the room URI (with a
- * trailing " (current)" once entered), so a substring match on the URI hits it
- * whether or not it's current.
- */
+/** On the Connect tab, add+enter a room URI and assign the User role. */
 async function joinRoomAsUser(page: Page, roomUri: string): Promise<void> {
   await page.getByRole("tab", { name: "Connect" }).click();
-  // Each bookmarked room is a row (li) showing its URI plus an "Enter data room"
-  // action button (rooms list now mirrors the buildings list).
   const row = page.locator("li").filter({ hasText: roomUri });
-
   if (!(await row.count())) {
     const uriField = page.getByLabel(/data room uri/i);
     const add = page.getByRole("button", { name: /^add$/i });
-    // `addRoom` does a network reachability check (roomExists) that can be
-    // throttled on the shared Pod and then silently fail to bookmark; retry the
-    // fill+Add until the row actually shows (the durable signal — the "added"
-    // toast is transient).
     await expect(async () => {
       if (await row.count()) return;
       await uriField.fill(roomUri);
@@ -127,8 +87,6 @@ async function joinRoomAsUser(page: Page, roomUri: string): Promise<void> {
       await expect(row.first()).toBeVisible({ timeout: 10_000 });
     }).toPass({ timeout: 90_000 });
   }
-
-  // Enter the room via its row action (absent if it's already current).
   const enter = row.first().getByRole("button", { name: /enter data room/i });
   if (await enter.count()) await enter.click();
   await expect(page.getByRole("button", { name: /leave data room/i }))
@@ -137,37 +95,62 @@ async function joinRoomAsUser(page: Page, roomUri: string): Promise<void> {
 }
 
 /** A fresh isolated context logged into one account. */
-async function freshPage(
-  browser: Browser,
-  acc: SolidAccount,
-): Promise<
-  {
-    ctx: Awaited<ReturnType<Browser["newContext"]>>;
-    page: Page;
-    guard: ReturnType<typeof watchAppErrors>;
-  }
-> {
+async function freshPage(browser: Browser, acc: SolidAccount): Promise<{
+  ctx: Awaited<ReturnType<Browser["newContext"]>>;
+  page: Page;
+  guard: ReturnType<typeof watchAppErrors>;
+}> {
   const ctx = await browser.newContext({
     viewport: { width: 1200, height: 900 },
   });
   const page = await ctx.newPage();
-  const guard = watchAppErrors(page); // attach before login to catch login-time errors
+  const guard = watchAppErrors(page); // attach before login to catch login errors
   await login(page, acc);
   return { ctx, page, guard };
 }
 
-// The room URI is handed from "part 1" (A hosts) to "part 2" (B joins) via a
-// gitignored file (`*.local` is ignored), so each part can run as its own
-// process after a cooldown without re-discovering the room.
-const STATE_FILE = new URL("./.sharing-state.local.json", import.meta.url);
-function saveRoomUri(roomUri: string): void {
-  writeFileSync(STATE_FILE, JSON.stringify({ roomUri }, null, 2));
+/** Add a building (User template — only the location fields) with a given street. */
+async function addBuilding(page: Page, street: string): Promise<void> {
+  await page.getByRole("tab", { name: "Manage" }).click();
+  await page.getByRole("button", { name: /^add building$/i }).first().click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByLabel("Template")).toBeVisible({ timeout: 15_000 });
+  await dialog.getByLabel("Template").click();
+  await page.getByRole("option", { name: "User" }).click();
+  await dialog.getByLabel(/street address/i).fill(street);
+  await dialog.getByLabel(/locality/i).fill("Nürnberg");
+  await dialog.getByLabel(/postal code/i).fill("90451");
+  await dialog.getByLabel(/region/i).fill("Bayern");
+  await dialog.getByLabel(/latitude/i).fill("49.45");
+  await dialog.getByLabel(/longitude/i).fill("11.08");
+  await dialog.getByRole("button", { name: /^add building$/i }).click();
+  await expect(dialog).toBeHidden({ timeout: 30_000 });
 }
-function loadRoomUri(): string {
-  if (!existsSync(STATE_FILE)) {
-    throw new Error("No saved room URI — run \"part 1\" first.");
-  }
-  return JSON.parse(readFileSync(STATE_FILE, "utf8")).roomUri as string;
+
+/** Share the building at `street` with the room's User-role members. */
+async function shareByRole(page: Page, street: string): Promise<void> {
+  await page.getByRole("tab", { name: "Manage" }).click();
+  await page.waitForLoadState("networkidle").catch(() => {});
+  const row = page.locator("li", { hasText: street }).first();
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.getByRole("button", { name: "Share building data" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
+  await dialog.getByRole("button", { name: /by role/i }).click();
+  await dialog.getByLabel("Role").click();
+  await page.getByRole("option", { name: "User" }).click();
+  // "Review & Share" resolves the role to member WebIDs over the network; retry
+  // until the review step's Confirm appears.
+  const confirm = dialog.getByRole("button", { name: /confirm share/i });
+  await expect(async () => {
+    await dialog.getByRole("button", { name: /review & share/i }).click();
+    await expect(confirm).toBeVisible({ timeout: 10_000 });
+  }).toPass({ timeout: 90_000 });
+  await confirm.click();
+  await expect(dialog.getByText(/shared successfully/i))
+    .toBeVisible({ timeout: 120_000 });
+  await dialog.getByRole("button", { name: /done/i }).click();
 }
 
 test.describe("sharing across two pods", () => {
@@ -176,156 +159,64 @@ test.describe("sharing across two pods", () => {
     "Set E2E_{USERNAME,PASSWORD}_A and _B (throwaway Pods).",
   );
 
-  // Split into FOUR single-account parts so each run is one login + a small write
-  // burst — the live Pod (solidcommunity.net behind Cloudflare) rate-limits bursts
-  // of cross-Pod writes, so concentrating one actor's writes per run and waiting
-  // between them keeps each under the limit. Run in order, letting the limit relax
-  // between parts; state persists on the Pods (+ the room URI in a local file):
-  //   source .env.e2e.local && deno task e2e -g "part 1"   # A hosts + role
-  //   …wait…  deno task e2e -g "part 2"                     # B joins + role
-  //   …wait…  deno task e2e -g "part 3"                     # A shares
-  //   …wait…  deno task e2e -g "part 4"                     # B sees it
-
-  test("part 1: A hosts a room and takes the User role", async ({ browser }) => {
-    test.setTimeout(300_000);
-    const { ctx, page } = await freshPage(browser, A);
+  test("A shares a building by role; B sees it under Buildings shared with you", async ({ browser }) => {
+    test.setTimeout(420_000);
+    const a = await freshPage(browser, A);
+    a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building/room)
     try {
-      const roomUri = await hostRoomAndGetUri(page);
-      await assignUserRole(page);
-      saveRoomUri(roomUri);
-    } finally {
-      await ctx.close();
-    }
-  });
+      // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
+      const roomUri = await hostRoomAndGetUri(a.page);
+      await assignUserRole(a.page);
 
-  test("part 2: B joins the room and takes the User role", async ({ browser }) => {
-    test.setTimeout(300_000);
-    const roomUri = loadRoomUri();
-    const { ctx, page } = await freshPage(browser, B);
-    try {
-      await joinRoomAsUser(page, roomUri);
-    } finally {
-      await ctx.close();
-    }
-  });
-
-  test("part 3: A shares a building with the User role", async ({ browser }) => {
-    test.setTimeout(300_000);
-    const { ctx, page } = await freshPage(browser, A);
-    try {
-      // A's current room (hosted in part 1) persists on the Pod, so "by role"
-      // resolution finds B (who joined in part 2). Ensure a building, then share.
-      await page.getByRole("tab", { name: "Manage" }).click();
-      const dialog = page.getByRole("dialog");
-
-      // The empty-state text shows transiently WHILE the list loads, so it can't
-      // decide "A has no buildings". Wait for the network to go idle, then give a
-      // building's Share action a real chance to appear before treating A as empty.
-      await page.waitForLoadState("networkidle").catch(() => {});
-      const shareAction = page.getByRole("button", {
-        name: "Share building data",
-      });
-      const hasBuilding = await shareAction.first()
-        .waitFor({ state: "visible", timeout: 20_000 })
-        .then(() => true).catch(() => false);
-
-      // Seed a building only if A truly owns none.
-      if (!hasBuilding) {
-        await page.getByRole("button", { name: /^add building$/i }).click();
-        await expect(dialog).toBeVisible({ timeout: 10_000 });
-        // Pick the User import *template* (the add selector is a template chooser
-        // now, independent of data-room roles): an investor-shaped form has extra
-        // required fields (buildingCode) that would block submit.
-        await expect(dialog.getByLabel("Template")).toBeVisible({
-          timeout: 15_000,
-        });
-        await dialog.getByLabel("Template").click();
-        await page.getByRole("option", { name: "User" }).click();
-        await dialog.getByLabel(/street address/i).fill(STREET);
-        await dialog.getByLabel(/locality/i).fill("Nürnberg");
-        await dialog.getByLabel(/postal code/i).fill("90451");
-        await dialog.getByLabel(/region/i).fill("Bayern");
-        await dialog.getByLabel(/latitude/i).fill("49.45");
-        await dialog.getByLabel(/longitude/i).fill("11.08");
-        await dialog.getByRole("button", { name: /^add building$/i }).click();
-        await expect(dialog).toBeHidden({ timeout: 30_000 });
-        await expect(shareAction.first()).toBeVisible({ timeout: 30_000 });
-      }
-
-      // Share from the building's row on the Manage tab (the map detail pane is
-      // view-only now): click the row's "Share building data" action.
-      const shareBtn = shareAction.first();
-      await expect(shareBtn).toBeVisible({ timeout: 30_000 });
-      await shareBtn.click();
-
-      await expect(dialog).toBeVisible({ timeout: 10_000 });
-      await dialog.getByRole("button", { name: /by role/i }).click();
-      await dialog.getByLabel("Role").click();
-      await page.getByRole("option", { name: "User" }).click();
-      // "Review & Share" resolves the role to member WebIDs over the network; that
-      // read can be throttled ("Could not load data room members: Failed to
-      // fetch"), so retry it until the review step's Confirm button appears.
-      const confirm = dialog.getByRole("button", { name: /confirm share/i });
-      await expect(async () => {
-        await dialog.getByRole("button", { name: /review & share/i }).click();
-        await expect(confirm).toBeVisible({ timeout: 10_000 });
-      }).toPass({ timeout: 90_000 });
-      await confirm.click();
-      // The share itself does several Pod writes (ACL grant + inbox + registry);
-      // give it a generous window under throttle.
-      await expect(dialog.getByText(/shared successfully/i)).toBeVisible({
-        timeout: 120_000,
-      });
-      await dialog.getByRole("button", { name: /done/i }).click();
-    } finally {
-      await ctx.close();
-    }
-  });
-
-  test("part 4: B sees the building under Buildings shared with you", async ({ browser }) => {
-    test.setTimeout(300_000);
-    // On login, the app's readInbox archives the grant part 3 left in B's inbox
-    // into B's shared-in/ log and then invalidates the sharedWithMe query, so the
-    // building appears WITHOUT a reload. readInbox is several sequential Pod calls,
-    // so just give it a generous window (don't reload-thrash, which aborts it).
-    const { ctx, page, guard } = await freshPage(browser, B);
-    try {
-      await page.getByRole("tab", { name: "Share" }).click();
-      const received = page.getByRole("heading", {
-        name: /buildings shared with you/i,
-      }).locator("xpath=following-sibling::*[1]");
+      const b1 = await freshPage(browser, B);
       try {
-        await expect(received.getByText(/^Building /)).toBeVisible({
-          timeout: 120_000,
-        });
-      } catch (timeout) {
-        // If the building never arrived because the app raised an error (e.g.
-        // readInbox failing), surface THAT — not a bare "element not found".
-        guard.assertNoAppErrors();
-        throw timeout;
+        await joinRoomAsUser(b1.page, roomUri);
+      } finally {
+        await b1.ctx.close();
+      }
+
+      await addBuilding(a.page, STREET);
+      await shareByRole(a.page, STREET);
+
+      // ── 2 s cooldown between the write part and the read part ──
+      await a.page.waitForTimeout(2000);
+
+      // ── Read part: B logs in fresh → readInbox archives the grant → verify ──
+      const b2 = await freshPage(browser, B);
+      try {
+        await b2.page.getByRole("tab", { name: "Share" }).click();
+        const received = b2.page.getByRole("heading", {
+          name: /buildings shared with you/i,
+        }).locator("xpath=following-sibling::*[1]");
+        try {
+          await expect(received.getByText(/^Building /))
+            .toBeVisible({ timeout: 120_000 });
+        } catch (timeout) {
+          b2.guard.assertNoAppErrors();
+          throw timeout;
+        }
+      } finally {
+        // Drop B's bookmark of A's room so it doesn't leak on B's Pod.
+        await removeAllBookmarkedRooms(b2.page);
+        await b2.ctx.close();
       }
     } finally {
-      await ctx.close();
-    }
-  });
-
-  // The room A hosts in part 1 must SURVIVE parts 2–4 (B joins it, A shares
-  // through it), so it can't be torn down in an afterAll — that would also fire
-  // after an individual `-g "part 1"` resume run and delete the room before
-  // part 2. Instead clean up in an explicit final part: it only runs when "part
-  // 5" matches the grep (a full sequential run, or `-g "part 5"`), so the
-  // four-part resume workflow above is untouched. Without this, A's room leaks
-  // on every full run and the Pod's room list grows unbounded.
-  test("part 5: clean up the room A hosted", async ({ browser }) => {
-    test.setTimeout(300_000);
-    const { ctx, page } = await freshPage(browser, A);
-    // "Delete data room" confirms via window.confirm — accept automatically.
-    page.on("dialog", (d) => d.accept());
-    try {
-      await deleteAllOwnedRooms(page);
-      if (existsSync(STATE_FILE)) unlinkSync(STATE_FILE);
-    } finally {
-      await ctx.close();
+      // Self-cleaning: A deletes its building + the room it hosted (best-effort).
+      try {
+        if (!a.page.isClosed()) {
+          await a.page.getByRole("tab", { name: "Manage" }).click();
+          const row = a.page.locator("li", { hasText: STREET }).first();
+          if (await row.count()) {
+            await row.getByRole("button", { name: "Delete building" }).click();
+            await expect(a.page.getByText("Building deleted").first())
+              .toBeVisible({ timeout: 90_000 });
+          }
+          await deleteAllOwnedRooms(a.page);
+        }
+      } catch {
+        // best-effort cleanup; never fail the run
+      }
+      await a.ctx.close();
     }
   });
 });

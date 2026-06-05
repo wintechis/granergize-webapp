@@ -13,7 +13,10 @@ import {
   getSharedViews,
   getSharedWithMe,
   recordSharing,
+  recordViewSharing,
   revokeAccess,
+  revokeAllViewRecipients,
+  revokeViewAccess,
 } from "./sharingManager.ts";
 
 const WEBID = "https://me.example/profile/card#me";
@@ -176,4 +179,45 @@ Deno.test("getReceivedViews drops a view once its grant is revoked", async () =>
     at: "2026-06-04T11:00:00Z",
   });
   assert.deepEqual(await getReceivedViews(session), []);
+});
+
+Deno.test("revokeViewAccess posts an AccessRevocation to the recipient's inbox", async () => {
+  const { session, store } = makePod();
+  const BOB_INBOX = "https://bob.example/inbox/";
+  // Seed BOB's WebID profile so getRecipientInboxUrl can resolve their inbox
+  // (makePod serves no profile by default, so the notify would otherwise no-op).
+  store[BOB] = `<${BOB}> <http://www.w3.org/ns/ldp#inbox> <${BOB_INBOX}> .`;
+
+  await revokeViewAccess(SNAP, BOB, session);
+
+  // A revocation message landed in BOB's inbox, naming the snapshot + grantee, so
+  // BOB's readInbox archives it into shared-in/ and getReceivedViews folds it out.
+  const posted = Object.entries(store).find(([url]) => url.startsWith(BOB_INBOX));
+  assert.ok(posted, "a message was posted to BOB's inbox");
+  const body = posted![1];
+  assert.match(body, /AccessRevocation/);
+  assert.ok(body.includes(SNAP), "names the revoked snapshot");
+  assert.ok(body.includes(BOB), "names the grantee");
+});
+
+Deno.test("revokeAllViewRecipients revokes + notifies every grantee (for view delete)", async () => {
+  const { session, store } = makePod();
+  const BOB_INBOX = "https://bob.example/inbox/";
+  const ALICE_INBOX = "https://alice.example/inbox/";
+  store[BOB] = `<${BOB}> <http://www.w3.org/ns/ldp#inbox> <${BOB_INBOX}> .`;
+  store[ALICE] = `<${ALICE}> <http://www.w3.org/ns/ldp#inbox> <${ALICE_INBOX}> .`;
+  // A shared SNAP with both BOB and ALICE (recorded in shared-out/).
+  await recordViewSharing(SNAP, BOB, session);
+  await recordViewSharing(SNAP, ALICE, session);
+
+  await revokeAllViewRecipients(SNAP, session);
+
+  // Each recipient got an AccessRevocation in their inbox…
+  for (const inbox of [BOB_INBOX, ALICE_INBOX]) {
+    const posted = Object.entries(store).find(([url]) => url.startsWith(inbox));
+    assert.ok(posted, `revocation posted to ${inbox}`);
+    assert.match(posted![1], /AccessRevocation/);
+  }
+  // …and the owner's shared-out/ no longer lists either (revocations folded out).
+  assert.deepEqual(await getSharedViews(session), []);
 });

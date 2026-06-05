@@ -58,13 +58,21 @@ test.describe("storage redesign smoke", () => {
 
   test("Manage lists own buildings discovered by listing the container", async () => {
     test.setTimeout(180_000);
-    await page.getByRole("tab", { name: "Manage" }).click();
 
+    // A fresh Pod no longer auto-seeds — it offers the demo buildings via a
+    // banner. Accept it if shown (a used Pod already has buildings and shows no
+    // banner), then assert at least one building lists.
+    const addExamples = page.getByRole("button", { name: "Add examples" });
+    if (await addExamples.isVisible().catch(() => false)) {
+      await addExamples.click();
+    }
+
+    await page.getByRole("tab", { name: "Manage" }).click();
     await expect(page.getByRole("heading", { name: "Your buildings" }))
       .toBeVisible({ timeout: SETTLE });
 
-    // At least one building row (a fresh Pod seeds the two demo buildings; a used
-    // Pod already has them). Proves discoverOwnBuildings + listDirectChildren ran.
+    // At least one building row — proves discoverOwnBuildings + listDirectChildren
+    // ran (and the demo seed, if it was a fresh Pod).
     await expect(page.getByText(/^Building /).first())
       .toBeVisible({ timeout: 120_000 });
 

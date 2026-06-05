@@ -4,17 +4,24 @@ import { Parser, Store } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   getOrganization,
+  getProducingRole,
   isSupportedLogoType,
   saveOrganization,
+  saveProducingRole,
   uploadOrgLogo,
 } from "./organizationManager.ts";
+import { PROVENANCE_TO_IRI } from "../../constants/roles.ts";
 import { _resetProfileCacheForTesting } from "./profileDocument.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 const PROFILE_DOC = "https://pod.example/profile/card";
 const ORG = "https://pod.example/profile/card#org";
+const MEMBERSHIP = "https://pod.example/profile/card#membership";
 
 const ORG_MEMBER_OF = "http://www.w3.org/ns/org#memberOf";
+const ORG_HAS_MEMBERSHIP = "http://www.w3.org/ns/org#hasMembership";
+const ORG_ROLE = "http://www.w3.org/ns/org#role";
+const ORG_ORGANIZATION = "http://www.w3.org/ns/org#organization";
 const FOAF_NAME = "http://xmlns.com/foaf/0.1/name";
 const FOAF_LOGO = "http://xmlns.com/foaf/0.1/logo";
 const FOAF_HOMEPAGE = "http://xmlns.com/foaf/0.1/homepage";
@@ -198,4 +205,86 @@ Deno.test("uploadOrgLogo rejects unsupported types", async () => {
     threw = true;
   }
   assert(threw, "expected uploadOrgLogo to throw on unsupported type");
+});
+
+Deno.test("getProducingRole returns null when no membership role is set", async () => {
+  _resetProfileCacheForTesting();
+  const session = makeSession({
+    [PROFILE_DOC]: `
+      @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+      <${WEBID}> foaf:name "Homer" .
+    `,
+  }, []);
+  assert.deepEqual(await getProducingRole(session), null);
+});
+
+Deno.test("saveProducingRole writes org:role on a membership; getProducingRole reads it back", async () => {
+  _resetProfileCacheForTesting();
+  const writes: { url: string; contentType: string; body: unknown }[] = [];
+  const files: Record<string, string> = {
+    [PROFILE_DOC]: `
+      @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+      <${WEBID}> foaf:name "Homer" .
+    `,
+  };
+  const session = makeSession(files, writes);
+
+  await saveProducingRole(session, "investor");
+
+  // Single PUT to the WebID doc, with the membership + role.
+  assert.deepEqual(writes.length, 1);
+  assert.deepEqual(writes[0].url, PROFILE_DOC);
+  const ttl = writes[0].body as string;
+  assert.deepEqual(objectsOf(ttl, WEBID, ORG_HAS_MEMBERSHIP), [MEMBERSHIP]);
+  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ROLE), [
+    PROVENANCE_TO_IRI.investor,
+  ]);
+  // No org set → the membership isn't tied to an org node.
+  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ORGANIZATION), []);
+  // Pre-existing person data preserved.
+  assert.deepEqual(objectsOf(ttl, WEBID, FOAF_NAME), ["Homer"]);
+
+  // The PUT updated the served doc — read it back through the cache.
+  _resetProfileCacheForTesting();
+  assert.deepEqual(await getProducingRole(session), "investor");
+});
+
+Deno.test("saveProducingRole ties the membership to the org node when an org is set", async () => {
+  _resetProfileCacheForTesting();
+  const writes: { url: string; contentType: string; body: unknown }[] = [];
+  const session = makeSession({
+    [PROFILE_DOC]: `
+      @prefix org: <http://www.w3.org/ns/org#> .
+      <${WEBID}> org:memberOf <${ORG}> .
+    `,
+  }, writes);
+
+  await saveProducingRole(session, "benchmark_service_provider");
+  const ttl = writes[0].body as string;
+  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ORGANIZATION), [ORG]);
+  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ROLE), [
+    PROVENANCE_TO_IRI.benchmark_service_provider,
+  ]);
+  // The existing org membership link is untouched.
+  assert.deepEqual(objectsOf(ttl, WEBID, ORG_MEMBER_OF), [ORG]);
+});
+
+Deno.test("saveProducingRole(null) clears the membership role", async () => {
+  _resetProfileCacheForTesting();
+  const writes: { url: string; contentType: string; body: unknown }[] = [];
+  const session = makeSession({
+    [PROFILE_DOC]: `
+      @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+      @prefix org: <http://www.w3.org/ns/org#> .
+      <${WEBID}> foaf:name "Homer" ; org:hasMembership <${MEMBERSHIP}> .
+      <${MEMBERSHIP}> a org:Membership ; org:role <${PROVENANCE_TO_IRI.investor}> .
+    `,
+  }, writes);
+
+  await saveProducingRole(session, null);
+  const ttl = writes[0].body as string;
+  assert.deepEqual(objectsOf(ttl, WEBID, ORG_HAS_MEMBERSHIP), []);
+  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ROLE), []);
+  // Person data preserved.
+  assert.deepEqual(objectsOf(ttl, WEBID, FOAF_NAME), ["Homer"]);
 });

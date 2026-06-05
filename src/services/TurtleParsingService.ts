@@ -19,7 +19,6 @@ import {
   foldSharingLog,
   sharedInUrl,
 } from "./interop/sharingLog.ts";
-import { seedDemoBuildings } from "./utils/buildingSerializer.ts";
 import { isSeriesGranularity } from "./utils/durationUtils.ts";
 
 /**
@@ -174,21 +173,18 @@ async function removeInaccessibleBuildingSources(
  * Discover the user's OWN buildings by LISTING the `buildings/` container — the
  * top-level `*.ttl` files (skip the `buildings/<id>/` energy subcontainers). No
  * registry: adding a building is a single PUT, so the listing can't desync. A
- * *missing* container (404, returned as `null` by listDirectChildren) means a
- * fresh Pod, so we seed the demo buildings once and re-list; an *empty but
- * present* container (the user deleted everything) does NOT reseed.
+ * *missing* container (404, `null` from listDirectChildren) means a fresh Pod —
+ * the demo buildings are no longer seeded here (silently); instead the UI offers
+ * them via a banner (see `useDemoSeedPrompt` / `seedDemoBuildings`). So a fresh
+ * Pod simply loads empty until the user chooses.
  */
 async function discoverOwnBuildings(
   session: Session,
   webId: string,
 ): Promise<string[]> {
   const container = podResources(webId).buildings;
-  let children = await listDirectChildren(container, session);
-  if (children === null) {
-    await seedDemoBuildings(session, webId);
-    children = (await listDirectChildren(container, session)) ?? [];
-  }
-  return children.filter((url) => url.endsWith(".ttl"));
+  const children = await listDirectChildren(container, session);
+  return (children ?? []).filter((url) => url.endsWith(".ttl"));
 }
 
 /**

@@ -1,13 +1,15 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "./helpers/login.ts";
+import { ensureDemoBuildings } from "./helpers/seed.ts";
 
 /**
  * Energy-view smoke test (single account, a THROWAWAY Solid Pod). Proves the
  * unified `gran:EnergyDataset` model renders end-to-end in a real browser: a
  * building's energy detail (annual table + bar chart, or the 15-min series
- * chart) is fetched from the separate dataset resources and drawn. The seeded
- * demo carries one annual (investor) and one 15-min series (user) building, so
- * whichever id we pick exercises the new loader + chart.
+ * chart) is fetched from the separate dataset resources and drawn. It self-seeds
+ * an empty Pod in beforeAll (ensureDemoBuildings) — the demo carries one annual
+ * (investor) and one 15-min series (user) building, so whichever id we pick
+ * exercises the new loader + chart — and so doesn't assume a pre-seeded Pod.
  *
  *   source .env.e2e.local && deno task e2e e2e/energy-smoke.spec.ts
  *
@@ -32,6 +34,9 @@ test.describe("energy view smoke", () => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
     page = await browser.newPage();
     await login(page, ACC);
+    // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the
+    // demo carries the annual + 15-min series buildings this test renders).
+    await ensureDemoBuildings(page);
   });
 
   test.afterAll(async () => {

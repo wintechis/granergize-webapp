@@ -1,5 +1,6 @@
-import { expect, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "./helpers/login.ts";
+import { deleteAllOwnedRooms } from "./helpers/rooms.ts";
 
 /**
  * DIAGNOSTIC (not an assertion test): pins which layer makes room-switching
@@ -31,7 +32,25 @@ test.describe("data-room switch — network diagnosis", () => {
     `Set E2E_USERNAME_${WHICH} / E2E_PASSWORD_${WHICH} (a throwaway Solid Pod) to run the diagnostic.`,
   );
 
-  test("capture the room-registry (prefs.ttl/bookmarks.ttl) exchange around switches", async ({ page }) => {
+  let page: Page;
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
+    page = await browser.newPage();
+    // "Delete data room" confirms via window.confirm — accept automatically.
+    page.on("dialog", (d) => d.accept());
+    await login(page, ACC);
+  });
+
+  test.afterAll(async () => {
+    // Teardown lives here, not in the test body, so a mid-switch timeout (this
+    // slow diagnostic's common failure mode) can't skip it and leak the two
+    // hosted rooms.
+    await deleteAllOwnedRooms(page);
+    await page.close();
+  });
+
+  test("capture the room-registry (prefs.ttl/bookmarks.ttl) exchange around switches", async () => {
     test.setTimeout(240_000);
     const short = (uri: string) => uri.split("/rooms/")[1] ?? uri;
     // The room registry is now two files (storage redesign): the active-room
@@ -76,7 +95,6 @@ test.describe("data-room switch — network diagnosis", () => {
     });
 
     console.log(`// account ${WHICH} @ ${ACC.issuer}`);
-    await login(page, ACC);
     await page.getByRole("tab", { name: "Connect" }).click();
 
     const hostRoom = async (): Promise<string> => {
@@ -111,14 +129,7 @@ test.describe("data-room switch — network diagnosis", () => {
     await page.waitForTimeout(5000);
     console.log(`   UI: A=${await buttonOf(rowA)}  B=${await buttonOf(rowB)}`);
 
-    // Clean up both rooms (best-effort).
-    page.on("dialog", (d) => d.accept());
-    for (const row of [rowA, rowB]) {
-      await row.getByRole("button", { name: "Delete data room" }).click().catch(
-        () => {},
-      );
-      await page.waitForTimeout(2000);
-    }
+    // Rooms are torn down in afterAll (so a timeout can't skip cleanup).
 
     async function buttonOf(row: ReturnType<typeof page.locator>) {
       if (await row.getByRole("button", { name: "Leave data room" }).count()) {

@@ -1,35 +1,29 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, type SolidAccount } from "./helpers/login.ts";
 import { watchAppErrors } from "./helpers/errorGuard.ts";
-import { deleteAllOwnedRooms } from "./helpers/rooms.ts";
+import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "./helpers/rooms.ts";
 
 /**
- * Aggregated-VIEW sharing across TWO throwaway Pods (PROBLEMS.md #17). Mirrors
- * `sharing.spec.ts` (which shares a building): the data room is the WebID
- * directory, so no WebID is configured.
+ * Aggregated-VIEW sharing across TWO throwaway Pods (PROBLEMS.md #17 + #21), in
+ * ONE test (the data room is the WebID directory, so no WebID is configured):
  *
- *   1. A hosts a data room + takes the User role.
- *   2. B joins that room + takes the User role.
- *   3. A creates an aggregated view and shares it with B via the dialog's
- *      "Data room members" list (ShareViewDialog has no "by role").
- *   4. B sees it under "Views shared with you" and opens the computed values.
+ *   • A hosts a room + role; B joins + role; A creates a view and shares it with B
+ *     via the dialog's room-members "Add" (ShareViewDialog has no "by role");
+ *   • 2 s cooldown → B sees it under "Views shared with you" and the values render;
+ *   • A deletes the view (revokes + notifies B via `revokeAllViewRecipients`);
+ *   • 2 s cooldown → B no longer sees it (the revocation folded it out).
  *
- * Needs E2E_{USERNAME,PASSWORD}_A and _B (throwaway Pods); skipped without them.
- * Split into 4 single-account parts (run in order, with cooldowns) to stay under
- * the live Pod's rate limit — same rationale as `sharing.spec.ts`:
- *   source .env.e2e.local && deno task e2e -g "view part 1"   # A hosts + role
- *   …wait…  deno task e2e -g "view part 2"                    # B joins + role
- *   …wait…  deno task e2e -g "view part 3"                    # A creates + shares
- *   …wait…  deno task e2e -g "view part 4"                    # B sees it
+ * Was 6 single-account parts to stay under solidcommunity.net's Cloudflare burst
+ * limit; on reliable Pods it runs as one test driving two contexts, self-cleaning
+ * (the view is deleted as part of the flow; A's room in `finally`). Needs
+ * E2E_{USERNAME,PASSWORD}_A and _B; skipped without them.
  */
 
 const A = account("A");
 const B = account("B");
 const VIEW_NAME = "E2E Shared View";
 
-// ── Room helpers (mirror sharing.spec.ts; the room is the WebID directory) ──
-
+/** On the Connect tab, ensure an ACTIVE room (host one if none) and return ITS URI. */
 async function hostRoomAndGetUri(page: Page): Promise<string> {
   await page.getByRole("tab", { name: "Connect" }).click();
   const leave = page.getByRole("button", { name: /leave data room/i });
@@ -46,6 +40,7 @@ async function hostRoomAndGetUri(page: Page): Promise<string> {
   return uri!;
 }
 
+/** Assign the User role in the current room (MUI multi-select: open, tick, save). */
 async function assignUserRole(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Connect" }).click();
   await page.waitForLoadState("networkidle").catch(() => {});
@@ -69,6 +64,7 @@ async function assignUserRole(page: Page): Promise<void> {
   }).toPass({ timeout: 60_000 });
 }
 
+/** On the Connect tab, add+enter a room URI and assign the User role. */
 async function joinRoomAsUser(page: Page, roomUri: string): Promise<void> {
   await page.getByRole("tab", { name: "Connect" }).click();
   const row = page.locator("li").filter({ hasText: roomUri });
@@ -90,6 +86,7 @@ async function joinRoomAsUser(page: Page, roomUri: string): Promise<void> {
   await assignUserRole(page);
 }
 
+/** A fresh isolated context logged into one account. */
 async function freshPage(browser: Browser, acc: SolidAccount): Promise<{
   ctx: Awaited<ReturnType<Browser["newContext"]>>;
   page: Page;
@@ -104,23 +101,11 @@ async function freshPage(browser: Browser, acc: SolidAccount): Promise<{
   return { ctx, page, guard };
 }
 
-// Room URI handoff between parts (own state file — don't clobber sharing.spec's).
-const STATE_FILE = new URL("./.view-sharing-state.local.json", import.meta.url);
-const saveRoomUri = (roomUri: string) =>
-  writeFileSync(STATE_FILE, JSON.stringify({ roomUri }, null, 2));
-function loadRoomUri(): string {
-  if (!existsSync(STATE_FILE)) {
-    throw new Error('No saved room URI — run "view part 1" first.');
-  }
-  return JSON.parse(readFileSync(STATE_FILE, "utf8")).roomUri as string;
-}
-
 /** Create the shared view (idempotent: reuse an existing one with VIEW_NAME). */
 async function ensureView(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
   await page.waitForLoadState("networkidle").catch(() => {});
-  const existing = page.locator("li").filter({ hasText: VIEW_NAME });
-  if (await existing.count()) return;
+  if (await page.locator("li").filter({ hasText: VIEW_NAME }).count()) return;
 
   await page.getByRole("button", { name: /create view/i }).click();
   const dialog = page.getByRole("dialog");
@@ -133,10 +118,14 @@ async function ensureView(page: Page): Promise<void> {
   await page.getByRole("option").first().click();
   await page.keyboard.press("Escape");
   await dialog.getByRole("button", { name: /create view/i }).click();
-  await expect(page.getByText(/view created successfully/i)).toBeVisible({
-    timeout: 60_000,
-  });
+  await expect(page.getByText(/view created successfully/i))
+    .toBeVisible({ timeout: 60_000 });
 }
+
+/** The Share-tab "Views shared with you" section locator. */
+const receivedViews = (page: Page) =>
+  page.getByRole("heading", { name: /views shared with you/i })
+    .locator("xpath=following-sibling::*[1]");
 
 test.describe("view sharing across two pods", () => {
   test.skip(
@@ -144,116 +133,103 @@ test.describe("view sharing across two pods", () => {
     "Set E2E_{USERNAME,PASSWORD}_A and _B (throwaway Pods).",
   );
 
-  test("view part 1: A hosts a room and takes the User role", async ({ browser }) => {
-    test.setTimeout(300_000);
-    const { ctx, page } = await freshPage(browser, A);
+  test("A shares a view; B sees it, then A deletes it and B no longer sees it", async ({ browser }) => {
+    test.setTimeout(540_000);
+    const a = await freshPage(browser, A);
+    a.page.on("dialog", (d) => d.accept()); // Delete view / room confirms
     try {
-      const roomUri = await hostRoomAndGetUri(page);
-      await assignUserRole(page);
-      saveRoomUri(roomUri);
-    } finally {
-      await ctx.close();
-    }
-  });
+      // ── A hosts a room + role; B joins + role; A creates + shares the view ──
+      const roomUri = await hostRoomAndGetUri(a.page);
+      await assignUserRole(a.page);
 
-  test("view part 2: B joins the room and takes the User role", async ({ browser }) => {
-    test.setTimeout(300_000);
-    const roomUri = loadRoomUri();
-    const { ctx, page } = await freshPage(browser, B);
-    try {
-      await joinRoomAsUser(page, roomUri);
-    } finally {
-      await ctx.close();
-    }
-  });
+      const b1 = await freshPage(browser, B);
+      try {
+        await joinRoomAsUser(b1.page, roomUri);
+      } finally {
+        await b1.ctx.close();
+      }
 
-  test("view part 3: A creates a view and shares it with B", async ({ browser }) => {
-    test.setTimeout(300_000);
-    const { ctx, page } = await freshPage(browser, A);
-    try {
-      await ensureView(page);
-
-      const viewRow = page.locator("li").filter({ hasText: VIEW_NAME }).first();
+      await ensureView(a.page);
+      const viewRow = a.page.locator("li").filter({ hasText: VIEW_NAME }).first();
       await viewRow.getByRole("button", { name: "Share view" }).click();
-
-      const dialog = page.getByRole("dialog");
-      await expect(dialog).toBeVisible({ timeout: 10_000 });
-      // Add B from the room-members list (B joined + took a role in part 2).
-      const add = dialog.getByRole("button", { name: /^add$/i });
+      const shareDlg = a.page.getByRole("dialog");
+      await expect(shareDlg).toBeVisible({ timeout: 10_000 });
+      // Add B from the room-members list (B joined + took a role above).
+      const add = shareDlg.getByRole("button", { name: /^add$/i });
       await expect(add.first()).toBeVisible({ timeout: 30_000 });
       await add.first().click();
-
-      const confirm = dialog.getByRole("button", { name: /confirm share/i });
+      const confirm = shareDlg.getByRole("button", { name: /confirm share/i });
       await expect(async () => {
-        await dialog.getByRole("button", { name: /review & share/i }).click();
+        await shareDlg.getByRole("button", { name: /review & share/i }).click();
         await expect(confirm).toBeVisible({ timeout: 10_000 });
       }).toPass({ timeout: 90_000 });
       await confirm.click();
-      await expect(dialog.getByText(/shared successfully/i)).toBeVisible({
-        timeout: 120_000,
-      });
-      await dialog.getByRole("button", { name: /close/i }).click();
-    } finally {
-      await ctx.close();
-    }
-  });
+      await expect(shareDlg.getByText(/shared successfully/i))
+        .toBeVisible({ timeout: 120_000 });
+      await shareDlg.getByRole("button", { name: /close/i }).click();
 
-  test("view part 4: B sees the view under Views shared with you", async ({ browser }) => {
-    test.setTimeout(300_000);
-    // On login, readInbox archives the View grant into B's shared-in/ and
-    // invalidates the receivedViews query, so it appears without a reload.
-    const { ctx, page, guard } = await freshPage(browser, B);
-    try {
-      await page.getByRole("tab", { name: "Share" }).click();
-      const section = page.getByRole("heading", {
-        name: /views shared with you/i,
-      }).locator("xpath=following-sibling::*[1]");
+      // ── 2 s cooldown → B sees the view + its values ──
+      await a.page.waitForTimeout(2000);
+      const b2 = await freshPage(browser, B);
       try {
-        await expect(section.getByText(VIEW_NAME)).toBeVisible({
-          timeout: 120_000,
-        });
-        // Open the computed values — the SVG bar chart proves the snapshot loaded.
-        await page.getByRole("button", { name: /show values/i }).first().click();
-        await expect(page.locator("svg.recharts-surface").first()).toBeVisible({
-          timeout: 60_000,
-        });
-      } catch (timeout) {
-        guard.assertNoAppErrors();
-        throw timeout;
-      }
-    } finally {
-      await ctx.close();
-    }
-  });
-
-  // Explicit final cleanup (only runs on a full sequential run or `-g "view part
-  // 5"`, so the 4-part resume workflow is untouched): delete the view A created
-  // and the room A hosted, else both leak on the Pod on every run.
-  test("view part 5: clean up the view and room A hosted", async ({ browser }) => {
-    test.setTimeout(300_000);
-    const { ctx, page } = await freshPage(browser, A);
-    // "Delete view"/"Delete data room" confirm via window.confirm — auto-accept.
-    page.on("dialog", (d) => d.accept());
-    try {
-      // Best-effort: remove every view named VIEW_NAME so it doesn't accumulate.
-      try {
-        await page.getByRole("tab", { name: "Manage" }).click();
-        await page.waitForLoadState("networkidle").catch(() => {});
-        const del = page.locator("li").filter({ hasText: VIEW_NAME })
-          .getByRole("button", { name: "Delete view" });
-        for (let i = 0; i < 10; i++) {
-          if (!(await del.count())) break;
-          await del.first().click();
-          await expect(page.getByText("View deleted").first())
-            .toBeVisible({ timeout: 45_000 }).catch(() => {});
+        await b2.page.getByRole("tab", { name: "Share" }).click();
+        try {
+          await expect(receivedViews(b2.page).getByText(VIEW_NAME))
+            .toBeVisible({ timeout: 120_000 });
+          await b2.page.getByRole("button", { name: /show values/i }).first()
+            .click();
+          await expect(b2.page.locator("svg.recharts-surface").first())
+            .toBeVisible({ timeout: 60_000 });
+        } catch (timeout) {
+          b2.guard.assertNoAppErrors();
+          throw timeout;
         }
-      } catch {
-        // cleanup is best-effort; never fail the run
+      } finally {
+        await b2.ctx.close();
       }
-      await deleteAllOwnedRooms(page);
-      if (existsSync(STATE_FILE)) unlinkSync(STATE_FILE);
+
+      // ── A deletes the view (revokes + notifies B) ──
+      await a.page.getByRole("tab", { name: "Manage" }).click();
+      await a.page.waitForLoadState("networkidle").catch(() => {});
+      const del = a.page.locator("li").filter({ hasText: VIEW_NAME })
+        .getByRole("button", { name: "Delete view" });
+      for (let i = 0; i < 10; i++) {
+        if (!(await del.count())) break;
+        await del.first().click();
+        await expect(a.page.getByText("View deleted").first())
+          .toBeVisible({ timeout: 45_000 }).catch(() => {});
+      }
+
+      // ── 2 s cooldown → B no longer sees the view ──
+      await a.page.waitForTimeout(2000);
+      const b3 = await freshPage(browser, B);
+      try {
+        await b3.page.getByRole("tab", { name: "Share" }).click();
+        try {
+          // Positive empty-state assertion: the list loaded AND the view is gone.
+          await expect(
+            receivedViews(b3.page).getByText(
+              /no aggregated views have been shared with you/i,
+            ),
+          ).toBeVisible({ timeout: 120_000 });
+          await expect(receivedViews(b3.page).getByText(VIEW_NAME)).toHaveCount(0);
+        } catch (timeout) {
+          b3.guard.assertNoAppErrors();
+          throw timeout;
+        }
+      } finally {
+        // Drop B's bookmark of A's room so it doesn't leak on B's Pod.
+        await removeAllBookmarkedRooms(b3.page);
+        await b3.ctx.close();
+      }
     } finally {
-      await ctx.close();
+      // Self-cleaning: the view was deleted above; tear down A's room.
+      try {
+        if (!a.page.isClosed()) await deleteAllOwnedRooms(a.page);
+      } catch {
+        // best-effort cleanup; never fail the run
+      }
+      await a.ctx.close();
     }
   });
 });

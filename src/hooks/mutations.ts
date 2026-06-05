@@ -4,10 +4,14 @@ import { queryKeys } from "./queries.ts";
 import { confirmAndDeleteBuilding } from "../services/utils/buildingActions.ts";
 import {
   revokeAccess,
+  revokeAllViewRecipients,
   revokeViewAccess,
   toggleBuildingVisibility,
 } from "../services/interop/sharingManager.ts";
-import { deleteView } from "../services/aggregation/viewManager.ts";
+import {
+  deleteView,
+  getSnapshotUrl,
+} from "../services/aggregation/viewManager.ts";
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import {
   addKnownRoom,
@@ -86,7 +90,17 @@ export function useRevokeBuildingAccess() {
 export function useDeleteView() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (viewId: string) => deleteView(getSession(), viewId),
+    // Revoke every recipient first (notifying them, so the view drops off their
+    // "Views shared with you"), THEN delete the definition/snapshot — deleting the
+    // snapshot alone would leave a stale row on each recipient's list.
+    mutationFn: async (viewId: string) => {
+      const session = getSession();
+      const webId = session.info.webId;
+      if (webId) {
+        await revokeAllViewRecipients(getSnapshotUrl(webId, viewId), session);
+      }
+      await deleteView(session, viewId);
+    },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.viewDefinitions });
       qc.invalidateQueries({ queryKey: queryKeys.sharedViews });

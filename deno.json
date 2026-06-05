@@ -6,7 +6,8 @@
     "lint": "deno run -A npm:eslint .",
     "e2e": "npx playwright test",
     "e2e:install": "npx playwright install --with-deps chromium",
-    "it:live": "deno run -A --node-modules-dir=auto scripts/data-layer-live.ts"
+    "it:live": "deno run -A --node-modules-dir=auto scripts/data-layer-live.ts",
+    "handbuch": "bash scripts/build-handbuch.sh"
   },
   "imports": {
     "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.53"

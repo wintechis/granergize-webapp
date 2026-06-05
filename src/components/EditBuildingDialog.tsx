@@ -17,8 +17,10 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/utils/config/buildingConfig.ts";
-import { updateBuilding } from "../services/utils/buildingSerializer.ts";
-import { trackedFetch } from "../services/utils/networkActivity.ts";
+import {
+  geocodeFields,
+  updateBuilding,
+} from "../services/utils/buildingSerializer.ts";
 import { formatError } from "../services/utils/formatError.ts";
 import Modal from "./Modal.tsx";
 
@@ -94,27 +96,17 @@ export default function EditBuildingDialog(
   };
 
   const handleGeocode = async () => {
-    const query = [fields.streetAddress, fields.postalCode, fields.locality, fields.region]
-      .filter(Boolean)
-      .join(", ");
-    if (!query) return;
     setGeocoding(true);
     try {
-      const res = await trackedFetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
-        { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
-        "geocode address",
-      );
-      const data = await res.json() as { lat: string; lon: string }[];
-      if (!data.length) {
+      const coords = await geocodeFields(fields);
+      if (!coords) {
         showNotification("Address not found", "warning");
         return;
       }
-      setField("lat", data[0].lat);
-      setField("long", data[0].lon);
+      setField("lat", coords.lat);
+      setField("long", coords.long);
+      setField("geocodePrecision", coords.precision);
       showNotification("Coordinates updated", "success");
-    } catch (err) {
-      showNotification(formatError("look up coordinates", err), "error");
     } finally {
       setGeocoding(false);
     }
