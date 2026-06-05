@@ -30,3 +30,35 @@ export async function deleteAllOwnedRooms(page: Page): Promise<void> {
     // Cleanup is best-effort; never let it fail the run.
   }
 }
+
+/**
+ * Best-effort: drop every BOOKMARKED (non-owned) data room from this account's
+ * list — rooms you joined but don't host show a "Remove data room" action (not
+ * "Delete data room"). Used by the recipient (B) in the two-pod specs so it
+ * doesn't accumulate dead bookmarks of rooms the sharer hosted and later deleted.
+ * Leaves the active room first so its bookmark is freely removable; neither
+ * leaving nor removing a bookmark needs a confirm.
+ */
+export async function removeAllBookmarkedRooms(page: Page): Promise<void> {
+  try {
+    const connect = page.getByRole("tab", { name: "Connect" });
+    if (await connect.count()) await connect.click();
+    await page.waitForLoadState("networkidle").catch(() => {});
+
+    const leave = page.getByRole("button", { name: "Leave data room" });
+    if (await leave.count()) {
+      await leave.first().click();
+      await page.waitForLoadState("networkidle").catch(() => {});
+    }
+
+    const removeButtons = page.getByRole("button", { name: "Remove data room" });
+    for (let i = 0; i < 50; i++) {
+      const remaining = await removeButtons.count();
+      if (remaining === 0) return;
+      await removeButtons.first().click();
+      await expect(removeButtons).toHaveCount(remaining - 1, { timeout: 45_000 });
+    }
+  } catch {
+    // Cleanup is best-effort; never let it fail the run.
+  }
+}

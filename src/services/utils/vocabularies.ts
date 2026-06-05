@@ -15,6 +15,35 @@ export const FOAF_NS = "http://xmlns.com/foaf/0.1/";
 /** vCard — profile photo (vcard:hasPhoto) fallback for the avatar. */
 export const VCARD_NS = "http://www.w3.org/2006/vcard/ns#";
 
+/**
+ * W3C Basic Geo (WGS84). A building's coordinates live on a `geo:Point` blank
+ * node linked by `geo:location`, so the geocoding precision can be attached to
+ * the coordinate itself (`gran:geocodePrecision`) rather than the building.
+ */
+export const GEO_NS = "http://www.w3.org/2003/01/geo/wgs84_pos#";
+export const GEO_LOCATION = `${GEO_NS}location`;
+export const GEO_POINT = `${GEO_NS}Point`;
+export const GEO_LAT = `${GEO_NS}lat`;
+export const GEO_LONG = `${GEO_NS}long`;
+
+/**
+ * Granergize: how precisely a `geo:Point` was geocoded — `Address` (full
+ * street), `Postcode` (postcode + city) or `City` (city only) — recorded when
+ * the lookup had to fall back to a coarser query. IRI-valued (controlled vocab).
+ */
+export const GRAN_GEOCODE_PRECISION = `${GRAN_NS}geocodePrecision`;
+export const GEOCODE_PRECISION_IRI = {
+  address: `${GRAN_NS}Address`,
+  postcode: `${GRAN_NS}Postcode`,
+  city: `${GRAN_NS}City`,
+} as const;
+export type GeocodePrecision = keyof typeof GEOCODE_PRECISION_IRI;
+/** Reverse of {@link GEOCODE_PRECISION_IRI} (IRI → precision key), for parsing. */
+export const IRI_TO_GEOCODE_PRECISION: Record<string, GeocodePrecision> = Object
+  .fromEntries(
+    Object.entries(GEOCODE_PRECISION_IRI).map(([k, v]) => [v, k]),
+  ) as Record<string, GeocodePrecision>;
+
 /** W3C Org ontology — person→organisation membership (org:memberOf). */
 export const ORG_NS = "http://www.w3.org/ns/org#";
 

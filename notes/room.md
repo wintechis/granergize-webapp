@@ -3,15 +3,15 @@
 A data room is an **append-only LDP container** any user creates on their own Pod.
 State is **event-sourced**: join, leave, and role changes each append one immutable
 event; current state is **derived on read** by folding (latest event per WebID, per
-axis). Append-only POSTs give an audit trail and avoid lost-update races.
+axis). This gives an audit trail and avoids lost-update races.
 
 Code: [`dataRoom.ts`](src/services/interop/dataRoom.ts); UI
 [`ConnectPage.tsx`](src/pages/ConnectPage.tsx); IRIs in
 [`vocabularies.ts`](src/services/utils/vocabularies.ts).
 
 **Single room at a time:** you are a member of at most one room — the *current*
-room. Entering another room leaves the one you were in. A persistent **bookmarks**
-list lets you switch between rooms you know about.
+room; entering another leaves it. A persistent **bookmarks** list lets you switch
+between rooms you know about.
 
 Two **independent axes**: **membership** (in the room or not) and **role(s) held**.
 You can be a member with no role, or have left while role history remains.
@@ -25,19 +25,29 @@ You can be a member with no role, or have left while role history remains.
 - Appends via **LDP container `POST`** (server mints each child URL); the Pod applies
   no SPARQL `PATCH`.
 
-### Room registry on your Pod (no localStorage)
+For where these files sit in the Pod tree, see [data-layout.md](data-layout.md).
 
-A single registry `…/granergize/rooms.ttl` on your **own** Pod is the source of truth
-for both the list and the current room (so they survive reloads and work across
-devices):
+### Room state on your Pod (no localStorage)
 
-- `<registry> gran:knownRoom <url> …` — your **bookmarks** ("Your rooms"). Added by
-  create / add-URI / scan; they **survive leaving**.
-- `<registry> gran:currentRoom <url>` — the **one room you're in** (0 or 1).
+Your **own** Pod is the source of truth for both the list and the current room (so
+they survive reloads and work across devices), split across two single-writer flat
+files (you alone write each, so read-modify-write is safe):
+
+- `…/granergize/prefs.ttl` (`prefs.ts`) — `<prefs> gran:currentRoom <url>` is the
+  **one room you're in** (0 or 1). Written by `setCurrentRoom`, read by `readPrefs`.
+  (Also holds other personal UI prefs — hidden buildings, demo-seed dismissal.)
+- `…/granergize/bookmarks.ttl` (`bookmarks.ts`) — `<bookmarks> gran:knownRoom <url> …`
+  is your **bookmarks** ("Your rooms"). Added by create / add-URI / scan via
+  `addKnownRoom`; removed by `removeKnownRoom`; read by `readBookmarks`. They
+  **survive leaving**.
+
+(Rooms you *host* are discovered by listing `rooms/`, not duplicated in these files;
+each hosted room's event log still lives under `rooms/<uuid>/`.)
 
 `getActiveRoom()` reads an in-memory mirror of `currentRoom` (so components like the
-sharing dialogs can read it synchronously); `hydrateActiveRoom` loads it from the Pod
-on login, and `enterRoom`/`exitRoom` keep both in sync.
+sharing dialogs can read it synchronously); `hydrateActiveRoom` loads it from
+`prefs.ttl` on login, and `enterRoom`/`exitRoom` keep `prefs.ttl` (+ `bookmarks.ttl`)
+and the mirror in sync.
 
 ## Events (Activity Streams 2.0 + SIOC)
 
@@ -69,9 +79,9 @@ Role IRIs (`ROLE_TO_IRI`): `investor`→`gran:InvestorRole`, `user`→
 
 ## Operations & fold
 
-- **Join** — `joinRoom`; event `as:Join`; current state: latest membership = `as:Join` → member.
-- **Leave** — `leaveRoom`; event `as:Leave`; current state: latest membership = `as:Leave` → not a member.
-- **Set role(s)** — `setMyRole`; event `as:Update` + `sioc:has_function`; current state: latest = current role set.
+- **Join** — `joinRoom`; event `as:Join`; latest membership = `as:Join` → member.
+- **Leave** — `leaveRoom`; event `as:Leave`; latest membership = `as:Leave` → not a member.
+- **Set role(s)** — `setMyRole`; event `as:Update` + `sioc:has_function`; latest = current role set.
 
 `readLog` does one container `GET`, lists `ldp:contains`, `GET`s + parses each child
 (skipping unreadable/malformed; 404 → empty), classifies by `rdf:type`, then
@@ -98,8 +108,7 @@ Documented hardening: order by each event's server `Last-Modified` (tie-break on
 - **Delete** — `deleteRoom` (owner only, via `ownsRoom`): delete the room's events,
   ACL, and container, then `removeKnownRoom` to forget the bookmark.
 
-State is re-derived from the Pod on every read, so the current room and the bookmark
-list survive restarts.
+State is re-derived from the Pod on every read, so it survives restarts.
 
 ## Admission & trust
 
@@ -112,12 +121,12 @@ roles are low-stakes; gate admission if a role ever gates real data.
 
 Membership and roles grant **no data access** by themselves. A room is only a
 **directory**: `getMembersByRole` resolves a role to WebIDs, which the "share by role"
-UI feeds into ordinary per-resource grants. The actual access is bilateral and
+UI feeds into ordinary per-resource grants. The access itself is bilateral and
 room-independent — see [sharing.md](sharing.md).
 
 ## Tests
 
-Offline tests in [`dataRoom_test.ts`](src/services/interop/dataRoom_test.ts)
+Offline tests in [`dataRoom.test.ts`](src/services/interop/dataRoom.test.ts)
 (`deno task test`): latest-wins folding, concurrent members not clobbering, the two
 axes independent, join→leave, role-without-join ≠ member, role→WebID resolution,
 `createRoom` (bookmark + current + single membership), `addKnownRoom` bookmark-without-join

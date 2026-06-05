@@ -59,6 +59,8 @@ export interface BuildingType {
   energyCertificate?: string;
   lat?: number;
   long?: number;
+  /** How precisely lat/long were geocoded (from the geo:Point), when known. */
+  geocodePrecision?: "address" | "postcode" | "city";
   locality?: string;
   postalCode?: number;
   region?: string;

@@ -265,11 +265,14 @@ export async function recordSharing(
 }
 
 /**
- * Notify the recipient that their access was revoked — a revocation event (the
- * shared-event shape) posted to their inbox, which they archive into shared-in/.
+ * Notify the recipient that their access to a resource (a building file or a view
+ * snapshot) was revoked — a revocation event (the shared-event shape) posted to
+ * their inbox, which they archive into shared-in/. Resource-neutral: the message
+ * is `interop:forResource <resource>` with no kind, so it folds out a grant of
+ * either kind on the recipient's side.
  */
 async function notifyAccessRevoked(
-  buildingUri: string,
+  resource: string,
   webId: string,
   session: Session,
 ): Promise<void> {
@@ -279,7 +282,7 @@ async function notifyAccessRevoked(
     type: "revocation",
     owner: session.info.webId!,
     grantee: webId,
-    resource: buildingUri,
+    resource,
     at: new Date().toISOString(),
   });
 
@@ -392,7 +395,8 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
 
 /**
  * Revoke a recipient's access to an aggregated view: log the revocation in
- * `shared-out/` and withdraw it from the snapshot's `.acl`.
+ * `shared-out/`, withdraw it from the snapshot's `.acl`, and notify the recipient
+ * so the view drops off their "Views shared with you" on their next inbox drain.
  */
 export async function revokeViewAccess(
   snapshotUrl: string,
@@ -412,4 +416,27 @@ export async function revokeViewAccess(
     at: new Date().toISOString(),
   });
   await removeFromACL(snapshotUrl, webId, session);
+  // Best-effort: the ACL withdrawal is the source of truth; the inbox notice is a
+  // courtesy that lets the recipient's shared-in/ fold the grant out (same as
+  // building revocation). Never let a notify failure fail the revocation.
+  await notifyAccessRevoked(snapshotUrl, webId, session).catch(() => {});
+}
+
+/**
+ * Revoke every current recipient of a view (each gets the same inbox notice as an
+ * explicit revoke). Used when DELETING a shared view: deleting the snapshot alone
+ * wouldn't tell recipients, so the view would linger on their "Views shared with
+ * you" — this folds it out of each recipient's shared-in/ first. Best-effort per
+ * recipient; the recipient set comes from the owner's `shared-out/` log.
+ */
+export async function revokeAllViewRecipients(
+  snapshotUrl: string,
+  session: Session,
+): Promise<void> {
+  const shared = await getSharedViews(session);
+  const recipients = shared.find((v) => v.snapshotUrl === snapshotUrl)
+    ?.sharedWith ?? [];
+  for (const webId of recipients) {
+    await revokeViewAccess(snapshotUrl, webId, session).catch(() => {});
+  }
 }

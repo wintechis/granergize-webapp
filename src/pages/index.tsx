@@ -7,14 +7,15 @@ import MenuItem from "@mui/material/MenuItem";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 const ExplorePage = lazy(() => import("./ExplorePage.tsx"));
-import { useLocation, useNavigate } from "react-router-dom";
+import { useLocation } from "react-router-dom";
 import { useNotification } from "../context/NotificationContext.tsx";
 import {
   formatResourceList,
   listContainedResources,
+  listDirectChildren,
   removeAppData,
 } from "../services/utils/podDelete.ts";
-import { getStorageRoot } from "../services/utils/solidUtils.ts";
+import { getStorageRoot, podResources } from "../services/utils/solidUtils.ts";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import PersonIcon from "@mui/icons-material/Person";
@@ -28,6 +29,14 @@ import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { getAvatarObjectUrl } from "../services/utils/logoManager.ts";
 import { getOrgLogoObjectUrl } from "../services/utils/organizationManager.ts";
 import OrganizationDialog from "../components/OrganizationDialog.tsx";
+import Alert from "@mui/material/Alert";
+import Button from "@mui/material/Button";
+import Collapse from "@mui/material/Collapse";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../hooks/queries.ts";
+import { seedDemoBuildings } from "../services/utils/buildingSerializer.ts";
+import { readPrefs, setDemoSeedDeclined } from "../services/utils/prefs.ts";
+import { formatError } from "../services/utils/formatError.ts";
 
 interface IndexPageProps {
   session: Session;
@@ -38,7 +47,6 @@ interface IndexPageProps {
 
 function IndexPage({ session, onLogout }: IndexPageProps) {
   const location = useLocation();
-  const navigate = useNavigate();
   // Tabs: 0 = Explore (map), 1 = Manage (your buildings + views), 2 = Share
   // (inbox), 3 = Connect (rooms). Arriving from a room deep link (#/room/:uri)
   // lands on the Connect tab.
@@ -67,6 +75,62 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         });
       })
       .catch(() => {});
+  };
+
+  const queryClient = useQueryClient();
+  // Fresh-Pod demo-buildings offer (non-blocking banner): shown when the buildings
+  // container is absent (404) and the user hasn't declined. The choice persists in
+  // prefs.ttl, so it doesn't nag on every login.
+  const [demoShow, setDemoShow] = useState(false);
+  const [demoBusy, setDemoBusy] = useState(false);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const webId = session.info.webId;
+        if (!webId) return;
+        const [children, prefs] = await Promise.all([
+          listDirectChildren(podResources(webId).buildings, session),
+          readPrefs(session),
+        ]);
+        if (!cancelled && children === null && !prefs.demoSeedDeclined) {
+          setDemoShow(true);
+        }
+      } catch { /* the offer is best-effort */ }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  /** Seed the two demo buildings + refresh the dashboard (banner & menu share this). */
+  const seedDemos = async () => {
+    const webId = session.info.webId;
+    if (!webId) return;
+    setDemoBusy(true);
+    try {
+      await seedDemoBuildings(session, webId);
+      await queryClient.invalidateQueries({
+        queryKey: queryKeys.buildingsAndAgents,
+      });
+      setDemoShow(false);
+      showNotification("Demo buildings added", "success");
+    } catch (err) {
+      showNotification(formatError("add demo buildings", err), "error");
+    } finally {
+      setDemoBusy(false);
+    }
+  };
+
+  const declineDemos = () => {
+    setDemoShow(false);
+    setDemoSeedDeclined(session, true).catch(() => {});
+  };
+
+  const handleCreateDemos = () => {
+    handleMenuClose();
+    seedDemos();
   };
 
   // Load (and revoke) the avatar object URL for the current session.
@@ -151,8 +215,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     if (
       !globalThis.confirm(
         "Remove ALL Granergize data from your Pod?" + list +
-          "\n\nYour profile and organisation logo are kept. You will be logged " +
-          "out. This cannot be undone.",
+          "\n\nYour profile and organisation logo are kept. This cannot be undone.",
       )
     ) {
       return;
@@ -164,10 +227,16 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     setRemoving(true);
     try {
       await removeAppData(session, controller.signal);
+      // Stay logged in: the Pod is now a fresh, empty granergize/. Reset the
+      // query caches so everything refetches empty, re-hydrate the (now absent)
+      // active room, and re-offer the demo buildings — startup no longer
+      // re-seeds silently, so there's nothing to "log out to avoid" any more.
+      setRemoving(false);
+      queryClient.clear();
+      hydrateActiveRoom(session).catch(() => {});
+      setDemoShow(true);
+      setTabValue(0);
       showNotification("All app data removed", "success");
-      // Log out and stay out: don't auto-restore the session, or the app would
-      // silently log back in and re-bootstrap the collection we just deleted.
-      onLogout({ suppressAutoLogin: true });
     } catch (err) {
       setRemoving(false);
       if (controller.signal.aborted) {
@@ -193,11 +262,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     if (session.info.webId) {
       globalThis.open(session.info.webId, "_blank", "noopener,noreferrer");
     }
-  };
-
-  const handleGuide = () => {
-    handleMenuClose();
-    navigate("/guide");
   };
 
   // While wiping the Pod, take over the screen so the user sees the deletions
@@ -285,8 +349,8 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             <MenuItem onClick={handleOrganisation}>
               Organisation…
             </MenuItem>
-            <MenuItem onClick={handleGuide}>
-              Anleitung
+            <MenuItem onClick={handleCreateDemos}>
+              Create demo buildings
             </MenuItem>
             <MenuItem
               onClick={handleRemoveAppData}
@@ -303,6 +367,36 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           </Menu>
         </Box>
       </Box>
+      {/* Fresh-Pod onboarding: offer the demo buildings instead of writing them
+          silently. Non-blocking (the app stays usable); dismissing it persists. */}
+      <Collapse in={demoShow} sx={{ flexShrink: 0 }}>
+        <Alert
+          severity="info"
+          sx={{ borderRadius: 0 }}
+          action={
+            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
+              <Button
+                color="inherit"
+                size="small"
+                onClick={seedDemos}
+                disabled={demoBusy}
+              >
+                {demoBusy ? "Adding…" : "Add examples"}
+              </Button>
+              <Button
+                color="inherit"
+                size="small"
+                onClick={declineDemos}
+                disabled={demoBusy}
+              >
+                No thanks
+              </Button>
+            </Box>
+          }
+        >
+          No buildings yet — add a couple of example buildings to explore?
+        </Alert>
+      </Collapse>
       {/* Keep the map mounted so returning to Home is instant (no Leaflet re-init / tile re-fetch).
           Content area fills the remaining column height; the footer below stays pinned. */}
       <Box

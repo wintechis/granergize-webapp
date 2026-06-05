@@ -3,18 +3,27 @@ import {
   Avatar,
   Box,
   Button,
+  FormControl,
+  FormHelperText,
+  InputLabel,
+  MenuItem,
+  Select,
   TextField,
   Typography,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
+import type { UserRole } from "../../types/types.ts";
+import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";
 import Modal from "./Modal.tsx";
 import {
   getOrganization,
+  getProducingRole,
   isSupportedLogoType,
   type Organization,
   saveOrganization,
+  saveProducingRole,
   uploadOrgLogo,
 } from "../services/utils/organizationManager.ts";
 
@@ -40,6 +49,9 @@ export default function OrganizationDialog(
   const [name, setName] = useState("");
   const [homepage, setHomepage] = useState("");
   const [sameAs, setSameAs] = useState("");
+  // The data-producer role (PROV provenance category applied to buildings you add).
+  const [role, setRole] = useState<UserRole | "">("");
+  const [initialRole, setInitialRole] = useState<UserRole | null>(null);
   const [initial, setInitial] = useState<Organization>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [pickedFile, setPickedFile] = useState<File | null>(null);
@@ -51,6 +63,10 @@ export default function OrganizationDialog(
   useEffect(() => {
     if (!open) return;
     let revoke: string | null = null;
+    getProducingRole(session).then((r) => {
+      setRole(r ?? "");
+      setInitialRole(r);
+    }).catch(() => {});
     getOrganization(session).then((org) => {
       const o = org ?? {};
       setInitial(o);
@@ -81,6 +97,7 @@ export default function OrganizationDialog(
   const dirty = name !== (initial.name ?? "") ||
     homepage !== (initial.homepage ?? "") ||
     sameAs !== (initial.sameAs ?? "") ||
+    (role || null) !== initialRole ||
     pickedFile != null;
 
   const close = () => {
@@ -105,6 +122,9 @@ export default function OrganizationDialog(
     setSaving(true);
     try {
       await saveOrganization(session, { name, homepage, sameAs });
+      if ((role || null) !== initialRole) {
+        await saveProducingRole(session, role || null);
+      }
       if (pickedFile) await uploadOrgLogo(pickedFile, session);
       showNotification("Organisation saved", "success");
       onSaved();
@@ -164,6 +184,25 @@ export default function OrganizationDialog(
             onChange={(e) => setName(e.target.value)}
             fullWidth
           />
+          <FormControl fullWidth>
+            <InputLabel>Your data-producer role</InputLabel>
+            <Select
+              label="Your data-producer role"
+              value={role}
+              onChange={(e) => setRole(e.target.value as UserRole | "")}
+            >
+              <MenuItem value="">
+                <em>Not set</em>
+              </MenuItem>
+              {ROOM_ROLE_OPTIONS.map((r) => (
+                <MenuItem key={r} value={r}>{ROLE_LABELS[r]}</MenuItem>
+              ))}
+            </Select>
+            <FormHelperText>
+              Recorded as the provenance (who produced the data) on every building
+              you add. Separate from any data-room role.
+            </FormHelperText>
+          </FormControl>
           <TextField
             label="Homepage"
             type="url"

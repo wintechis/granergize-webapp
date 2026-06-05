@@ -2,9 +2,9 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login, LOGIN_HEADING } from "./helpers/login.ts";
 
 /**
- * Captures the in-app guide screenshots (public/guide/*.png) by driving the
+ * Captures the Praxishandbuch figures (docs/figures/*.png) by driving the
  * logged-in app. Uses account **C** (the slow solidcommunity.net Pod) so the
- * guide shows canonical solidcommunity.net WebIDs/URIs. THROWAWAY Pod only —
+ * handbuch shows canonical solidcommunity.net WebIDs/URIs. THROWAWAY Pod only —
  * never a real account — passed via env so no credentials live in the repo:
  *
  *   E2E_USERNAME_C=...  E2E_PASSWORD_C=...  [E2E_ISSUER_C=https://solidcommunity.net] \
@@ -16,23 +16,30 @@ import { account, hasAccount, login, LOGIN_HEADING } from "./helpers/login.ts";
  */
 
 const ACC = account("C");
-const OUT = "public/guide";
+const OUT = "docs/figures";
+// Account C is solidcommunity.net (behind Cloudflare). Each step here is a burst
+// of Pod requests; a cooldown after every screenshot lets the rate limit relax
+// before the next segment, so a full capture run doesn't trip 429s.
+const COOLDOWN_MS = 16_000;
 
 async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${OUT}/${name}`, animations: "disabled" });
+  await page.waitForTimeout(COOLDOWN_MS);
 }
 
-test.describe("guide screenshots", () => {
+test.describe("handbuch screenshots", () => {
   test.skip(
     !hasAccount(ACC),
     "Set E2E_USERNAME_C and E2E_PASSWORD_C (a throwaway Solid Pod) to capture screenshots.",
   );
 
   test("capture", async ({ page }) => {
-    test.setTimeout(240_000);
+    // Very generous: the slow C Pod (login + role assignment) plus seven 16 s
+    // cooldowns between shots can take well over five minutes end to end.
+    test.setTimeout(900_000);
     await page.setViewportSize({ width: 1200, height: 900 });
 
-    // --- Login screen (captured BEFORE logging in) — guide step 3 (anmelden.png).
+    // --- Login screen (captured BEFORE logging in) (anmelden.png — handbuch figure).
     //     The Login component shows a ~2 s "Loading…" while it tries to restore a
     //     previous session; on a fresh context that resolves to the IdP picker. ---
     await page.goto("/");
@@ -69,12 +76,28 @@ test.describe("guide screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "room.png");
 
+    // Dismiss the "Roles updated" toast so it doesn't linger into the later
+    // (unrelated) Manage screenshots.
+    await page.getByRole("alert").getByRole("button", { name: /close/i }).click()
+      .catch(() => {});
+
     // --- Data: seed one building (only if none yet) so Share/View/Views have
     //     data; the Add Building dialog now lives on the Manage tab ---
     await page.getByRole("tab", { name: "Manage" }).click();
     const dialog = page.getByRole("dialog");
-    const noBuildings =
-      (await page.getByText(/you haven't added any buildings yet/i).count()) > 0;
+    // A per-building row action (only present once a building has loaded) and the
+    // empty-state text. WAIT for the list to settle into one or the other before
+    // reading state / screenshotting — on the slow C Pod it shows "Loading…" for
+    // several seconds, during which the empty-state check would wrongly read
+    // "no buildings" and share-building.png would capture a "Loading…" panel.
+    const shareAction = page.getByRole("button", { name: "Share building data" })
+      .first();
+    const emptyState = page.getByText(/you haven't added any buildings yet/i);
+    await Promise.race([
+      shareAction.waitFor({ state: "visible", timeout: 60_000 }).catch(() => {}),
+      emptyState.waitFor({ state: "visible", timeout: 60_000 }).catch(() => {}),
+    ]);
+    const noBuildings = (await emptyState.count()) > 0;
 
     // Add Building dialog — capture it (role is assigned, so it shows the form).
     await page.getByRole("button", { name: /^add building$/i }).click();
@@ -83,8 +106,8 @@ test.describe("guide screenshots", () => {
     await shot(page, "add-building.png");
 
     if (noBuildings) {
-      // Pick User explicitly so the form needs only address + coordinates.
-      await dialog.getByLabel("Role").click();
+      // Pick the User template so the form needs only address + coordinates.
+      await dialog.getByLabel("Template").click();
       await page.getByRole("option", { name: "User" }).click();
       await dialog.getByLabel(/street address/i).fill("Musterstraße 1");
       await dialog.getByLabel(/locality/i).fill("Nürnberg");
@@ -94,16 +117,30 @@ test.describe("guide screenshots", () => {
       await dialog.getByLabel(/longitude/i).fill("11.08");
       await dialog.getByRole("button", { name: /^add building$/i }).click();
       await expect(dialog).toBeHidden({ timeout: 30_000 });
-      await page.waitForTimeout(2500); // let the list refetch the new building
     } else {
       await page.keyboard.press("Escape");
     }
 
     // Manage tab now lists the building with its per-row actions (edit / share /
-    // download / delete) — the subject of guide step 7.
+    // download / delete) — the subject of the sharing section. Wait for a row's action
+    // to be present so the screenshot isn't a "Loading…" panel.
+    await expect(shareAction).toBeVisible({ timeout: 60_000 });
     await page.waitForTimeout(500);
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "share-building.png");
+
+    // --- Energy-year dialog: the per-year consumption form (Soll/Ist), opened
+    //     from a building's "Add or edit energy year" row action ---
+    const energyYearBtn = page.getByRole("button", {
+      name: "Add or edit energy year",
+    }).first();
+    if (await energyYearBtn.count()) {
+      await energyYearBtn.click();
+      await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 });
+      await page.waitForTimeout(500);
+      await shot(page, "energy-year.png");
+      await page.keyboard.press("Escape");
+    }
 
     // --- Manage: aggregated views (Create View lives here, with buildings) ---
     await page.getByRole("tab", { name: "Manage" }).click();

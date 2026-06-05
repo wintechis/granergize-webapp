@@ -21,6 +21,12 @@ import { toggleBuildingVisibility } from "../interop/sharingManager.ts";
 import { parseBuildings } from "./buildingParser.ts";
 import { _setStorageRootForTesting, podResources } from "./solidUtils.ts";
 import {
+  GEO_LAT,
+  GEO_LOCATION,
+  GEO_LONG,
+  GEO_POINT,
+  GEOCODE_PRECISION_IRI,
+  GRAN_GEOCODE_PRECISION,
   GRAN_NS,
   INVESTOR_NS,
   PROV_NS,
@@ -135,6 +141,73 @@ Deno.test("serializeBuildingToTurtle round-trips core fields through the parser"
   assert.equal(b!.locality, "Nürnberg");
   assert.equal(b!.lat, 49.4);
   assert.equal(b!.long, 11.1);
+});
+
+Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank node with precision (not flat)", () => {
+  const uri = newBuildingUri(WEBID, "b-geo");
+  const ttl = serializeBuildingToTurtle(
+    {
+      streetAddress: "Auchterstraße 9",
+      locality: "Reutlingen",
+      lat: "48.46",
+      long: "9.15",
+      geocodePrecision: "postcode",
+    },
+    uri,
+  );
+  const quads = new Parser().parse(ttl);
+  const store = new Store(quads);
+  const subject = namedNode(`${uri}#b-geo`);
+
+  // No flat coordinates on the building subject.
+  assert.equal(
+    store.getQuads(subject, namedNode(GEO_LAT), null, null).length,
+    0,
+    "no flat geo:lat on the building",
+  );
+  assert.equal(
+    store.getQuads(subject, namedNode(GEO_LONG), null, null).length,
+    0,
+    "no flat geo:long on the building",
+  );
+
+  // A geo:location → geo:Point blank node carrying lat/long + precision.
+  const link = store.getQuads(subject, namedNode(GEO_LOCATION), null, null);
+  assert.equal(link.length, 1, "one geo:location link");
+  const point = link[0].object;
+  assert.equal(point.termType, "BlankNode");
+  assert.equal(
+    store.getQuads(point, namedNode(RDF_TYPE), namedNode(GEO_POINT), null).length,
+    1,
+    "point is typed geo:Point",
+  );
+  assert.equal(store.getObjects(point, namedNode(GEO_LAT), null)[0]?.value, "48.46");
+  assert.equal(store.getObjects(point, namedNode(GEO_LONG), null)[0]?.value, "9.15");
+  assert.equal(
+    store.getObjects(point, namedNode(GRAN_GEOCODE_PRECISION), null)[0]?.value,
+    GEOCODE_PRECISION_IRI.postcode,
+  );
+
+  // Round-trips through the parser back to flat BuildingType fields.
+  const b = parseBuildings(quads).get("b-geo");
+  assert.ok(b, "building parsed back");
+  assert.equal(b!.lat, 48.46);
+  assert.equal(b!.long, 9.15);
+  assert.equal(b!.geocodePrecision, "postcode");
+});
+
+Deno.test("parseBuildings still reads legacy flat geo:lat/long (no point)", () => {
+  const ttl = `
+    @prefix rec: <https://w3id.org/rec#> .
+    @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+    <https://pod.example/granergize/buildings/b-legacy.ttl#b-legacy>
+      a rec:Building ; geo:lat 49.0 ; geo:long 11.0 .
+  `;
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-legacy");
+  assert.ok(b, "legacy building parsed");
+  assert.equal(b!.lat, 49.0);
+  assert.equal(b!.long, 11.0);
+  assert.equal(b!.geocodePrecision, undefined);
 });
 
 Deno.test("serializeBuildingToTurtle links energy datasets via gran:hasEnergyDataset", () => {

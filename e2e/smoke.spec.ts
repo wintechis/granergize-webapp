@@ -25,12 +25,12 @@ test.describe("smoke (no login)", () => {
     await expect(page.getByLabel(/Identity Provider/i)).toBeVisible();
   });
 
-  test("the guide route exists (redirects to login when logged out)", async ({ page }) => {
-    // /guide lives inside the login gate, so logged-out it still shows the
-    // sign-in screen rather than 404/white-screening.
-    await page.goto("/#/guide");
-    await expect(
-      page.getByRole("heading", { name: "Granergize App" }),
-    ).toBeVisible({ timeout: 20_000 });
+  test("the login screen links the Praxishandbuch (PDF/DOCX download)", async ({ page }) => {
+    // The handbuch is reachable pre-login as a downloadable document (the in-app
+    // guide was retired); the login screen must offer it.
+    await page.goto("/");
+    const link = page.getByRole("link", { name: /praxishandbuch/i });
+    await expect(link).toBeVisible({ timeout: 20_000 });
+    await expect(link).toHaveAttribute("href", /granergize-handbuch\.(docx|pdf)$/);
   });
 });

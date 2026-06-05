@@ -37,9 +37,12 @@ async function buildingIds(page: Page): Promise<string[]> {
 /** Open the Add-building dialog from the Manage tab (manual entry — no picker). */
 async function openAddDialog(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
-  await expect(buildingRows(page).first()).toBeVisible({ timeout: 120_000 });
-  await page.getByRole("button", { name: "Add Building", exact: true }).first()
-    .click();
+  // Wait on the Add Building action itself, not a building row — the Pod may have
+  // no buildings yet (so the test doesn't depend on demo seeding).
+  const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+    .first();
+  await expect(addBtn).toBeVisible({ timeout: 120_000 });
+  await addBtn.click();
 }
 
 /** Pick an import template in the dialog's (always-populated) Template select. */
@@ -62,6 +65,21 @@ test.describe("excel upload", () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
     page = await browser.newPage();
+    // The cleanup step deletes each imported building; "Delete building" confirms
+    // via window.confirm — accept automatically.
+    page.on("dialog", (d) => d.accept());
+    // Import geocodes each building's address via Nominatim (lat/long are
+    // required). e2e must not depend on a rate-limited third-party service — a
+    // burst of real lookups intermittently throttles and leaves a building
+    // uncoordinated, blocking submit. Stub it with deterministic coordinates so
+    // the test exercises OUR import flow, not Nominatim's availability. (The
+    // app's own throttle + coarsening fallback are covered by unit tests.)
+    await page.route(/nominatim\.openstreetmap\.org/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/json",
+        body: JSON.stringify([{ lat: "49.45", lon: "11.08" }]),
+      }));
     await login(page, ACC);
   });
 
@@ -92,16 +110,23 @@ test.describe("excel upload", () => {
     await expect(page.getByText(/buildings? added/).first())
       .toBeVisible({ timeout: 120_000 });
 
-    // Exactly the new building(s) appeared; clean them up so the test repeats.
+    // Closing the dialog triggers a refetch of the Manage list (reloadData), so
+    // the imported rows appear a moment later — poll the id diff rather than
+    // reading it once before the refetch lands.
     await expect(buildingRows(page).first()).toBeVisible({ timeout: 60_000 });
-    const added = (await buildingIds(page)).filter((id) => !before.has(id));
-    expect(added.length, "at least one building was imported").toBeGreaterThan(0);
+    let added: string[] = [];
+    await expect(async () => {
+      added = (await buildingIds(page)).filter((id) => !before.has(id));
+      expect(added.length, "imported buildings appear on Manage").toBeGreaterThan(0);
+    }).toPass({ timeout: 60_000 });
 
     for (const id of added) {
-      const row = page.locator("li", { hasText: `Building ${id}` }).first();
-      await row.getByRole("button", { name: "Delete building" }).click();
-      await expect(page.getByText("Building deleted").first())
-        .toBeVisible({ timeout: 90_000 });
+      const row = page.locator("li", { hasText: `Building ${id}` });
+      await row.first().getByRole("button", { name: "Delete building" }).click();
+      // Wait for THIS row to vanish, not the shared "Building deleted" toast —
+      // the toast lingers (~6 s) so it would still be visible from the previous
+      // delete and let the loop race ahead before this one actually completed.
+      await expect(row).toHaveCount(0, { timeout: 90_000 });
     }
     // Back to the original set — no residue.
     expect(new Set(await buildingIds(page))).toEqual(before);
@@ -121,6 +146,15 @@ test.describe("excel upload", () => {
       .toBeVisible({ timeout: 60_000 });
 
     const dialog = page.getByRole("dialog");
+    // The Lastgang file carries only a label + readings (no address), so it can't
+    // be geocoded — fill the required location fields manually to enable submit.
+    // (Coordinates are irrelevant to what this test checks: the cancel path.)
+    await dialog.getByLabel(/street address/i).fill("Cancel E2E Strasse 1");
+    await dialog.getByLabel(/locality/i).fill("Nürnberg");
+    await dialog.getByLabel(/postal code/i).fill("90451");
+    await dialog.getByLabel(/region/i).fill("Bayern");
+    await dialog.getByLabel(/latitude/i).fill("49.45");
+    await dialog.getByLabel(/longitude/i).fill("11.08");
     await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
       .click();
 

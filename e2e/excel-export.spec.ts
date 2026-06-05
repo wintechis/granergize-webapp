@@ -1,13 +1,14 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "./helpers/login.ts";
+import { ensureDemoBuildings } from "./helpers/seed.ts";
 
 /**
  * Excel-export e2e (PROBLEMS.md #8). Proves a workbook actually downloads in the
  * browser and re-imports to the same buildings (a full round-trip through the
  * UI — field-level fidelity is also unit-tested in buildingSerializer.test.ts).
  * The round-trip test MUTATES the Pod (re-imports the exported buildings, then
- * deletes the copies), so like the other smokes it expects a wiped + reseeded
- * Pod; it cleans up after itself.
+ * deletes the copies) and cleans up after itself. It self-seeds an empty Pod in
+ * beforeAll (ensureDemoBuildings), so it doesn't assume a pre-seeded Pod.
  *
  *   source .env.e2e.local && deno task e2e excel-export --workers=1
  *
@@ -52,6 +53,9 @@ test.describe("excel export", () => {
     page = await browser.newPage();
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
+    // Self-seed an empty Pod so the export round-trip has buildings to export
+    // (the test no longer assumes a pre-seeded Pod).
+    await ensureDemoBuildings(page);
   });
 
   test.afterAll(async () => {
@@ -118,9 +122,14 @@ test.describe("excel export", () => {
     await expect(page.getByText(/buildings? added/).first())
       .toBeVisible({ timeout: 120_000 });
 
+    // Closing the dialog refetches the Manage list, so the re-imported rows appear
+    // a moment later — poll the id diff rather than reading it once.
     await expect(buildingRows(page).first()).toBeVisible({ timeout: 60_000 });
-    const added = (await buildingIds(page)).filter((id) => !before.has(id));
-    expect(added.length, "the exported buildings re-imported").toBe(before.size);
+    let added: string[] = [];
+    await expect(async () => {
+      added = (await buildingIds(page)).filter((id) => !before.has(id));
+      expect(added.length, "the exported buildings re-imported").toBe(before.size);
+    }).toPass({ timeout: 60_000 });
     if (addr) {
       // Original + re-imported copy → the address appears at least twice.
       expect(await page.getByText(addr, { exact: false }).count())

@@ -11,7 +11,6 @@ import Building from "./pages/Building.tsx";
 import Agent from "./pages/Agent.tsx";
 import Energy from "./pages/Energy.tsx";
 import AggregatedView from "./pages/AggregatedView.tsx";
-import GuidePage from "./components/GuidePage.tsx";
 import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -239,7 +238,6 @@ function App({ onLogout, session }: AppProps) {
           path="/room/:roomUri"
           element={<RoomDeepLink session={session} />}
         />
-        <Route path="/guide" element={<GuidePage />} />
       </Routes>
     </HashRouter>
   );
