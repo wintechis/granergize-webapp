@@ -1,26 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import {
-  BarElement,
-  CategoryScale,
-  Chart as ChartJS,
-  Legend,
-  LinearScale,
-  Title,
-  Tooltip,
-} from "chart.js";
-import type { ChartData, ChartOptions } from "chart.js";
-import { Bar } from "react-chartjs-2";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-);
-import {
   Paper,
   Table,
   TableBody,
@@ -39,6 +19,7 @@ import {
   DetailCard,
   SectionTitle,
 } from "../components/detail/DetailView.tsx";
+import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { loadEnergyDatasets } from "../services/utils/energyDataset.ts";
 import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 
@@ -60,15 +41,6 @@ const WATER_COLOR = "rgba(51, 160, 44, 0.8)";
 const RENEWABLE_COLOR = "rgba(178, 223, 138, 0.9)";
 // Planned (Soll) figures — one neutral colour across metrics, shown beside actual.
 const PLANNED_COLOR = "rgba(120, 120, 120, 0.55)";
-
-const barOptions: ChartOptions<"bar"> = {
-  responsive: true,
-  plugins: { legend: { display: true } }, // distinguishes actual vs planned bars
-  scales: {
-    x: { title: { display: true, text: "Year" } },
-    y: { beginAtZero: true },
-  },
-};
 
 class ChartErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -149,110 +121,26 @@ export default function InvestorEnergy(
   const yearsNum = [
     ...new Set([...annualData, ...plannedData].map((d) => d.year)),
   ].sort((a, b) => a - b);
-  const years = yearsNum.map(String);
   const hasPlanned = plannedData.length > 0;
 
-  /** Actual values for a metric across the (union) years. */
-  const actualOf = (get: (d: InvestorAnnualData) => number | undefined) =>
+  /** One metric → a row-per-year `[{ year, actual, planned? }]` for Recharts. */
+  const metricData = (get: (d: InvestorAnnualData) => number | undefined) =>
     yearsNum.map((y) => {
-      const d = actualByYear.get(y);
-      return d ? (get(d) ?? 0) : 0;
+      const a = actualByYear.get(y);
+      const p = plannedByYear.get(y);
+      return {
+        year: String(y),
+        actual: a ? (get(a) ?? 0) : 0,
+        ...(hasPlanned ? { planned: p ? (get(p) ?? 0) : 0 } : {}),
+      };
     });
-  /** The planned-scenario comparison dataset for a metric (Soll-Ist), or none. */
-  const plannedSet = (
-    label: string,
-    get: (d: InvestorAnnualData) => number | undefined,
-  ) =>
-    hasPlanned
-      ? [{
-        label: `${label} (planned)`,
-        data: yearsNum.map((y) => {
-          const d = plannedByYear.get(y);
-          return d ? (get(d) ?? 0) : 0;
-        }),
-        backgroundColor: PLANNED_COLOR,
-        borderColor: PLANNED_COLOR,
-        borderWidth: 1,
-      }]
-      : [];
-
-  // Electricity
-  const electricityData: ChartData<"bar", number[], unknown> = {
-    labels: years,
-    datasets: [
-      {
-        label: "Electricity (kWh)",
-        data: actualOf((d) => d.electricityConsumption),
-        backgroundColor: ELECTRICITY_COLOR,
-        borderColor: ELECTRICITY_COLOR,
-        borderWidth: 1,
-      },
-      ...plannedSet("Electricity (kWh)", (d) => d.electricityConsumption),
-    ],
-  };
-
-  const renewableData: ChartData<"bar", number[], unknown> = {
-    labels: years,
-    datasets: [
-      {
-        label: "Renewable Self-Generated (%)",
-        data: actualOf((d) => d.renewableSelfGeneratedShare),
-        backgroundColor: RENEWABLE_COLOR,
-        borderColor: RENEWABLE_COLOR,
-        borderWidth: 1,
-      },
-      ...plannedSet(
-        "Renewable Self-Generated (%)",
-        (d) => d.renewableSelfGeneratedShare,
-      ),
-    ],
-  };
-
-  const renewableOptions: ChartOptions<"bar"> = {
-    ...barOptions,
-    scales: {
-      x: { title: { display: true, text: "Year" } },
-      y: { beginAtZero: true, max: 100, title: { display: true, text: "%" } },
-    },
-  };
-
-  //  Heat
-  const heatData: ChartData<"bar", number[], unknown> = {
-    labels: years,
-    datasets: [
-      {
-        label: "Heat (kWh)",
-        data: actualOf((d) => d.heatConsumption),
-        backgroundColor: HEAT_COLOR,
-        borderColor: HEAT_COLOR,
-        borderWidth: 1,
-      },
-      ...plannedSet("Heat (kWh)", (d) => d.heatConsumption),
-    ],
-  };
-
-  // Water
-  const waterData: ChartData<"bar", number[], unknown> = {
-    labels: years,
-    datasets: [
-      {
-        label: "Water (m³)",
-        data: actualOf((d) => d.waterConsumption),
-        backgroundColor: WATER_COLOR,
-        borderColor: WATER_COLOR,
-        borderWidth: 1,
-      },
-      ...plannedSet("Water (m³)", (d) => d.waterConsumption),
-    ],
-  };
-
-  const waterOptions: ChartOptions<"bar"> = {
-    ...barOptions,
-    scales: {
-      x: { title: { display: true, text: "Year" } },
-      y: { beginAtZero: true, title: { display: true, text: "m³" } },
-    },
-  };
+  /** Actual + (when present) the planned/Soll comparison bar for a metric. */
+  const metricBars = (label: string, color: string) => [
+    { key: "actual", name: label, color },
+    ...(hasPlanned
+      ? [{ key: "planned", name: `${label} (planned)`, color: PLANNED_COLOR }]
+      : []),
+  ];
 
   return (
     <ChartErrorBoundary>
@@ -321,7 +209,11 @@ export default function InvestorEnergy(
           Electricity Consumption (kWh/year)
         </SectionTitle>
         <ChartBox>
-          <Bar data={electricityData} options={barOptions} />
+          <MetricBarChart
+            data={metricData((d) => d.electricityConsumption)}
+            bars={metricBars("Electricity (kWh)", ELECTRICITY_COLOR)}
+            yUnit="kWh"
+          />
         </ChartBox>
 
         {/* Renewable share chart */}
@@ -329,7 +221,14 @@ export default function InvestorEnergy(
           Renewable Self-Generated Share (%)
         </SectionTitle>
         <ChartBox>
-          <Bar data={renewableData} options={renewableOptions} />
+          <MetricBarChart
+            data={metricData((d) => d.renewableSelfGeneratedShare)}
+            bars={metricBars(
+              "Renewable Self-Generated (%)",
+              RENEWABLE_COLOR,
+            )}
+            yUnit="%"
+          />
         </ChartBox>
 
         {/* Heat chart */}
@@ -342,7 +241,11 @@ export default function InvestorEnergy(
               Heat Consumption (kWh/year)
             </SectionTitle>
             <ChartBox>
-              <Bar data={heatData} options={barOptions} />
+              <MetricBarChart
+                data={metricData((d) => d.heatConsumption)}
+                bars={metricBars("Heat (kWh)", HEAT_COLOR)}
+                yUnit="kWh"
+              />
             </ChartBox>
           </>
         )}
@@ -354,7 +257,11 @@ export default function InvestorEnergy(
               Water Consumption (m³/year)
             </SectionTitle>
             <ChartBox>
-              <Bar data={waterData} options={waterOptions} />
+              <MetricBarChart
+                data={metricData((d) => d.waterConsumption)}
+                bars={metricBars("Water (m³)", WATER_COLOR)}
+                yUnit="m³"
+              />
             </ChartBox>
           </>
         )}

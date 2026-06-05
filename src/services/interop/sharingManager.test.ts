@@ -8,6 +8,7 @@ import {
   sharedOutUrl,
 } from "./sharingLog.ts";
 import {
+  getReceivedViews,
   getSharedBuildings,
   getSharedViews,
   getSharedWithMe,
@@ -139,4 +140,40 @@ Deno.test("getSharedViews folds shared-out/ View grants and recovers the viewId"
   assert.equal(views[0].snapshotUrl, SNAP);
   assert.equal(views[0].viewId, "view-1-abc");
   assert.deepEqual(views[0].sharedWith, [BOB]);
+});
+
+const ALICE_SNAP =
+  "https://alice.example/granergize/views/snapshots/view-7-xyz.ttl";
+
+Deno.test("getReceivedViews folds shared-in/ View grants (snapshot + sharer)", async () => {
+  const { session } = makePod();
+  // A View grant received from Alice…
+  await appendSharingEvent(sharedInUrl(WEBID), session, {
+    type: "grant", owner: ALICE, grantee: WEBID, resource: ALICE_SNAP,
+    kind: "View", at: "2026-06-04T10:00:00Z",
+  });
+  // …and a Building grant that must NOT show up among received views.
+  await appendSharingEvent(sharedInUrl(WEBID), session, {
+    type: "grant", owner: ALICE, grantee: WEBID, resource: SHARED_B,
+    kind: "Building", at: "2026-06-04T10:01:00Z",
+  });
+
+  const views = await getReceivedViews(session);
+  assert.equal(views.length, 1);
+  assert.equal(views[0].snapshotUrl, ALICE_SNAP);
+  assert.equal(views[0].viewId, "view-7-xyz");
+  assert.equal(views[0].sharedBy, ALICE);
+});
+
+Deno.test("getReceivedViews drops a view once its grant is revoked", async () => {
+  const { session } = makePod();
+  await appendSharingEvent(sharedInUrl(WEBID), session, {
+    type: "grant", owner: ALICE, grantee: WEBID, resource: ALICE_SNAP,
+    kind: "View", at: "2026-06-04T10:00:00Z",
+  });
+  await appendSharingEvent(sharedInUrl(WEBID), session, {
+    type: "revocation", owner: ALICE, grantee: WEBID, resource: ALICE_SNAP,
+    at: "2026-06-04T11:00:00Z",
+  });
+  assert.deepEqual(await getReceivedViews(session), []);
 });

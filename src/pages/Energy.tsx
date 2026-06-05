@@ -18,11 +18,9 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
-import "chart.js/auto";
-import type { ChartData, ChartOptions } from "chart.js";
-import { Bar } from "react-chartjs-2";
 import { useSolidData } from "../hooks/queries.ts";
 import { RefLink, UriLink } from "../components/detail/DetailView.tsx";
+import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import UserEnergyChart from "./UserEnergyChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
@@ -111,90 +109,16 @@ export default function Energy(
     );
   }
 
-  const chartData = function (
+  /** A section's `{ type: value }` map → `[{ name, value }]` rows for Recharts. */
+  const chartRows = function (
     string: keyof EnergyType,
-  ): ChartData<"bar", number[], unknown> {
-    if (energy === undefined) {
-      return {
-        labels: [],
-        datasets: [],
-      };
-    }
-
-    const sectionData = energy[string] as Record<string, number> | undefined;
-    if (!sectionData) {
-      return { labels: [], datasets: [] };
-    }
-    return {
-      labels: Object.keys(sectionData),
-      datasets: [
-        {
-          label: "Energy Need",
-          data: Object.values(sectionData),
-          backgroundColor: CHART_COLOR_PALETTE,
-          borderColor: CHART_COLOR_PALETTE,
-          borderWidth: 1,
-        },
-      ],
-    };
-  };
-
-  const options: ChartOptions<"bar"> = {
-    elements: {
-      bar: {
-        inflateAmount: 0,
-      },
-    },
-    plugins: {
-      legend: {
-        display: false,
-      },
-    },
-    scales: {
-      x: {
-        title: {
-          display: true,
-          text: "Energy Type",
-        },
-      },
-      y: {
-        title: {
-          display: true,
-          text: "kWh / a",
-        },
-        afterFit: (scale) => {
-          scale.width = 100;
-        },
-        beginAtZero: true,
-        max: Math.max(
-          0,
-          ...Object.values(energy["energyNeed"] || {}).map((v) =>
-            typeof v === "number" ? v : 0
-          ),
-          ...Object.values(energy["energyGeneration"] || {}).map((v) =>
-            typeof v === "number" ? v : 0
-          ),
-          ...Object.values(energy["energyStorage"] || {}).map((v) =>
-            typeof v === "number" ? v : 0
-          ),
-          ...Object.values(energy["energyDistribution"] || {}).map((v) =>
-            typeof v === "number" ? v : 0
-          ),
-          ...Object.values(energy["energyTransfer"] || {}).map((v) =>
-            typeof v === "number" ? v : 0
-          ),
-          ...Object.values(energy["energyUsage"] || {}).map((v) =>
-            typeof v === "number" ? v : 0
-          ),
-          ...Object.values(energy["environmentalFactor"] || {}).map((v) =>
-            typeof v === "number" ? v : 0
-          ),
-        ),
-      },
-    },
-    layout: {
-      autoPadding: false,
-    },
+  ): Array<{ name: string; value: number }> {
+    const sectionData = energy?.[string] as Record<string, number> | undefined;
+    if (!sectionData) return [];
+    return Object.entries(sectionData).map(([name, value]) => ({
+      name,
+      value,
+    }));
   };
 
   function getBackgroundColor(value: number, average: number): string {
@@ -297,7 +221,18 @@ export default function Energy(
               </Table>
             </TableContainer>
             <Box sx={{ position: "relative", width: "100%" }}>
-              <Bar data={chartData(title)} options={options} />
+              <MetricBarChart
+                data={chartRows(title)}
+                bars={[{
+                  key: "value",
+                  name: toTitleCase(title),
+                  color: CHART_COLOR_PALETTE[0],
+                  palette: CHART_COLOR_PALETTE,
+                }]}
+                xKey="name"
+                yUnit="kWh / a"
+                hideLegend
+              />
             </Box>
             <Divider />
           </Container>

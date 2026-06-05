@@ -17,7 +17,9 @@ const LDP_CONTAINS = DataFactory.namedNode("http://www.w3.org/ns/ldp#contains");
 export async function deleteContainerRecursive(
   container: string,
   session: Session,
+  signal?: AbortSignal,
 ): Promise<void> {
+  signal?.throwIfAborted();
   const listing = await fetchFresh(container, session);
   if (listing.status === 404) return;
   if (listing.ok) {
@@ -28,8 +30,9 @@ export async function deleteContainerRecursive(
       .getObjects(DataFactory.namedNode(container), LDP_CONTAINS, null)
       .map((o) => o.value);
     for (const child of children) {
+      signal?.throwIfAborted();
       if (child.endsWith("/")) {
-        await deleteContainerRecursive(child, session);
+        await deleteContainerRecursive(child, session, signal);
       } else {
         await session.fetch(`${child}.acl`, { method: "DELETE" }).catch(() => {});
         const del = await session.fetch(child, { method: "DELETE" });
@@ -39,6 +42,7 @@ export async function deleteContainerRecursive(
       }
     }
   }
+  signal?.throwIfAborted();
   // Best-effort ACL removal; deleting the container is what matters.
   await session.fetch(`${container}.acl`, { method: "DELETE" }).catch(() => {});
   const del = await session.fetch(container, { method: "DELETE" });
@@ -120,9 +124,12 @@ export function formatResourceList(
  * building, energy file, view, data room, registry and setting under it. The
  * organisation logo lives in `profile/`, outside this tree, so it is untouched.
  */
-export async function removeAppData(session: Session): Promise<void> {
+export async function removeAppData(
+  session: Session,
+  signal?: AbortSignal,
+): Promise<void> {
   const webId = session.info.webId;
   if (!webId) throw new Error("Not logged in");
   const granDir = `${getStorageRoot(webId)}granergize/`;
-  await deleteContainerRecursive(granDir, session);
+  await deleteContainerRecursive(granDir, session, signal);
 }

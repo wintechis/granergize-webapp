@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
   Box,
   Button,
@@ -22,11 +22,12 @@ import CloseIcon from "@mui/icons-material/Close";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
+import RequestActivityList from "./RequestActivityList.tsx";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useSolidData } from "../hooks/queries.ts";
-import { getActiveRoom, getMyRole } from "../services/interop/dataRoom.ts";
 import {
+  geocodeFields,
   type LastgangReading,
   newBuildingUri,
   parseCsvToFields,
@@ -34,7 +35,6 @@ import {
   uploadBuilding,
   writeBuildingEnergy,
 } from "../services/utils/buildingSerializer.ts";
-import { trackedFetch } from "../services/utils/networkActivity.ts";
 import { formatError } from "../services/utils/formatError.ts";
 
 interface AddBuildingDialogProps {
@@ -46,7 +46,15 @@ interface AddBuildingDialogProps {
   onBuildingAdded: (newSubjectUris: string[]) => void;
 }
 
-const ROLE_LABEL: Record<UserRole, string> = {
+/**
+ * The import/export *template* (spreadsheet shape) chosen when adding a building.
+ * It picks the parse/serialize shape and is also recorded as the building's PROV
+ * provenance category — it is NOT the data-room membership role (a separate
+ * concept; adding a building no longer requires holding any room role).
+ */
+type Template = UserRole;
+
+const TEMPLATE_LABEL: Record<UserRole, string> = {
   dummy: "Demo / Dummy",
   investor: "Investor",
   user: "User",
@@ -61,8 +69,8 @@ const CSV_HINT: Record<UserRole, string> = {
   dummy: "Upload CSV with BuildingType field names as column headers",
 };
 
-/** Roles a building can be added under (excludes the demo "dummy" role). */
-const DIALOG_ROLES: UserRole[] = [
+/** Templates a building can be added under (excludes the demo "dummy" shape). */
+const TEMPLATE_OPTIONS: Template[] = [
   "investor",
   "user",
   "benchmark_service_provider",
@@ -103,50 +111,10 @@ export default function AddBuildingDialog(
   const { showNotification } = useNotification();
   const { buildings } = useSolidData();
 
-  // The roles the user has self-assigned in the data room — the only roles a
-  // building may be added under. Loaded from the data room when the dialog opens.
-  const [myRoles, setMyRoles] = useState<UserRole[]>([]);
-  const [rolesLoading, setRolesLoading] = useState(false);
-
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    setRolesLoading(true);
-    getMyRole(getActiveRoom(), session)
-      .then((roles) => {
-        if (!cancelled) setMyRoles(roles);
-      })
-      .catch((err) => {
-        if (!cancelled) {
-          showNotification(
-            formatError("load your data room roles", err),
-            "error",
-          );
-          setMyRoles([]);
-        }
-      })
-      .finally(() => {
-        if (!cancelled) setRolesLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-  }, [open, session]);
-
-  // Keep the canonical ordering and drop the demo "dummy" role.
-  const dialogRoles = useMemo<UserRole[]>(
-    () => DIALOG_ROLES.filter((r) => myRoles.includes(r)),
-    [myRoles],
-  );
-
-  const [role, setRole] = useState<UserRole>(DIALOG_ROLES[0]);
-
-  // Keep the selected role valid once the data room roles load.
-  useEffect(() => {
-    if (dialogRoles.length > 0 && !dialogRoles.includes(role)) {
-      setRole(dialogRoles[0]);
-    }
-  }, [dialogRoles, role]);
+  // The chosen import/export template (spreadsheet shape + PROV provenance
+  // category). Independent of any data-room role — adding a building to your own
+  // Pod no longer requires holding a role in a room.
+  const [template, setTemplate] = useState<Template>(TEMPLATE_OPTIONS[0]);
   const [buildingsList, setBuildingsList] = useState<Record<string, string>[]>([{}]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [lastgangReadings, setLastgangReadings] = useState<LastgangReading[] | null>(null);
@@ -155,6 +123,8 @@ export default function AddBuildingDialog(
   const [parsing, setParsing] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  // Lets the user cancel a long upload (e.g. a 15-min year = ~365 daily files).
+  const uploadAbort = useRef<AbortController | null>(null);
 
   // "Autofill from file" opens straight into the file picker. With the native
   // <dialog> there's no enter-transition hook, so fire it when the modal opens.
@@ -165,7 +135,7 @@ export default function AddBuildingDialog(
   const isProcessing = uploading || parsing;
 
   const fields = buildingsList[activeIdx] ?? {};
-  const required = REQUIRED_FIELDS[role];
+  const required = REQUIRED_FIELDS[template];
   const isRequired = (field: string) => required.includes(field);
 
   const isBuildingValid = (b: Record<string, string>) =>
@@ -178,11 +148,11 @@ export default function AddBuildingDialog(
   );
 
   const isBuildingDuplicate = (b: Record<string, string>) =>
-    role === "investor" &&
+    template === "investor" &&
     !!b.buildingCode?.trim() &&
     existingCodes.has(b.buildingCode.trim());
 
-  const hasCrossFileDuplicate = role === "investor" &&
+  const hasCrossFileDuplicate = template === "investor" &&
     buildingsList.some((b, i) =>
       !!b.buildingCode?.trim() &&
       buildingsList.some((other, j) =>
@@ -208,7 +178,7 @@ export default function AddBuildingDialog(
 
   const handleClose = () => {
     if (isProcessing) return;
-    setRole(dialogRoles[0] ?? DIALOG_ROLES[0]);
+    setTemplate(TEMPLATE_OPTIONS[0]);
     setBuildingsList([{}]);
     setActiveIdx(0);
     setLastgangReadings(null);
@@ -217,8 +187,8 @@ export default function AddBuildingDialog(
     onClose();
   };
 
-  const handleRoleChange = (e: SelectChangeEvent<UserRole>) => {
-    setRole(e.target.value as UserRole);
+  const handleTemplateChange = (e: SelectChangeEvent<UserRole>) => {
+    setTemplate(e.target.value as Template);
     setBuildingsList([{}]);
     setActiveIdx(0);
     setLastgangReadings(null);
@@ -229,7 +199,7 @@ export default function AddBuildingDialog(
     if (!file) return;
     setParsing(true);
     try {
-      const parsed = await parseCsvToFields(file, role);
+      const parsed = await parseCsvToFields(file, template);
       if (parsed.length === 0) {
         showNotification("No buildings found in file", "warning");
         return;
@@ -247,6 +217,22 @@ export default function AddBuildingDialog(
         return copy;
       });
 
+      // Templates carry an address but no coordinates, yet lat/long are required
+      // to place a building on the map (and to import an investor sheet at all).
+      // Geocode every parsed building that lacks them — sequentially, to respect
+      // Nominatim's ~1 req/s policy. A building that can't be resolved is left
+      // unmapped (and stays invalid, so the user can fix or geocode it manually).
+      for (const b of cleanParsed) {
+        if ((b.lat?.trim() && b.long?.trim()) || !(b.streetAddress || b.postalCode || b.locality)) {
+          continue;
+        }
+        const coords = await geocodeFields(b);
+        if (coords) {
+          b.lat = coords.lat;
+          b.long = coords.long;
+        }
+      }
+
       setBuildingsList(cleanParsed);
       setActiveIdx(0);
 
@@ -263,27 +249,16 @@ export default function AddBuildingDialog(
   };
 
   const handleGeocode = async () => {
-    const query = [fields.streetAddress, fields.postalCode, fields.locality, fields.region]
-      .filter(Boolean)
-      .join(", ");
-    if (!query) return;
     setGeocoding(true);
     try {
-      const res = await trackedFetch(
-        `https://nominatim.openstreetmap.org/search?q=${encodeURIComponent(query)}&format=json&limit=1`,
-        { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
-        "geocode address",
-      );
-      const data = await res.json() as { lat: string; lon: string }[];
-      if (!data.length) {
+      const coords = await geocodeFields(fields);
+      if (!coords) {
         showNotification("Address not found", "warning");
         return;
       }
-      setField("lat", data[0].lat);
-      setField("long", data[0].lon);
+      setField("lat", coords.lat);
+      setField("long", coords.long);
       showNotification("Coordinates filled", "success");
-    } catch (err) {
-      showNotification(formatError("look up coordinates", err), "error");
     } finally {
       setGeocoding(false);
     }
@@ -296,10 +271,13 @@ export default function AddBuildingDialog(
       return;
     }
 
+    const controller = new AbortController();
+    uploadAbort.current = controller;
     setUploading(true);
     const addedSubjectUris: string[] = [];
     try {
       for (const b of buildingsList) {
+        controller.signal.throwIfAborted();
         const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
         const uri = newBuildingUri(webId, id);
         const buildingSubjectUri = `${uri}#${id}`;
@@ -330,13 +308,14 @@ export default function AddBuildingDialog(
           b,
           series,
           (done, total) => setUploadProgress({ done, total }),
+          controller.signal,
         );
 
         const ttl = serializeBuildingToTurtle(b, uri, energyLinks, {
           agent: webId,
-          category: role,
+          category: template,
         });
-        await uploadBuilding(session, uri, ttl, webId);
+        await uploadBuilding(session, uri, ttl, webId, controller.signal);
       }
       showNotification(
         buildingsList.length === 1 ? "Building added" : `${buildingsList.length} buildings added`,
@@ -345,11 +324,22 @@ export default function AddBuildingDialog(
       onBuildingAdded(addedSubjectUris);
       handleClose();
     } catch (err) {
-      showNotification(formatError("add the building", err), "error");
+      if (controller.signal.aborted) {
+        showNotification(
+          "Import cancelled — any buildings already written are kept",
+          "warning",
+        );
+      } else {
+        showNotification(formatError("add the building", err), "error");
+      }
     } finally {
       setUploading(false);
+      setUploadProgress(null);
+      uploadAbort.current = null;
     }
   };
+
+  const handleCancelUpload = () => uploadAbort.current?.abort();
 
   const tf = (
     label: string,
@@ -390,8 +380,9 @@ export default function AddBuildingDialog(
     options: { value: string; label: string }[],
   ) => (
     <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
-      <InputLabel>{label}</InputLabel>
+      <InputLabel id={`add-building-${field}-label`}>{label}</InputLabel>
       <Select
+        labelId={`add-building-${field}-label`}
         label={label}
         value={fields[field] ?? ""}
         onChange={(e) => setField(field, e.target.value)}
@@ -444,6 +435,20 @@ export default function AddBuildingDialog(
               ? "Uploading building and energy data…"
               : `Adding ${buildingsList.length > 1 ? `${buildingsList.length} buildings` : "building"}…`}
           </Typography>
+          {uploading && (
+            <>
+              <Box
+                sx={{ width: "100%", maxWidth: 480, maxHeight: "40vh", overflowY: "auto" }}
+              >
+                <RequestActivityList emptyText="Starting…" />
+              </Box>
+              {/* The overlay covers the action row, so the cancel control lives
+                  here, on top of the curtain. */}
+              <Button variant="outlined" onClick={handleCancelUpload}>
+                Cancel upload
+              </Button>
+            </>
+          )}
         </Box>
       )}
       actions={
@@ -452,8 +457,7 @@ export default function AddBuildingDialog(
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={isProcessing || !isValid || isDuplicate ||
-              dialogRoles.length === 0}
+            disabled={isProcessing || !isValid || isDuplicate}
           >
             {buildingsList.length === 1
               ? "Add Building"
@@ -463,29 +467,21 @@ export default function AddBuildingDialog(
       }
     >
       <Box sx={{ overflowY: "auto" }}>
-        {/* Role — only the roles the user holds in the data room */}
-        {!rolesLoading && dialogRoles.length === 0
-          ? (
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1, mb: 2 }}>
-              You have no role assigned in the data room. Assign one in the Data
-              Room tab before adding a building.
-            </Typography>
-          )
-          : (
-            <FormControl size="small" fullWidth sx={{ mt: 1, mb: 2 }}>
-              <InputLabel>Role</InputLabel>
-              <Select
-                label="Role"
-                value={dialogRoles.includes(role) ? role : ""}
-                onChange={handleRoleChange}
-                disabled={rolesLoading || dialogRoles.length === 0}
-              >
-                {dialogRoles.map((r) => (
-                  <MenuItem key={r} value={r}>{ROLE_LABEL[r]}</MenuItem>
-                ))}
-              </Select>
-            </FormControl>
-          )}
+        {/* Template — the spreadsheet shape (and PROV provenance category) for the
+            building. Independent of any data-room role; always selectable. */}
+        <FormControl size="small" fullWidth sx={{ mt: 1, mb: 2 }}>
+          <InputLabel id="add-building-template-label">Template</InputLabel>
+          <Select
+            labelId="add-building-template-label"
+            label="Template"
+            value={template}
+            onChange={handleTemplateChange}
+          >
+            {TEMPLATE_OPTIONS.map((t) => (
+              <MenuItem key={t} value={t}>{TEMPLATE_LABEL[t]}</MenuItem>
+            ))}
+          </Select>
+        </FormControl>
 
         {/* File autofill */}
         <Box sx={{ mb: 2 }}>
@@ -497,7 +493,7 @@ export default function AddBuildingDialog(
             onChange={handleFileUpload}
           />
           <Typography variant="caption" display="block" color="text.secondary">
-            {CSV_HINT[role]}
+            {CSV_HINT[template]}
           </Typography>
           {lastgangReadings && (
             <Typography variant="caption" display="block" sx={{ mt: 0.5 }} color="success.main">
@@ -580,7 +576,7 @@ export default function AddBuildingDialog(
         {check("PV system installed", "hasPVSystem")}
 
         {/* Investor-specific fields */}
-        {role === "investor" && (
+        {template === "investor" && (
           <>
             {sectionHeader("Investor")}
             {tf("Building code", "buildingCode", {
@@ -619,7 +615,7 @@ export default function AddBuildingDialog(
         )}
 
         {/* BSP-specific fields */}
-        {role === "benchmark_service_provider" && (
+        {template === "benchmark_service_provider" && (
           <>
             {sectionHeader("Benchmark Service Provider")}
             {tf("Company name", "companyName")}

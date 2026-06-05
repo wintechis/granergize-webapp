@@ -58,9 +58,13 @@ test.describe("energy view smoke", () => {
       }),
     ).toBeVisible({ timeout: 90_000 });
 
-    // …and a chart canvas is actually drawn.
-    await expect(page.locator("canvas").first()).toBeVisible({
-      timeout: 90_000,
-    });
+    // …and a chart is actually drawn. The charts are Recharts (SVG, not canvas),
+    // so we can assert real chart DOM: the SVG surface plus at least one drawn
+    // bar/line shape inside it.
+    const surface = page.locator("svg.recharts-surface").first();
+    await expect(surface).toBeVisible({ timeout: 90_000 });
+    await expect(
+      surface.locator(".recharts-bar-rectangle, .recharts-line").first(),
+    ).toBeVisible({ timeout: 90_000 });
   });
 });

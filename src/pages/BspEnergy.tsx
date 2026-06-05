@@ -1,27 +1,6 @@
 import React, { useEffect, useState } from "react";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import {
-  BarElement,
-  CategoryScale,
-  Chart as ChartJS,
-  Legend,
-  LinearScale,
-  Title,
-  Tooltip,
-} from "chart.js";
-import type { ChartData, ChartOptions } from "chart.js";
-import { Bar } from "react-chartjs-2";
-
-ChartJS.register(
-  CategoryScale,
-  LinearScale,
-  BarElement,
-  Title,
-  Tooltip,
-  Legend,
-);
-
-import {
   Chip,
   Paper,
   Stack,
@@ -50,6 +29,7 @@ import {
   DetailRow,
   SectionTitle,
 } from "../components/detail/DetailView.tsx";
+import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { loadEnergyDatasets } from "../services/utils/energyDataset.ts";
 import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 
@@ -71,23 +51,6 @@ const WATER_COLOR = "rgba(51, 160, 44, 0.8)";
 const WASTEWATER_COLOR = "rgba(0, 150, 136, 0.8)";
 // Planned (Soll) figures — one neutral colour across metrics, shown beside actual.
 const PLANNED_COLOR = "rgba(120, 120, 120, 0.55)";
-
-const baseOptions: ChartOptions<"bar"> = {
-  responsive: true,
-  plugins: { legend: { display: true } }, // distinguishes actual vs planned bars
-  scales: {
-    x: { title: { display: true, text: "Year" } },
-    y: { beginAtZero: true },
-  },
-};
-
-const volumeOptions: ChartOptions<"bar"> = {
-  ...baseOptions,
-  scales: {
-    x: { title: { display: true, text: "Year" } },
-    y: { beginAtZero: true, title: { display: true, text: "m³" } },
-  },
-};
 
 class ChartErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -159,86 +122,26 @@ export default function BspEnergy({ building, session }: BspEnergyProps) {
   const yearsNum = [
     ...new Set([...annualData, ...plannedData].map((d) => d.year)),
   ].sort((a, b) => a - b);
-  const years = yearsNum.map(String);
   const hasPlanned = plannedData.length > 0;
 
-  const actualOf = (get: (d: InvestorAnnualData) => number | undefined) =>
+  /** One metric → a row-per-year `[{ year, actual, planned? }]` for Recharts. */
+  const metricData = (get: (d: InvestorAnnualData) => number | undefined) =>
     yearsNum.map((y) => {
-      const d = actualByYear.get(y);
-      return d ? (get(d) ?? 0) : 0;
+      const a = actualByYear.get(y);
+      const p = plannedByYear.get(y);
+      return {
+        year: String(y),
+        actual: a ? (get(a) ?? 0) : 0,
+        ...(hasPlanned ? { planned: p ? (get(p) ?? 0) : 0 } : {}),
+      };
     });
-  const plannedSet = (
-    label: string,
-    get: (d: InvestorAnnualData) => number | undefined,
-  ) =>
-    hasPlanned
-      ? [{
-        label: `${label} (planned)`,
-        data: yearsNum.map((y) => {
-          const d = plannedByYear.get(y);
-          return d ? (get(d) ?? 0) : 0;
-        }),
-        backgroundColor: PLANNED_COLOR,
-        borderColor: PLANNED_COLOR,
-        borderWidth: 1,
-      }]
-      : [];
-
-  const electricityData: ChartData<"bar", number[], unknown> = {
-    labels: years,
-    datasets: [
-      {
-        label: "Electricity (kWh)",
-        data: actualOf((d) => d.electricityConsumption),
-        backgroundColor: ELECTRICITY_COLOR,
-        borderColor: ELECTRICITY_COLOR,
-        borderWidth: 1,
-      },
-      ...plannedSet("Electricity (kWh)", (d) => d.electricityConsumption),
-    ],
-  };
-
-  const heatData: ChartData<"bar", number[], unknown> = {
-    labels: years,
-    datasets: [
-      {
-        label: "Heat (kWh)",
-        data: actualOf((d) => d.heatConsumption),
-        backgroundColor: HEAT_COLOR,
-        borderColor: HEAT_COLOR,
-        borderWidth: 1,
-      },
-      ...plannedSet("Heat (kWh)", (d) => d.heatConsumption),
-    ],
-  };
-
-  const waterData: ChartData<"bar", number[], unknown> = {
-    labels: years,
-    datasets: [
-      {
-        label: "Water (m³)",
-        data: actualOf((d) => d.waterConsumption),
-        backgroundColor: WATER_COLOR,
-        borderColor: WATER_COLOR,
-        borderWidth: 1,
-      },
-      ...plannedSet("Water (m³)", (d) => d.waterConsumption),
-    ],
-  };
-
-  const wastewaterData: ChartData<"bar", number[], unknown> = {
-    labels: years,
-    datasets: [
-      {
-        label: "Wastewater (m³)",
-        data: actualOf((d) => d.wastewaterConsumption),
-        backgroundColor: WASTEWATER_COLOR,
-        borderColor: WASTEWATER_COLOR,
-        borderWidth: 1,
-      },
-      ...plannedSet("Wastewater (m³)", (d) => d.wastewaterConsumption),
-    ],
-  };
+  /** Actual + (when present) the planned/Soll comparison bar for a metric. */
+  const metricBars = (label: string, color: string) => [
+    { key: "actual", name: label, color },
+    ...(hasPlanned
+      ? [{ key: "planned", name: `${label} (planned)`, color: PLANNED_COLOR }]
+      : []),
+  ];
 
   const companyName = building.companyName as string | undefined;
   const logisticsFunction = building.logisticsFunction as string | undefined;
@@ -416,7 +319,11 @@ export default function BspEnergy({ building, session }: BspEnergyProps) {
                     Electricity Consumption (kWh/year)
                   </SectionTitle>
                   <ChartBox>
-                    <Bar data={electricityData} options={baseOptions} />
+                    <MetricBarChart
+                      data={metricData((d) => d.electricityConsumption)}
+                      bars={metricBars("Electricity (kWh)", ELECTRICITY_COLOR)}
+                      yUnit="kWh"
+                    />
                   </ChartBox>
                 </>
               )}
@@ -431,7 +338,11 @@ export default function BspEnergy({ building, session }: BspEnergyProps) {
                     Heat Consumption (kWh/year)
                   </SectionTitle>
                   <ChartBox>
-                    <Bar data={heatData} options={baseOptions} />
+                    <MetricBarChart
+                      data={metricData((d) => d.heatConsumption)}
+                      bars={metricBars("Heat (kWh)", HEAT_COLOR)}
+                      yUnit="kWh"
+                    />
                   </ChartBox>
                 </>
               )}
@@ -446,7 +357,11 @@ export default function BspEnergy({ building, session }: BspEnergyProps) {
                     Water Consumption (m³/year)
                   </SectionTitle>
                   <ChartBox>
-                    <Bar data={waterData} options={volumeOptions} />
+                    <MetricBarChart
+                      data={metricData((d) => d.waterConsumption)}
+                      bars={metricBars("Water (m³)", WATER_COLOR)}
+                      yUnit="m³"
+                    />
                   </ChartBox>
                 </>
               )}
@@ -461,7 +376,11 @@ export default function BspEnergy({ building, session }: BspEnergyProps) {
                     Wastewater Consumption (m³/year)
                   </SectionTitle>
                   <ChartBox>
-                    <Bar data={wastewaterData} options={volumeOptions} />
+                    <MetricBarChart
+                      data={metricData((d) => d.wastewaterConsumption)}
+                      bars={metricBars("Wastewater (m³)", WASTEWATER_COLOR)}
+                      yUnit="m³"
+                    />
                   </ChartBox>
                 </>
               )}

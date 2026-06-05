@@ -1,13 +1,15 @@
 import { useEffect, useState } from "react";
-import { Bar, Line } from "react-chartjs-2";
 import { Box, TextField, Typography } from "@mui/material";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import type { ChartData, ChartOptions } from "chart.js";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { EnergyDatasetRef } from "../../types/types.ts";
 import { parseTtlReadings } from "../services/utils/userEnergyParser.ts";
 import { listDirectChildren } from "../services/utils/podDelete.ts";
+import MetricBarChart from "../components/detail/MetricBarChart.tsx";
+import MetricLineChart from "../components/detail/MetricLineChart.tsx";
+
+const SERIES_COLOR = "rgba(31, 120, 180, 1)";
 
 interface UserEnergyChartProps {
   seriesDatasets: EnergyDatasetRef[];
@@ -179,68 +181,16 @@ export default function UserEnergyChart(
       .sort((a, b) => a.slot.localeCompare(b.slot));
   })();
 
-  // ── Chart configs ─────────────────────────────────────────────────────────
-  const dayViewChartData: ChartData<"line", number[], string> = {
-    labels: readings.map((r) => r.begin.substring(11, 16)),
-    datasets: [{
-      label: "Electricity Consumption (kWh)",
-      data: readings.map((r) => r.value),
-      borderColor: "rgba(31, 120, 180, 1)",
-      backgroundColor: "rgba(31, 120, 180, 0.1)",
-      fill: true,
-      tension: 0.3,
-      pointRadius: 2,
-    }],
-  };
-
-  const dayViewOptions: ChartOptions<"line"> = {
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { title: { display: true, text: "Time of day" } },
-      y: { title: { display: true, text: "kWh" }, beginAtZero: true },
-    },
-  };
-
-  const dailyTotalsChartData: ChartData<"bar", number[], string> = {
-    labels: dailyTotals.map((d) => d.label),
-    datasets: [{
-      label: "Daily Consumption (kWh)",
-      data: dailyTotals.map((d) => d.total),
-      backgroundColor: "rgba(31, 120, 180, 0.7)",
-      borderColor: "rgba(31, 120, 180, 1)",
-      borderWidth: 1,
-    }],
-  };
-
-  const dailyTotalsOptions: ChartOptions<"bar"> = {
-    elements: { bar: { inflateAmount: 0 } },
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { title: { display: true, text: "Date" } },
-      y: { title: { display: true, text: "kWh" }, beginAtZero: true },
-    },
-  };
-
-  const avgProfileChartData: ChartData<"line", number[], string> = {
-    labels: avgProfile.map((d) => d.slot),
-    datasets: [{
-      label: "Average kWh",
-      data: avgProfile.map((d) => d.avg),
-      borderColor: "rgba(31, 120, 180, 1)",
-      backgroundColor: "rgba(31, 120, 180, 0.1)",
-      fill: true,
-      tension: 0.3,
-      pointRadius: 2,
-    }],
-  };
-
-  const avgProfileOptions: ChartOptions<"line"> = {
-    plugins: { legend: { display: false } },
-    scales: {
-      x: { title: { display: true, text: "Time of day" } },
-      y: { title: { display: true, text: "avg kWh" }, beginAtZero: true },
-    },
-  };
+  // ── Chart rows (one `{ t, value }` point per reading/day/slot) ─────────────
+  const dayViewRows = readings.map((r) => ({
+    t: r.begin.substring(11, 16),
+    value: r.value,
+  }));
+  const dailyTotalsRows = dailyTotals.map((d) => ({
+    t: d.label,
+    value: d.total,
+  }));
+  const avgProfileRows = avgProfile.map((d) => ({ t: d.slot, value: d.avg }));
 
   const dailyTotal = readings.reduce((sum, r) => sum + r.value, 0);
 
@@ -337,7 +287,16 @@ export default function UserEnergyChart(
                 ({readings.length} readings)
               </Typography>
               <Box sx={{ position: "relative", width: "100%" }}>
-                <Line data={dayViewChartData} options={dayViewOptions} />
+                <MetricLineChart
+                  data={dayViewRows}
+                  lines={[{
+                    key: "value",
+                    name: "Electricity Consumption (kWh)",
+                    color: SERIES_COLOR,
+                  }]}
+                  yUnit="kWh"
+                  hideLegend
+                />
               </Box>
             </>
           )}
@@ -360,7 +319,17 @@ export default function UserEnergyChart(
                 ({dailyTotals.length} days)
               </Typography>
               <Box sx={{ position: "relative", width: "100%" }}>
-                <Bar data={dailyTotalsChartData} options={dailyTotalsOptions} />
+                <MetricBarChart
+                  data={dailyTotalsRows}
+                  bars={[{
+                    key: "value",
+                    name: "Daily Consumption (kWh)",
+                    color: "rgba(31, 120, 180, 0.7)",
+                  }]}
+                  xKey="t"
+                  yUnit="kWh"
+                  hideLegend
+                />
               </Box>
             </>
           )}
@@ -377,7 +346,16 @@ export default function UserEnergyChart(
                 <strong>{allDaysData.size} days</strong>
               </Typography>
               <Box sx={{ position: "relative", width: "100%" }}>
-                <Line data={avgProfileChartData} options={avgProfileOptions} />
+                <MetricLineChart
+                  data={avgProfileRows}
+                  lines={[{
+                    key: "value",
+                    name: "Average kWh",
+                    color: SERIES_COLOR,
+                  }]}
+                  yUnit="kWh"
+                  hideLegend
+                />
               </Box>
             </>
           )}

@@ -609,14 +609,17 @@ export async function writeBuildingEnergy(
     label: string;
   },
   onProgress?: (done: number, total: number) => void,
+  signal?: AbortSignal,
 ): Promise<string[]> {
   const links: string[] = [];
 
   const putTtl = async (url: string, body: string): Promise<void> => {
+    signal?.throwIfAborted();
     const res = await session.fetch(url, {
       method: "PUT",
       headers: { "Content-Type": "text/turtle" },
       body,
+      signal,
     });
     if (!res.ok) {
       throw new Error(`Energy upload failed (${url}): ${res.status} ${res.statusText}`);
@@ -637,6 +640,7 @@ export async function writeBuildingEnergy(
     let done = 0;
     onProgress?.(0, total);
     await mapPooled(series.days, 8, async (day) => {
+      signal?.throwIfAborted();
       const dailyUrl = seriesDailyFileUrl(buildingUri, series.year, day.date);
       await putTtl(
         dailyUrl,
@@ -685,12 +689,15 @@ export async function uploadBuilding(
   buildingUri: string,
   ttlString: string,
   webId: string,
+  signal?: AbortSignal,
 ): Promise<void> {
   await ensureBuildingsDirectoryExists(session, webId);
+  signal?.throwIfAborted();
   const res = await session.fetch(buildingUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: ttlString,
+    signal,
   });
   if (!res.ok) {
     throw new Error(`Upload failed: ${res.status} ${res.statusText}`);
@@ -843,8 +850,13 @@ export function synthDayReadings(date: string): LastgangReading[] {
   return out;
 }
 
-/** Geocode an address to { lat, long } via Nominatim, or null on miss/failure. */
-async function geocode(
+/**
+ * Geocode an address (taken from a building's fields) to { lat, long } via
+ * Nominatim, or null on a miss/failure. Shared by the demo seed and the
+ * Add-building dialog (manual "look up coordinates" button + bulk file import),
+ * so all three resolve coordinates the same way. Best-effort: never throws.
+ */
+export async function geocodeFields(
   fields: Record<string, string>,
 ): Promise<{ lat: string; long: string } | null> {
   const query = [
@@ -884,7 +896,7 @@ export async function seedDemoBuildings(
 ): Promise<void> {
   for (const demo of DEMO_BUILDINGS) {
     try {
-      const coords = await geocode(demo.fields);
+      const coords = await geocodeFields(demo.fields);
       let fields: Record<string, string> = coords
         ? { ...demo.fields, lat: coords.lat, long: coords.long }
         : { ...demo.fields };
