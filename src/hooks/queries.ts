@@ -6,6 +6,7 @@ import {
 } from "../services/TurtleParsingService.ts";
 import { resolveStorageRoot } from "../services/utils/solidUtils.ts";
 import {
+  getReceivedViews,
   getSharedBuildings,
   getSharedViews,
   getSharedWithMe,
@@ -91,6 +92,16 @@ export function useSharedViews() {
   });
 }
 
+/** Aggregated views shared *with* the current user (folds `shared-in/`). */
+export function useReceivedViews() {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: ["receivedViews", webId],
+    enabled: Boolean(webId),
+    queryFn: () => getReceivedViews(getSession()),
+  });
+}
+
 /**
  * Data-room registry — `current` + `known`. Owned by the room mutations, which
  * `setQueryData` it authoritatively (see mutations.ts): it is fetched once on
@@ -150,6 +161,7 @@ export const queryKeys = {
   sharedBuildings: ["sharedBuildings"] as const,
   viewDefinitions: ["viewDefinitions"] as const,
   sharedViews: ["sharedViews"] as const,
+  receivedViews: ["receivedViews"] as const,
   /** The room registry (current + known). Set via setQueryData, not invalidated. */
   rooms: ["rooms"] as const,
   /** A room's log (members + roles), keyed by room. Invalidated on role saves. */

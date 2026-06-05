@@ -22,8 +22,7 @@ import {
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import ShareIcon from "@mui/icons-material/Share";
-import "chart.js/auto";
-import { Bar } from "react-chartjs-2";
+import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   AggregatedViewDefinition,
@@ -186,50 +185,13 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     );
   }
 
-  const chartData = {
-    labels: snapshot ? Object.keys(snapshot.values) : [],
-    datasets: [
-      {
-        label: `${
-          viewDefinition.aggregationType.charAt(0).toUpperCase() +
-          viewDefinition.aggregationType.slice(1)
-        } Values`,
-        data: snapshot ? Object.values(snapshot.values) : [],
-        backgroundColor: CHART_COLOR_PALETTE.slice(
-          0,
-          snapshot ? Object.keys(snapshot.values).length : 0,
-        ),
-        borderColor: CHART_COLOR_PALETTE.slice(
-          0,
-          snapshot ? Object.keys(snapshot.values).length : 0,
-        ),
-        borderWidth: 1,
-      },
-    ],
-  };
-
-  const chartOptions = {
-    responsive: true,
-    maintainAspectRatio: false,
-    plugins: {
-      legend: {
-        display: false,
-      },
-      title: {
-        display: true,
-        text: `Aggregated Energy Metrics (${viewDefinition.aggregationType})`,
-      },
-    },
-    scales: {
-      y: {
-        beginAtZero: true,
-        title: {
-          display: true,
-          text: viewDefinition.period ? "kWh/month" : "kWh",
-        },
-      },
-    },
-  };
+  const chartRows = snapshot
+    ? Object.entries(snapshot.values).map(([name, value]) => ({ name, value }))
+    : [];
+  const aggregationLabel = `${
+    viewDefinition.aggregationType.charAt(0).toUpperCase() +
+    viewDefinition.aggregationType.slice(1)
+  } Values`;
 
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
@@ -324,7 +286,19 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
               <CardHeader title="Aggregated Values Chart" />
               <CardContent>
                 <Box height={400}>
-                  <Bar data={chartData} options={chartOptions} />
+                  <MetricBarChart
+                    data={chartRows}
+                    bars={[{
+                      key: "value",
+                      name: aggregationLabel,
+                      color: CHART_COLOR_PALETTE[0],
+                      palette: CHART_COLOR_PALETTE,
+                    }]}
+                    xKey="name"
+                    yUnit={viewDefinition.period ? "kWh/month" : "kWh"}
+                    height={400}
+                    hideLegend
+                  />
                 </Box>
               </CardContent>
             </Card>

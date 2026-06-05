@@ -2,13 +2,17 @@ import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { HashRouter, Route, Routes } from "react-router-dom";
 import { openRoom } from "./services/interop/dataRoom.ts";
-import { resolveStorageRoot } from "./services/utils/solidUtils.ts";
+import {
+  getStorageRoot,
+  resolveStorageRoot,
+} from "./services/utils/solidUtils.ts";
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Agent from "./pages/Agent.tsx";
 import Energy from "./pages/Energy.tsx";
 import AggregatedView from "./pages/AggregatedView.tsx";
 import GuidePage from "./components/GuidePage.tsx";
+import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
@@ -74,7 +78,7 @@ function BuildingRouteGuard(
   return <>{children(building, selectedBuilding)}</>;
 }
 
-function BuildingWrapper({ session }: { session: Session }) {
+function BuildingWrapper() {
   const navigate = useNavigate();
   return (
     <BuildingRouteGuard>
@@ -82,7 +86,6 @@ function BuildingWrapper({ session }: { session: Session }) {
         <Container maxWidth="md" sx={{ py: 3 }}>
           <Building
             building={building}
-            session={session}
             onHide={() => navigate(-1)}
           />
         </Container>
@@ -146,7 +149,17 @@ function App({ onLogout, session }: AppProps) {
   // that builds Pod paths. Many components call the synchronous `getStorageRoot`
   // (data rooms, dialogs, registries), which throws until this has run — so the
   // whole authenticated app waits on it here.
-  const [rootReady, setRootReady] = useState(false);
+  // Start ready if the storage root is already cached (resolved on a previous
+  // mount this session) — avoids a spurious "Loading…" flash when it's known.
+  const [rootReady, setRootReady] = useState(() => {
+    try {
+      return session.info.webId
+        ? Boolean(getStorageRoot(session.info.webId))
+        : false;
+    } catch {
+      return false;
+    }
+  });
   const [rootError, setRootError] = useState<string | null>(null);
   useEffect(() => {
     let active = true;
@@ -161,9 +174,13 @@ function App({ onLogout, session }: AppProps) {
     });
     Promise.race([resolveStorageRoot(session), timeout])
       .then(() => active && setRootReady(true))
-      .catch((e) =>
-        active && setRootError(e instanceof Error ? e.message : String(e))
-      )
+      .catch((e) => {
+        const msg = e instanceof Error ? e.message : String(e);
+        // Mirror to the console (like showNotification) so this gate failure is
+        // observable in devtools and to the e2e error guard, not just on-screen.
+        console.error(`[notify] Could not locate your Pod storage: ${msg}`);
+        if (active) setRootError(msg);
+      })
       .finally(() => clearTimeout(timer));
     return () => {
       active = false;
@@ -177,10 +194,12 @@ function App({ onLogout, session }: AppProps) {
         <Typography color="error" sx={{ mb: 2 }}>
           Could not locate your Pod storage: {rootError}
         </Typography>
-        {/* This screen is otherwise a dead end (the app shell, and its logout
+        {
+          /* This screen is otherwise a dead end (the app shell, and its logout
             menu, never mount). Offer an explicit way back to Login, suppressing
             auto-restore so we don't immediately log back into the same broken
-            session. */}
+            session. */
+        }
         <Button
           variant="contained"
           onClick={() => onLogout({ suppressAutoLogin: true })}
@@ -191,35 +210,37 @@ function App({ onLogout, session }: AppProps) {
     );
   }
   if (!rootReady) {
-    return <FullPageSpinner />;
+    // Same plain activity screen as the login loading, so the hand-off from
+    // login to the app shell reads as one continuous "Loading…" screen.
+    return <ActivityScreen title="Loading…" />;
   }
 
   return (
     <HashRouter>
-        <Routes>
-          <Route
-            path="/"
-            element={<Index onLogout={onLogout} session={session} />}
-          />
-          <Route
-            path="/building/:selectedBuilding"
-            element={<BuildingWrapper session={session} />}
-          />
-          <Route path="/agent/:selectedAgent" element={<Agent />} />
-          <Route
-            path="/energy/:selectedBuilding"
-            element={<EnergyWrapper session={session} />}
-          />
-          <Route
-            path="/view/:viewId"
-            element={<AggregatedViewWrapper session={session} />}
-          />
-          <Route
-            path="/room/:roomUri"
-            element={<RoomDeepLink session={session} />}
-          />
-          <Route path="/guide" element={<GuidePage />} />
-        </Routes>
+      <Routes>
+        <Route
+          path="/"
+          element={<Index onLogout={onLogout} session={session} />}
+        />
+        <Route
+          path="/building/:selectedBuilding"
+          element={<BuildingWrapper />}
+        />
+        <Route path="/agent/:selectedAgent" element={<Agent />} />
+        <Route
+          path="/energy/:selectedBuilding"
+          element={<EnergyWrapper session={session} />}
+        />
+        <Route
+          path="/view/:viewId"
+          element={<AggregatedViewWrapper session={session} />}
+        />
+        <Route
+          path="/room/:roomUri"
+          element={<RoomDeepLink session={session} />}
+        />
+        <Route path="/guide" element={<GuidePage />} />
+      </Routes>
     </HashRouter>
   );
 }

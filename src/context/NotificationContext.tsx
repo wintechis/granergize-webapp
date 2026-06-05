@@ -29,6 +29,12 @@ export function NotificationProvider(
 
   const showNotification = useCallback(
     (message: string, severity: Severity) => {
+      // Mirror error/warning notices to the console so they're observable
+      // outside the (transient, auto-dismissing) snackbar — in devtools, and to
+      // Playwright via page.on("console") so a regression surfaces the real
+      // message instead of a mystery timeout (the e2e error guard keys on this).
+      if (severity === "error") console.error(`[notify] ${message}`);
+      else if (severity === "warning") console.warn(`[notify] ${message}`);
       setNotification({ open: true, message, severity });
     },
     [],

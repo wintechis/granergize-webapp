@@ -1,6 +1,8 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { existsSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, readFileSync, unlinkSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, type SolidAccount } from "./helpers/login.ts";
+import { watchAppErrors } from "./helpers/errorGuard.ts";
+import { deleteAllOwnedRooms } from "./helpers/rooms.ts";
 
 /**
  * End-to-end sharing across TWO throwaway Solid Pods, using the data room to
@@ -42,9 +44,11 @@ async function hostRoomAndGetUri(page: Page): Promise<string> {
     await page.getByRole("button", { name: /host a data room/i }).click();
     await expect(leave).toBeVisible({ timeout: 60_000 });
   }
-  // Read the active room's URI from its own "URI:" line (scoped to the active
-  // section), not the bookmark list.
-  const activeLink = page.locator('p:has-text("URI:") a[href*="/rooms/"]').first();
+  // Read the ACTIVE room's URI from its own row — the <li> carrying the "Leave
+  // data room" button — not the bookmark list. (Post-redesign Connect tab: the
+  // URI is a UriLink in the row; there is no "URI:" paragraph any more.)
+  const activeRow = page.locator("li").filter({ has: leave });
+  const activeLink = activeRow.locator('a[href*="/rooms/"]').first();
   await expect(activeLink).toBeVisible({ timeout: 60_000 });
   const uri = (await activeLink.getAttribute("href"))?.trim();
   expect(uri, "active room URI").toBeTruthy();
@@ -136,13 +140,20 @@ async function joinRoomAsUser(page: Page, roomUri: string): Promise<void> {
 async function freshPage(
   browser: Browser,
   acc: SolidAccount,
-): Promise<{ ctx: Awaited<ReturnType<Browser["newContext"]>>; page: Page }> {
+): Promise<
+  {
+    ctx: Awaited<ReturnType<Browser["newContext"]>>;
+    page: Page;
+    guard: ReturnType<typeof watchAppErrors>;
+  }
+> {
   const ctx = await browser.newContext({
     viewport: { width: 1200, height: 900 },
   });
   const page = await ctx.newPage();
+  const guard = watchAppErrors(page); // attach before login to catch login-time errors
   await login(page, acc);
-  return { ctx, page };
+  return { ctx, page, guard };
 }
 
 // The room URI is handed from "part 1" (A hosts) to "part 2" (B joins) via a
@@ -222,12 +233,13 @@ test.describe("sharing across two pods", () => {
       if (!hasBuilding) {
         await page.getByRole("button", { name: /^add building$/i }).click();
         await expect(dialog).toBeVisible({ timeout: 10_000 });
-        // The dialog needs A's room role to render the Role-specific form; that
-        // role data also loads async, so wait for the Role field before using it.
-        // Pick User explicitly (A may hold several roles): an investor-shaped
-        // form has extra required fields (buildingCode) that would block submit.
-        await expect(dialog.getByLabel("Role")).toBeVisible({ timeout: 15_000 });
-        await dialog.getByLabel("Role").click();
+        // Pick the User import *template* (the add selector is a template chooser
+        // now, independent of data-room roles): an investor-shaped form has extra
+        // required fields (buildingCode) that would block submit.
+        await expect(dialog.getByLabel("Template")).toBeVisible({
+          timeout: 15_000,
+        });
+        await dialog.getByLabel("Template").click();
         await page.getByRole("option", { name: "User" }).click();
         await dialog.getByLabel(/street address/i).fill(STREET);
         await dialog.getByLabel(/locality/i).fill("Nürnberg");
@@ -276,15 +288,42 @@ test.describe("sharing across two pods", () => {
     // into B's shared-in/ log and then invalidates the sharedWithMe query, so the
     // building appears WITHOUT a reload. readInbox is several sequential Pod calls,
     // so just give it a generous window (don't reload-thrash, which aborts it).
-    const { ctx, page } = await freshPage(browser, B);
+    const { ctx, page, guard } = await freshPage(browser, B);
     try {
       await page.getByRole("tab", { name: "Share" }).click();
       const received = page.getByRole("heading", {
         name: /buildings shared with you/i,
       }).locator("xpath=following-sibling::*[1]");
-      await expect(received.getByText(/^Building /)).toBeVisible({
-        timeout: 120_000,
-      });
+      try {
+        await expect(received.getByText(/^Building /)).toBeVisible({
+          timeout: 120_000,
+        });
+      } catch (timeout) {
+        // If the building never arrived because the app raised an error (e.g.
+        // readInbox failing), surface THAT — not a bare "element not found".
+        guard.assertNoAppErrors();
+        throw timeout;
+      }
+    } finally {
+      await ctx.close();
+    }
+  });
+
+  // The room A hosts in part 1 must SURVIVE parts 2–4 (B joins it, A shares
+  // through it), so it can't be torn down in an afterAll — that would also fire
+  // after an individual `-g "part 1"` resume run and delete the room before
+  // part 2. Instead clean up in an explicit final part: it only runs when "part
+  // 5" matches the grep (a full sequential run, or `-g "part 5"`), so the
+  // four-part resume workflow above is untouched. Without this, A's room leaks
+  // on every full run and the Pod's room list grows unbounded.
+  test("part 5: clean up the room A hosted", async ({ browser }) => {
+    test.setTimeout(300_000);
+    const { ctx, page } = await freshPage(browser, A);
+    // "Delete data room" confirms via window.confirm — accept automatically.
+    page.on("dialog", (d) => d.accept());
+    try {
+      await deleteAllOwnedRooms(page);
+      if (existsSync(STATE_FILE)) unlinkSync(STATE_FILE);
     } finally {
       await ctx.close();
     }

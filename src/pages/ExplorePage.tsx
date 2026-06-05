@@ -490,7 +490,6 @@ export default function ExplorePage(
                     {detailTab === 0 && (
                       <Building
                         building={currentBuilding}
-                        session={session}
                         onHide={() => setTrail([])}
                         onNavigateAgent={(id) =>
                           pushFocus({ kind: "agent", id })}

@@ -1,4 +1,4 @@
-import { lazy, Suspense, useEffect, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Avatar from "@mui/material/Avatar";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
@@ -23,6 +23,7 @@ import ManagePage from "./ManagePage.tsx";
 import ConnectPage from "./ConnectPage.tsx";
 import Footer from "../components/Footer.tsx";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
+import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { getAvatarObjectUrl } from "../services/utils/logoManager.ts";
 import { getOrgLogoObjectUrl } from "../services/utils/organizationManager.ts";
@@ -45,6 +46,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     (location.state as { openRoom?: boolean } | null)?.openRoom ? 3 : 0,
   );
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
+  // True while "Remove all app data" is wiping the Pod — shows a full-page
+  // activity screen with the live deletion requests and a Cancel button.
+  const [removing, setRemoving] = useState(false);
+  const removeAbort = useRef<AbortController | null>(null);
   const { showNotification } = useNotification();
 
   // Avatar shown top-right: the organisation's logo (foaf:logo) if set, else the
@@ -152,19 +157,36 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     ) {
       return;
     }
+    // Take over the screen with the live deletion requests (and a Cancel
+    // button) instead of wiping silently behind a notification.
+    const controller = new AbortController();
+    removeAbort.current = controller;
+    setRemoving(true);
     try {
-      await removeAppData(session);
+      await removeAppData(session, controller.signal);
       showNotification("All app data removed", "success");
       // Log out and stay out: don't auto-restore the session, or the app would
       // silently log back in and re-bootstrap the collection we just deleted.
       onLogout({ suppressAutoLogin: true });
     } catch (err) {
-      showNotification(
-        `Failed to remove app data: ${(err as Error).message}`,
-        "error",
-      );
+      setRemoving(false);
+      if (controller.signal.aborted) {
+        showNotification(
+          "Removal cancelled — some data may already be deleted",
+          "warning",
+        );
+      } else {
+        showNotification(
+          `Failed to remove app data: ${(err as Error).message}`,
+          "error",
+        );
+      }
+    } finally {
+      removeAbort.current = null;
     }
   };
+
+  const handleCancelRemove = () => removeAbort.current?.abort();
 
   const handleProfile = () => {
     handleMenuClose();
@@ -177,6 +199,17 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     handleMenuClose();
     navigate("/guide");
   };
+
+  // While wiping the Pod, take over the screen so the user sees the deletions
+  // in flight and can cancel — rather than the app shell sitting there.
+  if (removing) {
+    return (
+      <ActivityScreen
+        title="Removing all app data…"
+        onCancel={handleCancelRemove}
+      />
+    );
+  }
 
   return (
     <Box

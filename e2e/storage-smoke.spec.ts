@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "./helpers/login.ts";
+import { deleteAllOwnedRooms } from "./helpers/rooms.ts";
 
 /**
  * Storage-redesign smoke test (single account, a THROWAWAY Solid Pod — never a
@@ -49,6 +50,9 @@ test.describe("storage redesign smoke", () => {
   });
 
   test.afterAll(async () => {
+    // Delete any room this run hosted (so a mid-test failure doesn't leak it and
+    // the Pod stays clean for the next smoke run).
+    await deleteAllOwnedRooms(page);
     await page.close();
   });
 
@@ -80,26 +84,22 @@ test.describe("storage redesign smoke", () => {
     test.setTimeout(240_000);
     await page.getByRole("tab", { name: "Connect" }).click();
 
-    const roomHrefs = () =>
-      page.locator('li a[href*="/rooms/"]').evaluateAll((els) =>
-        els.map((e) => (e as HTMLAnchorElement).getAttribute("href") ?? "")
-      );
-
-    const before = new Set(await roomHrefs());
     await page.getByRole("button", { name: /host a data room/i }).click();
     await expect(page.getByText("Data room created").first())
       .toBeVisible({ timeout: SETTLE });
 
-    let uri = "";
-    await expect(async () => {
-      uri = (await roomHrefs()).find((h) => h && !before.has(h)) ?? "";
-      expect(uri, "the newly-hosted room should appear").toBeTruthy();
-    }).toPass({ timeout: SETTLE });
-
-    const row = page.locator("li").filter({ hasText: uri });
-    // Hosting enters it → it's the active room (prefs.ttl currentRoom).
-    await expect(row.getByRole("button", { name: "Leave data room" }))
-      .toBeVisible({ timeout: SETTLE });
+    // Hosting enters the room → it becomes the active one (prefs.ttl currentRoom),
+    // and there is exactly ONE active room, so the "Leave data room" button is
+    // unique. Locate the row BY that button rather than by URI text: it's robust
+    // to other rooms accumulated on the Pod (the list paginates, so a room found
+    // by href could be on another page) — see data-room-switch-debug.spec.ts.
+    const leave = page.getByRole("button", { name: "Leave data room" });
+    await expect(leave).toBeVisible({ timeout: SETTLE });
+    const row = page.locator("li").filter({ has: leave });
+    const uri =
+      (await row.locator('a[href*="/rooms/"]').first().getAttribute("href")) ??
+        "";
+    expect(uri, "the newly-hosted room should have a URI").toBeTruthy();
 
     // Clean up.
     await row.getByRole("button", { name: "Delete data room" }).click();

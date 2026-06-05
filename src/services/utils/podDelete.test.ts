@@ -175,6 +175,43 @@ Deno.test("formatResourceList shows paths relative to root and caps the list", (
   assert.equal(out.split("\n").length, 21, "20 lines + the summary");
 });
 
+Deno.test("deleteContainerRecursive does nothing when the signal is already aborted", async () => {
+  const { session, deletes } = makeSession();
+  const controller = new AbortController();
+  controller.abort();
+
+  await assert.rejects(() =>
+    deleteContainerRecursive(GRAN, session, controller.signal)
+  );
+  assert.equal(
+    deletes.filter((u) => !u.endsWith(".acl")).length,
+    0,
+    "a pre-aborted signal deletes nothing",
+  );
+});
+
+Deno.test("deleteContainerRecursive stops part-way once aborted mid-run", async () => {
+  const { session, deletes } = makeSession();
+  const controller = new AbortController();
+  // Abort as soon as the first DELETE is dispatched, so the run can't finish.
+  const inner = session.fetch.bind(session);
+  (session as { fetch: typeof fetch }).fetch = ((
+    input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
+    const p = inner(input as string, init);
+    if ((init?.method ?? "GET").toUpperCase() === "DELETE") controller.abort();
+    return p;
+  }) as typeof fetch;
+
+  await assert.rejects(() =>
+    deleteContainerRecursive(GRAN, session, controller.signal)
+  );
+  const real = deletes.filter((u) => !u.endsWith(".acl"));
+  assert.ok(real.length >= 1, "some deletion happened before the abort");
+  assert.ok(!real.includes(GRAN), "the top container was never reached");
+});
+
 Deno.test("removeAppData wipes granergize/ and never touches profile/", async () => {
   const { session, deletes } = makeSession();
 

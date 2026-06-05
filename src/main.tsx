@@ -7,7 +7,6 @@ import Typography from "@mui/material/Typography";
 import Link from "@mui/material/Link";
 import { ThemeProvider } from "@mui/material/styles";
 import "./index.css";
-import "./chartSetup.ts"; // Register Chart.js globally
 import theme from "./theme.ts";
 import Login from "./pages/Login.tsx";
 import { getDefaultSession, Session } from "@inrupt/solid-client-authn-browser";
@@ -19,8 +18,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { QueryProvider } from "./context/QueryProvider.tsx";
 import { queryKeys } from "./hooks/queries.ts";
 import { readInbox } from "./services/interop/inbox.ts";
-import { instrumentSessionFetch } from "./services/utils/networkActivity.ts";
+import {
+  clearRequestLog,
+  instrumentSessionFetch,
+} from "./services/utils/networkActivity.ts";
 import { formatError } from "./services/utils/formatError.ts";
+import { resolveStorageRoot } from "./services/utils/solidUtils.ts";
 import {
   getSessionExpiredSnapshot,
   markSessionExpired,
@@ -70,6 +73,7 @@ function AppContent() {
       // (keeps every logout path consistent — see handleLogout).
       sessionStorage.setItem(NO_RESTORE_KEY, "1");
       setSuppressRestore(true);
+      clearRequestLog();
       session.logout().then(() => setSession(null));
     }
   }, [expired, session, showNotification]);
@@ -84,11 +88,17 @@ function AppContent() {
     instrumentSessionFetch(authSession);
     setSession(authSession);
     try {
+      // readInbox builds Pod paths (shared-in/) via the synchronous
+      // getStorageRoot, which throws until the root is resolved. App's mount gate
+      // resolves it too, but that runs AFTER this callback — so resolve it here
+      // first (idempotent + cached, so the gate then no-ops).
+      await resolveStorageRoot(authSession);
       await readInbox(authSession);
       // readInbox may have archived newly-granted shares into the user's
       // shared-in/ log; refresh the queries that fold it so they appear
       // (otherwise the cached read taken at mount would never reflect the grant).
       queryClient.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
+      queryClient.invalidateQueries({ queryKey: queryKeys.receivedViews });
       queryClient.invalidateQueries({ queryKey: queryKeys.buildingsAndAgents });
     } catch (error) {
       showNotification(formatError("read your inbox", error), "error");
@@ -100,6 +110,9 @@ function AppContent() {
   ) => {
     if (!session) return;
     console.log("Logging out user", session.info.webId);
+    // Don't carry this session's request history into the next login's loading
+    // screen / header log.
+    clearRequestLog();
     if (opts?.suppressAutoLogin) {
       sessionStorage.setItem(NO_RESTORE_KEY, "1");
       setSuppressRestore(true);

@@ -2,6 +2,7 @@ import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Button, IconButton, Tooltip, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
+import AddchartIcon from "@mui/icons-material/Addchart";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -49,7 +50,11 @@ import {
 } from "../components/listStyles.ts";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../components/usePaging.ts";
-import { ShareBuildingDialog } from "../components/BuildingDialogs.tsx";
+import {
+  EnergyCertificateDialog,
+  ShareBuildingDialog,
+} from "../components/BuildingDialogs.tsx";
+import EnergyYearDialog from "../components/EnergyYearDialog.tsx";
 import EditBuildingDialog from "../components/EditBuildingDialog.tsx";
 import AddBuildingDialog from "../components/AddBuildingDialog.tsx";
 import ShareViewDialog from "../components/ShareViewDialog.tsx";
@@ -58,6 +63,11 @@ import CreateViewDialog from "../components/CreateViewDialog.tsx";
 interface ManagePageProps {
   session: Session;
 }
+
+/** Whether a building already carries an energy certificate (drives the tooltip). */
+const hasEnergyCertificate = (b: BuildingType): boolean =>
+  typeof b.energyCertificate === "string" &&
+  b.energyCertificate.trim().length > 0;
 
 /**
  * The MANAGE tab: manage everything you own. Buildings — view their RDF, see who
@@ -79,6 +89,10 @@ export default function ManagePage({ session }: ManagePageProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
   const [editBuilding, setEditBuilding] = useState<BuildingType | null>(null);
+  const [certBuilding, setCertBuilding] = useState<BuildingType | null>(null);
+  const [energyYearBuilding, setEnergyYearBuilding] = useState<
+    BuildingType | null
+  >(null);
   const [shareBuilding, setShareBuilding] = useState<BuildingType | null>(null);
   const [createViewOpen, setCreateViewOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
@@ -190,7 +204,26 @@ export default function ManagePage({ session }: ManagePageProps) {
     <section style={{ padding: "1.5rem" }}>
       <section>
         <Typography variant="h6" sx={{ mb: 1 }}>Your buildings</Typography>
-        {rdf && <RdfSourceLink href={rdf.buildings} />}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            flexWrap: "wrap",
+            marginBottom: "0.5rem",
+          }}
+        >
+          {rdf && <RdfSourceLink href={rdf.buildings} />}
+          <Button
+            size="small"
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadAll}
+            disabled={ownedBuildings.length === 0}
+          >
+            Download all (Excel)
+          </Button>
+        </div>
 
         {buildingsLoading
           ? <p>Loading…</p>
@@ -257,6 +290,28 @@ export default function ManagePage({ session }: ManagePageProps) {
                             <EditIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
+                        <Tooltip
+                          title={hasEnergyCertificate(b)
+                            ? "Replace energy certificate"
+                            : "Upload energy certificate"}
+                        >
+                          <IconButton
+                            size="small"
+                            aria-label="Upload energy certificate"
+                            onClick={() => setCertBuilding(b)}
+                          >
+                            <UploadFileIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                        <Tooltip title="Add / edit energy year">
+                          <IconButton
+                            size="small"
+                            aria-label="Add or edit energy year"
+                            onClick={() => setEnergyYearBuilding(b)}
+                          >
+                            <AddchartIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
                         <Tooltip title="Share building data">
                           <IconButton
                             size="small"
@@ -314,14 +369,6 @@ export default function ManagePage({ session }: ManagePageProps) {
             }}
           >
             Autofill from file
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<DownloadIcon />}
-            onClick={handleDownloadAll}
-            disabled={ownedBuildings.length === 0}
-          >
-            Download all (Excel)
           </Button>
         </div>
       </section>
@@ -475,6 +522,23 @@ export default function ManagePage({ session }: ManagePageProps) {
           session={session}
           onClose={() => setEditBuilding(null)}
           onBuildingUpdated={reloadData}
+        />
+      )}
+      {certBuilding && (
+        <EnergyCertificateDialog
+          open
+          buildingUri={certBuilding.uri as string}
+          session={session}
+          onClose={() => setCertBuilding(null)}
+          onUploadSuccess={reloadData}
+        />
+      )}
+      {energyYearBuilding && (
+        <EnergyYearDialog
+          open
+          building={energyYearBuilding}
+          session={session}
+          onClose={() => setEnergyYearBuilding(null)}
         />
       )}
       {shareBuilding && (

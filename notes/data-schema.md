@@ -30,6 +30,43 @@ Category ↔ IRI maps live in `constants/roles.ts` (`PROVENANCE_TO_IRI` /
 `IRI_TO_PROVENANCE`): `dummy`→`gran:DummyRole`, `investor`→`gran:InvestorRole`,
 `user`→`gran:UserRoleInstance`, `benchmark_service_provider`→`gran:BenchmarkRole`.
 
+## Open question: where does a building's provenance come from?
+
+Two of the three concerns above are still entangled at **add time**. The Add dialog's
+selector (`AddBuildingDialog.tsx`) is now a plain import **template** chooser, no longer
+gated on a data-room role (decoupled 2026-06-05) — but the chosen template *also* supplies
+the provenance category: `serializeBuildingToTurtle(…, { agent: webId, category: template })`.
+So picking the "User" template to parse a spreadsheet silently attributes the building to
+you *as a tenant*. Template is a property of **the file**; provenance is a property of
+**you** — they shouldn't ride one dropdown.
+
+The remaining step of PROBLEMS.md #1 / Handbuch HW5 ("role should be set per-user in
+profile … applied automatically, not chosen in the add-data flow") is to **bind provenance
+to the WebID profile**: declare your producing capacity once in your profile document and
+have every building you add inherit it, leaving the template selector to do only one job
+(pick the spreadsheet shape). Reading it would reuse `loadProfileStore`
+(`profileDocument.ts`); the app already stores org identity in the WebID via W3C Org
+(`org:memberOf`), so there's precedent, e.g. `<#me> gran:actsAs gran:InvestorRole`.
+
+Before implementing, these need deciding:
+
+- **Is a producer's capacity fixed per person, or per building?** An investor is always
+  an investor — but a benchmark service provider may add data *about someone else's*
+  building. If fixed → a single profile value is clean. If it can vary → keep a
+  per-building override, *defaulted* from the profile rather than chosen blind.
+- **One capacity or several?** A person may act in more than one producing capacity. Pick a
+  single default and let the override handle the rest, or prompt when ambiguous?
+- **Which predicate / vocabulary?** Reuse the W3C Org pattern (`org:memberOf` /
+  `org:role`) already in the profile, or mint a dedicated `gran:actsAs`? The value should
+  reuse the existing category IRIs (`PROVENANCE_TO_IRI`) for a trivial read.
+- **Relation to the data-room membership role.** The profile *producing* capacity and the
+  room *membership* role are different things (who made the data vs. a sharing target) and
+  should stay separate fields — even though both currently draw from `UserRole`. Don't
+  collapse them back into one.
+- **Back-compat.** No migration: provenance already lives *in each building file*, so
+  existing attributions stay valid. Profile binding only changes where the **default** for
+  *new* buildings comes from.
+
 ## Graph shape varies by producer, but dispatch is data-driven
 
 One session's `dataSources.ttl` aggregates files authored by different actors in

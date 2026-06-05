@@ -15,6 +15,7 @@ import {
   serializeBuildingToTurtle,
   synthDayReadings,
   uploadBuilding,
+  writeBuildingEnergy,
 } from "./buildingSerializer.ts";
 import { toggleBuildingVisibility } from "../interop/sharingManager.ts";
 import { parseBuildings } from "./buildingParser.ts";
@@ -437,6 +438,56 @@ Deno.test("uploadBuilding PUTs the Turtle to the building URI", async () => {
   assert.ok(put, "building was PUT to its URI");
   assert.equal(put!.body, ttl);
   assert.equal(store[uri], ttl);
+});
+
+Deno.test("writeBuildingEnergy stops writing daily files once aborted", async () => {
+  const { session, calls } = makeSession();
+  const controller = new AbortController();
+  // Abort the moment the first 15-min daily file is dispatched, so the rest of
+  // the year's files can't be written.
+  const inner = session.fetch.bind(session);
+  (session as { fetch: typeof fetch }).fetch = ((
+    input: string | URL | Request,
+    init?: RequestInit,
+  ) => {
+    const url = String(input);
+    const p = inner(input as string, init);
+    if (
+      (init?.method ?? "GET").toUpperCase() === "PUT" &&
+      url.includes("PT15M") && url.endsWith(".ttl")
+    ) {
+      controller.abort();
+    }
+    return p;
+  }) as typeof fetch;
+
+  const uri = newBuildingUri(WEBID, "b-cancel");
+  const subject = `${uri}#b-cancel`;
+  const days = Array.from({ length: 12 }, (_, i) => {
+    const date = `2099-01-${String(i + 1).padStart(2, "0")}`;
+    return { date, readings: synthDayReadings(date) };
+  });
+
+  await assert.rejects(() =>
+    writeBuildingEnergy(
+      session,
+      uri,
+      subject,
+      {},
+      { year: 2099, days, label: "x" },
+      undefined,
+      controller.signal,
+    )
+  );
+
+  const dailyPuts = calls.filter((c) =>
+    c.method === "PUT" && c.url.includes("PT15M") && c.url.endsWith(".ttl")
+  );
+  assert.ok(dailyPuts.length >= 1, "at least one daily file was written");
+  assert.ok(
+    dailyPuts.length < days.length,
+    "the abort stopped the remaining daily files",
+  );
 });
 
 // ── hide / unhide (the "delete" path) ───────────────────────────────────────────

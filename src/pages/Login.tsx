@@ -9,8 +9,11 @@ import {
 import TextField from "@mui/material/TextField";
 import Button from "@mui/material/Button";
 import Box from "@mui/material/Box";
+import Card from "@mui/material/Card";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
+import ActivityScreen from "../components/ActivityScreen.tsx";
+import RequestActivityList from "../components/RequestActivityList.tsx";
 import { shouldRestoreSession } from "../services/utils/sessionRestore.ts";
 
 interface LoginProps {
@@ -71,6 +74,12 @@ export const Login: React.FC<LoginProps> = ({
 
   const [invalidIDP, setInvalidIDP] = useState(false);
   const [loading, setLoading] = useState(true);
+  // The provider the user just picked: `session.login` does OIDC discovery +
+  // client registration (a couple of network round-trips) before it navigates
+  // away, so without this the button would sit dead for a second or two. Set on
+  // click to take over the screen with a "Redirecting…" message until the
+  // browser leaves for the provider (cleared only if login fails to start).
+  const [redirectingTo, setRedirectingTo] = useState<string | null>(null);
   const [, setClearInitialLoad] = useState<ReturnType<typeof setTimeout>>();
 
   // The silent-restore decision runs inside a deferred timer, so it must read
@@ -210,7 +219,19 @@ export const Login: React.FC<LoginProps> = ({
 
   function submitCallback(idp?: string) {
     const targetIdp = idp || login;
+    setInvalidIDP(false);
+    // Immediate feedback while `session.login` discovers/registers before it
+    // redirects the browser away (the page navigation ends this component).
+    let host = targetIdp;
+    try {
+      host = new URL(targetIdp).host;
+    } catch {
+      // not a full URL yet — show what we have
+    }
+    setRedirectingTo(host);
     session.login({ oidcIssuer: targetIdp, ...loginOptions }).catch(() => {
+      // Login never got to the redirect (e.g. bad IdP) — restore the form.
+      setRedirectingTo(null);
       setInvalidIDP(true);
     });
   }
@@ -224,170 +245,235 @@ export const Login: React.FC<LoginProps> = ({
     submitCallback(enteredIdp);
   }
 
-  // Loading screen — same flex centering as the login view below.
+  // Machine-loading states (cold start, post-redirect code exchange, session
+  // restore) use the SAME plain activity screen as the app shell's storage-root
+  // load, so the whole login→app transition reads as one continuous "Loading…"
+  // instead of a chain of different-looking screens.
   if (loading) {
-    return (
-      <Box
-        sx={{
-          width: "100%",
-          minHeight: "100vh",
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "center",
-          p: 2,
-        }}
-      >
-        {loadingIndicator ?? "Loading…"}
-      </Box>
-    );
+    return <ActivityScreen title={loadingIndicator ?? "Loading…"} />;
   }
 
-  // If user is not logged in, show login UI
+  // Not logged in: show the login card. Its body swaps between the post-click
+  // redirect (live requests + Cancel) and the provider chooser.
   if (!activeWebId) {
     return (
       <Box
         sx={{
-          position: "relative",
           width: "100%",
           minHeight: "100vh",
+          // #root is a fixed-height (100%) flex column; without this it would
+          // shrink this box to the viewport and the centered content would
+          // overflow upward, clipped and unreachable. Keeping full content
+          // height lets tall content overflow downward so the normal browser
+          // scrollbar appears — and short content still centers via the gap
+          // between min-height and `justifyContent: center`.
+          flexShrink: 0,
           display: "flex",
           flexDirection: "column",
           alignItems: "center",
           justifyContent: "center",
-          p: 2,
+          py: 4,
+          px: 2,
         }}
       >
-        {logo && (
-          <Box
-            sx={{
-              mb: 2,
-              width: 80,
-              height: "auto",
-              display: "flex",
-              justifyContent: "center",
-              "& img": { width: "100%", height: "auto", display: "block" },
-            }}
-          >
-            {logo}
-          </Box>
-        )}
-
-        <Typography variant="h6" sx={{ mb: 2 }}>
-          {name ?? "Solid Login"}
-        </Typography>
-
-        <Box
+        <Card
+          variant="outlined"
           sx={{
-            display: "flex",
-            flexDirection: "column",
-            // Two-tier rhythm: `gap: 3` between sections here, `gap: 2` within
-            // each section box below. No per-child `mt` (it would compound with
-            // the gap into an uneven rhythm).
-            gap: 3,
-            maxWidth: 500,
             width: "100%",
+            // Wider than a typical narrow login card so the content (and the
+            // full-width provider buttons) has room to breathe. Tune this single
+            // value if you want it wider/narrower.
+            maxWidth: 720,
+            p: { xs: 3, sm: 4 },
           }}
         >
-          {/* lead text or default */}
-          {lead || (
-            <Typography variant="body1">
-              Choose an Identity Provider for this{" "}
-              <a href="https://solidproject.org/">Solid Application</a>
-            </Typography>
-          )}
-
-          {/* Recommended IDPs — only until a provider is remembered */}
-          {!prevIdps.length && recommendedLogins.length
-            ? (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Sign in with an identity provider
-                </Typography>
-                {recommendedLogins.map((idp) => (
-                  <Button
-                    key={idp}
-                    variant="outlined"
-                    onClick={(e) => {
-                      e.preventDefault();
-                      submitCallback(idp);
-                    }}
-                  >
-                    {idp.replace("https://", "")}
-                  </Button>
-                ))}
+          <Box
+            sx={{
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              gap: 3,
+            }}
+          >
+            {logo && (
+              <Box
+                sx={{
+                  width: 80,
+                  height: "auto",
+                  display: "flex",
+                  justifyContent: "center",
+                  "& img": { width: "100%", height: "auto", display: "block" },
+                }}
+              >
+                {logo}
               </Box>
-            )
-            : null}
-
-          {/* Previously used IDPs — same vertical stack as the recommended list */}
-          {prevIdps.length
-            ? (
-              <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-                <Typography variant="body2" color="text.secondary">
-                  Sign in again with
-                </Typography>
-                <Box sx={{ display: "flex", flexDirection: "column", gap: 1 }}>
-                  {prevIdps.map((idp) => (
-                    <Button
-                      key={idp}
-                      variant="outlined"
-                      onClick={(e) => {
-                        e.preventDefault();
-                        submitCallback(idp);
-                      }}
-                    >
-                      {new URL(idp).host}
-                    </Button>
-                  ))}
-                </Box>
-                <Button
-                  variant="text"
-                  color="error"
-                  sx={{ alignSelf: "flex-start" }}
-                  onClick={(e) => {
-                    e.preventDefault();
-                    // Non-destructive: just forgets the remembered IDP list
-                    // locally — no confirmation needed.
-                    localStorage.removeItem("prevIdps");
-                    setPrevIdps([]);
-                  }}
-                >
-                  Clear
-                </Button>
-              </Box>
-            )
-            : null}
-
-          {/* Sign in with a provider not listed above */}
-          <Box sx={{ display: "flex", flexDirection: "column", gap: 2 }}>
-            {(prevIdps.length || recommendedLogins.length)
-              ? (
-                <Typography variant="body2" color="text.secondary">
-                  Sign in with another identity provider
-                </Typography>
-              )
-              : null}
-            <Box component="form" onSubmit={handleNewIdpSubmit}>
-              <IdpInputWrapper>
-                <TextField
-                  name="login"
-                  label="Identity Provider"
-                  placeholder="e.g. inrupt.net"
-                  onChange={(e) => setLogin(e.target.value)}
-                  fullWidth
-                />
-                <Button type="submit" variant="contained">
-                  +
-                </Button>
-              </IdpInputWrapper>
-            </Box>
-            {invalidIDP && (
-              <Typography variant="body2" color="error">
-                Please provide a correct URI.
-              </Typography>
             )}
+
+            <Typography variant="h5">
+              {name ?? "Solid Login"}
+            </Typography>
+
+            <Box
+              sx={{
+                display: "flex",
+                flexDirection: "column",
+                // Two-tier rhythm: `gap: 3` between sections here, `gap: 2`
+                // within each section box below. No per-child `mt` (it would
+                // compound with the gap into an uneven rhythm).
+                gap: 3,
+                width: "100%",
+              }}
+            >
+              {/* lead text or default */}
+              {lead || (
+                <Typography variant="body1">
+                  Choose an Identity Provider for this{" "}
+                  <a href="https://solidproject.org/">Solid Application</a>
+                </Typography>
+              )}
+
+              {redirectingTo
+                ? (
+                  // Stay on the login screen; swap the chooser for the live
+                  // login requests (OIDC discovery/registration) so the user
+                  // sees what's happening in the gap before the browser
+                  // navigates to the provider. Cancel restores the chooser.
+                  <Box
+                    sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+                  >
+                    <Typography variant="subtitle2">
+                      Redirecting to {redirectingTo}…
+                    </Typography>
+                    <Box sx={{ maxHeight: "40vh", overflowY: "auto" }}>
+                      <RequestActivityList emptyText="Starting…" />
+                    </Box>
+                    <Button
+                      variant="text"
+                      onClick={() => setRedirectingTo(null)}
+                      sx={{ alignSelf: "flex-start" }}
+                    >
+                      Cancel
+                    </Button>
+                  </Box>
+                )
+                : (
+                  <>
+                    {/* Recommended IDPs — only until a provider is remembered */}
+                    {!prevIdps.length && recommendedLogins.length
+                      ? (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                          }}
+                        >
+                          <Typography variant="subtitle2">
+                            Sign in with an identity provider
+                          </Typography>
+                          {recommendedLogins.map((idp) => (
+                            <Button
+                              key={idp}
+                              variant="outlined"
+                              onClick={(e) => {
+                                e.preventDefault();
+                                submitCallback(idp);
+                              }}
+                            >
+                              {idp.replace("https://", "")}
+                            </Button>
+                          ))}
+                        </Box>
+                      )
+                      : null}
+
+                    {/* Previously used IDPs — same vertical stack as the recommended list */}
+                    {prevIdps.length
+                      ? (
+                        <Box
+                          sx={{
+                            display: "flex",
+                            flexDirection: "column",
+                            gap: 2,
+                          }}
+                        >
+                          <Typography variant="subtitle2">
+                            Sign in again with
+                          </Typography>
+                          <Box
+                            sx={{
+                              display: "flex",
+                              flexDirection: "column",
+                              gap: 1,
+                            }}
+                          >
+                            {prevIdps.map((idp) => (
+                              <Button
+                                key={idp}
+                                variant="outlined"
+                                onClick={(e) => {
+                                  e.preventDefault();
+                                  submitCallback(idp);
+                                }}
+                              >
+                                {new URL(idp).host}
+                              </Button>
+                            ))}
+                          </Box>
+                          <Button
+                            variant="text"
+                            color="error"
+                            sx={{ alignSelf: "flex-start" }}
+                            onClick={(e) => {
+                              e.preventDefault();
+                              // Non-destructive: just forgets the remembered IDP list
+                              // locally — no confirmation needed.
+                              localStorage.removeItem("prevIdps");
+                              setPrevIdps([]);
+                            }}
+                          >
+                            Clear
+                          </Button>
+                        </Box>
+                      )
+                      : null}
+
+                    {/* Sign in with a provider not listed above */}
+                    <Box
+                      sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+                    >
+                      {(prevIdps.length || recommendedLogins.length)
+                        ? (
+                          <Typography variant="subtitle2">
+                            Sign in with another identity provider
+                          </Typography>
+                        )
+                        : null}
+                      <Box component="form" onSubmit={handleNewIdpSubmit}>
+                        <IdpInputWrapper>
+                          <TextField
+                            name="login"
+                            label="Identity Provider"
+                            placeholder="e.g. inrupt.net"
+                            onChange={(e) => setLogin(e.target.value)}
+                            fullWidth
+                          />
+                          <Button type="submit" variant="contained">
+                            +
+                          </Button>
+                        </IdpInputWrapper>
+                      </Box>
+                      {invalidIDP && (
+                        <Typography variant="body2" color="error">
+                          Please provide a correct URI.
+                        </Typography>
+                      )}
+                    </Box>
+                  </>
+                )}
+            </Box>
           </Box>
-        </Box>
+        </Card>
 
         {footer && (
           <Box sx={{ mt: 3, textAlign: "center" }}>

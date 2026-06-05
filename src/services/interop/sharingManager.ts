@@ -325,6 +325,42 @@ interface SharedView {
   sharedWith: string[];
 }
 
+interface ReceivedView {
+  /** The sharer's snapshot URL (`…/views/snapshots/<viewId>.ttl`); we have Read on it. */
+  snapshotUrl: string;
+  viewId: string;
+  sharedBy: string;
+}
+
+/**
+ * Aggregated views shared *with* the user — the recipient counterpart of
+ * {@link getSharedViews}. Folds the `shared-in/` log (where `readInbox` archives
+ * grants received in the inbox) for `gran:kind gran:View`. Only the computed
+ * snapshot is granted (not the definition), so each entry is just the snapshot
+ * URL + who shared it; render it with {@link loadComputedSnapshot}.
+ */
+export async function getReceivedViews(
+  session: Session,
+): Promise<ReceivedView[]> {
+  if (!session.info.isLoggedIn || !session.info.webId) {
+    throw new Error("User is not logged in");
+  }
+
+  try {
+    const grants = await foldSharingLog(sharedInUrl(session.info.webId), session);
+    return grants
+      .filter((g) => g.kind === "View")
+      .map((g) => ({
+        snapshotUrl: g.resource,
+        viewId: buildingIdFromUri(g.resource), // basename without ".ttl"
+        sharedBy: g.owner || "Unknown",
+      }));
+  } catch (error) {
+    console.error("Error getting received views:", error);
+    return [];
+  }
+}
+
 /**
  * Views the user has shared with others, by folding the `shared-out/` log for
  * `gran:kind gran:View` grants. The viewId is recovered from the snapshot URL

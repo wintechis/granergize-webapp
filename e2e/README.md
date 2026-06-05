@@ -19,6 +19,25 @@ itself). Eight specs, by credential need:
   charts run on the unified `gran:EnergyDataset` model. Expects a Pod **seeded by
   the current code** (wipe + reload first, so the buildings carry
   `gran:hasEnergyDataset`).
+- **`energy-entry.spec.ts`** — needs **one** throwaway Pod (defaults to account
+  **B**). Drives the per-year energy form from the Manage row action: writes a fixed
+  far-future year (2099) **actual + planned (Soll)** dataset (idempotent — re-runs
+  overwrite the same resources) and confirms the actual flows back into the energy
+  view. Covers PROBLEMS.md #5 / #15 / #16.
+- **`building-delete.spec.ts`** — needs **one** throwaway Pod (defaults to account
+  **B**). Clicks the Manage "Delete building" row action and asserts the building's
+  row disappears and the owned-building count drops by one (PROBLEMS.md #3).
+  **Destructive** — consumes one seeded building, so wipe + reseed before re-running.
+- **`excel-export.spec.ts`** — needs **one** throwaway Pod (defaults to account **B**).
+  Asserts the browser download fires with the right filenames and that an exported
+  workbook re-imports to the same buildings (full round-trip via Add Building's file
+  picker, PROBLEMS.md #8). Destructive (re-imports then deletes the copies);
+  self-cleaning, expects a reseeded Pod.
+- **`view-sharing.spec.ts`** — needs **two** throwaway Pods (A and B). A hosts a data
+  room, B joins it + takes the User role, A creates an aggregated view and shares it
+  with B via the dialog's room-members list; B must see it under "Views shared with
+  you" and the values render (PROBLEMS.md #17). Same 4-part split as `sharing.spec.ts`
+  (`-g "view part 1".."view part 4"` with cooldowns); WebIDs discovered via the room.
 - **`screenshots.spec.ts`** — needs **account C** (the slow solidcommunity.net Pod),
   so the guide shows canonical solidcommunity.net WebIDs/URIs. Captures the in-app
   guide screenshots into `public/guide/*.png`.
@@ -70,6 +89,9 @@ npm run sharing          # cross-pod sharing  (accounts A + B)
 # Single-account specs run on a fast Pod (A or B — interchangeable):
 source .env.e2e.local && deno task e2e storage-smoke   # storage-redesign smoke
 source .env.e2e.local && deno task e2e energy-smoke    # energy-model smoke (wipe+reseed first)
+source .env.e2e.local && deno task e2e energy-entry    # per-year entry + Soll-Ist
+source .env.e2e.local && deno task e2e building-delete # delete a building (destructive; reseed first)
+source .env.e2e.local && deno task e2e excel-export    # export round-trip (destructive; reseed first)
 source .env.e2e.local && deno task e2e data-rooms      # room lifecycle
 source .env.e2e.local && deno task e2e request-audit   # request audit
 

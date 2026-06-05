@@ -1,8 +1,13 @@
 import { useState } from "react";
 import {
+  Box,
   Button,
   IconButton,
   Switch,
+  Table,
+  TableBody,
+  TableCell,
+  TableRow,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -11,11 +16,15 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Parser } from "n3";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "../../types/types.ts";
+import type {
+  AggregatedViewSnapshot,
+  BuildingType,
+} from "../../types/types.ts";
 import { ROLE_LABELS } from "../constants/roles.ts";
+import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";
-import { useSharedWithMe } from "../hooks/queries.ts";
+import { useReceivedViews, useSharedWithMe } from "../hooks/queries.ts";
 import { useToggleVisibility } from "../hooks/mutations.ts";
 import { parseBuildings } from "../services/utils/buildingParser.ts";
 import {
@@ -23,14 +32,124 @@ import {
   buildingsToXlsx,
   buildingToXlsx,
 } from "../services/utils/buildingSerializer.ts";
+import { loadComputedSnapshot } from "../services/aggregation/viewManager.ts";
 import { downloadXlsx } from "../services/utils/download.ts";
 import { UriLink } from "../components/detail/DetailView.tsx";
+import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { listStyle, rowStyle } from "../components/listStyles.ts";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../components/usePaging.ts";
 
 interface SharePageProps {
   session: Session;
+}
+
+/**
+ * One "view shared with you" row. Only the sharer's computed *snapshot* is
+ * granted (not the definition), so we fetch it on demand from its URL (we hold
+ * Read access) and show the aggregated values — a small table plus the same
+ * SVG bar chart the owner sees.
+ */
+function ReceivedViewRow(
+  { view, session }: {
+    view: { snapshotUrl: string; viewId: string; sharedBy: string };
+    session: Session;
+  },
+) {
+  const [open, setOpen] = useState(false);
+  const [snapshot, setSnapshot] = useState<AggregatedViewSnapshot | null>(null);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const toggle = async () => {
+    const next = !open;
+    setOpen(next);
+    if (next && !snapshot) {
+      setLoading(true);
+      setError(null);
+      try {
+        const snap = await loadComputedSnapshot(session, view.snapshotUrl);
+        if (!snap) throw new Error("snapshot not found or empty");
+        setSnapshot(snap);
+      } catch (err) {
+        setError(err instanceof Error ? err.message : String(err));
+      } finally {
+        setLoading(false);
+      }
+    }
+  };
+
+  const label = (snapshot?.name && snapshot.name.trim()) || view.viewId ||
+    "Shared view";
+  const entries = snapshot ? Object.entries(snapshot.values) : [];
+
+  return (
+    <li style={{ marginBottom: "1rem" }}>
+      <div style={rowStyle}>
+        <span style={{ minWidth: 0 }}>
+          {label}
+          <br />
+          <small>Shared by: {view.sharedBy}</small>
+        </span>
+        <Button size="small" variant="text" onClick={toggle}>
+          {open ? "Hide values" : "Show values"}
+        </Button>
+      </div>
+      {open && (
+        <Box sx={{ mt: 1 }}>
+          {loading && (
+            <Typography variant="body2" color="text.secondary">
+              Loading…
+            </Typography>
+          )}
+          {error && (
+            <Typography variant="body2" color="error">{error}</Typography>
+          )}
+          {snapshot && entries.length === 0 && (
+            <Typography variant="body2" color="text.secondary">
+              This view has no computed values.
+            </Typography>
+          )}
+          {snapshot && entries.length > 0 && (
+            <>
+              <Typography variant="body2" color="text.secondary">
+                {snapshot.aggregationType} across {snapshot.buildingCount}{" "}
+                building(s)
+              </Typography>
+              <Table size="small">
+                <TableBody>
+                  {entries.map(([metric, value]) => (
+                    <TableRow key={metric}>
+                      <TableCell>{metric}</TableCell>
+                      <TableCell align="right">
+                        {value.toLocaleString("de-DE", {
+                          minimumFractionDigits: 2,
+                          maximumFractionDigits: 2,
+                        })}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+              <Box sx={{ mt: 1 }}>
+                <MetricBarChart
+                  data={entries.map(([name, value]) => ({ name, value }))}
+                  bars={[{
+                    key: "value",
+                    name: `${snapshot.aggregationType} value`,
+                    color: CHART_COLOR_PALETTE[0],
+                    palette: CHART_COLOR_PALETTE,
+                  }]}
+                  xKey="name"
+                  hideLegend
+                />
+              </Box>
+            </>
+          )}
+        </Box>
+      )}
+    </li>
+  );
 }
 
 /**
@@ -44,6 +163,10 @@ export default function SharePage({ session }: SharePageProps) {
   const sharedWithMe = sharedWithMeQuery.data ?? [];
   const loading = sharedWithMeQuery.isLoading;
   const sharedPaging = usePaging(sharedWithMe);
+
+  const receivedViewsQuery = useReceivedViews();
+  const receivedViews = receivedViewsQuery.data ?? [];
+  const receivedViewsPaging = usePaging(receivedViews);
 
   const toggleVis = useToggleVisibility();
   const [bundling, setBundling] = useState(false);
@@ -212,6 +335,26 @@ export default function SharePage({ session }: SharePageProps) {
           {bundling ? "Preparing…" : "Download all (Excel)"}
         </Button>
       )}
+
+      <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
+        Views shared with you
+      </Typography>
+      {receivedViewsQuery.isLoading
+        ? <p>Loading…</p>
+        : receivedViews.length === 0
+        ? <p>No aggregated views have been shared with you yet.</p>
+        : (
+          <ul style={listStyle}>
+            {receivedViewsPaging.pageItems.map((view) => (
+              <ReceivedViewRow
+                key={view.snapshotUrl}
+                view={view}
+                session={session}
+              />
+            ))}
+          </ul>
+        )}
+      <Pager paging={receivedViewsPaging} />
     </section>
   );
 }
