@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "./helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 
 /**
  * Building add + delete e2e (PROBLEMS.md #3). Self-cleaning: it adds its own

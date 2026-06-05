@@ -40,8 +40,6 @@ scripts
 notes/*.html
 
 *~
-e2e/.sharing-state.local.json
-e2e/.view-sharing-state.local.json
 
 # Internal user-reported-problems tracker — kept local, not in the repo
 PROBLEMS.md

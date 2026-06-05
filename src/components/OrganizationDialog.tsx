@@ -185,8 +185,11 @@ export default function OrganizationDialog(
             fullWidth
           />
           <FormControl fullWidth>
-            <InputLabel>Your data-producer role</InputLabel>
+            <InputLabel id="data-producer-role-label">
+              Your data-producer role
+            </InputLabel>
             <Select
+              labelId="data-producer-role-label"
               label="Your data-producer role"
               value={role}
               onChange={(e) => setRole(e.target.value as UserRole | "")}

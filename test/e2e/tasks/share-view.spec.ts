@@ -1,7 +1,8 @@
 import { type Browser, expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login, type SolidAccount } from "./helpers/login.ts";
-import { watchAppErrors } from "./helpers/errorGuard.ts";
-import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "./helpers/rooms.ts";
+import { account, hasAccount, login, type SolidAccount } from "../helpers/login.ts";
+import { watchAppErrors } from "../helpers/errorGuard.ts";
+import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
+import { ensureDemoBuildings } from "../helpers/seed.ts";
 
 /**
  * Aggregated-VIEW sharing across TWO throwaway Pods (PROBLEMS.md #17 + #21), in
@@ -115,7 +116,12 @@ async function ensureView(page: Page): Promise<void> {
   await page.getByRole("option", { name: "Investor" }).click();
   await dialog.getByLabel("View Name").fill(VIEW_NAME);
   await dialog.getByLabel("Select Buildings").click();
-  await page.getByRole("option").first().click();
+  // Fail fast with a clear message if the picker is empty (no Investor buildings),
+  // rather than hanging on a click that waits out the whole test timeout.
+  const firstBuilding = page.getByRole("option").first();
+  await expect(firstBuilding, "an Investor building to add to the view")
+    .toBeVisible({ timeout: 15_000 });
+  await firstBuilding.click();
   await page.keyboard.press("Escape");
   await dialog.getByRole("button", { name: /create view/i }).click();
   await expect(page.getByText(/view created successfully/i))
@@ -149,14 +155,28 @@ test.describe("view sharing across two pods", () => {
         await b1.ctx.close();
       }
 
+      // A needs buildings to build an aggregated view from — self-seed an empty
+      // (e.g. freshly-wiped) Pod so ensureView's building picker isn't empty.
+      await ensureDemoBuildings(a.page);
       await ensureView(a.page);
       const viewRow = a.page.locator("li").filter({ hasText: VIEW_NAME }).first();
-      await viewRow.getByRole("button", { name: "Share view" }).click();
       const shareDlg = a.page.getByRole("dialog");
-      await expect(shareDlg).toBeVisible({ timeout: 10_000 });
-      // Add B from the room-members list (B joined + took a role above).
       const add = shareDlg.getByRole("button", { name: /^add$/i });
-      await expect(add.first()).toBeVisible({ timeout: 30_000 });
+      // Add B from the room-members list (B joined + took a role above). The
+      // dialog loads members ONCE on open; B's Join can lag A's first read, so
+      // re-open until the member shows (re-opening re-runs the member load).
+      await expect(async () => {
+        if (!(await shareDlg.isVisible().catch(() => false))) {
+          await viewRow.getByRole("button", { name: "Share view" }).click();
+          await expect(shareDlg).toBeVisible({ timeout: 10_000 });
+        }
+        if (await add.first().isVisible({ timeout: 5_000 }).catch(() => false)) {
+          return;
+        }
+        await shareDlg.getByRole("button", { name: /close/i }).click();
+        await expect(shareDlg).toBeHidden({ timeout: 5_000 }).catch(() => {});
+        throw new Error("B not yet listed as a room member");
+      }).toPass({ timeout: 120_000 });
       await add.first().click();
       const confirm = shareDlg.getByRole("button", { name: /confirm share/i });
       await expect(async () => {

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login, LOGIN_HEADING } from "./helpers/login.ts";
+import { account, hasAccount, login, LOGIN_HEADING } from "../helpers/login.ts";
 
 /**
  * Captures the Praxishandbuch figures (docs/figures/*.png) by driving the

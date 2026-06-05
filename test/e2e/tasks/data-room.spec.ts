@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "./helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 
 /**
  * Data-room lifecycle on the Connect tab, single account (a THROWAWAY Solid Pod

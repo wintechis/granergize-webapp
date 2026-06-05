@@ -158,8 +158,8 @@ and is clickable to open a rolling debug log of finished requests (status, pod-r
 path, duration) — useful for spotting repeated/failed calls. The store keeps that log;
 `endActivity(id, { status | error })` records each outcome.
 
-To audit what the app fetches end-to-end, `e2e/request-audit.spec.ts` logs in and prints
-every request with per-hit timing (`source .env.e2e.local && deno task e2e request-audit`).
+The header indicator's debug log (click the network indicator) is the in-app way to audit
+what the app fetches end-to-end — status, pod-relative path, and per-hit timing.
 
 **Loading-spinner policy: the header indicator is the ONLY loading spinner inside the
 app shell.** Don't add component-level `CircularProgress`/`LinearProgress` for network

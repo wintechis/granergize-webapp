@@ -13,7 +13,7 @@ const PORT = 4173;
 const CI = !!process.env.CI;
 
 export default defineConfig({
-  testDir: "./e2e",
+  testDir: "./test/e2e",
   fullyParallel: false,
   // One worker: run the whole suite serially (one spec at a time). The specs
   // drive a handful of shared throwaway Solid Pods, and fanning spec files out
