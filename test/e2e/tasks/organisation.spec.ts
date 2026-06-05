@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "./helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 
 /**
  * Provenance-from-profile e2e (PROBLEMS.md #1). Proves a building's PROV
@@ -74,6 +74,10 @@ test.describe("provenance from profile", () => {
   });
 
   test.afterAll(async () => {
+    // The restore opens the dialog + saves (setRoleAndSave waits up to 60 s for
+    // the "saved" toast), so the default 30 s hook budget is too tight — give it
+    // room, otherwise a slow save fails teardown even though the test body passed.
+    test.setTimeout(90_000);
     // Fully reverse the profile mutation: restore the role this Pod started with.
     try {
       if (!page.isClosed()) {

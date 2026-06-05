@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "./helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 
 /**
  * Energy per-year entry + planned/actual (Soll-Ist) e2e. Self-cleaning: it adds
@@ -66,6 +66,10 @@ test.describe("energy entry + Soll-Ist", () => {
   });
 
   test.afterAll(async () => {
+    // The delete below waits up to 90 s for its toast, so the default 30 s hook
+    // budget is too tight — give it room, else a slow delete fails teardown even
+    // though the test body passed.
+    test.setTimeout(120_000);
     // Delete the building → removes its energy subtree, so the year doesn't leak.
     try {
       if (!page.isClosed()) {

@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "./helpers/login.ts";
-import { deleteAllOwnedRooms } from "./helpers/rooms.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
+import { deleteAllOwnedRooms } from "../helpers/rooms.ts";
 
 /**
  * Storage-redesign smoke test (single account, a THROWAWAY Solid Pod — never a

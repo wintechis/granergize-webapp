@@ -1,7 +1,7 @@
-import { type Browser, expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login, type SolidAccount } from "./helpers/login.ts";
-import { watchAppErrors } from "./helpers/errorGuard.ts";
-import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "./helpers/rooms.ts";
+import { expect, type Page, test } from "@playwright/test";
+import { account, hasAccount } from "../helpers/login.ts";
+import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
+import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
 
 /**
  * End-to-end building sharing across TWO throwaway Solid Pods, in ONE test (the
@@ -94,21 +94,6 @@ async function joinRoomAsUser(page: Page, roomUri: string): Promise<void> {
   await assignUserRole(page);
 }
 
-/** A fresh isolated context logged into one account. */
-async function freshPage(browser: Browser, acc: SolidAccount): Promise<{
-  ctx: Awaited<ReturnType<Browser["newContext"]>>;
-  page: Page;
-  guard: ReturnType<typeof watchAppErrors>;
-}> {
-  const ctx = await browser.newContext({
-    viewport: { width: 1200, height: 900 },
-  });
-  const page = await ctx.newPage();
-  const guard = watchAppErrors(page); // attach before login to catch login errors
-  await login(page, acc);
-  return { ctx, page, guard };
-}
-
 /** Add a building (User template — only the location fields) with a given street. */
 async function addBuilding(page: Page, street: string): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
@@ -161,14 +146,16 @@ test.describe("sharing across two pods", () => {
 
   test("A shares a building by role; B sees it under Buildings shared with you", async ({ browser }) => {
     test.setTimeout(420_000);
-    const a = await freshPage(browser, A);
+    // A and B's first logins are independent (B only needs A's room URI to JOIN,
+    // not to log in), so run both ~50 s OIDC flows concurrently — one login's
+    // wall-clock instead of two.
+    const [a, b1] = await freshPagesParallel(browser, [A, B]);
     a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building/room)
     try {
       // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
       const roomUri = await hostRoomAndGetUri(a.page);
       await assignUserRole(a.page);
 
-      const b1 = await freshPage(browser, B);
       try {
         await joinRoomAsUser(b1.page, roomUri);
       } finally {

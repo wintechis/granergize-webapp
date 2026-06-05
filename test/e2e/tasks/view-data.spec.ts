@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "./helpers/login.ts";
-import { ensureDemoBuildings } from "./helpers/seed.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
+import { ensureDemoBuildings } from "../helpers/seed.ts";
 
 /**
  * Energy-view smoke test (single account, a THROWAWAY Solid Pod). Proves the
