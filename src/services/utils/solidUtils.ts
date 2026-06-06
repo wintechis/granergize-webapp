@@ -2,10 +2,48 @@
  * Utility functions for working with Solid POD URLs and WebIDs
  */
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory } from "n3";
+import { DataFactory, Parser, Store } from "n3";
 import { loadProfileStore } from "./profileDocument.ts";
 
 const PIM_NS = "http://www.w3.org/ns/pim/space#";
+const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+
+/**
+ * Fallback storage discovery for Pods whose WebID profile omits `pim:storage`
+ * (e.g. freshly-provisioned CSS Pods, which type the root container `pim:Storage`
+ * but don't advertise the triple on the card). Walk up from the WebID document's
+ * container to the origin and return the first container TYPED `pim:Storage` — the
+ * pod boundary — so path-based Pods (`…/alice/`) resolve to the pod, not the host.
+ */
+async function discoverStorageRoot(
+  session: Session,
+  docUrl: string,
+): Promise<string | null> {
+  const origin = `${new URL(docUrl).origin}/`;
+  // Start at the WebID document's container.
+  let url = docUrl.replace(/[^/]*$/, "");
+  for (let i = 0; i < 8; i++) {
+    const res = await session.fetch(url, { headers: { Accept: "text/turtle" } })
+      .catch(() => null);
+    if (res && res.ok) {
+      const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
+      const isStorage = store.getQuads(
+        DataFactory.namedNode(url),
+        DataFactory.namedNode(RDF_TYPE),
+        DataFactory.namedNode(`${PIM_NS}Storage`),
+        null,
+      ).length > 0;
+      if (isStorage) return url;
+    } else {
+      await res?.body?.cancel();
+    }
+    if (url === origin) break;
+    const parent = url.replace(/[^/]+\/$/, "");
+    if (parent === url || !parent.startsWith(origin)) break;
+    url = parent;
+  }
+  return null;
+}
 
 /**
  * Storage root resolved from the WebID's `pim:storage`, cached per WebID for the
@@ -15,13 +53,14 @@ const PIM_NS = "http://www.w3.org/ns/pim/space#";
 const storageRootCache = new Map<string, string>();
 
 /**
- * Resolve the Pod storage root the Solid way: read `pim:storage` from the WebID
- * profile and cache it. Call once after login, before any data load.
+ * Resolve the Pod storage root the Solid way and cache it. Call once after login,
+ * before any data load.
  *
- * Throws if the profile is unreachable or declares no `pim:storage` — a pod that
- * doesn't advertise its storage is unusable, and we fail loudly here rather than
- * with a silently-wrong path later. (Previously the storage root was guessed by
- * string-munging the WebID, which broke for non-`/profile/card` WebID shapes.)
+ * Two discovery paths: (a) the fast path — read `pim:storage` from the WebID
+ * profile; (b) fallback — if the profile omits it, walk up to the container TYPED
+ * `pim:Storage` (the Solid storage-discovery convention). So a Pod that types its
+ * root but doesn't advertise the triple (e.g. a fresh CSS Pod) still resolves.
+ * Throws only if neither yields a root. (Previously: throw on missing `pim:storage`.)
  *
  * @returns the storage root URL with a trailing slash
  */
@@ -46,15 +85,17 @@ export async function resolveStorageRoot(session: Session): Promise<string> {
     DataFactory.namedNode(`${PIM_NS}storage`),
     null,
   );
-  if (roots.length === 0) {
+  const fromTriple = roots[0]?.value;
+  const root = fromTriple ?? await discoverStorageRoot(session, docUrl);
+  if (!root) {
     throw new Error(
-      `WebID profile ${docUrl} declares no pim:storage; cannot locate the Pod ` +
-        `storage root.`,
+      `Cannot locate the Pod storage root for ${docUrl}: no pim:storage on the ` +
+        `profile and no pim:Storage-typed container found above the WebID.`,
     );
   }
-  const root = roots[0].value.endsWith("/") ? roots[0].value : `${roots[0].value}/`;
-  storageRootCache.set(webId, root);
-  return root;
+  const withSlash = root.endsWith("/") ? root : `${root}/`;
+  storageRootCache.set(webId, withSlash);
+  return withSlash;
 }
 
 /**
@@ -109,24 +150,59 @@ export function getPodBaseUrl(webId: string): string {
  * organizationManager), not here.
  */
 export function podResources(webId: string): {
+  appRoot: string;
   buildings: string;
   views: string;
   viewSnapshots: string;
   sharedIn: string;
   sharedOut: string;
+  inbox: string;
   prefs: string;
   bookmarks: string;
 } {
   const app = `${getStorageRoot(webId)}granergize/`;
   return {
+    appRoot: app,
     buildings: `${app}buildings/`,
     views: `${app}views/`,
     viewSnapshots: `${app}views/snapshots/`,
     sharedIn: `${app}shared-in/`,
     sharedOut: `${app}shared-out/`,
+    inbox: `${app}inbox/`, // default location; the actual one is discoverable (see inbox.ts)
     prefs: `${app}prefs.ttl`,
     bookmarks: `${app}bookmarks.ttl`,
   };
+}
+
+/**
+ * Resolve the storage root for an ARBITRARY WebID (e.g. a share recipient), via a
+ * direct profile fetch: `pim:storage` if present, else walk up to the
+ * `pim:Storage`-typed container. Unlike {@link resolveStorageRoot} this is not
+ * cached and not tied to the session's own WebID.
+ */
+export async function resolveStorageRootForWebId(
+  webId: string,
+  session: Session,
+): Promise<string> {
+  const docUrl = webId.split("#")[0];
+  const res = await session.fetch(docUrl, { headers: { Accept: "text/turtle" } })
+    .catch(() => null);
+  if (res?.ok) {
+    const store = new Store(new Parser({ baseIRI: docUrl }).parse(await res.text()));
+    const triple = store.getObjects(
+      DataFactory.namedNode(webId),
+      DataFactory.namedNode(`${PIM_NS}storage`),
+      null,
+    )[0]?.value;
+    if (triple) return triple.endsWith("/") ? triple : `${triple}/`;
+  } else {
+    await res?.body?.cancel();
+  }
+  const walked = await discoverStorageRoot(session, docUrl);
+  if (!walked) {
+    throw new Error(`Cannot locate the storage root for ${webId}`);
+  }
+  return walked.endsWith("/") ? walked : `${walked}/`;
 }
 
 /**

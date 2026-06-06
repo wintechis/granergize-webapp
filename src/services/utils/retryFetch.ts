@@ -40,7 +40,10 @@ export function withRetry(
   opts: RetryOptions = {},
 ): typeof fetch {
   const maxRetries = opts.maxRetries ?? 3;
-  const baseDelayMs = opts.baseDelayMs ?? 500;
+  // Backoff doubles per attempt, so the default 2 s base gives 2 s → 4 s → 8 s
+  // across the 3 retries — generous spacing for Cloudflare's rate limiter to relax
+  // (a `Retry-After` header, when present, overrides the computed backoff).
+  const baseDelayMs = opts.baseDelayMs ?? 2000;
 
   return (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     let attempt = 0;

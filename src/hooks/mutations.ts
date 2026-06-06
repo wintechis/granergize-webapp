@@ -43,7 +43,7 @@ import type { BuildingType, UserRole } from "../../types/types.ts";
 export function useInvalidateBuildingData() {
   const qc = useQueryClient();
   return () => {
-    qc.invalidateQueries({ queryKey: queryKeys.buildingsAndAgents });
+    qc.invalidateQueries({ queryKey: queryKeys.buildings });
     qc.invalidateQueries({ queryKey: queryKeys.energy });
   };
 }
@@ -56,7 +56,7 @@ export function useDeleteBuilding() {
       confirmAndDeleteBuilding(getSession(), building),
     onSettled: (deleted) => {
       if (deleted === false) return; // cancelled — nothing changed
-      qc.invalidateQueries({ queryKey: queryKeys.buildingsAndAgents });
+      qc.invalidateQueries({ queryKey: queryKeys.buildings });
       qc.invalidateQueries({ queryKey: queryKeys.energy });
       qc.invalidateQueries({ queryKey: queryKeys.sharedBuildings });
     },

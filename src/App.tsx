@@ -8,7 +8,6 @@ import {
 } from "./services/utils/solidUtils.ts";
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
-import Agent from "./pages/Agent.tsx";
 import Energy from "./pages/Energy.tsx";
 import AggregatedView from "./pages/AggregatedView.tsx";
 import ActivityScreen from "./components/ActivityScreen.tsx";
@@ -225,7 +224,6 @@ function App({ onLogout, session }: AppProps) {
           path="/building/:selectedBuilding"
           element={<BuildingWrapper />}
         />
-        <Route path="/agent/:selectedAgent" element={<Agent />} />
         <Route
           path="/energy/:selectedBuilding"
           element={<EnergyWrapper session={session} />}

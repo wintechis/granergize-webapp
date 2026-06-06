@@ -18,7 +18,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { QueryProvider } from "./context/QueryProvider.tsx";
 import { queryKeys } from "./hooks/queries.ts";
-import { readInbox } from "./services/interop/inbox.ts";
+import { ensureOwnInbox, readInbox } from "./services/interop/inbox.ts";
 import {
   clearRequestLog,
   instrumentSessionFetch,
@@ -94,13 +94,16 @@ function AppContent() {
       // resolves it too, but that runs AFTER this callback — so resolve it here
       // first (idempotent + cached, so the gate then no-ops).
       await resolveStorageRoot(authSession);
+      // Self-provision the granergize inbox (container + append ACL + discovery
+      // pointer) so others can share with us even on a bare Pod. Idempotent.
+      await ensureOwnInbox(authSession);
       await readInbox(authSession);
       // readInbox may have archived newly-granted shares into the user's
       // shared-in/ log; refresh the queries that fold it so they appear
       // (otherwise the cached read taken at mount would never reflect the grant).
       queryClient.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
       queryClient.invalidateQueries({ queryKey: queryKeys.receivedViews });
-      queryClient.invalidateQueries({ queryKey: queryKeys.buildingsAndAgents });
+      queryClient.invalidateQueries({ queryKey: queryKeys.buildings });
     } catch (error) {
       showNotification(formatError("read your inbox", error), "error");
     }
@@ -148,9 +151,7 @@ function AppContent() {
         />
       }
       recommendedLogins={[
-        "https://solidweb.org",
         "https://solidcommunity.net",
-        "https://solid.redpencil.io",
         "https://solid.iis.fraunhofer.de",
       ]}
       lead={

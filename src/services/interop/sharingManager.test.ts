@@ -183,10 +183,12 @@ Deno.test("getReceivedViews drops a view once its grant is revoked", async () =>
 
 Deno.test("revokeViewAccess posts an AccessRevocation to the recipient's inbox", async () => {
   const { session, store } = makePod();
-  const BOB_INBOX = "https://bob.example/inbox/";
-  // Seed BOB's WebID profile so getRecipientInboxUrl can resolve their inbox
-  // (makePod serves no profile by default, so the notify would otherwise no-op).
-  store[BOB] = `<${BOB}> <http://www.w3.org/ns/ldp#inbox> <${BOB_INBOX}> .`;
+  const BOB_INBOX = "https://bob.example/granergize/inbox/";
+  // Seed BOB's WebID profile with pim:storage so getRecipientInboxUrl resolves
+  // BOB's storage root → granergize/ inbox (by convention; the fake granergize
+  // container carries no ldp:inbox).
+  store["https://bob.example/profile/card"] =
+    `<${BOB}> <http://www.w3.org/ns/pim/space#storage> <https://bob.example/> .`;
 
   await revokeViewAccess(SNAP, BOB, session);
 
@@ -202,10 +204,12 @@ Deno.test("revokeViewAccess posts an AccessRevocation to the recipient's inbox",
 
 Deno.test("revokeAllViewRecipients revokes + notifies every grantee (for view delete)", async () => {
   const { session, store } = makePod();
-  const BOB_INBOX = "https://bob.example/inbox/";
-  const ALICE_INBOX = "https://alice.example/inbox/";
-  store[BOB] = `<${BOB}> <http://www.w3.org/ns/ldp#inbox> <${BOB_INBOX}> .`;
-  store[ALICE] = `<${ALICE}> <http://www.w3.org/ns/ldp#inbox> <${ALICE_INBOX}> .`;
+  const BOB_INBOX = "https://bob.example/granergize/inbox/";
+  const ALICE_INBOX = "https://alice.example/granergize/inbox/";
+  store["https://bob.example/profile/card"] =
+    `<${BOB}> <http://www.w3.org/ns/pim/space#storage> <https://bob.example/> .`;
+  store["https://alice.example/profile/card"] =
+    `<${ALICE}> <http://www.w3.org/ns/pim/space#storage> <https://alice.example/> .`;
   // A shared SNAP with both BOB and ALICE (recorded in shared-out/).
   await recordViewSharing(SNAP, BOB, session);
   await recordViewSharing(SNAP, ALICE, session);

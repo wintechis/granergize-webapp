@@ -1,8 +1,15 @@
-import { type Browser, expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login, type SolidAccount } from "../helpers/login.ts";
-import { watchAppErrors } from "../helpers/errorGuard.ts";
+import { expect, test } from "@playwright/test";
+import { account } from "../helpers/login.ts";
+import { resolveAccounts } from "../../config/resolve.ts";
 import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { freshPage } from "../helpers/twoPod.ts";
+import {
+  assignUserRole,
+  hostRoomAndGetUri,
+  joinRoomAsUser,
+} from "../helpers/connect.ts";
+import { ensureView, receivedViews, VIEW_NAME } from "../helpers/manage.ts";
 
 /**
  * Aggregated-VIEW sharing across TWO throwaway Pods (PROBLEMS.md #17 + #21), in
@@ -22,122 +29,13 @@ import { ensureDemoBuildings } from "../helpers/seed.ts";
 
 const A = account("A");
 const B = account("B");
-const VIEW_NAME = "E2E Shared View";
 
-/** On the Connect tab, ensure an ACTIVE room (host one if none) and return ITS URI. */
-async function hostRoomAndGetUri(page: Page): Promise<string> {
-  await page.getByRole("tab", { name: "Connect" }).click();
-  const leave = page.getByRole("button", { name: /leave data room/i });
-  if (!(await leave.count())) {
-    await page.getByRole("button", { name: /host a data room/i }).click();
-    await expect(leave).toBeVisible({ timeout: 60_000 });
-  }
-  const activeRow = page.locator("li").filter({ has: leave });
-  const activeLink = activeRow.locator('a[href*="/rooms/"]').first();
-  await expect(activeLink).toBeVisible({ timeout: 60_000 });
-  const uri = (await activeLink.getAttribute("href"))?.trim();
-  expect(uri, "active room URI").toBeTruthy();
-  await expect(leave).toBeEnabled({ timeout: 60_000 }).catch(() => {});
-  return uri!;
-}
-
-/** Assign the User role in the current room (MUI multi-select: open, tick, save). */
-async function assignUserRole(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Connect" }).click();
-  await page.waitForLoadState("networkidle").catch(() => {});
-  const select = page.getByRole("combobox", { name: "My role(s)" });
-  await expect(select).toBeVisible({ timeout: 15_000 });
-  await select.click();
-  const userOption = page.getByRole("option", { name: "User" });
-  await expect(userOption).toBeVisible({ timeout: 10_000 });
-  const alreadyUser = (await userOption.getAttribute("aria-selected")) === "true";
-  if (!alreadyUser) await userOption.click();
-  await page.keyboard.press("Escape");
-  await expect(page.getByRole("listbox")).toBeHidden({ timeout: 5_000 }).catch(
-    () => {},
-  );
-  if (alreadyUser) return;
-  await expect(async () => {
-    await page.getByRole("button", { name: /save roles/i }).click();
-    await expect(page.getByText(/roles updated/i)).toBeVisible({
-      timeout: 10_000,
-    });
-  }).toPass({ timeout: 60_000 });
-}
-
-/** On the Connect tab, add+enter a room URI and assign the User role. */
-async function joinRoomAsUser(page: Page, roomUri: string): Promise<void> {
-  await page.getByRole("tab", { name: "Connect" }).click();
-  const row = page.locator("li").filter({ hasText: roomUri });
-  if (!(await row.count())) {
-    const uriField = page.getByLabel(/data room uri/i);
-    const add = page.getByRole("button", { name: /^add$/i });
-    await expect(async () => {
-      if (await row.count()) return;
-      await uriField.fill(roomUri);
-      await expect(add).toBeEnabled({ timeout: 5_000 });
-      await add.click();
-      await expect(row.first()).toBeVisible({ timeout: 10_000 });
-    }).toPass({ timeout: 90_000 });
-  }
-  const enter = row.first().getByRole("button", { name: /enter data room/i });
-  if (await enter.count()) await enter.click();
-  await expect(page.getByRole("button", { name: /leave data room/i }))
-    .toBeVisible({ timeout: 30_000 });
-  await assignUserRole(page);
-}
-
-/** A fresh isolated context logged into one account. */
-async function freshPage(browser: Browser, acc: SolidAccount): Promise<{
-  ctx: Awaited<ReturnType<Browser["newContext"]>>;
-  page: Page;
-  guard: ReturnType<typeof watchAppErrors>;
-}> {
-  const ctx = await browser.newContext({
-    viewport: { width: 1200, height: 900 },
-  });
-  const page = await ctx.newPage();
-  const guard = watchAppErrors(page);
-  await login(page, acc);
-  return { ctx, page, guard };
-}
-
-/** Create the shared view (idempotent: reuse an existing one with VIEW_NAME). */
-async function ensureView(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
-  await page.waitForLoadState("networkidle").catch(() => {});
-  if (await page.locator("li").filter({ hasText: VIEW_NAME }).count()) return;
-
-  await page.getByRole("button", { name: /create view/i }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible({ timeout: 10_000 });
-  // Investor template → annual buildings, metrics pre-selected, no month picker.
-  await dialog.getByLabel("Role").click();
-  await page.getByRole("option", { name: "Investor" }).click();
-  await dialog.getByLabel("View Name").fill(VIEW_NAME);
-  await dialog.getByLabel("Select Buildings").click();
-  // Fail fast with a clear message if the picker is empty (no Investor buildings),
-  // rather than hanging on a click that waits out the whole test timeout.
-  const firstBuilding = page.getByRole("option").first();
-  await expect(firstBuilding, "an Investor building to add to the view")
-    .toBeVisible({ timeout: 15_000 });
-  await firstBuilding.click();
-  await page.keyboard.press("Escape");
-  await dialog.getByRole("button", { name: /create view/i }).click();
-  await expect(page.getByText(/view created successfully/i))
-    .toBeVisible({ timeout: 60_000 });
-}
-
-/** The Share-tab "Views shared with you" section locator. */
-const receivedViews = (page: Page) =>
-  page.getByRole("heading", { name: /views shared with you/i })
-    .locator("xpath=following-sibling::*[1]");
+// Cross-Pod view sharing needs an INTEROPERATING provider pair (see share-building).
+// Skips on NSS↔CSS-v5; the logic is covered by the Tier-2 headless `share-view` task.
+const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 
 test.describe("view sharing across two pods", () => {
-  test.skip(
-    !hasAccount(A) || !hasAccount(B),
-    "Set E2E_{USERNAME,PASSWORD}_A and _B (throwaway Pods).",
-  );
+  test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
   test("A shares a view; B sees it, then A deletes it and B no longer sees it", async ({ browser }) => {
     test.setTimeout(540_000);

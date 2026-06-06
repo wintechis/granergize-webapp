@@ -7,8 +7,10 @@
  *
  * CSS is a Node app; we spawn it via `npx @solid/community-server` and poll until
  * ready. Data lives in a temp dir wiped on stop(). Credentials are fixed local
- * throwaways — nothing committed, nothing sensitive.
+ * throwaways — nothing committed, nothing sensitive — and come from the shared
+ * `test/config/localSeed.ts` so the browser "local" tier logs into the SAME ones.
  */
+import { LOCAL_CSS_PORT, LOCAL_SEED } from "../config/localSeed.ts";
 
 const CSS_VERSION = "^7";
 
@@ -24,10 +26,12 @@ export interface LocalCss {
   A: LocalAccount;
   B: LocalAccount;
   stop: () => Promise<void>;
+  /** Resolves when the CSS process exits — watch it to fail-fast if it dies. */
+  status: Promise<Deno.CommandStatus>;
 }
 
 /** Start a local CSS on `port`, seeded with accounts A and B; resolves when ready. */
-export async function startLocalCss(port = 3456): Promise<LocalCss> {
+export async function startLocalCss(port = LOCAL_CSS_PORT): Promise<LocalCss> {
   const baseUrl = `http://localhost:${port}/`;
   const mk = (email: string, password: string, pod: string): LocalAccount => ({
     email,
@@ -35,8 +39,8 @@ export async function startLocalCss(port = 3456): Promise<LocalCss> {
     pod,
     webId: `${baseUrl}${pod}/profile/card#me`,
   });
-  const A = mk("a@test.local", "alice-pw-12345", "alice");
-  const B = mk("b@test.local", "bob-pw-12345", "bob");
+  const A = mk(LOCAL_SEED.A.email, LOCAL_SEED.A.password, LOCAL_SEED.A.pod);
+  const B = mk(LOCAL_SEED.B.email, LOCAL_SEED.B.password, LOCAL_SEED.B.pod);
 
   const dataDir = await Deno.makeTempDir({ prefix: "css-it-" });
   const seedFile = `${dataDir}/seed.json`;
@@ -75,6 +79,20 @@ export async function startLocalCss(port = 3456): Promise<LocalCss> {
     stderr: "piped",
   }).spawn();
 
+  // CONTINUOUSLY drain CSS's stdout/stderr. If we leave them piped-but-unread, the
+  // OS pipe buffer (~64 KB) fills under a real test run's request volume and CSS
+  // BLOCKS on its own log writes — it hangs and every later request fails (a hard-
+  // to-spot cascade). Keep only a rolling tail of stderr for the readiness error.
+  let errTail = "";
+  const dec = new TextDecoder();
+  const pump = async (stream: ReadableStream<Uint8Array>, keep: boolean) => {
+    for await (const chunk of stream) {
+      if (keep) errTail = (errTail + dec.decode(chunk)).slice(-4000);
+    }
+  };
+  pump(child.stdout, false).catch(() => {});
+  pump(child.stderr, true).catch(() => {});
+
   const stop = async () => {
     // setsid makes child.pid the process-group leader, so -pid targets the group.
     await new Deno.Command("kill", { args: ["-TERM", `-${child.pid}`] })
@@ -110,10 +128,9 @@ export async function startLocalCss(port = 3456): Promise<LocalCss> {
   }
 
   if (!ready) {
-    const err = await new Response(child.stderr).text().catch(() => "");
     await stop();
-    throw new Error(`local CSS did not become ready on ${baseUrl}\n${err.slice(-1500)}`);
+    throw new Error(`local CSS did not become ready on ${baseUrl}\n${errTail.slice(-1500)}`);
   }
 
-  return { baseUrl, A, B, stop };
+  return { baseUrl, A, B, stop, status: child.status };
 }

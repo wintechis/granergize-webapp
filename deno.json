@@ -4,9 +4,13 @@
     "build": "deno run -A npm:vite build",
     "test": "deno test -A",
     "lint": "deno run -A npm:eslint .",
-    "e2e": "npx playwright test",
+    "e2e": "deno task build && E2E_LOCAL=1 E2E_PREVIEW=1 npx playwright test --project=local",
+    "e2e:base": "npx playwright test",
+    "e2e:all": "bash test/run-e2e.sh",
+    "e2e:solo": "bash test/run-e2e.sh solo",
+    "e2e:sharing": "bash test/run-e2e.sh sharing",
     "e2e:install": "npx playwright install --with-deps chromium",
-    "it": "deno run -A --node-modules-dir=auto test/headless/interop-live.ts",
+    "it": "deno run -A --node-modules-dir=auto test/headless/runner.ts",
     "handbuch": "bash scripts/build-handbuch.sh"
   },
   "imports": {

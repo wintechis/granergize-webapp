@@ -15,6 +15,7 @@ import { styled } from "@mui/material/styles";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import RequestActivityList from "../components/RequestActivityList.tsx";
 import { shouldRestoreSession } from "../services/utils/sessionRestore.ts";
+import { normalizeIssuer } from "../services/utils/normalizeIssuer.ts";
 
 interface LoginProps {
   children: JSX.Element;
@@ -239,9 +240,7 @@ export const Login: React.FC<LoginProps> = ({
   function handleNewIdpSubmit(e: React.FormEvent) {
     e.preventDefault();
     setInvalidIDP(false);
-    const enteredIdp = login.startsWith("https://")
-      ? login
-      : `https://${login}`;
+    const enteredIdp = normalizeIssuer(login);
     submitCallback(enteredIdp);
   }
 

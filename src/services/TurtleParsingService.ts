@@ -1,7 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { parseBuildings } from "./utils/buildingParser.ts";
 import type {
-  AgentType,
   BuildingType,
   EnergyDatasetRef,
   EnergyType,
@@ -209,13 +208,11 @@ async function listSharedBuildingSources(
  * Phase 1: discover, fetch and parse the visible buildings (no energy). Own
  * buildings come from listing the `buildings/` container; buildings shared with
  * the user come from folding the `shared-in/` log. Fast enough to paint the map
- * immediately; energy streams in via {@link loadEnergy}. The `agents` field is
- * retained for the back-compat return shape but is always empty — the legacy
- * agent data source is no longer used.
+ * immediately; energy streams in via {@link loadEnergy}.
  */
-export async function loadBuildingsAndAgents(
+export async function loadBuildings(
   session: Session,
-): Promise<{ buildings: BuildingType[]; agents: AgentType[] }> {
+): Promise<{ buildings: BuildingType[] }> {
   const webId = session.info.webId;
   if (!webId) {
     throw new Error("No WebID found in session.");
@@ -260,13 +257,12 @@ export async function loadBuildingsAndAgents(
 
   return {
     buildings: Array.from(visibleBuildings.values()),
-    agents: [],
   };
 }
 
 /**
  * Phase 2: load + parse energy for already-parsed buildings, returning the energy
- * series, category averages, and per-agent averages. Reads each building's unified
+ * series, category averages, and per-operator averages. Reads each building's unified
  * `energyDatasets` refs (from the `gran:hasEnergyDataset` link slugs): sub-hourly
  * *series* are skipped (lazy-loaded on click); the latest actual annual aggregate
  * is fetched and parsed into the building's energyNeed + the cross-building
@@ -278,12 +274,12 @@ export async function loadEnergy(
 ): Promise<{
   energyNeed: EnergyType[];
   averages: Record<string, number>;
-  agentAverages: Record<string, Record<string, number>>;
+  operatorAverages: Record<string, Record<string, number>>;
 }> {
   const energyData = new Map<number, EnergyType>();
   // Object to store aggregated values for each measurement
   const aggregatedValues: Record<string, number[]> = {};
-  const agentAggregatedValues: Record<string, Record<string, number[]>> = {};
+  const operatorAggregatedValues: Record<string, Record<string, number[]>> = {};
 
   // For each building, the latest ACTUAL annual (non-series) dataset paints the
   // map and feeds the averages. Sub-hourly *series* datasets are skipped here and
@@ -353,13 +349,15 @@ export async function loadEnergy(
     for (const [prop, val] of Object.entries(energyNeed)) {
       if (!aggregatedValues[prop]) aggregatedValues[prop] = [];
       aggregatedValues[prop].push(val);
-      const agent = building.operatedBy;
-      if (!agent || typeof agent !== "string") continue;
-      if (!agentAggregatedValues[agent]) agentAggregatedValues[agent] = {};
-      if (!agentAggregatedValues[agent][prop]) {
-        agentAggregatedValues[agent][prop] = [];
+      const operator = building.operatedBy;
+      if (!operator || typeof operator !== "string") continue;
+      if (!operatorAggregatedValues[operator]) {
+        operatorAggregatedValues[operator] = {};
       }
-      agentAggregatedValues[agent][prop].push(val);
+      if (!operatorAggregatedValues[operator][prop]) {
+        operatorAggregatedValues[operator][prop] = [];
+      }
+      operatorAggregatedValues[operator][prop].push(val);
     }
   }
 
@@ -372,38 +370,35 @@ export async function loadEnergy(
     averages[property] = sum / values.length;
   }
 
-  // Calculate averages by agent
-  const agentAverages: Record<string, Record<string, number>> = {};
-  for (const agent in agentAggregatedValues) {
-    agentAverages[agent] = {};
-    for (const property in agentAggregatedValues[agent]) {
-      const values = agentAggregatedValues[agent][property];
+  // Calculate averages by operator
+  const operatorAverages: Record<string, Record<string, number>> = {};
+  for (const operator in operatorAggregatedValues) {
+    operatorAverages[operator] = {};
+    for (const property in operatorAggregatedValues[operator]) {
+      const values = operatorAggregatedValues[operator][property];
       const sum = values.reduce((acc, val) => acc + val, 0);
-      agentAverages[agent][property] = sum / values.length;
+      operatorAverages[operator][property] = sum / values.length;
     }
   }
 
   return {
     energyNeed: Array.from(energyData.values()),
     averages,
-    agentAverages,
+    operatorAverages,
   };
 }
 
 /**
- * Back-compat orchestrator: phase 1 (buildings + agents) then phase 2 (energy),
- * with the same shape/two-phase callback as before. Used by the live harness and
- * the offline tests; the app drives the two phases as separate React Query
- * queries instead.
+ * Two-phase orchestrator: phase 1 (buildings) then phase 2 (energy), with a
+ * callback fired after phase 1. Used by the live harness and the offline tests;
+ * the app drives the two phases as separate React Query queries instead.
  */
 export async function fetchAndParseData(
   session: Session,
-  onBuildingsAndAgents?: (
-    partial: { buildings: BuildingType[]; agents: AgentType[] },
-  ) => void,
+  onBuildings?: (partial: { buildings: BuildingType[] }) => void,
 ) {
-  const { buildings, agents } = await loadBuildingsAndAgents(session);
-  onBuildingsAndAgents?.({ buildings, agents });
+  const { buildings } = await loadBuildings(session);
+  onBuildings?.({ buildings });
   const energy = await loadEnergy(session, buildings);
-  return { buildings, agents, ...energy };
+  return { buildings, ...energy };
 }

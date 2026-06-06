@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "../helpers/login.ts";
+import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
 
 /**
  * Data-room lifecycle on the Connect tab, single account (a THROWAWAY Solid Pod
@@ -9,14 +9,13 @@ import { account, hasAccount, login } from "../helpers/login.ts";
  * Each test hosts its own room and deletes it at the end, so it cleans up after
  * itself. Runs serially behind ONE login.
  *
- *   source .env.e2e.local && deno task e2e data-rooms
+ *   source .env.e2e.local && deno task e2e:base data-rooms
  *
- * Needs a fast Pod (account A or B); skipped when its env vars are absent.
+ * Runs against the solo Pod (E2E_SOLO; default C = solidweb); skipped when its
+ * env vars are absent.
  */
 
-// A and B are interchangeable fast Pods; default A, override with E2E_DEBUG_ACCOUNT=B.
-const WHICH = (process.env.E2E_DEBUG_ACCOUNT === "B" ? "B" : "A") as "A" | "B";
-const A = account(WHICH);
+const A = soloAccount();
 // Each room mutation does a Pod write + a re-read of the room log; on the
 // throttled shared pod that can be slow, so allow a generous settle window.
 const SETTLE = 45_000;
@@ -26,7 +25,7 @@ test.describe.configure({ mode: "serial" });
 test.describe("data rooms", () => {
   test.skip(
     !hasAccount(A),
-    `Set E2E_USERNAME_${WHICH} / E2E_PASSWORD_${WHICH} (a throwaway Solid Pod) to run the data-room tests.`,
+    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the data-room tests.`,
   );
 
   let page: Page;

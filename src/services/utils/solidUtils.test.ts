@@ -73,6 +73,38 @@ Deno.test("resolveStorageRoot throws when the profile declares no pim:storage", 
   await assert.rejects(() => resolveStorageRoot(session), /no pim:storage/);
 });
 
+Deno.test("resolveStorageRoot falls back to the pim:Storage-typed container", async () => {
+  // No pim:storage on the card (e.g. a fresh CSS Pod); the pod root container is
+  // typed pim:Storage. Walk up from the WebID doc and discover it.
+  const webId = "https://disco.example/alice/profile/card#me";
+  const root = "https://disco.example/alice/";
+  const fetchImpl = (input: string | URL | Request): Promise<Response> => {
+    const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
+    if (url === webId.split("#")[0]) {
+      return Promise.resolve(
+        new Response(`<${webId}> <http://xmlns.com/foaf/0.1/name> "A" .`, {
+          status: 200,
+          headers: { "Content-Type": "text/turtle" },
+        }),
+      );
+    }
+    if (url === root) {
+      return Promise.resolve(
+        new Response(`<${root}> a <http://www.w3.org/ns/pim/space#Storage> .`, {
+          status: 200,
+          headers: { "Content-Type": "text/turtle" },
+        }),
+      );
+    }
+    return Promise.resolve(new Response("Not found", { status: 404 }));
+  };
+  const session = {
+    info: { isLoggedIn: true, webId },
+    fetch: fetchImpl as unknown as Session["fetch"],
+  } as unknown as Session;
+  assert.deepEqual(await resolveStorageRoot(session), root);
+});
+
 Deno.test("resolveStorageRoot throws when the profile is unreachable", async () => {
   const session = makeSession("https://unreachable.example/profile/card#me", null);
   await assert.rejects(() => resolveStorageRoot(session), /Cannot read WebID profile/);

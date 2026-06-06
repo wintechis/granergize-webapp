@@ -18,7 +18,6 @@ playwright-report
 exampleGraphs
 paper
 usability eval
-scripts
 *.local
 
 # Environment variables

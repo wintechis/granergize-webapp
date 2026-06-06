@@ -100,3 +100,44 @@ Deno.test("entering a room sets current optimistically and a stale registry read
   await waitFor(() => assert.equal(result.current.state.data?.current, A));
   assert.equal(result.current.state.data?.current, A);
 });
+
+/**
+ * A session with NO active room: prefs declares no currentRoom, so the room log
+ * query is disabled and `log.data` stays undefined.
+ */
+function emptyRoomSession(): Session {
+  const fetch = (_input: string | URL, init?: RequestInit): Promise<Response> => {
+    const method = (init?.method ?? "GET").toUpperCase();
+    if (method !== "GET") return Promise.resolve(new Response(null, { status: 201 }));
+    // prefs / bookmarks / everything → empty: no current room, no known rooms.
+    return Promise.resolve(
+      new Response("", { status: 200, headers: { "Content-Type": "text/turtle" } }),
+    );
+  };
+  return { info: { webId: WEBID, isLoggedIn: true }, fetch } as unknown as Session;
+}
+
+Deno.test("useRoomState: with no active room, myRoles keeps a STABLE reference across renders", async () => {
+  // Regression: a fresh `[]` per render made ConnectPage's role-sync effect (which
+  // lists `myRoles` as a dependency) re-run every render → "Maximum update depth
+  // exceeded" on a brand-new / no-room login. The fallback must be one shared ref.
+  _setStorageRootForTesting(WEBID, ROOT);
+  _setSessionForTesting(emptyRoomSession());
+
+  const { result, rerender } = renderHook(() => useRoomState(), {
+    wrapper: wrapper(),
+  });
+
+  // No current room, but data is present (the registry resolved).
+  await waitFor(() => assert.equal(result.current.data?.current, null));
+  const first = result.current.data?.myRoles;
+  assert.deepEqual(first, []);
+
+  rerender();
+  rerender();
+  assert.strictEqual(
+    result.current.data?.myRoles,
+    first,
+    "myRoles must be the SAME reference across renders, else ConnectPage's effect loops",
+  );
+});

@@ -1,7 +1,10 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh } from "../utils/podFetch.ts";
-import { loadProfileStore } from "../utils/profileDocument.ts";
+import {
+  podResources,
+  resolveStorageRootForWebId,
+} from "../utils/solidUtils.ts";
 import {
   appendSharingEvent,
   parseSharingEvents,
@@ -91,57 +94,112 @@ async function removeMessageFromInbox(
  * logged-in user, this fetches an arbitrary WebID document, so it can't use the
  * session-cached profile store. Shared by the share / revoke flows.
  */
+const LDP_INBOX = "http://www.w3.org/ns/ldp#inbox";
+
+/**
+ * Find an inbox in an HTTP `Link` header (LDN): `Link: <uri>; rel="…#inbox"`.
+ * Some Pods advertise the inbox only via the header, not the profile body. A
+ * relative URI resolves against `base`.
+ */
+export function inboxFromLinkHeader(
+  header: string | null,
+  base: string,
+): string | null {
+  if (!header) return null;
+  for (const m of header.matchAll(/<([^>]+)>\s*;\s*([^,]*)/g)) {
+    const [, uri, params] = m;
+    const rel = /rel\s*=\s*"?([^";]+)"?/i.exec(params)?.[1] ?? "";
+    if (rel.split(/\s+/).some((r) => r === LDP_INBOX || r === "inbox")) {
+      return new URL(uri, base).toString();
+    }
+  }
+  return null;
+}
+
+/**
+ * The granergize inbox for an app-root container (`<storageRoot>/granergize/`).
+ * The location is DISCOVERABLE — read `ldp:inbox` from the granergize root (body or
+ * Link header) so the inbox can live anywhere — with the `inbox/` convention as the
+ * fallback (and what we provision). This is APP-scoped (granergize→granergize
+ * sharing), NOT the agent-global WebID inbox, so it doesn't mix with other apps.
+ */
+async function granergizeInboxUrl(
+  appRoot: string,
+  session: Session,
+): Promise<string> {
+  const res = await session.fetch(appRoot, { headers: { Accept: "text/turtle" } })
+    .catch(() => null);
+  if (res?.ok) {
+    const linkHeader = res.headers.get("Link");
+    const store = new Store(new Parser({ baseIRI: appRoot }).parse(await res.text()));
+    const triple = store.getObjects(
+      DataFactory.namedNode(appRoot),
+      DataFactory.namedNode(LDP_INBOX),
+      null,
+    )[0]?.value;
+    if (triple) return triple;
+    const fromHeader = inboxFromLinkHeader(linkHeader, appRoot);
+    if (fromHeader) return fromHeader;
+  } else {
+    await res?.body?.cancel();
+  }
+  return `${appRoot}inbox/`; // convention default
+}
+
+/**
+ * A share recipient's granergize inbox: resolve their storage root (the robust
+ * discovery in solidUtils), then discover the inbox under their granergize space.
+ */
 export async function getRecipientInboxUrl(
   webId: string,
   session: Session,
 ): Promise<string> {
-  const res = await session.fetch(webId, { method: "GET" });
-  if (!res.ok) {
-    throw new Error(
-      `Failed to fetch WebID profile at ${webId}: ${res.statusText}`,
-    );
-  }
-  const store = new Store(
-    new Parser({ format: "text/turtle", baseIRI: webId }).parse(
-      await res.text(),
-    ),
-  );
-  const inboxQuads = store.getQuads(
-    DataFactory.namedNode(webId),
-    DataFactory.namedNode("http://www.w3.org/ns/ldp#inbox"),
-    null,
-    null,
-  );
-  if (inboxQuads.length === 0) {
-    throw new Error(`No inbox found for WebID ${webId}`);
-  }
-  return inboxQuads[0].object.value;
+  const root = await resolveStorageRootForWebId(webId, session);
+  return granergizeInboxUrl(`${root}granergize/`, session);
 }
 
+/**
+ * Provision the logged-in user's granergize inbox on a bare Pod (idempotent,
+ * best-effort — never blocks login): create the inbox container, grant
+ * AuthenticatedAgent Append so other granergize users can drop grants, and
+ * advertise it via `ldp:inbox` on the granergize root so senders can discover it.
+ */
+export async function ensureOwnInbox(session: Session): Promise<void> {
+  const webId = session.info.webId;
+  if (!webId) return;
+  const { appRoot, inbox } = podResources(webId);
+  await session.fetch(inbox, {
+    method: "PUT",
+    headers: {
+      "Content-Type": "text/turtle",
+      Link: '<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"',
+    },
+    body: "",
+  }).catch(() => {});
+  const acl = `@prefix acl: <http://www.w3.org/ns/auth/acl#>.
+<#owner> a acl:Authorization; acl:agent <${webId}>;
+  acl:accessTo <${inbox}>; acl:default <${inbox}>;
+  acl:mode acl:Read, acl:Write, acl:Control.
+<#append> a acl:Authorization; acl:agentClass acl:AuthenticatedAgent;
+  acl:accessTo <${inbox}>; acl:mode acl:Read, acl:Append.
+`;
+  await session.fetch(`${inbox}.acl`, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: acl,
+  }).catch(() => {});
+  // Advertise the inbox on the granergize root's metadata (CSS `.meta`), so a
+  // sender discovers it even if it's ever relocated from the convention path.
+  await session.fetch(`${appRoot}.meta`, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: `@prefix ldp: <http://www.w3.org/ns/ldp#>.\n<${appRoot}> ldp:inbox <${inbox}>.\n`,
+  }).catch(() => {});
+}
+
+/** The logged-in user's own granergize inbox (same app-scoped discovery). */
 async function getInboxUrl(session: Session): Promise<string> {
   const webId = session.info.webId;
   if (!webId) throw new Error("Session has no WebID");
-
-  // Reuse the session-cached profile (loadProfileStore) instead of a bespoke
-  // global `fetch(webId)` — so the WebID document is read once per session and
-  // shared with storage-root / org / avatar reads, not re-downloaded here.
-  const store = await loadProfileStore(session);
-  if (!store) {
-    console.error("Failed to load WebID profile");
-    throw new Error("Failed to load WebID profile");
-  }
-
-  const inboxPredicate = DataFactory.namedNode(
-    "http://www.w3.org/ns/ldp#inbox",
-  );
-  const webIdSubject = DataFactory.namedNode(webId);
-  const inboxQuads = store.getQuads(webIdSubject, inboxPredicate, null, null);
-
-  if (inboxQuads.length === 0) {
-    console.error("Inbox URL not found in WebID profile");
-    throw new Error("Inbox URL not found in WebID profile");
-  }
-
-  const inboxUrl = inboxQuads[0].object.value;
-  return inboxUrl;
+  return granergizeInboxUrl(podResources(webId).appRoot, session);
 }

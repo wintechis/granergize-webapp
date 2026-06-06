@@ -3,15 +3,12 @@ import { DataFactory, Parser, Store } from "n3";
 import { recordSharing, recordViewSharing } from "./sharingManager.ts";
 import { getRecipientInboxUrl } from "./inbox.ts";
 import { buildSharingEventTurtle } from "./sharingLog.ts";
-import type { UserRole } from "../../../types/types.ts";
 import { ACL_NS, GRAN_NS, RDF_TYPE } from "../utils/vocabularies.ts";
 import { parseDatasetSlug } from "../utils/energyDataset.ts";
 import { isSeriesGranularity } from "../utils/durationUtils.ts";
 
 export interface ShareOptions {
   includeEnergyData: boolean;
-  /** Deprecated/ignored: provenance now lives in the building file (PROV). */
-  role?: UserRole;
 }
 
 export async function shareBuildingData(

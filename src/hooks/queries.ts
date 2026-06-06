@@ -1,7 +1,7 @@
 import { useQuery } from "@tanstack/react-query";
 import { getSession } from "./session.ts";
 import {
-  loadBuildingsAndAgents,
+  loadBuildings,
   loadEnergy,
 } from "../services/TurtleParsingService.ts";
 import { resolveStorageRoot } from "../services/utils/solidUtils.ts";
@@ -14,7 +14,6 @@ import {
 import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
 import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
 import type {
-  AgentType,
   BuildingType,
   EnergyType,
 } from "../../types/types.ts";
@@ -31,17 +30,17 @@ function webIdOf(): string | undefined {
   return getSession().info.webId ?? undefined;
 }
 
-/** Phase 1: buildings + agents (paints the map). */
-export function useBuildingsAndAgents() {
+/** Phase 1: buildings (paints the map). */
+export function useBuildings() {
   const webId = webIdOf();
   return useQuery({
-    queryKey: ["buildingsAndAgents", webId],
+    queryKey: ["buildings", webId],
     enabled: Boolean(webId),
     queryFn: async () => {
       const session = getSession();
       // Resolve the Pod storage root from pim:storage before any path is built.
       await resolveStorageRoot(session);
-      return loadBuildingsAndAgents(session);
+      return loadBuildings(session);
     },
   });
 }
@@ -128,6 +127,13 @@ function useRoomLog(current: string | null) {
   });
 }
 
+// One stable empty array for the `?? []` fallbacks below. A fresh `[]` per render
+// makes the derived `members`/`myRoles`/`known` new references every render; any
+// consumer using one as a useEffect/useMemo dependency then re-runs every render
+// — an infinite loop. ConnectPage's role-sync effect hit exactly this when there
+// was no active room (current=null → log.data undefined → myRoles a new []).
+const EMPTY_LIST = Object.freeze([]) as never[];
+
 /**
  * Composes the registry ({@link useRooms}) with the current room's log
  * ({@link useRoomLog}) into the shape the Connect tab consumes. The registry is
@@ -136,15 +142,15 @@ function useRoomLog(current: string | null) {
 export function useRoomState() {
   const rooms = useRooms();
   const current = rooms.data?.current ?? null;
-  const known = rooms.data?.known ?? [];
+  const known = rooms.data?.known ?? EMPTY_LIST;
   const log = useRoomLog(current);
   return {
     data: rooms.data
       ? {
         current,
         known,
-        members: log.data?.members ?? [],
-        myRoles: log.data?.myRoles ?? [],
+        members: log.data?.members ?? EMPTY_LIST,
+        myRoles: log.data?.myRoles ?? EMPTY_LIST,
         myMembership: log.data?.myMembership ?? false,
       }
       : undefined,
@@ -155,7 +161,7 @@ export function useRoomState() {
 
 /** Query keys other modules (mutations) invalidate. */
 export const queryKeys = {
-  buildingsAndAgents: ["buildingsAndAgents"] as const,
+  buildings: ["buildings"] as const,
   energy: ["energy"] as const,
   sharedWithMe: ["sharedWithMe"] as const,
   sharedBuildings: ["sharedBuildings"] as const,
@@ -176,24 +182,22 @@ export const queryKeys = {
 export interface SolidData {
   buildings: BuildingType[];
   energyNeed: EnergyType[];
-  agents: AgentType[];
   averages: Record<string, number>;
-  agentAverages: Record<string, Record<string, number>>;
+  operatorAverages: Record<string, Record<string, number>>;
   isLoading: boolean;
   error: string | null;
 }
 
 export function useSolidData(): SolidData {
-  const ba = useBuildingsAndAgents();
+  const ba = useBuildings();
   const energy = useEnergy(ba.data?.buildings);
 
   const err = ba.error ?? energy.error;
   return {
     buildings: ba.data?.buildings ?? [],
-    agents: ba.data?.agents ?? [],
     energyNeed: energy.data?.energyNeed ?? [],
     averages: energy.data?.averages ?? {},
-    agentAverages: energy.data?.agentAverages ?? {},
+    operatorAverages: energy.data?.operatorAverages ?? {},
     isLoading: ba.isLoading,
     error: err ? (err instanceof Error ? err.message : String(err)) : null,
   };

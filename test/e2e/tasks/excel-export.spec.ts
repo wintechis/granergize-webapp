@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "../helpers/login.ts";
+import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
+import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 
 /**
@@ -10,28 +11,13 @@ import { ensureDemoBuildings } from "../helpers/seed.ts";
  * deletes the copies) and cleans up after itself. It self-seeds an empty Pod in
  * beforeAll (ensureDemoBuildings), so it doesn't assume a pre-seeded Pod.
  *
- *   source .env.e2e.local && deno task e2e excel-export --workers=1
+ *   source .env.e2e.local && deno task e2e:base excel-export --workers=1
  *
- * Defaults to account B (solidweb.org); E2E_SMOKE_ACCOUNT=A to switch. Skipped
+ * Runs against the solo Pod (E2E_SOLO; default C = solidweb). Skipped
  * without creds.
  */
 
-const WHICH = (process.env.E2E_SMOKE_ACCOUNT === "A" ? "A" : "B") as "A" | "B";
-const ACC = account(WHICH);
-
-const buildingRows = (page: Page) =>
-  page.locator("li", { hasText: /Building \S+/ });
-
-async function buildingIds(page: Page): Promise<string[]> {
-  const rows = buildingRows(page);
-  const n = await rows.count();
-  const ids: string[] = [];
-  for (let i = 0; i < n; i++) {
-    const id = (await rows.nth(i).textContent())?.match(/Building (\S+)/)?.[1];
-    if (id) ids.push(id);
-  }
-  return ids;
-}
+const ACC = soloAccount();
 
 async function openManage(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
@@ -43,7 +29,7 @@ test.describe.configure({ mode: "serial" });
 test.describe("excel export", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${WHICH} / E2E_PASSWORD_${WHICH} (a throwaway Solid Pod) to run the excel-export e2e.`,
+    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the excel-export e2e.`,
   );
 
   let page: Page;

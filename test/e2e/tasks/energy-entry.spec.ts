@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "../helpers/login.ts";
+import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
 
 /**
  * Energy per-year entry + planned/actual (Soll-Ist) e2e. Self-cleaning: it adds
@@ -10,14 +10,13 @@ import { account, hasAccount, login } from "../helpers/login.ts";
  * leaks. The Soll-Ist *planned* overlay legend is covered deterministically by the
  * `MetricBarChart` unit test (actual + "(planned)").
  *
- *   source .env.e2e.local && deno task e2e energy-entry --workers=1
+ *   source .env.e2e.local && deno task e2e:base energy-entry --workers=1
  *
- * Defaults to account B (solidweb.org); E2E_SMOKE_ACCOUNT=A to switch. Skipped
+ * Runs against the solo Pod (E2E_SOLO; default C = solidweb). Skipped
  * without creds.
  */
 
-const WHICH = (process.env.E2E_SMOKE_ACCOUNT === "A" ? "A" : "B") as "A" | "B";
-const ACC = account(WHICH);
+const ACC = soloAccount();
 const YEAR = "2099"; // fixed far-future year; re-runs overwrite it (idempotent)
 const ADDR = "Energy Entry E2E Strasse 1"; // unique address for the building
 
@@ -26,7 +25,7 @@ test.describe.configure({ mode: "serial" });
 test.describe("energy entry + Soll-Ist", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${WHICH} / E2E_PASSWORD_${WHICH} (a throwaway Solid Pod) to run the energy-entry e2e.`,
+    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the energy-entry e2e.`,
   );
 
   let page: Page;

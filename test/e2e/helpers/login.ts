@@ -1,40 +1,49 @@
 import { expect, type Page } from "@playwright/test";
+import { account as resolveAccount, type TestAccount } from "../../config/accounts.ts";
+import { localProvider } from "../../config/providers.ts";
 
 /**
- * Credentials for the throwaway Solid Pods, read from the environment. Never a
- * real account; nothing is committed. Three accounts, each via `_A`/`_B`/`_C`:
- *
- *   E2E_USERNAME_A / E2E_PASSWORD_A / [E2E_ISSUER_A]   — fast Pod
- *   E2E_USERNAME_B / E2E_PASSWORD_B / [E2E_ISSUER_B]   — fast Pod
- *   E2E_USERNAME_C / E2E_PASSWORD_C / [E2E_ISSUER_C]   — slow solidcommunity.net (screenshots)
- *
- * A and B are interchangeable for most specs; `sharing` drives both. No WebID
- * needs configuring — the sharing test discovers WebIDs via the data room.
+ * The browser tier's view of a test account — now just the shared `TestAccount`
+ * from `test/config/accounts.ts` (provider + credentials + webId). Kept as the
+ * `SolidAccount` alias so existing specs/helpers don't churn. Credentials come
+ * from `test/.env.e2e.local`; nothing committed. No WebID needs configuring — the
+ * sharing specs discover WebIDs via the data room.
  */
-export interface SolidAccount {
-  issuer: string;
-  username: string;
-  password: string;
-}
+export type SolidAccount = TestAccount;
 
-const DEFAULT_ISSUER = "https://solidcommunity.net";
-
-/**
- * Read account A/B/C from the environment (suffixed vars only). A and B are fast
- * Pods (interchangeable for most specs); C is the slow solidcommunity.net Pod
- * used by the screenshots run.
- */
-export function account(which: "A" | "B" | "C"): SolidAccount {
-  const env = process.env;
+/** A non-null placeholder for an unconfigured slot, so `account()` keeps its
+ * non-null contract and specs gate on `hasAccount()` / `test.skip`. */
+function unconfigured(slot: string): TestAccount {
   return {
-    issuer: env[`E2E_ISSUER_${which}`] ?? DEFAULT_ISSUER,
-    username: env[`E2E_USERNAME_${which}`] ?? "",
-    password: env[`E2E_PASSWORD_${which}`] ?? "",
+    slot,
+    provider: localProvider("http://unconfigured.invalid"),
+    email: "",
+    password: "",
+    webId: "",
   };
 }
 
+/** Resolve account `slot` from the shared registry (non-null; empty if unset). */
+export function account(slot: string): SolidAccount {
+  return resolveAccount(slot) ?? unconfigured(slot);
+}
+
 export function hasAccount(a: SolidAccount): boolean {
-  return Boolean(a.username && a.password);
+  return Boolean(a.email && a.password);
+}
+
+/**
+ * The single-account ("solo") specs run against ONE Pod, chosen by `E2E_SOLO`
+ * (a slot id; default `C` = the solidweb Pod). Set `E2E_SOLO=D` to run them
+ * against the redpencil Pod instead. The two solo Pods sit on DIFFERENT hosts, so
+ * the two runs can go fully in parallel without contention (see test/run-e2e.sh).
+ * The two-account sharing specs ignore this and use the A+B pair.
+ */
+export const SOLO_SLOT = process.env.E2E_SOLO || "C";
+
+/** The account a solo spec uses (slot `E2E_SOLO`, default `C`). */
+export function soloAccount(): SolidAccount {
+  return account(SOLO_SLOT);
 }
 
 /**
@@ -46,7 +55,7 @@ export function hasAccount(a: SolidAccount): boolean {
  * time; selectors are best-effort for solidcommunity.net. Run headed to debug.
  */
 export async function login(page: Page, acc: SolidAccount): Promise<void> {
-  const host = new URL(acc.issuer).host;
+  const host = new URL(acc.provider.issuer).host;
   const user = page.locator(
     'input[name="username"], input[name="email"], input[type="email"], input#username, input#email',
   ).first();
@@ -66,14 +75,14 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
     if (await recommended.count()) {
       await recommended.first().click();
     } else {
-      await page.getByLabel(/Identity Provider/i).fill(acc.issuer);
+      await page.getByLabel(/Identity Provider/i).fill(acc.provider.issuer);
       await page.getByRole("button", { name: "+" }).click();
     }
     await page.waitForLoadState("domcontentloaded");
     await expect(user).toBeVisible({ timeout: 15_000 });
   }).toPass({ timeout: 150_000, intervals: [5_000, 15_000, 30_000, 30_000] });
 
-  await user.fill(acc.username);
+  await user.fill(acc.email);
   await page.locator('input[type="password"], input[name="password"]').first()
     .fill(acc.password);
   await page.getByRole("button", { name: /log ?in|sign ?in|anmelden/i }).first()

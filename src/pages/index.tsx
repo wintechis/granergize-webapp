@@ -112,7 +112,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     try {
       await seedDemoBuildings(session, webId);
       await queryClient.invalidateQueries({
-        queryKey: queryKeys.buildingsAndAgents,
+        queryKey: queryKeys.buildings,
       });
       setDemoShow(false);
       showNotification("Demo buildings added", "success");
