@@ -104,22 +104,33 @@ test.describe("excel upload", () => {
     // the imported rows appear a moment later — poll the id diff rather than
     // reading it once before the refetch lands.
     await expect(buildingRows(page).first()).toBeVisible({ timeout: 60_000 });
-    let added: string[] = [];
     await expect(async () => {
-      added = (await buildingIds(page)).filter((id) => !before.has(id));
+      const added = (await buildingIds(page)).filter((id) => !before.has(id));
       expect(added.length, "imported buildings appear on Manage").toBeGreaterThan(0);
     }).toPass({ timeout: 60_000 });
 
-    for (const id of added) {
-      const row = page.locator("li", { hasText: `Building ${id}` });
-      await row.first().getByRole("button", { name: "Delete building" }).click();
-      // Wait for THIS row to vanish, not the shared "Building deleted" toast —
-      // the toast lingers (~6 s) so it would still be visible from the previous
-      // delete and let the loop race ahead before this one actually completed.
-      await expect(row).toHaveCount(0, { timeout: 90_000 });
-    }
-    // Back to the original set — no residue.
-    expect(new Set(await buildingIds(page))).toEqual(before);
+    // Clean up the way a user actually would — quick or not — and return the list to
+    // `before`. The import PUTs buildings one at a time, so more rows keep landing
+    // after the first appear (and after the "added" toast). Don't snapshot the
+    // imported set once and race the still-arriving writes: re-derive "not in before"
+    // each pass and delete what's there, until none remain. This still FAILS (times
+    // out) if the app leaves residue or keeps spawning rows — it only tolerates the
+    // import landing asynchronously, which a user copes with the same way.
+    await expect(async () => {
+      const extra = (await buildingIds(page)).filter((id) => !before.has(id));
+      for (const id of extra) {
+        const row = page.locator("li", { hasText: `Building ${id}` }).first();
+        await row.getByRole("button", { name: "Delete building" }).click();
+        // Wait for THIS row to vanish, not the shared "Building deleted" toast — the
+        // toast lingers (~6 s) so it would still show from the previous delete and let
+        // the loop race ahead before this one actually completed.
+        await expect(row).toHaveCount(0, { timeout: 90_000 });
+      }
+      // Late arrivals during the deletes above fail this check → toPass re-runs and
+      // sweeps the stragglers, until the list is back to the original set.
+      expect((await buildingIds(page)).filter((id) => !before.has(id)).length,
+        "no imported buildings left to clean up").toBe(0);
+    }).toPass({ timeout: 180_000 });
   });
 
   test("a long 15-min upload can be cancelled", async () => {

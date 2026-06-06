@@ -8,7 +8,7 @@ import {
   hostRoomAndGetUri,
   joinRoomAsUser,
 } from "../helpers/connect.ts";
-import { addBuilding, shareByRole } from "../helpers/manage.ts";
+import { addBuilding, addEnergyYear, shareByRole } from "../helpers/manage.ts";
 
 /**
  * End-to-end building sharing across TWO throwaway Solid Pods, in ONE test (the
@@ -103,11 +103,97 @@ test.describe("sharing across two pods", () => {
     }
   });
 
-  // Catalog gap (PROBLEMS.md #17): share a single year of energy, not the whole
-  // building. Sharing currently has only two levels, so this is a tracked gap
-  // pending the feature (and an interoperating Pod pair to run against).
-  test.fixme(
-    "share a single year of energy granularity (PROBLEMS.md #17)",
-    () => {},
-  );
+  // PROBLEMS.md #17: share a single YEAR of energy, not all of it. A's building
+  // carries two annual years (2098, 2099); A grants only 2099 via the per-year
+  // picker. The crux is the recipient side: B can read 2099 but is denied 2098 —
+  // the building file lists both `gran:hasEnergyDataset` links (B reads the file),
+  // but only 2099's dataset .acl grants B, so 2098 403s and InvestorEnergy skips
+  // it. The map's Energy tab renders InvestorEnergy's per-year table, so both the
+  // present (2099) and the withheld (2098) year are observable in one view.
+  const STREET_Y = "Jahrgasse 9"; // distinct from the all-energy test's building
+  const SHARED_YEAR = "2099";
+  const WITHHELD_YEAR = "2098";
+
+  test("A shares one year of energy; B sees that year but not the withheld one", async ({ browser }) => {
+    test.setTimeout(420_000);
+    const [a, b1] = await freshPagesParallel(browser, [A, B]);
+    a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building/room)
+    try {
+      // ── Write part: A hosts a room + role, B joins + role ──
+      const roomUri = await hostRoomAndGetUri(a.page);
+      await assignUserRole(a.page);
+
+      try {
+        await joinRoomAsUser(b1.page, roomUri);
+      } finally {
+        await b1.ctx.close();
+      }
+
+      // ── A adds a building with two annual years, shares only the later one ──
+      await addBuilding(a.page, STREET_Y);
+      await addEnergyYear(a.page, STREET_Y, WITHHELD_YEAR, "11111");
+      await addEnergyYear(a.page, STREET_Y, SHARED_YEAR, "22222");
+      await shareByRole(a.page, STREET_Y, [Number(SHARED_YEAR)]);
+
+      // ── 2 s cooldown between the write part and the read part ──
+      await a.page.waitForTimeout(2000);
+
+      // ── Read part: B logs in fresh → readInbox archives the grant → verify ──
+      const b2 = await freshPage(browser, B);
+      try {
+        // B owns no buildings (none seeded), so the shared one is the only marker.
+        await b2.page.getByRole("tab", { name: "Explore" }).click();
+        const markers = b2.page.locator(".leaflet-marker-icon");
+        await expect(markers.first()).toBeVisible({ timeout: 120_000 });
+        await b2.page.waitForTimeout(1500); // let the map settle so clicks register
+
+        // Open the building's detail pane → Energy tab (InvestorEnergy per-year table).
+        const energyTab = b2.page.getByRole("tab", { name: "Energy data" });
+        const count = await markers.count();
+        for (let i = 0; i < count; i++) {
+          await markers.nth(i).click({ force: true }).catch(() => {});
+          if (await energyTab.isVisible().catch(() => false)) break;
+          await b2.page.waitForTimeout(400);
+        }
+        await energyTab.click();
+
+        try {
+          // The granted year renders as an InvestorEnergy row with its electricity
+          // figure (de-DE "22.222", 0 decimals)...
+          const grantedRow = b2.page.getByRole("row", {
+            name: new RegExp(SHARED_YEAR),
+          });
+          await expect(grantedRow).toBeVisible({ timeout: 60_000 });
+          await expect(grantedRow.getByText("22.222")).toBeVisible();
+          // ...the withheld year's dataset 403s for B, so it never appears.
+          await expect(
+            b2.page.getByRole("cell", { name: WITHHELD_YEAR, exact: true }),
+          ).toHaveCount(0);
+        } catch (timeout) {
+          b2.guard.assertNoAppErrors();
+          throw timeout;
+        }
+      } finally {
+        await removeAllBookmarkedRooms(b2.page);
+        await b2.ctx.close();
+      }
+    } finally {
+      // Self-cleaning: A deletes its building + the room it hosted (best-effort).
+      try {
+        if (!a.page.isClosed()) {
+          await a.page.getByRole("tab", { name: "Manage" }).click();
+          const row = a.page.locator("li", { hasText: STREET_Y }).first();
+          if (await row.count()) {
+            await row.getByRole("button", { name: "Delete building" }).click();
+            await expect(a.page.getByText("Building deleted").first())
+              .toBeVisible({ timeout: 90_000 });
+          }
+          await deleteAllOwnedRooms(a.page);
+        }
+      } catch {
+        // best-effort cleanup; never fail the run
+      }
+      await a.ctx.close();
+    }
+  });
 });

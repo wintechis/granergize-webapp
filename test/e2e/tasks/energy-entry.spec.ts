@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { addEnergyYear } from "../helpers/manage.ts";
 
 /**
  * Energy per-year entry + planned/actual (Soll-Ist) e2e. Self-cleaning: it adds
@@ -95,28 +96,10 @@ test.describe("energy entry + Soll-Ist", () => {
     }
   });
 
-  async function addEnergyYear(scenario: RegExp, electricity: string) {
-    // The "Add / edit energy year" trigger is a per-building row action on Manage.
-    await page.getByRole("tab", { name: "Manage" }).click();
-    const row = page.locator("li", { hasText: ADDR }).first();
-    await expect(row).toBeVisible({ timeout: 120_000 });
-    await row.getByRole("button", { name: "Add or edit energy year" }).click();
-    // The dialog's accessible name contains "year", so target inputs by exact
-    // label / role to avoid matching the dialog itself.
-    await page.getByRole("spinbutton", { name: "Year", exact: true }).fill(YEAR);
-    await page.getByLabel("Scenario", { exact: true }).click();
-    await page.getByRole("option", { name: scenario }).click();
-    await page.getByRole("spinbutton", { name: "Electricity (kWh)" })
-      .fill(electricity);
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Energy data saved").first())
-      .toBeVisible({ timeout: 45_000 });
-  }
-
   test("enter both an actual and a planned figure for a year", async () => {
     test.setTimeout(180_000);
-    await addEnergyYear(/^Actual$/, "88888");
-    await addEnergyYear(/^Planned/, "70000"); // "Planned (Soll)"
+    await addEnergyYear(page, ADDR, YEAR, "88888", /^Actual$/);
+    await addEnergyYear(page, ADDR, YEAR, "70000", /^Planned/); // "Planned (Soll)"
   });
 
   test("the actual figure flows into the building's energy view", async () => {

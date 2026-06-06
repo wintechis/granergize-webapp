@@ -39,8 +39,45 @@ export async function addBuilding(page: Page, street: string): Promise<void> {
   await expect(dialog).toBeHidden({ timeout: 30_000 });
 }
 
-/** Share the building at `street` with the room's User-role members. */
-export async function shareByRole(page: Page, street: string): Promise<void> {
+/**
+ * Add (or overwrite) an annual energy figure for `street` via the per-building
+ * "Add or edit energy year" row action. `scenario` matches the Scenario option
+ * (e.g. /^Actual$/, /^Planned/). Lifted from energy-entry.spec.ts so the sharing
+ * specs can seed energy too.
+ */
+export async function addEnergyYear(
+  page: Page,
+  street: string,
+  year: string,
+  electricity: string,
+  scenario: RegExp = /^Actual$/,
+): Promise<void> {
+  await page.getByRole("tab", { name: "Manage" }).click();
+  const row = page.locator("li", { hasText: street }).first();
+  await expect(row).toBeVisible({ timeout: 120_000 });
+  await row.getByRole("button", { name: "Add or edit energy year" }).click();
+  // The dialog's accessible name contains "year", so target inputs by exact
+  // label / role to avoid matching the dialog itself.
+  await page.getByRole("spinbutton", { name: "Year", exact: true }).fill(year);
+  await page.getByLabel("Scenario", { exact: true }).click();
+  await page.getByRole("option", { name: scenario }).click();
+  await page.getByRole("spinbutton", { name: "Electricity (kWh)" })
+    .fill(electricity);
+  await page.getByRole("button", { name: "Save" }).click();
+  await expect(page.getByText("Energy data saved").first())
+    .toBeVisible({ timeout: 45_000 });
+}
+
+/**
+ * Share the building at `street` with the room's User-role members, choosing the
+ * "What to share" scope. With `years`, picks "energy for specific year(s)" and
+ * ticks exactly those years; without, shares static + all energy (the default).
+ */
+export async function shareByRole(
+  page: Page,
+  street: string,
+  years?: number[],
+): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
   await page.waitForLoadState("networkidle").catch(() => {});
   const row = page.locator("li", { hasText: street }).first();
@@ -52,6 +89,16 @@ export async function shareByRole(page: Page, street: string): Promise<void> {
   await dialog.getByRole("button", { name: /by role/i }).click();
   await dialog.getByLabel("Role").click();
   await page.getByRole("option", { name: "User" }).click();
+
+  if (years) {
+    // Switch the energy scope to per-year and tick the requested year(s).
+    await dialog.getByRole("radio", { name: /specific year/i }).check();
+    for (const year of years) {
+      await dialog.getByRole("checkbox", { name: String(year), exact: true })
+        .check();
+    }
+  }
+
   // "Review & Share" resolves the role to member WebIDs over the network; retry
   // until the review step's Confirm appears.
   const confirm = dialog.getByRole("button", { name: /confirm share/i });
