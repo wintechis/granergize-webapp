@@ -61,19 +61,25 @@ test.describe("view sharing across two pods", () => {
       const shareDlg = a.page.getByRole("dialog");
       const add = shareDlg.getByRole("button", { name: /^add$/i });
       // Add B from the room-members list (B joined + took a role above). The
-      // dialog loads members ONCE on open; B's Join can lag A's first read, so
-      // re-open until the member shows (re-opening re-runs the member load).
+      // dialog loads members ONCE on open, asynchronously, so the "Add" row only
+      // appears a moment AFTER the dialog is visible — use a WAITING assertion for
+      // it (`locator.isVisible()` does NOT wait; its `timeout` arg is a no-op, so an
+      // immediate check always races the async member load). Re-open between waits
+      // so a member that's still propagating on a remote Pod (Tier 4) is re-read.
       await expect(async () => {
         if (!(await shareDlg.isVisible().catch(() => false))) {
           await viewRow.getByRole("button", { name: "Share view" }).click();
           await expect(shareDlg).toBeVisible({ timeout: 10_000 });
         }
-        if (await add.first().isVisible({ timeout: 5_000 }).catch(() => false)) {
+        try {
+          await expect(add.first()).toBeVisible({ timeout: 15_000 });
           return;
+        } catch {
+          // Not yet — close so the next iteration re-opens and re-runs loadMembers.
+          await shareDlg.getByRole("button", { name: /close/i }).click();
+          await expect(shareDlg).toBeHidden({ timeout: 5_000 }).catch(() => {});
+          throw new Error("B not yet listed as a room member");
         }
-        await shareDlg.getByRole("button", { name: /close/i }).click();
-        await expect(shareDlg).toBeHidden({ timeout: 5_000 }).catch(() => {});
-        throw new Error("B not yet listed as a room member");
       }).toPass({ timeout: 120_000 });
       await add.first().click();
       const confirm = shareDlg.getByRole("button", { name: /confirm share/i });

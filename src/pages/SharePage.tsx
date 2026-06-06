@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   Box,
   Button,
@@ -61,22 +61,33 @@ function ReceivedViewRow(
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const toggle = async () => {
-    const next = !open;
-    setOpen(next);
-    if (next && !snapshot) {
-      setLoading(true);
-      setError(null);
-      try {
-        const snap = await loadComputedSnapshot(session, view.snapshotUrl);
-        if (!snap) throw new Error("snapshot not found or empty");
-        setSnapshot(snap);
-      } catch (err) {
-        setError(err instanceof Error ? err.message : String(err));
-      } finally {
-        setLoading(false);
-      }
+  // Recipients hold Read on the snapshot (which carries the view's name) but not
+  // the definition. Load it once so the row shows the view's NAME up front instead
+  // of the opaque snapshot id — a bare `view-<ts>-<rand>` is useless in a "shared
+  // with you" list. Expanding then reuses the already-loaded snapshot (no refetch).
+  const ensureSnapshot = async () => {
+    if (snapshot || loading) return;
+    setLoading(true);
+    setError(null);
+    try {
+      const snap = await loadComputedSnapshot(session, view.snapshotUrl);
+      if (!snap) throw new Error("snapshot not found or empty");
+      setSnapshot(snap);
+    } catch (err) {
+      setError(err instanceof Error ? err.message : String(err));
+    } finally {
+      setLoading(false);
     }
+  };
+
+  useEffect(() => {
+    ensureSnapshot();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [view.snapshotUrl]);
+
+  const toggle = () => {
+    setOpen((prev) => !prev);
+    ensureSnapshot();
   };
 
   const label = (snapshot?.name && snapshot.name.trim()) || view.viewId ||
