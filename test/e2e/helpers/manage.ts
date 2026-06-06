@@ -141,7 +141,10 @@ export async function ensureView(page: Page): Promise<void> {
     .toBeVisible({ timeout: 60_000 });
 }
 
-/** The Share-tab "Views shared with you" section locator. */
+/**
+ * The Share-tab "Views shared with you" list (named via the `<ul>`'s aria-label).
+ * Present only when at least one view is shared; for the empty state assert the
+ * section's "no aggregated views…" text on the page directly.
+ */
 export const receivedViews = (page: Page) =>
-  page.getByRole("heading", { name: /views shared with you/i })
-    .locator("xpath=following-sibling::*[1]");
+  page.getByRole("list", { name: /views shared with you/i });

@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
-import { GRAN_NS, RDF_TYPE } from "./vocabularies.ts";
+import { GRAN_NS, RDF_TYPE, XSD_BOOLEAN as XSD_BOOLEAN_IRI } from "./vocabularies.ts";
 import { appRoot } from "./solidUtils.ts";
 import { fetchFresh } from "./podFetch.ts";
 import { readModifyWrite } from "./podWrite.ts";
@@ -12,7 +12,7 @@ const GRAN_PREFERENCES = namedNode(`${GRAN_NS}Preferences`);
 const GRAN_CURRENT_ROOM = namedNode(`${GRAN_NS}currentRoom`);
 const GRAN_HIDDEN_BUILDING = namedNode(`${GRAN_NS}hiddenBuilding`);
 const GRAN_DEMO_SEED_DECLINED = namedNode(`${GRAN_NS}demoSeedDeclined`);
-const XSD_BOOLEAN = namedNode("http://www.w3.org/2001/XMLSchema#boolean");
+const XSD_BOOLEAN = namedNode(XSD_BOOLEAN_IRI);
 
 /**
  * Personal, low-contention UI state — one small flat file (`prefs.ttl`) you alone

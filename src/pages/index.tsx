@@ -18,11 +18,13 @@ import {
 import { APP_DIR, getStorageRoot, podResources } from "../services/utils/solidUtils.ts";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
+import Tooltip from "@mui/material/Tooltip";
 import PersonIcon from "@mui/icons-material/Person";
 import SharePage from "./SharePage.tsx";
 import ManagePage from "./ManagePage.tsx";
 import ConnectPage from "./ConnectPage.tsx";
 import Footer from "../components/Footer.tsx";
+import { useDevMode } from "../components/devMode.ts";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
@@ -53,6 +55,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const [tabValue, setTabValue] = useState(
     (location.state as { openRoom?: boolean } | null)?.openRoom ? 3 : 0,
   );
+  const devMode = useDevMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   // True while "Remove all app data" is wiping the Pod — shows a full-page
   // activity screen with the live deletion requests and a Cancel button.
@@ -131,11 +134,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     setDemoSeedDeclined(session, true).catch(() => {});
   };
 
-  const handleCreateDemos = () => {
-    handleMenuClose();
-    seedDemos();
-  };
-
   // Load (and revoke) the avatar object URL for the current session.
   useEffect(() => {
     let current: string | null = null;
@@ -183,13 +181,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const handleLogout = () => {
     handleMenuClose();
     onLogout();
-  };
-
-  // Switch account: log out at the identity provider too, so it doesn't silently
-  // re-authorize the same account on the next login. Redirects to the provider.
-  const handleSwitchAccount = () => {
-    handleMenuClose();
-    onLogout({ suppressAutoLogin: true, logoutType: "idp" });
   };
 
   // Permanently wipe the whole granergize/ collection from the Pod, then log out.
@@ -311,22 +302,26 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           }}
         >
           <NetworkActivityIndicator />
-          <IconButton
-            onClick={handleMenuOpen}
-            aria-label="Account menu"
-            sx={{ p: 0 }}
-          >
-            <Avatar
-              src={logoUrl ?? undefined}
-              sx={{
-                bgcolor: "primary.main",
-                width: 40,
-                height: 40,
-              }}
+          <Tooltip title={session.info.webId ?? "Account menu"}>
+            <IconButton
+              onClick={handleMenuOpen}
+              aria-label={session.info.webId
+                ? `Account menu — ${session.info.webId}`
+                : "Account menu"}
+              sx={{ p: 0 }}
             >
-              <PersonIcon />
-            </Avatar>
-          </IconButton>
+              <Avatar
+                src={logoUrl ?? undefined}
+                sx={{
+                  bgcolor: "primary.main",
+                  width: 40,
+                  height: 40,
+                }}
+              >
+                <PersonIcon />
+              </Avatar>
+            </IconButton>
+          </Tooltip>
           <Menu
             anchorEl={anchorEl}
             open={menuOpen}
@@ -352,18 +347,14 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             <MenuItem onClick={handleOrganisation}>
               Organisation…
             </MenuItem>
-            <MenuItem onClick={handleCreateDemos}>
-              Create demo buildings
-            </MenuItem>
-            <MenuItem
-              onClick={handleRemoveAppData}
-              sx={{ color: "error.main" }}
-            >
-              Remove all app data…
-            </MenuItem>
-            <MenuItem onClick={handleSwitchAccount}>
-              Switch account…
-            </MenuItem>
+            {devMode && (
+              <MenuItem
+                onClick={handleRemoveAppData}
+                sx={{ color: "error.main" }}
+              >
+                Remove all app data…
+              </MenuItem>
+            )}
             <MenuItem onClick={handleLogout}>
               Logout
             </MenuItem>

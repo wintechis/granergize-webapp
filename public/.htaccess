@@ -1,0 +1,7 @@
+# Serve the Solid-OIDC Client Identifier Document as JSON-LD. Without this the
+# Apache user-dir defaults to text/plain for the unknown .jsonld extension, and
+# Solid providers (CSS, Inrupt) reject the document when dereferencing the
+# clientId IRI — so the consent screen falls back to the opaque client ID.
+# Requires the vhost to allow AddType overrides (AllowOverride FileInfo/All);
+# if .htaccess is disabled on this host, set the type in the server config.
+AddType application/ld+json .jsonld

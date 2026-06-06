@@ -1,20 +1,12 @@
 import { useMemo, useState } from "react";
-import {
-  Box,
-  Button,
-  Checkbox,
-  Divider,
-  FormControl,
-  FormControlLabel,
-  InputLabel,
-  MenuItem,
-  Select,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Typography } from "@mui/material";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "../../types/types.ts";
+import type {
+  BuildingType,
+  InvestorCertification,
+  InvestorOperatingCosts,
+} from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/utils/config/buildingConfig.ts";
 import {
@@ -22,6 +14,7 @@ import {
   updateBuilding,
 } from "../services/utils/buildingSerializer.ts";
 import { formatError } from "../services/utils/formatError.ts";
+import { makeBuildingFields } from "./buildingFields.tsx";
 import Modal from "./Modal.tsx";
 
 interface EditBuildingDialogProps {
@@ -57,6 +50,26 @@ const labelToLocalName: Record<string, string> = Object.fromEntries(
 
 const ENUM_FIELDS = new Set(["shiftRegime", "tenancyType", "indoorTemperatureClass"]);
 
+// Investor operating-cost categories (mirrors OPCOST_FIELDS in buildingSerializer);
+// edited as `_opcost_<key>`. One boolean, the rest free-text currency values.
+const OPCOST_FIELDS: { key: string; label: string; bool?: boolean }[] = [
+  { key: "wasteDisposal", label: "Waste disposal" },
+  { key: "insurance", label: "Insurance" },
+  {
+    key: "operationInspectionAndMaintenance",
+    label: "Operation, inspection & maintenance",
+    bool: true,
+  },
+  { key: "routineCleaningOffice", label: "Routine cleaning (office)" },
+  { key: "routineCleaningWarehouse", label: "Routine cleaning (warehouse)" },
+  { key: "glassCleaning", label: "Glass cleaning" },
+  { key: "exteriorMaintenance", label: "Exterior maintenance" },
+  { key: "security", label: "Security" },
+  { key: "propertyManagement", label: "Property management" },
+  { key: "caretaker", label: "Caretaker" },
+  { key: "repairAndMaintenance", label: "Repair & maintenance" },
+];
+
 function buildingToFields(b: BuildingType): Record<string, string> {
   const fields: Record<string, string> = {};
   for (const [key, val] of Object.entries(b)) {
@@ -71,6 +84,21 @@ function buildingToFields(b: BuildingType): Record<string, string> {
       fields[key] = ENUM_FIELDS.has(key) ? (labelToLocalName[val] ?? val) : val;
     }
   }
+  // Seed the investor master-data substructures as flat `_opcost_*` / `_cert_<i>_*`
+  // keys (the shape updateBuilding expects), so they round-trip through the form.
+  const oc = b.operatingCosts as InvestorOperatingCosts | undefined;
+  if (oc) {
+    for (const [k, v] of Object.entries(oc)) {
+      if (v == null) continue;
+      fields[`_opcost_${k}`] = typeof v === "boolean" ? (v ? "true" : "false") : String(v);
+    }
+  }
+  const certs = b.certifications as InvestorCertification[] | undefined;
+  certs?.forEach((c, i) => {
+    if (c.type) fields[`_cert_${i}_type`] = c.type;
+    if (c.level) fields[`_cert_${i}_level`] = c.level;
+    if (c.scope) fields[`_cert_${i}_scope`] = c.scope;
+  });
   return fields;
 }
 
@@ -86,9 +114,17 @@ export default function EditBuildingDialog(
 
   const role = building.provenance ?? "investor";
   const fileUri = building.sourceUri ?? building.uri.split("#")[0];
+  // One row per existing certification, plus a blank row to add another.
+  const certCount = (building.certifications?.length ?? 0) + 1;
 
   const setField = (key: string, val: string) =>
     setFields((prev) => ({ ...prev, [key]: val }));
+
+  const { tf, check, enumSelect, sectionHeader } = makeBuildingFields(
+    fields,
+    setField,
+    "edit-building",
+  );
 
   const handleClose = () => {
     if (saving) return;
@@ -126,59 +162,6 @@ export default function EditBuildingDialog(
     }
   };
 
-  const tf = (label: string, field: string, opts?: { type?: string }) => (
-    <TextField
-      label={label}
-      size="small"
-      fullWidth
-      type={opts?.type ?? "text"}
-      value={fields[field] ?? ""}
-      onChange={(e) => setField(field, e.target.value)}
-      sx={{ mb: 1.5 }}
-    />
-  );
-
-  const check = (label: string, field: string) => (
-    <FormControlLabel
-      control={
-        <Checkbox
-          checked={fields[field] === "true"}
-          onChange={(e) => setField(field, e.target.checked ? "true" : "false")}
-          size="small"
-        />
-      }
-      label={label}
-      sx={{ mb: 0.5 }}
-    />
-  );
-
-  const enumSelect = (
-    label: string,
-    field: string,
-    options: { value: string; label: string }[],
-  ) => (
-    <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
-      <InputLabel>{label}</InputLabel>
-      <Select
-        label={label}
-        value={fields[field] ?? ""}
-        onChange={(e) => setField(field, e.target.value)}
-      >
-        <MenuItem value=""><em>—</em></MenuItem>
-        {options.map((o) => (
-          <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  );
-
-  const sectionHeader = (title: string) => (
-    <Box sx={{ mt: 2, mb: 1 }}>
-      <Typography variant="h6" color="text.secondary">{title}</Typography>
-      <Divider />
-    </Box>
-  );
-
   return (
     <Modal
       open={open}
@@ -195,7 +178,7 @@ export default function EditBuildingDialog(
         </>
       }
     >
-      <Box sx={{ overflowY: "auto" }}>
+      <Box>
         {sectionHeader("Address")}
         {tf("Street address", "streetAddress")}
         {tf("Locality (city)", "locality")}
@@ -251,6 +234,25 @@ export default function EditBuildingDialog(
             {check("Electric boiler", "hasElectricBoiler")}
             {check("Heat pump", "hasHeatPump")}
             {check("District heating", "hasDistrictHeating")}
+
+            {sectionHeader("Operating costs")}
+            {OPCOST_FIELDS.map((f) =>
+              f.bool
+                ? <Box key={f.key}>{check(f.label, `_opcost_${f.key}`)}</Box>
+                : <Box key={f.key}>{tf(f.label, `_opcost_${f.key}`)}</Box>
+            )}
+
+            {sectionHeader("Certifications")}
+            {Array.from({ length: certCount }, (_, i) => (
+              <Box key={i} sx={{ mb: 1.5 }}>
+                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+                  Certification {i + 1}
+                </Typography>
+                {tf("Type (e.g. LEED, DGNB, BREEAM)", `_cert_${i}_type`)}
+                {tf("Level", `_cert_${i}_level`)}
+                {tf("Scope", `_cert_${i}_scope`)}
+              </Box>
+            ))}
           </>
         )}
 

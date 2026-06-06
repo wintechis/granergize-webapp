@@ -6,6 +6,7 @@ import { buildSharingEventTurtle } from "./sharingLog.ts";
 import { ACL_NS, GRAN_NS, RDF_TYPE } from "../utils/vocabularies.ts";
 import { parseDatasetSlug } from "../utils/energyDataset.ts";
 import { isSeriesGranularity } from "../utils/durationUtils.ts";
+import { readModifyWrite } from "../utils/podWrite.ts";
 
 export interface ShareOptions {
   includeEnergyData: boolean;
@@ -126,10 +127,23 @@ export async function getEnergyDataUrls(
 }
 
 /**
- * Grant read access to a resource (or container with acl:default) for a WebID.
- * Fetches existing ACL (creating owner block if absent) and appends the new auth entry.
+ * Grant read access to a resource (or container, with acl:default) for a WebID —
+ * idempotently and without clobbering a concurrent edit.
+ *
+ * Routed through {@link readModifyWrite} (GET → parse to a Store → mutate →
+ * conditional PUT), which fixes the previous GET-text + string-concat + blind PUT:
+ * - two concurrent grants (or a grant racing a revoke) no longer last-PUT-wins
+ *   each other — the `If-Match`/retry loop serializes them;
+ * - re-granting the same WebID *replaces* its single `#Read_<webid>` authorization
+ *   instead of appending a duplicate block.
+ *
+ * When the resource has no ACL yet (404), the owner's full-control authorization
+ * is (re-)established first — otherwise the grant would write an ACL that locks
+ * the owner out of their own resource.
+ *
+ * Exported for unit testing (the public `shareBuildingData` reaches it).
  */
-async function grantReadAccess(
+export async function grantReadAccess(
   resourceUri: string,
   webId: string,
   session: Session,
@@ -138,66 +152,55 @@ async function grantReadAccess(
   if (!session.info.isLoggedIn) {
     throw new Error("User is not logged in");
   }
-
-  console.log(
-    `Sharing ${
-      isContainer ? "container" : "resource"
-    } ${resourceUri} with WebID ${webId}`,
-  );
-
   const aclUrl = `${resourceUri}.acl`;
-  const existingAclResponse = await session.fetch(aclUrl, { method: "GET" });
-
-  let aclContent = "";
-  if (existingAclResponse.status === 404) {
-    const ownerWebId = session.info.webId as string;
-    const ownerLines = [
-      `<${aclUrl}#ControlReadWrite> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL_NS}agent> <${ownerWebId}> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL_NS}accessTo> <${resourceUri}> .`,
-      ...(isContainer
-        ? [`<${aclUrl}#ControlReadWrite> <${ACL_NS}default> <${resourceUri}> .`]
-        : []),
-      `<${aclUrl}#ControlReadWrite> <${ACL_NS}mode> <${ACL_NS}Read> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL_NS}mode> <${ACL_NS}Write> .`,
-      `<${aclUrl}#ControlReadWrite> <${ACL_NS}mode> <${ACL_NS}Control> .`,
-    ];
-    aclContent = ownerLines.join("\n") + "\n";
-  } else {
-    aclContent = await existingAclResponse.text();
-  }
-
+  const ownerWebId = session.info.webId as string;
   const authLabel = `Read_${webId.replace(/[^a-zA-Z0-9]/g, "_")}`;
-  const authLines = [
-    `<${aclUrl}#${authLabel}> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
-    `<${aclUrl}#${authLabel}> <${ACL_NS}agent> <${webId}> .`,
-    `<${aclUrl}#${authLabel}> <${ACL_NS}accessTo> <${resourceUri}> .`,
-    ...(isContainer
-      ? [`<${aclUrl}#${authLabel}> <${ACL_NS}default> <${resourceUri}> .`]
-      : []),
-    `<${aclUrl}#${authLabel}> <${ACL_NS}mode> <${ACL_NS}Read> .`,
-  ];
-  aclContent += authLines.join("\n") + "\n";
-
-  const putResponse = await session.fetch(aclUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: aclContent,
-  });
-
-  if (!putResponse.ok) {
-    const errorBody = await putResponse.text();
-    console.error(`[grantReadAccess] PUT error body: ${errorBody}`);
+  try {
+    await readModifyWrite(aclUrl, session, (store, { created }) => {
+      if (created) {
+        writeAuthorization(store, aclUrl, "ControlReadWrite", ownerWebId, {
+          resourceUri,
+          isContainer,
+          modes: ["Read", "Write", "Control"],
+        });
+      }
+      writeAuthorization(store, aclUrl, authLabel, webId, {
+        resourceUri,
+        isContainer,
+        modes: ["Read"],
+      });
+    });
+  } catch (error) {
     throw new Error(
-      `Failed to update ACL: ${putResponse.status} ${putResponse.statusText}`,
+      `Failed to update ACL for ${resourceUri}: ${
+        error instanceof Error ? error.message : String(error)
+      }`,
     );
   }
+}
 
-  console.log(
-    `Successfully shared ${
-      isContainer ? "container" : "resource"
-    } ${resourceUri} with ${webId}`,
-  );
+/**
+ * Write a single WAC authorization (subject `<aclUrl>#<label>`) into the store,
+ * first removing any prior triples for that subject so repeated writes are
+ * idempotent (no duplicate or stale modes). `modes` are local ACL mode names
+ * (`Read`/`Write`/`Control`), expanded against `ACL_NS`.
+ */
+function writeAuthorization(
+  store: Store,
+  aclUrl: string,
+  label: string,
+  agentWebId: string,
+  opts: { resourceUri: string; isContainer: boolean; modes: string[] },
+): void {
+  const subject = DataFactory.namedNode(`${aclUrl}#${label}`);
+  for (const q of store.getQuads(subject, null, null, null)) store.removeQuad(q);
+  const add = (p: string, o: string) =>
+    store.addQuad(subject, DataFactory.namedNode(p), DataFactory.namedNode(o));
+  add(RDF_TYPE, `${ACL_NS}Authorization`);
+  add(`${ACL_NS}agent`, agentWebId);
+  add(`${ACL_NS}accessTo`, opts.resourceUri);
+  if (opts.isContainer) add(`${ACL_NS}default`, opts.resourceUri);
+  for (const mode of opts.modes) add(`${ACL_NS}mode`, `${ACL_NS}${mode}`);
 }
 
 /**

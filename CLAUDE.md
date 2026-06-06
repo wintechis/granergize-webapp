@@ -193,10 +193,13 @@ in via `trackedFetch` (geocoding — also retried) or `beginActivity`/`endActivi
 `NetworkActivityIndicator` shows the live in-flight requests inline + a count badge,
 and is clickable to open a rolling debug log of finished requests (status, pod-relative
 path, duration) — useful for spotting repeated/failed calls. The store keeps that log;
-`endActivity(id, { status | error })` records each outcome.
+`endActivity(id, { status | error })` records each outcome. The inline request URIs and
+the clickable log are a **Developer-mode** affordance (see UI conventions): outside dev
+mode the indicator is a plain spinner and `RequestActivityList` renders nothing.
 
-The header indicator's debug log (click the network indicator) is the in-app way to audit
-what the app fetches end-to-end — status, pod-relative path, and per-hit timing.
+The header indicator's debug log (enable Developer mode, then click the network indicator)
+is the in-app way to audit what the app fetches end-to-end — status, pod-relative path,
+and per-hit timing.
 
 **Loading-spinner policy: the header indicator is the ONLY loading spinner inside the
 app shell.** Don't add component-level `CircularProgress`/`LinearProgress` for network
@@ -256,6 +259,22 @@ ESLint-enforced (`eslint.config.js`); the rest are review conventions.
   rather than bespoke flex rows, so every list looks and pages the same.
 - **Icon actions.** `IconButton size="small"` with both a `Tooltip` and an
   `aria-label`.
+- **Developer mode — one gate for raw/debug affordances.** A client-only,
+  `localStorage`-persisted flag (pure store `services/utils/devMode.ts` +
+  `useDevMode()` in `components/devMode.ts`, mirroring the
+  `networkActivity`/`requestActivity` split), toggled from the footer. It gates
+  everything that exposes RDF/Solid plumbing rather than user content, and is OFF
+  by default. Gated by it: the `RdfSourceLink` raw-RDF source links (the component
+  **self-hides** outside dev mode, so it's the one-call way to add a dev-only
+  source link — prefer it over a bespoke `UriLink` for any backing-resource link),
+  the in-list resource IRIs (building URIs, the energy dataset + weather adapter
+  links), the dev-only "Your inbox" / "Outgoing shares" sections, the "Remove all
+  app data…" account action, and the request log (`RequestActivityList` renders
+  nothing outside dev mode; the header `NetworkActivityIndicator` collapses to a
+  plain spinner — no inline URIs, no clickable log). WebIDs and data-room invite
+  IRIs are identity/links, not raw storage, so they stay visible in both modes.
+  When adding anything that surfaces an IRI/container or a debugging view, gate it
+  on dev mode.
 
 When a new widget seems necessary, first check whether an existing
 component/pattern covers it; prefer extending the shared one over adding a

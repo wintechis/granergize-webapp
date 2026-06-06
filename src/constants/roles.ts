@@ -31,3 +31,23 @@ export const PROVENANCE_TO_IRI: Record<UserRole, string> = {
 export const IRI_TO_PROVENANCE: Record<string, UserRole> = Object.fromEntries(
   Object.entries(PROVENANCE_TO_IRI).map(([role, iri]) => [iri, role as UserRole]),
 ) as Record<string, UserRole>;
+
+/**
+ * Company *kind* (a {@link UserRole} value) ↔ the gran: IRI used as the
+ * `org:classification` of the user's organisation node in the WebID profile —
+ * what kind of company it is (e.g. a real-estate investor), NOT a role the
+ * person plays. Deliberately distinct from {@link PROVENANCE_TO_IRI}: those
+ * `…Role` IRIs name the producing *role* on a building's attribution, whereas
+ * these name the org's classification concept. The producing role recorded on a
+ * building is derived from the company kind via {@link PROVENANCE_TO_IRI}.
+ */
+export const COMPANY_KIND_TO_IRI: Record<UserRole, string> = {
+  dummy: `${GRAN_NS}Dummy`,
+  investor: `${GRAN_NS}Investor`,
+  user: `${GRAN_NS}User`,
+  benchmark_service_provider: `${GRAN_NS}BenchmarkServiceProvider`,
+};
+
+export const IRI_TO_COMPANY_KIND: Record<string, UserRole> = Object.fromEntries(
+  Object.entries(COMPANY_KIND_TO_IRI).map(([role, iri]) => [iri, role as UserRole]),
+) as Record<string, UserRole>;

@@ -4,17 +4,23 @@ import { localProvider } from "../../config/providers.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { watchCloudflareRateLimit } from "./cloudflareGuard.ts";
 
-const E2E_LOCAL = !!(globalThis as { process?: { env: Record<string, string | undefined> } })
-  .process?.env?.E2E_LOCAL;
+const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
+  .process?.env;
+const E2E_LOCAL = !!ENV?.E2E_LOCAL;
+// The benchmark seeds its own data per size via the control server's /seed, so it
+// has no use for a pristine reset — and a reset RESTARTS CSS, then logs in against
+// a cold OIDC (the JWKS boot race), which is the single most flaky moment. Skip it
+// for the bench: log into the CSS the webServer already booted + warmed.
+const E2E_BENCH = !!ENV?.E2E_BENCH;
 
 // Tier 3 (local CSS) isolation: restart CSS ONCE per spec file so each spec starts
 // with pristine, freshly-seeded pods (no shared mutable state across the 8 solo
 // specs on one pod). Keyed by spec file; the shared promise dedupes the concurrent
-// A/B logins a sharing spec fires. No-op outside the local tier.
+// A/B logins a sharing spec fires. No-op outside the local tier (or for the bench).
 let resetForFile: string | undefined;
 let resetInFlight: Promise<unknown> | undefined;
 async function resetLocalPodsOnce(): Promise<void> {
-  if (!E2E_LOCAL) return;
+  if (!E2E_LOCAL || E2E_BENCH) return;
   const file = test.info().file;
   if (file !== resetForFile) {
     resetForFile = file;

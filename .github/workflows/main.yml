@@ -101,6 +101,9 @@ jobs:
         with:
           name: dist
           path: dist
+          # Carry dotfiles (dist/.htaccess sets the application/ld+json type for
+          # the Solid client-id document); v7 excludes hidden files by default.
+          include-hidden-files: true
   deploy:
     # Gate: only deploy if build, unit tests, lint, and typecheck all pass.
     # (e2e runs as its own job but is intentionally NOT a deploy gate.)

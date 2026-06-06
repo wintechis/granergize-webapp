@@ -7,9 +7,7 @@
  * Returns false for absent/unparseable values (treat as aggregate — bulk-load).
  */
 export function isSeriesGranularity(granularity?: string): boolean {
-  if (!granularity) return false;
-  const m = /^PT(?:\d+H)?(?:(\d+)M)?/.exec(granularity);
-  if (!granularity.startsWith("PT")) return false; // has a date part ⇒ aggregate
-  // PT-prefixed (time-only) durations are sub-hourly series (minutes/hours).
-  return m !== null;
+  // A time-only ISO-8601 duration (`PT…`) is a sub-hourly series; anything with a
+  // date part (`P…Y/M/W/D`) — or an absent/unparseable value — is an aggregate.
+  return granularity?.startsWith("PT") ?? false;
 }

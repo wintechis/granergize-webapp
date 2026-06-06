@@ -1,0 +1,20 @@
+{
+  "@context": ["https://www.w3.org/ns/solid/oidc-context.jsonld"],
+  "client_id": "https://paul.ti.rw.fau.de/~qa60fyri/testing/granergize/clientid.jsonld",
+  "client_name": "Granergize App",
+  "logo_uri": "https://paul.ti.rw.fau.de/~qa60fyri/testing/granergize/favicon.svg",
+  "client_uri": "https://paul.ti.rw.fau.de/~qa60fyri/testing/granergize/",
+  "redirect_uris": [
+    "https://paul.ti.rw.fau.de/~qa60fyri/testing/granergize/",
+    "https://paul.ti.rw.fau.de/~qa60fyri/testing/granergize/index.html"
+  ],
+  "post_logout_redirect_uris": [
+    "https://paul.ti.rw.fau.de/~qa60fyri/testing/granergize/",
+    "https://paul.ti.rw.fau.de/~qa60fyri/testing/granergize/index.html"
+  ],
+  "scope": "openid profile offline_access webid",
+  "grant_types": ["authorization_code", "refresh_token"],
+  "response_types": ["code"],
+  "token_endpoint_auth_method": "none",
+  "application_type": "web"
+}

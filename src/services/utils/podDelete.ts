@@ -2,8 +2,9 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh } from "./podFetch.ts";
 import { appRoot } from "./solidUtils.ts";
+import { LDP_CONTAINS as LDP_CONTAINS_IRI } from "./vocabularies.ts";
 
-const LDP_CONTAINS = DataFactory.namedNode("http://www.w3.org/ns/ldp#contains");
+const LDP_CONTAINS = DataFactory.namedNode(LDP_CONTAINS_IRI);
 
 /**
  * Recursively delete an LDP container and everything beneath it.

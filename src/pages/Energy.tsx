@@ -19,11 +19,16 @@ import {
 import { alpha } from "@mui/material/styles";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import { useSolidData } from "../hooks/queries.ts";
-import { RefLink, UriLink } from "../components/detail/DetailView.tsx";
+import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
+import { useDevMode } from "../components/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import UserEnergyChart from "./UserEnergyChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
+import {
+  CHART_COLOR_PALETTE,
+  ENERGY_ABOVE_AVG_COLOR,
+  ENERGY_BELOW_AVG_COLOR,
+} from "../constants/chartColors.ts";
 import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 
 type EnergyProps = {
@@ -38,6 +43,7 @@ export default function Energy(
 ) {
   const { energyNeed, averages, operatorAverages, isLoading, error } =
     useSolidData();
+  const dev = useDevMode();
 
   // Find the energy data for the selected building
   const energy = energyNeed?.find((e) => e.id.toString() === selectedBuilding);
@@ -70,6 +76,9 @@ export default function Energy(
             }
           />
           <CardContent>
+            {seriesDatasets.map((d) => (
+              <RdfSourceLink key={d.url} href={d.url} />
+            ))}
             <UserEnergyChart
               seriesDatasets={seriesDatasets}
               session={session}
@@ -127,11 +136,11 @@ export default function Energy(
     const saturation = Math.min(percentageDeviation, 100); // Cap saturation at 100%
 
     if (deviation < 0) {
-      // Below average — use theme success.light (#a5d6a7)
-      return alpha("#a5d6a7", saturation / 100);
+      // Below average — a pale success-green tint, saturated by deviation.
+      return alpha(ENERGY_BELOW_AVG_COLOR, saturation / 100);
     } else {
-      // Above average — use theme error.light (#ef9a9a)
-      return alpha("#ef9a9a", saturation / 100);
+      // Above average — a pale error-red tint, saturated by deviation.
+      return alpha(ENERGY_ABOVE_AVG_COLOR, saturation / 100);
     }
   }
 
@@ -254,12 +263,12 @@ export default function Energy(
         }
       />
       <CardContent>
-        <Typography variant="body1">
-          <strong>
-            id: <UriLink href={energy.uri}>{energy.uri}</UriLink>
-          </strong>
-        </Typography>
-        <Divider />
+        {dev && (
+          <>
+            <RdfSourceLink href={energy.uri} />
+            <Divider />
+          </>
+        )}
         <Stack spacing={2}>
           {createEnergyGrid("energyNeed")}
           {createEnergyGrid("energyGeneration")}

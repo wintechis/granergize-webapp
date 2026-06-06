@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSession } from "./session.ts";
 import { queryKeys } from "./queries.ts";
-import { confirmAndDeleteBuilding } from "../services/utils/buildingActions.ts";
+import { deleteBuildingResource } from "../services/utils/buildingActions.ts";
 import {
   revokeAccess,
   revokeAllViewRecipients,
@@ -48,14 +48,17 @@ export function useInvalidateBuildingData() {
   };
 }
 
-/** Permanently delete an owned building (resolves to false if the user cancels). */
+/**
+ * Permanently delete an owned building. The caller confirms first (see
+ * `buildBuildingDeletionPreview` + the component's `confirm`); this only performs
+ * the delete and refreshes the affected queries.
+ */
 export function useDeleteBuilding() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (building: BuildingType) =>
-      confirmAndDeleteBuilding(getSession(), building),
-    onSettled: (deleted) => {
-      if (deleted === false) return; // cancelled — nothing changed
+      deleteBuildingResource(getSession(), building),
+    onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
       qc.invalidateQueries({ queryKey: queryKeys.energy });
       qc.invalidateQueries({ queryKey: queryKeys.sharedBuildings });

@@ -1,7 +1,10 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import type { UserRole } from "../../../types/types.ts";
-import { IRI_TO_PROVENANCE, PROVENANCE_TO_IRI } from "../../constants/roles.ts";
+import {
+  COMPANY_KIND_TO_IRI,
+  IRI_TO_COMPANY_KIND,
+} from "../../constants/roles.ts";
 import { fetchFresh } from "./podFetch.ts";
 import { invalidateProfile, loadProfileStore } from "./profileDocument.ts";
 import { getPodBaseUrl } from "./solidUtils.ts";
@@ -12,11 +15,19 @@ import { FOAF_NS, ORG_NS, OWL_NS, RDF_TYPE } from "./vocabularies.ts";
  * document* (`card`) as a `<#org>` node and linked from the person via
  * `org:memberOf` (W3C Org ontology). FOAF carries the org's name/logo/homepage:
  *
- *   <#me>  a foaf:Person ; org:memberOf <#org> .
+ *   <#me>  a foaf:Person ; org:memberOf <#org> ; org:hasMembership <#membership> .
+ *   <#membership> a org:Membership ;          # the person↔org link, role-free
+ *          org:member <#me> ; org:organization <#org> .
  *   <#org> a org:Organization, foaf:Organization ;
+ *          org:classification gran:Investor ;  # what KIND of company it is
  *          foaf:name "ACME" ; foaf:logo <…/logo.png> ;
  *          foaf:homepage <https://acme.example/> ;
  *          owl:sameAs <https://acme.example/profile/card#me> .  # org's own WebID
+ *
+ * The "kind of company" the form captures is a property of the org itself
+ * (`org:classification` → a `gran:` concept), NOT a role the person plays — the
+ * membership carries no `org:role`. The producing role recorded on buildings is
+ * *derived* from this kind (see `COMPANY_KIND_TO_IRI` / `PROVENANCE_TO_IRI`).
  *
  * The logo *image* lives at `<pod>/profile/logo.<ext>` (in the profile folder,
  * since the org is part of the profile); only the link (`foaf:logo` on `<#org>`)
@@ -31,16 +42,17 @@ const FOAF_NAME = `${FOAF_NS}name`;
 const FOAF_LOGO = `${FOAF_NS}logo`;
 const FOAF_HOMEPAGE = `${FOAF_NS}homepage`;
 const OWL_SAME_AS = `${OWL_NS}sameAs`;
-// W3C Org membership — carries the user's *producing role* (`org:role`), the PROV
-// provenance category recorded on every building they add (separate from the
-// data-room membership role, which lives in the room log via `sioc:has_function`).
+// W3C Org membership — the role-free person↔org link. The company KIND is a
+// property of the org node (`org:classification`, below), not a role here.
 const ORG_HAS_MEMBERSHIP = `${ORG_NS}hasMembership`;
 const ORG_MEMBERSHIP = `${ORG_NS}Membership`;
 const ORG_MEMBER = `${ORG_NS}member`;
-const ORG_ROLE = `${ORG_NS}role`;
 // The `org:organization` PROPERTY (lowercase) linking a Membership to its org —
 // distinct from `ORG_ORGANIZATION` above, which is the `org:Organization` CLASS.
 const ORG_ORGANIZATION_PRED = `${ORG_NS}organization`;
+// `org:classification` on the org node — which KIND of company it is (a gran:
+// concept, e.g. gran:Investor). The data-producer category is read from here.
+const ORG_CLASSIFICATION = `${ORG_NS}classification`;
 
 export interface Organization {
   /** Display name (foaf:name). */
@@ -207,6 +219,27 @@ function ensureType(store: Store, subject: string, type: string): void {
   }
 }
 
+/**
+ * Ensure the role-free W3C Org skeleton: `<#me> org:memberOf <#org>`, the org
+ * node's `org:Organization`/`foaf:Organization` types, and a membership
+ * (`<#me> org:hasMembership <#membership>` → `<#membership> a org:Membership ;
+ * org:member <#me> ; org:organization <#org>`). The company kind
+ * (`org:classification`) and FOAF fields are set by the callers; this only wires
+ * the person↔org link so both `saveOrganization` and `saveCompanyKind` agree.
+ */
+function ensureOrgMembership(store: Store, webId: string): void {
+  const org = orgNodeIri(webId);
+  setNamedNode(store, webId, ORG_MEMBER_OF, org);
+  ensureType(store, org, ORG_ORGANIZATION);
+  ensureType(store, org, FOAF_ORGANIZATION);
+
+  const membership = membershipNodeIri(webId);
+  setNamedNode(store, webId, ORG_HAS_MEMBERSHIP, membership);
+  ensureType(store, membership, ORG_MEMBERSHIP);
+  setNamedNode(store, membership, ORG_MEMBER, webId);
+  setNamedNode(store, membership, ORG_ORGANIZATION_PRED, org);
+}
+
 async function putProfile(
   docUrl: string,
   store: Store,
@@ -258,9 +291,7 @@ export async function saveOrganization(
   );
 
   const org = orgNodeIri(webId);
-  setNamedNode(store, webId, ORG_MEMBER_OF, org);
-  ensureType(store, org, ORG_ORGANIZATION);
-  ensureType(store, org, FOAF_ORGANIZATION);
+  ensureOrgMembership(store, webId);
 
   const name = fields.name?.trim();
   const homepage = fields.homepage?.trim();
@@ -276,12 +307,13 @@ export async function saveOrganization(
 }
 
 /**
- * The user's *data-producer role* — the PROV provenance category applied to every
- * building they add — read from `<#me> org:hasMembership <#m> . <#m> org:role <iri>`
- * in the WebID profile. Returns null when unset (so the Add flow records no
- * attribution). Distinct from the data-room membership role.
+ * The user's company *kind* — read from `org:classification` on the org node
+ * (`<#me> org:memberOf <#org> . <#org> org:classification <iri>`). This is the
+ * provenance category applied to every building they add (mapped to the
+ * `prov:hadRole` IRI when serializing). Returns null when unset (so the Add flow
+ * records no attribution). Distinct from the data-room membership role.
  */
-export async function getProducingRole(
+export async function getCompanyKind(
   session: Session,
 ): Promise<UserRole | null> {
   const webId = session.info.webId;
@@ -289,22 +321,22 @@ export async function getProducingRole(
   const store = await loadProfile(webId, session);
   if (!store) return null;
 
-  const membership = firstObject(store, webId, ORG_HAS_MEMBERSHIP);
-  if (!membership) return null;
-  const roleIri = firstObject(store, membership, ORG_ROLE);
-  if (!roleIri) return null;
-  return IRI_TO_PROVENANCE[roleIri] ?? null;
+  const orgIri = firstObject(store, webId, ORG_MEMBER_OF);
+  if (!orgIri) return null;
+  const kindIri = firstObject(store, orgIri, ORG_CLASSIFICATION);
+  if (!kindIri) return null;
+  return IRI_TO_COMPANY_KIND[kindIri] ?? null;
 }
 
 /**
- * Persist the user's data-producer role into the WebID profile as a W3C Org
- * membership (`org:role`, single PUT). Links the membership to the org node only
- * when an organisation is set; `role === null` clears the membership. Leaves the
- * `org:memberOf` / FOAF org triples untouched.
+ * Persist the user's company kind into the WebID profile as `org:classification`
+ * on the org node (single PUT), ensuring the role-free person↔org membership.
+ * `kind === null` clears the classification but leaves the org/membership intact.
+ * Leaves the FOAF org fields untouched.
  */
-export async function saveProducingRole(
+export async function saveCompanyKind(
   session: Session,
-  role: UserRole | null,
+  kind: UserRole | null,
 ): Promise<void> {
   const webId = session.info.webId;
   if (!session.info.isLoggedIn || !webId) {
@@ -323,25 +355,10 @@ export async function saveProducingRole(
     ),
   );
 
-  const membership = membershipNodeIri(webId);
-  if (role) {
-    setNamedNode(store, webId, ORG_HAS_MEMBERSHIP, membership);
-    ensureType(store, membership, ORG_MEMBERSHIP);
-    setNamedNode(store, membership, ORG_MEMBER, webId);
-    setNamedNode(store, membership, ORG_ROLE, PROVENANCE_TO_IRI[role]);
-    // Tie the membership to the org node only when the user has an organisation.
-    const org = firstObject(store, webId, ORG_MEMBER_OF);
-    if (org) setNamedNode(store, membership, ORG_ORGANIZATION_PRED, org);
-    else clearPredicate(store, membership, ORG_ORGANIZATION_PRED);
-  } else {
-    // Clear the membership entirely (link + node triples).
-    clearPredicate(store, webId, ORG_HAS_MEMBERSHIP);
-    for (
-      const q of store.getQuads(DataFactory.namedNode(membership), null, null, null)
-    ) {
-      store.removeQuad(q);
-    }
-  }
+  const org = orgNodeIri(webId);
+  ensureOrgMembership(store, webId);
+  if (kind) setNamedNode(store, org, ORG_CLASSIFICATION, COMPANY_KIND_TO_IRI[kind]);
+  else clearPredicate(store, org, ORG_CLASSIFICATION);
 
   await putProfile(docUrl, store, session);
 }
@@ -391,9 +408,7 @@ export async function uploadOrgLogo(
   );
 
   const org = orgNodeIri(webId);
-  setNamedNode(store, webId, ORG_MEMBER_OF, org);
-  ensureType(store, org, ORG_ORGANIZATION);
-  ensureType(store, org, FOAF_ORGANIZATION);
+  ensureOrgMembership(store, webId);
   setNamedNode(store, org, FOAF_LOGO, logoUrl);
 
   await putProfile(docUrl, store, session);

@@ -3,10 +3,7 @@ import {
   Alert,
   Box,
   Button,
-  Checkbox,
-  Divider,
   FormControl,
-  FormControlLabel,
   IconButton,
   InputLabel,
   MenuItem,
@@ -14,7 +11,6 @@ import {
   type SelectChangeEvent,
   Tab,
   Tabs,
-  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -23,6 +19,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
+import { makeBuildingFields } from "./buildingFields.tsx";
 import RequestActivityList from "./RequestActivityList.tsx";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
@@ -36,7 +33,7 @@ import {
   uploadBuilding,
   writeBuildingEnergy,
 } from "../services/utils/buildingSerializer.ts";
-import { getProducingRole } from "../services/utils/organizationManager.ts";
+import { getCompanyKind } from "../services/utils/organizationManager.ts";
 import { formatError } from "../services/utils/formatError.ts";
 
 interface AddBuildingDialogProps {
@@ -51,7 +48,7 @@ interface AddBuildingDialogProps {
 /**
  * The import/export *template* (spreadsheet shape) chosen when adding a building —
  * the parse/serialize shape only. It is NOT the building's PROV provenance (that
- * comes from your profile data-producer role, `getProducingRole`) nor the
+ * comes from your company kind in the profile, `getCompanyKind`) nor the
  * data-room membership role.
  */
 type Template = UserRole;
@@ -137,11 +134,12 @@ export default function AddBuildingDialog(
     if (open && autostartImport) fileInputRef.current?.click();
   }, [open, autostartImport]);
 
-  // Load the profile data-producer role when the dialog opens (cached read).
+  // Derive the producing role from the profile's company kind when the dialog
+  // opens (cached read).
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
-    getProducingRole(session).then((r) => {
+    getCompanyKind(session).then((r) => {
       if (!cancelled) {
         setProducingRole(r);
         setRoleLoaded(true);
@@ -299,9 +297,9 @@ export default function AddBuildingDialog(
       return;
     }
 
-    // Provenance is the profile data-producer role (authoritative cached read),
-    // not the import template; omit the attribution when no role is set.
-    const category = await getProducingRole(session);
+    // Provenance is derived from the profile's company kind (authoritative cached
+    // read), not the import template; omit the attribution when none is set.
+    const category = await getCompanyKind(session);
     const provenance = category ? { agent: webId, category } : undefined;
 
     const controller = new AbortController();
@@ -371,65 +369,10 @@ export default function AddBuildingDialog(
 
   const handleCancelUpload = () => uploadAbort.current?.abort();
 
-  const tf = (
-    label: string,
-    field: string,
-    opts?: { type?: string; required?: boolean; error?: boolean; helperText?: string },
-  ) => (
-    <TextField
-      label={label}
-      size="small"
-      fullWidth
-      required={opts?.required}
-      type={opts?.type ?? "text"}
-      error={opts?.error}
-      helperText={opts?.helperText}
-      value={fields[field] ?? ""}
-      onChange={(e) => setField(field, e.target.value)}
-      sx={{ mb: 1.5 }}
-    />
-  );
-
-  const check = (label: string, field: string) => (
-    <FormControlLabel
-      control={
-        <Checkbox
-          checked={fields[field] === "true"}
-          onChange={(e) => setField(field, e.target.checked ? "true" : "false")}
-          size="small"
-        />
-      }
-      label={label}
-      sx={{ mb: 0.5 }}
-    />
-  );
-
-  const enumSelect = (
-    label: string,
-    field: string,
-    options: { value: string; label: string }[],
-  ) => (
-    <FormControl size="small" fullWidth sx={{ mb: 1.5 }}>
-      <InputLabel id={`add-building-${field}-label`}>{label}</InputLabel>
-      <Select
-        labelId={`add-building-${field}-label`}
-        label={label}
-        value={fields[field] ?? ""}
-        onChange={(e) => setField(field, e.target.value)}
-      >
-        <MenuItem value=""><em>—</em></MenuItem>
-        {options.map((o) => (
-          <MenuItem key={o.value} value={o.value}>{o.label}</MenuItem>
-        ))}
-      </Select>
-    </FormControl>
-  );
-
-  const sectionHeader = (title: string) => (
-    <Box sx={{ mt: 2, mb: 1 }}>
-      <Typography variant="h6" color="text.secondary">{title}</Typography>
-      <Divider />
-    </Box>
+  const { tf, check, enumSelect, sectionHeader } = makeBuildingFields(
+    fields,
+    setField,
+    "add-building",
   );
 
   return (
@@ -496,7 +439,7 @@ export default function AddBuildingDialog(
         </>
       }
     >
-      <Box sx={{ overflowY: "auto" }}>
+      <Box>
         {/* No data-producer role in the profile → buildings get no provenance.
             Non-blocking nudge to set one (avatar → Organisation). */}
         {roleLoaded && producingRole === null && (

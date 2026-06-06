@@ -18,12 +18,12 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";
 import Modal from "./Modal.tsx";
 import {
+  getCompanyKind,
   getOrganization,
-  getProducingRole,
   isSupportedLogoType,
   type Organization,
+  saveCompanyKind,
   saveOrganization,
-  saveProducingRole,
   uploadOrgLogo,
 } from "../services/utils/organizationManager.ts";
 
@@ -49,9 +49,10 @@ export default function OrganizationDialog(
   const [name, setName] = useState("");
   const [homepage, setHomepage] = useState("");
   const [sameAs, setSameAs] = useState("");
-  // The data-producer role (PROV provenance category applied to buildings you add).
-  const [role, setRole] = useState<UserRole | "">("");
-  const [initialRole, setInitialRole] = useState<UserRole | null>(null);
+  // The kind of company (org:classification on the org node) — also the PROV
+  // provenance category applied to buildings you add.
+  const [companyKind, setCompanyKind] = useState<UserRole | "">("");
+  const [initialKind, setInitialKind] = useState<UserRole | null>(null);
   const [initial, setInitial] = useState<Organization>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [pickedFile, setPickedFile] = useState<File | null>(null);
@@ -63,9 +64,9 @@ export default function OrganizationDialog(
   useEffect(() => {
     if (!open) return;
     let revoke: string | null = null;
-    getProducingRole(session).then((r) => {
-      setRole(r ?? "");
-      setInitialRole(r);
+    getCompanyKind(session).then((k) => {
+      setCompanyKind(k ?? "");
+      setInitialKind(k);
     }).catch(() => {});
     getOrganization(session).then((org) => {
       const o = org ?? {};
@@ -97,7 +98,7 @@ export default function OrganizationDialog(
   const dirty = name !== (initial.name ?? "") ||
     homepage !== (initial.homepage ?? "") ||
     sameAs !== (initial.sameAs ?? "") ||
-    (role || null) !== initialRole ||
+    (companyKind || null) !== initialKind ||
     pickedFile != null;
 
   const close = () => {
@@ -122,8 +123,8 @@ export default function OrganizationDialog(
     setSaving(true);
     try {
       await saveOrganization(session, { name, homepage, sameAs });
-      if ((role || null) !== initialRole) {
-        await saveProducingRole(session, role || null);
+      if ((companyKind || null) !== initialKind) {
+        await saveCompanyKind(session, companyKind || null);
       }
       if (pickedFile) await uploadOrgLogo(pickedFile, session);
       showNotification("Organisation saved", "success");
@@ -160,7 +161,12 @@ export default function OrganizationDialog(
     >
       <Box sx={{ display: "flex", flexDirection: "column", gap: 2, mt: 1 }}>
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-            <Avatar src={shownLogo} variant="rounded" sx={{ width: 56, height: 56 }} />
+            <Avatar
+              src={shownLogo}
+              alt="Organisation logo"
+              variant="rounded"
+              sx={{ width: 56, height: 56 }}
+            />
             <Box>
               <Button onClick={() => fileInputRef.current?.click()}>
                 Choose logo…
@@ -185,14 +191,14 @@ export default function OrganizationDialog(
             fullWidth
           />
           <FormControl fullWidth>
-            <InputLabel id="data-producer-role-label">
-              Your data-producer role
+            <InputLabel id="company-kind-label">
+              Kind of company
             </InputLabel>
             <Select
-              labelId="data-producer-role-label"
-              label="Your data-producer role"
-              value={role}
-              onChange={(e) => setRole(e.target.value as UserRole | "")}
+              labelId="company-kind-label"
+              label="Kind of company"
+              value={companyKind}
+              onChange={(e) => setCompanyKind(e.target.value as UserRole | "")}
             >
               <MenuItem value="">
                 <em>Not set</em>
@@ -202,12 +208,12 @@ export default function OrganizationDialog(
               ))}
             </Select>
             <FormHelperText>
-              Recorded as the provenance (who produced the data) on every building
-              you add. Separate from any data-room role.
+              What kind of company this is (e.g. a real-estate investor). Recorded
+              as the provenance (who produced the data) on every building you add.
             </FormHelperText>
           </FormControl>
           <TextField
-            label="Homepage"
+            label="Homepage URI"
             type="url"
             placeholder="https://example.com/"
             value={homepage}
@@ -215,9 +221,9 @@ export default function OrganizationDialog(
             fullWidth
           />
           <TextField
-            label="Organisation WebID (optional)"
+            label="Organisation WebID"
             type="url"
-            placeholder="https://org.example/profile/card#me"
+            placeholder="https://example.com/profile/card#me"
             value={sameAs}
             onChange={(e) => setSameAs(e.target.value)}
             helperText="If the company has its own WebID, link it here."

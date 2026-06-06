@@ -16,6 +16,7 @@ import {
   useRequestLog,
 } from "./requestActivity.ts";
 import { clearRequestLog } from "../services/utils/networkActivity.ts";
+import { useDevMode } from "./devMode.ts";
 
 /**
  * Header indicator reflecting ALL in-flight network requests (Pod fetches, map
@@ -26,6 +27,7 @@ import { clearRequestLog } from "../services/utils/networkActivity.ts";
  * the spinner is debounced so quick bursts (map tiles) don't flicker.
  */
 export default function NetworkActivityIndicator() {
+  const dev = useDevMode();
   const active = useNetworkActivity();
   const logEntries = useRequestLog();
   const count = active.length;
@@ -42,6 +44,26 @@ export default function NetworkActivityIndicator() {
     }
     return () => clearTimeout(hideTimer.current);
   }, [count]);
+
+  // Outside dev mode: a plain spinner while requests are in flight, nothing else
+  // — no inline request URIs, no clickable log. Dev mode exposes the full debug
+  // log (request URIs + history dialog) below.
+  if (!dev) {
+    return (
+      <Box
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "flex-end",
+          minWidth: 40,
+        }}
+      >
+        {(spinning || count > 0) && (
+          <CircularProgress size={20} thickness={5} />
+        )}
+      </Box>
+    );
+  }
 
   const root = currentStorageRoot();
   // Newest active request nearest the spinner (right-aligned, so the clip eats

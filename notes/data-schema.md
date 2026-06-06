@@ -225,9 +225,15 @@ dataset-shape terms (see "Open vocab question" under FAU resources below).
 [REC](https://w3id.org/rec#) is a published industry ontology for buildings/real
 estate. Here it's used **thinly** — a veneer over the project's own `gran:` vocab:
 
-- `rec:Building` — the building `rdf:type` (written `buildingSerializer.ts:380`,
-  expected on read).
-- `rec:nace-code`, `rec:operatedBy` — two core predicates (`buildingConfig.ts:24-25`).
+- `rec:Building` — the building `rdf:type` (written `buildingSerializer.ts:314`,
+  expected on read; both sides use the `REC_BUILDING` constant).
+- `rec:operatedBy`, `rec:nace-code` — two core predicates (`buildingConfig.ts:48-49`).
+  Caveats: `rec:operatedBy` *is* a real REC term (a property on `rec:Architecture`,
+  range an `Agent` — a WebID IRI), but we currently store it as an `xsd:string`
+  **literal** (`kind: "literal"`), not as an IRI-valued object, so it doesn't match
+  REC's range. `rec:nace-code` is **not confirmed** as a published REC term (REC 4.0
+  uses camelCase, not `nace-code`); treat that IRI as likely non-standard /
+  non-dereferenceable rather than canonical REC.
 - `rec#agent` — the agent type string (`agentParser.ts:12`).
 - Everything else — areas, investor/benchmark fields, the whole energy model — is
   `gran:` / `investor:` / `bench:` / SOSA, **not** REC.
@@ -236,20 +242,24 @@ So REC supplies the top-level building/agent **type + two identifiers**; `gran:`
 carries the actual domain data. REC is barely load-bearing, and not dereferenced
 (same as `gran:`).
 
-**Inconsistency to fix:** the type IRI is cased inconsistently — `rec:Building`
-(serializer, `TurtleParsingService.test.ts`) vs. `rec#building`
-(`buildingParser.ts:121`). REC's real class is **`rec:Building`** (capital); the
-lowercase variant is a latent bug that only passes because building detection
-keys on URL patterns, not the type.
+**Resolved:** an earlier casing inconsistency in the type IRI (`rec:Building` vs. a
+lowercase `rec#building`) is fixed — serializer (`:314`) and parser (`:115`) now both
+use the `REC_BUILDING` constant (`…#Building`, capital), so they agree on REC's real
+class name.
 
 **Bearing on the role/schema redesign above:** REC is the natural home for the
-"self-describing master data, parse on predicate presence" direction — building
-geometry / areas / spaces / NACE / operatedBy are REC's domain. Aligning
-master-data predicates to REC (where they exist) makes the "superset template"
-principled and interoperable, and shrinks the bespoke `gran:` vocab to its genuinely
-project-specific parts: **energy (gran:/SOSA/QUDT — REC has no strong time-series
-model) and roles**. It also reframes "publish a real vocab" — for *buildings* you
-map to REC rather than mint your own; only energy + roles need own terms.
+"self-describing master data, parse on predicate presence" direction — but only for
+what REC actually models. REC is a *topology* ontology: building → storey → space,
+plus `Agent`, `Address`, and GeoSPARQL `Geometry`. It deliberately does **not** define
+quantitative master-data predicates (no building/land area, height, year-of-construction,
+and no NACE predicate), so most of our numeric `gran:`/`investor:` fields have no REC
+equivalent and must stay bespoke. Aligning the predicates REC *does* cover (the building
+type, agent/`operatedBy`, address, spaces) makes the "superset template" interoperable
+where it can be, while the genuinely project-specific parts stay in own terms: **energy
+(gran:/SOSA/QUDT — REC has no strong time-series model), roles, and all the quantitative
+attributes REC omits**. So "publish a real vocab" is only partly reframed — for building
+*topology/agent/address* you map to REC; for areas, energy, and roles you still mint
+your own.
 
 ## Static FAU-hosted resources (`solid.ti.rw.fau.de/private/granergize/…`)
 

@@ -23,6 +23,7 @@ import {
   PROV_HAD_ROLE,
   PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE,
+  REC_BUILDING,
 } from "./vocabularies.ts";
 import { parseDatasetSlug } from "./energyDataset.ts";
 import { IRI_TO_PROVENANCE } from "../../constants/roles.ts";
@@ -111,7 +112,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
         // Store the source file URL separately for ownership checks.
         uri: quad.subject.value,
         sourceUri: quad.graph.value,
-        type: "https://w3id.org/rec#Building",
+        type: REC_BUILDING,
         certifications: [],
       });
     }

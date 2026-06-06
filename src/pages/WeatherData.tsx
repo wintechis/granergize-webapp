@@ -30,12 +30,20 @@ import {
   beginActivity,
   endActivity,
 } from "../services/utils/networkActivity.ts";
+import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 
 interface WeatherDataProps {
   building: BuildingType;
 }
 
 const WEATHER_API_URL = import.meta.env.VITE_WEATHER_API_URL || "/weather-api/";
+
+// The weather RDF adapter the app actually queries, resolved to an absolute URI
+// (the dev proxy `/weather-api/` → its origin). Surfaced as a dev-mode source
+// link so the external data service is inspectable, mirroring the Pod links.
+const WEATHER_SOURCE_URL = WEATHER_API_URL.startsWith("http")
+  ? WEATHER_API_URL
+  : `${globalThis.location.origin}${WEATHER_API_URL}`;
 
 const wetterdienstClient = new WetterdienstClient(
   WEATHER_API_URL.startsWith("http")
@@ -253,6 +261,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
             <Typography variant="body2" color="text.secondary">
               Data source: Deutscher Wetterdienst (DWD)
             </Typography>
+            <RdfSourceLink href={WEATHER_SOURCE_URL} />
 
             <Typography
               variant="caption"

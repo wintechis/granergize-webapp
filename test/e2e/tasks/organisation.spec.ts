@@ -3,11 +3,11 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 
 /**
  * Provenance-from-profile e2e (PROBLEMS.md #1). Proves a building's PROV
- * provenance comes from the **profile data-producer role**, not the import
- * template: set the role to *Investor* but add a building with the *User*
- * template, then in Create View the building filters under **Investor** (its
- * provenance) and NOT under **User** (its template) — `CreateViewDialog` filters
- * `b.provenance === selectedRole`.
+ * provenance comes from the **profile company kind** (org:classification on the
+ * org node), not the import template: set the company kind to *Investor* but add
+ * a building with the *User* template, then in Create View the building filters
+ * under **Investor** (its provenance) and NOT under **User** (its template) —
+ * `CreateViewDialog` filters `b.provenance === selectedRole`.
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/tasks/organisation.spec.ts
@@ -15,18 +15,18 @@ import { account, hasAccount, login } from "../helpers/login.ts";
  *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/organisation.spec.ts
  *
  * MUTATES the Pod but fully reverses itself: it restores the prior profile
- * producer role in afterAll and adds+deletes its one building. Runs against
+ * company kind in afterAll and adds+deletes its one building. Runs against
  * Alice (account A). Skipped without creds.
  */
 
 const ADDR = "Provenance E2E Strasse 1"; // unique, matchable building address
 
-// The producer role this Pod had before the test, restored in afterAll so the
+// The company kind this Pod had before the test, restored in afterAll so the
 // spec fully reverses its profile mutation (defaults to "Not set" on a reseeded
 // Pod). Captured from the dialog in the test.
-let priorRole = "Not set";
+let priorKind = "Not set";
 
-/** Open the avatar-menu Organisation dialog (waits for the role prefill). */
+/** Open the avatar-menu Organisation dialog (waits for the kind prefill). */
 async function openOrgDialog(page: Page): Promise<Locator> {
   // Bounded clicks: Playwright's default action timeout is 0 (wait forever), so a
   // stuck click here would consume a whole hook budget UNCATCHABLY (the best-effort
@@ -36,17 +36,17 @@ async function openOrgDialog(page: Page): Promise<Locator> {
     .click({ timeout: 15_000 });
   const org = page.getByRole("dialog");
   await expect(org).toBeVisible({ timeout: 30_000 });
-  await page.waitForLoadState("networkidle").catch(() => {}); // role prefills async
+  await page.waitForLoadState("networkidle").catch(() => {}); // kind prefills async
   return org;
 }
 
-/** Select a role in the open Organisation dialog and save (Cancel if unchanged). */
-async function setRoleAndSave(
+/** Select a company kind in the open Organisation dialog and save (Cancel if unchanged). */
+async function setKindAndSave(
   page: Page,
   org: Locator,
   label: string,
 ): Promise<void> {
-  const sel = org.getByLabel("Your data-producer role");
+  const sel = org.getByLabel("Kind of company");
   if ((await sel.textContent())?.trim() === label) {
     await org.getByRole("button", { name: /cancel/i }).click({ timeout: 15_000 });
     return;
@@ -81,15 +81,15 @@ test.describe("provenance from profile", () => {
   });
 
   test.afterAll(async () => {
-    // The restore opens the dialog + saves (setRoleAndSave waits up to 60 s for
+    // The restore opens the dialog + saves (setKindAndSave waits up to 60 s for
     // the "saved" toast), so the default 30 s hook budget is too tight — give it
     // room, otherwise a slow save fails teardown even though the test body passed.
     test.setTimeout(90_000);
-    // Fully reverse the profile mutation: restore the role this Pod started with.
+    // Fully reverse the profile mutation: restore the kind this Pod started with.
     try {
       if (!page.isClosed()) {
         const org = await openOrgDialog(page);
-        await setRoleAndSave(page, org, priorRole);
+        await setKindAndSave(page, org, priorKind);
       }
     } catch {
       // best-effort restore; never fail teardown
@@ -98,17 +98,17 @@ test.describe("provenance from profile", () => {
     }
   });
 
-  test("the profile producer role, not the template, sets a building's provenance", async () => {
+  test("the profile company kind, not the template, sets a building's provenance", async () => {
     test.setTimeout(180_000);
 
-    // 1. Capture the current producer role (to restore later), then set Investor.
+    // 1. Capture the current company kind (to restore later), then set Investor.
     const org = await openOrgDialog(page);
-    priorRole =
-      (await org.getByLabel("Your data-producer role").textContent())?.trim() ||
+    priorKind =
+      (await org.getByLabel("Kind of company").textContent())?.trim() ||
       "Not set";
-    await setRoleAndSave(page, org, "Investor");
+    await setKindAndSave(page, org, "Investor");
 
-    // 2. Add a building with the USER template (≠ the profile role). Wait for the
+    // 2. Add a building with the USER template (≠ the profile kind). Wait for the
     //    Add Building control (always present once Manage has loaded), NOT a
     //    pre-existing building row — the Pod may legitimately have none.
     await page.getByRole("tab", { name: "Manage" }).click();
@@ -131,7 +131,7 @@ test.describe("provenance from profile", () => {
 
     // 3. Create View keys on provenance (CreateViewDialog filters
     //    b.provenance === selectedRole): the building must appear under the Investor
-    //    filter (the profile role) — an exact provenance match — and must NOT appear
+    //    filter (the profile company kind) — an exact provenance match — and must NOT appear
     //    under the User filter (its import template). So provenance came from the
     //    profile, not the template.
     await page.waitForLoadState("networkidle").catch(() => {});
@@ -140,7 +140,7 @@ test.describe("provenance from profile", () => {
     await expect(view).toBeVisible({ timeout: 30_000 });
     const option = page.getByRole("option", { name: new RegExp(ADDR) });
 
-    // Under the Investor filter (the profile role) the building IS offered — that is
+    // Under the Investor filter (the profile company kind) the building IS offered — that is
     // its actual provenance.
     await view.getByLabel("Role").click();
     await page.getByRole("option", { name: "Investor", exact: true }).click();
@@ -193,8 +193,8 @@ test.describe("provenance from profile", () => {
       mimeType: "image/png",
       buffer: png,
     });
-    // The avatar preview picks up the chosen image (MUI renders it as .MuiAvatar-img).
-    await expect(org.locator(".MuiAvatar-img").first())
+    // The avatar preview picks up the chosen image (the Avatar's <img alt>).
+    await expect(org.getByAltText("Organisation logo"))
       .toBeVisible({ timeout: 15_000 });
     await org.getByRole("button", { name: /^save$/i }).click();
     await expect(page.getByText(/organisation saved/i))
@@ -202,7 +202,7 @@ test.describe("provenance from profile", () => {
 
     // Reopen → the logo persisted (the dialog's avatar still shows an image).
     const reopened = await openOrgDialog(page);
-    await expect(reopened.locator(".MuiAvatar-img").first())
+    await expect(reopened.getByAltText("Organisation logo"))
       .toBeVisible({ timeout: 30_000 });
     await reopened.getByRole("button", { name: /cancel/i }).click();
   });

@@ -83,3 +83,14 @@ export const XSD_DATETIME = "http://www.w3.org/2001/XMLSchema#dateTime";
 export const XSD_INTEGER = "http://www.w3.org/2001/XMLSchema#integer";
 export const XSD_DECIMAL = "http://www.w3.org/2001/XMLSchema#decimal";
 export const XSD_DATE = "http://www.w3.org/2001/XMLSchema#date";
+export const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
+export const XSD_BOOLEAN = "http://www.w3.org/2001/XMLSchema#boolean";
+
+/** LDP — container membership (`ldp:contains`) and inbox discovery (`ldp:inbox`). */
+export const LDP_NS = "http://www.w3.org/ns/ldp#";
+export const LDP_CONTAINS = `${LDP_NS}contains`;
+export const LDP_INBOX = `${LDP_NS}inbox`;
+
+/** RealEstateCore (industry ontology, not W3C) — a building resource is typed `rec:Building`. */
+export const REC_NS = "https://w3id.org/rec#";
+export const REC_BUILDING = `${REC_NS}Building`;

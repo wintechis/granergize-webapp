@@ -123,6 +123,12 @@ export function useRooms() {
     queryKey: [...queryKeys.rooms, webId],
     enabled: Boolean(webId),
     queryFn: () => readRooms(getSession()),
+    // The room registry is managed optimistically (mutations patch the cache);
+    // unlike the rest of the app's staleTime:0 + conditional-GET freshness, it
+    // must NOT auto-refetch — a background refetch could revert an in-flight
+    // optimistic room switch. Encode that invariant rather than relying on the
+    // absence of an invalidation.
+    staleTime: Infinity,
   });
 }
 

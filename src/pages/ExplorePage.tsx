@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { BuildingType, EnergyType } from "../../types/types.ts";
 import Building from "./Building.tsx";
 import { UriLink } from "../components/detail/DetailView.tsx";
+import { useDevMode } from "../components/devMode.ts";
 import VisibleEnergyMix from "../components/VisibleEnergyMix.tsx";
 import {
   MapContainer,
@@ -55,6 +56,11 @@ const BASEMAP_DE = {
   attribution:
     '&copy; <a href="https://basemap.de/">basemap.de</a> / &copy; <a href="https://www.bkg.bund.de/">BKG</a>',
 } as const;
+
+// Feature flag: the "Energy mix — visible area" panel below the map is
+// deactivated for now. Flip to `true` to re-enable; the bbox/visibleBuildings
+// machinery that feeds it is kept intact.
+const SHOW_VISIBLE_ENERGY_MIX = false;
 
 function makeIcon(url: string): L.Icon {
   return new L.Icon({
@@ -167,6 +173,7 @@ export default function ExplorePage(
   { session, active = true }: ExplorePageProps,
 ) {
   const { buildings, energyNeed, error } = useSolidData();
+  const dev = useDevMode();
   // One activity token per tile-loading burst (the layer fires `loading` when it
   // starts fetching tiles and `load` once the visible set is in), so panning/
   // zooming registers in the global indicator without a token per image.
@@ -196,6 +203,11 @@ export default function ExplorePage(
       ),
     [buildings, bbox],
   );
+
+  // Whether the map renders any markers at all — a marker only appears for a
+  // building that has coordinates (see the `building.lat && building.long`
+  // guard in the Marker map below), so buildings can exist with none shown.
+  const hasMarkers = buildings.some((b) => b.lat != null && b.long != null);
 
   const current = trail[trail.length - 1] ?? null;
   const findBuilding = (id: string) =>
@@ -384,10 +396,12 @@ export default function ExplorePage(
               </Box>
             ))}
           </Paper>
-          <VisibleEnergyMix
-            buildings={visibleBuildings}
-            energyNeed={energyNeed}
-          />
+          {SHOW_VISIBLE_ENERGY_MIX && (
+            <VisibleEnergyMix
+              buildings={visibleBuildings}
+              energyNeed={energyNeed}
+            />
+          )}
         </Grid>
         <Grid
           size={{ xs: 12, md: detailFull ? 12 : 6 }}
@@ -399,7 +413,11 @@ export default function ExplorePage(
           {!current
             ? (
               <Typography variant="body1">
-                Select a marker to show details
+                {buildings.length === 0
+                  ? "No buildings yet — add one to see it on the map"
+                  : hasMarkers
+                  ? "Select a marker to show details"
+                  : "No buildings have a location yet — add coordinates to place them on the map"}
               </Typography>
             )
             : (
@@ -432,14 +450,16 @@ export default function ExplorePage(
                               : ""
                           }`}
                         </Typography>
-                        <Typography
-                          variant="body1"
-                          sx={{ mt: 0.5, wordBreak: "break-all" }}
-                        >
-                          <UriLink href={currentBuilding.uri}>
-                            {currentBuilding.uri}
-                          </UriLink>
-                        </Typography>
+                        {dev && (
+                          <Typography
+                            variant="body1"
+                            sx={{ mt: 0.5, wordBreak: "break-all" }}
+                          >
+                            <UriLink href={currentBuilding.uri}>
+                              {currentBuilding.uri}
+                            </UriLink>
+                          </Typography>
+                        )}
                       </Box>
                       <IconButton
                         size="small"

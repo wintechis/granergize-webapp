@@ -462,7 +462,7 @@ export default function CreateViewDialog({
 
               <FormControl component="fieldset">
                 <FormLabel component="legend">Metrics to Include</FormLabel>
-                <Box sx={{ maxHeight: 200, overflow: "auto", mt: 1 }}>
+                <Box sx={{ mt: 1 }}>
                   {availableMetrics.map((category) => {
                     const allSelected = category.metrics.every((m) =>
                       selectedMetrics.includes(m)
