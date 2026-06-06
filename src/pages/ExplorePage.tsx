@@ -1,8 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { BuildingType, EnergyType } from "../../types/types.ts";
 import Building from "./Building.tsx";
-import Agent from "./Agent.tsx";
-import { RefLink, UriLink } from "../components/detail/DetailView.tsx";
+import { UriLink } from "../components/detail/DetailView.tsx";
 import VisibleEnergyMix from "../components/VisibleEnergyMix.tsx";
 import {
   MapContainer,
@@ -159,17 +158,15 @@ interface ExplorePageProps {
 }
 
 /**
- * One entry in the right-pane focus trail. The pane always shows the last
- * entry; "back" pops it. Selecting a marker resets the trail to that building.
+ * One entry in the right-pane focus trail. The pane shows the focused entry;
+ * selecting a marker sets it to that building, hiding clears it.
  */
-type FocusTarget =
-  | { kind: "building"; id: string }
-  | { kind: "agent"; id: string };
+type FocusTarget = { kind: "building"; id: string };
 
 export default function ExplorePage(
   { session, active = true }: ExplorePageProps,
 ) {
-  const { buildings, agents, energyNeed, error } = useSolidData();
+  const { buildings, energyNeed, error } = useSolidData();
   // One activity token per tile-loading burst (the layer fires `loading` when it
   // starts fetching tiles and `load` once the visible set is in), so panning/
   // zooming registers in the global indicator without a token per image.
@@ -209,16 +206,9 @@ export default function ExplorePage(
   const anchorBuilding = anchorTarget ? findBuilding(anchorTarget.id) : null;
   // Resolved object for the entry currently shown (re-resolved each render, so
   // it survives data reloads and disappears if the object is removed).
-  const currentBuilding = current?.kind === "building"
-    ? findBuilding(current.id)
-    : null;
-  const currentAgent = current?.kind === "agent"
-    ? agents.find((a) => a.id.toString() === current.id) ?? null
-    : null;
+  const currentBuilding = current ? findBuilding(current.id) : null;
 
   const focusBuilding = (id: string) => setTrail([{ kind: "building", id }]);
-  const pushFocus = (target: FocusTarget) => setTrail((t) => [...t, target]);
-  const goBack = () => setTrail((t) => t.slice(0, -1));
 
   // Reset to the Building-data tab whenever a different building is shown.
   useEffect(() => {
@@ -414,16 +404,6 @@ export default function ExplorePage(
             )
             : (
               <Stack spacing={2}>
-                {trail.length > 1 && (
-                  <Box>
-                    <RefLink onClick={goBack}>← Back</RefLink>
-                  </Box>
-                )}
-
-                {currentAgent && (
-                  <Agent agentId={currentAgent.id.toString()} embedded />
-                )}
-
                 {currentBuilding && (
                   <>
                     {/* Persistent building identity — the building stays the
@@ -491,8 +471,6 @@ export default function ExplorePage(
                       <Building
                         building={currentBuilding}
                         onHide={() => setTrail([])}
-                        onNavigateAgent={(id) =>
-                          pushFocus({ kind: "agent", id })}
                         embedded
                         hideHeader
                       />

@@ -122,9 +122,6 @@ Deno.test("fetchAndParseData parses own buildings (by listing) and energy end-to
   assert.equal(b1!.provenance, undefined);
   assert.equal(b1!.isShared, false); // discovered under the storage root = own
 
-  // The legacy agents data source was dropped; agents are always empty now.
-  assert.equal(result.agents.length, 0);
-
   const e1 = result.energyNeed.find((e) => e.id === 1);
   const e2 = result.energyNeed.find((e) => e.id === 2);
   assert.equal(e1?.energyNeed.Electricity, 1000);
@@ -143,25 +140,22 @@ Deno.test("fetchAndParseData fetches energy files concurrently, not serially", a
   assert.equal(log.maxEnergyInFlight, 2);
 });
 
-Deno.test("fetchAndParseData reports buildings/agents before energy resolves", async () => {
+Deno.test("fetchAndParseData reports buildings before energy resolves", async () => {
   const log = newLog();
   let phase1Fired = false;
   let phase1Buildings = -1;
-  let phase1Agents = -1;
   let energyResolvedAtPhase1 = -1;
 
   await fetchAndParseData(makeSession({ log }), (partial) => {
     phase1Fired = true;
     phase1Buildings = partial.buildings.length;
-    phase1Agents = partial.agents.length;
     energyResolvedAtPhase1 = log.energyResolved;
   });
 
   assert.ok(phase1Fired, "phase-1 callback fired");
   assert.equal(phase1Buildings, 2);
-  assert.equal(phase1Agents, 0);
-  // The whole point of the two-phase load: buildings/agents are handed over
-  // before any energy file has finished loading.
+  // The whole point of the two-phase load: buildings are handed over before any
+  // energy file has finished loading.
   assert.equal(energyResolvedAtPhase1, 0);
 });
 

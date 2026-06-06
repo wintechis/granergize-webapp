@@ -26,9 +26,9 @@ interface FieldDesc {
 
 export const BUILDING_FIELDS: FieldDesc[] = [
   // Core (all roles).
-  // NOTE: schema.org is inconsistently http/https across the codebase
-  // (agentParser uses https). Left as http here to preserve matching of existing
-  // Pod data — reconciling it is a separate, data-affecting change.
+  // NOTE: schema.org is inconsistently http/https across the codebase. Left as
+  // http here to preserve matching of existing Pod data — reconciling it is a
+  // separate, data-affecting change.
   { field: "customer", iri: "http://schema.org/customer", kind: "literal" },
   { field: "lat", iri: "http://www.w3.org/2003/01/geo/wgs84_pos#lat", kind: "literal", type: "decimal" },
   { field: "long", iri: "http://www.w3.org/2003/01/geo/wgs84_pos#long", kind: "literal", type: "decimal" },

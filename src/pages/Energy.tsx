@@ -36,7 +36,7 @@ type EnergyProps = {
 export default function Energy(
   { selectedBuilding, operatedBy, building, session }: EnergyProps,
 ) {
-  const { energyNeed, averages, agentAverages, isLoading, error } =
+  const { energyNeed, averages, operatorAverages, isLoading, error } =
     useSolidData();
 
   // Find the energy data for the selected building
@@ -54,7 +54,7 @@ export default function Energy(
     );
   }
 
-  if (!energy || !averages || !agentAverages) {
+  if (!energy || !averages || !operatorAverages) {
     const seriesDatasets = building.energyDatasets?.filter((d) =>
       isSeriesGranularity(d.granularity)
     ) ?? [];
@@ -142,7 +142,7 @@ export default function Energy(
     if (!energy[title]) {
       return;
     }
-    const agent = operatedBy; // Assuming energy object has operatedBy property
+    const operator = operatedBy;
     return (
       <>
         <Typography variant="h6">{toTitleCase(title)}</Typography>
@@ -153,13 +153,14 @@ export default function Energy(
                   <TableRow>
                     <TableCell>Energy Type</TableCell>
                     <TableCell align="right">kWh / a</TableCell>
-                    <TableCell align="right">Agent Average kWh / a</TableCell>
+                    <TableCell align="right">Operator Average kWh / a</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {Object.entries(energy[title]).map(([key, value]) => {
                     const industryAverage = averages[key] || 0;
-                    const agentAverage = agentAverages[agent]?.[key] || 0;
+                    const operatorAverage = operatorAverages[operator]?.[key] ||
+                      0;
                     return (
                       <TableRow hover key={key}>
                         <TableCell component="th" scope="row">
@@ -180,12 +181,12 @@ export default function Energy(
                           align="right"
                           style={{
                             backgroundColor: getBackgroundColor(
-                              agentAverage,
+                              operatorAverage,
                               industryAverage,
                             ),
                           }}
                         >
-                          {formatNumber(agentAverage)}
+                          {formatNumber(operatorAverage)}
                         </TableCell>
                       </TableRow>
                     );
@@ -212,7 +213,7 @@ export default function Energy(
                       <strong>
                         {formatNumber(
                           Object.keys(energy[title]).reduce((sum, key) =>
-                            sum + (agentAverages[agent]?.[key] || 0), 0),
+                            sum + (operatorAverages[operator]?.[key] || 0), 0),
                         )}
                       </strong>
                     </TableCell>

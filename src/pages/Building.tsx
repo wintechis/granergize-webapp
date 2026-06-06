@@ -23,12 +23,6 @@ interface BuildingProps {
   /** Render inline (e.g. in a side pane) instead of as a floating map overlay. */
   embedded?: boolean;
   /**
-   * When set, agent references open in-place via this callback (passing the
-   * agent id) instead of navigating to the /agent route. Used by the map's
-   * focus-trail so the selected building is not lost.
-   */
-  onNavigateAgent?: (agentId: string) => void;
-  /**
    * Drop the identity header (icon + "Building N" + address) — used when that
    * header is rendered separately above (e.g. above the detail tabs).
    */
@@ -36,8 +30,7 @@ interface BuildingProps {
 }
 
 export default function Building(
-  { building, onHide, embedded = false, onNavigateAgent, hideHeader }:
-    BuildingProps,
+  { building, onHide, embedded = false, hideHeader }: BuildingProps,
 ) {
   const hasValue = (value: unknown): boolean => {
     if (value == null) {
@@ -85,10 +78,7 @@ export default function Building(
 
   function createAgentLink(uriString: string) {
     const hash = new URL(uriString).hash.replace("#", "");
-    if (onNavigateAgent) {
-      return <RefLink onClick={() => onNavigateAgent(hash)}>{hash}</RefLink>;
-    }
-    return <RefLink to={`agent/${hash}`}>{hash}</RefLink>;
+    return <UriLink href={uriString}>{hash}</UriLink>;
   }
 
   function createTypeLink(uriString: string) {

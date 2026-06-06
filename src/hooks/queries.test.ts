@@ -6,7 +6,7 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
-  useBuildingsAndAgents,
+  useBuildings,
   useEnergy,
   useSolidData,
 } from "./queries.ts";
@@ -95,15 +95,14 @@ function makeWrapper() {
   return { client, wrapper };
 }
 
-Deno.test("useBuildingsAndAgents loads + parses from the session", async () => {
+Deno.test("useBuildings loads + parses from the session", async () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession());
   const { wrapper } = makeWrapper();
   try {
-    const { result } = renderHook(() => useBuildingsAndAgents(), { wrapper });
+    const { result } = renderHook(() => useBuildings(), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
     assert.equal(result.current.data?.buildings.length, 1);
-    assert.equal(result.current.data?.agents.length, 0); // agents source dropped
   } finally {
     _setSessionForTesting(null);
   }

@@ -269,11 +269,6 @@ function parseLastgangXlsx(ws: XLSX.WorkSheet, range: XLSX.Range): Record<string
   return [fields];
 }
 
-/** URL where a daily energy TTL file is stored, given the building.ttl URL and date. */
-export function buildingEnergyFileUrl(buildingUri: string, date: string): string {
-  return `${buildingUri.replace(/\.ttl$/, "")}/energy/${date}.ttl`;
-}
-
 /** Generate Turtle content for one day of 15-min energy readings. */
 export function generateEnergyDayTtl(
   date: string,
@@ -841,7 +836,7 @@ export async function deleteBuilding(
   }
 
   // Energy lives under a sibling container named after the building file
-  // (buildingEnergyFileUrl strips the ".ttl"); remove it best-effort.
+  // (the ".ttl" suffix stripped); remove it best-effort.
   await deleteContainerRecursive(`${fileUri.replace(/\.ttl$/, "")}/`, session)
     .catch(() => {});
 
@@ -1464,7 +1459,7 @@ function buildingSheet(b: BuildingType): XLSX.WorkSheet {
   return XLSX.utils.json_to_sheet([record]);
 }
 
-export function buildingToWorkbook(b: BuildingType): XLSX.WorkBook {
+function buildingToWorkbook(b: BuildingType): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, buildingSheet(b), "Gebäude");
   return wb;
@@ -1524,7 +1519,7 @@ function buildingToFlatRecord(b: BuildingType): Record<string, string | number> 
  * buildings. Mixed-role buildings coexist as sparse columns; each row re-imports
  * via the generic path (import as user / dummy). See {@link buildingToFlatRecord}.
  */
-export function buildingsToWorkbook(buildings: BuildingType[]): XLSX.WorkBook {
+function buildingsToWorkbook(buildings: BuildingType[]): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
   const rows = buildings.map(buildingToFlatRecord);
   XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Gebäude");

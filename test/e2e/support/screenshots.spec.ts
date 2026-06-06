@@ -3,21 +3,21 @@ import { account, hasAccount, login, LOGIN_HEADING } from "../helpers/login.ts";
 
 /**
  * Captures the Praxishandbuch figures (docs/figures/*.png) by driving the
- * logged-in app. Uses account **C** (the slow solidcommunity.net Pod) so the
- * handbuch shows canonical solidcommunity.net WebIDs/URIs. THROWAWAY Pod only —
- * never a real account — passed via env so no credentials live in the repo:
+ * logged-in app. Uses account **A** (a solidcommunity.net Pod — the sharing pair)
+ * so the handbuch shows canonical solidcommunity.net WebIDs/URIs. THROWAWAY Pod
+ * only — never a real account — passed via env so no credentials live in the repo:
  *
- *   E2E_USERNAME_C=...  E2E_PASSWORD_C=...  [E2E_ISSUER_C=https://solidcommunity.net] \
- *     npm run screenshots
+ *   E2E_USERNAME_A=...  E2E_PASSWORD_A=...  [E2E_PROVIDER_A=solidcommunity] \
+ *     deno task e2e:base --project=support
  *
- * Skipped automatically when those env vars are absent (so CI / `npm run
- * test:e2e` never needs credentials). Run headed to debug:
- *   npm run screenshots -- --headed
+ * Skipped automatically when those env vars are absent (so CI / a no-cred run
+ * never needs credentials). Run headed to debug:
+ *   deno task e2e:base --project=support -- --headed
  */
 
-const ACC = account("C");
+const ACC = account("A");
 const OUT = "docs/figures";
-// Account C is solidcommunity.net (behind Cloudflare). Each step here is a burst
+// Account A is solidcommunity.net (behind Cloudflare). Each step here is a burst
 // of Pod requests; a cooldown after every screenshot lets the rate limit relax
 // before the next segment, so a full capture run doesn't trip 429s.
 const COOLDOWN_MS = 16_000;
@@ -30,7 +30,7 @@ async function shot(page: Page, name: string) {
 test.describe("handbuch screenshots", () => {
   test.skip(
     !hasAccount(ACC),
-    "Set E2E_USERNAME_C and E2E_PASSWORD_C (a throwaway Solid Pod) to capture screenshots.",
+    "Set E2E_USERNAME_A and E2E_PASSWORD_A (a throwaway solidcommunity.net Pod) to capture screenshots.",
   );
 
   test("capture", async ({ page }) => {

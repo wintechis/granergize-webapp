@@ -18,11 +18,25 @@ The project runs on **Deno 2** (not Node), though dependencies are npm/jsr packa
 - `deno install` — install dependencies
 - `deno task dev` — start Vite dev server at http://localhost:5173
 - `deno task build` — production build to `dist/`
-- `deno task test` — run the test suite (`deno test -A`)
+- `deno task test` — Tier 1: hermetic unit suite (`deno test -A`)
+- `deno task it` — Tier 2: headless integration against a throwaway local CSS (no creds)
+- `deno task e2e` — Tier 3: Playwright UI specs against a throwaway local CSS (no creds)
+- `deno task e2e:base` — Tier 4: the same Playwright UI specs against real Pods (`testDir: test/e2e`)
 - `deno run -A npm:eslint .` — lint (ESLint flat config in `eslint.config.js`; ignores `dist`)
 
-Tests live next to the code as `*.test.ts` and run under Deno's built-in test runner
-(`deno test`). They use **offline fixtures** — e.g. `TurtleParsingService.test.ts` drives
+The test foundation is tiered and provider-aware — see `test/README.md`. Four tiers
+climbing fake→real one axis at a time: **Tier 1** (unit) lives next to the code as
+`src/**/*.test.ts`; **Tier 2** (`test/headless/`, `deno task it`) runs the real
+data-layer fns over two client-credential sessions against a local Community Solid
+Server; **Tier 3** (`deno task e2e`) drives the real browser UI against a
+throwaway local CSS, credential-free (the `local` Playwright project, `E2E_LOCAL=1`,
+run against the production build via `E2E_PREVIEW=1`); **Tier 4** (`test/e2e/`,
+Playwright, `deno task e2e:base`) runs those same UI specs against real Pods. Shared
+provider/account config is in `test/config/`. Each Praxishandbuch task is checked
+"in principle" (Tier 2) and "in practice" (Tiers 3 local, 4 remote); each adjacent
+tier pair bisects a different failure class (UI/render vs provider/server-interop).
+
+Tier-1 tests use **offline fixtures** — e.g. `TurtleParsingService.test.ts` drives
 `fetchAndParseData` with a fake `Session` whose `fetch` serves in-memory Turtle per URL, so
 no network/Pod is needed. Browser-typed test files need `/// <reference lib="deno.ns" />` at
 the top and should import assertions from `node:assert` to avoid remote deps. There is no
@@ -65,21 +79,24 @@ why `vite.config.ts` sets `base: "./"` and routing uses `HashRouter`.
 2. **Data layer (React Query)** — data is read through hooks in `src/hooks/queries.ts`
    (each calls `getSession()` for the authed transport; query keys are namespaced by
    WebID so a re-login can't read another user's cache). `useSolidData()` is a
-   back-compat selector composing `useBuildingsAndAgents` (phase 1: buildings + agents,
-   paints the map) and `useEnergy` (phase 2: energy, dependent on phase 1). The single
+   selector composing `useBuildings` (phase 1: buildings, paints the map) and
+   `useEnergy` (phase 2: energy, dependent on phase 1). The single
    `QueryClient` lives in `src/context/QueryProvider.tsx`, which centralizes error
    routing (`SessionExpiredError` → warning, `ConflictError`/else → error) and
    `keepPreviousData` (a failed refetch keeps the last good data on screen). Freshness
    is server-driven (`staleTime: 0` + conditional GET via `fetchFresh`); the only
    refetch trigger is a write — mutations in `src/hooks/mutations.ts` invalidate their
    own query keys (`queryKeys` in `queries.ts`).
-3. **Fetch + parse** — `src/services/TurtleParsingService.ts` orchestrates loading. It
-   reads the user's registry at `<pod>/granergize/dataSources.ttl` to discover which
-   Turtle files (and their roles) to fetch, loads them with per-source blank-node scoping
-   to avoid ID collisions, then delegates to parsers in `src/services/utils/`
-   (`buildingParser`, `agentParser`, `energyDataParser`, `userEnergyParser`). Inaccessible
-   sources are tolerated and pruned; hidden buildings come from
-   `<storageRoot>/profile/granergize/hiddenBuildings.ttl`.
+3. **Fetch + parse** — `src/services/TurtleParsingService.ts` orchestrates loading.
+   There is no registry: it discovers the user's OWN buildings by *listing* the
+   `granergize/buildings/` container for top-level `*.ttl` files (a single PUT adds a
+   building, so the listing can't desync), and buildings shared *with* the user by
+   folding the `shared-in/` event log. It fetches those sources with per-source
+   blank-node scoping to avoid ID collisions, then delegates to parsers in
+   `src/services/utils/` (`buildingParser`; energy via `parseEnergyDataset` in
+   `energyDataset.ts`; user-energy readings via `parseTtlReadings` in `userEnergyParser`).
+   Inaccessible shared sources are tolerated and pruned from the log; hidden buildings
+   come from `<storageRoot>/profile/granergize/hiddenBuildings.ttl`.
 
 ### Roles, provenance & data-shape dispatch
 `UserRole` (`types/types.ts`) — `dummy | investor | user | benchmark_service_provider` —
@@ -120,8 +137,13 @@ not provenance.
   Adding a building property generally means updating both `BuildingType` and these maps.
 - RDF parsing/serialization uses `n3` (`Parser`, `Store`, `Writer`, `DataFactory`).
   Shared quad helpers are in `src/services/utils/rdfHelpers.ts`.
-- `getStorageRoot` / `getPodBaseUrl` in `solidUtils.ts` derive Pod paths from a WebID and
-  handle both subdomain- and path-based Pods — use them rather than string-munging WebIDs.
+- **Storage root** — `resolveStorageRoot(session)` (`solidUtils.ts`) resolves it the Solid
+  way: read `pim:storage` from the WebID profile, else walk up to the `pim:Storage`-typed
+  container (so Pods that type the root but omit the triple still work); cached per WebID.
+  `getStorageRoot(webId)` is the sync accessor; `resolveStorageRootForWebId(webId, session)`
+  resolves an *arbitrary* (e.g. share-recipient) root. `podResources(webId)` builds the
+  `granergize/` paths from it. Handle subdomain- and path-based Pods via these, not WebID
+  string-munging.
 - Read the user's WebID profile via `loadProfileStore` (`profileDocument.ts`), not a bespoke
   fetch: it caches the parsed profile per session so storage-root / org / avatar reads share
   one GET (call `invalidateProfile` after writing the profile). Mutable Pod reads go through
@@ -129,11 +151,15 @@ not provenance.
   no `?t=` URL cache-buster. Freshness across writes is otherwise owned by React Query.
 
 ### Key feature areas
-- **Routing** — `src/App.tsx` defines hash routes: `/`, `/building/:id`, `/agent/:id`,
+- **Routing** — `src/App.tsx` defines hash routes: `/`, `/building/:id`,
   `/energy/:id`, `/view/:viewId`. Wrapper components resolve params against context data.
 - **Sharing/interop** — `src/services/interop/` implements building sharing between Pods
-  via a `sharingRegistry.ttl` and an inbox (`inbox.ts`). Access-grant logic in
-  `sharingManager.ts`.
+  via append-only `shared-out/`/`shared-in/` logs and an **app-scoped inbox** (`inbox.ts`).
+  The inbox is `<storageRoot>/granergize/inbox/` (NOT the agent-global `/inbox/`), discovered
+  by reading `ldp:inbox` from the `granergize/` root (body or Link header) with the
+  convention path as fallback. `ensureOwnInbox(session)` self-provisions it at login
+  (container + append ACL + discovery pointer), so the app works on bare Pods that aren't
+  pre-wired with an inbox. Access-grant logic in `sharingManager.ts`.
 - **Aggregated views** — `src/services/aggregation/` (`viewManager` persists view
   definitions/snapshots as Turtle in the Pod; `viewComputer` computes them).
 - **Data integration** — `AddBuildingDialog.tsx` + `buildingSerializer.ts` import buildings
@@ -167,8 +193,8 @@ loads — feed the activity store instead. During an in-flight load a region sta
 (or shows a plain "Loading…" text), and action buttons go `disabled` (no inline
 spinner) to prevent double-submit. The exceptions, which keep a local spinner because
 the header isn't mounted there, are the standalone full-page routes
-(`/building`, `/energy`, `/agent`, `/view/:id`, `/room/:uri` — see `App.tsx`,
-`Agent.tsx`, `AggregatedView.tsx`), the pre-auth `Login` screen, and the lazy-chunk
+(`/building`, `/energy`, `/view/:id`, `/room/:uri` — see `App.tsx`,
+`AggregatedView.tsx`), the pre-auth `Login` screen, and the lazy-chunk
 `Suspense` fallback (code-split load, not data).
 
 ### UI conventions

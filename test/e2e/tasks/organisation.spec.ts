@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "../helpers/login.ts";
+import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
+import { buildingRows } from "../helpers/manage.ts";
 
 /**
  * Provenance-from-profile e2e (PROBLEMS.md #1). Proves a building's PROV
@@ -9,19 +10,15 @@ import { account, hasAccount, login } from "../helpers/login.ts";
  * provenance) and NOT under **User** (its template) — `CreateViewDialog` filters
  * `b.provenance === selectedRole`.
  *
- *   source .env.e2e.local && deno task e2e provenance --workers=1
+ *   source .env.e2e.local && deno task e2e:base provenance --workers=1
  *
  * MUTATES the Pod but fully reverses itself: it restores the prior profile
- * producer role in afterAll and adds+deletes its one building. Defaults to
- * account B; E2E_SMOKE_ACCOUNT=A to switch. Skipped without creds.
+ * producer role in afterAll and adds+deletes its one building. Runs against the
+ * solo Pod (E2E_SOLO; default C = solidweb). Skipped without creds.
  */
 
-const WHICH = (process.env.E2E_SMOKE_ACCOUNT === "A" ? "A" : "B") as "A" | "B";
-const ACC = account(WHICH);
+const ACC = soloAccount();
 const ADDR = "Provenance E2E Strasse 1"; // unique, matchable building address
-
-const buildingRows = (page: Page) =>
-  page.locator("li", { hasText: /Building \S+/ });
 
 // The producer role this Pod had before the test, restored in afterAll so the
 // spec fully reverses its profile mutation (defaults to "Not set" on a reseeded
@@ -61,7 +58,7 @@ test.describe.configure({ mode: "serial" });
 test.describe("provenance from profile", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${WHICH} / E2E_PASSWORD_${WHICH} (a throwaway Solid Pod) to run the provenance e2e.`,
+    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the provenance e2e.`,
   );
 
   let page: Page;
@@ -148,5 +145,34 @@ test.describe("provenance from profile", () => {
     await row.getByRole("button", { name: "Delete building" }).click();
     await expect(page.getByText("Building deleted").first())
       .toBeVisible({ timeout: 90_000 });
+  });
+
+  // Upload a company logo in the Organisation dialog (PROBLEMS.md #11). Throwaway
+  // Pod: the logo persists (no remove-logo UI to reverse it), which is fine.
+  test("upload a company logo in the Organisation dialog", async () => {
+    test.setTimeout(120_000);
+    // A minimal 1×1 PNG, inline — no fixture file needed.
+    const png = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const org = await openOrgDialog(page);
+    await org.locator('input[type="file"]').setInputFiles({
+      name: "logo.png",
+      mimeType: "image/png",
+      buffer: png,
+    });
+    // The avatar preview picks up the chosen image (MUI renders it as .MuiAvatar-img).
+    await expect(org.locator(".MuiAvatar-img").first())
+      .toBeVisible({ timeout: 15_000 });
+    await org.getByRole("button", { name: /^save$/i }).click();
+    await expect(page.getByText(/organisation saved/i))
+      .toBeVisible({ timeout: 60_000 });
+
+    // Reopen → the logo persisted (the dialog's avatar still shows an image).
+    const reopened = await openOrgDialog(page);
+    await expect(reopened.locator(".MuiAvatar-img").first())
+      .toBeVisible({ timeout: 30_000 });
+    await reopened.getByRole("button", { name: /cancel/i }).click();
   });
 });

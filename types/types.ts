@@ -130,12 +130,6 @@ export interface EnergyDatasetRef {
   scenario: Scenario;
 }
 
-export type AgentType = {
-  id: string;
-  type: string;
-  name: string;
-};
-
 export type WeatherType = {
   id: string;
   sunshineDuration?: number;

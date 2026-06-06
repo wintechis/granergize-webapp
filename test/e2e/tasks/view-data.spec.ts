@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "../helpers/login.ts";
+import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 
 /**
@@ -11,21 +11,20 @@ import { ensureDemoBuildings } from "../helpers/seed.ts";
  * (investor) and one 15-min series (user) building, so whichever id we pick
  * exercises the new loader + chart — and so doesn't assume a pre-seeded Pod.
  *
- *   source .env.e2e.local && deno task e2e e2e/energy-smoke.spec.ts
+ *   source .env.e2e.local && deno task e2e:base e2e/energy-smoke.spec.ts
  *
- * Defaults to account B (solidweb.org); override with E2E_SMOKE_ACCOUNT=A.
+ * Runs against the solo Pod (E2E_SOLO; default C = solidweb).
  * Skipped automatically when the account env vars are absent.
  */
 
-const WHICH = (process.env.E2E_SMOKE_ACCOUNT === "A" ? "A" : "B") as "A" | "B";
-const ACC = account(WHICH);
+const ACC = soloAccount();
 
 test.describe.configure({ mode: "serial" });
 
 test.describe("energy view smoke", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${WHICH} / E2E_PASSWORD_${WHICH} (a throwaway Solid Pod) to run the energy smoke.`,
+    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the energy smoke.`,
   );
 
   let page: Page;
@@ -71,5 +70,23 @@ test.describe("energy view smoke", () => {
     await expect(
       surface.locator(".recharts-bar-rectangle, .recharts-line").first(),
     ).toBeVisible({ timeout: 90_000 });
+  });
+
+  // Storage-redesign smokes (dissolved from the old storage-smoke spec): the
+  // container-native Manage/Share panels render. Reuse the seeded, logged-in page.
+  test("Manage lists own buildings + the Aggregated views section renders", async () => {
+    await page.getByRole("tab", { name: "Manage" }).click();
+    await expect(page.getByRole("heading", { name: "Your buildings" }))
+      .toBeVisible({ timeout: 45_000 });
+    await expect(page.getByText(/^Building /).first())
+      .toBeVisible({ timeout: 45_000 });
+    await expect(page.getByRole("heading", { name: "Aggregated views" }))
+      .toBeVisible({ timeout: 45_000 });
+  });
+
+  test("the Share tab renders (folds the shared-in/ log)", async () => {
+    await page.getByRole("tab", { name: "Share" }).click();
+    await expect(page.getByRole("heading", { name: "Buildings shared with you" }))
+      .toBeVisible({ timeout: 45_000 });
   });
 });
