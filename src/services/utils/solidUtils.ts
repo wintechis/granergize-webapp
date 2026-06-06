@@ -126,6 +126,25 @@ export function _setStorageRootForTesting(webId: string, root: string): void {
 }
 
 /**
+ * The app's on-Pod collection segment (no surrounding slashes) — every app
+ * resource lives under `<storageRoot><APP_DIR>/`. Defaults to `granergize`; the
+ * Tier-4 browser e2e run sets `VITE_POD_APP_DIR=granergize-e2e` so those tests
+ * write to a throwaway collection and NEVER touch the user's real `granergize/`
+ * data. Read once here as the single source of truth for {@link appRoot} and
+ * {@link podResources}. Vite injects `import.meta.env` in the browser build; under
+ * `deno test` (Tiers 1–2) it's absent, so read defensively and fall back.
+ */
+const POD_ENV =
+  (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
+export const APP_DIR: string = (POD_ENV?.VITE_POD_APP_DIR ?? "granergize")
+  .replace(/^\/+|\/+$/g, "");
+
+/** `<storageRoot><APP_DIR>/` — the root container of the app's Pod collection. */
+export function appRoot(webId: string): string {
+  return `${getStorageRoot(webId)}${APP_DIR}/`;
+}
+
+/**
  * Extract the base URL from a WebID (parent directory of the WebID document)
  * Example:
  *   Input: https://solid.ti.rw.fau.de/homer/profile/card#me
@@ -160,7 +179,7 @@ export function podResources(webId: string): {
   prefs: string;
   bookmarks: string;
 } {
-  const app = `${getStorageRoot(webId)}granergize/`;
+  const app = appRoot(webId);
   return {
     appRoot: app,
     buildings: `${app}buildings/`,

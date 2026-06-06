@@ -16,10 +16,10 @@ class:
 - **Tier 2 — CI / headless:** real data-layer fns, no browser; run `deno task it`;
   substrate: a throwaway **local CSS** (no creds).
 - **Tier 3 — browser e2e (local):** the full UI + OIDC, but against a throwaway
-  **local CSS**, credential-free; run `deno task e2e` (the default e2e run). The
-  hermetic, CI-able UI tier — no Pods, no secrets.
+  **local CSS**, credential-free; run `deno task e2e:local`. The hermetic, CI-able
+  UI tier — no Pods, no secrets.
 - **Tier 4 — e2e (remote):** the SAME UI specs against **real Pods**; run
-  `deno task e2e:base` (creds in `test/.env.e2e.local`).
+  `deno task e2e:remote` (creds: `source` a `test/.env.e2e.*.local` file first).
 
 More detail per tier:
 
@@ -33,10 +33,46 @@ More detail per tier:
   creds; the two pods interoperate, so the sharing specs run too). It runs against
   the **production build** (`E2E_PREVIEW=1`) — a Vite *dev*-server quirk aborts
   authenticated writes in-browser, which `vite preview` (and prod) don't.
-- **Tier 4** (`test/e2e/`) is Playwright against real Pods. `tasks/` = one spec per
-  catalog slug; `support/` = infra (screenshots). Credentialed specs self-skip
-  without creds; cross-Pod specs skip unless an **interoperating** provider pair is
-  configured.
+- **Tier 4** (`test/e2e/`) is Playwright against real Pods, using **two roles,
+  A = Alice and B = Bob** — solo specs run against Alice, sharing specs against
+  Alice + Bob. `tasks/` = one spec per catalog slug; `support/` = infra
+  (screenshots, Alice); `maintenance/` = reset (both roles). Credentialed specs
+  self-skip without creds; cross-Pod specs skip unless A + B form an
+  **interoperating** pair. Writes go to a throwaway collection
+  (`VITE_POD_APP_DIR=granergize-e2e`), never real `granergize/` data — see below.
+
+### Tier 3 — known substrate flakiness (the JWKS race)
+
+A handful of Tier-3 specs fail **intermittently** (they shuffle run to run, e.g.
+`add-building` / `energy-entry` / `excel-export`). The cause is **the local CSS, not
+the app or the writes**: just after CSS boots, its OIDC resource server transiently
+401s a DPoP-bound access token with *"no applicable key found in the JSON Web Key
+Set"* until its JWKS is warm. That 401 cascades — a profile read returns "no role",
+the write itself 401s, so the success notice never appears and the spec times out.
+The data layer is fine (when the token verifies, CSS returns `201` and the write
+lands); the flakiness is purely auth/OIDC timing, and it **never happens on real
+Pods** (Tier 4 passes these specs).
+
+Mitigations in place: `startLocalCss` warms token verification on boot (a
+client-credentials round-trip, retried until it 200s) — this cut the failures
+roughly in half. It isn't a full fix (the browser uses an auth-code token, a
+slightly different path), so a few intermittent failures remain. If you need Tier 3
+reliably green, the honest options are a stronger warmup (a throwaway browser login
+per boot, or a pre-provisioned stable CSS JWKS) or a bounded Playwright retry on the
+`local` project — it's masking a substrate race, not an app bug.
+
+### Tier 4 — isolation, reset, rate-limit guard
+
+- **Isolation.** All paths build from one source — `APP_DIR`/`appRoot()`
+  (`solidUtils.ts`, `VITE_POD_APP_DIR`, default `granergize`); real-Pod runs set
+  `granergize-e2e`, so tests never touch real `granergize/` data.
+- **Reset.** `deno task e2e:remote:reset` wipes that collection for both roles
+  (Alice + Bob) via the app's own "Remove all app data" — a `reset` project gated on
+  `E2E_RESET` (so a normal run can't wipe). Run it after a leaky run.
+- **Cloudflare 1015.** On a rate-limit, the run aborts at once instead of grinding
+  every spec to timeout: a response watcher (`e2e/helpers/cloudflareGuard.ts`) flags
+  the 1015, a reporter (`e2e/cf1015Reporter.ts`) exits. The 1015 page lacks CORS, so
+  only Playwright sees it — the app's fetch just throws `TypeError` (`retryFetch.ts`).
 
 ## The task catalog (the shared spine)
 
@@ -56,44 +92,44 @@ One bullet per slug — Tier 2 (`test/headless/tasks/`) / browser e2e
 
 `test/config/` is the single, runtime-agnostic source of truth (read by both Deno
 and Playwright): `providers.ts` (NSS / CSS-v5 / CSS-v6 / local — auth, throttling,
-WebID layout), `accounts.ts` (slots A/B/C/pool from env; in Tier 3 they resolve to
-the seeded local-CSS pods instead), `resolve.ts` (a spec declares what it needs →
+WebID layout), `accounts.ts` (slots A/B from env; in Tier 3 they resolve to the
+seeded local-CSS pods instead), `resolve.ts` (a spec declares what it needs →
 accounts or a skip reason), `actors.ts` (the A/B model).
 
-Credentials (Tier 4 only): `cp test/.env.e2e.example test/.env.e2e.local` and fill
-in passwords (gitignored). Per slot: `E2E_{USERNAME,PASSWORD}_X` + `E2E_PROVIDER_X`
-(a providers id) or `E2E_ISSUER_X`; `E2E_WEBID_X` overrides a derived WebID.
+There are **two roles, A = Alice and B = Bob**, and you configure the Pod/WebID each
+role uses *per run* (`.env.e2e.example` documents them). Per role X (A or B):
+`E2E_{USERNAME,PASSWORD}_X` + `E2E_PROVIDER_X` (a providers id) or `E2E_ISSUER_X`;
+`E2E_WEBID_X` overrides a derived WebID. The specs never map to a provider
+themselves:
 
-Tier-4 specs split into account GROUPS, bound by convention so you pick a *group*,
-never map specs one by one (`.env.e2e.example` documents the four slots):
+- **solo** specs (login, organisation, add-building, energy-entry, view-data,
+  data-room, excel-import/export, building-details) → **Alice (A)**.
+- **sharing** specs (`share-building`, `share-view`) → **Alice + Bob (A + B)**;
+  `screenshots` → Alice. Cross-Pod sharing RUNS when A + B interoperate (same
+  provider, or `E2E_INTEROP_OK=1`).
 
-- **A, B** — two Pods on ONE provider (e.g. solidcommunity.net) → the **sharing**
-  specs (`share-building`, `share-view`) + `screenshots` (slot A). Two distinct
-  Pods on the same server interoperate, so cross-Pod sharing RUNS (it skipped
-  before only because no interoperating pair was configured).
-- **C, D** — two **solo** Pods on different providers (e.g. solidweb + redpencil).
-  The single-account specs run against ONE, chosen by `E2E_SOLO` (slot id; default
-  `C`). Different hosts → the two solo runs go in parallel.
+Credentials come from the shell — keep a `.local` file per provider scenario
+(gitignored via `.env.*.local`) and `source` the one you want before running:
 
 ```
 deno task test                                   # Tier 1
 deno task it                                      # Tier 2 (no creds)
-deno task e2e                                     # Tier 3: full UI, local CSS, no creds
-deno task e2e:base                              # Tier 4 smoke (no creds; login spec)
+deno task e2e:local                               # Tier 3: full UI, local CSS, no creds
+deno task e2e:local test/e2e/tasks/<spec>.spec.ts # Tier 3: one spec by path
 
-# Tier 4 against real Pods — these source test/.env.e2e.local for you:
-deno task e2e:solo                                # solo specs on both solo Pods (C + D, parallel)
-deno task e2e:sharing                             # sharing specs on the A+B pair
-deno task e2e:all                                 # solo C+D (parallel) + sharing, one cmd
+# Tier 4 against real Pods — source the env file (= provider scenario) you want:
+source test/.env.e2e.local && deno task e2e:remote                 # solo + sharing
+source test/.env.e2e.solidweb.local && deno task e2e:remote        # solo on solidweb (NSS)
+source test/.env.e2e.local && deno task e2e:remote:reset           # wipe A + B
+source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/<spec>.spec.ts   # one spec
+source test/.env.e2e.local && deno task e2e:remote:spec --project=support                # screenshots
 ```
 
-`deno task e2e:{all,solo,sharing}` (→ `test/run-e2e.sh`) source `test/.env.e2e.local`,
-start one shared dev server, and run each group as its own process (different hosts →
-parallel without contention); logs stream to `/tmp/e2e-{solidweb,redpencil,sharing}.log`.
-For a single project/spec by hand, source the env file and use the raw base, e.g.
-`source test/.env.e2e.local && deno task e2e:base --project=support`.
+Provider selection IS which file you source (env-file lines use `export`, so a plain
+`source` reaches the test process). Naming convention `test/.env.e2e.<scenario>.local`
+keeps each scenario file ignored by `.gitignore`'s `.env.*.local`.
 
-Concurrency: a single Playwright run is serial by default (`workers` fans out only
-when a distinct-unthrottled-host **pool** `P0..Pn` is configured). Cross-provider
-parallelism comes instead from running separate processes per host (the `:all`
-script) — the safe way to parallelize without stampeding one provider.
+Concurrency: the whole Tier-4 run is **serial** (`workers: 1`) — fanning specs across
+workers would log into the same Pod host concurrently and trip Cloudflare throttling.
+To cover a second provider, reconfigure a role (source a different env file) and run
+again.

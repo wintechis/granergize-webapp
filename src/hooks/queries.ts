@@ -45,11 +45,20 @@ export function useBuildings() {
   });
 }
 
-/** Phase 2: energy for the given buildings (dependent on phase 1). */
+/** Phase 2: energy for the given buildings (dependent on phase 1).
+ *
+ * The key includes the building-set identity (sorted ids) so energy AUTO-refetches
+ * whenever the building list changes — e.g. right after the demo seed adds buildings.
+ * Without it the key was a constant `["energy", webId]`: energy computed once for the
+ * then-current (often empty) list and never re-ran when buildings changed, so a newly
+ * seeded/added building's energy view showed "No energy data available" until some
+ * unrelated mutation happened to invalidate energy. `queryKeys.energy` (`["energy"]`)
+ * still prefix-matches this key, so existing invalidations keep working. */
 export function useEnergy(buildings: BuildingType[] | undefined) {
   const webId = webIdOf();
+  const buildingsKey = (buildings ?? []).map((b) => String(b.id)).sort().join(",");
   return useQuery({
-    queryKey: ["energy", webId],
+    queryKey: ["energy", webId, buildingsKey],
     enabled: Boolean(webId) && Boolean(buildings),
     queryFn: () => loadEnergy(getSession(), buildings ?? []),
   });

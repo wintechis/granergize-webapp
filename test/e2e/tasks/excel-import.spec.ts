@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
 
 /**
@@ -9,15 +9,17 @@ import { buildingIds, buildingRows } from "../helpers/manage.ts";
  * freshly wiped + reseeded Pod. Adding a building no longer depends on a
  * data-room role — the Add dialog's selector is a plain import *template*.
  *
- *   source .env.e2e.local && deno task e2e:base excel-upload --workers=1
+ *   # tier 3 (local CSS, no creds):
+ *   deno task e2e:local test/e2e/tasks/excel-import.spec.ts
+ *   # tier 4 (real Pods):
+ *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/excel-import.spec.ts
  *
- * Runs against the solo Pod (E2E_SOLO; default C = solidweb). Skipped
+ * Runs against Alice (account A). Skipped
  * without creds. The happy-path test cleans up the buildings it adds; the cancel
  * test aborts before the building file is written (so no Manage row is created),
  * leaving only orphaned partial energy files — tolerated by the reseed contract.
  */
 
-const ACC = soloAccount();
 
 /** Capture the id token of every owned building row currently on Manage. */
 /** Open the Add-building dialog from the Manage tab (manual entry — no picker). */
@@ -38,12 +40,14 @@ async function selectTemplate(page: Page, label: string): Promise<void> {
   await page.getByRole("option", { name: label, exact: true }).click();
 }
 
+const ACC = account("A"); // Alice -- solo specs use one account
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("excel upload", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the excel-upload e2e.`,
+    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the excel-upload e2e.`,
   );
 
   let page: Page;

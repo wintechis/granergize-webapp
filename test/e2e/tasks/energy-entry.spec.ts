@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 
 /**
  * Energy per-year entry + planned/actual (Soll-Ist) e2e. Self-cleaning: it adds
@@ -10,22 +10,26 @@ import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
  * leaks. The Soll-Ist *planned* overlay legend is covered deterministically by the
  * `MetricBarChart` unit test (actual + "(planned)").
  *
- *   source .env.e2e.local && deno task e2e:base energy-entry --workers=1
+ *   # tier 3 (local CSS, no creds):
+ *   deno task e2e:local test/e2e/tasks/energy-entry.spec.ts
+ *   # tier 4 (real Pods):
+ *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/energy-entry.spec.ts
  *
- * Runs against the solo Pod (E2E_SOLO; default C = solidweb). Skipped
+ * Runs against Alice (account A). Skipped
  * without creds.
  */
 
-const ACC = soloAccount();
 const YEAR = "2099"; // fixed far-future year; re-runs overwrite it (idempotent)
 const ADDR = "Energy Entry E2E Strasse 1"; // unique address for the building
+
+const ACC = account("A"); // Alice -- solo specs use one account
 
 test.describe.configure({ mode: "serial" });
 
 test.describe("energy entry + Soll-Ist", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the energy-entry e2e.`,
+    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the energy-entry e2e.`,
   );
 
   let page: Page;
@@ -72,6 +76,10 @@ test.describe("energy entry + Soll-Ist", () => {
     // Delete the building → removes its energy subtree, so the year doesn't leak.
     try {
       if (!page.isClosed()) {
+        // The last test left us on the standalone /energy/:id route (no app shell,
+        // so no Manage tab) — return to the shell first, else the click below hangs
+        // until the hook timeout. Mirrors building-details.spec.ts cleanup.
+        await page.goto("/#/");
         await page.getByRole("tab", { name: "Manage" }).click();
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {

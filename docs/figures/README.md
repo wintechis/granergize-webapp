@@ -14,6 +14,6 @@ Two kinds of figures live here:
   `sharing-vergleich.png`.
 
 To refresh the screenshots after UI changes, run the screenshots spec
-(`source .env.e2e.local && deno task e2e e2e/screenshots.spec.ts`), then rebuild
-the handbuch (`deno task handbuch`). Recommended: ~1200px-wide light-theme PNGs;
+(`source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/support/screenshots.spec.ts`),
+then rebuild the handbuch (`deno task handbuch`). Recommended: ~1200px-wide light-theme PNGs;
 keep file sizes modest (they ship in the static build).

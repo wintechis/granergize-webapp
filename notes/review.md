@@ -1,8 +1,38 @@
 # App Review — Granergize WebApp
 
-Date: 2026-06-05. Branch: `dev-aha`. Scope: ~22k LOC, 115 TS/TSX files, 28 unit-test
-files, 14 Playwright e2e specs. Reviewed by parallel per-dimension agents; findings
+Date: 2026-06-05; **re-checked 2026-06-06** against current code. Branch: `dev-aha`.
+Scope: ~22k LOC, 115 TS/TSX files. Reviewed by parallel per-dimension agents; findings
 below were spot-verified against the code.
+
+## Re-check 2026-06-06 — what changed
+
+Three commits landed since the review (`0fd34bf` version-to-uwe, `d493ee5` test reorg,
+`b8b35a3` four-tier test cases). The big change is a **test-architecture overhaul**;
+the security/dependency/architecture findings are unchanged.
+
+- **Improved — e2e is now CI-able against a local server (was HIGH).** A 4-tier model
+  (unit → headless/local-CSS → browser-e2e/local-CSS → remote) replaces the old
+  live-Pod-only suite. CI now runs Tier 3 (`deno task e2e:local`): the full UI + OIDC against a
+  throwaway local Community Solid Server, credential-free and deterministic, on the
+  production build. A new Tier 2 (`deno task it`) exercises the data layer headlessly
+  against the same local CSS. The "only 1 of 14 specs runs in CI" finding is largely
+  resolved. See the rewritten **Testing & SE Practices** section.
+- **Still open — CI runs no unit tests, no lint, no typecheck (CRITICAL, unchanged).**
+  The workflow's only test job is `deno task e2e:local` (Tier 3); `deploy: needs: build` still
+  doesn't depend on it. Tier 1 (191 unit tests), Tier 2 headless, ESLint, and `tsc` are
+  absent from CI.
+- **New — lint now fails with a real error.** `deno task lint` reports 1 error
+  (`test/config/env.ts:11` `Unexpected any`, from the test reorg) + 4 warnings. Because
+  CI doesn't run lint, it went unnoticed — concretely demonstrating the gate gap above.
+  (`src/` itself is still `any`-free; the `any` is in new test infra.)
+- **Re-verified as still-standing (files re-read):** `xlsx@0.18.5` (CRITICAL), the ACL
+  grant/revoke race (HIGH — `share.ts:136,167,169` still GET+concat+PUT), `activeRoom`
+  not reset on logout (HIGH), CLAUDE.md chart-library drift (HIGH-doc — still says
+  Chart.js/`chartSetup.ts`), `UriLink` missing scheme allowlist (MEDIUM),
+  `buildingSerializer.ts` god-file (HIGH — now 1,550 lines), `retryFetch` no jitter (LOW).
+- **Unit suite:** 179 → **191 passing, green.** `inbox.ts` gained a unit test;
+  `viewComputer`, the energy/agent parsers, `share`, `mutations`, `buildingActions` still
+  lack Tier-1 unit tests (several are now covered at Tier 2/3 integration level).
 
 Severity scale: CRITICAL (ship-blocker / data-loss / security) · HIGH (should fix soon)
 · MEDIUM (fix when touching the area) · LOW (cleanup / watch-list) · INFO (confirmed
@@ -19,8 +49,10 @@ the part the author cares most about — is sound.
 
 The real risks are concentrated and few:
 
-1. **CI deploys to a live host on every push while running none of the suite** — no
-   tests, no lint, no typecheck (CRITICAL).
+1. **CI deploys to a live host on every push while running no unit tests, no lint, no
+   typecheck** (CRITICAL). *(Re-check: a CI-able local-CSS e2e tier was added since the
+   review — good — but it still doesn't gate deploy, and Tier 1/lint/`tsc` remain absent;
+   `deno task lint` now even fails with an error that CI never sees.)*
 2. **ACL grant/revoke is racy and non-idempotent** — unconditional GET, string-concat,
    PUT; duplicates and clobbers (HIGH).
 3. **`xlsx@0.18.5` has known high-severity CVEs, is unmaintainable on npm, and the
@@ -35,9 +67,10 @@ strings, and a scheme allowlist missing on rendered IRIs.
 
 ## Top priorities (recommended order)
 
-1. **Gate CI before deploy** — add `deno task test`, `deno task lint`, and a real
-   `tsc --noEmit` as jobs; `deploy: needs: [build, test, lint, check]`. Low effort,
-   highest leverage.
+1. **Gate CI before deploy** — add `deno task test` (Tier 1) and `deno task lint` and a
+   real `tsc --noEmit` as jobs, and make `deploy` depend on them plus the existing e2e
+   job: `deploy: needs: [build, test, lint, check, e2e]`. Low effort, highest leverage.
+   (Fix the new `test/config/env.ts:11` lint error first, or lint will fail the gate.)
 2. **Fix `xlsx`** — move to the SheetJS CDN tarball ≥0.20.2 (clears both CVEs), or
    migrate the parse path off `xlsx`. Verify the URL spec resolves under Deno.
 3. **Make ACL writes safe** — route grant/revoke through the existing
@@ -193,48 +226,64 @@ with append-only LDP logs are implemented as documented.
 
 ## Testing & SE Practices
 
-Overall: **good intentions, weak enforcement.** Offline-fixture discipline is genuine
-(stateful Pod fakes with real LDP semantics, behavioural assertions); suite is green
-(`179 passed | 0 failed`). Undermined by a hollow CI gate.
+Overall (re-checked 2026-06-06): **substantially improved — solid test architecture,
+still a hollow CI gate.** A 4-tier model now climbs fake → real one axis at a time
+(`test/README.md`): Tier 1 unit (hermetic, `src/**/*.test.ts`), Tier 2 headless data-layer
+against a throwaway local CSS (`deno task it`), Tier 3 browser e2e + OIDC against the same
+local CSS, credential-free on the production build (`deno task e2e:local`), Tier 4 the same UI
+specs against real heterogeneous Pods (`deno task e2e:remote`). Offline-fixture discipline
+remains genuine (stateful Pod fakes, behavioural assertions); Tier 1 is **191 passing,
+green.**
 
-- **CRITICAL — CI deploys without running tests, lint, or typecheck.**
-  `.github/workflows/main.yml`: `deploy: needs: build`, and `build` is just
-  `deno install && deno task build`. Nothing runs `deno task test` (179 tests) or
-  `deno task lint`, and `deploy` doesn't even depend on the `e2e` job. A regression that
-  breaks tests/lint still ships to the live host. Fix: add `test` + `lint` gating jobs;
-  `deploy: needs: [build, test, lint]`.
-- **CRITICAL — No typecheck anywhere in the pipeline.** `build` is `vite build`
-  (esbuild strips types without checking). `tsconfig.app.json` is strict but only the IDE
-  consults it. A type error the editor didn't surface compiles and deploys. Fix: add a
-  `check` task (`tsc --noEmit -p tsconfig.app.json`, run via Node tsc not `deno check`)
-  and gate CI on it. (Note: current `src/` type-clean status is unverified by this
-  review — `deno check` reports false positives from lib mismatch.)
-- **HIGH — Only 1 of 14 e2e specs runs in CI; the other 13 need live Pods and are
-  flaky.** `smoke.spec.ts` is the sole no-login spec; the rest `test.skip` without
-  `E2E_*` creds, so CI exercises only the logged-out sign-in screen. `workers:1` +
-  `retries:1` exist specifically to absorb solidcommunity.net Cloudflare 429/503/CORS
-  (matches the known environmental-flakiness note). Fix: stand up a disposable Community
-  Solid Server container in CI and run the credentialed suite against it deterministically
-  (the specs already stub Nominatim and self-clean).
-- **MEDIUM — High-risk data-layer modules have no unit test.** Notably
+- **CRITICAL — CI still runs no unit tests, no lint, no typecheck, and none of it gates
+  deploy.** `.github/workflows/main.yml` has three jobs; the only test job is `e2e`
+  (`deno task e2e:local`, Tier 3), and `deploy: needs: build` does not depend even on that.
+  Tier 1 (191 unit tests), Tier 2 headless, `deno task lint`, and `tsc` are absent. A
+  regression that breaks units/lint/types still ships. Fix: add `test` + `lint` + `check`
+  jobs and `deploy: needs: [build, test, lint, check, e2e]`.
+- **CRITICAL — No typecheck anywhere in the pipeline.** `build` is `vite build` (esbuild
+  strips types without checking); `tsconfig.app.json` is strict but only the IDE consults
+  it. Fix: add a `check` task (`tsc --noEmit -p tsconfig.app.json`, via Node tsc not
+  `deno check`) and gate on it. (Current `src/` type-clean status is unverified here —
+  `deno check` reports false positives from lib mismatch.)
+- **HIGH — `deno task lint` now fails with an error that CI never sees.**
+  `test/config/env.ts:11:18` trips `@typescript-eslint/no-explicit-any` (1 error), plus 4
+  warnings (`react-refresh/only-export-components` ×3, the `AggregatedView.tsx:65`
+  `exhaustive-deps`). Introduced by the test reorg; invisible because CI doesn't lint.
+  This is the CI-gate gap made concrete. Fix: type the env helper and add lint to CI.
+- **MEDIUM (was HIGH) — e2e is now CI-able against a local server; remote Pods are an
+  explicit separate tier.** Tier 3 (`deno task e2e:local`, `--project=local`, `E2E_LOCAL=1` +
+  `E2E_PREVIEW=1`) boots a local CSS (`test/e2e-local/css.ts`) with two seeded pods so the
+  *unchanged* specs — including the cross-Pod sharing specs — run without credentials and
+  deterministically. The old "only the logged-out smoke spec runs in CI" problem is
+  resolved. Residual: CI invokes Tier 3 but `deploy` doesn't depend on it (see CRITICAL),
+  and Tier 2 headless (`deno task it`) isn't wired into CI at all. The live-Pod flakiness
+  (solidcommunity.net Cloudflare 429/503) is now quarantined to Tier 4, run manually via
+  `deno task e2e:remote` (source a `test/.env.e2e.*.local` file first). Fix: add the e2e
+  job to `deploy: needs`, and run Tier 2 in CI too.
+- **MEDIUM — High-risk modules still lack Tier-1 unit tests.**
   `aggregation/viewComputer.ts` (452 lines — the engine that *computes* views; only its
-  persistence sibling is tested), the parsers `energyDataParser.ts`,
-  `userEnergyParser.ts`, `agentParser.ts`, plus `interop/inbox.ts`, `interop/share.ts`,
-  and `hooks/mutations.ts` (the write path). Fix: add offline-fixture tests for
-  `viewComputer` (deterministic input → expected aggregate) and the three parsers first.
-- **LOW — Commit hygiene is the weak spot.** Feature branch is good, but recent messages
-  are vague (`next iteration`, `next batch`) and commits are large mixed bundles
-  (`941f3a7 next iteration, excel import/export`), making bisect/review hard. Env handling
-  is otherwise clean (tracked `.env.*` carry only the public weather URL; secrets
-  gitignored). CHANGELOG.md is unusually detailed.
+  persistence sibling is tested), the parsers `energyDataParser.ts`, `userEnergyParser.ts`,
+  `agentParser.ts`, plus `interop/share.ts`, `hooks/mutations.ts`, `buildingActions.ts`.
+  Several are now exercised at Tier 2/3 integration level (e.g. share/data-room via
+  `test/headless/tasks/` and the local-CSS e2e), which reduces the risk, but
+  `viewComputer`'s aggregation math has no deterministic unit test at any tier. Fix: add
+  offline-fixture tests for `viewComputer` first, then the three parsers. (`inbox.ts`
+  gained a unit test since the review.)
+- **LOW — Commit hygiene is the weak spot.** Feature branch is good, but messages are
+  vague (`next iteration`, `next batch`, `four tiers for test cases`) and commits are
+  large mixed bundles, making bisect/review hard. Env handling is otherwise clean (tracked
+  `.env.*` carry only the public weather URL; secrets gitignored). CHANGELOG.md is
+  unusually detailed.
 
-Coverage map — **tested well:** buildingSerializer, buildingParser,
+Coverage map — **Tier-1 tested well:** buildingSerializer, buildingParser,
 TurtleParsingService, sharingManager, sharingLog, viewManager, dataRoom,
 organizationManager, energyDataset, durationUtils, solidUtils, profileDocument,
-podWrite/podDelete, retryFetch, prefs, bookmarks, and the hooks (queries, queryErrors,
-roomState). **Untested / high-risk:** viewComputer, energyDataParser, userEnergyParser,
-agentParser, inbox, share, mutations, buildingActions, certificateUploader, podFetch,
-rdfHelpers.
+podWrite/podDelete, retryFetch, prefs, bookmarks, normalizeIssuer, inbox, and the hooks
+(queries, queryErrors, roomState). **No Tier-1 unit test:** viewComputer (no test at any
+tier), energyDataParser, userEnergyParser, agentParser, share, mutations, buildingActions,
+certificateUploader, podFetch, rdfHelpers — though share/data-room/add-building flows are
+now covered at Tier 2 (`test/headless/tasks/`) and Tier 3 (local-CSS e2e).
 
 ## Libraries & Dependencies
 

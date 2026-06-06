@@ -1,6 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
-import { buildingRows } from "../helpers/manage.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 
 /**
  * Provenance-from-profile e2e (PROBLEMS.md #1). Proves a building's PROV
@@ -10,14 +9,16 @@ import { buildingRows } from "../helpers/manage.ts";
  * provenance) and NOT under **User** (its template) — `CreateViewDialog` filters
  * `b.provenance === selectedRole`.
  *
- *   source .env.e2e.local && deno task e2e:base provenance --workers=1
+ *   # tier 3 (local CSS, no creds):
+ *   deno task e2e:local test/e2e/tasks/organisation.spec.ts
+ *   # tier 4 (real Pods):
+ *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/organisation.spec.ts
  *
  * MUTATES the Pod but fully reverses itself: it restores the prior profile
- * producer role in afterAll and adds+deletes its one building. Runs against the
- * solo Pod (E2E_SOLO; default C = solidweb). Skipped without creds.
+ * producer role in afterAll and adds+deletes its one building. Runs against
+ * Alice (account A). Skipped without creds.
  */
 
-const ACC = soloAccount();
 const ADDR = "Provenance E2E Strasse 1"; // unique, matchable building address
 
 // The producer role this Pod had before the test, restored in afterAll so the
@@ -27,8 +28,12 @@ let priorRole = "Not set";
 
 /** Open the avatar-menu Organisation dialog (waits for the role prefill). */
 async function openOrgDialog(page: Page): Promise<Locator> {
-  await page.getByRole("button", { name: "Account menu" }).click();
-  await page.getByRole("menuitem", { name: /organisation/i }).click();
+  // Bounded clicks: Playwright's default action timeout is 0 (wait forever), so a
+  // stuck click here would consume a whole hook budget UNCATCHABLY (the best-effort
+  // afterAll restore could never swallow it). 15 s is ample for these interactions.
+  await page.getByRole("button", { name: "Account menu" }).click({ timeout: 15_000 });
+  await page.getByRole("menuitem", { name: /organisation/i })
+    .click({ timeout: 15_000 });
   const org = page.getByRole("dialog");
   await expect(org).toBeVisible({ timeout: 30_000 });
   await page.waitForLoadState("networkidle").catch(() => {}); // role prefills async
@@ -43,22 +48,27 @@ async function setRoleAndSave(
 ): Promise<void> {
   const sel = org.getByLabel("Your data-producer role");
   if ((await sel.textContent())?.trim() === label) {
-    await org.getByRole("button", { name: /cancel/i }).click();
+    await org.getByRole("button", { name: /cancel/i }).click({ timeout: 15_000 });
     return;
   }
-  await sel.click();
-  await page.getByRole("option", { name: label, exact: true }).click();
-  await org.getByRole("button", { name: /^save$/i }).click();
+  // Bounded clicks (see openOrgDialog) — a stuck dropdown/option/save click must not
+  // hang a whole hook budget uncatchably.
+  await sel.click({ timeout: 15_000 });
+  await page.getByRole("option", { name: label, exact: true })
+    .click({ timeout: 15_000 });
+  await org.getByRole("button", { name: /^save$/i }).click({ timeout: 15_000 });
   await expect(page.getByText(/organisation saved/i))
     .toBeVisible({ timeout: 60_000 });
 }
+
+const ACC = account("A"); // Alice -- solo specs use one account
 
 test.describe.configure({ mode: "serial" });
 
 test.describe("provenance from profile", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the provenance e2e.`,
+    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the provenance e2e.`,
   );
 
   let page: Page;
@@ -98,11 +108,14 @@ test.describe("provenance from profile", () => {
       "Not set";
     await setRoleAndSave(page, org, "Investor");
 
-    // 2. Add a building with the USER template (≠ the profile role).
+    // 2. Add a building with the USER template (≠ the profile role). Wait for the
+    //    Add Building control (always present once Manage has loaded), NOT a
+    //    pre-existing building row — the Pod may legitimately have none.
     await page.getByRole("tab", { name: "Manage" }).click();
-    await expect(buildingRows(page).first()).toBeVisible({ timeout: 120_000 });
-    await page.getByRole("button", { name: "Add Building", exact: true }).first()
-      .click();
+    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+      .first();
+    await expect(addBtn).toBeVisible({ timeout: 120_000 });
+    await addBtn.click();
     const add = page.getByRole("dialog");
     await add.getByLabel("Template").click();
     await page.getByRole("option", { name: "User", exact: true }).click();
@@ -116,9 +129,11 @@ test.describe("provenance from profile", () => {
     await expect(page.getByText(/building added/i))
       .toBeVisible({ timeout: 120_000 });
 
-    // 3. Create View filters the building by provenance: present under Investor
-    //    (the profile role), absent under User (the import template it was added
-    //    with) — so provenance came from the profile, not the template.
+    // 3. Create View keys on provenance: the building appears under Investor (the
+    //    profile role), and "User" (the import template) is not even an offered role
+    //    — Create View only lists roles that exist in the data (availableRoles in
+    //    CreateViewDialog), and the building's provenance is Investor, not its User
+    //    template. So provenance came from the profile, not the template.
     await page.waitForLoadState("networkidle").catch(() => {});
     await page.getByRole("button", { name: /create view/i }).click();
     const view = page.getByRole("dialog");
@@ -131,10 +146,14 @@ test.describe("provenance from profile", () => {
     await expect(option).toBeVisible({ timeout: 30_000 });
     await page.keyboard.press("Escape");
 
+    // If provenance had wrongly followed the *template*, "User" would be an offered
+    // role. It must NOT be — only Investor (the profile role) is listed, because that
+    // is the building's actual provenance.
     await view.getByLabel("Role").click();
-    await page.getByRole("option", { name: "User", exact: true }).click();
-    await view.getByLabel("Select Buildings").click();
-    await expect(option).toHaveCount(0);
+    await expect(page.getByRole("option", { name: "Investor", exact: true }))
+      .toBeVisible({ timeout: 10_000 });
+    await expect(page.getByRole("option", { name: "User", exact: true }))
+      .toHaveCount(0);
     await page.keyboard.press("Escape");
     await view.getByRole("button", { name: /cancel/i }).click();
 

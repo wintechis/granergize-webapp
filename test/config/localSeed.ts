@@ -9,6 +9,17 @@ import { localProvider, type PodProvider } from "./providers.ts";
 
 export const LOCAL_CSS_PORT = 3456;
 export const LOCAL_CSS_BASE = `http://localhost:${LOCAL_CSS_PORT}/`;
+/** Side port for the Tier-3 control server: `POST /reset` restarts CSS so each
+ * spec starts with pristine pods (see test/e2e-local/css.ts + helpers/login.ts). */
+export const LOCAL_CSS_CONTROL_PORT = 3457;
+
+/**
+ * App (Vite) port for Tier 3 specifically — DISTINCT from the Tier-4 port (4173)
+ * so the local and real-Pod browser tiers can run at the same time without racing
+ * to bind the app server. playwright.config.ts serves the app here (and points
+ * baseURL here) only when E2E_LOCAL=1.
+ */
+export const LOCAL_APP_PORT = 4183;
 
 /** A seeded CSS account: email+password login + its pod name (→ derived WebID). */
 export interface LocalSeedAccount {

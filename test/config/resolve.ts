@@ -14,7 +14,7 @@ import { getEnv } from "./env.ts";
 export interface AccountRequirement {
   /** How many distinct accounts (default: the number of preferred slots). */
   count: number;
-  /** Preferred slots in order (default A, B, C, …). */
+  /** Preferred slots in order (default A=Alice, B=Bob). */
   slots?: string[];
   /** Each account's provider must support client-credentials (Tier-2-style). */
   clientCredentials?: boolean;
@@ -26,7 +26,7 @@ export type Resolution =
   | { ok: true; accounts: TestAccount[] }
   | { ok: false; reason: string };
 
-const DEFAULT_SLOTS = ["A", "B", "C", "D"];
+const DEFAULT_SLOTS = ["A", "B"]; // A = Alice, B = Bob
 
 /**
  * Two accounts form an interoperating sharing pair if a guest authenticated at one

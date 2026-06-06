@@ -1,10 +1,34 @@
 /// <reference lib="deno.ns" />
 import assert from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { getRecipientInboxUrl, inboxFromLinkHeader } from "./inbox.ts";
+import { ensureOwnInbox, getRecipientInboxUrl, inboxFromLinkHeader } from "./inbox.ts";
 import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
 
 const WEBID = "https://b.example/profile/card#me";
+
+/**
+ * Fake session that answers HEAD by whether the inbox "exists" and records every
+ * write, so we can assert ensureOwnInbox provisions exactly once on a bare Pod.
+ */
+function recordingSession(
+  inboxExists: boolean,
+): { session: Session; writes: { url: string; method: string }[] } {
+  const writes: { url: string; method: string }[] = [];
+  const session = {
+    info: { isLoggedIn: true, webId: WEBID },
+    fetch: (input: string | URL | Request, init?: RequestInit) => {
+      const url = (typeof input === "string" ? input : input.toString())
+        .split("?")[0];
+      const method = init?.method ?? "GET";
+      if (method === "HEAD") {
+        return Promise.resolve(new Response(null, { status: inboxExists ? 200 : 404 }));
+      }
+      writes.push({ url, method });
+      return Promise.resolve(new Response("", { status: 201 }));
+    },
+  } as unknown as Session;
+  return { session, writes };
+}
 
 /** Fake session serving canned Turtle bodies by URL (query stripped). */
 function session(map: Record<string, string>): Session {
@@ -65,6 +89,29 @@ Deno.test("inboxFromLinkHeader ignores unrelated Link relations", () => {
     inboxFromLinkHeader('<https://x/acl>; rel="acl", <https://y/>; rel="type"', WEBID),
     null,
   );
+});
+
+Deno.test("ensureOwnInbox: provisions inbox + ACL + meta on a bare Pod and reports creation", async () => {
+  _setStorageRootForTesting(WEBID, "https://b.example/");
+  const { session, writes } = recordingSession(false);
+  const created = await ensureOwnInbox(session);
+  assert.equal(created, true);
+  assert.deepEqual(
+    writes.filter((w) => w.method === "PUT").map((w) => w.url),
+    [
+      "https://b.example/granergize/inbox/",
+      "https://b.example/granergize/inbox/.acl",
+      "https://b.example/granergize/.meta",
+    ],
+  );
+});
+
+Deno.test("ensureOwnInbox: no writes and no creation notice when the inbox already exists", async () => {
+  _setStorageRootForTesting(WEBID, "https://b.example/");
+  const { session, writes } = recordingSession(true);
+  const created = await ensureOwnInbox(session);
+  assert.equal(created, false);
+  assert.deepEqual(writes, []);
 });
 
 // Keep the storage-root cache clean for other suites (resolveStorageRootForWebId

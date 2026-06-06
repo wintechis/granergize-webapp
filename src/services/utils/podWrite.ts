@@ -1,6 +1,22 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser, Store, Writer } from "n3";
 import { fetchFresh } from "./podFetch.ts";
+import { emitNotification } from "./notificationSink.ts";
+import { APP_DIR } from "./solidUtils.ts";
+
+/** The name to announce when an app container is provisioned, or null to stay
+ * quiet. Only the structural folders — direct children of the app collection
+ * (`<APP_DIR>/`) like `shared-out`, `shared-in` — are announced; deeper
+ * per-content containers (a building's time-series, a data-room id) are created
+ * silently so the notice stays meaningful and not noisy. */
+function announceableContainer(containerUrl: string): string | null {
+  const path = containerUrl.replace(/\/+$/, "");
+  const marker = `/${APP_DIR}/`;
+  const at = path.indexOf(marker);
+  if (at < 0) return null;
+  const tail = path.slice(at + marker.length);
+  return tail && !tail.includes("/") ? tail : null;
+}
 
 /**
  * Thrown when a read-modify-write keeps losing the optimistic-locking race
@@ -38,13 +54,18 @@ export interface RmwContext {
  * subsequent POST-to-append has somewhere to land. A non-404 response (it exists,
  * or an auth error) is left as-is. Shared by the event-log writers (data rooms,
  * sharing logs).
+ *
+ * Returns `true` only when it actually created the container this call, and tells
+ * the user about it (a one-time "set up …" notice) — so first-time provisioning
+ * of a lazily-created granergize folder isn't silent. Returns `false` when the
+ * container already existed.
  */
 export async function ensureContainer(
   containerUrl: string,
   session: Session,
-): Promise<void> {
+): Promise<boolean> {
   const head = await session.fetch(containerUrl, { method: "GET" });
-  if (head.ok || head.status !== 404) return;
+  if (head.ok || head.status !== 404) return false;
   const put = await session.fetch(containerUrl, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
@@ -53,6 +74,9 @@ export async function ensureContainer(
   if (!put.ok) {
     throw new Error(`Failed to create container ${containerUrl} (HTTP ${put.status})`);
   }
+  const label = announceableContainer(containerUrl);
+  if (label) emitNotification(`Set up the "${label}" folder on this Pod`, "info");
+  return true;
 }
 
 export async function readModifyWrite(

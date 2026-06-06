@@ -1,7 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { GRAN_NS, RDF_TYPE } from "./vocabularies.ts";
-import { getStorageRoot } from "./solidUtils.ts";
+import { appRoot } from "./solidUtils.ts";
 import { fetchFresh } from "./podFetch.ts";
 import { readModifyWrite } from "./podWrite.ts";
 
@@ -30,9 +30,9 @@ export interface Preferences {
   demoSeedDeclined: boolean;
 }
 
-/** `<storageRoot>granergize/prefs.ttl` — your personal preferences resource. */
+/** `<storageRoot><APP_DIR>/prefs.ttl` — your personal preferences resource. */
 export function prefsUrl(webId: string): string {
-  return `${getStorageRoot(webId)}granergize/prefs.ttl`;
+  return `${appRoot(webId)}prefs.ttl`;
 }
 
 /** Read `prefs.ttl`. A missing file yields empty prefs (created on first write). */

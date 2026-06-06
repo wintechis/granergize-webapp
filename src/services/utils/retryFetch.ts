@@ -22,9 +22,24 @@ const RETRYABLE_STATUS = new Set([429, 503]);
 
 const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
 
-/** A thrown fetch failure (network/CORS-blocked) is a `TypeError` in browsers. */
-function isNetworkError(e: unknown): boolean {
-  return e instanceof TypeError;
+/**
+ * Whether a thrown fetch failure is worth retrying.
+ *  - A network / CORS-blocked failure is a `TypeError` in browsers.
+ *  - A `net::ERR_ABORTED` surfaces as a `DOMException` `AbortError`. The browser
+ *    aborts a request for transient connection reasons too (e.g. a reused
+ *    keep-alive connection the server has closed) — and crucially CSS often has
+ *    ALREADY applied the write (returns 201) before the socket drops, so the app
+ *    sees a failure for a write that actually landed. Our writes are idempotent
+ *    (PUT-whole-file / append-via-POST), so replaying is safe. BUT a request the
+ *    CALLER aborted on purpose (its own `signal` is aborted — e.g. the Cancel
+ *    button on a long upload) must NOT be retried.
+ */
+function isRetryableError(e: unknown, init?: RequestInit): boolean {
+  if (e instanceof TypeError) return true;
+  if (e instanceof DOMException && e.name === "AbortError") {
+    return init?.signal?.aborted !== true;
+  }
+  return false;
 }
 
 /** `Retry-After` in ms (delta-seconds form), or null. */
@@ -58,7 +73,7 @@ export function withRetry(
         }
         return res;
       } catch (e) {
-        if (isNetworkError(e) && attempt < maxRetries) {
+        if (isRetryableError(e, init) && attempt < maxRetries) {
           await sleep(backoff);
           attempt++;
           continue;

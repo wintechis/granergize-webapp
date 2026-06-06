@@ -20,21 +20,24 @@ The project runs on **Deno 2** (not Node), though dependencies are npm/jsr packa
 - `deno task build` — production build to `dist/`
 - `deno task test` — Tier 1: hermetic unit suite (`deno test -A`)
 - `deno task it` — Tier 2: headless integration against a throwaway local CSS (no creds)
-- `deno task e2e` — Tier 3: Playwright UI specs against a throwaway local CSS (no creds)
-- `deno task e2e:base` — Tier 4: the same Playwright UI specs against real Pods (`testDir: test/e2e`)
+- `deno task e2e:local` — Tier 3: Playwright UI specs against a throwaway local CSS (no creds)
+- `deno task e2e:remote` — Tier 4: the same Playwright UI specs against real Pods (`testDir: test/e2e`)
 - `deno run -A npm:eslint .` — lint (ESLint flat config in `eslint.config.js`; ignores `dist`)
 
 The test foundation is tiered and provider-aware — see `test/README.md`. Four tiers
 climbing fake→real one axis at a time: **Tier 1** (unit) lives next to the code as
 `src/**/*.test.ts`; **Tier 2** (`test/headless/`, `deno task it`) runs the real
 data-layer fns over two client-credential sessions against a local Community Solid
-Server; **Tier 3** (`deno task e2e`) drives the real browser UI against a
+Server; **Tier 3** (`deno task e2e:local`) drives the real browser UI against a
 throwaway local CSS, credential-free (the `local` Playwright project, `E2E_LOCAL=1`,
 run against the production build via `E2E_PREVIEW=1`); **Tier 4** (`test/e2e/`,
-Playwright, `deno task e2e:base`) runs those same UI specs against real Pods. Shared
-provider/account config is in `test/config/`. Each Praxishandbuch task is checked
-"in principle" (Tier 2) and "in practice" (Tiers 3 local, 4 remote); each adjacent
-tier pair bisects a different failure class (UI/render vs provider/server-interop).
+Playwright, `deno task e2e:remote`) runs those same UI specs against real Pods. Both
+tiers use **two roles, A = Alice and B = Bob** (solo specs → Alice; sharing specs →
+Alice + Bob); for Tier 4 you configure each role's Pod/WebID per run by `source`-ing
+an env file (`test/.env.e2e.*.local`). Shared provider/account config is in
+`test/config/`. Each Praxishandbuch task is checked "in principle" (Tier 2) and "in
+practice" (Tiers 3 local, 4 remote); each adjacent tier pair bisects a different
+failure class (UI/render vs provider/server-interop).
 
 Tier-1 tests use **offline fixtures** — e.g. `TurtleParsingService.test.ts` drives
 `fetchAndParseData` with a fake `Session` whose `fetch` serves in-memory Turtle per URL, so
@@ -60,6 +63,13 @@ mirroring the service-test pattern.
 - `VITE_WEATHER_API_URL` selects the weather data backend. In dev it defaults to the
   Vite proxy `/weather-api/` (configured in `vite.config.ts` → `wetterdienst-rdf-adapter.deno.dev`);
   in prod it points directly at that adapter. See `.env.development` / `.env.production`.
+- `VITE_POD_APP_DIR` selects the on-Pod app collection segment (default `granergize`).
+  Every app resource lives under `<storageRoot><VITE_POD_APP_DIR>/`; the single source
+  of truth is `APP_DIR` / `appRoot(webId)` in `solidUtils.ts` (and `podResources`), so
+  all path builders move together. The e2e runs set it to `granergize-e2e` (every
+  `deno task e2e:*` task) so those tests write to a throwaway collection and never
+  touch real `granergize/` data; `deno task e2e:remote:reset` wipes that collection
+  for both roles (Alice + Bob).
 
 ## Deployment
 
@@ -96,7 +106,8 @@ why `vite.config.ts` sets `base: "./"` and routing uses `HashRouter`.
    `src/services/utils/` (`buildingParser`; energy via `parseEnergyDataset` in
    `energyDataset.ts`; user-energy readings via `parseTtlReadings` in `userEnergyParser`).
    Inaccessible shared sources are tolerated and pruned from the log; hidden buildings
-   come from `<storageRoot>/profile/granergize/hiddenBuildings.ttl`.
+   come from `gran:hiddenBuilding` triples in `<appRoot>/prefs.ttl` (see `prefs.ts`;
+   the old standalone `hiddenBuildings.ttl` was folded into prefs).
 
 ### Roles, provenance & data-shape dispatch
 `UserRole` (`types/types.ts`) — `dummy | investor | user | benchmark_service_provider` —

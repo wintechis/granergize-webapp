@@ -9,7 +9,7 @@ import {
   PROV_WAS_ASSOCIATED_WITH,
   RDF_TYPE,
 } from "../utils/vocabularies.ts";
-import { getStorageRoot } from "../utils/solidUtils.ts";
+import { appRoot } from "../utils/solidUtils.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
 import { ensureContainer } from "../utils/podWrite.ts";
 import { listDirectChildren } from "../utils/podDelete.ts";
@@ -56,12 +56,12 @@ export type ActiveGrant = Omit<SharingEvent, "type">;
 
 /** `granergize/shared-in/` — sharing received (folded for "shared with me"). */
 export function sharedInUrl(webId: string): string {
-  return `${getStorageRoot(webId)}granergize/shared-in/`;
+  return `${appRoot(webId)}shared-in/`;
 }
 
 /** `granergize/shared-out/` — sharing performed (history + "shared with" badge). */
 export function sharedOutUrl(webId: string): string {
-  return `${getStorageRoot(webId)}granergize/shared-out/`;
+  return `${appRoot(webId)}shared-out/`;
 }
 
 const A = namedNode(RDF_TYPE);

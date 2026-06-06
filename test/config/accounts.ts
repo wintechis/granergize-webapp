@@ -35,14 +35,11 @@ function providerFor(slot: string): PodProvider | null {
 
 /**
  * In the browser "local" tier (E2E_LOCAL=1) accounts come from the seeded local CSS,
- * NOT the env: slot B → the `bob` pod, anything else (A, the solo slot C/D, …) → the
- * `alice` pod. So the unchanged specs (`account("A")`/`account("B")`, `soloAccount()`,
- * the A+B interoperating pair) resolve to the two local pods with no creds to set.
+ * NOT the env: slot B → the `bob` pod, anything else (A, …) → the `alice` pod. So the
+ * specs (`account("A")` for solo, the A+B pair for sharing) resolve to the two local
+ * pods with no creds to set — the same two-role model the remote tier uses.
  */
 function localAccount(slot: string): TestAccount | null {
-  // Pool slots (P0, P1, …) must still resolve to null so `poolAccounts()`'s
-  // scan-until-gap terminates — otherwise local mode loops forever (heap OOM).
-  if (/^P\d+$/.test(slot)) return null;
   const seed = slot === "B" ? LOCAL_SEED.B : LOCAL_SEED.A;
   const provider = localBrowserProvider();
   return {
@@ -68,18 +65,4 @@ export function account(slot: string): TestAccount | null {
 
 export function hasAccount(slot: string): boolean {
   return account(slot) !== null;
-}
-
-/**
- * Pool accounts `P0..Pn` for worker-indexed browser parallelism (§4): scan
- * upward until the first gap. Empty when no pool is configured.
- */
-export function poolAccounts(): TestAccount[] {
-  const pool: TestAccount[] = [];
-  for (let i = 0; ; i++) {
-    const a = account(`P${i}`);
-    if (!a) break;
-    pool.push(a);
-  }
-  return pool;
 }

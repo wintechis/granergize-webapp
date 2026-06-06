@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 
@@ -11,25 +11,29 @@ import { ensureDemoBuildings } from "../helpers/seed.ts";
  * deletes the copies) and cleans up after itself. It self-seeds an empty Pod in
  * beforeAll (ensureDemoBuildings), so it doesn't assume a pre-seeded Pod.
  *
- *   source .env.e2e.local && deno task e2e:base excel-export --workers=1
+ *   # tier 3 (local CSS, no creds):
+ *   deno task e2e:local test/e2e/tasks/excel-export.spec.ts
+ *   # tier 4 (real Pods):
+ *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/excel-export.spec.ts
  *
- * Runs against the solo Pod (E2E_SOLO; default C = solidweb). Skipped
+ * Runs against Alice (account A). Skipped
  * without creds.
  */
 
-const ACC = soloAccount();
 
 async function openManage(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
   await expect(buildingRows(page).first()).toBeVisible({ timeout: 120_000 });
 }
 
+const ACC = account("A"); // Alice -- solo specs use one account
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("excel export", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the excel-export e2e.`,
+    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the excel-export e2e.`,
   );
 
   let page: Page;
@@ -129,6 +133,12 @@ test.describe("excel export", () => {
       await expect(page.getByText("Building deleted").first())
         .toBeVisible({ timeout: 90_000 });
     }
-    expect(new Set(await buildingIds(page))).toEqual(before);
+    // The "Building deleted" toast fires on the mutation; the Manage list refetch
+    // (invalidate buildings) lands a beat later, so the last-deleted row can still
+    // linger for a moment. Poll until the listing is back to exactly `before`
+    // (eventually-consistent, mirroring the re-import assertion above).
+    await expect(async () => {
+      expect(new Set(await buildingIds(page))).toEqual(before);
+    }).toPass({ timeout: 60_000 });
   });
 });

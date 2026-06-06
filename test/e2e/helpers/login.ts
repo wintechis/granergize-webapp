@@ -1,6 +1,29 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { account as resolveAccount, type TestAccount } from "../../config/accounts.ts";
 import { localProvider } from "../../config/providers.ts";
+import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
+import { watchCloudflareRateLimit } from "./cloudflareGuard.ts";
+
+const E2E_LOCAL = !!(globalThis as { process?: { env: Record<string, string | undefined> } })
+  .process?.env?.E2E_LOCAL;
+
+// Tier 3 (local CSS) isolation: restart CSS ONCE per spec file so each spec starts
+// with pristine, freshly-seeded pods (no shared mutable state across the 8 solo
+// specs on one pod). Keyed by spec file; the shared promise dedupes the concurrent
+// A/B logins a sharing spec fires. No-op outside the local tier.
+let resetForFile: string | undefined;
+let resetInFlight: Promise<unknown> | undefined;
+async function resetLocalPodsOnce(): Promise<void> {
+  if (!E2E_LOCAL) return;
+  const file = test.info().file;
+  if (file !== resetForFile) {
+    resetForFile = file;
+    resetInFlight = fetch(`http://localhost:${LOCAL_CSS_CONTROL_PORT}/reset`, {
+      method: "POST",
+    }).catch(() => {});
+  }
+  await resetInFlight;
+}
 
 /**
  * The browser tier's view of a test account — now just the shared `TestAccount`
@@ -33,20 +56,6 @@ export function hasAccount(a: SolidAccount): boolean {
 }
 
 /**
- * The single-account ("solo") specs run against ONE Pod, chosen by `E2E_SOLO`
- * (a slot id; default `C` = the solidweb Pod). Set `E2E_SOLO=D` to run them
- * against the redpencil Pod instead. The two solo Pods sit on DIFFERENT hosts, so
- * the two runs can go fully in parallel without contention (see test/run-e2e.sh).
- * The two-account sharing specs ignore this and use the A+B pair.
- */
-export const SOLO_SLOT = process.env.E2E_SOLO || "C";
-
-/** The account a solo spec uses (slot `E2E_SOLO`, default `C`). */
-export function soloAccount(): SolidAccount {
-  return account(SOLO_SLOT);
-}
-
-/**
  * Log the page into the app via the given Solid account: pick/enter the issuer,
  * fill the identity-provider form, click through consent, dismiss the
  * remember-provider prompt, and wait until the app tabs are present.
@@ -55,6 +64,11 @@ export function soloAccount(): SolidAccount {
  * time; selectors are best-effort for solidcommunity.net. Run headed to debug.
  */
 export async function login(page: Page, acc: SolidAccount): Promise<void> {
+  // Bail the whole run fast if the Pod host trips Cloudflare's Error 1015 (rate
+  // limited) — attach before any navigation so login traffic is watched too.
+  watchCloudflareRateLimit(page);
+  // Tier 3: give this spec a pristine CSS (restarts once per spec file).
+  await resetLocalPodsOnce();
   const host = new URL(acc.provider.issuer).host;
   const user = page.locator(
     'input[name="username"], input[name="email"], input[type="email"], input#username, input#email',

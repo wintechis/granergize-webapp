@@ -8,11 +8,11 @@ import { account, hasAccount, login, LOGIN_HEADING } from "../helpers/login.ts";
  * only — never a real account — passed via env so no credentials live in the repo:
  *
  *   E2E_USERNAME_A=...  E2E_PASSWORD_A=...  [E2E_PROVIDER_A=solidcommunity] \
- *     deno task e2e:base --project=support
+ *     deno task e2e:remote:spec test/e2e/support/screenshots.spec.ts
  *
  * Skipped automatically when those env vars are absent (so CI / a no-cred run
  * never needs credentials). Run headed to debug:
- *   deno task e2e:base --project=support -- --headed
+ *   deno task e2e:remote:spec test/e2e/support/screenshots.spec.ts -- --headed
  */
 
 const ACC = account("A");

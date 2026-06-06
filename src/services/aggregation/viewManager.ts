@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
-import { getStorageRoot } from "../utils/solidUtils.ts";
+import { appRoot } from "../utils/solidUtils.ts";
 import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
@@ -43,12 +43,12 @@ function serializeWithPrefixes(store: Store): string {
 
 /** The `views/` container — one definition resource per view (discover by listing). */
 function viewsContainerUrl(webId: string): string {
-  return `${getStorageRoot(webId)}granergize/views/`;
+  return `${appRoot(webId)}views/`;
 }
 
 /** The `views/snapshots/` container — one shareable computed copy per view. */
 function snapshotsContainerUrl(webId: string): string {
-  return `${getStorageRoot(webId)}granergize/views/snapshots/`;
+  return `${appRoot(webId)}views/snapshots/`;
 }
 
 /** A single view definition resource: `views/<viewId>.ttl`. */

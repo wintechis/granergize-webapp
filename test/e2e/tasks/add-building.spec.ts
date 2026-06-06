@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingRows } from "../helpers/manage.ts";
 
 /**
@@ -9,21 +9,25 @@ import { buildingRows } from "../helpers/manage.ts";
  * is back where it started — so it leaves the Pod exactly as it found it (no need
  * to consume a seeded building). Adding no longer needs a data-room role.
  *
- *   source .env.e2e.local && deno task e2e:base building-delete --workers=1
+ *   # tier 3 (local CSS, no creds):
+ *   deno task e2e:local test/e2e/tasks/add-building.spec.ts
+ *   # tier 4 (real Pods):
+ *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/add-building.spec.ts
  *
- * Runs against the solo Pod (E2E_SOLO; default C = solidweb).
+ * Runs against Alice (account A).
  * Skipped automatically when the account env vars are absent.
  */
 
-const ACC = soloAccount();
 const ADDR = "Delete E2E Strasse 1"; // unique address for the throwaway building
+
+const ACC = account("A"); // Alice -- solo specs use one account
 
 test.describe.configure({ mode: "serial" });
 
 test.describe("building deletion", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the building-delete e2e.`,
+    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the building-delete e2e.`,
   );
 
   let page: Page;

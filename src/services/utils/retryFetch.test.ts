@@ -51,6 +51,39 @@ Deno.test("withRetry: rethrows the network error after exhausting retries", asyn
   assert.equal(f.calls, 2); // initial + 1 retry
 });
 
+/** A fetch that rejects with a DOMException AbortError on the first N calls. */
+function abortingFetch(throwsBeforeSuccess: number) {
+  let calls = 0;
+  const fn = (() => {
+    calls++;
+    if (calls <= throwsBeforeSuccess) {
+      return Promise.reject(new DOMException("aborted", "AbortError"));
+    }
+    return Promise.resolve(new Response(null, { status: 201 }));
+  }) as typeof fetch;
+  return { fn, get calls() {
+    return calls;
+  } };
+}
+
+Deno.test("withRetry: retries a browser-level abort the caller didn't request", async () => {
+  const f = abortingFetch(1);
+  const res = await withRetry(f.fn, FAST)("https://x/", { method: "PUT" });
+  assert.equal(res.status, 201); // the idempotent write replays and lands
+  assert.equal(f.calls, 2);
+});
+
+Deno.test("withRetry: does NOT retry a caller-cancelled request (its own signal aborted)", async () => {
+  const f = abortingFetch(1);
+  const ctrl = new AbortController();
+  ctrl.abort();
+  await assert.rejects(
+    () => withRetry(f.fn, FAST)("https://x/", { method: "PUT", signal: ctrl.signal }),
+    DOMException,
+  );
+  assert.equal(f.calls, 1); // user cancel → not retried
+});
+
 Deno.test("withRetry: passes non-retryable responses straight through", async () => {
   const f = scriptedFetch([404]);
   const res = await withRetry(f.fn, FAST)("https://x/");

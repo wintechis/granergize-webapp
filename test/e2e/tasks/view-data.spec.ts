@@ -1,30 +1,34 @@
 import { expect, type Page, test } from "@playwright/test";
-import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 
 /**
  * Energy-view smoke test (single account, a THROWAWAY Solid Pod). Proves the
  * unified `gran:EnergyDataset` model renders end-to-end in a real browser: a
- * building's energy detail (annual table + bar chart, or the 15-min series
- * chart) is fetched from the separate dataset resources and drawn. It self-seeds
- * an empty Pod in beforeAll (ensureDemoBuildings) — the demo carries one annual
- * (investor) and one 15-min series (user) building, so whichever id we pick
- * exercises the new loader + chart — and so doesn't assume a pre-seeded Pod.
+ * building's energy detail (annual table + bar chart) is fetched from the
+ * separate dataset resources and drawn. It self-seeds an empty Pod in beforeAll
+ * (ensureDemoBuildings) — the demo carries one annual (investor) and one 15-min
+ * series (user) building; this test renders the annual one (auto-loaded; the
+ * series chart is lazy-loaded on click) — and so doesn't assume a pre-seeded Pod.
  *
- *   source .env.e2e.local && deno task e2e:base e2e/energy-smoke.spec.ts
+ *   # tier 3 (local CSS, no creds):
+ *   deno task e2e:local test/e2e/tasks/view-data.spec.ts
+ *   # tier 4 (real Pods):
+ *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/view-data.spec.ts
  *
- * Runs against the solo Pod (E2E_SOLO; default C = solidweb).
+ * Runs against Alice (account A).
  * Skipped automatically when the account env vars are absent.
  */
 
-const ACC = soloAccount();
+
+const ACC = account("A"); // Alice -- solo specs use one account
 
 test.describe.configure({ mode: "serial" });
 
 test.describe("energy view smoke", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the energy smoke.`,
+    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the energy smoke.`,
   );
 
   let page: Page;
@@ -45,12 +49,15 @@ test.describe("energy view smoke", () => {
   test("a building's Energy view renders from gran:EnergyDataset", async () => {
     test.setTimeout(180_000);
 
-    // Find a seeded building's numeric id on Manage ("Building <id> — …").
+    // Target the annual demo building ("Nordostpark 84") specifically — it always
+    // carries an annual aggregate, so its energy view renders the table + chart.
+    // (`.first()` could land on a residual/empty building → "No energy data
+    // available"; the annual one is the same building-details.spec.ts benchmarks.)
     await page.getByRole("tab", { name: "Manage" }).click();
-    const row = page.getByText(/^Building \d+/).first();
+    const row = page.locator("li", { hasText: "Nordostpark" }).first();
     await expect(row).toBeVisible({ timeout: 120_000 });
-    const id = (await row.textContent())?.match(/Building (\d+)/)?.[1];
-    expect(id, "a seeded building id on Manage").toBeTruthy();
+    const id = (await row.textContent())?.match(/Building (\S+)/)?.[1];
+    expect(id, "the annual demo building's id on Manage").toBeTruthy();
 
     // The /energy/:id deep link renders the building's energy detail — proving
     // loadEnergy + the chart run on the new model (annual aggregate fetched from
@@ -75,6 +82,9 @@ test.describe("energy view smoke", () => {
   // Storage-redesign smokes (dissolved from the old storage-smoke spec): the
   // container-native Manage/Share panels render. Reuse the seeded, logged-in page.
   test("Manage lists own buildings + the Aggregated views section renders", async () => {
+    // The previous test ended on the standalone /energy/:id route (no app shell, so
+    // no tabs) — return to the shell before reaching for a tab.
+    await page.goto("/#/");
     await page.getByRole("tab", { name: "Manage" }).click();
     await expect(page.getByRole("heading", { name: "Your buildings" }))
       .toBeVisible({ timeout: 45_000 });

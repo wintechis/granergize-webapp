@@ -43,7 +43,7 @@ import {
 } from "./energyDataset.ts";
 import { isSeriesGranularity } from "./durationUtils.ts";
 import { PROVENANCE_TO_IRI } from "../../constants/roles.ts";
-import { getStorageRoot } from "./solidUtils.ts";
+import { appRoot, getStorageRoot } from "./solidUtils.ts";
 import { ensureContainer, readModifyWrite } from "./podWrite.ts";
 import { mapPooled } from "./pool.ts";
 import { deleteContainerRecursive } from "./podDelete.ts";
@@ -723,25 +723,6 @@ export async function writeBuildingEnergy(
   return links;
 }
 
-async function ensureBuildingsDirectoryExists(
-  session: Session,
-  webId: string,
-): Promise<void> {
-  const dir = `${getStorageRoot(webId)}granergize/buildings/`;
-  try {
-    const res = await session.fetch(dir, { method: "HEAD" });
-    if (res.status === 404) {
-      await session.fetch(dir, {
-        method: "PUT",
-        headers: { "Content-Type": "text/turtle" },
-        body: "",
-      });
-    }
-  } catch {
-    // directory may already exist
-  }
-}
-
 export async function uploadBuilding(
   session: Session,
   buildingUri: string,
@@ -749,7 +730,9 @@ export async function uploadBuilding(
   webId: string,
   signal?: AbortSignal,
 ): Promise<void> {
-  await ensureBuildingsDirectoryExists(session, webId);
+  // Provision the buildings/ container first (announced once, on first add) so
+  // the building-file PUT below has somewhere to land — via the shared helper.
+  await ensureContainer(`${appRoot(webId)}buildings/`, session);
   signal?.throwIfAborted();
   const res = await session.fetch(buildingUri, {
     method: "PUT",
@@ -814,7 +797,7 @@ export async function updateBuilding(
 
 /** Construct the POD URL for a new building file. */
 export function newBuildingUri(webId: string, id: string): string {
-  return `${getStorageRoot(webId)}granergize/buildings/${id}.ttl`;
+  return `${appRoot(webId)}buildings/${id}.ttl`;
 }
 
 /**
