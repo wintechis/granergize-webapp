@@ -1,5 +1,5 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store, Writer } from "n3";
+import { DataFactory, Parser, Store } from "n3";
 import { getRecipientInboxUrl } from "./inbox.ts";
 import {
   appendSharingEvent,
@@ -9,8 +9,9 @@ import {
   sharedOutUrl,
 } from "./sharingLog.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
+import { readModifyWrite } from "../utils/podWrite.ts";
 import { readPrefs, toggleHiddenBuilding } from "../utils/prefs.ts";
-import { GRAN_NS } from "../utils/vocabularies.ts";
+import { ACL_NS, GRAN_NS } from "../utils/vocabularies.ts";
 import { parseDatasetSlug } from "../utils/energyDataset.ts";
 import { isSeriesGranularity } from "../utils/durationUtils.ts";
 
@@ -46,23 +47,21 @@ export async function getSharedBuildings(
     throw new Error("User is not logged in");
   }
 
-  try {
-    const grants = await foldSharingLog(sharedOutUrl(session.info.webId), session);
-    const buildingsMap = new Map<string, Set<string>>();
-    for (const g of grants) {
-      if (g.kind !== "Building") continue;
-      if (!buildingsMap.has(g.resource)) buildingsMap.set(g.resource, new Set());
-      buildingsMap.get(g.resource)!.add(g.grantee);
-    }
-    return [...buildingsMap.entries()].map(([buildingUri, webIds]) => ({
-      buildingUri,
-      buildingId: buildingIdFromUri(buildingUri),
-      sharedWith: [...webIds],
-    }));
-  } catch (error) {
-    console.error("Error getting shared buildings:", error);
-    return [];
+  // No try/catch: a network/parse failure propagates to React Query (which keeps
+  // the last good list via keepPreviousData) rather than being masked as
+  // "nothing shared".
+  const grants = await foldSharingLog(sharedOutUrl(session.info.webId), session);
+  const buildingsMap = new Map<string, Set<string>>();
+  for (const g of grants) {
+    if (g.kind !== "Building") continue;
+    if (!buildingsMap.has(g.resource)) buildingsMap.set(g.resource, new Set());
+    buildingsMap.get(g.resource)!.add(g.grantee);
   }
+  return [...buildingsMap.entries()].map(([buildingUri, webIds]) => ({
+    buildingUri,
+    buildingId: buildingIdFromUri(buildingUri),
+    sharedWith: [...webIds],
+  }));
 }
 
 /**
@@ -77,24 +76,21 @@ export async function getSharedWithMe(
     throw new Error("User is not logged in");
   }
 
-  try {
-    const [{ hiddenBuildings }, grants] = await Promise.all([
-      readPrefs(session),
-      foldSharingLog(sharedInUrl(session.info.webId), session),
-    ]);
+  // No try/catch: errors propagate to React Query (keepPreviousData keeps the last
+  // good list) instead of being masked as "nothing shared".
+  const [{ hiddenBuildings }, grants] = await Promise.all([
+    readPrefs(session),
+    foldSharingLog(sharedInUrl(session.info.webId), session),
+  ]);
 
-    return grants
-      .filter((g) => g.kind === "Building")
-      .map((g) => ({
-        buildingUri: g.resource,
-        buildingId: buildingIdFromUri(g.resource),
-        sharedBy: g.owner || "Unknown",
-        isVisible: !hiddenBuildings.has(g.resource),
-      }));
-  } catch (error) {
-    console.error("Error getting shared with me buildings:", error);
-    return [];
-  }
+  return grants
+    .filter((g) => g.kind === "Building")
+    .map((g) => ({
+      buildingUri: g.resource,
+      buildingId: buildingIdFromUri(g.resource),
+      sharedBy: g.owner || "Unknown",
+      isVisible: !hiddenBuildings.has(g.resource),
+    }));
 }
 
 /**
@@ -141,50 +137,38 @@ export async function revokeAccess(
   }
 }
 
-async function removeFromACL(
+/**
+ * Remove a recipient's authorization(s) from a resource's ACL, idempotently and
+ * under the optimistic lock.
+ *
+ * Routed through {@link readModifyWrite} so a revoke racing a concurrent grant (or
+ * a second revoke) can't blind-clobber it: the `If-Match`/retry loop re-reads and
+ * re-applies. Every authorization subject carrying `acl:agent <webId>` is dropped,
+ * so a legacy ACL with duplicate blocks for the same agent is also cleaned up. The
+ * owner block (a different `acl:agent`) is untouched. A missing ACL or an absent
+ * recipient skips the PUT entirely (`mutate` returns false).
+ *
+ * Exported for unit testing (the public `revokeAccess` reaches it).
+ */
+export async function removeFromACL(
   resourceUri: string,
   webId: string,
   session: Session,
 ): Promise<void> {
   const aclUrl = `${resourceUri}.acl`;
-  const response = await fetchFresh(aclUrl, session);
-
-  if (!response.ok) {
-    console.warn(`ACL not found for ${resourceUri}`);
-    return;
-  }
-
-  const aclText = await response.text();
-  const parser = new Parser({ format: "text/turtle", baseIRI: aclUrl });
-  const store = new Store(parser.parse(aclText));
-
-  // Find all authorization subjects that have acl:agent <webId>
-  const agentPredicate = DataFactory.namedNode(
-    "http://www.w3.org/ns/auth/acl#agent",
-  );
+  const agentPredicate = DataFactory.namedNode(`${ACL_NS}agent`);
   const agentNode = DataFactory.namedNode(webId);
-  const authsToRemove = store
-    .getQuads(null, agentPredicate, agentNode, null)
-    .map((q) => q.subject);
-
-  if (authsToRemove.length === 0) return;
-
-  // Remove all quads where those subjects appear as subject
-  for (const subject of authsToRemove) {
-    store.getQuads(subject, null, null, null).forEach((q) =>
-      store.removeQuad(q)
-    );
-  }
-
-  const writer = new Writer({ format: "text/turtle" });
-  const updatedAcl = writer.quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-
-  await session.fetch(aclUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: updatedAcl,
+  await readModifyWrite(aclUrl, session, (store, { created }) => {
+    if (created) return false; // no ACL → nothing to revoke
+    const subjects = store
+      .getQuads(null, agentPredicate, agentNode, null)
+      .map((q) => q.subject);
+    if (subjects.length === 0) return false; // recipient absent → skip the PUT
+    for (const subject of subjects) {
+      for (const q of store.getQuads(subject, null, null, null)) {
+        store.removeQuad(q);
+      }
+    }
   });
 }
 
@@ -349,19 +333,15 @@ export async function getReceivedViews(
     throw new Error("User is not logged in");
   }
 
-  try {
-    const grants = await foldSharingLog(sharedInUrl(session.info.webId), session);
-    return grants
-      .filter((g) => g.kind === "View")
-      .map((g) => ({
-        snapshotUrl: g.resource,
-        viewId: buildingIdFromUri(g.resource), // basename without ".ttl"
-        sharedBy: g.owner || "Unknown",
-      }));
-  } catch (error) {
-    console.error("Error getting received views:", error);
-    return [];
-  }
+  // Errors propagate to React Query (keepPreviousData keeps the last good list).
+  const grants = await foldSharingLog(sharedInUrl(session.info.webId), session);
+  return grants
+    .filter((g) => g.kind === "View")
+    .map((g) => ({
+      snapshotUrl: g.resource,
+      viewId: buildingIdFromUri(g.resource), // basename without ".ttl"
+      sharedBy: g.owner || "Unknown",
+    }));
 }
 
 /**
@@ -374,23 +354,19 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
     throw new Error("User is not logged in");
   }
 
-  try {
-    const grants = await foldSharingLog(sharedOutUrl(session.info.webId), session);
-    const viewsMap = new Map<string, Set<string>>();
-    for (const g of grants) {
-      if (g.kind !== "View") continue;
-      if (!viewsMap.has(g.resource)) viewsMap.set(g.resource, new Set());
-      viewsMap.get(g.resource)!.add(g.grantee);
-    }
-    return [...viewsMap.entries()].map(([snapshotUrl, webIds]) => ({
-      snapshotUrl,
-      viewId: buildingIdFromUri(snapshotUrl), // basename without ".ttl"
-      sharedWith: [...webIds],
-    }));
-  } catch (error) {
-    console.error("Error getting shared views:", error);
-    return [];
+  // Errors propagate to React Query / the dialog's own catch (not masked as empty).
+  const grants = await foldSharingLog(sharedOutUrl(session.info.webId), session);
+  const viewsMap = new Map<string, Set<string>>();
+  for (const g of grants) {
+    if (g.kind !== "View") continue;
+    if (!viewsMap.has(g.resource)) viewsMap.set(g.resource, new Set());
+    viewsMap.get(g.resource)!.add(g.grantee);
   }
+  return [...viewsMap.entries()].map(([snapshotUrl, webIds]) => ({
+    snapshotUrl,
+    viewId: buildingIdFromUri(snapshotUrl), // basename without ".ttl"
+    sharedWith: [...webIds],
+  }));
 }
 
 /**

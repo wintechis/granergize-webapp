@@ -14,7 +14,6 @@ import {
 import DownloadIcon from "@mui/icons-material/Download";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
-import { Parser } from "n3";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   AggregatedViewSnapshot,
@@ -26,7 +25,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";
 import { useReceivedViews, useSharedWithMe } from "../hooks/queries.ts";
 import { useToggleVisibility } from "../hooks/mutations.ts";
-import { parseBuildings } from "../services/utils/buildingParser.ts";
+import { loadSharedBuilding } from "../services/interop/sharedBuilding.ts";
 import {
   attachAnnualData,
   buildingsToXlsx,
@@ -34,7 +33,9 @@ import {
 } from "../services/utils/buildingSerializer.ts";
 import { loadComputedSnapshot } from "../services/aggregation/viewManager.ts";
 import { downloadXlsx } from "../services/utils/download.ts";
-import { UriLink } from "../components/detail/DetailView.tsx";
+import { tryPodResources } from "../services/utils/solidUtils.ts";
+import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
+import { useDevMode } from "../components/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { listStyle, rowStyle } from "../components/listStyles.ts";
 import Pager from "../components/Pager.tsx";
@@ -100,7 +101,9 @@ function ReceivedViewRow(
         <span style={{ minWidth: 0 }}>
           {label}
           <br />
-          <small>Shared by: {view.sharedBy}</small>
+          <small>
+            Shared by: <UriLink href={view.sharedBy}>{view.sharedBy}</UriLink>
+          </small>
         </span>
         <Button size="small" variant="text" onClick={toggle}>
           {open ? "Hide values" : "Show values"}
@@ -169,6 +172,7 @@ function ReceivedViewRow(
  */
 export default function SharePage({ session }: SharePageProps) {
   const { showNotification } = useNotification();
+  const dev = useDevMode();
 
   const sharedWithMeQuery = useSharedWithMe();
   const sharedWithMe = sharedWithMeQuery.data ?? [];
@@ -182,31 +186,13 @@ export default function SharePage({ session }: SharePageProps) {
   const toggleVis = useToggleVisibility();
   const [bundling, setBundling] = useState(false);
 
-  // Load a shared building as a typed BuildingType. Unlike the MANAGE tab (which
-  // has the buildings in memory), shared buildings aren't all loaded — hidden
-  // ones are pruned from useSolidData — so fetch the source document and parse it.
-  // The producer's role comes from the sharing entry, so the export uses the
-  // matching template (investor / bsp / generic).
-  const loadSharedBuilding = async (entry: {
-    buildingUri: string;
-    sharedRole?: string;
-  }): Promise<BuildingType | null> => {
-    const res = await session.fetch(entry.buildingUri, {
-      headers: { Accept: "text/turtle" },
-    });
-    if (!res.ok) throw new Error(`HTTP ${res.status}`);
-    const parsed = parseBuildings(new Parser().parse(await res.text()));
-    const found = [...parsed.values()].find((b) => b.uri === entry.buildingUri) ??
-      [...parsed.values()][0];
-    if (!found) return null;
-    // Provenance comes from the shared building file (PROV attribution); fall
-    // back to the role it was shared as when the file carries none.
-    return {
-      ...found,
-      provenance: found.provenance ??
-        (entry.sharedRole as BuildingType["provenance"]),
-    };
-  };
+  // The Solid containers that back this tab, so the user can open the raw RDF:
+  // shared-in/ backs "Buildings shared with you" (linked under that heading), and
+  // inbox/ is linked in its own section below. `inbox` here is the convention path
+  // (where ensureOwnInbox provisions it); the live location is discoverable but the
+  // default is correct in practice. null until the storage root resolves.
+  const webId = session.info.webId;
+  const collections = webId ? tryPodResources(webId) : null;
 
   const handleDownloadBuilding = async (entry: {
     buildingUri: string;
@@ -214,7 +200,7 @@ export default function SharePage({ session }: SharePageProps) {
     sharedRole?: string;
   }) => {
     try {
-      const building = await loadSharedBuilding(entry);
+      const building = await loadSharedBuilding(entry, session);
       if (!building) throw new Error("no building data found in the source file");
       const [enriched] = await attachAnnualData([building], session);
       downloadXlsx(buildingToXlsx(enriched), `building-${entry.buildingId}.xlsx`);
@@ -232,7 +218,7 @@ export default function SharePage({ session }: SharePageProps) {
       const built: BuildingType[] = [];
       for (const entry of sharedWithMe) {
         try {
-          const b = await loadSharedBuilding(entry);
+          const b = await loadSharedBuilding(entry, session);
           if (b) built.push(b);
         } catch {
           // skip a building that can't be read right now
@@ -264,6 +250,7 @@ export default function SharePage({ session }: SharePageProps) {
       <Typography variant="h6" sx={{ mb: 1 }}>
         Buildings shared with you
       </Typography>
+      {collections && <RdfSourceLink href={collections.sharedIn} />}
       {loading
         ? <p>Loading…</p>
         : sharedWithMe.length === 0
@@ -274,20 +261,27 @@ export default function SharePage({ session }: SharePageProps) {
           </p>
         )
         : (
-          <ul style={listStyle}>
+          <ul style={listStyle} aria-label="Buildings shared with you">
             {sharedPaging.pageItems.map((building) => (
               <li key={building.buildingUri} style={rowStyle}>
                 <span style={{ minWidth: 0 }}>
                   Building {building.buildingId}
-                  <br />
-                  <span style={{ wordBreak: "break-all" }}>
-                    <UriLink href={building.buildingUri}>
-                      {building.buildingUri}
-                    </UriLink>
-                  </span>
+                  {dev && (
+                    <>
+                      <br />
+                      <span style={{ wordBreak: "break-all" }}>
+                        <UriLink href={building.buildingUri}>
+                          {building.buildingUri}
+                        </UriLink>
+                      </span>
+                    </>
+                  )}
                   <br />
                   <small>
-                    Shared by: {building.sharedBy}
+                    Shared by:{" "}
+                    <UriLink href={building.sharedBy}>
+                      {building.sharedBy}
+                    </UriLink>
                     {building.sharedRole &&
                       ` — Role: ${
                         ROLE_LABELS[building.sharedRole] ?? building.sharedRole
@@ -355,7 +349,7 @@ export default function SharePage({ session }: SharePageProps) {
         : receivedViews.length === 0
         ? <p>No aggregated views have been shared with you yet.</p>
         : (
-          <ul style={listStyle}>
+          <ul style={listStyle} aria-label="Views shared with you">
             {receivedViewsPaging.pageItems.map((view) => (
               <ReceivedViewRow
                 key={view.snapshotUrl}
@@ -366,6 +360,21 @@ export default function SharePage({ session }: SharePageProps) {
           </ul>
         )}
       <Pager paging={receivedViewsPaging} />
+
+      {/* Your inbox — the receiving endpoint others post to when they share with
+          you. Notices are drained into shared-in/ and surface in the lists above.
+          Developer-mode only: this exposes the raw transport container. */}
+      {dev && collections && (
+        <>
+          <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Your inbox</Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            Sharing invitations and notifications from others arrive in your app
+            inbox, then surface in the lists above. Open it to browse the raw
+            RDF.
+          </Typography>
+          <RdfSourceLink href={collections.inbox} />
+        </>
+      )}
     </section>
   );
 }

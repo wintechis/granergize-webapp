@@ -38,10 +38,12 @@ import {
   buildingsToXlsx,
   buildingToXlsx,
 } from "../services/utils/buildingSerializer.ts";
+import { buildBuildingDeletionPreview } from "../services/utils/buildingActions.ts";
 import { tryPodResources } from "../services/utils/solidUtils.ts";
 import { formatError } from "../services/utils/formatError.ts";
 import { downloadXlsx } from "../services/utils/download.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
+import { useDevMode } from "../components/devMode.ts";
 import {
   ellipsis,
   listStyle,
@@ -85,6 +87,7 @@ export default function ManagePage({ session }: ManagePageProps) {
   const ownedBuildings = buildings.filter((b) => !b.isShared);
   const buildingPaging = usePaging(ownedBuildings);
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
+  const dev = useDevMode();
 
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
@@ -120,11 +123,13 @@ export default function ManagePage({ session }: ManagePageProps) {
   const deleteViewMut = useDeleteView();
   const revokeView = useRevokeViewAccess();
 
-  const handleDelete = (building: BuildingType) => {
+  const handleDelete = async (building: BuildingType) => {
+    // Build the "what will be removed" preview, confirm, then delete (the
+    // confirm lives here, not in the service — same pattern as handleRevoke).
+    const { message } = await buildBuildingDeletionPreview(session, building);
+    if (!globalThis.confirm(message)) return;
     deleteBuilding.mutate(building, {
-      onSuccess: (deleted) => {
-        if (deleted) showNotification("Building deleted", "success");
-      },
+      onSuccess: () => showNotification("Building deleted", "success"),
     });
   };
 
@@ -241,10 +246,14 @@ export default function ManagePage({ session }: ManagePageProps) {
                       <div style={{ minWidth: 0 }}>
                         <strong>Building {b.id}</strong>
                         {b.streetAddress ? ` — ${b.streetAddress}` : ""}
-                        <br />
-                        <span style={{ wordBreak: "break-all" }}>
-                          <UriLink href={b.uri as string}>{b.uri}</UriLink>
-                        </span>
+                        {dev && (
+                          <>
+                            <br />
+                            <span style={{ wordBreak: "break-all" }}>
+                              <UriLink href={b.uri as string}>{b.uri}</UriLink>
+                            </span>
+                          </>
+                        )}
                         {sharedQuery.isLoading
                           ? (
                             <>
@@ -417,13 +426,14 @@ export default function ManagePage({ session }: ManagePageProps) {
                           <ul style={nestedListStyle}>
                             {sharedWith.map((webId) => (
                               <li key={webId} style={rowStyle}>
-                                <span
+                                <Typography
+                                  component="span"
+                                  variant="caption"
                                   title={webId}
-                                  // eslint-disable-next-line no-restricted-syntax -- plain-HTML span at caption-tier size (0.8rem); intentionally not MUI Typography
-                                  style={{ ...ellipsis, fontSize: "0.8rem" }}
+                                  sx={ellipsis}
                                 >
                                   {webId}
-                                </span>
+                                </Typography>
                                 <IconButton
                                   size="small"
                                   onClick={() =>
@@ -513,6 +523,24 @@ export default function ManagePage({ session }: ManagePageProps) {
           Create View
         </Button>
       </section>
+
+      {/* Outgoing-share log — the append-only record of buildings and views you've
+          shared out (and revoked). It backs the "Shared with" badges above; the
+          symmetric incoming side (shared-in/ + inbox) lives on the Share tab.
+          Developer-mode only: this exposes the raw log container. */}
+      {dev && rdf && (
+        <section>
+          <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
+            Outgoing shares
+          </Typography>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+            The append-only log of buildings and views you've shared with others.
+            It records the "Shared with" history above. Open it to browse the raw
+            RDF.
+          </Typography>
+          <RdfSourceLink href={rdf.sharedOut} />
+        </section>
+      )}
 
       {editBuilding && (
         <EditBuildingDialog

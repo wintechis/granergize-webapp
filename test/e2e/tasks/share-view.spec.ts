@@ -130,9 +130,10 @@ test.describe("view sharing across two pods", () => {
       try {
         await b3.page.getByRole("tab", { name: "Share" }).click();
         try {
-          // Positive empty-state assertion: the list loaded AND the view is gone.
+          // Positive empty-state assertion: the section's empty notice is shown
+          // (the list is absent when empty) AND the view is gone.
           await expect(
-            receivedViews(b3.page).getByText(
+            b3.page.getByText(
               /no aggregated views have been shared with you/i,
             ),
           ).toBeVisible({ timeout: 120_000 });

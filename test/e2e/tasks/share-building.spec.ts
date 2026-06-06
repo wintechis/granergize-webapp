@@ -68,9 +68,9 @@ test.describe("sharing across two pods", () => {
       const b2 = await freshPage(browser, B);
       try {
         await b2.page.getByRole("tab", { name: "Share" }).click();
-        const received = b2.page.getByRole("heading", {
+        const received = b2.page.getByRole("list", {
           name: /buildings shared with you/i,
-        }).locator("xpath=following-sibling::*[1]");
+        });
         try {
           await expect(received.getByText(/^Building /))
             .toBeVisible({ timeout: 120_000 });

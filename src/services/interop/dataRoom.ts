@@ -5,6 +5,7 @@ import {
   ACL_NS,
   AS_NS,
   GRAN_NS,
+  LDP_CONTAINS as LDP_CONTAINS_IRI,
   RDF_TYPE,
   SIOC_NS,
   XSD_DATETIME,
@@ -22,7 +23,7 @@ import {
 
 const { blankNode, literal, namedNode } = DataFactory;
 
-const LDP_CONTAINS = namedNode("http://www.w3.org/ns/ldp#contains");
+const LDP_CONTAINS = namedNode(LDP_CONTAINS_IRI);
 const RDF_TYPE_NODE = namedNode(RDF_TYPE);
 // Membership events are Activity Streams 2.0 activities; role assignment is an
 // as:Update activity carrying the member's roles as SIOC functions.

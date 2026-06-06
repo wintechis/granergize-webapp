@@ -27,9 +27,11 @@ import {
   PROV_HAD_ROLE,
   PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE as RDF_TYPE_IRI,
-  USERVOC_NS,
+  REC_BUILDING,
+  XSD_BOOLEAN,
   XSD_DECIMAL,
   XSD_INTEGER,
+  XSD_STRING,
 } from "./vocabularies.ts";
 import {
   type AnnualMetrics,
@@ -47,15 +49,37 @@ import { appRoot, getStorageRoot } from "./solidUtils.ts";
 import { ensureContainer, readModifyWrite } from "./podWrite.ts";
 import { mapPooled } from "./pool.ts";
 import { deleteContainerRecursive } from "./podDelete.ts";
-import { trackedFetch } from "./networkActivity.ts";
+import { geocodeFields } from "./geocode.ts";
+import {
+  generateEnergyDayTtl,
+  type LastgangReading,
+  parseLastgangXlsx,
+  synthDayReadings,
+} from "./energySeriesXlsx.ts";
+import {
+  applyNormalization,
+  BSP_COL_MAP,
+  INV_YEARS,
+  INVESTOR_CERT_ROWS,
+  INVESTOR_OPCOST_ROW_MAP,
+  INVESTOR_ROW_MAP,
+  MAX_CERTS,
+  normalizeBoolean,
+  normalizeNumber,
+  OPCOST_BOOLEAN_FIELDS,
+  OPCOST_FIELDS,
+} from "./buildingTemplates.ts";
+import { buildingsToXlsx, buildingToXlsx } from "./buildingWorkbook.ts";
 import * as XLSX from "xlsx";
 
-const { namedNode, literal, blankNode } = DataFactory;
+// Re-exported so existing importers can keep getting them from buildingSerializer
+// (geocode, the Lastgang/energy-series helpers, and the XLSX export now live in
+// their own modules).
+export { geocodeFields };
+export { generateEnergyDayTtl, type LastgangReading, synthDayReadings };
+export { buildingsToXlsx, buildingToXlsx };
 
-// XSD datatypes not centralised in vocabularies.ts (only used here).
-const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
-const XSD_BOOLEAN = "http://www.w3.org/2001/XMLSchema#boolean";
-const REC_BUILDING = "https://w3id.org/rec#Building";
+const { namedNode, literal, blankNode } = DataFactory;
 
 // Inverse maps: BuildingType field name → predicate IRI
 const fieldToPredicate: Record<string, string> = Object.fromEntries(
@@ -69,241 +93,6 @@ const fieldToObjectPredicate: Record<string, string> = Object.fromEntries(
 // field descriptor table (buildingConfig.ts) so read and write share one source.
 
 
-// Years scanned for the investor `_inv_<metric>_<year>` annual fields.
-const INV_YEARS = [2018, 2019, 2020, 2021, 2022, 2023, 2024];
-
-// Investor operating-cost categories (one `investor:hasOperatingCosts` blank
-// node). Each is read from a `_opcost_<field>` key; `operationInspectionAndMaintenance`
-// is the only boolean, the rest are controlled-vocab/free-text values. The field
-// names match the predicates buildingParser reads back, so they round-trip.
-const OPCOST_FIELDS = [
-  "wasteDisposal",
-  "insurance",
-  "operationInspectionAndMaintenance",
-  "routineCleaningOffice",
-  "routineCleaningWarehouse",
-  "glassCleaning",
-  "exteriorMaintenance",
-  "security",
-  "propertyManagement",
-  "caretaker",
-  "repairAndMaintenance",
-] as const;
-const OPCOST_BOOLEAN_FIELDS = new Set<string>([
-  "operationInspectionAndMaintenance",
-]);
-
-// Upper bound on certifications scanned per building (`_cert_<i>_*` keys).
-const MAX_CERTS = 10;
-
-// ---------------------------------------------------------------------------
-// Lastgang (15-min load profile) helpers
-// ---------------------------------------------------------------------------
-
-export interface LastgangReading {
-  date: string;     // "YYYY-MM-DD" UTC date of begin time
-  slotId: string;   // "HHMM" of begin UTC
-  beginTs: string;  // ISO 8601 UTC
-  endTs: string;    // ISO 8601 UTC
-  valueKwh: string; // kW × 0.25, 6 decimal places
-}
-
-function lastSundayOf(year: number, month: number): number {
-  const lastDay = new Date(Date.UTC(year, month, 0)).getUTCDate();
-  const lastDow = new Date(Date.UTC(year, month - 1, lastDay)).getUTCDay();
-  return lastDay - lastDow;
-}
-
-function berlinToUTC(
-  year: number, month: number, day: number, hour: number, minute: number,
-): Date {
-  const dstStart = Date.UTC(year, 2, lastSundayOf(year, 3), 1, 0, 0);
-  const dstEnd   = Date.UTC(year, 9, lastSundayOf(year, 10), 1, 0, 0);
-  const asCEST   = Date.UTC(year, month - 1, day, hour - 2, minute);
-  if (asCEST >= dstStart && asCEST < dstEnd) return new Date(asCEST);
-  return new Date(Date.UTC(year, month - 1, day, hour - 1, minute));
-}
-
-function toISO8601(d: Date): string {
-  return d.toISOString().replace(/\.\d{3}Z$/, "Z");
-}
-
-/** Convert an Excel serial date number to {year,month,day,hour,minute} (local time). */
-function xlSerialToComponents(serial: number): { year: number; month: number; day: number; hour: number; minute: number } {
-  // Excel counts from Jan 1 1900 as day 1, but incorrectly treats 1900 as leap year.
-  // For serials >= 60 (i.e. March 1, 1900+) subtract 1 to correct.
-  const adjusted = serial >= 60 ? serial - 1 : serial;
-  const ms = (adjusted - 1) * 86400000;
-  const d = new Date(Date.UTC(1900, 0, 1) + ms);
-  const frac = serial - Math.floor(serial);
-  const totalMin = Math.round(frac * 1440);
-  return {
-    year: d.getUTCFullYear(),
-    month: d.getUTCMonth() + 1,
-    day: d.getUTCDate(),
-    hour: Math.floor(totalMin / 60),
-    minute: totalMin % 60,
-  };
-}
-
-/** Lastgang header label → BuildingType field name. */
-const LASTGANG_FIELD_MAP: Record<string, string> = {
-  "Marktlokation Name": "label",
-};
-
-/**
- * Parse an end-of-interval timestamp string to {year, month, day, hour, minute}.
- * Accepts:
- *   US format:     M/D/YYYY H:MM  or  MM/DD/YYYY HH:MM
- *   German format: D.M.YYYY H:MM  or  DD.MM.YYYY HH:MM
- *   ISO format:    YYYY-MM-DDTHH:MM  or  YYYY-MM-DD HH:MM  (timezone suffix ignored)
- */
-function parseEndOfIntervalTs(
-  tsStr: string,
-): { year: number; month: number; day: number; hour: number; minute: number } | null {
-  const clean = tsStr.trim();
-  // ISO: YYYY-MM-DDTHH:MM or YYYY-MM-DD HH:MM (optional seconds / timezone suffix)
-  const iso = clean.match(/^(\d{4})-(\d{2})-(\d{2})[T ](\d{2}):(\d{2})/);
-  if (iso) return { year: +iso[1], month: +iso[2], day: +iso[3], hour: +iso[4], minute: +iso[5] };
-  // US: M/D/YYYY H:MM or M/D/YY H:MM
-  const us = clean.match(/^(\d{1,2})\/(\d{1,2})\/(\d{2,4})\s+(\d{1,2}):(\d{2})/);
-  if (us) {
-    const y = +us[3];
-    return { month: +us[1], day: +us[2], year: y < 100 ? 2000 + y : y, hour: +us[4], minute: +us[5] };
-  }
-  // German: D.M.YYYY H:MM
-  const de = clean.match(/^(\d{1,2})\.(\d{1,2})\.(\d{4})\s+(\d{1,2}):(\d{2})/);
-  if (de) return { day: +de[1], month: +de[2], year: +de[3], hour: +de[4], minute: +de[5] };
-  return null;
-}
-
-/** Get the best timestamp string from a cell (formatted text preferred, serial fallback). */
-function cellTimestamp(cell: XLSX.CellObject | undefined): string {
-  if (!cell) return "";
-  // Use formatted text only if it actually looks like a date (not a raw serial like "45292.010")
-  if (cell.w) {
-    const w = String(cell.w).trim();
-    if (/\d{1,4}[-./T]\d{1,2}/.test(w)) return w;
-  }
-  // Excel serial date number (date-formatted cells)
-  if (cell.t === "n" && typeof cell.v === "number" && cell.v > 25000) {
-    const { year, month, day, hour, minute } = xlSerialToComponents(cell.v);
-    return `${day}.${String(month).padStart(2, "0")}.${year} ${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`;
-  }
-  return cell.v != null ? String(cell.v) : "";
-}
-
-/**
- * Parse a Lastgang XLSX worksheet:
- *   rows with col A non-empty = header block (label → value pairs)
- *   rows with col A empty, col B = end-of-interval timestamp (Europe/Berlin),
- *   col C = average power (kW) → 15-min readings
- *
- * Returns a single-element array with one building field map.
- * Energy readings are stored as JSON in `_readings_json`.
- * Returns [] if no readings could be parsed (signals: not Lastgang format).
- */
-function parseLastgangXlsx(ws: XLSX.WorkSheet, range: XLSX.Range): Record<string, string>[] {
-  const fields: Record<string, string> = {};
-  const readings: LastgangReading[] = [];
-
-  for (let r = range.s.r; r <= range.e.r; r++) {
-    const cellA = ws[XLSX.utils.encode_cell({ r, c: 0 })];
-    const cellB = ws[XLSX.utils.encode_cell({ r, c: 1 })];
-    const cellC = ws[XLSX.utils.encode_cell({ r, c: 2 })];
-
-    const labelA = cellA?.v != null ? String(cellA.v).trim() : "";
-
-    if (!labelA) {
-      // Old format: col A empty, col B = end-of-interval timestamp, col C = kW value
-      const tsStr = cellTimestamp(cellB);
-      if (!tsStr) continue;
-      const ts = parseEndOfIntervalTs(tsStr);
-      if (!ts) continue;
-      const endUTC = berlinToUTC(ts.year, ts.month, ts.day, ts.hour, ts.minute);
-      const beginUTC = new Date(endUTC.getTime() - 15 * 60 * 1000);
-      const kwRaw = cellC?.v != null ? cellC.v : null;
-      if (kwRaw == null) continue;
-      const kw = parseFloat(typeof kwRaw === "string" ? kwRaw.replace(",", ".") : String(kwRaw));
-      if (isNaN(kw)) continue;
-      const beginTs = toISO8601(beginUTC);
-      readings.push({
-        date:     beginTs.slice(0, 10),
-        slotId:   beginTs.slice(11, 16).replace(":", ""),
-        beginTs,
-        endTs:    toISO8601(endUTC),
-        valueKwh: (kw * 0.25).toFixed(6),
-      });
-      continue;
-    }
-
-    // Col A non-empty: try parsing as end-of-interval timestamp (Lastgang format:
-    // col A = timestamp, col B = kW value). Fall back to header row if not a timestamp.
-    const tsStrA = cellTimestamp(cellA);
-    const ts = parseEndOfIntervalTs(tsStrA);
-    if (ts) {
-      const endUTC = berlinToUTC(ts.year, ts.month, ts.day, ts.hour, ts.minute);
-      const beginUTC = new Date(endUTC.getTime() - 15 * 60 * 1000);
-      const kwRaw = cellB?.v != null ? cellB.v : null;
-      if (kwRaw == null) continue;
-      const kw = parseFloat(typeof kwRaw === "string" ? kwRaw.replace(",", ".") : String(kwRaw));
-      if (isNaN(kw)) continue;
-      const beginTs = toISO8601(beginUTC);
-      readings.push({
-        date:     beginTs.slice(0, 10),
-        slotId:   beginTs.slice(11, 16).replace(":", ""),
-        beginTs,
-        endTs:    toISO8601(endUTC),
-        valueKwh: (kw * 0.25).toFixed(6),
-      });
-    } else {
-      // Header row: col A = label, col B = value
-      const field = LASTGANG_FIELD_MAP[labelA];
-      if (field && cellB?.v != null) fields[field] = String(cellB.v).trim();
-    }
-  }
-
-  if (readings.length === 0) return [];
-
-  fields["_readings_json"] = JSON.stringify(readings);
-  return [fields];
-}
-
-/** Generate Turtle content for one day of 15-min energy readings. */
-export function generateEnergyDayTtl(
-  date: string,
-  readings: LastgangReading[],
-  buildingSubjectUri: string,
-  label: string,
-): string {
-  const blocks = readings
-    .map(
-      (r) =>
-        `:r_${r.slotId} a uservoc:EnergyConsumptionReading ;\n` +
-        `    sosa:observedProperty gran:ElectricityConsumption ;\n` +
-        `    sosa:hasFeatureOfInterest <${buildingSubjectUri}> ;\n` +
-        `    sosa:hasResult [ a sosa:Result ; sosa:hasSimpleResult "${r.valueKwh}"^^xsd:decimal ; ssn:hasUnit unit:KiloW-HR ] ;\n` +
-        `    sosa:phenomenonTime [ a time:Interval ; time:hasBeginning "${r.beginTs}"^^xsd:dateTime ; time:hasEnd "${r.endTs}"^^xsd:dateTime ] .`,
-    )
-    .join("\n\n");
-
-  return (
-    `@prefix : <#> .\n` +
-    `@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n` +
-    `@prefix sosa: <http://www.w3.org/ns/sosa/> .\n` +
-    `@prefix ssn: <http://www.w3.org/ns/ssn/> .\n` +
-    `@prefix time: <http://www.w3.org/2006/time#> .\n` +
-    `@prefix unit: <https://qudt.org/vocab/unit#> .\n` +
-    `@prefix gran: <${GRAN_NS}> .\n` +
-    `@prefix uservoc: <${USERVOC_NS}> .\n` +
-    `\n# 15-minute energy readings — ${date} (UTC)\n` +
-    `# ${label}\n` +
-    `# ${readings.length} reading(s)\n\n` +
-    blocks + "\n"
-  );
-}
-
-// ---------------------------------------------------------------------------
 
 function xsdType(field: string): string {
   if (INTEGER_FIELDS.has(field)) return XSD_INTEGER;
@@ -368,6 +157,43 @@ function replaceGeoPoint(
   store.removeQuads(store.getQuads(subject, namedNode(GEO_LAT), null, null));
   store.removeQuads(store.getQuads(subject, namedNode(GEO_LONG), null, null));
   addGeoPoint(store, subject, fields);
+}
+
+/**
+ * Replace the building's `investor:hasOperatingCosts` node on an EXISTING store
+ * (the edit path): drop the current node (and its triples), then re-add from
+ * `fields`. Mirrors {@link replaceGeoPoint}; call only when the edit carries
+ * `_opcost_*` keys, so an edit that doesn't touch operating costs leaves them be.
+ */
+function replaceOperatingCosts(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  const pred = namedNode(`${INVESTOR_NS}hasOperatingCosts`);
+  for (const link of store.getQuads(subject, pred, null, null)) {
+    store.removeQuads(store.getQuads(link.object, null, null, null));
+    store.removeQuad(link);
+  }
+  addOperatingCosts(store, subject, fields);
+}
+
+/**
+ * Replace the building's `investor:hasBuildingCertification` nodes on an EXISTING
+ * store (the edit path): drop all current ones, then re-add from `fields`. Call
+ * only when the edit carries `_cert_*` keys.
+ */
+function replaceCertifications(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  const pred = namedNode(`${INVESTOR_NS}hasBuildingCertification`);
+  for (const link of store.getQuads(subject, pred, null, null)) {
+    store.removeQuads(store.getQuads(link.object, null, null, null));
+    store.removeQuad(link);
+  }
+  addCertifications(store, subject, fields);
 }
 
 function addOperatingCosts(
@@ -792,6 +618,15 @@ export async function updateBuilding(
     if ("lat" in updatedFields || "long" in updatedFields) {
       replaceGeoPoint(store, subject, updatedFields);
     }
+    // Replace the investor master-data blank nodes only when the edit actually
+    // carries their keys — a partial edit without them leaves existing data intact.
+    const keys = Object.keys(updatedFields);
+    if (keys.some((k) => k.startsWith("_opcost_"))) {
+      replaceOperatingCosts(store, subject, updatedFields);
+    }
+    if (keys.some((k) => k.startsWith("_cert_"))) {
+      replaceCertifications(store, subject, updatedFields);
+    }
   });
 }
 
@@ -875,81 +710,9 @@ const DEMO_ANNUAL_FIELDS: Record<string, string> = {
   _inv_water_2022: "1450", _inv_water_2023: "1500", _inv_water_2024: "1410",
 };
 
-/** A representative day of synthetic 15-minute readings (96 slots, UTC) with a
- * simple daytime-peaked load curve. Used for the "series" demo building. */
-export function synthDayReadings(date: string): LastgangReading[] {
-  const dayStart = new Date(`${date}T00:00:00Z`).getTime();
-  const out: LastgangReading[] = [];
-  for (let slot = 0; slot < 96; slot++) {
-    const begin = new Date(dayStart + slot * 15 * 60 * 1000);
-    const end = new Date(begin.getTime() + 15 * 60 * 1000);
-    const hour = begin.getUTCHours() + begin.getUTCMinutes() / 60;
-    // Base load + a daytime bump peaking ~midday; never negative.
-    const kw = 12 + 18 * Math.max(0, Math.sin(((hour - 6) / 24) * 2 * Math.PI));
-    const beginTs = toISO8601(begin);
-    out.push({
-      date: beginTs.slice(0, 10),
-      slotId: beginTs.slice(11, 16).replace(":", ""),
-      beginTs,
-      endTs: toISO8601(end),
-      valueKwh: (kw * 0.25).toFixed(6),
-    });
-  }
-  return out;
-}
-
-/**
- * Geocode an address (taken from a building's fields) to { lat, long } via
- * Nominatim, or null on a miss/failure. Shared by the demo seed and the
- * Add-building dialog (manual "look up coordinates" button + bulk file import),
- * so all three resolve coordinates the same way. Best-effort: never throws.
- *
- * Tries progressively COARSER queries — full address, then drop the street, then
- * just the city/region — so a too-precise address (an exact house number the
- * geocoder can't place, e.g. a new build) still yields a street/postal/city-level
- * pin instead of nothing. An approximate pin keeps the building mappable (and
- * importable, where lat/long are required) where an exact-only lookup would fail.
- */
-export async function geocodeFields(
-  fields: Record<string, string>,
-): Promise<{ lat: string; long: string; precision: GeocodePrecision } | null> {
-  const street = fields.streetAddress?.trim();
-  const postal = fields.postalCode?.trim();
-  const city = fields.locality?.trim();
-  const region = fields.region?.trim();
-  // Progressively coarser candidates, each tagged with the precision a hit
-  // implies — included only when its distinguishing field is present.
-  const candidates: Array<{ precision: GeocodePrecision; parts: (string | undefined)[] }> = [];
-  if (street) candidates.push({ precision: "address", parts: [street, postal, city, region] });
-  if (postal) candidates.push({ precision: "postcode", parts: [postal, city, region] });
-  if (city) candidates.push({ precision: "city", parts: [city, region] });
-
-  const tried = new Set<string>();
-  let first = true;
-  for (const { precision, parts } of candidates) {
-    const query = parts.filter(Boolean).join(", ");
-    if (!query || tried.has(query)) continue; // skip a coarsening that didn't change the query
-    tried.add(query);
-    // Space retries to respect Nominatim's ≤1 req/s policy (only paid on a miss;
-    // a first-try hit — the common case — adds no delay).
-    if (!first) await new Promise((r) => setTimeout(r, 1100));
-    first = false;
-    try {
-      const res = await trackedFetch(
-        `https://nominatim.openstreetmap.org/search?q=${
-          encodeURIComponent(query)
-        }&format=json&limit=1`,
-        { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },
-        "geocode address",
-      );
-      const data = await res.json() as { lat: string; lon: string }[];
-      if (data.length) return { lat: data[0].lat, long: data[0].lon, precision };
-    } catch {
-      // Try the next, coarser query.
-    }
-  }
-  return null;
-}
+// `geocodeFields` moved to ./geocode.ts (self-contained Nominatim lookup); it is
+// imported above and re-exported below so existing call sites keep importing it
+// from here.
 
 /**
  * Seed two real, user-owned demo buildings into the user's pod. Called once when a
@@ -1018,180 +781,6 @@ export async function seedDemoBuildings(
 }
 
 // ── CSV / XLSX autofill ───────────────────────────────────────────────────────
-
-/** BSP CSV column header (German) → BuildingType field name */
-const BSP_COL_MAP: Record<string, string> = {
-  "Unternehmen": "companyName",
-  "Gebäude-Name": "label",
-  "Straße": "streetAddress",
-  "PLZ": "postalCode",
-  "Ort": "locality",
-  "Bundesland": "region",
-  "Baujahr": "yearOfConstruction",
-  "Grundstücksfläche": "landArea",
-  "Brutto-Grundfläche (BGF)": "buildingArea",
-  "PV-Anlage installiert": "hasPVSystem",
-  "Alter der PV-Anlage (Baujahr)": "pvInstallationYear",
-  "Leistung der PV-Anlage (kW)": "pvCapacityKW",
-  "Funktion der Logistikimmobilie": "logisticsFunction",
-  "Innenraumtemperatur": "indoorTemperature",
-  "Klimatisierungstyp": "climateControlType",
-  "Anteil GreenLeases": "greenLeaseShare",
-  "Mietvertragsart": "leaseType",
-  "Anzahl Mieter": "tenancyType",
-  "Hauptindustrie des Mieters / Nutzers (Branche)": "tenantIndustry",
-  "Ladetore": "numberOfLoadingDocks",
-  // Energy observation columns
-  "Strom - tatsächlicher Verbrauch (kWh)": "_bsp_elec",
-  "Wärme - tatsächlicher Verbrauch (kWh)": "_bsp_heat",
-  "Trinkwasser (m³)": "_bsp_water",
-  "Schmutzwasser (m³)": "_bsp_wastewater",
-};
-
-/**
- * Investor XLSX row label (column B) → BuildingType field name.
- * Row labels mirror scripts/investor-to-ttl.ts exactly, including spacing.
- */
-const INVESTOR_ROW_MAP: Record<string, string> = {
-  "Gebäude-Code": "buildingCode",
-  "Gebäude-Name": "label",
-  "Straße": "streetAddress",
-  "PLZ": "postalCode",
-  "Ort": "locality",
-  "Bundesland": "region",
-  "Baujahr": "yearOfConstruction",
-  "Sanierungsjahr": "yearOfRenovation",
-  "Grundstücksfläche": "landArea",
-  "Hallenfläche": "hallArea",
-  "Büro- &Sozialfläche": "officeSocialArea", // exact label from script
-  "Höhe": "buildingHeight",
-  "Ladetore": "numberOfLoadingDocks",
-  "Schichtregime": "shiftRegime",
-  "Anzahl Mieter": "tenancyType",
-  "Mietvertragsart": "leaseType",
-  "Innenraumtemperatur": "indoorTemperatureClass",
-  "PV-Anlage installiert": "hasPVSystem",
-  "Ölkessel": "hasOilBoiler",
-  "Gaskessel": "hasGasBoiler",
-  "Stromkessel": "hasElectricBoiler",
-  "Wärmepumpe": "hasHeatPump",
-  "Fernwärme": "hasDistrictHeating",
-  "Hauptindustrie des Mieters / Nutzers (Branche)": "tenantIndustry",
-};
-
-/**
- * Investor XLSX row label (column B) → operating-cost category. Produces
- * `_opcost_<field>` keys that serializeBuildingToTurtle emits under
- * `investor:hasOperatingCosts`.
- *
- * NOTE: these German row labels are ASSUMED — the investor `.xlsx` template is
- * binary and the original `scripts/investor-to-ttl.ts` is no longer in the repo,
- * so the exact labels could not be introspected. Verify against
- * `public/templates/` and adjust if they differ; rows that don't match are simply
- * skipped (no error), so a wrong label degrades to "not imported", never a crash.
- */
-const INVESTOR_OPCOST_ROW_MAP: Record<string, string> = {
-  "Abfallentsorgung": "wasteDisposal",
-  "Versicherung": "insurance",
-  "Betrieb, Inspektion und Wartung": "operationInspectionAndMaintenance",
-  "Unterhaltsreinigung Büro": "routineCleaningOffice",
-  "Unterhaltsreinigung Lager": "routineCleaningWarehouse",
-  "Glasreinigung": "glassCleaning",
-  "Außenanlagenpflege": "exteriorMaintenance",
-  "Bewachung": "security",
-  "Hausverwaltung": "propertyManagement",
-  "Hausmeister": "caretaker",
-  "Reparatur und Instandhaltung": "repairAndMaintenance",
-};
-
-/**
- * Investor XLSX row label (column B) → certification part. Produces a single
- * certification block (`_cert_0_type|level|scope`). Same caveat as
- * {@link INVESTOR_OPCOST_ROW_MAP}: labels are assumed pending template review.
- */
-const INVESTOR_CERT_ROWS: Record<string, "type" | "level" | "scope"> = {
-  "Zertifizierung": "type",
-  "Zertifizierungslevel": "level",
-  "Zertifizierungsumfang": "scope",
-};
-
-// ── Normalizers — mirror scripts exactly ──────────────────────────────────────
-
-/** Mirrors investor-to-ttl.ts yesNo() + benchmark-to-ttl.ts parseBool() */
-function normalizeBoolean(val: string): string {
-  const s = val.trim().toLowerCase();
-  if (["ja", "yes", "true", "j", "1"].includes(s)) return "true";
-  if (["nein", "no", "false", "n", "0"].includes(s)) return "false";
-  return "";
-}
-
-/** Strip German commas, percent signs, whitespace — mirrors parseNumeric() */
-function normalizeNumber(val: string): string {
-  return val.replace(/,/g, ".").replace(/%/g, "").replace(/\s+/g, "");
-}
-
-/**
- * Mirrors investor-to-ttl.ts SHIFT_MAP (exact lowercase keys).
- * Returns local name or empty string if unrecognised.
- */
-const SHIFT_MAP: Record<string, string> = {
-  "1 schicht": "OneShift",
-  "1-shift": "OneShift",
-  "2 schicht": "TwoShift",
-  "2-shift": "TwoShift",
-  "3 schicht": "ThreeShift",
-  "3-shift": "ThreeShift",
-};
-function normalizeShift(val: string): string {
-  return SHIFT_MAP[val.trim().toLowerCase()] ?? "";
-}
-
-/**
- * Mirrors investor-to-ttl.ts TENANCY_MAP + benchmark-to-ttl.ts tenancyType()
- * ("1" and "mehr" coverage).
- */
-const TENANCY_MAP: Record<string, string> = {
-  "single": "SingleTenant",
-  "single tenant": "SingleTenant",
-  "1": "SingleTenant",
-  "multi-tenant": "MultiTenant",
-  "multi tenant": "MultiTenant",
-};
-function normalizeTenancy(val: string): string {
-  const s = val.trim().toLowerCase();
-  if (TENANCY_MAP[s]) return TENANCY_MAP[s];
-  if (s.includes("multi") || s.includes("mehr")) return "MultiTenant";
-  return "";
-}
-
-/**
- * Mirrors investor-to-ttl.ts TEMP_MAP (exact lowercase keys).
- * Used for investor XLSX where Innenraumtemperatur → indoorTemperatureClass.
- */
-const TEMP_MAP: Record<string, string> = {
-  "<= 12°c": "MaxTwelveDegrees",
-  "≤12 °c": "MaxTwelveDegrees",
-  "<= 18°c": "MaxEighteenDegrees",
-  "≤18 °c": "MaxEighteenDegrees",
-};
-function normalizeTempClass(val: string): string {
-  return TEMP_MAP[val.trim().toLowerCase()] ?? "";
-}
-
-function applyNormalization(field: string, raw: string): string {
-  if (BOOLEAN_FIELDS.has(field)) return normalizeBoolean(raw);
-  if (INTEGER_FIELDS.has(field) || DECIMAL_FIELDS.has(field)) {
-    return normalizeNumber(raw);
-  }
-  if (field === "tenancyType") return normalizeTenancy(raw);
-  if (field === "shiftRegime") return normalizeShift(raw);
-  if (field === "indoorTemperatureClass") return normalizeTempClass(raw);
-  if (field === "greenLeaseShare") return normalizeNumber(raw);
-  // Energy observation fields — always numeric
-  if (field.startsWith("_bsp_") && field !== "_bsp_year") return normalizeNumber(raw);
-  if (field.startsWith("_inv_")) return normalizeNumber(raw);
-  return raw.trim();
-}
 
 /**
  * Parse a CSV or XLSX file into one field map per building.
@@ -1329,205 +918,3 @@ export async function parseCsvToFields(
   return results;
 }
 
-// ── XLSX export (inverse of parseCsvToFields) ─────────────────────────────────
-
-function invertMap(m: Record<string, string>): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const [k, v] of Object.entries(m)) out[v] = k;
-  return out;
-}
-
-// field → spreadsheet label/header (built once from the import maps).
-const INV_FIELD_TO_LABEL = invertMap(INVESTOR_ROW_MAP);
-const BSP_FIELD_TO_HEADER = invertMap(BSP_COL_MAP);
-const OPCOST_FIELD_TO_LABEL = invertMap(INVESTOR_OPCOST_ROW_MAP);
-const CERT_PART_TO_LABEL = invertMap(
-  INVESTOR_CERT_ROWS as Record<string, string>,
-);
-// All scalar BuildingType fields, for the generic (user/dummy) sheet.
-const SCALAR_FIELDS: string[] = [
-  ...new Set(
-    [
-      ...Object.values(predicateMap),
-      ...Object.values(objectPropertyMap),
-    ].map((f) => String(f)),
-  ),
-];
-
-function cellValue(v: unknown): string | number | null {
-  if (v === undefined || v === null || v === "") return null;
-  if (typeof v === "number") return v;
-  if (typeof v === "boolean") return v ? "true" : "false";
-  if (typeof v === "object") return null; // skip nested structures
-  return String(v);
-}
-
-/**
- * Build an XLSX workbook for a building, shaped to match the role's import
- * template so the file re-imports via {@link parseCsvToFields}:
- *   - investor → row-label sheet (label in col B, value in col D), with per-year
- *     energy rows, operating costs and the first certification block;
- *   - benchmark → single header row + value row, energy as `_bsp_*` columns;
- *   - user / dummy / unknown → flat sheet keyed by BuildingType field names.
- * Exports the *modelled* fields only (the whitelisted projection); the 15-minute
- * user series lives in separate lazy files and is not included.
- */
-/** Build the worksheet for one building, shaped to its provenance template. */
-function buildingSheet(b: BuildingType): XLSX.WorkSheet {
-  const role = b.provenance;
-
-  if (role === "investor") {
-    const rows: (string | number)[][] = [];
-    const put = (label: string, raw: unknown) => {
-      const v = cellValue(raw);
-      if (v !== null) rows.push(["", label, "", v]);
-    };
-    for (const [field, label] of Object.entries(INV_FIELD_TO_LABEL)) {
-      put(label, b[field as keyof BuildingType]);
-    }
-    let renewDone = false;
-    for (const y of b.annualData ?? []) {
-      put(`Stromverbrauch ${y.year}`, y.electricityConsumption);
-      put(`Wärme - tatsächlicher Verbrauch ${y.year}`, y.heatConsumption);
-      put(`Wasserverbrauch ${y.year}`, y.waterConsumption);
-      if (!renewDone && y.renewableSelfGeneratedShare != null) {
-        put(
-          "Anteil eigenerzeugter Strom aus erneuerbaren Quellen",
-          y.renewableSelfGeneratedShare,
-        );
-        renewDone = true;
-      }
-    }
-    if (b.operatingCosts) {
-      const oc = b.operatingCosts as Record<string, unknown>;
-      for (const [field, label] of Object.entries(OPCOST_FIELD_TO_LABEL)) {
-        put(label, oc[field]);
-      }
-    }
-    // The row-label template holds a single certification block.
-    const cert = b.certifications?.[0];
-    if (cert) {
-      put(CERT_PART_TO_LABEL.type, cert.type);
-      put(CERT_PART_TO_LABEL.level, cert.level);
-      put(CERT_PART_TO_LABEL.scope, cert.scope);
-    }
-    return XLSX.utils.aoa_to_sheet(rows);
-  }
-
-  const record: Record<string, string | number> = {};
-  if (role === "benchmark_service_provider") {
-    for (const [field, header] of Object.entries(BSP_FIELD_TO_HEADER)) {
-      if (field.startsWith("_")) continue; // energy headers handled below
-      const v = cellValue(b[field as keyof BuildingType]);
-      if (v !== null) record[header] = v;
-    }
-    const y = b.annualData?.[0];
-    if (y) {
-      const e = cellValue(y.electricityConsumption);
-      const h = cellValue(y.heatConsumption);
-      const w = cellValue(y.waterConsumption);
-      const ww = cellValue(y.wastewaterConsumption);
-      if (e !== null) record["Strom - tatsächlicher Verbrauch (kWh)"] = e;
-      if (h !== null) record["Wärme - tatsächlicher Verbrauch (kWh)"] = h;
-      if (w !== null) record["Trinkwasser (m³)"] = w;
-      if (ww !== null) record["Schmutzwasser (m³)"] = ww;
-    }
-  } else {
-    // Generic (user / dummy / unknown): BuildingType field names as headers.
-    for (const field of SCALAR_FIELDS) {
-      const v = cellValue(b[field as keyof BuildingType]);
-      if (v !== null) record[field] = v;
-    }
-  }
-  return XLSX.utils.json_to_sheet([record]);
-}
-
-function buildingToWorkbook(b: BuildingType): XLSX.WorkBook {
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, buildingSheet(b), "Gebäude");
-  return wb;
-}
-
-/**
- * Flatten one building to a single spreadsheet row. Master-data columns use the
- * BuildingType field names (so the row re-imports via the generic path), and the
- * structured parts use the importer's intermediate keys (`_inv_*` / `_bsp_*` /
- * `_opcost_*` / `_cert_0_*`) so energy, operating costs and the first
- * certification round-trip too. `id` / `role` are reference columns (no predicate,
- * ignored on import).
- */
-function buildingToFlatRecord(b: BuildingType): Record<string, string | number> {
-  const rec: Record<string, string | number> = {};
-  const set = (k: string, raw: unknown) => {
-    const v = cellValue(raw);
-    if (v !== null) rec[k] = v;
-  };
-  set("id", b.id);
-  set("provenance", b.provenance);
-  for (const field of SCALAR_FIELDS) set(field, b[field as keyof BuildingType]);
-
-  if (b.provenance === "benchmark_service_provider") {
-    const y = b.annualData?.[0];
-    if (y) {
-      set("_bsp_year", y.year);
-      set("_bsp_elec", y.electricityConsumption);
-      set("_bsp_heat", y.heatConsumption);
-      set("_bsp_water", y.waterConsumption);
-      set("_bsp_wastewater", y.wastewaterConsumption);
-    }
-  } else {
-    for (const y of b.annualData ?? []) {
-      set(`_inv_elec_${y.year}`, y.electricityConsumption);
-      set(`_inv_heat_${y.year}`, y.heatConsumption);
-      set(`_inv_water_${y.year}`, y.waterConsumption);
-      set(`_inv_renew_${y.year}`, y.renewableSelfGeneratedShare);
-    }
-  }
-
-  if (b.operatingCosts) {
-    const oc = b.operatingCosts as Record<string, unknown>;
-    for (const f of OPCOST_FIELDS) set(`_opcost_${f}`, oc[f]);
-  }
-  const cert = b.certifications?.[0];
-  if (cert) {
-    set("_cert_0_type", cert.type);
-    set("_cert_0_level", cert.level);
-    set("_cert_0_scope", cert.scope);
-  }
-  return rec;
-}
-
-/**
- * One workbook with a single sheet, one row per building — a unified table of all
- * buildings. Mixed-role buildings coexist as sparse columns; each row re-imports
- * via the generic path (import as user / dummy). See {@link buildingToFlatRecord}.
- */
-function buildingsToWorkbook(buildings: BuildingType[]): XLSX.WorkBook {
-  const wb = XLSX.utils.book_new();
-  const rows = buildings.map(buildingToFlatRecord);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Gebäude");
-  return wb;
-}
-
-function workbookToBytes(wb: XLSX.WorkBook): ArrayBuffer {
-  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  const u8: Uint8Array = out instanceof Uint8Array
-    ? out
-    : new Uint8Array(out as ArrayBuffer);
-  const copy = new ArrayBuffer(u8.byteLength);
-  new Uint8Array(copy).set(u8);
-  return copy;
-}
-
-/**
- * Serialize a building to `.xlsx` bytes (see {@link buildingToWorkbook}), as a
- * plain `ArrayBuffer` so it drops straight into `new Blob([...])` / `new File([...])`.
- */
-export function buildingToXlsx(b: BuildingType): ArrayBuffer {
-  return workbookToBytes(buildingToWorkbook(b));
-}
-
-/** Serialize all buildings to one multi-sheet `.xlsx` (see {@link buildingsToWorkbook}). */
-export function buildingsToXlsx(buildings: BuildingType[]): ArrayBuffer {
-  return workbookToBytes(buildingsToWorkbook(buildings));
-}

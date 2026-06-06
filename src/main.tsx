@@ -24,7 +24,10 @@ import {
   instrumentSessionFetch,
 } from "./services/utils/networkActivity.ts";
 import { formatError } from "./services/utils/formatError.ts";
-import { resolveStorageRoot } from "./services/utils/solidUtils.ts";
+import {
+  clearStorageRootCache,
+  resolveStorageRoot,
+} from "./services/utils/solidUtils.ts";
 import { resetActiveRoom } from "./services/interop/dataRoom.ts";
 import {
   getSessionExpiredSnapshot,
@@ -77,9 +80,14 @@ function AppContent() {
       setSuppressRestore(true);
       clearRequestLog();
       resetActiveRoom();
+      // Evict this user's in-memory data so the next login (possibly a different
+      // user on the same tab) starts clean — not just unreadable (WebID-keyed),
+      // but actually gone from memory.
+      queryClient.clear();
+      clearStorageRootCache();
       session.logout().then(() => setSession(null));
     }
-  }, [expired, session, showNotification]);
+  }, [expired, session, showNotification, queryClient]);
 
   const handleLogin = useCallback(async (authSession: Session) => {
     console.log("User logged in successfully", authSession.info.webId);
@@ -96,12 +104,12 @@ function AppContent() {
       // resolves it too, but that runs AFTER this callback — so resolve it here
       // first (idempotent + cached, so the gate then no-ops).
       await resolveStorageRoot(authSession);
-      // Self-provision the granergize inbox (container + append ACL + discovery
-      // pointer) so others can share with us even on a bare Pod. Idempotent;
-      // returns true only the first time, when it actually creates the space.
-      const createdSpace = await ensureOwnInbox(authSession);
-      if (createdSpace) {
-        showNotification("Set up your granergize space on this Pod", "info");
+      // Self-provision the granergize inbox (container + append ACL) so others
+      // can share with us even on a bare Pod. Idempotent; returns true only the
+      // first time, when it actually creates the inbox.
+      const createdInbox = await ensureOwnInbox(authSession);
+      if (createdInbox) {
+        showNotification("Set up your Granergize inbox on this Pod", "info");
       }
       await readInbox(authSession);
       // readInbox may have archived newly-granted shares into the user's
@@ -126,6 +134,10 @@ function AppContent() {
     // Clear the in-memory current-room pointer so a different user logging in on
     // the same tab can't briefly target the previous user's room.
     resetActiveRoom();
+    // Evict cached data (React Query) and the resolved storage roots so the
+    // previous user's data doesn't linger in memory until the tab closes.
+    queryClient.clear();
+    clearStorageRootCache();
     if (opts?.suppressAutoLogin) {
       sessionStorage.setItem(NO_RESTORE_KEY, "1");
       setSuppressRestore(true);
@@ -153,6 +165,13 @@ function AppContent() {
       onLogin={handleLogin}
       suppressRestore={suppressRestore}
       name="Granergize App"
+      // Identify the app to the Solid provider via a stable Client Identifier
+      // Document (its IRI in VITE_OIDC_CLIENT_ID), so the consent screen shows
+      // "Granergize App" + logo instead of an opaque dynamically-registered ID.
+      // Unset in dev → falls back to dynamic registration (localhost redirect).
+      loginOptions={import.meta.env.VITE_OIDC_CLIENT_ID
+        ? { clientId: import.meta.env.VITE_OIDC_CLIENT_ID }
+        : undefined}
       logo={
         <img
           src={`${import.meta.env.BASE_URL}favicon.svg`}

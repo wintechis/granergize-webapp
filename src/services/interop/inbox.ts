@@ -1,6 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh } from "../utils/podFetch.ts";
+import { LDP_CONTAINS, LDP_INBOX } from "../utils/vocabularies.ts";
 import {
   APP_DIR,
   podResources,
@@ -36,7 +37,7 @@ export async function readInbox(session: Session) {
   );
   const messageUrls = store.getQuads(
     null,
-    DataFactory.namedNode("http://www.w3.org/ns/ldp#contains"),
+    DataFactory.namedNode(LDP_CONTAINS),
     null,
     null,
   ).map((q) => q.object.value);
@@ -95,7 +96,6 @@ async function removeMessageFromInbox(
  * logged-in user, this fetches an arbitrary WebID document, so it can't use the
  * session-cached profile store. Shared by the share / revoke flows.
  */
-const LDP_INBOX = "http://www.w3.org/ns/ldp#inbox";
 
 /**
  * Find an inbox in an HTTP `Link` header (LDN): `Link: <uri>; rel="…#inbox"`.
@@ -161,20 +161,26 @@ export async function getRecipientInboxUrl(
 
 /**
  * Provision the logged-in user's granergize inbox on a bare Pod (idempotent,
- * best-effort — never blocks login): create the inbox container, grant
- * AuthenticatedAgent Append so other granergize users can drop grants, and
- * advertise it via `ldp:inbox` on the granergize root so senders can discover it.
+ * best-effort — never blocks login): create the inbox container and grant
+ * AuthenticatedAgent Append so other granergize users can drop grants.
  *
- * Returns `true` only when it actually created the space this call (the inbox
- * didn't exist yet) — so the caller can show the user a one-time setup notice.
- * When the inbox already exists it's a no-op and returns `false`.
+ * We deliberately do NOT advertise the inbox via an `ldp:inbox` pointer on the
+ * granergize root: a blind PUT to the container's `.meta` description resource
+ * 409s on CSS (its metadata can't be wholesale-replaced that way), and the
+ * pointer would be redundant anyway — {@link granergizeInboxUrl} falls back to
+ * the `inbox/` convention path, which is exactly where we provision. The app
+ * never relocates the inbox, so the convention path always resolves it.
+ *
+ * Returns `true` only when it actually created the inbox this call (it didn't
+ * exist yet) — so the caller can show the user a one-time setup notice. When the
+ * inbox already exists it's a no-op and returns `false`.
  */
 export async function ensureOwnInbox(session: Session): Promise<boolean> {
   const webId = session.info.webId;
   if (!webId) return false;
-  const { appRoot, inbox } = podResources(webId);
+  const { inbox } = podResources(webId);
   // Provision (and notify) only on a bare Pod: a HEAD that doesn't 404 means the
-  // granergize space is already set up, so there's nothing to create.
+  // inbox is already set up, so there's nothing to create.
   const existing = await session.fetch(inbox, { method: "HEAD" }).catch(() => null);
   if (existing?.ok) return false;
   await session.fetch(inbox, {
@@ -196,13 +202,6 @@ export async function ensureOwnInbox(session: Session): Promise<boolean> {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: acl,
-  }).catch(() => {});
-  // Advertise the inbox on the granergize root's metadata (CSS `.meta`), so a
-  // sender discovers it even if it's ever relocated from the convention path.
-  await session.fetch(`${appRoot}.meta`, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: `@prefix ldp: <http://www.w3.org/ns/ldp#>.\n<${appRoot}> ldp:inbox <${inbox}>.\n`,
   }).catch(() => {});
   return true;
 }

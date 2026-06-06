@@ -12,6 +12,10 @@
  */
 import { type LocalCss, startLocalCss } from "../headless/localCss.ts";
 import { LOCAL_CSS_CONTROL_PORT, LOCAL_CSS_PORT } from "../config/localSeed.ts";
+import { getLiveSession } from "../headless/liveSession.ts";
+import type { Session } from "@inrupt/solid-client-authn-browser";
+import { resolveStorageRoot } from "../../src/services/utils/solidUtils.ts";
+import { seedBuildings, wipeBuildings } from "../bench/seed.ts";
 
 /**
  * Resolve once `port` is actually bindable again — i.e. the previous CSS has fully
@@ -70,10 +74,40 @@ function watchExit(c: LocalCss) {
 }
 watchExit(css);
 
+// Seed N buildings into account A's pod for the Tier-3 render BENCHMARK
+// (manage-render.spec.ts). Done here, in Deno, because the data layer pulls in
+// Deno-only deps (npm:jose in liveSession, the npm import map) that don't load
+// under Playwright's Node loader — so the spec drives this over HTTP instead. A
+// fresh client-credentials session is minted per call so it can't go stale across
+// a /reset. Replaces whatever buildings/ held (wipe then seed) → exactly N.
+async function seedPodA(n: number): Promise<void> {
+  const issuer = css.baseUrl.replace(/\/$/, "");
+  const live = await getLiveSession(issuer, css.A.email, css.A.password, css.A.webId);
+  try {
+    const session = live as unknown as Session;
+    await resolveStorageRoot(session);
+    await wipeBuildings(session, css.A.webId);
+    await seedBuildings(session, css.A.webId, n);
+  } finally {
+    await live.dispose().catch(() => {});
+  }
+}
+
 // Control server (separate port): POST /reset restarts CSS and replies once the
 // fresh instance is ready, so the caller can await a clean slate.
 Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
-  if (req.method === "POST" && new URL(req.url).pathname === "/reset") {
+  const { pathname, searchParams } = new URL(req.url);
+  if (req.method === "POST" && pathname === "/seed") {
+    const n = Number(searchParams.get("n") ?? "0");
+    try {
+      await seedPodA(Number.isFinite(n) && n >= 0 ? n : 0);
+      return new Response("ok\n");
+    } catch (e) {
+      console.error(`/seed failed: ${e}`);
+      return new Response(`seed failed: ${e}\n`, { status: 500 });
+    }
+  }
+  if (req.method === "POST" && pathname === "/reset") {
     restarting = true;
     await css.stop();
     try {

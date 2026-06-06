@@ -63,18 +63,23 @@ export function withRetry(
   return (async (input: Parameters<typeof fetch>[0], init?: RequestInit) => {
     let attempt = 0;
     while (true) {
+      // Equal jitter: half the exponential backoff fixed + half random, so a burst
+      // of concurrently-throttled requests doesn't retry in lockstep and re-burst
+      // against the limiter. (Server-directed `Retry-After` is used as-is, not
+      // jittered; and with baseDelayMs 0 — the tests — this stays 0.)
       const backoff = baseDelayMs * 2 ** attempt;
+      const jittered = backoff / 2 + Math.random() * (backoff / 2);
       try {
         const res = await fetchFn(input, init);
         if (RETRYABLE_STATUS.has(res.status) && attempt < maxRetries) {
-          await sleep(retryAfterMs(res) ?? backoff);
+          await sleep(retryAfterMs(res) ?? jittered);
           attempt++;
           continue;
         }
         return res;
       } catch (e) {
         if (isRetryableError(e, init) && attempt < maxRetries) {
-          await sleep(backoff);
+          await sleep(jittered);
           attempt++;
           continue;
         }

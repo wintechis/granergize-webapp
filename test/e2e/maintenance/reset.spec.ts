@@ -31,6 +31,10 @@ for (const slot of ["A", "B"]) {
 
       await login(page, acc);
 
+      // "Remove all app data" lives behind the footer Developer-mode toggle;
+      // flip it on (reactive — the menu item appears without a reload).
+      await page.getByLabel("Developer mode").check();
+
       await page.getByRole("button", { name: "Account menu" }).click();
       await page.getByRole("menuitem", { name: /Remove all app data/i }).click();
 

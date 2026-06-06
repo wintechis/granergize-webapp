@@ -3,19 +3,20 @@ import React, {
   useCallback,
   useContext,
   useEffect,
+  useRef,
   useState,
 } from "react";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
 import { setNotificationSink } from "../services/utils/notificationSink.ts";
+import {
+  enqueue,
+  initialQueueState,
+  promoteNext,
+  requestClose,
+} from "../components/notificationQueue.ts";
 
 type Severity = "error" | "warning" | "info" | "success";
-
-interface NotificationState {
-  open: boolean;
-  message: string;
-  severity: Severity;
-}
 
 interface NotificationContextValue {
   showNotification: (message: string, severity: Severity) => void;
@@ -28,11 +29,12 @@ const NotificationContext = createContext<NotificationContextValue | null>(
 export function NotificationProvider(
   { children }: { children: React.ReactNode },
 ) {
-  const [notification, setNotification] = useState<NotificationState>({
-    open: false,
-    message: "",
-    severity: "info",
-  });
+  // One snackbar, but a FIFO queue behind it: a burst of notifications (e.g. the
+  // login-time inbox-setup notice landing just before a refetch error) plays one
+  // after another instead of the later one clobbering the earlier — queue logic
+  // lives in the pure, tested `notificationQueue.ts`.
+  const [queue, setQueue] = useState(initialQueueState);
+  const keyRef = useRef(0);
 
   const showNotification = useCallback(
     (message: string, severity: Severity) => {
@@ -42,7 +44,8 @@ export function NotificationProvider(
       // message instead of a mystery timeout (the e2e error guard keys on this).
       if (severity === "error") console.error(`[notify] ${message}`);
       else if (severity === "warning") console.warn(`[notify] ${message}`);
-      setNotification({ open: true, message, severity });
+      keyRef.current += 1;
+      setQueue((prev) => enqueue(prev, { key: keyRef.current, message, severity }));
     },
     [],
   );
@@ -59,25 +62,32 @@ export function NotificationProvider(
     reason?: string,
   ) => {
     if (reason === "clickaway") return;
-    setNotification((prev) => ({ ...prev, open: false }));
+    setQueue(requestClose);
   };
+
+  // After the close transition finishes, promote the next queued notice (if any).
+  const handleExited = () => setQueue(promoteNext);
 
   return (
     <NotificationContext.Provider value={{ showNotification }}>
       {children}
-      <Snackbar
-        open={notification.open}
-        autoHideDuration={6000}
-        onClose={handleClose}
-      >
-        <Alert
+      {queue.current && (
+        <Snackbar
+          key={queue.current.key}
+          open={queue.open}
+          autoHideDuration={6000}
           onClose={handleClose}
-          severity={notification.severity}
-          variant="filled"
+          slotProps={{ transition: { onExited: handleExited } }}
         >
-          {notification.message}
-        </Alert>
-      </Snackbar>
+          <Alert
+            onClose={handleClose}
+            severity={queue.current.severity}
+            variant="filled"
+          >
+            {queue.current.message}
+          </Alert>
+        </Snackbar>
+      )}
     </NotificationContext.Provider>
   );
 }

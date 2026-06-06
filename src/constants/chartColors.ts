@@ -25,3 +25,13 @@ export const MARKER_SHARED_COLOR = "#388e3c";
 
 /** Gold glow border applied to the selected building marker */
 export const MARKER_SELECTED_COLOR = "#FFD700";
+
+/**
+ * Heat-map tints for the energy comparison grid (below / above the average),
+ * saturated by the deviation via `alpha()`. A deliberately PALE pair (not the
+ * theme's dark success/error mains, which would tint the cells too heavily);
+ * centralised here so the two cells stay in step rather than drifting as inline
+ * literals.
+ */
+export const ENERGY_BELOW_AVG_COLOR = "#a5d6a7"; // pale green
+export const ENERGY_ABOVE_AVG_COLOR = "#ef9a9a"; // pale red

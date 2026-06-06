@@ -126,6 +126,15 @@ export function _setStorageRootForTesting(webId: string, root: string): void {
 }
 
 /**
+ * Drop all cached storage roots. Called on logout / session-expiry so a
+ * different user logging in on the same tab can't read the previous user's
+ * resolved root (it's re-resolved at the next login via `resolveStorageRoot`).
+ */
+export function clearStorageRootCache(): void {
+  storageRootCache.clear();
+}
+
+/**
  * The app's on-Pod collection segment (no surrounding slashes) — every app
  * resource lives under `<storageRoot><APP_DIR>/`. Defaults to `granergize`; the
  * Tier-4 browser e2e run sets `VITE_POD_APP_DIR=granergize-e2e` so those tests

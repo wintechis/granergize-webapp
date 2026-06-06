@@ -23,6 +23,7 @@ const SOLO_SPECS = [
   "**/login.spec.ts",
   "**/organisation.spec.ts",
   "**/add-building.spec.ts",
+  "**/edit-building-fields.spec.ts",
   "**/excel-import.spec.ts",
   "**/excel-export.spec.ts",
   "**/energy-entry.spec.ts",
@@ -75,6 +76,12 @@ export default defineConfig({
     // (they'd duplicate solo+sharing). Selected via `--project=local`.
     ...(LOCAL
       ? [{ name: "local", use: CHROME, testMatch: [...SOLO_SPECS, ...SHARING_SPECS] }]
+      : []),
+    // Tier-3 scalability BENCHMARK (measure-and-report). Gated on E2E_BENCH so it
+    // never runs in the normal suite, and needs E2E_LOCAL too (it seeds via the
+    // local-CSS control server). `deno task bench:ui`. `--project=bench`.
+    ...(process.env.E2E_BENCH
+      ? [{ name: "bench", use: CHROME, testMatch: ["**/bench/**/*.spec.ts"] }]
       : []),
   ],
   // Always the Vite app; plus the throwaway CSS when running the local tier. Both

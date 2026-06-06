@@ -31,8 +31,6 @@ export async function uploadEnergyCertificate(
   const certificateUrl =
     `${buildingUrl.origin}${certificatesPath}${certificateFileName}`;
 
-  console.log(`Uploading certificate to: ${certificateUrl}`);
-
   // Step 2: Upload the PDF file to the Solid pod
   const uploadResponse = await session.fetch(certificateUrl, {
     method: "PUT",
@@ -48,12 +46,8 @@ export async function uploadEnergyCertificate(
     );
   }
 
-  console.log("PDF uploaded successfully");
-
   // Step 3: Update the building's TTL file to add the energy certificate link
   await updateBuildingWithCertificateLink(buildingUri, certificateUrl, session);
-
-  console.log("Building TTL updated with certificate link");
 }
 
 /**

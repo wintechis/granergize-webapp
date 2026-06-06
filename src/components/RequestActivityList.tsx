@@ -7,6 +7,7 @@ import {
   useNetworkActivity,
   useRequestLog,
 } from "./requestActivity.ts";
+import { useDevMode } from "./devMode.ts";
 
 /** Status text + colour for one finished request. */
 function statusInfo(e: RequestLogEntry): { text: string; color: string } {
@@ -66,9 +67,15 @@ function LogRow(
 export default function RequestActivityList(
   { emptyText = "No requests yet." }: { emptyText?: string },
 ) {
+  const dev = useDevMode();
   const active = useNetworkActivity();
   const logEntries = useRequestLog();
   const root = currentStorageRoot();
+
+  // The raw request-URI view is a developer affordance. Outside dev mode render
+  // nothing — every caller (the activity-screen title, the import-progress text)
+  // already shows its own plain status, so we never expose request URIs here.
+  if (!dev) return null;
 
   if (active.length === 0 && logEntries.length === 0) {
     // An empty `emptyText` renders nothing — used by the full-page activity

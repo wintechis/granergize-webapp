@@ -234,25 +234,24 @@ export async function getViewDefinitions(
     throw new Error("User is not logged in");
   }
 
-  try {
-    const children = await listDirectChildren(viewsContainerUrl(webId), session);
-    if (!children) return []; // container doesn't exist yet
-    const defUrls = children.filter((u) => u.endsWith(".ttl"));
+  // No try/catch: a real network/parse failure propagates to React Query (which
+  // keeps the last good views via keepPreviousData). The legitimate empty — the
+  // container doesn't exist yet — is the explicit `if (!children) return []` below,
+  // so it stays distinct from "the read failed".
+  const children = await listDirectChildren(viewsContainerUrl(webId), session);
+  if (!children) return []; // container doesn't exist yet
+  const defUrls = children.filter((u) => u.endsWith(".ttl"));
 
-    // Bounded concurrency: a burst of GETs trips Cloudflare's rate limiter.
-    const views = await mapPooled(defUrls, 4, async (url) => {
-      const res = await fetchFresh(url, session);
-      if (!res.ok) return null;
-      const store = new Store(
-        new Parser({ baseIRI: url }).parse(await res.text()),
-      );
-      return parseViewDefinition(store);
-    });
-    return views.filter((v): v is AggregatedViewDefinition => v !== null);
-  } catch (error) {
-    console.error("Error getting view definitions:", error);
-    return [];
-  }
+  // Bounded concurrency: a burst of GETs trips Cloudflare's rate limiter.
+  const views = await mapPooled(defUrls, 4, async (url) => {
+    const res = await fetchFresh(url, session);
+    if (!res.ok) return null;
+    const store = new Store(
+      new Parser({ baseIRI: url }).parse(await res.text()),
+    );
+    return parseViewDefinition(store);
+  });
+  return views.filter((v): v is AggregatedViewDefinition => v !== null);
 }
 
 /**

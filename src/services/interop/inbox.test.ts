@@ -91,17 +91,18 @@ Deno.test("inboxFromLinkHeader ignores unrelated Link relations", () => {
   );
 });
 
-Deno.test("ensureOwnInbox: provisions inbox + ACL + meta on a bare Pod and reports creation", async () => {
+Deno.test("ensureOwnInbox: provisions inbox + ACL on a bare Pod and reports creation", async () => {
   _setStorageRootForTesting(WEBID, "https://b.example/");
   const { session, writes } = recordingSession(false);
   const created = await ensureOwnInbox(session);
   assert.equal(created, true);
+  // No `.meta` advertisement PUT: it 409s on CSS and the convention path makes
+  // it redundant — see ensureOwnInbox / granergizeInboxUrl.
   assert.deepEqual(
     writes.filter((w) => w.method === "PUT").map((w) => w.url),
     [
       "https://b.example/granergize/inbox/",
       "https://b.example/granergize/inbox/.acl",
-      "https://b.example/granergize/.meta",
     ],
   );
 });

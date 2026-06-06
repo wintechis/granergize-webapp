@@ -3,14 +3,14 @@ import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
+  getCompanyKind,
   getOrganization,
-  getProducingRole,
   isSupportedLogoType,
+  saveCompanyKind,
   saveOrganization,
-  saveProducingRole,
   uploadOrgLogo,
 } from "./organizationManager.ts";
-import { PROVENANCE_TO_IRI } from "../../constants/roles.ts";
+import { COMPANY_KIND_TO_IRI } from "../../constants/roles.ts";
 import { _resetProfileCacheForTesting } from "./profileDocument.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
@@ -20,8 +20,9 @@ const MEMBERSHIP = "https://pod.example/profile/card#membership";
 
 const ORG_MEMBER_OF = "http://www.w3.org/ns/org#memberOf";
 const ORG_HAS_MEMBERSHIP = "http://www.w3.org/ns/org#hasMembership";
-const ORG_ROLE = "http://www.w3.org/ns/org#role";
+const ORG_MEMBER = "http://www.w3.org/ns/org#member";
 const ORG_ORGANIZATION = "http://www.w3.org/ns/org#organization";
+const ORG_CLASSIFICATION = "http://www.w3.org/ns/org#classification";
 const FOAF_NAME = "http://xmlns.com/foaf/0.1/name";
 const FOAF_LOGO = "http://xmlns.com/foaf/0.1/logo";
 const FOAF_HOMEPAGE = "http://xmlns.com/foaf/0.1/homepage";
@@ -207,7 +208,7 @@ Deno.test("uploadOrgLogo rejects unsupported types", async () => {
   assert(threw, "expected uploadOrgLogo to throw on unsupported type");
 });
 
-Deno.test("getProducingRole returns null when no membership role is set", async () => {
+Deno.test("getCompanyKind returns null when no classification is set", async () => {
   _resetProfileCacheForTesting();
   const session = makeSession({
     [PROFILE_DOC]: `
@@ -215,10 +216,10 @@ Deno.test("getProducingRole returns null when no membership role is set", async 
       <${WEBID}> foaf:name "Homer" .
     `,
   }, []);
-  assert.deepEqual(await getProducingRole(session), null);
+  assert.deepEqual(await getCompanyKind(session), null);
 });
 
-Deno.test("saveProducingRole writes org:role on a membership; getProducingRole reads it back", async () => {
+Deno.test("saveCompanyKind writes org:classification on the org node (no org:role); getCompanyKind reads it back", async () => {
   _resetProfileCacheForTesting();
   const writes: { url: string; contentType: string; body: unknown }[] = [];
   const files: Record<string, string> = {
@@ -229,62 +230,73 @@ Deno.test("saveProducingRole writes org:role on a membership; getProducingRole r
   };
   const session = makeSession(files, writes);
 
-  await saveProducingRole(session, "investor");
+  await saveCompanyKind(session, "investor");
 
-  // Single PUT to the WebID doc, with the membership + role.
+  // Single PUT to the WebID doc.
   assert.deepEqual(writes.length, 1);
   assert.deepEqual(writes[0].url, PROFILE_DOC);
   const ttl = writes[0].body as string;
-  assert.deepEqual(objectsOf(ttl, WEBID, ORG_HAS_MEMBERSHIP), [MEMBERSHIP]);
-  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ROLE), [
-    PROVENANCE_TO_IRI.investor,
+  // The KIND is a property of the org node, not a role on the membership.
+  assert.deepEqual(objectsOf(ttl, ORG, ORG_CLASSIFICATION), [
+    COMPANY_KIND_TO_IRI.investor,
   ]);
-  // No org set → the membership isn't tied to an org node.
-  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ORGANIZATION), []);
+  assert.deepEqual(
+    objectsOf(ttl, MEMBERSHIP, "http://www.w3.org/ns/org#role"),
+    [],
+  );
+  // A role-free membership ties the person to the org.
+  assert.deepEqual(objectsOf(ttl, WEBID, ORG_MEMBER_OF), [ORG]);
+  assert.deepEqual(objectsOf(ttl, WEBID, ORG_HAS_MEMBERSHIP), [MEMBERSHIP]);
+  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_MEMBER), [WEBID]);
+  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ORGANIZATION), [ORG]);
   // Pre-existing person data preserved.
   assert.deepEqual(objectsOf(ttl, WEBID, FOAF_NAME), ["Homer"]);
 
   // The PUT updated the served doc — read it back through the cache.
   _resetProfileCacheForTesting();
-  assert.deepEqual(await getProducingRole(session), "investor");
+  assert.deepEqual(await getCompanyKind(session), "investor");
 });
 
-Deno.test("saveProducingRole ties the membership to the org node when an org is set", async () => {
+Deno.test("saveCompanyKind preserves an existing org and its memberOf link", async () => {
   _resetProfileCacheForTesting();
   const writes: { url: string; contentType: string; body: unknown }[] = [];
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix org: <http://www.w3.org/ns/org#> .
+      @prefix foaf: <http://xmlns.com/foaf/0.1/> .
       <${WEBID}> org:memberOf <${ORG}> .
+      <${ORG}> foaf:name "ACME" .
     `,
   }, writes);
 
-  await saveProducingRole(session, "benchmark_service_provider");
+  await saveCompanyKind(session, "benchmark_service_provider");
   const ttl = writes[0].body as string;
-  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ORGANIZATION), [ORG]);
-  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ROLE), [
-    PROVENANCE_TO_IRI.benchmark_service_provider,
+  assert.deepEqual(objectsOf(ttl, ORG, ORG_CLASSIFICATION), [
+    COMPANY_KIND_TO_IRI.benchmark_service_provider,
   ]);
-  // The existing org membership link is untouched.
+  // The existing org link and its name are untouched.
   assert.deepEqual(objectsOf(ttl, WEBID, ORG_MEMBER_OF), [ORG]);
+  assert.deepEqual(objectsOf(ttl, ORG, FOAF_NAME), ["ACME"]);
 });
 
-Deno.test("saveProducingRole(null) clears the membership role", async () => {
+Deno.test("saveCompanyKind(null) clears the classification but keeps the membership", async () => {
   _resetProfileCacheForTesting();
   const writes: { url: string; contentType: string; body: unknown }[] = [];
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .
       @prefix org: <http://www.w3.org/ns/org#> .
-      <${WEBID}> foaf:name "Homer" ; org:hasMembership <${MEMBERSHIP}> .
-      <${MEMBERSHIP}> a org:Membership ; org:role <${PROVENANCE_TO_IRI.investor}> .
+      <${WEBID}> foaf:name "Homer" ; org:memberOf <${ORG}> .
+      <${ORG}> org:classification <${COMPANY_KIND_TO_IRI.investor}> .
     `,
   }, writes);
 
-  await saveProducingRole(session, null);
+  await saveCompanyKind(session, null);
   const ttl = writes[0].body as string;
-  assert.deepEqual(objectsOf(ttl, WEBID, ORG_HAS_MEMBERSHIP), []);
-  assert.deepEqual(objectsOf(ttl, MEMBERSHIP, ORG_ROLE), []);
+  assert.deepEqual(objectsOf(ttl, ORG, ORG_CLASSIFICATION), []);
+  // Membership/org link remain — only the kind was cleared.
+  assert.deepEqual(objectsOf(ttl, WEBID, ORG_MEMBER_OF), [ORG]);
+  assert.deepEqual(objectsOf(ttl, WEBID, ORG_HAS_MEMBERSHIP), [MEMBERSHIP]);
   // Person data preserved.
   assert.deepEqual(objectsOf(ttl, WEBID, FOAF_NAME), ["Homer"]);
 });

@@ -13,6 +13,7 @@ import {
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { safeHref } from "../../services/utils/safeHref.ts";
+import { useDevMode } from "../devMode.ts";
 
 /**
  * Shared building blocks for detail views (buildings, agents, energy, weather)
@@ -178,9 +179,12 @@ export function UriLink({ href, children }: { href: string; children: ReactNode 
 /**
  * A muted one-line link to a backing RDF resource on the Pod, shown under a
  * section so the underlying storage (Turtle file / LDP container) is visible and
- * inspectable. The URL is the link text.
+ * inspectable. The URL is the link text. Developer-mode only — these raw source
+ * links are hidden unless the footer's "Developer mode" toggle is on.
  */
 export function RdfSourceLink({ href }: { href: string }) {
+  const dev = useDevMode();
+  if (!dev) return null;
   return (
     <Typography
       variant="body2"
