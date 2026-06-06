@@ -545,6 +545,7 @@ export default function ManagePage({ session }: ManagePageProps) {
         <ShareBuildingDialog
           open
           buildingUri={(shareBuilding.sourceUri ?? shareBuilding.uri) as string}
+          building={shareBuilding}
           session={session}
           role={shareBuilding.provenance}
           onClose={() => {

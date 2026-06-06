@@ -129,32 +129,44 @@ test.describe("provenance from profile", () => {
     await expect(page.getByText(/building added/i))
       .toBeVisible({ timeout: 120_000 });
 
-    // 3. Create View keys on provenance: the building appears under Investor (the
-    //    profile role), and "User" (the import template) is not even an offered role
-    //    — Create View only lists roles that exist in the data (availableRoles in
-    //    CreateViewDialog), and the building's provenance is Investor, not its User
-    //    template. So provenance came from the profile, not the template.
+    // 3. Create View keys on provenance (CreateViewDialog filters
+    //    b.provenance === selectedRole): the building must appear under the Investor
+    //    filter (the profile role) — an exact provenance match — and must NOT appear
+    //    under the User filter (its import template). So provenance came from the
+    //    profile, not the template.
     await page.waitForLoadState("networkidle").catch(() => {});
     await page.getByRole("button", { name: /create view/i }).click();
     const view = page.getByRole("dialog");
     await expect(view).toBeVisible({ timeout: 30_000 });
     const option = page.getByRole("option", { name: new RegExp(ADDR) });
 
+    // Under the Investor filter (the profile role) the building IS offered — that is
+    // its actual provenance.
     await view.getByLabel("Role").click();
     await page.getByRole("option", { name: "Investor", exact: true }).click();
     await view.getByLabel("Select Buildings").click();
     await expect(option).toBeVisible({ timeout: 30_000 });
     await page.keyboard.press("Escape");
 
-    // If provenance had wrongly followed the *template*, "User" would be an offered
-    // role. It must NOT be — only Investor (the profile role) is listed, because that
-    // is the building's actual provenance.
+    // Under the User filter (the import *template*) the building must NOT appear — had
+    // provenance wrongly followed the template, it would. Don't assume "User" is even a
+    // selectable role: whether it's offered depends on some OTHER user-provenance
+    // building existing (a demo-seeded one, residue, …), independent of ours. If it is
+    // offered, switch to it and confirm ours isn't among its buildings; if it isn't
+    // offered at all, then no building is User-provenance, so ours certainly isn't.
     await view.getByLabel("Role").click();
+    // The dropdown is open once Investor (our building's provenance) has rendered.
     await expect(page.getByRole("option", { name: "Investor", exact: true }))
       .toBeVisible({ timeout: 10_000 });
-    await expect(page.getByRole("option", { name: "User", exact: true }))
-      .toHaveCount(0);
-    await page.keyboard.press("Escape");
+    const userRole = page.getByRole("option", { name: "User", exact: true });
+    if (await userRole.count()) {
+      await userRole.click();
+      await view.getByLabel("Select Buildings").click();
+      await expect(option).toHaveCount(0, { timeout: 10_000 });
+      await page.keyboard.press("Escape");
+    } else {
+      await page.keyboard.press("Escape"); // no User role offered — ours can't be User
+    }
     await view.getByRole("button", { name: /cancel/i }).click();
 
     // 4. Clean up the building.

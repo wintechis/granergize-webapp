@@ -9,6 +9,8 @@ import { isSeriesGranularity } from "../utils/durationUtils.ts";
 
 export interface ShareOptions {
   includeEnergyData: boolean;
+  /** Restrict the energy grant to these years only. Absent = all years (today's behavior). */
+  years?: number[];
 }
 
 export async function shareBuildingData(
@@ -24,7 +26,13 @@ export async function shareBuildingData(
   // resource (annual file / series descriptor), plus a series' daily-files
   // container (with acl:default, so the files inside are covered).
   if (options.includeEnergyData) {
-    for (const t of await getEnergyDataUrls(buildingUri.split("#")[0], session)) {
+    for (
+      const t of await getEnergyDataUrls(
+        buildingUri.split("#")[0],
+        session,
+        options.years,
+      )
+    ) {
       await grantReadAccess(t.url, webId, session, t.isContainer);
     }
   }
@@ -78,10 +86,14 @@ async function postToInbox(
  * `gran:EnergyDataset` resource (annual `.ttl` or series descriptor), plus — for
  * a series — its daily-files container (granted with `acl:default`, covering the
  * files inside). Derived from the building's `gran:hasEnergyDataset` link slugs.
+ *
+ * When `years` is given, only datasets for those years are returned (per-year
+ * sharing); absent ⇒ all years.
  */
-async function getEnergyDataUrls(
+export async function getEnergyDataUrls(
   buildingUri: string,
   session: Session,
+  years?: number[],
 ): Promise<Array<{ url: string; isContainer: boolean }>> {
   const buildingResponse = await session.fetch(buildingUri, { method: "GET" });
   if (!buildingResponse.ok) {
@@ -103,6 +115,7 @@ async function getEnergyDataUrls(
   ) {
     const ref = parseDatasetSlug(link.value);
     if (!ref) continue;
+    if (years && !years.includes(ref.year)) continue;
     const file = link.value.split("#")[0];
     targets.push({ url: file, isContainer: false });
     if (isSeriesGranularity(ref.granularity)) {

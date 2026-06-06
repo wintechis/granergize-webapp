@@ -1,11 +1,13 @@
-import { useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
   Button,
+  Checkbox,
   Chip,
   FormControl,
   FormControlLabel,
+  FormGroup,
   FormLabel,
   InputLabel,
   MenuItem,
@@ -22,7 +24,7 @@ import Modal from "./Modal.tsx";
 import { shareBuildingData } from "../services/interop/share.ts";
 import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
 import { uploadEnergyCertificate } from "../services/utils/certificateUploader.ts";
-import type { UserRole } from "../../types/types.ts";
+import type { BuildingType, UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";
 
@@ -33,9 +35,14 @@ const SHARE_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
   { value: "benchmark_service_provider", label: "Benchmark Service Provider" },
 ];
 
+/** What energy a share grants alongside the always-shared static building data. */
+type ShareScope = "static" | "all" | "years";
+
 interface ShareBuildingDialogProps {
   open: boolean;
   buildingUri: string;
+  /** The building being shared — its energy datasets drive the per-year picker. */
+  building: BuildingType;
   session: Session;
   /** The role under which the building is being shared */
   role?: UserRole | null;
@@ -45,6 +52,7 @@ interface ShareBuildingDialogProps {
 export function ShareBuildingDialog({
   open,
   buildingUri,
+  building,
   session,
   role,
   onClose,
@@ -56,11 +64,22 @@ export function ShareBuildingDialog({
   const [targetRole, setTargetRole] = useState<UserRole | "">("");
   const [recipients, setRecipients] = useState<string[]>([]);
   const [resolving, setResolving] = useState(false);
-  const [includeEnergyData, setIncludeEnergyData] = useState(true);
+  const [shareScope, setShareScope] = useState<ShareScope>("all");
+  const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [webIdError, setWebIdError] = useState("");
   const [shareError, setShareError] = useState("");
   const [confirmStep, setConfirmStep] = useState(false);
   const [shareSuccess, setShareSuccess] = useState(false);
+
+  // Years the building has energy for (annual + series, both scenarios), so a
+  // single year-share grants every dataset for that year. getEnergyDataUrls then
+  // filters the building's gran:hasEnergyDataset links by this selection.
+  const availableYears = useMemo(
+    () =>
+      [...new Set((building.energyDatasets ?? []).map((d) => d.year))]
+        .sort((a, b) => a - b),
+    [building.energyDatasets],
+  );
 
   const handleClose = () => {
     setShareMode("webid");
@@ -68,7 +87,8 @@ export function ShareBuildingDialog({
     setTargetRole("");
     setRecipients([]);
     setResolving(false);
-    setIncludeEnergyData(true);
+    setShareScope("all");
+    setSelectedYears([]);
     setWebIdError("");
     setShareError("");
     setConfirmStep(false);
@@ -143,10 +163,13 @@ export function ShareBuildingDialog({
   const handleShare = async () => {
     setSharing(true);
     setShareError("");
+    const includeEnergyData = shareScope !== "static";
+    const years = shareScope === "years" ? selectedYears : undefined;
     try {
       for (const recipient of recipients) {
         await shareBuildingData(buildingUri, recipient, session, {
           includeEnergyData,
+          years,
           role: role ?? undefined,
         });
       }
@@ -180,7 +203,8 @@ export function ShareBuildingDialog({
               onClick={handleProceedToConfirm}
               variant="contained"
               disabled={resolving ||
-                (shareMode === "webid" ? !webId.trim() : !targetRole)}
+                (shareMode === "webid" ? !webId.trim() : !targetRole) ||
+                (shareScope === "years" && selectedYears.length === 0)}
             >
               {resolving ? "Resolving…" : "Review & Share"}
             </Button>
@@ -292,9 +316,9 @@ export function ShareBuildingDialog({
             <FormControl component="fieldset" sx={{ mt: 3 }}>
               <FormLabel component="legend">What to share</FormLabel>
               <RadioGroup
-                value={includeEnergyData ? "both" : "static"}
+                value={shareScope}
                 onChange={(e) =>
-                  setIncludeEnergyData(e.target.value === "both")}
+                  setShareScope(e.target.value as ShareScope)}
               >
                 <FormControlLabel
                   value="static"
@@ -302,11 +326,46 @@ export function ShareBuildingDialog({
                   label="Static building data only"
                 />
                 <FormControlLabel
-                  value="both"
+                  value="all"
                   control={<Radio />}
-                  label="Static building data and energy readings"
+                  label="Static building data and all energy readings"
+                />
+                <FormControlLabel
+                  value="years"
+                  control={<Radio />}
+                  label="Static building data and energy for specific year(s)"
+                  disabled={availableYears.length === 0}
                 />
               </RadioGroup>
+              {shareScope === "years" && (
+                availableYears.length === 0
+                  ? (
+                    <Alert severity="info" sx={{ mt: 1 }}>
+                      This building has no energy datasets to share by year.
+                    </Alert>
+                  )
+                  : (
+                    <FormGroup sx={{ pl: 4, mt: 1 }}>
+                      {availableYears.map((year) => (
+                        <FormControlLabel
+                          key={year}
+                          control={
+                            <Checkbox
+                              checked={selectedYears.includes(year)}
+                              onChange={(e) =>
+                                setSelectedYears((prev) =>
+                                  e.target.checked
+                                    ? [...prev, year]
+                                    : prev.filter((y) => y !== year)
+                                )}
+                            />
+                          }
+                          label={String(year)}
+                        />
+                      ))}
+                    </FormGroup>
+                  )
+              )}
             </FormControl>
         </>
       )}
@@ -331,9 +390,13 @@ export function ShareBuildingDialog({
               ))}
             </Box>
             <Typography variant="body2">
-              <strong>Includes:</strong> {includeEnergyData
-                ? "Static building data and energy readings"
-                : "Static building data only"}
+              <strong>Includes:</strong> {shareScope === "static"
+                ? "Static building data only"
+                : shareScope === "all"
+                ? "Static building data and all energy readings"
+                : `Static building data and energy for ${
+                  [...selectedYears].sort((a, b) => a - b).join(", ")
+                }`}
             </Typography>
         </>
       )}
