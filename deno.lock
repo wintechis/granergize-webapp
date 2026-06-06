@@ -6,6 +6,7 @@
     "jsr:@std/data-structures@^1.1.0": "1.1.0",
     "jsr:@std/internal@^1.0.12": "1.0.12",
     "jsr:@std/testing@*": "1.0.19",
+    "jsr:@std/yaml@*": "1.1.1",
     "jsr:@wintechis/wetterdienst-rdf-adapter@^0.0.53": "0.0.53",
     "npm:@emotion/react@^11.13.3": "11.14.0_react@18.3.1",
     "npm:@emotion/styled@^11.13.0": "11.14.1_@emotion+react@11.14.0__react@18.3.1_react@18.3.1",
@@ -72,6 +73,9 @@
         "jsr:@std/async",
         "jsr:@std/data-structures"
       ]
+    },
+    "@std/yaml@1.1.1": {
+      "integrity": "a57665ecf3d17b926380593a56625d8a10cc7281802f1e993b5ebc94a48e71f8"
     },
     "@wintechis/wetterdienst-rdf-adapter@0.0.53": {
       "integrity": "dcf01db85f4f7842b12eb0ccf6c9278e821ca37f67c41f726685620dc3dcb854",

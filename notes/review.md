@@ -4,6 +4,47 @@ Date: 2026-06-05; **re-checked 2026-06-06** against current code. Branch: `dev-a
 Scope: ~22k LOC, 115 TS/TSX files. Reviewed by parallel per-dimension agents; findings
 below were spot-verified against the code.
 
+## Fixes 2026-06-06 (CI gate)
+
+The deploy gate now exists. `.github/workflows/main.yml` gained `test` / `lint` /
+`check` jobs and `deploy: needs: [build, test, lint, check]`, so a regression in
+units, ESLint, or `tsc` blocks deploy. **e2e is intentionally NOT a deploy gate**
+(kept as its own job). New `deno task check` = `tsc --noEmit -p tsconfig.check.json`
+(a thin extends of `tsconfig.app.json` that excludes the Deno-runtime `*.test.ts`
+files, which `deno test` type-checks instead). Standing up the typecheck surfaced
+two `src/` errors the type-less Vite build had been shipping:
+
+- **Real — dead `role` prop in the share path.** `ShareBuildingDialog` took a `role`
+  prop (fed `shareBuilding.provenance` from `ManagePage`) and passed it to
+  `shareBuildingData`, but `ShareOptions` has no `role` field, so it was silently
+  dropped at runtime — and routing provenance into a sharing role contradicts the
+  "provenance never drives behaviour" rule anyway. Removed end-to-end. (The "By role"
+  share UI uses its own `targetRole` state; unaffected.)
+- **False positive — `new Error(msg, { cause })` in `podFetch.ts`.** Needs `lib:
+  ES2022`; tsconfig targeted ES2020. Bumped `target`/`lib` to ES2022 (the code already
+  uses the feature; ships to modern browsers). Not a runtime bug.
+
+Residual: Tier-2 headless (`deno task it`) still isn't wired into CI; `xlsx` CVE,
+ACL race, and `viewComputer` tests remain open.
+
+## Fixes 2026-06-06 (quick-wins pass)
+
+Four findings closed in one pass (Tier-1 suite **213 green**, lint **0 errors**):
+
+- **RESOLVED — `activeRoom` not reset on logout (was HIGH).** Added
+  `resetActiveRoom()` (`dataRoom.ts`); called on both logout paths in `main.tsx`
+  (`handleLogout` + the `sessionExpired` effect) alongside `clearRequestLog()`.
+- **RESOLVED — `UriLink` missing scheme allowlist (was MEDIUM/security).** New
+  `safeHref()` (`src/services/utils/safeHref.ts`, allowlists http/https/mailto,
+  unit-tested) gates `UriLink` (`DetailView.tsx`); non-navigable IRIs (e.g.
+  `javascript:` from a shared Pod) now render as plain text, not a link.
+- **RESOLVED — CLAUDE.md chart-stack drift (was HIGH-doc).** "UI stack" now
+  describes Recharts + the `vendor-charts` chunk; Chart.js/`chartSetup.ts`/dedup
+  claims removed.
+- **RESOLVED — `deno task lint` error (was HIGH).** `test/config/env.ts:11` `any`
+  replaced with a structural `EnvGlobal` type; lint is now 0 errors (4 cosmetic
+  warnings remain). NOTE: still invisible to CI until the CI-gate item below lands.
+
 ## Re-check 2026-06-06 — what changed
 
 Three commits landed since the review (`0fd34bf` version-to-uwe, `d493ee5` test reorg,
@@ -93,6 +134,7 @@ no dependency cycles, React Query design is coherent, and failure-mode handling
 genuine strength.
 
 - **HIGH — `activeRoom` module singleton is not WebID-scoped and never reset on logout.**
+  *(RESOLVED 2026-06-06 — `resetActiveRoom()` now called on both logout paths; see Fixes note above.)*
   `let activeRoom` (`dataRoom.ts:77`), read synchronously by `getActiveRoom()` and used
   by `BuildingDialogs.tsx` / `ShareViewDialog.tsx`. Cleared only on explicit room
   exit/remove (`dataRoom.ts:158,198`); `handleLogout`/`sessionExpired` in `main.tsx`
@@ -236,17 +278,23 @@ remains genuine (stateful Pod fakes, behavioural assertions); Tier 1 is **191 pa
 green.**
 
 - **CRITICAL — CI still runs no unit tests, no lint, no typecheck, and none of it gates
-  deploy.** `.github/workflows/main.yml` has three jobs; the only test job is `e2e`
+  deploy.** *(RESOLVED 2026-06-06 — `test`/`lint`/`check` jobs added and `deploy: needs:
+  [build, test, lint, check]`; e2e intentionally non-gating. See CI-gate Fixes note above.
+  Residual: Tier-2 `deno task it` still not in CI.)* `.github/workflows/main.yml` has three jobs; the only test job is `e2e`
   (`deno task e2e:local`, Tier 3), and `deploy: needs: build` does not depend even on that.
   Tier 1 (191 unit tests), Tier 2 headless, `deno task lint`, and `tsc` are absent. A
   regression that breaks units/lint/types still ships. Fix: add `test` + `lint` + `check`
   jobs and `deploy: needs: [build, test, lint, check, e2e]`.
-- **CRITICAL — No typecheck anywhere in the pipeline.** `build` is `vite build` (esbuild
+- **CRITICAL — No typecheck anywhere in the pipeline.** *(RESOLVED 2026-06-06 — `deno
+  task check` (`tsc --noEmit -p tsconfig.check.json`) added and gates deploy; it caught
+  two latent `src/` errors on first run. See CI-gate Fixes note above.)* `build` is `vite build` (esbuild
   strips types without checking); `tsconfig.app.json` is strict but only the IDE consults
   it. Fix: add a `check` task (`tsc --noEmit -p tsconfig.app.json`, via Node tsc not
   `deno check`) and gate on it. (Current `src/` type-clean status is unverified here —
   `deno check` reports false positives from lib mismatch.)
 - **HIGH — `deno task lint` now fails with an error that CI never sees.**
+  *(RESOLVED 2026-06-06 — `test/config/env.ts` typed; lint back to 0 errors. The
+  underlying CI-gate gap below is still open — lint stays unenforced in CI.)*
   `test/config/env.ts:11:18` trips `@typescript-eslint/no-explicit-any` (1 error), plus 4
   warnings (`react-refresh/only-export-components` ×3, the `AggregatedView.tsx:65`
   `exhaustive-deps`). Introduced by the test reorg; invisible because CI doesn't lint.
@@ -300,7 +348,7 @@ thoughtful. No license red flags (MIT/Apache-2.0 throughout).
   under Deno), or migrate the parse path to `exceljs`. Treat uploaded workbooks as
   untrusted until then.
 - **HIGH (doc) — CLAUDE.md is stale about charts; the stack is Recharts, chart.js is
-  gone.** Zero `chart.js`/`chartjs`/`chartSetup` references in `src`/`vite.config.ts`;
+  gone.** *(RESOLVED 2026-06-06 — "UI stack" section rewritten to Recharts/`vendor-charts`.)* Zero `chart.js`/`chartjs`/`chartSetup` references in `src`/`vite.config.ts`;
   `recharts` (`package.json:27`) is imported in `MetricLineChart.tsx:10` /
   `MetricBarChart.tsx:11`, and `vite.config.ts:17` chunks `recharts`/`d3-` as
   `vendor-charts`. The "vite dedupes chart.js" claim is also stale. Fix the CLAUDE.md "UI
@@ -364,7 +412,7 @@ sink (Leaflet marker) uses only trusted constants. Auth/session, retry/backoff,
 file-error handling, and external-service trust are sound.
 
 - **MEDIUM — Untrusted IRIs from shared Pods render as link `href` with no scheme
-  allowlist.** `UriLink` (`DetailView.tsx:160`) passes `href` straight to MUI `<Link>`;
+  allowlist.** *(RESOLVED 2026-06-06 — `safeHref()` gates `UriLink`; see Fixes note above.)* `UriLink` (`DetailView.tsx:160`) passes `href` straight to MUI `<Link>`;
   the parser preserves the raw subject IRI into `building.uri` (`buildingParser.ts:112`),
   fed from other users' shared data (`Building.tsx:139,146`, `Energy.tsx:258`,
   `Agent.tsx:67`, `SharePage.tsx:273`, `ConnectPage.tsx:232`). A shared building whose

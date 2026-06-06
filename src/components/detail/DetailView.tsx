@@ -12,6 +12,7 @@ import {
 } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { SxProps, Theme } from "@mui/material/styles";
+import { safeHref } from "../../services/utils/safeHref.ts";
 
 /**
  * Shared building blocks for detail views (buildings, agents, energy, weather)
@@ -155,9 +156,14 @@ export function RefLink({ to, onClick, children }: RefLinkProps) {
  * in-app relative ones.
  */
 export function UriLink({ href, children }: { href: string; children: ReactNode }) {
+  // Shared-Pod IRIs are untrusted: only render an actual link for navigable
+  // schemes (http/https/mailto). Anything else (e.g. a `javascript:` subject IRI
+  // from another user's data) falls back to plain text — see safeHref.
+  const safe = safeHref(href);
+  if (!safe) return <>{children}</>;
   return (
     <Link
-      href={href}
+      href={safe}
       target="_blank"
       rel="noopener noreferrer"
       sx={{ display: "inline-flex", alignItems: "center", gap: 0.25 }}

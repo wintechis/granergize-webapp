@@ -7,11 +7,16 @@
  * file type-checks under both `deno check` and Playwright's TS loader without
  * needing `@types/node` or `deno.ns` in scope.
  */
-// deno-lint-ignore no-explicit-any
-type AnyGlobal = any;
+// Structural shape of the two runtime globals we read, so the file type-checks
+// under both `deno check` and Playwright's TS loader without `@types/node` or
+// `deno.ns` in scope — and without an `any` escape hatch.
+type EnvGlobal = {
+  Deno?: { env?: { get?: (key: string) => string | undefined } };
+  process?: { env?: Record<string, string | undefined> };
+};
 
 export function getEnv(key: string): string | undefined {
-  const g = globalThis as AnyGlobal;
+  const g = globalThis as unknown as EnvGlobal;
   if (typeof g.Deno !== "undefined" && g.Deno?.env?.get) {
     return g.Deno.env.get(key);
   }

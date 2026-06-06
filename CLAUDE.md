@@ -178,9 +178,9 @@ not provenance.
 
 ### UI stack
 MUI v6 (`@mui/material`, Emotion) with a custom theme in `src/theme.ts`. Charts use
-Chart.js via `react-chartjs-2` — registration is centralized in `src/chartSetup.ts`
-(imported once in `main.tsx`), and `vite.config.ts` deduplicates `chart.js` to a single
-instance (don't import/register Chart.js elsewhere). Maps use Leaflet via `react-leaflet`.
+[Recharts](https://recharts.org/) — chart components (`MetricLineChart.tsx`,
+`MetricBarChart.tsx`); `vite.config.ts` chunks `recharts`/`d3-*` into a `vendor-charts`
+bundle. Maps use Leaflet via `react-leaflet`.
 User-facing messages go through `NotificationContext`.
 
 Global network-loading feedback goes through one activity store

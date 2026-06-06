@@ -547,7 +547,6 @@ export default function ManagePage({ session }: ManagePageProps) {
           buildingUri={(shareBuilding.sourceUri ?? shareBuilding.uri) as string}
           building={shareBuilding}
           session={session}
-          role={shareBuilding.provenance}
           onClose={() => {
             setShareBuilding(null);
             queryClient.invalidateQueries({

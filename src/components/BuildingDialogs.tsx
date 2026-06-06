@@ -44,8 +44,6 @@ interface ShareBuildingDialogProps {
   /** The building being shared — its energy datasets drive the per-year picker. */
   building: BuildingType;
   session: Session;
-  /** The role under which the building is being shared */
-  role?: UserRole | null;
   onClose: () => void;
 }
 
@@ -54,7 +52,6 @@ export function ShareBuildingDialog({
   buildingUri,
   building,
   session,
-  role,
   onClose,
 }: ShareBuildingDialogProps) {
   const { showNotification } = useNotification();
@@ -170,7 +167,6 @@ export function ShareBuildingDialog({
         await shareBuildingData(buildingUri, recipient, session, {
           includeEnergyData,
           years,
-          role: role ?? undefined,
         });
       }
       setShareSuccess(true);
