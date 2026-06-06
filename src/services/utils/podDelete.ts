@@ -1,7 +1,7 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh } from "./podFetch.ts";
-import { getStorageRoot } from "./solidUtils.ts";
+import { appRoot } from "./solidUtils.ts";
 
 const LDP_CONTAINS = DataFactory.namedNode("http://www.w3.org/ns/ldp#contains");
 
@@ -130,6 +130,6 @@ export async function removeAppData(
 ): Promise<void> {
   const webId = session.info.webId;
   if (!webId) throw new Error("Not logged in");
-  const granDir = `${getStorageRoot(webId)}granergize/`;
+  const granDir = appRoot(webId);
   await deleteContainerRecursive(granDir, session, signal);
 }

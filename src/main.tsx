@@ -95,8 +95,12 @@ function AppContent() {
       // first (idempotent + cached, so the gate then no-ops).
       await resolveStorageRoot(authSession);
       // Self-provision the granergize inbox (container + append ACL + discovery
-      // pointer) so others can share with us even on a bare Pod. Idempotent.
-      await ensureOwnInbox(authSession);
+      // pointer) so others can share with us even on a bare Pod. Idempotent;
+      // returns true only the first time, when it actually creates the space.
+      const createdSpace = await ensureOwnInbox(authSession);
+      if (createdSpace) {
+        showNotification("Set up your granergize space on this Pod", "info");
+      }
       await readInbox(authSession);
       // readInbox may have archived newly-granted shares into the user's
       // shared-in/ log; refresh the queries that fold it so they appear

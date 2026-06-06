@@ -9,7 +9,7 @@ import {
   SIOC_NS,
   XSD_DATETIME,
 } from "../utils/vocabularies.ts";
-import { getStorageRoot } from "../utils/solidUtils.ts";
+import { appRoot, getStorageRoot } from "../utils/solidUtils.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
 import { ensureContainer } from "../utils/podWrite.ts";
 import { mapPooled } from "../utils/pool.ts";
@@ -534,8 +534,13 @@ export function leaveRoom(roomUrl: string, session: Session): Promise<void> {
 export async function createRoom(session: Session): Promise<string> {
   const webId = session.info.webId;
   if (!webId) throw new Error("Not logged in");
+  // Provision the rooms/ parent first (announced once, on the first room) so the
+  // structural folder isn't created silently; the per-room UUID container below
+  // is then created quietly (it's nested, not a top-level granergize folder).
+  await ensureContainer(`${appRoot(webId)}rooms/`, session);
+
   const roomUrl = normalizeRoomUrl(
-    `${getStorageRoot(webId)}granergize/rooms/${crypto.randomUUID()}`,
+    `${appRoot(webId)}rooms/${crypto.randomUUID()}`,
   );
 
   await ensureContainer(roomUrl, session);

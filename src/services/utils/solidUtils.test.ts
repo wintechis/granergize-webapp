@@ -2,9 +2,12 @@
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
+  APP_DIR,
+  appRoot,
   getPodBaseUrl,
   podResources,
   resolveStorageRoot,
+  _setStorageRootForTesting,
 } from "./solidUtils.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
@@ -112,4 +115,23 @@ Deno.test("resolveStorageRoot throws when the profile is unreachable", async () 
 
 Deno.test("getPodBaseUrl returns the WebID document's directory", () => {
   assert.deepEqual(getPodBaseUrl(WEBID), "https://pod.example/profile/");
+});
+
+Deno.test("APP_DIR defaults to 'granergize' (no VITE override under deno test)", () => {
+  // Tier 4 overrides this to 'granergize-e2e' via VITE_POD_APP_DIR at build time;
+  // import.meta.env is absent here, so the production default holds.
+  assert.equal(APP_DIR, "granergize");
+});
+
+Deno.test("appRoot is <storageRoot><APP_DIR>/ and anchors every podResources path", () => {
+  const webId = "https://approot.example/profile/card#me";
+  _setStorageRootForTesting(webId, "https://approot.example/");
+  assert.equal(appRoot(webId), `https://approot.example/${APP_DIR}/`);
+  // The whole app collection hangs off appRoot, so an override moves all of it.
+  const r = podResources(webId);
+  assert.equal(r.appRoot, appRoot(webId));
+  assert.equal(r.buildings, `${appRoot(webId)}buildings/`);
+  assert.equal(r.prefs, `${appRoot(webId)}prefs.ttl`);
+  assert.equal(r.bookmarks, `${appRoot(webId)}bookmarks.ttl`);
+  assert.equal(r.sharedIn, `${appRoot(webId)}shared-in/`);
 });

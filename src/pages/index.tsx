@@ -15,7 +15,7 @@ import {
   listDirectChildren,
   removeAppData,
 } from "../services/utils/podDelete.ts";
-import { getStorageRoot, podResources } from "../services/utils/solidUtils.ts";
+import { APP_DIR, getStorageRoot, podResources } from "../services/utils/solidUtils.ts";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import PersonIcon from "@mui/icons-material/Person";
@@ -111,6 +111,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     setDemoBusy(true);
     try {
       await seedDemoBuildings(session, webId);
+      // Refetch buildings; energy follows automatically because useEnergy is keyed on
+      // the building set (so the seeded annual building's energy loads without a
+      // separate, race-prone energy invalidation here).
       await queryClient.invalidateQueries({
         queryKey: queryKeys.buildings,
       });
@@ -203,7 +206,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     let resources: string[] = [];
     try {
       if (root) {
-        resources = await listContainedResources(`${root}granergize/`, session);
+        resources = await listContainedResources(`${root}${APP_DIR}/`, session);
       }
     } catch { /* preview only */ }
 

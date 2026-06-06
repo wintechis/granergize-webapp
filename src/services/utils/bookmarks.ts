@@ -1,7 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { GRAN_NS, RDF_TYPE } from "./vocabularies.ts";
-import { getStorageRoot } from "./solidUtils.ts";
+import { appRoot } from "./solidUtils.ts";
 import { fetchFresh } from "./podFetch.ts";
 import { readModifyWrite } from "./podWrite.ts";
 
@@ -18,7 +18,7 @@ const GRAN_KNOWN_ROOM = namedNode(`${GRAN_NS}knownRoom`);
  * and rooms you *host* are discovered by listing `rooms/` (not duplicated here).
  */
 export function bookmarksUrl(webId: string): string {
-  return `${getStorageRoot(webId)}granergize/bookmarks.ttl`;
+  return `${appRoot(webId)}bookmarks.ttl`;
 }
 
 /** Bookmarked room URLs (the "Your rooms" list). Missing file ⇒ `[]`. */

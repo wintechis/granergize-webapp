@@ -2,6 +2,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh } from "../utils/podFetch.ts";
 import {
+  APP_DIR,
   podResources,
   resolveStorageRootForWebId,
 } from "../utils/solidUtils.ts";
@@ -155,7 +156,7 @@ export async function getRecipientInboxUrl(
   session: Session,
 ): Promise<string> {
   const root = await resolveStorageRootForWebId(webId, session);
-  return granergizeInboxUrl(`${root}granergize/`, session);
+  return granergizeInboxUrl(`${root}${APP_DIR}/`, session);
 }
 
 /**
@@ -163,11 +164,19 @@ export async function getRecipientInboxUrl(
  * best-effort — never blocks login): create the inbox container, grant
  * AuthenticatedAgent Append so other granergize users can drop grants, and
  * advertise it via `ldp:inbox` on the granergize root so senders can discover it.
+ *
+ * Returns `true` only when it actually created the space this call (the inbox
+ * didn't exist yet) — so the caller can show the user a one-time setup notice.
+ * When the inbox already exists it's a no-op and returns `false`.
  */
-export async function ensureOwnInbox(session: Session): Promise<void> {
+export async function ensureOwnInbox(session: Session): Promise<boolean> {
   const webId = session.info.webId;
-  if (!webId) return;
+  if (!webId) return false;
   const { appRoot, inbox } = podResources(webId);
+  // Provision (and notify) only on a bare Pod: a HEAD that doesn't 404 means the
+  // granergize space is already set up, so there's nothing to create.
+  const existing = await session.fetch(inbox, { method: "HEAD" }).catch(() => null);
+  if (existing?.ok) return false;
   await session.fetch(inbox, {
     method: "PUT",
     headers: {
@@ -195,6 +204,7 @@ export async function ensureOwnInbox(session: Session): Promise<void> {
     headers: { "Content-Type": "text/turtle" },
     body: `@prefix ldp: <http://www.w3.org/ns/ldp#>.\n<${appRoot}> ldp:inbox <${inbox}>.\n`,
   }).catch(() => {});
+  return true;
 }
 
 /** The logged-in user's own granergize inbox (same app-scoped discovery). */

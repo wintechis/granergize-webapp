@@ -1,6 +1,13 @@
-import React, { createContext, useCallback, useContext, useState } from "react";
+import React, {
+  createContext,
+  useCallback,
+  useContext,
+  useEffect,
+  useState,
+} from "react";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
+import { setNotificationSink } from "../services/utils/notificationSink.ts";
 
 type Severity = "error" | "warning" | "info" | "success";
 
@@ -39,6 +46,13 @@ export function NotificationProvider(
     },
     [],
   );
+
+  // Bridge the snackbar to non-React service code (e.g. first-time Pod container
+  // provisioning), then drop the registration on unmount.
+  useEffect(() => {
+    setNotificationSink(showNotification);
+    return () => setNotificationSink(null);
+  }, [showNotification]);
 
   const handleClose = (
     _event?: React.SyntheticEvent | Event,

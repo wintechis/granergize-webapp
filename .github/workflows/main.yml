@@ -21,7 +21,7 @@ jobs:
       # Smoke E2E (no login). The screenshot spec auto-skips without
       # E2E_USERNAME/E2E_PASSWORD, so no credentials are needed here.
       - name: run e2e
-        run: deno task e2e
+        run: deno task e2e:local
 
   build:
     runs-on: ubuntu-latest

@@ -13,7 +13,6 @@ import Card from "@mui/material/Card";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import ActivityScreen from "../components/ActivityScreen.tsx";
-import RequestActivityList from "../components/RequestActivityList.tsx";
 import { shouldRestoreSession } from "../services/utils/sessionRestore.ts";
 import { normalizeIssuer } from "../services/utils/normalizeIssuer.ts";
 
@@ -136,11 +135,21 @@ export const Login: React.FC<LoginProps> = ({
     };
     const handleLoginEvent = () => {
       markResponded();
+      // Set the WebID together with clearing `loading` so the screen goes
+      // straight from "Loading…" to the app. The library fires this `login`
+      // event while `handleIncomingRedirect()` is still in flight (its promise
+      // hasn't resolved yet), so clearing `loading` without also setting
+      // `activeWebId` here would flash the login form for a frame right after
+      // the browser returns from the identity provider.
+      setActiveWebId(session.info.webId);
       setLoading(false);
       fireLogin();
     };
     const handleRestore = () => {
       markResponded();
+      // Same as the login event: keep the loading screen up (no login-form
+      // flash) by setting the WebID as we clear `loading`.
+      setActiveWebId(session.info.webId);
       setLoading(false);
       fireLogin();
     };
@@ -252,6 +261,19 @@ export const Login: React.FC<LoginProps> = ({
     return <ActivityScreen title={loadingIndicator ?? "Loading…"} />;
   }
 
+  // A provider was just picked: take over the whole screen with the same
+  // full-page activity screen (live OIDC discovery/registration requests) until
+  // the browser navigates away — instead of flashing the login form again.
+  // Cancel restores the chooser.
+  if (redirectingTo) {
+    return (
+      <ActivityScreen
+        title={`Redirecting to ${redirectingTo}…`}
+        onCancel={() => setRedirectingTo(null)}
+      />
+    );
+  }
+
   // Not logged in: show the login card. Its body swaps between the post-click
   // redirect (live requests + Cancel) and the provider chooser.
   if (!activeWebId) {
@@ -331,145 +353,117 @@ export const Login: React.FC<LoginProps> = ({
                 </Typography>
               )}
 
-              {redirectingTo
+              {/* Recommended IDPs — only until a provider is remembered */}
+              {!prevIdps.length && recommendedLogins.length
                 ? (
-                  // Stay on the login screen; swap the chooser for the live
-                  // login requests (OIDC discovery/registration) so the user
-                  // sees what's happening in the gap before the browser
-                  // navigates to the provider. Cancel restores the chooser.
                   <Box
-                    sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
                   >
                     <Typography variant="subtitle2">
-                      Redirecting to {redirectingTo}…
+                      Sign in
                     </Typography>
-                    <Box sx={{ maxHeight: "40vh", overflowY: "auto" }}>
-                      <RequestActivityList emptyText="Starting…" />
+                    {recommendedLogins.map((idp) => (
+                      <Button
+                        key={idp}
+                        variant="outlined"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          submitCallback(idp);
+                        }}
+                      >
+                        {idp.replace("https://", "")}
+                      </Button>
+                    ))}
+                  </Box>
+                )
+                : null}
+
+              {/* Previously used IDPs — same vertical stack as the recommended list */}
+              {prevIdps.length
+                ? (
+                  <Box
+                    sx={{
+                      display: "flex",
+                      flexDirection: "column",
+                      gap: 2,
+                    }}
+                  >
+                    <Typography variant="subtitle2">
+                      Sign in again with
+                    </Typography>
+                    <Box
+                      sx={{
+                        display: "flex",
+                        flexDirection: "column",
+                        gap: 1,
+                      }}
+                    >
+                      {prevIdps.map((idp) => (
+                        <Button
+                          key={idp}
+                          variant="outlined"
+                          onClick={(e) => {
+                            e.preventDefault();
+                            submitCallback(idp);
+                          }}
+                        >
+                          {new URL(idp).host}
+                        </Button>
+                      ))}
                     </Box>
                     <Button
                       variant="text"
-                      onClick={() => setRedirectingTo(null)}
+                      color="error"
                       sx={{ alignSelf: "flex-start" }}
+                      onClick={(e) => {
+                        e.preventDefault();
+                        // Non-destructive: just forgets the remembered IDP list
+                        // locally — no confirmation needed.
+                        localStorage.removeItem("prevIdps");
+                        setPrevIdps([]);
+                      }}
                     >
-                      Cancel
+                      Clear
                     </Button>
                   </Box>
                 )
-                : (
-                  <>
-                    {/* Recommended IDPs — only until a provider is remembered */}
-                    {!prevIdps.length && recommendedLogins.length
-                      ? (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 2,
-                          }}
-                        >
-                          <Typography variant="subtitle2">
-                            Sign in with an identity provider
-                          </Typography>
-                          {recommendedLogins.map((idp) => (
-                            <Button
-                              key={idp}
-                              variant="outlined"
-                              onClick={(e) => {
-                                e.preventDefault();
-                                submitCallback(idp);
-                              }}
-                            >
-                              {idp.replace("https://", "")}
-                            </Button>
-                          ))}
-                        </Box>
-                      )
-                      : null}
+                : null}
 
-                    {/* Previously used IDPs — same vertical stack as the recommended list */}
-                    {prevIdps.length
-                      ? (
-                        <Box
-                          sx={{
-                            display: "flex",
-                            flexDirection: "column",
-                            gap: 2,
-                          }}
-                        >
-                          <Typography variant="subtitle2">
-                            Sign in again with
-                          </Typography>
-                          <Box
-                            sx={{
-                              display: "flex",
-                              flexDirection: "column",
-                              gap: 1,
-                            }}
-                          >
-                            {prevIdps.map((idp) => (
-                              <Button
-                                key={idp}
-                                variant="outlined"
-                                onClick={(e) => {
-                                  e.preventDefault();
-                                  submitCallback(idp);
-                                }}
-                              >
-                                {new URL(idp).host}
-                              </Button>
-                            ))}
-                          </Box>
-                          <Button
-                            variant="text"
-                            color="error"
-                            sx={{ alignSelf: "flex-start" }}
-                            onClick={(e) => {
-                              e.preventDefault();
-                              // Non-destructive: just forgets the remembered IDP list
-                              // locally — no confirmation needed.
-                              localStorage.removeItem("prevIdps");
-                              setPrevIdps([]);
-                            }}
-                          >
-                            Clear
-                          </Button>
-                        </Box>
-                      )
-                      : null}
-
-                    {/* Sign in with a provider not listed above */}
-                    <Box
-                      sx={{ display: "flex", flexDirection: "column", gap: 2 }}
-                    >
-                      {(prevIdps.length || recommendedLogins.length)
-                        ? (
-                          <Typography variant="subtitle2">
-                            Sign in with another identity provider
-                          </Typography>
-                        )
-                        : null}
-                      <Box component="form" onSubmit={handleNewIdpSubmit}>
-                        <IdpInputWrapper>
-                          <TextField
-                            name="login"
-                            label="Identity Provider"
-                            placeholder="e.g. inrupt.net"
-                            onChange={(e) => setLogin(e.target.value)}
-                            fullWidth
-                          />
-                          <Button type="submit" variant="contained">
-                            +
-                          </Button>
-                        </IdpInputWrapper>
-                      </Box>
-                      {invalidIDP && (
-                        <Typography variant="body2" color="error">
-                          Please provide a correct URI.
-                        </Typography>
-                      )}
-                    </Box>
-                  </>
+              {/* Sign in with a provider not listed above */}
+              <Box
+                sx={{ display: "flex", flexDirection: "column", gap: 2 }}
+              >
+                {(prevIdps.length || recommendedLogins.length)
+                  ? (
+                    <Typography variant="subtitle2">
+                      Sign in with another identity provider
+                    </Typography>
+                  )
+                  : null}
+                <Box component="form" onSubmit={handleNewIdpSubmit}>
+                  <IdpInputWrapper>
+                    <TextField
+                      name="login"
+                      label="Identity Provider"
+                      placeholder="e.g. inrupt.net"
+                      onChange={(e) => setLogin(e.target.value)}
+                      fullWidth
+                    />
+                    <Button type="submit" variant="contained">
+                      +
+                    </Button>
+                  </IdpInputWrapper>
+                </Box>
+                {invalidIDP && (
+                  <Typography variant="body2" color="error">
+                    Please provide a correct URI.
+                  </Typography>
                 )}
+              </Box>
             </Box>
           </Box>
         </Card>

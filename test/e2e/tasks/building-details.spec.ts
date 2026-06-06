@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { hasAccount, login, SOLO_SLOT, soloAccount } from "../helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 
 /**
@@ -12,23 +12,27 @@ import { ensureDemoBuildings } from "../helpers/seed.ts";
  *      average — the table shows the building's own figures beside an
  *      "Operator Average kWh / a" column.
  *
- *   source test/.env.e2e.local && deno task e2e:base building-details.spec.ts
+ *   # tier 3 (local CSS, no creds):
+ *   deno task e2e:local test/e2e/tasks/building-details.spec.ts
+ *   # tier 4 (real Pods):
+ *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/building-details.spec.ts
  *
- * Runs against the solo Pod (E2E_SOLO; default C). Self-cleaning: deletes the
+ * Runs against Alice (account A). Self-cleaning: deletes the
  * building it adds. Skipped automatically when account env vars are absent.
  */
 
-const ACC = soloAccount();
 const OP_STREET = "Building Details E2E Strasse 1"; // unique throwaway address
 const OP_WEBID = "https://e2e.example.org/profile/card#me"; // a WebID (with #fragment)
 const OP_HASH = "me"; // the detail link shows the IRI's #fragment as its text
+
+const ACC = account("A"); // Alice -- solo specs use one account
 
 test.describe.configure({ mode: "serial" });
 
 test.describe("building details", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_${SOLO_SLOT} / E2E_PASSWORD_${SOLO_SLOT} (a throwaway Solid Pod) to run the building-details e2e.`,
+    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the building-details e2e.`,
   );
 
   let page: Page;
@@ -115,11 +119,12 @@ test.describe("building details", () => {
     ).toBeVisible({ timeout: 90_000 });
 
     // The building's own figures sit beside the operator-average benchmark column.
-    await expect(page.locator("th", { hasText: /^kWh \/ a$/ })).toBeVisible({
-      timeout: 30_000,
-    });
+    // The comparison table repeats a plain "kWh / a" header per energy-type block,
+    // so match the first (the assertion only proves the column exists).
+    await expect(page.locator("th", { hasText: /^kWh \/ a$/ }).first())
+      .toBeVisible({ timeout: 30_000 });
     await expect(
-      page.locator("th", { hasText: "Operator Average kWh / a" }),
+      page.locator("th", { hasText: "Operator Average kWh / a" }).first(),
     ).toBeVisible({ timeout: 30_000 });
     // …and the table has at least one energy-type row under those columns.
     await expect(page.locator("tbody tr").first()).toBeVisible({

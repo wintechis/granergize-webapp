@@ -16,8 +16,10 @@ interface ActivityScreenProps {
  * A full-page progress screen that shows the live network requests behind a
  * long transition (login redirect, initial load, "Remove all app data"), so the
  * user sees what the app is doing instead of a blank wait. Same flex-centering
- * as the login screen; the request list scrolls within a bounded region. An
- * optional Cancel button is shown when `onCancel` is provided.
+ * as the login screen, and the same Granergize "G" mark on top, so the whole
+ * login → app load reads as one continuous branded screen rather than a chain
+ * of different-looking waits. The request list scrolls within a bounded region;
+ * an optional Cancel button is shown when `onCancel` is provided.
  */
 export default function ActivityScreen(
   { title, onCancel, cancelLabel = "Cancel" }: ActivityScreenProps,
@@ -47,9 +49,21 @@ export default function ActivityScreen(
           gap: 3,
         }}
       >
+        <Box
+          sx={{
+            width: 64,
+            height: "auto",
+            "& img": { width: "100%", height: "auto", display: "block" },
+          }}
+        >
+          <img
+            src={`${import.meta.env.BASE_URL}favicon.svg`}
+            alt="Granergize"
+          />
+        </Box>
         <Typography variant="h6">{title}</Typography>
         <Box sx={{ maxHeight: "50vh", overflowY: "auto" }}>
-          <RequestActivityList emptyText="Starting…" />
+          <RequestActivityList emptyText="" />
         </Box>
         {onCancel && (
           <Box sx={{ display: "flex", justifyContent: "flex-end" }}>

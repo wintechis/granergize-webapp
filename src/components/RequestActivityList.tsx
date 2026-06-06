@@ -71,6 +71,9 @@ export default function RequestActivityList(
   const root = currentStorageRoot();
 
   if (active.length === 0 && logEntries.length === 0) {
+    // An empty `emptyText` renders nothing — used by the full-page activity
+    // screen, whose own title already says "Loading…".
+    if (!emptyText) return null;
     return <Typography color="text.secondary">{emptyText}</Typography>;
   }
 

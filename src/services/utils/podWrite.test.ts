@@ -2,7 +2,8 @@
 import { strict as assert } from "node:assert";
 import { DataFactory } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { ConflictError, readModifyWrite } from "./podWrite.ts";
+import { ConflictError, ensureContainer, readModifyWrite } from "./podWrite.ts";
+import { setNotificationSink } from "./notificationSink.ts";
 
 const { namedNode } = DataFactory;
 const URL_ = "https://pod.example/granergize/dataSources.ttl";
@@ -146,6 +147,57 @@ Deno.test("readModifyWrite degrades to a plain PUT when the server sends no ETag
   await readModifyWrite(URL_, srv.session, (store) => store.addQuad(S, P, O));
   assert.equal(srv.puts.length, 1);
   assert.equal(srv.puts[0].ifMatch, null, "no If-Match without an ETag");
+});
+
+Deno.test("ensureContainer creates a missing container, reports it, and announces it once", async () => {
+  const srv = makeServer(null);
+  const notices: string[] = [];
+  setNotificationSink((m) => notices.push(m));
+  try {
+    const created = await ensureContainer(
+      "https://pod.example/granergize/shared-out/",
+      srv.session,
+    );
+    assert.equal(created, true);
+    assert.equal(srv.puts.length, 1, "PUT created the container");
+    assert.deepEqual(notices, ['Set up the "shared-out" folder on this Pod']);
+  } finally {
+    setNotificationSink(null);
+  }
+});
+
+Deno.test("ensureContainer creates a deep per-content container without announcing it", async () => {
+  const srv = makeServer(null);
+  const notices: string[] = [];
+  setNotificationSink((m) => notices.push(m));
+  try {
+    const created = await ensureContainer(
+      "https://pod.example/granergize/rooms/3f9c-uuid/",
+      srv.session,
+    );
+    assert.equal(created, true);
+    assert.equal(srv.puts.length, 1, "still created");
+    assert.deepEqual(notices, [], "nested container creation stays quiet");
+  } finally {
+    setNotificationSink(null);
+  }
+});
+
+Deno.test("ensureContainer is a silent no-op when the container already exists", async () => {
+  const srv = makeServer({ body: "", etag: '"v1"' });
+  const notices: string[] = [];
+  setNotificationSink((m) => notices.push(m));
+  try {
+    const created = await ensureContainer(
+      "https://pod.example/granergize/shared-out/",
+      srv.session,
+    );
+    assert.equal(created, false);
+    assert.equal(srv.puts.length, 0, "no write when it exists");
+    assert.deepEqual(notices, [], "no notice when it exists");
+  } finally {
+    setNotificationSink(null);
+  }
 });
 
 Deno.test("readModifyWrite supports a custom serializer", async () => {
