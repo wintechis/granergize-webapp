@@ -4,6 +4,7 @@
     "build": "deno run -A npm:vite build",
     "test": "deno test -A",
     "lint": "deno run -A npm:eslint .",
+    "check": "deno run -A npm:typescript/tsc --noEmit -p tsconfig.check.json",
     "e2e:local": "VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 E2E_PREVIEW=1 npx playwright test --project=local",
     "e2e:remote": "VITE_POD_APP_DIR=granergize-e2e npx playwright test --project=solo --project=sharing",
     "e2e:remote:spec": "VITE_POD_APP_DIR=granergize-e2e npx playwright test",

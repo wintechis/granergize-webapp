@@ -25,6 +25,7 @@ import {
 } from "./services/utils/networkActivity.ts";
 import { formatError } from "./services/utils/formatError.ts";
 import { resolveStorageRoot } from "./services/utils/solidUtils.ts";
+import { resetActiveRoom } from "./services/interop/dataRoom.ts";
 import {
   getSessionExpiredSnapshot,
   markSessionExpired,
@@ -75,6 +76,7 @@ function AppContent() {
       sessionStorage.setItem(NO_RESTORE_KEY, "1");
       setSuppressRestore(true);
       clearRequestLog();
+      resetActiveRoom();
       session.logout().then(() => setSession(null));
     }
   }, [expired, session, showNotification]);
@@ -121,6 +123,9 @@ function AppContent() {
     // Don't carry this session's request history into the next login's loading
     // screen / header log.
     clearRequestLog();
+    // Clear the in-memory current-room pointer so a different user logging in on
+    // the same tab can't briefly target the previous user's room.
+    resetActiveRoom();
     if (opts?.suppressAutoLogin) {
       sessionStorage.setItem(NO_RESTORE_KEY, "1");
       setSuppressRestore(true);

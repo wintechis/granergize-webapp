@@ -81,6 +81,17 @@ export function getActiveRoom(): string | null {
   return activeRoom;
 }
 
+/**
+ * Clear the in-memory current-room pointer. Unlike the WebID-namespaced React
+ * Query cache, this bare module global would otherwise survive a
+ * logout→login-as-different-user in the same tab and briefly target the previous
+ * user's room. Call on every logout / session-expiry path (see main.tsx);
+ * re-login rehydrates it from the new user's Pod via hydrateActiveRoom.
+ */
+export function resetActiveRoom(): void {
+  activeRoom = null;
+}
+
 // The room state on the user's OWN Pod is the single source of truth — no
 // localStorage. It is split across two single-writer flat files (see prefs.ts /
 // bookmarks.ts):
