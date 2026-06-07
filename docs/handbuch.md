@@ -311,12 +311,34 @@ hinzufügen und mit der eigentlichen Arbeit beginnen.
 
 Ihre **Datenproduzenten-Rolle** legen Sie einmalig in Ihrem Profil fest – nicht
 bei jeder Dateneingabe. Öffnen Sie dazu über das Avatar-Symbol (oben rechts) den
-Dialog **Organisation** und wählen Sie Ihre Rolle (z. B. Investor, Nutzer oder
-Benchmark Service Provider). Diese Rolle wird anschließend automatisch als
-Herkunft (Provenienz) jedes Gebäudes vermerkt, das Sie anlegen.
+Dialog **Organisation** und wählen Sie Ihre Rolle. Zur Auswahl stehen alle
+Datenproduzenten-Rollen des Immobilienökosystems: **Investor**, **Nutzer**
+(Auswahl „User"), **Benchmark Service Provider**, **Facility Manager**,
+**Entwickler** (Auswahl „Developer"), **Berater/Makler** (Auswahl „Consultant /
+Broker"), **Softwaredienstleister** (Auswahl „Software Provider") und
+**Energiedienstleister** (Auswahl „Energy Provider"). Diese Rolle wird
+anschließend automatisch als Herkunft (Provenienz) jedes Gebäudes vermerkt, das
+Sie anlegen.
 
 Die Rolle bei der Dateneingabe ist damit entkoppelt: Im „Add Building"-Dialog
 wählen Sie nur noch die **Vorlage** (das Tabellenformat), nicht mehr die Rolle.
+
+Im selben Dialog **Organisation** hinterlegen Sie zugleich Ihr Unternehmen. Gehen
+Sie dazu so vor:
+
+1. **Firmenname eintragen:** Tragen Sie im Feld „Company name" den Namen Ihres
+   Unternehmens ein – etwa „Granergize AG".
+2. **Art des Unternehmens wählen:** Wählen Sie unter „Kind of company" Ihre
+   Datenproduzenten-Rolle (siehe oben).
+3. **Firmenlogo hochladen:** Klicken Sie auf „Choose logo…", wählen Sie eine
+   Bilddatei aus (PNG, JPG, SVG, WEBP oder GIF). Die Vorschau zeigt sofort das
+   gewählte Bild.
+4. **Speichern:** Bestätigen Sie mit „Save".
+
+Das Firmenlogo erscheint anschließend als Markierung Ihrer Gebäude auf der Karte
+(siehe Abschnitt „Daten ansehen") und steigert so die Wiedererkennbarkeit
+gegenüber Geschäftspartnern. Firmenname und Logo werden – wie die Rolle – als
+Herkunft Ihrer Gebäudedaten mitgeführt.
 
 ## Wie Granergize Gebäudedaten organisiert und sicher freigibt
 
@@ -446,6 +468,29 @@ Gebäude in der Liste und auf der Karte.
 > eindeutiger Name erzeugt; der Graph wird als Turtle-Datei in Ihren Pod
 > hochgeladen (Verzeichnis `granergize/buildings/`).
 
+## Gebäude bearbeiten, Dateien verwalten und löschen
+
+Jedes Gebäude in der Liste „Your buildings" (Tab **Manage**) bietet über Symbole
+am Zeilenende mehrere Aktionen:
+
+- **Edit building:** Die Stammdaten eines Gebäudes nachträglich ändern oder
+  ergänzen (Adresse, Fläche, Baujahr, Nutzungsart usw.).
+- **Manage files:** Beliebige Dateien jeden Typs zum Gebäude hinterlegen – etwa
+  PDFs, Word-Dokumente, Pläne oder Fotos – sowie herunterladen und wieder löschen.
+  Genau eine Datei können Sie über „Set as cert" als **Energieausweis** markieren;
+  sie wird dann mit einem entsprechenden Hinweis gekennzeichnet. Angehängte
+  Dateien werden automatisch mitgeteilt, wenn Sie das Gebäude teilen, und teilen
+  dessen Zugriffsrechte.
+- **Download this building's data:** Die Gebäudedaten als Excel-Datei
+  herunterladen.
+- **Share building data:** Das Gebäude mit Partnern teilen (siehe Kapitel „Daten
+  gemeinsam nutzen und Mehrwerte schaffen").
+- **Delete building:** Das Gebäude dauerhaft entfernen. Nach einer
+  Sicherheitsabfrage werden die Gebäudedatei sowie die zugehörigen Energie- und
+  Freigabedaten aus Ihrem Pod gelöscht.
+
+![Aktionen je Gebäude im Tab „Manage": bearbeiten, Dateien, Energiejahr, teilen, herunterladen, löschen](figures/manage-actions.png){width=100%}
+
 ## Energiedaten erfassen und aktualisieren
 
 Energieverbrauchsdaten werden je Gebäude und **Jahr** gepflegt. Öffnen Sie im
@@ -461,17 +506,30 @@ year"** das Jahresformular:
   auch **geplante** (Soll-)Werte. In der Energieansicht des Gebäudes werden Soll
   und Ist je Jahr nebeneinander dargestellt.
 
-Über das Symbol **„Upload energy certificate"** können Sie zusätzlich einen
-Energieausweis (PDF) zum Gebäude hinterlegen.
+Einen **Energieausweis** hinterlegen Sie als Datei-Anhang des Gebäudes: Laden Sie
+ihn unter **„Manage files"** hoch und markieren Sie ihn dort als Energieausweis
+(siehe Abschnitt „Gebäude bearbeiten, Dateien verwalten und löschen").
 
 ![„Add / edit energy year": Jahresverbrauch erfassen – mit geplanten (Soll) und tatsächlichen (Ist) Werten](figures/energy-year.png){width=100%}
 
 ## Daten ansehen
 
-Wählen Sie im Tab **Explore** einen Gebäude-Marker. Im rechten Bereich wechseln
-Sie über die Reiter zwischen **Building data**, **Energy data** und **Weather
-data**. Unter der Karte sehen Sie den Energiemix für den aktuell sichtbaren
-Kartenausschnitt.
+Wählen Sie im Tab **Explore** einen Gebäude-Marker. Jeder Marker zeigt das
+Firmenlogo des jeweiligen Datenproduzenten, sofern dieses im Dialog
+**Organisation** hinterlegt wurde – andernfalls eine neutrale Standard-Markierung.
+Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
+
+- **Building data:** die Stammdaten des Gebäudes (Adresse, Fläche, Baujahr,
+  Nutzungsart, Photovoltaik usw.). Ist ein Betreiber hinterlegt, wird dessen WebID
+  als anklickbarer Verweis auf das jeweilige Profil angezeigt.
+- **Energy data:** der Energieverbrauch je Jahr als Diagramm. Haben Sie zu einem
+  Jahr sowohl geplante (Soll-) als auch tatsächliche (Ist-)Werte erfasst, werden
+  beide **nebeneinander** dargestellt – so erkennen Sie auf einen Blick, wie nah
+  der reale Verbrauch am Plan liegt (Soll-Ist-Vergleich). Liegen Verbrauchswerte
+  vergleichbarer Gebäude desselben Betreibers vor, wird Ihr Verbrauch zusätzlich
+  gegen diesen **Betreiber-Durchschnitt** als Benchmark eingeordnet.
+- **Weather data:** die zum Standort passenden Wetterdaten, die zur Einordnung des
+  Verbrauchs (z. B. Heizgradtage) herangezogen werden können.
 
 ![Gebäudedetails im Explore-Tab mit Reitern](figures/map-tabs.png){width=100%}
 
@@ -489,14 +547,19 @@ viel Vertrauen Sie dieser Person entgegenbringen.
 
 ### Individuelle Gebäudedaten teilen
 
-Beim Teilen individueller Gebäudedaten können Sie zwischen zwei Stufen wählen:
+Beim Teilen individueller Gebäudedaten wählen Sie unter „What to share", welchen
+Umfang Sie freigeben:
 
 - **Static building data only** – nur die Stammdaten des Gebäudes (Adresse,
   Fläche, Baujahr, Nutzungsart, Information über vorhandene Photovoltaik-Anlagen),
   ohne Verbrauchswerte. Nützlich, wenn Sie jemandem zunächst zeigen möchten,
   welche Gebäude Sie verwalten, ohne sofort sensible Verbrauchsdaten preiszugeben.
-- **Static building data and energy readings** – zusätzlich die Verbrauchswerte
-  (Strom, Gas, Fernwärme, Wasser).
+- **Static building data and all energy readings** – zusätzlich die
+  Verbrauchswerte (Strom, Gas, Fernwärme, Wasser) **aller** Jahre.
+- **Static building data and energy for specific year(s)** – nur die
+  Verbrauchsdaten der von Ihnen angekreuzten Jahre. Da jedes Jahr als eigene
+  Ressource gespeichert ist, können Sie gezielt etwa nur den aktuellsten
+  Jahrgang freigeben und ältere zurückhalten.
 
 ### Aggregierte Ansichten teilen
 
@@ -534,25 +597,42 @@ die Grundlage für die rollenbasierte Freigabe. Im Tab **Connect**:
 - **Beitreten:** Fügen Sie eine Raum-URI in das Feld ein und klicken Sie auf
   „Add", oder nutzen Sie „Scan QR code".
 - **Rolle wählen:** Weisen Sie sich Ihre Rolle(n) im Raum zu und speichern Sie
-  mit „Save roles". Über diese Rollen können andere gezielt „By role" mit Ihnen
-  teilen. (Diese Raum-Rolle ist unabhängig von der Datenproduzenten-Rolle aus
-  Ihrem Profil.)
+  mit „Save roles". Sie können sich dabei bewusst **mehrere oder alle Rollen**
+  zuweisen – das ist so vorgesehen. Über diese Rollen können andere gezielt „By
+  role" mit Ihnen teilen. (Diese Raum-Rolle ist unabhängig von der
+  Datenproduzenten-Rolle aus Ihrem Profil.)
 
 ![Tab „Connect": Raum erstellen oder beitreten und Rolle wählen](figures/room.png){width=100%}
+
+### Kontakte verwalten
+
+Ebenfalls im Tab **Connect** führen Sie unter „Contacts" ein persönliches
+Adressbuch Ihrer Geschäftspartner – jeder Eintrag ist eine WebID, zu der
+Granergize automatisch den hinterlegten Namen und das Profilbild auflöst.
+Geschäftspartner, mit denen Sie Daten teilen, werden hier automatisch gemerkt;
+zusätzlich können Sie eine WebID von Hand eintragen und mit „Add" hinzufügen oder
+einen Eintrag über das Lösch-Symbol wieder entfernen. Ihre Kontakte erscheinen
+anschließend als Vorschläge, wann immer Sie Empfänger für eine Freigabe auswählen
+– so müssen Sie eine WebID nicht jedes Mal neu eingeben.
+
+![Tab „Connect": persönliches Adressbuch unter „Contacts"](figures/contacts.png){width=100%}
 
 ### Ein Gebäude teilen
 
 Im Tab **Manage** hat jedes Gebäude unter „Your buildings" eigene Symbole:
-Bearbeiten, Energieausweis hochladen, Energie-Jahr erfassen, Teilen,
-Herunterladen und Löschen.
+Bearbeiten, Dateien verwalten, Energie-Jahr erfassen, Teilen, Herunterladen und
+Löschen (siehe Abschnitt „Gebäude bearbeiten, Dateien verwalten und löschen").
 
 1. Klicken Sie beim gewünschten Gebäude auf das Teilen-Symbol. Der Dialog „Share
    Building Data" öffnet sich.
 2. Wählen Sie, an wen geteilt wird: **By WebID** (eine oder mehrere WebIDs
    eingeben) oder **By role** (eine Rolle wählen – geteilt wird mit allen
    Raum-Mitgliedern, die diese Rolle haben).
-3. Wählen Sie die Freigabestufe („Static building data only" oder „Static
-   building data and energy readings") und bestätigen Sie mit **Share**.
+3. Wählen Sie unter „What to share" den Freigabeumfang – nur Stammdaten, Stammdaten
+   mit allen Energiejahren oder Stammdaten mit ausgewählten Jahren (siehe Abschnitt
+   „Individuelle Gebäudedaten teilen") – und bestätigen Sie mit **Share**.
+
+![Tab „Manage": ein Gebäude mit seinen Symbolen zum Teilen, Bearbeiten und Verwalten](figures/share-building.png){width=100%}
 
 > **Technische Details (für Administratoren)**
 >
@@ -587,6 +667,11 @@ Gebäude, die andere mit Ihnen geteilt haben, finden Sie im Tab **Share** unter
 **Explore**, sodass Sie sie gemeinsam mit Ihren eigenen Gebäuden auswerten
 können. Aggregierte Ansichten, die andere mit Ihnen geteilt haben, finden Sie
 ebenda unter „Views shared with you".
+
+Über das Augen-Symbol können Sie ein mit Ihnen geteiltes Gebäude bei Bedarf aus
+Ihrer eigenen Karten- und Listenansicht ausblenden und später wieder einblenden.
+Das betrifft nur Ihre persönliche Ansicht – die Freigabe selbst bleibt davon
+unberührt.
 
 ### Zugriff widerrufen
 

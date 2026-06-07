@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Data-room lifecycle on the Connect tab, single account (a THROWAWAY Solid Pod
@@ -41,6 +41,7 @@ test.describe("data rooms", () => {
     // accept it automatically so the delete proceeds.
     page.on("dialog", (d) => d.accept());
     await login(page, A);
+    await assertCleanStart(page);
     await page.getByRole("tab", { name: "Connect" }).click();
   });
 

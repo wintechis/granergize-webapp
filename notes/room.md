@@ -5,9 +5,8 @@ State is **event-sourced**: join, leave, and role changes each append one immuta
 event; current state is **derived on read** by folding (latest event per WebID, per
 axis). This gives an audit trail and avoids lost-update races.
 
-Code: [`dataRoom.ts`](src/services/interop/dataRoom.ts); UI
-[`ConnectPage.tsx`](src/pages/ConnectPage.tsx); IRIs in
-[`vocabularies.ts`](src/services/utils/vocabularies.ts).
+Companion to [`sharing.md`](./sharing.md): a room grants no access on its own — it's a
+recipient *directory* that sharing reads.
 
 **Single room at a time:** you are a member of at most one room — the *current*
 room; entering another leaves it. A persistent **bookmarks** list lets you switch
@@ -18,11 +17,11 @@ You can be a member with no role, or have left while role history remains.
 
 ## Storage
 
-- **Identity = container URL**, e.g. `https://alice.example/granergize/rooms/<uuid>/`
+- **Identity = container URI**, e.g. `https://alice.example/granergize/rooms/<uuid>/`
   (`createRoom`).
 - **ACL**: creator `acl:Control`; any authenticated agent `acl:Read` + `acl:Append`
-  (open self-enrollment). No central room — share the URL/QR so others can join.
-- Appends via **LDP container `POST`** (server mints each child URL); the Pod applies
+  (open self-enrollment). No central room — share the URI/QR so others can join.
+- Appends via **LDP container `POST`** (server mints each child URI); the Pod applies
   no SPARQL `PATCH`.
 
 For where these files sit in the Pod tree, see [data-layout.md](data-layout.md).
@@ -94,7 +93,7 @@ Role IRIs (`ROLE_TO_IRI`): `investor`→`gran:InvestorRole`, `user`→
 - `getMembersByRole(room, role)` → members currently holding `role`.
 
 **Ordering caveat:** `as:published` is a client clock (per-agent, last-writer-wins).
-Documented hardening: order by each event's server `Last-Modified` (tie-break on URL).
+Documented hardening: order by each event's server `Last-Modified` (tie-break on URI).
 
 ## UI flow
 
@@ -126,7 +125,7 @@ room-independent — see [sharing.md](sharing.md).
 
 ## Tests
 
-Offline tests in [`dataRoom.test.ts`](src/services/interop/dataRoom.test.ts)
+Offline tests in `dataRoom.test.ts`
 (`deno task test`): latest-wins folding, concurrent members not clobbering, the two
 axes independent, join→leave, role-without-join ≠ member, role→WebID resolution,
 `createRoom` (bookmark + current + single membership), `addKnownRoom` bookmark-without-join

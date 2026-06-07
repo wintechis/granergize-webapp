@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Excel-import e2e (PROBLEMS.md #6). MUTATES the Pod: imports building(s) from an
@@ -73,6 +73,7 @@ test.describe("excel upload", () => {
         body: JSON.stringify([{ lat: "49.45", lon: "11.08" }]),
       }));
     await login(page, ACC);
+    await assertCleanStart(page);
   });
 
   test.afterAll(async () => {

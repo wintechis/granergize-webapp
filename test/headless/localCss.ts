@@ -11,44 +11,24 @@
  * `test/config/localSeed.ts` so the browser "local" tier logs into the SAME ones.
  */
 import { LOCAL_CSS_PORT, LOCAL_SEED } from "../config/localSeed.ts";
-import { getLiveSession } from "./liveSession.ts";
+import { discoverWebId, getLiveSession } from "./liveSession.ts";
+import { verifyWebId } from "./webid.ts";
+import type { LocalAccount, LocalPod } from "./localPod.ts";
 
 const CSS_VERSION = "^7";
 
-export interface LocalAccount {
-  email: string;
-  password: string;
-  pod: string;
-  webId: string;
-}
-
-export interface LocalCss {
-  baseUrl: string;
-  A: LocalAccount;
-  B: LocalAccount;
-  stop: () => Promise<void>;
-  /** Resolves when the CSS process exits — watch it to fail-fast if it dies. */
-  status: Promise<Deno.CommandStatus>;
-}
-
-/** Start a local CSS on `port`, seeded with accounts A and B; resolves when ready. */
-export async function startLocalCss(port = LOCAL_CSS_PORT): Promise<LocalCss> {
+/** Start a local CSS on `port`, seeded with accounts A and B; resolves when ready.
+ *  The CSS backend of {@link startLocalPod} (test/headless/localPod.ts). */
+export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
   const baseUrl = `http://localhost:${port}/`;
-  const mk = (email: string, password: string, pod: string): LocalAccount => ({
-    email,
-    password,
-    pod,
-    webId: `${baseUrl}${pod}/profile/card#me`,
-  });
-  const A = mk(LOCAL_SEED.A.email, LOCAL_SEED.A.password, LOCAL_SEED.A.pod);
-  const B = mk(LOCAL_SEED.B.email, LOCAL_SEED.B.password, LOCAL_SEED.B.pod);
+  const issuer = baseUrl.replace(/\/$/, "");
 
   const dataDir = await Deno.makeTempDir({ prefix: "css-it-" });
   const seedFile = `${dataDir}/seed.json`;
   await Deno.writeTextFile(
     seedFile,
     JSON.stringify(
-      [A, B].map((a) => ({
+      [LOCAL_SEED.A, LOCAL_SEED.B].map((a) => ({
         email: a.email,
         password: a.password,
         pods: [{ name: a.pod }],
@@ -56,12 +36,12 @@ export async function startLocalCss(port = LOCAL_CSS_PORT): Promise<LocalCss> {
     ),
   );
 
-  // Diagnostic opt-in: `LOCAL_CSS_LOG=<path>` tees CSS's FULL log (at `-l debug`) to
+  // Diagnostic opt-in: `LOCAL_POD_LOG=<path>` tees CSS's FULL log (at `-l debug`) to
   // that file, appended across per-spec `/reset` restarts. Off by default — CSS runs
   // at `-l warn` and its log is drained-but-discarded, so a swallowed auth 401 ("no
   // applicable key found in JWKS", a 401/403 on a resource read) is otherwise
   // invisible. Set it to attribute Tier-3 read/write flakiness to the substrate.
-  const logPath = Deno.env.get("LOCAL_CSS_LOG");
+  const logPath = Deno.env.get("LOCAL_POD_LOG");
   const logFile = logPath
     ? await Deno.open(logPath, { write: true, create: true, append: true })
     : null;
@@ -94,7 +74,7 @@ export async function startLocalCss(port = LOCAL_CSS_PORT): Promise<LocalCss> {
   // OS pipe buffer (~64 KB) fills under a real test run's request volume and CSS
   // BLOCKS on its own log writes — it hangs and every later request fails (a hard-
   // to-spot cascade). Keep only a rolling tail of stderr for the readiness error,
-  // plus the full tee to logFile when LOCAL_CSS_LOG is set.
+  // plus the full tee to logFile when LOCAL_POD_LOG is set.
   let errTail = "";
   const dec = new TextDecoder();
   const writeAll = async (f: Deno.FsFile, data: Uint8Array) => {
@@ -123,33 +103,37 @@ export async function startLocalCss(port = LOCAL_CSS_PORT): Promise<LocalCss> {
     await Deno.remove(dataDir, { recursive: true }).catch(() => {});
   };
 
-  // Poll readiness: the OIDC discovery doc is served once CSS is up + seeded.
+  // Poll readiness: OIDC discovery is served once CSS is up, and the account API
+  // yields each seeded account's WebID once seeding is done. DISCOVER the WebID here
+  // (CSS account API → `webIdLinks`) — the spec way — instead of constructing it.
   const deadline = Date.now() + 60_000;
-  let ready = false;
+  let discovered: { A: LocalAccount; B: LocalAccount } | undefined;
   while (Date.now() < deadline) {
     try {
       const r = await fetch(`${baseUrl}.well-known/openid-configuration`);
+      await r.body?.cancel();
       if (r.ok) {
-        await r.body?.cancel();
-        // Confirm a seeded WebID profile is actually readable (seeding done).
-        const p = await fetch(A.webId);
-        if (p.ok) {
-          await p.body?.cancel();
-          ready = true;
-          break;
-        }
-        await p.body?.cancel();
-      } else {
-        await r.body?.cancel();
+        discovered = {
+          A: {
+            ...LOCAL_SEED.A,
+            webId: await discoverWebId(issuer, LOCAL_SEED.A.email, LOCAL_SEED.A.password),
+          },
+          B: {
+            ...LOCAL_SEED.B,
+            webId: await discoverWebId(issuer, LOCAL_SEED.B.email, LOCAL_SEED.B.password),
+          },
+        };
+        break;
       }
-    } catch { /* not up yet */ }
+    } catch { /* not up / not seeded yet */ }
     await new Promise((res) => setTimeout(res, 500));
   }
 
-  if (!ready) {
+  if (!discovered) {
     await stop();
     throw new Error(`local CSS did not become ready on ${baseUrl}\n${errTail.slice(-1500)}`);
   }
+  const { A, B } = discovered;
 
   // Warm token verification before returning, as a hard readiness gate. Just after
   // boot the OIDC resource server transiently 401s ("no applicable key found in the
@@ -164,7 +148,6 @@ export async function startLocalCss(port = LOCAL_CSS_PORT): Promise<LocalCss> {
   // Tier-3 write flakes were warmup never running, not warmup not helping). Loop the
   // entire flow until an authenticated GET 200s, or warn at the deadline (never wedge
   // boot — a warning that authed specs may flake beats a hung CSS).
-  const issuer = baseUrl.replace(/\/$/, "");
   const cardDoc = A.webId.split("#")[0];
   const warmDeadline = Date.now() + 30_000;
   let warmed = false;
@@ -188,5 +171,16 @@ export async function startLocalCss(port = LOCAL_CSS_PORT): Promise<LocalCss> {
     );
   }
 
-  return { baseUrl, A, B, stop, status: child.status };
+  // Headless session via the CSS account API + client-credentials + DPoP.
+  const liveSession = (slot: "A" | "B") => {
+    const a = slot === "B" ? B : A;
+    return getLiveSession(issuer, a.email, a.password, a.webId);
+  };
+
+  // Solid-OIDC: confirm each seeded WebID authorizes this issuer (the anti-spoofing
+  // check the browser auth library does; the headless cc-flow otherwise skips it).
+  await verifyWebId(A.webId, issuer);
+  await verifyWebId(B.webId, issuer);
+
+  return { baseUrl, A, B, stop, status: child.status, liveSession };
 }

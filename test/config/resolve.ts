@@ -38,7 +38,9 @@ const DEFAULT_SLOTS = ["A", "B"]; // A = Alice, B = Bob
  *    must be opted in via `E2E_INTEROP_OK=1` once a real pair is verified.
  */
 function interoperates(a: TestAccount, b: TestAccount): boolean {
-  if (a.webId === b.webId) return false; // same Pod → not a sharing pair
+  // Same Pod → not a sharing pair. Compared by identity (issuer + user), not WebID,
+  // since WebIDs aren't constructed pre-login any more.
+  if (a.provider.issuer === b.provider.issuer && a.email === b.email) return false;
   if (a.provider.kind === b.provider.kind) return true; // homogeneous (incl. same server)
   return getEnv("E2E_INTEROP_OK") === "1"; // heterogeneous: opt-in once verified
 }

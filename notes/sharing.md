@@ -4,11 +4,9 @@ Direct WebID-to-WebID sharing of a **building** or **aggregated view**, Pod-to-P
 share grants the recipient read access and notifies them; the data stays in the owner's
 Pod (no copy).
 
-Code: [`share.ts`](src/services/interop/share.ts) (grants + notifications),
-[`sharingManager.ts`](src/services/interop/sharingManager.ts) (folds, revoke,
-visibility, views), [`sharingLog.ts`](src/services/interop/sharingLog.ts) (the
-event-log shape + fold), [`inbox.ts`](src/services/interop/inbox.ts) (recipient side),
-[`prefs.ts`](src/services/utils/prefs.ts) (local visibility).
+Companion to [`storage-model.md`](./storage-model.md) (the event-log design),
+[`room.md`](./room.md) (rooms as a share-by-role directory), and
+[`views.md`](./views.md) (the view snapshots that get shared).
 
 ## Model — two append-only event logs
 
@@ -18,7 +16,7 @@ per Pod, each an LDP container under `granergize/`:
 - `shared-out/` — sharing **you performed** (grants + revocations you issued).
 - `shared-in/` — sharing **received** (`readInbox` archives each inbox message here).
 
-Every event is its own resource (POST → the server mints the child URL, so concurrent
+Every event is its own resource (POST → the server mints the child URI, so concurrent
 appends never clobber). One Turtle shape serves all three places an event appears — the
 recipient's inbox message, the sharer's `shared-out/`, and the recipient's `shared-in/`.
 Current state = **fold** the log (`foldSharingLog`): group by `(grantee, resource)`,
@@ -82,8 +80,9 @@ revocation succeeds even if it fails.
 
 Same flow on the computed **snapshot only** (recipient sees aggregate values, not the
 source buildings); the grant event carries `gran:kind gran:View`. Recorded in
-`shared-out/`; the viewId is recoverable from the snapshot URL
-(`views/snapshots/<viewId>.ttl`), so it isn't stored separately.
+`shared-out/`; the viewId is recoverable from the snapshot URI
+(`views/snapshots/<viewId>.ttl`), so it isn't stored separately. The view model itself
+(definition vs. snapshot, computation) is owned by [`views.md`](./views.md).
 
 Views have a **recipient side** too (previously view sharing was sender-only):
 

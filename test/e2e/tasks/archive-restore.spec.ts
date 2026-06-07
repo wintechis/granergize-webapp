@@ -3,7 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Archive backup/restore e2e (dev-mode). Drives the real account-menu flow end to
@@ -50,6 +50,7 @@ test.describe("archive backup/restore", () => {
     // Both the restore and the wipe go through window.confirm — accept them.
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
+    await assertCleanStart(page);
     await ensureDemoBuildings(page);
   });
 

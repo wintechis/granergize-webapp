@@ -21,8 +21,7 @@
  *   BENCH_SIZES=0,100,200 deno task bench # custom sweep
  *   deno task bench:plot                  # re-render PNGs from existing .dat (after installing gnuplot)
  */
-import { getLiveSession, type LiveSessionLike } from "../headless/liveSession.ts";
-import { type LocalCss, startLocalCss } from "../headless/localCss.ts";
+import { type LiveSessionLike, type LocalPod, startLocalPod } from "../headless/localPod.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { resolveStorageRoot, podResources } from "../../src/services/utils/solidUtils.ts";
 import { ensureOwnInbox } from "../../src/services/interop/inbox.ts";
@@ -73,20 +72,19 @@ const RUNS = Number(Deno.env.get("BENCH_RUNS") ?? "3");
 
 const perItem = (total: number, n: number): number => (n > 0 ? total / n : 0);
 
-console.log("starting local CSS…");
-const css: LocalCss = await startLocalCss().catch((e): never => {
-  console.error(`FAIL — could not start local CSS:\n${e}`);
+console.log("starting local Pod server…");
+const css: LocalPod = await startLocalPod().catch((e): never => {
+  console.error(`FAIL — could not start local Pod server:\n${e}`);
   return Deno.exit(1);
 });
-console.log(`local CSS up at ${css.baseUrl}`);
+console.log(`local Pod up at ${css.baseUrl}`);
 
 let sA: LiveSessionLike | undefined;
 let sB: LiveSessionLike | undefined;
 try {
-  const issuer = css.baseUrl.replace(/\/$/, "");
   [sA, sB] = await Promise.all([
-    getLiveSession(issuer, css.A.email, css.A.password, css.A.webId),
-    getLiveSession(issuer, css.B.email, css.B.password, css.B.webId),
+    css.liveSession("A"),
+    css.liveSession("B"),
   ]);
   const sessionA = sA as unknown as Session;
   const sessionB = sB as unknown as Session;

@@ -3,7 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Excel-export e2e (PROBLEMS.md #8). Proves a workbook actually downloads in the
@@ -45,6 +45,7 @@ test.describe("excel export", () => {
     page = await newCapturedPage(browser, "excel-export");
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
+    await assertCleanStart(page);
     // Self-seed an empty Pod so the export round-trip has buildings to export
     // (the test no longer assumes a pre-seeded Pod).
     await ensureDemoBuildings(page);

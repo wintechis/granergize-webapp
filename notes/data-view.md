@@ -9,7 +9,7 @@ pane row/action back to its Pod file, keyed against
 ## 0. The root
 
 `building.uri` = the marker's RDF subject (`buildingParser.ts` Pass 1,
-`quad.subject.value`). `building.sourceUri` = the source file URL
+`quad.subject.value`). `building.sourceUri` = the source file URI
 (`quad.graph.value`). `building.id` is derived from the IRI tail (not a triple).
 `building.provenance` / `attributedTo` (from the file's PROV qualified attribution,
 read in `buildingParser.ts`) and `building.isShared` (set in
@@ -26,7 +26,7 @@ verbatim atop the pane; everything below is processed.
 │     vcard:locality/postal-code/region/street-address; rdfs:label;
 │     gran:hasBuildingArea/hasLandArea/officeArea (m²); gran:hasPVSystem (bool);
 │     gran:investor → investor (agent IRI); gran:usedAs; gran:yearOfConstruction;
-│     gran:hasEnergyCertificate (PDF URL); rec:nace-code; rec:operatedBy (agent IRI)
+│     gran:hasEnergyCertificate (PDF URI); rec:nace-code; rec:operatedBy (agent IRI)
 ├── investor-vocab datatypes (predicateMap, INVESTOR_NS)
 │     buildingCode, hallArea, officeSocialArea, buildingHeight, numberOfLoadingDocks,
 │     yearOfRenovation, leaseType, tenantIndustry; hasOil/Gas/Electric/HeatPump/
@@ -39,8 +39,8 @@ verbatim atop the pane; everything below is processed.
 ├── gran:hasEnergyDataset → <energy/<year>-<gran>[-planned].ttl#ds>  (repeatable)
 │     One `gran:EnergyDataset` per (building, year, granularity, scenario), each its
 │     own file; the slug is self-describing, so `parseDatasetSlug` derives
-│     {year, granularity, scenario} from the URL WITHOUT fetching (model: see
-│     `energy-redesign.md`). ⇒ building.energyDatasets[] (EnergyDatasetRef[]); phase 1
+│     {year, granularity, scenario} from the URI WITHOUT fetching (model: see
+│     `energy-model.md`). ⇒ building.energyDatasets[] (EnergyDatasetRef[]); phase 1
 │     reads only the links, bodies fetched in phase 2 (annual) / lazily on click (series).
 ├── investor:hasOperatingCosts → _:oc  ⇒ building.operatingCosts
 │     wasteDisposal, insurance, routineCleaning{Office,Warehouse}, glassCleaning,
@@ -55,7 +55,7 @@ verbatim atop the pane; everything below is processed.
 For the render/dispatch story the dataset declares its `gran:granularity`
 (`P1Y`|`PT15M`) and `gran:scenario` (`gran:Actual`|`gran:Planned`): annual (P1Y) carries
 inline `sosa:ObservationCollection` observations, a series (PT15M) points at daily reading
-files. Full dataset body model in `energy-redesign.md`.
+files. Full dataset body model in `energy-model.md`.
 
 Any predicate not in `predicateMap`/`objectPropertyMap` (or any unhandled
 blank-node shape) is parsed by n3 but never attached — it never reaches the pane.
@@ -124,7 +124,7 @@ Energy Certificate                 link in building file; PDF in <dir>/certifica
 §Certifications / §Operating Costs blank nodes in the building file
 energy charts (energyDatasets)     one gran:EnergyDataset file per (building, year,
                                    granularity, scenario) under buildings/<id>/energy/
-                                   (slug + bodies: see energy-redesign.md)
+                                   (slug + bodies: see energy-model.md)
 ```
 
 Agent rows render only the IRI fragment + a `RefLink`; the legacy agents data
@@ -163,23 +163,20 @@ data, re-running the load flow (`data-layout.md`).
   `AddBuildingDialog`). The energy certificate and per-year energy *are* writable,
   but via the **Manage** tab's row actions, not this pane.
 
-## Implications of the schema redesign (largely shipped — see `data-schema.md` status)
+## Relation to the role/shape model
 
-How this pane relates to the role/schema rework in
-[`data-schema.md`](./data-schema.md). The card and energy tab used to be
-**role-driven** — a `sourceRole === "investor"` gate (`Building.tsx`) decided which
-block rendered, and the energy tab dispatched on `sourceRole`. Per the
-`data-schema.md` status block, both are now **data-driven**:
+How this pane relates to the data-driven model in
+[`data-schema.md`](./data-schema.md). The card and energy tab dispatch on the data, not
+a role:
 
-- **Predicate-driven render (shipped).** The role gate is gone — `Building.tsx`
-  renders whatever predicates are present (REC/core + any `investor:*`/`bench:*`
-  actually on the subject) via `hasInvestorDetails`. The card shows "the fields this
-  building has," not "the block for its role"; the §3c "one file mixes blocks,
-  sourceRole selects" wart is removed.
-- **Granularity-driven energy tab (shipped).** The energy tab dispatches by the
-  dataset's declared shape (`annualData` presence / `gran:granularity`): a series
-  (PT15M) renders the time-series chart, an aggregate (P1Y) the annual chart — and
-  **one building can show both**, regardless of role.
+- **Predicate-driven render.** There is no role gate — `Building.tsx` renders whatever
+  predicates are present (REC/core + any `investor:*`/`bench:*` actually on the subject)
+  via `hasInvestorDetails`. The card shows "the fields this building has," not "the block
+  for its role."
+- **Granularity-driven energy tab.** The energy tab dispatches by the dataset's declared
+  shape (`annualData` presence / `gran:granularity`): a series (PT15M) renders the
+  time-series chart, an aggregate (P1Y) the annual chart — and **one building can show
+  both**, regardless of role.
 
 Provenance (`building.provenance` / `attributedTo`; model in `data-schema.md`) is
 deliberately **not** shown as a UI badge, and the map marker no longer varies by it —
@@ -194,22 +191,6 @@ Still open:
   the Manage tab). Still open: either make the pane's read-only rows
   (`customer`/`investor`/`type`/`naceCode`) editable or mark them explicitly
   read-only rather than silently un-editable.
-
-## Pointers
-
-`buildingParser.ts` (extraction, blank-node reassembly);
-`config/buildingConfig.ts` (whitelist, coercion, relabelling);
-`energyDataset.ts` (unified `gran:EnergyDataset` model + slug parsing);
-`TurtleParsingService.ts` (container-listed own buildings, folded shared-in, isShared,
-  hidden filter via `prefs.ts`, energy load);
-`ExplorePage.tsx` (container, trail, tabs); `Building.tsx` + `detail/DetailView.tsx` (view-only card);
-`Energy.tsx`/`InvestorEnergy.tsx`/`BspEnergy.tsx`/`WeatherData.tsx` (tabs;
-  charts via Recharts `MetricBarChart`/`MetricLineChart`);
-`types/types.ts` (`BuildingType`); `ManagePage.tsx`, `EditBuildingDialog.tsx`,
-`BuildingDialogs.tsx` (`EnergyCertificateDialog`/`ShareBuildingDialog`),
-`EnergyYearDialog.tsx`, `interop/sharingLog.ts`, `certificateUploader.ts`,
-`prefs.ts` (actions);
-[`data-layout.md`](./data-layout.md) (on-Pod files).
 
 > Open: no faithful "raw RDF for this building" view exists — the pane is the
 > whitelisted projection above.

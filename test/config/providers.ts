@@ -1,17 +1,20 @@
 /**
  * Pod-provider registry. Providers differ by AUTH (client-credentials vs browser
- * OIDC), THROTTLING (Cloudflare-fronted hosts), and WebID LAYOUT (subdomain vs
- * path). Tests describe what they need (see resolve.ts); the registry says what
- * each provider can do.
+ * OIDC) and THROTTLING (Cloudflare-fronted hosts). Tests describe what they need
+ * (see resolve.ts); the registry says what each provider can do.
  *
- * - Tier 2 (headless) ALWAYS uses the `local` provider, constructed at boot by
- *   `startLocalCss` (issuer/webIdFor are port-dependent) — see `localProvider`.
+ * WebIDs are deliberately NOT modeled here. Per the WebID / Solid-OIDC specs a WebID
+ * is an opaque URI you obtain from the session's `webid` claim after login — browser
+ * specs read it via `webIdOf`, the headless JSS backend gets it from `POST /.pods`,
+ * and the headless CSS backend binds it from its own seed — never one you construct
+ * from a username + a server's path convention. Irregular remote accounts supply
+ * theirs out-of-band via `E2E_WEBID_*`.
+ *
+ * - Tier 2 (headless) ALWAYS uses the `local` provider, constructed at boot.
  * - Tier 4 (browser, remote) selects real providers below.
  */
 export type ProviderKind = "local" | "css-v6" | "css-v5" | "nss";
 export type LoginStyle = "client-credentials" | "browser-oidc";
-/** How a WebID is laid out for a username on this provider. */
-export type WebIdLayout = "subdomain" | "path";
 
 export interface PodProvider {
   id: string;
@@ -23,16 +26,6 @@ export interface PodProvider {
   /** Cloudflare-fronted → serialize requests per host (concurrency policy). */
   throttled: boolean;
   loginStyle: LoginStyle;
-  webIdLayout: WebIdLayout;
-  /** Derive a WebID from a username, accounting for layout. */
-  webIdFor(username: string): string;
-}
-
-function subdomainWebId(host: string): (u: string) => string {
-  return (u) => `https://${u}.${host}/profile/card#me`;
-}
-function pathWebId(base: string): (u: string) => string {
-  return (u) => `${base}/${u}/profile/card#me`;
 }
 
 /** The real remote providers (Tier 4). Keyed by `id`. */
@@ -44,8 +37,6 @@ export const PROVIDERS: Record<string, PodProvider> = {
     supportsClientCredentials: true,
     throttled: true,
     loginStyle: "client-credentials",
-    webIdLayout: "subdomain",
-    webIdFor: subdomainWebId("solidcommunity.net"),
   },
   redpencil: {
     id: "redpencil",
@@ -54,8 +45,6 @@ export const PROVIDERS: Record<string, PodProvider> = {
     supportsClientCredentials: false,
     throttled: false,
     loginStyle: "browser-oidc",
-    webIdLayout: "path",
-    webIdFor: pathWebId("https://solid.redpencil.io"),
   },
   solidweb: {
     id: "solidweb",
@@ -64,15 +53,11 @@ export const PROVIDERS: Record<string, PodProvider> = {
     supportsClientCredentials: false,
     throttled: false,
     loginStyle: "browser-oidc",
-    webIdLayout: "subdomain",
-    webIdFor: subdomainWebId("solidweb.org"),
   },
   // A second non-Cloudflare host, used as role B for the A+B sharing pair
-  // (`test/.env.meisdata.local`). `kind`/`webIdFor` are best-guess (CSS, path
-  // layout); the by-role sharing path discovers B's real WebID via room
-  // membership, so the derived WebID is only used by the By-WebID path (which
-  // should set `E2E_WEBID_B`). Pair A(solidweb)+B(solidwebme) is heterogeneous,
-  // so it needs `E2E_INTEROP_OK=1`.
+  // (`test/.env.meisdata.local`). The by-role sharing path discovers B's WebID via
+  // room membership; the By-WebID path reads it from B's own session (`webIdOf`) or
+  // `E2E_WEBID_B`. Pair A(solidweb)+B(solidwebme) is heterogeneous → `E2E_INTEROP_OK=1`.
   solidwebme: {
     id: "solidwebme",
     issuer: "https://solidweb.me",
@@ -80,30 +65,25 @@ export const PROVIDERS: Record<string, PodProvider> = {
     supportsClientCredentials: false,
     throttled: false,
     loginStyle: "browser-oidc",
-    webIdLayout: "path",
-    webIdFor: pathWebId("https://solidweb.me"),
   },
 };
 
 /**
- * Build the `local` provider for a running local CSS (port-dependent). The headless
- * tier treats it as a client-credential provider; the browser "local" tier passes
- * `loginStyle: "browser-oidc"` to drive the CSS login UI instead.
+ * Build the `local` provider for a running local Pod server (port-dependent). The
+ * headless tier treats it as a client-credential provider; the browser "local" tier
+ * passes `loginStyle: "browser-oidc"` to drive the login UI instead.
  */
 export function localProvider(
   baseUrl: string,
   loginStyle: LoginStyle = "client-credentials",
 ): PodProvider {
-  const root = baseUrl.replace(/\/$/, "");
   return {
     id: "local",
-    issuer: root,
+    issuer: baseUrl.replace(/\/$/, ""),
     kind: "local",
     supportsClientCredentials: true,
     throttled: false,
     loginStyle,
-    webIdLayout: "path",
-    webIdFor: pathWebId(root),
   };
 }
 

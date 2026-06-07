@@ -10,7 +10,7 @@ import {
   joinRoomAsUser,
 } from "../helpers/connect.ts";
 import { ensureView, receivedViews, VIEW_NAME } from "../helpers/manage.ts";
-import { logCollectionState, wipeCollection } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 
 /**
  * Aggregated-VIEW sharing across TWO throwaway Pods (PROBLEMS.md #17 + #21), in
@@ -43,16 +43,14 @@ test.describe("view sharing across two pods", () => {
     const a = await freshPage(browser, A);
     a.page.on("dialog", (d) => d.accept()); // Delete view / room confirms
     try {
-      // Clean slate for A before any writes (reload re-provisions the inbox).
-      await wipeCollection(a.page, { reload: true, tag: "share-view:A" });
+      await assertCleanStart(a.page, "share-view:A");
       // ── A hosts a room + role; B joins + role; A creates + shares the view ──
       const roomUri = await hostRoomAndGetUri(a.page);
       await assignUserRole(a.page);
 
       const b1 = await freshPage(browser, B);
-      // Clean slate for B before it joins/receives anything.
-      await wipeCollection(b1.page, { reload: true, tag: "share-view:B" });
       try {
+        await assertCleanStart(b1.page, "share-view:B");
         await joinRoomAsUser(b1.page, roomUri);
       } finally {
         await b1.ctx.close();
@@ -159,8 +157,14 @@ test.describe("view sharing across two pods", () => {
       } catch {
         // best-effort cleanup; never fail the run
       }
-      await logCollectionState(a.page, "share-view"); // verify A's cleanup
-      await a.ctx.close();
+      // Leave both Pods empty — the per-run collection is removed entirely on each.
+      const bEnd = await freshPage(browser, B);
+      try {
+        await verifyAndResetBoth(a.page, bEnd.page, "share-view");
+      } finally {
+        await bEnd.ctx.close();
+        await a.ctx.close();
+      }
     }
   });
 });

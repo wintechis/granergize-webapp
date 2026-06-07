@@ -774,6 +774,16 @@ Deno.test("deleteBuilding deletes the building file (de-registering it by listin
     calls.some((c) => c.method === "DELETE" && c.url === uri),
     "a DELETE was issued for the building file",
   );
+
+  // The building's own .acl is NOT deleted before the file: doing so would briefly
+  // fall the resource back to the container's (possibly more permissive) inherited
+  // ACL — a TOCTOU exposure window. The owner-lockout that would have motivated a
+  // .acl-first "recovery" is prevented at the source (see removeFromACL).
+  const fileDel = calls.findIndex((c) => c.method === "DELETE" && c.url === uri);
+  const aclDelBefore = calls
+    .slice(0, fileDel)
+    .some((c) => c.method === "DELETE" && c.url === `${uri}.acl`);
+  assert.ok(!aclDelBefore, "the building's .acl is NOT deleted before the file");
 });
 
 Deno.test("deleteBuilding refuses a building outside the user's own Pod", async () => {

@@ -1,5 +1,6 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser, Store, Writer } from "n3";
+import { quadsToJsonLd } from "./rdfHelpers.ts";
 import { fetchFresh } from "./podFetch.ts";
 import { emitNotification } from "./notificationSink.ts";
 import { APP_DIR } from "./solidUtils.ts";
@@ -79,6 +80,31 @@ export async function ensureContainer(
   return true;
 }
 
+/**
+ * PUT a WAC `.acl` Turtle body, falling back to JSON-LD on 415. JSS rejects Turtle
+ * for ACL resources (it requires `application/ld+json`); CSS/NSS accept Turtle and
+ * never 415, so their path is unchanged. The single home for direct `.acl` writes
+ * that don't go through {@link readModifyWrite} (which has the same fallback).
+ */
+export async function putAcl(
+  aclUrl: string,
+  turtleBody: string,
+  session: Session,
+): Promise<Response> {
+  const res = await session.fetch(aclUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: turtleBody,
+  });
+  if (res.ok || res.status !== 415) return res;
+  const store = new Store(new Parser({ baseIRI: aclUrl }).parse(turtleBody));
+  return await session.fetch(aclUrl, {
+    method: "PUT",
+    headers: { "Content-Type": "application/ld+json" },
+    body: quadsToJsonLd(store.getQuads(null, null, null, null)),
+  });
+}
+
 export async function readModifyWrite(
   url: string,
   session: Session,
@@ -115,6 +141,23 @@ export async function readModifyWrite(
 
     const put = await session.fetch(url, { method: "PUT", headers, body });
     if (put.ok) return;
+    // 415 Unsupported Media Type → the server rejects Turtle for this resource.
+    // JSS demands `application/ld+json` for WAC `.acl` files; re-serialize the SAME
+    // graph as JSON-LD and retry once. CSS/NSS accept Turtle and never 415, so
+    // their path is untouched.
+    if (put.status === 415) {
+      const jsonld = quadsToJsonLd(store.getQuads(null, null, null, null));
+      const put2 = await session.fetch(url, {
+        method: "PUT",
+        headers: { ...headers, "Content-Type": "application/ld+json" },
+        body: jsonld,
+      });
+      if (put2.ok) return;
+      if (put2.status === 412 || put2.status === 409) continue;
+      throw new Error(
+        `Failed to write ${url}: HTTP ${put2.status} ${put2.statusText}`,
+      );
+    }
     // 412 Precondition Failed / 409 Conflict → someone wrote first: re-read & retry.
     if (put.status === 412 || put.status === 409) continue;
     throw new Error(

@@ -11,8 +11,8 @@ import {
   XSD_DATETIME,
 } from "../utils/vocabularies.ts";
 import { appRoot, getStorageRoot } from "../utils/solidUtils.ts";
-import { fetchFresh } from "../utils/podFetch.ts";
-import { ensureContainer } from "../utils/podWrite.ts";
+import { fetchFresh, readStoreOrEmpty } from "../utils/podFetch.ts";
+import { ensureContainer, putAcl } from "../utils/podWrite.ts";
 import { mapPooled } from "../utils/pool.ts";
 import { readPrefs, setCurrentRoom } from "../utils/prefs.ts";
 import {
@@ -299,9 +299,7 @@ async function readLog(
   // that Cloudflare answers with 429s (opaque CORS errors in the browser). A small
   // pool keeps each wave under the rate limit. See utils/pool.ts.
   const parsed = await mapPooled(eventUrls, 4, async (url) => {
-    const res = await fetchFresh(url, session);
-    if (!res.ok) return null;
-    const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
+    const store = await readStoreOrEmpty(url, session);
 
     // Membership: as:Join / as:Leave.
     const joinSubj = store.getSubjects(RDF_TYPE_NODE, AS_JOIN, null)[0];
@@ -404,14 +402,24 @@ export async function getMembers(
   return deriveState(await readLog(roomUrl, session), null).members;
 }
 
-/** Resolve a role to the WebIDs of all members of `roomUrl` holding that role. */
+/**
+ * Resolve a role to the WebIDs of all members of `roomUrl` holding that role,
+ * EXCLUDING the logged-in user. Used to pick share recipients, and sharing a
+ * resource to yourself is meaningless — and harmful: a self-grant writes a
+ * recipient authorization carrying the owner's own `acl:agent`, which a later
+ * revoke would then strip along with the owner's full-control block, locking the
+ * owner out of their own resource (Tier-4 meisdata run; see `removeFromACL`).
+ */
 export async function getMembersByRole(
   roomUrl: string | null,
   role: UserRole,
   session: Session,
 ): Promise<string[]> {
   const members = await getMembers(roomUrl, session);
-  return members.filter((m) => m.roles.includes(role)).map((m) => m.webId);
+  const me = session.info.webId;
+  return members
+    .filter((m) => m.roles.includes(role) && m.webId !== me)
+    .map((m) => m.webId);
 }
 
 /**
@@ -577,11 +585,7 @@ export async function createRoom(session: Session): Promise<string> {
     `<${aclUrl}#members> <${ACL_NS}mode> <${ACL_NS}Append> .`,
   ].join("\n") + "\n";
 
-  const res = await session.fetch(aclUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: aclBody,
-  });
+  const res = await putAcl(aclUrl, aclBody, session);
   if (!res.ok) {
     throw new Error(
       `Created the room but failed to set its permissions (HTTP ${res.status}). ` +
@@ -610,17 +614,12 @@ export async function deleteRoom(
   session: Session,
 ): Promise<void> {
   const container = normalizeRoomUrl(roomUrl);
-  const listing = await fetchFresh(container, session);
-  if (listing.ok) {
-    const store = new Store(
-      new Parser({ baseIRI: container }).parse(await listing.text()),
-    );
-    const children = store.getObjects(namedNode(container), LDP_CONTAINS, null)
-      .map((o) => o.value);
-    // Bounded concurrency (not Promise.all) to avoid a delete burst tripping the
-    // rate limit. See utils/pool.ts.
-    await mapPooled(children, 4, (c) => session.fetch(c, { method: "DELETE" }));
-  }
+  const store = await readStoreOrEmpty(container, session);
+  const children = store.getObjects(namedNode(container), LDP_CONTAINS, null)
+    .map((o) => o.value);
+  // Bounded concurrency (not Promise.all) to avoid a delete burst tripping the
+  // rate limit. See utils/pool.ts.
+  await mapPooled(children, 4, (c) => session.fetch(c, { method: "DELETE" }));
   // Best-effort ACL removal; deleting the container is what matters.
   await session.fetch(`${container}.acl`, { method: "DELETE" }).catch((err) =>
     logError("delete data-room container ACL", err)

@@ -116,6 +116,67 @@ Deno.test("deleteContainerRecursive descends and deletes the whole subtree", asy
   assert.ok(at(`${GRAN}buildings/`) < at(GRAN));
 });
 
+Deno.test("deleteContainerRecursive deletes each resource before its .acl (no exposure window)", async () => {
+  const { session, deletes } = makeSession();
+  await deleteContainerRecursive(GRAN, session);
+
+  // The resource DELETE must precede its .acl DELETE — deleting the .acl first
+  // would briefly fall the resource back to the container's (possibly more
+  // permissive) inherited ACL, a TOCTOU exposure.
+  const file = `${GRAN}buildings/b1.ttl`;
+  const fileIdx = deletes.indexOf(file);
+  const aclIdx = deletes.indexOf(`${file}.acl`);
+  assert.ok(fileIdx !== -1 && aclIdx !== -1, "both the file and its .acl deleted");
+  assert.ok(fileIdx < aclIdx, "resource is deleted before its .acl");
+});
+
+Deno.test("deleteContainerRecursive recovers a 403 (locked) resource: drop .acl, then retry", async () => {
+  // A leaf whose own .acl locked even the owner out: the first DELETE 403s; after
+  // the .acl is removed (recovery) the retry succeeds. The .acl-first widening is
+  // a last resort confined to an already-broken resource being destroyed anyway.
+  const LOCKED = `${GRAN}locked.ttl`;
+  const order: string[] = [];
+  let aclGone = false;
+  const session = {
+    info: { webId: WEBID, isLoggedIn: true },
+    fetch: (input: string | URL, init?: RequestInit) => {
+      const url = (typeof input === "string" ? input : input.toString())
+        .split("?")[0];
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method !== "DELETE") {
+        return Promise.resolve(
+          url === GRAN
+            ? new Response(listing(GRAN, [LOCKED]), {
+              status: 200,
+              headers: { "Content-Type": "text/turtle" },
+            })
+            : new Response("Not found", { status: 404 }),
+        );
+      }
+      order.push(`DELETE ${url}`);
+      if (url === `${LOCKED}.acl`) {
+        aclGone = true;
+        return Promise.resolve(new Response(null, { status: 205 }));
+      }
+      if (url === LOCKED) {
+        return Promise.resolve(new Response(null, { status: aclGone ? 205 : 403 }));
+      }
+      // The container itself and its (absent) .acl.
+      return Promise.resolve(
+        new Response(null, { status: url.endsWith(".acl") ? 404 : 205 }),
+      );
+    },
+  } as unknown as Session;
+
+  await deleteContainerRecursive(GRAN, session);
+
+  assert.deepEqual(
+    order.slice(0, 3),
+    [`DELETE ${LOCKED}`, `DELETE ${LOCKED}.acl`, `DELETE ${LOCKED}`],
+    "403 → drop .acl → retry the resource delete",
+  );
+});
+
 Deno.test("deleteContainerRecursive tolerates a missing container", async () => {
   const { session, deletes } = makeSession();
   await deleteContainerRecursive(`${ROOT}does-not-exist/`, session);

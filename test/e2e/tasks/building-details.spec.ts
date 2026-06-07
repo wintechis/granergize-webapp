@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Building-details e2e (single account, a throwaway solo Pod). Covers two user
@@ -44,6 +44,7 @@ test.describe("building details", () => {
     page = await newCapturedPage(browser, "building-details");
     page.on("dialog", (d) => d.accept().catch(() => {})); // "Delete building" confirm
     await login(page, ACC);
+    await assertCleanStart(page);
     await ensureDemoBuildings(page); // for the energy-benchmark task
   });
 

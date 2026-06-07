@@ -1,7 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Provenance-from-profile e2e (PROBLEMS.md #1). Proves a building's PROV
@@ -87,6 +87,7 @@ test.describe("provenance from profile", () => {
     page = await newCapturedPage(browser, "organisation");
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
+    await assertCleanStart(page);
   });
 
   test.afterAll(async () => {

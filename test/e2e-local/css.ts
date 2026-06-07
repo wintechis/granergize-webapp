@@ -10,9 +10,8 @@
  * Playwright's `webServer` runs this command and sends SIGTERM on teardown; the
  * signal handler does the orderly stop(). It blocks forever in between.
  */
-import { type LocalCss, startLocalCss } from "../headless/localCss.ts";
+import { type LocalPod, startLocalPod } from "../headless/localPod.ts";
 import { LOCAL_CSS_CONTROL_PORT, LOCAL_CSS_PORT } from "../config/localSeed.ts";
-import { getLiveSession } from "../headless/liveSession.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { podResources, resolveStorageRoot } from "../../src/services/utils/solidUtils.ts";
 import { createRoom } from "../../src/services/interop/dataRoom.ts";
@@ -48,12 +47,12 @@ async function waitForPortFree(port: number, deadlineMs = 10_000): Promise<void>
  * times if we lose the tiny TOCTOU window between the probe and CSS's own bind.
  * This is what makes the per-spec `/reset` reliable instead of a coin-flip.
  */
-async function bootCss(): Promise<LocalCss> {
+async function bootCss(): Promise<LocalPod> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
     await waitForPortFree(LOCAL_CSS_PORT);
     try {
-      return await startLocalCss(LOCAL_CSS_PORT);
+      return await startLocalPod(LOCAL_CSS_PORT);
     } catch (e) {
       lastErr = e;
       console.error(`CSS boot attempt ${attempt}/3 failed: ${e}`);
@@ -71,7 +70,7 @@ let restarting = false;
 // Fail-fast: if CSS exits on its own (crash/hang-kill) — NOT our restart/stop —
 // abort with a non-zero code instead of leaving a dead server that every spec
 // times out against.
-function watchExit(c: LocalCss) {
+function watchExit(c: LocalPod) {
   c.status.then((s) => {
     if (stopping || restarting) return;
     console.error(`local CSS exited unexpectedly (code ${s.code}) — aborting the run`);
@@ -87,8 +86,7 @@ watchExit(css);
 // fresh client-credentials session is minted per call so it can't go stale across
 // a /reset. Replaces whatever buildings/ held (wipe then seed) → exactly N.
 async function seedPodA(n: number): Promise<void> {
-  const issuer = css.baseUrl.replace(/\/$/, "");
-  const live = await getLiveSession(issuer, css.A.email, css.A.password, css.A.webId);
+  const live = await css.liveSession("A");
   try {
     const session = live as unknown as Session;
     await resolveStorageRoot(session);
@@ -106,8 +104,7 @@ async function seedPodA(n: number): Promise<void> {
 // auto-expands it on load), then seeds N synthetic members into the room's log.
 // The browser then times how long the member list takes to render.
 async function seedRoomPodA(n: number): Promise<void> {
-  const issuer = css.baseUrl.replace(/\/$/, "");
-  const live = await getLiveSession(issuer, css.A.email, css.A.password, css.A.webId);
+  const live = await css.liveSession("A");
   try {
     const session = live as unknown as Session;
     await resolveStorageRoot(session);

@@ -1,8 +1,7 @@
 # Data layout — on the Pod (LDP)
 
-> **Current layout below.** The single-root move and `pim:storage` discovery
-> (formerly "Proposed cleanup" / "Storage root the Solid way") are now **built** —
-> those sections are kept for rationale and marked DONE.
+> **Current layout below.** The single-root move and `pim:storage` discovery are
+> shipped; see *History* at the end for their rationale.
 
 On-Pod file layout, rooted at the storage location discovered via `pim:storage`.
 Companion to
@@ -37,7 +36,7 @@ and stays under `profile/`.
     ├── views/
     │   ├── <id>.ttl             one view-definition resource (discovered by listing)
     │   └── snapshots/<id>.ttl   shareable computed snapshots
-    ├── shared-out/<event>       append-only log: sharing performed (POST-minted child URLs)
+    ├── shared-out/<event>       append-only log: sharing performed (POST-minted child URIs)
     ├── shared-in/<event>        append-only log: sharing received (folded to "shared with me")
     ├── rooms/<uuid>             data rooms you HOST (append-only AS2/SIOC activity logs)
     └── inbox                    LDP inbox (sharing notifications)
@@ -50,7 +49,7 @@ buildings, and demo-offer state from **`prefs.ttl`**; external room bookmarks fr
 logs (`shared-in/`, `shared-out/`). The old `dataSources.ttl` /
 `sharingRegistry.ttl` / `views/viewSharingRegistry.ttl` /
 `views/viewDefinitions.ttl` / `views/computed/` / `hiddenBuildings.ttl` /
-`rooms.ttl` registries are gone (see *One-root cleanup* below).
+`rooms.ttl` registries are gone (see *History* below).
 
 **Energy file layout.** Each building links its datasets with
 `gran:hasEnergyDataset`; the link slug `<year>-<granularity>[-planned]` is
@@ -62,7 +61,7 @@ plus per-day reading files under `<year>-PT15M/`. (Load phasing: see
 
 **Sharing logs (no registry).** `shared-out/` and `shared-in/` are symmetric,
 append-only LDP containers, one resource per sharing *event* (a `POST` lets the
-server mint each child URL, so concurrent appends never clobber). The WAC `.acl`
+server mint each child URI, so concurrent appends never clobber). The WAC `.acl`
 stays the enforcement truth; these logs are the app's *record* and the only way a
 recipient learns of a grant. Event model and grant/revocation folding: see
 [`sharing.md`](./sharing.md).
@@ -166,109 +165,26 @@ migrates the flat form to the point on edit).
 
 ---
 
-## One-root cleanup (DONE)
+## History (rationale)
 
-> Implemented: all app data now hangs off one `<storageRoot>granergize/` tree via
-> `podResources()`; the `getPodBaseUrl`/`profile/granergize/` split is gone (logo
-> excepted). Clean break — old `profile/granergize/…` files are orphaned, pods
-> re-bootstrap. **Note:** the registry filenames below (`dataSources.ttl`,
-> `sharingRegistry.ttl`, `views/viewSharingRegistry.ttl`, `viewDefinitions.ttl`)
-> describe the *interim* layout this move targeted; a later storage redesign
-> dropped the registries entirely for listing / log-folding (see the *Tree* above).
+Two consolidations produced the layout above.
 
-### Problem
+**One root.** App data used to span three bases (`getStorageRoot + granergize/`,
+`getPodBaseUrl + granergize/`, `getStorageRoot + profile/granergize/`), which
+desynced for any WebID not shaped `<pod>/profile/card` → silent "empty" pod. Fixed
+by making `podResources(webId)` the single source of truth, every path under one
+`<storageRoot>granergize/` tree. `profile/` keeps only identity (the WebID `card`
+and the org `logo.<ext>`). Clean break — no migration; old `profile/granergize/…`
+files are orphaned and pods re-bootstrap. (This move targeted an *interim* layout
+with flat registries; the later storage redesign then dropped the registries
+entirely for listing / log-folding — see the *Tree* above and
+[`storage-model.md`](./storage-model.md).)
 
-Three bases for one logical tree:
-
-- `getStorageRoot` + `granergize/…` → buildings, views, rooms, rooms.ttl
-- `getPodBaseUrl` + `granergize/…` → dataSources.ttl, sharingRegistry.ttl,
-  views/viewSharingRegistry.ttl, logo
-- `getStorageRoot` + `profile/granergize/…` → hiddenBuildings.ttl
-
-Siblings split across trees, and `dataSources.ttl` is built two ways that agree
-**only** for a `<pod>/profile/card`-shaped WebID — other shapes desync → silent
-"empty" pod.
-
-### Target: one root
-
-All **app** data under **`getStorageRoot(webId) + "granergize/"`**. `profile/` keeps
-identity: the WebID `card` (`#me` + `#org`) **and the org logo**
-(`profile/logo.<ext>`), as profile data, not app data.
-
-```
-https://<pod>/
-├── profile/
-│   ├── card  (#me, #org)                    identity (unchanged)
-│   └── logo.<ext>                           org logo — stays in profile/
-└── granergize/                              ← the ONE app root
-    ├── dataSources.ttl   registry          ┐ moved (drop the profile/ segment)
-    ├── hiddenBuildings.ttl                  │
-    ├── sharingRegistry.ttl                  ┘
-    ├── buildings/<id>.ttl
-    │   └── <id>/energy/<date>.ttl
-    ├── views/
-    │   ├── viewDefinitions.ttl
-    │   ├── viewSharingRegistry.ttl          moved (next to its data)
-    │   └── computed/<viewId>.ttl
-    └── rooms.ttl  +  rooms/<uuid>
-```
-
-Already correct: `buildings/`, `views/viewDefinitions.ttl`, `views/computed/`,
-`rooms*`, and `profile/logo.<ext>`. The moves just drop the `profile/` segment from
-the app files — the real point is to stop deriving app paths from the WebID
-document's directory. The org logo is the deliberate exception, staying in
-`profile/` as profile data.
-
-### Code changes
-
-- **`solidUtils.ts`** — make `podResources(webId)` the single source of truth,
-  every entry on `getStorageRoot + "granergize/"`; fold `registryUrl` into it.
-- **Callers** route through `podResources`: `TurtleParsingService`,
-  `buildingSerializer`, `inbox`, `sharingManager` (sharingRegistry, hidden,
-  viewSharingRegistry), `organizationManager` (logo + the `foaf:logo` IRI it
-  writes into `card`). `viewManager`/`dataRoom` already use storageRoot.
-- **Tests** — update fixtures hardcoding `profile/granergize/…`
-  (`TurtleParsingService.test.ts`, sharing/inbox).
-
-### Migration: clean break (chosen)
-
-No migration code. Pods re-bootstrap; old `profile/granergize/…` data is orphaned,
-not deleted. OK while data is disposable; revisit if real pods exist before ship.
-
----
-
-## Storage root the Solid way: read `pim:storage` (DONE)
-
-> Implemented in `resolveStorageRoot(session)` (`solidUtils.ts`): GET the WebID
-> doc, parse with n3, read `<webId> pim:storage <root>`, cache in a module var.
-> Resolved once at login (`resolveStorageRoot` in `App.tsx`) before the routed app renders;
-> `getStorageRoot` is now cache-or-throw and the string-munge is deleted.
-> **Throws if the profile declares no `pim:storage`** (no fallback). Kept below for
-> rationale.
-
-
-`getStorageRoot` guesses the pod root by string-munging the WebID
-(`origin` up to `/profile/`). This isn't the Solid mechanism and breaks when the
-WebID isn't under `/profile/`, is hosted separately from the pod, or the user has
-multiple storages — and it's the root cause of the desync above. The correct
-source is **`pim:storage`** (`http://www.w3.org/ns/pim/space#storage`) on the WebID.
-
-**Constraint:** `getStorageRoot` is sync and inlined in 12 call sites; a
-`pim:storage` read is async. Resolve it **once and cache**, keeping callers sync:
-
-1. `resolveStorageRoot(session)` (async) — GET the WebID doc, parse (n3, as in
-   `logoManager`), read `<webId> pim:storage <root>`, cache it in a module var.
-   Call once at login alongside `hydrateActiveRoom`, before the first load.
-   **No string-munge fallback: if the profile has no `pim:storage`, throw** — a pod
-   that doesn't declare its storage is unusable, so fail loudly at login.
-2. `getStorageRoot(webId)` stays sync → returns the cached root, and **throws if
-   the cache is empty** (resolve hasn't run / failed). The 12 call sites are
-   unchanged; the old string-munge derivation is deleted.
-
-Login hydration awaits `resolveStorageRoot` and surfaces its error (block load,
-show the failure); offline tests cover both branches (`pim:storage` present → that
-root; absent → throws).
-
-**Scope:** storage *root* only — within-pod paths stay hardcoded. A
-`solid:TypeIndex` for full cross-app discovery is out of scope. Do the one-root
-consolidation first, then point `podResources` at the resolved root.
+**Storage root the Solid way.** The old `getStorageRoot` string-munged the WebID
+(`origin` up to `/profile/`), which breaks for off-`/profile/` or separately-hosted
+WebIDs. Replaced by `resolveStorageRoot(session)` (`solidUtils.ts`): reads
+`<webId> pim:storage <root>` from the WebID doc, resolved once at login (`App.tsx`)
+and cached; `getStorageRoot(webId)` is now cache-or-throw, the string-munge deleted.
+Throws if the profile declares no `pim:storage` (no fallback). Scope is the storage
+*root* only — within-pod paths stay hardcoded; a `solid:TypeIndex` for full
+cross-app discovery remains out of scope.

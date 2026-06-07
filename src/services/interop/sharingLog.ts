@@ -1,5 +1,5 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
+import { DataFactory, Store } from "n3";
 import {
   ACL_NS,
   GRAN_NS,
@@ -10,7 +10,7 @@ import {
   RDF_TYPE,
 } from "../utils/vocabularies.ts";
 import { appRoot } from "../utils/solidUtils.ts";
-import { fetchFresh } from "../utils/podFetch.ts";
+import { readStoreOrEmpty } from "../utils/podFetch.ts";
 import { ensureContainer } from "../utils/podWrite.ts";
 import { listDirectChildren } from "../utils/podDelete.ts";
 import { mapPooled } from "../utils/pool.ts";
@@ -184,11 +184,7 @@ async function readAllEvents(
   if (!children) return []; // container doesn't exist yet
   const eventUrls = children.filter((u) => !u.endsWith("/"));
   const parsed = await mapPooled(eventUrls, 4, async (url) => {
-    const res = await fetchFresh(url, session);
-    if (!res.ok) return [];
-    return parseSharingEvents(
-      new Store(new Parser({ baseIRI: url }).parse(await res.text())),
-    );
+    return parseSharingEvents(await readStoreOrEmpty(url, session));
   });
   return parsed.flat();
 }

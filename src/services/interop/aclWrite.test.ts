@@ -154,21 +154,39 @@ Deno.test("grant retries on a 412 from a concurrent writer, then succeeds", asyn
   assert.ok(authsByAgent(srv.body!).has(ALICE), "grant landed after retry");
 });
 
+/** Build an ACL from `{ label, agent, modes }` authorization blocks. */
+function aclWith(
+  blocks: Array<{ label: string; agent: string; modes: string[] }>,
+): string {
+  return blocks
+    .map(({ label, agent, modes }) =>
+      [
+        `<${ACL_URL}#${label}> a <${ACL_NS}Authorization> ;`,
+        `  <${ACL_NS}agent> <${agent}> ;`,
+        `  <${ACL_NS}accessTo> <${RESOURCE}> ;`,
+        modes.map((m) => `  <${ACL_NS}mode> <${ACL_NS}${m}> `).join(";\n"),
+        `.`,
+      ].join("\n")
+    )
+    .join("\n") + "\n";
+}
+
 /** An ACL seeded with the owner's control block + Read auths for Alice and Bob. */
 function seededAcl(): string {
-  const auth = (label: string, agent: string, modes: string[]) =>
-    [
-      `<${ACL_URL}#${label}> a <${ACL_NS}Authorization> ;`,
-      `  <${ACL_NS}agent> <${agent}> ;`,
-      `  <${ACL_NS}accessTo> <${RESOURCE}> ;`,
-      modes.map((m) => `  <${ACL_NS}mode> <${ACL_NS}${m}> `).join(";\n"),
-      `.`,
-    ].join("\n");
-  return [
-    auth("Control", OWNER, ["Read", "Write", "Control"]),
-    auth("Read_alice", ALICE, ["Read"]),
-    auth("Read_bob", BOB, ["Read"]),
-  ].join("\n") + "\n";
+  return aclWith([
+    { label: "Control", agent: OWNER, modes: ["Read", "Write", "Control"] },
+    { label: "Read_alice", agent: ALICE, modes: ["Read"] },
+    { label: "Read_bob", agent: BOB, modes: ["Read"] },
+  ]);
+}
+
+/** True iff some authorization for `agent` grants `acl:Control`. */
+function hasControl(ttl: string, agent: string): boolean {
+  const store = new Store(new Parser({ baseIRI: ACL_URL }).parse(ttl));
+  return store.getQuads(null, `${ACL_NS}agent`, agent, null).some((q) =>
+    store.getQuads(q.subject, `${ACL_NS}mode`, `${ACL_NS}Control`, null).length >
+      0
+  );
 }
 
 Deno.test("revoke drops only the recipient, keeping owner and other grantees", async () => {
@@ -179,6 +197,39 @@ Deno.test("revoke drops only the recipient, keeping owner and other grantees", a
   assert.ok(!agents.has(ALICE), "Alice revoked");
   assert.ok(agents.has(OWNER), "owner kept");
   assert.ok(agents.has(BOB), "other recipient kept");
+});
+
+Deno.test("revoking your own WebID is a no-op that preserves owner control (self-share guard)", async () => {
+  // The shape the Tier-4 meisdata run produced: a building accidentally shared to
+  // the OWNER's own WebID, so a Read auth carries the same acl:agent as the owner's
+  // control block. Revoking that agent must NOT touch the owner's control.
+  const srv = aclServer(aclWith([
+    { label: "Control", agent: OWNER, modes: ["Read", "Write", "Control"] },
+    { label: "Read_self", agent: OWNER, modes: ["Read"] },
+    { label: "Read_bob", agent: BOB, modes: ["Read"] },
+  ]));
+  // session.info.webId === OWNER, so this revokes the owner's own WebID.
+  await removeFromACL(RESOURCE, OWNER, srv.session);
+  assert.equal(srv.puts, 0, "revoking yourself writes nothing");
+  assert.ok(hasControl(srv.body!, OWNER), "owner keeps full control");
+});
+
+Deno.test("revoke never removes a Control authorization, even for the targeted agent", async () => {
+  // Defense in depth beyond the self-guard: even revoking a NON-owner agent that
+  // (pathologically) carries a control block drops only its non-control grant, so
+  // a control holder can never be locked out.
+  const srv = aclServer(aclWith([
+    { label: "Control", agent: OWNER, modes: ["Read", "Write", "Control"] },
+    { label: "Ctl_alice", agent: ALICE, modes: ["Read", "Write", "Control"] },
+    { label: "Read_alice", agent: ALICE, modes: ["Read"] },
+  ]));
+  await removeFromACL(RESOURCE, ALICE, srv.session); // session OWNER ≠ ALICE
+  assert.ok(hasControl(srv.body!, ALICE), "Alice's control block survives");
+  assert.equal(
+    quadsForSubject(srv.body!, `${ACL_URL}#Read_alice`),
+    0,
+    "Alice's plain Read grant is dropped",
+  );
 });
 
 Deno.test("revoke of an absent recipient skips the PUT entirely", async () => {

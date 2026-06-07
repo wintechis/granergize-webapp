@@ -14,7 +14,8 @@ const LDP_CONTAINS = DataFactory.namedNode(LDP_CONTAINS_IRI);
  * sub-containers (e.g. `buildings/<id>/energy/`), so we descend depth-first:
  * list the container, recurse into child containers (URLs ending in `/`), delete
  * leaf resources, then delete the container itself. Per-resource ACLs are removed
- * best-effort. A 404 anywhere is treated as "already gone".
+ * (safely — see {@link deleteResourceThenAcl}). A 404 anywhere is treated as
+ * "already gone".
  */
 export async function deleteContainerRecursive(
   container: string,
@@ -36,25 +37,46 @@ export async function deleteContainerRecursive(
       if (child.endsWith("/")) {
         await deleteContainerRecursive(child, session, signal);
       } else {
-        await session.fetch(`${child}.acl`, { method: "DELETE" }).catch((err) =>
-          logError("delete child resource ACL", err)
-        );
-        const del = await session.fetch(child, { method: "DELETE" });
-        if (!del.ok && del.status !== 404) {
-          throw new Error(`Failed to delete ${child} (HTTP ${del.status})`);
-        }
+        await deleteResourceThenAcl(child, session);
       }
     }
   }
   signal?.throwIfAborted();
-  // Best-effort ACL removal; deleting the container is what matters.
-  await session.fetch(`${container}.acl`, { method: "DELETE" }).catch((err) =>
-    logError("delete container ACL", err)
-  );
-  const del = await session.fetch(container, { method: "DELETE" });
-  if (!del.ok && del.status !== 404) {
-    throw new Error(`Failed to delete container ${container} (HTTP ${del.status})`);
+  await deleteResourceThenAcl(container, session);
+}
+
+/**
+ * Delete a resource, THEN its now-orphaned `.acl` — in that order, so a resource
+ * with a restrictive own ACL is never briefly exposed under the container's
+ * (possibly more permissive) inherited ACL: a TOCTOU window we must not open. The
+ * `.acl` is auxiliary, so it never blocks the resource/container delete.
+ *
+ * Only if the resource DELETE is forbidden (403 — typically a corrupt own `.acl`
+ * that locked even the owner out) do we fall back to removing the `.acl` FIRST and
+ * retrying: that resource is already broken and is being destroyed anyway, so the
+ * brief fall-back exposure is an acceptable last resort, not the default path. A
+ * 404 anywhere is "already gone".
+ */
+async function deleteResourceThenAcl(
+  uri: string,
+  session: Session,
+): Promise<void> {
+  const aclUri = `${uri}.acl`;
+  let del = await session.fetch(uri, { method: "DELETE" });
+  if (del.status === 403) {
+    await session.fetch(aclUri, { method: "DELETE" }).catch((err) =>
+      logError("delete resource ACL (lockout recovery)", err)
+    );
+    del = await session.fetch(uri, { method: "DELETE" });
   }
+  if (!del.ok && del.status !== 404) {
+    throw new Error(`Failed to delete ${uri} (HTTP ${del.status})`);
+  }
+  // Resource gone — drop its orphaned .acl (no exposure now; 404 if it had none
+  // or it was already removed during recovery).
+  await session.fetch(aclUri, { method: "DELETE" }).catch((err) =>
+    logError("delete resource ACL", err)
+  );
 }
 
 /**

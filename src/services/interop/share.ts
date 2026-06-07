@@ -1,9 +1,8 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { recordSharing, recordViewSharing } from "./sharingManager.ts";
-import { getRecipientInboxUrl } from "./inbox.ts";
+import { postSharingEventToInbox } from "./inbox.ts";
 import {
-  buildSharingEventTurtle,
   foldSharingLog,
   sharedOutUrl,
 } from "./sharingLog.ts";
@@ -16,6 +15,7 @@ import {
 import { parseDatasetSlug } from "../utils/energyDataset.ts";
 import { isSeriesGranularity } from "../utils/durationUtils.ts";
 import { ensureContainer, readModifyWrite } from "../utils/podWrite.ts";
+import { fetchFresh, readStoreOrEmpty } from "../utils/podFetch.ts";
 import { filesContainerFor } from "../utils/attachmentManager.ts";
 import { getStorageRoot } from "../utils/solidUtils.ts";
 
@@ -158,11 +158,9 @@ async function postToInbox(
   session: Session,
   options: ShareOptions,
 ) {
-  const inboxUrl = await getRecipientInboxUrl(webId, session);
-
   // The inbox message IS a sharing event (the recipient archives it into their
   // shared-in/ log on readInbox) — same shape as shared-out/.
-  const message = buildSharingEventTurtle({
+  await postSharingEventToInbox(webId, session, {
     type: "grant",
     owner: session.info.webId!,
     grantee: webId,
@@ -171,18 +169,6 @@ async function postToInbox(
     includesEnergy: options.includeEnergyData,
     at: new Date().toISOString(),
   });
-
-  const postResponse = await session.fetch(inboxUrl, {
-    method: "POST",
-    headers: { "Content-Type": "text/turtle" },
-    body: message,
-  });
-
-  if (!postResponse.ok) {
-    throw new Error(
-      `Failed to post message to inbox at ${inboxUrl}: ${postResponse.statusText}`,
-    );
-  }
 }
 
 /**
@@ -199,7 +185,7 @@ export async function getEnergyDataUrls(
   session: Session,
   years?: number[],
 ): Promise<Array<{ url: string; isContainer: boolean }>> {
-  const buildingResponse = await session.fetch(buildingUri, { method: "GET" });
+  const buildingResponse = await fetchFresh(buildingUri, session);
   if (!buildingResponse.ok) {
     throw new Error(
       `Failed to fetch building data at ${buildingUri}: ${buildingResponse.statusText}`,
@@ -234,11 +220,7 @@ export async function getEnergyCertificateUrl(
   buildingFileUri: string,
   session: Session,
 ): Promise<string | null> {
-  const res = await session.fetch(buildingFileUri, { method: "GET" });
-  if (!res.ok) return null;
-  const store = new Store(
-    new Parser({ baseIRI: buildingFileUri }).parse(await res.text()),
-  );
+  const store = await readStoreOrEmpty(buildingFileUri, session);
   const obj = store.getObjects(
     null,
     DataFactory.namedNode(GRAN_HAS_ENERGY_CERTIFICATE),
@@ -355,9 +337,7 @@ async function postViewGrantToInbox(
   webId: string,
   session: Session,
 ): Promise<void> {
-  const inboxUrl = await getRecipientInboxUrl(webId, session);
-
-  const message = buildSharingEventTurtle({
+  await postSharingEventToInbox(webId, session, {
     type: "grant",
     owner: session.info.webId!,
     grantee: webId,
@@ -365,16 +345,4 @@ async function postViewGrantToInbox(
     kind: "View",
     at: new Date().toISOString(),
   });
-
-  const postResponse = await session.fetch(inboxUrl, {
-    method: "POST",
-    headers: { "Content-Type": "text/turtle" },
-    body: message,
-  });
-
-  if (!postResponse.ok) {
-    throw new Error(
-      `Failed to post view grant message to inbox at ${inboxUrl}: ${postResponse.statusText}`,
-    );
-  }
 }

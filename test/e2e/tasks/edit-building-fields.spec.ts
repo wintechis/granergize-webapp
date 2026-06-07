@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Edit-building operating-costs + certifications e2e. Covers the Edit dialog's
@@ -41,6 +41,7 @@ test.describe("edit building operating costs + certifications", () => {
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
+    await assertCleanStart(page);
   });
 
   test.afterAll(async () => {

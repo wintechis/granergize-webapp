@@ -253,7 +253,7 @@ Deno.test("assigning a role without joining does not make you a member", async (
   assertEquals(await getMembers(ROOM, session), []); // explicit re-join required
 });
 
-Deno.test("getMembersByRole resolves a role to its member holders' WebIDs", async () => {
+Deno.test("getMembersByRole resolves a role to its holders' WebIDs, excluding yourself", async () => {
   const time = new FakeTime(new Date("2026-05-29T10:00:00Z"));
   try {
     const pod = new FakePod();
@@ -263,14 +263,21 @@ Deno.test("getMembersByRole resolves a role to its member holders' WebIDs", asyn
     await joinRoom(ROOM, sessionFor(pod, BOB));
     await setMyRole(ROOM, ["user", "investor"], sessionFor(pod, BOB));
 
-    const session = sessionFor(pod, ALICE);
-    assertEquals(await getMembersByRole(ROOM, "user", session), [BOB]);
+    // You can't share a resource to yourself, so the logged-in user is filtered
+    // out of role resolution — a self-grant would write a recipient auth carrying
+    // the owner's own acl:agent, which a later revoke then strips along with the
+    // owner's control block (Tier-4 meisdata owner-lockout). So even though both
+    // ALICE and BOB hold "investor", ALICE's session never sees ALICE.
+    const alice = sessionFor(pod, ALICE);
+    assertEquals(await getMembersByRole(ROOM, "user", alice), [BOB]);
+    assertEquals(await getMembersByRole(ROOM, "investor", alice), [BOB]);
+    // Symmetric: from BOB's session, "investor" resolves to ALICE (BOB excised).
     assertEquals(
-      (await getMembersByRole(ROOM, "investor", session)).slice().sort(),
-      [ALICE, BOB].slice().sort(),
+      await getMembersByRole(ROOM, "investor", sessionFor(pod, BOB)),
+      [ALICE],
     );
     assertEquals(
-      await getMembersByRole(ROOM, "benchmark_service_provider", session),
+      await getMembersByRole(ROOM, "benchmark_service_provider", alice),
       [],
     );
   } finally {

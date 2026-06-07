@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Agent management e2e — the contacts address book + auto-remember. MUI page
@@ -46,6 +46,7 @@ test.describe("contacts address book + auto-remember", () => {
     page = await newCapturedPage(browser, "contacts");
     page.on("dialog", (d) => d.accept().catch(() => {})); // delete-building confirm
     await login(page, ACC);
+    await assertCleanStart(page);
   });
 
   test.afterAll(async () => {
