@@ -8,7 +8,7 @@ import type {
   EnergyCategoryKey,
   EnergyDatasetRef,
   EnergyType,
-} from "../../../types/types.ts";
+} from "../../types.ts";
 import { getViewDefinition, storeComputedSnapshot } from "./viewManager.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
 import { listDirectChildren } from "../utils/podDelete.ts";

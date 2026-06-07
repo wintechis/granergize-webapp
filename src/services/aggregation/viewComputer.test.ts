@@ -4,7 +4,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   AggregationType,
   AggregatedViewDefinition,
-} from "../../../types/types.ts";
+} from "../../types.ts";
 import { computeAggregation } from "./viewComputer.ts";
 import { GRAN_NS } from "../utils/vocabularies.ts";
 import {

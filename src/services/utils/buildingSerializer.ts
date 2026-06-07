@@ -4,7 +4,7 @@ import type {
   BuildingType,
   InvestorAnnualData,
   UserRole,
-} from "../../../types/types.ts";
+} from "../../types.ts";
 import {
   BOOLEAN_FIELDS,
   DECIMAL_FIELDS,

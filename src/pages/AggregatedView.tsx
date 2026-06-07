@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useCallback, useEffect, useState } from "react";
 import Modal from "../components/Modal.tsx";
 import { useNavigate, useParams } from "react-router-dom";
 import {
@@ -27,7 +27,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
-} from "../../types/types.ts";
+} from "../types.ts";
 import {
   getComputedSnapshotByViewId,
   getSnapshotUrl,
@@ -58,13 +58,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
   const [shareWebId, setShareWebId] = useState("");
   const [sharing, setSharing] = useState(false);
 
-  useEffect(() => {
-    if (viewId) {
-      loadViewData();
-    }
-  }, [viewId]);
-
-  const loadViewData = async () => {
+  const loadViewData = useCallback(async () => {
     if (!viewId) return;
 
     setLoading(true);
@@ -88,7 +82,11 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     } finally {
       setLoading(false);
     }
-  };
+  }, [session, viewId]);
+
+  useEffect(() => {
+    loadViewData();
+  }, [loadViewData]);
 
   const handleRefresh = async () => {
     if (!viewId) return;

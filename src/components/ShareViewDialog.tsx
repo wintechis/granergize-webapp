@@ -17,7 +17,7 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { AggregatedViewDefinition } from "../../types/types.ts";
+import { AggregatedViewDefinition } from "../types.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
 import { logError } from "../services/utils/logError.ts";
 import {

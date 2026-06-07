@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
-import type { BuildingType } from "../../../types/types.ts";
+import type { BuildingType } from "../../types.ts";
 import {
   buildingsToXlsx,
   parseCsvToFields,

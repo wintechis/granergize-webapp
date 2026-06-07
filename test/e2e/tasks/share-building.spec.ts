@@ -26,7 +26,7 @@ import { freshSlateBoth, logCollectionState } from "../helpers/cleanSlate.ts";
  * Cloudflare burst limit; on the reliable Pods (solidweb.org) it runs as one test
  * driving two browser contexts, and cleans up after itself (A deletes its building
  * + room in `finally`). Needs E2E_{USERNAME,PASSWORD}_A and _B; skipped without.
- *   npm run sharing            (headed:  npm run sharing -- --headed)
+ *   deno task e2e:remote       (runs the solo + sharing projects against real Pods)
  */
 
 const A = account("A");

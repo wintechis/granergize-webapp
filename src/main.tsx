@@ -1,3 +1,7 @@
+/* eslint-disable react-refresh/only-export-components --
+   This is the app entry module: it defines AppContent + Root and mounts them via
+   ReactDOM.createRoot below. Nothing imports it, so it isn't an HMR-refreshable
+   component module and the only-export-components rule doesn't apply here. */
 import * as React from "react";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import ReactDOM from "react-dom/client";

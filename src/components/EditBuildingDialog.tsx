@@ -6,7 +6,7 @@ import type {
   BuildingType,
   InvestorCertification,
   InvestorOperatingCosts,
-} from "../../types/types.ts";
+} from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/utils/config/buildingConfig.ts";
 import {

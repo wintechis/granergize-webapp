@@ -31,7 +31,7 @@ import {
   type Contact,
   removeContact,
 } from "../services/utils/contacts.ts";
-import type { BuildingType, UserRole } from "../../types/types.ts";
+import type { BuildingType, UserRole } from "../types.ts";
 
 /**
  * Write hooks. Each wraps the existing service function as the `mutationFn` — so

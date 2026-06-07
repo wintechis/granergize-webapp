@@ -16,7 +16,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   AggregatedViewDefinition,
   BuildingType,
-} from "../../types/types.ts";
+} from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import {
   queryKeys,

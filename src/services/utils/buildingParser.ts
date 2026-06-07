@@ -5,7 +5,7 @@ import type {
   EnergyDatasetRef,
   InvestorCertification,
   InvestorOperatingCosts,
-} from "../../../types/types.ts";
+} from "../../types.ts";
 import {
   investorLocalNameLabels,
   iriPropertyMap,

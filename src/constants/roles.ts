@@ -1,4 +1,4 @@
-import type { UserRole } from "../../types/types.ts";
+import type { UserRole } from "../types.ts";
 import { GRAN_NS } from "../services/utils/vocabularies.ts";
 
 /** Human-readable labels for the provenance category / membership roles. */

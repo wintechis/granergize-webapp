@@ -21,7 +21,7 @@ import LogoutIcon from "@mui/icons-material/Logout";
 import { QRCodeSVG } from "qrcode.react";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { ownsRoom } from "../services/interop/dataRoom.ts";
-import type { UserRole } from "../../types/types.ts";
+import type { UserRole } from "../types.ts";
 import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 import { useContacts, useRoomState } from "../hooks/queries.ts";
 import {

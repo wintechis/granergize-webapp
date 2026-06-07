@@ -92,6 +92,10 @@ export function NotificationProvider(
   );
 }
 
+// The `useNotification` hook is co-located with its Provider — the canonical React
+// context pattern. The react-refresh rule wants one component per exported file;
+// this hook is the sanctioned exception (a dev-only HMR concern). See CLAUDE.md.
+// eslint-disable-next-line react-refresh/only-export-components
 export function useNotification(): NotificationContextValue {
   const ctx = useContext(NotificationContext);
   if (!ctx) {

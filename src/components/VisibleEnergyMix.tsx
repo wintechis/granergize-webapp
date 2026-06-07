@@ -1,5 +1,5 @@
 import { Box, Paper, Typography } from "@mui/material";
-import type { BuildingType, EnergyType } from "../../types/types.ts";
+import type { BuildingType, EnergyType } from "../types.ts";
 
 /** camelCase energy-source key → human-readable label. */
 function humanize(key: string): string {

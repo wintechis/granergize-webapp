@@ -3,7 +3,7 @@ import { Box, TextField, Typography } from "@mui/material";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { EnergyDatasetRef } from "../../types/types.ts";
+import type { EnergyDatasetRef } from "../types.ts";
 import { parseTtlReadings } from "../services/utils/userEnergyParser.ts";
 import { listDirectChildren } from "../services/utils/podDelete.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";

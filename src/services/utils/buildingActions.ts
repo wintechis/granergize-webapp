@@ -1,5 +1,5 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "../../../types/types.ts";
+import type { BuildingType } from "../../types.ts";
 import { deleteBuilding } from "./buildingSerializer.ts";
 import { formatResourceList, listContainedResources } from "./podDelete.ts";
 import { getStorageRoot } from "./solidUtils.ts";

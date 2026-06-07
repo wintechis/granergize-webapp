@@ -4,7 +4,7 @@ import { appRoot } from "../utils/solidUtils.ts";
 import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
-} from "../../../types/types.ts";
+} from "../../types.ts";
 import {
   GRAN_NS,
   RDF_TYPE,

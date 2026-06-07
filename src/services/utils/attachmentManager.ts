@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory } from "n3";
-import type { AttachmentRef } from "../../../types/types.ts";
+import type { AttachmentRef } from "../../types.ts";
 import { ensureContainer, readModifyWrite } from "./podWrite.ts";
 import { logError } from "./logError.ts";
 import {
