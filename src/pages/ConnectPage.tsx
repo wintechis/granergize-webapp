@@ -23,7 +23,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { ownsRoom } from "../services/interop/dataRoom.ts";
 import type { UserRole } from "../../types/types.ts";
 import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
-import { useRoomState } from "../hooks/queries.ts";
+import { useContacts, useRoomState } from "../hooks/queries.ts";
 import {
   useAddRoom,
   useCreateRoom,
@@ -31,11 +31,16 @@ import {
   useEnterRoom,
   useExitRoom,
   useRemoveBookmark,
+  useRemoveContact,
+  useSaveContact,
   useSaveRoles,
 } from "../hooks/mutations.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { tryPodResources } from "../services/utils/solidUtils.ts";
+import { resolveAgent } from "../services/utils/agentResolver.ts";
+import { formatError } from "../services/utils/formatError.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
+import { AgentLabel } from "../components/AgentLabel.tsx";
 import { buttonRowStyle, listStyle, rowStyle } from "../components/listStyles.ts";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../components/usePaging.ts";
@@ -72,6 +77,14 @@ export default function ConnectPage({ session }: ConnectPageProps) {
   useEffect(() => {
     setMyRoles(serverRoles ?? []);
   }, [serverRoles]);
+
+  // Contacts (the personal address book).
+  const contactsQuery = useContacts();
+  const contacts = contactsQuery.data ?? [];
+  const saveContact = useSaveContact();
+  const removeContact = useRemoveContact();
+  const [contactInput, setContactInput] = useState("");
+  const contactPaging = usePaging(contacts);
 
   const [roomInput, setRoomInput] = useState("");
   const [scanning, setScanning] = useState(false);
@@ -160,6 +173,26 @@ export default function ConnectPage({ session }: ConnectPageProps) {
     handleAdd(text); // scanning adds the room to your list; click it to enter
   };
 
+  /** Add a contact: resolve the WebID's name/avatar, then persist it. */
+  const handleAddContact = async () => {
+    const webId = contactInput.trim();
+    if (!/^https?:\/\//i.test(webId)) {
+      showNotification("Enter a WebID (an http(s) URI)", "error");
+      return;
+    }
+    try {
+      const agent = await resolveAgent(webId, session);
+      await saveContact.mutateAsync(agent);
+      setContactInput("");
+      showNotification("Contact added", "success");
+    } catch (e) {
+      showNotification(formatError("add contact", e), "error");
+    }
+  };
+
+  const handleRemoveContact = (webId: string) =>
+    removeContact.mutate(webId, { onSuccess: ok("Contact removed") });
+
   // Backing RDF resource (the room bookmarks), linked so storage is inspectable.
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
 
@@ -211,10 +244,64 @@ export default function ConnectPage({ session }: ConnectPageProps) {
 
   return (
     <section style={{ padding: "1.5rem" }}>
+      {/* Contacts — a personal address book of WebID agents. Referenced agents
+          (share recipients, building operators) are auto-remembered here; you can
+          also add or remove one by hand. Names/avatars are resolved live from each
+          agent's own profile. */}
+      <Typography variant="h6" sx={{ mb: 1 }}>Contacts</Typography>
+      {rdf && <RdfSourceLink href={rdf.contacts} />}
+      <p>
+        People and organisations you've referenced. Paste a WebID to add one.
+      </p>
+      <div style={buttonRowStyle}>
+        <TextField
+          size="small"
+          label="WebID"
+          value={contactInput}
+          onChange={(e) => setContactInput(e.target.value)}
+          sx={{ minWidth: 320 }}
+        />
+        <Button
+          variant="outlined"
+          aria-label="Add contact"
+          disabled={!contactInput.trim() || saveContact.isPending}
+          onClick={handleAddContact}
+        >
+          {saveContact.isPending ? "Adding…" : "Add"}
+        </Button>
+      </div>
+      {contactsQuery.isLoading
+        ? <p>Loading…</p>
+        : contacts.length === 0
+        ? <p>No contacts yet.</p>
+        : (
+          <ul style={listStyle} aria-label="Contacts">
+            {contactPaging.pageItems.map((c) => (
+              <li key={c.webId} style={rowStyle}>
+                <span style={{ minWidth: 0 }}>
+                  <AgentLabel value={c.webId} />
+                </span>
+                <Tooltip title="Remove contact">
+                  <IconButton
+                    size="small"
+                    color="error"
+                    aria-label="Remove contact"
+                    onClick={() => handleRemoveContact(c.webId)}
+                    disabled={removeContact.isPending}
+                  >
+                    <DeleteIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              </li>
+            ))}
+          </ul>
+        )}
+      <Pager paging={contactPaging} />
+
       {/* Your data rooms — one ordered list. Each row shows the room URI with
           enter / delete-or-remove; the active room expands in place, its QR,
           roles and members in a box directly beneath its own row. */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Your data rooms</Typography>
+      <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Your data rooms</Typography>
       {rdf && <RdfSourceLink href={rdf.bookmarks} />}
       {roomQuery.isLoading
         ? <p>Loading…</p>
@@ -364,7 +451,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                           <ul style={listStyle}>
                             {members.map((m) => (
                               <li key={m.webId}>
-                                {m.webId} —{" "}
+                                <AgentLabel value={m.webId} /> —{" "}
                                 <small>
                                   {m.roles.map((role) => ROLE_LABELS[role] ?? role)
                                     .join(", ") || "no role"}

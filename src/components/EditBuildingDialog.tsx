@@ -14,7 +14,9 @@ import {
   updateBuilding,
 } from "../services/utils/buildingSerializer.ts";
 import { formatError } from "../services/utils/formatError.ts";
+import { rememberAgent } from "../services/utils/contacts.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
+import { AgentField } from "./AgentField.tsx";
 import Modal from "./Modal.tsx";
 
 interface EditBuildingDialogProps {
@@ -152,6 +154,8 @@ export default function EditBuildingDialog(
     setSaving(true);
     try {
       await updateBuilding(session, fileUri, building.uri as string, fields);
+      // Auto-remember a WebID operator in the address book (fire-and-forget).
+      if (fields.operatedBy) void rememberAgent(session, fields.operatedBy);
       showNotification("Building updated", "success");
       onBuildingUpdated();
       onClose();
@@ -200,7 +204,11 @@ export default function EditBuildingDialog(
         {tf("Building area (m²)", "buildingArea", { type: "number" })}
         {tf("Land area (m²)", "landArea", { type: "number" })}
         {tf("Year of construction", "yearOfConstruction", { type: "number" })}
-        {tf("Operated by (WebID)", "operatedBy")}
+        <AgentField
+          label="Operated by (WebID)"
+          value={fields.operatedBy ?? ""}
+          onChange={(v) => setField("operatedBy", v)}
+        />
         {check("PV system installed", "hasPVSystem")}
 
         {role === "investor" && (

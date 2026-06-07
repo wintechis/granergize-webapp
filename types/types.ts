@@ -39,6 +39,7 @@ export interface BuildingType {
     | number
     | boolean
     | EnergyDatasetRef[]
+    | AttachmentRef[]
     | InvestorAnnualData[]
     | InvestorCertification[]
     | InvestorOperatingCosts
@@ -56,7 +57,14 @@ export interface BuildingType {
   attributedTo?: string;
   type: string;
   customer?: string;
+  /** URL of the energy certificate file, if any (`gran:hasEnergyCertificate`). */
   energyCertificate?: string;
+  /**
+   * Files attached to the building (`gran:hasAttachment`), incl. the energy
+   * certificate (flagged `isEnergyCertificate`). Stored under the per-building
+   * `files/` container on the owner's Pod; downloaded via authed `session.fetch`.
+   */
+  attachments?: AttachmentRef[];
   lat?: number;
   long?: number;
   /** How precisely lat/long were geocoded (from the geo:Point), when known. */
@@ -110,6 +118,26 @@ export interface BuildingType {
   certifications?: InvestorCertification[];
   annualData?: InvestorAnnualData[];
   operatingCosts?: InvestorOperatingCosts;
+}
+
+/**
+ * A file attached to a building (`gran:hasAttachment`), described by schema.org
+ * `MediaObject` metadata in the building TTL. The binary lives under the
+ * per-building `files/` container; fetch it with an authenticated `session.fetch`.
+ */
+export interface AttachmentRef {
+  /** The file's IRI on the Pod (also the RDF subject of its metadata). */
+  url: string;
+  /** Original filename, for display/download (`schema:name`). */
+  filename: string;
+  /** IANA media type (`schema:encodingFormat`), e.g. `application/pdf`. */
+  mediaType: string;
+  /** Size in bytes (`schema:contentSize`); 0 if unknown. */
+  size: number;
+  /** ISO-8601 upload time (`dcterms:created`). */
+  uploadDate: string;
+  /** True when this file is the building's energy certificate. */
+  isEnergyCertificate?: boolean;
 }
 
 /** Actual readings vs planned (Soll) figures, at the energy-dataset level. */

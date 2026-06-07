@@ -61,6 +61,20 @@ test.describe("sharing across two pods", () => {
       await addBuilding(a.page, STREET);
       await shareByRole(a.page, STREET);
 
+      // ── Producer side: A's Manage row now surfaces the outgoing-share STATE —
+      // the "Shared with" badge (the materialized fold of the shared-out/ event
+      // log, via getSharedBuildings) with a revoke control + the <AgentLabel>
+      // recipient. This is the sharer-side display the suite never asserted; it's
+      // shown in default (non-dev) mode, unlike the raw shared-out/ log link.
+      // Bounce tabs to force a refetch (sharing doesn't invalidate the query).
+      await a.page.getByRole("tab", { name: "Explore" }).click();
+      await a.page.getByRole("tab", { name: "Manage" }).click();
+      const sharedRow = a.page.locator("li", { hasText: STREET }).first();
+      await expect(sharedRow.getByText(/shared with/i))
+        .toBeVisible({ timeout: 60_000 });
+      await expect(sharedRow.getByRole("button", { name: "Revoke access" }).first())
+        .toBeVisible({ timeout: 60_000 });
+
       // ── 2 s cooldown between the write part and the read part ──
       await a.page.waitForTimeout(2000);
 
@@ -193,6 +207,85 @@ test.describe("sharing across two pods", () => {
       } catch {
         // best-effort cleanup; never fail the run
       }
+      await a.ctx.close();
+    }
+  });
+
+  // When A DELETES a shared building, B must lose it cleanly: deletion revokes the
+  // recipient first (logs the revocation, withdraws the ACL, notifies the inbox),
+  // so after B drains the inbox the building folds out of "Buildings shared with
+  // you" — it doesn't linger until a later 404-prune. (Tier-1 + Tier-2 cover the
+  // data layer; this is the in-practice browser check.)
+  const STREET_D = "Entfernweg 3";
+
+  test("A deletes a shared building; B no longer sees it under Buildings shared with you", async ({ browser }) => {
+    test.setTimeout(420_000);
+    const [a, b1] = await freshPagesParallel(browser, [A, B]);
+    a.page.on("dialog", (d) => d.accept()); // delete-building confirm + cleanup
+    try {
+      // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
+      const roomUri = await hostRoomAndGetUri(a.page);
+      await assignUserRole(a.page);
+      try {
+        await joinRoomAsUser(b1.page, roomUri);
+      } finally {
+        await b1.ctx.close();
+      }
+      await addBuilding(a.page, STREET_D);
+      await shareByRole(a.page, STREET_D);
+
+      // ── Baseline: B logs in fresh → readInbox archives the grant → B sees it ──
+      const b2 = await freshPage(browser, B);
+      try {
+        await b2.page.getByRole("tab", { name: "Share" }).click();
+        const received = b2.page.getByRole("list", {
+          name: /buildings shared with you/i,
+        });
+        try {
+          await expect(received.getByText(/^Building /))
+            .toBeVisible({ timeout: 120_000 });
+        } catch (timeout) {
+          b2.guard.assertNoAppErrors();
+          throw timeout;
+        }
+      } finally {
+        await removeAllBookmarkedRooms(b2.page);
+        await b2.ctx.close();
+      }
+
+      // ── A deletes the shared building (this revokes B + posts the inbox notice) ──
+      await a.page.getByRole("tab", { name: "Manage" }).click();
+      const row = a.page.locator("li", { hasText: STREET_D }).first();
+      await row.getByRole("button", { name: "Delete building" }).click();
+      await expect(a.page.getByText("Building deleted").first())
+        .toBeVisible({ timeout: 90_000 });
+      await a.page.waitForTimeout(2000); // let the revocation settle before B re-reads
+
+      // ── B logs in fresh again → readInbox drains the revocation → it's gone ──
+      const b3 = await freshPage(browser, B);
+      try {
+        await b3.page.getByRole("tab", { name: "Share" }).click();
+        const received = b3.page.getByRole("list", {
+          name: /buildings shared with you/i,
+        });
+        try {
+          // B owned nothing else, so the received list must have no building rows.
+          await expect(async () => {
+            expect(await received.getByText(/^Building /).count()).toBe(0);
+          }).toPass({ timeout: 120_000 });
+        } catch (timeout) {
+          b3.guard.assertNoAppErrors();
+          throw timeout;
+        }
+      } finally {
+        await removeAllBookmarkedRooms(b3.page);
+        await b3.ctx.close();
+      }
+    } finally {
+      // Building already deleted by the test; just drop the room A hosted.
+      try {
+        if (!a.page.isClosed()) await deleteAllOwnedRooms(a.page);
+      } catch { /* best-effort cleanup */ }
       await a.ctx.close();
     }
   });

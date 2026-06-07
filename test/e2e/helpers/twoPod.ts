@@ -44,6 +44,17 @@ export async function freshPagesParallel(
   accounts: SolidAccount[],
 ): Promise<PodSession[]> {
   const sessions = await Promise.all(accounts.map(() => newSession(browser)));
-  await Promise.all(sessions.map((s, i) => login(s.page, accounts[i])));
+  // On a Cloudflare-fronted (throttled) provider, log in SEQUENTIALLY: concurrent
+  // A+B logins double the instantaneous request rate to the same host and trip the
+  // 1015 edge limit (login() also paces each one when E2E_THROTTLE_MS is set).
+  // Non-throttled providers (local CSS, redpencil, solidweb) keep the fast
+  // concurrent path (≈one login's wall-clock).
+  if (accounts.some((a) => a.provider.throttled)) {
+    for (let i = 0; i < sessions.length; i++) {
+      await login(sessions[i].page, accounts[i]);
+    }
+  } else {
+    await Promise.all(sessions.map((s, i) => login(s.page, accounts[i])));
+  }
   return sessions;
 }

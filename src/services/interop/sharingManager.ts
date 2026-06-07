@@ -10,8 +10,13 @@ import {
 } from "./sharingLog.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
 import { readModifyWrite } from "../utils/podWrite.ts";
+import { filesContainerFor } from "../utils/attachmentManager.ts";
 import { readPrefs, toggleHiddenBuilding } from "../utils/prefs.ts";
-import { ACL_NS, GRAN_NS } from "../utils/vocabularies.ts";
+import {
+  ACL_NS,
+  GRAN_HAS_ENERGY_CERTIFICATE,
+  GRAN_NS,
+} from "../utils/vocabularies.ts";
 import { parseDatasetSlug } from "../utils/energyDataset.ts";
 import { isSeriesGranularity } from "../utils/durationUtils.ts";
 
@@ -118,14 +123,15 @@ export async function revokeAccess(
   // Remove from ACL
   await removeFromACL(buildingUri, webId, session);
 
-  // If building has energy data, revoke that too
+  // Withdraw the building's sub-resources too: the files/ container (attachments
+  // + certificate), any energy datasets, and a legacy cert outside files/.
+  // removeFromACL is idempotent, so revoking a never-granted target is a no-op.
   try {
-    const energyTargets = await getEnergyAclTargets(buildingUri, session);
-    for (const target of energyTargets) {
+    for (const target of await getSubresourceAclTargets(buildingUri, session)) {
       await removeFromACL(target, webId, session);
     }
   } catch (error) {
-    console.warn("Could not revoke energy data access:", error);
+    console.warn("Could not revoke sub-resource access:", error);
   }
 
   // Notify the user that access has been revoked
@@ -173,21 +179,24 @@ export async function removeFromACL(
 }
 
 /**
- * The energy resource URIs whose ACL entry must be removed when revoking energy
- * access: each `gran:EnergyDataset` resource (annual file / series descriptor)
- * plus a series' daily-files container. Mirrors `share.ts getEnergyDataUrls`.
+ * The building sub-resource URIs whose ACL entry must be removed when revoking:
+ * the per-building `files/` container (attachments + certificate, mirroring the
+ * `acl:default` grant in `share.ts`), each `gran:EnergyDataset` resource (annual
+ * file / series descriptor) plus a series' daily-files container, and a legacy
+ * energy certificate stored outside `files/`.
  */
-async function getEnergyAclTargets(
+async function getSubresourceAclTargets(
   buildingUri: string,
   session: Session,
 ): Promise<string[]> {
+  const filesContainer = filesContainerFor(buildingUri);
+  const targets: string[] = [filesContainer];
   try {
     const response = await fetchFresh(buildingUri, session);
     const store = new Store(
       new Parser({ baseIRI: buildingUri }).parse(await response.text()),
     );
 
-    const targets: string[] = [];
     for (
       const link of store.getObjects(
         null,
@@ -203,9 +212,40 @@ async function getEnergyAclTargets(
         targets.push(file.replace(/\.ttl$/, "/"));
       }
     }
-    return targets;
+    const cert = store.getObjects(
+      null,
+      DataFactory.namedNode(GRAN_HAS_ENERGY_CERTIFICATE),
+      null,
+    )[0];
+    if (cert && !cert.value.startsWith(filesContainer)) targets.push(cert.value);
   } catch {
-    return [];
+    // best-effort — the files container is still revoked above
+  }
+  return targets;
+}
+
+/**
+ * Revoke every current recipient of a building (each gets the same inbox notice as
+ * an explicit revoke). Used when DELETING a shared building: deleting the file
+ * alone wouldn't tell recipients, so the building would linger on each recipient's
+ * "Buildings shared with you" until their next load 404-prunes it — AND the
+ * owner's `shared-out/` log would keep asserting an active grant for a deleted
+ * resource (so a later `reissueGrants` would try to re-grant a ghost). Logging a
+ * revocation per recipient keeps the log truthful and folds the building out of
+ * each recipient's `shared-in/` on their next inbox drain. Best-effort per
+ * recipient; the recipient set comes from the owner's `shared-out/` log.
+ */
+export async function revokeAllBuildingRecipients(
+  buildingUri: string,
+  session: Session,
+): Promise<void> {
+  const fileUri = buildingUri.split("#")[0];
+  const shared = await getSharedBuildings(session);
+  const recipients = shared
+    .find((b) => b.buildingUri.split("#")[0] === fileUri)
+    ?.sharedWith ?? [];
+  for (const webId of recipients) {
+    await revokeAccess(fileUri, webId, session).catch(() => {});
   }
 }
 
@@ -232,6 +272,7 @@ export async function recordSharing(
   webId: string,
   session: Session,
   includesEnergy = true,
+  years?: number[],
 ): Promise<void> {
   const userWebId = session.info.webId;
   if (!session.info.isLoggedIn || !userWebId) {
@@ -244,6 +285,7 @@ export async function recordSharing(
     resource: buildingUri,
     kind: "Building",
     includesEnergy,
+    years: years && years.length ? years : undefined,
     at: new Date().toISOString(),
   });
 }

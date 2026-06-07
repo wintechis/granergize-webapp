@@ -1,8 +1,9 @@
 /**
  * Developer mode — a client-only UI preference (per-device, not per-Pod) that
  * reveals power-user / debugging affordances: the raw-RDF source links on each
- * tab, the "Remove all app data…" account action, and the full network request
- * log (request URIs + clickable history) instead of a plain spinner.
+ * tab, the "Add demo buildings" and "Remove all app data…" account actions, and
+ * the full network request log (request URIs + clickable history) instead of a
+ * plain spinner.
  *
  * A tiny external store backed by `localStorage`, in the same shape as
  * `networkActivity.ts`: pure (no React) so it stays hermetically testable; the

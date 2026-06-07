@@ -2,7 +2,7 @@ import * as XLSX from "xlsx";
 import type { BuildingType } from "../../../types/types.ts";
 import {
   BSP_FIELD_TO_HEADER,
-  CERT_PART_TO_LABEL,
+  certLevelLabel,
   INV_FIELD_TO_LABEL,
   OPCOST_FIELD_TO_LABEL,
   OPCOST_FIELDS,
@@ -64,12 +64,12 @@ function buildingSheet(b: BuildingType): XLSX.WorkSheet {
         put(label, oc[field]);
       }
     }
-    // The row-label template holds a single certification block.
-    const cert = b.certifications?.[0];
-    if (cert) {
-      put(CERT_PART_TO_LABEL.type, cert.type);
-      put(CERT_PART_TO_LABEL.level, cert.level);
-      put(CERT_PART_TO_LABEL.scope, cert.scope);
+    // Certifications: one yes/no + level pair per system (no per-system scope in
+    // the template, so scope is not exported to the row-label sheet).
+    for (const cert of b.certifications ?? []) {
+      if (!cert.type) continue;
+      put(cert.type, "Ja");
+      if (cert.level) put(certLevelLabel(cert.type), cert.level);
     }
     return XLSX.utils.aoa_to_sheet(rows);
   }

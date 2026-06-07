@@ -16,6 +16,8 @@ import {
   SectionTitle,
   UriLink,
 } from "../components/detail/DetailView.tsx";
+import FilesSection from "../components/detail/FilesSection.tsx";
+import { AgentLabel } from "../components/AgentLabel.tsx";
 
 interface BuildingProps {
   building: BuildingType;
@@ -76,11 +78,6 @@ export default function Building(
       building["certifications"].length > 0) ||
     operatingCostEntries.length > 0;
 
-  function createAgentLink(uriString: string) {
-    const hash = new URL(uriString).hash.replace("#", "");
-    return <UriLink href={uriString}>{hash}</UriLink>;
-  }
-
   function createTypeLink(uriString: string) {
     const hash = new URL(uriString).hash.replace("#", "");
     return <UriLink href={uriString}>{hash}</UriLink>;
@@ -96,10 +93,6 @@ export default function Building(
 
   function createNaceLink(naceCode: number) {
     return <UriLink href={`https://nacecode.de/${naceCode}`}>{naceCode}</UriLink>;
-  }
-
-  function createEnergyCertificateLink(uriString: string) {
-    return <UriLink href={uriString}>pdf</UriLink>;
   }
 
   const boolIcon = (v: boolean) =>
@@ -143,13 +136,13 @@ export default function Building(
         {hasValue(building.customer) && (
           <DetailRow
             label="Customer"
-            value={createAgentLink(building.customer as string)}
+            value={<AgentLabel value={building.customer as string} />}
           />
         )}
         {hasValue(building.operatedBy) && (
           <DetailRow
             label="Operated By"
-            value={createAgentLink(building.operatedBy as string)}
+            value={<AgentLabel value={building.operatedBy as string} />}
           />
         )}
         {hasValue(building.type) && (
@@ -176,7 +169,13 @@ export default function Building(
         {hasValue(building.investor) && (
           <DetailRow
             label="Investor"
-            value={createAgentLink(building.investor as string)}
+            value={<AgentLabel value={building.investor as string} />}
+          />
+        )}
+        {hasValue(building.attributedTo) && (
+          <DetailRow
+            label="Data source"
+            value={<AgentLabel value={building.attributedTo as string} />}
           />
         )}
         {building.yearOfConstruction != null && (
@@ -191,17 +190,10 @@ export default function Building(
             value={createNaceLink(building.naceCode)}
           />
         )}
-        {hasValue(building.energyCertificate) && (
-          <DetailRow
-            label="Energy Certificate"
-            value={createEnergyCertificateLink(
-              building.energyCertificate as string,
-            )}
-          />
-        )}
-        {/* Energy-certificate upload and per-year energy entry are write actions;
-            they live on the MANAGE tab (the home for outgoing data), not in this
-            view-only detail pane. */}
+        {/* Files (attachments + energy certificate) — download via the authed
+            session; works for both the owner and a share recipient. Per-year
+            energy entry and file upload are write actions and live on MANAGE. */}
+        <FilesSection building={building} />
 
         {/* Investor-vocab fields — shown whenever present (predicate-driven, not
             role-gated), so any building carrying them renders them. */}

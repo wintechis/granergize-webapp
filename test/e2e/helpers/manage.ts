@@ -112,6 +112,60 @@ export async function shareByRole(
   await dialog.getByRole("button", { name: /done/i }).click();
 }
 
+/** Upload a file to the building at `street` via the Files dialog. */
+export async function uploadBuildingFile(
+  page: Page,
+  street: string,
+  fixturePath: string,
+): Promise<void> {
+  await page.getByRole("tab", { name: "Manage" }).click();
+  const row = page.locator("li", { hasText: street }).first();
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.getByRole("button", { name: "Manage files" }).click();
+  const dialog = page.getByRole("dialog");
+  await expect(dialog.getByRole("button", { name: "Add files" }))
+    .toBeVisible({ timeout: 15_000 });
+  await dialog.locator('input[type="file"]').setInputFiles(fixturePath, {
+    timeout: 30_000,
+  });
+  const name = fixturePath.split("/").pop()!;
+  await expect(dialog.getByText(name)).toBeVisible({ timeout: 90_000 });
+  await dialog.getByRole("button", { name: /close/i }).click({ timeout: 15_000 });
+  await expect(dialog).toBeHidden({ timeout: 15_000 });
+}
+
+/** Share the building at `street` directly with a recipient WebID ("By WebID"). */
+export async function shareByWebId(
+  page: Page,
+  street: string,
+  webId: string,
+): Promise<void> {
+  await page.getByRole("tab", { name: "Manage" }).click();
+  await page.waitForLoadState("networkidle").catch(() => {});
+  const row = page.locator("li", { hasText: street }).first();
+  await expect(row).toBeVisible({ timeout: 30_000 });
+  await row.getByRole("button", { name: "Share building data" }).click();
+
+  const dialog = page.getByRole("dialog");
+  await expect(dialog).toBeVisible({ timeout: 10_000 });
+  await dialog.getByRole("button", { name: /by webid/i }).click();
+  // The recipient field is a multi free-solo Autocomplete: type the WebID and
+  // press Enter to commit it as a chip (a plain fill doesn't register it).
+  const recipientInput = dialog.getByLabel(/Recipient WebID/i);
+  await recipientInput.fill(webId);
+  await recipientInput.press("Enter");
+
+  const confirm = dialog.getByRole("button", { name: /confirm share/i });
+  await expect(async () => {
+    await dialog.getByRole("button", { name: /review & share/i }).click();
+    await expect(confirm).toBeVisible({ timeout: 10_000 });
+  }).toPass({ timeout: 90_000 });
+  await confirm.click();
+  await expect(dialog.getByText(/shared successfully/i))
+    .toBeVisible({ timeout: 120_000 });
+  await dialog.getByRole("button", { name: /done/i }).click();
+}
+
 /** The aggregated view name the share-view spec creates and shares. */
 export const VIEW_NAME = "E2E Shared View";
 

@@ -35,6 +35,8 @@ import { loadComputedSnapshot } from "../services/aggregation/viewManager.ts";
 import { downloadXlsx } from "../services/utils/download.ts";
 import { tryPodResources } from "../services/utils/solidUtils.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
+import { AgentLabel } from "../components/AgentLabel.tsx";
+import FilesSection from "../components/detail/FilesSection.tsx";
 import { useDevMode } from "../components/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { listStyle, rowStyle } from "../components/listStyles.ts";
@@ -102,7 +104,7 @@ function ReceivedViewRow(
           {label}
           <br />
           <small>
-            Shared by: <UriLink href={view.sharedBy}>{view.sharedBy}</UriLink>
+            Shared by: <AgentLabel value={view.sharedBy} />
           </small>
         </span>
         <Button size="small" variant="text" onClick={toggle}>
@@ -164,6 +166,35 @@ function ReceivedViewRow(
       )}
     </li>
   );
+}
+
+/**
+ * Files attached to a building shared with you: load the building lazily (its
+ * attachments aren't in the lightweight shared-list entry) and render the shared
+ * FilesSection, whose download fetches each binary with the recipient's own
+ * session. Renders nothing while loading or when the building has no files.
+ */
+function SharedBuildingFiles(
+  { entry, session }: {
+    entry: { buildingUri: string; buildingId: string; sharedRole?: string };
+    session: Session;
+  },
+) {
+  const [building, setBuilding] = useState<BuildingType | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    loadSharedBuilding(entry, session)
+      .then((b) => {
+        if (!cancelled) setBuilding(b);
+      })
+      .catch(() => {});
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [entry.buildingUri]);
+
+  return building ? <FilesSection building={building} /> : null;
 }
 
 /**
@@ -263,7 +294,8 @@ export default function SharePage({ session }: SharePageProps) {
         : (
           <ul style={listStyle} aria-label="Buildings shared with you">
             {sharedPaging.pageItems.map((building) => (
-              <li key={building.buildingUri} style={rowStyle}>
+              <li key={building.buildingUri} style={{ marginBottom: "1rem" }}>
+                <div style={rowStyle}>
                 <span style={{ minWidth: 0 }}>
                   Building {building.buildingId}
                   {dev && (
@@ -278,10 +310,7 @@ export default function SharePage({ session }: SharePageProps) {
                   )}
                   <br />
                   <small>
-                    Shared by:{" "}
-                    <UriLink href={building.sharedBy}>
-                      {building.sharedBy}
-                    </UriLink>
+                    Shared by: <AgentLabel value={building.sharedBy} />
                     {building.sharedRole &&
                       ` — Role: ${
                         ROLE_LABELS[building.sharedRole] ?? building.sharedRole
@@ -324,6 +353,8 @@ export default function SharePage({ session }: SharePageProps) {
                     </label>
                   </Tooltip>
                 </div>
+                </div>
+                <SharedBuildingFiles entry={building} session={session} />
               </li>
             ))}
           </ul>

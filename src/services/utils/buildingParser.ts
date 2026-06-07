@@ -1,5 +1,6 @@
 import type { Quad } from "@rdfjs/types";
 import type {
+  AttachmentRef,
   BuildingType,
   EnergyDatasetRef,
   InvestorCertification,
@@ -7,15 +8,18 @@ import type {
 } from "../../../types/types.ts";
 import {
   investorLocalNameLabels,
+  iriPropertyMap,
   objectPropertyMap,
   parsingFunctions,
   predicateMap,
 } from "./config/buildingConfig.ts";
 import {
+  DCTERMS_CREATED,
   GEO_LAT,
   GEO_LOCATION,
   GEO_LONG,
   GRAN_GEOCODE_PRECISION,
+  GRAN_HAS_ATTACHMENT,
   GRAN_NS,
   INVESTOR_NS,
   IRI_TO_GEOCODE_PRECISION,
@@ -24,6 +28,9 @@ import {
   PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE,
   REC_BUILDING,
+  SCHEMA_CONTENT_SIZE,
+  SCHEMA_ENCODING_FORMAT,
+  SCHEMA_NAME,
 } from "./vocabularies.ts";
 import { parseDatasetSlug } from "./energyDataset.ts";
 import { IRI_TO_PROVENANCE } from "../../constants/roles.ts";
@@ -89,6 +96,10 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   const provBuildingMap = new Map<string, string>();
   /** blank node ID - building ID for the geo:Point (coordinates + precision) */
   const geoPointBuildingMap = new Map<string, string>();
+  /** building ID → its gran:hasAttachment file URLs */
+  const attachmentLinks = new Map<string, string[]>();
+  /** attachment file URL → building ID (the file IRI is the metadata subject) */
+  const attachmentUrlBuilding = new Map<string, string>();
 
   // ── Pass 1: Create buildings from named-node subjects ─────────────────────
   quads.forEach((quad: Quad) => {
@@ -128,6 +139,19 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
         const links = energyDatasetLinks.get(buildingId) ?? [];
         links.push(obj.value);
         energyDatasetLinks.set(buildingId, links);
+      }
+      return;
+    }
+
+    // Building file attachments: gran:hasAttachment → a file IRI. The file IRI is
+    // itself the subject of the schema.org media metadata, collected separately
+    // below (NamedNode subject, so both passes otherwise skip it).
+    if (pred === GRAN_HAS_ATTACHMENT) {
+      if (obj.termType === "NamedNode") {
+        const links = attachmentLinks.get(buildingId) ?? [];
+        links.push(obj.value);
+        attachmentLinks.set(buildingId, links);
+        attachmentUrlBuilding.set(obj.value, buildingId);
       }
       return;
     }
@@ -172,6 +196,14 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       const propertyName = objectPropertyMap[pred];
       const ln = localName(obj.value);
       building[propertyName] = investorLocalNameLabels[ln] ?? ln;
+      return;
+    }
+
+    // Agent/IRI-reference properties (e.g. operatedBy → a WebID). The object is a
+    // NamedNode; tolerate a legacy xsd:string literal (old Pods stored operatedBy
+    // as a string) — obj.value yields the IRI/text either way.
+    if (Object.prototype.hasOwnProperty.call(iriPropertyMap, pred)) {
+      building[iriPropertyMap[pred]] = obj.value;
       return;
     }
 
@@ -284,6 +316,29 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     }
   });
 
+  // ── Attachment metadata: the file IRI is the subject (a NamedNode), so the two
+  // passes above (named-building subjects / blank nodes) skip it. Gather the
+  // schema.org / dcterms metadata for each known attachment URL here. ──
+  const attachmentData = new Map<
+    string,
+    { filename?: string; mediaType?: string; size?: number; uploadDate?: string }
+  >();
+  if (attachmentUrlBuilding.size > 0) {
+    quads.forEach((quad: Quad) => {
+      if (quad.subject.termType !== "NamedNode") return;
+      const url = quad.subject.value;
+      if (!attachmentUrlBuilding.has(url)) return;
+      if (!attachmentData.has(url)) attachmentData.set(url, {});
+      const ad = attachmentData.get(url)!;
+      const pred = quad.predicate.value;
+      if (pred === SCHEMA_NAME) ad.filename = quad.object.value;
+      else if (pred === SCHEMA_ENCODING_FORMAT) ad.mediaType = quad.object.value;
+      else if (pred === SCHEMA_CONTENT_SIZE) {
+        ad.size = parseInt(quad.object.value, 10);
+      } else if (pred === DCTERMS_CREATED) ad.uploadDate = quad.object.value;
+    });
+  }
+
   // ── Post-processing ────────────────────────────────────────────────────────
 
   // Unified energy model: derive dataset refs from the gran:hasEnergyDataset
@@ -316,6 +371,49 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
         level: cd.level,
         scope: cd.scope,
       });
+    }
+  }
+
+  // Attachments (gran:hasAttachment → file IRI + schema.org metadata). The energy
+  // certificate is flagged. A legacy cert linked only via gran:hasEnergyCertificate
+  // (no gran:hasAttachment — e.g. still in the old shared certificates/ folder) is
+  // synthesized below so it still lists.
+  const certUrlOf = (b: BuildingType): string | undefined =>
+    typeof b.energyCertificate === "string" && b.energyCertificate
+      ? b.energyCertificate
+      : undefined;
+  for (const [buildingId, urls] of attachmentLinks.entries()) {
+    const building = buildings.get(buildingId);
+    if (!building) continue;
+    const list = (building.attachments as AttachmentRef[] | undefined) ?? [];
+    const certUrl = certUrlOf(building);
+    for (const url of urls) {
+      const ad = attachmentData.get(url) ?? {};
+      list.push({
+        url,
+        filename: ad.filename ?? decodeURIComponent(url.split("/").pop() ?? url),
+        mediaType: ad.mediaType ?? "application/octet-stream",
+        size: ad.size ?? 0,
+        uploadDate: ad.uploadDate ?? "",
+        ...(certUrl === url ? { isEnergyCertificate: true } : {}),
+      });
+    }
+    building.attachments = list;
+  }
+  for (const building of buildings.values()) {
+    const certUrl = certUrlOf(building);
+    if (!certUrl) continue;
+    const list = (building.attachments as AttachmentRef[] | undefined) ?? [];
+    if (!list.some((a) => a.url === certUrl)) {
+      list.push({
+        url: certUrl,
+        filename: decodeURIComponent(certUrl.split("/").pop() ?? certUrl),
+        mediaType: "application/pdf",
+        size: 0,
+        uploadDate: "",
+        isEnergyCertificate: true,
+      });
+      building.attachments = list;
     }
   }
 

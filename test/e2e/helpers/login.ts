@@ -13,6 +13,12 @@ const E2E_LOCAL = !!ENV?.E2E_LOCAL;
 // for the bench: log into the CSS the webServer already booted + warmed.
 const E2E_BENCH = !!ENV?.E2E_BENCH;
 
+// Optional login pacing for Cloudflare-fronted hosts (e.g. solidcommunity): a wait
+// (ms) before each login on a `throttled` provider, to stay under the edge rate
+// limit that otherwise returns Error 1015. 0 (off) unless E2E_THROTTLE_MS is set;
+// only ever applied to throttled providers, so local/non-CF runs are unaffected.
+const E2E_THROTTLE_MS = Number(ENV?.E2E_THROTTLE_MS) || 0;
+
 // Tier 3 (local CSS) isolation: restart CSS ONCE per spec file so each spec starts
 // with pristine, freshly-seeded pods (no shared mutable state across the 8 solo
 // specs on one pod). Keyed by spec file; the shared promise dedupes the concurrent
@@ -75,6 +81,11 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
   watchCloudflareRateLimit(page);
   // Tier 3: give this spec a pristine CSS (restarts once per spec file).
   await resetLocalPodsOnce();
+  // Pace logins on Cloudflare-fronted (throttled) providers so consecutive OIDC
+  // flows don't burst past the edge rate limit (Error 1015). No-op otherwise.
+  if (E2E_THROTTLE_MS && acc.provider.throttled) {
+    await new Promise((r) => setTimeout(r, E2E_THROTTLE_MS));
+  }
   const host = new URL(acc.provider.issuer).host;
   const user = page.locator(
     'input[name="username"], input[name="email"], input[type="email"], input#username, input#email',
@@ -130,6 +141,23 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
 
 /** The app's login-screen heading (the `name` passed to <Login>). */
 export const LOGIN_HEADING = "Granergize App";
+
+/**
+ * The logged-in user's real WebID, read from the account-menu button's
+ * `aria-label` ("Account menu — <webid>"). Lets a spec discover a role's actual
+ * WebID at runtime instead of deriving it from the username — handy when the
+ * username is an email or the provider's WebID layout isn't known.
+ */
+export async function webIdOf(page: Page): Promise<string> {
+  const label = await page
+    .getByRole("button", { name: /^Account menu/ })
+    .getAttribute("aria-label");
+  const m = label?.match(/Account menu — (.+)$/);
+  if (!m) {
+    throw new Error(`could not read WebID from account menu (aria-label: ${label})`);
+  }
+  return m[1].trim();
+}
 
 /** Log the app out so a different account can log in on the same page. */
 export async function logout(page: Page): Promise<void> {

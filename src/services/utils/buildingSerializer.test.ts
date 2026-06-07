@@ -31,6 +31,8 @@ import {
   INVESTOR_NS,
   PROV_NS,
   RDF_TYPE,
+  REC_NS,
+  XSD_INTEGER,
 } from "./vocabularies.ts";
 
 const { namedNode } = DataFactory;
@@ -141,6 +143,50 @@ Deno.test("serializeBuildingToTurtle round-trips core fields through the parser"
   assert.equal(b!.locality, "Nürnberg");
   assert.equal(b!.lat, 49.4);
   assert.equal(b!.long, 11.1);
+});
+
+Deno.test("serializeBuildingToTurtle writes operatedBy as a rec:operatedBy IRI reference (NamedNode, not a literal)", () => {
+  const uri = newBuildingUri(WEBID, "b-op");
+  const operator = "https://operator.example/profile/card#me";
+  const ttl = serializeBuildingToTurtle({ operatedBy: operator }, uri);
+  const store = parse(ttl);
+  const quads = store.getQuads(
+    namedNode(`${uri}#b-op`),
+    namedNode(`${REC_NS}operatedBy`),
+    null,
+    null,
+  );
+  assert.equal(quads.length, 1, "one operatedBy triple");
+  assert.equal(quads[0].object.termType, "NamedNode", "operator is an IRI, not a literal");
+  assert.equal(quads[0].object.value, operator);
+
+  // And it round-trips back through the parser as the WebID string.
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-op");
+  assert.equal(b!.operatedBy, operator);
+});
+
+Deno.test("parseBuildings tolerates a legacy xsd:string operatedBy literal", () => {
+  const uri = newBuildingUri(WEBID, "b-legacy");
+  // Old Pods stored operatedBy as a plain string literal.
+  const ttl = `
+    @prefix rec: <${REC_NS}> .
+    <${uri}#b-legacy> a <https://w3id.org/rec#Building> ;
+      rec:operatedBy "Acme Facility GmbH" .`;
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-legacy");
+  assert.equal(b!.operatedBy, "Acme Facility GmbH");
+});
+
+Deno.test("serializeBuildingToTurtle still types numeric literals with their XSD datatype", () => {
+  const uri = newBuildingUri(WEBID, "b-dt");
+  const ttl = serializeBuildingToTurtle({ buildingArea: "1200" }, uri);
+  const obj = parse(ttl).getQuads(
+    namedNode(`${uri}#b-dt`),
+    namedNode(`${GRAN_NS}hasBuildingArea`),
+    null,
+    null,
+  )[0].object;
+  assert.equal(obj.termType, "Literal");
+  assert.equal((obj as { datatype: { value: string } }).datatype.value, XSD_INTEGER);
 });
 
 Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank node with precision (not flat)", () => {
@@ -310,15 +356,16 @@ Deno.test("serializeBuildingToTurtle round-trips multiple building certification
 });
 
 Deno.test("parseCsvToFields extracts investor operating costs + certification, end-to-end", async () => {
-  // Minimal investor sheet: labels in col B, one building in col D (index 3).
+  // Minimal investor sheet using the real template labels: operating costs come
+  // from the "Servicelevel" rows, certifications from per-system yes/no + level.
   const rows: (string | number)[][] = [
     ["", "Gebäude-Code", "", "INV-1"],
     ["", "Straße", "", "Teststraße 1"],
-    ["", "Abfallentsorgung", "", "Landlord"],
-    ["", "Betrieb, Inspektion und Wartung", "", "ja"],
-    ["", "Zertifizierung", "", "BREEAM"],
-    ["", "Zertifizierungslevel", "", "Very Good"],
-    ["", "Zertifizierungsumfang", "", "WholeBuilding"],
+    ["", "Entsorgung", "", "Mittel"],
+    ["", "Bedienung, Inspektion und Wartung", "", "ja"],
+    ["", "BREEAM", "", "Ja"],
+    ["", "BREEAM Zertifizierungsstufe", "", "Very Good"],
+    ["", "DGNB", "", "Nein"],
   ];
   const ws = XLSX.utils.aoa_to_sheet(rows);
   const wb = XLSX.utils.book_new();
@@ -329,23 +376,23 @@ Deno.test("parseCsvToFields extracts investor operating costs + certification, e
   const parsed = await parseCsvToFields(file, "investor");
   assert.equal(parsed.length, 1);
   const f = parsed[0];
-  assert.equal(f._opcost_wasteDisposal, "Landlord");
+  assert.equal(f._opcost_wasteDisposal, "Mittel");
   assert.equal(f._opcost_operationInspectionAndMaintenance, "true");
   assert.equal(f._cert_0_type, "BREEAM");
   assert.equal(f._cert_0_level, "Very Good");
-  assert.equal(f._cert_0_scope, "WholeBuilding");
+  // DGNB row is "Nein" → no second certification.
+  assert.equal(f._cert_1_type, undefined);
 
   // Full Excel → serialize → parse chain materialises them on the building.
   const uri = newBuildingUri(WEBID, "inv-1");
   const b = parseBuildings(new Parser().parse(serializeBuildingToTurtle(f, uri)))
     .get("inv-1");
   assert.ok(b);
-  assert.equal(b!.operatingCosts!.wasteDisposal, "Landlord");
+  assert.equal(b!.operatingCosts!.wasteDisposal, "Mittel");
   assert.equal(b!.operatingCosts!.operationInspectionAndMaintenance, true);
   assert.equal(b!.certifications!.length, 1);
   assert.equal(b!.certifications![0].type, "BREEAM");
   assert.equal(b!.certifications![0].level, "Very Good");
-  assert.equal(b!.certifications![0].scope, "WholeBuilding");
 });
 
 Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the building", async () => {

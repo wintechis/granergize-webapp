@@ -2,6 +2,7 @@ import {
   BOOLEAN_FIELDS,
   DECIMAL_FIELDS,
   INTEGER_FIELDS,
+  iriPropertyMap,
   objectPropertyMap,
   predicateMap,
 } from "./config/buildingConfig.ts";
@@ -105,36 +106,41 @@ export const INVESTOR_ROW_MAP: Record<string, string> = {
  * `_opcost_<field>` keys that serializeBuildingToTurtle emits under
  * `investor:hasOperatingCosts`.
  *
- * NOTE: these German row labels are ASSUMED — the investor `.xlsx` template is
- * binary and the original `scripts/investor-to-ttl.ts` is no longer in the repo,
- * so the exact labels could not be introspected. Verify against
- * `public/templates/` and adjust if they differ; rows that don't match are simply
- * skipped (no error), so a wrong label degrades to "not imported", never a crash.
+ * These are the labels of the template's "Servicelevel" section (the operating-
+ * cost categories carry a categorical service level — Einfach/Mittel/Hoch/
+ * All-Risk/…, see {@link investorLocalNameLabels}), matched verbatim to
+ * `public/templates/investor-template.xlsx`. (`operationInspectionAndMaintenance`
+ * is modelled as a boolean and round-trips as true/false.) Rows that don't match
+ * are simply skipped (no error), so a stale label degrades to "not imported".
  */
 export const INVESTOR_OPCOST_ROW_MAP: Record<string, string> = {
-  "Abfallentsorgung": "wasteDisposal",
+  "Entsorgung": "wasteDisposal",
   "Versicherung": "insurance",
-  "Betrieb, Inspektion und Wartung": "operationInspectionAndMaintenance",
-  "Unterhaltsreinigung Büro": "routineCleaningOffice",
-  "Unterhaltsreinigung Lager": "routineCleaningWarehouse",
+  "Bedienung, Inspektion und Wartung": "operationInspectionAndMaintenance",
+  "Unterhaltsreinigung Büronutzung": "routineCleaningOffice",
+  "Unterhaltsreinigung Hallennutzung": "routineCleaningWarehouse",
   "Glasreinigung": "glassCleaning",
-  "Außenanlagenpflege": "exteriorMaintenance",
-  "Bewachung": "security",
-  "Hausverwaltung": "propertyManagement",
+  "Reinigung und Pflege von Außenanlagen (inkl. Winterdienst)": "exteriorMaintenance",
+  "Sicherheit": "security",
+  "Verwaltung": "propertyManagement",
   "Hausmeister": "caretaker",
-  "Reparatur und Instandhaltung": "repairAndMaintenance",
+  "Instandsetzung / Instandhaltung": "repairAndMaintenance",
 };
 
 /**
- * Investor XLSX row label (column B) → certification part. Produces a single
- * certification block (`_cert_0_type|level|scope`). Same caveat as
- * {@link INVESTOR_OPCOST_ROW_MAP}: labels are assumed pending template review.
+ * Investor building-certification systems. The template records each system as a
+ * yes/no row (column-B label = the system name) plus a level row
+ * (`<System> Zertifizierungsstufe`). One {@link InvestorCertification} is
+ * materialised per system whose yes/no cell is truthy, with `level` from the
+ * level row. The template has no per-system scope, so `scope` is not carried by
+ * the XLSX (it still round-trips at the RDF level via `_cert_<i>_scope`).
  */
-export const INVESTOR_CERT_ROWS: Record<string, "type" | "level" | "scope"> = {
-  "Zertifizierung": "type",
-  "Zertifizierungslevel": "level",
-  "Zertifizierungsumfang": "scope",
-};
+export const INVESTOR_CERT_SYSTEMS = ["BREEAM", "DGNB", "LEED"] as const;
+
+/** Column-B label of the certification-level row for a system. */
+export function certLevelLabel(system: string): string {
+  return `${system} Zertifizierungsstufe`;
+}
 
 // ── Normalizers — mirror scripts exactly ──────────────────────────────────────
 
@@ -226,15 +232,13 @@ function invertMap(m: Record<string, string>): Record<string, string> {
 export const INV_FIELD_TO_LABEL = invertMap(INVESTOR_ROW_MAP);
 export const BSP_FIELD_TO_HEADER = invertMap(BSP_COL_MAP);
 export const OPCOST_FIELD_TO_LABEL = invertMap(INVESTOR_OPCOST_ROW_MAP);
-export const CERT_PART_TO_LABEL = invertMap(
-  INVESTOR_CERT_ROWS as Record<string, string>,
-);
 // All scalar BuildingType fields, for the generic (user/dummy) sheet.
 export const SCALAR_FIELDS: string[] = [
   ...new Set(
     [
       ...Object.values(predicateMap),
       ...Object.values(objectPropertyMap),
+      ...Object.values(iriPropertyMap),
     ].map((f) => String(f)),
   ),
 ];

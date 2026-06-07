@@ -23,6 +23,7 @@ const SOLO_SPECS = [
   "**/login.spec.ts",
   "**/organisation.spec.ts",
   "**/add-building.spec.ts",
+  "**/attachments.spec.ts",
   "**/edit-building-fields.spec.ts",
   "**/excel-import.spec.ts",
   "**/excel-export.spec.ts",
@@ -30,8 +31,14 @@ const SOLO_SPECS = [
   "**/view-data.spec.ts",
   "**/data-room.spec.ts",
   "**/building-details.spec.ts",
+  "**/contacts.spec.ts",
+  "**/archive-restore.spec.ts",
 ];
-const SHARING_SPECS = ["**/share-building.spec.ts", "**/share-view.spec.ts"];
+const SHARING_SPECS = [
+  "**/share-building.spec.ts",
+  "**/share-view.spec.ts",
+  "**/share-files.spec.ts",
+];
 
 export default defineConfig({
   testDir: "./test/e2e",

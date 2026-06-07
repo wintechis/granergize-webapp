@@ -7,10 +7,11 @@ import { expect, type Page } from "@playwright/test";
  *
  * Idempotent: a Pod that already lists buildings (incl. residue left by an earlier
  * spec whose cleanup was slow) returns quickly. An empty Pod is seeded via the
- * fresh-Pod "Add examples" banner when it's shown, or the always-present
- * avatar-menu "Create demo buildings" action as a fallback (the banner is
- * suppressed once the demo offer was declined). Either path writes one annual
- * (investor) + one 15-min series (user) building.
+ * fresh-Pod "Add examples" onboarding banner — the only in-app seed path. It writes
+ * one annual (investor) + one 15-min series (user) building. The banner is
+ * suppressed once the demo offer was declined (gran:demoSeedDeclined in prefs), so a
+ * real Pod in that state must be reset first (deno task e2e:remote:reset); a
+ * freshly-wiped Pod always shows it.
  *
  * After seeding it waits for the listing to *stabilise* — same count across a
  * short interval — rather than for a fixed number. The seed writes its buildings
@@ -29,15 +30,14 @@ export async function ensureDemoBuildings(page: Page): Promise<void> {
     return;
   }
 
-  // Empty Pod: prefer the fresh-Pod onboarding banner; otherwise fall back to the
-  // avatar-menu action (always available, even after the banner was dismissed).
+  // Empty Pod: seed via the fresh-Pod "Add examples" onboarding banner. This is the
+  // ONLY in-app seed path (the old avatar-menu "Create demo buildings" action no
+  // longer exists), so WAIT for the banner — a non-waiting isVisible() check races
+  // the buildings query on a slower (real) Pod and misses it. If the banner never
+  // appears the Pod likely has gran:demoSeedDeclined set and must be reset first.
   const addExamples = page.getByRole("button", { name: "Add examples" });
-  if (await addExamples.isVisible().catch(() => false)) {
-    await addExamples.click();
-  } else {
-    await page.getByRole("button", { name: "Account menu" }).click();
-    await page.getByRole("menuitem", { name: /create demo buildings/i }).click();
-  }
+  await expect(addExamples).toBeVisible({ timeout: 30_000 });
+  await addExamples.click();
 
   // Wait for the seed to fully settle: at least one building, and the count stable
   // across a 1s interval — so the listing has stopped growing before the caller

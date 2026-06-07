@@ -13,6 +13,8 @@ import {
 } from "../services/interop/sharingManager.ts";
 import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
 import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
+import { readContacts } from "../services/utils/contacts.ts";
+import { resolveAgent } from "../services/utils/agentResolver.ts";
 import type {
   BuildingType,
   EnergyType,
@@ -174,6 +176,30 @@ export function useRoomState() {
   };
 }
 
+/** The personal contacts address book (folds contacts.ttl). */
+export function useContacts() {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: [...queryKeys.contacts, webId],
+    enabled: Boolean(webId),
+    queryFn: () => readContacts(getSession()),
+  });
+}
+
+/**
+ * Resolve a single WebID to its display name + avatar (read from the agent's own
+ * profile). Per-WebID keyed and cached; disabled until a WebID is given. Resolution
+ * never throws, so a private/unreachable profile resolves to `{ webId, name:
+ * #fragment }` rather than erroring.
+ */
+export function useResolveAgent(webId?: string) {
+  return useQuery({
+    queryKey: [...queryKeys.agent, webId],
+    enabled: Boolean(webId),
+    queryFn: () => resolveAgent(webId as string, getSession()),
+  });
+}
+
 /** Query keys other modules (mutations) invalidate. */
 export const queryKeys = {
   buildings: ["buildings"] as const,
@@ -187,6 +213,10 @@ export const queryKeys = {
   rooms: ["rooms"] as const,
   /** A room's log (members + roles), keyed by room. Invalidated on role saves. */
   roomLog: ["roomLog"] as const,
+  /** The contacts address book. Invalidated on save/remove. */
+  contacts: ["contacts"] as const,
+  /** A single resolved agent (name/avatar), keyed by WebID. */
+  agent: ["agent"] as const,
 };
 
 /**

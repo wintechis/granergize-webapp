@@ -8,8 +8,12 @@ import { addEnergyYear } from "../helpers/manage.ts";
  * `gran:EnergyDataset` to it, proves the *actual* figure flows back through
  * `loadEnergy` into the energy view (with the Recharts SVG chart), then deletes
  * the building in afterAll — which removes its whole energy subtree, so nothing
- * leaks. The Soll-Ist *planned* overlay legend is covered deterministically by the
- * `MetricBarChart` unit test (actual + "(planned)").
+ * leaks. A third test drives the map's Energy tab (InvestorEnergy), the only place
+ * the Soll-Ist *comparison* renders, and asserts the entered planned figure
+ * surfaces as the "(planned)" overlay beside actual. It selects the single map
+ * marker, so it needs a pristine collection — the per-spec CSS reset (Tier 3) or a
+ * fresh `VITE_POD_APP_DIR` / `e2e:remote:reset` (Tier 4). (The overlay's chart
+ * legend is also unit-tested in `MetricBarChart.test.tsx`.)
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/tasks/energy-entry.spec.ts
@@ -111,6 +115,25 @@ test.describe("energy entry + Soll-Ist", () => {
       .toBeVisible({ timeout: 90_000 });
     // The migrated chart is a Recharts SVG (not a canvas) — assert it draws.
     await expect(page.locator("svg.recharts-surface").first())
+      .toBeVisible({ timeout: 90_000 });
+  });
+
+  test("the planned (Soll) figure shows beside actual in the comparison", async () => {
+    test.setTimeout(180_000);
+    // The Soll-Ist comparison renders only in the map's Energy tab
+    // (InvestorEnergy), not the standalone /energy route — so drive the map:
+    // return to the app shell, select the (only) building marker, open Energy.
+    // Selecting the single marker assumes a pristine collection — guaranteed by the
+    // per-spec CSS reset (Tier 3) or a fresh VITE_POD_APP_DIR / reset (Tier 4).
+    await page.goto("/#/");
+    await page.getByRole("tab", { name: "Explore" }).click();
+    const marker = page.locator("img.leaflet-marker-icon").first();
+    await expect(marker).toBeVisible({ timeout: 90_000 });
+    await marker.click({ force: true });
+    await page.getByRole("tab", { name: "Energy data" }).click();
+    // hasPlanned adds a "<metric> (planned)" series to the chart legend — its
+    // presence proves the entered planned dataset flowed back into the comparison.
+    await expect(page.getByText(/\(planned\)/).first())
       .toBeVisible({ timeout: 90_000 });
   });
 });

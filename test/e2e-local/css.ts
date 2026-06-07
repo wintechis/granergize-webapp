@@ -14,8 +14,14 @@ import { type LocalCss, startLocalCss } from "../headless/localCss.ts";
 import { LOCAL_CSS_CONTROL_PORT, LOCAL_CSS_PORT } from "../config/localSeed.ts";
 import { getLiveSession } from "../headless/liveSession.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { resolveStorageRoot } from "../../src/services/utils/solidUtils.ts";
-import { seedBuildings, wipeBuildings } from "../bench/seed.ts";
+import { podResources, resolveStorageRoot } from "../../src/services/utils/solidUtils.ts";
+import { createRoom } from "../../src/services/interop/dataRoom.ts";
+import {
+  seedBuildings,
+  seedRoomMembers,
+  wipeBuildings,
+  wipeRooms,
+} from "../bench/seed.ts";
 
 /**
  * Resolve once `port` is actually bindable again — i.e. the previous CSS has fully
@@ -93,6 +99,32 @@ async function seedPodA(n: number): Promise<void> {
   }
 }
 
+// Seed a data ROOM with N members into account A's pod for the Tier-3 room-render
+// BENCHMARK (room-render.spec.ts). Like seedPodA, this runs in Deno (the data
+// layer needs Deno-only deps). It resets A's room state, hosts ONE fresh room
+// (createRoom auto-joins A and makes it A's active room, so the Connect tab
+// auto-expands it on load), then seeds N synthetic members into the room's log.
+// The browser then times how long the member list takes to render.
+async function seedRoomPodA(n: number): Promise<void> {
+  const issuer = css.baseUrl.replace(/\/$/, "");
+  const live = await getLiveSession(issuer, css.A.email, css.A.password, css.A.webId);
+  try {
+    const session = live as unknown as Session;
+    await resolveStorageRoot(session);
+    // Reset room state so each size starts from exactly one room: drop prior rooms
+    // and the bookmarks/current-room pointer (stale bookmarks would otherwise pile
+    // up across sizes and could push the active room off the list's first page).
+    await wipeRooms(session, css.A.webId);
+    const res = podResources(css.A.webId);
+    await session.fetch(res.bookmarks, { method: "DELETE" }).catch(() => {});
+    await session.fetch(res.prefs, { method: "DELETE" }).catch(() => {});
+    const room = await createRoom(session); // A auto-joins; becomes A's active room
+    await seedRoomMembers(session, room, n);
+  } finally {
+    await live.dispose().catch(() => {});
+  }
+}
+
 // Control server (separate port): POST /reset restarts CSS and replies once the
 // fresh instance is ready, so the caller can await a clean slate.
 Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
@@ -105,6 +137,16 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
     } catch (e) {
       console.error(`/seed failed: ${e}`);
       return new Response(`seed failed: ${e}\n`, { status: 500 });
+    }
+  }
+  if (req.method === "POST" && pathname === "/seed-room") {
+    const n = Number(searchParams.get("n") ?? "0");
+    try {
+      await seedRoomPodA(Number.isFinite(n) && n >= 0 ? n : 0);
+      return new Response("ok\n");
+    } catch (e) {
+      console.error(`/seed-room failed: ${e}`);
+      return new Response(`seed-room failed: ${e}\n`, { status: 500 });
     }
   }
   if (req.method === "POST" && pathname === "/reset") {
