@@ -30,7 +30,7 @@ climbing fake→real one axis at a time: **Tier 1** (unit) lives next to the cod
 data-layer fns over two client-credential sessions against a local Community Solid
 Server; **Tier 3** (`deno task e2e:local`) drives the real browser UI against a
 throwaway local CSS, credential-free (the `local` Playwright project, `E2E_LOCAL=1`,
-run against the production build via `E2E_PREVIEW=1`); **Tier 4** (`test/e2e/`,
+which also serves the production build — Tier 4 uses the dev server); **Tier 4** (`test/e2e/`,
 Playwright, `deno task e2e:remote`) runs those same UI specs against real Pods. Both
 tiers use **two roles, A = Alice and B = Bob** (solo specs → Alice; sharing specs →
 Alice + Bob); for Tier 4 you configure each role's Pod/WebID per run by `source`-ing
@@ -66,10 +66,14 @@ mirroring the service-test pattern.
 - `VITE_POD_APP_DIR` selects the on-Pod app collection segment (default `granergize`).
   Every app resource lives under `<storageRoot><VITE_POD_APP_DIR>/`; the single source
   of truth is `APP_DIR` / `appRoot(webId)` in `solidUtils.ts` (and `podResources`), so
-  all path builders move together. The e2e runs set it to `granergize-e2e` (every
-  `deno task e2e:*` task) so those tests write to a throwaway collection and never
-  touch real `granergize/` data; `deno task e2e:remote:reset` wipes that collection
-  for both roles (Alice + Bob).
+  all path builders move together. The e2e runs write to a throwaway collection so
+  they never touch real `granergize/` data: Tier 3 bakes a fixed `granergize-e2e`
+  into the build (its local CSS is wiped per spec), while Tier 4 (real Pods) writes
+  to a per-run `granergize-e2e-<uuid>` — generated in `playwright.config.ts` and
+  served by a freshly-started dev server (so `reuseExistingServer` is off for Tier
+  4). A unique segment per run means leftover/stuck resources from an earlier run
+  (e.g. a Pod request that hung mid-cleanup) can't impede a fresh run, so there is
+  no reset step. Set `VITE_POD_APP_DIR` explicitly to target a specific collection.
 
 ## Deployment
 

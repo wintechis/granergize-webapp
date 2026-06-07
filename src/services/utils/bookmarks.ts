@@ -1,8 +1,8 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
+import { DataFactory } from "n3";
 import { GRAN_NS, RDF_TYPE } from "./vocabularies.ts";
 import { appRoot } from "./solidUtils.ts";
-import { fetchFresh } from "./podFetch.ts";
+import { readStoreOrEmpty } from "./podFetch.ts";
 import { readModifyWrite } from "./podWrite.ts";
 
 const { namedNode } = DataFactory;
@@ -26,9 +26,7 @@ export async function readBookmarks(session: Session): Promise<string[]> {
   const webId = session.info.webId;
   if (!webId) return [];
   const url = bookmarksUrl(webId);
-  const res = await fetchFresh(url, session);
-  if (!res.ok) return [];
-  const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
+  const store = await readStoreOrEmpty(url, session);
   return store.getObjects(namedNode(url), GRAN_KNOWN_ROOM, null).map((o) =>
     o.value
   );

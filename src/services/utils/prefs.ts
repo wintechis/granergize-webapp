@@ -1,8 +1,8 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
+import { DataFactory, Store } from "n3";
 import { GRAN_NS, RDF_TYPE, XSD_BOOLEAN as XSD_BOOLEAN_IRI } from "./vocabularies.ts";
 import { appRoot } from "./solidUtils.ts";
-import { fetchFresh } from "./podFetch.ts";
+import { readStoreOrEmpty } from "./podFetch.ts";
 import { readModifyWrite } from "./podWrite.ts";
 
 const { namedNode } = DataFactory;
@@ -44,11 +44,8 @@ export async function readPrefs(session: Session): Promise<Preferences> {
     demoSeedDeclined: false,
   };
   if (!webId) return empty;
-  const url = prefsUrl(webId);
-  const res = await fetchFresh(url, session);
-  if (!res.ok) return empty;
-  const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
-  const self = namedNode(url);
+  const store = await readStoreOrEmpty(prefsUrl(webId), session);
+  const self = namedNode(prefsUrl(webId));
   return {
     currentRoom:
       store.getObjects(self, GRAN_CURRENT_ROOM, null)[0]?.value ?? null,

@@ -14,7 +14,7 @@ import {
   shareByWebId,
   uploadBuildingFile,
 } from "../helpers/manage.ts";
-import { freshSlateBoth, logCollectionState } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 
 /**
  * File sharing across TWO throwaway Solid Pods, both ways the app supports:
@@ -59,9 +59,11 @@ test.describe("file sharing across two pods", () => {
     // to POST the grant notification to it or the share 403s. A's add+upload+share
     // takes ~30 s — far longer than the provisioning — so by share time it exists.
     // (Closing B right after login raced that provisioning.)
+    // Clean START is free (fresh per-run collection / restarted CSS); the spec
+    // wipes BOTH pods at the END instead.
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
-    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
-    await freshSlateBoth(a.page, b1.page, "share-files");
+    await assertCleanStart(a.page, "share-files:A");
+    await assertCleanStart(b1.page, "share-files:B");
     a.page.on("dialog", (d) => d.accept());
     try {
       // Discover B's REAL WebID from its logged-in session (the account menu),
@@ -83,17 +85,25 @@ test.describe("file sharing across two pods", () => {
     } finally {
       await b1.ctx.close().catch(() => {}); // no-op if already closed above
       await deleteOwnBuilding(a.page, street);
-      await logCollectionState(a.page, "share-files"); // verify A's cleanup
-      await a.ctx.close();
+      // Leave both Pods empty — the per-run collection is removed entirely on each.
+      const bEnd = await freshPage(browser, B);
+      try {
+        await verifyAndResetBoth(a.page, bEnd.page, "share-files");
+      } finally {
+        await bEnd.ctx.close();
+        await a.ctx.close();
+      }
     }
   });
 
   test("via data room (By role): A attaches a file + shares; B downloads it", async ({ browser }) => {
     test.setTimeout(600_000);
     const street = "Share Files Room Strasse 1";
+    // Clean START is free (fresh per-run collection / restarted CSS); the spec
+    // wipes BOTH pods at the END instead.
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
-    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
-    await freshSlateBoth(a.page, b1.page, "share-files");
+    await assertCleanStart(a.page, "share-files:A");
+    await assertCleanStart(b1.page, "share-files:B");
     a.page.on("dialog", (d) => d.accept());
     try {
       const roomUri = await hostRoomAndGetUri(a.page);
@@ -119,8 +129,14 @@ test.describe("file sharing across two pods", () => {
     } finally {
       await deleteOwnBuilding(a.page, street);
       await deleteAllOwnedRooms(a.page).catch(() => {});
-      await logCollectionState(a.page, "share-files"); // verify A's cleanup
-      await a.ctx.close();
+      // Leave both Pods empty — the per-run collection is removed entirely on each.
+      const bEnd = await freshPage(browser, B);
+      try {
+        await verifyAndResetBoth(a.page, bEnd.page, "share-files");
+      } finally {
+        await bEnd.ctx.close();
+        await a.ctx.close();
+      }
     }
   });
 });

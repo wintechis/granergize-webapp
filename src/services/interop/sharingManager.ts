@@ -1,14 +1,13 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
-import { getRecipientInboxUrl } from "./inbox.ts";
+import { DataFactory } from "n3";
+import { postSharingEventToInbox } from "./inbox.ts";
 import {
   appendSharingEvent,
-  buildSharingEventTurtle,
   foldSharingLog,
   sharedInUrl,
   sharedOutUrl,
 } from "./sharingLog.ts";
-import { fetchFresh } from "../utils/podFetch.ts";
+import { readStoreOrEmpty } from "../utils/podFetch.ts";
 import { readModifyWrite } from "../utils/podWrite.ts";
 import { filesContainerFor } from "../utils/attachmentManager.ts";
 import { readPrefs, toggleHiddenBuilding } from "../utils/prefs.ts";
@@ -151,9 +150,18 @@ export async function revokeAccess(
  * Routed through {@link readModifyWrite} so a revoke racing a concurrent grant (or
  * a second revoke) can't blind-clobber it: the `If-Match`/retry loop re-reads and
  * re-applies. Every authorization subject carrying `acl:agent <webId>` is dropped,
- * so a legacy ACL with duplicate blocks for the same agent is also cleaned up. The
- * owner block (a different `acl:agent`) is untouched. A missing ACL or an absent
- * recipient skips the PUT entirely (`mutate` returns false).
+ * so a legacy ACL with duplicate blocks for the same agent is also cleaned up.
+ *
+ * The owner is protected two ways, so a revoke can never lock the owner out of
+ * their own resource: revoking your own WebID is a no-op, and any subject granting
+ * `acl:Control` is never dropped (in this app only the owner holds Control). This
+ * matters because the owner's full-control block and a recipient grant can carry
+ * the SAME `acl:agent` — e.g. a building accidentally shared to one's own WebID —
+ * in which case removing every subject for that agent would also strip the owner's
+ * Control (observed as a 403 on the owner's own building, Tier-4 meisdata run).
+ *
+ * A missing ACL or an absent recipient skips the PUT entirely (`mutate` returns
+ * false).
  *
  * Exported for unit testing (the public `revokeAccess` reaches it).
  */
@@ -162,14 +170,23 @@ export async function removeFromACL(
   webId: string,
   session: Session,
 ): Promise<void> {
+  // Revoking your own access is meaningless and dangerous — see note above.
+  if (webId === session.info.webId) return;
   const aclUrl = `${resourceUri}.acl`;
   const agentPredicate = DataFactory.namedNode(`${ACL_NS}agent`);
+  const modePredicate = DataFactory.namedNode(`${ACL_NS}mode`);
+  const controlNode = DataFactory.namedNode(`${ACL_NS}Control`);
   const agentNode = DataFactory.namedNode(webId);
   await readModifyWrite(aclUrl, session, (store, { created }) => {
     if (created) return false; // no ACL → nothing to revoke
     const subjects = store
       .getQuads(null, agentPredicate, agentNode, null)
-      .map((q) => q.subject);
+      .map((q) => q.subject)
+      // Never drop an owner/full-control authorization, even if it shares this
+      // agent WebID (only the owner holds acl:Control in this app).
+      .filter((s) =>
+        store.getQuads(s, modePredicate, controlNode, null).length === 0
+      );
     if (subjects.length === 0) return false; // recipient absent → skip the PUT
     for (const subject of subjects) {
       for (const q of store.getQuads(subject, null, null, null)) {
@@ -193,10 +210,7 @@ async function getSubresourceAclTargets(
   const filesContainer = filesContainerFor(buildingUri);
   const targets: string[] = [filesContainer];
   try {
-    const response = await fetchFresh(buildingUri, session);
-    const store = new Store(
-      new Parser({ baseIRI: buildingUri }).parse(await response.text()),
-    );
+    const store = await readStoreOrEmpty(buildingUri, session);
 
     for (
       const link of store.getObjects(
@@ -306,27 +320,13 @@ async function notifyAccessRevoked(
   webId: string,
   session: Session,
 ): Promise<void> {
-  const inboxUrl = await getRecipientInboxUrl(webId, session);
-
-  const message = buildSharingEventTurtle({
+  await postSharingEventToInbox(webId, session, {
     type: "revocation",
     owner: session.info.webId!,
     grantee: webId,
     resource,
     at: new Date().toISOString(),
   });
-
-  const postResponse = await session.fetch(inboxUrl, {
-    method: "POST",
-    headers: { "Content-Type": "text/turtle" },
-    body: message,
-  });
-
-  if (!postResponse.ok) {
-    throw new Error(
-      `Failed to post revocation message to inbox at ${inboxUrl}: ${postResponse.statusText}`,
-    );
-  }
 }
 
 /**

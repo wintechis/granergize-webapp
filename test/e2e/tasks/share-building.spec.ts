@@ -9,7 +9,7 @@ import {
   joinRoomAsUser,
 } from "../helpers/connect.ts";
 import { addBuilding, addEnergyYear, shareByRole } from "../helpers/manage.ts";
-import { freshSlateBoth, logCollectionState } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 
 /**
  * End-to-end building sharing across TWO throwaway Solid Pods, in ONE test (the
@@ -46,9 +46,11 @@ test.describe("sharing across two pods", () => {
     // A and B's first logins are independent (B only needs A's room URI to JOIN,
     // not to log in), so run both ~50 s OIDC flows concurrently — one login's
     // wall-clock instead of two.
+    // Clean START is free: a Tier-4 run gets a fresh per-run collection, Tier 3 a
+    // freshly-restarted CSS. The spec wipes BOTH pods at the END instead.
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
-    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
-    await freshSlateBoth(a.page, b1.page, "share-building");
+    await assertCleanStart(a.page, "share-building:A");
+    await assertCleanStart(b1.page, "share-building:B");
     a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building/room)
     try {
       // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
@@ -116,8 +118,15 @@ test.describe("sharing across two pods", () => {
       } catch {
         // best-effort cleanup; never fail the run
       }
-      await logCollectionState(a.page, "share-building"); // verify A's cleanup
-      await a.ctx.close();
+      // Leave both Pods empty — the in-flow cleanup above is verified (residue
+      // logged), then the per-run collection is removed entirely on each Pod.
+      const bEnd = await freshPage(browser, B);
+      try {
+        await verifyAndResetBoth(a.page, bEnd.page, "share-building");
+      } finally {
+        await bEnd.ctx.close();
+        await a.ctx.close();
+      }
     }
   });
 
@@ -134,9 +143,11 @@ test.describe("sharing across two pods", () => {
 
   test("A shares one year of energy; B sees that year but not the withheld one", async ({ browser }) => {
     test.setTimeout(600_000);
+    // Clean START is free: a Tier-4 run gets a fresh per-run collection, Tier 3 a
+    // freshly-restarted CSS. The spec wipes BOTH pods at the END instead.
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
-    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
-    await freshSlateBoth(a.page, b1.page, "share-building");
+    await assertCleanStart(a.page, "share-building:A");
+    await assertCleanStart(b1.page, "share-building:B");
     a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building/room)
     try {
       // ── Write part: A hosts a room + role, B joins + role ──
@@ -213,8 +224,15 @@ test.describe("sharing across two pods", () => {
       } catch {
         // best-effort cleanup; never fail the run
       }
-      await logCollectionState(a.page, "share-building"); // verify A's cleanup
-      await a.ctx.close();
+      // Leave both Pods empty — the in-flow cleanup above is verified (residue
+      // logged), then the per-run collection is removed entirely on each Pod.
+      const bEnd = await freshPage(browser, B);
+      try {
+        await verifyAndResetBoth(a.page, bEnd.page, "share-building");
+      } finally {
+        await bEnd.ctx.close();
+        await a.ctx.close();
+      }
     }
   });
 
@@ -227,9 +245,11 @@ test.describe("sharing across two pods", () => {
 
   test("A deletes a shared building; B no longer sees it under Buildings shared with you", async ({ browser }) => {
     test.setTimeout(600_000);
+    // Clean START is free: a Tier-4 run gets a fresh per-run collection, Tier 3 a
+    // freshly-restarted CSS. The spec wipes BOTH pods at the END instead.
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
-    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
-    await freshSlateBoth(a.page, b1.page, "share-building");
+    await assertCleanStart(a.page, "share-building:A");
+    await assertCleanStart(b1.page, "share-building:B");
     a.page.on("dialog", (d) => d.accept()); // delete-building confirm + cleanup
     try {
       // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
@@ -289,8 +309,15 @@ test.describe("sharing across two pods", () => {
       try {
         if (!a.page.isClosed()) await deleteAllOwnedRooms(a.page);
       } catch { /* best-effort cleanup */ }
-      await logCollectionState(a.page, "share-building"); // verify A's cleanup
-      await a.ctx.close();
+      // Leave both Pods empty — the in-flow cleanup above is verified (residue
+      // logged), then the per-run collection is removed entirely on each Pod.
+      const bEnd = await freshPage(browser, B);
+      try {
+        await verifyAndResetBoth(a.page, bEnd.page, "share-building");
+      } finally {
+        await bEnd.ctx.close();
+        await a.ctx.close();
+      }
     }
   });
 });

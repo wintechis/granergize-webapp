@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { addEnergyYear } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Energy per-year entry + planned/actual (Soll-Ist) e2e. Self-cleaning: it adds
@@ -13,8 +13,8 @@ import { verifyAndReset } from "../helpers/cleanSlate.ts";
  * leaks. A third test drives the map's Energy tab (InvestorEnergy), the only place
  * the Soll-Ist *comparison* renders, and asserts the entered planned figure
  * surfaces as the "(planned)" overlay beside actual. It selects the single map
- * marker, so it needs a pristine collection — the per-spec CSS reset (Tier 3) or a
- * fresh `VITE_POD_APP_DIR` / `e2e:remote:reset` (Tier 4). (The overlay's chart
+ * marker, so it needs a pristine collection — the per-spec CSS reset (Tier 3) or
+ * the per-run `granergize-e2e-<uuid>` collection (Tier 4). (The overlay's chart
  * legend is also unit-tested in `MetricBarChart.test.tsx`.)
  *
  *   # tier 3 (local CSS, no creds):
@@ -48,6 +48,7 @@ test.describe("energy entry + Soll-Ist", () => {
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
+    await assertCleanStart(page);
 
     // Add a throwaway building to write the year to (deleted in afterAll).
     await page.getByRole("tab", { name: "Manage" }).click();
@@ -127,7 +128,7 @@ test.describe("energy entry + Soll-Ist", () => {
     // (InvestorEnergy), not the standalone /energy route — so drive the map:
     // return to the app shell, select the (only) building marker, open Energy.
     // Selecting the single marker assumes a pristine collection — guaranteed by the
-    // per-spec CSS reset (Tier 3) or a fresh VITE_POD_APP_DIR / reset (Tier 4).
+    // per-spec CSS reset (Tier 3) or the per-run granergize-e2e-<uuid> (Tier 4).
     await page.goto("/#/");
     await page.getByRole("tab", { name: "Explore" }).click();
     const marker = page.locator("img.leaflet-marker-icon").first();

@@ -1,6 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
-import { fetchFresh } from "../utils/podFetch.ts";
+import { fetchFresh, readStoreOrEmpty } from "../utils/podFetch.ts";
+import { putAcl } from "../utils/podWrite.ts";
 import { LDP_CONTAINS, LDP_INBOX } from "../utils/vocabularies.ts";
 import {
   APP_DIR,
@@ -9,10 +10,28 @@ import {
 } from "../utils/solidUtils.ts";
 import {
   appendSharingEvent,
+  buildSharingEventTurtle,
   parseSharingEvents,
+  type SharingEvent,
   sharedInUrl,
 } from "./sharingLog.ts";
 import { logError } from "../utils/logError.ts";
+
+/**
+ * Is `url` a real inbox message — i.e. NOT an auxiliary sidecar (`.acl`/`.meta`)?
+ *
+ * Draining an inbox GETs + DELETEs every `ldp:contains` entry. A container
+ * listing should expose only members, but some servers (JSS) also list a
+ * resource's auxiliaries; a stray `.acl` would then be deleted as if it were a
+ * message — wiping the inbox's OWN access-control resource and silently revoking
+ * every future sender's append grant. CSS/NSS omit auxiliaries from
+ * `ldp:contains`, so this never bit there. A leading-dot final path segment
+ * (`.acl`, `.meta`, …) is never a sharing message, so exclude it.
+ */
+export function isMessageResource(url: string): boolean {
+  const lastSegment = url.replace(/\/$/, "").split("/").pop() ?? "";
+  return !lastSegment.startsWith(".");
+}
 
 /**
  * Drain the logged-in user's LDP inbox. Each message is a sharing event (a grant
@@ -30,24 +49,19 @@ export async function readInbox(session: Session) {
   const sharedIn = sharedInUrl(myWebId);
 
   const podInbox = await getInboxUrl(session);
-  const response = await fetchFresh(podInbox, session);
-  if (response.status !== 200) return;
-
-  const store = new Store(
-    new Parser({ baseIRI: podInbox }).parse(await response.text()),
-  );
+  const store = await readStoreOrEmpty(podInbox, session);
   const messageUrls = store.getQuads(
     null,
     DataFactory.namedNode(LDP_CONTAINS),
     null,
     null,
-  ).map((q) => q.object.value);
+  ).map((q) => q.object.value).filter(isMessageResource);
 
   // Process each message fully (fetch → record in shared-in/ → delete) so a
   // re-read doesn't reprocess it. Distinct event resources, so appends are safe
   // to do concurrently.
   await Promise.all(messageUrls.map(async (messageUrl) => {
-    const msgResponse = await session.fetch(messageUrl, { method: "GET" });
+    const msgResponse = await fetchFresh(messageUrl, session);
     if (msgResponse.status !== 200) {
       console.error(
         `Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`,
@@ -164,6 +178,31 @@ export async function getRecipientInboxUrl(
 }
 
 /**
+ * POST a sharing event (a grant or a revocation) to a recipient's granergize
+ * inbox — the notification they fold into their `shared-in/` log on the next
+ * {@link readInbox}. Shared by the building/view grant flows and the revocation
+ * notice: the transport (LDP POST of the event Turtle) and the failure mode are
+ * identical across all three; only the event payload differs.
+ */
+export async function postSharingEventToInbox(
+  webId: string,
+  session: Session,
+  event: SharingEvent,
+): Promise<void> {
+  const inboxUrl = await getRecipientInboxUrl(webId, session);
+  const res = await session.fetch(inboxUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/turtle" },
+    body: buildSharingEventTurtle(event),
+  });
+  if (!res.ok) {
+    throw new Error(
+      `Failed to post sharing message to inbox at ${inboxUrl}: ${res.statusText}`,
+    );
+  }
+}
+
+/**
  * Provision the logged-in user's granergize inbox on a bare Pod (idempotent,
  * best-effort — never blocks login): create the inbox container and grant
  * AuthenticatedAgent Append so other granergize users can drop grants.
@@ -205,11 +244,8 @@ export async function ensureOwnInbox(session: Session): Promise<boolean> {
 <#append> a acl:Authorization; acl:agentClass acl:AuthenticatedAgent;
   acl:accessTo <${inbox}>; acl:mode acl:Read, acl:Append.
 `;
-  await session.fetch(`${inbox}.acl`, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: acl,
-  }).catch((err) => logError("provision own inbox ACL", err));
+  await putAcl(`${inbox}.acl`, acl, session)
+    .catch((err) => logError("provision own inbox ACL", err));
   return true;
 }
 

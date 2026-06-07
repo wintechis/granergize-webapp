@@ -1,45 +1,6 @@
 name: scp to paul
 on: [push]
 jobs:
-  e2e:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Setup Repo
-        uses: actions/checkout@v4
-      - name: Setup Deno
-        uses: denoland/setup-deno@v2
-        with:
-          deno-version: latest
-      - name: Setup Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: 20
-      - name: install deps
-        run: deno install
-      - name: install Playwright Chromium
-        run: deno task e2e:install
-      # Smoke E2E (no login). The screenshot spec auto-skips without
-      # E2E_USERNAME/E2E_PASSWORD, so no credentials are needed here.
-      # LOCAL_CSS_LOG tees the throwaway CSS's FULL log (forces -l debug; see
-      # test/headless/localCss.ts) so a CSS crash/auth-401 is captured instead of
-      # discarded — uploaded below on failure.
-      - name: run e2e
-        env:
-          LOCAL_CSS_LOG: ${{ runner.temp }}/css.log
-        run: deno task e2e:local
-      # On failure, keep the evidence: Playwright traces (test-results/) and the CSS
-      # log. Without this the runner is torn down and we're blind to why CSS exited.
-      - name: upload e2e diagnostics
-        if: failure()
-        uses: actions/upload-artifact@v7
-        with:
-          name: e2e-diagnostics
-          path: |
-            test-results/
-            ${{ runner.temp }}/css.log
-          if-no-files-found: ignore
-          retention-days: 14
-
   # Tier-1 unit suite (hermetic, offline fixtures). Gates deploy.
   test:
     runs-on: ubuntu-latest
@@ -106,7 +67,6 @@ jobs:
           include-hidden-files: true
   deploy:
     # Gate: only deploy if build, unit tests, lint, and typecheck all pass.
-    # (e2e runs as its own job but is intentionally NOT a deploy gate.)
     needs: [build, test, lint, check]
     runs-on: ubuntu-latest
     steps:

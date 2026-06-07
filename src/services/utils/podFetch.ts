@@ -1,4 +1,5 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
+import { Parser, Store } from "n3";
 
 /**
  * GET a mutable Pod resource with forced revalidation, so reload-after-action
@@ -30,4 +31,28 @@ export async function fetchFresh(
     const detail = e instanceof Error ? e.message : String(e);
     throw new Error(`Network error fetching ${url}: ${detail}`, { cause: e });
   }
+}
+
+/**
+ * GET a Pod resource and parse it (Turtle) into an n3 `Store`, with `baseIRI`
+ * set to the resource URL. The one chokepoint for "read a resource I'm about to
+ * n3-parse": it always goes through {@link fetchFresh}, so the read is fresh AND
+ * carries `Accept: text/turtle`. (Raw `session.fetch()` reads silently relied on
+ * the server's *default* serialization; a JSON-LD-native server like JSS then
+ * returned JSON-LD that n3 rejects — the bug class this helper exists to prevent.)
+ *
+ * A non-ok response — whether the resource is missing (404) or inaccessible
+ * (403) — yields an EMPTY `Store`. That's the Solid idiom "absent resource =
+ * empty graph", and it lets a partial/permission failure degrade to "no data"
+ * rather than throwing. Callers that must instead surface a hard read error
+ * (e.g. fetching a building that is required to exist) keep their own status
+ * check on `fetchFresh`.
+ */
+export async function readStoreOrEmpty(
+  url: string,
+  session: Session,
+): Promise<Store> {
+  const res = await fetchFresh(url, session);
+  if (!res.ok) return new Store();
+  return new Store(new Parser({ baseIRI: url }).parse(await res.text()));
 }

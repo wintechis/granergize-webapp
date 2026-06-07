@@ -7,7 +7,9 @@
  *
  * Env per slot X: `E2E_USERNAME_X`, `E2E_PASSWORD_X`, and EITHER `E2E_PROVIDER_X`
  * (a providers.ts id) OR `E2E_ISSUER_X` (back-compat, mapped via the registry).
- * `E2E_WEBID_X` overrides the derived WebID for irregular accounts.
+ * `E2E_WEBID_X` supplies the WebID for irregular accounts; otherwise none is set —
+ * the authoritative WebID is discovered from the session after login (`webIdOf`),
+ * never constructed from a username.
  */
 import { getEnv } from "./env.ts";
 import {
@@ -22,7 +24,10 @@ export interface TestAccount {
   provider: PodProvider;
   email: string;
   password: string;
-  webId: string;
+  /** The WebID if known out-of-band (`E2E_WEBID_*`); otherwise undefined. WebIDs are
+   * opaque (WebID/Solid-OIDC), so the real value is discovered from the session after
+   * login (`webIdOf`), never built from a username. */
+  webId?: string;
 }
 
 /** Resolve the provider for a slot: explicit id, else issuer map, else default. */
@@ -42,13 +47,7 @@ function providerFor(slot: string): PodProvider | null {
 function localAccount(slot: string): TestAccount | null {
   const seed = slot === "B" ? LOCAL_SEED.B : LOCAL_SEED.A;
   const provider = localBrowserProvider();
-  return {
-    slot,
-    provider,
-    email: seed.email,
-    password: seed.password,
-    webId: provider.webIdFor(seed.pod),
-  };
+  return { slot, provider, email: seed.email, password: seed.password };
 }
 
 /** Read account `slot` from the env, or null if unconfigured/unknown provider. */
@@ -59,7 +58,7 @@ export function account(slot: string): TestAccount | null {
   if (!email || !password) return null;
   const provider = providerFor(slot);
   if (!provider) return null;
-  const webId = getEnv(`E2E_WEBID_${slot}`) ?? provider.webIdFor(email);
+  const webId = getEnv(`E2E_WEBID_${slot}`);
   return { slot, provider, email, password, webId };
 }
 

@@ -38,6 +38,35 @@ async function ath(accessToken: string): Promise<string> {
 }
 
 /**
+ * Discover an account's WebID via the CSS account API — the spec way (don't construct
+ * it): password-login for an account token, GET `/.account/`, then read the single
+ * linked WebID from the `webid` control (the keys of `webIdLinks`). Lets the headless
+ * CSS backend bind client-credentials to a *discovered* WebID, never a templated
+ * `…/profile/card#me`.
+ */
+export async function discoverWebId(
+  issuer: string,
+  email: string,
+  password: string,
+): Promise<string> {
+  const login = await (await fetch(`${issuer}/.account/login/password/`, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ email, password }),
+  })).json();
+  const accountToken: string = login.authorization;
+  if (!accountToken) throw new Error(`CSS account login failed for ${email}`);
+  const auth = { Authorization: `CSS-Account-Token ${accountToken}` };
+  const acct = await (await fetch(`${issuer}/.account/`, { headers: auth })).json();
+  const webIdControl: string | undefined = acct?.controls?.account?.webId;
+  if (!webIdControl) throw new Error("CSS account API exposes no webId control");
+  const doc = await (await fetch(webIdControl, { headers: auth })).json();
+  const webIds = Object.keys(doc?.webIdLinks ?? {});
+  if (webIds.length === 0) throw new Error(`CSS account ${email} has no linked WebID`);
+  return webIds[0];
+}
+
+/**
  * Authenticate `email`/`password` against `issuer` (CSS) and return a session-like
  * object whose `fetch` carries a DPoP-bound access token.
  */

@@ -1,4 +1,4 @@
-import { expect, type Page, test } from "@playwright/test";
+import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login, LOGIN_HEADING } from "../helpers/login.ts";
 
 /**
@@ -16,6 +16,11 @@ import { account, hasAccount, login, LOGIN_HEADING } from "../helpers/login.ts";
  */
 
 const ACC = account("A");
+// A WebID to seed the Contacts address book before its screenshot. Prefer a
+// configured account's WebID (resolves to a real name/avatar); fall back to the
+// handbuch's example WebID so the figure still shows a populated list.
+const CONTACT_WEBID = account("B").webId || ACC.webId ||
+  "https://maxmustermann.solidcommunity.net/profile/card#me";
 const OUT = "docs/figures";
 // Account A is solidcommunity.net (behind Cloudflare). Each step here is a burst
 // of Pod requests; a cooldown after every screenshot lets the rate limit relax
@@ -25,6 +30,12 @@ const COOLDOWN_MS = 16_000;
 async function shot(page: Page, name: string) {
   await page.screenshot({ path: `${OUT}/${name}`, animations: "disabled" });
   await page.waitForTimeout(COOLDOWN_MS);
+}
+
+/** Screenshot a single element (a focused figure), then the same cooldown. */
+async function shotOf(locator: Locator, name: string) {
+  await locator.screenshot({ path: `${OUT}/${name}`, animations: "disabled" });
+  await locator.page().waitForTimeout(COOLDOWN_MS);
 }
 
 test.describe("handbuch screenshots", () => {
@@ -53,6 +64,26 @@ test.describe("handbuch screenshots", () => {
 
     await login(page, ACC);
 
+    // --- Seed a company logo so the producer's building marker shows it on the
+    //     map (the "Daten ansehen" figure, map-tabs.png, demonstrates the
+    //     logo-marker feature). We upload the app's own mark (public/favicon.svg)
+    //     as account A's org logo; a building added below attributes its
+    //     provenance to A, so its marker resolves this logo. ---
+    await page.getByRole("button", { name: "Account menu" }).click();
+    await page.getByRole("menuitem", { name: /organisation/i }).click();
+    const orgDialog = page.getByRole("dialog");
+    await expect(orgDialog).toBeVisible({ timeout: 30_000 });
+    await orgDialog.locator('input[type="file"]').setInputFiles("public/favicon.svg");
+    await expect(orgDialog.getByAltText("Organisation logo"))
+      .toBeVisible({ timeout: 15_000 });
+    await orgDialog.getByRole("button", { name: /^save$/i }).click();
+    await expect(page.getByText(/organisation saved/i))
+      .toBeVisible({ timeout: 60_000 });
+    // Dismiss the toast so it doesn't linger into the next (room) screenshot.
+    await page.getByRole("alert").getByRole("button", { name: /close/i }).click()
+      .catch(() => {});
+    await page.waitForTimeout(1000);
+
     // --- Meet: be in a room with a role (seeds an empty Pod so the rest of the
     //     app has something to show) ---
     await page.getByRole("tab", { name: "Connect" }).click();
@@ -80,6 +111,19 @@ test.describe("handbuch screenshots", () => {
     // (unrelated) Manage screenshots.
     await page.getByRole("alert").getByRole("button", { name: /close/i }).click()
       .catch(() => {});
+
+    // --- Contacts: seed one address-book entry, then capture the Contacts
+    //     section at the top of the Connect tab. The list is otherwise empty on
+    //     a fresh Pod, so the figure would read "No contacts yet". ---
+    await page.getByLabel("WebID").fill(CONTACT_WEBID);
+    await page.getByRole("button", { name: "Add contact" }).click();
+    await expect(page.getByRole("list", { name: "Contacts" }))
+      .toBeVisible({ timeout: 30_000 }).catch(() => {});
+    await page.getByRole("alert").getByRole("button", { name: /close/i }).click()
+      .catch(() => {});
+    await page.waitForTimeout(1000);
+    await page.evaluate(() => globalThis.scrollTo(0, 0));
+    await shot(page, "contacts.png");
 
     // --- Data: seed one building (only if none yet) so Share/View/Views have
     //     data; the Add Building dialog now lives on the Manage tab ---
@@ -128,6 +172,16 @@ test.describe("handbuch screenshots", () => {
     await page.waitForTimeout(500);
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "share-building.png");
+
+    // --- Manage row actions: a focused shot of one building row showing the
+    //     per-building actions (edit / files / energy year / share / download /
+    //     delete) — the subject of "Gebäude bearbeiten, Dateien … und löschen" ---
+    const buildingRow = page.locator("li").filter({
+      has: page.getByRole("button", { name: "Share building data" }),
+    }).first();
+    await buildingRow.scrollIntoViewIfNeeded().catch(() => {});
+    await page.waitForTimeout(300);
+    await shotOf(buildingRow, "manage-actions.png");
 
     // --- Energy-year dialog: the per-year consumption form (Soll/Ist), opened
     //     from a building's "Add or edit energy year" row action ---

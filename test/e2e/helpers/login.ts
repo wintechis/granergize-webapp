@@ -116,10 +116,22 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
   await user.fill(acc.email);
   await page.locator('input[type="password"], input[name="password"]').first()
     .fill(acc.password);
-  await page.getByRole("button", { name: /log ?in|sign ?in|anmelden/i }).first()
-    .click();
+  // Anchor the submit-button name: JSS's IdP renders "Sign in with Passkey" /
+  // "Sign in with Schnorr" SSO buttons *before* the credential form, and an
+  // unanchored /sign ?in/ would match those first and trigger a WebAuthn dance
+  // that never completes. Anchoring to the exact verb still matches CSS/NSS
+  // ("Log in" / "Sign In").
+  await page.getByRole("button", { name: /^(log ?in|sign ?in|anmelden)$/i })
+    .first().click();
 
-  // CSS ("Pivot") consent page — Authorize button; a few redirects to appear.
+  // JSS interstitial: after credentials, a seeded account (no passkeys, prompt
+  // not dismissed) sees a "register a passkey?" page *before* consent. Skip it.
+  // No-op on CSS/NSS (button absent).
+  await page.getByRole("button", { name: /skip for now/i }).first()
+    .click({ timeout: 10_000 }).catch(() => {});
+
+  // CSS ("Pivot") consent page — Authorize button; JSS — "Allow Access"; a few
+  // redirects to appear.
   const authorize = page.getByRole("button", {
     name: /authorize|consent|allow|continue|zustimmen|erlauben/i,
   });

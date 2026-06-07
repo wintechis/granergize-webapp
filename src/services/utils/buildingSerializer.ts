@@ -677,6 +677,12 @@ export async function deleteBuilding(
   await deleteContainerRecursive(`${fileUri.replace(/\.ttl$/, "")}/`, session)
     .catch((err) => logError("delete building energy container", err));
 
+  // Delete the file directly — NOT its .acl first. Removing a resource's .acl
+  // before the resource would briefly fall it back to the container's (possibly
+  // more permissive) inherited ACL — a TOCTOU exposure window. The owner-lockout
+  // that motivated such a "recovery" is prevented at the source now (a revoke
+  // never strips the owner's Control; see sharingManager.removeFromACL), so a
+  // normal delete keeps the owner's authorization and just works.
   const res = await session.fetch(fileUri, { method: "DELETE" });
   if (!res.ok && res.status !== 404) {
     throw new Error(`Failed to delete building (HTTP ${res.status})`);

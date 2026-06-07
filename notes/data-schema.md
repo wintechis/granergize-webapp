@@ -4,7 +4,8 @@ What a building's provenance means, how the graph shape varies by producer, and 
 the app dispatches on the data's own shape (not on a "role"). The imperative parsers
 (`buildingParser.ts`, `energyDataParser.ts`, `userEnergyParser.ts`) are the source of
 truth for those shapes. Membership roles are a separate concept — see
-[`room.md`](./room.md).
+[`room.md`](./room.md). Companion to [`data-layout.md`](./data-layout.md) (where these
+files live) and [`energy-model.md`](./energy-model.md) (the energy graph).
 
 ## Three things `UserRole` is reused for
 
@@ -29,7 +30,7 @@ Category ↔ IRI maps live in `constants/roles.ts` (`PROVENANCE_TO_IRI` /
 `IRI_TO_PROVENANCE`): `dummy`→`gran:DummyRole`, `investor`→`gran:InvestorRole`,
 `user`→`gran:UserRoleInstance`, `benchmark_service_provider`→`gran:BenchmarkRole`.
 
-## Provenance comes from the WebID profile (resolved 2026-06-05)
+## Provenance comes from the WebID profile
 
 A building's provenance is **set once per user in the WebID profile**, not chosen at add
 time — closing PROBLEMS.md #1 / Handbuch HW5. The decisions:
@@ -74,7 +75,7 @@ from the shared file.
   them. No role gate.
 - **Energy load + render** — keyed on the dataset's declared `gran:granularity`
   (`isSeriesGranularity()`, `durationUtils.ts`) and on the presence of `annualData`,
-  never on a role. The dataset model is owned by [`energy-redesign.md`](./energy-redesign.md).
+  never on a role. The dataset model is owned by [`energy-model.md`](./energy-model.md).
 
 Code: `TurtleParsingService.ts` (granularity skip-prefetch), `durationUtils.ts`,
 `energyDataParser.ts`; `ExplorePage.tsx` / `Building.tsx` rendering.
@@ -158,67 +159,73 @@ single source: one row per field (`{ field, iri, kind, type }`), from which
 `BuildingType` from SHACL/ShEx, or an RDF-object mapper like LDO/LDkit) stay out of
 scope.
 
-## ShEx cannot be the primary discriminator
+## Rejected: shape detection as the discriminator
 
-- Shapes overlap on `<BuildingCore>`; open shapes match several roles, closed
-  shapes reject routinely-partial data.
-- **User and dummy are indistinguishable at the building-file level** — both are
-  core + `gran:hasEnergyConsumptionDataset`, diverging only in the referenced energy
-  file's content, so the role is unrecoverable from the building file alone.
-- Fetching used to be gated on role (lazy-load user, synthesize investor), decided
-  before the files are in hand. It now dispatches on the dataset's declared
-  `gran:granularity` (`isSeriesGranularity`), which *is* in hand from the building file,
-  so the discriminator problem is moot.
-- A ShEx match would be a structural guess that flips behaviour silently on sparse /
-  malformed data; the declared granularity is an explicit assertion instead.
+ShEx/role-inference was considered and dropped. Shapes overlap on `<BuildingCore>`
+(user and dummy are indistinguishable at the building-file level — both core +
+`gran:hasEnergyConsumptionDataset`), so a match would be a structural *guess* that
+flips behaviour silently on sparse/malformed data. Behaviour instead dispatches on
+the dataset's **declared** `gran:granularity` (`isSeriesGranularity`), an explicit
+assertion that's in hand from the building file. The earlier `roleDetection.ts` n3
+detector (`detectBuildingRole`/`detectEnergyShape`/`resolveRole`) was never wired in
+and is removed; shapes are now needed at most to *validate* declared data.
 
-The old recommendation to "keep the source role authoritative" no longer applies: role
-is now provenance only, and behaviour keys on granularity, so shapes are needed at most
-to validate declared data.
+## Role is decoupled from shape
 
-## Detector vs. shapes (removed)
+Energy load, synthesis, and render dispatch on the **data's declared
+shape/granularity**, never on a role. The producer category is **provenance only**
+(`BuildingType.provenance` / `attributedTo`). Concretely:
 
-An earlier `roleDetection.ts` encoded the same signatures as an n3 detector
-(`detectBuildingRole`, `detectEnergyShape`, `resolveRole`) for a "validate +
-infer-on-missing" flow. Never wired in and now removed; the only surviving behaviour
-(the load-strategy split below) is `isSeriesGranularity` in `durationUtils.ts`.
+- Datasets declare `gran:granularity` on write (`buildingSerializer.ts`; user series →
+  `"PT15M"`).
+- Load strategy follows granularity via `isSeriesGranularity()` (`durationUtils.ts`):
+  the prefetch-skip in `TurtleParsingService.ts` keys purely on the declared period
+  (series ⇒ lazy; no granularity ⇒ non-series).
+- Inline-aggregate energy synthesis keys on **presence of `annualData`**, not
+  `role === "investor"` (so benchmark inline data is covered too).
+- `Building.tsx` renders investor/bench predicates whenever present
+  (`hasInvestorDetails`), with no role gate.
+- `ExplorePage.tsx` / `Energy.tsx` dispatch on `annualData` (annual chart) vs. a
+  declared series granularity (time-series `Energy`).
 
-## Decouple role from shape (DONE)
+The reason for the split: one "role" used to overload three independent things —
+building predicate set, energy graph shape + load strategy, and provenance — which
+breaks on real data where two actors in the *same* role carry *different* shapes (both
+BLG and Zufall are "user", but Zufall supplies quarter-hourly load profiles where we
+otherwise model annual consumption; even one actor has buildings at different
+granularities). Energy is therefore unified onto one self-describing `gran:EnergyDataset`
+node that declares its own period (`gran:granularity`, an `xsd:duration`), so a building
+carries annual *and* 15-min datasets regardless of role and the loader switches on the
+period. That dataset model is owned by [`energy-model.md`](./energy-model.md).
 
-> **Status (current).** Energy load, synthesis, and render dispatch on the **data's
-> declared shape/granularity**, not on a role. The producer category is now
-> **provenance only** (`BuildingType.provenance` / `attributedTo`):
-> - Datasets declare `gran:granularity` on write (`buildingSerializer.ts`;
->   user series → `"PT15M"`).
-> - Load strategy follows granularity via `isSeriesGranularity()`
->   (`durationUtils.ts`): the prefetch-skip in `TurtleParsingService.ts` keys purely
->   on the declared period (series ⇒ lazy; no granularity ⇒ non-series).
-> - Inline-aggregate energy synthesis keys on **presence of `annualData`**, not
->   `role === "investor"` (so benchmark inline data is covered too).
-> - `Building.tsx` renders investor/bench predicates whenever present
->   (`hasInvestorDetails`), with no role gate.
-> - `ExplorePage.tsx` / `Energy.tsx` dispatch on `annualData` (annual chart) vs. a
->   declared series granularity (time-series `Energy`).
->
-> Still open: naming first-class dataset-shape *types* and publishing a real vocab
-> (see "Open vocab question"); these stayed out of scope.
+## Import / export templates (XLSX)
 
-### Historical note: how the decoupling landed
+The **third** meaning of role (above): the spreadsheet *shape* used to bulk-import and
+export buildings. This is purely a serialization concern — it picks an XLSX layout, and
+is independent of provenance (which comes from the profile) and of data-shape dispatch.
+Three committed templates (partner-derived spreadsheets, anonymized but keeping the
+column structure) cover the categories: an **investor** row-label layout (field labels
+down one column, a building per column), a **benchmark** column-header layout (German
+headers), and a **user** 15-minute load-profile series. A generic fallback uses the
+`BuildingType` field names as headers.
 
-The original motivation: one "role" overloaded three independent things — building
-**predicate set**, energy **graph shape** + load strategy, and **provenance** — which
-broke on real data where two actors in the *same* role carry *different* shapes (e.g.
-both BLG and Zufall are "user", but Zufall supplies quarter-hourly load profiles while
-we otherwise model annual consumption; even one actor has buildings at different
-granularities). The fix unified all energy onto **one self-describing
-`gran:EnergyDataset` node that declares its own period** (`gran:granularity`, an
-`xsd:duration`, is the value the loader switches on), so a single building can carry
-annual *and* 15-min datasets regardless of role, and load strategy follows the period
-rather than the role. That dataset model is owned by
-[`energy-redesign.md`](./energy-redesign.md).
+**Import** dispatches on the chosen template to read its layout, normalizes cells
+(German `Ja`/`Nein` booleans, comma/percent numbers, enum coercion), and produces one
+flat field map per building — annual figures as per-year energy fields, a load profile
+as parsed readings. From there the **normal write path** takes over (no import-specific
+storage): the energy fields become `gran:EnergyDataset` resources, and the building file
+is serialized and PUT, with provenance stamped from the profile's category — i.e. import
+is just "fill the same fields a manual edit would," then write.
 
-Still open (out of scope): publishing a real, dereferenceable vocab for the
-dataset-shape terms (see "Open vocab question" under FAU resources below).
+**Export** is the inverse, and one subtlety drives it: since energy is no longer inline
+in the building file, the exporter first **fetches each building's annual datasets and
+re-attaches them** to the in-memory building so the (synchronous) workbook build has the
+figures. The sheet shape is chosen by the building's **provenance** category (the same
+three layouts, plus a flat one-row-per-building form for multi-building export, where
+mixed categories coexist as sparse columns and all re-import via the generic path).
+
+Spreadsheets are read/written with the `xlsx` (SheetJS) library, pinned at **0.18.5** (a
+SheetJS-CDN upgrade was declined for licensing — see CLAUDE.md / project notes).
 
 ## Relation to Real Estate Core (REC)
 
@@ -280,9 +287,13 @@ and the app would still work. They are *not* "static files" the app loads:
 These are a **shared contract**: changing a prefix only matters because producers
 serialize the same IRIs (`buildingSerializer.ts`) and the parser matches them
 (`buildingConfig.ts`). "Removing" them = minting your own vocabulary IRIs and
-re-keying both sides; it's not a file fetch to cut, it's an ontology decision. They
-live under `/private/` and aren't publicly resolvable today — a real cleanup would
-publish a dereferenceable vocab, independent of the app.
+re-keying both sides; it's not a file fetch to cut, it's an ontology decision.
+
+The ontologies themselves are versioned in [`vocab/`](../vocab/) — the repo is their
+source of truth (one document per namespace), and `vocab.test.ts` asserts every owned
+field-schema predicate, object-property range, and controlled-vocab instance is defined
+there, so the code and the published vocab can't drift. The documents on the Pod (under
+`/private/`) are a publish target; the app never fetches them at runtime.
 
 ### B. Demo data — offered, not auto-seeded
 
@@ -293,14 +304,3 @@ Gasse 20, Nürnberg) carrying energy at *different granularities* (one annual ag
 one PT15M series) so a new user immediately sees both shapes the app dispatches on. Pod
 layout, own-building discovery, and the banner mechanics are owned by
 [`data-layout.md`](./data-layout.md).
-
-## Files
-
-`types/types.ts` (`UserRole`, `BuildingType`, `geocodePrecision`);
-`config/buildingConfig.ts` (predicate → field maps); `buildingParser.ts`;
-`buildingSerializer.ts` (`addGeoPoint`, `addProvenance`, `seedDemoBuildings`);
-`energyDataset.ts` (unified dataset read/write); `energyDataParser.ts`;
-`userEnergyParser.ts`; `durationUtils.ts` (`isSeriesGranularity` load split);
-`vocabularies.ts` (the `*_NS` prefixes above);
-`TurtleParsingService.ts` (own-building listing, shared-in folding, granularity
-orchestration, `useDemoSeedPrompt`); [`room.md`](./room.md) (membership role).

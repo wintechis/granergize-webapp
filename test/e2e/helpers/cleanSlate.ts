@@ -5,24 +5,50 @@ import { logRun } from "./consoleLog.ts";
 /**
  * Per-spec clean-slate utilities, both tiers.
  *
- * The invariant we want each spec to uphold: it cleans up after itself, and the
- * NEXT spec starts from an empty app collection. These helpers make that explicit
- * and visible in the per-run console log:
- *  - {@link logCollectionState} records what the collection holds at a checkpoint
- *    (end of a spec) — residue means the spec's own cleanup didn't fully work, and
- *    is flagged with a greppable RESIDUE marker rather than failing the run (some
- *    specs intentionally leave demo seeds; the wipe below still guarantees the next
- *    spec is clean).
- *  - {@link wipeCollection} drives the app's dev-mode "Remove all app data" action
- *    (the exact auth+delete path the app uses — same as maintenance/reset.spec.ts)
- *    to remove the whole `VITE_POD_APP_DIR` collection, then optionally reloads so
- *    login re-provisions the inbox (which lives UNDER the collection, so the wipe
- *    removes it too — a reload is required before any sharing can post to it again).
+ * Unified across solo and sharing specs:
+ *  - START: {@link assertCleanStart} ASSERTS the collection is empty (a check, not
+ *    a wipe — the clean start is free: a Tier-4 run gets a fresh per-run
+ *    `granergize-e2e-<uuid>`, Tier 3 restarts its throwaway CSS per spec file).
+ *  - END: {@link verifyAndReset} (solo, one pod) / {@link verifyAndResetBoth}
+ *    (sharing, both pods) WIPE so nothing is left behind — the next spec starts
+ *    empty and a run removes its whole collection container from the Pod(s).
  *
- * Tier 3 already restarts CSS per spec file, so its clean START is guaranteed; the
- * value there is the end-of-spec residue check. Tier 4 (real Pods) relies on the
- * wipe for both the check and the clean start.
+ * The two ends bracket each spec: if a spec's end-wipe fails, the NEXT spec's
+ * start-assertion catches it with a clear message, instead of confusing downstream
+ * failures. Helpers:
+ *
+ *  - {@link logCollectionState} records what the collection holds just before the
+ *    wipe — residue (a greppable RESIDUE marker) means the spec's own in-flow
+ *    cleanup (deletes/revokes) didn't fully work; it's logged, not failed (some
+ *    specs intentionally leave demo seeds, and the wipe cleans up regardless).
+ *  - {@link wipeCollection} drives the app's dev-mode "Remove all app data" action
+ *    (the exact auth+delete path the app uses) to remove the whole
+ *    `VITE_POD_APP_DIR` collection. `reload` re-provisions the inbox (which lives
+ *    UNDER the collection) for a page that keeps being used; omit it at end-of-spec
+ *    since the page is about to close (the next spec's fresh login re-provisions).
+ *  - {@link verifyAndReset} / {@link verifyAndResetBoth} are the end-of-spec
+ *    teardowns for solo (one pod) and sharing (both pods).
  */
+
+/**
+ * Start-of-spec precondition: ASSERT the logged-in account's collection is empty,
+ * failing loudly if not. A Tier-4 run's per-run `granergize-e2e-<uuid>` is fresh and
+ * every spec wipes at the end, so residue here means the PREVIOUS spec's teardown
+ * didn't complete — catching that up front keeps later errors interpretable (instead
+ * of confusing "already exists" / stale-data failures deeper in the spec).
+ */
+export async function assertCleanStart(page: Page, tag = ""): Promise<void> {
+  await page.getByRole("tab", { name: "Manage" }).click();
+  await page.waitForLoadState("networkidle").catch(() => {});
+  const buildings = await buildingRows(page).count();
+  const views = await page.getByRole("button", { name: /open view/i }).count();
+  logRun(`clean-slate start [${tag}]: buildings=${buildings} views=${views}`);
+  expect(
+    buildings + views,
+    `${tag}: expected an empty collection at start (the previous spec's teardown ` +
+      `should have wiped it); found ${buildings} building(s) + ${views} view(s)`,
+  ).toBe(0);
+}
 
 /** Count what the logged-in account's collection currently surfaces, and log it. */
 export async function logCollectionState(page: Page, tag: string): Promise<void> {
@@ -85,9 +111,9 @@ export async function wipeCollection(
 }
 
 /**
- * End-of-spec teardown for the solo specs (one persistent page): record residue
- * (cleanup check) then wipe so the next spec starts empty. The page is closed by
- * the caller afterwards, so no reload is needed.
+ * End-of-spec teardown for a SOLO spec (one pod): record residue (cleanup check)
+ * then wipe so the run leaves nothing behind and the next spec starts empty. The
+ * page is closed by the caller afterwards, so no reload is needed.
  */
 export async function verifyAndReset(page: Page, tag: string): Promise<void> {
   // afterAll's default budget is 30s; a recursive remote delete can exceed it.
@@ -97,16 +123,18 @@ export async function verifyAndReset(page: Page, tag: string): Promise<void> {
 }
 
 /**
- * Clean-START for a sharing test: wipe BOTH roles' collections right after they log
- * in and BEFORE any sharing, reloading each so its inbox is re-provisioned (the
- * inbox lives under the collection). Guarantees each sharing test starts from two
- * empty pods regardless of what the previous test/run left.
+ * End-of-spec teardown for a SHARING spec (both pods): same as {@link verifyAndReset}
+ * but wipes A and B so neither Pod accumulates residue across runs. A's page is the
+ * one driven through the test; B's per-step contexts are closed mid-flow, so the
+ * caller opens a fresh B page for this. Both pages close right after, so no reload.
  */
-export async function freshSlateBoth(
+export async function verifyAndResetBoth(
   aPage: Page,
   bPage: Page,
   tag: string,
 ): Promise<void> {
-  await wipeCollection(aPage, { reload: true, tag: `${tag}:A` });
-  await wipeCollection(bPage, { reload: true, tag: `${tag}:B` });
+  test.setTimeout(300_000);
+  await logCollectionState(aPage, `${tag}:A`);
+  await wipeCollection(aPage, { tag: `${tag}:A` });
+  await wipeCollection(bPage, { tag: `${tag}:B` });
 }

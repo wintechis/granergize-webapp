@@ -8,7 +8,7 @@ failure class (data-layer → UI → provider interop):
 - **Tier 2 — headless** (`deno task it`): real data-layer fns over a throwaway local
   CSS, two actors A/B, no creds (`test/headless/`).
 - **Tier 3 — browser e2e, local** (`deno task e2e:local`): full UI + OIDC against the
-  same local CSS, credential-free, prod build (`E2E_LOCAL=1`, `E2E_PREVIEW=1`).
+  same local CSS, credential-free, prod build (`E2E_LOCAL=1`).
 - **Tier 4 — browser e2e, remote** (`deno task e2e:remote`): the same specs against
   real Pods; `source` a `test/.env.e2e.*.local` creds file first.
 
@@ -23,11 +23,12 @@ deno task test                                          # Tier 1
 deno task it                                            # Tier 2 (no creds)
 deno task e2e:local [test/e2e/tasks/<spec>.spec.ts]     # Tier 3 (no creds)
 source test/.env.e2e.local && deno task e2e:remote      # Tier 4 (real Pods)
-source test/.env.e2e.local && deno task e2e:remote:reset  # wipe A + B
 ```
 
-Tier-4 writes to a throwaway collection (`VITE_POD_APP_DIR=granergize-e2e`), runs
-serial (`workers: 1`), and aborts on a Cloudflare 1015 rate-limit. Tier 3 has a known
+Tier-4 writes to a throwaway, **per-run** collection (`granergize-e2e-<uuid>`,
+generated in `playwright.config.ts`) so leftover/stuck resources from an earlier run
+can't impede a fresh one — there is no reset step. It runs serial (`workers: 1`) and
+aborts on a Cloudflare 1015 rate-limit. Tier 3 has a known
 intermittent **local-CSS JWKS boot race** (a freshly-booted CSS transiently 401s a
 DPoP token until its key set warms) — not an app bug; mitigated by a boot warmup and
 bounded retries.

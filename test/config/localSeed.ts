@@ -34,7 +34,9 @@ export const LOCAL_SEED: Record<"A" | "B", LocalSeedAccount> = {
   B: { email: "b@test.local", password: "bob-pw-12345", pod: "bob" },
 };
 
-/** The browser-OIDC provider for the booted local CSS (login via the CSS UI). */
+/** The browser-OIDC provider for the booted local Pod server. Backend-agnostic: the
+ * login constructs no WebID — the app reads the authoritative one from the session's
+ * `webid` claim after login (tests read it via `webIdOf`). */
 export function localBrowserProvider(): PodProvider {
   return localProvider(LOCAL_CSS_BASE, "browser-oidc");
 }

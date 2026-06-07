@@ -1,4 +1,5 @@
 import { defineConfig, devices } from "@playwright/test";
+import { randomUUID } from "node:crypto";
 import { LOCAL_APP_PORT } from "./test/config/localSeed.ts";
 
 /**
@@ -9,26 +10,52 @@ import { LOCAL_APP_PORT } from "./test/config/localSeed.ts";
  * (deno test) and 2 (deno task it) are separate. `login.spec.ts` runs with no creds;
  * credentialed (Tier-4) specs self-skip.
  */
-const CI = !!process.env.CI;
 // Tier 3 (browser × local CSS): boot a throwaway CSS and run the specs against it,
 // credential-free (E2E_LOCAL=1, via `deno task e2e:local`). Off for real-Pod runs.
 const LOCAL = !!process.env.E2E_LOCAL;
-// Tier 3 serves the app on its OWN port (LOCAL_APP_PORT) so it can run concurrently
-// with a Tier-4 real-Pod run (which uses 4173) without a port clash.
-// `E2E_PORT` overrides either. Both webServer and baseURL key off this single value.
-const PORT = Number(process.env.E2E_PORT) || (LOCAL ? LOCAL_APP_PORT : 4173);
+// Tier 3 serves the app on LOCAL_APP_PORT; Tier 4 (real Pods) on 4173.
+const PORT = LOCAL ? LOCAL_APP_PORT : 4173;
 
-// Per-run artifact isolation. Playwright CLEARS its outputDir at the start of every
-// `playwright test` invocation, so running specs in separate invocations (as the
-// per-spec remote runs do) used to clobber the previous run's traces, report and
-// logs. Key every artifact off a per-run folder so each invocation keeps its own:
-// E2E_RUN=<label> pins a stable name (e.g. the spec under test); otherwise it
-// defaults to a timestamp, so nothing is ever overwritten. test-results is
-// gitignored; prune old folders when they pile up.
-const RUN = (process.env.E2E_RUN ||
-  new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19))
-  .replace(/[^\w.-]+/g, "_");
-const OUT = `test-results/${RUN}`;
+// Per-run id so successive runs of the SAME tier+backend don't overwrite each
+// other — Playwright wipes a test's output folder at the start of each run, so
+// without this you'd only ever keep the latest run. A second-resolution ISO 8601
+// UTC timestamp (not a UUID) so runs sort chronologically and "latest vs previous"
+// is obvious; override with E2E_RUN_ID to label a run (e.g. `before-fix`). Stamped
+// onto process.env so it's stable across the config's main + worker evaluations.
+// (`new Date()` is fine here — the config runs under Node via `npx playwright`.)
+// Colons are legal in paths on Linux; quote the dir in shell (e.g. show-report).
+if (!process.env.E2E_RUN_ID) {
+  process.env.E2E_RUN_ID = new Date().toISOString().replace(/\.\d+Z$/, "Z");
+}
+const RUN_ID = process.env.E2E_RUN_ID;
+
+// Artifacts (traces, attachments) go to a tier+backend+run scoped folder so
+// `test-results/` stays interpretable and independent: a Tier-3 run never
+// intermingles with a Tier-4 run; a CSS run never overwrites a JSS run (both use
+// the same `local` project → identical leaf paths); and a re-run never clobbers
+// the prior run of the same config.
+//   Tier 4 (real Pods)      → test-results/tier-4/<run>
+//   Tier 3 local CSS / JSS  → test-results/tier-3-css/<run> | tier-3-jss/<run>
+//   bench                   → test-results/bench-css/<run> | bench-jss/<run>
+const BACKEND = process.env.LOCAL_POD_SERVER === "jss" ? "jss" : "css";
+const SCOPE = process.env.E2E_BENCH
+  ? `bench-${BACKEND}`
+  : LOCAL
+  ? `tier-3-${BACKEND}`
+  : "tier-4";
+const RESULTS_DIR = `test-results/${SCOPE}/${RUN_ID}`;
+
+// Tier 4 (real Pods): write each run to a UNIQUE app collection
+// (`granergize-e2e-<uuid>`) so leftover/stuck resources from an earlier run — e.g.
+// a Pod request that hung mid-cleanup — can never impede a fresh run; there is no
+// reset step to depend on. Set here so the dev server (started below) bakes it into
+// the app, and the value is read at server start (`reuseExistingServer: false` for
+// Tier 4 so each run gets its own segment). Tier 3 keeps a fixed segment baked at
+// build time (its throwaway local CSS is wiped per spec). An explicit
+// VITE_POD_APP_DIR always wins — set it to target a specific collection.
+if (!LOCAL && !process.env.VITE_POD_APP_DIR) {
+  process.env.VITE_POD_APP_DIR = `granergize-e2e-${randomUUID()}`;
+}
 
 const CHROME = { ...devices["Desktop Chrome"] };
 const SOLO_SPECS = [
@@ -54,32 +81,36 @@ const SHARING_SPECS = [
 
 export default defineConfig({
   testDir: "./test/e2e",
-  fullyParallel: false,
-  // Serial. Fanning spec files across workers logs into the SAME Pod host
-  // concurrently, which trips Cloudflare throttling (429/503 as CORS, mid-test OIDC
-  // re-auth, multi-minute timeouts). The two roles (A/B) run their specs in sequence.
+  // Per-test traces go in a `traces/` subdir of the per-run dir, so the HTML report
+  // can sit beside them as a sibling `html/` — Playwright errors if the HTML output
+  // folder is inside (or contains) outputDir. Tier+backend+run scoped (see above).
+  outputDir: `${RESULTS_DIR}/traces`,
+  // Serial (1 worker → no cross- or in-file parallelism). Fanning spec files across
+  // workers logs into the SAME Pod host concurrently, which trips Cloudflare throttling
+  // (429/503 as CORS, mid-test OIDC re-auth, multi-minute timeouts); the local tier
+  // also shares ONE CSS with a per-spec /reset, so parallel workers would race it. The
+  // two roles (A/B) run their specs in sequence.
   workers: 1,
-  forbidOnly: CI,
-  retries: CI ? 1 : 0,
-  // `list` for output; `cf1015Reporter` aborts the whole run the instant a Pod host
-  // behind Cloudflare answers Error 1015 (rate limited), so we don't grind through
-  // every remaining spec's retries/timeouts against a tripped limiter.
+  retries: 0, // no retries: a flaky pass is a bug to fix, not to mask
+  // `list` → live stdout (ephemeral). `html`/`json` persist a durable record into the
+  // per-run dir: `html/` is browsable (`npx playwright show-report <dir>/html`),
+  // `report.json` is the machine-readable index (each test's id/title/file:line/status +
+  // its trace `attachments[].path`) — so the opaque artifact-folder hash is resolvable to
+  // a test and runs are diffable. Both emit on every run (pass or fail). `cf1015Reporter`
+  // aborts the instant a Cloudflare-fronted Pod answers Error 1015 (rate limited) — note a
+  // 1015 abort calls process.exit before onEnd, so it leaves no html/json (only real Pods).
   reporter: [
     ["list"],
-    // Persist each run's results + a browsable report into its own folder (see RUN
-    // above), so logs/traces survive across the per-spec invocations instead of the
-    // next run wiping them. Open with `npx playwright show-report <OUT>/report`.
-    // Report + JSON live OUTSIDE outputDir (the HTML reporter clears its own folder,
-    // so it must not sit inside the traces folder). Siblings keyed by the same RUN.
-    ["json", { outputFile: `test-results/${RUN}.results.json` }],
-    ["html", { outputFolder: `playwright-report/${RUN}`, open: "never" }],
+    ["html", { outputFolder: `${RESULTS_DIR}/html`, open: "never" }],
+    ["json", { outputFile: `${RESULTS_DIR}/report.json` }],
     ["./test/e2e/cf1015Reporter.ts"],
   ],
-  // Traces/screenshots for this run live under the same per-run folder.
-  outputDir: OUT,
   use: {
     baseURL: `http://localhost:${PORT}`,
-    trace: "on-first-retry",
+    // Capture a trace for every test and keep it on failure — so the FIRST failure
+    // always yields a trace, no retry needed (unlike `on-first-retry`, which writes
+    // nothing on a retries=0 run).
+    trace: "retain-on-failure",
   },
   /**
    * Specs split into functional projects. The two roles are A = Alice and B = Bob;
@@ -91,18 +122,12 @@ export default defineConfig({
    *                creds (only present when E2E_LOCAL=1; the seeded A/B pods
    *                interoperate, so sharing runs in-browser too). `deno task e2e:local`.
    * `deno task e2e:remote` runs solo + sharing; `e2e:remote:spec --project=<name>`
-   * (or a spec path) selects one. `support`/`reset` are excluded from the full run.
+   * (or a spec path) selects one. `support` is excluded from the full run.
    */
   projects: [
     { name: "solo", use: CHROME, testMatch: SOLO_SPECS },
     { name: "sharing", use: CHROME, testMatch: SHARING_SPECS },
     { name: "support", use: CHROME, testMatch: ["**/support/**/*.spec.ts"] },
-    // Maintenance: wipe the e2e app collection for both roles. DESTRUCTIVE, so it
-    // exists ONLY when E2E_RESET is set (which `deno task e2e:remote:reset` does) —
-    // otherwise a no-project run could pick it up and wipe data. `--project=reset`.
-    ...(process.env.E2E_RESET
-      ? [{ name: "reset", use: CHROME, testMatch: ["**/maintenance/reset.spec.ts"] }]
-      : []),
     // Gated on E2E_LOCAL so the default/real-Pod runs don't re-run these specs
     // (they'd duplicate solo+sharing). Selected via `--project=local`.
     ...(LOCAL
@@ -115,18 +140,21 @@ export default defineConfig({
       ? [{ name: "bench", use: CHROME, testMatch: ["**/bench/**/*.spec.ts"] }]
       : []),
   ],
-  // Always the Vite app; plus the throwaway CSS when running the local tier. Both
-  // reuse an already-running instance locally so parallel invocations don't race.
+  // Always the Vite app; plus the throwaway CSS when running the local tier.
   webServer: [
     {
-      // E2E_PREVIEW serves the production build (`deno task build` first) instead
-      // of the dev server — rules out Vite-dev/HMR artifacts (e.g. the local tier's
-      // write-abort investigation) and is the more CI-correct substrate.
-      command: process.env.E2E_PREVIEW
+      // Tier 3 (local) serves the production build (`deno task build` runs first in
+      // the task) to rule out Vite-dev/HMR artifacts; Tier 4 (remote) uses the dev
+      // server. Keyed off LOCAL — no separate E2E_PREVIEW knob.
+      command: LOCAL
         ? `deno run -A npm:vite preview --port ${PORT} --strictPort`
         : `deno run -A npm:vite dev --port ${PORT} --strictPort`,
       url: `http://localhost:${PORT}`,
-      reuseExistingServer: !CI,
+      // Tier 4 must NOT reuse a server from a previous run: each run bakes its own
+      // unique VITE_POD_APP_DIR (above) into a freshly-started dev server, so reusing
+      // one would serve the wrong collection. Tier 3 serves a build with a fixed
+      // segment against a throwaway local CSS, so reuse is safe (and faster).
+      reuseExistingServer: LOCAL,
       timeout: 120_000,
     },
     ...(LOCAL
@@ -137,7 +165,7 @@ export default defineConfig({
         // guarantees CSS is ready AND the per-spec `/reset` endpoint is up (no
         // first-spec race against seeding or against the control server).
         url: "http://localhost:3457/",
-        reuseExistingServer: !CI,
+        reuseExistingServer: true,
         timeout: 90_000,
       }]
       : []),

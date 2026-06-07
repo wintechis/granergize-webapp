@@ -1,7 +1,12 @@
 /// <reference lib="deno.ns" />
 import assert from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { ensureOwnInbox, getRecipientInboxUrl, inboxFromLinkHeader } from "./inbox.ts";
+import {
+  ensureOwnInbox,
+  getRecipientInboxUrl,
+  inboxFromLinkHeader,
+  isMessageResource,
+} from "./inbox.ts";
 import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
 
 const WEBID = "https://b.example/profile/card#me";
@@ -89,6 +94,29 @@ Deno.test("inboxFromLinkHeader ignores unrelated Link relations", () => {
     inboxFromLinkHeader('<https://x/acl>; rel="acl", <https://y/>; rel="type"', WEBID),
     null,
   );
+});
+
+Deno.test("isMessageResource: real inbox messages are processed", () => {
+  const inbox = "https://b.example/granergize/inbox/";
+  for (
+    const u of [
+      `${inbox}d5653358-2c8f-4224-bbdc-8bb01923e887`, // server-minted POST name
+      `${inbox}grant-2026.ttl`,
+    ]
+  ) {
+    assert.equal(isMessageResource(u), true, u);
+  }
+});
+
+Deno.test("isMessageResource: auxiliary sidecars (.acl/.meta) are excluded", () => {
+  // Some servers (JSS) list a container's own auxiliaries in ldp:contains.
+  // Draining GETs + DELETEs each entry, so a stray `.acl` would delete the
+  // inbox's own access-control resource and silently revoke every sender's
+  // append grant — these must never be treated as messages.
+  const inbox = "https://b.example/granergize/inbox/";
+  for (const u of [`${inbox}.acl`, `${inbox}.meta`]) {
+    assert.equal(isMessageResource(u), false, u);
+  }
 });
 
 Deno.test("ensureOwnInbox: provisions inbox + ACL on a bare Pod and reports creation", async () => {

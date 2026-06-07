@@ -28,7 +28,7 @@ One thin wrapper sits on top: `fetchFresh(url, session)`
 (`src/services/utils/podFetch.ts`) — sets `cache: "no-cache"` (revalidate), so
 read-modify-write cycles see current state while a conditional `If-None-Match`
 can still come back `304` with no body. There is **no `?t=` cache-buster**: the
-URL stays stable so the HTTP cache / React Query can key on it.
+URI stays stable so the HTTP cache / React Query can key on it.
 
 All Pod requests are funnelled through `session.fetch`, wrapped once at login
 (`instrumentSessionFetch`, `networkActivity.ts`) so every dereference shows up in
@@ -45,7 +45,7 @@ Resolved once per session, then cached:
 2. **Storage root → fixed paths.** `podResources(webId)` returns every app path as
    `<root>granergize/…` (layout owned by [`data-layout.md`](./data-layout.md)). One
    tree; no per-call base munging.
-3. **Discover source URLs.** Own and shared buildings are discovered separately
+3. **Discover source URIs.** Own and shared buildings are discovered separately
    (`loadBuildingsAndAgents`, `src/services/TurtleParsingService.ts`):
    - *Own buildings* — `discoverOwnBuildings` **LISTS** the `buildings/` container
      and keeps the top-level `*.ttl` files (no registry: adding a building is a
@@ -55,7 +55,7 @@ Resolved once per session, then cached:
      `seedDemoBuildings`), so a fresh Pod loads empty until the user chooses.
    - *Shared buildings* — `listSharedBuildingSources` folds the `shared-in/` event
      log for `gran:kind gran:Building` grants (log owned by [`sharing.md`](./sharing.md)).
-     **These URLs may live on other Pods.**
+     **These URIs may live on other Pods.**
 4. **Fetch each source.** `loadTtlFromMultipleSources` fetches all sources
    **concurrently** (`Promise.all`). Inaccessible sources (403/404) are tolerated
    and pruned (a 403/404 shared source is dropped from `shared-in/` so it self-heals
@@ -70,10 +70,10 @@ log* to discover the document set to dereference.
 For every fetched Turtle file (`loadTtlFromMultipleSources`):
 
 - Parse with `new Parser({ baseIRI: url })` — **relative IRIs resolve against the
-  file's own URL**, the standard RDF dereference semantic.
-- Rewrite each quad so its **named graph = the source URL** — provenance: which
+  file's own URI**, the standard RDF dereference semantic.
+- Rewrite each quad so its **named graph = the source URI** — provenance: which
   file each triple came from.
-- **Scope blank nodes** by prefixing them with the source URL, so `_:obs0` from two
+- **Scope blank nodes** by prefixing them with the source URI, so `_:obs0` from two
   different files can't collide once merged.
 - Merge everything into one n3 `Store`.
 
@@ -136,7 +136,7 @@ LDP `POST` to a container (race-free by construction) instead of rewriting a fil
   is wrapped in **TanStack React Query** (`src/hooks/queries.ts`, `QueryProvider`):
   caching, dedup, `keepPreviousData`, centralised session-expiry/conflict handling.
   `fetchFresh` revalidates the *HTTP* cache for the underlying GETs (`cache:
-  "no-cache"`, so a `304` serves the stored body), keying on a stable URL; React
+  "no-cache"`, so a `304` serves the stored body), keying on a stable URI; React
   Query caches the *parsed result* in memory and refetches on invalidation. The
   two-phase load is two queries: `useBuildingsAndAgents` (map paints) → dependent
   `useEnergy`. Writes go through `useMutation` hooks (`src/hooks/mutations.ts`) that

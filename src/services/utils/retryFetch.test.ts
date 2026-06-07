@@ -91,6 +91,62 @@ Deno.test("withRetry: passes non-retryable responses straight through", async ()
   assert.equal(f.calls, 1);
 });
 
+/** A fetch that, for its first `stalls` calls, never sends a response on its own
+ * and only rejects when its signal aborts (exactly how the platform `fetch`
+ * behaves on a stalled connection); later calls succeed. */
+function stallingFetch(stalls: number) {
+  let calls = 0;
+  const fn = ((_input: unknown, init?: RequestInit) => {
+    calls++;
+    const n = calls;
+    return new Promise<Response>((resolve, reject) => {
+      if (n > stalls) {
+        resolve(new Response(null, { status: 201 }));
+        return;
+      }
+      init?.signal?.addEventListener(
+        "abort",
+        () => reject(new DOMException("aborted", "AbortError")),
+      );
+    });
+  }) as typeof fetch;
+  return { fn, get calls() {
+    return calls;
+  } };
+}
+
+Deno.test("withRetry: times out a stalled attempt and a fresh retry lands", async () => {
+  const f = stallingFetch(1); // first attempt hangs, second responds
+  const res = await withRetry(f.fn, { baseDelayMs: 0, maxRetries: 3, timeoutMs: 20 })(
+    "https://x/",
+    { method: "DELETE" },
+  );
+  assert.equal(res.status, 201);
+  assert.equal(f.calls, 2);
+});
+
+Deno.test("withRetry: gives up (throws) when every attempt stalls", async () => {
+  const f = stallingFetch(99); // always hangs
+  await assert.rejects(
+    () =>
+      withRetry(f.fn, { baseDelayMs: 0, maxRetries: 2, timeoutMs: 20 })("https://x/"),
+    DOMException,
+  );
+  assert.equal(f.calls, 3); // initial + 2 retries, none ever responded
+});
+
+Deno.test("withRetry: a caller cancel beats the timeout and is not retried", async () => {
+  const f = stallingFetch(99);
+  const ctrl = new AbortController();
+  const p = withRetry(f.fn, { baseDelayMs: 0, maxRetries: 3, timeoutMs: 10_000 })(
+    "https://x/",
+    { method: "DELETE", signal: ctrl.signal },
+  );
+  ctrl.abort(); // user cancels before the (long) timeout fires
+  await assert.rejects(() => p, DOMException);
+  assert.equal(f.calls, 1); // not retried
+});
+
 Deno.test("withRetry: honors Retry-After (seconds) without waiting long here", async () => {
   // baseDelayMs 0 but Retry-After present → uses Retry-After; keep it tiny so the
   // test stays fast (0s is valid).

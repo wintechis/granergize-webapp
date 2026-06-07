@@ -9,8 +9,7 @@
  *
  *   deno task it      (no credentials needed — local CSS, fixed creds)
  */
-import { getLiveSession, type LiveSessionLike } from "./liveSession.ts";
-import { type LocalCss, startLocalCss } from "./localCss.ts";
+import { type LiveSessionLike, type LocalPod, startLocalPod } from "./localPod.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { resolveStorageRoot } from "../../src/services/utils/solidUtils.ts";
 import { ensureOwnInbox } from "../../src/services/interop/inbox.ts";
@@ -39,20 +38,19 @@ const TASKS: TaskModule[] = [
 ];
 
 const harness = makeHarness();
-console.log("starting local CSS…");
-const css: LocalCss = await startLocalCss().catch((e): never => {
-  console.error(`\x1b[31mFAIL\x1b[0m — could not start local CSS:\n${e}`);
+console.log("starting local Pod server…");
+const pod: LocalPod = await startLocalPod().catch((e): never => {
+  console.error(`\x1b[31mFAIL\x1b[0m — could not start local Pod server:\n${e}`);
   return Deno.exit(1);
 });
-console.log(`local CSS up at ${css.baseUrl}`);
+console.log(`local Pod up at ${pod.baseUrl}`);
 
 let sA: LiveSessionLike | undefined;
 let sB: LiveSessionLike | undefined;
 try {
-  const issuer = css.baseUrl.replace(/\/$/, "");
   [sA, sB] = await Promise.all([
-    getLiveSession(issuer, css.A.email, css.A.password, css.A.webId),
-    getLiveSession(issuer, css.B.email, css.B.password, css.B.webId),
+    pod.liveSession("A"),
+    pod.liveSession("B"),
   ]);
   const sessionA = sA as unknown as Session;
   const sessionB = sB as unknown as Session;
@@ -76,13 +74,14 @@ try {
       await task.run(ctx);
     } catch (e) {
       harness.check(`${task.name} threw`, false, String(e).split("\n")[0]);
+      if (Deno.env.get("IT_STACK") && e instanceof Error) console.error(e.stack);
     }
   }
 } finally {
   console.log("\ncleanup");
   await sA?.dispose().catch(() => {});
   await sB?.dispose().catch(() => {});
-  await css.stop();
+  await pod.stop();
   console.log("  done");
 }
 

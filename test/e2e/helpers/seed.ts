@@ -10,8 +10,8 @@ import { expect, type Page } from "@playwright/test";
  * fresh-Pod "Add examples" onboarding banner — the only in-app seed path. It writes
  * one annual (investor) + one 15-min series (user) building. The banner is
  * suppressed once the demo offer was declined (gran:demoSeedDeclined in prefs), so a
- * real Pod in that state must be reset first (deno task e2e:remote:reset); a
- * freshly-wiped Pod always shows it.
+ * Pod in that state must be wiped first (the per-test clean-slate wipe); Tier 4's
+ * per-run `granergize-e2e-<uuid>` collection always starts fresh and shows it.
  *
  * After seeding it waits for the listing to *stabilise* — same count across a
  * short interval — rather than for a fixed number. The seed writes its buildings
