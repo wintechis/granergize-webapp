@@ -14,6 +14,7 @@ import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { shouldRestoreSession } from "../services/utils/sessionRestore.ts";
+import { logError } from "../services/utils/logError.ts";
 import { normalizeIssuer } from "../services/utils/normalizeIssuer.ts";
 
 interface LoginProps {
@@ -215,7 +216,8 @@ export const Login: React.FC<LoginProps> = ({
     let clientAuth: { issuer?: string } | null = null;
     try {
       if (raw) clientAuth = JSON.parse(raw);
-    } catch {
+    } catch (err) {
+      logError("parse stored auth session", err);
       // stored value is corrupt — ignore
     }
     // Auto-remember any newly-used identity provider (the CLEAR button forgets
@@ -235,7 +237,8 @@ export const Login: React.FC<LoginProps> = ({
     let host = targetIdp;
     try {
       host = new URL(targetIdp).host;
-    } catch {
+    } catch (err) {
+      logError("parse identity-provider URI for redirect label", err);
       // not a full URL yet — show what we have
     }
     setRedirectingTo(host);

@@ -48,6 +48,7 @@ import { isSeriesGranularity } from "./durationUtils.ts";
 import { PROVENANCE_TO_IRI } from "../../constants/roles.ts";
 import { appRoot, getStorageRoot } from "./solidUtils.ts";
 import { ensureContainer, readModifyWrite } from "./podWrite.ts";
+import { logError } from "./logError.ts";
 import { mapPooled } from "./pool.ts";
 import { deleteContainerRecursive } from "./podDelete.ts";
 import { geocodeFields } from "./geocode.ts";
@@ -674,7 +675,7 @@ export async function deleteBuilding(
   // Energy lives under a sibling container named after the building file
   // (the ".ttl" suffix stripped); remove it best-effort.
   await deleteContainerRecursive(`${fileUri.replace(/\.ttl$/, "")}/`, session)
-    .catch(() => {});
+    .catch((err) => logError("delete building energy container", err));
 
   const res = await session.fetch(fileUri, { method: "DELETE" });
   if (!res.ok && res.status !== 404) {

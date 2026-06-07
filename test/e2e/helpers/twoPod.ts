@@ -1,6 +1,7 @@
 import { type Browser, type Page } from "@playwright/test";
 import { login, type SolidAccount } from "./login.ts";
 import { watchAppErrors } from "./errorGuard.ts";
+import { captureConsole } from "./consoleLog.ts";
 
 /** A fresh isolated browser context logged into one account. */
 export interface PodSession {
@@ -10,12 +11,13 @@ export interface PodSession {
 }
 
 /** Create a fresh context + page (no login yet) with the error guard attached. */
-async function newSession(browser: Browser): Promise<PodSession> {
+async function newSession(browser: Browser, tag = ""): Promise<PodSession> {
   const ctx = await browser.newContext({
     viewport: { width: 1200, height: 900 },
   });
   const page = await ctx.newPage();
   const guard = watchAppErrors(page); // attach before login to catch login errors
+  captureConsole(page, tag); // mirror the console stream to the per-run log file
   return { ctx, page, guard };
 }
 
@@ -24,7 +26,7 @@ export async function freshPage(
   browser: Browser,
   acc: SolidAccount,
 ): Promise<PodSession> {
-  const session = await newSession(browser);
+  const session = await newSession(browser, acc.slot);
   await login(session.page, acc);
   return session;
 }
@@ -43,7 +45,9 @@ export async function freshPagesParallel(
   browser: Browser,
   accounts: SolidAccount[],
 ): Promise<PodSession[]> {
-  const sessions = await Promise.all(accounts.map(() => newSession(browser)));
+  const sessions = await Promise.all(
+    accounts.map((a) => newSession(browser, a.slot)),
+  );
   // On a Cloudflare-fronted (throttled) provider, log in SEQUENTIALLY: concurrent
   // A+B logins double the instantaneous request rate to the same host and trip the
   // 1015 edge limit (login() also paces each one when E2E_THROTTLE_MS is set).

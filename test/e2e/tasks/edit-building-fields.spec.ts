@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding } from "../helpers/manage.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Edit-building operating-costs + certifications e2e. Covers the Edit dialog's
@@ -35,13 +37,14 @@ test.describe("edit building operating costs + certifications", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "edit-building-fields");
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
   });
 
   test.afterAll(async () => {
+    await verifyAndReset(page, "edit-building-fields");
     await page.close();
   });
 

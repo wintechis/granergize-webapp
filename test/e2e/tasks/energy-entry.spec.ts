@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { addEnergyYear } from "../helpers/manage.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Energy per-year entry + planned/actual (Soll-Ist) e2e. Self-cleaning: it adds
@@ -42,7 +44,7 @@ test.describe("energy entry + Soll-Ist", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000);
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "energy-entry");
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
@@ -96,6 +98,7 @@ test.describe("energy entry + Soll-Ist", () => {
     } catch {
       // best-effort cleanup; never fail teardown
     } finally {
+      await verifyAndReset(page, "energy-entry");
       await page.close();
     }
   });

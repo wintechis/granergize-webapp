@@ -2,6 +2,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory } from "n3";
 import type { AttachmentRef } from "../../../types/types.ts";
 import { ensureContainer, readModifyWrite } from "./podWrite.ts";
+import { logError } from "./logError.ts";
 import {
   DCTERMS_CREATED,
   GRAN_HAS_ATTACHMENT,
@@ -47,7 +48,9 @@ async function uniqueFileUrl(
     const name = i === 0 ? filename : `${base}-${i}${ext}`;
     const url = container + encodeURIComponent(name);
     const res = await session.fetch(url, { method: "HEAD" });
-    await res.body?.cancel().catch(() => {});
+    await res.body?.cancel().catch((err) =>
+      logError("cancel HEAD response body during name probe", err)
+    );
     if (res.status === 404) return { url, name };
   }
   const name = `${base}-${Date.now()}${ext}`;

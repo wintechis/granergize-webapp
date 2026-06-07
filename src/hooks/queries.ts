@@ -14,7 +14,10 @@ import {
 import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
 import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
 import { readContacts } from "../services/utils/contacts.ts";
-import { resolveAgent } from "../services/utils/agentResolver.ts";
+import {
+  resolveAgent,
+  resolveAgentOrgLogo,
+} from "../services/utils/agentResolver.ts";
 import type {
   BuildingType,
   EnergyType,
@@ -200,6 +203,20 @@ export function useResolveAgent(webId?: string) {
   });
 }
 
+/**
+ * Resolve a single WebID to its organisation's logo IRI (read from the agent's
+ * own profile via `org:memberOf` → `foaf:logo`). Per-WebID keyed and cached;
+ * disabled until a WebID is given. Resolution never throws — a private/
+ * unreachable profile or a logo-less org resolves to `null`.
+ */
+export function useResolveOrgLogo(webId?: string) {
+  return useQuery({
+    queryKey: [...queryKeys.agentLogo, webId],
+    enabled: Boolean(webId),
+    queryFn: () => resolveAgentOrgLogo(webId as string, getSession()),
+  });
+}
+
 /** Query keys other modules (mutations) invalidate. */
 export const queryKeys = {
   buildings: ["buildings"] as const,
@@ -217,6 +234,8 @@ export const queryKeys = {
   contacts: ["contacts"] as const,
   /** A single resolved agent (name/avatar), keyed by WebID. */
   agent: ["agent"] as const,
+  /** A single resolved agent's org logo IRI, keyed by WebID. */
+  agentLogo: ["agentLogo"] as const,
 };
 
 /**

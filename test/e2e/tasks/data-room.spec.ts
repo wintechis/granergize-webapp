@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Data-room lifecycle on the Connect tab, single account (a THROWAWAY Solid Pod
@@ -34,7 +36,7 @@ test.describe("data rooms", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "data-room");
     // The "Delete data room" action asks for confirmation via window.confirm —
     // accept it automatically so the delete proceeds.
     page.on("dialog", (d) => d.accept());
@@ -43,6 +45,7 @@ test.describe("data rooms", () => {
   });
 
   test.afterAll(async () => {
+    await verifyAndReset(page, "data-room");
     await page.close();
   });
 

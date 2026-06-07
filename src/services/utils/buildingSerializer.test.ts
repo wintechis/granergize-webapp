@@ -545,6 +545,27 @@ Deno.test("serializeBuildingToTurtle round-trips PROV provenance (attribution + 
   assert.equal(b!.attributedTo, agent);
 });
 
+Deno.test("serializeBuildingToTurtle round-trips a newly-added role (facility_manager)", () => {
+  const uri = newBuildingUri(WEBID, "b-1");
+  const agent = "https://pod.example/profile/card#me";
+  const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, undefined, {
+    agent,
+    category: "facility_manager",
+  });
+
+  const store = parse(ttl);
+  assert.equal(
+    store.getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)[0].object
+      .value,
+    `${GRAN_NS}FacilityManagerRole`,
+  );
+
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  assert.ok(b);
+  assert.equal(b!.provenance, "facility_manager");
+  assert.equal(b!.attributedTo, agent);
+});
+
 // ── upload + registry (write to the Pod) ────────────────────────────────────────
 
 Deno.test("uploadBuilding PUTs the Turtle to the building URI", async () => {

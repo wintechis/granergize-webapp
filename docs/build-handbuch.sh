@@ -5,7 +5,7 @@
 # edits in Word). Both land in public/ so they ship with the app and can be
 # linked from the login screen.
 #
-#   deno task handbuch        # or: bash scripts/build-handbuch.sh
+#   deno task handbuch        # or: bash docs/build-handbuch.sh
 #
 # Requires pandoc and (for the PDF) a LaTeX engine (xelatex). The screenshots
 # referenced by the handbuch live in docs/figures/ and are produced by

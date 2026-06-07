@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Building-details e2e (single account, a throwaway solo Pod). Covers two user
@@ -39,13 +41,14 @@ test.describe("building details", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "building-details");
     page.on("dialog", (d) => d.accept().catch(() => {})); // "Delete building" confirm
     await login(page, ACC);
     await ensureDemoBuildings(page); // for the energy-benchmark task
   });
 
   test.afterAll(async () => {
+    await verifyAndReset(page, "building-details");
     await page.close();
   });
 

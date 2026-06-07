@@ -1,8 +1,22 @@
 import { defineConfig } from "vite";
 import react from "@vitejs/plugin-react";
+import { execSync } from "node:child_process";
+
+function gitCommit(): string {
+  try {
+    // `--dirty` appends "-dirty" when the working tree has uncommitted changes,
+    // so a local/dev build never claims to be the clean committed code.
+    return execSync("git describe --always --dirty").toString().trim();
+  } catch {
+    return "unknown";
+  }
+}
 
 export default defineConfig({
   base: "./",
+  define: {
+    __APP_COMMIT__: JSON.stringify(gitCommit()),
+  },
   plugins: [
     react(),
   ],

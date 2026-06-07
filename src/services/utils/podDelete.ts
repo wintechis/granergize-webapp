@@ -3,6 +3,7 @@ import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh } from "./podFetch.ts";
 import { appRoot } from "./solidUtils.ts";
 import { LDP_CONTAINS as LDP_CONTAINS_IRI } from "./vocabularies.ts";
+import { logError } from "./logError.ts";
 
 const LDP_CONTAINS = DataFactory.namedNode(LDP_CONTAINS_IRI);
 
@@ -35,7 +36,9 @@ export async function deleteContainerRecursive(
       if (child.endsWith("/")) {
         await deleteContainerRecursive(child, session, signal);
       } else {
-        await session.fetch(`${child}.acl`, { method: "DELETE" }).catch(() => {});
+        await session.fetch(`${child}.acl`, { method: "DELETE" }).catch((err) =>
+          logError("delete child resource ACL", err)
+        );
         const del = await session.fetch(child, { method: "DELETE" });
         if (!del.ok && del.status !== 404) {
           throw new Error(`Failed to delete ${child} (HTTP ${del.status})`);
@@ -45,7 +48,9 @@ export async function deleteContainerRecursive(
   }
   signal?.throwIfAborted();
   // Best-effort ACL removal; deleting the container is what matters.
-  await session.fetch(`${container}.acl`, { method: "DELETE" }).catch(() => {});
+  await session.fetch(`${container}.acl`, { method: "DELETE" }).catch((err) =>
+    logError("delete container ACL", err)
+  );
   const del = await session.fetch(container, { method: "DELETE" });
   if (!del.ok && del.status !== 404) {
     throw new Error(`Failed to delete container ${container} (HTTP ${del.status})`);

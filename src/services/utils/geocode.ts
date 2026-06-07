@@ -1,5 +1,6 @@
 import { type GeocodePrecision } from "./vocabularies.ts";
 import { trackedFetch } from "./networkActivity.ts";
+import { logError } from "./logError.ts";
 
 /**
  * Resolve building address fields to coordinates via Nominatim, returning the
@@ -45,7 +46,8 @@ export async function geocodeFields(
       );
       const data = await res.json() as { lat: string; lon: string }[];
       if (data.length) return { lat: data[0].lat, long: data[0].lon, precision };
-    } catch {
+    } catch (err) {
+      logError("geocode address candidate", err);
       // Try the next, coarser query.
     }
   }

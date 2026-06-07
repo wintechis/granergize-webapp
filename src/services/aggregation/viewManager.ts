@@ -17,6 +17,7 @@ import { fetchFresh } from "../utils/podFetch.ts";
 import { readModifyWrite } from "../utils/podWrite.ts";
 import { listDirectChildren } from "../utils/podDelete.ts";
 import { mapPooled } from "../utils/pool.ts";
+import { logError } from "../utils/logError.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
@@ -83,7 +84,8 @@ async function ensureViewsDirectoryExists(session: Session): Promise<void> {
           body: "",
         });
       }
-    } catch {
+    } catch (err) {
+      logError("ensure view container exists", err);
       // Directory might already exist
     }
   }
@@ -511,8 +513,12 @@ export async function deleteView(
   const definitionUrl = getViewDefinitionUrl(webId, viewId);
   const snapshotUrl = getComputedViewUrl(webId, viewId);
   for (const url of [definitionUrl, snapshotUrl]) {
-    await session.fetch(`${url}.acl`, { method: "DELETE" }).catch(() => {});
-    await session.fetch(url, { method: "DELETE" }).catch(() => {});
+    await session.fetch(`${url}.acl`, { method: "DELETE" }).catch((err) =>
+      logError("delete view ACL", err)
+    );
+    await session.fetch(url, { method: "DELETE" }).catch((err) =>
+      logError("delete view resource", err)
+    );
   }
 }
 

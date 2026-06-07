@@ -18,6 +18,18 @@ const LOCAL = !!process.env.E2E_LOCAL;
 // `E2E_PORT` overrides either. Both webServer and baseURL key off this single value.
 const PORT = Number(process.env.E2E_PORT) || (LOCAL ? LOCAL_APP_PORT : 4173);
 
+// Per-run artifact isolation. Playwright CLEARS its outputDir at the start of every
+// `playwright test` invocation, so running specs in separate invocations (as the
+// per-spec remote runs do) used to clobber the previous run's traces, report and
+// logs. Key every artifact off a per-run folder so each invocation keeps its own:
+// E2E_RUN=<label> pins a stable name (e.g. the spec under test); otherwise it
+// defaults to a timestamp, so nothing is ever overwritten. test-results is
+// gitignored; prune old folders when they pile up.
+const RUN = (process.env.E2E_RUN ||
+  new Date().toISOString().replace(/[:.]/g, "-").slice(0, 19))
+  .replace(/[^\w.-]+/g, "_");
+const OUT = `test-results/${RUN}`;
+
 const CHROME = { ...devices["Desktop Chrome"] };
 const SOLO_SPECS = [
   "**/login.spec.ts",
@@ -52,7 +64,19 @@ export default defineConfig({
   // `list` for output; `cf1015Reporter` aborts the whole run the instant a Pod host
   // behind Cloudflare answers Error 1015 (rate limited), so we don't grind through
   // every remaining spec's retries/timeouts against a tripped limiter.
-  reporter: [["list"], ["./test/e2e/cf1015Reporter.ts"]],
+  reporter: [
+    ["list"],
+    // Persist each run's results + a browsable report into its own folder (see RUN
+    // above), so logs/traces survive across the per-spec invocations instead of the
+    // next run wiping them. Open with `npx playwright show-report <OUT>/report`.
+    // Report + JSON live OUTSIDE outputDir (the HTML reporter clears its own folder,
+    // so it must not sit inside the traces folder). Siblings keyed by the same RUN.
+    ["json", { outputFile: `test-results/${RUN}.results.json` }],
+    ["html", { outputFolder: `playwright-report/${RUN}`, open: "never" }],
+    ["./test/e2e/cf1015Reporter.ts"],
+  ],
+  // Traces/screenshots for this run live under the same per-run folder.
+  outputDir: OUT,
   use: {
     baseURL: `http://localhost:${PORT}`,
     trace: "on-first-retry",

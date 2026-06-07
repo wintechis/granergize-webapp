@@ -22,6 +22,7 @@ import Typography from "@mui/material/Typography";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType } from "../types/types.ts";
 import { useSolidData } from "./hooks/queries.ts";
+import { logError } from "./services/utils/logError.ts";
 
 function useBuildingParam(): {
   building: BuildingType | null;
@@ -123,7 +124,9 @@ function RoomDeepLink({ session }: { session: Session }) {
     let active = true;
     (async () => {
       if (roomUri) {
-        await openRoom(roomUri, session).catch(() => {});
+        await openRoom(roomUri, session).catch((err) =>
+          logError("open data room from route", err)
+        );
       }
       if (active) navigate("/", { replace: true, state: { openRoom: true } });
     })();
@@ -154,7 +157,8 @@ function App({ onLogout, session }: AppProps) {
       return session.info.webId
         ? Boolean(getStorageRoot(session.info.webId))
         : false;
-    } catch {
+    } catch (err) {
+      logError("read cached storage root for initial ready state", err);
       return false;
     }
   });

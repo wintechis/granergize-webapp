@@ -17,6 +17,7 @@ import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";
 import Modal from "./Modal.tsx";
+import { logError } from "../services/utils/logError.ts";
 import {
   getCompanyKind,
   getOrganization,
@@ -67,7 +68,7 @@ export default function OrganizationDialog(
     getCompanyKind(session).then((k) => {
       setCompanyKind(k ?? "");
       setInitialKind(k);
-    }).catch(() => {});
+    }).catch((err) => logError("load organisation company kind", err));
     getOrganization(session).then((org) => {
       const o = org ?? {};
       setInitial(o);
@@ -85,11 +86,11 @@ export default function OrganizationDialog(
               setLogoPreview(revoke);
             }
           })
-          .catch(() => {});
+          .catch((err) => logError("load organisation logo preview", err));
       } else {
         setLogoPreview(null);
       }
-    }).catch(() => {});
+    }).catch((err) => logError("load organisation details", err));
     return () => {
       if (revoke) URL.revokeObjectURL(revoke);
     };

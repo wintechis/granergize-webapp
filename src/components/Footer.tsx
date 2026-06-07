@@ -46,6 +46,9 @@ function Footer() {
           https://iis.fraunhofer.de/
         </Link>.
       </Typography>
+      <Typography variant="caption" color="text.secondary">
+        {__APP_COMMIT__}
+      </Typography>
       <FormControlLabel
         control={
           <Switch

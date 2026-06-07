@@ -22,6 +22,7 @@ import {
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
+import { logError } from "../services/utils/logError.ts";
 import { shareBuildingData } from "../services/interop/share.ts";
 import { rememberAgent } from "../services/utils/contacts.ts";
 import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
@@ -38,13 +39,15 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";
 import { useAgentOptions } from "../hooks/useAgentOptions.ts";
 import { AgentLabel } from "./AgentLabel.tsx";
+import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 
-/** Roles selectable as a sharing target (resolved to member WebIDs via the data room). */
-const SHARE_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
-  { value: "investor", label: "Investor" },
-  { value: "user", label: "User" },
-  { value: "benchmark_service_provider", label: "Benchmark Service Provider" },
-];
+/**
+ * Roles selectable as a sharing target (resolved to member WebIDs via the data
+ * room). Derived from the central role lists so new roles surface here
+ * automatically and can't drift.
+ */
+const SHARE_ROLE_OPTIONS: { value: UserRole; label: string }[] = ROOM_ROLE_OPTIONS
+  .map((value) => ({ value, label: ROLE_LABELS[value] ?? value }));
 
 /** What energy a share grants alongside the always-shared static building data. */
 type ShareScope = "static" | "all" | "years";
@@ -115,7 +118,8 @@ export function ShareBuildingDialog({
         try {
           new URL(r);
           return false;
-        } catch {
+        } catch (err) {
+          logError("validate share recipient WebID", err);
           return true;
         }
       });

@@ -8,7 +8,15 @@ import {
 import { fetchFresh } from "./podFetch.ts";
 import { invalidateProfile, loadProfileStore } from "./profileDocument.ts";
 import { getPodBaseUrl } from "./solidUtils.ts";
-import { FOAF_NS, ORG_NS, OWL_NS, RDF_TYPE } from "./vocabularies.ts";
+import { logError } from "./logError.ts";
+import {
+  FOAF_LOGO,
+  FOAF_NS,
+  ORG_MEMBER_OF,
+  ORG_NS,
+  OWL_NS,
+  RDF_TYPE,
+} from "./vocabularies.ts";
 
 /**
  * The organisation the logged-in user works for, stored *inline in the WebID
@@ -35,11 +43,9 @@ import { FOAF_NS, ORG_NS, OWL_NS, RDF_TYPE } from "./vocabularies.ts";
  * server ignores PATCH): GET the profile, mutate the in-memory store, PUT it back.
  */
 
-const ORG_MEMBER_OF = `${ORG_NS}memberOf`;
 const ORG_ORGANIZATION = `${ORG_NS}Organization`;
 const FOAF_ORGANIZATION = `${FOAF_NS}Organization`;
 const FOAF_NAME = `${FOAF_NS}name`;
-const FOAF_LOGO = `${FOAF_NS}logo`;
 const FOAF_HOMEPAGE = `${FOAF_NS}homepage`;
 const OWL_SAME_AS = `${OWL_NS}sameAs`;
 // W3C Org membership — the role-free person↔org link. The company KIND is a
@@ -153,7 +159,8 @@ export async function getOrgLogoObjectUrl(
     const res = await session.fetch(org.logoUrl);
     if (!res.ok) return null;
     return URL.createObjectURL(await res.blob());
-  } catch {
+  } catch (err) {
+    logError("fetch org logo object URL", err);
     return null;
   }
 }

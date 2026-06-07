@@ -12,6 +12,7 @@ import {
   parseSharingEvents,
   sharedInUrl,
 } from "./sharingLog.ts";
+import { logError } from "../utils/logError.ts";
 
 /**
  * Drain the logged-in user's LDP inbox. Each message is a sharing event (a grant
@@ -129,7 +130,10 @@ async function granergizeInboxUrl(
   session: Session,
 ): Promise<string> {
   const res = await session.fetch(appRoot, { headers: { Accept: "text/turtle" } })
-    .catch(() => null);
+    .catch((err) => {
+      logError("fetch app root for inbox discovery", err);
+      return null;
+    });
   if (res?.ok) {
     const linkHeader = res.headers.get("Link");
     const store = new Store(new Parser({ baseIRI: appRoot }).parse(await res.text()));
@@ -181,7 +185,10 @@ export async function ensureOwnInbox(session: Session): Promise<boolean> {
   const { inbox } = podResources(webId);
   // Provision (and notify) only on a bare Pod: a HEAD that doesn't 404 means the
   // inbox is already set up, so there's nothing to create.
-  const existing = await session.fetch(inbox, { method: "HEAD" }).catch(() => null);
+  const existing = await session.fetch(inbox, { method: "HEAD" }).catch((err) => {
+    logError("HEAD own inbox to check provisioning", err);
+    return null;
+  });
   if (existing?.ok) return false;
   await session.fetch(inbox, {
     method: "PUT",
@@ -190,7 +197,7 @@ export async function ensureOwnInbox(session: Session): Promise<boolean> {
       Link: '<http://www.w3.org/ns/ldp#BasicContainer>; rel="type"',
     },
     body: "",
-  }).catch(() => {});
+  }).catch((err) => logError("provision own inbox container", err));
   const acl = `@prefix acl: <http://www.w3.org/ns/auth/acl#>.
 <#owner> a acl:Authorization; acl:agent <${webId}>;
   acl:accessTo <${inbox}>; acl:default <${inbox}>;
@@ -202,7 +209,7 @@ export async function ensureOwnInbox(session: Session): Promise<boolean> {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: acl,
-  }).catch(() => {});
+  }).catch((err) => logError("provision own inbox ACL", err));
   return true;
 }
 

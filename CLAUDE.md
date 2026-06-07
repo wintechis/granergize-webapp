@@ -285,9 +285,10 @@ ESLint-enforced (`eslint.config.js`); the rest are review conventions.
   **self-hides** outside dev mode, so it's the one-call way to add a dev-only
   source link — prefer it over a bespoke `UriLink` for any backing-resource link),
   the in-list resource IRIs (building URIs, the energy dataset + weather adapter
-  links), the dev-only "Your inbox" / "Outgoing shares" sections, the "Add demo
-  buildings" / "Download archive" / "Upload archive…" / "Rebuild sharing from
-  log" / "Remove all app data…" account actions, and the request log (`RequestActivityList` renders
+  links), the dev-only "Your inbox" / "Outgoing shares" sections, the Share-tab
+  "Check for new shares" button (manual inbox drain), the "Add demo buildings" /
+  "Download archive" / "Upload archive…" / "Rebuild sharing from log" / "Remove all
+  app data…" account actions, and the request log (`RequestActivityList` renders
   nothing outside dev mode; the header `NetworkActivityIndicator` collapses to a
   plain spinner — no inline URIs, no clickable log). WebIDs and data-room invite
   IRIs are identity/links, not raw storage, so they stay visible in both modes.

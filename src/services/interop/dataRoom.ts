@@ -20,6 +20,8 @@ import {
   readBookmarks,
   removeBookmark,
 } from "../utils/bookmarks.ts";
+import { IRI_TO_PROVENANCE, PROVENANCE_TO_IRI } from "../../constants/roles.ts";
+import { logError } from "../utils/logError.ts";
 
 const { blankNode, literal, namedNode } = DataFactory;
 
@@ -35,16 +37,10 @@ const AS_OBJECT = namedNode(`${AS_NS}object`);
 const AS_PUBLISHED = namedNode(`${AS_NS}published`);
 const SIOC_HAS_FUNCTION = namedNode(`${SIOC_NS}has_function`);
 
-const ROLE_TO_IRI: Record<UserRole, string> = {
-  dummy: `${GRAN_NS}DummyRole`,
-  investor: `${GRAN_NS}InvestorRole`,
-  user: `${GRAN_NS}UserRoleInstance`,
-  benchmark_service_provider: `${GRAN_NS}BenchmarkRole`,
-};
-
-const IRI_TO_ROLE: Record<string, UserRole> = Object.fromEntries(
-  Object.entries(ROLE_TO_IRI).map(([role, iri]) => [iri, role as UserRole]),
-);
+// Membership role ↔ gran: IRI is the same mapping as a building's provenance
+// role; reuse the single source of truth in constants/roles.ts.
+const ROLE_TO_IRI = PROVENANCE_TO_IRI;
+const IRI_TO_ROLE = IRI_TO_PROVENANCE;
 
 // A GRANERGIZE data room is an append-only LDP container that ANY user can
 // create on their OWN Pod (where they have full control). The creator writes an
@@ -184,7 +180,9 @@ export async function enterRoom(
     // Best-effort: leaving the previous room must not block joining the new one.
     // The old room may be deleted or no longer writable (e.g. access revoked),
     // which would 403/404 here and otherwise strand the user unable to switch.
-    await setMembership(previous, false, session).catch(() => {});
+    await setMembership(previous, false, session).catch((err) =>
+      logError("leave previous data room", err)
+    );
   }
   if (!(await getMyMembership(room, session))) {
     await setMembership(room, true, session);
@@ -221,7 +219,8 @@ export async function roomExists(
       headers: { Accept: "text/turtle" },
     });
     return res.ok;
-  } catch {
+  } catch (err) {
+    logError("check data-room reachability", err);
     return false;
   }
 }
@@ -623,7 +622,9 @@ export async function deleteRoom(
     await mapPooled(children, 4, (c) => session.fetch(c, { method: "DELETE" }));
   }
   // Best-effort ACL removal; deleting the container is what matters.
-  await session.fetch(`${container}.acl`, { method: "DELETE" }).catch(() => {});
+  await session.fetch(`${container}.acl`, { method: "DELETE" }).catch((err) =>
+    logError("delete data-room container ACL", err)
+  );
   const del = await session.fetch(container, { method: "DELETE" });
   if (!del.ok && del.status !== 404) {
     throw new Error(`Failed to delete room (HTTP ${del.status})`);

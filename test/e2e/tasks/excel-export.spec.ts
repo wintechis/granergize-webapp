@@ -1,7 +1,9 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Excel-export e2e (PROBLEMS.md #8). Proves a workbook actually downloads in the
@@ -40,7 +42,7 @@ test.describe("excel export", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000);
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "excel-export");
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     // Self-seed an empty Pod so the export round-trip has buildings to export
@@ -49,6 +51,7 @@ test.describe("excel export", () => {
   });
 
   test.afterAll(async () => {
+    await verifyAndReset(page, "excel-export");
     await page.close();
   });
 

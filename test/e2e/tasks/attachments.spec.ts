@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding } from "../helpers/manage.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Building file attachments e2e. Covers the owner flow end-to-end through the UI:
@@ -32,12 +34,13 @@ test.describe("building file attachments", () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
     // "Delete building" / "Delete file" confirm via window.confirm — auto-accept.
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "attachments");
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
   });
 
   test.afterAll(async () => {
+    await verifyAndReset(page, "attachments");
     await page.close();
   });
 

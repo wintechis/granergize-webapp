@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Energy-view smoke test (single account, a THROWAWAY Solid Pod). Proves the
@@ -35,7 +37,7 @@ test.describe("energy view smoke", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "view-data");
     await login(page, ACC);
     // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the
     // demo carries the annual + 15-min series buildings this test renders).
@@ -43,6 +45,7 @@ test.describe("energy view smoke", () => {
   });
 
   test.afterAll(async () => {
+    await verifyAndReset(page, "view-data");
     await page.close();
   });
 

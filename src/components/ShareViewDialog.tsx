@@ -19,6 +19,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { AggregatedViewDefinition } from "../../types/types.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
+import { logError } from "../services/utils/logError.ts";
 import {
   getSharedViews,
   revokeViewAccess,
@@ -116,7 +117,8 @@ export default function ShareViewDialog(
       try {
         new URL(r);
         return false;
-      } catch {
+      } catch (err) {
+        logError("validate view-share recipient WebID", err);
         return true;
       }
     });

@@ -1,7 +1,9 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Archive backup/restore e2e (dev-mode). Drives the real account-menu flow end to
@@ -44,7 +46,7 @@ test.describe("archive backup/restore", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000);
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "archive-restore");
     // Both the restore and the wipe go through window.confirm — accept them.
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
@@ -52,6 +54,7 @@ test.describe("archive backup/restore", () => {
   });
 
   test.afterAll(async () => {
+    await verifyAndReset(page, "archive-restore");
     await page.close();
   });
 

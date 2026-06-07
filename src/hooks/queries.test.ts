@@ -8,11 +8,13 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   useBuildings,
   useEnergy,
+  useResolveOrgLogo,
   useSolidData,
 } from "./queries.ts";
 import { useToggleVisibility } from "./mutations.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/utils/solidUtils.ts";
+import { _resetProfileCacheForTesting } from "../services/utils/profileDocument.ts";
 
 const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
 const WEBID = "https://pod.example/profile/card#me";
@@ -129,6 +131,40 @@ Deno.test("useEnergy is disabled until buildings are provided", () => {
   try {
     const { result } = renderHook(() => useEnergy(undefined), { wrapper });
     assert.equal(result.current.fetchStatus, "idle"); // not fetching (disabled)
+    assert.equal(result.current.data, undefined);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useResolveOrgLogo resolves the producer's org logo", async () => {
+  _resetProfileCacheForTesting();
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  const store = {
+    [PROFILE]: `@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix org: <http://www.w3.org/ns/org#> .
+<#me> org:memberOf <#org> .
+<#org> foaf:logo <https://pod.example/profile/logo.png> .`,
+  };
+  _setSessionForTesting(fakeSession(store));
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useResolveOrgLogo(WEBID), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    assert.equal(result.current.data, "https://pod.example/profile/logo.png");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useResolveOrgLogo is disabled until a WebID is provided", () => {
+  _setSessionForTesting(fakeSession());
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useResolveOrgLogo(undefined), {
+      wrapper,
+    });
+    assert.equal(result.current.fetchStatus, "idle");
     assert.equal(result.current.data, undefined);
   } finally {
     _setSessionForTesting(null);

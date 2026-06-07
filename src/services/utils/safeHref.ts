@@ -9,13 +9,16 @@
  * with a navigable scheme (http/https/mailto); otherwise `null`, so callers can
  * render the value as plain text instead of a link.
  */
+import { logError } from "./logError.ts";
+
 const SAFE_SCHEMES = new Set(["http:", "https:", "mailto:"]);
 
 export function safeHref(uri: string): string | null {
   let parsed: URL;
   try {
     parsed = new URL(uri);
-  } catch {
+  } catch (err) {
+    logError("parse candidate href URI", err);
     // Relative or malformed — not an absolute external URI, don't link it.
     return null;
   }

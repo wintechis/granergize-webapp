@@ -45,12 +45,14 @@ import { buttonRowStyle, listStyle, rowStyle } from "../components/listStyles.ts
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../components/usePaging.ts";
 import QrScanner from "../components/QrScanner.tsx";
+import { logError } from "../services/utils/logError.ts";
 
 /** Host of a room URI, for "Hosted by …" labels (the Pod that owns the room). */
 function roomHost(roomUrl: string): string {
   try {
     return new URL(roomUrl).host;
-  } catch {
+  } catch (err) {
+    logError("parse room URI for host label", err);
     return roomUrl;
   }
 }
@@ -163,7 +165,8 @@ export default function ConnectPage({ session }: ConnectPageProps) {
     try {
       await navigator.clipboard.writeText(inviteLink);
       showNotification("Invite link copied", "success");
-    } catch {
+    } catch (err) {
+      logError("copy invite link to clipboard", err);
       showNotification("Could not copy link", "error");
     }
   };

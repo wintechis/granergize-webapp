@@ -63,6 +63,11 @@ const ROLE_DEFAULT_METRICS: Record<string, string[]> = {
     c.metrics
   ),
   user: ["electricity"],
+  facility_manager: ["electricity"],
+  developer: ["electricity"],
+  consultant_broker: ["electricity"],
+  software_provider: ["electricity"],
+  energy_provider: ["electricity"],
 };
 
 const ROLE_LABEL: Record<UserRole, string> = {
@@ -70,7 +75,17 @@ const ROLE_LABEL: Record<UserRole, string> = {
   investor: "Investor",
   benchmark_service_provider: "BSP",
   user: "User",
+  facility_manager: "Facility Manager",
+  developer: "Developer",
+  consultant_broker: "Consultant / Broker",
+  software_provider: "Software Provider",
+  energy_provider: "Energy Provider",
 };
+
+const GENERIC_VIEW_DESCRIPTION =
+  "Create an aggregated view that combines energy data across multiple " +
+  "buildings. The computed values are stored as a privacy-preserving snapshot " +
+  "that can be shared without revealing the source buildings.";
 
 const ROLE_DESCRIPTION: Record<string, string> = {
   dummy:
@@ -86,6 +101,11 @@ const ROLE_DESCRIPTION: Record<string, string> = {
   user: "Create a view that aggregates monthly electricity consumption " +
     "across multiple buildings. The result is a privacy-preserving " +
     "snapshot of the combined kWh total.",
+  facility_manager: GENERIC_VIEW_DESCRIPTION,
+  developer: GENERIC_VIEW_DESCRIPTION,
+  consultant_broker: GENERIC_VIEW_DESCRIPTION,
+  software_provider: GENERIC_VIEW_DESCRIPTION,
+  energy_provider: GENERIC_VIEW_DESCRIPTION,
 };
 
 function getMetricsForRole(role: UserRole) {
@@ -114,6 +134,11 @@ export default function CreateViewDialog({
       "investor",
       "benchmark_service_provider",
       "user",
+      "facility_manager",
+      "developer",
+      "consultant_broker",
+      "software_provider",
+      "energy_provider",
     ];
     return order.filter((r) => roles.has(r));
   }, [buildings]);

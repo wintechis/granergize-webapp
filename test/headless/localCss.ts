@@ -3,7 +3,7 @@
  * Boot a throwaway local Community Solid Server (CSS v7) with two seeded accounts
  * (A and B), for the headless cross-Pod interop integration test. Fast, isolated,
  * no network / Cloudflare; supports the CSS account API + client-credentials grant
- * that `getLiveSession` (scripts/liveSession.ts) speaks.
+ * that `getLiveSession` (test/headless/liveSession.ts) speaks.
  *
  * CSS is a Node app; we spawn it via `npx @solid/community-server` and poll until
  * ready. Data lives in a temp dir wiped on stop(). Credentials are fixed local

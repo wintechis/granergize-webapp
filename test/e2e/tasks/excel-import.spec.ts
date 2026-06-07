@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Excel-import e2e (PROBLEMS.md #6). MUTATES the Pod: imports building(s) from an
@@ -54,7 +56,7 @@ test.describe("excel upload", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "excel-import");
     // The cleanup step deletes each imported building; "Delete building" confirms
     // via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept());
@@ -74,6 +76,7 @@ test.describe("excel upload", () => {
   });
 
   test.afterAll(async () => {
+    await verifyAndReset(page, "excel-import");
     await page.close();
   });
 
