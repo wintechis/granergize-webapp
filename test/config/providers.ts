@@ -67,6 +67,22 @@ export const PROVIDERS: Record<string, PodProvider> = {
     webIdLayout: "subdomain",
     webIdFor: subdomainWebId("solidweb.org"),
   },
+  // A second non-Cloudflare host, used as role B for the A+B sharing pair
+  // (`test/.env.meisdata.local`). `kind`/`webIdFor` are best-guess (CSS, path
+  // layout); the by-role sharing path discovers B's real WebID via room
+  // membership, so the derived WebID is only used by the By-WebID path (which
+  // should set `E2E_WEBID_B`). Pair A(solidweb)+B(solidwebme) is heterogeneous,
+  // so it needs `E2E_INTEROP_OK=1`.
+  solidwebme: {
+    id: "solidwebme",
+    issuer: "https://solidweb.me",
+    kind: "css-v6",
+    supportsClientCredentials: false,
+    throttled: false,
+    loginStyle: "browser-oidc",
+    webIdLayout: "path",
+    webIdFor: pathWebId("https://solidweb.me"),
+  },
 };
 
 /**

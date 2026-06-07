@@ -3,6 +3,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { Button, IconButton, Tooltip, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AddchartIcon from "@mui/icons-material/Addchart";
+import AttachFileIcon from "@mui/icons-material/AttachFile";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
@@ -43,6 +44,7 @@ import { tryPodResources } from "../services/utils/solidUtils.ts";
 import { formatError } from "../services/utils/formatError.ts";
 import { downloadXlsx } from "../services/utils/download.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
+import { AgentLabel } from "../components/AgentLabel.tsx";
 import { useDevMode } from "../components/devMode.ts";
 import {
   ellipsis,
@@ -53,7 +55,7 @@ import {
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../components/usePaging.ts";
 import {
-  EnergyCertificateDialog,
+  FilesDialog,
   ShareBuildingDialog,
 } from "../components/BuildingDialogs.tsx";
 import EnergyYearDialog from "../components/EnergyYearDialog.tsx";
@@ -66,10 +68,9 @@ interface ManagePageProps {
   session: Session;
 }
 
-/** Whether a building already carries an energy certificate (drives the tooltip). */
-const hasEnergyCertificate = (b: BuildingType): boolean =>
-  typeof b.energyCertificate === "string" &&
-  b.energyCertificate.trim().length > 0;
+/** Number of files attached to a building (drives the Files tooltip). */
+const attachmentCount = (b: BuildingType): number =>
+  Array.isArray(b.attachments) ? b.attachments.length : 0;
 
 /**
  * The MANAGE tab: manage everything you own. Buildings — view their RDF, see who
@@ -92,7 +93,7 @@ export default function ManagePage({ session }: ManagePageProps) {
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
   const [editBuilding, setEditBuilding] = useState<BuildingType | null>(null);
-  const [certBuilding, setCertBuilding] = useState<BuildingType | null>(null);
+  const [filesBuilding, setFilesBuilding] = useState<BuildingType | null>(null);
   const [energyYearBuilding, setEnergyYearBuilding] = useState<
     BuildingType | null
   >(null);
@@ -269,7 +270,7 @@ export default function ManagePage({ session }: ManagePageProps) {
                               {sharedWith.map((webId) => (
                                 <li key={webId} style={rowStyle}>
                                   <span title={webId} style={ellipsis}>
-                                    {webId}
+                                    <AgentLabel value={webId} />
                                   </span>
                                   <IconButton
                                     size="small"
@@ -300,16 +301,16 @@ export default function ManagePage({ session }: ManagePageProps) {
                           </IconButton>
                         </Tooltip>
                         <Tooltip
-                          title={hasEnergyCertificate(b)
-                            ? "Replace energy certificate"
-                            : "Upload energy certificate"}
+                          title={attachmentCount(b) > 0
+                            ? `Files (${attachmentCount(b)})`
+                            : "Files"}
                         >
                           <IconButton
                             size="small"
-                            aria-label="Upload energy certificate"
-                            onClick={() => setCertBuilding(b)}
+                            aria-label="Manage files"
+                            onClick={() => setFilesBuilding(b)}
                           >
-                            <UploadFileIcon fontSize="small" />
+                            <AttachFileIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
                         <Tooltip title="Add / edit energy year">
@@ -432,7 +433,7 @@ export default function ManagePage({ session }: ManagePageProps) {
                                   title={webId}
                                   sx={ellipsis}
                                 >
-                                  {webId}
+                                  <AgentLabel value={webId} />
                                 </Typography>
                                 <IconButton
                                   size="small"
@@ -552,13 +553,13 @@ export default function ManagePage({ session }: ManagePageProps) {
           onBuildingUpdated={reloadData}
         />
       )}
-      {certBuilding && (
-        <EnergyCertificateDialog
+      {filesBuilding && (
+        <FilesDialog
           open
-          buildingUri={certBuilding.uri as string}
+          building={filesBuilding}
           session={session}
-          onClose={() => setCertBuilding(null)}
-          onUploadSuccess={reloadData}
+          onClose={() => setFilesBuilding(null)}
+          onChange={reloadData}
         />
       )}
       {energyYearBuilding && (

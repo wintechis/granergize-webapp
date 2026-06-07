@@ -3,6 +3,7 @@ import type { BuildingType } from "../../../types/types.ts";
 import { deleteBuilding } from "./buildingSerializer.ts";
 import { formatResourceList, listContainedResources } from "./podDelete.ts";
 import { getStorageRoot } from "./solidUtils.ts";
+import { revokeAllBuildingRecipients } from "../interop/sharingManager.ts";
 
 /** The building file URI (fragment stripped) for an owned building. */
 function buildingFileUri(building: BuildingType): string {
@@ -51,10 +52,18 @@ export async function buildBuildingDeletionPreview(
  * Permanently delete an owned building — its file, energy subtree, and registry
  * entry. Pure data operation (no confirmation UI); confirm first at the call site
  * with {@link buildBuildingDeletionPreview}. Throws if the delete fails.
+ *
+ * If the building was shared, every recipient is revoked + notified FIRST (mirrors
+ * view deletion), so it drops off their "shared with you" list and the owner's
+ * `shared-out/` log records the revocation instead of dangling a grant for a
+ * deleted resource. Revocation is best-effort per recipient and never blocks the
+ * delete.
  */
 export async function deleteBuildingResource(
   session: Session,
   building: BuildingType,
 ): Promise<void> {
-  await deleteBuilding(session, session.info.webId!, buildingFileUri(building));
+  const fileUri = buildingFileUri(building);
+  await revokeAllBuildingRecipients(fileUri, session).catch(() => {});
+  await deleteBuilding(session, session.info.webId!, fileUri);
 }

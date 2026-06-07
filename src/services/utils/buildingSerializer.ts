@@ -9,6 +9,7 @@ import {
   BOOLEAN_FIELDS,
   DECIMAL_FIELDS,
   INTEGER_FIELDS,
+  iriPropertyMap,
   objectPropertyMap,
   predicateMap,
 } from "./config/buildingConfig.ts";
@@ -59,8 +60,9 @@ import {
 import {
   applyNormalization,
   BSP_COL_MAP,
+  certLevelLabel,
   INV_YEARS,
-  INVESTOR_CERT_ROWS,
+  INVESTOR_CERT_SYSTEMS,
   INVESTOR_OPCOST_ROW_MAP,
   INVESTOR_ROW_MAP,
   MAX_CERTS,
@@ -87,6 +89,11 @@ const fieldToPredicate: Record<string, string> = Object.fromEntries(
 );
 const fieldToObjectPredicate: Record<string, string> = Object.fromEntries(
   Object.entries(objectPropertyMap).map(([iri, field]) => [field as string, iri]),
+);
+// Agent/IRI-reference fields (e.g. operatedBy → WebID): the value is written as a
+// NamedNode verbatim (an absolute IRI), not a literal or a prefix-expanded local name.
+const fieldToIriPredicate: Record<string, string> = Object.fromEntries(
+  Object.entries(iriPropertyMap).map(([iri, field]) => [field as string, iri]),
 );
 
 // INTEGER_FIELDS / DECIMAL_FIELDS / BOOLEAN_FIELDS are derived from the building
@@ -325,6 +332,12 @@ export function serializeBuildingToTurtle(
         subject,
         namedNode(fieldToObjectPredicate[field]),
         namedNode(`${INVESTOR_NS}${value}`),
+      );
+    } else if (field in fieldToIriPredicate) {
+      store.addQuad(
+        subject,
+        namedNode(fieldToIriPredicate[field]),
+        namedNode(value),
       );
     } else if (field in fieldToPredicate) {
       store.addQuad(
@@ -591,8 +604,11 @@ export async function updateBuilding(
       if (field === "lat" || field === "long") continue;
 
       const isObjProp = field in fieldToObjectPredicate;
+      const isIriProp = field in fieldToIriPredicate;
       const predIri = isObjProp
         ? fieldToObjectPredicate[field]
+        : isIriProp
+        ? fieldToIriPredicate[field]
         : fieldToPredicate[field];
       if (!predIri) continue;
 
@@ -605,6 +621,8 @@ export async function updateBuilding(
           namedNode(predIri),
           namedNode(`${INVESTOR_NS}${value}`),
         );
+      } else if (isIriProp) {
+        store.addQuad(subject, namedNode(predIri), namedNode(value));
       } else {
         store.addQuad(
           subject,
@@ -873,14 +891,23 @@ export async function parseCsvToFields(
         if (value) result[`_opcost_${field}`] = value;
       }
 
-      // Certification block → _cert_0_<part> (type drives the cert's rdf:type).
-      for (const [label, part] of Object.entries(INVESTOR_CERT_ROWS)) {
-        const row = rowIndex[label];
-        if (row === undefined) continue;
-        const cell = ws[XLSX.utils.encode_cell({ r: row, c: col })];
-        if (cell?.v == null) continue;
-        const raw = String(cell.v).trim();
-        if (raw) result[`_cert_0_${part}`] = raw;
+      // Certifications: one block per system (BREEAM/DGNB/LEED) whose yes/no row
+      // is truthy; level comes from its "<System> Zertifizierungsstufe" row.
+      let certIdx = 0;
+      for (const sys of INVESTOR_CERT_SYSTEMS) {
+        const presentRow = rowIndex[sys];
+        if (presentRow === undefined) continue;
+        const presentCell = ws[XLSX.utils.encode_cell({ r: presentRow, c: col })];
+        if (normalizeBoolean(String(presentCell?.v ?? "")) !== "true") continue;
+        result[`_cert_${certIdx}_type`] = sys;
+        const levelRow = rowIndex[certLevelLabel(sys)];
+        if (levelRow !== undefined) {
+          const lc = ws[XLSX.utils.encode_cell({ r: levelRow, c: col })];
+          if (lc?.v != null && String(lc.v).trim()) {
+            result[`_cert_${certIdx}_level`] = String(lc.v).trim();
+          }
+        }
+        certIdx++;
       }
 
       if (Object.keys(result).length > 0) results.push(result);

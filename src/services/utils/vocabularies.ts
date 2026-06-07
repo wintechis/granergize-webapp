@@ -11,9 +11,18 @@ export const BENCH_NS =
 
 /** FOAF — personal avatar (foaf:img) and the organisation's name/logo/homepage. */
 export const FOAF_NS = "http://xmlns.com/foaf/0.1/";
+/** foaf:Agent — the rdfs:range of agent-valued properties (e.g. rec:operatedBy). */
+export const FOAF_AGENT = `${FOAF_NS}Agent`;
+export const FOAF_NAME = `${FOAF_NS}name`;
+export const FOAF_IMG = `${FOAF_NS}img`;
 
 /** vCard — profile photo (vcard:hasPhoto) fallback for the avatar. */
 export const VCARD_NS = "http://www.w3.org/2006/vcard/ns#";
+export const VCARD_FN = `${VCARD_NS}fn`;
+export const VCARD_HAS_PHOTO = `${VCARD_NS}hasPhoto`;
+export const VCARD_INDIVIDUAL = `${VCARD_NS}Individual`;
+export const VCARD_ADDRESS_BOOK = `${VCARD_NS}AddressBook`;
+export const VCARD_HAS_MEMBER = `${VCARD_NS}hasMember`;
 
 /**
  * W3C Basic Geo (WGS84). A building's coordinates live on a `geo:Point` blank
@@ -79,12 +88,13 @@ export const INTEROP_NS = "http://www.w3.org/ns/solid/interop#";
 export const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 export const ACL_NS = "http://www.w3.org/ns/auth/acl#";
 
-export const XSD_DATETIME = "http://www.w3.org/2001/XMLSchema#dateTime";
-export const XSD_INTEGER = "http://www.w3.org/2001/XMLSchema#integer";
-export const XSD_DECIMAL = "http://www.w3.org/2001/XMLSchema#decimal";
-export const XSD_DATE = "http://www.w3.org/2001/XMLSchema#date";
-export const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
-export const XSD_BOOLEAN = "http://www.w3.org/2001/XMLSchema#boolean";
+export const XSD_NS = "http://www.w3.org/2001/XMLSchema#";
+export const XSD_DATETIME = `${XSD_NS}dateTime`;
+export const XSD_INTEGER = `${XSD_NS}integer`;
+export const XSD_DECIMAL = `${XSD_NS}decimal`;
+export const XSD_DATE = `${XSD_NS}date`;
+export const XSD_STRING = `${XSD_NS}string`;
+export const XSD_BOOLEAN = `${XSD_NS}boolean`;
 
 /** LDP — container membership (`ldp:contains`) and inbox discovery (`ldp:inbox`). */
 export const LDP_NS = "http://www.w3.org/ns/ldp#";
@@ -94,3 +104,24 @@ export const LDP_INBOX = `${LDP_NS}inbox`;
 /** RealEstateCore (industry ontology, not W3C) — a building resource is typed `rec:Building`. */
 export const REC_NS = "https://w3id.org/rec#";
 export const REC_BUILDING = `${REC_NS}Building`;
+
+/**
+ * Building file attachments. A building links each uploaded file with
+ * `gran:hasAttachment <fileIRI>`; the file IRI is itself the subject of the
+ * media metadata (schema.org `MediaObject`), so no blank node is needed. The
+ * energy certificate is just one such file, additionally flagged with
+ * `gran:hasEnergyCertificate` (see {@link GRAN_HAS_ENERGY_CERTIFICATE}).
+ */
+export const GRAN_HAS_ATTACHMENT = `${GRAN_NS}hasAttachment`;
+export const GRAN_HAS_ENERGY_CERTIFICATE = `${GRAN_NS}hasEnergyCertificate`;
+
+/** schema.org — file metadata (a `schema:MediaObject` describing a stored file). */
+export const SCHEMA_NS = "http://schema.org/";
+export const SCHEMA_MEDIA_OBJECT = `${SCHEMA_NS}MediaObject`;
+export const SCHEMA_NAME = `${SCHEMA_NS}name`;
+export const SCHEMA_ENCODING_FORMAT = `${SCHEMA_NS}encodingFormat`;
+export const SCHEMA_CONTENT_SIZE = `${SCHEMA_NS}contentSize`;
+
+/** Dublin Core Terms — `dcterms:created` for an attachment's upload timestamp. */
+export const DCTERMS_NS = "http://purl.org/dc/terms/";
+export const DCTERMS_CREATED = `${DCTERMS_NS}created`;

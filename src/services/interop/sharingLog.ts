@@ -49,6 +49,13 @@ export interface SharingEvent {
   at: string; // prov:generatedAtTime (ISO 8601)
   kind?: SharingKind; // grant only (routing hint)
   includesEnergy?: boolean; // grant hint only
+  /**
+   * The granted energy years (grant only). Absent/empty ⇒ all years (the
+   * `includesEnergy` boolean alone governs). Recorded so the log is self-sufficient
+   * for replay (`reissueGrants`) — a per-year grant's exact scope lives here, not
+   * only in the derived `.acl`. See the "always replayable" sharing principle.
+   */
+  years?: number[];
 }
 
 /** A currently-active grant: the latest event for its (grantee, resource). */
@@ -70,6 +77,7 @@ const REVOCATION = namedNode(`${INTEROP_NS}AccessRevocation`);
 const GRANTEE = namedNode(`${INTEROP_NS}grantee`);
 const FOR_RESOURCE = namedNode(`${INTEROP_NS}forResource`);
 const INCLUDES_ENERGY = namedNode(`${INTEROP_NS}includesEnergyData`);
+const INCLUDES_ENERGY_YEAR = namedNode(`${INTEROP_NS}includesEnergyYear`);
 const WAS_ASSOCIATED_WITH = namedNode(PROV_WAS_ASSOCIATED_WITH);
 const GENERATED_AT = namedNode(PROV_GENERATED_AT_TIME);
 const KIND = namedNode(`${GRAN_NS}kind`);
@@ -87,6 +95,11 @@ export function buildSharingEventTurtle(e: SharingEvent): string {
     if (e.kind) triples.push(`gran:kind gran:${e.kind}`);
     if (e.includesEnergy !== undefined) {
       triples.push(`interop:includesEnergyData "${e.includesEnergy}"^^xsd:boolean`);
+    }
+    // Per-year scope (absent ⇒ all years). One triple per granted year so the
+    // log fully captures a per-year share for faithful replay.
+    for (const year of e.years ?? []) {
+      triples.push(`interop:includesEnergyYear "${year}"^^xsd:gYear`);
     }
   }
   triples.push(`prov:generatedAtTime "${e.at}"^^xsd:dateTime`);
@@ -140,7 +153,11 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
         ? "Building"
         : undefined;
       const energy = store.getObjects(subj, INCLUDES_ENERGY, null)[0]?.value;
-      out.push({
+      const years = store.getObjects(subj, INCLUDES_ENERGY_YEAR, null)
+        .map((o) => parseInt(o.value, 10))
+        .filter((y) => Number.isFinite(y))
+        .sort((a, b) => a - b);
+      const event: SharingEvent = {
         type,
         owner,
         grantee,
@@ -148,7 +165,9 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
         at,
         kind,
         includesEnergy: energy === undefined ? undefined : energy === "true",
-      });
+      };
+      if (years.length) event.years = years;
+      out.push(event);
     }
   };
   collect("grant", GRANT);
@@ -197,12 +216,16 @@ export async function foldSharingLog(
   }
   return [...latest.values()]
     .filter((e) => e.type === "grant")
-    .map((e): ActiveGrant => ({
-      owner: e.owner,
-      grantee: e.grantee,
-      resource: e.resource,
-      at: e.at,
-      kind: e.kind,
-      includesEnergy: e.includesEnergy,
-    }));
+    .map((e): ActiveGrant => {
+      const grant: ActiveGrant = {
+        owner: e.owner,
+        grantee: e.grantee,
+        resource: e.resource,
+        at: e.at,
+        kind: e.kind,
+        includesEnergy: e.includesEnergy,
+      };
+      if (e.years) grant.years = e.years;
+      return grant;
+    });
 }

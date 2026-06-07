@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
   Checkbox,
@@ -22,11 +23,21 @@ import {
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
 import { shareBuildingData } from "../services/interop/share.ts";
+import { rememberAgent } from "../services/utils/contacts.ts";
 import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
-import { uploadEnergyCertificate } from "../services/utils/certificateUploader.ts";
-import type { BuildingType, UserRole } from "../../types/types.ts";
+import {
+  deleteAttachment,
+  fetchAttachmentBlob,
+  setEnergyCertificate,
+  uploadAttachment,
+} from "../services/utils/attachmentManager.ts";
+import { downloadBlob, formatBytes } from "../services/utils/download.ts";
+import { listStyle, rowStyle } from "./listStyles.ts";
+import type { AttachmentRef, BuildingType, UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";
+import { useAgentOptions } from "../hooks/useAgentOptions.ts";
+import { AgentLabel } from "./AgentLabel.tsx";
 
 /** Roles selectable as a sharing target (resolved to member WebIDs via the data room). */
 const SHARE_ROLE_OPTIONS: { value: UserRole; label: string }[] = [
@@ -55,9 +66,10 @@ export function ShareBuildingDialog({
   onClose,
 }: ShareBuildingDialogProps) {
   const { showNotification } = useNotification();
+  const agentOptions = useAgentOptions();
   const [sharing, setSharing] = useState(false);
   const [shareMode, setShareMode] = useState<"webid" | "role">("webid");
-  const [webId, setWebId] = useState("");
+  const [webIds, setWebIds] = useState<string[]>([]);
   const [targetRole, setTargetRole] = useState<UserRole | "">("");
   const [recipients, setRecipients] = useState<string[]>([]);
   const [resolving, setResolving] = useState(false);
@@ -80,7 +92,7 @@ export function ShareBuildingDialog({
 
   const handleClose = () => {
     setShareMode("webid");
-    setWebId("");
+    setWebIds([]);
     setTargetRole("");
     setRecipients([]);
     setResolving(false);
@@ -93,17 +105,13 @@ export function ShareBuildingDialog({
     onClose();
   };
 
-  const parseWebIds = () =>
-    webId.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
-
   const handleProceedToConfirm = async () => {
     if (shareMode === "webid") {
-      const entered = parseWebIds();
-      if (entered.length === 0) {
+      if (webIds.length === 0) {
         setWebIdError("Enter at least one WebID");
         return;
       }
-      const invalid = entered.filter((r) => {
+      const invalid = webIds.filter((r) => {
         try {
           new URL(r);
           return false;
@@ -120,7 +128,7 @@ export function ShareBuildingDialog({
         return;
       }
       setWebIdError("");
-      setRecipients(entered);
+      setRecipients(webIds);
       setConfirmStep(true);
       return;
     }
@@ -168,6 +176,8 @@ export function ShareBuildingDialog({
           includeEnergyData,
           years,
         });
+        // Auto-remember the recipient in the address book (fire-and-forget).
+        void rememberAgent(session, recipient);
       }
       setShareSuccess(true);
       showNotification("Building shared successfully", "success");
@@ -184,7 +194,7 @@ export function ShareBuildingDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      dirty={webId.trim() !== "" || recipients.length > 0 || targetRole !== ""}
+      dirty={webIds.length > 0 || recipients.length > 0 || targetRole !== ""}
       busy={sharing}
       title="Share Building Data"
       actions={sharing
@@ -199,7 +209,7 @@ export function ShareBuildingDialog({
               onClick={handleProceedToConfirm}
               variant="contained"
               disabled={resolving ||
-                (shareMode === "webid" ? !webId.trim() : !targetRole) ||
+                (shareMode === "webid" ? webIds.length === 0 : !targetRole) ||
                 (shareScope === "years" && selectedYears.length === 0)}
             >
               {resolving ? "Resolving…" : "Review & Share"}
@@ -251,26 +261,34 @@ export function ShareBuildingDialog({
                     color="text.secondary"
                     sx={{ mb: 2 }}
                   >
-                    Enter the WebID(s) of the recipients. Separate multiple
-                    WebIDs with a comma or new line.
+                    Choose recipients from your contacts and data room members, or
+                    type a WebID and press Enter to add it.
                   </Typography>
-                  <TextField
-                    autoFocus
-                    margin="dense"
-                    label="Recipient WebID(s)"
-                    type="text"
-                    fullWidth
-                    multiline
-                    minRows={2}
-                    variant="outlined"
-                    value={webId}
-                    onChange={(e) => {
-                      setWebId((e.target as HTMLInputElement).value);
+                  <Autocomplete
+                    multiple
+                    freeSolo
+                    options={agentOptions}
+                    value={webIds}
+                    onChange={(_e, value) => {
+                      setWebIds(value as string[]);
                       if (webIdError) setWebIdError("");
                     }}
-                    error={!!webIdError}
-                    helperText={webIdError ||
-                      "One WebID per line, or comma-separated"}
+                    renderOption={(props, option) => (
+                      <Box component="li" {...props} key={option}>
+                        <AgentLabel value={option} />
+                      </Box>
+                    )}
+                    renderInput={(params) => (
+                      <TextField
+                        {...params}
+                        autoFocus
+                        margin="dense"
+                        label="Recipient WebID(s)"
+                        error={!!webIdError}
+                        helperText={webIdError ||
+                          "Pick a contact/member, or type a WebID and press Enter"}
+                      />
+                    )}
                   />
                 </>
               )
@@ -400,109 +418,215 @@ export function ShareBuildingDialog({
   );
 }
 
-interface EnergyCertificateDialogProps {
+/** Soft caps — warned, not enforced (Pods have quotas, but we don't hard-block). */
+const MAX_FILE_BYTES = 25 * 1024 * 1024;
+const MAX_FILES = 20;
+
+interface FilesDialogProps {
   open: boolean;
-  buildingUri: string;
+  building: BuildingType;
   session: Session;
   onClose: () => void;
-  onUploadSuccess: () => void;
+  /** Reload the underlying building data after a change. */
+  onChange: () => void;
 }
 
-export function EnergyCertificateDialog({
-  open,
-  buildingUri,
-  session,
-  onClose,
-  onUploadSuccess,
-}: EnergyCertificateDialogProps) {
+/**
+ * Manage a building's files: upload arbitrary files (PDF/DOCX/JPG/anything),
+ * download, delete, and flag one as the energy certificate. Files live in the
+ * building's per-building `files/` container and are shared automatically with
+ * anyone the building is shared with (the share grant covers the container).
+ *
+ * Keeps a local copy of the list so it stays live across uploads/deletes; also
+ * calls `onChange` so the rest of the app refetches.
+ */
+export function FilesDialog(
+  { open, building, session, onClose, onChange }: FilesDialogProps,
+) {
   const { showNotification } = useNotification();
-  const [uploading, setUploading] = useState(false);
-  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  // The building file URI (RMW target) and its RDF subject. attachmentManager
+  // strips the fragment for the file URI, so passing the subject is safe too.
+  const fileUri = (building.sourceUri as string) ?? building.uri;
+  const subjectUri = building.uri;
+  // Conditionally mounted per building (ManagePage gates on state), so a fresh
+  // initializer from the building's attachments is enough — no effect needed.
+  const [items, setItems] = useState<AttachmentRef[]>(
+    () => ((building.attachments as AttachmentRef[] | undefined) ?? []).slice(),
+  );
+  const [busy, setBusy] = useState(false);
 
-  const handleClose = () => {
-    setSelectedFile(null);
-    onClose();
-  };
-
-  const handleFileSelect = (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (file && file.type === "application/pdf") {
-      setSelectedFile(file);
-    } else {
-      showNotification("Please select a valid PDF file", "warning");
+  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = Array.from(e.target.files ?? []);
+    e.target.value = ""; // allow re-selecting the same file
+    if (files.length === 0) return;
+    if (items.length + files.length > MAX_FILES) {
+      showNotification(
+        `This building will have more than ${MAX_FILES} files — consider keeping it tidy.`,
+        "warning",
+      );
+    }
+    setBusy(true);
+    try {
+      for (const file of files) {
+        if (file.size > MAX_FILE_BYTES) {
+          showNotification(
+            `"${file.name}" is large (${
+              formatBytes(file.size)
+            }); the upload may be slow or rejected by the Pod.`,
+            "warning",
+          );
+        }
+        const ref = await uploadAttachment(fileUri, subjectUri, file, session);
+        setItems((prev) => [...prev, ref]);
+      }
+      onChange();
+    } catch (error) {
+      showNotification(formatError("upload the file", error), "error");
+    } finally {
+      setBusy(false);
     }
   };
 
-  const handleUpload = async () => {
-    if (!selectedFile) {
-      showNotification("Please select a file first", "warning");
+  const handleDownload = async (a: AttachmentRef) => {
+    setBusy(true);
+    try {
+      downloadBlob(await fetchAttachmentBlob(a.url, session), a.filename);
+    } catch (error) {
+      showNotification(formatError("download the file", error), "error");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  const handleDelete = async (a: AttachmentRef) => {
+    if (!globalThis.confirm(`Delete "${a.filename}"? This cannot be undone.`)) {
       return;
     }
-
-    setUploading(true);
+    setBusy(true);
     try {
-      await uploadEnergyCertificate(buildingUri, selectedFile, session);
-      showNotification("Certificate uploaded successfully", "success");
-      onUploadSuccess();
-      handleClose();
+      await deleteAttachment(fileUri, subjectUri, a.url, session);
+      setItems((prev) => prev.filter((x) => x.url !== a.url));
+      onChange();
     } catch (error) {
-      console.error("Error uploading energy certificate:", error);
-      showNotification(formatError("upload the certificate", error), "error");
+      showNotification(formatError("delete the file", error), "error");
     } finally {
-      setUploading(false);
+      setBusy(false);
+    }
+  };
+
+  const handleToggleCert = async (a: AttachmentRef) => {
+    setBusy(true);
+    try {
+      const makeIt = !a.isEnergyCertificate;
+      await setEnergyCertificate(
+        fileUri,
+        subjectUri,
+        makeIt ? a.url : null,
+        session,
+      );
+      // Only one file can be the certificate at a time.
+      setItems((prev) =>
+        prev.map((x) => ({
+          ...x,
+          isEnergyCertificate: makeIt && x.url === a.url,
+        }))
+      );
+      onChange();
+    } catch (error) {
+      showNotification(
+        formatError("update the energy certificate", error),
+        "error",
+      );
+    } finally {
+      setBusy(false);
     }
   };
 
   return (
     <Modal
       open={open}
-      onClose={handleClose}
-      dirty={selectedFile != null}
-      busy={uploading}
-      title="Upload Energy Certificate"
-      actions={!uploading && (
-        <>
-          <Button onClick={handleClose}>Cancel</Button>
-          <Button
-            onClick={handleUpload}
-            variant="contained"
-            disabled={!selectedFile}
-          >
-            Upload
-          </Button>
-        </>
-      )}
+      onClose={onClose}
+      busy={busy}
+      title="Files"
+      actions={<Button onClick={onClose}>Close</Button>}
     >
-      {uploading
+      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+        Attach files (PDF, images, documents — anything) to this building. They're
+        stored on your Pod and shared automatically with anyone you share the
+        building with.
+      </Typography>
+      {items.length === 0
         ? (
-          <Typography variant="body2" color="text.secondary">Uploading…</Typography>
+          <Typography variant="body2" sx={{ mb: 2 }}>
+            No files yet.
+          </Typography>
         )
         : (
-          <>
-            <p style={{ marginTop: 0 }}>
-              Upload a PDF file of the energy certificate for this building.
-            </p>
-            <Box mt={2}>
-              <input
-                type="file"
-                accept="application/pdf"
-                onChange={handleFileSelect}
-                id="certificate-file-input"
-                style={{ display: "none" }}
-              />
-              <label htmlFor="certificate-file-input">
-                <Button variant="outlined" component="span">
-                  Choose File
-                </Button>
-              </label>
-              {selectedFile && (
-                <Typography variant="body2" sx={{ mt: 1 }}>
-                  Selected: {selectedFile.name}
-                </Typography>
-              )}
-            </Box>
-          </>
+          <ul style={listStyle}>
+            {items.map((a) => (
+              <li key={a.url} style={rowStyle}>
+                <span style={{ minWidth: 0 }}>
+                  {a.filename}
+                  {a.isEnergyCertificate && (
+                    <Chip
+                      size="small"
+                      label="Energy certificate"
+                      sx={{ ml: 1 }}
+                    />
+                  )}
+                  <br />
+                  <Typography
+                    component="span"
+                    variant="caption"
+                    color="text.secondary"
+                  >
+                    {a.mediaType}
+                    {a.size ? ` · ${formatBytes(a.size)}` : ""}
+                  </Typography>
+                </span>
+                <span style={{ display: "flex", gap: "0.25rem" }}>
+                  <Button
+                    size="small"
+                    onClick={() => handleDownload(a)}
+                    disabled={busy}
+                  >
+                    Download
+                  </Button>
+                  <Button
+                    size="small"
+                    onClick={() => handleToggleCert(a)}
+                    disabled={busy}
+                  >
+                    {a.isEnergyCertificate ? "Unset cert" : "Set as cert"}
+                  </Button>
+                  <Button
+                    size="small"
+                    color="error"
+                    onClick={() => handleDelete(a)}
+                    disabled={busy}
+                  >
+                    Delete
+                  </Button>
+                </span>
+              </li>
+            ))}
+          </ul>
         )}
+      <Box mt={1}>
+        <input
+          type="file"
+          multiple
+          onChange={handleFiles}
+          id="files-input"
+          style={{ display: "none" }}
+          disabled={busy}
+        />
+        <label htmlFor="files-input">
+          <Button variant="contained" component="span" disabled={busy}>
+            {busy ? "Working…" : "Add files"}
+          </Button>
+        </label>
+      </Box>
     </Modal>
   );
 }

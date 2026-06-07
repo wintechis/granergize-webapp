@@ -1,0 +1,126 @@
+# Granergize investor vocabulary — published at
+#   https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#
+# Source of truth is this file in the app repo (see vocab/README.md). No document
+# was previously published at this URL (it 404s); this is authored from the terms
+# the app actually reads/writes (vocabularies.ts, config/buildingConfig.ts,
+# buildingParser.ts/buildingSerializer.ts). Controlled-vocabulary instance local
+# names + labels mirror the dialog enums + investorLocalNameLabels.
+
+@prefix :    <#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rec: <https://w3id.org/rec#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<#> rdf:type owl:Ontology ;
+    rdfs:label "Granergize investor vocabulary"@en .
+
+############################
+###   Master data        ###
+############################
+
+:buildingCode rdf:type owl:DatatypeProperty ;
+    rdfs:label "building code"@en ; rdfs:domain rec:Building ; rdfs:range xsd:string .
+:hallArea rdf:type owl:DatatypeProperty ;
+    rdfs:label "hall area"@en ; rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+:officeSocialArea rdf:type owl:DatatypeProperty ;
+    rdfs:label "office & social area"@en ; rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+:buildingHeight rdf:type owl:DatatypeProperty ;
+    rdfs:label "building height"@en ; rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+:numberOfLoadingDocks rdf:type owl:DatatypeProperty ;
+    rdfs:label "number of loading docks"@en ; rdfs:domain rec:Building ; rdfs:range xsd:integer .
+:yearOfRenovation rdf:type owl:DatatypeProperty ;
+    rdfs:label "year of renovation"@en ; rdfs:domain rec:Building ; rdfs:range xsd:integer .
+:leaseType rdf:type owl:DatatypeProperty ;
+    rdfs:label "lease type"@en ; rdfs:domain rec:Building ; rdfs:range xsd:string .
+:tenantIndustry rdf:type owl:DatatypeProperty ;
+    rdfs:label "tenant industry"@en ; rdfs:domain rec:Building ; rdfs:range xsd:string .
+
+# Heating-system flags
+:hasOilBoiler rdf:type owl:DatatypeProperty ;
+    rdfs:label "has oil boiler"@en ; rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+:hasGasBoiler rdf:type owl:DatatypeProperty ;
+    rdfs:label "has gas boiler"@en ; rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+:hasElectricBoiler rdf:type owl:DatatypeProperty ;
+    rdfs:label "has electric boiler"@en ; rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+:hasHeatPump rdf:type owl:DatatypeProperty ;
+    rdfs:label "has heat pump"@en ; rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+:hasDistrictHeating rdf:type owl:DatatypeProperty ;
+    rdfs:label "has district heating"@en ; rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+
+############################
+###   Controlled vocab   ###
+############################
+
+:shiftRegime rdf:type owl:ObjectProperty ;
+    rdfs:label "shift regime"@en ; rdfs:domain rec:Building ; rdfs:range :ShiftRegime .
+:tenancyType rdf:type owl:ObjectProperty ;
+    rdfs:label "tenancy type"@en ; rdfs:domain rec:Building ; rdfs:range :TenancyType .
+:indoorTemperatureClass rdf:type owl:ObjectProperty ;
+    rdfs:label "indoor temperature class"@en ; rdfs:domain rec:Building ; rdfs:range :IndoorTemperatureClass .
+
+:ShiftRegime rdf:type owl:Class ; rdfs:label "Shift regime"@en .
+:OneShift   rdf:type :ShiftRegime ; rdfs:label "1-Shift"@en .
+:TwoShift   rdf:type :ShiftRegime ; rdfs:label "2-Shift"@en .
+:ThreeShift rdf:type :ShiftRegime ; rdfs:label "3-Shift"@en .
+
+:TenancyType rdf:type owl:Class ; rdfs:label "Tenancy type"@en .
+:SingleTenant rdf:type :TenancyType ; rdfs:label "Single Tenant"@en .
+:MultiTenant  rdf:type :TenancyType ; rdfs:label "Multi Tenant"@en .
+
+:IndoorTemperatureClass rdf:type owl:Class ; rdfs:label "Indoor temperature class"@en .
+:MaxTwelveDegrees   rdf:type :IndoorTemperatureClass ; rdfs:label "≤12 °C"@en .
+:MaxEighteenDegrees rdf:type :IndoorTemperatureClass ; rdfs:label "≤18 °C"@en .
+
+############################
+###   Operating costs    ###
+############################
+
+:hasOperatingCosts rdf:type owl:ObjectProperty ;
+    rdfs:label "has operating costs"@en ; rdfs:domain rec:Building ; rdfs:range :OperatingCosts .
+:OperatingCosts rdf:type owl:Class ; rdfs:label "Operating costs"@en .
+
+# Service-level categories used by the operating-cost properties below.
+:ServiceLevel rdf:type owl:Class ; rdfs:label "Service level"@en .
+:Low                  rdf:type :ServiceLevel ; rdfs:label "Low"@en .
+:Simple               rdf:type :ServiceLevel ; rdfs:label "Simple"@en .
+:Medium               rdf:type :ServiceLevel ; rdfs:label "Medium"@en .
+:High                 rdf:type :ServiceLevel ; rdfs:label "High"@en .
+:AllRisk              rdf:type :ServiceLevel ; rdfs:label "All-Risk"@en .
+:FullServiceManagement rdf:type :ServiceLevel ; rdfs:label "Full Service"@en .
+
+:wasteDisposal rdf:type owl:ObjectProperty ;
+    rdfs:label "waste disposal"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:insurance rdf:type owl:ObjectProperty ;
+    rdfs:label "insurance"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:operationInspectionAndMaintenance rdf:type owl:DatatypeProperty ;
+    rdfs:label "operation, inspection & maintenance"@en ; rdfs:domain :OperatingCosts ; rdfs:range xsd:boolean .
+:routineCleaningOffice rdf:type owl:ObjectProperty ;
+    rdfs:label "routine cleaning (office)"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:routineCleaningWarehouse rdf:type owl:ObjectProperty ;
+    rdfs:label "routine cleaning (warehouse)"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:glassCleaning rdf:type owl:ObjectProperty ;
+    rdfs:label "glass cleaning"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:exteriorMaintenance rdf:type owl:ObjectProperty ;
+    rdfs:label "exterior maintenance"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:security rdf:type owl:ObjectProperty ;
+    rdfs:label "security"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:propertyManagement rdf:type owl:ObjectProperty ;
+    rdfs:label "property management"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:caretaker rdf:type owl:ObjectProperty ;
+    rdfs:label "caretaker"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:repairAndMaintenance rdf:type owl:ObjectProperty ;
+    rdfs:label "repair & maintenance"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+
+############################
+###   Certifications     ###
+############################
+
+:hasBuildingCertification rdf:type owl:ObjectProperty ;
+    rdfs:label "has building certification"@en ; rdfs:domain rec:Building ; rdfs:range :BuildingCertification .
+:BuildingCertification rdf:type owl:Class ; rdfs:label "Building certification"@en .
+:certificationLevel rdf:type owl:DatatypeProperty ;
+    rdfs:label "certification level"@en ; rdfs:domain :BuildingCertification ; rdfs:range xsd:string .
+:certificationScope rdf:type owl:ObjectProperty ;
+    rdfs:label "certification scope"@en ; rdfs:domain :BuildingCertification .

@@ -1,0 +1,499 @@
+@prefix : <#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rec: <https://w3id.org/rec#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix unit: <https://qudt.org/vocab/unit#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix schema: <http://schema.org/> .
+
+<#> rdf:type owl:Ontology .
+
+
+############################
+### Building Extenstions ###
+############################
+
+# Classses
+:Usage rdf:type owl:Class ;
+    rdfs:label "Nutzung"@de .
+
+# Object Properties
+:usedAs rdf:type owl:ObjectProperty ;
+    rdfs:label "genutzt als"@de ;
+    rdfs:domain rec:Building ;
+    rdfs:range :Usage .
+
+:investor rdf:type owl:ObjectProperty ;
+    rdfs:label "Investor"@de ;
+    rdfs:domain rec:Building ;
+    rdfs:range rec:Agent .
+
+:hasEnergyUsage rdf:type owl:ObjectProperty ;
+    rdfs:label "hat Energieverbrauch"@de ;
+    rdfs:domain rec:Building ;
+    rdfs:range :EnergyNeed .
+
+# Datatype Properties
+
+:yearOfConstruction rdf:type owl:DatatypeProperty ;
+    rdfs:label "Baujahr"@de ;
+    rdfs:domain rec:Building ;
+    rdfs:range xsd:integer .
+
+:hasBuildingArea rdf:type owl:ObjectProperty ;
+    rdfs:label "Gebäudefläche"@de ;
+    rdfs:domain rec:Building ;
+    rdfs:range unit:M2 .
+
+:hasLandArea rdf:type owl:ObjectProperty ;
+    rdfs:label "Grundstücksfläche"@de ;
+    rdfs:domain rec:RealEstate ;
+    rdfs:range unit:M2 .
+
+:officeArea rdf:type owl:DatatypeProperty ;
+    rdfs:label "Bürofläche"@de ;
+    rdfs:domain rec:Building ;
+    rdfs:range xsd:decimal .
+
+:hasPVSystem rdf:type owl:DatatypeProperty ;
+    rdfs:label "Hat Photovoltaik-Anlage"@de ;
+    rdfs:comment "Gibt an, ob das Gebäude über eine Photovoltaikanlage verfügt."@de ;
+    rdfs:domain rec:Building ;
+    rdfs:range xsd:boolean .
+
+
+##########################
+### Energy Consumption ###
+##########################
+
+# Classes
+:EnergyNeed rdf:type owl:Class ;
+    rdfs:label "Energiebedarf"@de .
+
+:NonRenewableEnergy rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyNeed ;
+    rdfs:label "Nicht-regenerative Energie"@de .
+
+:RenewableEnergy rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyNeed ;
+    rdfs:label "Regenerative Energie"@de .
+
+:EnergyGeneration rdf:type owl:Class ;
+    rdfs:label "Energieerzeugung"@de .
+
+:EnergyStorage rdf:type owl:Class ;
+    rdfs:label "Energiespeicherung"@de .
+
+:EnergyDistribution rdf:type owl:Class ;
+    rdfs:label "Energieverteilung"@de .
+
+:EnergyTransfer rdf:type owl:Class ;
+    rdfs:label "Energieübergabe"@de .
+
+:EnergyUsage rdf:type owl:Class ;
+    rdfs:label "Energienutzung"@de .
+
+:Environment rdf:type owl:Class ;
+    rdfs:label "Umwelt"@de .
+
+# Subclasses for NonRenewableEnergy
+:Gas rdf:type owl:Class ;
+    rdfs:subClassOf :NonRenewableEnergy ;
+    rdfs:label "Gas"@de .
+
+:Electricity rdf:type owl:Class ;
+    rdfs:subClassOf :NonRenewableEnergy ;
+    rdfs:label "Strom"@de .
+
+# Subclasses for Electricity
+:GridSupply rdf:type owl:Class ;
+    rdfs:subClassOf :Electricity ;
+    rdfs:label "Netzbezug"@de .
+
+# Subclasses for RenewableEnergy
+:Solar rdf:type owl:Class ;
+    rdfs:subClassOf :RenewableEnergy ;
+    rdfs:label "Solar"@de .
+
+:AmbientHeat rdf:type owl:Class ;
+    rdfs:subClassOf :RenewableEnergy ;
+    rdfs:label "Umgebungswärme"@de .
+
+:VentilationHeat rdf:type owl:Class ;
+    rdfs:subClassOf :RenewableEnergy ;
+    rdfs:label "Lüftungswärme"@de .
+
+:PersonHeat rdf:type owl:Class ;
+    rdfs:subClassOf :RenewableEnergy ;
+    rdfs:label "Personen"@de .
+
+:GroundwaterHeat rdf:type owl:Class ;
+    rdfs:subClassOf :RenewableEnergy ;
+    rdfs:label "Grundwasser"@de .
+
+:WoodChips rdf:type owl:Class ;
+    rdfs:subClassOf :RenewableEnergy ;
+    rdfs:label "Hackschnitzel"@de .
+
+# Subclasses for Solar
+:SpaceHeating rdf:type owl:Class ;
+    rdfs:subClassOf :Solar ;
+    rdfs:label "Raumwärme"@de .
+
+:Photovoltaic rdf:type owl:Class ;
+    rdfs:subClassOf :Solar ;
+    rdfs:label "Photovoltaik"@de .
+
+# Subclasses for Photovoltaic
+:SelfConsumption rdf:type owl:Class ;
+    rdfs:subClassOf :Photovoltaic ;
+    rdfs:label "Eigenverbrauch"@de .
+
+:GridFeedIn rdf:type owl:Class ;
+    rdfs:subClassOf :Photovoltaic ;
+    rdfs:label "Netzeinspeisung"@de .
+
+:HallHeatingFromWasteLoss rdf:type owl:Class ;
+    rdfs:subClassOf :Photovoltaic ;
+    rdfs:label "Raumwärme Halle durch Abwärmeverlust"@de .
+
+:FrostProtectionHBWFromWasteLoss rdf:type owl:Class ;
+    rdfs:subClassOf :Photovoltaic ;
+    rdfs:label "Frostschutz HRL durch Abwärmeverlust"@de .
+
+# Subclasses for EnergyGeneration
+:HallLighting rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyGeneration ;
+    rdfs:label "Beleuchtung Halle"@de .
+
+:HeatGeneration rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyGeneration ;
+    rdfs:label "Wärmeerzeugung"@de .
+
+:HallHeat rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyGeneration ;
+    rdfs:label "Wärme Halle"@de .
+
+:HbwHeat rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyGeneration ;
+    rdfs:label "Wärme HRL"@de .
+
+# Subclasses for EnergyStorage
+:ForkliftBatteryCharging rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyStorage ;
+    rdfs:label "FFZ-Batterie-Ladung"@de .
+
+:HeatStorage rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyStorage ;
+    rdfs:label "Wärmespeicherung"@de .
+
+# Subclasses for EnergyDistribution
+:HeatDistribution rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyDistribution ;
+    rdfs:label "Wärmeverteilung"@de .
+
+:IntralogisticsHallDistribution rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyDistribution ;
+    rdfs:label "Intralogistik Halle"@de .
+
+:intralogisticsHbwDistribution rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyDistribution ;
+    rdfs:label "Intralogistik HRL"@de .
+
+:HallHeatDistribution rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyDistribution ;
+    rdfs:label "Wärme Halle"@de .
+
+:HbwHeatDistribution rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyDistribution ;
+    rdfs:label "Wärme HRL"@de .
+
+# Subclasses for EnergyTransfer
+:HeatTransfer rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyTransfer ;
+    rdfs:label "Wärmeübergabe"@de .
+
+:ForkliftTransfer rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyTransfer ;
+    rdfs:label "FFZ"@de .
+
+:IntralogisticsHallTransfer rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyTransfer ;
+    rdfs:label "Intrlogistik Halle"@de .
+
+:intralogisticsHbwTransfer rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyTransfer ;
+    rdfs:label "Intrlogistik HRL"@de .
+
+:HallHeatTransfer rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyTransfer ;
+    rdfs:label "Wärme Halle"@de .
+
+:HbwHeatTransfer rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyTransfer ;
+    rdfs:label "Wärme HRL"@de .
+
+# Subclasses for EnergyUsage
+:HallSpaceHeating rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyUsage ;
+    rdfs:label "Raumwärme Halle"@de .
+
+:Work rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyUsage ;
+    rdfs:label "Arbeit"@de .
+
+:HbwFrostProtection rdf:type owl:Class ;
+    rdfs:subClassOf :EnergyUsage ;
+    rdfs:label "Frostschutz HRL"@de .
+
+# Subclasses for Environment
+:Cold rdf:type owl:Class ;
+    rdfs:subClassOf :Environment ;
+    rdfs:label "Kälte"@de .
+
+# Object Properties
+:energyAmount rdf:type owl:ObjectProperty ;
+    rdfs:domain :EnergyNeed ;
+    rdfs:range :EnergyMeasurement ;
+    rdfs:label "Energiemenge"@de .
+
+# New class for energy measurements
+:EnergyMeasurement rdf:type owl:Class ;
+    rdfs:label "Energiemessung"@de .
+
+# Properties for the energy measurement
+:value rdf:type owl:DatatypeProperty ;
+    rdfs:domain :EnergyMeasurement ;
+    rdfs:range xsd:float .
+
+# Units for the energy measurement
+:unit rdf:type owl:ObjectProperty ;
+    rdfs:domain :EnergyMeasurement ;
+    rdfs:range unit:Unit .
+
+# Define kWh/a unit
+:KilowattHourPerYear rdf:type unit:Unit ;
+    rdfs:label "Kilowattstunde pro Jahr"@de ;
+    unit:symbol "kWh/a" .
+
+:hasEnergySource rdf:type owl:ObjectProperty ;
+    rdfs:domain :EnergyGeneration ;
+    rdfs:range :EnergyNeed ;
+    rdfs:label "hat Energiequelle"@de .
+
+:generatesEnergy rdf:type owl:ObjectProperty ;
+    rdfs:domain :EnergyGeneration ;
+    rdfs:range :EnergyDistribution ;
+    rdfs:label "erzeugt Energie"@de .
+
+:storesEnergy rdf:type owl:ObjectProperty ;
+    rdfs:domain :EnergyStorage ;
+    rdfs:range :EnergyNeed ;
+    rdfs:label "speichert Energie"@de .
+
+:distributesEnergy rdf:type owl:ObjectProperty ;
+    rdfs:domain :EnergyDistribution ;
+    rdfs:range :EnergyTransfer ;
+    rdfs:label "verteilt Energie"@de .
+
+:transfersEnergy rdf:type owl:ObjectProperty ;
+    rdfs:domain :EnergyTransfer ;
+    rdfs:range :EnergyUsage ;
+    rdfs:label "übergibt Energie"@de .
+
+:usesEnergy rdf:type owl:ObjectProperty ;
+    rdfs:domain :EnergyUsage ;
+    rdfs:range :EnergyNeed ;
+    rdfs:label "nutzt Energie"@de .
+
+:affectsEnvironment rdf:type owl:ObjectProperty ;
+    rdfs:domain :EnergyUsage ;
+    rdfs:range :Environment ;
+    rdfs:label "beeinflusst Umwelt"@de .
+
+# Data Properties
+:temperature rdf:type owl:DatatypeProperty ;
+    rdfs:domain :Environment ;
+    rdfs:range xsd:float ;
+    rdfs:label "Temperatur"@de .
+
+
+############################
+###   User Role Vocab    ###
+############################
+
+# Registry classes
+:DataSourceRegistry rdf:type owl:Class ;
+    rdfs:label "Data Source Registry"@en .
+
+:DataSourceEntry rdf:type owl:Class ;
+    rdfs:label "Data Source Entry"@en .
+
+# Registry predicates
+:hasBuildingDataSource rdf:type owl:ObjectProperty ;
+    rdfs:label "has building data source"@en ;
+    rdfs:domain :DataSourceRegistry ;
+    rdfs:range :DataSourceEntry .
+
+:hasAgentDataSource rdf:type owl:ObjectProperty ;
+    rdfs:label "has agent data source"@en ;
+    rdfs:domain :DataSourceRegistry ;
+    rdfs:range :DataSourceEntry .
+
+:dataSourceUrl rdf:type owl:DatatypeProperty ;
+    rdfs:label "data source URL"@en ;
+    rdfs:domain :DataSourceEntry ;
+    rdfs:range xsd:anyURI .
+
+:dataSourceRole rdf:type owl:ObjectProperty ;
+    rdfs:label "data source role"@en ;
+    rdfs:domain :DataSourceEntry ;
+    rdfs:range :UserRole .
+
+# Role class
+:UserRole rdf:type owl:Class ;
+    rdfs:label "User Role"@en .
+
+# Role instances
+:DummyRole rdf:type :UserRole ;
+    rdfs:label "Dummy"@en .
+
+:InvestorRole rdf:type :UserRole ;
+    rdfs:label "Investor"@en .
+
+:UserRoleInstance rdf:type :UserRole ;
+    rdfs:label "User"@en .
+
+:BenchmarkRole rdf:type :UserRole ;
+    rdfs:label "Benchmark Service Provider"@en .
+
+
+############################################################################
+###   Added in-repo (evolved locally)                                    ###
+###   Terms the app reads/writes that were missing from the published    ###
+###   document. Source of truth is now vocab/ in the app repo — see      ###
+###   vocab/README.md. Keep in sync with vocabularies.ts / buildingConfig.###
+############################################################################
+
+# ── Company kind (the producing organisation's category) ──────────────────────
+# Distinct from :UserRole instances above: the *…Role* IRIs name the producing
+# role on a building's PROV attribution; these name the company's own kind
+# (org:classification). Reused from the legacy gran:dataSourceRole values.
+:CompanyKind rdf:type owl:Class ;
+    rdfs:label "Company kind"@en .
+
+:Dummy rdf:type :CompanyKind ; rdfs:label "Dummy"@en .
+:Investor rdf:type :CompanyKind ; rdfs:label "Investor"@en .
+:User rdf:type :CompanyKind ; rdfs:label "User"@en .
+:BenchmarkServiceProvider rdf:type :CompanyKind ;
+    rdfs:label "Benchmark Service Provider"@en .
+
+:kind rdf:type owl:ObjectProperty ;
+    rdfs:label "kind"@en ;
+    rdfs:comment "The kind of a shared resource in a sharing-log entry (:View or rec:Building)."@en .
+
+# ── Unified energy model (per-dataset resources, SOSA observations) ────────────
+:EnergyDataset rdf:type owl:Class ;
+    rdfs:subClassOf sosa:ObservationCollection ;
+    rdfs:label "Energy dataset"@en .
+
+:hasEnergyDataset rdf:type owl:ObjectProperty ;
+    rdfs:label "has energy dataset"@en ;
+    rdfs:domain rec:Building ;
+    rdfs:range :EnergyDataset .
+
+:ofBuilding rdf:type owl:ObjectProperty ;
+    rdfs:label "of building"@en ;
+    rdfs:domain :EnergyDataset ;
+    rdfs:range rec:Building .
+
+:datasetLocation rdf:type owl:ObjectProperty ;
+    rdfs:label "dataset location"@en ;
+    rdfs:comment "The stored Turtle resource holding this dataset's observations."@en ;
+    rdfs:domain :EnergyDataset .
+
+:granularity rdf:type owl:DatatypeProperty ;
+    rdfs:label "granularity"@en ;
+    rdfs:comment "ISO 8601 duration of one observation period (e.g. P1Y, PT15M)."@en ;
+    rdfs:domain :EnergyDataset ;
+    rdfs:range xsd:string .
+
+:scenario rdf:type owl:ObjectProperty ;
+    rdfs:label "scenario"@en ;
+    rdfs:domain :EnergyDataset ;
+    rdfs:range :Scenario .
+
+:Scenario rdf:type owl:Class ;
+    rdfs:label "Scenario"@en .
+:Actual rdf:type :Scenario ; rdfs:label "Actual"@en .
+:Planned rdf:type :Scenario ; rdfs:label "Planned"@en .
+
+# Observable properties used as sosa:observedProperty on energy observations.
+:ElectricityConsumption rdf:type sosa:ObservableProperty ;
+    rdfs:label "Electricity consumption"@en .
+:HeatConsumption rdf:type sosa:ObservableProperty ;
+    rdfs:label "Heat consumption"@en .
+:WaterConsumption rdf:type sosa:ObservableProperty ;
+    rdfs:label "Water consumption"@en .
+:WastewaterConsumption rdf:type sosa:ObservableProperty ;
+    rdfs:label "Wastewater consumption"@en .
+:RenewableSelfGeneratedShare rdf:type sosa:ObservableProperty ;
+    rdfs:label "Renewable self-generated share"@en .
+
+# ── Building file attachments (schema.org MediaObject metadata) ────────────────
+:hasAttachment rdf:type owl:ObjectProperty ;
+    rdfs:label "has attachment"@en ;
+    rdfs:domain rec:Building ;
+    rdfs:range schema:MediaObject .
+
+:hasEnergyCertificate rdf:type owl:ObjectProperty ;
+    rdfs:label "has energy certificate"@en ;
+    rdfs:comment "Flags one attachment (a schema:MediaObject) as the energy certificate."@en ;
+    rdfs:domain rec:Building .
+
+# ── Geocoding precision (attached to a building's geo:Point) ───────────────────
+:geocodePrecision rdf:type owl:ObjectProperty ;
+    rdfs:label "geocode precision"@en ;
+    rdfs:domain geo:Point ;
+    rdfs:range :GeocodePrecision .
+
+:GeocodePrecision rdf:type owl:Class ;
+    rdfs:label "Geocode precision"@en .
+:Address rdf:type :GeocodePrecision ; rdfs:label "Address"@en .
+:Postcode rdf:type :GeocodePrecision ; rdfs:label "Postcode"@en .
+:City rdf:type :GeocodePrecision ; rdfs:label "City"@en .
+
+# ── Aggregated views ───────────────────────────────────────────────────────────
+:View rdf:type owl:Class ;
+    rdfs:label "Aggregated view"@en .
+
+# ── Personal preferences (prefs.ttl) ───────────────────────────────────────────
+:Preferences rdf:type owl:Class ;
+    rdfs:label "Preferences"@en .
+
+:currentRoom rdf:type owl:ObjectProperty ;
+    rdfs:label "current room"@en ;
+    rdfs:domain :Preferences .
+
+:hiddenBuilding rdf:type owl:ObjectProperty ;
+    rdfs:label "hidden building"@en ;
+    rdfs:comment "A building shared with you that you've hidden from the dashboard."@en ;
+    rdfs:domain :Preferences ;
+    rdfs:range rec:Building .
+
+:demoSeedDeclined rdf:type owl:DatatypeProperty ;
+    rdfs:label "demo seed declined"@en ;
+    rdfs:domain :Preferences ;
+    rdfs:range xsd:boolean .
+
+# ── Room bookmarks (bookmarks.ttl) ─────────────────────────────────────────────
+:Bookmarks rdf:type owl:Class ;
+    rdfs:label "Bookmarks"@en .
+
+:knownRoom rdf:type owl:ObjectProperty ;
+    rdfs:label "known room"@en ;
+    rdfs:domain :Bookmarks .
+

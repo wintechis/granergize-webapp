@@ -101,6 +101,24 @@ Deno.test("buildSharingEventTurtle round-trips through parseSharingEvents (grant
   assert.deepEqual(events[0], e);
 });
 
+Deno.test("buildSharingEventTurtle round-trips a per-year grant's years", () => {
+  const e: SharingEvent = {
+    type: "grant",
+    owner: OWNER,
+    grantee: BOB,
+    resource: B1,
+    kind: "Building",
+    includesEnergy: true,
+    years: [2023, 2024],
+    at: "2026-06-04T10:00:00Z",
+  };
+  const ttl = buildSharingEventTurtle(e);
+  assert.ok(ttl.includes('interop:includesEnergyYear "2023"^^xsd:gYear'));
+  const events = parseSharingEvents(new Store(new Parser({ baseIRI: B1 }).parse(ttl)));
+  assert.equal(events.length, 1);
+  assert.deepEqual(events[0], e);
+});
+
 Deno.test("buildSharingEventTurtle round-trips a revocation (no kind/energy)", () => {
   const e: SharingEvent = {
     type: "revocation",

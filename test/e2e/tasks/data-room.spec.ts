@@ -53,11 +53,24 @@ test.describe("data rooms", () => {
     await expect(notice.first()).toBeVisible({ timeout: SETTLE });
   }
 
-  /** All room URIs currently listed (to diff before/after a host). */
+  /**
+   * All room URIs currently listed (to diff before/after a host). A room row is the
+   * list item carrying an Enter/Leave action; its link text is the room URI. We
+   * identify rooms by that UI affordance rather than the `/rooms/` storage path —
+   * the path is an app-internal convention the spec shouldn't depend on (the room's
+   * URI is its identity, but *where* it's stored is not the test's business).
+   */
   const roomHrefs = () =>
-    page.locator('li a[href*="/rooms/"]').evaluateAll((els) =>
-      els.map((e) => (e as HTMLAnchorElement).getAttribute("href") ?? "")
-    );
+    page.locator("li")
+      .filter({
+        has: page.locator(
+          'button[aria-label="Enter data room"], button[aria-label="Leave data room"]',
+        ),
+      })
+      .locator("a")
+      .evaluateAll((els) =>
+        els.map((e) => (e as HTMLAnchorElement).getAttribute("href") ?? "")
+      );
 
   /**
    * Host a fresh room and return its row + URI. Robust to pre-existing rooms

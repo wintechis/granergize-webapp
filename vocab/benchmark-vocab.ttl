@@ -1,0 +1,30 @@
+# Granergize benchmark (BSP) vocabulary — published at
+#   https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#
+# Source of truth is this file in the app repo (see vocab/README.md). No document
+# was previously published at this URL; authored from the terms the app reads/
+# writes (config/buildingConfig.ts). Datatypes mirror the field schema's ranges.
+
+@prefix :    <#> .
+@prefix owl: <http://www.w3.org/2002/07/owl#> .
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rec: <https://w3id.org/rec#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+
+<#> rdf:type owl:Ontology ;
+    rdfs:label "Granergize benchmark service-provider vocabulary"@en .
+
+:logisticsFunction rdf:type owl:DatatypeProperty ;
+    rdfs:label "logistics function"@en ; rdfs:domain rec:Building ; rdfs:range xsd:string .
+:climateControlType rdf:type owl:DatatypeProperty ;
+    rdfs:label "climate control type"@en ; rdfs:domain rec:Building ; rdfs:range xsd:string .
+:greenLeaseShare rdf:type owl:DatatypeProperty ;
+    rdfs:label "green lease share"@en ; rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+:indoorTemperature rdf:type owl:DatatypeProperty ;
+    rdfs:label "indoor temperature"@en ; rdfs:domain rec:Building ; rdfs:range xsd:string .
+:pvInstallationYear rdf:type owl:DatatypeProperty ;
+    rdfs:label "PV installation year"@en ; rdfs:domain rec:Building ; rdfs:range xsd:integer .
+:pvCapacityKW rdf:type owl:DatatypeProperty ;
+    rdfs:label "PV capacity (kW)"@en ; rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+:companyName rdf:type owl:DatatypeProperty ;
+    rdfs:label "company name"@en ; rdfs:domain rec:Building ; rdfs:range xsd:string .

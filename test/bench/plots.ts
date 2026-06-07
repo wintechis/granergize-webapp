@@ -46,6 +46,29 @@ export const ALL_PLOTS: PlotSpec[] = [
     ],
   },
   {
+    name: "rooms",
+    title: "Data-room operation time vs. number of members",
+    xlabel: "# members",
+    ylabel: "operation time (ms)",
+    series: [
+      { col: 2, title: "create" },
+      { col: 3, title: "join" },
+      { col: 4, title: "leave" },
+      { col: 5, title: "fold (getMembers)" },
+      { col: 6, title: "delete" },
+    ],
+  },
+  {
+    name: "room-churn",
+    title: "Data-room read fold vs. role-event history (fixed membership)",
+    xlabel: "# role events",
+    ylabel: "time (ms)",
+    series: [
+      { col: 2, title: "setMyRole (append)" },
+      { col: 3, title: "fold (getMembers)" },
+    ],
+  },
+  {
     // Tier-3: end-to-end browser render (cold load → N rows on Manage).
     name: "manage-render",
     title: "Browser time-to-render vs. number of buildings (Manage list)",
@@ -55,6 +78,18 @@ export const ALL_PLOTS: PlotSpec[] = [
     series: [
       { col: 2, title: "total (ms)" },
       { col: 3, title: "per building (ms)", y2: true },
+    ],
+  },
+  {
+    // Tier-3: end-to-end browser render (cold load → N member rows on Connect).
+    name: "room-render",
+    title: "Browser time-to-render vs. number of members (data room)",
+    xlabel: "# members",
+    ylabel: "time to N rows (ms)",
+    y2label: "per-member (ms)",
+    series: [
+      { col: 2, title: "total (ms)" },
+      { col: 3, title: "per member (ms)", y2: true },
     ],
   },
 ];

@@ -41,6 +41,63 @@ and a clean separation of three concerns that the old registries conflated —
   local-names** (`gran:hiddenBuilding`, `gran:currentRoom`, …), which is RDF-
   conventional and stays as-is (the `gran:` vocab is external).
 
+## Resource creation: client-chosen URIs + PUT (not POST/`Location`)
+
+Every resource and container is created by **PUT to a URI the client picks**, never
+by POST-to-a-container letting the server mint a slug and hand it back in `Location`.
+This is deliberate; the reasoning, since it recurs:
+
+- **Named structural folders *must* be PUT.** `buildings/`, `inbox/`, `views/`, the
+  `rooms/` parent — "create this folder if absent" is only expressible as PUT to that
+  exact URI (GET → if 404, PUT). POST always makes a *new* child; it can't say "at
+  this path." So for fixed paths there is no choice.
+- **Leaf items are client-id'd by *choice*, not necessity.** A building (`buildings/
+  <id>.ttl`, id = `Date.now()-rand`) or a room (`rooms/<uuid>/`, `crypto.randomUUID`)
+  *could* be POSTed — their ids are opaque, nothing constructs paths from a room id.
+  We still PUT them, for:
+  - **Idempotency under the retry layer (the load-bearing reason).** Every Pod write
+    goes through `retryFetch`, which replays on Cloudflare 429/503 and on connection
+    aborts the caller didn't request. A **PUT to a fixed URI is replay-safe** — a
+    retry after a lost response hits the *same* URI, so you get one resource (and
+    `If-None-Match: *` makes the duplicate attempt a clean 412). A **POST is not** —
+    the server mints a fresh slug per call, so "request landed but the 201 was lost →
+    retry" silently creates a *second* room/building. On flaky throttled Pods (exactly
+    our environment) that matters. LDP's built-in idempotent-create primitive *is*
+    `PUT … If-None-Match: *`; POST has no equivalent.
+  - **Derived paths up front.** Knowing the id before writing lets one flow compute
+    everything keyed off it — a building's `certificates/<id>_…` / energy datasets, a
+    room's `.acl` + first join event — with no "POST, await, parse `Location`, derive"
+    round-trip.
+  - **Cross-server uniformity.** PUT-to-URI behaves identically on NSS / CSS v5–v7;
+    POST `Slug`/`Link`-type/`Location` semantics vary. PUT is the lowest common
+    denominator, and we target all four.
+- **POST is used where it's right: append-only event logs.** Membership/sharing events
+  (`shared-out/`, `shared-in/`, a room's `as:Join`/`as:Update`) POST into the container
+  *because* you want a unique server-minted child per append and don't care what it's
+  named — and a duplicate from a retry folds away harmlessly. Resources you must
+  *address later* get client URIs; resources you only *accumulate* get POST.
+
+**Could we make POST idempotent (to get server-assigned URLs)?** Yes, but it's a net
+loss here:
+- *Server idempotency key* (`Idempotency-Key` header, Stripe-style) — needs server
+  support CSS/NSS don't have; only works on a Pod you control. Out.
+- *`Slug` + conditional* — `Slug` isn't conditional (servers append `-1` on collision
+  rather than failing), so it can't dedupe a retry. The only "create-at-name-or-fail"
+  is `PUT … If-None-Match: *` — i.e. it collapses into the current design.
+- *Client dedup-token + reconcile* (the one that actually works server-agnostically) —
+  embed a client token in the POSTed body; on an *ambiguous* failure don't re-POST but
+  **list the container and look for that token**, adopting the existing child if found.
+  This is real, but it reintroduces a client-generated id (the token), adds a
+  list+scan round-trip per ambiguous retry, and forces `retryFetch` to become
+  method-aware (stop blind-replaying POSTs — which also touches the event-log POSTs).
+  That's strictly more machinery than `PUT <uuid> If-None-Match: *`, whose exactly-once
+  guarantee is free, to gain only a cosmetic `Location`. The degenerate robust form of
+  this guard is "mint the id client-side and PUT it" — which closes the loop.
+
+**Decision:** client-chosen URI + PUT for addressable resources/containers; POST only
+for accumulate-only event logs. Revisit only if we move to a controlled Pod and want
+canonical REST semantics enough to pay for the dedup-token + reconcile path.
+
 ## Target layout (`<storageRoot>granergize/`)
 
 - **`buildings/`** — your buildings (one TTL each; per-building energy under

@@ -24,8 +24,19 @@ import * as dataRoom from "./tasks/data-room.ts";
 import * as shareBuilding from "./tasks/share-building.ts";
 import * as shareView from "./tasks/share-view.ts";
 import * as addBuilding from "./tasks/add-building.ts";
+import * as attachmentShare from "./tasks/attachment-share.ts";
+import * as archiveRestore from "./tasks/archive-restore.ts";
+import * as deleteSharedBuilding from "./tasks/delete-shared-building.ts";
 
-const TASKS: TaskModule[] = [dataRoom, shareBuilding, shareView, addBuilding];
+const TASKS: TaskModule[] = [
+  dataRoom,
+  shareBuilding,
+  shareView,
+  addBuilding,
+  attachmentShare,
+  archiveRestore,
+  deleteSharedBuilding,
+];
 
 const harness = makeHarness();
 console.log("starting local CSS…");

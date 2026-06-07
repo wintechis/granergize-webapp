@@ -21,6 +21,13 @@ import { appRoot, podResources } from "../../src/services/utils/solidUtils.ts";
 import { deleteContainerRecursive } from "../../src/services/utils/podDelete.ts";
 import { ensureContainer } from "../../src/services/utils/podWrite.ts";
 import { mapPooled } from "../../src/services/utils/pool.ts";
+import {
+  AS_NS,
+  GRAN_NS,
+  SIOC_NS,
+  XSD_DATETIME,
+} from "../../src/services/utils/vocabularies.ts";
+import { normalizeRoomUrl } from "../../src/services/interop/dataRoom.ts";
 
 /** Bounded write concurrency — same small pool the app uses for daily files. */
 const POOL = 8;
@@ -156,4 +163,92 @@ export async function seedSharedBuildings(
 /** Delete the owner's whole `buildings/` container (best-effort) — reset between sizes. */
 export async function wipeBuildings(session: Session, webId: string): Promise<void> {
   await deleteContainerRecursive(`${appRoot(webId)}buildings/`, session).catch(() => {});
+}
+
+/**
+ * Seed `n` synthetic members into a data-room log by POSTing `n` immutable
+ * `as:Join` events — one per distinct (synthetic) WebID — straight into the room
+ * container, matching the event shape `dataRoom.ts`'s `postEvent` writes. The
+ * room's own mutations always act as the SESSION owner (one WebID), so they can't
+ * grow a multi-member room; this seeds the membership axis that the read fold
+ * (`getMembers`) and `deleteRoom` scale against. Appends are pure POSTs, so —
+ * unlike a read-modify-write log — concurrent writers don't contend; pooled.
+ */
+export async function seedRoomMembers(
+  session: Session,
+  roomUrl: string,
+  n: number,
+): Promise<void> {
+  const container = normalizeRoomUrl(roomUrl);
+  if (n > 0) await ensureContainer(container, session);
+  const webIds = Array.from(
+    { length: n },
+    (_, i) => `https://bench.example/member-${i}/profile/card#me`,
+  );
+  await mapPooled(webIds, POOL, async (webId) => {
+    const body = `@prefix as: <${AS_NS}> .\n` +
+      `@prefix xsd: <${XSD_DATETIME.replace(/dateTime$/, "")}> .\n` +
+      `[] a as:Join ;\n` +
+      `   as:actor <${webId}> ;\n` +
+      `   as:object <${container}> ;\n` +
+      `   as:published "2024-01-01T00:00:00.000Z"^^xsd:dateTime .\n`;
+    const res = await session.fetch(container, {
+      method: "POST",
+      headers: { "Content-Type": "text/turtle" },
+      body,
+    });
+    if (!res.ok) throw new Error(`seed room member (HTTP ${res.status})`);
+  });
+}
+
+// Valid role IRIs (must match dataRoom.ts's ROLE_TO_IRI, or the fold filters them
+// out as unknown) — cycled across the seeded role events.
+const CHURN_ROLE_IRIS = [`${GRAN_NS}InvestorRole`, `${GRAN_NS}UserRoleInstance`];
+
+/**
+ * Seed `roleEvents` role-assignment (`as:Update`) events into a room log,
+ * round-robined across the first `members` synthetic member WebIDs with strictly
+ * increasing timestamps (so the fold's latest-per-agent is deterministic). Matches
+ * the `as:Update` + `sioc:has_function` shape `setMyRole` writes. This grows the
+ * log's HISTORY without adding members — the axis that exposes that the
+ * append-only log is folded by reading EVERY event, even though only the latest
+ * event per agent survives. Pair with {@link seedRoomMembers} (membership) so the
+ * fold still returns those members. `members`/`roleEvents` ≤ 0 are no-ops.
+ */
+export async function seedRoomRoleChurn(
+  session: Session,
+  roomUrl: string,
+  members: number,
+  roleEvents: number,
+): Promise<void> {
+  if (members <= 0 || roleEvents <= 0) return;
+  const container = normalizeRoomUrl(roomUrl);
+  await ensureContainer(container, session);
+  const base = new Date("2025-01-01T00:00:00Z").getTime();
+  const events = Array.from({ length: roleEvents }, (_, i) => ({
+    webId: `https://bench.example/member-${i % members}/profile/card#me`,
+    role: CHURN_ROLE_IRIS[i % CHURN_ROLE_IRIS.length],
+    at: new Date(base + i * 1000).toISOString(),
+  }));
+  await mapPooled(events, POOL, async (e) => {
+    const body = `@prefix as: <${AS_NS}> .\n` +
+      `@prefix sioc: <${SIOC_NS}> .\n` +
+      `@prefix xsd: <${XSD_DATETIME.replace(/dateTime$/, "")}> .\n` +
+      `[] a as:Update ;\n` +
+      `   as:actor <${e.webId}> ;\n` +
+      `   as:object <${container}> ;\n` +
+      `   as:published "${e.at}"^^xsd:dateTime ;\n` +
+      `   sioc:has_function <${e.role}> .\n`;
+    const res = await session.fetch(container, {
+      method: "POST",
+      headers: { "Content-Type": "text/turtle" },
+      body,
+    });
+    if (!res.ok) throw new Error(`seed role churn (HTTP ${res.status})`);
+  });
+}
+
+/** Delete the owner's whole `rooms/` container (best-effort) — reset between sizes. */
+export async function wipeRooms(session: Session, webId: string): Promise<void> {
+  await deleteContainerRecursive(`${appRoot(webId)}rooms/`, session).catch(() => {});
 }

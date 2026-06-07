@@ -143,9 +143,18 @@ not provenance.
 - Vocabulary IRIs are centralized in `src/services/utils/vocabularies.ts` (`GRAN_NS`,
   `INVESTOR_NS`, `BENCH_NS`, SOSA/TIME/SSN, XSD datatypes). Use these constants; don't
   inline IRI strings.
+- The Granergize **ontologies themselves** (the gran / investor / benchmark / user
+  vocabularies, one per namespace) are versioned in `vocab/` — the repo is their source
+  of truth (see `vocab/README.md`); the documents on the Pod are a publish target, and the
+  app never fetches them at runtime. `vocab.test.ts` asserts every owned field-schema
+  predicate, object-property range, and controlled-vocab instance is defined there, so the
+  code and the published vocab can't drift.
 - Predicate→`BuildingType` field mappings live in
-  `src/services/utils/config/buildingConfig.ts` (`predicateMap`, `objectPropertyMap`).
-  Adding a building property generally means updating both `BuildingType` and these maps.
+  `src/services/utils/config/buildingConfig.ts`. Each field carries its `rdfs:range`
+  (an XSD datatype → typed literal; `foaf:Agent` → IRI reference; another class IRI →
+  controlled-vocab object); `predicateMap`/`objectPropertyMap`/`iriPropertyMap` and the
+  datatype sets all derive from it. Adding a building property generally means updating
+  both `BuildingType` and this table (and defining the term in `vocab/`).
 - RDF parsing/serialization uses `n3` (`Parser`, `Store`, `Writer`, `DataFactory`).
   Shared quad helpers are in `src/services/utils/rdfHelpers.ts`.
 - **Storage root** — `resolveStorageRoot(session)` (`solidUtils.ts`) resolves it the Solid
@@ -171,6 +180,14 @@ not provenance.
   convention path as fallback. `ensureOwnInbox(session)` self-provisions it at login
   (container + append ACL + discovery pointer), so the app works on bare Pods that aren't
   pre-wired with an inbox. Access-grant logic in `sharingManager.ts`.
+  **The `shared-out/` event log is the ground truth of sharing; the WAC `.acl` files
+  are a derived projection** — every share dimension must be recorded *in the event*
+  (e.g. a per-year grant's years via `interop:includesEnergyYear`) so the log stays
+  self-sufficient. The ACL side is split out as `applyBuildingGrant` (ACL-only, no
+  inbox/log side effects) so `reissueGrants(session)` can fold the log and rebuild
+  the ACLs — used after an archive restore (which captures the log but not the
+  `.acl`) and as a sharing repair/audit. Replay is same-Pod only (the log holds
+  absolute IRIs; off-Pod grants are skipped). Keep this replayable.
 - **Aggregated views** — `src/services/aggregation/` (`viewManager` persists view
   definitions/snapshots as Turtle in the Pod; `viewComputer` computes them).
 - **Data integration** — `AddBuildingDialog.tsx` + `buildingSerializer.ts` import buildings
@@ -268,8 +285,9 @@ ESLint-enforced (`eslint.config.js`); the rest are review conventions.
   **self-hides** outside dev mode, so it's the one-call way to add a dev-only
   source link — prefer it over a bespoke `UriLink` for any backing-resource link),
   the in-list resource IRIs (building URIs, the energy dataset + weather adapter
-  links), the dev-only "Your inbox" / "Outgoing shares" sections, the "Remove all
-  app data…" account action, and the request log (`RequestActivityList` renders
+  links), the dev-only "Your inbox" / "Outgoing shares" sections, the "Add demo
+  buildings" / "Download archive" / "Upload archive…" / "Rebuild sharing from
+  log" / "Remove all app data…" account actions, and the request log (`RequestActivityList` renders
   nothing outside dev mode; the header `NetworkActivityIndicator` collapses to a
   plain spinner — no inline URIs, no clickable log). WebIDs and data-room invite
   IRIs are identity/links, not raw storage, so they stay visible in both modes.

@@ -78,7 +78,11 @@ test.describe("excel upload", () => {
   });
 
   test("imports building(s) from an investor XLSX template", async () => {
-    test.setTimeout(180_000);
+    // The investor template imports ~a dozen buildings, and cleanup deletes each
+    // one (confirm → DELETE → refetch → re-render) sequentially — heavy enough to
+    // blow a tight budget on a slow/contended substrate or a real Pod. Give it
+    // ample room (the import phases + the multi-delete cleanup below).
+    test.setTimeout(420_000);
 
     await openAddDialog(page);
     await selectTemplate(page, "Investor");
@@ -130,7 +134,7 @@ test.describe("excel upload", () => {
       // sweeps the stragglers, until the list is back to the original set.
       expect((await buildingIds(page)).filter((id) => !before.has(id)).length,
         "no imported buildings left to clean up").toBe(0);
-    }).toPass({ timeout: 180_000 });
+    }).toPass({ timeout: 300_000 });
   });
 
   test("a long 15-min upload can be cancelled", async () => {

@@ -27,8 +27,8 @@ const cache = new Map<string, Store>();
 const inflight = new Map<string, Promise<Store | null>>();
 
 /**
- * The user's WebID profile parsed into a Store, or null if unreadable. Cached
- * for the session; concurrent first-time calls share a single fetch.
+ * The logged-in user's WebID profile parsed into a Store, or null if unreadable.
+ * Cached for the session; concurrent first-time calls share a single fetch.
  */
 export function loadProfileStore(
   session: Session,
@@ -36,6 +36,20 @@ export function loadProfileStore(
 ): Promise<Store | null> {
   const webId = session.info.webId;
   if (!webId) return Promise.resolve(null);
+  return loadProfileStoreFor(webId, session, opts);
+}
+
+/**
+ * An *arbitrary* agent's WebID profile parsed into a Store, or null if unreadable
+ * (private/offline profiles are tolerated). Shares the same doc-URL-keyed cache
+ * and in-flight dedup as {@link loadProfileStore}, so resolving a share recipient
+ * or building operator reuses any profile already fetched.
+ */
+export function loadProfileStoreFor(
+  webId: string,
+  session: Session,
+  opts: { fresh?: boolean } = {},
+): Promise<Store | null> {
   const docUrl = profileDocUrl(webId);
 
   if (!opts.fresh) {

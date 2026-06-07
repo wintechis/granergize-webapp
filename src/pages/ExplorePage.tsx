@@ -361,7 +361,7 @@ export default function ExplorePage(
             {(
               [
                 [MARKER_OWNED_COLOR, "My Buildings"],
-                [MARKER_SHARED_COLOR, "Shared with Me"],
+                [MARKER_SHARED_COLOR, "Shared with me"],
               ] as const
             ).map(([color, label]) => (
               <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>

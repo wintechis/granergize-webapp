@@ -15,6 +15,7 @@ import {
   recordSharing,
   recordViewSharing,
   revokeAccess,
+  revokeAllBuildingRecipients,
   revokeAllViewRecipients,
   revokeViewAccess,
 } from "./sharingManager.ts";
@@ -129,6 +130,30 @@ Deno.test("recordSharing → getSharedBuildings shows the grantee; revokeAccess 
   await revokeAccess(MY_B, BOB, session);
   shared = await getSharedBuildings(session);
   assert.deepEqual(shared, []);
+});
+
+Deno.test("revokeAllBuildingRecipients revokes + notifies every grantee (for building delete)", async () => {
+  const { session, store } = makePod();
+  const BOB_INBOX = "https://bob.example/granergize/inbox/";
+  const ALICE_INBOX = "https://alice.example/granergize/inbox/";
+  store["https://bob.example/profile/card"] =
+    `<${BOB}> <http://www.w3.org/ns/pim/space#storage> <https://bob.example/> .`;
+  store["https://alice.example/profile/card"] =
+    `<${ALICE}> <http://www.w3.org/ns/pim/space#storage> <https://alice.example/> .`;
+  // MY_B shared with both BOB and ALICE (recorded in shared-out/).
+  await recordSharing(MY_B, BOB, session, false);
+  await recordSharing(MY_B, ALICE, session, false);
+
+  await revokeAllBuildingRecipients(MY_B, session);
+
+  // Each recipient got an AccessRevocation in their inbox…
+  for (const inbox of [BOB_INBOX, ALICE_INBOX]) {
+    const posted = Object.entries(store).find(([url]) => url.startsWith(inbox));
+    assert.ok(posted, `revocation posted to ${inbox}`);
+    assert.match(posted![1], /AccessRevocation/);
+  }
+  // …and the owner's shared-out/ no longer lists the building (revocations folded out).
+  assert.deepEqual(await getSharedBuildings(session), []);
 });
 
 Deno.test("getSharedViews folds shared-out/ View grants and recovers the viewId", async () => {

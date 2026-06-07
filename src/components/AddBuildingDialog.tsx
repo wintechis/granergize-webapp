@@ -20,6 +20,7 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
 import { makeBuildingFields } from "./buildingFields.tsx";
+import { AgentField } from "./AgentField.tsx";
 import RequestActivityList from "./RequestActivityList.tsx";
 import type { UserRole } from "../../types/types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
@@ -35,6 +36,7 @@ import {
 } from "../services/utils/buildingSerializer.ts";
 import { getCompanyKind } from "../services/utils/organizationManager.ts";
 import { formatError } from "../services/utils/formatError.ts";
+import { rememberAgent } from "../services/utils/contacts.ts";
 
 interface AddBuildingDialogProps {
   open: boolean;
@@ -344,6 +346,8 @@ export default function AddBuildingDialog(
 
         const ttl = serializeBuildingToTurtle(b, uri, energyLinks, provenance);
         await uploadBuilding(session, uri, ttl, webId, controller.signal);
+        // Auto-remember a WebID operator in the address book (fire-and-forget).
+        if (b.operatedBy) void rememberAgent(session, b.operatedBy);
       }
       showNotification(
         buildingsList.length === 1 ? "Building added" : `${buildingsList.length} buildings added`,
@@ -553,7 +557,11 @@ export default function AddBuildingDialog(
         {tf("Building area (m²)", "buildingArea", { type: "number" })}
         {tf("Land area (m²)", "landArea", { type: "number" })}
         {tf("Year of construction", "yearOfConstruction", { type: "number" })}
-        {tf("Operated by (WebID)", "operatedBy")}
+        <AgentField
+          label="Operated by (WebID)"
+          value={fields.operatedBy ?? ""}
+          onChange={(v) => setField("operatedBy", v)}
+        />
         {check("PV system installed", "hasPVSystem")}
 
         {/* Investor-specific fields */}

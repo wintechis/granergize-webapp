@@ -25,6 +25,11 @@ import {
   roomExists,
   setMyRole,
 } from "../services/interop/dataRoom.ts";
+import {
+  addContact,
+  type Contact,
+  removeContact,
+} from "../services/utils/contacts.ts";
 import type { BuildingType, UserRole } from "../../types/types.ts";
 
 /**
@@ -129,6 +134,26 @@ export function useRevokeViewAccess() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.sharedViews });
     },
+  });
+}
+
+// ── Contacts (address book) ──────────────────────────────────────────────────
+
+/** Save (or update) a contact in the address book. */
+export function useSaveContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (contact: Contact) => addContact(getSession(), contact),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
+  });
+}
+
+/** Remove a contact from the address book. */
+export function useRemoveContact() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (webId: string) => removeContact(getSession(), webId),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
   });
 }
 

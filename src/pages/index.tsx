@@ -39,6 +39,13 @@ import { queryKeys } from "../hooks/queries.ts";
 import { seedDemoBuildings } from "../services/utils/buildingSerializer.ts";
 import { readPrefs, setDemoSeedDeclined } from "../services/utils/prefs.ts";
 import { formatError } from "../services/utils/formatError.ts";
+import {
+  exportArchive,
+  importArchive,
+  inspectArchive,
+} from "../services/utils/podArchive.ts";
+import { reissueGrants } from "../services/interop/share.ts";
+import { downloadBlob } from "../services/utils/download.ts";
 
 interface IndexPageProps {
   session: Session;
@@ -86,6 +93,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   // prefs.ttl, so it doesn't nag on every login.
   const [demoShow, setDemoShow] = useState(false);
   const [demoBusy, setDemoBusy] = useState(false);
+  // Dev-mode archive (download/upload the whole granergize/ collection as a ZIP).
+  const [archiveBusy, setArchiveBusy] = useState(false);
+  const archiveInput = useRef<HTMLInputElement | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -97,7 +107,12 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           listDirectChildren(podResources(webId).buildings, session),
           readPrefs(session),
         ]);
-        if (!cancelled && children === null && !prefs.demoSeedDeclined) {
+        // Offer the demo when there are no buildings — whether the container is
+        // absent (null) or exists-but-empty (e.g. all buildings were deleted), so
+        // the offer (and the only in-app seed path) comes back instead of only on a
+        // truly pristine Pod. Still gated on the demo not having been declined.
+        const empty = children === null || children.length === 0;
+        if (!cancelled && empty && !prefs.demoSeedDeclined) {
           setDemoShow(true);
         }
       } catch { /* the offer is best-effort */ }
@@ -132,6 +147,94 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const declineDemos = () => {
     setDemoShow(false);
     setDemoSeedDeclined(session, true).catch(() => {});
+  };
+
+  /** Dev-mode: download the whole granergize/ collection as a ZIP backup. */
+  const handleDownloadArchive = async () => {
+    if (archiveBusy) return;
+    setArchiveBusy(true);
+    try {
+      const { bytes, count } = await exportArchive(session);
+      const stamp = new Date().toISOString().slice(0, 10);
+      downloadBlob(
+        new Blob([bytes], { type: "application/zip" }),
+        `granergize-archive-${stamp}.zip`,
+      );
+      showNotification(`Archived ${count} resource(s)`, "success");
+    } catch (err) {
+      showNotification(formatError("download archive", err), "error");
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
+
+  /** Dev-mode: restore a previously downloaded archive into the current Pod. */
+  const handleArchiveFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // allow re-selecting the same file later
+    if (!file) return;
+    setArchiveBusy(true);
+    try {
+      const bytes = new Uint8Array(await file.arrayBuffer());
+      // Restore overwrites resources at matching paths (no merge) — confirm first.
+      const { count, base, webId: srcWebId } = inspectArchive(bytes);
+      const webId = session.info.webId;
+      const targetRoot = webId ? getStorageRoot(webId) : "";
+      const notes = [
+        base && base !== targetRoot
+          ? `Content will be rebased from ${base} to ${targetRoot}.`
+          : "",
+        srcWebId && srcWebId !== webId
+          ? `Owner WebID will be rewritten from ${srcWebId} to ${webId}.`
+          : "",
+      ].filter(Boolean);
+      const rebaseNote = notes.length ? "\n\n" + notes.join("\n") : "";
+      if (
+        !globalThis.confirm(
+          `Restore ${count} resource(s) from "${file.name}" into this Pod?\n\n` +
+            "This overwrites any existing resource at a matching path under " +
+            "granergize/. This cannot be undone — intended for a wiped Pod." +
+            rebaseNote,
+        )
+      ) {
+        setArchiveBusy(false);
+        return;
+      }
+      const { restored, rebasedTo, rebasedWebId } = await importArchive(session, bytes);
+      // The archive carries the shared-out/ log but not the derived .acl files,
+      // so rebuild enforcement by replaying the log (now valid on this Pod since
+      // the log's IRIs were rebased onto it).
+      const { buildings, views } = await reissueGrants(session);
+      await queryClient.invalidateQueries();
+      hydrateActiveRoom(session).catch(() => {});
+      const rebased = rebasedTo || rebasedWebId ? " (rebased)" : "";
+      showNotification(
+        `Restored ${restored} resource(s)${rebased}; reissued ${buildings + views} share grant(s)`,
+        "success",
+      );
+    } catch (err) {
+      showNotification(formatError("upload archive", err), "error");
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
+
+  /** Dev-mode: rebuild WAC ACLs from the shared-out/ event log (repair / audit). */
+  const handleReissueGrants = async () => {
+    if (archiveBusy) return;
+    setArchiveBusy(true);
+    try {
+      const { buildings, views, skipped } = await reissueGrants(session);
+      const tail = skipped ? ` (${skipped} off-Pod skipped)` : "";
+      showNotification(
+        `Reissued ${buildings + views} share grant(s)${tail}`,
+        "success",
+      );
+    } catch (err) {
+      showNotification(formatError("rebuild sharing", err), "error");
+    } finally {
+      setArchiveBusy(false);
+    }
   };
 
   // Load (and revoke) the avatar object URL for the current session.
@@ -181,6 +284,14 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const handleLogout = () => {
     handleMenuClose();
     onLogout();
+  };
+
+  // Full logout AT the identity provider (clears its login cookie), so the next
+  // login shows the account chooser instead of silently reusing this account —
+  // the only way to switch accounts. Plain "Logout" leaves the IdP session intact.
+  const handleChangeAccount = () => {
+    handleMenuClose();
+    onLogout({ logoutType: "idp" });
   };
 
   // Permanently wipe the whole granergize/ collection from the Pod, then log out.
@@ -348,11 +459,39 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               Organisation…
             </MenuItem>
             {devMode && (
+              <MenuItem onClick={seedDemos} disabled={demoBusy}>
+                {demoBusy ? "Adding demo buildings…" : "Add demo buildings"}
+              </MenuItem>
+            )}
+            {devMode && (
+              <MenuItem onClick={handleDownloadArchive} disabled={archiveBusy}>
+                {archiveBusy ? "Working…" : "Download archive"}
+              </MenuItem>
+            )}
+            {devMode && (
+              <MenuItem
+                onClick={() => archiveInput.current?.click()}
+                disabled={archiveBusy}
+              >
+                Upload archive…
+              </MenuItem>
+            )}
+            {devMode && (
+              <MenuItem onClick={handleReissueGrants} disabled={archiveBusy}>
+                Rebuild sharing from log
+              </MenuItem>
+            )}
+            {devMode && (
               <MenuItem
                 onClick={handleRemoveAppData}
                 sx={{ color: "error.main" }}
               >
                 Remove all app data…
+              </MenuItem>
+            )}
+            {devMode && (
+              <MenuItem onClick={handleChangeAccount}>
+                Change account (full logout)
               </MenuItem>
             )}
             <MenuItem onClick={handleLogout}>
@@ -361,6 +500,14 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           </Menu>
         </Box>
       </Box>
+      {/* Hidden picker for the dev-mode "Upload archive…" menu item. */}
+      <input
+        ref={archiveInput}
+        type="file"
+        accept=".zip,application/zip"
+        style={{ display: "none" }}
+        onChange={handleArchiveFile}
+      />
       {/* Fresh-Pod onboarding: offer the demo buildings instead of writing them
           silently. Non-blocking (the app stays usable); dismissing it persists. */}
       <Collapse in={demoShow} sx={{ flexShrink: 0 }}>
