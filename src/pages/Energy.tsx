@@ -1,4 +1,4 @@
-import { BuildingType, EnergyType } from "../../types/types.ts";
+import { BuildingType, EnergyType } from "../types.ts";
 import {
   Box,
   Card,

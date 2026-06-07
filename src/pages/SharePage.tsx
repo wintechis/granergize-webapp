@@ -18,7 +18,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   AggregatedViewSnapshot,
   BuildingType,
-} from "../../types/types.ts";
+} from "../types.ts";
 import { ROLE_LABELS } from "../constants/roles.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";

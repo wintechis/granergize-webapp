@@ -1,5 +1,5 @@
 import { useEffect, useMemo, useRef, useState } from "react";
-import { BuildingType, EnergyType } from "../../types/types.ts";
+import { BuildingType, EnergyType } from "../types.ts";
 import Building from "./Building.tsx";
 import { UriLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../components/devMode.ts";

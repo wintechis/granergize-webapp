@@ -20,7 +20,7 @@ import Typography from "@mui/material/Typography";
 
 // Create wrapper components to handle URL params
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "../types/types.ts";
+import type { BuildingType } from "./types.ts";
 import { useSolidData } from "./hooks/queries.ts";
 import { logError } from "./services/utils/logError.ts";
 

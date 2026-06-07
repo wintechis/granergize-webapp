@@ -23,7 +23,7 @@ import { logError } from "../services/utils/logError.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
 import { AgentField } from "./AgentField.tsx";
 import RequestActivityList from "./RequestActivityList.tsx";
-import type { UserRole } from "../../types/types.ts";
+import type { UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useSolidData } from "../hooks/queries.ts";
 import {

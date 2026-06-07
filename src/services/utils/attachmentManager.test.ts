@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import type { AttachmentRef } from "../../../types/types.ts";
+import type { AttachmentRef } from "../../types.ts";
 import {
   deleteAttachment,
   filesContainerFor,

@@ -1,4 +1,4 @@
-import type { BuildingType } from "../../../../types/types.ts";
+import type { BuildingType } from "../../../types.ts";
 import {
   BENCH_NS,
   FOAF_AGENT,

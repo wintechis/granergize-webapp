@@ -21,7 +21,7 @@ import {
   uploadBuilding,
 } from "../../../src/services/utils/buildingSerializer.ts";
 import { podResources } from "../../../src/services/utils/solidUtils.ts";
-import type { BuildingType } from "../../../types/types.ts";
+import type { BuildingType } from "../../../src/types.ts";
 
 export const name = "delete-shared-building";
 

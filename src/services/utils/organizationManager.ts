@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
-import type { UserRole } from "../../../types/types.ts";
+import type { UserRole } from "../../types.ts";
 import {
   COMPANY_KIND_TO_IRI,
   IRI_TO_COMPANY_KIND,

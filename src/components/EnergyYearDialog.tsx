@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Button, MenuItem, Stack, TextField } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType, Scenario } from "../../types/types.ts";
+import type { BuildingType, Scenario } from "../types.ts";
 import type {
   AnnualMetrics,
   EnergyMetricKey,

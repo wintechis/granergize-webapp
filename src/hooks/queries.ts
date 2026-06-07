@@ -21,7 +21,7 @@ import {
 import type {
   BuildingType,
   EnergyType,
-} from "../../types/types.ts";
+} from "../types.ts";
 
 /**
  * React Query data hooks. The Solid session is the `getSession()` singleton

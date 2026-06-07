@@ -2,7 +2,7 @@ import {
   BuildingType,
   InvestorCertification,
   InvestorOperatingCosts,
-} from "../../types/types.ts";
+} from "../types.ts";
 import { Typography } from "@mui/material";
 import {
   Check as CheckIcon,

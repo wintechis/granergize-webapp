@@ -34,7 +34,7 @@ import {
 } from "../services/utils/attachmentManager.ts";
 import { downloadBlob, formatBytes } from "../services/utils/download.ts";
 import { listStyle, rowStyle } from "./listStyles.ts";
-import type { AttachmentRef, BuildingType, UserRole } from "../../types/types.ts";
+import type { AttachmentRef, BuildingType, UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";
 import { useAgentOptions } from "../hooks/useAgentOptions.ts";

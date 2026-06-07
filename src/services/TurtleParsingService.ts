@@ -4,7 +4,7 @@ import type {
   BuildingType,
   EnergyDatasetRef,
   EnergyType,
-} from "../../types/types.ts";
+} from "../types.ts";
 import { DataFactory, Parser, Store } from "n3";
 import type { Quad } from "@rdfjs/types";
 import { getStorageRoot, podResources } from "./utils/solidUtils.ts";

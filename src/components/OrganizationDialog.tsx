@@ -12,7 +12,7 @@ import {
   Typography,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { UserRole } from "../../types/types.ts";
+import type { UserRole } from "../types.ts";
 import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../services/utils/formatError.ts";

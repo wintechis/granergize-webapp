@@ -6,7 +6,7 @@ import {
   TIME_NS,
   UNIT_NS,
 } from "./vocabularies.ts";
-import type { EnergyDatasetRef, Scenario } from "../../../types/types.ts";
+import type { EnergyDatasetRef, Scenario } from "../../types.ts";
 import { logError } from "./logError.ts";
 
 const { namedNode } = DataFactory;

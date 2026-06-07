@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { Button, Chip, Typography } from "@mui/material";
-import type { AttachmentRef, BuildingType } from "../../../types/types.ts";
+import type { AttachmentRef, BuildingType } from "../../types.ts";
 import { RdfSourceLink, SectionTitle } from "./DetailView.tsx";
 import { listStyle, rowStyle } from "../listStyles.ts";
 import {

@@ -13,7 +13,7 @@ import {
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
-import { BuildingType, InvestorAnnualData } from "../../types/types.ts";
+import { BuildingType, InvestorAnnualData } from "../types.ts";
 import {
   ChartBox,
   DetailCard,

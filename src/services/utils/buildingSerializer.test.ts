@@ -3,7 +3,7 @@ import { strict as assert } from "node:assert";
 import { DataFactory, Parser, Store } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import * as XLSX from "xlsx";
-import type { BuildingType } from "../../../types/types.ts";
+import type { BuildingType } from "../../types.ts";
 import {
   annualDatasetsFromFields,
   buildingsToXlsx,

@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType } from "../../../types/types.ts";
+import type { BuildingType } from "../../types.ts";
 import { buildBuildingDeletionPreview } from "./buildingActions.ts";
 import { _setStorageRootForTesting } from "./solidUtils.ts";
 

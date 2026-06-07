@@ -1,5 +1,5 @@
 /** MIME type for `.xlsx` workbooks (OpenXML spreadsheet). */
-export const XLSX_MIME =
+const XLSX_MIME =
   "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet";
 
 /**

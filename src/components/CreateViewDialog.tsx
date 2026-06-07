@@ -24,7 +24,7 @@ import type {
   AggregationType,
   BuildingType,
   UserRole,
-} from "../../types/types.ts";
+} from "../types.ts";
 import { createViewDefinition } from "../services/aggregation/viewManager.ts";
 import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 import { listDirectChildren } from "../services/utils/podDelete.ts";

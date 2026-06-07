@@ -22,7 +22,7 @@ import {
   BuildingType,
   InvestorAnnualData,
   InvestorCertification,
-} from "../../types/types.ts";
+} from "../types.ts";
 import {
   ChartBox,
   DetailCard,

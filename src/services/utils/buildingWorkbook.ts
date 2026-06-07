@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import type { BuildingType } from "../../../types/types.ts";
+import type { BuildingType } from "../../types.ts";
 import {
   BSP_FIELD_TO_HEADER,
   certLevelLabel,

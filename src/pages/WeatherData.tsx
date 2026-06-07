@@ -25,7 +25,7 @@ import {
   Typography,
 } from "@mui/material";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
-import { BuildingType } from "../../types/types.ts";
+import { BuildingType } from "../types.ts";
 import {
   beginActivity,
   endActivity,
