@@ -279,6 +279,26 @@ Deno.test("saveCompanyKind preserves an existing org and its memberOf link", asy
   assert.deepEqual(objectsOf(ttl, ORG, FOAF_NAME), ["ACME"]);
 });
 
+Deno.test("saveCompanyKind round-trips a newly-added kind (facility_manager)", async () => {
+  _resetProfileCacheForTesting();
+  const writes: { url: string; contentType: string; body: unknown }[] = [];
+  const session = makeSession({
+    [PROFILE_DOC]: `
+      @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+      <${WEBID}> foaf:name "Homer" .
+    `,
+  }, writes);
+
+  await saveCompanyKind(session, "facility_manager");
+  const ttl = writes[0].body as string;
+  assert.deepEqual(objectsOf(ttl, ORG, ORG_CLASSIFICATION), [
+    COMPANY_KIND_TO_IRI.facility_manager,
+  ]);
+
+  _resetProfileCacheForTesting();
+  assert.deepEqual(await getCompanyKind(session), "facility_manager");
+});
+
 Deno.test("saveCompanyKind(null) clears the classification but keeps the membership", async () => {
   _resetProfileCacheForTesting();
   const writes: { url: string; contentType: string; body: unknown }[] = [];

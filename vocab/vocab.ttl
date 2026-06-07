@@ -370,6 +370,21 @@
 :BenchmarkRole rdf:type :UserRole ;
     rdfs:label "Benchmark Service Provider"@en .
 
+:FacilityManagerRole rdf:type :UserRole ;
+    rdfs:label "Facility Manager"@en .
+
+:DeveloperRole rdf:type :UserRole ;
+    rdfs:label "Developer"@en .
+
+:ConsultantBrokerRole rdf:type :UserRole ;
+    rdfs:label "Consultant / Broker"@en .
+
+:SoftwareProviderRole rdf:type :UserRole ;
+    rdfs:label "Software Provider"@en .
+
+:EnergyProviderRole rdf:type :UserRole ;
+    rdfs:label "Energy Provider"@en .
+
 
 ############################################################################
 ###   Added in-repo (evolved locally)                                    ###
@@ -390,6 +405,11 @@
 :User rdf:type :CompanyKind ; rdfs:label "User"@en .
 :BenchmarkServiceProvider rdf:type :CompanyKind ;
     rdfs:label "Benchmark Service Provider"@en .
+:FacilityManager rdf:type :CompanyKind ; rdfs:label "Facility Manager"@en .
+:Developer rdf:type :CompanyKind ; rdfs:label "Developer"@en .
+:ConsultantBroker rdf:type :CompanyKind ; rdfs:label "Consultant / Broker"@en .
+:SoftwareProvider rdf:type :CompanyKind ; rdfs:label "Software Provider"@en .
+:EnergyProvider rdf:type :CompanyKind ; rdfs:label "Energy Provider"@en .
 
 :kind rdf:type owl:ObjectProperty ;
     rdfs:label "kind"@en ;

@@ -72,7 +72,7 @@ export const BSP_COL_MAP: Record<string, string> = {
 
 /**
  * Investor XLSX row label (column B) → BuildingType field name.
- * Row labels mirror scripts/investor-to-ttl.ts exactly, including spacing.
+ * Row labels mirror investor-to-ttl.ts exactly, including spacing.
  */
 export const INVESTOR_ROW_MAP: Record<string, string> = {
   "Gebäude-Code": "buildingCode",

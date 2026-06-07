@@ -7,6 +7,11 @@ export const ROLE_LABELS: Record<string, string> = {
   investor: "Investor",
   user: "User",
   benchmark_service_provider: "Benchmark Service Provider",
+  facility_manager: "Facility Manager",
+  developer: "Developer",
+  consultant_broker: "Consultant / Broker",
+  software_provider: "Software Provider",
+  energy_provider: "Energy Provider",
 };
 
 /** Roles a user can self-assign in a data room (excludes the internal "dummy"). */
@@ -14,6 +19,11 @@ export const ROOM_ROLE_OPTIONS: UserRole[] = [
   "investor",
   "user",
   "benchmark_service_provider",
+  "facility_manager",
+  "developer",
+  "consultant_broker",
+  "software_provider",
+  "energy_provider",
 ];
 
 /**
@@ -26,6 +36,11 @@ export const PROVENANCE_TO_IRI: Record<UserRole, string> = {
   investor: `${GRAN_NS}InvestorRole`,
   user: `${GRAN_NS}UserRoleInstance`,
   benchmark_service_provider: `${GRAN_NS}BenchmarkRole`,
+  facility_manager: `${GRAN_NS}FacilityManagerRole`,
+  developer: `${GRAN_NS}DeveloperRole`,
+  consultant_broker: `${GRAN_NS}ConsultantBrokerRole`,
+  software_provider: `${GRAN_NS}SoftwareProviderRole`,
+  energy_provider: `${GRAN_NS}EnergyProviderRole`,
 };
 
 export const IRI_TO_PROVENANCE: Record<string, UserRole> = Object.fromEntries(
@@ -46,6 +61,11 @@ export const COMPANY_KIND_TO_IRI: Record<UserRole, string> = {
   investor: `${GRAN_NS}Investor`,
   user: `${GRAN_NS}User`,
   benchmark_service_provider: `${GRAN_NS}BenchmarkServiceProvider`,
+  facility_manager: `${GRAN_NS}FacilityManager`,
+  developer: `${GRAN_NS}Developer`,
+  consultant_broker: `${GRAN_NS}ConsultantBroker`,
+  software_provider: `${GRAN_NS}SoftwareProvider`,
+  energy_provider: `${GRAN_NS}EnergyProvider`,
 };
 
 export const IRI_TO_COMPANY_KIND: Record<string, UserRole> = Object.fromEntries(

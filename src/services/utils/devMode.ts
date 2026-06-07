@@ -10,6 +10,8 @@
  * `useDevMode()` hook lives in `components/devMode.ts`.
  */
 
+import { logError } from "./logError.ts";
+
 const STORAGE_KEY = "granergize.devMode";
 
 let devMode = readInitial();
@@ -19,7 +21,8 @@ const listeners = new Set<() => void>();
 function readInitial(): boolean {
   try {
     return globalThis.localStorage?.getItem(STORAGE_KEY) === "1";
-  } catch {
+  } catch (err) {
+    logError("read dev-mode flag from storage", err);
     return false;
   }
 }
@@ -35,7 +38,8 @@ export function setDevMode(value: boolean): void {
   devMode = value;
   try {
     globalThis.localStorage?.setItem(STORAGE_KEY, value ? "1" : "0");
-  } catch {
+  } catch (err) {
+    logError("persist dev-mode flag to storage", err);
     // private mode / storage disabled — keep the in-memory value, skip persist
   }
   for (const listener of listeners) listener();

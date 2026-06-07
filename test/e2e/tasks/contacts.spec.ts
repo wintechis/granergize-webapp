@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding, buildingRows } from "../helpers/manage.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Agent management e2e — the contacts address book + auto-remember. MUI page
@@ -41,7 +43,7 @@ test.describe("contacts address book + auto-remember", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "contacts");
     page.on("dialog", (d) => d.accept().catch(() => {})); // delete-building confirm
     await login(page, ACC);
   });
@@ -61,6 +63,7 @@ test.describe("contacts address book + auto-remember", () => {
         await expect(row).toHaveCount(0, { timeout: 12_000 });
       }
     } catch { /* leave it — throwaway collection */ }
+    await verifyAndReset(page, "contacts");
     await page.close();
   });
 

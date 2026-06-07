@@ -14,3 +14,7 @@ interface ImportMetaEnv {
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/** Short git commit hash of the build, injected by Vite `define` (see vite.config.ts).
+ * "unknown" when built outside a git checkout. */
+declare const __APP_COMMIT__: string;

@@ -9,6 +9,7 @@ import {
   joinRoomAsUser,
 } from "../helpers/connect.ts";
 import { addBuilding, addEnergyYear, shareByRole } from "../helpers/manage.ts";
+import { freshSlateBoth, logCollectionState } from "../helpers/cleanSlate.ts";
 
 /**
  * End-to-end building sharing across TWO throwaway Solid Pods, in ONE test (the
@@ -41,11 +42,13 @@ test.describe("sharing across two pods", () => {
   test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
   test("A shares a building by role; B sees it under Buildings shared with you", async ({ browser }) => {
-    test.setTimeout(420_000);
+    test.setTimeout(600_000);
     // A and B's first logins are independent (B only needs A's room URI to JOIN,
     // not to log in), so run both ~50 s OIDC flows concurrently — one login's
     // wall-clock instead of two.
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
+    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
+    await freshSlateBoth(a.page, b1.page, "share-building");
     a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building/room)
     try {
       // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
@@ -113,6 +116,7 @@ test.describe("sharing across two pods", () => {
       } catch {
         // best-effort cleanup; never fail the run
       }
+      await logCollectionState(a.page, "share-building"); // verify A's cleanup
       await a.ctx.close();
     }
   });
@@ -129,8 +133,10 @@ test.describe("sharing across two pods", () => {
   const WITHHELD_YEAR = "2098";
 
   test("A shares one year of energy; B sees that year but not the withheld one", async ({ browser }) => {
-    test.setTimeout(420_000);
+    test.setTimeout(600_000);
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
+    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
+    await freshSlateBoth(a.page, b1.page, "share-building");
     a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building/room)
     try {
       // ── Write part: A hosts a room + role, B joins + role ──
@@ -207,6 +213,7 @@ test.describe("sharing across two pods", () => {
       } catch {
         // best-effort cleanup; never fail the run
       }
+      await logCollectionState(a.page, "share-building"); // verify A's cleanup
       await a.ctx.close();
     }
   });
@@ -219,8 +226,10 @@ test.describe("sharing across two pods", () => {
   const STREET_D = "Entfernweg 3";
 
   test("A deletes a shared building; B no longer sees it under Buildings shared with you", async ({ browser }) => {
-    test.setTimeout(420_000);
+    test.setTimeout(600_000);
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
+    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
+    await freshSlateBoth(a.page, b1.page, "share-building");
     a.page.on("dialog", (d) => d.accept()); // delete-building confirm + cleanup
     try {
       // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
@@ -234,58 +243,53 @@ test.describe("sharing across two pods", () => {
       await addBuilding(a.page, STREET_D);
       await shareByRole(a.page, STREET_D);
 
-      // ── Baseline: B logs in fresh → readInbox archives the grant → B sees it ──
-      const b2 = await freshPage(browser, B);
+      // ── B logs in fresh once → readInbox archives the grant → B sees it ──
+      // The SAME B context is reused for the after-delete re-check: a reload
+      // re-runs readInbox (Login.tsx restores the session → "login" → handleLogin
+      // → readInbox), so B drains the revocation without a second ~OIDC login.
+      const b = await freshPage(browser, B);
       try {
-        await b2.page.getByRole("tab", { name: "Share" }).click();
-        const received = b2.page.getByRole("list", {
-          name: /buildings shared with you/i,
-        });
+        await b.page.getByRole("tab", { name: "Share" }).click();
+        const received = () =>
+          b.page.getByRole("list", { name: /buildings shared with you/i });
         try {
-          await expect(received.getByText(/^Building /))
+          await expect(received().getByText(/^Building /))
             .toBeVisible({ timeout: 120_000 });
         } catch (timeout) {
-          b2.guard.assertNoAppErrors();
+          b.guard.assertNoAppErrors();
           throw timeout;
         }
-      } finally {
-        await removeAllBookmarkedRooms(b2.page);
-        await b2.ctx.close();
-      }
 
-      // ── A deletes the shared building (this revokes B + posts the inbox notice) ──
-      await a.page.getByRole("tab", { name: "Manage" }).click();
-      const row = a.page.locator("li", { hasText: STREET_D }).first();
-      await row.getByRole("button", { name: "Delete building" }).click();
-      await expect(a.page.getByText("Building deleted").first())
-        .toBeVisible({ timeout: 90_000 });
-      await a.page.waitForTimeout(2000); // let the revocation settle before B re-reads
+        // ── A deletes the shared building (revokes B + posts the inbox notice) ──
+        await a.page.getByRole("tab", { name: "Manage" }).click();
+        const row = a.page.locator("li", { hasText: STREET_D }).first();
+        await row.getByRole("button", { name: "Delete building" }).click();
+        await expect(a.page.getByText("Building deleted").first())
+          .toBeVisible({ timeout: 90_000 });
+        await a.page.waitForTimeout(2000); // let the revocation settle
 
-      // ── B logs in fresh again → readInbox drains the revocation → it's gone ──
-      const b3 = await freshPage(browser, B);
-      try {
-        await b3.page.getByRole("tab", { name: "Share" }).click();
-        const received = b3.page.getByRole("list", {
-          name: /buildings shared with you/i,
-        });
+        // ── B reloads → readInbox drains the revocation → it folds out ──
+        await b.page.reload();
+        await b.page.getByRole("tab", { name: "Share" }).click();
         try {
           // B owned nothing else, so the received list must have no building rows.
           await expect(async () => {
-            expect(await received.getByText(/^Building /).count()).toBe(0);
+            expect(await received().getByText(/^Building /).count()).toBe(0);
           }).toPass({ timeout: 120_000 });
         } catch (timeout) {
-          b3.guard.assertNoAppErrors();
+          b.guard.assertNoAppErrors();
           throw timeout;
         }
       } finally {
-        await removeAllBookmarkedRooms(b3.page);
-        await b3.ctx.close();
+        await removeAllBookmarkedRooms(b.page);
+        await b.ctx.close();
       }
     } finally {
       // Building already deleted by the test; just drop the room A hosted.
       try {
         if (!a.page.isClosed()) await deleteAllOwnedRooms(a.page);
       } catch { /* best-effort cleanup */ }
+      await logCollectionState(a.page, "share-building"); // verify A's cleanup
       await a.ctx.close();
     }
   });

@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { resolveAgent } from "./agentResolver.ts";
+import { resolveAgent, resolveAgentOrgLogo } from "./agentResolver.ts";
 import { _resetProfileCacheForTesting } from "./profileDocument.ts";
 
 const WEBID = "https://alice.example/profile/card#me";
@@ -67,4 +67,39 @@ Deno.test("resolveAgent prefers foaf:name over vcard:fn when both are present", 
     <${WEBID}> foaf:name "FOAF Name" ; vcard:fn "vCard Name" .`;
   const agent = await resolveAgent(WEBID, makeSession(ttl));
   assert.equal(agent.name, "FOAF Name");
+});
+
+Deno.test("resolveAgentOrgLogo follows org:memberOf → foaf:logo", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    @prefix org: <http://www.w3.org/ns/org#> .
+    <${WEBID}> a foaf:Person ; org:memberOf <https://alice.example/profile/card#org> .
+    <https://alice.example/profile/card#org> a org:Organization ;
+      foaf:logo <https://alice.example/profile/logo.png> .`;
+  const logo = await resolveAgentOrgLogo(WEBID, makeSession(ttl));
+  assert.equal(logo, "https://alice.example/profile/logo.png");
+});
+
+Deno.test("resolveAgentOrgLogo returns null when there is no org or no logo", async () => {
+  _resetProfileCacheForTesting();
+  // No org membership at all.
+  const noOrg = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${WEBID}> a foaf:Person ; foaf:name "Alice" .`;
+  assert.equal(await resolveAgentOrgLogo(WEBID, makeSession(noOrg)), null);
+
+  // Org present but logo-less.
+  _resetProfileCacheForTesting();
+  const noLogo = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    @prefix org: <http://www.w3.org/ns/org#> .
+    <${WEBID}> org:memberOf <https://alice.example/profile/card#org> .
+    <https://alice.example/profile/card#org> foaf:name "ACME" .`;
+  assert.equal(await resolveAgentOrgLogo(WEBID, makeSession(noLogo)), null);
+});
+
+Deno.test("resolveAgentOrgLogo returns null for an unreachable profile", async () => {
+  _resetProfileCacheForTesting();
+  assert.equal(await resolveAgentOrgLogo(WEBID, makeSession(undefined)), null);
 });

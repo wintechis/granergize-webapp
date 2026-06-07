@@ -22,9 +22,10 @@ import type {
 import { ROLE_LABELS } from "../constants/roles.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { logError } from "../services/utils/logError.ts";
 import { formatError } from "../services/utils/formatError.ts";
 import { useReceivedViews, useSharedWithMe } from "../hooks/queries.ts";
-import { useToggleVisibility } from "../hooks/mutations.ts";
+import { useCheckInbox, useToggleVisibility } from "../hooks/mutations.ts";
 import { loadSharedBuilding } from "../services/interop/sharedBuilding.ts";
 import {
   attachAnnualData,
@@ -187,7 +188,7 @@ function SharedBuildingFiles(
       .then((b) => {
         if (!cancelled) setBuilding(b);
       })
-      .catch(() => {});
+      .catch((err) => logError("load shared building preview", err));
     return () => {
       cancelled = true;
     };
@@ -215,7 +216,17 @@ export default function SharePage({ session }: SharePageProps) {
   const receivedViewsPaging = usePaging(receivedViews);
 
   const toggleVis = useToggleVisibility();
+  const checkInbox = useCheckInbox();
   const [bundling, setBundling] = useState(false);
+
+  // Dev-mode: drain the inbox on demand (it otherwise only happens at
+  // login/reload), then surface the outcome.
+  const handleCheckInbox = () =>
+    checkInbox.mutate(undefined, {
+      onSuccess: () => showNotification("Checked for new shares", "success"),
+      onError: (err) =>
+        showNotification(formatError("check for new shares", err), "error"),
+    });
 
   // The Solid containers that back this tab, so the user can open the raw RDF:
   // shared-in/ backs "Buildings shared with you" (linked under that heading), and
@@ -251,7 +262,8 @@ export default function SharePage({ session }: SharePageProps) {
         try {
           const b = await loadSharedBuilding(entry, session);
           if (b) built.push(b);
-        } catch {
+        } catch (err) {
+          logError("read shared building for bundle", err);
           // skip a building that can't be read right now
         }
       }
@@ -281,6 +293,17 @@ export default function SharePage({ session }: SharePageProps) {
       <Typography variant="h6" sx={{ mb: 1 }}>
         Buildings shared with you
       </Typography>
+      {dev && (
+        <Button
+          size="small"
+          variant="outlined"
+          onClick={handleCheckInbox}
+          disabled={checkInbox.isPending}
+          sx={{ mb: 1 }}
+        >
+          {checkInbox.isPending ? "Checking…" : "Check for new shares"}
+        </Button>
+      )}
       {collections && <RdfSourceLink href={collections.sharedIn} />}
       {loading
         ? <p>Loading…</p>

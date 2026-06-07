@@ -8,6 +8,7 @@ import {
   revokeViewAccess,
   toggleBuildingVisibility,
 } from "../services/interop/sharingManager.ts";
+import { readInbox } from "../services/interop/inbox.ts";
 import {
   deleteView,
   getSnapshotUrl,
@@ -67,6 +68,25 @@ export function useDeleteBuilding() {
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
       qc.invalidateQueries({ queryKey: queryKeys.energy });
       qc.invalidateQueries({ queryKey: queryKeys.sharedBuildings });
+    },
+  });
+}
+
+/**
+ * Manually drain the Pod inbox now (dev-mode "Check for new shares"). Inbox
+ * processing otherwise runs only at login/session-restore (main.tsx), so a share
+ * that arrives while the app stays open isn't visible until reload. Mirrors the
+ * post-login refresh: archive grants/revocations into shared-in/, then invalidate
+ * the folds so the new state appears.
+ */
+export function useCheckInbox() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => readInbox(getSession()),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
+      qc.invalidateQueries({ queryKey: queryKeys.receivedViews });
+      qc.invalidateQueries({ queryKey: queryKeys.buildings });
     },
   });
 }

@@ -2,6 +2,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory } from "n3";
 import { loadProfileStore } from "./profileDocument.ts";
 import { FOAF_NS, VCARD_NS } from "./vocabularies.ts";
+import { logError } from "./logError.ts";
 
 /**
  * Reads the logged-in person's avatar from their WebID profile.
@@ -53,7 +54,8 @@ export async function getAvatarObjectUrl(
     const res = await session.fetch(url);
     if (!res.ok) return null;
     return URL.createObjectURL(await res.blob());
-  } catch {
+  } catch (err) {
+    logError("fetch avatar object URL", err);
     return null;
   }
 }

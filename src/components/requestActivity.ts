@@ -8,6 +8,7 @@ import {
   subscribeActivity,
 } from "../services/utils/networkActivity.ts";
 import { getStorageRoot } from "../services/utils/solidUtils.ts";
+import { logError } from "../services/utils/logError.ts";
 
 /** Subscribe to the in-flight request list (re-renders on change). */
 export function useNetworkActivity(): ActiveRequest[] {
@@ -28,7 +29,8 @@ export function currentStorageRoot(): string {
   try {
     const webId = getDefaultSession().info.webId;
     return webId ? getStorageRoot(webId) : "";
-  } catch {
+  } catch (err) {
+    logError("read storage root for request log display", err);
     return "";
   }
 }

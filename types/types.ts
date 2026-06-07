@@ -2,7 +2,12 @@ export type UserRole =
   | "dummy"
   | "investor"
   | "user"
-  | "benchmark_service_provider";
+  | "benchmark_service_provider"
+  | "facility_manager"
+  | "developer"
+  | "consultant_broker"
+  | "software_provider"
+  | "energy_provider";
 
 export interface InvestorAnnualData {
   year: number;

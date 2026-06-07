@@ -8,6 +8,7 @@
  */
 import { withRetry } from "./retryFetch.ts";
 import { isSessionExpired } from "./sessionGate.ts";
+import { logError } from "./logError.ts";
 
 export interface ActiveRequest {
   id: number;
@@ -135,7 +136,10 @@ export function describeRequest(
   try {
     const u = new URL(noQuery);
     where = u.pathname && u.pathname !== "/" ? `${u.host}${u.pathname}` : u.host;
-  } catch { /* not an absolute URL — keep raw */ }
+  } catch (err) {
+    logError("parse request URL for activity log", err);
+    /* not an absolute URL — keep raw */
+  }
   return `${method} ${where}`;
 }
 

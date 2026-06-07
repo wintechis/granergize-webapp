@@ -15,6 +15,8 @@ export const FOAF_NS = "http://xmlns.com/foaf/0.1/";
 export const FOAF_AGENT = `${FOAF_NS}Agent`;
 export const FOAF_NAME = `${FOAF_NS}name`;
 export const FOAF_IMG = `${FOAF_NS}img`;
+/** foaf:logo — an organisation's logo image (used for map markers). */
+export const FOAF_LOGO = `${FOAF_NS}logo`;
 
 /** vCard — profile photo (vcard:hasPhoto) fallback for the avatar. */
 export const VCARD_NS = "http://www.w3.org/2006/vcard/ns#";
@@ -55,6 +57,7 @@ export const IRI_TO_GEOCODE_PRECISION: Record<string, GeocodePrecision> = Object
 
 /** W3C Org ontology — person→organisation membership (org:memberOf). */
 export const ORG_NS = "http://www.w3.org/ns/org#";
+export const ORG_MEMBER_OF = `${ORG_NS}memberOf`;
 
 /** OWL — owl:sameAs links the local org node to the org's own WebID, if any. */
 export const OWL_NS = "http://www.w3.org/2002/07/owl#";

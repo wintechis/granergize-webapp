@@ -19,6 +19,7 @@ import {
 } from "../utils/vocabularies.ts";
 import { parseDatasetSlug } from "../utils/energyDataset.ts";
 import { isSeriesGranularity } from "../utils/durationUtils.ts";
+import { logError } from "../utils/logError.ts";
 
 interface SharedBuilding {
   buildingUri: string;
@@ -218,7 +219,8 @@ async function getSubresourceAclTargets(
       null,
     )[0];
     if (cert && !cert.value.startsWith(filesContainer)) targets.push(cert.value);
-  } catch {
+  } catch (err) {
+    logError("collect extra revoke targets for building", err);
     // best-effort — the files container is still revoked above
   }
   return targets;
@@ -245,7 +247,9 @@ export async function revokeAllBuildingRecipients(
     .find((b) => b.buildingUri.split("#")[0] === fileUri)
     ?.sharedWith ?? [];
   for (const webId of recipients) {
-    await revokeAccess(fileUri, webId, session).catch(() => {});
+    await revokeAccess(fileUri, webId, session).catch((err) =>
+      logError("revoke building access for recipient", err)
+    );
   }
 }
 
@@ -437,7 +441,9 @@ export async function revokeViewAccess(
   // Best-effort: the ACL withdrawal is the source of truth; the inbox notice is a
   // courtesy that lets the recipient's shared-in/ fold the grant out (same as
   // building revocation). Never let a notify failure fail the revocation.
-  await notifyAccessRevoked(snapshotUrl, webId, session).catch(() => {});
+  await notifyAccessRevoked(snapshotUrl, webId, session).catch((err) =>
+    logError("notify recipient of view-access revocation", err)
+  );
 }
 
 /**
@@ -455,6 +461,8 @@ export async function revokeAllViewRecipients(
   const recipients = shared.find((v) => v.snapshotUrl === snapshotUrl)
     ?.sharedWith ?? [];
   for (const webId of recipients) {
-    await revokeViewAccess(snapshotUrl, webId, session).catch(() => {});
+    await revokeViewAccess(snapshotUrl, webId, session).catch((err) =>
+      logError("revoke view access for recipient", err)
+    );
   }
 }

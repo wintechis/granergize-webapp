@@ -14,6 +14,7 @@ import {
   shareByWebId,
   uploadBuildingFile,
 } from "../helpers/manage.ts";
+import { freshSlateBoth, logCollectionState } from "../helpers/cleanSlate.ts";
 
 /**
  * File sharing across TWO throwaway Solid Pods, both ways the app supports:
@@ -51,7 +52,7 @@ test.describe("file sharing across two pods", () => {
   test.describe.configure({ mode: "serial" });
 
   test("direct (By WebID): A attaches a file + shares; B downloads it", async ({ browser }) => {
-    test.setTimeout(420_000);
+    test.setTimeout(600_000);
     const street = "Share Files Direct Strasse 1";
     // Log both in first, and keep B's session open THROUGH the share: B's inbox is
     // provisioned asynchronously after login (ensureOwnInbox), and A must be able
@@ -59,6 +60,8 @@ test.describe("file sharing across two pods", () => {
     // takes ~30 s — far longer than the provisioning — so by share time it exists.
     // (Closing B right after login raced that provisioning.)
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
+    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
+    await freshSlateBoth(a.page, b1.page, "share-files");
     a.page.on("dialog", (d) => d.accept());
     try {
       // Discover B's REAL WebID from its logged-in session (the account menu),
@@ -80,14 +83,17 @@ test.describe("file sharing across two pods", () => {
     } finally {
       await b1.ctx.close().catch(() => {}); // no-op if already closed above
       await deleteOwnBuilding(a.page, street);
+      await logCollectionState(a.page, "share-files"); // verify A's cleanup
       await a.ctx.close();
     }
   });
 
   test("via data room (By role): A attaches a file + shares; B downloads it", async ({ browser }) => {
-    test.setTimeout(420_000);
+    test.setTimeout(600_000);
     const street = "Share Files Room Strasse 1";
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
+    // Clean slate: wipe both pods before any sharing (reload re-provisions inboxes).
+    await freshSlateBoth(a.page, b1.page, "share-files");
     a.page.on("dialog", (d) => d.accept());
     try {
       const roomUri = await hostRoomAndGetUri(a.page);
@@ -113,6 +119,7 @@ test.describe("file sharing across two pods", () => {
     } finally {
       await deleteOwnBuilding(a.page, street);
       await deleteAllOwnedRooms(a.page).catch(() => {});
+      await logCollectionState(a.page, "share-files"); // verify A's cleanup
       await a.ctx.close();
     }
   });

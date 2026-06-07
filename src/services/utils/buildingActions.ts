@@ -4,6 +4,7 @@ import { deleteBuilding } from "./buildingSerializer.ts";
 import { formatResourceList, listContainedResources } from "./podDelete.ts";
 import { getStorageRoot } from "./solidUtils.ts";
 import { revokeAllBuildingRecipients } from "../interop/sharingManager.ts";
+import { logError } from "./logError.ts";
 
 /** The building file URI (fragment stripped) for an owned building. */
 function buildingFileUri(building: BuildingType): string {
@@ -28,7 +29,10 @@ export async function buildBuildingDeletionPreview(
   let root = "";
   try {
     if (session.info.webId) root = getStorageRoot(session.info.webId);
-  } catch { /* storage root not resolved — fall back to absolute URLs */ }
+  } catch (err) {
+    logError("resolve storage root for deletion preview", err);
+    /* storage root not resolved — fall back to absolute URLs */
+  }
 
   const resources = [fileUri];
   try {
@@ -38,7 +42,10 @@ export async function buildBuildingDeletionPreview(
         session,
       ),
     );
-  } catch { /* preview only */ }
+  } catch (err) {
+    logError("list building resources for deletion preview", err);
+    /* preview only */
+  }
 
   const label = (building.streetAddress as string) || `Building ${building.id}`;
   const message = `Delete "${label}"?\n\nThis permanently deletes ${resources.length} ` +
@@ -64,6 +71,8 @@ export async function deleteBuildingResource(
   building: BuildingType,
 ): Promise<void> {
   const fileUri = buildingFileUri(building);
-  await revokeAllBuildingRecipients(fileUri, session).catch(() => {});
+  await revokeAllBuildingRecipients(fileUri, session).catch((err) =>
+    logError("revoke recipients before building delete", err)
+  );
   await deleteBuilding(session, session.info.webId!, fileUri);
 }

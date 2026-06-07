@@ -19,6 +19,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
+import { logError } from "../services/utils/logError.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
 import { AgentField } from "./AgentField.tsx";
 import RequestActivityList from "./RequestActivityList.tsx";
@@ -60,14 +61,27 @@ const TEMPLATE_LABEL: Record<UserRole, string> = {
   investor: "Investor",
   user: "User",
   benchmark_service_provider: "Benchmark Service Provider",
+  facility_manager: "Facility Manager",
+  developer: "Developer",
+  consultant_broker: "Consultant / Broker",
+  software_provider: "Software Provider",
+  energy_provider: "Energy Provider",
 };
+
+const GENERIC_CSV_HINT =
+  "Upload CSV with BuildingType field names as column headers";
 
 const CSV_HINT: Record<UserRole, string> = {
   investor: "Upload investor.xlsx (row-label format, buildings in columns D–K)",
   benchmark_service_provider:
     "Upload BenchmarkServiceProvider.csv (column-header format, one row per building)",
   user: "Upload Lastgang XLSX (15-min load profile from utility provider)",
-  dummy: "Upload CSV with BuildingType field names as column headers",
+  dummy: GENERIC_CSV_HINT,
+  facility_manager: GENERIC_CSV_HINT,
+  developer: GENERIC_CSV_HINT,
+  consultant_broker: GENERIC_CSV_HINT,
+  software_provider: GENERIC_CSV_HINT,
+  energy_provider: GENERIC_CSV_HINT,
 };
 
 /** Templates a building can be added under (excludes the demo "dummy" shape). */
@@ -77,10 +91,24 @@ const TEMPLATE_OPTIONS: Template[] = [
   "benchmark_service_provider",
 ];
 
+const ADDRESS_FIELDS = [
+  "streetAddress",
+  "locality",
+  "postalCode",
+  "region",
+  "lat",
+  "long",
+];
+
 /** Minimum fields that must be non-empty before submission is allowed. */
 const REQUIRED_FIELDS: Record<UserRole, string[]> = {
-  dummy: ["streetAddress", "locality", "postalCode", "region", "lat", "long"],
-  user: ["streetAddress", "locality", "postalCode", "region", "lat", "long"],
+  dummy: ADDRESS_FIELDS,
+  user: ADDRESS_FIELDS,
+  facility_manager: ADDRESS_FIELDS,
+  developer: ADDRESS_FIELDS,
+  consultant_broker: ADDRESS_FIELDS,
+  software_provider: ADDRESS_FIELDS,
+  energy_provider: ADDRESS_FIELDS,
   investor: [
     "streetAddress",
     "locality",
@@ -146,7 +174,7 @@ export default function AddBuildingDialog(
         setProducingRole(r);
         setRoleLoaded(true);
       }
-    }).catch(() => {});
+    }).catch((err) => logError("derive producing role from company kind", err));
     return () => {
       cancelled = true;
     };

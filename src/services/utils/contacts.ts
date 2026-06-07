@@ -12,6 +12,7 @@ import { podResources } from "./solidUtils.ts";
 import { fetchFresh } from "./podFetch.ts";
 import { readModifyWrite } from "./podWrite.ts";
 import { resolveAgent } from "./agentResolver.ts";
+import { logError } from "./logError.ts";
 
 const { namedNode, literal } = DataFactory;
 
@@ -129,7 +130,8 @@ export async function rememberAgent(
   if (!/^https?:\/\//.test(webId)) return;
   try {
     await addContact(session, await resolveAgent(webId, session));
-  } catch {
+  } catch (err) {
+    logError("remember agent in contacts cache", err);
     // best-effort cache; ignore
   }
 }

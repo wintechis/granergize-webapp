@@ -4,6 +4,7 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { loadProfileStore } from "./profileDocument.ts";
+import { logError } from "./logError.ts";
 
 const PIM_NS = "http://www.w3.org/ns/pim/space#";
 const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
@@ -24,7 +25,10 @@ async function discoverStorageRoot(
   let url = docUrl.replace(/[^/]*$/, "");
   for (let i = 0; i < 8; i++) {
     const res = await session.fetch(url, { headers: { Accept: "text/turtle" } })
-      .catch(() => null);
+      .catch((err) => {
+        logError("fetch container while walking to storage root", err);
+        return null;
+      });
     if (res && res.ok) {
       const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
       const isStorage = store.getQuads(
@@ -216,7 +220,10 @@ export async function resolveStorageRootForWebId(
 ): Promise<string> {
   const docUrl = webId.split("#")[0];
   const res = await session.fetch(docUrl, { headers: { Accept: "text/turtle" } })
-    .catch(() => null);
+    .catch((err) => {
+      logError("fetch WebID profile for storage-root resolution", err);
+      return null;
+    });
   if (res?.ok) {
     const store = new Store(new Parser({ baseIRI: docUrl }).parse(await res.text()));
     const triple = store.getObjects(
@@ -245,7 +252,8 @@ export function tryPodResources(
 ): ReturnType<typeof podResources> | null {
   try {
     return podResources(webId);
-  } catch {
+  } catch (err) {
+    logError("build pod resources before storage root resolved", err);
     return null;
   }
 }

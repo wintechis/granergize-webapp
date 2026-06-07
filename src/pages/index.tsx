@@ -38,6 +38,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../hooks/queries.ts";
 import { seedDemoBuildings } from "../services/utils/buildingSerializer.ts";
 import { readPrefs, setDemoSeedDeclined } from "../services/utils/prefs.ts";
+import { logError } from "../services/utils/logError.ts";
 import { formatError } from "../services/utils/formatError.ts";
 import {
   exportArchive,
@@ -84,7 +85,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           return url;
         });
       })
-      .catch(() => {});
+      .catch((err) => logError("load organisation logo / avatar", err));
   };
 
   const queryClient = useQueryClient();
@@ -115,7 +116,11 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         if (!cancelled && empty && !prefs.demoSeedDeclined) {
           setDemoShow(true);
         }
-      } catch { /* the offer is best-effort */ }
+      } catch (err) {
+        // The offer is best-effort, but log so a probe that silently fails (e.g. an
+        // NSS Pod listing the buildings container differently) is diagnosable.
+        logError("check whether to offer demo buildings", err);
+      }
     })();
     return () => {
       cancelled = true;
@@ -146,7 +151,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
 
   const declineDemos = () => {
     setDemoShow(false);
-    setDemoSeedDeclined(session, true).catch(() => {});
+    setDemoSeedDeclined(session, true).catch((err) =>
+      logError("persist demo-seed declined", err)
+    );
   };
 
   /** Dev-mode: download the whole granergize/ collection as a ZIP backup. */
@@ -206,7 +213,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       // the log's IRIs were rebased onto it).
       const { buildings, views } = await reissueGrants(session);
       await queryClient.invalidateQueries();
-      hydrateActiveRoom(session).catch(() => {});
+      hydrateActiveRoom(session).catch((err) =>
+        logError("hydrate active data room", err)
+      );
       const rebased = rebasedTo || rebasedWebId ? " (rebased)" : "";
       showNotification(
         `Restored ${restored} resource(s)${rebased}; reissued ${buildings + views} share grant(s)`,
@@ -246,7 +255,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         current = url;
         setLogoUrl(url);
       })
-      .catch(() => {});
+      .catch((err) => logError("load avatar object URL", err));
     return () => {
       if (current) URL.revokeObjectURL(current);
     };
@@ -260,7 +269,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   // Load the current-room pointer from the Pod into memory once after login, so
   // the sharing dialogs (which read it synchronously) know the room app-wide.
   useEffect(() => {
-    hydrateActiveRoom(session).catch(() => {});
+    hydrateActiveRoom(session).catch((err) =>
+      logError("hydrate active data room on login", err)
+    );
   }, [session]);
 
   const menuOpen = Boolean(anchorEl);
@@ -302,7 +313,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     let root = "";
     try {
       if (session.info.webId) root = getStorageRoot(session.info.webId);
-    } catch { /* not resolved — fall back to absolute URLs */ }
+    } catch (err) {
+      logError("resolve storage root for app-data wipe", err);
+      /* not resolved — fall back to absolute URLs */
+    }
 
     // Show exactly what will be wiped (everything under granergize/).
     let resources: string[] = [];
@@ -310,7 +324,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       if (root) {
         resources = await listContainedResources(`${root}${APP_DIR}/`, session);
       }
-    } catch { /* preview only */ }
+    } catch (err) {
+      logError("list app-data resources for wipe preview", err);
+      /* preview only */
+    }
 
     const list = resources.length
       ? `\n\nThis permanently deletes ${resources.length} resource(s):\n\n` +
@@ -338,7 +355,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       // re-seeds silently, so there's nothing to "log out to avoid" any more.
       setRemoving(false);
       queryClient.clear();
-      hydrateActiveRoom(session).catch(() => {});
+      hydrateActiveRoom(session).catch((err) =>
+        logError("hydrate active data room", err)
+      );
       setDemoShow(true);
       setTabValue(0);
       showNotification("All app data removed", "success");

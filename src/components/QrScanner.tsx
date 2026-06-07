@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
+import { logError } from "../services/utils/logError.ts";
 
 interface QrScannerProps {
   /** Called with the decoded text once a QR code is read. */
@@ -45,7 +46,9 @@ export default function QrScanner({ onResult, onCancel }: QrScannerProps) {
           (decodedText: string) => {
             if (stopped) return;
             stopped = true;
-            scanner?.stop().then(() => scanner?.clear()).catch(() => {});
+            scanner?.stop().then(() => scanner?.clear()).catch((err) =>
+              logError("stop QR scanner after decode", err)
+            );
             onResultRef.current(decodedText);
           },
           () => {/* per-frame decode failures are normal; ignore */},
@@ -59,7 +62,9 @@ export default function QrScanner({ onResult, onCancel }: QrScannerProps) {
 
     return () => {
       stopped = true;
-      scanner?.stop().then(() => scanner?.clear()).catch(() => {});
+      scanner?.stop().then(() => scanner?.clear()).catch((err) =>
+        logError("stop QR scanner on unmount", err)
+      );
     };
   }, []);
 

@@ -14,7 +14,7 @@
     "bench": "deno run -A --node-modules-dir=auto test/bench/runner.ts",
     "bench:ui": "VITE_OIDC_CLIENT_ID= deno task build && E2E_LOCAL=1 E2E_PREVIEW=1 E2E_BENCH=1 npx playwright test --project=bench --retries=2 && deno run -A --node-modules-dir=auto test/bench/plots.ts",
     "bench:plot": "deno run -A test/bench/plots.ts",
-    "handbuch": "bash scripts/build-handbuch.sh"
+    "handbuch": "bash docs/build-handbuch.sh"
   },
   "imports": {
     "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@0.0.53"

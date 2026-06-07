@@ -7,6 +7,7 @@ import {
   UNIT_NS,
 } from "./vocabularies.ts";
 import type { EnergyDatasetRef, Scenario } from "../../../types/types.ts";
+import { logError } from "./logError.ts";
 
 const { namedNode } = DataFactory;
 
@@ -250,7 +251,8 @@ export async function loadEnergyDatasets(
       );
       const ds = parseEnergyDataset(store, ref.url);
       if (ds) out.push(ds);
-    } catch {
+    } catch (err) {
+      logError("load energy dataset", err);
       // Skip an unreadable dataset (e.g. access revoked) — non-fatal.
     }
   }));

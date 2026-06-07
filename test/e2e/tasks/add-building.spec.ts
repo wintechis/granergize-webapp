@@ -1,6 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingRows } from "../helpers/manage.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Building add + delete e2e (PROBLEMS.md #3). Self-cleaning: it adds its own
@@ -34,13 +36,14 @@ test.describe("building deletion", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "add-building");
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
   });
 
   test.afterAll(async () => {
+    await verifyAndReset(page, "add-building");
     await page.close();
   });
 

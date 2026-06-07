@@ -1,5 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { verifyAndReset } from "../helpers/cleanSlate.ts";
 
 /**
  * Provenance-from-profile e2e (PROBLEMS.md #1). Proves a building's PROV
@@ -14,12 +16,19 @@ import { account, hasAccount, login } from "../helpers/login.ts";
  *   # tier 4 (real Pods):
  *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/organisation.spec.ts
  *
+ * Also covers two related Organisation/profile features: that the five producer
+ * roles added for the Praxishandbuch update are offered as a company kind, and
+ * that a building produced by an agent with an org logo renders that logo as its
+ * map marker (BuildingMarker → resolveAgentOrgLogo).
+ *
  * MUTATES the Pod but fully reverses itself: it restores the prior profile
- * company kind in afterAll and adds+deletes its one building. Runs against
- * Alice (account A). Skipped without creds.
+ * company kind in afterAll and adds+deletes its buildings. The uploaded company
+ * logo persists (no remove-logo UI). Runs against Alice (account A). Skipped
+ * without creds.
  */
 
 const ADDR = "Provenance E2E Strasse 1"; // unique, matchable building address
+const LOGO_ADDR = "Logo Marker E2E Strasse 2"; // building used for the logo-marker check
 
 // The company kind this Pod had before the test, restored in afterAll so the
 // spec fully reverses its profile mutation (defaults to "Not set" on a reseeded
@@ -75,7 +84,7 @@ test.describe("provenance from profile", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000);
-    page = await browser.newPage();
+    page = await newCapturedPage(browser, "organisation");
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
   });
@@ -94,6 +103,7 @@ test.describe("provenance from profile", () => {
     } catch {
       // best-effort restore; never fail teardown
     } finally {
+      await verifyAndReset(page, "organisation");
       await page.close();
     }
   });
@@ -205,5 +215,81 @@ test.describe("provenance from profile", () => {
     await expect(reopened.getByAltText("Organisation logo"))
       .toBeVisible({ timeout: 30_000 });
     await reopened.getByRole("button", { name: /cancel/i }).click();
+  });
+
+  // The five producer roles added for the Praxishandbuch update must be
+  // selectable wherever a role is chosen. The "Kind of company" dropdown maps
+  // ROOM_ROLE_OPTIONS → ROLE_LABELS, so it's the central proof they surface in
+  // the UI. Read-only: opens the dropdown and Cancels without changing the kind.
+  test("the new producer roles are offered as a company kind", async () => {
+    test.setTimeout(60_000);
+    const org = await openOrgDialog(page);
+    await org.getByLabel("Kind of company").click({ timeout: 15_000 });
+    for (
+      const label of [
+        "Facility Manager",
+        "Developer",
+        "Consultant / Broker",
+        "Software Provider",
+        "Energy Provider",
+      ]
+    ) {
+      await expect(page.getByRole("option", { name: label, exact: true }))
+        .toBeVisible({ timeout: 15_000 });
+    }
+    await page.keyboard.press("Escape"); // close the dropdown, keep the kind
+    await org.getByRole("button", { name: /cancel/i }).click({ timeout: 15_000 });
+  });
+
+  // A building produced by an agent whose profile carries an org logo shows that
+  // logo as its map marker (BuildingMarker → resolveAgentOrgLogo → an L.divIcon
+  // whose <img alt="Building producer logo">). Runs after the logo-upload test,
+  // so Alice's profile has a logo; her own building's `attributedTo` is herself,
+  // so the lookup resolves over the authed session (no public-ACL dependency).
+  test("a building's company logo shows as its map marker", async () => {
+    test.setTimeout(180_000);
+
+    // Add an owned building (User template; provenance comes from the profile
+    // kind set earlier — irrelevant here, we only need a marker on the map).
+    await page.getByRole("tab", { name: "Manage" }).click();
+    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+      .first();
+    await expect(addBtn).toBeVisible({ timeout: 120_000 });
+    await addBtn.click();
+    const add = page.getByRole("dialog");
+    await add.getByLabel("Template").click();
+    await page.getByRole("option", { name: "User", exact: true }).click();
+    await add.getByLabel(/street address/i).fill(LOGO_ADDR);
+    await add.getByLabel(/locality/i).fill("Nürnberg");
+    await add.getByLabel(/postal code/i).fill("90451");
+    await add.getByLabel(/region/i).fill("Bayern");
+    await add.getByLabel(/latitude/i).fill("49.46");
+    await add.getByLabel(/longitude/i).fill("11.09");
+    await add.getByRole("button", { name: /^Add Building$/ }).click();
+    await expect(page.getByText(/building added/i))
+      .toBeVisible({ timeout: 120_000 });
+
+    // Confirm it persisted (a row on Manage), then reload so the Explore map loads
+    // fresh from the Pod — a tab switch alone can keep the map's prior empty state.
+    await expect(page.locator("li", { hasText: LOGO_ADDR }).first())
+      .toBeVisible({ timeout: 30_000 });
+    await page.reload();
+    await expect(page.getByRole("tab", { name: "Explore" }))
+      .toBeVisible({ timeout: 60_000 });
+
+    // On the map, the building's marker renders the producer's org logo image.
+    // (Several owned buildings would all show Alice's logo, so match the first.)
+    await page.getByRole("tab", { name: "Explore" }).click();
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await expect(page.getByAltText("Building producer logo").first())
+      .toBeVisible({ timeout: 60_000 });
+
+    // Clean up the building.
+    await page.getByRole("tab", { name: "Manage" }).click();
+    const row = page.locator("li", { hasText: LOGO_ADDR }).first();
+    await expect(row).toBeVisible({ timeout: 30_000 });
+    await row.getByRole("button", { name: "Delete building" }).click();
+    await expect(page.getByText("Building deleted").first())
+      .toBeVisible({ timeout: 90_000 });
   });
 });

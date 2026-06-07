@@ -45,3 +45,6 @@ notes/*.html
 
 # Internal user-reported-problems tracker — kept local, not in the repo
 PROBLEMS.md
+
+# The generator excel/gen-templates.ts is tracked; only the .xlsx are ignored.
+excel/*.xlsx

@@ -23,7 +23,7 @@ import Tab from "@mui/material/Tab";
 import Grid from "@mui/material/Grid2";
 import Energy from "./Energy.tsx";
 import IconButton from "@mui/material/IconButton";
-import { useSolidData } from "../hooks/queries.ts";
+import { useResolveOrgLogo, useSolidData } from "../hooks/queries.ts";
 import WeatherData from "./WeatherData.tsx";
 import InvestorEnergy from "./InvestorEnergy.tsx";
 import BspEnergy from "./BspEnergy.tsx";
@@ -93,6 +93,86 @@ function createSelectedIcon(building: BuildingType): L.DivIcon {
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
   });
+}
+
+/** The owned/shared ring colour — the only provenance-independent distinction. */
+function ringColor(building: BuildingType): string {
+  return building.isShared ? MARKER_SHARED_COLOR : MARKER_OWNED_COLOR;
+}
+
+// A marker showing the building producer's organisation logo inside a circular
+// owned/shared ring (selected = highlighted ring). If the logo image can't be
+// fetched (e.g. the producer's profile folder isn't public) the `onerror`
+// handler swaps in the default pin, so the marker degrades gracefully.
+function createLogoIcon(
+  logoUrl: string,
+  building: BuildingType,
+  selected: boolean,
+): L.DivIcon {
+  const ring = selected ? MARKER_SELECTED_COLOR : ringColor(building);
+  const fallback = getIcon(building).options.iconUrl as string;
+  const shadow = selected
+    ? `box-shadow:0 0 0 2px ${MARKER_SELECTED_COLOR},0 1px 4px rgba(0,0,0,0.45);`
+    : "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
+  return L.divIcon({
+    className: "",
+    html:
+      `<div style="width:36px;height:36px;border-radius:50%;border:3px solid ${ring};background:#fff;overflow:hidden;${shadow}">` +
+      `<img src="${logoUrl}" alt="Building producer logo" style="width:100%;height:100%;object-fit:contain;display:block;" ` +
+      `onerror="this.onerror=null;this.style.objectFit='cover';this.src='${fallback}';" /></div>`,
+    iconSize: [42, 42],
+    iconAnchor: [21, 21],
+    popupAnchor: [0, -21],
+  });
+}
+
+/**
+ * One map marker. A dedicated component so the per-producer org-logo lookup
+ * (`useResolveOrgLogo`) is a single hook call per marker rather than inside the
+ * buildings `.map()`. The marker shows the producer's (`attributedTo`) logo when
+ * one resolves, else the default owned/shared pin.
+ */
+function BuildingMarker(
+  { building, position, selected, onClick }: {
+    building: BuildingType;
+    position: [number, number];
+    selected: boolean;
+    onClick: () => void;
+  },
+) {
+  const { data: logoUrl } = useResolveOrgLogo(building.attributedTo);
+  const icon = logoUrl
+    ? createLogoIcon(logoUrl, building, selected)
+    : selected
+    ? createSelectedIcon(building)
+    : getIcon(building);
+  const tooltipOffset: [number, number] = logoUrl ? [0, -24] : [0, -38];
+  return (
+    <Marker
+      position={position}
+      icon={icon}
+      eventHandlers={{ click: onClick }}
+    >
+      <Tooltip direction="top" offset={tooltipOffset}>
+        <Box sx={{ display: "flex", gap: 1 }}>
+          <CorporateFareIcon fontSize="small" />
+          <span>
+            <strong>Building {building.id}</strong>
+            {building.streetAddress && (
+              <>
+                <br />
+                {building.streetAddress}
+              </>
+            )}
+            <br />
+            {`${building.postalCode ?? ""} ${building.locality ?? ""}${
+              building.region ? `, ${building.region}` : ""
+            }`}
+          </span>
+        </Box>
+      </Tooltip>
+    </Marker>
+  );
 }
 
 /**
@@ -310,38 +390,14 @@ export default function ExplorePage(
                 <FitToBuildings active={active} buildings={buildings} />
                 <BoundsWatcher active={active} onChange={setBbox} />
                 {buildings.map((building) => (
-                  building.lat && building.long && (
-                    <Marker
+                  building.lat != null && building.long != null && (
+                    <BuildingMarker
                       key={building.id}
+                      building={building}
                       position={[building.lat, building.long]}
-                      icon={anchorBuilding?.id === building.id
-                        ? createSelectedIcon(building)
-                        : getIcon(building)}
-                      eventHandlers={{
-                        click: () => {
-                          focusBuilding(building.id.toString());
-                        },
-                      }}
-                    >
-                      <Tooltip direction="top" offset={[0, -38]}>
-                        <Box sx={{ display: "flex", gap: 1 }}>
-                          <CorporateFareIcon fontSize="small" />
-                          <span>
-                            <strong>Building {building.id}</strong>
-                            {building.streetAddress && (
-                              <>
-                                <br />
-                                {building.streetAddress}
-                              </>
-                            )}
-                            <br />
-                            {`${building.postalCode ?? ""} ${
-                              building.locality ?? ""
-                            }${building.region ? `, ${building.region}` : ""}`}
-                          </span>
-                        </Box>
-                      </Tooltip>
-                    </Marker>
+                      selected={anchorBuilding?.id === building.id}
+                      onClick={() => focusBuilding(building.id.toString())}
+                    />
                   )
                 ))}
           </MapContainer>
@@ -373,24 +429,6 @@ export default function ExplorePage(
                     borderRadius: "50%",
                     flexShrink: 0,
                   }}
-                />
-                <Typography variant="body2">{label}</Typography>
-              </Box>
-            ))}
-            {(
-              [
-                ["investor", `${BASE}legend-investor.png`, "Investor"],
-                ["dummy", `${BASE}legend-dummy.png`, "Demo"],
-                ["user", `${BASE}legend-user.png`, "User"],
-                ["benchmark_service_provider", `${BASE}legend-bsp.png`, "BSP"],
-              ] as const
-            ).map(([role, src, label]) => (
-              <Box key={role} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                <Box
-                  component="img"
-                  src={src}
-                  alt={`${label} marker`}
-                  sx={{ width: 9, height: 14, objectFit: "contain", flexShrink: 0 }}
                 />
                 <Typography variant="body2">{label}</Typography>
               </Box>

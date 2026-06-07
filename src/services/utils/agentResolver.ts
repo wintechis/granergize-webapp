@@ -1,9 +1,12 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Store } from "n3";
 import { loadProfileStoreFor } from "./profileDocument.ts";
+import { logError } from "./logError.ts";
 import {
   FOAF_IMG,
+  FOAF_LOGO,
   FOAF_NAME,
+  ORG_MEMBER_OF,
   VCARD_FN,
   VCARD_HAS_PHOTO,
 } from "./vocabularies.ts";
@@ -60,7 +63,8 @@ export async function resolveAgent(
   let store: Store | null = null;
   try {
     store = await loadProfileStoreFor(webId, session);
-  } catch {
+  } catch (err) {
+    logError("load agent profile for resolution", err);
     store = null;
   }
   if (!store) return { webId, name: fallbackName };
@@ -70,4 +74,30 @@ export async function resolveAgent(
   const avatarUrl = firstObject(store, webId, FOAF_IMG) ??
     firstObject(store, webId, VCARD_HAS_PHOTO);
   return { webId, name, ...(avatarUrl ? { avatarUrl } : {}) };
+}
+
+/**
+ * Resolve a WebID to its organisation's logo IRI by reading the agent's own
+ * profile: follow `org:memberOf` to the org node, then read its `foaf:logo`.
+ * Serves *arbitrary* producers (e.g. a building's `attributedTo`), unlike the
+ * self-only `organizationManager`. Returns `null` when the profile is
+ * unreachable/private, states no org, or the org has no logo — never throws, so
+ * the map can fall back to a default marker unconditionally.
+ */
+export async function resolveAgentOrgLogo(
+  webId: string,
+  session: Session,
+): Promise<string | null> {
+  let store: Store | null = null;
+  try {
+    store = await loadProfileStoreFor(webId, session);
+  } catch (err) {
+    logError("load agent profile for org logo", err);
+    store = null;
+  }
+  if (!store) return null;
+
+  const org = firstObject(store, webId, ORG_MEMBER_OF);
+  if (!org) return null;
+  return firstObject(store, org, FOAF_LOGO) ?? null;
 }
