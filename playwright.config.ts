@@ -77,7 +77,7 @@ const SHARING_SPECS = [
   "**/share-building.spec.ts",
   "**/share-view.spec.ts",
   "**/share-files.spec.ts",
-  "**/benchmark.spec.ts",
+  "**/peer-benchmark.spec.ts",
 ];
 
 export default defineConfig({

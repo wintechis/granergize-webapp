@@ -37,7 +37,7 @@ const C = account("C");
 // pair check covers A+B, and C is seeded on the same local server in Tier 3.
 const trio = resolveAccounts({ count: 3, slots: ["A", "B", "C"], interoperatingPair: true });
 
-test.describe("BSP benchmark round-trip", () => {
+test.describe("peer benchmark round-trip (BSP)", () => {
   test.skip(!trio.ok, trio.ok ? "" : trio.reason);
 
   test("two owners share to the BSP; it benchmarks across both and an owner sees it", async ({ browser }) => {

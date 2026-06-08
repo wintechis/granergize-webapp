@@ -45,12 +45,29 @@ export async function ensureDemoBuildings(
 
   // Empty Pod: seed via the fresh-Pod "Add examples" onboarding banner. This is the
   // ONLY in-app seed path (the old avatar-menu "Create demo buildings" action no
-  // longer exists), so WAIT for the banner — a non-waiting isVisible() check races
-  // the buildings query on a slower (real) Pod and misses it. If the banner never
-  // appears the demo kind wasn't set, or the Pod has gran:demoSeedDeclined set.
+  // longer exists).
+  //
+  // The app evaluates this offer ONCE, when the kind is saved, reading the kind back
+  // from the Pod (refreshDemoOffer → getCompanyKind), and does NOT re-evaluate. Two
+  // ways that single evaluation can miss on a real Pod: (a) it's slow — the offer's
+  // reads (buildings list + profile + prefs) take a while, so the banner appears
+  // late; (b) a read-after-write race returns the PRE-write profile, so the offer is
+  // computed against a stale kind and suppressed for good. So: wait generously for
+  // the in-app evaluation to settle (covers (a)); only if that misses, reload ONCE to
+  // force a single fresh evaluation against the now-converged Pod (covers (b)), then
+  // wait again. Do NOT loop reloads — each reload restarts the whole app bootstrap
+  // and would reset the settle clock, so a late banner is never caught (it just
+  // re-thrashes the slow Pod). If it still never shows, the demo kind wasn't set or
+  // the Pod has gran:demoSeedDeclined.
   await page.getByRole("tab", { name: "Manage" }).click();
   const addExamples = page.getByRole("button", { name: "Add examples" });
-  await expect(addExamples).toBeVisible({ timeout: T.action });
+  try {
+    await expect(addExamples).toBeVisible({ timeout: T.action });
+  } catch {
+    await page.reload();
+    await page.getByRole("tab", { name: "Manage" }).click();
+    await expect(addExamples).toBeVisible({ timeout: T.action });
+  }
   await addExamples.click();
 
   // Wait for the seed to fully settle: at least one building, and the count stable
