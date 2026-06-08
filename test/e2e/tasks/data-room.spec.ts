@@ -162,13 +162,16 @@ test.describe("data rooms", () => {
       await switchTo(b.row, a.row); // room B active, room A inactive
     }
 
-    // Clean up both rooms.
+    // Clean up both rooms. Assert the OUTCOME (the room row disappears, driven by the
+    // delete mutation's onSuccess cache patch) rather than the transient "Data room
+    // deleted" toast: notifications are a single FIFO snackbar with a 6 s auto-hide,
+    // and the 6 rapid "You joined" notices from the switch loop above leave a backlog
+    // that would delay this delete's toast past SETTLE — even though the delete itself
+    // succeeds immediately. The row-gone assertion is the real check and isn't queued.
     await a.row.getByRole("button", { name: "Delete data room" }).click();
-    await expectNotice("Data room deleted");
     await expect(page.locator("li").filter({ hasText: a.uri }))
       .toHaveCount(0, { timeout: SETTLE });
     await b.row.getByRole("button", { name: "Delete data room" }).click();
-    await expectNotice("Data room deleted");
     await expect(page.locator("li").filter({ hasText: b.uri }))
       .toHaveCount(0, { timeout: SETTLE });
   });
