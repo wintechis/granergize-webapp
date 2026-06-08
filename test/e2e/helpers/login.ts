@@ -195,7 +195,7 @@ export async function ensureCompanyKind(
     // Normalise the Select's display text: MUI renders a zero-width space (U+200B)
     // as the placeholder for an unselected value, which a plain truthy check would
     // mistake for a set kind — strip it (and whitespace) so "unset" reads as empty.
-    const current = (await sel.textContent() ?? "").replace(/[​\s]/g, "");
+    const current = (await sel.textContent() ?? "").replace(/[\u200B\s]/g, "");
     const isSet = current !== "" && current !== "Not set";
     // Already the wanted kind, or a baseline call over an existing (different) kind:
     // nothing to change — just close.
