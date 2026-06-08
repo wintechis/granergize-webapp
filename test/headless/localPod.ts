@@ -30,19 +30,23 @@ export interface LocalAccount {
   webId: string;
 }
 
-/** A booted local Pod server (CSS or JSS) with two seeded accounts A and B. */
+/** A spec slot mapping to a seeded local account. */
+export type Slot = "A" | "B" | "C";
+
+/** A booted local Pod server (CSS or JSS) with three seeded accounts A, B and C. */
 export interface LocalPod {
   baseUrl: string;
   A: LocalAccount;
   B: LocalAccount;
+  C: LocalAccount;
   stop: () => Promise<void>;
   /** Resolves when the server process exits — watch it to fail-fast if it dies. */
   status: Promise<Deno.CommandStatus>;
   /** An authenticated headless session for a seeded account (backend-specific). */
-  liveSession: (slot: "A" | "B") => Promise<LiveSessionLike>;
+  liveSession: (slot: Slot) => Promise<LiveSessionLike>;
 }
 
-/** Start the configured local Pod server, seeded with accounts A and B. */
+/** Start the configured local Pod server, seeded with accounts A, B and C. */
 export function startLocalPod(port = LOCAL_POD_PORT): Promise<LocalPod> {
   return podServerKind() === "jss" ? startJss(port) : startCss(port);
 }

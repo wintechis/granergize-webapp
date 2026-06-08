@@ -11,7 +11,10 @@ import {
   getSharedViews,
   getSharedWithMe,
 } from "../services/interop/sharingManager.ts";
-import { getViewDefinitions } from "../services/aggregation/viewManager.ts";
+import {
+  getReceivedBenchmarks,
+  getViewDefinitions,
+} from "../services/aggregation/viewManager.ts";
 import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
 import { readContacts } from "../services/utils/contacts.ts";
 import {
@@ -112,6 +115,20 @@ export function useReceivedViews() {
     queryKey: ["receivedViews", webId],
     enabled: Boolean(webId),
     queryFn: () => getReceivedViews(getSession()),
+  });
+}
+
+/**
+ * The benchmark snapshots received from a BSP (the subset of received views marked
+ * as a benchmark result). The energy view compares the owner's own figures against
+ * these. Loads each received snapshot, so it sits behind its own query key.
+ */
+export function useReceivedBenchmarks() {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: [...queryKeys.receivedBenchmarks, webId],
+    enabled: Boolean(webId),
+    queryFn: () => getReceivedBenchmarks(getSession()),
   });
 }
 
@@ -226,6 +243,8 @@ export const queryKeys = {
   viewDefinitions: ["viewDefinitions"] as const,
   sharedViews: ["sharedViews"] as const,
   receivedViews: ["receivedViews"] as const,
+  /** Benchmark snapshots received from a BSP (subset of received views). */
+  receivedBenchmarks: ["receivedBenchmarks"] as const,
   /** The room registry (current + known). Set via setQueryData, not invalidated. */
   rooms: ["rooms"] as const,
   /** A room's log (members + roles), keyed by room. Invalidated on role saves. */
@@ -247,6 +266,7 @@ export interface SolidData {
   buildings: BuildingType[];
   energyNeed: EnergyType[];
   averages: Record<string, number>;
+  portfolioAverages: Record<string, number>;
   operatorAverages: Record<string, Record<string, number>>;
   isLoading: boolean;
   error: string | null;
@@ -261,6 +281,7 @@ export function useSolidData(): SolidData {
     buildings: ba.data?.buildings ?? [],
     energyNeed: energy.data?.energyNeed ?? [],
     averages: energy.data?.averages ?? {},
+    portfolioAverages: energy.data?.portfolioAverages ?? {},
     operatorAverages: energy.data?.operatorAverages ?? {},
     isLoading: ba.isLoading,
     error: err ? (err instanceof Error ? err.message : String(err)) : null,

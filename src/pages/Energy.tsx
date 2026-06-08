@@ -18,7 +18,9 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
-import { useSolidData } from "../hooks/queries.ts";
+import { useReceivedBenchmarks, useSolidData } from "../hooks/queries.ts";
+import { pickBenchmark } from "../services/aggregation/benchmarkSelector.ts";
+import { AgentLabel } from "../components/AgentLabel.tsx";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../components/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
@@ -33,16 +35,23 @@ import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 
 type EnergyProps = {
   selectedBuilding: string;
-  operatedBy: string;
   building: BuildingType;
   session: Session;
 };
 
 export default function Energy(
-  { selectedBuilding, operatedBy, building, session }: EnergyProps,
+  { selectedBuilding, building, session }: EnergyProps,
 ) {
-  const { energyNeed, averages, operatorAverages, isLoading, error } =
-    useSolidData();
+  const { energyNeed, portfolioAverages, isLoading, error } = useSolidData();
+  // BSP benchmark snapshots shared with this user; the comparison figure prefers
+  // these over the local portfolio mean when one covers the row's metric.
+  const { data: benchmarks = [] } = useReceivedBenchmarks();
+  // Distinct BSPs behind the received benchmarks, for the provenance caption.
+  const benchmarkProviders = [
+    ...new Set(
+      benchmarks.map((b) => b.computedBy).filter((w): w is string => Boolean(w)),
+    ),
+  ];
   const dev = useDevMode();
 
   // Find the energy data for the selected building
@@ -60,7 +69,7 @@ export default function Energy(
     );
   }
 
-  if (!energy || !averages || !operatorAverages) {
+  if (!energy) {
     const seriesDatasets = building.energyDatasets?.filter((d) =>
       isSeriesGranularity(d.granularity)
     ) ?? [];
@@ -130,7 +139,9 @@ export default function Energy(
     }));
   };
 
+  // Tint a value against a reference average; no reference (≤ 0) → no tint.
   function getBackgroundColor(value: number, average: number): string {
+    if (!(average > 0)) return "transparent";
     const deviation = value - average;
     const percentageDeviation = Math.abs(deviation / average) * 100;
     const saturation = Math.min(percentageDeviation, 100); // Cap saturation at 100%
@@ -151,7 +162,6 @@ export default function Energy(
     if (!energy[title]) {
       return;
     }
-    const operator = operatedBy;
     return (
       <>
         <Typography variant="h6">{toTitleCase(title)}</Typography>
@@ -162,14 +172,17 @@ export default function Energy(
                   <TableRow>
                     <TableCell>Energy Type</TableCell>
                     <TableCell align="right">kWh / a</TableCell>
-                    <TableCell align="right">Operator Average kWh / a</TableCell>
+                    <TableCell align="right">Portfolio average kWh / a</TableCell>
+                    <TableCell align="right">Benchmark kWh / a</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {Object.entries(energy[title]).map(([key, value]) => {
-                    const industryAverage = averages[key] || 0;
-                    const operatorAverage = operatorAverages[operator]?.[key] ||
-                      0;
+                    const portfolioAverage = portfolioAverages[key] || 0;
+                    const benchmark = pickBenchmark(benchmarks, key);
+                    // Compare the building's own value against the external
+                    // benchmark when one covers this metric, else the portfolio mean.
+                    const reference = benchmark ? benchmark.value : portfolioAverage;
                     return (
                       <TableRow hover key={key}>
                         <TableCell component="th" scope="row">
@@ -178,24 +191,16 @@ export default function Energy(
                         <TableCell
                           align="right"
                           style={{
-                            backgroundColor: getBackgroundColor(
-                              value,
-                              industryAverage,
-                            ),
+                            backgroundColor: getBackgroundColor(value, reference),
                           }}
                         >
                           {formatNumber(value)}
                         </TableCell>
-                        <TableCell
-                          align="right"
-                          style={{
-                            backgroundColor: getBackgroundColor(
-                              operatorAverage,
-                              industryAverage,
-                            ),
-                          }}
-                        >
-                          {formatNumber(operatorAverage)}
+                        <TableCell align="right">
+                          {formatNumber(portfolioAverage)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {benchmark ? formatNumber(benchmark.value) : "—"}
                         </TableCell>
                       </TableRow>
                     );
@@ -222,8 +227,20 @@ export default function Energy(
                       <strong>
                         {formatNumber(
                           Object.keys(energy[title]).reduce((sum, key) =>
-                            sum + (operatorAverages[operator]?.[key] || 0), 0),
+                            sum + (portfolioAverages[key] || 0), 0),
                         )}
+                      </strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>
+                        {(() => {
+                          const total = Object.keys(energy[title]).reduce(
+                            (sum, key) =>
+                              sum + (pickBenchmark(benchmarks, key)?.value ?? 0),
+                            0,
+                          );
+                          return total > 0 ? formatNumber(total) : "—";
+                        })()}
                       </strong>
                     </TableCell>
                   </TableRow>
@@ -278,6 +295,18 @@ export default function Energy(
           {createEnergyGrid("energyUsage")}
           {createEnergyGrid("environmentalFactor")}
         </Stack>
+        {benchmarkProviders.length > 0 && (
+          <Typography
+            variant="body2"
+            color="text.secondary"
+            sx={{ mt: 2, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.5 }}
+          >
+            Benchmark provided by{" "}
+            {benchmarkProviders.map((webId) => (
+              <AgentLabel key={webId} value={webId} />
+            ))}
+          </Typography>
+        )}
         <RefLink to="/">🠠 Back to map overview</RefLink>
       </CardContent>
     </Card>

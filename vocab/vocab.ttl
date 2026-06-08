@@ -490,6 +490,18 @@
 :View rdf:type owl:Class ;
     rdfs:label "Aggregated view"@en .
 
+# A view's private definition (holds the contributing building IRIs and the chosen
+# metric/aggregation) vs. its shareable snapshot (only the computed values + a
+# building count — never the contributor list). The benchmark vocabulary's
+# :BenchmarkResult is a specialisation of :AggregatedViewSnapshot.
+:AggregatedViewDefinition rdf:type owl:Class ;
+    rdfs:label "Aggregated view definition"@en ;
+    rdfs:comment "The private definition of an aggregated view: the contributing building IRIs, the chosen metrics and the aggregation method. Stays on the computing agent's Pod and is never shared."@en .
+
+:AggregatedViewSnapshot rdf:type owl:Class ;
+    rdfs:label "Aggregated view snapshot"@en ;
+    rdfs:comment "A computed, shareable copy of an aggregated view: only the per-metric values and a building count, never the contributing building IRIs."@en .
+
 # ── Personal preferences (prefs.ttl) ───────────────────────────────────────────
 :Preferences rdf:type owl:Class ;
     rdfs:label "Preferences"@en .

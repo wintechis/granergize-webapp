@@ -9,8 +9,10 @@ import {
   getViewDefinition,
   getViewDefinitions,
   getSnapshotUrl,
+  loadComputedSnapshot,
   storeComputedSnapshot,
 } from "./viewManager.ts";
+import { BENCH_NS } from "../utils/vocabularies.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");
@@ -165,6 +167,72 @@ Deno.test("storeComputedSnapshot writes the shareable snapshot under snapshots/"
   const s = parse(store[snapUrl]);
   assert.equal(s.getObjects(null, `${GRAN}buildingCount`, null)[0]?.value, "3");
   assert.equal(s.getObjects(null, `${GRAN}heatValue`, null)[0]?.value, "1234.50");
+});
+
+Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot", async () => {
+  const { session, store } = makeSession();
+  const v = await createViewDefinition(session, "Bench", [], "average", [
+    "electricityConsumption",
+  ]);
+  await storeComputedSnapshot(session, {
+    id: v.id,
+    name: "Bench",
+    aggregationType: "average",
+    computedAt: "2026-06-08T10:00:00Z",
+    buildingCount: 4,
+    metrics: ["electricityConsumption"],
+    values: { electricityConsumption: 1410 },
+    isBenchmark: true,
+    computedBy: "https://bsp.pod/profile/card#me",
+    metricPeriod: "2024",
+  });
+
+  // The Turtle carries both rdf:types and the two benchmark predicates.
+  const snapUrl = getSnapshotUrl(WEBID, v.id);
+  const s = parse(store[snapUrl]);
+  const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+  assert.equal(
+    s.getQuads(null, RDF_TYPE, `${GRAN}AggregatedViewSnapshot`, null).length,
+    1,
+    "still a gra:AggregatedViewSnapshot (existing readers keep working)",
+  );
+  assert.equal(
+    s.getQuads(null, RDF_TYPE, `${BENCH_NS}BenchmarkResult`, null).length,
+    1,
+  );
+  assert.equal(
+    s.getObjects(null, `${BENCH_NS}computedBy`, null)[0]?.value,
+    "https://bsp.pod/profile/card#me",
+  );
+  assert.equal(
+    s.getObjects(null, `${BENCH_NS}metricPeriod`, null)[0]?.value,
+    "2024",
+  );
+
+  // And loadComputedSnapshot reads them back.
+  const loaded = await loadComputedSnapshot(session, snapUrl);
+  assert.equal(loaded?.isBenchmark, true);
+  assert.equal(loaded?.computedBy, "https://bsp.pod/profile/card#me");
+  assert.equal(loaded?.metricPeriod, "2024");
+  assert.equal(loaded?.values.electricityConsumption, 1410);
+});
+
+Deno.test("a plain (non-benchmark) snapshot has no benchmark fields", async () => {
+  const { session } = makeSession();
+  const v = await createViewDefinition(session, "Plain", [], "average", ["heat"]);
+  await storeComputedSnapshot(session, {
+    id: v.id,
+    name: "Plain",
+    aggregationType: "average",
+    computedAt: "2026-06-08T10:00:00Z",
+    buildingCount: 2,
+    metrics: ["heat"],
+    values: { heat: 5 },
+  });
+  const loaded = await loadComputedSnapshot(session, getSnapshotUrl(WEBID, v.id));
+  assert.equal(loaded?.isBenchmark, undefined);
+  assert.equal(loaded?.computedBy, undefined);
+  assert.equal(loaded?.metricPeriod, undefined);
 });
 
 Deno.test("deleteView removes the definition and its snapshot", async () => {

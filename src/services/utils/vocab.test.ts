@@ -6,7 +6,10 @@ import {
   investorLocalNameLabels,
 } from "./config/buildingConfig.ts";
 import {
+  BENCH_COMPUTED_BY,
+  BENCH_METRIC_PERIOD,
   BENCH_NS,
+  BENCH_RESULT,
   GRAN_NS,
   INVESTOR_NS,
   USERVOC_NS,
@@ -61,5 +64,21 @@ Deno.test("every controlled-vocab instance is defined in the investor vocab", ()
   for (const localName of Object.keys(investorLocalNameLabels)) {
     const iri = `${INVESTOR_NS}${localName}`;
     assert.ok(defined.has(iri), `instance not defined in vocab/: ${iri}`);
+  }
+});
+
+Deno.test("benchmark + aggregated-view terms are defined in the vocab", () => {
+  // The benchmark round-trip writes these owned terms onto the shared snapshot
+  // (BenchmarkResult is a gra:AggregatedViewSnapshot specialisation). Asserting
+  // them keeps the published vocab in step with what the BSP flow emits.
+  const owned = [
+    BENCH_RESULT,
+    BENCH_COMPUTED_BY,
+    BENCH_METRIC_PERIOD,
+    `${GRAN_NS}AggregatedViewDefinition`,
+    `${GRAN_NS}AggregatedViewSnapshot`,
+  ];
+  for (const iri of owned) {
+    assert.ok(defined.has(iri), `term not defined in vocab/: ${iri}`);
   }
 });

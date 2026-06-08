@@ -8,6 +8,14 @@ export const INVESTOR_NS =
   "https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#";
 export const BENCH_NS =
   "https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#";
+/**
+ * Benchmark result — a `gra:AggregatedViewSnapshot` a benchmark service provider
+ * computes over the buildings shared to it and shares back. `BENCH_COMPUTED_BY`
+ * names the computing agent (foaf:Agent); `BENCH_METRIC_PERIOD` the year covered.
+ */
+export const BENCH_RESULT = `${BENCH_NS}BenchmarkResult`;
+export const BENCH_COMPUTED_BY = `${BENCH_NS}computedBy`;
+export const BENCH_METRIC_PERIOD = `${BENCH_NS}metricPeriod`;
 
 /** FOAF — personal avatar (foaf:img) and the organisation's name/logo/homepage. */
 export const FOAF_NS = "http://xmlns.com/foaf/0.1/";
@@ -98,6 +106,7 @@ export const XSD_DECIMAL = `${XSD_NS}decimal`;
 export const XSD_DATE = `${XSD_NS}date`;
 export const XSD_STRING = `${XSD_NS}string`;
 export const XSD_BOOLEAN = `${XSD_NS}boolean`;
+export const XSD_GYEAR = `${XSD_NS}gYear`;
 
 /** LDP — container membership (`ldp:contains`) and inbox discovery (`ldp:inbox`). */
 export const LDP_NS = "http://www.w3.org/ns/ldp#";

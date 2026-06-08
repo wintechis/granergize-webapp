@@ -564,8 +564,6 @@ export default function ExplorePage(
                         ? (
                           <Energy
                             selectedBuilding={currentBuilding.id.toString()}
-                            operatedBy={currentBuilding.operatedBy?.toString() ||
-                              ""}
                             building={currentBuilding}
                             session={session}
                           />
