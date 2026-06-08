@@ -11,6 +11,7 @@ import {
 } from "../helpers/connect.ts";
 import { ensureView, receivedViews, VIEW_NAME } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Aggregated-VIEW sharing across TWO throwaway Pods (PROBLEMS.md #17 + #21), in
@@ -39,7 +40,7 @@ test.describe("view sharing across two pods", () => {
   test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
   test("A shares a view; B sees it, then A deletes it and B no longer sees it", async ({ browser }) => {
-    test.setTimeout(660_000);
+    test.setTimeout(T.testSharing);
     const a = await freshPage(browser, A);
     a.page.on("dialog", (d) => d.accept()); // Delete view / room confirms
     try {
@@ -58,7 +59,7 @@ test.describe("view sharing across two pods", () => {
 
       // A needs buildings to build an aggregated view from — self-seed an empty
       // (e.g. freshly-wiped) Pod so ensureView's building picker isn't empty.
-      await ensureDemoBuildings(a.page);
+      await ensureDemoBuildings(a.page, "user");
       await ensureView(a.page);
       const viewRow = a.page.locator("li").filter({ hasText: VIEW_NAME }).first();
       const shareDlg = a.page.getByRole("dialog");
@@ -72,27 +73,27 @@ test.describe("view sharing across two pods", () => {
       await expect(async () => {
         if (!(await shareDlg.isVisible().catch(() => false))) {
           await viewRow.getByRole("button", { name: "Share view" }).click();
-          await expect(shareDlg).toBeVisible({ timeout: 10_000 });
+          await expect(shareDlg).toBeVisible({ timeout: T.quick });
         }
         try {
-          await expect(add.first()).toBeVisible({ timeout: 15_000 });
+          await expect(add.first()).toBeVisible({ timeout: T.visible });
           return;
         } catch {
           // Not yet — close so the next iteration re-opens and re-runs loadMembers.
           await shareDlg.getByRole("button", { name: /close/i }).click();
-          await expect(shareDlg).toBeHidden({ timeout: 5_000 }).catch(() => {});
+          await expect(shareDlg).toBeHidden({ timeout: T.quick }).catch(() => {});
           throw new Error("B not yet listed as a room member");
         }
-      }).toPass({ timeout: 120_000 });
+      }).toPass({ timeout: T.poll });
       await add.first().click();
       const confirm = shareDlg.getByRole("button", { name: /confirm share/i });
       await expect(async () => {
         await shareDlg.getByRole("button", { name: /review & share/i }).click();
-        await expect(confirm).toBeVisible({ timeout: 10_000 });
-      }).toPass({ timeout: 90_000 });
+        await expect(confirm).toBeVisible({ timeout: T.quick });
+      }).toPass({ timeout: T.poll });
       await confirm.click();
       await expect(shareDlg.getByText(/shared successfully/i))
-        .toBeVisible({ timeout: 120_000 });
+        .toBeVisible({ timeout: T.action });
       await shareDlg.getByRole("button", { name: /close/i }).click();
 
       // ── 2 s cooldown → B sees the view + its values ──
@@ -102,11 +103,11 @@ test.describe("view sharing across two pods", () => {
         await b2.page.getByRole("tab", { name: "Share" }).click();
         try {
           await expect(receivedViews(b2.page).getByText(VIEW_NAME))
-            .toBeVisible({ timeout: 120_000 });
+            .toBeVisible({ timeout: T.action });
           await b2.page.getByRole("button", { name: /show values/i }).first()
             .click();
           await expect(b2.page.locator("svg.recharts-surface").first())
-            .toBeVisible({ timeout: 60_000 });
+            .toBeVisible({ timeout: T.action });
         } catch (timeout) {
           b2.guard.assertNoAppErrors();
           throw timeout;
@@ -124,7 +125,7 @@ test.describe("view sharing across two pods", () => {
         if (!(await del.count())) break;
         await del.first().click();
         await expect(a.page.getByText("View deleted").first())
-          .toBeVisible({ timeout: 45_000 }).catch(() => {});
+          .toBeVisible({ timeout: T.action }).catch(() => {});
       }
 
       // ── 2 s cooldown → B no longer sees the view ──
@@ -139,7 +140,7 @@ test.describe("view sharing across two pods", () => {
             b3.page.getByText(
               /no aggregated views have been shared with you/i,
             ),
-          ).toBeVisible({ timeout: 120_000 });
+          ).toBeVisible({ timeout: T.action });
           await expect(receivedViews(b3.page).getByText(VIEW_NAME)).toHaveCount(0);
         } catch (timeout) {
           b3.guard.assertNoAppErrors();

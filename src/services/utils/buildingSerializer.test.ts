@@ -700,7 +700,11 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   }) as typeof fetch;
 
   try {
-    await seedDemoBuildings(session, WEBID);
+    // The investor + user kinds together exercise both energy shapes (annual P1Y
+    // and 15-minute series). Each kind seeds only its own shape — there is no
+    // both-shapes fallback — so seed both here.
+    await seedDemoBuildings(session, WEBID, "investor");
+    await seedDemoBuildings(session, WEBID, "user");
   } finally {
     globalThis.fetch = realFetch;
   }
@@ -757,6 +761,92 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     `${GRAN_NS}InvestorRole`,
     `${GRAN_NS}UserRoleInstance`,
   ]);
+
+  // The investor demo building carries a fully-populated detail panel: core
+  // master data, the investor block (incl. a controlled-vocab object property),
+  // one certification, and operating costs. Round-trip through the parser so the
+  // demo field NAMES stay in lockstep with buildingConfig (a rename breaks here).
+  const investorBody = bodies.find((b) => b.includes("-P1Y")) ?? "";
+  const inv = [...parseBuildings(new Parser().parse(investorBody)).values()][0];
+  assert.ok(inv, "investor demo building parses");
+  assert.equal(inv.customer, "Muster Logistik GmbH");
+  assert.equal(inv.buildingCode, "NOP-84");
+  assert.equal(inv.numberOfLoadingDocks, 14);
+  assert.equal(inv.shiftRegime, "2-Shift"); // controlled vocab → label
+  assert.equal(inv.tenancyType, "Multi Tenant");
+  assert.equal(inv.indoorTemperatureClass, "≤18 °C");
+  assert.equal(inv.hasHeatPump, true);
+  const certs = inv.certifications as Array<{ type?: string; level?: string }>;
+  assert.equal(certs?.length, 1, "one certification");
+  assert.equal(certs[0].type, "DGNB");
+  assert.equal(certs[0].level, "Gold");
+  const opcosts = inv.operatingCosts as Record<string, unknown> | undefined;
+  assert.equal(opcosts?.propertyManagement, "Medium");
+  assert.equal(opcosts?.operationInspectionAndMaintenance, true);
+
+  // The user demo building attributes its operator to the seeding user (WEBID),
+  // so the agent-link → contact path resolves out of the box.
+  const userBody = bodies.find((b) => b.includes("PT15M")) ?? "";
+  const usr = [...parseBuildings(new Parser().parse(userBody)).values()][0];
+  assert.equal(usr.operatedBy, WEBID, "user demo building operatedBy = seeder");
+});
+
+Deno.test("seedDemoBuildings is kind-aware: seeds only the shape matching the company kind", async () => {
+  // Run the seed offline (geocoder stubbed) and return the building-file PUT bodies.
+  const seedFor = async (kind: Parameters<typeof seedDemoBuildings>[2]) => {
+    const { session, calls } = makeSession();
+    const realFetch = globalThis.fetch;
+    globalThis.fetch = ((input: string | URL) => {
+      const url = typeof input === "string" ? input : input.toString();
+      if (url.includes("nominatim")) {
+        return Promise.resolve(
+          new Response(JSON.stringify([{ lat: "49.45", lon: "11.08" }]), {
+            status: 200,
+            headers: { "Content-Type": "application/json" },
+          }),
+        );
+      }
+      return Promise.resolve(new Response("nope", { status: 404 }));
+    }) as typeof fetch;
+    try {
+      await seedDemoBuildings(session, WEBID, kind);
+    } finally {
+      globalThis.fetch = realFetch;
+    }
+    return calls
+      .filter((c) =>
+        c.method === "PUT" &&
+        /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
+      )
+      .map((c) => c.body ?? "");
+  };
+
+  // Investor → exactly one building, the annual investor shape.
+  const inv = await seedFor("investor");
+  assert.equal(inv.length, 1, "investor kind seeds one building");
+  const invHadRoles = parse(inv[0])
+    .getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)
+    .map((q) => q.object.value);
+  assert.deepEqual(invHadRoles, [`${GRAN_NS}InvestorRole`]);
+  assert.ok(inv[0].includes("-P1Y"), "investor demo is annual");
+
+  // BSP → exactly one building, the annual benchmark shape with BSP fields.
+  const bsp = await seedFor("benchmark_service_provider");
+  assert.equal(bsp.length, 1, "BSP kind seeds one building");
+  const bspHadRoles = parse(bsp[0])
+    .getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)
+    .map((q) => q.object.value);
+  assert.deepEqual(bspHadRoles, [`${GRAN_NS}BenchmarkRole`]);
+  const bspBuilding = [...parseBuildings(new Parser().parse(bsp[0])).values()][0];
+  assert.equal(bspBuilding.companyName, "Beispiel Benchmark Services GmbH");
+
+  // No kind (or a kind we have no example data for) → seeds nothing.
+  assert.equal((await seedFor(null)).length, 0, "no kind seeds nothing");
+  assert.equal(
+    (await seedFor("facility_manager")).length,
+    0,
+    "unsupported kind seeds nothing",
+  );
 });
 
 // ── delete a building (hard delete) ─────────────────────────────────────────────

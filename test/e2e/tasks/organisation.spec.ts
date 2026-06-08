@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Provenance-from-profile e2e (PROBLEMS.md #1). Proves a building's PROV
@@ -40,11 +41,11 @@ async function openOrgDialog(page: Page): Promise<Locator> {
   // Bounded clicks: Playwright's default action timeout is 0 (wait forever), so a
   // stuck click here would consume a whole hook budget UNCATCHABLY (the best-effort
   // afterAll restore could never swallow it). 15 s is ample for these interactions.
-  await page.getByRole("button", { name: "Account menu" }).click({ timeout: 15_000 });
+  await page.getByRole("button", { name: "Account menu" }).click({ timeout: T.visible });
   await page.getByRole("menuitem", { name: /organisation/i })
-    .click({ timeout: 15_000 });
+    .click({ timeout: T.visible });
   const org = page.getByRole("dialog");
-  await expect(org).toBeVisible({ timeout: 30_000 });
+  await expect(org).toBeVisible({ timeout: T.action });
   await page.waitForLoadState("networkidle").catch(() => {}); // kind prefills async
   return org;
 }
@@ -57,17 +58,17 @@ async function setKindAndSave(
 ): Promise<void> {
   const sel = org.getByLabel("Kind of company");
   if ((await sel.textContent())?.trim() === label) {
-    await org.getByRole("button", { name: /cancel/i }).click({ timeout: 15_000 });
+    await org.getByRole("button", { name: /cancel/i }).click({ timeout: T.visible });
     return;
   }
   // Bounded clicks (see openOrgDialog) — a stuck dropdown/option/save click must not
   // hang a whole hook budget uncatchably.
-  await sel.click({ timeout: 15_000 });
+  await sel.click({ timeout: T.visible });
   await page.getByRole("option", { name: label, exact: true })
-    .click({ timeout: 15_000 });
-  await org.getByRole("button", { name: /^save$/i }).click({ timeout: 15_000 });
+    .click({ timeout: T.visible });
+  await org.getByRole("button", { name: /^save$/i }).click({ timeout: T.visible });
   await expect(page.getByText(/organisation saved/i))
-    .toBeVisible({ timeout: 60_000 });
+    .toBeVisible({ timeout: T.action });
 }
 
 const ACC = account("A"); // Alice -- solo specs use one account
@@ -83,7 +84,7 @@ test.describe("provenance from profile", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "organisation");
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
@@ -94,7 +95,7 @@ test.describe("provenance from profile", () => {
     // The restore opens the dialog + saves (setKindAndSave waits up to 60 s for
     // the "saved" toast), so the default 30 s hook budget is too tight — give it
     // room, otherwise a slow save fails teardown even though the test body passed.
-    test.setTimeout(90_000);
+    test.setTimeout(T.afterAll);
     // Fully reverse the profile mutation: restore the kind this Pod started with.
     try {
       if (!page.isClosed()) {
@@ -110,7 +111,7 @@ test.describe("provenance from profile", () => {
   });
 
   test("the profile company kind, not the template, sets a building's provenance", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
 
     // 1. Capture the current company kind (to restore later), then set Investor.
     const org = await openOrgDialog(page);
@@ -125,7 +126,7 @@ test.describe("provenance from profile", () => {
     await page.getByRole("tab", { name: "Manage" }).click();
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
-    await expect(addBtn).toBeVisible({ timeout: 120_000 });
+    await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
     await add.getByLabel("Template").click();
@@ -138,7 +139,7 @@ test.describe("provenance from profile", () => {
     await add.getByLabel(/longitude/i).fill("11.08");
     await add.getByRole("button", { name: /^Add Building$/ }).click();
     await expect(page.getByText(/building added/i))
-      .toBeVisible({ timeout: 120_000 });
+      .toBeVisible({ timeout: T.action });
 
     // 3. Create View keys on provenance (CreateViewDialog filters
     //    b.provenance === selectedRole): the building must appear under the Investor
@@ -148,7 +149,7 @@ test.describe("provenance from profile", () => {
     await page.waitForLoadState("networkidle").catch(() => {});
     await page.getByRole("button", { name: /create view/i }).click();
     const view = page.getByRole("dialog");
-    await expect(view).toBeVisible({ timeout: 30_000 });
+    await expect(view).toBeVisible({ timeout: T.action });
     const option = page.getByRole("option", { name: new RegExp(ADDR) });
 
     // Under the Investor filter (the profile company kind) the building IS offered — that is
@@ -156,7 +157,7 @@ test.describe("provenance from profile", () => {
     await view.getByLabel("Role").click();
     await page.getByRole("option", { name: "Investor", exact: true }).click();
     await view.getByLabel("Select Buildings").click();
-    await expect(option).toBeVisible({ timeout: 30_000 });
+    await expect(option).toBeVisible({ timeout: T.action });
     await page.keyboard.press("Escape");
 
     // Under the User filter (the import *template*) the building must NOT appear — had
@@ -168,12 +169,12 @@ test.describe("provenance from profile", () => {
     await view.getByLabel("Role").click();
     // The dropdown is open once Investor (our building's provenance) has rendered.
     await expect(page.getByRole("option", { name: "Investor", exact: true }))
-      .toBeVisible({ timeout: 10_000 });
+      .toBeVisible({ timeout: T.quick });
     const userRole = page.getByRole("option", { name: "User", exact: true });
     if (await userRole.count()) {
       await userRole.click();
       await view.getByLabel("Select Buildings").click();
-      await expect(option).toHaveCount(0, { timeout: 10_000 });
+      await expect(option).toHaveCount(0, { timeout: T.quick });
       await page.keyboard.press("Escape");
     } else {
       await page.keyboard.press("Escape"); // no User role offered — ours can't be User
@@ -183,16 +184,16 @@ test.describe("provenance from profile", () => {
     // 4. Clean up the building.
     await page.getByRole("tab", { name: "Manage" }).click();
     const row = page.locator("li", { hasText: ADDR }).first();
-    await expect(row).toBeVisible({ timeout: 30_000 });
+    await expect(row).toBeVisible({ timeout: T.action });
     await row.getByRole("button", { name: "Delete building" }).click();
     await expect(page.getByText("Building deleted").first())
-      .toBeVisible({ timeout: 90_000 });
+      .toBeVisible({ timeout: T.action });
   });
 
   // Upload a company logo in the Organisation dialog (PROBLEMS.md #11). Throwaway
   // Pod: the logo persists (no remove-logo UI to reverse it), which is fine.
   test("upload a company logo in the Organisation dialog", async () => {
-    test.setTimeout(120_000);
+    test.setTimeout(T.testSolo);
     // A minimal 1×1 PNG, inline — no fixture file needed.
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
@@ -206,15 +207,15 @@ test.describe("provenance from profile", () => {
     });
     // The avatar preview picks up the chosen image (the Avatar's <img alt>).
     await expect(org.getByAltText("Organisation logo"))
-      .toBeVisible({ timeout: 15_000 });
+      .toBeVisible({ timeout: T.visible });
     await org.getByRole("button", { name: /^save$/i }).click();
     await expect(page.getByText(/organisation saved/i))
-      .toBeVisible({ timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
 
     // Reopen → the logo persisted (the dialog's avatar still shows an image).
     const reopened = await openOrgDialog(page);
     await expect(reopened.getByAltText("Organisation logo"))
-      .toBeVisible({ timeout: 30_000 });
+      .toBeVisible({ timeout: T.action });
     await reopened.getByRole("button", { name: /cancel/i }).click();
   });
 
@@ -223,9 +224,9 @@ test.describe("provenance from profile", () => {
   // ROOM_ROLE_OPTIONS → ROLE_LABELS, so it's the central proof they surface in
   // the UI. Read-only: opens the dropdown and Cancels without changing the kind.
   test("the new producer roles are offered as a company kind", async () => {
-    test.setTimeout(60_000);
+    test.setTimeout(T.testSolo);
     const org = await openOrgDialog(page);
-    await org.getByLabel("Kind of company").click({ timeout: 15_000 });
+    await org.getByLabel("Kind of company").click({ timeout: T.visible });
     for (
       const label of [
         "Facility Manager",
@@ -236,10 +237,10 @@ test.describe("provenance from profile", () => {
       ]
     ) {
       await expect(page.getByRole("option", { name: label, exact: true }))
-        .toBeVisible({ timeout: 15_000 });
+        .toBeVisible({ timeout: T.visible });
     }
     await page.keyboard.press("Escape"); // close the dropdown, keep the kind
-    await org.getByRole("button", { name: /cancel/i }).click({ timeout: 15_000 });
+    await org.getByRole("button", { name: /cancel/i }).click({ timeout: T.visible });
   });
 
   // A building produced by an agent whose profile carries an org logo shows that
@@ -248,14 +249,14 @@ test.describe("provenance from profile", () => {
   // so Alice's profile has a logo; her own building's `attributedTo` is herself,
   // so the lookup resolves over the authed session (no public-ACL dependency).
   test("a building's company logo shows as its map marker", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
 
     // Add an owned building (User template; provenance comes from the profile
     // kind set earlier — irrelevant here, we only need a marker on the map).
     await page.getByRole("tab", { name: "Manage" }).click();
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
-    await expect(addBtn).toBeVisible({ timeout: 120_000 });
+    await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
     await add.getByLabel("Template").click();
@@ -268,29 +269,29 @@ test.describe("provenance from profile", () => {
     await add.getByLabel(/longitude/i).fill("11.09");
     await add.getByRole("button", { name: /^Add Building$/ }).click();
     await expect(page.getByText(/building added/i))
-      .toBeVisible({ timeout: 120_000 });
+      .toBeVisible({ timeout: T.action });
 
     // Confirm it persisted (a row on Manage), then reload so the Explore map loads
     // fresh from the Pod — a tab switch alone can keep the map's prior empty state.
     await expect(page.locator("li", { hasText: LOGO_ADDR }).first())
-      .toBeVisible({ timeout: 30_000 });
+      .toBeVisible({ timeout: T.action });
     await page.reload();
     await expect(page.getByRole("tab", { name: "Explore" }))
-      .toBeVisible({ timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
 
     // On the map, the building's marker renders the producer's org logo image.
     // (Several owned buildings would all show Alice's logo, so match the first.)
     await page.getByRole("tab", { name: "Explore" }).click();
     await page.waitForLoadState("networkidle").catch(() => {});
     await expect(page.getByAltText("Building producer logo").first())
-      .toBeVisible({ timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
 
     // Clean up the building.
     await page.getByRole("tab", { name: "Manage" }).click();
     const row = page.locator("li", { hasText: LOGO_ADDR }).first();
-    await expect(row).toBeVisible({ timeout: 30_000 });
+    await expect(row).toBeVisible({ timeout: T.action });
     await row.getByRole("button", { name: "Delete building" }).click();
     await expect(page.getByText("Building deleted").first())
-      .toBeVisible({ timeout: 90_000 });
+      .toBeVisible({ timeout: T.action });
   });
 });

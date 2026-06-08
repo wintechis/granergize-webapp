@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { buildingRows } from "./manage.ts";
 import { logRun } from "./consoleLog.ts";
+import { T } from "./timeouts.ts";
 
 /**
  * Per-spec clean-slate utilities, both tiers.
@@ -95,13 +96,13 @@ export async function wipeCollection(
     await page.getByRole("button", { name: /Account menu/ }).click();
     await page.getByRole("menuitem", { name: /Remove all app data/i }).click();
     await expect(page.getByText("All app data removed", { exact: false }))
-      .toBeVisible({ timeout: 180_000 });
+      .toBeVisible({ timeout: T.action });
     logRun(`clean-slate wipe [${tag}]: collection removed`);
     if (reload) {
       await page.reload();
       // Wait until logged back in (tabs present) so ensureOwnInbox has re-run.
       await expect(page.getByRole("tab", { name: "Connect" }))
-        .toBeVisible({ timeout: 120_000 });
+        .toBeVisible({ timeout: T.action });
       logRun(`clean-slate wipe [${tag}]: reloaded, inbox re-provisioned`);
     }
   } catch (err) {
@@ -111,13 +112,41 @@ export async function wipeCollection(
 }
 
 /**
+ * Bring the page back to the app shell before a teardown reads/wipes. A spec can
+ * leave the page on a STANDALONE full-page route (`/energy/:id`, `/view/:id`,
+ * `/building/:id` — no app-shell tabs) or mid-reload, where the "Manage" tab the
+ * teardown clicks doesn't exist; without this, that click hangs the whole afterAll
+ * budget (the 240s "wipe hang"). `goto("/")` re-enters the shell (the seeded session
+ * survives navigation — specs already `goto` standalone routes mid-test), then we
+ * wait, BOUNDED, for the tabs so a genuine login failure fails in seconds instead of
+ * consuming the hook's whole budget.
+ */
+async function returnToShell(page: Page): Promise<boolean> {
+  if (page.isClosed()) return false;
+  await page.goto("/").catch(() => {});
+  return await page.getByRole("tab", { name: "Manage" })
+    .waitFor({ state: "visible", timeout: T.action })
+    .then(() => true)
+    .catch(() => false);
+}
+
+/**
  * End-of-spec teardown for a SOLO spec (one pod): record residue (cleanup check)
  * then wipe so the run leaves nothing behind and the next spec starts empty. The
  * page is closed by the caller afterwards, so no reload is needed.
+ *
+ * If the app shell never comes back (the spec left the page broken — e.g. a failed
+ * login/beforeAll), SKIP the wipe instead of letting its unbounded shell clicks
+ * burn the whole afterAll budget: the bounded {@link returnToShell} probe is the
+ * only wait we pay, so a dead page fails the hook in ~60s, not 240s.
  */
 export async function verifyAndReset(page: Page, tag: string): Promise<void> {
   // afterAll's default budget is 30s; a recursive remote delete can exceed it.
-  test.setTimeout(240_000);
+  test.setTimeout(T.afterAll);
+  if (!await returnToShell(page)) {
+    logRun(`clean-slate wipe [${tag}]: app shell unavailable, skipped`);
+    return;
+  }
   await logCollectionState(page, tag);
   await wipeCollection(page, { tag });
 }
@@ -133,8 +162,16 @@ export async function verifyAndResetBoth(
   bPage: Page,
   tag: string,
 ): Promise<void> {
-  test.setTimeout(300_000);
-  await logCollectionState(aPage, `${tag}:A`);
-  await wipeCollection(aPage, { tag: `${tag}:A` });
-  await wipeCollection(bPage, { tag: `${tag}:B` });
+  test.setTimeout(T.afterAll);
+  if (await returnToShell(aPage)) {
+    await logCollectionState(aPage, `${tag}:A`);
+    await wipeCollection(aPage, { tag: `${tag}:A` });
+  } else {
+    logRun(`clean-slate wipe [${tag}:A]: app shell unavailable, skipped`);
+  }
+  if (await returnToShell(bPage)) {
+    await wipeCollection(bPage, { tag: `${tag}:B` });
+  } else {
+    logRun(`clean-slate wipe [${tag}:B]: app shell unavailable, skipped`);
+  }
 }

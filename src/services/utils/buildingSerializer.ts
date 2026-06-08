@@ -692,66 +692,185 @@ export async function deleteBuilding(
 // ── Demo seed ─────────────────────────────────────────────────────────────────
 
 /**
- * Master data for the two demo buildings seeded into a fresh pod. Each carries
- * energy at a *different granularity* so a new user immediately sees both shapes
- * the app dispatches on (Phase 4): one annual aggregate, one 15-minute series.
- * `role` is provenance only — the render/load paths key on the data shape.
+ * A demo building's master data, provenance role, and energy shape. `role` is
+ * provenance only — the render/load paths key on the data *shape* (the energy
+ * granularity). `annual`, when present, holds the `_inv_*`/`_bsp_*` fields merged
+ * in for an `energy: "annual"` building (turned into annual SOSA observations).
  */
-const DEMO_BUILDINGS: Array<{
+interface DemoSpec {
   fields: Record<string, string>;
   role: UserRole;
   energy: "annual" | "series";
-}> = [
-  {
-    fields: {
-      streetAddress: "Nordostpark 84",
-      postalCode: "90411",
-      locality: "Nürnberg",
-      region: "Bayern",
-    },
-    role: "investor",
-    energy: "annual", // inline P1Y SOSA observations → annual chart, bulk-loaded
-  },
-  {
-    fields: {
-      streetAddress: "Lange Gasse 20",
-      postalCode: "90403",
-      locality: "Nürnberg",
-      region: "Bayern",
-    },
-    role: "user",
-    energy: "series", // PT15M load profile in a daily file → lazy-loaded on click
-  },
-];
+  annual?: Record<string, string>;
+}
 
 /**
- * Inline multi-year annual energy for the "annual" demo building, expressed as the
- * `_inv_*` fields serializeBuildingToTurtle turns into annual SOSA observations
- * (electricity/heat in kWh, water in m³). Years must be within INV_YEARS.
+ * Investor demo: an annual aggregate (one gran:EnergyDataset per year) with a
+ * fully-populated investor master-data panel (block, a certification, operating
+ * costs). This is the shape an investor org actually produces.
  */
-const DEMO_ANNUAL_FIELDS: Record<string, string> = {
-  _inv_elec_2022: "118000", _inv_elec_2023: "121500", _inv_elec_2024: "115200",
-  _inv_heat_2022: "240000", _inv_heat_2023: "232000", _inv_heat_2024: "228500",
-  _inv_water_2022: "1450", _inv_water_2023: "1500", _inv_water_2024: "1410",
+const DEMO_INVESTOR: DemoSpec = {
+  fields: {
+    streetAddress: "Nordostpark 84",
+    postalCode: "90411",
+    locality: "Nürnberg",
+    region: "Bayern",
+    // Core master data — gives a new user a fully-populated detail panel.
+    customer: "Muster Logistik GmbH",
+    investor: "Beispiel Real Estate Fund",
+    usedAs: "Logistics warehouse",
+    naceCode: "52.10",
+    buildingArea: "12500",
+    landArea: "20000",
+    officeArea: "1800",
+    yearOfConstruction: "2016",
+    hasPVSystem: "true",
+    // Investor block (controlled-vocab fields use local names, not labels).
+    buildingCode: "NOP-84",
+    hallArea: "10200",
+    officeSocialArea: "1500",
+    buildingHeight: "11.5",
+    numberOfLoadingDocks: "14",
+    yearOfRenovation: "2021",
+    leaseType: "Triple net",
+    tenantIndustry: "Contract logistics",
+    shiftRegime: "TwoShift", // investor:ShiftRegime → "2-Shift"
+    tenancyType: "MultiTenant", // investor:TenancyType → "Multi Tenant"
+    indoorTemperatureClass: "MaxEighteenDegrees", // → "≤18 °C"
+    hasGasBoiler: "true",
+    hasHeatPump: "true",
+    hasDistrictHeating: "false",
+    // One certification (type drives investor:<Type>Certification).
+    _cert_0_type: "DGNB",
+    _cert_0_level: "Gold",
+    _cert_0_scope: "New construction",
+    // A few operating-cost categories (one investor:hasOperatingCosts node).
+    _opcost_propertyManagement: "Medium",
+    _opcost_security: "High",
+    _opcost_operationInspectionAndMaintenance: "true",
+  },
+  role: "investor",
+  energy: "annual",
+  // Multi-year `_inv_*` energy (electricity/heat in kWh, water in m³). Years
+  // must be within INV_YEARS.
+  annual: {
+    _inv_elec_2022: "118000", _inv_elec_2023: "121500", _inv_elec_2024: "115200",
+    _inv_heat_2022: "240000", _inv_heat_2023: "232000", _inv_heat_2024: "228500",
+    _inv_water_2022: "1450", _inv_water_2023: "1500", _inv_water_2024: "1410",
+  },
 };
+
+/**
+ * User demo: a 15-minute load-profile series (lazy-loaded, time-series chart) with
+ * light metadata — the shape an end user produces. `operatedBy` is set to the
+ * seeding user's own WebID at seed time (see {@link seedDemoBuildings}) so the
+ * agent-link → contact path resolves out of the box.
+ */
+const DEMO_USER: DemoSpec = {
+  fields: {
+    streetAddress: "Lange Gasse 20",
+    postalCode: "90403",
+    locality: "Nürnberg",
+    region: "Bayern",
+    customer: "Atelier Lange Gasse",
+    usedAs: "Office",
+    buildingArea: "1400",
+    yearOfConstruction: "1998",
+    hasPVSystem: "false",
+  },
+  role: "user",
+  energy: "series",
+};
+
+/**
+ * Benchmark Service Provider demo: a single-year annual aggregate (`_bsp_*`) with
+ * BSP-specific master data (company, logistics function, climatisation, PV) — the
+ * shape a benchmark provider works with.
+ */
+const DEMO_BSP: DemoSpec = {
+  fields: {
+    streetAddress: "Andernacher Straße 30",
+    postalCode: "90411",
+    locality: "Nürnberg",
+    region: "Bayern",
+    companyName: "Beispiel Benchmark Services GmbH",
+    label: "DC Nürnberg-Nord",
+    usedAs: "Distribution centre",
+    buildingArea: "18000",
+    landArea: "30000",
+    yearOfConstruction: "2019",
+    hasPVSystem: "true",
+    logisticsFunction: "Distribution",
+    climateControlType: "Partially air-conditioned",
+    indoorTemperature: "15 °C",
+    greenLeaseShare: "60",
+    pvInstallationYear: "2020",
+    pvCapacityKW: "750",
+    tenantIndustry: "Retail logistics",
+  },
+  role: "benchmark_service_provider",
+  energy: "annual",
+  // Single-year `_bsp_*` energy (electricity/heat in kWh, water/wastewater in m³).
+  annual: {
+    _bsp_year: "2024",
+    _bsp_elec: "1850000",
+    _bsp_heat: "640000",
+    _bsp_water: "3200",
+    _bsp_wastewater: "2950",
+  },
+};
+
+/** Company kinds we have example data for (the only kinds the demo is offered for). */
+export const DEMO_KINDS: UserRole[] = [
+  "investor",
+  "user",
+  "benchmark_service_provider",
+];
+
+/** Whether a demo building set exists for this company kind. */
+export function companyKindHasDemo(kind?: UserRole | null): boolean {
+  return kind != null && DEMO_KINDS.includes(kind);
+}
+
+/**
+ * The demo set for a company kind: the one shape that kind actually produces
+ * (investor → annual investor building, user → 15-minute series, BSP → annual
+ * benchmark building). A kind we have no example data for seeds nothing — the
+ * demo is only offered for {@link DEMO_KINDS}, so this is reached only defensively.
+ */
+function demoSetForKind(kind?: UserRole | null): DemoSpec[] {
+  switch (kind) {
+    case "investor":
+      return [DEMO_INVESTOR];
+    case "user":
+      return [DEMO_USER];
+    case "benchmark_service_provider":
+      return [DEMO_BSP];
+    default:
+      return [];
+  }
+}
 
 // `geocodeFields` moved to ./geocode.ts (self-contained Nominatim lookup); it is
 // imported above and re-exported below so existing call sites keep importing it
 // from here.
 
 /**
- * Seed two real, user-owned demo buildings into the user's pod. Called once when a
- * fresh registry is bootstrapped (see TurtleParsingService) so a brand-new user has
- * something to see; the buildings are ordinary owned resources the user can delete.
- * Coordinates are geocoded at seed time; a building that can't be geocoded is still
- * created (just unmapped). Best-effort: failures are logged, never thrown, so a
- * geocoder/network hiccup can't block login.
+ * Seed real, user-owned demo building(s) into the user's pod, matching the user's
+ * company `kind` — an investor org gets the annual investor building, a user gets a
+ * 15-minute series, a BSP gets the annual benchmark building (see
+ * {@link demoSetForKind}; an unset/unsupported kind falls back to the investor+user
+ * pair). The buildings are ordinary owned resources the user can delete. Coordinates
+ * are geocoded at seed time; a building that can't be geocoded is still created (just
+ * unmapped). Best-effort: failures are logged, never thrown, so a geocoder/network
+ * hiccup can't block login.
  */
 export async function seedDemoBuildings(
   session: Session,
   webId: string,
+  kind?: UserRole | null,
 ): Promise<void> {
-  for (const demo of DEMO_BUILDINGS) {
+  for (const demo of demoSetForKind(kind)) {
     try {
       const coords = await geocodeFields(demo.fields);
       let fields: Record<string, string> = coords
@@ -762,6 +881,9 @@ export async function seedDemoBuildings(
           geocodePrecision: coords.precision,
         }
         : { ...demo.fields };
+      // Attribute the operator to the seeding user so the agent-link → contact
+      // detail path resolves to a real profile out of the box.
+      if (demo.role === "user") fields = { ...fields, operatedBy: webId };
       const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
       const uri = newBuildingUri(webId, id);
       const subjectUri = `${uri}#${id}`;
@@ -772,7 +894,7 @@ export async function seedDemoBuildings(
 
       if (demo.energy === "annual") {
         // Annual aggregate (P1Y) — written as one gran:EnergyDataset per year.
-        fields = { ...fields, ...DEMO_ANNUAL_FIELDS };
+        fields = { ...fields, ...(demo.annual ?? {}) };
       } else {
         // 15-minute series (PT15M): one demo day of readings.
         const day = "2024-06-03";

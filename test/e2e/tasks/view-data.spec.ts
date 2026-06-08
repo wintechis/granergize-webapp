@@ -3,15 +3,16 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Energy-view smoke test (single account, a THROWAWAY Solid Pod). Proves the
  * unified `gran:EnergyDataset` model renders end-to-end in a real browser: a
  * building's energy detail (annual table + bar chart) is fetched from the
  * separate dataset resources and drawn. It self-seeds an empty Pod in beforeAll
- * (ensureDemoBuildings) — the demo carries one annual (investor) and one 15-min
- * series (user) building; this test renders the annual one (auto-loaded; the
- * series chart is lazy-loaded on click) — and so doesn't assume a pre-seeded Pod.
+ * (ensureDemoBuildings with the `investor` kind) — the kind-specific demo seeds the
+ * annual "Nordostpark" building this test renders (auto-loaded) — and so doesn't
+ * assume a pre-seeded Pod.
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/tasks/view-data.spec.ts
@@ -36,13 +37,13 @@ test.describe("energy view smoke", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
+    test.setTimeout(T.setup); // login (IdP + consent) can be slow / retried
     page = await newCapturedPage(browser, "view-data");
     await login(page, ACC);
     await assertCleanStart(page);
     // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the
-    // demo carries the annual + 15-min series buildings this test renders).
-    await ensureDemoBuildings(page);
+    // investor demo is the annual "Nordostpark" building this test renders).
+    await ensureDemoBuildings(page, "investor");
   });
 
   test.afterAll(async () => {
@@ -51,7 +52,7 @@ test.describe("energy view smoke", () => {
   });
 
   test("a building's Energy view renders from gran:EnergyDataset", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
 
     // Target the annual demo building ("Nordostpark 84") specifically — it always
     // carries an annual aggregate, so its energy view renders the table + chart.
@@ -59,7 +60,7 @@ test.describe("energy view smoke", () => {
     // available"; the annual one is the same building-details.spec.ts benchmarks.)
     await page.getByRole("tab", { name: "Manage" }).click();
     const row = page.locator("li", { hasText: "Nordostpark" }).first();
-    await expect(row).toBeVisible({ timeout: 120_000 });
+    await expect(row).toBeVisible({ timeout: T.action });
     const id = (await row.textContent())?.match(/Building (\S+)/)?.[1];
     expect(id, "the annual demo building's id on Manage").toBeTruthy();
 
@@ -71,16 +72,16 @@ test.describe("energy view smoke", () => {
       page.getByRole("heading", {
         name: /Energy Need for Building|Electricity Consumption for Building/,
       }),
-    ).toBeVisible({ timeout: 90_000 });
+    ).toBeVisible({ timeout: T.action });
 
     // …and a chart is actually drawn. The charts are Recharts (SVG, not canvas),
     // so we can assert real chart DOM: the SVG surface plus at least one drawn
     // bar/line shape inside it.
     const surface = page.locator("svg.recharts-surface").first();
-    await expect(surface).toBeVisible({ timeout: 90_000 });
+    await expect(surface).toBeVisible({ timeout: T.action });
     await expect(
       surface.locator(".recharts-bar-rectangle, .recharts-line").first(),
-    ).toBeVisible({ timeout: 90_000 });
+    ).toBeVisible({ timeout: T.action });
   });
 
   // Storage-redesign smokes (dissolved from the old storage-smoke spec): the
@@ -91,16 +92,16 @@ test.describe("energy view smoke", () => {
     await page.goto("/#/");
     await page.getByRole("tab", { name: "Manage" }).click();
     await expect(page.getByRole("heading", { name: "Your buildings" }))
-      .toBeVisible({ timeout: 45_000 });
+      .toBeVisible({ timeout: T.action });
     await expect(page.getByText(/^Building /).first())
-      .toBeVisible({ timeout: 45_000 });
+      .toBeVisible({ timeout: T.action });
     await expect(page.getByRole("heading", { name: "Aggregated views" }))
-      .toBeVisible({ timeout: 45_000 });
+      .toBeVisible({ timeout: T.action });
   });
 
   test("the Share tab renders (folds the shared-in/ log)", async () => {
     await page.getByRole("tab", { name: "Share" }).click();
     await expect(page.getByRole("heading", { name: "Buildings shared with you" }))
-      .toBeVisible({ timeout: 45_000 });
+      .toBeVisible({ timeout: T.action });
   });
 });

@@ -25,7 +25,8 @@ import { AgentField } from "./AgentField.tsx";
 import RequestActivityList from "./RequestActivityList.tsx";
 import type { UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { useSolidData } from "../hooks/queries.ts";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys, useSolidData } from "../hooks/queries.ts";
 import {
   geocodeFields,
   type LastgangReading,
@@ -139,6 +140,7 @@ export default function AddBuildingDialog(
 ) {
   const { showNotification } = useNotification();
   const { buildings } = useSolidData();
+  const qc = useQueryClient();
 
   // The chosen import/export template — spreadsheet shape only. Provenance comes
   // from the profile data-producer role (loaded below), not from this.
@@ -165,7 +167,9 @@ export default function AddBuildingDialog(
   }, [open, autostartImport]);
 
   // Derive the producing role from the profile's company kind when the dialog
-  // opens (cached read).
+  // opens (cached read). The company kind also seeds the template default: an
+  // investor opens on the investor shape, a BSP on the benchmark shape, etc. — the
+  // selector below still lets the user override for a cross-shape import.
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -173,6 +177,7 @@ export default function AddBuildingDialog(
       if (!cancelled) {
         setProducingRole(r);
         setRoleLoaded(true);
+        if (r && TEMPLATE_OPTIONS.includes(r)) setTemplate(r);
       }
     }).catch((err) => logError("derive producing role from company kind", err));
     return () => {
@@ -190,6 +195,10 @@ export default function AddBuildingDialog(
     required.every((f) => b[f]?.trim());
 
   const isValid = buildingsList.every(isBuildingValid);
+
+  // Adding requires a company kind: it sets the building's provenance and selects
+  // the data shape. Block submission until one is set (the warning below explains).
+  const mustSetKind = roleLoaded && producingRole === null;
 
   const existingCodes = new Set(
     buildings.map((b) => b.buildingCode).filter(Boolean),
@@ -374,8 +383,13 @@ export default function AddBuildingDialog(
 
         const ttl = serializeBuildingToTurtle(b, uri, energyLinks, provenance);
         await uploadBuilding(session, uri, ttl, webId, controller.signal);
-        // Auto-remember a WebID operator in the address book (fire-and-forget).
-        if (b.operatedBy) void rememberAgent(session, b.operatedBy);
+        // Auto-remember a WebID operator in the address book (fire-and-forget), then
+        // refresh the contacts query so the new contact appears without a reload (the
+        // direct rememberAgent write bypasses the addContact mutation's invalidation).
+        if (b.operatedBy) {
+          void rememberAgent(session, b.operatedBy)
+            .then(() => qc.invalidateQueries({ queryKey: queryKeys.contacts }));
+        }
       }
       showNotification(
         buildingsList.length === 1 ? "Building added" : `${buildingsList.length} buildings added`,
@@ -462,7 +476,7 @@ export default function AddBuildingDialog(
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={isProcessing || !isValid || isDuplicate}
+            disabled={isProcessing || !isValid || isDuplicate || mustSetKind}
           >
             {buildingsList.length === 1
               ? "Add Building"
@@ -472,16 +486,20 @@ export default function AddBuildingDialog(
       }
     >
       <Box>
-        {/* No data-producer role in the profile → buildings get no provenance.
-            Non-blocking nudge to set one (avatar → Organisation). */}
-        {roleLoaded && producingRole === null && (
-          <Alert severity="info" sx={{ mt: 1, mb: 2 }}>
-            No data-producer role set — set one in your profile (avatar →
-            Organisation) to record who produced this data.
+        {/* No company kind set → adding is blocked: the kind sets provenance and
+            selects the data shape. Point the user to set it (avatar → Organisation). */}
+        {mustSetKind && (
+          <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
+            Set your company kind first (avatar → Organisation). It defines who
+            produced the data and which building data you create, and is required
+            before adding a building.
           </Alert>
         )}
-        {/* Template — the spreadsheet shape only (provenance comes from your
-            profile data-producer role). Always selectable. */}
+      </Box>
+      {!mustSetKind && (
+      <Box>
+        {/* Template — the spreadsheet shape, defaulted from your company kind but
+            overridable for a cross-shape import. */}
         <FormControl size="small" fullWidth sx={{ mt: 1, mb: 2 }}>
           <InputLabel id="add-building-template-label">Template</InputLabel>
           <Select
@@ -658,6 +676,7 @@ export default function AddBuildingDialog(
           </>
         )}
       </Box>
+      )}
     </Modal>
   );
 }

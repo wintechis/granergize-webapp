@@ -15,6 +15,7 @@ import {
   uploadBuildingFile,
 } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * File sharing across TWO throwaway Solid Pods, both ways the app supports:
@@ -39,7 +40,7 @@ const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 /** B (a freshly-logged-in recipient page) downloads the shared file. */
 async function downloadSharedFile(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Share" }).click();
-  await expect(page.getByText("sample.pdf")).toBeVisible({ timeout: 120_000 });
+  await expect(page.getByText("sample.pdf")).toBeVisible({ timeout: T.action });
   const dl = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download", exact: true }).first()
     .click();
@@ -52,7 +53,7 @@ test.describe("file sharing across two pods", () => {
   test.describe.configure({ mode: "serial" });
 
   test("direct (By WebID): A attaches a file + shares; B downloads it", async ({ browser }) => {
-    test.setTimeout(600_000);
+    test.setTimeout(T.testSharing);
     const street = "Share Files Direct Strasse 1";
     // Log both in first, and keep B's session open THROUGH the share: B's inbox is
     // provisioned asynchronously after login (ensureOwnInbox), and A must be able
@@ -97,7 +98,7 @@ test.describe("file sharing across two pods", () => {
   });
 
   test("via data room (By role): A attaches a file + shares; B downloads it", async ({ browser }) => {
-    test.setTimeout(600_000);
+    test.setTimeout(T.testSharing);
     const street = "Share Files Room Strasse 1";
     // Clean START is free (fresh per-run collection / restarted CSS); the spec
     // wipes BOTH pods at the END instead.
@@ -148,13 +149,13 @@ async function deleteOwnBuilding(page: Page, street: string): Promise<void> {
     // A failed step may have left a modal open; dismiss it (Escape) so the clicks
     // below aren't blocked by its backdrop and hang (default action timeout is 0).
     await page.keyboard.press("Escape").catch(() => {});
-    await page.getByRole("tab", { name: "Manage" }).click({ timeout: 15_000 });
+    await page.getByRole("tab", { name: "Manage" }).click({ timeout: T.visible });
     const row = page.locator("li", { hasText: street }).first();
     if (await row.count()) {
       await row.getByRole("button", { name: "Delete building" })
-        .click({ timeout: 15_000 });
+        .click({ timeout: T.visible });
       await expect(page.getByText("Building deleted").first())
-        .toBeVisible({ timeout: 90_000 });
+        .toBeVisible({ timeout: T.action });
     }
   } catch {
     // best-effort

@@ -6,8 +6,10 @@ import {
   getRecipientInboxUrl,
   inboxFromLinkHeader,
   isMessageResource,
+  readInbox,
 } from "./inbox.ts";
 import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
+import { ACL_NS, INTEROP_NS, LDP_CONTAINS } from "../utils/vocabularies.ts";
 
 const WEBID = "https://b.example/profile/card#me";
 
@@ -117,6 +119,67 @@ Deno.test("isMessageResource: auxiliary sidecars (.acl/.meta) are excluded", () 
   for (const u of [`${inbox}.acl`, `${inbox}.meta`]) {
     assert.equal(isMessageResource(u), false, u);
   }
+});
+
+Deno.test("readInbox creates shared-in/ once when draining multiple messages (no per-append create race)", async () => {
+  // Regression guard: the drain fans out over messages with Promise.all, and each
+  // appendSharingEvent ensures shared-in/. Without an up-front ensure, every
+  // message races to create the container (all GET 404, all PUT) — a duplicate
+  // create a strict server (JSS) rejects with 409. readInbox must create it ONCE.
+  _setStorageRootForTesting(WEBID, "https://b.example/");
+  const appRoot = "https://b.example/granergize/";
+  const inbox = `${appRoot}inbox/`;
+  const sharedIn = `${appRoot}shared-in/`;
+  const msgs = [`${inbox}m1`, `${inbox}m2`, `${inbox}m3`];
+  const grant = (resource: string) =>
+    `@prefix interop: <${INTEROP_NS}> .\n@prefix acl: <${ACL_NS}> .\n` +
+    `@prefix prov: <http://www.w3.org/ns/prov#> .\n` +
+    `@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .\n` +
+    `<> a interop:AccessGrant ; interop:grantee <https://a.example/card#me> ; ` +
+    `interop:forResource <${resource}> ; interop:accessMode acl:Read ; ` +
+    `prov:generatedAtTime "2026-06-08T00:00:00Z"^^xsd:dateTime .`;
+  const ttl = (body: string, status = 200) =>
+    Promise.resolve(
+      new Response(body, { status, headers: { "Content-Type": "text/turtle" } }),
+    );
+
+  let sharedInExists = false;
+  const calls: { method: string; url: string }[] = [];
+  const session = {
+    info: { isLoggedIn: true, webId: WEBID },
+    fetch: (input: string | URL | Request, init?: RequestInit) => {
+      const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
+      const method = (init?.method ?? "GET").toUpperCase();
+      calls.push({ method, url });
+      // inbox discovery: app root carries no ldp:inbox → convention inbox/
+      if (url === appRoot && method === "GET") return ttl("");
+      // inbox listing
+      if (url === inbox && method === "GET") {
+        return ttl(`<${inbox}> <${LDP_CONTAINS}> ${msgs.map((m) => `<${m}>`).join(", ")} .`);
+      }
+      // message bodies + their deletion
+      const mi = msgs.indexOf(url);
+      if (mi >= 0 && method === "GET") return ttl(grant(`https://a.example/b${mi}.ttl`));
+      if (mi >= 0 && method === "DELETE") return ttl("");
+      // shared-in/ ensure: 404 until created, PUT creates, POST appends
+      if (url === sharedIn && method === "GET") {
+        return sharedInExists ? ttl("") : ttl("Not found", 404);
+      }
+      if (url === sharedIn && method === "PUT") {
+        sharedInExists = true;
+        return ttl("", 201);
+      }
+      if (url === sharedIn && method === "POST") return ttl("", 201);
+      return ttl("Not found", 404);
+    },
+  } as unknown as Session;
+
+  await readInbox(session);
+
+  const sharedInPuts = calls.filter((c) => c.method === "PUT" && c.url === sharedIn);
+  assert.equal(sharedInPuts.length, 1, "shared-in/ created exactly once, not once per message");
+  const posts = calls.filter((c) => c.method === "POST" && c.url === sharedIn);
+  assert.equal(posts.length, msgs.length, "one event appended per drained message");
 });
 
 Deno.test("ensureOwnInbox: provisions inbox + ACL on a bare Pod and reports creation", async () => {

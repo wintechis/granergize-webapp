@@ -1,13 +1,14 @@
 import { Avatar, Box } from "@mui/material";
 import { useResolveAgent } from "../hooks/queries.ts";
-import { UriLink } from "./detail/DetailView.tsx";
+import { RefLink } from "./detail/DetailView.tsx";
 
 /**
  * Render a referenced agent. `value` is either a WebID IRI — resolved (name +
- * avatar) and shown as an avatar + external link — or a free-text name (e.g. a
- * `customer`/`investor` that holds a plain name rather than a WebID), shown as
- * plain text. This is the one way the app surfaces an agent reference; it replaces
- * the old `createAgentLink`, which crashed (`new URL(value)`) on a non-URL name.
+ * avatar) and shown as an avatar + a link to its in-app contact detail view
+ * (`/contact/:webId`) — or a free-text name (e.g. a `customer`/`investor` that
+ * holds a plain name rather than a WebID), shown as plain text. This is the one way
+ * the app surfaces an agent reference; it replaces the old `createAgentLink`, which
+ * crashed (`new URL(value)`) on a non-URL name.
  *
  * Per the loading policy there is no spinner while resolving: until the name
  * arrives the WebID `#fragment` stands in (today's behaviour).
@@ -34,7 +35,7 @@ export function AgentLabel({ value }: { value: string }) {
       >
         {avatarUrl ? null : initials(name)}
       </Avatar>
-      <UriLink href={value}>{name}</UriLink>
+      <RefLink to={`/contact/${encodeURIComponent(value)}`}>{name}</RefLink>
     </Box>
   );
 }

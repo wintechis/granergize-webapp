@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Data-room lifecycle on the Connect tab, single account (a THROWAWAY Solid Pod
@@ -22,7 +23,7 @@ import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 const A = account("A"); // Alice — solo specs use one account
 // Each room mutation does a Pod write + a re-read of the room log; on the
 // throttled shared pod that can be slow, so allow a generous settle window.
-const SETTLE = 45_000;
+const SETTLE = T.action;
 
 test.describe.configure({ mode: "serial" });
 
@@ -35,7 +36,7 @@ test.describe("data rooms", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
+    test.setTimeout(T.setup); // login (IdP + consent) can be slow / retried
     page = await newCapturedPage(browser, "data-room");
     // The "Delete data room" action asks for confirmation via window.confirm —
     // accept it automatically so the delete proceeds.
@@ -114,7 +115,7 @@ test.describe("data rooms", () => {
   }
 
   test("host a data room, then enter/leave back and forth", async () => {
-    test.setTimeout(240_000);
+    test.setTimeout(T.testSolo);
     const { row, uri } = await hostRoom();
 
     // Just hosted → we are in it.
@@ -135,7 +136,7 @@ test.describe("data rooms", () => {
   });
 
   test("switch the active room back and forth between two rooms", async () => {
-    test.setTimeout(300_000);
+    test.setTimeout(T.testSolo);
     // Host two rooms. Hosting the second leaves the first, so room2 ends active.
     const a = await hostRoom();
     const b = await hostRoom();
@@ -173,7 +174,7 @@ test.describe("data rooms", () => {
   });
 
   test("host a data room, leave, re-enter, then delete", async () => {
-    test.setTimeout(240_000);
+    test.setTimeout(T.testSolo);
     const { row, uri } = await hostRoom();
 
     await leaveRoom(row);

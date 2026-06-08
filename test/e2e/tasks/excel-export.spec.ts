@@ -4,6 +4,7 @@ import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Excel-export e2e (PROBLEMS.md #8). Proves a workbook actually downloads in the
@@ -25,7 +26,7 @@ import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 
 async function openManage(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
-  await expect(buildingRows(page).first()).toBeVisible({ timeout: 120_000 });
+  await expect(buildingRows(page).first()).toBeVisible({ timeout: T.action });
 }
 
 const ACC = account("A"); // Alice -- solo specs use one account
@@ -41,14 +42,15 @@ test.describe("excel export", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "excel-export");
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);
     // Self-seed an empty Pod so the export round-trip has buildings to export
-    // (the test no longer assumes a pre-seeded Pod).
-    await ensureDemoBuildings(page);
+    // (the test no longer assumes a pre-seeded Pod). The `user` demo building
+    // round-trips through the generic "User" import template used below.
+    await ensureDemoBuildings(page, "user");
   });
 
   test.afterAll(async () => {
@@ -57,7 +59,7 @@ test.describe("excel export", () => {
   });
 
   test("downloads fire with the expected filenames", async () => {
-    test.setTimeout(120_000);
+    test.setTimeout(T.testSolo);
     await openManage(page);
 
     // "Download all (Excel)" → one workbook for all owned buildings.
@@ -75,7 +77,7 @@ test.describe("excel export", () => {
   });
 
   test("an exported workbook re-imports to the same buildings", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
     await openManage(page);
 
     const before = new Set(await buildingIds(page));
@@ -102,7 +104,7 @@ test.describe("excel export", () => {
     await dialog.locator('input[type="file"]').setInputFiles(path);
 
     const loaded = page.getByText(/Loaded \d+ building\(s\) from file/);
-    await expect(loaded).toBeVisible({ timeout: 60_000 });
+    await expect(loaded).toBeVisible({ timeout: T.action });
     // All N exported buildings re-parsed from the workbook.
     const loadedN = Number(
       (await loaded.textContent())?.match(/Loaded (\d+)/)?.[1],
@@ -114,16 +116,16 @@ test.describe("excel export", () => {
     await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
       .click();
     await expect(page.getByText(/buildings? added/).first())
-      .toBeVisible({ timeout: 120_000 });
+      .toBeVisible({ timeout: T.action });
 
     // Closing the dialog refetches the Manage list, so the re-imported rows appear
     // a moment later — poll the id diff rather than reading it once.
-    await expect(buildingRows(page).first()).toBeVisible({ timeout: 60_000 });
+    await expect(buildingRows(page).first()).toBeVisible({ timeout: T.action });
     let added: string[] = [];
     await expect(async () => {
       added = (await buildingIds(page)).filter((id) => !before.has(id));
       expect(added.length, "the exported buildings re-imported").toBe(before.size);
-    }).toPass({ timeout: 60_000 });
+    }).toPass({ timeout: T.poll });
     if (addr) {
       // Original + re-imported copy → the address appears at least twice.
       expect(await page.getByText(addr, { exact: false }).count())
@@ -135,7 +137,7 @@ test.describe("excel export", () => {
       const row = page.locator("li", { hasText: `Building ${id}` }).first();
       await row.getByRole("button", { name: "Delete building" }).click();
       await expect(page.getByText("Building deleted").first())
-        .toBeVisible({ timeout: 90_000 });
+        .toBeVisible({ timeout: T.action });
     }
     // The "Building deleted" toast fires on the mutation; the Manage list refetch
     // (invalidate buildings) lands a beat later, so the last-deleted row can still
@@ -143,6 +145,6 @@ test.describe("excel export", () => {
     // (eventually-consistent, mirroring the re-import assertion above).
     await expect(async () => {
       expect(new Set(await buildingIds(page))).toEqual(before);
-    }).toPass({ timeout: 60_000 });
+    }).toPass({ timeout: T.poll });
   });
 });

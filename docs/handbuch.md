@@ -307,38 +307,41 @@ legt die Anwendung automatisch an, sobald Sie Ihr erstes Gebäude speichern – 
 müssen sich darum nicht kümmern. Anschließend können Sie eigene Gebäudedaten
 hinzufügen und mit der eigentlichen Arbeit beginnen.
 
-## Ihre Rolle als Datenproduzent festlegen
+## Ihre Organisation und Ihre Datenproduzenten-Rolle festlegen
 
-Ihre **Datenproduzenten-Rolle** legen Sie einmalig in Ihrem Profil fest – nicht
-bei jeder Dateneingabe. Öffnen Sie dazu über das Avatar-Symbol (oben rechts) den
-Dialog **Organisation** und wählen Sie Ihre Rolle. Zur Auswahl stehen alle
-Datenproduzenten-Rollen des Immobilienökosystems: **Investor**, **Nutzer**
-(Auswahl „User"), **Benchmark Service Provider**, **Facility Manager**,
-**Entwickler** (Auswahl „Developer"), **Berater/Makler** (Auswahl „Consultant /
-Broker"), **Softwaredienstleister** (Auswahl „Software Provider") und
-**Energiedienstleister** (Auswahl „Energy Provider"). Diese Rolle wird
-anschließend automatisch als Herkunft (Provenienz) jedes Gebäudes vermerkt, das
-Sie anlegen.
+Bevor Sie Gebäude anlegen, hinterlegen Sie einmalig Ihre **Organisation** – Ihr
+Unternehmen samt Datenproduzenten-Rolle und Logo. Diese Angaben gelten danach für
+alle Gebäude, die Sie erfassen; Sie müssen sie nicht bei jeder Dateneingabe
+wiederholen. Öffnen Sie über das Avatar-Symbol (oben rechts) den Dialog
+**Organisation** und füllen Sie die Felder aus:
+
+1. **Firmenname** („Company name"): der Name Ihres Unternehmens – etwa
+   „Granergize AG".
+2. **Art des Unternehmens** („Kind of company"): Ihre Datenproduzenten-Rolle im
+   Immobilienökosystem. Zur Auswahl stehen **Investor**, **Nutzer** (Auswahl
+   „User"), **Benchmark Service Provider**, **Facility Manager**, **Entwickler**
+   (Auswahl „Developer"), **Berater/Makler** (Auswahl „Consultant / Broker"),
+   **Softwaredienstleister** (Auswahl „Software Provider") und
+   **Energiedienstleister** (Auswahl „Energy Provider"). Diese Rolle wird
+   automatisch als Herkunft (Provenienz) jedes Gebäudes vermerkt, das Sie anlegen.
+3. **Firmenlogo** („Choose logo…"): wählen Sie eine Bilddatei (PNG, JPG, SVG, WEBP
+   oder GIF); die Vorschau zeigt das Bild sofort.
+4. **Homepage** („Homepage URI", optional): die Website Ihres Unternehmens.
+5. **Organisations-WebID** („Organisation WebID", optional): besitzt Ihr
+   Unternehmen eine eigene WebID, verknüpfen Sie sie hier.
+6. **Speichern:** Bestätigen Sie mit „Save".
 
 Die Rolle bei der Dateneingabe ist damit entkoppelt: Im „Add Building"-Dialog
 wählen Sie nur noch die **Vorlage** (das Tabellenformat), nicht mehr die Rolle.
 
-Im selben Dialog **Organisation** hinterlegen Sie zugleich Ihr Unternehmen. Gehen
-Sie dazu so vor:
-
-1. **Firmenname eintragen:** Tragen Sie im Feld „Company name" den Namen Ihres
-   Unternehmens ein – etwa „Granergize AG".
-2. **Art des Unternehmens wählen:** Wählen Sie unter „Kind of company" Ihre
-   Datenproduzenten-Rolle (siehe oben).
-3. **Firmenlogo hochladen:** Klicken Sie auf „Choose logo…", wählen Sie eine
-   Bilddatei aus (PNG, JPG, SVG, WEBP oder GIF). Die Vorschau zeigt sofort das
-   gewählte Bild.
-4. **Speichern:** Bestätigen Sie mit „Save".
-
 Das Firmenlogo erscheint anschließend als Markierung Ihrer Gebäude auf der Karte
 (siehe Abschnitt „Daten ansehen") und steigert so die Wiedererkennbarkeit
-gegenüber Geschäftspartnern. Firmenname und Logo werden – wie die Rolle – als
-Herkunft Ihrer Gebäudedaten mitgeführt.
+gegenüber Geschäftspartnern.
+
+> **Hinweis:** Ihr persönlicher **Anzeigename** und Ihr Profilbild stammen aus
+> Ihrem Solid-WebID-Profil (über Ihren Pod-Anbieter gepflegt), nicht aus diesem
+> Dialog. Ist dort ein Name hinterlegt, erscheint er überall dort, wo Granergize
+> Sie als Person ausweist – etwa als Absender einer Freigabe.
 
 ## Wie Granergize Gebäudedaten organisiert und sicher freigibt
 
@@ -667,6 +670,8 @@ Gebäude, die andere mit Ihnen geteilt haben, finden Sie im Tab **Share** unter
 **Explore**, sodass Sie sie gemeinsam mit Ihren eigenen Gebäuden auswerten
 können. Aggregierte Ansichten, die andere mit Ihnen geteilt haben, finden Sie
 ebenda unter „Views shared with you".
+
+![Tab „Share": mit Ihnen geteilte Gebäude unter „Buildings shared with you"](figures/shared-with-you.png){width=100%}
 
 Über das Augen-Symbol können Sie ein mit Ihnen geteiltes Gebäude bei Bedarf aus
 Ihrer eigenen Karten- und Listenansicht ausblenden und später wieder einblenden.

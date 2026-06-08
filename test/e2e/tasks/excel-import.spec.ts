@@ -3,6 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Excel-import e2e (PROBLEMS.md #6). MUTATES the Pod: imports building(s) from an
@@ -31,7 +32,7 @@ async function openAddDialog(page: Page): Promise<void> {
   // no buildings yet (so the test doesn't depend on demo seeding).
   const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
     .first();
-  await expect(addBtn).toBeVisible({ timeout: 120_000 });
+  await expect(addBtn).toBeVisible({ timeout: T.action });
   await addBtn.click();
 }
 
@@ -55,7 +56,7 @@ test.describe("excel upload", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
+    test.setTimeout(T.setup); // login (IdP + consent) can be slow / retried
     page = await newCapturedPage(browser, "excel-import");
     // The cleanup step deletes each imported building; "Delete building" confirms
     // via window.confirm — accept automatically.
@@ -86,7 +87,7 @@ test.describe("excel upload", () => {
     // one (confirm → DELETE → refetch → re-render) sequentially — heavy enough to
     // blow a tight budget on a slow/contended substrate or a real Pod. Give it
     // ample room (the import phases + the multi-delete cleanup below).
-    test.setTimeout(420_000);
+    test.setTimeout(T.longOp);
 
     await openAddDialog(page);
     await selectTemplate(page, "Investor");
@@ -99,23 +100,23 @@ test.describe("excel upload", () => {
       "public/templates/investor-template.xlsx",
     );
     await expect(page.getByText(/Loaded \d+ building\(s\) from file/))
-      .toBeVisible({ timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
 
     const dialog = page.getByRole("dialog");
     await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
       .click();
 
     await expect(page.getByText(/buildings? added/).first())
-      .toBeVisible({ timeout: 120_000 });
+      .toBeVisible({ timeout: T.action });
 
     // Closing the dialog triggers a refetch of the Manage list (reloadData), so
     // the imported rows appear a moment later — poll the id diff rather than
     // reading it once before the refetch lands.
-    await expect(buildingRows(page).first()).toBeVisible({ timeout: 60_000 });
+    await expect(buildingRows(page).first()).toBeVisible({ timeout: T.action });
     await expect(async () => {
       const added = (await buildingIds(page)).filter((id) => !before.has(id));
       expect(added.length, "imported buildings appear on Manage").toBeGreaterThan(0);
-    }).toPass({ timeout: 60_000 });
+    }).toPass({ timeout: T.poll });
 
     // Clean up the way a user actually would — quick or not — and return the list to
     // `before`. The import PUTs buildings one at a time, so more rows keep landing
@@ -132,17 +133,17 @@ test.describe("excel upload", () => {
         // Wait for THIS row to vanish, not the shared "Building deleted" toast — the
         // toast lingers (~6 s) so it would still show from the previous delete and let
         // the loop race ahead before this one actually completed.
-        await expect(row).toHaveCount(0, { timeout: 90_000 });
+        await expect(row).toHaveCount(0, { timeout: T.action });
       }
       // Late arrivals during the deletes above fail this check → toPass re-runs and
       // sweeps the stragglers, until the list is back to the original set.
       expect((await buildingIds(page)).filter((id) => !before.has(id)).length,
         "no imported buildings left to clean up").toBe(0);
-    }).toPass({ timeout: 300_000 });
+    }).toPass({ timeout: T.longOp });
   });
 
   test("a long 15-min upload can be cancelled", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
 
     await openAddDialog(page);
     await selectTemplate(page, "User");
@@ -152,7 +153,7 @@ test.describe("excel upload", () => {
     );
     // The Lastgang parse reports the readings/days it's ready to upload.
     await expect(page.getByText(/readings.*days.*ready to upload/))
-      .toBeVisible({ timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
 
     const dialog = page.getByRole("dialog");
     // The Lastgang file carries only a label + readings (no address), so it can't
@@ -170,10 +171,10 @@ test.describe("excel upload", () => {
     // The busy overlay surfaces the live requests and a Cancel control once the
     // ~365 daily-file writes start. Cancel and assert the abort path.
     const cancel = page.getByRole("button", { name: "Cancel upload" });
-    await expect(cancel).toBeVisible({ timeout: 60_000 });
+    await expect(cancel).toBeVisible({ timeout: T.action });
     await cancel.click();
 
     await expect(page.getByText(/Import cancelled/).first())
-      .toBeVisible({ timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
   });
 });
