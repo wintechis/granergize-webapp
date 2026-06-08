@@ -141,8 +141,13 @@ async function returnToShell(page: Page): Promise<boolean> {
  * only wait we pay, so a dead page fails the hook in ~60s, not 240s.
  */
 export async function verifyAndReset(page: Page, tag: string): Promise<void> {
-  // afterAll's default budget is 30s; a recursive remote delete can exceed it.
-  test.setTimeout(T.afterAll);
+  // Grant the teardown its own budget ON TOP of whatever's left — a recursive
+  // remote delete can exceed the default. ADD it (don't replace): `test.setTimeout`
+  // sets the TOTAL test budget from the start, so a bare `setTimeout(T.afterAll)`
+  // called from a sharing spec's test-body `finally` would SHRINK a 150 s test to
+  // 60 s and abort it mid-cleanup. Extending works in both an afterAll hook and a
+  // test-body finally.
+  test.setTimeout(test.info().timeout + T.afterAll);
   if (!await returnToShell(page)) {
     logRun(`clean-slate wipe [${tag}]: app shell unavailable, skipped`);
     return;
@@ -162,7 +167,10 @@ export async function verifyAndResetBoth(
   bPage: Page,
   tag: string,
 ): Promise<void> {
-  test.setTimeout(T.afterAll);
+  // Additive, not replacing — see verifyAndReset: a sharing spec calls this from
+  // its test-body `finally`, where a bare setTimeout would shrink the total test
+  // budget and abort cleanup. Extend the remaining budget instead.
+  test.setTimeout(test.info().timeout + T.afterAll);
   if (await returnToShell(aPage)) {
     await logCollectionState(aPage, `${tag}:A`);
     await wipeCollection(aPage, { tag: `${tag}:A` });

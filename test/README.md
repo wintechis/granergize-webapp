@@ -33,6 +33,31 @@ intermittent **local-CSS JWKS boot race** (a freshly-booted CSS transiently 401s
 DPoP token until its key set warms) — not an app bug; mitigated by a boot warmup and
 bounded retries.
 
+## Spec invariants (these caused silent hangs)
+
+Three coupling rules the specs and the app must respect — each one, when broken,
+surfaces as a spec that hangs to its full timeout rather than a clear assertion:
+
+- **Teardown extends the budget, never replaces it.** `test.setTimeout(x)` sets the
+  *total* test budget from the test's start, not a fresh allowance. The end-of-spec
+  cleanup helpers (`verifyAndReset` / `verifyAndResetBoth` in `helpers/cleanSlate.ts`)
+  run from a sharing spec's test-body `finally`, so they **add** to the remaining
+  budget (`test.setTimeout(test.info().timeout + T.afterAll)`). A bare
+  `test.setTimeout(T.afterAll)` there would shrink a 150 s sharing test to 60 s
+  mid-flow and abort it — usually after the body already passed — which reads as a
+  generic "60000 ms timeout" and skips the wipe.
+- **The Share dialog reads live building data.** `ManagePage` passes the building
+  re-looked-up from the live buildings query, not the object captured at click time.
+  A just-added energy year lands via a buildings refetch, and the per-year share
+  picker is driven by `building.energyDatasets`; a frozen snapshot leaves the new
+  year's checkbox unrendered, so the per-year `share-building` spec hangs on it.
+- **A view's role must exist among the buildings.** `CreateViewDialog` only offers
+  roles present in the buildings' `provenance`. `ensureView` creates an **Investor**
+  view, so `share-view` must seed an *investor* building — a `user`-seeded building
+  leaves no "Investor" option in the Role dropdown and the spec hangs selecting it.
+  More generally: a spec that drives the view/share dialogs must seed a building
+  whose kind matches the role it then selects.
+
 ## Benchmarks (measure-and-report)
 
 Scalability suite beside the tiers — never gates. Sweeps a size axis, times the real

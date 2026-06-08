@@ -98,6 +98,13 @@ export default function ManagePage({ session }: ManagePageProps) {
     BuildingType | null
   >(null);
   const [shareBuilding, setShareBuilding] = useState<BuildingType | null>(null);
+  // Re-read the building being shared from the LIVE query rather than the frozen
+  // object captured at click time: data added just before opening the dialog —
+  // notably a freshly-added energy year, which drives the per-year share picker —
+  // lands via a buildings refetch, and the dialog must reflect it without a reopen.
+  const liveShareBuilding = shareBuilding
+    ? buildings.find((b) => b.uri === shareBuilding.uri) ?? shareBuilding
+    : null;
   const [createViewOpen, setCreateViewOpen] = useState(false);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [viewToShare, setViewToShare] = useState<
@@ -574,7 +581,7 @@ export default function ManagePage({ session }: ManagePageProps) {
         <ShareBuildingDialog
           open
           buildingUri={(shareBuilding.sourceUri ?? shareBuilding.uri) as string}
-          building={shareBuilding}
+          building={liveShareBuilding ?? shareBuilding}
           session={session}
           onClose={() => {
             setShareBuilding(null);
