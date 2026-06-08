@@ -24,7 +24,11 @@ import {
   getSharedViews,
   revokeViewAccess,
 } from "../services/interop/sharingManager.ts";
-import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import {
+  getComputedSnapshotByViewId,
+  getSnapshotUrl,
+} from "../services/aggregation/viewManager.ts";
+import { bspContributorBuildings } from "../services/aggregation/viewComputer.ts";
 import {
   type DataRoomMember,
   getActiveRoom,
@@ -56,6 +60,10 @@ export default function ShareViewDialog(
   const [successRecipients, setSuccessRecipients] = useState<string[]>([]);
   const [members, setMembers] = useState<DataRoomMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
+  // When this view is a benchmark, the WebIDs that contributed buildings to it —
+  // the natural share-back targets, offered as a one-click "add all" below.
+  const [contributors, setContributors] = useState<string[]>([]);
+  const [isBenchmarkView, setIsBenchmarkView] = useState(false);
 
   const getRecipients = () =>
     recipientWebId.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
@@ -98,12 +106,31 @@ export default function ShareViewDialog(
     }
   };
 
+  // Whether this view's snapshot is a BSP benchmark; if so, load the contributors
+  // (the share-back targets). Best-effort — a missing snapshot just hides the button.
+  const loadBenchmarkContributors = async () => {
+    try {
+      const snap = await getComputedSnapshotByViewId(session, view.id);
+      if (!snap?.isBenchmark) {
+        setIsBenchmarkView(false);
+        setContributors([]);
+        return;
+      }
+      setIsBenchmarkView(true);
+      const { contributors } = await bspContributorBuildings(session);
+      setContributors(contributors);
+    } catch (err) {
+      logError("load benchmark contributors", err);
+    }
+  };
+
   // Load the current shares and data-room members when the dialog opens (the
   // native <dialog> has no enter-transition hook to hang this off).
   useEffect(() => {
     if (!open) return;
     loadSharedUsers();
     loadMembers();
+    loadBenchmarkContributors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open]);
 
@@ -223,6 +250,35 @@ export default function ShareViewDialog(
 
           {!confirmStep && (
             <>
+              {isBenchmarkView && contributors.length > 0 && (
+                <Box sx={{ mb: 2 }}>
+                  <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
+                    This is a benchmark. Share it back to everyone who contributed
+                    a building so they can compare against the peer average.
+                  </Typography>
+                  <Button
+                    variant="outlined"
+                    onClick={() => {
+                      // Add ALL contributors in one state update — calling
+                      // addRecipient per item would read stale field state each
+                      // iteration (React hasn't re-rendered), so only the last
+                      // would survive.
+                      const merged = [
+                        ...new Set([...getRecipients(), ...contributors]),
+                      ];
+                      setRecipientWebId(merged.join("\n"));
+                      setWebIdError(null);
+                      setShareSuccess(false);
+                    }}
+                    disabled={contributors.every((w) =>
+                      getRecipients().includes(w) || sharedWith.includes(w)
+                    )}
+                  >
+                    Add all {contributors.length} contributors
+                  </Button>
+                </Box>
+              )}
+
               <Typography variant="h6" gutterBottom>
                 Data room members
               </Typography>

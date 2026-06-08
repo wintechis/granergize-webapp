@@ -5,7 +5,10 @@ import type {
   AggregationType,
   AggregatedViewDefinition,
 } from "../../types.ts";
-import { computeAggregation } from "./viewComputer.ts";
+import {
+  computeAggregation,
+  summarizeContributors,
+} from "./viewComputer.ts";
 import { GRAN_NS } from "../utils/vocabularies.ts";
 import {
   datasetFileUrl,
@@ -153,4 +156,54 @@ Deno.test("computeAggregation: a metric absent from the data is omitted", async 
   );
   assert.equal(snap.values[METRIC], 100);
   assert.equal("heatConsumption" in snap.values, false);
+});
+
+Deno.test("computeAggregation: benchmark opt marks the snapshot as a benchmark result", async () => {
+  const session = pod({ [B1]: [{ year: 2024, value: 100 }] });
+  const snap = await computeAggregation(session, def([B1], "average"), {
+    benchmark: true,
+    metricPeriod: "2024",
+  });
+  assert.equal(snap.isBenchmark, true);
+  assert.equal(snap.computedBy, "https://me.example/profile/card#me");
+  assert.equal(snap.metricPeriod, "2024");
+});
+
+Deno.test("computeAggregation: without the benchmark opt the snapshot is unmarked", async () => {
+  const session = pod({ [B1]: [{ year: 2024, value: 100 }] });
+  const snap = await computeAggregation(session, def([B1], "average"));
+  assert.equal(snap.isBenchmark, undefined);
+  assert.equal(snap.computedBy, undefined);
+  assert.equal(snap.metricPeriod, undefined);
+});
+
+Deno.test("summarizeContributors collects the building roster + distinct sharers", () => {
+  const { buildingUris, contributors } = summarizeContributors([
+    { buildingUri: `${POD}1.ttl`, sharedBy: "https://alice.pod/profile/card#me" },
+    { buildingUri: `${POD}7.ttl`, sharedBy: "https://bob.pod/profile/card#me" },
+  ]);
+  assert.deepEqual(buildingUris, [`${POD}1.ttl`, `${POD}7.ttl`]);
+  assert.deepEqual(contributors, [
+    "https://alice.pod/profile/card#me",
+    "https://bob.pod/profile/card#me",
+  ]);
+});
+
+Deno.test("summarizeContributors de-duplicates buildings and sharers", () => {
+  const { buildingUris, contributors } = summarizeContributors([
+    { buildingUri: `${POD}1.ttl`, sharedBy: "https://alice.pod/profile/card#me" },
+    { buildingUri: `${POD}2.ttl`, sharedBy: "https://alice.pod/profile/card#me" },
+    { buildingUri: `${POD}1.ttl`, sharedBy: "https://alice.pod/profile/card#me" },
+  ]);
+  assert.equal(buildingUris.length, 2);
+  assert.deepEqual(contributors, ["https://alice.pod/profile/card#me"]);
+});
+
+Deno.test("summarizeContributors drops Unknown sharers but keeps their building", () => {
+  const { buildingUris, contributors } = summarizeContributors([
+    { buildingUri: `${POD}9.ttl`, sharedBy: "Unknown" },
+    { buildingUri: `${POD}7.ttl`, sharedBy: "https://bob.pod/profile/card#me" },
+  ]);
+  assert.equal(buildingUris.length, 2);
+  assert.deepEqual(contributors, ["https://bob.pod/profile/card#me"]);
 });
