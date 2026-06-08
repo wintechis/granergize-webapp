@@ -21,7 +21,10 @@ export function bookmarksUrl(webId: string): string {
   return `${appRoot(webId)}bookmarks.ttl`;
 }
 
-/** Bookmarked room URLs (the "Your rooms" list). Missing file ⇒ `[]`. */
+/**
+ * Bookmarked room URLs (the "Your rooms" list). Missing file ⇒ `[]`.
+ * @operation query
+ */
 export async function readBookmarks(session: Session): Promise<string[]> {
   const webId = session.info.webId;
   if (!webId) return [];
@@ -32,7 +35,10 @@ export async function readBookmarks(session: Session): Promise<string[]> {
   );
 }
 
-/** Add a room to bookmarks (deduped). No-op (no write) if already present. */
+/**
+ * Add a room to bookmarks (deduped). No-op (no write) if already present.
+ * @operation mutation
+ */
 export function addBookmark(session: Session, room: string): Promise<void> {
   const url = bookmarksUrl(session.info.webId!);
   const self = namedNode(url);
@@ -46,7 +52,10 @@ export function addBookmark(session: Session, room: string): Promise<void> {
   });
 }
 
-/** Remove a room from bookmarks. No-op (no write) if it wasn't bookmarked. */
+/**
+ * Remove a room from bookmarks. No-op (no write) if it wasn't bookmarked.
+ * @operation mutation
+ */
 export function removeBookmark(session: Session, room: string): Promise<void> {
   const url = bookmarksUrl(session.info.webId!);
   const self = namedNode(url);

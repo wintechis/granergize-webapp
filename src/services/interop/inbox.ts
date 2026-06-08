@@ -40,8 +40,9 @@ export function isMessageResource(url: string): boolean {
  * message. "Shared with me, now" is the fold of that log; enforcement stays in
  * the sharer's `.acl` (a building whose grant was revoked 403s on load and is
  * pruned, so a missed revocation self-heals).
+ * @operation mutation
  */
-export async function readInbox(session: Session) {
+export async function drainInbox(session: Session) {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
   }
@@ -146,6 +147,7 @@ export function inboxFromLinkHeader(
  * Link header) so the inbox can live anywhere — with the `inbox/` convention as the
  * fallback (and what we provision). This is APP-scoped (granergize→granergize
  * sharing), NOT the agent-global WebID inbox, so it doesn't mix with other apps.
+ * @operation query
  */
 async function granergizeInboxUrl(
   appRoot: string,
@@ -176,6 +178,7 @@ async function granergizeInboxUrl(
 /**
  * A share recipient's granergize inbox: resolve their storage root (the robust
  * discovery in solidUtils), then discover the inbox under their granergize space.
+ * @operation query
  */
 export async function getRecipientInboxUrl(
   webId: string,
@@ -188,9 +191,10 @@ export async function getRecipientInboxUrl(
 /**
  * POST a sharing event (a grant or a revocation) to a recipient's granergize
  * inbox — the notification they fold into their `shared-in/` log on the next
- * {@link readInbox}. Shared by the building/view grant flows and the revocation
+ * {@link drainInbox}. Shared by the building/view grant flows and the revocation
  * notice: the transport (LDP POST of the event Turtle) and the failure mode are
  * identical across all three; only the event payload differs.
+ * @operation mutation
  */
 export async function postSharingEventToInbox(
   webId: string,
@@ -225,6 +229,7 @@ export async function postSharingEventToInbox(
  * Returns `true` only when it actually created the inbox this call (it didn't
  * exist yet) — so the caller can show the user a one-time setup notice. When the
  * inbox already exists it's a no-op and returns `false`.
+ * @operation mutation
  */
 export async function ensureOwnInbox(session: Session): Promise<boolean> {
   const webId = session.info.webId;
@@ -257,7 +262,10 @@ export async function ensureOwnInbox(session: Session): Promise<boolean> {
   return true;
 }
 
-/** The logged-in user's own granergize inbox (same app-scoped discovery). */
+/**
+ * The logged-in user's own granergize inbox (same app-scoped discovery).
+ * @operation query
+ */
 async function getInboxUrl(session: Session): Promise<string> {
   const webId = session.info.webId;
   if (!webId) throw new Error("Session has no WebID");

@@ -218,7 +218,7 @@ Deno.test("revokeViewAccess posts an AccessRevocation to the recipient's inbox",
   await revokeViewAccess(SNAP, BOB, session);
 
   // A revocation message landed in BOB's inbox, naming the snapshot + grantee, so
-  // BOB's readInbox archives it into shared-in/ and getReceivedViews folds it out.
+  // BOB's drainInbox archives it into shared-in/ and getReceivedViews folds it out.
   const posted = Object.entries(store).find(([url]) => url.startsWith(BOB_INBOX));
   assert.ok(posted, "a message was posted to BOB's inbox");
   const body = posted![1];

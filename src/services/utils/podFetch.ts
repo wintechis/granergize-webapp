@@ -13,6 +13,7 @@ import { Parser, Store } from "n3";
  * `?t=` also means a stable URL React Query / the HTTP cache can key on, instead
  * of a unique URL every call. (solidcommunity.net's Cloudflare reports these as
  * cf-cache-status: DYNAMIC, i.e. not edge-cached, so revalidation is honoured.)
+ * @operation query
  */
 export async function fetchFresh(
   url: string,
@@ -47,6 +48,7 @@ export async function fetchFresh(
  * rather than throwing. Callers that must instead surface a hard read error
  * (e.g. fetching a building that is required to exist) keep their own status
  * check on `fetchFresh`.
+ * @operation query
  */
 export async function readStoreOrEmpty(
   url: string,

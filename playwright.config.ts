@@ -1,6 +1,7 @@
 import { defineConfig, devices } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { LOCAL_APP_PORT } from "./test/config/localSeed.ts";
+import { providerIdForIssuer } from "./test/config/providers.ts";
 
 /**
  * Playwright config for the browser tiers: Tier 4 drives Chromium against real Pods
@@ -34,14 +35,26 @@ const RUN_ID = process.env.E2E_RUN_ID;
 // intermingles with a Tier-4 run; a CSS run never overwrites a JSS run (both use
 // the same `local` project → identical leaf paths); and a re-run never clobbers
 // the prior run of the same config.
-//   Tier 4 (real Pods)      → test-results/tier-4/<run>
+//   Tier 4 (real Pods)      → test-results/tier-4-<pod>/<run>
 //   Tier 3 local CSS / JSS  → test-results/tier-3-css/<run> | tier-3-jss/<run>
 //   bench                   → test-results/bench-css/<run> | bench-jss/<run>
 const BACKEND = process.env.LOCAL_POD_SERVER === "jss" ? "jss" : "css";
+// Tier 4 runs against real Pods, and two different Pods can run back-to-back
+// (e.g. meisdata then redpencil). Label the scope by the Pod — the provider of
+// account A — so they land in DISTINCT dirs (`tier-4-redpencil` vs
+// `tier-4-solidweb`) instead of colliding in one `tier-4/` and overwriting each
+// other's traces even when they share a RUN_ID. Resolution mirrors `account()`:
+// explicit `E2E_POD_LABEL` (a friendly name like `meisdata`) wins, else the
+// provider id of `E2E_PROVIDER_A` / `E2E_ISSUER_A`, else bare `tier-4`.
+const TIER4_POD = process.env.E2E_POD_LABEL ||
+  process.env.E2E_PROVIDER_A ||
+  providerIdForIssuer(process.env.E2E_ISSUER_A);
 const SCOPE = process.env.E2E_BENCH
   ? `bench-${BACKEND}`
   : LOCAL
   ? `tier-3-${BACKEND}`
+  : TIER4_POD
+  ? `tier-4-${TIER4_POD}`
   : "tier-4";
 const RESULTS_DIR = `test-results/${SCOPE}/${RUN_ID}`;
 

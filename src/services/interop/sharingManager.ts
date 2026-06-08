@@ -44,6 +44,7 @@ function buildingIdFromUri(uri: string): string {
  * Derived by folding the `shared-out/` event log (grant minus revocation); the
  * `.acl` remains the enforcement truth, this log is the app's record. A building
  * URL is `interop:forResource` with `gran:kind gran:Building`.
+ * @operation query
  */
 export async function getSharedBuildings(
   session: Session,
@@ -73,6 +74,7 @@ export async function getSharedBuildings(
  * Buildings shared with the user, derived by folding the `shared-in/` event log
  * (each event was archived from the inbox). The sharer is `prov:wasAssociatedWith`
  * (the event's `owner`). Visibility comes from `prefs.ttl`.
+ * @operation query
  */
 export async function getSharedWithMe(
   session: Session,
@@ -100,6 +102,7 @@ export async function getSharedWithMe(
 
 /**
  * Revoke access to a building for a specific user
+ * @operation mutation
  */
 export async function revokeAccess(
   buildingUri: string,
@@ -164,6 +167,7 @@ export async function revokeAccess(
  * false).
  *
  * Exported for unit testing (the public `revokeAccess` reaches it).
+ * @operation mutation
  */
 export async function removeFromACL(
   resourceUri: string,
@@ -250,6 +254,7 @@ async function getSubresourceAclTargets(
  * revocation per recipient keeps the log truthful and folds the building out of
  * each recipient's `shared-in/` on their next inbox drain. Best-effort per
  * recipient; the recipient set comes from the owner's `shared-out/` log.
+ * @operation mutation
  */
 export async function revokeAllBuildingRecipients(
   buildingUri: string,
@@ -269,6 +274,7 @@ export async function revokeAllBuildingRecipients(
 
 /**
  * Toggle visibility of a building shared with the user
+ * @operation mutation
  */
 export async function toggleBuildingVisibility(
   buildingUri: string,
@@ -284,6 +290,7 @@ export async function toggleBuildingVisibility(
 
 /**
  * Record an outgoing building share (a grant) in the `shared-out/` event log.
+ * @operation mutation
  */
 export async function recordSharing(
   buildingUri: string,
@@ -332,6 +339,7 @@ async function notifyAccessRevoked(
 /**
  * Record an outgoing view share (a grant on the snapshot) in `shared-out/`. The
  * viewId is recoverable from the snapshot URL, so it isn't stored separately.
+ * @operation mutation
  */
 export async function recordViewSharing(
   snapshotUrl: string,
@@ -367,10 +375,11 @@ interface ReceivedView {
 
 /**
  * Aggregated views shared *with* the user — the recipient counterpart of
- * {@link getSharedViews}. Folds the `shared-in/` log (where `readInbox` archives
+ * {@link getSharedViews}. Folds the `shared-in/` log (where `drainInbox` archives
  * grants received in the inbox) for `gran:kind gran:View`. Only the computed
  * snapshot is granted (not the definition), so each entry is just the snapshot
  * URL + who shared it; render it with {@link loadComputedSnapshot}.
+ * @operation query
  */
 export async function getReceivedViews(
   session: Session,
@@ -394,6 +403,7 @@ export async function getReceivedViews(
  * Views the user has shared with others, by folding the `shared-out/` log for
  * `gran:kind gran:View` grants. The viewId is recovered from the snapshot URL
  * (`views/snapshots/<viewId>.ttl`).
+ * @operation query
  */
 export async function getSharedViews(session: Session): Promise<SharedView[]> {
   if (!session.info.isLoggedIn || !session.info.webId) {
@@ -419,6 +429,7 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
  * Revoke a recipient's access to an aggregated view: log the revocation in
  * `shared-out/`, withdraw it from the snapshot's `.acl`, and notify the recipient
  * so the view drops off their "Views shared with you" on their next inbox drain.
+ * @operation mutation
  */
 export async function revokeViewAccess(
   snapshotUrl: string,
@@ -452,6 +463,7 @@ export async function revokeViewAccess(
  * wouldn't tell recipients, so the view would linger on their "Views shared with
  * you" — this folds it out of each recipient's shared-in/ first. Best-effort per
  * recipient; the recipient set comes from the owner's `shared-out/` log.
+ * @operation mutation
  */
 export async function revokeAllViewRecipients(
   snapshotUrl: string,

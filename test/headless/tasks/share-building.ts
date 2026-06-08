@@ -13,7 +13,7 @@ import {
   setMyRole,
 } from "../../../src/services/interop/dataRoom.ts";
 import { shareBuildingData } from "../../../src/services/interop/share.ts";
-import { readInbox } from "../../../src/services/interop/inbox.ts";
+import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import { getSharedWithMe } from "../../../src/services/interop/sharingManager.ts";
 import {
   deleteBuilding,
@@ -54,7 +54,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     for (const wid of recipients) {
       await shareBuildingData(uri, wid, a.session, { includeEnergyData: false });
     }
-    await readInbox(b.session); // archive the grant into B's shared-in/
+    await drainInbox(b.session); // archive the grant into B's shared-in/
 
     const shared = await getSharedWithMe(b.session);
     const fileUri = uri.split("#")[0];

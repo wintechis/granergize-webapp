@@ -60,6 +60,7 @@ export interface RmwContext {
  * the user about it (a one-time "set up …" notice) — so first-time provisioning
  * of a lazily-created granergize folder isn't silent. Returns `false` when the
  * container already existed.
+ * @operation mutation
  */
 export async function ensureContainer(
   containerUrl: string,
@@ -85,6 +86,7 @@ export async function ensureContainer(
  * for ACL resources (it requires `application/ld+json`); CSS/NSS accept Turtle and
  * never 415, so their path is unchanged. The single home for direct `.acl` writes
  * that don't go through {@link readModifyWrite} (which has the same fallback).
+ * @operation mutation
  */
 export async function putAcl(
   aclUrl: string,
@@ -105,6 +107,10 @@ export async function putAcl(
   });
 }
 
+/**
+ * Conditional read-modify-write of a Turtle resource with optimistic locking.
+ * @operation mutation
+ */
 export async function readModifyWrite(
   url: string,
   session: Session,

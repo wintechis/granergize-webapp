@@ -20,7 +20,7 @@ import { T } from "../helpers/timeouts.ts";
  *     role; A adds a building and shares it "By role" → User (the room resolves the
  *     role to B's WebID);
  *   • a 2 s cooldown;
- *   • read part — B logs in fresh (so `readInbox` archives the grant into B's
+ *   • read part — B logs in fresh (so `drainInbox` archives the grant into B's
  *     `shared-in/`) and sees the building under "Buildings shared with you".
  *
  * Previously split into 4 single-account parts to stay under solidcommunity.net's
@@ -84,7 +84,7 @@ test.describe("sharing across two pods", () => {
       // ── 2 s cooldown between the write part and the read part ──
       await a.page.waitForTimeout(2000);
 
-      // ── Read part: B logs in fresh → readInbox archives the grant → verify ──
+      // ── Read part: B logs in fresh → drainInbox archives the grant → verify ──
       const b2 = await freshPage(browser, B);
       try {
         await b2.page.getByRole("tab", { name: "Share" }).click();
@@ -170,7 +170,7 @@ test.describe("sharing across two pods", () => {
       // ── 2 s cooldown between the write part and the read part ──
       await a.page.waitForTimeout(2000);
 
-      // ── Read part: B logs in fresh → readInbox archives the grant → verify ──
+      // ── Read part: B logs in fresh → drainInbox archives the grant → verify ──
       const b2 = await freshPage(browser, B);
       try {
         // B owns no buildings (none seeded), so the shared one is the only marker.
@@ -264,10 +264,10 @@ test.describe("sharing across two pods", () => {
       await addBuilding(a.page, STREET_D);
       await shareByRole(a.page, STREET_D);
 
-      // ── B logs in fresh once → readInbox archives the grant → B sees it ──
+      // ── B logs in fresh once → drainInbox archives the grant → B sees it ──
       // The SAME B context is reused for the after-delete re-check: a reload
-      // re-runs readInbox (Login.tsx restores the session → "login" → handleLogin
-      // → readInbox), so B drains the revocation without a second ~OIDC login.
+      // re-runs drainInbox (Login.tsx restores the session → "login" → handleLogin
+      // → drainInbox), so B drains the revocation without a second ~OIDC login.
       const b = await freshPage(browser, B);
       try {
         await b.page.getByRole("tab", { name: "Share" }).click();
@@ -289,7 +289,7 @@ test.describe("sharing across two pods", () => {
           .toBeVisible({ timeout: T.action });
         await a.page.waitForTimeout(2000); // let the revocation settle
 
-        // ── B reloads → readInbox drains the revocation → it folds out ──
+        // ── B reloads → drainInbox drains the revocation → it folds out ──
         await b.page.reload();
         await b.page.getByRole("tab", { name: "Share" }).click();
         try {

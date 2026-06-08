@@ -14,7 +14,7 @@ Sharing state isn't a registry that gets rewritten; it's two append-only **event
 per Pod, each an LDP container under `granergize/`:
 
 - `shared-out/` — sharing **you performed** (grants + revocations you issued).
-- `shared-in/` — sharing **received** (`readInbox` archives each inbox message here).
+- `shared-in/` — sharing **received** (`drainInbox` archives each inbox message here).
 
 Every event is its own resource (POST → the server mints the child URI, so concurrent
 appends never clobber). One Turtle shape serves all three places an event appears — the
@@ -35,7 +35,7 @@ Owner, three writes:
    WebID profile).
 3. **Record** — append a grant event to the owner's `shared-out/`.
 
-Recipient — `readInbox` lists the inbox and, per message: parse its sharing event(s),
+Recipient — `drainInbox` lists the inbox and, per message: parse its sharing event(s),
 append each to the user's `shared-in/` log, then delete the message. "Shared with me,
 now" is the fold of `shared-in/`; a missed revocation self-heals because a building whose
 grant was withdrawn 403s on load and is pruned. A shared building's provenance comes from
@@ -73,7 +73,7 @@ deprecated/ignored — provenance no longer travels with the share.
 
 Append a revocation to `shared-out/`, remove the ACL authorization (building + any energy
 targets), then `notifyAccessRevoked` POSTs a revocation event to the recipient's inbox so
-their next `readInbox` folds it out of `shared-in/`. Notification is best-effort — the
+their next `drainInbox` folds it out of `shared-in/`. Notification is best-effort — the
 revocation succeeds even if it fails.
 
 ## Aggregated views — `shareAggregatedView(snapshotUrl, viewId, webId, session)`

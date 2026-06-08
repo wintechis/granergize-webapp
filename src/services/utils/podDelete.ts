@@ -16,6 +16,7 @@ const LDP_CONTAINS = DataFactory.namedNode(LDP_CONTAINS_IRI);
  * leaf resources, then delete the container itself. Per-resource ACLs are removed
  * (safely — see {@link deleteResourceThenAcl}). A 404 anywhere is treated as
  * "already gone".
+ * @operation mutation
  */
 export async function deleteContainerRecursive(
   container: string,
@@ -84,6 +85,7 @@ async function deleteResourceThenAcl(
  * and the files within them) — what a {@link deleteContainerRecursive} call would
  * remove. Tolerates a missing container (returns `[]`). Read-only; for previewing
  * a delete before it happens.
+ * @operation query
  */
 export async function listContainedResources(
   container: string,
@@ -115,6 +117,7 @@ export async function listContainedResources(
  * Pod (no container) from an *empty* one (container present, no children) — e.g.
  * to seed demo data only on first run, not after the user deletes everything.
  * Any other non-OK response yields `[]`.
+ * @operation query
  */
 export async function listDirectChildren(
   container: string,
@@ -151,6 +154,7 @@ export function formatResourceList(
  * Remove the entire `granergize/` app collection from the user's Pod — every
  * building, energy file, view, data room, registry and setting under it. The
  * organisation logo lives in `profile/`, outside this tree, so it is untouched.
+ * @operation mutation
  */
 export async function removeAppData(
   session: Session,

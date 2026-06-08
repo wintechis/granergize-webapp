@@ -128,6 +128,7 @@ function firstObject(
 /**
  * Read the user's organisation from the WebID profile, or null if none is set.
  * Follows `org:memberOf` to the org node and reads its FOAF fields.
+ * @operation query
  */
 export async function getOrganization(
   session: Session,
@@ -149,7 +150,10 @@ export async function getOrganization(
   return org;
 }
 
-/** Fetch the org logo as an object URL for an <img src>, or null. */
+/**
+ * Fetch the org logo as an object URL for an <img src>, or null.
+ * @operation query
+ */
 export async function getOrgLogoObjectUrl(
   session: Session,
 ): Promise<string | null> {
@@ -275,6 +279,7 @@ async function putProfile(
  * Ensures `<#me> org:memberOf <#org>` and the org node's type; replaces the
  * scalar fields (no duplicates); blank fields are cleared. An existing
  * `foaf:logo` is preserved (managed separately by {@link uploadOrgLogo}).
+ * @operation mutation
  */
 export async function saveOrganization(
   session: Session,
@@ -319,6 +324,7 @@ export async function saveOrganization(
  * provenance category applied to every building they add (mapped to the
  * `prov:hadRole` IRI when serializing). Returns null when unset (so the Add flow
  * records no attribution). Distinct from the data-room membership role.
+ * @operation query
  */
 export async function getCompanyKind(
   session: Session,
@@ -340,6 +346,7 @@ export async function getCompanyKind(
  * on the org node (single PUT), ensuring the role-free person↔org membership.
  * `kind === null` clears the classification but leaves the org/membership intact.
  * Leaves the FOAF org fields untouched.
+ * @operation mutation
  */
 export async function saveCompanyKind(
   session: Session,
@@ -373,6 +380,7 @@ export async function saveCompanyKind(
 /**
  * Upload an image as the organisation's logo and link it via `foaf:logo` on the
  * `<#org>` node (creating the membership/type if absent). Returns the logo URL.
+ * @operation mutation
  */
 export async function uploadOrgLogo(
   file: File,

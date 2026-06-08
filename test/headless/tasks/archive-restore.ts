@@ -13,7 +13,7 @@ import {
 } from "../../../src/services/utils/podArchive.ts";
 import { reissueGrants, shareBuildingData } from "../../../src/services/interop/share.ts";
 import { removeFromACL } from "../../../src/services/interop/sharingManager.ts";
-import { readInbox } from "../../../src/services/interop/inbox.ts";
+import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
   deleteBuilding,
   newBuildingUri,
@@ -49,7 +49,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     );
     await uploadBuilding(a.session, uri, ttl, a.webId);
     await shareBuildingData(uri, b.webId, a.session, { includeEnergyData: false });
-    await readInbox(b.session); // archive the grant into B's shared-in/
+    await drainInbox(b.session); // archive the grant into B's shared-in/
     check("B can read the shared building (baseline)", await canRead(b));
 
     // Take the backup AFTER sharing, so the shared-out/ grant is captured in it.

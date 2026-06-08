@@ -35,7 +35,10 @@ export function prefsUrl(webId: string): string {
   return `${appRoot(webId)}prefs.ttl`;
 }
 
-/** Read `prefs.ttl`. A missing file yields empty prefs (created on first write). */
+/**
+ * Read `prefs.ttl`. A missing file yields empty prefs (created on first write).
+ * @operation query
+ */
 export async function readPrefs(session: Session): Promise<Preferences> {
   const webId = session.info.webId;
   const empty: Preferences = {
@@ -76,7 +79,10 @@ function mutatePrefs(
   });
 }
 
-/** Set (or clear, with `null`) the current room — replaces any existing pointer. */
+/**
+ * Set (or clear, with `null`) the current room — replaces any existing pointer.
+ * @operation mutation
+ */
 export function setCurrentRoom(
   session: Session,
   room: string | null,
@@ -87,7 +93,10 @@ export function setCurrentRoom(
   });
 }
 
-/** Remember whether the user dismissed the fresh-Pod demo-buildings offer. */
+/**
+ * Remember whether the user dismissed the fresh-Pod demo-buildings offer.
+ * @operation mutation
+ */
 export function setDemoSeedDeclined(
   session: Session,
   declined: boolean,
@@ -104,7 +113,10 @@ export function setDemoSeedDeclined(
   });
 }
 
-/** Flip a building's hidden state (hidden ⇄ visible) in your dashboard. */
+/**
+ * Flip a building's hidden state (hidden ⇄ visible) in your dashboard.
+ * @operation mutation
+ */
 export function toggleHiddenBuilding(
   session: Session,
   buildingUri: string,

@@ -115,7 +115,10 @@ export function buildSharingEventTurtle(e: SharingEvent): string {
   ].join("\n");
 }
 
-/** Append one event to a log container (POST — never rewrites an existing event). */
+/**
+ * Append one event to a log container (POST — never rewrites an existing event).
+ * @operation mutation
+ */
 export async function appendSharingEvent(
   containerUrl: string,
   session: Session,
@@ -196,6 +199,7 @@ async function readAllEvents(
  * exact timestamp tie a revocation wins (least-privilege; also makes a rapid
  * grant→revoke within the same millisecond deterministic regardless of read
  * order).
+ * @operation query
  */
 export async function foldSharingLog(
   containerUrl: string,

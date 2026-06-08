@@ -61,6 +61,7 @@ async function uniqueFileUrl(
  * Upload one file as a building attachment: PUT the binary into the building's
  * `files/` container, then add its `gran:hasAttachment` link + metadata to the
  * building TTL. Returns the new {@link AttachmentRef}.
+ * @operation mutation
  */
 export async function uploadAttachment(
   buildingFileUri: string,
@@ -115,6 +116,7 @@ export async function uploadAttachment(
  * Delete an attachment: remove the binary, then drop its `gran:hasAttachment`
  * link + metadata from the building TTL (and clear `gran:hasEnergyCertificate`
  * if it pointed at this file). A missing binary (404) is tolerated.
+ * @operation mutation
  */
 export async function deleteAttachment(
   buildingFileUri: string,
@@ -146,6 +148,7 @@ export async function deleteAttachment(
 /**
  * Mark `attachmentUrl` as the building's energy certificate (or clear it when
  * `attachmentUrl` is null). Replaces any existing `gran:hasEnergyCertificate`.
+ * @operation mutation
  */
 export async function setEnergyCertificate(
   buildingFileUri: string,
@@ -163,7 +166,10 @@ export async function setEnergyCertificate(
   });
 }
 
-/** Fetch an attachment's bytes with the authed session (works for shared files). */
+/**
+ * Fetch an attachment's bytes with the authed session (works for shared files).
+ * @operation query
+ */
 export async function fetchAttachmentBlob(
   url: string,
   session: Session,

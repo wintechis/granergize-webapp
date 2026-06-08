@@ -3,10 +3,10 @@ import assert from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   ensureOwnInbox,
+  drainInbox,
   getRecipientInboxUrl,
   inboxFromLinkHeader,
   isMessageResource,
-  readInbox,
 } from "./inbox.ts";
 import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
 import { ACL_NS, INTEROP_NS, LDP_CONTAINS } from "../utils/vocabularies.ts";
@@ -121,11 +121,11 @@ Deno.test("isMessageResource: auxiliary sidecars (.acl/.meta) are excluded", () 
   }
 });
 
-Deno.test("readInbox creates shared-in/ once when draining multiple messages (no per-append create race)", async () => {
+Deno.test("drainInbox creates shared-in/ once when draining multiple messages (no per-append create race)", async () => {
   // Regression guard: the drain fans out over messages with Promise.all, and each
   // appendSharingEvent ensures shared-in/. Without an up-front ensure, every
   // message races to create the container (all GET 404, all PUT) — a duplicate
-  // create a strict server (JSS) rejects with 409. readInbox must create it ONCE.
+  // create a strict server (JSS) rejects with 409. drainInbox must create it ONCE.
   _setStorageRootForTesting(WEBID, "https://b.example/");
   const appRoot = "https://b.example/granergize/";
   const inbox = `${appRoot}inbox/`;
@@ -174,7 +174,7 @@ Deno.test("readInbox creates shared-in/ once when draining multiple messages (no
     },
   } as unknown as Session;
 
-  await readInbox(session);
+  await drainInbox(session);
 
   const sharedInPuts = calls.filter((c) => c.method === "PUT" && c.url === sharedIn);
   assert.equal(sharedInPuts.length, 1, "shared-in/ created exactly once, not once per message");

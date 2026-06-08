@@ -29,6 +29,7 @@ const inflight = new Map<string, Promise<Store | null>>();
 /**
  * The logged-in user's WebID profile parsed into a Store, or null if unreadable.
  * Cached for the session; concurrent first-time calls share a single fetch.
+ * @operation query
  */
 export function loadProfileStore(
   session: Session,
@@ -44,6 +45,7 @@ export function loadProfileStore(
  * (private/offline profiles are tolerated). Shares the same doc-URL-keyed cache
  * and in-flight dedup as {@link loadProfileStore}, so resolving a share recipient
  * or building operator reuses any profile already fetched.
+ * @operation query
  */
 export function loadProfileStoreFor(
   webId: string,

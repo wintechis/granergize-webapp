@@ -54,6 +54,7 @@ export function webIdFragment(webId: string): string {
  * (today's bare-`#me` behaviour). Avatar = `foaf:img` or `vcard:hasPhoto`.
  * Unreachable/private profiles resolve to `{ webId }` (with the fragment name) —
  * resolution never throws, so callers can render references unconditionally.
+ * @operation query
  */
 export async function resolveAgent(
   webId: string,
@@ -83,6 +84,7 @@ export async function resolveAgent(
  * self-only `organizationManager`. Returns `null` when the profile is
  * unreachable/private, states no org, or the org has no logo — never throws, so
  * the map can fall back to a default marker unconditionally.
+ * @operation query
  */
 export async function resolveAgentOrgLogo(
   webId: string,
