@@ -51,13 +51,6 @@ test.describe("data rooms", () => {
     await page.close();
   });
 
-  /** Wait for a success snackbar with the given text, then for it to clear (so
-   * the next action's notification is unambiguous). */
-  async function expectNotice(text: string) {
-    const notice = page.getByText(text, { exact: false });
-    await expect(notice.first()).toBeVisible({ timeout: SETTLE });
-  }
-
   /**
    * All room URIs currently listed (to diff before/after a host). A room row is the
    * list item carrying an Enter/Leave action; its link text is the room URI. We
@@ -85,7 +78,6 @@ test.describe("data rooms", () => {
   async function hostRoom(): Promise<{ row: Locator; uri: string }> {
     const before = new Set(await roomHrefs());
     await page.getByRole("button", { name: /host a data room/i }).click();
-    await expectNotice("Data room created");
     let uri = "";
     await expect(async () => {
       uri = (await roomHrefs()).find((h) => h && !before.has(h)) ?? "";
@@ -102,14 +94,12 @@ test.describe("data rooms", () => {
 
   async function leaveRoom(row: Locator) {
     await row.getByRole("button", { name: "Leave data room" }).click();
-    await expectNotice("You left the data room");
     await expect(row.getByRole("button", { name: "Enter data room" }))
       .toBeVisible({ timeout: SETTLE });
   }
 
   async function enterRoom(row: Locator) {
     await row.getByRole("button", { name: "Enter data room" }).click();
-    await expectNotice("You joined the data room");
     await expect(row.getByRole("button", { name: "Leave data room" }))
       .toBeVisible({ timeout: SETTLE });
   }
@@ -130,7 +120,6 @@ test.describe("data rooms", () => {
 
     // Clean up: delete the room we created (confirm auto-accepted above).
     await row.getByRole("button", { name: "Delete data room" }).click();
-    await expectNotice("Data room deleted");
     await expect(page.locator("li").filter({ hasText: uri }))
       .toHaveCount(0, { timeout: SETTLE });
   });
@@ -150,7 +139,6 @@ test.describe("data rooms", () => {
     // is the one that catches an unreliable switch.
     async function switchTo(target: Locator, other: Locator) {
       await target.getByRole("button", { name: "Enter data room" }).click();
-      await expectNotice("You joined the data room");
       await expect(target.getByRole("button", { name: "Leave data room" }))
         .toBeVisible({ timeout: SETTLE });
       await expect(other.getByRole("button", { name: "Enter data room" }))
@@ -162,12 +150,12 @@ test.describe("data rooms", () => {
       await switchTo(b.row, a.row); // room B active, room A inactive
     }
 
-    // Clean up both rooms. Assert the OUTCOME (the room row disappears, driven by the
-    // delete mutation's onSuccess cache patch) rather than the transient "Data room
-    // deleted" toast: notifications are a single FIFO snackbar with a 6 s auto-hide,
-    // and the 6 rapid "You joined" notices from the switch loop above leave a backlog
-    // that would delay this delete's toast past SETTLE — even though the delete itself
-    // succeeds immediately. The row-gone assertion is the real check and isn't queued.
+    // Clean up both rooms. Like every action here, assert the durable OUTCOME (the
+    // room row disappears, driven by the delete mutation's onSuccess cache patch),
+    // never a transient toast: notifications are a single FIFO snackbar with a 6 s
+    // auto-hide, so a burst (e.g. the rapid "You joined" notices from the switch loop
+    // above) backs up and a later toast can be delayed past SETTLE even though its
+    // action succeeded immediately. The row-gone assertion is the real check.
     await a.row.getByRole("button", { name: "Delete data room" }).click();
     await expect(page.locator("li").filter({ hasText: a.uri }))
       .toHaveCount(0, { timeout: SETTLE });
@@ -184,7 +172,6 @@ test.describe("data rooms", () => {
     await enterRoom(row);
 
     await row.getByRole("button", { name: "Delete data room" }).click();
-    await expectNotice("Data room deleted");
     await expect(page.locator("li").filter({ hasText: uri }))
       .toHaveCount(0, { timeout: SETTLE });
   });
