@@ -6,13 +6,19 @@ import type {
   AggregatedViewSnapshot,
 } from "../../types.ts";
 import {
+  BENCH_COMPUTED_BY,
+  BENCH_METRIC_PERIOD,
+  BENCH_NS,
+  BENCH_RESULT,
   GRAN_NS,
   RDF_TYPE,
   XSD_DATETIME,
   XSD_DECIMAL,
+  XSD_GYEAR,
   XSD_INTEGER,
 } from "../utils/vocabularies.ts";
 import { getQuadValue, getQuadValues } from "../utils/rdfHelpers.ts";
+import { getReceivedViews } from "../interop/sharingManager.ts";
 import { fetchFresh } from "../utils/podFetch.ts";
 import { readModifyWrite } from "../utils/podWrite.ts";
 import { listDirectChildren } from "../utils/podDelete.ts";
@@ -30,6 +36,7 @@ const TTL_PREFIXES =
   `@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 @prefix gra: <${VOCAB_PREFIX}> .
+@prefix bench: <${BENCH_NS}> .
 
 `;
 
@@ -335,6 +342,31 @@ export async function storeComputedSnapshot(
     literal(snapshot.buildingCount.toString(), namedNode(XSD_INTEGER)),
   ));
 
+  // Benchmark result: the snapshot is additionally a bench:BenchmarkResult and
+  // records who computed it and which year it covers. It stays a
+  // gra:AggregatedViewSnapshot too, so every existing reader keeps working.
+  if (snapshot.isBenchmark) {
+    store.addQuad(quad(
+      snapshotNode,
+      namedNode(RDF_TYPE),
+      namedNode(BENCH_RESULT),
+    ));
+    if (snapshot.computedBy) {
+      store.addQuad(quad(
+        snapshotNode,
+        namedNode(BENCH_COMPUTED_BY),
+        namedNode(snapshot.computedBy),
+      ));
+    }
+    if (snapshot.metricPeriod) {
+      store.addQuad(quad(
+        snapshotNode,
+        namedNode(BENCH_METRIC_PERIOD),
+        literal(snapshot.metricPeriod, namedNode(XSD_GYEAR)),
+      ));
+    }
+  }
+
   // Add metrics
   for (const metric of snapshot.metrics) {
     store.addQuad(quad(
@@ -433,6 +465,23 @@ export async function loadComputedSnapshot(
 
     const snapshotNode = snapshotQuads[0].subject;
 
+    const isBenchmark = store.getQuads(
+      snapshotNode,
+      namedNode(RDF_TYPE),
+      namedNode(BENCH_RESULT),
+      null,
+    ).length > 0;
+    const computedBy = getQuadValue(
+      store,
+      snapshotNode,
+      namedNode(BENCH_COMPUTED_BY),
+    );
+    const metricPeriod = getQuadValue(
+      store,
+      snapshotNode,
+      namedNode(BENCH_METRIC_PERIOD),
+    );
+
     const metrics = getQuadValues(
       store,
       snapshotNode,
@@ -477,11 +526,34 @@ export async function loadComputedSnapshot(
       ),
       metrics,
       values,
+      ...(isBenchmark ? { isBenchmark } : {}),
+      ...(computedBy ? { computedBy } : {}),
+      ...(metricPeriod ? { metricPeriod } : {}),
     };
   } catch (error) {
     console.error("Error loading computed snapshot:", error);
     return null;
   }
+}
+
+/**
+ * The benchmark snapshots shared *with* the current user: fold the received-views
+ * log, load each snapshot, and keep the ones marked as a benchmark result. These
+ * are what the energy view compares the owner's own figures against. Unreadable or
+ * non-benchmark snapshots are dropped.
+ */
+export async function getReceivedBenchmarks(
+  session: Session,
+): Promise<AggregatedViewSnapshot[]> {
+  const received = await getReceivedViews(session);
+  const snapshots = await mapPooled(
+    received,
+    4,
+    (rv) => loadComputedSnapshot(session, rv.snapshotUrl),
+  );
+  return snapshots.filter(
+    (s): s is AggregatedViewSnapshot => s !== null && Boolean(s.isBenchmark),
+  );
 }
 
 /**

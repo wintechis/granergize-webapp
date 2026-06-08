@@ -18,6 +18,7 @@ import {
 } from "../utils/energyDataset.ts";
 import { isSeriesGranularity } from "../utils/durationUtils.ts";
 import { parseTtlReadings } from "../utils/userEnergyParser.ts";
+import { getSharedWithMe } from "../interop/sharingManager.ts";
 
 const { namedNode } = DataFactory;
 
@@ -215,14 +216,32 @@ async function loadUserBuildingMonthlyTotal(
 }
 
 /**
+ * Options marking a computed snapshot as a benchmark result — set by the BSP
+ * compute-and-share flow so the snapshot is additionally a bench:BenchmarkResult
+ * carrying the computing agent and the period covered.
+ */
+export interface BenchmarkOptions {
+  benchmark?: boolean;
+  metricPeriod?: string; // year the metrics cover, e.g. "2024"
+}
+
+/**
  * Compute aggregated values for a view definition
  */
 export async function computeAggregation(
   session: Session,
   viewDefinition: AggregatedViewDefinition,
+  opts: BenchmarkOptions = {},
 ): Promise<AggregatedViewSnapshot> {
   const { id, name, buildingUris, aggregationType, metrics, period } =
     viewDefinition;
+  const benchmarkFields = opts.benchmark
+    ? {
+      isBenchmark: true as const,
+      computedBy: session.info.webId,
+      ...(opts.metricPeriod ? { metricPeriod: opts.metricPeriod } : {}),
+    }
+    : {};
 
   // User-role path: aggregate monthly electricity totals per building
   if (period) {
@@ -248,6 +267,7 @@ export async function computeAggregation(
       values: monthlyTotals.length > 0
         ? { electricity: aggregateValues(monthlyTotals, aggregationType) }
         : {},
+      ...benchmarkFields,
     };
 
     return snapshot;
@@ -289,6 +309,7 @@ export async function computeAggregation(
     computedAt: new Date().toISOString(),
     buildingCount: energyDataResults.length,
     values: aggregatedValues,
+    ...benchmarkFields,
   };
 
   return snapshot;
@@ -300,6 +321,7 @@ export async function computeAggregation(
 export async function computeAndStoreSnapshot(
   session: Session,
   viewId: string,
+  opts: BenchmarkOptions = {},
 ): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUrl: string }> {
   const viewDefinition = await getViewDefinition(session, viewId);
 
@@ -307,7 +329,7 @@ export async function computeAndStoreSnapshot(
     throw new Error(`View definition not found: ${viewId}`);
   }
 
-  const snapshot = await computeAggregation(session, viewDefinition);
+  const snapshot = await computeAggregation(session, viewDefinition, opts);
   const snapshotUrl = await storeComputedSnapshot(session, snapshot);
 
   return { snapshot, snapshotUrl };
@@ -449,4 +471,46 @@ export function getAvailableBspMetrics(): {
       ],
     },
   ];
+}
+
+/** The roster a BSP benchmarks over: the buildings shared *to* it. */
+export interface BspContributors {
+  buildingUris: string[]; // the contributing buildings (shared to the BSP)
+  contributors: string[]; // distinct WebIDs that shared them (the share-back targets)
+}
+
+/**
+ * Pure fold of a shared-with-me roster into the benchmark's building list + the
+ * distinct sharer WebIDs (the share-back targets). Split out from
+ * {@link bspContributorBuildings} so it can be unit-tested without fixturing the
+ * whole shared-in event fold. "Unknown" sharers (an event with no owner) are
+ * dropped from the contributor set but their building is still benchmarked.
+ */
+export function summarizeContributors(
+  shared: { buildingUri: string; sharedBy: string }[],
+): BspContributors {
+  const buildingUris = [...new Set(shared.map((b) => b.buildingUri))];
+  const contributors = [
+    ...new Set(
+      shared
+        .map((b) => b.sharedBy)
+        .filter((w) => w && w !== "Unknown"),
+    ),
+  ];
+  return { buildingUris, contributors };
+}
+
+/**
+ * Populate the benchmark's building list from the roster of buildings shared *to*
+ * the current user (the BSP). The aggregation engine works over an explicit
+ * building list; this folds the existing shared-with-me roster into that list and
+ * collects the distinct sharer WebIDs as the share-back targets. Received buildings
+ * carry the *sharer's* provenance, not benchmark_service_provider — so the BSP
+ * create-view flow sources candidates here rather than from the owned-building
+ * provenance filter.
+ */
+export async function bspContributorBuildings(
+  session: Session,
+): Promise<BspContributors> {
+  return summarizeContributors(await getSharedWithMe(session));
 }

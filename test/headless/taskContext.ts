@@ -21,6 +21,8 @@ export interface Actor {
 export interface TaskContext {
   a: Actor;
   b: Actor;
+  /** Charlie, the benchmark service provider — used by the benchmark round-trip. */
+  c: Actor;
   check(label: string, cond: boolean, detail?: string): void;
 }
 

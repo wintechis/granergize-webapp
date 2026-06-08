@@ -100,7 +100,6 @@ function EnergyWrapper({ session }: { session: Session }) {
       {(building, selectedBuilding) => (
         <Energy
           selectedBuilding={selectedBuilding}
-          operatedBy={building.operatedBy?.toString() || ""}
           building={building}
           session={session}
         />

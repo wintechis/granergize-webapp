@@ -26,7 +26,7 @@ export type Resolution =
   | { ok: true; accounts: TestAccount[] }
   | { ok: false; reason: string };
 
-const DEFAULT_SLOTS = ["A", "B"]; // A = Alice, B = Bob
+const DEFAULT_SLOTS = ["A", "B", "C"]; // A = Alice, B = Bob, C = Charlie (BSP)
 
 /**
  * Two accounts form an interoperating sharing pair if a guest authenticated at one

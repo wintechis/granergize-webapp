@@ -28,10 +28,15 @@ export interface LocalSeedAccount {
   pod: string;
 }
 
-/** The two accounts startLocalCss() seeds, keyed to the spec slots A and B. */
-export const LOCAL_SEED: Record<"A" | "B", LocalSeedAccount> = {
+/**
+ * The accounts startLocalPod() seeds, keyed to the spec slots. A = Alice, B = Bob,
+ * C = Charlie (the benchmark service provider for the BSP round-trip). Solo specs
+ * use A; sharing specs A + B; the benchmark spec adds C.
+ */
+export const LOCAL_SEED: Record<"A" | "B" | "C", LocalSeedAccount> = {
   A: { email: "a@test.local", password: "alice-pw-12345", pod: "alice" },
   B: { email: "b@test.local", password: "bob-pw-12345", pod: "bob" },
+  C: { email: "c@test.local", password: "charlie-pw-12345", pod: "charlie" },
 };
 
 /** The browser-OIDC provider for the booted local Pod server. Backend-agnostic: the

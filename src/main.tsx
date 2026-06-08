@@ -121,6 +121,7 @@ function AppContent() {
       // (otherwise the cached read taken at mount would never reflect the grant).
       queryClient.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
       queryClient.invalidateQueries({ queryKey: queryKeys.receivedViews });
+      queryClient.invalidateQueries({ queryKey: queryKeys.receivedBenchmarks });
       queryClient.invalidateQueries({ queryKey: queryKeys.buildings });
     } catch (error) {
       showNotification(formatError("read your inbox", error), "error");

@@ -26,6 +26,7 @@ import * as addBuilding from "./tasks/add-building.ts";
 import * as attachmentShare from "./tasks/attachment-share.ts";
 import * as archiveRestore from "./tasks/archive-restore.ts";
 import * as deleteSharedBuilding from "./tasks/delete-shared-building.ts";
+import * as benchmark from "./tasks/benchmark.ts";
 
 const TASKS: TaskModule[] = [
   dataRoom,
@@ -35,6 +36,7 @@ const TASKS: TaskModule[] = [
   attachmentShare,
   archiveRestore,
   deleteSharedBuilding,
+  benchmark,
 ];
 
 const harness = makeHarness();
@@ -47,26 +49,32 @@ console.log(`local Pod up at ${pod.baseUrl}`);
 
 let sA: LiveSessionLike | undefined;
 let sB: LiveSessionLike | undefined;
+let sC: LiveSessionLike | undefined;
 try {
-  [sA, sB] = await Promise.all([
+  [sA, sB, sC] = await Promise.all([
     pod.liveSession("A"),
     pod.liveSession("B"),
+    pod.liveSession("C"),
   ]);
   const sessionA = sA as unknown as Session;
   const sessionB = sB as unknown as Session;
+  const sessionC = sC as unknown as Session;
   // Native storage discovery (pim:Storage-typed root) — no card edit needed.
   await resolveStorageRoot(sessionA);
   await resolveStorageRoot(sessionB);
+  await resolveStorageRoot(sessionC);
   // Provision each account's granergize inbox exactly as the app does at login
   // (container + append ACL + discovery pointer). On a bare CSS Pod the app must
   // do this itself; the runner just calls the same app function.
   await ensureOwnInbox(sessionA);
   await ensureOwnInbox(sessionB);
+  await ensureOwnInbox(sessionC);
 
   const a: Actor = { slot: "A", webId: sessionA.info.webId!, session: sessionA, raw: sA };
   const b: Actor = { slot: "B", webId: sessionB.info.webId!, session: sessionB, raw: sB };
-  console.log(`A = ${a.webId}\nB = ${b.webId}`);
-  const ctx: TaskContext = { a, b, check: harness.check };
+  const c: Actor = { slot: "C", webId: sessionC.info.webId!, session: sessionC, raw: sC };
+  console.log(`A = ${a.webId}\nB = ${b.webId}\nC = ${c.webId}`);
+  const ctx: TaskContext = { a, b, c, check: harness.check };
 
   for (const task of TASKS) {
     console.log(`\ntask: ${task.name}`);
@@ -81,6 +89,7 @@ try {
   console.log("\ncleanup");
   await sA?.dispose().catch(() => {});
   await sB?.dispose().catch(() => {});
+  await sC?.dispose().catch(() => {});
   await pod.stop();
   console.log("  done");
 }
