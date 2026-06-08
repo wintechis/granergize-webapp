@@ -9,10 +9,34 @@
 @prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix rec: <https://w3id.org/rec#> .
+@prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix gra: <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
 
 <#> rdf:type owl:Ontology ;
     rdfs:label "Granergize benchmark service-provider vocabulary"@en .
+
+# ── Benchmark result ──────────────────────────────────────────────────────────
+# A benchmark is an aggregated-view snapshot a benchmark service provider computes
+# over the buildings shared to it and shares back to the contributors. It is a
+# specialisation of gra:AggregatedViewSnapshot, so it inherits the privacy property
+# (only aggregate values + a building count travel, never the contributor list) and
+# every existing snapshot reader keeps working. The two extra predicates record who
+# computed it and which period it covers.
+:BenchmarkResult rdf:type owl:Class ;
+    rdfs:subClassOf gra:AggregatedViewSnapshot ;
+    rdfs:label "Benchmark result"@en ;
+    rdfs:comment "An aggregated-view snapshot computed by a benchmark service provider over the buildings shared to it, shared back to the contributors as a peer benchmark."@en .
+
+:computedBy rdf:type owl:ObjectProperty ;
+    rdfs:label "computed by"@en ;
+    rdfs:comment "The agent (benchmark service provider) that computed this benchmark result."@en ;
+    rdfs:domain :BenchmarkResult ; rdfs:range foaf:Agent .
+
+:metricPeriod rdf:type owl:DatatypeProperty ;
+    rdfs:label "metric period"@en ;
+    rdfs:comment "The year the benchmark's metrics cover."@en ;
+    rdfs:domain :BenchmarkResult ; rdfs:range xsd:gYear .
 
 :logisticsFunction rdf:type owl:DatatypeProperty ;
     rdfs:label "logistics function"@en ; rdfs:domain rec:Building ; rdfs:range xsd:string .

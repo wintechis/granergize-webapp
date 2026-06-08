@@ -40,12 +40,17 @@ function providerFor(slot: string): PodProvider | null {
 
 /**
  * In the browser "local" tier (E2E_LOCAL=1) accounts come from the seeded local CSS,
- * NOT the env: slot B → the `bob` pod, anything else (A, …) → the `alice` pod. So the
- * specs (`account("A")` for solo, the A+B pair for sharing) resolve to the two local
- * pods with no creds to set — the same two-role model the remote tier uses.
+ * NOT the env: slot B → the `bob` pod, slot C → the `charlie` pod (the BSP), anything
+ * else (A, …) → the `alice` pod. So the specs (`account("A")` for solo, the A+B pair
+ * for sharing, A+B+C for the benchmark) resolve to the seeded local pods with no creds
+ * to set — the same role model the remote tier uses.
  */
 function localAccount(slot: string): TestAccount | null {
-  const seed = slot === "B" ? LOCAL_SEED.B : LOCAL_SEED.A;
+  const seed = slot === "C"
+    ? LOCAL_SEED.C
+    : slot === "B"
+    ? LOCAL_SEED.B
+    : LOCAL_SEED.A;
   const provider = localBrowserProvider();
   return { slot, provider, email: seed.email, password: seed.password };
 }

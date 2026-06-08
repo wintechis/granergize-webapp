@@ -28,7 +28,7 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
   await Deno.writeTextFile(
     seedFile,
     JSON.stringify(
-      [LOCAL_SEED.A, LOCAL_SEED.B].map((a) => ({
+      [LOCAL_SEED.A, LOCAL_SEED.B, LOCAL_SEED.C].map((a) => ({
         email: a.email,
         password: a.password,
         pods: [{ name: a.pod }],
@@ -107,7 +107,9 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
   // yields each seeded account's WebID once seeding is done. DISCOVER the WebID here
   // (CSS account API → `webIdLinks`) — the spec way — instead of constructing it.
   const deadline = Date.now() + 60_000;
-  let discovered: { A: LocalAccount; B: LocalAccount } | undefined;
+  let discovered:
+    | { A: LocalAccount; B: LocalAccount; C: LocalAccount }
+    | undefined;
   while (Date.now() < deadline) {
     try {
       const r = await fetch(`${baseUrl}.well-known/openid-configuration`);
@@ -122,6 +124,10 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
             ...LOCAL_SEED.B,
             webId: await discoverWebId(issuer, LOCAL_SEED.B.email, LOCAL_SEED.B.password),
           },
+          C: {
+            ...LOCAL_SEED.C,
+            webId: await discoverWebId(issuer, LOCAL_SEED.C.email, LOCAL_SEED.C.password),
+          },
         };
         break;
       }
@@ -133,7 +139,7 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
     await stop();
     throw new Error(`local CSS did not become ready on ${baseUrl}\n${errTail.slice(-1500)}`);
   }
-  const { A, B } = discovered;
+  const { A, B, C } = discovered;
 
   // Warm token verification before returning, as a hard readiness gate. Just after
   // boot the OIDC resource server transiently 401s ("no applicable key found in the
@@ -172,8 +178,8 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
   }
 
   // Headless session via the CSS account API + client-credentials + DPoP.
-  const liveSession = (slot: "A" | "B") => {
-    const a = slot === "B" ? B : A;
+  const liveSession = (slot: "A" | "B" | "C") => {
+    const a = slot === "C" ? C : slot === "B" ? B : A;
     return getLiveSession(issuer, a.email, a.password, a.webId);
   };
 
@@ -181,6 +187,7 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
   // check the browser auth library does; the headless cc-flow otherwise skips it).
   await verifyWebId(A.webId, issuer);
   await verifyWebId(B.webId, issuer);
+  await verifyWebId(C.webId, issuer);
 
-  return { baseUrl, A, B, stop, status: child.status, liveSession };
+  return { baseUrl, A, B, C, stop, status: child.status, liveSession };
 }

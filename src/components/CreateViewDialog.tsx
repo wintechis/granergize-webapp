@@ -29,6 +29,8 @@ import { createViewDefinition } from "../services/aggregation/viewManager.ts";
 import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
 import { listDirectChildren } from "../services/utils/podDelete.ts";
 import {
+  type BspContributors,
+  bspContributorBuildings,
   computeAndStoreSnapshot,
   getAvailableBspMetrics,
   getAvailableInvestorAnnualMetrics,
@@ -123,12 +125,43 @@ export default function CreateViewDialog({
 }: CreateViewDialogProps) {
   const { showNotification } = useNotification();
 
-  // Derive roles that actually exist in the buildings list
+  // The buildings shared *to* this user (the BSP benchmarks over these), loaded
+  // while the dialog is open. Their provenance is the *sharer's*, not BSP — so
+  // they don't surface through the owned-building provenance filter below.
+  const [bspContributors, setBspContributors] = useState<BspContributors>({
+    buildingUris: [],
+    contributors: [],
+  });
+  useEffect(() => {
+    if (!open) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const c = await bspContributorBuildings(session);
+        if (!cancelled) setBspContributors(c);
+      } catch {
+        // best-effort: a BSP with no received buildings simply has no benchmark
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [open, session]);
+
+  // URIs (fragment-stripped) of buildings shared to the BSP, for membership tests.
+  const bspUriSet = useMemo(
+    () => new Set(bspContributors.buildingUris.map((u) => u.split("#")[0])),
+    [bspContributors],
+  );
+
+  // Derive roles that actually exist in the buildings list, plus the BSP role
+  // whenever buildings have been shared to this user (so a benchmark can be built).
   const availableRoles = useMemo<UserRole[]>(() => {
     const roles = new Set<UserRole>();
     buildings.forEach((b) => {
       if (b.provenance) roles.add(b.provenance);
     });
+    if (bspUriSet.size > 0) roles.add("benchmark_service_provider");
     const order: UserRole[] = [
       "dummy",
       "investor",
@@ -141,7 +174,7 @@ export default function CreateViewDialog({
       "energy_provider",
     ];
     return order.filter((r) => roles.has(r));
-  }, [buildings]);
+  }, [buildings, bspUriSet]);
 
   const initialRole: UserRole = availableRoles[0] ?? "dummy";
 
@@ -191,10 +224,13 @@ export default function CreateViewDialog({
     );
   };
 
-  // Only buildings matching the selected provenance category
-  const availableBuildings = buildings.filter(
-    (b) => b.uri && b.provenance === selectedRole,
-  );
+  // For the BSP role, candidates are the buildings shared *to* this user (the
+  // benchmark roster), regardless of their sharer-set provenance; for every other
+  // role they are the owned buildings whose provenance matches the selected role.
+  const availableBuildings =
+    selectedRole === "benchmark_service_provider"
+      ? buildings.filter((b) => b.uri && bspUriSet.has(b.uri.split("#")[0]))
+      : buildings.filter((b) => b.uri && b.provenance === selectedRole);
 
   // Available months for user-role views: list each user building's 15-min
   // series container(s) and collect the months of the daily files (async — the
@@ -230,6 +266,21 @@ export default function CreateViewDialog({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedRole]);
 
+  // The latest annual (non-series) dataset year across the given buildings, as a
+  // year string for bench:metricPeriod — undefined if none carry annual data.
+  const latestAnnualYear = (buildingUris: string[]): string | undefined => {
+    const set = new Set(buildingUris.map((u) => u.split("#")[0]));
+    let max: number | undefined;
+    for (const b of buildings) {
+      if (!b.uri || !set.has(b.uri.split("#")[0])) continue;
+      for (const ref of b.energyDatasets ?? []) {
+        if (isSeriesGranularity(ref.granularity)) continue;
+        if (max === undefined || ref.year > max) max = ref.year;
+      }
+    }
+    return max === undefined ? undefined : String(max);
+  };
+
   const handleCreate = async () => {
     if (!viewName.trim()) {
       showNotification("Please enter a view name", "warning");
@@ -264,7 +315,12 @@ export default function CreateViewDialog({
         period,
       );
 
-      await computeAndStoreSnapshot(session, viewDef.id);
+      // BSP benchmark: mark the snapshot as a benchmark result and stamp the year
+      // it covers (the latest annual dataset year across the selected buildings).
+      const benchmarkOpts = selectedRole === "benchmark_service_provider"
+        ? { benchmark: true, metricPeriod: latestAnnualYear(selectedBuildings) }
+        : {};
+      await computeAndStoreSnapshot(session, viewDef.id, benchmarkOpts);
 
       showNotification("View created successfully", "success");
       onViewCreated();

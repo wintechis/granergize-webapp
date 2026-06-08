@@ -279,6 +279,12 @@ export interface AggregatedViewSnapshot {
   computedAt: string;
   buildingCount: number; // How many buildings were aggregated (privacy-preserving)
   values: Record<string, number>; // metric name -> computed value
+  // Benchmark-result fields (set when a benchmark service provider computes this
+  // snapshot over the buildings shared to it): the snapshot is additionally typed
+  // bench:BenchmarkResult and carries who computed it and which year it covers.
+  isBenchmark?: boolean;
+  computedBy?: string; // WebID of the computing agent (bench:computedBy)
+  metricPeriod?: string; // year the metrics cover (bench:metricPeriod), e.g. "2024"
 }
 
 export interface SharedAggregatedView {

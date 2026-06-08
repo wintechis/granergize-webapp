@@ -227,10 +227,11 @@ export async function startJss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
     }
     throw lastErr;
   };
-  let aSeed, bSeed;
+  let aSeed, bSeed, cSeed;
   try {
     aSeed = await seedWithRetry(LOCAL_SEED.A);
     bSeed = await seedWithRetry(LOCAL_SEED.B);
+    cSeed = await seedWithRetry(LOCAL_SEED.C);
   } catch (e) {
     await stop();
     throw e;
@@ -241,10 +242,17 @@ export async function startJss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
   ): LocalAccount => ({ email: seed.email, password: seed.password, pod: seed.pod, webId });
   const A = mk(LOCAL_SEED.A, aSeed.webId);
   const B = mk(LOCAL_SEED.B, bSeed.webId);
+  const C = mk(LOCAL_SEED.C, cSeed.webId);
 
-  const tokens: Record<"A" | "B", string> = { A: aSeed.token, B: bSeed.token };
-  const liveSession = (slot: "A" | "B") =>
-    Promise.resolve(bearerSession(slot === "B" ? B.webId : A.webId, tokens[slot]));
+  const tokens: Record<"A" | "B" | "C", string> = {
+    A: aSeed.token,
+    B: bSeed.token,
+    C: cSeed.token,
+  };
+  const liveSession = (slot: "A" | "B" | "C") =>
+    Promise.resolve(
+      bearerSession(slot === "C" ? C.webId : slot === "B" ? B.webId : A.webId, tokens[slot]),
+    );
 
   // Solid-OIDC: confirm each WebID JSS issued authorizes this issuer. JSS hands the
   // WebID back from /.pods (the `webid` claim, not a constructed string), so this is
@@ -252,6 +260,7 @@ export async function startJss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
   const issuer = baseUrl.replace(/\/$/, "");
   await verifyWebId(A.webId, issuer);
   await verifyWebId(B.webId, issuer);
+  await verifyWebId(C.webId, issuer);
 
-  return { baseUrl, A, B, stop, status: child.status, liveSession };
+  return { baseUrl, A, B, C, stop, status: child.status, liveSession };
 }

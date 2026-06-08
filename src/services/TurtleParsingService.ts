@@ -274,12 +274,16 @@ export async function loadEnergy(
 ): Promise<{
   energyNeed: EnergyType[];
   averages: Record<string, number>;
+  portfolioAverages: Record<string, number>;
   operatorAverages: Record<string, Record<string, number>>;
 }> {
   const energyData = new Map<number, EnergyType>();
   // Object to store aggregated values for each measurement
   const aggregatedValues: Record<string, number[]> = {};
   const operatorAggregatedValues: Record<string, Record<string, number[]>> = {};
+  // The user's OWN buildings only (excludes shared-in) — feeds the honest
+  // "portfolio average" the energy view shows, distinct from the cross-all mean.
+  const portfolioAggregatedValues: Record<string, number[]> = {};
 
   // For each building, the latest ACTUAL annual (non-series) dataset paints the
   // map and feeds the averages. Sub-hourly *series* datasets are skipped here and
@@ -349,6 +353,10 @@ export async function loadEnergy(
     for (const [prop, val] of Object.entries(energyNeed)) {
       if (!aggregatedValues[prop]) aggregatedValues[prop] = [];
       aggregatedValues[prop].push(val);
+      if (!building.isShared) {
+        if (!portfolioAggregatedValues[prop]) portfolioAggregatedValues[prop] = [];
+        portfolioAggregatedValues[prop].push(val);
+      }
       const operator = building.operatedBy;
       if (!operator || typeof operator !== "string") continue;
       if (!operatorAggregatedValues[operator]) {
@@ -370,6 +378,14 @@ export async function loadEnergy(
     averages[property] = sum / values.length;
   }
 
+  // Portfolio average: the mean over the user's OWN buildings only.
+  const portfolioAverages: Record<string, number> = {};
+  for (const property in portfolioAggregatedValues) {
+    const values = portfolioAggregatedValues[property];
+    const sum = values.reduce((acc, val) => acc + val, 0);
+    portfolioAverages[property] = sum / values.length;
+  }
+
   // Calculate averages by operator
   const operatorAverages: Record<string, Record<string, number>> = {};
   for (const operator in operatorAggregatedValues) {
@@ -384,6 +400,7 @@ export async function loadEnergy(
   return {
     energyNeed: Array.from(energyData.values()),
     averages,
+    portfolioAverages,
     operatorAverages,
   };
 }
