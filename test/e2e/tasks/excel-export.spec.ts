@@ -115,7 +115,10 @@ test.describe("excel export", () => {
     // (an empty/garbled export would fail validation and disable the button).
     await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
       .click();
-    await expect(page.getByText(/buildings? added/).first())
+    // Case-insensitive: a single re-imported building toasts "Building added"
+    // (capital B), the plural case "N buildings added" — the kind-specific demo
+    // seeds one building, so the singular path is the common one here.
+    await expect(page.getByText(/buildings? added/i).first())
       .toBeVisible({ timeout: T.action });
 
     // Closing the dialog refetches the Manage list, so the re-imported rows appear

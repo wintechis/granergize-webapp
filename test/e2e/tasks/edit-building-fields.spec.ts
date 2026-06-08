@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, hasAccount, login } from "../helpers/login.ts";
+import { account, ensureCompanyKind, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -12,8 +12,10 @@ import { T } from "../helpers/timeouts.ts";
  * certification, save, REOPEN the dialog and assert the values round-tripped
  * through Turtle. Self-cleaning — adds its own throwaway building and deletes it.
  *
- * A building added without a producing role has undefined provenance, so the Edit
- * dialog defaults `role` to "investor" and shows these sections.
+ * The Operating-costs / Certifications sections are investor-specific, so the
+ * Edit dialog only renders them when the building's provenance is `investor`.
+ * Provenance is stamped from the org's company kind at add-time, so the test
+ * sets the kind to Investor via the in-app Organisation form first.
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/tasks/edit-building-fields.spec.ts
@@ -43,6 +45,10 @@ test.describe("edit building operating costs + certifications", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);
+    // Investor kind via the in-app form → the building added below gets investor
+    // provenance, so the Edit dialog renders the Operating-costs / Certifications
+    // sections this spec exercises.
+    await ensureCompanyKind(page, "investor", { force: true });
   });
 
   test.afterAll(async () => {

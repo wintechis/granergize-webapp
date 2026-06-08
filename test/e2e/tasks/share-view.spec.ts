@@ -3,7 +3,7 @@ import { account } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { freshPage } from "../helpers/twoPod.ts";
+import { freshPagesParallel } from "../helpers/twoPod.ts";
 import {
   assignUserRole,
   hostRoomAndGetUri,
@@ -41,25 +41,30 @@ test.describe("view sharing across two pods", () => {
 
   test("A shares a view; B sees it, then A deletes it and B no longer sees it", async ({ browser }) => {
     test.setTimeout(T.testSharing);
-    const a = await freshPage(browser, A);
+    // Log A and B in ONCE each. B's three phases (join, see the shared view, see it
+    // gone) don't need fresh OIDC logins — each phase only needs B to RE-FETCH the
+    // shared state from a cold cache, which `b.page.reload()` does: the silent session
+    // restore re-fires `onLogin`, draining B's inbox and invalidating the
+    // receivedViews query, exactly like a login but without the ~login-long OIDC cost.
+    // The only separation that's actually required is A vs B (distinct WebIDs), not
+    // B-phase vs B-phase — so one reused B context replaces the old four B logins.
+    const [a, b] = await freshPagesParallel(browser, [A, B]);
     a.page.on("dialog", (d) => d.accept()); // Delete view / room confirms
     try {
       await assertCleanStart(a.page, "share-view:A");
+      await assertCleanStart(b.page, "share-view:B");
       // ── A hosts a room + role; B joins + role; A creates + shares the view ──
       const roomUri = await hostRoomAndGetUri(a.page);
       await assignUserRole(a.page);
-
-      const b1 = await freshPage(browser, B);
-      try {
-        await assertCleanStart(b1.page, "share-view:B");
-        await joinRoomAsUser(b1.page, roomUri);
-      } finally {
-        await b1.ctx.close();
-      }
+      await joinRoomAsUser(b.page, roomUri);
 
       // A needs buildings to build an aggregated view from — self-seed an empty
       // (e.g. freshly-wiped) Pod so ensureView's building picker isn't empty.
-      await ensureDemoBuildings(a.page, "user");
+      // Must be INVESTOR: ensureView creates an Investor view, and CreateViewDialog
+      // only offers roles that exist among the buildings' provenance — a "user"
+      // building would leave the Role dropdown without an "Investor" option, so
+      // ensureView's role selection would hang.
+      await ensureDemoBuildings(a.page, "investor");
       await ensureView(a.page);
       const viewRow = a.page.locator("li").filter({ hasText: VIEW_NAME }).first();
       const shareDlg = a.page.getByRole("dialog");
@@ -96,24 +101,20 @@ test.describe("view sharing across two pods", () => {
         .toBeVisible({ timeout: T.action });
       await shareDlg.getByRole("button", { name: /close/i }).click();
 
-      // ── 2 s cooldown → B sees the view + its values ──
+      // ── 2 s cooldown → B reloads (cold re-fetch) and sees the view + its values ──
       await a.page.waitForTimeout(2000);
-      const b2 = await freshPage(browser, B);
+      await b.page.reload();
+      await b.page.getByRole("tab", { name: "Share" }).click();
       try {
-        await b2.page.getByRole("tab", { name: "Share" }).click();
-        try {
-          await expect(receivedViews(b2.page).getByText(VIEW_NAME))
-            .toBeVisible({ timeout: T.action });
-          await b2.page.getByRole("button", { name: /show values/i }).first()
-            .click();
-          await expect(b2.page.locator("svg.recharts-surface").first())
-            .toBeVisible({ timeout: T.action });
-        } catch (timeout) {
-          b2.guard.assertNoAppErrors();
-          throw timeout;
-        }
-      } finally {
-        await b2.ctx.close();
+        await expect(receivedViews(b.page).getByText(VIEW_NAME))
+          .toBeVisible({ timeout: T.action });
+        await b.page.getByRole("button", { name: /show values/i }).first()
+          .click();
+        await expect(b.page.locator("svg.recharts-surface").first())
+          .toBeVisible({ timeout: T.action });
+      } catch (timeout) {
+        b.guard.assertNoAppErrors();
+        throw timeout;
       }
 
       // ── A deletes the view (revokes + notifies B) ──
@@ -128,42 +129,41 @@ test.describe("view sharing across two pods", () => {
           .toBeVisible({ timeout: T.action }).catch(() => {});
       }
 
-      // ── 2 s cooldown → B no longer sees the view ──
+      // ── 2 s cooldown → B reloads (cold re-fetch) and no longer sees the view ──
       await a.page.waitForTimeout(2000);
-      const b3 = await freshPage(browser, B);
+      await b.page.reload();
+      await b.page.getByRole("tab", { name: "Share" }).click();
       try {
-        await b3.page.getByRole("tab", { name: "Share" }).click();
-        try {
-          // Positive empty-state assertion: the section's empty notice is shown
-          // (the list is absent when empty) AND the view is gone.
-          await expect(
-            b3.page.getByText(
-              /no aggregated views have been shared with you/i,
-            ),
-          ).toBeVisible({ timeout: T.action });
-          await expect(receivedViews(b3.page).getByText(VIEW_NAME)).toHaveCount(0);
-        } catch (timeout) {
-          b3.guard.assertNoAppErrors();
-          throw timeout;
-        }
-      } finally {
-        // Drop B's bookmark of A's room so it doesn't leak on B's Pod.
-        await removeAllBookmarkedRooms(b3.page);
-        await b3.ctx.close();
+        // Positive empty-state assertion: the section's empty notice is shown
+        // (the list is absent when empty) AND the view is gone.
+        await expect(
+          b.page.getByText(
+            /no aggregated views have been shared with you/i,
+          ),
+        ).toBeVisible({ timeout: T.action });
+        await expect(receivedViews(b.page).getByText(VIEW_NAME)).toHaveCount(0);
+      } catch (timeout) {
+        b.guard.assertNoAppErrors();
+        throw timeout;
       }
     } finally {
-      // Self-cleaning: the view was deleted above; tear down A's room.
+      // Self-cleaning: the view was deleted above; tear down A's room and drop B's
+      // bookmark of it so neither leaks on its Pod.
       try {
         if (!a.page.isClosed()) await deleteAllOwnedRooms(a.page);
       } catch {
         // best-effort cleanup; never fail the run
       }
-      // Leave both Pods empty — the per-run collection is removed entirely on each.
-      const bEnd = await freshPage(browser, B);
       try {
-        await verifyAndResetBoth(a.page, bEnd.page, "share-view");
+        if (!b.page.isClosed()) await removeAllBookmarkedRooms(b.page);
+      } catch {
+        // best-effort cleanup; never fail the run
+      }
+      // Leave both Pods empty — the per-run collection is removed entirely on each.
+      try {
+        await verifyAndResetBoth(a.page, b.page, "share-view");
       } finally {
-        await bEnd.ctx.close();
+        await b.ctx.close();
         await a.ctx.close();
       }
     }

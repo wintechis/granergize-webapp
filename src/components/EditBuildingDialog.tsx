@@ -161,8 +161,19 @@ export default function EditBuildingDialog(
       // refresh the contacts query so the new contact appears without a reload (the
       // direct rememberAgent write bypasses the addContact mutation's invalidation).
       if (fields.operatedBy) {
+        // `refetchType: "all"` is load-bearing: the contacts query is INACTIVE
+        // here (Connect is unmounted while this dialog is open), so a default
+        // invalidate would only mark it stale — and the app's `refetchOnMount:
+        // false` then suppresses the refetch when the user opens Connect, leaving
+        // a stale list. Refetch the inactive query now so the new contact is
+        // already present when Connect mounts.
         void rememberAgent(session, fields.operatedBy)
-          .then(() => qc.invalidateQueries({ queryKey: queryKeys.contacts }));
+          .then(() =>
+            qc.invalidateQueries({
+              queryKey: queryKeys.contacts,
+              refetchType: "all",
+            })
+          );
       }
       showNotification("Building updated", "success");
       onBuildingUpdated();
