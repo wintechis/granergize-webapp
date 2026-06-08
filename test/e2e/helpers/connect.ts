@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { T } from "./timeouts.ts";
 
 /**
  * Connect-tab room/role helpers, shared by the cross-Pod specs (`share-building`,
@@ -14,14 +15,14 @@ export async function hostRoomAndGetUri(page: Page): Promise<string> {
   const leave = page.getByRole("button", { name: /leave data room/i });
   if (!(await leave.count())) {
     await page.getByRole("button", { name: /host a data room/i }).click();
-    await expect(leave).toBeVisible({ timeout: 60_000 });
+    await expect(leave).toBeVisible({ timeout: T.action });
   }
   const activeRow = page.locator("li").filter({ has: leave });
   const activeLink = activeRow.locator('a[href*="/rooms/"]').first();
-  await expect(activeLink).toBeVisible({ timeout: 60_000 });
+  await expect(activeLink).toBeVisible({ timeout: T.action });
   const uri = (await activeLink.getAttribute("href"))?.trim();
   expect(uri, "active room URI").toBeTruthy();
-  await expect(leave).toBeEnabled({ timeout: 60_000 }).catch(() => {});
+  await expect(leave).toBeEnabled({ timeout: T.action }).catch(() => {});
   return uri!;
 }
 
@@ -34,23 +35,23 @@ export async function assignUserRole(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Connect" }).click();
   await page.waitForLoadState("networkidle").catch(() => {});
   const select = page.getByRole("combobox", { name: "My role(s)" });
-  await expect(select).toBeVisible({ timeout: 15_000 });
+  await expect(select).toBeVisible({ timeout: T.visible });
   await select.click();
   const userOption = page.getByRole("option", { name: "User" });
-  await expect(userOption).toBeVisible({ timeout: 10_000 });
+  await expect(userOption).toBeVisible({ timeout: T.quick });
   const alreadyUser = (await userOption.getAttribute("aria-selected")) === "true";
   if (!alreadyUser) await userOption.click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("listbox")).toBeHidden({ timeout: 5_000 }).catch(
+  await expect(page.getByRole("listbox")).toBeHidden({ timeout: T.quick }).catch(
     () => {},
   );
   if (alreadyUser) return;
   await expect(async () => {
     await page.getByRole("button", { name: /save roles/i }).click();
     await expect(page.getByText(/roles updated/i)).toBeVisible({
-      timeout: 10_000,
+      timeout: T.quick,
     });
-  }).toPass({ timeout: 60_000 });
+  }).toPass({ timeout: T.poll });
 }
 
 /** On the Connect tab, add+enter a room URI and assign the User role. */
@@ -63,14 +64,14 @@ export async function joinRoomAsUser(page: Page, roomUri: string): Promise<void>
     await expect(async () => {
       if (await row.count()) return;
       await uriField.fill(roomUri);
-      await expect(add).toBeEnabled({ timeout: 5_000 });
+      await expect(add).toBeEnabled({ timeout: T.quick });
       await add.click();
-      await expect(row.first()).toBeVisible({ timeout: 10_000 });
-    }).toPass({ timeout: 90_000 });
+      await expect(row.first()).toBeVisible({ timeout: T.quick });
+    }).toPass({ timeout: T.poll });
   }
   const enter = row.first().getByRole("button", { name: /enter data room/i });
   if (await enter.count()) await enter.click();
   await expect(page.getByRole("button", { name: /leave data room/i }))
-    .toBeVisible({ timeout: 30_000 });
+    .toBeVisible({ timeout: T.action });
   await assignUserRole(page);
 }

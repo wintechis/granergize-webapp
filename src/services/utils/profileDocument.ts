@@ -60,7 +60,18 @@ export function loadProfileStoreFor(
   }
 
   const promise = (async (): Promise<Store | null> => {
-    const res = await fetchFresh(docUrl, session);
+    // "Unreadable" is a null result, never a rejection: an HTTP error returns
+    // !res.ok, and a NETWORK error (an unreachable/offline host — `fetchFresh`
+    // throws) is caught here too. Resolving an arbitrary agent's WebID (a building
+    // operator, a share recipient) routinely hits dead hosts, and an unhandled
+    // rejection here would surface as an app-wide `pageerror`; callers expect a
+    // graceful null + fragment-name fallback instead.
+    let res: Response;
+    try {
+      res = await fetchFresh(docUrl, session);
+    } catch {
+      return null;
+    }
     if (!res.ok) return null; // don't cache failures — let the next read retry
     const store = new Store(
       new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(

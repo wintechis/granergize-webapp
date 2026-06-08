@@ -4,6 +4,7 @@ import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Archive backup/restore e2e (dev-mode). Drives the real account-menu flow end to
@@ -45,13 +46,13 @@ test.describe("archive backup/restore", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "archive-restore");
     // Both the restore and the wipe go through window.confirm — accept them.
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page);
+    await ensureDemoBuildings(page, "user"); // any building; download → wipe → restore
   });
 
   test.afterAll(async () => {
@@ -60,9 +61,9 @@ test.describe("archive backup/restore", () => {
   });
 
   test("download → wipe → upload restores the buildings", async () => {
-    test.setTimeout(240_000);
+    test.setTimeout(T.testSolo);
     await openManage(page);
-    await expect(buildingRows(page).first()).toBeVisible({ timeout: 120_000 });
+    await expect(buildingRows(page).first()).toBeVisible({ timeout: T.action });
     const before = new Set(await buildingIds(page));
     expect(before.size, "seeded buildings to back up").toBeGreaterThan(0);
 
@@ -74,31 +75,31 @@ test.describe("archive backup/restore", () => {
     await menuAction(page, /Download archive/);
     await (await dl).saveAs(ARCHIVE_PATH);
     await expect(page.getByText(/Archived \d+ resource\(s\)/)).toBeVisible({
-      timeout: 60_000,
+      timeout: T.action,
     });
 
     // Wipe the Pod (confirm auto-accepted).
     await menuAction(page, /Remove all app data/);
     await expect(page.getByText("All app data removed")).toBeVisible({
-      timeout: 120_000,
+      timeout: T.action,
     });
     // The buildings are gone (the fresh-Pod "Add examples" offer returns).
     await openManage(page);
     await expect(page.getByRole("button", { name: "Add examples" })).toBeVisible({
-      timeout: 60_000,
+      timeout: T.action,
     });
 
     // Upload archive → the hidden picker drives importArchive (confirm accepted).
     await page.locator('input[type="file"][accept*="zip"]').setInputFiles(ARCHIVE_PATH);
     await expect(page.getByText(/Restored \d+ resource\(s\)/)).toBeVisible({
-      timeout: 120_000,
+      timeout: T.action,
     });
 
     // The exact same buildings are back (same Pod → same ids; eventually consistent).
     await openManage(page);
-    await expect(buildingRows(page).first()).toBeVisible({ timeout: 60_000 });
+    await expect(buildingRows(page).first()).toBeVisible({ timeout: T.action });
     await expect(async () => {
       expect(new Set(await buildingIds(page))).toEqual(before);
-    }).toPass({ timeout: 60_000 });
+    }).toPass({ timeout: T.poll });
   });
 });

@@ -9,6 +9,7 @@ import {
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Energy from "./pages/Energy.tsx";
+import Contact from "./pages/Contact.tsx";
 import AggregatedView from "./pages/AggregatedView.tsx";
 import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
@@ -110,6 +111,19 @@ function EnergyWrapper({ session }: { session: Session }) {
 
 function AggregatedViewWrapper({ session }: { session: Session }) {
   return <AggregatedView session={session} />;
+}
+
+/** Resolve the `:webId` route param (URL-encoded) and render the agent detail view. */
+function ContactWrapper() {
+  const { webId = "" } = useParams();
+  if (!webId) {
+    return <Typography>No agent specified.</Typography>;
+  }
+  return (
+    <Container maxWidth="md" sx={{ py: 3 }}>
+      <Contact webId={decodeURIComponent(webId)} />
+    </Container>
+  );
 }
 
 /**
@@ -235,6 +249,10 @@ function App({ onLogout, session }: AppProps) {
         <Route
           path="/view/:viewId"
           element={<AggregatedViewWrapper session={session} />}
+        />
+        <Route
+          path="/contact/:webId"
+          element={<ContactWrapper />}
         />
         <Route
           path="/room/:roomUri"

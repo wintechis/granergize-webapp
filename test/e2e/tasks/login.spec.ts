@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Smoke tests that need NO login. The whole app sits behind the Solid login
@@ -13,7 +14,7 @@ test.describe("smoke (no login)", () => {
     // The app name (the login screen shows it once auth state has settled).
     await expect(
       page.getByRole("heading", { name: "Granergize App" }),
-    ).toBeVisible({ timeout: 20_000 });
+    ).toBeVisible({ timeout: T.visible });
 
     // The two recommended identity providers and the custom-provider input.
     await expect(
@@ -30,7 +31,7 @@ test.describe("smoke (no login)", () => {
     // guide was retired); the login screen must offer it.
     await page.goto("/");
     const link = page.getByRole("link", { name: /praxishandbuch/i });
-    await expect(link).toBeVisible({ timeout: 20_000 });
+    await expect(link).toBeVisible({ timeout: T.visible });
     await expect(link).toHaveAttribute("href", /granergize-handbuch\.(docx|pdf)$/);
   });
 });

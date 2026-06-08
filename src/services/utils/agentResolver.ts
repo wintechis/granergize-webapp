@@ -41,7 +41,7 @@ function firstObject(
 }
 
 /** The local name of a WebID (fragment after `#`, else the last path segment). */
-function webIdFragment(webId: string): string {
+export function webIdFragment(webId: string): string {
   const hash = webId.split("#")[1];
   if (hash) return hash;
   const path = webId.split("/").filter(Boolean);

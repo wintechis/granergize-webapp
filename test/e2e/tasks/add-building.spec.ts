@@ -3,6 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Building add + delete e2e (PROBLEMS.md #3). Self-cleaning: it adds its own
@@ -35,7 +36,7 @@ test.describe("building deletion", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
+    test.setTimeout(T.setup); // login (IdP + consent) can be slow / retried
     page = await newCapturedPage(browser, "add-building");
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
@@ -49,12 +50,12 @@ test.describe("building deletion", () => {
   });
 
   test("a building can be added and then deleted from Manage", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
 
     await page.getByRole("tab", { name: "Manage" }).click();
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
-    await expect(addBtn).toBeVisible({ timeout: 120_000 });
+    await expect(addBtn).toBeVisible({ timeout: T.action });
     await page.waitForLoadState("networkidle").catch(() => {}); // list settles
     const before = await buildingRows(page).count();
 
@@ -72,17 +73,17 @@ test.describe("building deletion", () => {
     await add.getByLabel(/longitude/i).fill("11.08");
     await add.getByRole("button", { name: /^Add Building$/ }).click();
     await expect(page.getByText(/building added/i))
-      .toBeVisible({ timeout: 120_000 });
+      .toBeVisible({ timeout: T.action });
 
     // It appears on Manage (closing the dialog refetches the list)…
     const row = page.locator("li", { hasText: ADDR });
-    await expect(row.first()).toBeVisible({ timeout: 60_000 });
+    await expect(row.first()).toBeVisible({ timeout: T.action });
 
     // …delete it, and the row disappears with the count back to the start.
     await row.first().getByRole("button", { name: "Delete building" }).click();
     await expect(page.getByText("Building deleted").first())
-      .toBeVisible({ timeout: 90_000 });
-    await expect(row).toHaveCount(0, { timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
+    await expect(row).toHaveCount(0, { timeout: T.action });
     await expect(buildingRows(page)).toHaveCount(before);
   });
 });

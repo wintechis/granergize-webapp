@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { T } from "./timeouts.ts";
 
 /**
  * Best-effort: delete every data room this account OWNS, leaving the Pod's room
@@ -24,7 +25,7 @@ export async function deleteAllOwnedRooms(page: Page): Promise<void> {
       if (remaining === 0) return;
       await deleteButtons.first().click();
       // Wait for this delete to take effect (one fewer button) before the next.
-      await expect(deleteButtons).toHaveCount(remaining - 1, { timeout: 45_000 });
+      await expect(deleteButtons).toHaveCount(remaining - 1, { timeout: T.action });
     }
   } catch {
     // Cleanup is best-effort; never let it fail the run.
@@ -56,7 +57,7 @@ export async function removeAllBookmarkedRooms(page: Page): Promise<void> {
       const remaining = await removeButtons.count();
       if (remaining === 0) return;
       await removeButtons.first().click();
-      await expect(removeButtons).toHaveCount(remaining - 1, { timeout: 45_000 });
+      await expect(removeButtons).toHaveCount(remaining - 1, { timeout: T.action });
     }
   } catch {
     // Cleanup is best-effort; never let it fail the run.

@@ -10,6 +10,7 @@ import {
 } from "../helpers/connect.ts";
 import { addBuilding, addEnergyYear, shareByRole } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * End-to-end building sharing across TWO throwaway Solid Pods, in ONE test (the
@@ -42,7 +43,7 @@ test.describe("sharing across two pods", () => {
   test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
   test("A shares a building by role; B sees it under Buildings shared with you", async ({ browser }) => {
-    test.setTimeout(600_000);
+    test.setTimeout(T.testSharing);
     // A and B's first logins are independent (B only needs A's room URI to JOIN,
     // not to log in), so run both ~50 s OIDC flows concurrently — one login's
     // wall-clock instead of two.
@@ -76,9 +77,9 @@ test.describe("sharing across two pods", () => {
       await a.page.getByRole("tab", { name: "Manage" }).click();
       const sharedRow = a.page.locator("li", { hasText: STREET }).first();
       await expect(sharedRow.getByText(/shared with/i))
-        .toBeVisible({ timeout: 60_000 });
+        .toBeVisible({ timeout: T.action });
       await expect(sharedRow.getByRole("button", { name: "Revoke access" }).first())
-        .toBeVisible({ timeout: 60_000 });
+        .toBeVisible({ timeout: T.action });
 
       // ── 2 s cooldown between the write part and the read part ──
       await a.page.waitForTimeout(2000);
@@ -92,7 +93,7 @@ test.describe("sharing across two pods", () => {
         });
         try {
           await expect(received.getByText(/^Building /))
-            .toBeVisible({ timeout: 120_000 });
+            .toBeVisible({ timeout: T.action });
         } catch (timeout) {
           b2.guard.assertNoAppErrors();
           throw timeout;
@@ -111,7 +112,7 @@ test.describe("sharing across two pods", () => {
           if (await row.count()) {
             await row.getByRole("button", { name: "Delete building" }).click();
             await expect(a.page.getByText("Building deleted").first())
-              .toBeVisible({ timeout: 90_000 });
+              .toBeVisible({ timeout: T.action });
           }
           await deleteAllOwnedRooms(a.page);
         }
@@ -142,7 +143,7 @@ test.describe("sharing across two pods", () => {
   const WITHHELD_YEAR = "2098";
 
   test("A shares one year of energy; B sees that year but not the withheld one", async ({ browser }) => {
-    test.setTimeout(600_000);
+    test.setTimeout(T.longOp);
     // Clean START is free: a Tier-4 run gets a fresh per-run collection, Tier 3 a
     // freshly-restarted CSS. The spec wipes BOTH pods at the END instead.
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
@@ -175,7 +176,7 @@ test.describe("sharing across two pods", () => {
         // B owns no buildings (none seeded), so the shared one is the only marker.
         await b2.page.getByRole("tab", { name: "Explore" }).click();
         const markers = b2.page.locator(".leaflet-marker-icon");
-        await expect(markers.first()).toBeVisible({ timeout: 120_000 });
+        await expect(markers.first()).toBeVisible({ timeout: T.action });
         await b2.page.waitForTimeout(1500); // let the map settle so clicks register
 
         // Open the building's detail pane → Energy tab (InvestorEnergy per-year table).
@@ -194,7 +195,7 @@ test.describe("sharing across two pods", () => {
           const grantedRow = b2.page.getByRole("row", {
             name: new RegExp(SHARED_YEAR),
           });
-          await expect(grantedRow).toBeVisible({ timeout: 60_000 });
+          await expect(grantedRow).toBeVisible({ timeout: T.action });
           await expect(grantedRow.getByText("22.222")).toBeVisible();
           // ...the withheld year's dataset 403s for B, so it never appears.
           await expect(
@@ -217,7 +218,7 @@ test.describe("sharing across two pods", () => {
           if (await row.count()) {
             await row.getByRole("button", { name: "Delete building" }).click();
             await expect(a.page.getByText("Building deleted").first())
-              .toBeVisible({ timeout: 90_000 });
+              .toBeVisible({ timeout: T.action });
           }
           await deleteAllOwnedRooms(a.page);
         }
@@ -244,7 +245,7 @@ test.describe("sharing across two pods", () => {
   const STREET_D = "Entfernweg 3";
 
   test("A deletes a shared building; B no longer sees it under Buildings shared with you", async ({ browser }) => {
-    test.setTimeout(600_000);
+    test.setTimeout(T.testSharing);
     // Clean START is free: a Tier-4 run gets a fresh per-run collection, Tier 3 a
     // freshly-restarted CSS. The spec wipes BOTH pods at the END instead.
     const [a, b1] = await freshPagesParallel(browser, [A, B]);
@@ -274,7 +275,7 @@ test.describe("sharing across two pods", () => {
           b.page.getByRole("list", { name: /buildings shared with you/i });
         try {
           await expect(received().getByText(/^Building /))
-            .toBeVisible({ timeout: 120_000 });
+            .toBeVisible({ timeout: T.action });
         } catch (timeout) {
           b.guard.assertNoAppErrors();
           throw timeout;
@@ -285,7 +286,7 @@ test.describe("sharing across two pods", () => {
         const row = a.page.locator("li", { hasText: STREET_D }).first();
         await row.getByRole("button", { name: "Delete building" }).click();
         await expect(a.page.getByText("Building deleted").first())
-          .toBeVisible({ timeout: 90_000 });
+          .toBeVisible({ timeout: T.action });
         await a.page.waitForTimeout(2000); // let the revocation settle
 
         // ── B reloads → readInbox drains the revocation → it folds out ──
@@ -295,7 +296,7 @@ test.describe("sharing across two pods", () => {
           // B owned nothing else, so the received list must have no building rows.
           await expect(async () => {
             expect(await received().getByText(/^Building /).count()).toBe(0);
-          }).toPass({ timeout: 120_000 });
+          }).toPass({ timeout: T.poll });
         } catch (timeout) {
           b.guard.assertNoAppErrors();
           throw timeout;

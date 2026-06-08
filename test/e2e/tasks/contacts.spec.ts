@@ -3,6 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Agent management e2e — the contacts address book + auto-remember. MUI page
@@ -42,7 +43,7 @@ test.describe("contacts address book + auto-remember", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
+    test.setTimeout(T.setup); // login (IdP + consent) can be slow / retried
     page = await newCapturedPage(browser, "contacts");
     page.on("dialog", (d) => d.accept().catch(() => {})); // delete-building confirm
     await login(page, ACC);
@@ -56,12 +57,12 @@ test.describe("contacts address book + auto-remember", () => {
     // Bounded well under Playwright's 30s afterAll-hook budget so a slow/dead
     // substrate can't blow the hook (the building is throwaway either way).
     try {
-      await page.getByRole("tab", { name: "Manage" }).click({ timeout: 8_000 });
+      await page.getByRole("tab", { name: "Manage" }).click({ timeout: T.quick });
       const row = buildingRows(page).filter({ hasText: ADDR }).first();
       if (await row.count()) {
         await row.getByRole("button", { name: "Delete building" })
-          .click({ timeout: 8_000 });
-        await expect(row).toHaveCount(0, { timeout: 12_000 });
+          .click({ timeout: T.quick });
+        await expect(row).toHaveCount(0, { timeout: T.quick });
       }
     } catch { /* leave it — throwaway collection */ }
     await verifyAndReset(page, "contacts");
@@ -69,33 +70,33 @@ test.describe("contacts address book + auto-remember", () => {
   });
 
   test("a contact can be added by WebID and removed", async () => {
-    test.setTimeout(120_000);
+    test.setTimeout(T.testSolo);
     await page.getByRole("tab", { name: "Connect" }).click();
 
     await page.getByLabel("WebID", { exact: true }).fill(CONTACT);
     await page.getByRole("button", { name: "Add contact" }).click();
-    await expect(page.getByText(/contact added/i)).toBeVisible({ timeout: 30_000 });
+    await expect(page.getByText(/contact added/i)).toBeVisible({ timeout: T.action });
 
     const row = contactsList(page).locator("li", { hasText: "DirectCarol" });
-    await expect(row).toBeVisible({ timeout: 30_000 });
+    await expect(row).toBeVisible({ timeout: T.action });
 
     await row.getByRole("button", { name: "Remove contact" }).click();
-    await expect(row).toHaveCount(0, { timeout: 30_000 });
+    await expect(row).toHaveCount(0, { timeout: T.action });
   });
 
   test("a building's operatedBy WebID is auto-remembered as a contact", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
 
     // Add a building, then set its operator on the Edit dialog and save — the
     // save fires rememberAgent(operatedBy) fire-and-forget.
     await addBuilding(page, ADDR);
     const row = buildingRows(page).filter({ hasText: ADDR }).first();
-    await expect(row).toBeVisible({ timeout: 60_000 });
+    await expect(row).toBeVisible({ timeout: T.action });
 
     await row.getByRole("button", { name: "Edit building" }).click();
     const dialog = page.getByRole("dialog");
     const operatedBy = dialog.getByLabel("Operated by (WebID)");
-    await expect(operatedBy).toBeVisible({ timeout: 15_000 });
+    await expect(operatedBy).toBeVisible({ timeout: T.visible });
     // <AgentField> is a MUI Autocomplete — type with real keystrokes (fill() can
     // be dropped by the controlled combobox), then dismiss the suggestion popup.
     await operatedBy.click();
@@ -104,7 +105,7 @@ test.describe("contacts address book + auto-remember", () => {
     await expect(operatedBy).toHaveValue(OPERATOR); // value stuck before saving
     await dialog.getByRole("button", { name: /save changes/i }).click();
     await expect(page.getByText(/building updated/i))
-      .toBeVisible({ timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
 
     // The operator shows up in Contacts on Connect (auto-remember is a fire-and-
     // forget resolve+write, so poll by re-opening the tab until it lands).
@@ -112,13 +113,13 @@ test.describe("contacts address book + auto-remember", () => {
       await page.getByRole("tab", { name: "Manage" }).click();
       await page.getByRole("tab", { name: "Connect" }).click();
       await expect(contactsList(page).locator("li", { hasText: "OperatorBob" }))
-        .toBeVisible({ timeout: 5_000 });
-    }).toPass({ timeout: 90_000 });
+        .toBeVisible({ timeout: T.quick });
+    }).toPass({ timeout: T.poll });
 
     // Remove the auto-remembered contact (the building is torn down in afterAll).
     await contactsList(page).locator("li", { hasText: "OperatorBob" })
       .getByRole("button", { name: "Remove contact" }).click();
     await expect(contactsList(page).locator("li", { hasText: "OperatorBob" }))
-      .toHaveCount(0, { timeout: 30_000 });
+      .toHaveCount(0, { timeout: T.action });
   });
 });

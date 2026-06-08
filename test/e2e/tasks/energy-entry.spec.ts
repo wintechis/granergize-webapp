@@ -3,6 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { addEnergyYear } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Energy per-year entry + planned/actual (Soll-Ist) e2e. Self-cleaning: it adds
@@ -43,7 +44,7 @@ test.describe("energy entry + Soll-Ist", () => {
   let id = "";
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000);
+    test.setTimeout(T.setup);
     page = await newCapturedPage(browser, "energy-entry");
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
@@ -54,7 +55,7 @@ test.describe("energy entry + Soll-Ist", () => {
     await page.getByRole("tab", { name: "Manage" }).click();
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
-    await expect(addBtn).toBeVisible({ timeout: 120_000 });
+    await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
     await add.getByLabel("Template").click();
@@ -67,11 +68,11 @@ test.describe("energy entry + Soll-Ist", () => {
     await add.getByLabel(/longitude/i).fill("11.08");
     await add.getByRole("button", { name: /^Add Building$/ }).click();
     await expect(page.getByText(/building added/i))
-      .toBeVisible({ timeout: 120_000 });
+      .toBeVisible({ timeout: T.action });
 
     // Capture its (generated, non-numeric) id from the Manage row.
     const row = page.locator("li", { hasText: ADDR }).first();
-    await expect(row).toBeVisible({ timeout: 60_000 });
+    await expect(row).toBeVisible({ timeout: T.action });
     id = (await row.textContent())?.match(/Building (\S+)/)?.[1] ?? "";
     expect(id, "the added building's id").toBeTruthy();
   });
@@ -80,7 +81,7 @@ test.describe("energy entry + Soll-Ist", () => {
     // The delete below waits up to 90 s for its toast, so the default 30 s hook
     // budget is too tight — give it room, else a slow delete fails teardown even
     // though the test body passed.
-    test.setTimeout(120_000);
+    test.setTimeout(T.afterAll);
     // Delete the building → removes its energy subtree, so the year doesn't leak.
     try {
       if (!page.isClosed()) {
@@ -93,7 +94,7 @@ test.describe("energy entry + Soll-Ist", () => {
         if (await row.count()) {
           await row.getByRole("button", { name: "Delete building" }).click();
           await expect(page.getByText("Building deleted").first())
-            .toBeVisible({ timeout: 90_000 });
+            .toBeVisible({ timeout: T.action });
         }
       }
     } catch {
@@ -105,25 +106,25 @@ test.describe("energy entry + Soll-Ist", () => {
   });
 
   test("enter both an actual and a planned figure for a year", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
     await addEnergyYear(page, ADDR, YEAR, "88888", /^Actual$/);
     await addEnergyYear(page, ADDR, YEAR, "70000", /^Planned/); // "Planned (Soll)"
   });
 
   test("the actual figure flows into the building's energy view", async () => {
-    test.setTimeout(120_000);
+    test.setTimeout(T.testSolo);
     // 2099 is the building's only/latest actual year, so loadEnergy surfaces our
     // electricity figure (de-DE formatted "88.888,00") in the energy-need table.
     await page.goto(`/#/energy/${id}`);
     await expect(page.getByText("88.888,00").first())
-      .toBeVisible({ timeout: 90_000 });
+      .toBeVisible({ timeout: T.action });
     // The migrated chart is a Recharts SVG (not a canvas) — assert it draws.
     await expect(page.locator("svg.recharts-surface").first())
-      .toBeVisible({ timeout: 90_000 });
+      .toBeVisible({ timeout: T.action });
   });
 
   test("the planned (Soll) figure shows beside actual in the comparison", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
     // The Soll-Ist comparison renders only in the map's Energy tab
     // (InvestorEnergy), not the standalone /energy route — so drive the map:
     // return to the app shell, select the (only) building marker, open Energy.
@@ -132,12 +133,12 @@ test.describe("energy entry + Soll-Ist", () => {
     await page.goto("/#/");
     await page.getByRole("tab", { name: "Explore" }).click();
     const marker = page.locator("img.leaflet-marker-icon").first();
-    await expect(marker).toBeVisible({ timeout: 90_000 });
+    await expect(marker).toBeVisible({ timeout: T.action });
     await marker.click({ force: true });
     await page.getByRole("tab", { name: "Energy data" }).click();
     // hasPlanned adds a "<metric> (planned)" series to the chart legend — its
     // presence proves the entered planned dataset flowed back into the comparison.
     await expect(page.getByText(/\(planned\)/).first())
-      .toBeVisible({ timeout: 90_000 });
+      .toBeVisible({ timeout: T.action });
   });
 });

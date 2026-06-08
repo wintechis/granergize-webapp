@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { T } from "./timeouts.ts";
 
 /**
  * Manage-tab building/view helpers shared across the building/excel/sharing specs
@@ -26,7 +27,7 @@ export async function addBuilding(page: Page, street: string): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
   await page.getByRole("button", { name: /^add building$/i }).first().click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Template")).toBeVisible({ timeout: 15_000 });
+  await expect(dialog.getByLabel("Template")).toBeVisible({ timeout: T.visible });
   await dialog.getByLabel("Template").click();
   await page.getByRole("option", { name: "User" }).click();
   await dialog.getByLabel(/street address/i).fill(street);
@@ -36,7 +37,7 @@ export async function addBuilding(page: Page, street: string): Promise<void> {
   await dialog.getByLabel(/latitude/i).fill("49.45");
   await dialog.getByLabel(/longitude/i).fill("11.08");
   await dialog.getByRole("button", { name: /^add building$/i }).click();
-  await expect(dialog).toBeHidden({ timeout: 30_000 });
+  await expect(dialog).toBeHidden({ timeout: T.action });
 }
 
 /**
@@ -54,7 +55,7 @@ export async function addEnergyYear(
 ): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
   const row = page.locator("li", { hasText: street }).first();
-  await expect(row).toBeVisible({ timeout: 120_000 });
+  await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Add or edit energy year" }).click();
   // The dialog's accessible name contains "year", so target inputs by exact
   // label / role to avoid matching the dialog itself.
@@ -65,7 +66,7 @@ export async function addEnergyYear(
     .fill(electricity);
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Energy data saved").first())
-    .toBeVisible({ timeout: 45_000 });
+    .toBeVisible({ timeout: T.action });
 }
 
 /**
@@ -81,11 +82,11 @@ export async function shareByRole(
   await page.getByRole("tab", { name: "Manage" }).click();
   await page.waitForLoadState("networkidle").catch(() => {});
   const row = page.locator("li", { hasText: street }).first();
-  await expect(row).toBeVisible({ timeout: 30_000 });
+  await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Share building data" }).click();
 
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible({ timeout: 10_000 });
+  await expect(dialog).toBeVisible({ timeout: T.quick });
   await dialog.getByRole("button", { name: /by role/i }).click();
   await dialog.getByLabel("Role").click();
   await page.getByRole("option", { name: "User" }).click();
@@ -104,11 +105,11 @@ export async function shareByRole(
   const confirm = dialog.getByRole("button", { name: /confirm share/i });
   await expect(async () => {
     await dialog.getByRole("button", { name: /review & share/i }).click();
-    await expect(confirm).toBeVisible({ timeout: 10_000 });
-  }).toPass({ timeout: 90_000 });
+    await expect(confirm).toBeVisible({ timeout: T.quick });
+  }).toPass({ timeout: T.poll });
   await confirm.click();
   await expect(dialog.getByText(/shared successfully/i))
-    .toBeVisible({ timeout: 120_000 });
+    .toBeVisible({ timeout: T.action });
   await dialog.getByRole("button", { name: /done/i }).click();
 }
 
@@ -120,18 +121,18 @@ export async function uploadBuildingFile(
 ): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
   const row = page.locator("li", { hasText: street }).first();
-  await expect(row).toBeVisible({ timeout: 30_000 });
+  await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Manage files" }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByRole("button", { name: "Add files" }))
-    .toBeVisible({ timeout: 15_000 });
+    .toBeVisible({ timeout: T.visible });
   await dialog.locator('input[type="file"]').setInputFiles(fixturePath, {
-    timeout: 30_000,
+    timeout: T.action,
   });
   const name = fixturePath.split("/").pop()!;
-  await expect(dialog.getByText(name)).toBeVisible({ timeout: 90_000 });
-  await dialog.getByRole("button", { name: /close/i }).click({ timeout: 15_000 });
-  await expect(dialog).toBeHidden({ timeout: 15_000 });
+  await expect(dialog.getByText(name)).toBeVisible({ timeout: T.action });
+  await dialog.getByRole("button", { name: /close/i }).click({ timeout: T.visible });
+  await expect(dialog).toBeHidden({ timeout: T.visible });
 }
 
 /** Share the building at `street` directly with a recipient WebID ("By WebID"). */
@@ -143,11 +144,11 @@ export async function shareByWebId(
   await page.getByRole("tab", { name: "Manage" }).click();
   await page.waitForLoadState("networkidle").catch(() => {});
   const row = page.locator("li", { hasText: street }).first();
-  await expect(row).toBeVisible({ timeout: 30_000 });
+  await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Share building data" }).click();
 
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible({ timeout: 10_000 });
+  await expect(dialog).toBeVisible({ timeout: T.quick });
   await dialog.getByRole("button", { name: /by webid/i }).click();
   // The recipient field is a multi free-solo Autocomplete: type the WebID and
   // press Enter to commit it as a chip (a plain fill doesn't register it).
@@ -158,11 +159,11 @@ export async function shareByWebId(
   const confirm = dialog.getByRole("button", { name: /confirm share/i });
   await expect(async () => {
     await dialog.getByRole("button", { name: /review & share/i }).click();
-    await expect(confirm).toBeVisible({ timeout: 10_000 });
-  }).toPass({ timeout: 90_000 });
+    await expect(confirm).toBeVisible({ timeout: T.quick });
+  }).toPass({ timeout: T.poll });
   await confirm.click();
   await expect(dialog.getByText(/shared successfully/i))
-    .toBeVisible({ timeout: 120_000 });
+    .toBeVisible({ timeout: T.action });
   await dialog.getByRole("button", { name: /done/i }).click();
 }
 
@@ -177,7 +178,7 @@ export async function ensureView(page: Page): Promise<void> {
 
   await page.getByRole("button", { name: /create view/i }).click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible({ timeout: 10_000 });
+  await expect(dialog).toBeVisible({ timeout: T.quick });
   // Investor template → annual buildings, metrics pre-selected, no month picker.
   await dialog.getByLabel("Role").click();
   await page.getByRole("option", { name: "Investor" }).click();
@@ -187,12 +188,12 @@ export async function ensureView(page: Page): Promise<void> {
   // rather than hanging on a click that waits out the whole test timeout.
   const firstBuilding = page.getByRole("option").first();
   await expect(firstBuilding, "an Investor building to add to the view")
-    .toBeVisible({ timeout: 15_000 });
+    .toBeVisible({ timeout: T.visible });
   await firstBuilding.click();
   await page.keyboard.press("Escape");
   await dialog.getByRole("button", { name: /create view/i }).click();
   await expect(page.getByText(/view created successfully/i))
-    .toBeVisible({ timeout: 60_000 });
+    .toBeVisible({ timeout: T.action });
 }
 
 /**

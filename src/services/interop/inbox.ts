@@ -1,7 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh, readStoreOrEmpty } from "../utils/podFetch.ts";
-import { putAcl } from "../utils/podWrite.ts";
+import { ensureContainer, putAcl } from "../utils/podWrite.ts";
 import { LDP_CONTAINS, LDP_INBOX } from "../utils/vocabularies.ts";
 import {
   APP_DIR,
@@ -57,9 +57,17 @@ export async function readInbox(session: Session) {
     null,
   ).map((q) => q.object.value).filter(isMessageResource);
 
+  // Create shared-in/ once, up front. Each appendSharingEvent below ensures its
+  // container, so without this the concurrent messages would all race to create
+  // shared-in/ on its first use (every one GETs 404, every one PUTs) — a duplicate
+  // create that a strict server rejects (e.g. JSS 409 "Cannot PUT to existing
+  // container") and a lenient one (CSS) silently absorbs. With the container in
+  // place the appends are plain POSTs into it, which ARE safe to run concurrently.
+  await ensureContainer(sharedIn, session);
+
   // Process each message fully (fetch → record in shared-in/ → delete) so a
-  // re-read doesn't reprocess it. Distinct event resources, so appends are safe
-  // to do concurrently.
+  // re-read doesn't reprocess it. Distinct event resources, so the appends below
+  // are safe to do concurrently.
   await Promise.all(messageUrls.map(async (messageUrl) => {
     const msgResponse = await fetchFresh(messageUrl, session);
     if (msgResponse.status !== 200) {

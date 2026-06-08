@@ -11,7 +11,7 @@ import {
 import { podResources } from "./solidUtils.ts";
 import { fetchFresh } from "./podFetch.ts";
 import { readModifyWrite } from "./podWrite.ts";
-import { resolveAgent } from "./agentResolver.ts";
+import { resolveAgent, webIdFragment } from "./agentResolver.ts";
 import { logError } from "./logError.ts";
 
 const { namedNode, literal } = DataFactory;
@@ -118,10 +118,20 @@ export function removeContact(
 }
 
 /**
- * Auto-remember a referenced agent: resolve its name/avatar then upsert a contact.
- * Best-effort (the book is only a cache) — failures are swallowed — and idempotent,
- * so it can fire-and-forget after every share / operatedBy save. A non-IRI value
- * (a free-text operator name, not a WebID) is ignored.
+ * Auto-remember a referenced agent: write the contact NOW with the WebID's fragment
+ * name, then upgrade it with the resolved `foaf:name`/avatar in the BACKGROUND.
+ *
+ * The split matters: resolving reads the agent's own profile, and an unreachable or
+ * slow host makes that fetch retry (transient-error backoff) for many seconds —
+ * blocking the contact's appearance if we awaited it. Writing the cache entry first
+ * (no network) makes the contact show immediately and resilient to a dead operator
+ * WebID; the resolve then refines the name when (if) the profile answers.
+ *
+ * Best-effort (the book is only a cache) — failures are swallowed — and idempotent
+ * (upsert by WebID), so it can fire-and-forget after every share / operatedBy save.
+ * A non-IRI value (a free-text operator name, not a WebID) is ignored. The returned
+ * promise settles after the immediate write, NOT the background upgrade — so a
+ * caller can invalidate its contacts query and see the entry right away.
  */
 export async function rememberAgent(
   session: Session,
@@ -129,9 +139,13 @@ export async function rememberAgent(
 ): Promise<void> {
   if (!/^https?:\/\//.test(webId)) return;
   try {
-    await addContact(session, await resolveAgent(webId, session));
+    await addContact(session, { webId, name: webIdFragment(webId) });
   } catch (err) {
     logError("remember agent in contacts cache", err);
-    // best-effort cache; ignore
+    return; // couldn't even write the cache entry — nothing to upgrade
   }
+  // Background: refine the name/avatar from the agent's profile if it resolves.
+  void resolveAgent(webId, session)
+    .then((resolved) => addContact(session, resolved))
+    .catch((err) => logError("upgrade remembered agent profile", err));
 }

@@ -15,6 +15,8 @@ import {
 } from "../services/utils/buildingSerializer.ts";
 import { formatError } from "../services/utils/formatError.ts";
 import { rememberAgent } from "../services/utils/contacts.ts";
+import { useQueryClient } from "@tanstack/react-query";
+import { queryKeys } from "../hooks/queries.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
 import { AgentField } from "./AgentField.tsx";
 import Modal from "./Modal.tsx";
@@ -108,6 +110,7 @@ export default function EditBuildingDialog(
   { open, building, session, onClose, onBuildingUpdated }: EditBuildingDialogProps,
 ) {
   const { showNotification } = useNotification();
+  const qc = useQueryClient();
   const initialFields = useMemo(() => buildingToFields(building), [building]);
   const [fields, setFields] = useState<Record<string, string>>(initialFields);
   const [saving, setSaving] = useState(false);
@@ -154,8 +157,13 @@ export default function EditBuildingDialog(
     setSaving(true);
     try {
       await updateBuilding(session, fileUri, building.uri as string, fields);
-      // Auto-remember a WebID operator in the address book (fire-and-forget).
-      if (fields.operatedBy) void rememberAgent(session, fields.operatedBy);
+      // Auto-remember a WebID operator in the address book (fire-and-forget), then
+      // refresh the contacts query so the new contact appears without a reload (the
+      // direct rememberAgent write bypasses the addContact mutation's invalidation).
+      if (fields.operatedBy) {
+        void rememberAgent(session, fields.operatedBy)
+          .then(() => qc.invalidateQueries({ queryKey: queryKeys.contacts }));
+      }
       showNotification("Building updated", "success");
       onBuildingUpdated();
       onClose();

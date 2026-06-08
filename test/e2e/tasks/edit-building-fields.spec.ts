@@ -3,6 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { T } from "../helpers/timeouts.ts";
 
 /**
  * Edit-building operating-costs + certifications e2e. Covers the Edit dialog's
@@ -36,7 +37,7 @@ test.describe("edit building operating costs + certifications", () => {
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
-    test.setTimeout(240_000); // login (IdP + consent) can be slow / retried
+    test.setTimeout(T.setup); // login (IdP + consent) can be slow / retried
     page = await newCapturedPage(browser, "edit-building-fields");
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
@@ -50,17 +51,17 @@ test.describe("edit building operating costs + certifications", () => {
   });
 
   test("operating costs + a certification persist through an edit", async () => {
-    test.setTimeout(180_000);
+    test.setTimeout(T.testSolo);
 
     await addBuilding(page, ADDR);
     const row = page.locator("li", { hasText: ADDR }).first();
-    await expect(row).toBeVisible({ timeout: 60_000 });
+    await expect(row).toBeVisible({ timeout: T.action });
 
     // Open the Edit dialog and confirm the new investor sections are present.
     await row.getByRole("button", { name: "Edit building" }).click();
     let dialog = page.getByRole("dialog");
     await expect(dialog.getByText("Operating costs", { exact: true }))
-      .toBeVisible({ timeout: 15_000 });
+      .toBeVisible({ timeout: T.visible });
     await expect(dialog.getByText("Certifications", { exact: true }))
       .toBeVisible();
 
@@ -70,24 +71,24 @@ test.describe("edit building operating costs + certifications", () => {
     await dialog.getByLabel("Level", { exact: true }).first().fill("Gold");
     await dialog.getByRole("button", { name: /save changes/i }).click();
     await expect(page.getByText(/building updated/i))
-      .toBeVisible({ timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
     await page.waitForLoadState("networkidle").catch(() => {}); // list refetch
 
     // Reopen Edit — the values must have round-tripped through the Pod's Turtle.
     await row.getByRole("button", { name: "Edit building" }).click();
     dialog = page.getByRole("dialog");
     await expect(dialog.getByLabel("Insurance", { exact: true }))
-      .toHaveValue("1200", { timeout: 15_000 });
+      .toHaveValue("1200", { timeout: T.visible });
     await expect(dialog.getByLabel(/^Type \(/).first()).toHaveValue("LEED");
     await expect(dialog.getByLabel("Level", { exact: true }).first())
       .toHaveValue("Gold");
     await dialog.getByRole("button", { name: /^cancel$/i }).click();
-    await expect(dialog).toBeHidden({ timeout: 15_000 });
+    await expect(dialog).toBeHidden({ timeout: T.visible });
 
     // Cleanup: delete the throwaway building.
     await row.getByRole("button", { name: "Delete building" }).click();
     await expect(page.getByText("Building deleted").first())
-      .toBeVisible({ timeout: 90_000 });
-    await expect(row).toHaveCount(0, { timeout: 60_000 });
+      .toBeVisible({ timeout: T.action });
+    await expect(row).toHaveCount(0, { timeout: T.action });
   });
 });
