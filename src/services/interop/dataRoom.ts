@@ -114,12 +114,18 @@ function toTurtle(
   );
 }
 
-/** Bookmarked room URLs (the "Your rooms" list). */
+/**
+ * Bookmarked room URLs (the "Your rooms" list).
+ * @operation query
+ */
 export function getKnownRooms(session: Session): Promise<string[]> {
   return readBookmarks(session);
 }
 
-/** The current room recorded on the Pod (source of truth for getActiveRoom). */
+/**
+ * The current room recorded on the Pod (source of truth for getActiveRoom).
+ * @operation query
+ */
 export async function getCurrentRoom(session: Session): Promise<string | null> {
   return (await readPrefs(session)).currentRoom;
 }
@@ -127,6 +133,7 @@ export async function getCurrentRoom(session: Session): Promise<string | null> {
 /**
  * Read both files, hydrate the in-memory current-room mirror, and return the
  * current room plus the bookmark list — the shape the room UI consumes.
+ * @operation query
  */
 export async function readRooms(session: Session): Promise<RoomRegistry> {
   const [prefs, known] = await Promise.all([
@@ -137,7 +144,10 @@ export async function readRooms(session: Session): Promise<RoomRegistry> {
   return { known, current: prefs.currentRoom };
 }
 
-/** Load the Pod's current-room pointer into memory so getActiveRoom works. */
+/**
+ * Load the Pod's current-room pointer into memory so getActiveRoom works.
+ * @operation query
+ */
 export async function hydrateActiveRoom(
   session: Session,
 ): Promise<string | null> {
@@ -145,7 +155,10 @@ export async function hydrateActiveRoom(
   return activeRoom;
 }
 
-/** Add a room to the bookmarks list (deduped). Does NOT enter/join it. */
+/**
+ * Add a room to the bookmarks list (deduped). Does NOT enter/join it.
+ * @operation mutation
+ */
 export async function addKnownRoom(
   roomUrl: string,
   session: Session,
@@ -153,7 +166,10 @@ export async function addKnownRoom(
   await addBookmark(session, normalizeRoomUrl(roomUrl));
 }
 
-/** Remove a room from bookmarks (and clear the current pointer if it was current). */
+/**
+ * Remove a room from bookmarks (and clear the current pointer if it was current).
+ * @operation mutation
+ */
 export async function removeKnownRoom(
   roomUrl: string,
   session: Session,
@@ -169,6 +185,7 @@ export async function removeKnownRoom(
 /**
  * Enter a room (single membership): leave whatever room you're in, join this
  * one, bookmark it, and make it the current room (persisted + in memory).
+ * @operation mutation
  */
 export async function enterRoom(
   roomUrl: string,
@@ -195,7 +212,10 @@ export async function enterRoom(
   activeRoom = room;
 }
 
-/** Leave the current room: stop membership, clear the pointer, keep the bookmark. */
+/**
+ * Leave the current room: stop membership, clear the pointer, keep the bookmark.
+ * @operation mutation
+ */
 export async function exitRoom(
   roomUrl: string,
   session: Session,
@@ -208,7 +228,10 @@ export async function exitRoom(
   if (activeRoom === room) activeRoom = null;
 }
 
-/** Whether `roomUrl` resolves to a reachable resource (used to validate input). */
+/**
+ * Whether `roomUrl` resolves to a reachable resource (used to validate input).
+ * @operation query
+ */
 export async function roomExists(
   roomUrl: string,
   session: Session,
@@ -240,6 +263,7 @@ export function extractRoomUrl(input: string): string {
  * Open a room: accept a raw URI or an invite link, validate it's reachable, then
  * enter it (leave your previous room, join this one, bookmark it, make it
  * current). Returns false if the room is not reachable.
+ * @operation mutation
  */
 export async function openRoom(
   input: string,
@@ -379,6 +403,7 @@ function deriveState(
  * mutations (set authoritatively, never refetched, so a slow/stale read-back
  * can't revert a switch), while this log refetches — keyed on the current room —
  * for members and roles.
+ * @operation query
  */
 export async function getRoomLogState(
   session: Session,
@@ -393,6 +418,7 @@ export async function getRoomLogState(
  * The current data room members: agents whose latest membership event is
  * "joined". Roles are attached from the (independent) role stream and may be
  * empty for a member who has not assigned a role.
+ * @operation query
  */
 export async function getMembers(
   roomUrl: string | null,
@@ -409,6 +435,7 @@ export async function getMembers(
  * recipient authorization carrying the owner's own `acl:agent`, which a later
  * revoke would then strip along with the owner's full-control block, locking the
  * owner out of their own resource (Tier-4 meisdata run; see `removeFromACL`).
+ * @operation query
  */
 export async function getMembersByRole(
   roomUrl: string | null,
@@ -426,6 +453,7 @@ export async function getMembersByRole(
  * The roles the logged-in user has self-assigned in `roomUrl`. Independent of
  * membership — reflects the role stream only, so it can be non-empty for someone
  * who has left, or empty for a current member.
+ * @operation query
  */
 export async function getMyRole(
   roomUrl: string | null,
@@ -436,7 +464,10 @@ export async function getMyRole(
   return deriveState(await readLog(roomUrl, session), webId).myRoles;
 }
 
-/** Whether the logged-in user is currently a member of `roomUrl`. */
+/**
+ * Whether the logged-in user is currently a member of `roomUrl`.
+ * @operation query
+ */
 export async function getMyMembership(
   roomUrl: string | null,
   session: Session,
@@ -486,6 +517,7 @@ async function postEvent(
  * Append a role-assignment event recording the user's complete current role set
  * (the fold takes the latest). An empty `roles` clears the user's roles but does
  * NOT remove them from the room — use {@link leaveRoom} for that.
+ * @operation mutation
  */
 export async function setMyRole(
   roomUrl: string,
@@ -512,7 +544,10 @@ export async function setMyRole(
   await postEvent(roomUrl, store, session);
 }
 
-/** Append a membership event (joined/left) to `roomUrl`. */
+/**
+ * Append a membership event (joined/left) to `roomUrl`.
+ * @operation mutation
+ */
 async function setMembership(
   roomUrl: string,
   joined: boolean,
@@ -533,12 +568,18 @@ async function setMembership(
   await postEvent(roomUrl, store, session);
 }
 
-/** Add the logged-in user to `roomUrl` (no role required). */
+/**
+ * Add the logged-in user to `roomUrl` (no role required).
+ * @operation mutation
+ */
 export function joinRoom(roomUrl: string, session: Session): Promise<void> {
   return setMembership(roomUrl, true, session);
 }
 
-/** Remove the logged-in user from `roomUrl` (leaves role history intact). */
+/**
+ * Remove the logged-in user from `roomUrl` (leaves role history intact).
+ * @operation mutation
+ */
 export function leaveRoom(roomUrl: string, session: Session): Promise<void> {
   return setMembership(roomUrl, false, session);
 }
@@ -549,6 +590,7 @@ export function leaveRoom(roomUrl: string, session: Session): Promise<void> {
  * any authenticated agent read+append, so anyone can self-join. The creator is
  * auto-joined as a member. The room's identity is its (UUID) container URL.
  * Returns the new room URL.
+ * @operation mutation
  */
 export async function createRoom(session: Session): Promise<string> {
   const webId = session.info.webId;
@@ -608,6 +650,7 @@ export function ownsRoom(roomUrl: string, session: Session): boolean {
 /**
  * Delete a room you own: remove all its event resources, then its ACL, then the
  * container itself (LDP containers must be emptied before they can be deleted).
+ * @operation mutation
  */
 export async function deleteRoom(
   roomUrl: string,

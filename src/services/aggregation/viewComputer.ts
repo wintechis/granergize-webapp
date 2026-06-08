@@ -227,6 +227,7 @@ export interface BenchmarkOptions {
 
 /**
  * Compute aggregated values for a view definition
+ * @operation query
  */
 export async function computeAggregation(
   session: Session,
@@ -317,6 +318,7 @@ export async function computeAggregation(
 
 /**
  * Compute and store a snapshot for a view
+ * @operation mutation
  */
 export async function computeAndStoreSnapshot(
   session: Session,
@@ -337,6 +339,7 @@ export async function computeAndStoreSnapshot(
 
 /**
  * Refresh (recompute) an existing view snapshot
+ * @operation mutation
  */
 export async function refreshSnapshot(
   session: Session,
@@ -508,6 +511,7 @@ export function summarizeContributors(
  * carry the *sharer's* provenance, not benchmark_service_provider — so the BSP
  * create-view flow sources candidates here rather than from the owned-building
  * provenance filter.
+ * @operation query
  */
 export async function bspContributorBuildings(
   session: Session,

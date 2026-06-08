@@ -22,6 +22,7 @@ export interface SharedBuildingEntry {
  * Provenance comes from the shared file's PROV attribution; when the file carries
  * none, it falls back to the role the building was shared as. Throws on a non-ok
  * response (caller decides whether to surface or skip it).
+ * @operation query
  */
 export async function loadSharedBuilding(
   entry: SharedBuildingEntry,

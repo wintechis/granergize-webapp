@@ -46,6 +46,7 @@ const bookNode = (url: string) => namedNode(`${url}#book`);
  * Read the address book. Folds `vcard:hasMember` (the WebIDs) with each member's
  * cached `vcard:fn`/`vcard:hasPhoto`. A missing file yields an empty list (created
  * on first {@link addContact}), exactly like {@link readPrefs}.
+ * @operation query
  */
 export async function readContacts(session: Session): Promise<Contact[]> {
   const webId = session.info.webId;
@@ -87,6 +88,7 @@ function mutateContacts(
 /**
  * Add (or update) a contact. Idempotent: re-adding the same WebID replaces its
  * cached name/photo rather than duplicating — so auto-remember can fire freely.
+ * @operation mutation
  */
 export function addContact(
   session: Session,
@@ -105,7 +107,10 @@ export function addContact(
   });
 }
 
-/** Remove a contact: drops its membership and cached vCard fields. */
+/**
+ * Remove a contact: drops its membership and cached vCard fields.
+ * @operation mutation
+ */
 export function removeContact(
   session: Session,
   webId: string,
@@ -132,6 +137,7 @@ export function removeContact(
  * A non-IRI value (a free-text operator name, not a WebID) is ignored. The returned
  * promise settles after the immediate write, NOT the background upgrade — so a
  * caller can invalidate its contacts query and see the entry right away.
+ * @operation mutation
  */
 export async function rememberAgent(
   session: Session,

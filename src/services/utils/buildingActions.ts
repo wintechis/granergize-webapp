@@ -19,6 +19,7 @@ function buildingFileUri(building: BuildingType): string {
  *
  * Resource enumeration and storage-root resolution are best-effort: a listing or
  * root failure still yields a usable message, just with a coarser preview.
+ * @operation query
  */
 export async function buildBuildingDeletionPreview(
   session: Session,
@@ -65,6 +66,7 @@ export async function buildBuildingDeletionPreview(
  * `shared-out/` log records the revocation instead of dangling a grant for a
  * deleted resource. Revocation is best-effort per recipient and never blocks the
  * delete.
+ * @operation mutation
  */
 export async function deleteBuildingResource(
   session: Session,

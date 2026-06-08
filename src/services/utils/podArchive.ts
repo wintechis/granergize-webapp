@@ -117,6 +117,7 @@ export interface ExportResult {
 /**
  * Fetch every resource under `granergize/` and pack it into a ZIP. The returned
  * bytes are ready to hand to a browser download. Throws if not logged in.
+ * @operation query
  */
 export async function exportArchive(
   session: Session,
@@ -210,6 +211,7 @@ export function inspectArchive(
  * needed containers, rebases textual bodies onto the target Pod (rewriting the
  * source WebID and storage root when they differ), then PUTs each resource with
  * its recorded content type. Throws if not logged in or the archive is malformed.
+ * @operation mutation
  */
 export async function importArchive(
   session: Session,

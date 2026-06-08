@@ -25,6 +25,11 @@ export interface ShareOptions {
   years?: number[];
 }
 
+/**
+ * Share a building with a recipient: apply the WAC grants, notify their inbox, and
+ * record the outgoing share in the `shared-out/` log.
+ * @operation mutation
+ */
 export async function shareBuildingData(
   buildingUri: string,
   webId: string,
@@ -62,6 +67,7 @@ export async function shareBuildingData(
  * with `acl:default`), a legacy cert outside `files/`, and — when energy is
  * included — each `gran:EnergyDataset` (restricted to `options.years` if given)
  * plus a series' daily-files container.
+ * @operation mutation
  */
 export async function applyBuildingGrant(
   buildingFile: string,
@@ -120,6 +126,7 @@ export interface ReissueResult {
  * doesn't live under this session's storage root are skipped (a cross-Pod restore
  * would need the IRIs rewritten first). Recipient-side state (their inbox /
  * `shared-in/`) is on the recipient's Pod and is intentionally untouched.
+ * @operation mutation
  */
 export async function reissueGrants(session: Session): Promise<ReissueResult> {
   const webId = session.info.webId;
@@ -159,7 +166,7 @@ async function postToInbox(
   options: ShareOptions,
 ) {
   // The inbox message IS a sharing event (the recipient archives it into their
-  // shared-in/ log on readInbox) — same shape as shared-out/.
+  // shared-in/ log on drainInbox) — same shape as shared-out/.
   await postSharingEventToInbox(webId, session, {
     type: "grant",
     owner: session.info.webId!,
@@ -179,6 +186,7 @@ async function postToInbox(
  *
  * When `years` is given, only datasets for those years are returned (per-year
  * sharing); absent ⇒ all years.
+ * @operation query
  */
 export async function getEnergyDataUrls(
   buildingUri: string,
@@ -215,7 +223,10 @@ export async function getEnergyDataUrls(
   return targets;
 }
 
-/** The building's energy-certificate file URL (`gran:hasEnergyCertificate`), or null. */
+/**
+ * The building's energy-certificate file URL (`gran:hasEnergyCertificate`), or null.
+ * @operation query
+ */
 export async function getEnergyCertificateUrl(
   buildingFileUri: string,
   session: Session,
@@ -245,6 +256,7 @@ export async function getEnergyCertificateUrl(
  * the owner out of their own resource.
  *
  * Exported for unit testing (the public `shareBuildingData` reaches it).
+ * @operation mutation
  */
 export async function grantReadAccess(
   resourceUri: string,
@@ -309,6 +321,7 @@ function writeAuthorization(
 /**
  * Share an aggregated view snapshot with another user
  * Only the computed snapshot is shared (not the view definition with building URIs)
+ * @operation mutation
  */
 export async function shareAggregatedView(
   snapshotUrl: string,

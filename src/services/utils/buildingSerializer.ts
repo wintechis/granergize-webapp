@@ -375,6 +375,7 @@ export function serializeBuildingToTurtle(
  * ensure the building links it via `gran:hasEnergyDataset`. The slug encodes the
  * (year, granularity, scenario), so re-saving the same one replaces it — used by
  * the per-year energy entry form (actual or planned/Soll figures).
+ * @operation mutation
  */
 export async function writeEnergyYear(
   session: Session,
@@ -495,6 +496,7 @@ export function annualDatasetsFromFields(
  *  - annual aggregates from the field map (one `<year>-P1Y.ttl` each), and
  *  - an optional 15-minute series (daily files under `<year>-PT15M/` + the
  *    located descriptor `<year>-PT15M.ttl`).
+ * @operation mutation
  */
 export async function writeBuildingEnergy(
   session: Session,
@@ -563,6 +565,11 @@ export async function writeBuildingEnergy(
   return links;
 }
 
+/**
+ * Upload a building Turtle file to the user's Pod (provisioning the `buildings/`
+ * container first), PUT-overwriting any existing file at the URI.
+ * @operation mutation
+ */
 export async function uploadBuilding(
   session: Session,
   buildingUri: string,
@@ -589,6 +596,7 @@ export async function uploadBuilding(
  * Patch scalar fields on an existing building Turtle file.
  * Fetches the current file, updates only the provided fields (preserving energy
  * observations and other complex blank-node structures), and PUTs it back.
+ * @operation mutation
  */
 export async function updateBuilding(
   session: Session,
@@ -661,6 +669,7 @@ export function newBuildingUri(webId: string, id: string): string {
  * removing the file de-registers it — there's no registry to update. Refuses to
  * touch resources outside the user's own Pod (e.g. a building shared from
  * another Pod), which must only be *hidden*.
+ * @operation mutation
  */
 export async function deleteBuilding(
   session: Session,
@@ -864,6 +873,7 @@ function demoSetForKind(kind?: UserRole | null): DemoSpec[] {
  * are geocoded at seed time; a building that can't be geocoded is still created (just
  * unmapped). Best-effort: failures are logged, never thrown, so a geocoder/network
  * hiccup can't block login.
+ * @operation mutation
  */
 export async function seedDemoBuildings(
   session: Session,

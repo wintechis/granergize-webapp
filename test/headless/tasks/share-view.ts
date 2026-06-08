@@ -6,7 +6,7 @@
  */
 import { restore, snapshot, type TaskContext } from "../taskContext.ts";
 import { shareAggregatedView } from "../../../src/services/interop/share.ts";
-import { readInbox } from "../../../src/services/interop/inbox.ts";
+import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
   getReceivedViews,
   revokeViewAccess,
@@ -31,7 +31,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     });
 
     await shareAggregatedView(snapshotUrl, b.webId, a.session);
-    await readInbox(b.session);
+    await drainInbox(b.session);
     let received = await getReceivedViews(b.session);
     check(
       "B sees the shared view",
@@ -42,7 +42,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     check("B can READ the snapshot (ACL granted)", bRead.ok, `HTTP ${bRead.status}`);
 
     await revokeViewAccess(snapshotUrl, b.webId, a.session);
-    await readInbox(b.session); // drain the revocation notice
+    await drainInbox(b.session); // drain the revocation notice
     received = await getReceivedViews(b.session);
     check(
       "B no longer sees the view after revoke",

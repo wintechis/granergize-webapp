@@ -67,6 +67,7 @@ const storageRootCache = new Map<string, string>();
  * Throws only if neither yields a root. (Previously: throw on missing `pim:storage`.)
  *
  * @returns the storage root URL with a trailing slash
+ * @operation query
  */
 export async function resolveStorageRoot(session: Session): Promise<string> {
   const webId = session.info.webId;
@@ -213,6 +214,7 @@ export function podResources(webId: string): {
  * direct profile fetch: `pim:storage` if present, else walk up to the
  * `pim:Storage`-typed container. Unlike {@link resolveStorageRoot} this is not
  * cached and not tied to the session's own WebID.
+ * @operation query
  */
 export async function resolveStorageRootForWebId(
   webId: string,

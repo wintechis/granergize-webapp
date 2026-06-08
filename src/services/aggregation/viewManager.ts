@@ -107,6 +107,7 @@ function generateViewId(): string {
 
 /**
  * Create a new aggregated view definition
+ * @operation mutation
  */
 export async function createViewDefinition(
   session: Session,
@@ -234,6 +235,7 @@ function parseViewDefinition(store: Store): AggregatedViewDefinition | null {
  * All view definitions for the current user, discovered by LISTING the `views/`
  * container (the top-level `*.ttl` resources; the `snapshots/` subfolder is
  * skipped) and parsing each. A missing container (fresh Pod) yields `[]`.
+ * @operation query
  */
 export async function getViewDefinitions(
   session: Session,
@@ -266,6 +268,7 @@ export async function getViewDefinitions(
 /**
  * A single view definition by ID — a direct read of `views/<viewId>.ttl` (no
  * need to list the whole container).
+ * @operation query
  */
 export async function getViewDefinition(
   session: Session,
@@ -289,6 +292,7 @@ export async function getViewDefinition(
 
 /**
  * Store a computed snapshot for a view
+ * @operation mutation
  */
 export async function storeComputedSnapshot(
   session: Session,
@@ -435,6 +439,7 @@ async function updateViewLastComputed(
 
 /**
  * Load a computed snapshot from URL
+ * @operation query
  */
 export async function loadComputedSnapshot(
   session: Session,
@@ -541,6 +546,7 @@ export async function loadComputedSnapshot(
  * log, load each snapshot, and keep the ones marked as a benchmark result. These
  * are what the energy view compares the owner's own figures against. Unreadable or
  * non-benchmark snapshots are dropped.
+ * @operation query
  */
 export async function getReceivedBenchmarks(
   session: Session,
@@ -558,6 +564,7 @@ export async function getReceivedBenchmarks(
 
 /**
  * Get computed snapshot for a view by view ID
+ * @operation query
  */
 export async function getComputedSnapshotByViewId(
   session: Session,
@@ -570,6 +577,7 @@ export async function getComputedSnapshotByViewId(
 
 /**
  * Delete a view definition and its snapshot
+ * @operation mutation
  */
 export async function deleteView(
   session: Session,

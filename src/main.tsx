@@ -22,7 +22,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { QueryProvider } from "./context/QueryProvider.tsx";
 import { queryKeys } from "./hooks/queries.ts";
-import { ensureOwnInbox, readInbox } from "./services/interop/inbox.ts";
+import { drainInbox, ensureOwnInbox } from "./services/interop/inbox.ts";
 import {
   clearRequestLog,
   instrumentSessionFetch,
@@ -103,7 +103,7 @@ function AppContent() {
     instrumentSessionFetch(authSession);
     setSession(authSession);
     try {
-      // readInbox builds Pod paths (shared-in/) via the synchronous
+      // drainInbox builds Pod paths (shared-in/) via the synchronous
       // getStorageRoot, which throws until the root is resolved. App's mount gate
       // resolves it too, but that runs AFTER this callback — so resolve it here
       // first (idempotent + cached, so the gate then no-ops).
@@ -115,8 +115,8 @@ function AppContent() {
       if (createdInbox) {
         showNotification("Set up your Granergize inbox on this Pod", "info");
       }
-      await readInbox(authSession);
-      // readInbox may have archived newly-granted shares into the user's
+      await drainInbox(authSession);
+      // drainInbox may have archived newly-granted shares into the user's
       // shared-in/ log; refresh the queries that fold it so they appear
       // (otherwise the cached read taken at mount would never reflect the grant).
       queryClient.invalidateQueries({ queryKey: queryKeys.sharedWithMe });

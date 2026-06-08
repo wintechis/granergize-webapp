@@ -113,6 +113,40 @@ why `vite.config.ts` sets `base: "./"` and routing uses `HashRouter`.
    come from `gran:hiddenBuilding` triples in `<appRoot>/prefs.ttl` (see `prefs.ts`;
    the old standalone `hiddenBuildings.ttl` was folded into prefs).
 
+### Operations — queries & mutations
+Following **Command–Query Separation**, every Pod operation is either a **query**
+(reads state, returns it, no side effect) or a **mutation** (changes state) — the
+vocabulary the data layer already uses (`src/hooks/queries.ts` vs
+`src/hooks/mutations.ts`). A function shaped like a query must not hide a mutation; the
+two known exceptions (`loadBuildings`, `drainInbox`) are documented in
+`notes/operations.md` (§Seams).
+
+Every Pod mutation uses one of **three mechanisms**, and the rule for which is:
+**event-source anything cross-agent or needing an audit trail / replay; overwrite
+single-writer owned state in place; treat enforcement artifacts as projections of
+the event log.** A new mutation should land in the right model *by this rule*, not by
+copying whatever the nearest function happened to do.
+- **Model 1 — event-sourced append.** Immutable events POSTed to an append-only LDP
+  container (server mints the child IRI, so concurrent appends never clobber),
+  *folded* on read to derive current state. The log is ground truth. Used for
+  cross-agent / auditable state: the `shared-out/` & `shared-in/` sharing logs, the
+  `rooms/<id>/` membership+role logs, the inbox notifications.
+- **Model 2 — in-place mutation.** GET → mutate → conditional PUT (`readModifyWrite`,
+  If-Match); the resource *is* the state, no history. Used for single-writer owned
+  data: building files & energy datasets, `prefs.ttl`/`bookmarks.ttl`/`contacts.ttl`,
+  view definitions/snapshots, the WebID profile/org node.
+- **Model 3 — ACL projection.** WAC `.acl` files are not ground truth; they are an
+  enforcement cache rebuilt from the `shared-out/` log (`reissueGrants` →
+  `applyBuildingGrant` → `grantReadAccess`/`removeFromACL`). Writes the `.acl` at the
+  call site but the authoritative record is the model-1 event — keep it replayable
+  (see Sharing/interop below).
+
+Orthogonally, mutations split by **trigger**: most are *user-intent* (a person decided);
+a few are *reconciliation* (system-initiated to make a projection match reality — the
+stale-grant prune in `loadBuildings`, the ACL rebuild in `reissueGrants`), which is why
+those legitimately live in query/restore paths. `notes/operations.md` is the full
+taxonomy, mapping each operation to its model.
+
 ### Roles, provenance & data-shape dispatch
 `UserRole` (`types/types.ts`) — `dummy | investor | user | benchmark_service_provider` —
 is used for three *separate* things; do not conflate them:

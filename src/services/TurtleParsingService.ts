@@ -209,6 +209,15 @@ async function listSharedBuildingSources(
  * buildings come from listing the `buildings/` container; buildings shared with
  * the user come from folding the `shared-in/` log. Fast enough to paint the map
  * immediately; energy streams in via {@link loadEnergy}.
+ *
+ * Pure on the happy path, but carries one *reconciliation* write: a shared source
+ * that 403/404s (access revoked since the grant) is pruned via
+ * {@link removeInaccessibleBuildingSources}, which appends a self-revocation to
+ * `shared-in/` so the next fold drops it. Best-effort (failures logged, never
+ * thrown) and only when a source actually fails — so the call performs no write
+ * when every source is accessible. See `notes/operations.md` (§Seams) for why this
+ * reconciliation write lives in the read path.
+ * @operation query
  */
 export async function loadBuildings(
   session: Session,
@@ -267,6 +276,7 @@ export async function loadBuildings(
  * *series* are skipped (lazy-loaded on click); the latest actual annual aggregate
  * is fetched and parsed into the building's energyNeed + the cross-building
  * averages. A pure function of the buildings it's given — no registry re-read.
+ * @operation query
  */
 export async function loadEnergy(
   session: Session,
@@ -409,6 +419,7 @@ export async function loadEnergy(
  * Two-phase orchestrator: phase 1 (buildings) then phase 2 (energy), with a
  * callback fired after phase 1. Used by the live harness and the offline tests;
  * the app drives the two phases as separate React Query queries instead.
+ * @operation query
  */
 export async function fetchAndParseData(
   session: Session,

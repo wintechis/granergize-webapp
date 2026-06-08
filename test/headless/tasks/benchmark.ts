@@ -15,7 +15,7 @@ import {
   shareAggregatedView,
   shareBuildingData,
 } from "../../../src/services/interop/share.ts";
-import { readInbox } from "../../../src/services/interop/inbox.ts";
+import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
   createViewDefinition,
   deleteView,
@@ -88,7 +88,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     // 2. Both share their building (incl. energy) with C, the BSP.
     await shareBuildingData(aUri, c.webId, a.session, { includeEnergyData: true });
     await shareBuildingData(bUri, c.webId, b.session, { includeEnergyData: true });
-    await readInbox(c.session); // archive both grants into C's shared-in/
+    await drainInbox(c.session); // archive both grants into C's shared-in/
 
     // 3. C folds the shared-with-me roster into the benchmark's building list.
     const { buildingUris, contributors } = await bspContributorBuildings(c.session);
@@ -132,7 +132,7 @@ export async function run(ctx: TaskContext): Promise<void> {
 
     // 5. C shares the benchmark snapshot back to contributor A.
     await shareAggregatedView(snapshotUrl, a.webId, c.session);
-    await readInbox(a.session); // archive the grant into A's shared-in/
+    await drainInbox(a.session); // archive the grant into A's shared-in/
 
     // 6. A reads the returned benchmark.
     const received = await getReceivedBenchmarks(a.session);

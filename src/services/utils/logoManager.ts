@@ -25,6 +25,7 @@ const AVATAR_PREDICATES = [FOAF_IMG, VCARD_HAS_PHOTO];
 /**
  * The avatar image URL for the person, or null if none. Prefers foaf:img, then
  * falls back to a profile photo (vcard:hasPhoto).
+ * @operation query
  */
 export async function getAvatarUrl(session: Session): Promise<string | null> {
   const webId = session.info.webId;
@@ -44,6 +45,7 @@ export async function getAvatarUrl(session: Session): Promise<string | null> {
 /**
  * Fetch the avatar (logo or profile photo) as an object URL for an <img src>,
  * or null. The caller revokes the returned URL when done.
+ * @operation query
  */
 export async function getAvatarObjectUrl(
   session: Session,

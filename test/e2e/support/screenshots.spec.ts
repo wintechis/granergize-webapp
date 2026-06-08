@@ -308,7 +308,7 @@ test.describe("handbuch screenshots", () => {
       await shareDialog.getByRole("button", { name: /done/i }).click();
 
       // Cooldown, then B drains its inbox by reloading (Login restores the
-      // session → readInbox archives the grant into shared-in/).
+      // session → drainInbox archives the grant into shared-in/).
       await page.waitForTimeout(COOLDOWN_MS);
       await b.page.reload();
       await b.page.getByRole("tab", { name: "Share" }).click();

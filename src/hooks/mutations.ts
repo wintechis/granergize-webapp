@@ -8,7 +8,7 @@ import {
   revokeViewAccess,
   toggleBuildingVisibility,
 } from "../services/interop/sharingManager.ts";
-import { readInbox } from "../services/interop/inbox.ts";
+import { drainInbox } from "../services/interop/inbox.ts";
 import {
   deleteView,
   getSnapshotUrl,
@@ -82,7 +82,7 @@ export function useDeleteBuilding() {
 export function useCheckInbox() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => readInbox(getSession()),
+    mutationFn: () => drainInbox(getSession()),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
       qc.invalidateQueries({ queryKey: queryKeys.receivedViews });

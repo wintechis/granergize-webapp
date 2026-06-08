@@ -12,7 +12,7 @@ import {
   getSharedWithMe,
   revokeAccess,
 } from "../../../src/services/interop/sharingManager.ts";
-import { readInbox } from "../../../src/services/interop/inbox.ts";
+import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import { uploadAttachment } from "../../../src/services/utils/attachmentManager.ts";
 import { parseBuildings } from "../../../src/services/utils/buildingParser.ts";
 import {
@@ -58,7 +58,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     await shareBuildingData(fileUri, b.webId, a.session, {
       includeEnergyData: false,
     });
-    await readInbox(b.session); // archive the grant into B's shared-in/
+    await drainInbox(b.session); // archive the grant into B's shared-in/
 
     const shared = await getSharedWithMe(b.session);
     check(

@@ -13,7 +13,7 @@ import {
   getSharedBuildings,
   getSharedWithMe,
 } from "../../../src/services/interop/sharingManager.ts";
-import { readInbox } from "../../../src/services/interop/inbox.ts";
+import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import { deleteBuildingResource } from "../../../src/services/utils/buildingActions.ts";
 import {
   newBuildingUri,
@@ -48,7 +48,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     );
     await uploadBuilding(a.session, uri, ttl, a.webId);
     await shareBuildingData(uri, b.webId, a.session, { includeEnergyData: false });
-    await readInbox(b.session);
+    await drainInbox(b.session);
     check("baseline: B sees the shared building", await bSeesIt());
 
     // A deletes the building through the real app path (revokes recipients first).
@@ -63,7 +63,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     );
 
     // Recipient side: after draining the inbox, the building folds out of B's list.
-    await readInbox(b.session);
+    await drainInbox(b.session);
     check("B no longer sees the building after the owner deletes it", !(await bSeesIt()));
 
     // And the resource really is gone (404 for B).

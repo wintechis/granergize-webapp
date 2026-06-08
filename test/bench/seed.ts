@@ -16,7 +16,7 @@ import {
 import { synthDayReadings } from "../../src/services/utils/energySeriesXlsx.ts";
 import { seriesContainerUrl } from "../../src/services/utils/energyDataset.ts";
 import { shareBuildingData } from "../../src/services/interop/share.ts";
-import { readInbox } from "../../src/services/interop/inbox.ts";
+import { drainInbox } from "../../src/services/interop/inbox.ts";
 import { appRoot, podResources } from "../../src/services/utils/solidUtils.ts";
 import { deleteContainerRecursive } from "../../src/services/utils/podDelete.ts";
 import { ensureContainer } from "../../src/services/utils/podWrite.ts";
@@ -153,10 +153,10 @@ export async function seedSharedBuildings(
   for (const s of seeded) {
     await shareBuildingData(s.uri, a.webId, b.session, { includeEnergyData: false });
   }
-  // readInbox folds the grants concurrently, each ensuring shared-in/ — pre-create
+  // drainInbox folds the grants concurrently, each ensuring shared-in/ — pre-create
   // it once so those folds don't race to create the container (409).
   await ensureContainer(podResources(a.webId).sharedIn, a.session);
-  await readInbox(a.session); // archive the grants into A's shared-in/
+  await drainInbox(a.session); // archive the grants into A's shared-in/
   return seeded;
 }
 
