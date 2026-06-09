@@ -11,8 +11,9 @@ import { T } from "../helpers/timeouts.ts";
  * The BSP benchmarking round-trip "in practice" (browser, THREE throwaway Pods):
  *
  *   • C (the benchmark service provider) declares its company kind;
- *   • A and B (two owners) each seed an annual `_bsp_*` building and share it (with
- *     energy) to C — so the benchmark aggregates across two distinct Pods;
+ *   • A and B (two investor owners) each share a DISTINCT investor building (with
+ *     annual energy) to C — a BSP owns no buildings, it benchmarks the ones shared
+ *     to it, and two different buildings make the average meaningful, not a copy;
  *   • C builds a benchmark VIEW from the shared-with-me roster (its picker shows
  *     BOTH contributors), computes it over both, and shares the snapshot back to the
  *     contributors via the "Add all contributors" affordance;
@@ -26,12 +27,20 @@ import { T } from "../helpers/timeouts.ts";
  * drained at login). Needs accounts A + B + C; skipped without them.
  */
 
-const STREET = "Andernacher Straße 30"; // the BSP demo building each owner shares
 const BENCH_VIEW = "E2E Benchmark";
 
 const A = account("A");
 const B = account("B");
 const C = account("C");
+
+// A BSP owns no buildings — it benchmarks buildings shared TO it. So the two
+// owners seed the *investor* demo and each shares a DIFFERENT building (distinct,
+// fixed energy → a meaningful, repeatable benchmark, not two identical copies).
+const OWNERS = [
+  { account: A, street: "Nordostpark 84" },
+  { account: B, street: "Fürther Straße 244" },
+];
+const STREET = OWNERS[0].street; // A's building — asserted on A's energy view below
 
 // Cross-Pod sharing needs interoperating providers (as in share-building); the
 // pair check covers A+B, and C is seeded on the same local server in Tier 3.
@@ -55,13 +64,14 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     }
     expect(cWebId, "C's WebID").toBeTruthy();
 
-    // ── A and B each seed their annual _bsp_* building and share it (with energy) to C ──
-    for (const owner of [A, B]) {
-      const o = await freshPage(browser, owner);
+    // ── A and B each seed the investor demo and share a DISTINCT building (with
+    //    energy) to C, so C benchmarks two different buildings, not two copies ──
+    for (const owner of OWNERS) {
+      const o = await freshPage(browser, owner.account);
       o.page.on("dialog", (d) => d.accept());
       try {
-        await ensureDemoBuildings(o.page, "benchmark_service_provider");
-        await shareByWebId(o.page, STREET, cWebId);
+        await ensureDemoBuildings(o.page, "investor");
+        await shareByWebId(o.page, owner.street, cWebId);
       } finally {
         await o.ctx.close();
       }

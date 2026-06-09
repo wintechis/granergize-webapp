@@ -452,7 +452,7 @@ Im Tab **Manage** unter „Your buildings" stehen zwei Wege zur Verfügung:
 - **Add Building:** Ein einzelnes Gebäude über das Formular erfassen (Adresse,
   Koordinaten, Fläche usw.). Über „Get coordinates" können die Koordinaten aus
   der Adresse automatisch ermittelt werden.
-- **Autofill from file:** Mehrere Gebäude auf einmal aus einer Excel-Vorlage
+- **Import from file:** Mehrere Gebäude auf einmal aus einer Excel-Vorlage
   importieren. Die eingelesenen Gebäude können Sie vor dem Speichern prüfen und
   anpassen; fehlende Koordinaten werden beim Import automatisch ergänzt.
 

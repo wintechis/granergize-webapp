@@ -86,6 +86,10 @@ export function useCheckInbox() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
       qc.invalidateQueries({ queryKey: queryKeys.receivedViews });
+      // receivedBenchmarks folds receivedViews (the benchmark subset); invalidate
+      // it too, else a newly-archived benchmark snapshot lags in the energy view's
+      // Benchmark column until the query is otherwise remounted.
+      qc.invalidateQueries({ queryKey: queryKeys.receivedBenchmarks });
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
     },
   });

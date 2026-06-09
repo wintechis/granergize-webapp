@@ -223,6 +223,8 @@ function AppContent() {
           >
             Granergize@IIS
           </Link>
+          {" · "}
+          {__APP_COMMIT__}
         </Typography>
       }
     >

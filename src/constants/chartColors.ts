@@ -35,3 +35,13 @@ export const MARKER_SELECTED_COLOR = "#FFD700";
  */
 export const ENERGY_BELOW_AVG_COLOR = "#a5d6a7"; // pale green
 export const ENERGY_ABOVE_AVG_COLOR = "#ef9a9a"; // pale red
+
+/**
+ * Map energy-lens marker palette. The three categories reuse the heat-map pair
+ * above (efficient = below-average green, inefficient = above-average red) plus
+ * a pale amber for the typical middle band; buildings with no usable energy /
+ * area figure fall back to a neutral grey. Kept beside the grid tints so the
+ * map and the energy comparison stay visually in step.
+ */
+export const ENERGY_TYPICAL_COLOR = "#ffcc80"; // pale amber
+export const MARKER_NO_DATA_COLOR = "#bdbdbd"; // neutral grey

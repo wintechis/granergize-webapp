@@ -55,18 +55,42 @@ export function useBuildings() {
 
 /** Phase 2: energy for the given buildings (dependent on phase 1).
  *
- * The key includes the building-set identity (sorted ids) so energy AUTO-refetches
- * whenever the building list changes — e.g. right after the demo seed adds buildings.
- * Without it the key was a constant `["energy", webId]`: energy computed once for the
- * then-current (often empty) list and never re-ran when buildings changed, so a newly
- * seeded/added building's energy view showed "No energy data available" until some
- * unrelated mutation happened to invalidate energy. `queryKeys.energy` (`["energy"]`)
+ * The key fingerprints what `loadEnergy` actually reads: each building's id PLUS
+ * its `gran:hasEnergyDataset` links (year/granularity/scenario per dataset). Keying
+ * on the id set alone under-covers the inputs — energy is folded from per-building
+ * dataset links, so a building that merely *gains* or *loses* a link (an energy year
+ * written/deleted on an existing building) leaves the id set unchanged, the key
+ * unchanged, and the bulk energy stale until something else invalidates it. That bit
+ * the map energy lens, whose categorisation wants every building's current energy at
+ * once right after a write (see `notes/query-key-coverage.md`). Folding the link
+ * fingerprint in makes the refetch fall out of the data, not out of each mutation
+ * remembering to invalidate. (It also still AUTO-refetches when the building set
+ * changes — e.g. the demo seed adding buildings.) `queryKeys.energy` (`["energy"]`)
  * still prefix-matches this key, so existing invalidations keep working. */
+/**
+ * The energy query's content fingerprint: each building's id PLUS its
+ * `gran:hasEnergyDataset` links (year/granularity/scenario), so the key changes
+ * whenever a dataset link is added/removed — not only when the building set does.
+ * Exported (and pure) so the coverage is unit-testable.
+ */
+export function energyKeyFor(buildings: BuildingType[] | undefined): string {
+  return (buildings ?? [])
+    .map((b) => {
+      const datasets = (b.energyDatasets ?? [])
+        .map((d) => `${d.year}-${d.granularity}-${d.scenario}`)
+        .sort()
+        .join(",");
+      return `${b.id}#${datasets}`;
+    })
+    .sort()
+    .join(";");
+}
+
 export function useEnergy(buildings: BuildingType[] | undefined) {
   const webId = webIdOf();
-  const buildingsKey = (buildings ?? []).map((b) => String(b.id)).sort().join(",");
+  const energyKey = energyKeyFor(buildings);
   return useQuery({
-    queryKey: ["energy", webId, buildingsKey],
+    queryKey: ["energy", webId, energyKey],
     enabled: Boolean(webId) && Boolean(buildings),
     queryFn: () => loadEnergy(getSession(), buildings ?? []),
   });

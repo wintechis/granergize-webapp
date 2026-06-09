@@ -81,6 +81,7 @@ const SOLO_SPECS = [
   "**/excel-export.spec.ts",
   "**/energy-entry.spec.ts",
   "**/view-data.spec.ts",
+  "**/map-energy-lens.spec.ts",
   "**/data-room.spec.ts",
   "**/building-details.spec.ts",
   "**/contacts.spec.ts",
@@ -96,6 +97,11 @@ const SHARING_SPECS = [
 
 export default defineConfig({
   testDir: "./test/e2e",
+  // Tier 3 only (self-gates on E2E_LOCAL): at run end, stop the throwaway Pod
+  // server via the control server's `POST /stop`, so its shutdown is owned by
+  // Playwright's lifecycle and it doesn't leak past the run. The server is spawned
+  // under `setsid`, so a process-tree kill on teardown wouldn't reap it.
+  globalTeardown: "./test/e2e-local/globalTeardown.ts",
   // Per-test traces go in a `traces/` subdir of the per-run dir, so the HTML report
   // can sit beside them as a sibling `html/` — Playwright errors if the HTML output
   // folder is inside (or contains) outputDir. Tier+backend+run scoped (see above).
@@ -180,11 +186,10 @@ export default defineConfig({
         // guarantees CSS is ready AND the per-spec `/reset` endpoint is up (no
         // first-spec race against seeding or against the control server).
         url: "http://localhost:3457/",
-        // The CSS/JSS is spawned under `setsid` (own session), so a run that never
-        // reaches Playwright's teardown (timeout/Ctrl-C/SIGKILL) orphans it, and
-        // `reuseExistingServer` would then adopt the orphan forever. The `e2e:local`
-        // task runs `test/e2e-local/reapStaleServers.ts` BEFORE Playwright to free
-        // the Tier-3 ports, so every run starts clean and tears down what it owns.
+        // Reuse a still-running control server (faster re-runs); the run's own
+        // `globalTeardown` stops it at the end via `POST /stop` (see above), so it
+        // doesn't leak. A leftover from a hard-killed earlier run is adopted here
+        // and then stopped by this run's teardown.
         reuseExistingServer: true,
         timeout: 90_000,
       }]

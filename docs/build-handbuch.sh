@@ -5,11 +5,16 @@
 # edits in Word). Both land in public/ so they ship with the app and can be
 # linked from the login screen.
 #
-#   deno task handbuch        # or: bash docs/build-handbuch.sh
+#   deno task handbuch        # this script: text → PDF/DOCX (fast, pandoc only)
+#   deno task handbuch:figures # recapture docs/figures/*.png (Playwright support run)
+#   deno task handbuch:full    # figures, then the build — a fully fresh handbuch
 #
-# Requires pandoc and (for the PDF) a LaTeX engine (xelatex). The screenshots
-# referenced by the handbuch live in docs/figures/ and are produced by
-# e2e/screenshots.spec.ts.
+# This script does NOT capture screenshots; it embeds whatever PNGs are already in
+# docs/figures/. Those app screenshots are recaptured by the `support` Playwright
+# project (test/e2e/support/screenshots.spec.ts) — run `handbuch:figures` after a
+# UI change, or `handbuch:full` to refresh figures and rebuild in one step.
+#
+# Requires pandoc and (for the PDF) a LaTeX engine (xelatex).
 set -euo pipefail
 cd "$(dirname "$0")/.."
 

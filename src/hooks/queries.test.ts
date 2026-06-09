@@ -6,12 +6,14 @@ import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
+  energyKeyFor,
   useBuildings,
   useEnergy,
   useResolveOrgLogo,
   useSolidData,
 } from "./queries.ts";
-import { useToggleVisibility } from "./mutations.ts";
+import type { BuildingType } from "../types.ts";
+import { useCheckInbox, useToggleVisibility } from "./mutations.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/utils/solidUtils.ts";
 import { _resetProfileCacheForTesting } from "../services/utils/profileDocument.ts";
@@ -124,6 +126,38 @@ Deno.test("useSolidData merges phase-1 buildings + phase-2 energy", async () => 
   }
 });
 
+Deno.test("energyKeyFor changes when a building's dataset links change (not only its id set)", () => {
+  const mk = (id: number, datasets: BuildingType["energyDatasets"]): BuildingType =>
+    ({ id, uri: `urn:b${id}`, energyDatasets: datasets } as BuildingType);
+
+  // Same building set, but one building gains an energy-dataset link: the key
+  // MUST change, else the bulk energy read stays stale after an energy write.
+  const before = energyKeyFor([mk(1, []), mk(2, [])]);
+  const after = energyKeyFor([
+    mk(1, [{ url: "u", year: 2099, granularity: "P1Y", scenario: "actual" }]),
+    mk(2, []),
+  ]);
+  assert.notEqual(before, after);
+
+  // Stable under building order and dataset order (so it doesn't churn spuriously).
+  const a = energyKeyFor([
+    mk(2, []),
+    mk(1, [
+      { url: "u", year: 2099, granularity: "P1Y", scenario: "actual" },
+      { url: "v", year: 2098, granularity: "P1Y", scenario: "planned" },
+    ]),
+  ]);
+  const b = energyKeyFor([
+    mk(1, [
+      { url: "v", year: 2098, granularity: "P1Y", scenario: "planned" },
+      { url: "u", year: 2099, granularity: "P1Y", scenario: "actual" },
+    ]),
+    mk(2, []),
+  ]);
+  assert.equal(a, b);
+  assert.equal(energyKeyFor(undefined), "");
+});
+
 Deno.test("useEnergy is disabled until buildings are provided", () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession());
@@ -189,6 +223,33 @@ Deno.test("useToggleVisibility invalidates the shared-with-me query", async () =
       invalidated.some((k) => Array.isArray(k) && k[0] === "sharedWithMe"),
       "sharedWithMe was invalidated",
     );
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useCheckInbox invalidates the received-benchmarks fold (not just received-views)", async () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession());
+  const { client, wrapper } = makeWrapper();
+  const invalidated: unknown[] = [];
+  const orig = client.invalidateQueries.bind(client);
+  client.invalidateQueries = ((arg: Parameters<typeof orig>[0]) => {
+    invalidated.push((arg as { queryKey?: unknown } | undefined)?.queryKey);
+    return orig(arg);
+  }) as typeof client.invalidateQueries;
+
+  try {
+    const { result } = renderHook(() => useCheckInbox(), { wrapper });
+    // drainInbox may resolve or reject against the offline fixture; either way the
+    // mutation settles and onSettled runs. We assert on the invalidations only.
+    await result.current.mutateAsync().catch(() => {});
+    const keyed = (name: string) =>
+      invalidated.some((k) => Array.isArray(k) && k[0] === name);
+    // receivedBenchmarks folds receivedViews, so invalidating only the latter left
+    // a newly-received benchmark stale — both must be invalidated by the drain.
+    assert.ok(keyed("receivedViews"), "receivedViews was invalidated");
+    assert.ok(keyed("receivedBenchmarks"), "receivedBenchmarks was invalidated");
   } finally {
     _setSessionForTesting(null);
   }

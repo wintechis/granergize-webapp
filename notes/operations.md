@@ -6,7 +6,8 @@ operation is one of two kinds:
 - a **query** — looks up Pod state and returns it, no observable side effect; and
 - a **mutation** — changes Pod state (the *command* side of CQS).
 
-Companion to [`storage-model.md`](./storage-model.md) (the registry-free / log-folding
+Companion to [`architecture.md`](./architecture.md) (the source layers these operations
+live in), [`storage-model.md`](./storage-model.md) (the registry-free / log-folding
 design), [`sharing.md`](./sharing.md) (the sharing event logs),
 [`data-layout.md`](./data-layout.md) (the on-Pod tree) and
 [`data-deref.md`](./data-deref.md) (fetch/load mechanics).
