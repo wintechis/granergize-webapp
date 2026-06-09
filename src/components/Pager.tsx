@@ -1,7 +1,7 @@
 import Box from "@mui/material/Box";
 import Pagination from "@mui/material/Pagination";
 import Typography from "@mui/material/Typography";
-import type { Paging } from "./usePaging.ts";
+import type { Paging } from "../hooks/usePaging.ts";
 
 /**
  * Page control for the resource lists. Renders nothing for a single page, so

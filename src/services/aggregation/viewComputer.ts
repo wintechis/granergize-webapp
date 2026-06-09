@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
-import { GRAN_NS } from "../utils/vocabularies.ts";
+import { GRAN_NS } from "../rdf/vocabularies.ts";
 import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
@@ -10,14 +10,14 @@ import type {
   EnergyType,
 } from "../../types.ts";
 import { getViewDefinition, storeComputedSnapshot } from "./viewManager.ts";
-import { fetchFresh } from "../utils/podFetch.ts";
-import { listDirectChildren } from "../utils/podDelete.ts";
+import { fetchFresh } from "../pod/podFetch.ts";
+import { listDirectChildren } from "../pod/podDelete.ts";
 import {
   loadEnergyDatasets,
   parseDatasetSlug,
-} from "../utils/energyDataset.ts";
-import { isSeriesGranularity } from "../utils/durationUtils.ts";
-import { parseTtlReadings } from "../utils/userEnergyParser.ts";
+} from "../rdf/energyDataset.ts";
+import { isSeriesGranularity } from "../rdf/durationUtils.ts";
+import { parseTtlReadings } from "../rdf/userEnergyParser.ts";
 import { getSharedWithMe } from "../interop/sharingManager.ts";
 
 const { namedNode } = DataFactory;

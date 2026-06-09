@@ -1,13 +1,13 @@
 import Box from "@mui/material/Box";
 import Typography from "@mui/material/Typography";
-import { type RequestLogEntry } from "../services/utils/networkActivity.ts";
+import { type RequestLogEntry } from "../lib/networkActivity.ts";
 import {
   currentStorageRoot,
   displayLabel,
   useNetworkActivity,
   useRequestLog,
-} from "./requestActivity.ts";
-import { useDevMode } from "./devMode.ts";
+} from "../hooks/requestActivity.ts";
+import { useDevMode } from "../hooks/devMode.ts";
 
 /** Status text + colour for one finished request. */
 function statusInfo(e: RequestLogEntry): { text: string; color: string } {

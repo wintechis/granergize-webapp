@@ -7,18 +7,18 @@ import {
   sharedInUrl,
   sharedOutUrl,
 } from "./sharingLog.ts";
-import { readStoreOrEmpty } from "../utils/podFetch.ts";
-import { readModifyWrite } from "../utils/podWrite.ts";
-import { filesContainerFor } from "../utils/attachmentManager.ts";
-import { readPrefs, toggleHiddenBuilding } from "../utils/prefs.ts";
+import { readStoreOrEmpty } from "../pod/podFetch.ts";
+import { readModifyWrite } from "../pod/podWrite.ts";
+import { filesContainerFor } from "../attachmentManager.ts";
+import { readPrefs, toggleHiddenBuilding } from "../prefs.ts";
 import {
   ACL_NS,
   GRAN_HAS_ENERGY_CERTIFICATE,
   GRAN_NS,
-} from "../utils/vocabularies.ts";
-import { parseDatasetSlug } from "../utils/energyDataset.ts";
-import { isSeriesGranularity } from "../utils/durationUtils.ts";
-import { logError } from "../utils/logError.ts";
+} from "../rdf/vocabularies.ts";
+import { parseDatasetSlug } from "../rdf/energyDataset.ts";
+import { isSeriesGranularity } from "../rdf/durationUtils.ts";
+import { logError } from "../../lib/logError.ts";
 
 interface SharedBuilding {
   buildingUri: string;

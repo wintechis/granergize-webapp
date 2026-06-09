@@ -13,9 +13,9 @@ import Card from "@mui/material/Card";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
 import ActivityScreen from "../components/ActivityScreen.tsx";
-import { shouldRestoreSession } from "../services/utils/sessionRestore.ts";
-import { logError } from "../services/utils/logError.ts";
-import { normalizeIssuer } from "../services/utils/normalizeIssuer.ts";
+import { shouldRestoreSession } from "../services/pod/sessionRestore.ts";
+import { logError } from "../lib/logError.ts";
+import { normalizeIssuer } from "../lib/normalizeIssuer.ts";
 
 interface LoginProps {
   children: JSX.Element;

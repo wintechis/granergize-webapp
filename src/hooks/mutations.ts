@@ -1,7 +1,7 @@
 import { useMutation, useQueryClient } from "@tanstack/react-query";
 import { getSession } from "./session.ts";
 import { queryKeys } from "./queries.ts";
-import { deleteBuildingResource } from "../services/utils/buildingActions.ts";
+import { deleteBuildingResource } from "../services/buildingActions.ts";
 import {
   revokeAccess,
   revokeAllViewRecipients,
@@ -30,7 +30,7 @@ import {
   addContact,
   type Contact,
   removeContact,
-} from "../services/utils/contacts.ts";
+} from "../services/contacts.ts";
 import type { BuildingType, UserRole } from "../types.ts";
 
 /**

@@ -21,6 +21,22 @@ import type { LocalAccount, LocalPod } from "./localPod.ts";
 
 const JSS_VERSION = "0.0.205";
 
+/**
+ * Path to the patched JSS checkout conventionally sibling to this repo
+ * (`<parent>/javascript-solid-server/bin/jss.js`), or `undefined` if it isn't
+ * there. Used as the `JSS_BIN` default so the jss tiers pick up the local
+ * conneg/ETag fixes without an explicit env var (see the call site).
+ */
+function defaultJssBin(): string | undefined {
+  // This module is <repo>/test/headless/localJss.ts, so three levels up is the
+  // repo's parent — where the sibling checkout lives.
+  const bin = new URL("../../../javascript-solid-server/bin/jss.js", import.meta.url);
+  try {
+    if (Deno.statSync(bin).isFile) return bin.pathname;
+  } catch { /* not present — fall back to the npm release */ }
+  return undefined;
+}
+
 /** PIDs with a LISTEN socket on `port`, via `ss`. Empty if none (or `ss` absent). */
 async function listenersOnPort(port: number): Promise<number[]> {
   const out = await new Deno.Command("ss", {
@@ -116,10 +132,16 @@ export async function startJss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
     ? await Deno.open(logPath, { write: true, create: true, append: true })
     : null;
 
-  // Default: run the pinned npm release via npx. `JSS_BIN=<path to bin/jss.js>`
-  // overrides it to run a LOCAL checkout instead (`node <bin> start …`) — used to
-  // develop/verify JSS fixes against `deno task it:jss` before they're published.
-  const jssBin = Deno.env.get("JSS_BIN");
+  // `JSS_BIN=<path to bin/jss.js>` runs a LOCAL checkout instead of the npm release
+  // (`node <bin> start …`) — used to develop/verify JSS fixes before they're
+  // published. The published `JSS_VERSION` still serves `.jsonld` as JSON-LD under
+  // conneg, which breaks the sharing tasks ("Unexpected literal on line 2"), so the
+  // patched checkout is currently REQUIRED for the jss tiers to pass. When `JSS_BIN`
+  // is unset we therefore fall back to the conventional sibling checkout
+  // (`../javascript-solid-server/` next to this repo) if it exists, so `it:jss` /
+  // `e2e:local:jss` just work without exporting the var; only if that's absent do we
+  // drop to the npm release via npx.
+  const jssBin = Deno.env.get("JSS_BIN") ?? defaultJssBin();
   const jssArgs = ["start", "--idp", "--conneg", "-p", String(port), "-r", dataDir];
   const cmdArgs = jssBin
     ? ["node", jssBin, ...jssArgs]

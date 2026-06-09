@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import { classifyQueryError } from "./queryErrors.ts";
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
-import { ConflictError } from "../services/utils/podWrite.ts";
+import { ConflictError } from "../services/pod/podWrite.ts";
 
 Deno.test("classifyQueryError: SessionExpiredError → warning, keeps its message", () => {
   const r = classifyQueryError(new SessionExpiredError("token gone"));

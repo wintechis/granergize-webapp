@@ -8,13 +8,13 @@ import type {
   InvestorOperatingCosts,
 } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { investorLocalNameLabels } from "../services/utils/config/buildingConfig.ts";
+import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
 import {
   geocodeFields,
   updateBuilding,
-} from "../services/utils/buildingSerializer.ts";
-import { formatError } from "../services/utils/formatError.ts";
-import { rememberAgent } from "../services/utils/contacts.ts";
+} from "../services/rdf/building/buildingSerializer.ts";
+import { formatError } from "../lib/formatError.ts";
+import { rememberAgent } from "../services/contacts.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../hooks/queries.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";

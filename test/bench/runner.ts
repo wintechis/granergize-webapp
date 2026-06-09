@@ -23,7 +23,7 @@
  */
 import { type LiveSessionLike, type LocalPod, startLocalPod } from "../headless/localPod.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { resolveStorageRoot, podResources } from "../../src/services/utils/solidUtils.ts";
+import { resolveStorageRoot, podResources } from "../../src/services/pod/solidUtils.ts";
 import { ensureOwnInbox } from "../../src/services/interop/inbox.ts";
 import { fetchAndParseData } from "../../src/services/TurtleParsingService.ts";
 import { getSharedWithMe } from "../../src/services/interop/sharingManager.ts";
@@ -35,8 +35,8 @@ import {
   leaveRoom,
   setMyRole,
 } from "../../src/services/interop/dataRoom.ts";
-import { listDirectChildren } from "../../src/services/utils/podDelete.ts";
-import { parseTtlReadings } from "../../src/services/utils/userEnergyParser.ts";
+import { listDirectChildren } from "../../src/services/pod/podDelete.ts";
+import { parseTtlReadings } from "../../src/services/rdf/userEnergyParser.ts";
 import {
   type BenchActor,
   seedBuildings,

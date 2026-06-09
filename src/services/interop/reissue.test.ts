@@ -2,8 +2,8 @@
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { reissueGrants } from "./share.ts";
-import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
-import { GRAN_NS } from "../utils/vocabularies.ts";
+import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
+import { GRAN_NS } from "../rdf/vocabularies.ts";
 
 // Owner Pod at https://a.example/ ; recipients live elsewhere.
 const WEBID = "https://a.example/profile/card#me";

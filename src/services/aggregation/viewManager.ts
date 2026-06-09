@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
-import { appRoot } from "../utils/solidUtils.ts";
+import { appRoot } from "../pod/solidUtils.ts";
 import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
@@ -16,14 +16,14 @@ import {
   XSD_DECIMAL,
   XSD_GYEAR,
   XSD_INTEGER,
-} from "../utils/vocabularies.ts";
-import { getQuadValue, getQuadValues } from "../utils/rdfHelpers.ts";
+} from "../rdf/vocabularies.ts";
+import { getQuadValue, getQuadValues } from "../rdf/rdfHelpers.ts";
 import { getReceivedViews } from "../interop/sharingManager.ts";
-import { fetchFresh } from "../utils/podFetch.ts";
-import { readModifyWrite } from "../utils/podWrite.ts";
-import { listDirectChildren } from "../utils/podDelete.ts";
-import { mapPooled } from "../utils/pool.ts";
-import { logError } from "../utils/logError.ts";
+import { fetchFresh } from "../pod/podFetch.ts";
+import { readModifyWrite } from "../pod/podWrite.ts";
+import { listDirectChildren } from "../pod/podDelete.ts";
+import { mapPooled } from "../../lib/pool.ts";
+import { logError } from "../../lib/logError.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 

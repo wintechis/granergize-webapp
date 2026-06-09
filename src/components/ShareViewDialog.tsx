@@ -19,7 +19,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { AggregatedViewDefinition } from "../types.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
-import { logError } from "../services/utils/logError.ts";
+import { logError } from "../lib/logError.ts";
 import {
   getSharedViews,
   revokeViewAccess,
@@ -35,7 +35,7 @@ import {
   getMembers,
 } from "../services/interop/dataRoom.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { formatError } from "../services/utils/formatError.ts";
+import { formatError } from "../lib/formatError.ts";
 import { ROLE_LABELS } from "../constants/roles.ts";
 
 interface ShareViewDialogProps {

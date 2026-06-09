@@ -9,12 +9,12 @@ import {
   computeAggregation,
   summarizeContributors,
 } from "./viewComputer.ts";
-import { GRAN_NS } from "../utils/vocabularies.ts";
+import { GRAN_NS } from "../rdf/vocabularies.ts";
 import {
   datasetFileUrl,
   datasetNodeUrl,
   serializeEnergyDataset,
-} from "../utils/energyDataset.ts";
+} from "../rdf/energyDataset.ts";
 
 const POD = "https://pod.example/granergize/buildings/";
 const METRIC = "electricityConsumption";

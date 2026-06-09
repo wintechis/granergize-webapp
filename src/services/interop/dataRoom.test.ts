@@ -24,7 +24,7 @@ import {
   roomExists,
   setMyRole,
 } from "./dataRoom.ts";
-import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
+import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 
 const ALICE = "https://alice.example/profile/card#me";
 /** A room URL all the room-scoped tests operate on. */

@@ -29,7 +29,7 @@ import { BuildingType } from "../types.ts";
 import {
   beginActivity,
   endActivity,
-} from "../services/utils/networkActivity.ts";
+} from "../lib/networkActivity.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 
 interface WeatherDataProps {

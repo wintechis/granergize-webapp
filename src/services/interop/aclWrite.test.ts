@@ -4,7 +4,7 @@ import { Parser, Store } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { grantReadAccess } from "./share.ts";
 import { removeFromACL } from "./sharingManager.ts";
-import { ACL_NS } from "../utils/vocabularies.ts";
+import { ACL_NS } from "../rdf/vocabularies.ts";
 
 const OWNER = "https://owner.example/profile/card#me";
 const ALICE = "https://alice.example/profile/card#me";

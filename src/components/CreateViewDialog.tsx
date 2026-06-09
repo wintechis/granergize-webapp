@@ -26,8 +26,8 @@ import type {
   UserRole,
 } from "../types.ts";
 import { createViewDefinition } from "../services/aggregation/viewManager.ts";
-import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
-import { listDirectChildren } from "../services/utils/podDelete.ts";
+import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
+import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
   type BspContributors,
   bspContributorBuildings,

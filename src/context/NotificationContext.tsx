@@ -8,13 +8,13 @@ import React, {
 } from "react";
 import Snackbar from "@mui/material/Snackbar";
 import Alert from "@mui/material/Alert";
-import { setNotificationSink } from "../services/utils/notificationSink.ts";
+import { setNotificationSink } from "../lib/notificationSink.ts";
 import {
   enqueue,
   initialQueueState,
   promoteNext,
   requestClose,
-} from "../components/notificationQueue.ts";
+} from "../lib/notificationQueue.ts";
 
 type Severity = "error" | "warning" | "info" | "success";
 

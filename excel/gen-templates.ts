@@ -18,7 +18,7 @@
 // Run:  deno run -A excel/gen-templates.ts
 //
 // Import compatibility is asserted by buildingSerializer's parseCsvToFields and
-// covered by src/services/utils/templates.test.ts.
+// covered by src/services/rdf/templates.test.ts.
 
 import * as XLSX from "xlsx";
 

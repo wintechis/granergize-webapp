@@ -93,7 +93,12 @@ Read-only operations group by *how* they read, which mirrors the three mutation 
 
 - **Direct GET / container LISTING** — read state written by model 2. Per-resource GETs
   (`getViewDefinition`, `resolveAgent`, `readPrefs`) and container listings
-  (`discoverOwnBuildings`, `getViewDefinitions`).
+  (`discoverOwnBuildings`, `getViewDefinitions`). The phase-2 energy reads are this kind:
+  `loadEnergyDatasets` (`energyDataset.ts`) fetches the annual datasets a building links,
+  and `parseTtlReadings` (`userEnergyParser.ts`) fetches one daily file of a 15-minute
+  series — both keyed off refs parsed in phase 1, and both taking the authed transport as
+  a `fetchFn` argument rather than a `Session` (load phasing in
+  [`data-deref.md`](./data-deref.md)).
 - **Log fold** — read a projection of a model-1 event log (`foldSharingLog`,
   `getRoomLogState`, `getSharedWithMe`, `getReceivedViews`).
 

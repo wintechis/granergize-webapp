@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { loadSharedBuilding } from "./sharedBuilding.ts";
-import { GRAN_NS } from "../utils/vocabularies.ts";
+import { GRAN_NS } from "../rdf/vocabularies.ts";
 
 const FILE = "https://alice.example/granergize/buildings/b1.ttl";
 

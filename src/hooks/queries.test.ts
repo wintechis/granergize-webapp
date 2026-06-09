@@ -15,8 +15,8 @@ import {
 import type { BuildingType } from "../types.ts";
 import { useCheckInbox, useToggleVisibility } from "./mutations.ts";
 import { _setSessionForTesting } from "./session.ts";
-import { _setStorageRootForTesting } from "../services/utils/solidUtils.ts";
-import { _resetProfileCacheForTesting } from "../services/utils/profileDocument.ts";
+import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
+import { _resetProfileCacheForTesting } from "../services/pod/profileDocument.ts";
 
 const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
 const WEBID = "https://pod.example/profile/card#me";

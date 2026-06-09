@@ -25,7 +25,7 @@ private ones need the token; cross-origin reads (a source on another Pod) also
 need that server's CORS + ACL to permit you.
 
 One thin wrapper sits on top: `fetchFresh(url, session)`
-(`src/services/utils/podFetch.ts`) — sets `cache: "no-cache"` (revalidate), so
+(`src/services/pod/podFetch.ts`) — sets `cache: "no-cache"` (revalidate), so
 read-modify-write cycles see current state while a conditional `If-None-Match`
 can still come back `304` with no body. There is **no `?t=` cache-buster**: the
 URI stays stable so the HTTP cache / React Query can key on it.
@@ -39,7 +39,7 @@ the header activity indicator.
 Resolved once per session, then cached:
 
 1. **WebID → storage root.** `resolveStorageRoot(session)`
-   (`src/services/utils/solidUtils.ts`) GETs the WebID profile document, parses it
+   (`src/services/pod/solidUtils.ts`) GETs the WebID profile document, parses it
    with n3, and reads `<webId> pim:storage <root>`. Throws if absent — there is no
    WebID string-munge fallback. Cached so the many synchronous callers stay simple.
 2. **Storage root → fixed paths.** `podResources(webId)` returns every app path as
@@ -87,7 +87,7 @@ translation after which components see no RDF. That mapping is documented in
 Once parsed, references between resources are resolved **in memory against the
 merged graph — the app does not re-dereference each IRI it encounters**:
 
-- `parseBuildings` (`src/services/utils/buildingParser.ts`) walks the quads into a
+- `parseBuildings` (`src/services/rdf/building/buildingParser.ts`) walks the quads into a
   `Map<id, BuildingType>`. The **building id** comes from the subject IRI via
   `extractBuildingIdStrict` (the `#fragment`, or the `…/buildings/<id>` path
   segment). Blank-node sub-structures (energy datasets, operating costs,
@@ -109,7 +109,7 @@ buildings + agents to the UI first, then streams energy in.
 
 ## Writes — dereference, then conditionally replace
 
-Mutations use `readModifyWrite` (`src/services/utils/podWrite.ts`): GET (capturing
+Mutations use `readModifyWrite` (`src/services/pod/podWrite.ts`): GET (capturing
 the `ETag`) → mutate the n3 Store → PUT guarded by `If-Match` (or `If-None-Match: *`
 for a create), retrying on `412` — optimistic locking, so a concurrent writer can't
 be silently clobbered. The data-room event log is the exception: it appends with

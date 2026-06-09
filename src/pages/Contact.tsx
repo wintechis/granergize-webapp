@@ -14,7 +14,7 @@ import {
   SectionTitle,
   UriLink,
 } from "../components/detail/DetailView.tsx";
-import { appearancesOf } from "../services/utils/agentAppearances.ts";
+import { appearancesOf } from "../services/agents/agentAppearances.ts";
 import type { BuildingType } from "../types.ts";
 
 /** Display label for a building row (address, else its id). */

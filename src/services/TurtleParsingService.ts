@@ -1,5 +1,5 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { parseBuildings } from "./utils/buildingParser.ts";
+import { parseBuildings } from "./rdf/building/buildingParser.ts";
 import type {
   BuildingType,
   EnergyDatasetRef,
@@ -7,18 +7,18 @@ import type {
 } from "../types.ts";
 import { DataFactory, Parser, Store } from "n3";
 import type { Quad } from "@rdfjs/types";
-import { getStorageRoot, podResources } from "./utils/solidUtils.ts";
-import { fetchFresh } from "./utils/podFetch.ts";
-import { listDirectChildren } from "./utils/podDelete.ts";
-import { mapPooled } from "./utils/pool.ts";
-import { parseEnergyDataset } from "./utils/energyDataset.ts";
-import { readPrefs } from "./utils/prefs.ts";
+import { getStorageRoot, podResources } from "./pod/solidUtils.ts";
+import { fetchFresh } from "./pod/podFetch.ts";
+import { listDirectChildren } from "./pod/podDelete.ts";
+import { mapPooled } from "../lib/pool.ts";
+import { parseEnergyDataset } from "./rdf/energyDataset.ts";
+import { readPrefs } from "./prefs.ts";
 import {
   appendSharingEvent,
   foldSharingLog,
   sharedInUrl,
 } from "./interop/sharingLog.ts";
-import { isSeriesGranularity } from "./utils/durationUtils.ts";
+import { isSeriesGranularity } from "./rdf/durationUtils.ts";
 
 /**
  * Attempts to load Turtle data from multiple sources, continuing if some fail

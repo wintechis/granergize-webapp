@@ -13,15 +13,15 @@ import {
   revokeAccess,
 } from "../../../src/services/interop/sharingManager.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
-import { uploadAttachment } from "../../../src/services/utils/attachmentManager.ts";
-import { parseBuildings } from "../../../src/services/utils/buildingParser.ts";
+import { uploadAttachment } from "../../../src/services/attachmentManager.ts";
+import { parseBuildings } from "../../../src/services/rdf/building/buildingParser.ts";
 import {
   deleteBuilding,
   newBuildingUri,
   serializeBuildingToTurtle,
   uploadBuilding,
-} from "../../../src/services/utils/buildingSerializer.ts";
-import { podResources } from "../../../src/services/utils/solidUtils.ts";
+} from "../../../src/services/rdf/building/buildingSerializer.ts";
+import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 export const name = "attachment-share";
 

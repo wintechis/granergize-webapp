@@ -2,15 +2,15 @@ import { useState } from "react";
 import { Button, Chip, Typography } from "@mui/material";
 import type { AttachmentRef, BuildingType } from "../../types.ts";
 import { RdfSourceLink, SectionTitle } from "./DetailView.tsx";
-import { listStyle, rowStyle } from "../listStyles.ts";
+import { listStyle, rowStyle } from "../../constants/listStyles.ts";
 import {
   fetchAttachmentBlob,
   filesContainerFor,
-} from "../../services/utils/attachmentManager.ts";
-import { downloadBlob, formatBytes } from "../../services/utils/download.ts";
+} from "../../services/attachmentManager.ts";
+import { downloadBlob, formatBytes } from "../../lib/download.ts";
 import { getSession } from "../../hooks/session.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
-import { formatError } from "../../services/utils/formatError.ts";
+import { formatError } from "../../lib/formatError.ts";
 
 /**
  * Read-only list of a building's file attachments with a Download action. The

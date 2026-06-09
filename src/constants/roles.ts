@@ -1,5 +1,5 @@
 import type { UserRole } from "../types.ts";
-import { GRAN_NS } from "../services/utils/vocabularies.ts";
+import { GRAN_NS } from "../services/rdf/vocabularies.ts";
 
 /** Human-readable labels for the provenance category / membership roles. */
 export const ROLE_LABELS: Record<string, string> = {

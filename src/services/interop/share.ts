@@ -11,13 +11,13 @@ import {
   GRAN_HAS_ENERGY_CERTIFICATE,
   GRAN_NS,
   RDF_TYPE,
-} from "../utils/vocabularies.ts";
-import { parseDatasetSlug } from "../utils/energyDataset.ts";
-import { isSeriesGranularity } from "../utils/durationUtils.ts";
-import { ensureContainer, readModifyWrite } from "../utils/podWrite.ts";
-import { fetchFresh, readStoreOrEmpty } from "../utils/podFetch.ts";
-import { filesContainerFor } from "../utils/attachmentManager.ts";
-import { getStorageRoot } from "../utils/solidUtils.ts";
+} from "../rdf/vocabularies.ts";
+import { parseDatasetSlug } from "../rdf/energyDataset.ts";
+import { isSeriesGranularity } from "../rdf/durationUtils.ts";
+import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
+import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
+import { filesContainerFor } from "../attachmentManager.ts";
+import { getStorageRoot } from "../pod/solidUtils.ts";
 
 export interface ShareOptions {
   includeEnergyData: boolean;

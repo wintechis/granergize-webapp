@@ -9,19 +9,19 @@ import {
   RDF_TYPE,
   SIOC_NS,
   XSD_DATETIME,
-} from "../utils/vocabularies.ts";
-import { appRoot, getStorageRoot } from "../utils/solidUtils.ts";
-import { fetchFresh, readStoreOrEmpty } from "../utils/podFetch.ts";
-import { ensureContainer, putAcl } from "../utils/podWrite.ts";
-import { mapPooled } from "../utils/pool.ts";
-import { readPrefs, setCurrentRoom } from "../utils/prefs.ts";
+} from "../rdf/vocabularies.ts";
+import { appRoot, getStorageRoot } from "../pod/solidUtils.ts";
+import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
+import { ensureContainer, putAcl } from "../pod/podWrite.ts";
+import { mapPooled } from "../../lib/pool.ts";
+import { readPrefs, setCurrentRoom } from "../prefs.ts";
 import {
   addBookmark,
   readBookmarks,
   removeBookmark,
-} from "../utils/bookmarks.ts";
+} from "../bookmarks.ts";
 import { IRI_TO_PROVENANCE, PROVENANCE_TO_IRI } from "../../constants/roles.ts";
-import { logError } from "../utils/logError.ts";
+import { logError } from "../../lib/logError.ts";
 
 const { blankNode, literal, namedNode } = DataFactory;
 

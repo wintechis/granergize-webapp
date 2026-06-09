@@ -4,7 +4,7 @@ The app models Pod data with four Granergize vocabularies. Their IRIs are absolu
 URLs on the FAU Solid Pod, but **the editable source of truth is now these files in
 the repo** — the published documents are a deploy target, not the master copy. The
 app itself only *references* these IRIs (as constants in
-`src/services/utils/vocabularies.ts`); it never fetches these documents at runtime.
+`src/services/rdf/vocabularies.ts`); it never fetches these documents at runtime.
 
 ## Namespace → file
 
@@ -28,7 +28,7 @@ app itself only *references* these IRIs (as constants in
 
 ## Keeping in sync with the code
 
-`src/services/utils/vocab.test.ts` parses these files and asserts that every term the
+`src/services/rdf/vocab.test.ts` parses these files and asserts that every term the
 app references (the building field-schema predicates + their object-property ranges,
 and the controlled-vocabulary instances) is defined here. Add a term to the code and
 the test fails until it's defined in the matching file — so the repo vocab can't

@@ -24,9 +24,15 @@ constants and types.
         │
   data-access            src/hooks/ + src/context/   React Query
         │
-  services               src/services/ + interop/ + aggregation/   domain logic
+  services               src/services/   domain logic
+                         folders (multi-file domains): interop/, aggregation/,
+                          organization/, agents/
+                         flat modules: TurtleParsingService, buildingActions,
+                          contacts, bookmarks, prefs, attachmentManager, geocode
         │
-  pod / rdf utilities    src/services/utils/ (+ config/)   I/O, parse, serialize
+  pod I/O  +  rdf        src/services/pod/, src/services/rdf/ (+ rdf/building/)
+        │
+  generic helpers        src/lib/   pure: formatting, zip, pool, error, client stores
         │
   constants & types      src/constants/, src/types.ts   (leaf — imports nothing)
 ```
@@ -55,36 +61,43 @@ and services: read hooks in `queries.ts`, write hooks in `mutations.ts`, the sin
 query/mutation split is named for — see [`operations.md`](./operations.md). UI gets Pod
 data only through this layer.
 
-**Services** (`src/services/`, `…/interop/`, `…/aggregation/`). The domain logic the
-hooks call. `TurtleParsingService` orchestrates load-and-parse; `interop/` implements
-sharing, data rooms, and the inbox; `aggregation/` computes and persists views. The
-three mutation models live here — see [`operations.md`](./operations.md),
-[`sharing.md`](./sharing.md), [`room.md`](./room.md), and [`views.md`](./views.md).
-`interop/` and `aggregation/` are siblings: neither imports the other; both rest on the
-utilities below.
+**Services** (`src/services/`). The domain logic the hooks call. The multi-file domains
+keep a **folder** — `interop/` (sharing, data rooms, inbox), `aggregation/` (computes and
+persists views), `organization/` (org node + avatar), `agents/` (WebID→identity resolution
+and cross-building appearances) — while single-resource units are **flat modules** beside
+`TurtleParsingService` (the root load-and-parse orchestrator): `contacts`, `bookmarks`,
+`prefs`, `attachmentManager`, `buildingActions` (the delete-orchestration helper), and
+`geocode` (external geocoding). A folder marks a sub-domain with several collaborating
+files, not a one-file-per-Pod-resource mirror; a single owned resource is just a module.
+The three mutation models live here — see [`operations.md`](./operations.md),
+[`sharing.md`](./sharing.md), [`room.md`](./room.md), and [`views.md`](./views.md). These
+domains are siblings: none imports another — cross-domain composition happens a layer up,
+in hooks or pages — and all rest on the Pod I/O and RDF layers below. The one sanctioned
+cross-service edge is `buildingActions`, which composes `interop/` to revoke a building's
+grants before deleting it.
 
-**Pod / RDF utilities** (`src/services/utils/`, `…/config/`). The lowest layer, where
-everything that touches the network or RDF bottoms out: Pod I/O (`podFetch`, `podWrite`,
-storage-root and path resolution in `solidUtils`), RDF parse/serialize (`rdfHelpers`, the
-`vocabularies` constants, the building/energy parsers and serializers), and the
-declarative predicate↔field table in `config/buildingConfig.ts`. The fetch/parse pipeline
-through here is [`data-deref.md`](./data-deref.md); the RDF⇄object shapes are
+**Pod I/O & RDF** (`src/services/pod/`, `src/services/rdf/`). The two substrate layers
+every domain rests on, where anything touching the network or the triples bottoms out.
+`pod/` is **Pod I/O** — `podFetch`/`podWrite`/`podDelete`/`podArchive`, the `retryFetch`
+throttling wrapper, storage-root and path resolution in `solidUtils`, the
+session-gate/restore plumbing, and the cached profile read. `rdf/` is **RDF
+parse/serialize** — `rdfHelpers`, the `vocabularies` constants, the energy parsers, the
+XLSX workbook bridge, and the duration/category helpers; the building round-trip trio
+(`buildingParser` + `buildingSerializer` + their shared predicate↔field table
+`buildingConfig`, the parts that co-evolve) is co-located in `rdf/building/`. `rdf/` may
+use `pod/`; neither reaches up. The fetch/parse pipeline through here is
+[`data-deref.md`](./data-deref.md); the RDF⇄object shapes are
 [`data-schema.md`](./data-schema.md).
 
-This is the layer's weak spot: `utils/` is a flat grab-bag of ~40 modules that conflates
-three distinct kinds of thing, and the flatness hides the seams. The latent sub-groups
-are (a) **Pod I/O** — `podFetch`/`podWrite`, archive/delete, storage-root and path
-resolution in `solidUtils`, the session-gate/restore plumbing; (b) **RDF** — `rdfHelpers`,
-the `vocabularies` constants, the building/energy parsers and serializers, duration
-helpers; (c) **generic helpers** with no Pod or RDF dependency — date formatting,
-download, zip, the concurrency pool, error formatting. Folded in alongside them are
-several modules that are really **domain services**, peers of `interop/`/`aggregation/`
-rather than utilities — the contacts, bookmarks, prefs, organization, attachment, and
-agent-resolution managers. The dependency direction is clean regardless (nothing here
-imports upward), so the cost is readability, not correctness: "utils" undersells the
-domain logic it contains. Treat these groupings as the intended shape — a module added
-here belongs in whichever of them fits, and a manager that owns a Pod resource belongs in
-a service folder, not under `utils/`.
+**Generic helpers** (`src/lib/`). Pure modules with no Pod or RDF dependency, reused
+across every layer: date and error formatting, the `download`/`zip` file helpers, the
+bounded-concurrency `pool`, and the framework-agnostic client stores (`devMode`,
+`networkActivity`, `notificationSink`, and the `notificationQueue`/`dialogGuard` UI
+logic). Their React-hook wrappers live up in `src/hooks/` (`useDevMode`, `requestActivity`,
+`usePaging`); that store-below / hook-above split mirrors the network-activity pattern in
+CLAUDE.md. A module added at the bottom belongs in `pod/`, `rdf/`, or `lib/` by this rule —
+Pod I/O, RDF, or neither — and a unit that owns a Pod resource belongs in its own service
+folder, not in any of the three.
 
 **Constants & types** (`src/constants/`, `src/types.ts`). The leaf: role/colour maps and
 the `BuildingType`/`EnergyType` domain types. Imported by every layer, importing none.
@@ -96,7 +109,7 @@ easy to violate:
 
 - **Network I/O is funnelled through hooks → services.** A page or component never calls
   `podFetch`/`podWrite` itself; it renders what a hook gives it. The one thing UI *does*
-  import straight from `utils/` is `solidUtils` — but only its pure path/storage-root
+  import straight from `src/services/pod/` is `solidUtils` — but only its pure path/storage-root
   helpers (`podResources`, `getStorageRoot`), which compute IRIs and perform no I/O, so
   the rule that *reads and writes* go through the data-access layer still holds.
 - **`interop/` and `aggregation/` stay independent.** Cross-domain composition happens a

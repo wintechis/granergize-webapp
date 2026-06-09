@@ -15,7 +15,7 @@ import {
   getMembersByRole,
   setMyRole,
 } from "../../../src/services/interop/dataRoom.ts";
-import { podResources } from "../../../src/services/utils/solidUtils.ts";
+import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 export const name = "data-room";
 

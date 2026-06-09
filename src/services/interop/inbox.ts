@@ -1,13 +1,13 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
-import { fetchFresh, readStoreOrEmpty } from "../utils/podFetch.ts";
-import { ensureContainer, putAcl } from "../utils/podWrite.ts";
-import { LDP_CONTAINS, LDP_INBOX } from "../utils/vocabularies.ts";
+import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
+import { ensureContainer, putAcl } from "../pod/podWrite.ts";
+import { LDP_CONTAINS, LDP_INBOX } from "../rdf/vocabularies.ts";
 import {
   APP_DIR,
   podResources,
   resolveStorageRootForWebId,
-} from "../utils/solidUtils.ts";
+} from "../pod/solidUtils.ts";
 import {
   appendSharingEvent,
   buildSharingEventTurtle,
@@ -15,7 +15,7 @@ import {
   type SharingEvent,
   sharedInUrl,
 } from "./sharingLog.ts";
-import { logError } from "../utils/logError.ts";
+import { logError } from "../../lib/logError.ts";
 
 /**
  * Is `url` a real inbox message — i.e. NOT an auxiliary sidecar (`.acl`/`.meta`)?

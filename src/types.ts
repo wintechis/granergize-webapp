@@ -153,7 +153,7 @@ export type Scenario = "actual" | "planned";
  * `gran:hasEnergyDataset` link. The link slug (`<year>-<granularity>[-planned]`)
  * is self-describing, so year/granularity/scenario are known without fetching the
  * dataset (used to dispatch load: series lazy, annual prefetched). See
- * `services/utils/energyDataset.ts`.
+ * `services/rdf/energyDataset.ts`.
  */
 export interface EnergyDatasetRef {
   /** The dataset node URL (the linked `…/<slug>.ttl#ds`). */

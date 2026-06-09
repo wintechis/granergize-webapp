@@ -20,8 +20,8 @@ import {
   newBuildingUri,
   serializeBuildingToTurtle,
   uploadBuilding,
-} from "../../../src/services/utils/buildingSerializer.ts";
-import { podResources } from "../../../src/services/utils/solidUtils.ts";
+} from "../../../src/services/rdf/building/buildingSerializer.ts";
+import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 export const name = "share-building";
 

@@ -22,21 +22,21 @@ import {
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
-import { logError } from "../services/utils/logError.ts";
+import { logError } from "../lib/logError.ts";
 import { shareBuildingData } from "../services/interop/share.ts";
-import { rememberAgent } from "../services/utils/contacts.ts";
+import { rememberAgent } from "../services/contacts.ts";
 import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
 import {
   deleteAttachment,
   fetchAttachmentBlob,
   setEnergyCertificate,
   uploadAttachment,
-} from "../services/utils/attachmentManager.ts";
-import { downloadBlob, formatBytes } from "../services/utils/download.ts";
-import { listStyle, rowStyle } from "./listStyles.ts";
+} from "../services/attachmentManager.ts";
+import { downloadBlob, formatBytes } from "../lib/download.ts";
+import { listStyle, rowStyle } from "../constants/listStyles.ts";
 import type { AttachmentRef, BuildingType, UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { formatError } from "../services/utils/formatError.ts";
+import { formatError } from "../lib/formatError.ts";
 import { useAgentOptions } from "../hooks/useAgentOptions.ts";
 import { AgentLabel } from "./AgentLabel.tsx";
 import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";

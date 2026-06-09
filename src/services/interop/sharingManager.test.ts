@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
+import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 import {
   appendSharingEvent,
   sharedInUrl,
