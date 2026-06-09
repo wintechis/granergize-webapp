@@ -226,17 +226,36 @@ test.describe("handbuch screenshots", () => {
     await page.waitForTimeout(300);
     await shotOf(buildingRow, "manage-actions.png");
 
-    // --- Energy-year dialog: the per-year consumption form (Soll/Ist), opened
-    //     from a building's "Add or edit energy year" row action ---
+    // --- Energy-year dialog: the per-year consumption form plus the "Stored
+    //     years" read-back table, opened from a building's "Add or edit energy
+    //     year" row action. Seed a year first so the table isn't empty — saving
+    //     keeps the dialog open, so the shot shows both the table (with its
+    //     edit/delete row actions) and the form below. ---
     const energyYearBtn = page.getByRole("button", {
       name: "Add or edit energy year",
     }).first();
     if (await energyYearBtn.count()) {
       await energyYearBtn.click();
       await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 });
+      // Only seed if this building has no stored years yet (idempotent re-runs).
+      const stored = page.getByRole("dialog").getByRole("row", {
+        name: /\b2023\b/,
+      });
+      if (!(await stored.count())) {
+        await page.getByRole("spinbutton", { name: "Year", exact: true })
+          .fill("2023");
+        await page.getByRole("spinbutton", { name: "Electricity (kWh)" })
+          .fill("125000");
+        await page.getByRole("spinbutton", { name: "Heat (kWh)" }).fill("48000");
+        await page.getByRole("spinbutton", { name: "Water (m³)", exact: true })
+          .fill("310");
+        await page.getByRole("button", { name: "Save" }).click();
+        await expect(page.getByText("Energy data saved").first())
+          .toBeVisible({ timeout: 30_000 });
+      }
       await page.waitForTimeout(500);
       await shot(page, "energy-year.png");
-      await page.keyboard.press("Escape");
+      await page.getByRole("button", { name: "Close" }).click();
     }
 
     // --- Manage: aggregated views (Create View lives here, with buildings) ---

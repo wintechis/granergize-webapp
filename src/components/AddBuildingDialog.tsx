@@ -17,6 +17,7 @@ import {
 import { alpha } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
+import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
 import { logError } from "../services/utils/logError.ts";
@@ -348,7 +349,10 @@ export default function AddBuildingDialog(
     try {
       for (const b of buildingsList) {
         controller.signal.throwIfAborted();
-        const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+        // A collision-free id: `Date.now()`+short-random clashed when several
+        // buildings were written within the same millisecond in a bulk import,
+        // so the second PUT overwrote the first (buildings silently vanished).
+        const id = crypto.randomUUID();
         const uri = newBuildingUri(webId, id);
         const buildingSubjectUri = `${uri}#${id}`;
         addedSubjectUris.push(buildingSubjectUri);
@@ -532,6 +536,14 @@ export default function AddBuildingDialog(
             style={{ display: "none" }}
             onChange={handleFileUpload}
           />
+          <Button
+            variant="outlined"
+            startIcon={<UploadFileIcon />}
+            onClick={() => fileInputRef.current?.click()}
+            sx={{ mb: 1 }}
+          >
+            Choose file…
+          </Button>
           <Typography variant="caption" display="block" color="text.secondary">
             {CSV_HINT[template]}
           </Typography>

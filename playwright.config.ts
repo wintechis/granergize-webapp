@@ -85,6 +85,7 @@ const SOLO_SPECS = [
   "**/building-details.spec.ts",
   "**/contacts.spec.ts",
   "**/archive-restore.spec.ts",
+  "**/uri-state.spec.ts",
 ];
 const SHARING_SPECS = [
   "**/share-building.spec.ts",
@@ -179,6 +180,11 @@ export default defineConfig({
         // guarantees CSS is ready AND the per-spec `/reset` endpoint is up (no
         // first-spec race against seeding or against the control server).
         url: "http://localhost:3457/",
+        // The CSS/JSS is spawned under `setsid` (own session), so a run that never
+        // reaches Playwright's teardown (timeout/Ctrl-C/SIGKILL) orphans it, and
+        // `reuseExistingServer` would then adopt the orphan forever. The `e2e:local`
+        // task runs `test/e2e-local/reapStaleServers.ts` BEFORE Playwright to free
+        // the Tier-3 ports, so every run starts clean and tears down what it owns.
         reuseExistingServer: true,
         timeout: 90_000,
       }]

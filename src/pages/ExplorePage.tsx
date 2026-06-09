@@ -1,5 +1,11 @@
 import { useEffect, useMemo, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import { BuildingType, EnergyType } from "../types.ts";
+import {
+  detailIndexFromSlug,
+  mergeParams,
+  slugFromDetailIndex,
+} from "./uriState.ts";
 import Building from "./Building.tsx";
 import { UriLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../components/devMode.ts";
@@ -258,20 +264,25 @@ export default function ExplorePage(
   // starts fetching tiles and `load` once the visible set is in), so panning/
   // zooming registers in the global indicator without a token per image.
   const tileToken = useRef<number | null>(null);
-  // The right-pane navigation stack. The last entry is what's shown; earlier
-  // entries are the "back" history. Empty = nothing focused.
-  const [trail, setTrail] = useState<FocusTarget[]>([]);
+  // The selected building and detail sub-tab live in the hash query params
+  // (`?b=`/`?dt=`) so a reload / bookmark restores the view — see
+  // notes/ui-state.md. The right pane shows the building `?b=` names; selection
+  // is a single building (no "back" stack), so the id captures it fully.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedId = searchParams.get("b");
+  const trail: FocusTarget[] = selectedId
+    ? [{ kind: "building", id: selectedId }]
+    : [];
+  // Which detail tab is shown for the selected building: 0=building, 1=energy,
+  // 2=weather (only meaningful while a building is selected).
+  const detailTab = detailIndexFromSlug(searchParams.get("dt"));
   // The map's current bounding box; the energy mix below the map is computed
-  // over the buildings that fall inside it. The two pieces of map view state
-  // are this bbox and the selected building (the anchor of `trail`).
+  // over the buildings that fall inside it.
   const [bbox, setBbox] = useState<L.LatLngBounds | null>(null);
   const [selectedEnergy, setSelectedEnergy] = useState<EnergyType | null>(null);
   // false = balanced 50/50 split with the map; true = the detail pane fills the
   // tab body and the map pane is hidden (kept mounted, see InvalidateOnActive).
   const [detailFull, setDetailFull] = useState(false);
-  // Which detail tab is shown for the selected building: 0=building, 1=energy,
-  // 2=weather.
-  const [detailTab, setDetailTab] = useState(0);
 
   // Buildings currently visible in the map's bounding box (before the first
   // bounds report, treat every located building as visible).
@@ -300,12 +311,13 @@ export default function ExplorePage(
   // it survives data reloads and disappears if the object is removed).
   const currentBuilding = current ? findBuilding(current.id) : null;
 
-  const focusBuilding = (id: string) => setTrail([{ kind: "building", id }]);
-
-  // Reset to the Building-data tab whenever a different building is shown.
-  useEffect(() => {
-    setDetailTab(0);
-  }, [currentBuilding?.id]);
+  // Select a building: set `?b=` and drop `?dt=` so the detail view opens on the
+  // Building tab. `replace` keeps selection out of the browser history;
+  // `mergeParams` preserves the shell's `?tab=`.
+  const focusBuilding = (id: string) =>
+    setSearchParams((p) => mergeParams(p, { b: id, dt: null }), {
+      replace: true,
+    });
 
   // Keep the energy data in sync with the building currently in view.
   useEffect(() => {
@@ -517,7 +529,11 @@ export default function ExplorePage(
 
                     <Tabs
                       value={detailTab}
-                      onChange={(_e, v) => setDetailTab(v)}
+                      onChange={(_e, v) =>
+                        setSearchParams(
+                          (p) => mergeParams(p, { dt: slugFromDetailIndex(v) }),
+                          { replace: true },
+                        )}
                       variant="fullWidth"
                     >
                       <Tab label="Building data" />
@@ -528,7 +544,11 @@ export default function ExplorePage(
                     {detailTab === 0 && (
                       <Building
                         building={currentBuilding}
-                        onHide={() => setTrail([])}
+                        onHide={() =>
+                          setSearchParams(
+                            (p) => mergeParams(p, { b: null, dt: null }),
+                            { replace: true },
+                          )}
                         embedded
                         hideHeader
                       />

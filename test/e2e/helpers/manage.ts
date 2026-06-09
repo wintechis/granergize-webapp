@@ -67,6 +67,10 @@ export async function addEnergyYear(
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Energy data saved").first())
     .toBeVisible({ timeout: T.action });
+  // Saving keeps the dialog open (so the table reflects the new year); close it
+  // so each call is self-contained and the next action isn't blocked by the modal.
+  await page.getByRole("button", { name: "Close" }).click();
+  await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
 }
 
 /**

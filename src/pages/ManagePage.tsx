@@ -42,6 +42,7 @@ import {
 import { buildBuildingDeletionPreview } from "../services/utils/buildingActions.ts";
 import { tryPodResources } from "../services/utils/solidUtils.ts";
 import { formatError } from "../services/utils/formatError.ts";
+import { formatDate } from "../services/utils/formatDate.ts";
 import { downloadXlsx } from "../services/utils/download.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
@@ -416,11 +417,10 @@ export default function ManagePage({ session }: ManagePageProps) {
                         </small>
                         <br />
                         <small>
-                          Created:{" "}
-                          {new Date(view.createdAt).toLocaleDateString()}
+                          Created: {formatDate(view.createdAt)}
                           {view.lastComputedAt &&
                             ` | Last computed: ${
-                              new Date(view.lastComputedAt).toLocaleDateString()
+                              formatDate(view.lastComputedAt)
                             }`}
                         </small>
                         {sharedViewsQuery.isLoading

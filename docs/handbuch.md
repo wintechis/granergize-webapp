@@ -498,13 +498,18 @@ am Zeilenende mehrere Aktionen:
 
 Energieverbrauchsdaten werden je Gebäude und **Jahr** gepflegt. Öffnen Sie im
 Tab **Manage** beim gewünschten Gebäude über das Symbol **„Add / edit energy
-year"** das Jahresformular:
+year"** den Dialog. Oben listet die Tabelle **„Stored years"** alle bereits
+erfassten Jahre mit ihren Werten auf – so sehen Sie auf einen Blick, was
+gespeichert ist; darunter steht das Eingabeformular.
 
-- **Jahr erfassen oder aktualisieren:** Wählen Sie ein Jahr und tragen Sie die
-  Verbrauchswerte ein. Bereits erfasste Jahre lassen sich jederzeit nachträglich
-  ändern oder ergänzen – so halten Sie die Verbrauchsdaten über die Jahre
-  aktuell. (Damit ist insbesondere das Hinzufügen neuer Jahresscheiben und das
-  spätere Aktualisieren von Verbrauchsdaten möglich.)
+- **Jahr erfassen:** Wählen Sie ein Jahr und tragen Sie die Verbrauchswerte ein.
+  Nach dem Speichern bleibt der Dialog geöffnet, und das neue Jahr erscheint
+  sofort in der Tabelle.
+- **Jahr aktualisieren oder löschen:** Über die Schaltflächen je Tabellenzeile
+  laden Sie ein gespeichertes Jahr zum **Bearbeiten** zurück ins Formular – die
+  vorhandenen Werte werden vorbefüllt, sodass das Ergänzen einzelner Kennzahlen
+  die übrigen nicht überschreibt – oder **löschen** es. So halten Sie die
+  Verbrauchsdaten über die Jahre aktuell.
 - **Soll-Ist-Vergleich:** Erfassen Sie neben den **tatsächlichen** (Ist-)Werten
   auch **geplante** (Soll-)Werte. In der Energieansicht des Gebäudes werden Soll
   und Ist je Jahr nebeneinander dargestellt.
@@ -525,8 +530,9 @@ Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
 - **Building data:** die Stammdaten des Gebäudes (Adresse, Fläche, Baujahr,
   Nutzungsart, Photovoltaik usw.). Ist ein Betreiber hinterlegt, wird dessen WebID
   als anklickbarer Verweis auf das jeweilige Profil angezeigt.
-- **Energy data:** der Energieverbrauch je Jahr als Diagramm. Haben Sie zu einem
-  Jahr sowohl geplante (Soll-) als auch tatsächliche (Ist-)Werte erfasst, werden
+- **Energy data:** der Energieverbrauch je Jahr – zunächst als
+  **Übersichtstabelle** mit den Jahreswerten, darunter als Diagramm. Haben Sie zu
+  einem Jahr sowohl geplante (Soll-) als auch tatsächliche (Ist-)Werte erfasst, werden
   beide **nebeneinander** dargestellt – so erkennen Sie auf einen Blick, wie nah
   der reale Verbrauch am Plan liegt (Soll-Ist-Vergleich). Liegen Verbrauchswerte
   vergleichbarer Gebäude desselben Betreibers vor, wird Ihr Verbrauch zusätzlich

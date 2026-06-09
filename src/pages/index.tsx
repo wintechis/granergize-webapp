@@ -7,7 +7,12 @@ import MenuItem from "@mui/material/MenuItem";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 const ExplorePage = lazy(() => import("./ExplorePage.tsx"));
-import { useLocation } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
+import {
+  mergeParams,
+  slugFromTabIndex,
+  tabIndexFromSlug,
+} from "./uriState.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import {
   formatResourceList,
@@ -29,10 +34,7 @@ import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { getAvatarObjectUrl } from "../services/utils/logoManager.ts";
-import {
-  getCompanyKind,
-  getOrgLogoObjectUrl,
-} from "../services/utils/organizationManager.ts";
+import { getCompanyKind } from "../services/utils/organizationManager.ts";
 import type { UserRole } from "../types.ts";
 import OrganizationDialog from "../components/OrganizationDialog.tsx";
 import Alert from "@mui/material/Alert";
@@ -63,13 +65,13 @@ interface IndexPageProps {
 }
 
 function IndexPage({ session, onLogout }: IndexPageProps) {
-  const location = useLocation();
   // Tabs: 0 = Explore (map), 1 = Manage (your buildings + views), 2 = Share
-  // (inbox), 3 = Connect (rooms). Arriving from a room deep link (#/room/:uri)
-  // lands on the Connect tab.
-  const [tabValue, setTabValue] = useState(
-    (location.state as { openRoom?: boolean } | null)?.openRoom ? 3 : 0,
-  );
+  // (inbox), 3 = Connect (rooms). The active tab lives in the hash query param
+  // `?tab=` so a browser reload (or a bookmark/share) restores it — see
+  // notes/ui-state.md. Arriving from a room deep link (#/room/:uri) lands on the
+  // Connect tab via `?tab=connect` (set in App.tsx's RoomDeepLink).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const tabValue = tabIndexFromSlug(searchParams.get("tab"));
   const devMode = useDevMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   // True while "Remove all app data" is wiping the Pod — shows a full-page
@@ -78,14 +80,15 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const removeAbort = useRef<AbortController | null>(null);
   const { showNotification } = useNotification();
 
-  // Avatar shown top-right: the organisation's logo (foaf:logo) if set, else the
-  // person's avatar (foaf:img / vcard:hasPhoto), else a PersonIcon.
+  // Avatar shown top-right: the person's own avatar (foaf:img / vcard:hasPhoto)
+  // if set, else a PersonIcon. This is always the user's identity — never the
+  // organisation logo (the logo's place is the building markers, where it
+  // identifies the producer).
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [orgOpen, setOrgOpen] = useState(false);
 
   const loadAvatar = () => {
-    return getOrgLogoObjectUrl(session)
-      .then((org) => org ?? getAvatarObjectUrl(session))
+    return getAvatarObjectUrl(session)
       .then((url) => {
         setLogoUrl((prev) => {
           if (prev) URL.revokeObjectURL(prev);
@@ -266,8 +269,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   // Load (and revoke) the avatar object URL for the current session.
   useEffect(() => {
     let current: string | null = null;
-    getOrgLogoObjectUrl(session)
-      .then((org) => org ?? getAvatarObjectUrl(session))
+    getAvatarObjectUrl(session)
       .then((url) => {
         current = url;
         setLogoUrl(url);
@@ -298,7 +300,11 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     // (add/edit call reloadData on success; delete/visibility/share/view use
     // mutation hooks that invalidate). A blanket reload here just refetched the
     // whole dataset on every tab change — a request storm for nothing.
-    setTabValue(newValue);
+    // `replace` keeps tab switches out of the browser history (matches the old
+    // state-only behaviour); `mergeParams` preserves Explore's `b`/`dt`.
+    setSearchParams((p) => mergeParams(p, { tab: slugFromTabIndex(newValue) }), {
+      replace: true,
+    });
   };
 
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
@@ -377,7 +383,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       );
       // Re-offer only when we have example data for the company kind.
       if (companyKindHasDemo(companyKind)) setDemoShow(true);
-      setTabValue(0);
+      setSearchParams((p) => mergeParams(p, { tab: "explore" }), { replace: true });
       showNotification("All app data removed", "success");
     } catch (err) {
       setRemoving(false);

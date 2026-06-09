@@ -141,7 +141,9 @@ function RoomDeepLink({ session }: { session: Session }) {
           logError("open data room from route", err)
         );
       }
-      if (active) navigate("/", { replace: true, state: { openRoom: true } });
+      // Land on Connect via the `?tab=` param (not router state) so the tab
+      // survives a subsequent reload — see notes/ui-state.md.
+      if (active) navigate("/?tab=connect", { replace: true });
     })();
     return () => {
       active = false;

@@ -16,7 +16,11 @@ import { T } from "../helpers/timeouts.ts";
  * surfaces as the "(planned)" overlay beside actual. It selects the single map
  * marker, so it needs a pristine collection — the per-spec CSS reset (Tier 3) or
  * the per-run `granergize-e2e-<uuid>` collection (Tier 4). (The overlay's chart
- * legend is also unit-tested in `MetricBarChart.test.tsx`.)
+ * legend is also unit-tested in `MetricBarChart.test.tsx`.) A fourth test guards
+ * the incremental-edit path: re-opening a stored year pre-loads its figures, so
+ * adding one metric later doesn't overwrite the earlier ones with nothing. A
+ * fifth drives the dialog's read-back table — that a stored year is listed, its
+ * Edit loads the figures back into the form, and it can be deleted from the table.
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/tasks/energy-entry.spec.ts
@@ -28,6 +32,7 @@ import { T } from "../helpers/timeouts.ts";
  */
 
 const YEAR = "2099"; // fixed far-future year; re-runs overwrite it (idempotent)
+const EDIT_YEAR = "2097"; // a separate year for the incremental-edit test
 const ADDR = "Energy Entry E2E Strasse 1"; // unique address for the building
 
 const ACC = account("A"); // Alice -- solo specs use one account
@@ -140,5 +145,81 @@ test.describe("energy entry + Soll-Ist", () => {
     // presence proves the entered planned dataset flowed back into the comparison.
     await expect(page.getByText(/\(planned\)/).first())
       .toBeVisible({ timeout: T.action });
+  });
+
+  test("adding a metric to an existing year keeps the earlier figures", async () => {
+    test.setTimeout(T.testSolo);
+    // Regression for the data-loss bug: a year was saved with only electricity,
+    // Heat left blank. Re-opening to add Heat used to start the form empty, so
+    // saving overwrote the dataset and dropped electricity. The dialog now
+    // pre-loads the stored figures when you type a year that already exists.
+    await addEnergyYear(page, ADDR, EDIT_YEAR, "55555"); // electricity only
+
+    const openYearDialog = async () => {
+      await page.getByRole("tab", { name: "Manage" }).click();
+      const row = page.locator("li", { hasText: ADDR }).first();
+      await expect(row).toBeVisible({ timeout: T.action });
+      await row.getByRole("button", { name: "Add or edit energy year" }).click();
+      await page.getByRole("spinbutton", { name: "Year", exact: true })
+        .fill(EDIT_YEAR);
+    };
+
+    // Re-open on that year: the stored electricity is pre-filled (not blank).
+    await openYearDialog();
+    await expect(page.getByText(/editing existing figures/i))
+      .toBeVisible({ timeout: T.action });
+    await expect(page.getByRole("spinbutton", { name: "Electricity (kWh)" }))
+      .toHaveValue("55555");
+    // Add Heat WITHOUT re-typing electricity, then save.
+    await page.getByRole("spinbutton", { name: "Heat (kWh)" }).fill("33333");
+    await page.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Energy data saved").first())
+      .toBeVisible({ timeout: T.action });
+    // Saving keeps the dialog open now — close it before navigating away.
+    await page.getByRole("button", { name: "Close" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
+
+    // Re-open once more: BOTH figures persisted — electricity was not zeroed.
+    await openYearDialog();
+    await expect(page.getByRole("spinbutton", { name: "Electricity (kWh)" }))
+      .toHaveValue("55555");
+    await expect(page.getByRole("spinbutton", { name: "Heat (kWh)" }))
+      .toHaveValue("33333");
+    await page.getByRole("button", { name: "Close" }).click();
+  });
+
+  test("the dialog lists stored years and can delete one", async () => {
+    test.setTimeout(T.testSolo);
+    const DEL_YEAR = "2096";
+    // Seed a throwaway year, then re-open: the read-back table shows it.
+    await addEnergyYear(page, ADDR, DEL_YEAR, "12345");
+    await page.getByRole("tab", { name: "Manage" }).click();
+    const row = page.locator("li", { hasText: ADDR }).first();
+    await expect(row).toBeVisible({ timeout: T.action });
+    await row.getByRole("button", { name: "Add or edit energy year" }).click();
+
+    const table = page.getByRole("dialog").getByRole("table");
+    const yearRow = table.getByRole("row", {
+      name: new RegExp(`\\b${DEL_YEAR}\\b`),
+    });
+    await expect(yearRow).toBeVisible({ timeout: T.action });
+
+    // The row's Edit button loads that year's figures into the form (the
+    // "edit afterwards" path, like editing a building) — the raw stored values,
+    // not the de-DE-formatted table cells.
+    await yearRow.getByRole("button", { name: "Edit this year" }).click();
+    await expect(page.getByRole("spinbutton", { name: "Year", exact: true }))
+      .toHaveValue(DEL_YEAR);
+    await expect(page.getByRole("spinbutton", { name: "Electricity (kWh)" }))
+      .toHaveValue("12345");
+    await expect(page.getByText(/editing existing figures/i))
+      .toBeVisible({ timeout: T.action });
+
+    // Delete it (window.confirm auto-accepted in beforeAll) — the row disappears.
+    await yearRow.getByRole("button", { name: "Delete this year" }).click();
+    await expect(page.getByText("Energy year deleted").first())
+      .toBeVisible({ timeout: T.action });
+    await expect(yearRow).toBeHidden({ timeout: T.action });
+    await page.getByRole("button", { name: "Close" }).click();
   });
 });

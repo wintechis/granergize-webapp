@@ -37,6 +37,7 @@ import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { formatDate, formatDateTime } from "../services/utils/formatDate.ts";
 
 interface AggregatedViewProps {
   session: Session;
@@ -248,11 +249,11 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
                 ["Metrics", viewDefinition.metrics.length],
                 [
                   "Created",
-                  new Date(viewDefinition.createdAt).toLocaleDateString(),
+                  formatDate(viewDefinition.createdAt),
                 ],
                 viewDefinition.lastComputedAt && [
                   "Last Computed",
-                  new Date(viewDefinition.lastComputedAt).toLocaleString(),
+                  formatDateTime(viewDefinition.lastComputedAt),
                 ],
                 viewDefinition.period && [
                   "Period",
