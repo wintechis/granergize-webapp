@@ -12,7 +12,7 @@ import {
 } from "./mutations.ts";
 import { queryKeys } from "./queries.ts";
 import { _setSessionForTesting } from "./session.ts";
-import { _setStorageRootForTesting } from "../services/utils/solidUtils.ts";
+import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { resetActiveRoom } from "../services/interop/dataRoom.ts";
 
 /**

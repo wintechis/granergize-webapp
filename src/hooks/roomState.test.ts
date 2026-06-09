@@ -8,7 +8,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { useRoomState } from "./queries.ts";
 import { useEnterRoom } from "./mutations.ts";
 import { _setSessionForTesting } from "./session.ts";
-import { _setStorageRootForTesting } from "../services/utils/solidUtils.ts";
+import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 
 const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
 const WEBID = "https://pod.example/profile/card#me";

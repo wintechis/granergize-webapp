@@ -11,7 +11,7 @@
  */
 import { type LiveSessionLike, type LocalPod, startLocalPod } from "./localPod.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { resolveStorageRoot } from "../../src/services/utils/solidUtils.ts";
+import { resolveStorageRoot } from "../../src/services/pod/solidUtils.ts";
 import { ensureOwnInbox } from "../../src/services/interop/inbox.ts";
 import {
   type Actor,

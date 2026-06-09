@@ -22,7 +22,7 @@ import { useReceivedBenchmarks, useSolidData } from "../hooks/queries.ts";
 import { pickBenchmark } from "../services/aggregation/benchmarkSelector.ts";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
-import { useDevMode } from "../components/devMode.ts";
+import { useDevMode } from "../hooks/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import UserEnergyChart from "./UserEnergyChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
@@ -31,7 +31,7 @@ import {
   ENERGY_ABOVE_AVG_COLOR,
   ENERGY_BELOW_AVG_COLOR,
 } from "../constants/chartColors.ts";
-import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
+import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 
 type EnergyProps = {
   selectedBuilding: string;

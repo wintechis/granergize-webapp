@@ -15,9 +15,9 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import type { UserRole } from "../types.ts";
 import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { formatError } from "../services/utils/formatError.ts";
+import { formatError } from "../lib/formatError.ts";
 import Modal from "./Modal.tsx";
-import { logError } from "../services/utils/logError.ts";
+import { logError } from "../lib/logError.ts";
 import {
   getCompanyKind,
   getOrganization,
@@ -26,7 +26,7 @@ import {
   saveCompanyKind,
   saveOrganization,
   uploadOrgLogo,
-} from "../services/utils/organizationManager.ts";
+} from "../services/organization/organizationManager.ts";
 
 interface OrganizationDialogProps {
   open: boolean;

@@ -1,7 +1,7 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser } from "n3";
-import { fetchFresh } from "../utils/podFetch.ts";
-import { parseBuildings } from "../utils/buildingParser.ts";
+import { fetchFresh } from "../pod/podFetch.ts";
+import { parseBuildings } from "../rdf/building/buildingParser.ts";
 import type { BuildingType } from "../../types.ts";
 
 /** A shared-building entry as folded from the `shared-in/` log. */

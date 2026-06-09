@@ -22,8 +22,8 @@ import type {
 import { ROLE_LABELS } from "../constants/roles.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { logError } from "../services/utils/logError.ts";
-import { formatError } from "../services/utils/formatError.ts";
+import { logError } from "../lib/logError.ts";
+import { formatError } from "../lib/formatError.ts";
 import { useReceivedViews, useSharedWithMe } from "../hooks/queries.ts";
 import { useCheckInbox, useToggleVisibility } from "../hooks/mutations.ts";
 import { loadSharedBuilding } from "../services/interop/sharedBuilding.ts";
@@ -31,18 +31,18 @@ import {
   attachAnnualData,
   buildingsToXlsx,
   buildingToXlsx,
-} from "../services/utils/buildingSerializer.ts";
+} from "../services/rdf/building/buildingSerializer.ts";
 import { loadComputedSnapshot } from "../services/aggregation/viewManager.ts";
-import { downloadXlsx } from "../services/utils/download.ts";
-import { tryPodResources } from "../services/utils/solidUtils.ts";
+import { downloadXlsx } from "../lib/download.ts";
+import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import FilesSection from "../components/detail/FilesSection.tsx";
-import { useDevMode } from "../components/devMode.ts";
+import { useDevMode } from "../hooks/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
-import { listStyle, rowStyle } from "../components/listStyles.ts";
+import { listStyle, rowStyle } from "../constants/listStyles.ts";
 import Pager from "../components/Pager.tsx";
-import { usePaging } from "../components/usePaging.ts";
+import { usePaging } from "../hooks/usePaging.ts";
 
 interface SharePageProps {
   session: Session;

@@ -1,5 +1,5 @@
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
-import { ConflictError } from "../services/utils/podWrite.ts";
+import { ConflictError } from "../services/pod/podWrite.ts";
 
 export type ErrorSeverity = "error" | "warning";
 

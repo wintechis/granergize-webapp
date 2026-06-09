@@ -37,7 +37,7 @@ import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import { shareAggregatedView } from "../services/interop/share.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { formatDate, formatDateTime } from "../services/utils/formatDate.ts";
+import { formatDate, formatDateTime } from "../lib/formatDate.ts";
 
 interface AggregatedViewProps {
   session: Session;

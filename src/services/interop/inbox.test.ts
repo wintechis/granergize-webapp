@@ -8,8 +8,8 @@ import {
   inboxFromLinkHeader,
   isMessageResource,
 } from "./inbox.ts";
-import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
-import { ACL_NS, INTEROP_NS, LDP_CONTAINS } from "../utils/vocabularies.ts";
+import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
+import { ACL_NS, INTEROP_NS, LDP_CONTAINS } from "../rdf/vocabularies.ts";
 
 const WEBID = "https://b.example/profile/card#me";
 

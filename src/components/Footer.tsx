@@ -3,7 +3,7 @@ import FormControlLabel from "@mui/material/FormControlLabel";
 import Link from "@mui/material/Link";
 import Switch from "@mui/material/Switch";
 import Typography from "@mui/material/Typography";
-import { setDevMode, useDevMode } from "./devMode.ts";
+import { setDevMode, useDevMode } from "../hooks/devMode.ts";
 
 /** Plain footer placed in normal page flow. */
 function Footer() {

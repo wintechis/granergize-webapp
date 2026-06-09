@@ -20,7 +20,7 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
-import { logError } from "../services/utils/logError.ts";
+import { logError } from "../lib/logError.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
 import { AgentField } from "./AgentField.tsx";
 import RequestActivityList from "./RequestActivityList.tsx";
@@ -36,10 +36,10 @@ import {
   serializeBuildingToTurtle,
   uploadBuilding,
   writeBuildingEnergy,
-} from "../services/utils/buildingSerializer.ts";
-import { getCompanyKind } from "../services/utils/organizationManager.ts";
-import { formatError } from "../services/utils/formatError.ts";
-import { rememberAgent } from "../services/utils/contacts.ts";
+} from "../services/rdf/building/buildingSerializer.ts";
+import { getCompanyKind } from "../services/organization/organizationManager.ts";
+import { formatError } from "../lib/formatError.ts";
+import { rememberAgent } from "../services/contacts.ts";
 
 interface AddBuildingDialogProps {
   open: boolean;

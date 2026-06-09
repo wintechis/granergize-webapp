@@ -26,19 +26,19 @@ import { drainInbox, ensureOwnInbox } from "./services/interop/inbox.ts";
 import {
   clearRequestLog,
   instrumentSessionFetch,
-} from "./services/utils/networkActivity.ts";
-import { formatError } from "./services/utils/formatError.ts";
+} from "./lib/networkActivity.ts";
+import { formatError } from "./lib/formatError.ts";
 import {
   clearStorageRootCache,
   resolveStorageRoot,
-} from "./services/utils/solidUtils.ts";
+} from "./services/pod/solidUtils.ts";
 import { resetActiveRoom } from "./services/interop/dataRoom.ts";
 import {
   getSessionExpiredSnapshot,
   markSessionExpired,
   resetSessionGate,
   subscribeSessionGate,
-} from "./services/utils/sessionGate.ts";
+} from "./services/pod/sessionGate.ts";
 
 // One-shot flag (survives a manual reload) telling the Login screen NOT to restore
 // the previous session. Set after a destructive logout ("Remove all app data") so

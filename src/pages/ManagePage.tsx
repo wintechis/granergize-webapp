@@ -38,23 +38,23 @@ import {
   attachAnnualData,
   buildingsToXlsx,
   buildingToXlsx,
-} from "../services/utils/buildingSerializer.ts";
-import { buildBuildingDeletionPreview } from "../services/utils/buildingActions.ts";
-import { tryPodResources } from "../services/utils/solidUtils.ts";
-import { formatError } from "../services/utils/formatError.ts";
-import { formatDate } from "../services/utils/formatDate.ts";
-import { downloadXlsx } from "../services/utils/download.ts";
+} from "../services/rdf/building/buildingSerializer.ts";
+import { buildBuildingDeletionPreview } from "../services/buildingActions.ts";
+import { tryPodResources } from "../services/pod/solidUtils.ts";
+import { formatError } from "../lib/formatError.ts";
+import { formatDate } from "../lib/formatDate.ts";
+import { downloadXlsx } from "../lib/download.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
-import { useDevMode } from "../components/devMode.ts";
+import { useDevMode } from "../hooks/devMode.ts";
 import {
   ellipsis,
   listStyle,
   nestedListStyle,
   rowStyle,
-} from "../components/listStyles.ts";
+} from "../constants/listStyles.ts";
 import Pager from "../components/Pager.tsx";
-import { usePaging } from "../components/usePaging.ts";
+import { usePaging } from "../hooks/usePaging.ts";
 import {
   FilesDialog,
   ShareBuildingDialog,

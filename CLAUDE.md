@@ -107,7 +107,7 @@ why `vite.config.ts` sets `base: "./"` and routing uses `HashRouter`.
    building, so the listing can't desync), and buildings shared *with* the user by
    folding the `shared-in/` event log. It fetches those sources with per-source
    blank-node scoping to avoid ID collisions, then delegates to parsers in
-   `src/services/utils/` (`buildingParser`; energy via `parseEnergyDataset` in
+   `src/services/rdf/` (`buildingParser`; energy via `parseEnergyDataset` in
    `energyDataset.ts`; user-energy readings via `parseTtlReadings` in `userEnergyParser`).
    Inaccessible shared sources are tolerated and pruned from the log; hidden buildings
    come from `gran:hiddenBuilding` triples in `<appRoot>/prefs.ttl` (see `prefs.ts`;
@@ -178,7 +178,7 @@ not provenance.
   identified by URIs/IRIs (a URL is just a locating URI); we have an education
   mandate to use precise wording, so prefer URI/IRI in user-facing text, error
   messages, comments, and identifiers. (RDF terms are IRIs.)
-- Vocabulary IRIs are centralized in `src/services/utils/vocabularies.ts` (`GRAN_NS`,
+- Vocabulary IRIs are centralized in `src/services/rdf/vocabularies.ts` (`GRAN_NS`,
   `INVESTOR_NS`, `BENCH_NS`, SOSA/TIME/SSN, XSD datatypes). Use these constants; don't
   inline IRI strings.
 - The Granergize **ontologies themselves** (the gran / investor / benchmark / user
@@ -188,13 +188,13 @@ not provenance.
   predicate, object-property range, and controlled-vocab instance is defined there, so the
   code and the published vocab can't drift.
 - Predicate→`BuildingType` field mappings live in
-  `src/services/utils/config/buildingConfig.ts`. Each field carries its `rdfs:range`
+  `src/services/rdf/building/buildingConfig.ts`. Each field carries its `rdfs:range`
   (an XSD datatype → typed literal; `foaf:Agent` → IRI reference; another class IRI →
   controlled-vocab object); `predicateMap`/`objectPropertyMap`/`iriPropertyMap` and the
   datatype sets all derive from it. Adding a building property generally means updating
   both `BuildingType` and this table (and defining the term in `vocab/`).
 - RDF parsing/serialization uses `n3` (`Parser`, `Store`, `Writer`, `DataFactory`).
-  Shared quad helpers are in `src/services/utils/rdfHelpers.ts`.
+  Shared quad helpers are in `src/services/rdf/rdfHelpers.ts`.
 - **Storage root** — `resolveStorageRoot(session)` (`solidUtils.ts`) resolves it the Solid
   way: read `pim:storage` from the WebID profile, else walk up to the `pim:Storage`-typed
   container (so Pods that type the root but omit the triple still work); cached per WebID.
@@ -239,7 +239,7 @@ bundle. Maps use Leaflet via `react-leaflet`.
 User-facing messages go through `NotificationContext`.
 
 Global network-loading feedback goes through one activity store
-(`src/services/utils/networkActivity.ts`): `instrumentSessionFetch` wraps the Solid
+(`src/lib/networkActivity.ts`): `instrumentSessionFetch` wraps the Solid
 session's `fetch` once at login so every Pod request is tracked automatically AND
 retries transient throttling (Cloudflare 429/503, see `retryFetch.ts`; the retry sits
 above `@inrupt`'s fetch so each attempt gets a fresh DPoP proof). Non-Pod requests opt
@@ -292,7 +292,7 @@ ESLint-enforced (`eslint.config.js`); the rest are review conventions.
   `NotificationContext` (`showNotification(msg, severity)`), never a bespoke
   snackbar. Keep the message vocabulary small and reused; don't add a one-off
   notice for a trivial event. Error toasts use `formatError(action, err)`
-  (`src/services/utils/formatError.ts`) → a single `"Failed to {action}: {detail}"`
+  (`src/lib/formatError.ts`) → a single `"Failed to {action}: {detail}"`
   shape, instead of ad-hoc "X failed" / "Error X" wording.
   - **Carve-out:** *contextual, persistent* feedback rendered inline in a panel
     or form may use MUI `<Alert>` (e.g. a validation error or a "no data" notice
@@ -315,8 +315,8 @@ ESLint-enforced (`eslint.config.js`); the rest are review conventions.
 - **Icon actions.** `IconButton size="small"` with both a `Tooltip` and an
   `aria-label`.
 - **Developer mode — one gate for raw/debug affordances.** A client-only,
-  `localStorage`-persisted flag (pure store `services/utils/devMode.ts` +
-  `useDevMode()` in `components/devMode.ts`, mirroring the
+  `localStorage`-persisted flag (pure store `src/lib/devMode.ts` +
+  `useDevMode()` in `src/hooks/devMode.ts`, mirroring the
   `networkActivity`/`requestActivity` split), toggled from the footer. It gates
   everything that exposes RDF/Solid plumbing rather than user content, and is OFF
   by default. Gated by it: the `RdfSourceLink` raw-RDF source links (the component

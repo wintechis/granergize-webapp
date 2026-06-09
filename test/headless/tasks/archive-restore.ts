@@ -10,7 +10,7 @@ import { restore, snapshot, type TaskContext } from "../taskContext.ts";
 import {
   exportArchive,
   importArchive,
-} from "../../../src/services/utils/podArchive.ts";
+} from "../../../src/services/pod/podArchive.ts";
 import { reissueGrants, shareBuildingData } from "../../../src/services/interop/share.ts";
 import { removeFromACL } from "../../../src/services/interop/sharingManager.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
@@ -19,9 +19,9 @@ import {
   newBuildingUri,
   serializeBuildingToTurtle,
   uploadBuilding,
-} from "../../../src/services/utils/buildingSerializer.ts";
-import { filesContainerFor } from "../../../src/services/utils/attachmentManager.ts";
-import { podResources } from "../../../src/services/utils/solidUtils.ts";
+} from "../../../src/services/rdf/building/buildingSerializer.ts";
+import { filesContainerFor } from "../../../src/services/attachmentManager.ts";
+import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 export const name = "archive-restore";
 

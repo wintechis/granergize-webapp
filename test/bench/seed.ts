@@ -12,21 +12,21 @@ import {
   serializeBuildingToTurtle,
   uploadBuilding,
   writeBuildingEnergy,
-} from "../../src/services/utils/buildingSerializer.ts";
-import { synthDayReadings } from "../../src/services/utils/energySeriesXlsx.ts";
-import { seriesContainerUrl } from "../../src/services/utils/energyDataset.ts";
+} from "../../src/services/rdf/building/buildingSerializer.ts";
+import { synthDayReadings } from "../../src/services/rdf/energySeriesXlsx.ts";
+import { seriesContainerUrl } from "../../src/services/rdf/energyDataset.ts";
 import { shareBuildingData } from "../../src/services/interop/share.ts";
 import { drainInbox } from "../../src/services/interop/inbox.ts";
-import { appRoot, podResources } from "../../src/services/utils/solidUtils.ts";
-import { deleteContainerRecursive } from "../../src/services/utils/podDelete.ts";
-import { ensureContainer } from "../../src/services/utils/podWrite.ts";
-import { mapPooled } from "../../src/services/utils/pool.ts";
+import { appRoot, podResources } from "../../src/services/pod/solidUtils.ts";
+import { deleteContainerRecursive } from "../../src/services/pod/podDelete.ts";
+import { ensureContainer } from "../../src/services/pod/podWrite.ts";
+import { mapPooled } from "../../src/lib/pool.ts";
 import {
   AS_NS,
   GRAN_NS,
   SIOC_NS,
   XSD_DATETIME,
-} from "../../src/services/utils/vocabularies.ts";
+} from "../../src/services/rdf/vocabularies.ts";
 import { normalizeRoomUrl } from "../../src/services/interop/dataRoom.ts";
 
 /** Bounded write concurrency — same small pool the app uses for daily files. */

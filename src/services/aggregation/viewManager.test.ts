@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser, Store } from "n3";
-import { _setStorageRootForTesting } from "../utils/solidUtils.ts";
+import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 import {
   createViewDefinition,
   deleteView,
@@ -12,7 +12,7 @@ import {
   loadComputedSnapshot,
   storeComputedSnapshot,
 } from "./viewManager.ts";
-import { BENCH_NS } from "../utils/vocabularies.ts";
+import { BENCH_NS } from "../rdf/vocabularies.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");

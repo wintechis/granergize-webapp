@@ -7,8 +7,8 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { useContacts, useResolveAgent } from "./queries.ts";
 import { _setSessionForTesting } from "./session.ts";
-import { _setStorageRootForTesting } from "../services/utils/solidUtils.ts";
-import { _resetProfileCacheForTesting } from "../services/utils/profileDocument.ts";
+import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
+import { _resetProfileCacheForTesting } from "../services/pod/profileDocument.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 const CONTACTS = "https://pod.example/granergize/contacts.ttl";

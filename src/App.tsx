@@ -5,7 +5,7 @@ import { openRoom } from "./services/interop/dataRoom.ts";
 import {
   getStorageRoot,
   resolveStorageRoot,
-} from "./services/utils/solidUtils.ts";
+} from "./services/pod/solidUtils.ts";
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Energy from "./pages/Energy.tsx";
@@ -23,7 +23,7 @@ import Typography from "@mui/material/Typography";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType } from "./types.ts";
 import { useSolidData } from "./hooks/queries.ts";
-import { logError } from "./services/utils/logError.ts";
+import { logError } from "./lib/logError.ts";
 
 function useBuildingParam(): {
   building: BuildingType | null;

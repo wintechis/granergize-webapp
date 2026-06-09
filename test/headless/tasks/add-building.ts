@@ -12,7 +12,7 @@ import {
   newBuildingUri,
   serializeBuildingToTurtle,
   uploadBuilding,
-} from "../../../src/services/utils/buildingSerializer.ts";
+} from "../../../src/services/rdf/building/buildingSerializer.ts";
 import { fetchAndParseData } from "../../../src/services/TurtleParsingService.ts";
 
 export const name = "add-building";

@@ -8,12 +8,12 @@ import {
   PROV_NS,
   PROV_WAS_ASSOCIATED_WITH,
   RDF_TYPE,
-} from "../utils/vocabularies.ts";
-import { appRoot } from "../utils/solidUtils.ts";
-import { readStoreOrEmpty } from "../utils/podFetch.ts";
-import { ensureContainer } from "../utils/podWrite.ts";
-import { listDirectChildren } from "../utils/podDelete.ts";
-import { mapPooled } from "../utils/pool.ts";
+} from "../rdf/vocabularies.ts";
+import { appRoot } from "../pod/solidUtils.ts";
+import { readStoreOrEmpty } from "../pod/podFetch.ts";
+import { ensureContainer } from "../pod/podWrite.ts";
+import { listDirectChildren } from "../pod/podDelete.ts";
+import { mapPooled } from "../../lib/pool.ts";
 
 const { namedNode } = DataFactory;
 

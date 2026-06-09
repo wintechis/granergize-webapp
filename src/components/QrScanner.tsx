@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { logError } from "../services/utils/logError.ts";
+import { logError } from "../lib/logError.ts";
 
 interface QrScannerProps {
   /** Called with the decoded text once a QR code is read. */

@@ -34,7 +34,7 @@ affected by `TurtleParsingService`'s per-source blank-node scoping, and a file i
 removed by dropping all triples with that subject. Constants in `vocabularies.ts`
 (`GRAN_HAS_ATTACHMENT`, `SCHEMA_*`, `DCTERMS_CREATED`).
 
-## Write path — `services/utils/attachmentManager.ts`
+## Write path — `services/attachments/attachmentManager.ts`
 
 Binaries can't go through the string-field building serializer, so this mirrors the
 old `certificateUploader` but on the race-safe `readModifyWrite` (`podWrite.ts`):

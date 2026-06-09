@@ -30,8 +30,8 @@ import {
   SectionTitle,
 } from "../components/detail/DetailView.tsx";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
-import { loadEnergyDatasets } from "../services/utils/energyDataset.ts";
-import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
+import { loadEnergyDatasets } from "../services/rdf/energyDataset.ts";
+import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 
 interface BspEnergyProps {
   building: BuildingType;

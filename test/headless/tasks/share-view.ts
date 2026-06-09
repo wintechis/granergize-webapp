@@ -11,7 +11,7 @@ import {
   getReceivedViews,
   revokeViewAccess,
 } from "../../../src/services/interop/sharingManager.ts";
-import { podResources } from "../../../src/services/utils/solidUtils.ts";
+import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 export const name = "share-view";
 

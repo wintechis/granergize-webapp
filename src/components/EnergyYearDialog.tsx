@@ -24,15 +24,15 @@ import {
   type EnergyDataset,
   type EnergyMetricKey,
   loadEnergyDatasets,
-} from "../services/utils/energyDataset.ts";
+} from "../services/rdf/energyDataset.ts";
 import {
   deleteEnergyYear,
   writeEnergyYear,
-} from "../services/utils/buildingSerializer.ts";
+} from "../services/rdf/building/buildingSerializer.ts";
 import { useInvalidateBuildingData } from "../hooks/mutations.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { formatError } from "../services/utils/formatError.ts";
-import { logError } from "../services/utils/logError.ts";
+import { formatError } from "../lib/formatError.ts";
+import { logError } from "../lib/logError.ts";
 import Modal from "./Modal.tsx";
 
 const METRIC_FIELDS: Array<

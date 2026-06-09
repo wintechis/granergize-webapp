@@ -5,7 +5,7 @@ import {
   fetchAndParseData,
   SessionExpiredError,
 } from "./TurtleParsingService.ts";
-import { _setStorageRootForTesting } from "./utils/solidUtils.ts";
+import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
 
 // Offline fixtures for a single Pod. The fake Session below serves these by URL
 // so fetchAndParseData runs end-to-end with no network. WebID resolves to:

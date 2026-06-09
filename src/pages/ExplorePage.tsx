@@ -8,7 +8,7 @@ import {
 } from "./uriState.ts";
 import Building from "./Building.tsx";
 import { UriLink } from "../components/detail/DetailView.tsx";
-import { useDevMode } from "../components/devMode.ts";
+import { useDevMode } from "../hooks/devMode.ts";
 import VisibleEnergyMix from "../components/VisibleEnergyMix.tsx";
 import {
   MapContainer,
@@ -51,13 +51,13 @@ import {
 import {
   beginActivity,
   endActivity,
-} from "../services/utils/networkActivity.ts";
-import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
+} from "../lib/networkActivity.ts";
+import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import {
   categorise,
   type EnergyCategory,
   energyIntensity,
-} from "../services/utils/energyCategory.ts";
+} from "../services/rdf/energyCategory.ts";
 
 /** Which colour lens the map markers use. */
 type MapLens = "ownership" | "energy";

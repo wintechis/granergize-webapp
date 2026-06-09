@@ -19,8 +19,8 @@ import {
   listContainedResources,
   listDirectChildren,
   removeAppData,
-} from "../services/utils/podDelete.ts";
-import { APP_DIR, getStorageRoot, podResources } from "../services/utils/solidUtils.ts";
+} from "../services/pod/podDelete.ts";
+import { APP_DIR, getStorageRoot, podResources } from "../services/pod/solidUtils.ts";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -29,12 +29,12 @@ import SharePage from "./SharePage.tsx";
 import ManagePage from "./ManagePage.tsx";
 import ConnectPage from "./ConnectPage.tsx";
 import Footer from "../components/Footer.tsx";
-import { useDevMode } from "../components/devMode.ts";
+import { useDevMode } from "../hooks/devMode.ts";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
-import { getAvatarObjectUrl } from "../services/utils/logoManager.ts";
-import { getCompanyKind } from "../services/utils/organizationManager.ts";
+import { getAvatarObjectUrl } from "../services/organization/logoManager.ts";
+import { getCompanyKind } from "../services/organization/organizationManager.ts";
 import type { UserRole } from "../types.ts";
 import OrganizationDialog from "../components/OrganizationDialog.tsx";
 import Alert from "@mui/material/Alert";
@@ -45,17 +45,17 @@ import { queryKeys } from "../hooks/queries.ts";
 import {
   companyKindHasDemo,
   seedDemoBuildings,
-} from "../services/utils/buildingSerializer.ts";
-import { readPrefs, setDemoSeedDeclined } from "../services/utils/prefs.ts";
-import { logError } from "../services/utils/logError.ts";
-import { formatError } from "../services/utils/formatError.ts";
+} from "../services/rdf/building/buildingSerializer.ts";
+import { readPrefs, setDemoSeedDeclined } from "../services/prefs.ts";
+import { logError } from "../lib/logError.ts";
+import { formatError } from "../lib/formatError.ts";
 import {
   exportArchive,
   importArchive,
   inspectArchive,
-} from "../services/utils/podArchive.ts";
+} from "../services/pod/podArchive.ts";
 import { reissueGrants } from "../services/interop/share.ts";
-import { downloadBlob } from "../services/utils/download.ts";
+import { downloadBlob } from "../lib/download.ts";
 
 interface IndexPageProps {
   session: Session;

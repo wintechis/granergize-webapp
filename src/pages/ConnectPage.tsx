@@ -36,16 +36,16 @@ import {
   useSaveRoles,
 } from "../hooks/mutations.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { tryPodResources } from "../services/utils/solidUtils.ts";
-import { resolveAgent } from "../services/utils/agentResolver.ts";
-import { formatError } from "../services/utils/formatError.ts";
+import { tryPodResources } from "../services/pod/solidUtils.ts";
+import { resolveAgent } from "../services/agents/agentResolver.ts";
+import { formatError } from "../lib/formatError.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
-import { buttonRowStyle, listStyle, rowStyle } from "../components/listStyles.ts";
+import { buttonRowStyle, listStyle, rowStyle } from "../constants/listStyles.ts";
 import Pager from "../components/Pager.tsx";
-import { usePaging } from "../components/usePaging.ts";
+import { usePaging } from "../hooks/usePaging.ts";
 import QrScanner from "../components/QrScanner.tsx";
-import { logError } from "../services/utils/logError.ts";
+import { logError } from "../lib/logError.ts";
 
 /** Host of a room URI, for "Hosted by …" labels (the Pod that owns the room). */
 function roomHost(roomUrl: string): string {

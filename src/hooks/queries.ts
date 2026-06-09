@@ -4,7 +4,7 @@ import {
   loadBuildings,
   loadEnergy,
 } from "../services/TurtleParsingService.ts";
-import { resolveStorageRoot } from "../services/utils/solidUtils.ts";
+import { resolveStorageRoot } from "../services/pod/solidUtils.ts";
 import {
   getReceivedViews,
   getSharedBuildings,
@@ -16,11 +16,11 @@ import {
   getViewDefinitions,
 } from "../services/aggregation/viewManager.ts";
 import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
-import { readContacts } from "../services/utils/contacts.ts";
+import { readContacts } from "../services/contacts.ts";
 import {
   resolveAgent,
   resolveAgentOrgLogo,
-} from "../services/utils/agentResolver.ts";
+} from "../services/agents/agentResolver.ts";
 import type {
   BuildingType,
   EnergyType,

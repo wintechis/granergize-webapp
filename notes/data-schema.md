@@ -107,15 +107,15 @@ boundary is one-way at load time: RDF → typed object → React props (see
 The building schema therefore lives across four artifacts that must agree:
 
 - **RDF vocabulary** — predicate IRIs in
-  [`vocabularies.ts`](../src/services/utils/vocabularies.ts).
+  [`vocabularies.ts`](../src/services/rdf/vocabularies.ts).
 - **App object type** — `BuildingType` (also `AgentType`, `EnergyType`) in
   `types/types.ts`.
 - **Predicate ⇄ field mapping** — `predicateMap` / `objectPropertyMap` in
-  [`buildingConfig.ts`](../src/services/utils/config/buildingConfig.ts).
+  [`buildingConfig.ts`](../src/services/rdf/building/buildingConfig.ts).
 - **Datatype/coercion** — `parsingFunctions` (read: literal → JS) in
   `buildingConfig.ts`, and separately `INTEGER_FIELDS`/`DECIMAL_FIELDS`/
   `BOOLEAN_FIELDS` + `xsdType()` (write: JS → typed literal) in
-  [`buildingSerializer.ts`](../src/services/utils/buildingSerializer.ts).
+  [`buildingSerializer.ts`](../src/services/rdf/building/buildingSerializer.ts).
 
 What's single-sourced vs. duplicated:
 
@@ -151,7 +151,7 @@ Consequences:
 - Drift between the four is otherwise silent.
 
 **Done (descriptor table).** `BUILDING_FIELDS` in
-[`buildingConfig.ts`](../src/services/utils/config/buildingConfig.ts) is now the
+[`buildingConfig.ts`](../src/services/rdf/building/buildingConfig.ts) is now the
 single source: one row per field (`{ field, iri, kind, type }`), from which
 `predicateMap`, `objectPropertyMap`, `parsingFunctions`, and the serializer's
 `INTEGER_FIELDS`/`DECIMAL_FIELDS`/`BOOLEAN_FIELDS` are all derived. `field` is

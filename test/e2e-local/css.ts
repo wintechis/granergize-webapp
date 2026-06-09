@@ -17,7 +17,7 @@
 import { type LocalPod, startLocalPod } from "../headless/localPod.ts";
 import { LOCAL_CSS_CONTROL_PORT, LOCAL_CSS_PORT } from "../config/localSeed.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { podResources, resolveStorageRoot } from "../../src/services/utils/solidUtils.ts";
+import { podResources, resolveStorageRoot } from "../../src/services/pod/solidUtils.ts";
 import { createRoom } from "../../src/services/interop/dataRoom.ts";
 import {
   seedBuildings,

@@ -6,7 +6,7 @@ import {
   DialogContent,
   DialogTitle,
 } from "@mui/material";
-import { shouldDialogClose } from "./dialogGuard.ts";
+import { shouldDialogClose } from "../lib/dialogGuard.ts";
 
 export interface ModalProps {
   open: boolean;

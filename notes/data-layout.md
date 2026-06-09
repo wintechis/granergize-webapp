@@ -8,7 +8,7 @@ Companion to
 [`data-view.md`](./data-view.md) (the building pane) and
 [`data-schema.md`](./data-schema.md) (provenance & graph shapes).
 
-Paths derive in `src/services/utils/solidUtils.ts`. Writes are PUT/POST only (no
+Paths derive in `src/services/pod/solidUtils.ts`. Writes are PUT/POST only (no
 PATCH); cache-sensitive reads use `fetchFresh`.
 
 ## One root

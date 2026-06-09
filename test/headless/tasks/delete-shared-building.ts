@@ -14,13 +14,13 @@ import {
   getSharedWithMe,
 } from "../../../src/services/interop/sharingManager.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
-import { deleteBuildingResource } from "../../../src/services/utils/buildingActions.ts";
+import { deleteBuildingResource } from "../../../src/services/buildingActions.ts";
 import {
   newBuildingUri,
   serializeBuildingToTurtle,
   uploadBuilding,
-} from "../../../src/services/utils/buildingSerializer.ts";
-import { podResources } from "../../../src/services/utils/solidUtils.ts";
+} from "../../../src/services/rdf/building/buildingSerializer.ts";
+import { podResources } from "../../../src/services/pod/solidUtils.ts";
 import type { BuildingType } from "../../../src/types.ts";
 
 export const name = "delete-shared-building";

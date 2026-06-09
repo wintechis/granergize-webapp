@@ -2,7 +2,7 @@
 import assert from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { getEnergyDataUrls } from "./share.ts";
-import { GRAN_NS } from "../utils/vocabularies.ts";
+import { GRAN_NS } from "../rdf/vocabularies.ts";
 
 const BUILDING = "https://a.example/granergize/buildings/b-1.ttl";
 const ENERGY = `${BUILDING.replace(/\.ttl$/, "")}/energy`;

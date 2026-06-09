@@ -12,8 +12,8 @@ import {
 } from "@mui/material";
 import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { SxProps, Theme } from "@mui/material/styles";
-import { safeHref } from "../../services/utils/safeHref.ts";
-import { useDevMode } from "../devMode.ts";
+import { safeHref } from "../../lib/safeHref.ts";
+import { useDevMode } from "../../hooks/devMode.ts";
 
 /**
  * Shared building blocks for detail views (buildings, agents, energy, weather)

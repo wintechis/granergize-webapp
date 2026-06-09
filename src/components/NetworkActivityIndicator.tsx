@@ -14,9 +14,9 @@ import {
   displayLabel,
   useNetworkActivity,
   useRequestLog,
-} from "./requestActivity.ts";
-import { clearRequestLog } from "../services/utils/networkActivity.ts";
-import { useDevMode } from "./devMode.ts";
+} from "../hooks/requestActivity.ts";
+import { clearRequestLog } from "../lib/networkActivity.ts";
+import { useDevMode } from "../hooks/devMode.ts";
 
 /**
  * Header indicator reflecting ALL in-flight network requests (Pod fetches, map
