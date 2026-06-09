@@ -52,13 +52,9 @@ export interface BuildingType {
   id: number;
   uri: string;
   sourceUri?: string;
-  /**
-   * Provenance: the actor category the data was attributed to (the `prov:hadRole`
-   * of the building's `prov:qualifiedAttribution`). Provenance only — it does NOT
-   * drive parsing/loading/rendering (those dispatch on the data's own shape).
-   */
-  provenance?: UserRole;
-  /** Provenance: the WebID the data was attributed to (`prov:agent`). */
+  /** Provenance: the WebID the data was attributed to (`prov:agent`). Records only
+   * WHO produced the building — there is no producing-role category (roles live only
+   * in data rooms). Never drives parsing/loading/rendering. */
   attributedTo?: string;
   type: string;
   customer?: string;

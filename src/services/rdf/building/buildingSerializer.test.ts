@@ -405,7 +405,6 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
   const building = {
     id: 1,
     uri: "https://pod.example/granergize/buildings/b-1.ttl#b-1",
-    provenance: "investor",
     buildingCode: "B-1",
     streetAddress: "Nordostpark 84",
     yearOfConstruction: 1998,
@@ -420,8 +419,8 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
     certifications: [{ type: "BREEAM", level: "Very Good", scope: "WholeBuilding" }],
   } as unknown as BuildingType;
 
-  // Export → bytes → re-import via the investor path.
-  const file = new File([buildingToXlsx(building)], "b-1.xlsx");
+  // Export → bytes → re-import via the investor (row-label) path.
+  const file = new File([buildingToXlsx(building, "investor")], "b-1.xlsx");
   const parsed = await parseCsvToFields(file, "investor");
   assert.equal(parsed.length, 1);
   const f = parsed[0];
@@ -455,7 +454,6 @@ Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping vi
   const buildings = [
     {
       id: 1,
-      provenance: "investor",
       streetAddress: "A-Straße 1",
       yearOfConstruction: 1990,
       annualData: [{ year: 2023, electricityConsumption: 1000 }],
@@ -464,7 +462,6 @@ Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping vi
     },
     {
       id: 2,
-      provenance: "benchmark_service_provider",
       streetAddress: "B-Weg 2",
       annualData: [{
         year: 2024,
@@ -519,15 +516,15 @@ Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping vi
   );
 });
 
-Deno.test("serializeBuildingToTurtle round-trips PROV provenance (attribution + hadRole)", () => {
+Deno.test("serializeBuildingToTurtle records the producing agent only (no role)", () => {
   const uri = newBuildingUri(WEBID, "b-1");
   const agent = "https://pod.example/profile/card#me";
   const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, undefined, {
     agent,
-    category: "investor",
   });
 
-  // Raw shape: a prov:qualifiedAttribution blank node with agent + hadRole.
+  // Raw shape: a prov:qualifiedAttribution blank node with agent and NO hadRole
+  // (a building no longer records a producing-role category).
   const store = parse(ttl);
   assert.equal(
     store.getQuads(
@@ -539,36 +536,13 @@ Deno.test("serializeBuildingToTurtle round-trips PROV provenance (attribution + 
     1,
   );
   assert.equal(
-    store.getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)[0].object
-      .value,
-    `${GRAN_NS}InvestorRole`,
+    store.getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null).length,
+    0,
   );
 
-  // Parsed shape: provenance + attributedTo land on the building.
+  // Parsed shape: only attributedTo (the agent) lands on the building.
   const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
   assert.ok(b);
-  assert.equal(b!.provenance, "investor");
-  assert.equal(b!.attributedTo, agent);
-});
-
-Deno.test("serializeBuildingToTurtle round-trips a newly-added role (facility_manager)", () => {
-  const uri = newBuildingUri(WEBID, "b-1");
-  const agent = "https://pod.example/profile/card#me";
-  const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, undefined, {
-    agent,
-    category: "facility_manager",
-  });
-
-  const store = parse(ttl);
-  assert.equal(
-    store.getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)[0].object
-      .value,
-    `${GRAN_NS}FacilityManagerRole`,
-  );
-
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
-  assert.ok(b);
-  assert.equal(b!.provenance, "facility_manager");
   assert.equal(b!.attributedTo, agent);
 });
 
@@ -706,11 +680,8 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   }) as typeof fetch;
 
   try {
-    // The investor + user kinds together exercise both energy shapes (annual P1Y
-    // and 15-minute series). Each kind seeds only its own shape — there is no
-    // both-shapes fallback — so seed both here.
-    await seedDemoBuildings(session, WEBID, "investor");
-    await seedDemoBuildings(session, WEBID, "user");
+    // The demo set spans both energy shapes (annual P1Y + 15-minute series).
+    await seedDemoBuildings(session, WEBID);
   } finally {
     globalThis.fetch = realFetch;
   }
@@ -757,21 +728,13 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     "an annual dataset declares gran:ElectricityConsumption",
   );
 
-  // Provenance is in the building files as a PROV qualified attribution; the
-  // buildings are discovered by listing the container, so there's no registry.
+  // The building files carry a PROV qualified attribution to the producing agent,
+  // but NO producing-role (prov:hadRole) — roles live only in data rooms now.
   const hadRoles = bodies
     .flatMap((b) =>
       parse(b).getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)
-    )
-    .map((q) => q.object.value)
-    .sort();
-  assert.deepEqual(hadRoles, [
-    `${GRAN_NS}InvestorRole`,
-    `${GRAN_NS}InvestorRole`,
-    `${GRAN_NS}InvestorRole`,
-    `${GRAN_NS}UserRoleInstance`,
-    `${GRAN_NS}UserRoleInstance`,
-  ]);
+    );
+  assert.equal(hadRoles.length, 0, "no building carries a prov:hadRole");
 
   // The investor demo building carries a fully-populated detail panel: core
   // master data, the investor block (incl. a controlled-vocab object property),
@@ -800,68 +763,6 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   const userBody = bodies.find((b) => b.includes("PT15M")) ?? "";
   const usr = [...parseBuildings(new Parser().parse(userBody)).values()][0];
   assert.equal(usr.operatedBy, WEBID, "user demo building operatedBy = seeder");
-});
-
-Deno.test("seedDemoBuildings is kind-aware: seeds only the shape matching the company kind", async () => {
-  // Run the seed offline (geocoder stubbed) and return the building-file PUT bodies.
-  const seedFor = async (kind: Parameters<typeof seedDemoBuildings>[2]) => {
-    const { session, calls } = makeSession();
-    const realFetch = globalThis.fetch;
-    globalThis.fetch = ((input: string | URL) => {
-      const url = typeof input === "string" ? input : input.toString();
-      if (url.includes("nominatim")) {
-        return Promise.resolve(
-          new Response(JSON.stringify([{ lat: "49.45", lon: "11.08" }]), {
-            status: 200,
-            headers: { "Content-Type": "application/json" },
-          }),
-        );
-      }
-      return Promise.resolve(new Response("nope", { status: 404 }));
-    }) as typeof fetch;
-    try {
-      await seedDemoBuildings(session, WEBID, kind);
-    } finally {
-      globalThis.fetch = realFetch;
-    }
-    return calls
-      .filter((c) =>
-        c.method === "PUT" &&
-        /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
-      )
-      .map((c) => c.body ?? "");
-  };
-
-  // Investor → a couple of buildings, all the annual investor shape.
-  const inv = await seedFor("investor");
-  assert.equal(inv.length, 3, "investor kind seeds three buildings");
-  for (const body of inv) {
-    const roles = parse(body)
-      .getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)
-      .map((q) => q.object.value);
-    assert.deepEqual(roles, [`${GRAN_NS}InvestorRole`]);
-    assert.ok(body.includes("-P1Y"), "investor demo is annual");
-  }
-
-  // User → a couple of buildings, the 15-minute series shape.
-  const usr = await seedFor("user");
-  assert.equal(usr.length, 2, "user kind seeds two buildings");
-
-  // BSP owns no buildings — it benchmarks buildings shared TO it, so it seeds
-  // nothing (and gets no "Add examples" offer).
-  assert.equal(
-    (await seedFor("benchmark_service_provider")).length,
-    0,
-    "BSP kind seeds nothing",
-  );
-
-  // No kind (or a kind we have no example data for) → seeds nothing.
-  assert.equal((await seedFor(null)).length, 0, "no kind seeds nothing");
-  assert.equal(
-    (await seedFor("facility_manager")).length,
-    0,
-    "unsupported kind seeds nothing",
-  );
 });
 
 // ── delete a building (hard delete) ─────────────────────────────────────────────

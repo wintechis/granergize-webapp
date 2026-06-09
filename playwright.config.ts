@@ -87,6 +87,7 @@ const SOLO_SPECS = [
   "**/contacts.spec.ts",
   "**/archive-restore.spec.ts",
   "**/uri-state.spec.ts",
+  "**/heike-3-repro.spec.ts",
 ];
 const SHARING_SPECS = [
   "**/share-building.spec.ts",

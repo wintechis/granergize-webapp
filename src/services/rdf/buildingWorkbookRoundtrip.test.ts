@@ -16,7 +16,6 @@ const FILE = "https://pod.example/granergize/buildings/b1.ttl";
 const building = {
   id: "b1",
   uri: `${FILE}#b1`,
-  provenance: "investor",
   streetAddress: "Hauptstr 1",
   tenancyType: "Single Tenant",
   shiftRegime: "1-Shift",

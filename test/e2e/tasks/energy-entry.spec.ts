@@ -63,8 +63,6 @@ test.describe("energy entry + Soll-Ist", () => {
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await add.getByLabel("Template").click();
-    await page.getByRole("option", { name: "User", exact: true }).click();
     await add.getByLabel(/street address/i).fill(ADDR);
     await add.getByLabel(/locality/i).fill("Nürnberg");
     await add.getByLabel(/postal code/i).fill("90451");

@@ -102,11 +102,8 @@ test.describe("handbuch screenshots", () => {
     await expect(orgDialog).toBeVisible({ timeout: 30_000 });
     await orgDialog.getByLabel("Company name")
       .fill("Friedrich-Alexander-Universität Erlangen-Nürnberg");
-    // Set a company kind too: buildings A adds get a PROV attribution to A only
-    // when the profile has a producer role, and that attribution is what makes the
-    // map marker resolve A's org logo (no kind → no provenance → default pin).
-    await orgDialog.getByLabel("Kind of company").click();
-    await page.getByRole("option", { name: "User", exact: true }).click();
+    // The org logo resolves on a building's map marker via its PROV attribution to
+    // the producing agent (A), which is recorded on every building A adds.
     await orgDialog.locator('input[type="file"]')
       .setInputFiles("test/e2e/fixtures/fau-logo.png");
     await expect(orgDialog.getByAltText("Organisation logo"))
@@ -193,9 +190,7 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "add-building.png");
 
     if (noBuildings) {
-      // Pick the User template so the form needs only address + coordinates.
-      await dialog.getByLabel("Template").click();
-      await page.getByRole("option", { name: "User" }).click();
+      // One generic form — only address + coordinates are required.
       await dialog.getByLabel(/street address/i).fill("Musterstraße 1");
       await dialog.getByLabel(/locality/i).fill("Nürnberg");
       await dialog.getByLabel(/postal code/i).fill("90451");

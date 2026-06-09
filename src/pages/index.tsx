@@ -34,8 +34,6 @@ import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { getAvatarObjectUrl } from "../services/organization/logoManager.ts";
-import { getCompanyKind } from "../services/organization/organizationManager.ts";
-import type { UserRole } from "../types.ts";
 import OrganizationDialog from "../components/OrganizationDialog.tsx";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
@@ -43,7 +41,6 @@ import Collapse from "@mui/material/Collapse";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys } from "../hooks/queries.ts";
 import {
-  companyKindHasDemo,
   seedDemoBuildings,
 } from "../services/rdf/building/buildingSerializer.ts";
 import { readPrefs, setDemoSeedDeclined } from "../services/prefs.ts";
@@ -104,9 +101,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   // prefs.ttl, so it doesn't nag on every login.
   const [demoShow, setDemoShow] = useState(false);
   const [demoBusy, setDemoBusy] = useState(false);
-  // The user's company kind (org:classification), or null until they've filled in
-  // their organisation. Gates the demo offer and selects which demo shape to seed.
-  const [companyKind, setCompanyKind] = useState<UserRole | null>(null);
   // Dev-mode archive (download/upload the whole granergize/ collection as a ZIP).
   const [archiveBusy, setArchiveBusy] = useState(false);
   const archiveInput = useRef<HTMLInputElement | null>(null);
@@ -124,14 +118,12 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     try {
       const webId = session.info.webId;
       if (!webId) return;
-      const [children, prefs, kind] = await Promise.all([
+      const [children, prefs] = await Promise.all([
         listDirectChildren(podResources(webId).buildings, session),
         readPrefs(session),
-        getCompanyKind(session),
       ]);
-      setCompanyKind(kind);
       const empty = children === null || children.length === 0;
-      setDemoShow(empty && companyKindHasDemo(kind) && !prefs.demoSeedDeclined);
+      setDemoShow(empty && !prefs.demoSeedDeclined);
     } catch (err) {
       // The offer is best-effort, but log so a probe that silently fails (e.g. an
       // NSS Pod listing the buildings container differently) is diagnosable.
@@ -150,10 +142,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
    */
   const seedDemos = async () => {
     const webId = session.info.webId;
-    if (!webId || !companyKindHasDemo(companyKind)) return;
+    if (!webId) return;
     setDemoBusy(true);
     try {
-      await seedDemoBuildings(session, webId, companyKind);
+      await seedDemoBuildings(session, webId);
       // Refetch buildings; energy follows automatically because useEnergy is keyed on
       // the building set (so the seeded annual building's energy loads without a
       // separate, race-prone energy invalidation here).
@@ -381,8 +373,8 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       hydrateActiveRoom(session).catch((err) =>
         logError("hydrate active data room", err)
       );
-      // Re-offer only when we have example data for the company kind.
-      if (companyKindHasDemo(companyKind)) setDemoShow(true);
+      // Re-offer the demo buildings now the collection is empty again.
+      setDemoShow(true);
       setSearchParams((p) => mergeParams(p, { tab: "explore" }), { replace: true });
       showNotification("All app data removed", "success");
     } catch (err) {
@@ -501,7 +493,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             <MenuItem onClick={handleOrganisation}>
               Organisation…
             </MenuItem>
-            {devMode && companyKindHasDemo(companyKind) && (
+            {devMode && (
               <MenuItem onClick={seedDemos} disabled={demoBusy}>
                 {demoBusy ? "Adding demo buildings…" : "Add demo buildings"}
               </MenuItem>

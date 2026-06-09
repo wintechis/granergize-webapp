@@ -38,14 +38,6 @@ Deno.test("loadSharedBuilding fetches + parses the shared building file", async 
   assert.equal((b!.energyDatasets ?? []).length, 1);
 });
 
-Deno.test("loadSharedBuilding falls back to the shared role when the file has no provenance", async () => {
-  const b = await loadSharedBuilding(
-    { buildingUri: FILE, sharedRole: "investor" },
-    session(),
-  );
-  assert.equal(b!.provenance, "investor");
-});
-
 Deno.test("loadSharedBuilding throws on a non-ok response", async () => {
   await assert.rejects(
     () => loadSharedBuilding({ buildingUri: FILE }, session("nope", 403)),

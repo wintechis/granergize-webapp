@@ -22,14 +22,12 @@ export async function buildingIds(page: Page): Promise<string[]> {
   return ids;
 }
 
-/** Add a building (User template — only the location fields) with a given street. */
+/** Add a building via the single generic manual form (only the location fields). */
 export async function addBuilding(page: Page, street: string): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
   await page.getByRole("button", { name: /^add building$/i }).first().click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel("Template")).toBeVisible({ timeout: T.visible });
-  await dialog.getByLabel("Template").click();
-  await page.getByRole("option", { name: "User" }).click();
+  await expect(dialog.getByLabel(/street address/i)).toBeVisible({ timeout: T.visible });
   await dialog.getByLabel(/street address/i).fill(street);
   await dialog.getByLabel(/locality/i).fill("Nürnberg");
   await dialog.getByLabel(/postal code/i).fill("90451");
@@ -183,15 +181,14 @@ export async function ensureView(page: Page): Promise<void> {
   await page.getByRole("button", { name: /create view/i }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible({ timeout: T.quick });
-  // Investor template → annual buildings, metrics pre-selected, no month picker.
-  await dialog.getByLabel("Role").click();
-  await page.getByRole("option", { name: "Investor" }).click();
+  // Default annual-portfolio mode (no role selection; for an annual-only building
+  // set the "View type" dropdown isn't even shown). Metrics are pre-selected.
   await dialog.getByLabel("View Name").fill(VIEW_NAME);
   await dialog.getByLabel("Select Buildings").click();
-  // Fail fast with a clear message if the picker is empty (no Investor buildings),
+  // Fail fast with a clear message if the picker is empty (no buildings to view),
   // rather than hanging on a click that waits out the whole test timeout.
   const firstBuilding = page.getByRole("option").first();
-  await expect(firstBuilding, "an Investor building to add to the view")
+  await expect(firstBuilding, "a building to add to the view")
     .toBeVisible({ timeout: T.visible });
   await firstBuilding.click();
   await page.keyboard.press("Escape");

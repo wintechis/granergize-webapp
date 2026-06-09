@@ -74,7 +74,6 @@ export async function seedBuildings(
   return mapPooled(specs, POOL, async (s) => {
     const ttl = serializeBuildingToTurtle(s.fields, s.uri, undefined, {
       agent: webId,
-      category: "investor",
     });
     await uploadBuilding(session, s.uri, ttl, webId);
     return { uri: s.uri, subjectUri: s.subjectUri, id: s.id };
@@ -119,7 +118,6 @@ export async function seedSeriesBuilding(
   const links = await writeBuildingEnergy(session, uri, subjectUri, {}, series);
   const ttl = serializeBuildingToTurtle(buildingFields(0), uri, links, {
     agent: webId,
-    category: "user",
   });
   await uploadBuilding(session, uri, ttl, webId);
   return {

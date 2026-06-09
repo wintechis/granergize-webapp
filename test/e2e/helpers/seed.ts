@@ -1,21 +1,15 @@
 import { expect, type Page } from "@playwright/test";
-import { ensureCompanyKind } from "./login.ts";
-import type { UserRole } from "../../../src/types.ts";
 import { T } from "./timeouts.ts";
 
 /**
- * Ensure the logged-in account has the demo building for a given company `kind` on
- * Manage, seeding an empty Pod through the in-app action so specs never assume a
- * pre-seeded Pod (a freshly-wiped Pod reseeds itself on the next run).
+ * Ensure the logged-in account has the demo buildings on Manage, seeding an empty
+ * Pod through the in-app action so specs never assume a pre-seeded Pod (a
+ * freshly-wiped Pod reseeds itself on the next run).
  *
- * The demo seed is **kind-specific** (one shape per company kind: `investor` → the
- * annual "Nordostpark" building, `user` → a 15-min series, `benchmark_service_provider`
- * → an annual benchmark building; `companyKindHasDemo` in buildingSerializer.ts). So
- * the caller MUST state the kind it needs, and we set it via the in-app Organisation
- * form (`ensureCompanyKind(..., { force: true })`) before the "Add examples" banner —
- * the banner only appears once a demo-capable kind is set, and `force` overrides the
- * login baseline. Pass `investor` for specs that assert on the Nordostpark building
- * (`building-details`, `view-data`); `user` for specs that just need any building.
+ * The demo seed is a fixed set spanning both data shapes — the annual investor
+ * "Nordostpark" buildings AND a 15-minute user series — independent of any role
+ * (roles live only in data rooms now). So `building-details` / `view-data` find the
+ * Nordostpark building, and specs that just need "any building" are satisfied too.
  *
  * Idempotent: a Pod that already lists buildings (incl. residue left by an earlier
  * spec whose cleanup was slow) returns quickly. The banner is suppressed once the
@@ -27,10 +21,7 @@ import { T } from "./timeouts.ts";
  * short interval — rather than for a fixed number, so a caller that snapshots the
  * building count (e.g. the excel-export round-trip) doesn't read a moving baseline.
  */
-export async function ensureDemoBuildings(
-  page: Page,
-  kind: UserRole,
-): Promise<void> {
+export async function ensureDemoBuildings(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
   const rows = page.locator("li", { hasText: /Building \S+/ });
 
@@ -39,26 +30,14 @@ export async function ensureDemoBuildings(
     return;
   }
 
-  // Set the company kind via the in-app form so the kind-specific demo offer appears
-  // (force, to override the login baseline). The app re-evaluates the offer on save.
-  await ensureCompanyKind(page, kind, { force: true });
-
-  // Empty Pod: seed via the fresh-Pod "Add examples" onboarding banner. This is the
-  // ONLY in-app seed path (the old avatar-menu "Create demo buildings" action no
-  // longer exists).
+  // Empty Pod: seed via the fresh-Pod "Add examples" onboarding banner — the only
+  // in-app seed path (the avatar-menu "Add demo buildings" is dev-mode only).
   //
-  // The app evaluates this offer ONCE, when the kind is saved, reading the kind back
-  // from the Pod (refreshDemoOffer → getCompanyKind), and does NOT re-evaluate. Two
-  // ways that single evaluation can miss on a real Pod: (a) it's slow — the offer's
-  // reads (buildings list + profile + prefs) take a while, so the banner appears
-  // late; (b) a read-after-write race returns the PRE-write profile, so the offer is
-  // computed against a stale kind and suppressed for good. So: wait generously for
-  // the in-app evaluation to settle (covers (a)); only if that misses, reload ONCE to
-  // force a single fresh evaluation against the now-converged Pod (covers (b)), then
-  // wait again. Do NOT loop reloads — each reload restarts the whole app bootstrap
-  // and would reset the settle clock, so a late banner is never caught (it just
-  // re-thrashes the slow Pod). If it still never shows, the demo kind wasn't set or
-  // the Pod has gran:demoSeedDeclined.
+  // The offer is evaluated on login (refreshDemoOffer: buildings list + prefs), so on
+  // a slow real Pod it can appear late. Wait generously for it to settle; if it
+  // misses, reload ONCE to force a fresh evaluation against the converged Pod, then
+  // wait again. Do NOT loop reloads — each restarts the app bootstrap and resets the
+  // settle clock. If it still never shows, the Pod has gran:demoSeedDeclined.
   await page.getByRole("tab", { name: "Manage" }).click();
   const addExamples = page.getByRole("button", { name: "Add examples" });
   try {
