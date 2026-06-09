@@ -720,28 +720,30 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     c.method === "PUT" &&
     /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
   );
-  assert.equal(buildingPuts.length, 2, "two demo buildings uploaded");
+  // 3 investor + 2 user demo buildings.
+  assert.equal(buildingPuts.length, 5, "five demo buildings uploaded");
 
-  // Exactly one daily 15-minute reading file, inside the series container.
+  // Daily 15-minute reading files, inside a series container (one file per series
+  // day; the two user demos carry multi-day series).
   const energyPuts = calls.filter((c) =>
-    c.method === "PUT" && c.url.endsWith("/2024-PT15M/2024-06-03.ttl")
+    c.method === "PUT" && /\/2024-PT15M\/\d{4}-\d{2}-\d{2}\.ttl$/.test(c.url)
   );
-  assert.equal(energyPuts.length, 1, "one 15-min daily reading file uploaded");
+  assert.ok(energyPuts.length >= 1, "15-min daily reading files uploaded");
 
   // Energy is NOT inline: each building links its datasets via gran:hasEnergyDataset.
-  // One links a PT15M series; the other links P1Y annual datasets.
+  // The two user demos link PT15M series; the three investor demos link P1Y annual.
   const bodies = buildingPuts.map((c) => c.body ?? "");
   assert.equal(
     bodies.filter((b) => b.includes("hasEnergyDataset") && b.includes("PT15M"))
       .length,
-    1,
-    "exactly one building links a PT15M series dataset",
+    2,
+    "two buildings link a PT15M series dataset (the user demos)",
   );
   assert.equal(
     bodies.filter((b) => b.includes("hasEnergyDataset") && b.includes("-P1Y"))
       .length,
-    1,
-    "exactly one building links P1Y annual datasets",
+    3,
+    "three buildings link P1Y annual datasets (the investor demos)",
   );
 
   // The annual aggregate's figures live in their own gran:EnergyDataset resources
@@ -765,6 +767,9 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     .sort();
   assert.deepEqual(hadRoles, [
     `${GRAN_NS}InvestorRole`,
+    `${GRAN_NS}InvestorRole`,
+    `${GRAN_NS}InvestorRole`,
+    `${GRAN_NS}UserRoleInstance`,
     `${GRAN_NS}UserRoleInstance`,
   ]);
 
@@ -827,24 +832,28 @@ Deno.test("seedDemoBuildings is kind-aware: seeds only the shape matching the co
       .map((c) => c.body ?? "");
   };
 
-  // Investor → exactly one building, the annual investor shape.
+  // Investor → a couple of buildings, all the annual investor shape.
   const inv = await seedFor("investor");
-  assert.equal(inv.length, 1, "investor kind seeds one building");
-  const invHadRoles = parse(inv[0])
-    .getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)
-    .map((q) => q.object.value);
-  assert.deepEqual(invHadRoles, [`${GRAN_NS}InvestorRole`]);
-  assert.ok(inv[0].includes("-P1Y"), "investor demo is annual");
+  assert.equal(inv.length, 3, "investor kind seeds three buildings");
+  for (const body of inv) {
+    const roles = parse(body)
+      .getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)
+      .map((q) => q.object.value);
+    assert.deepEqual(roles, [`${GRAN_NS}InvestorRole`]);
+    assert.ok(body.includes("-P1Y"), "investor demo is annual");
+  }
 
-  // BSP → exactly one building, the annual benchmark shape with BSP fields.
-  const bsp = await seedFor("benchmark_service_provider");
-  assert.equal(bsp.length, 1, "BSP kind seeds one building");
-  const bspHadRoles = parse(bsp[0])
-    .getQuads(null, namedNode(`${PROV_NS}hadRole`), null, null)
-    .map((q) => q.object.value);
-  assert.deepEqual(bspHadRoles, [`${GRAN_NS}BenchmarkRole`]);
-  const bspBuilding = [...parseBuildings(new Parser().parse(bsp[0])).values()][0];
-  assert.equal(bspBuilding.companyName, "Beispiel Benchmark Services GmbH");
+  // User → a couple of buildings, the 15-minute series shape.
+  const usr = await seedFor("user");
+  assert.equal(usr.length, 2, "user kind seeds two buildings");
+
+  // BSP owns no buildings — it benchmarks buildings shared TO it, so it seeds
+  // nothing (and gets no "Add examples" offer).
+  assert.equal(
+    (await seedFor("benchmark_service_provider")).length,
+    0,
+    "BSP kind seeds nothing",
+  );
 
   // No kind (or a kind we have no example data for) → seeds nothing.
   assert.equal((await seedFor(null)).length, 0, "no kind seeds nothing");
@@ -965,4 +974,68 @@ Deno.test("deleteEnergyYear tolerates an already-missing dataset (404) and skips
     !calls.some((c) => c.method === "PUT" && c.url === fileUri),
     "no needless PUT of the building file when there was nothing to unlink",
   );
+});
+
+/** A session whose `buildings/` listing optionally lags by `lagReads` reads after a
+ * DELETE before it drops the deleted file — models CSS container eventual
+ * consistency. Energy sub-container GETs 404 (no series). Returns the live read
+ * counters so a test can assert how the read-after-write polled. */
+function deletingSession(uri: string, lagReads: number) {
+  const container = uri.replace(/[^/]+$/, "");
+  const energy = `${uri.replace(/\.ttl$/, "")}/`;
+  const other = `${container}other.ttl`;
+  const counts = { containerGets: 0, deletes: 0 };
+  const listing = (present: boolean) =>
+    `@prefix ldp: <http://www.w3.org/ns/ldp#> .\n<${container}> ldp:contains ${
+      present ? `<${uri}>, ` : ""
+    }<${other}> .\n`;
+  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
+    const url = (typeof input === "string" ? input : input.toString())
+      .split("?")[0];
+    const method = (init?.method ?? "GET").toUpperCase();
+    if (method === "DELETE") {
+      counts.deletes++;
+      return Promise.resolve(new Response(null, { status: 205 }));
+    }
+    if (url === energy) {
+      return Promise.resolve(new Response("Not found", { status: 404 }));
+    }
+    if (url === container) {
+      counts.containerGets++;
+      // Still lists the deleted file for the first `lagReads` reads, then drops it.
+      return Promise.resolve(
+        new Response(listing(counts.containerGets <= lagReads), {
+          status: 200,
+          headers: { "Content-Type": "text/turtle" },
+        }),
+      );
+    }
+    return Promise.resolve(new Response("Not found", { status: 404 }));
+  };
+  const session = {
+    info: { webId: WEBID, isLoggedIn: true },
+    fetch,
+  } as unknown as Session;
+  return { session, counts };
+}
+
+Deno.test("deleteBuilding waits until the buildings listing drops the deleted file (read-after-write)", async () => {
+  const uri = newBuildingUri(WEBID, "b-del");
+  // The listing lags for two reads (still lists the file), then drops it.
+  const { session, counts } = deletingSession(uri, 2);
+  await deleteBuilding(session, WEBID, uri);
+  assert.equal(counts.deletes, 1, "issued the DELETE");
+  // Polled past the lag: read the listing until the deleted file was gone.
+  assert.ok(
+    counts.containerGets >= 3,
+    `polled the listing past the lag (${counts.containerGets} reads)`,
+  );
+});
+
+Deno.test("deleteBuilding returns promptly when the listing already reflects the delete", async () => {
+  const uri = newBuildingUri(WEBID, "b-del");
+  const { session, counts } = deletingSession(uri, 0); // no lag
+  await deleteBuilding(session, WEBID, uri);
+  assert.equal(counts.deletes, 1, "issued the DELETE");
+  assert.equal(counts.containerGets, 1, "one listing read, no extra polling");
 });

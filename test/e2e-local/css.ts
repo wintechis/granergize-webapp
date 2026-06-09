@@ -7,8 +7,12 @@
  * specs never share mutable pod state. `login()` hits it once per spec file (see
  * helpers/login.ts).
  *
- * Playwright's `webServer` runs this command and sends SIGTERM on teardown; the
- * signal handler does the orderly stop(). It blocks forever in between.
+ * Shutdown is owned by Playwright's lifecycle: its `globalTeardown`
+ * (`test/e2e-local/globalTeardown.ts`) hits `POST /stop`, which does the orderly
+ * `css.stop()` and exits. (A SIGTERM/SIGINT handler does the same, as a fallback
+ * for a manual kill.) The CSS is spawned under `setsid`, so it only dies via this
+ * explicit stop — not by a kill of this process's tree — which is why a clean
+ * stop has to go through here. It blocks forever in between.
  */
 import { type LocalPod, startLocalPod } from "../headless/localPod.ts";
 import { LOCAL_CSS_CONTROL_PORT, LOCAL_CSS_PORT } from "../config/localSeed.ts";
@@ -159,6 +163,18 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
     restarting = false;
     watchExit(css);
     return new Response("ok\n");
+  }
+  if (req.method === "POST" && pathname === "/stop") {
+    // Playwright's globalTeardown calls this at the end of a run so the test
+    // lifecycle owns the shutdown. Stop CSS fully (`css.stop()` kills the
+    // setsid-detached server group), reply so the caller's fetch resolves, then
+    // exit — `stopping` keeps watchExit from treating it as a crash.
+    if (!stopping) {
+      stopping = true;
+      await css.stop();
+    }
+    setTimeout(() => Deno.exit(0), 50);
+    return new Response("stopped\n");
   }
   // Any GET is a health check. Playwright's webServer waits on this — and the
   // control server only starts listening AFTER the first startLocalCss() resolves

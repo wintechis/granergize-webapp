@@ -386,7 +386,7 @@ export default function ManagePage({ session }: ManagePageProps) {
               setAddOpen(true);
             }}
           >
-            Autofill from file
+            Import from file
           </Button>
         </div>
       </section>

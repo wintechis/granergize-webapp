@@ -29,6 +29,8 @@ import Tab from "@mui/material/Tab";
 import Grid from "@mui/material/Grid2";
 import Energy from "./Energy.tsx";
 import IconButton from "@mui/material/IconButton";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import { useResolveOrgLogo, useSolidData } from "../hooks/queries.ts";
 import WeatherData from "./WeatherData.tsx";
 import InvestorEnergy from "./InvestorEnergy.tsx";
@@ -38,6 +40,10 @@ import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import CloseFullscreenIcon from "@mui/icons-material/CloseFullscreen";
 import {
+  ENERGY_ABOVE_AVG_COLOR,
+  ENERGY_BELOW_AVG_COLOR,
+  ENERGY_TYPICAL_COLOR,
+  MARKER_NO_DATA_COLOR,
   MARKER_OWNED_COLOR,
   MARKER_SELECTED_COLOR,
   MARKER_SHARED_COLOR,
@@ -47,6 +53,22 @@ import {
   endActivity,
 } from "../services/utils/networkActivity.ts";
 import { isSeriesGranularity } from "../services/utils/durationUtils.ts";
+import {
+  categorise,
+  type EnergyCategory,
+  energyIntensity,
+} from "../services/utils/energyCategory.ts";
+
+/** Which colour lens the map markers use. */
+type MapLens = "ownership" | "energy";
+
+/** Energy-category → marker colour (reuses the energy-grid heat-map palette). */
+const CATEGORY_COLOR: Record<EnergyCategory, string> = {
+  efficient: ENERGY_BELOW_AVG_COLOR,
+  typical: ENERGY_TYPICAL_COLOR,
+  inefficient: ENERGY_ABOVE_AVG_COLOR,
+  none: MARKER_NO_DATA_COLOR,
+};
 
 const SHADOW =
   "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png";
@@ -106,6 +128,32 @@ function ringColor(building: BuildingType): string {
   return building.isShared ? MARKER_SHARED_COLOR : MARKER_OWNED_COLOR;
 }
 
+/**
+ * Energy-lens marker: a filled circle tinted by the building's energy category,
+ * shown for EVERY building (not just those with a producer logo) so the
+ * categorisation is always legible. The category is baked into the `className`
+ * (`energy-marker energy-<category>`) so the e2e spec can assert it.
+ */
+function createCategoryIcon(
+  category: EnergyCategory,
+  selected: boolean,
+): L.DivIcon {
+  const ring = selected ? MARKER_SELECTED_COLOR : "#fff";
+  const shadow = selected
+    ? `box-shadow:0 0 0 2px ${MARKER_SELECTED_COLOR},0 1px 4px rgba(0,0,0,0.45);`
+    : "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
+  return L.divIcon({
+    className: `energy-marker energy-${category}`,
+    html:
+      `<div style="width:28px;height:28px;border-radius:50%;background:${
+        CATEGORY_COLOR[category]
+      };border:3px solid ${ring};${shadow}"></div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -17],
+  });
+}
+
 // A marker showing the building producer's organisation logo inside a circular
 // owned/shared ring (selected = highlighted ring). If the logo image can't be
 // fetched (e.g. the producer's profile folder isn't public) the `onerror`
@@ -139,15 +187,19 @@ function createLogoIcon(
  * one resolves, else the default owned/shared pin.
  */
 function BuildingMarker(
-  { building, position, selected, onClick }: {
+  { building, position, selected, onClick, lens, category }: {
     building: BuildingType;
     position: [number, number];
     selected: boolean;
     onClick: () => void;
+    lens: MapLens;
+    category: EnergyCategory;
   },
 ) {
   const { data: logoUrl } = useResolveOrgLogo(building.attributedTo);
-  const icon = logoUrl
+  const icon = lens === "energy"
+    ? createCategoryIcon(category, selected)
+    : logoUrl
     ? createLogoIcon(logoUrl, building, selected)
     : selected
     ? createSelectedIcon(building)
@@ -283,6 +335,9 @@ export default function ExplorePage(
   // false = balanced 50/50 split with the map; true = the detail pane fills the
   // tab body and the map pane is hidden (kept mounted, see InvalidateOnActive).
   const [detailFull, setDetailFull] = useState(false);
+  // Which colour lens the markers use: owned/shared (default) or energy
+  // intensity. The two are mutually exclusive so neither meaning is overloaded.
+  const [lens, setLens] = useState<MapLens>("ownership");
 
   // Buildings currently visible in the map's bounding box (before the first
   // bounds report, treat every located building as visible).
@@ -293,6 +348,25 @@ export default function ExplorePage(
         (!bbox || bbox.contains([b.lat, b.long]))
       ),
     [buildings, bbox],
+  );
+
+  // Energy intensity (kWh / m² / a) per building id, and the intensities of the
+  // buildings currently in view — the peer set the energy lens categorises
+  // against, so panning/zooming re-frames the comparison. Recomputes when
+  // phase-2 energy arrives, re-tinting the markers without a refetch.
+  const intensityById = useMemo(() => {
+    const m = new Map<number, number | null>();
+    for (const b of buildings) {
+      m.set(b.id, energyIntensity(b, energyNeed?.find((e) => e.id === b.id)));
+    }
+    return m;
+  }, [buildings, energyNeed]);
+  const peerIntensities = useMemo(
+    () =>
+      visibleBuildings
+        .map((b) => intensityById.get(b.id))
+        .filter((v): v is number => v != null),
+    [visibleBuildings, intensityById],
   );
 
   // Whether the map renders any markers at all — a marker only appears for a
@@ -408,12 +482,17 @@ export default function ExplorePage(
                       building={building}
                       position={[building.lat, building.long]}
                       selected={anchorBuilding?.id === building.id}
+                      lens={lens}
+                      category={categorise(
+                        intensityById.get(building.id) ?? null,
+                        peerIntensities,
+                      )}
                       onClick={() => focusBuilding(building.id.toString())}
                     />
                   )
                 ))}
           </MapContainer>
-          {/* Map legend — a single compact row of swatches. */}
+          {/* Map legend — a lens toggle plus the swatches for the active lens. */}
           <Paper
             variant="outlined"
             sx={{
@@ -426,25 +505,40 @@ export default function ExplorePage(
               alignItems: "center",
             }}
           >
-            {(
-              [
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={lens}
+              onChange={(_e, v: MapLens | null) => v && setLens(v)}
+              aria-label="Marker colour lens"
+            >
+              <ToggleButton value="ownership">Ownership</ToggleButton>
+              <ToggleButton value="energy">Energy</ToggleButton>
+            </ToggleButtonGroup>
+            {(lens === "energy"
+              ? ([
+                [CATEGORY_COLOR.efficient, "More efficient"],
+                [CATEGORY_COLOR.typical, "Typical"],
+                [CATEGORY_COLOR.inefficient, "Less efficient"],
+                [CATEGORY_COLOR.none, "No energy data"],
+              ] as const)
+              : ([
                 [MARKER_OWNED_COLOR, "My Buildings"],
                 [MARKER_SHARED_COLOR, "Shared with me"],
-              ] as const
-            ).map(([color, label]) => (
-              <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                <Box
-                  sx={{
-                    width: 10,
-                    height: 10,
-                    backgroundColor: color,
-                    borderRadius: "50%",
-                    flexShrink: 0,
-                  }}
-                />
-                <Typography variant="body2">{label}</Typography>
-              </Box>
-            ))}
+              ] as const)).map(([color, label]) => (
+                <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+                  <Box
+                    sx={{
+                      width: 10,
+                      height: 10,
+                      backgroundColor: color,
+                      borderRadius: "50%",
+                      flexShrink: 0,
+                    }}
+                  />
+                  <Typography variant="body2">{label}</Typography>
+                </Box>
+              ))}
           </Paper>
           {SHOW_VISIBLE_ENERGY_MIX && (
             <VisibleEnergyMix

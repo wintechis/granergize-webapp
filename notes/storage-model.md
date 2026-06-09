@@ -1,8 +1,10 @@
 # Storage model — container-native, event-log state
 
 How app data is laid out on the Pod and why. Companion to
-[`data-layout.md`](./data-layout.md) (the full directory tree). All app data lives
-under `<storageRoot>granergize/`; paths derive in `solidUtils.ts` (`podResources`).
+[`data-layout.md`](./data-layout.md) (the full directory tree) and
+[`architecture.md`](./architecture.md) (the source layers that read and write it). All
+app data lives under `<storageRoot>granergize/`; paths derive in `solidUtils.ts`
+(`podResources`).
 
 The model separates three concerns the design deliberately keeps apart:
 *enforcement* (the WAC `.acl`), *history* (append-only event logs), and *personal

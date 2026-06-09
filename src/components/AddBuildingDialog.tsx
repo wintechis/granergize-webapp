@@ -44,7 +44,7 @@ import { rememberAgent } from "../services/utils/contacts.ts";
 interface AddBuildingDialogProps {
   open: boolean;
   session: Session;
-  /** When true, open the file picker immediately (bulk "autofill from file"). */
+  /** When true, open the file picker immediately (bulk "Import from file"). */
   autostartImport?: boolean;
   onClose: () => void;
   onBuildingAdded: (newSubjectUris: string[]) => void;
@@ -161,7 +161,7 @@ export default function AddBuildingDialog(
   // Lets the user cancel a long upload (e.g. a 15-min year = ~365 daily files).
   const uploadAbort = useRef<AbortController | null>(null);
 
-  // "Autofill from file" opens straight into the file picker. With the native
+  // "Import from file" opens straight into the file picker. With the native
   // <dialog> there's no enter-transition hook, so fire it when the modal opens.
   useEffect(() => {
     if (open && autostartImport) fileInputRef.current?.click();
@@ -442,7 +442,7 @@ export default function AddBuildingDialog(
         Object.values(b).some((v) => v && String(v).trim())
       ) || lastgangReadings != null}
       busy={isProcessing}
-      title="Add Building"
+      title={autostartImport ? "Import buildings from a file" : "Add Building"}
       overlay={isProcessing && (
         <Box
           sx={{
@@ -527,15 +527,20 @@ export default function AddBuildingDialog(
           </Select>
         </FormControl>
 
-        {/* File autofill */}
+        {/* The file input stays in the DOM in both modes (so a file import still
+            works, including the e2e `setInputFiles`), but the *visible* upload
+            control shows only in import ("Import from file") mode — so the manual
+            "Add Building" entry stays a plain form and the two Manage entry points
+            (which open this same dialog) aren't identical. */}
+        <input
+          ref={fileInputRef}
+          type="file"
+          accept=".csv,.xlsx"
+          style={{ display: "none" }}
+          onChange={handleFileUpload}
+        />
+        {autostartImport && (
         <Box sx={{ mb: 2 }}>
-          <input
-            ref={fileInputRef}
-            type="file"
-            accept=".csv,.xlsx"
-            style={{ display: "none" }}
-            onChange={handleFileUpload}
-          />
           <Button
             variant="outlined"
             startIcon={<UploadFileIcon />}
@@ -547,12 +552,21 @@ export default function AddBuildingDialog(
           <Typography variant="caption" display="block" color="text.secondary">
             {CSV_HINT[template]}
           </Typography>
-          {lastgangReadings && (
-            <Typography variant="caption" display="block" sx={{ mt: 0.5 }} color="success.main">
-              {lastgangReadings.length} readings ({new Set(lastgangReadings.map((r) => r.date)).size} days) ready to upload
-            </Typography>
-          )}
         </Box>
+        )}
+        {/* Parse feedback — shown whenever a file has been parsed, in either mode
+            (the upload control above is import-mode only, but the input works in
+            both). */}
+        {lastgangReadings && (
+          <Typography
+            variant="caption"
+            display="block"
+            sx={{ mb: 2 }}
+            color="success.main"
+          >
+            {lastgangReadings.length} readings ({new Set(lastgangReadings.map((r) => r.date)).size} days) ready to upload
+          </Typography>
+        )}
 
         {/* Building tabs — shown only when multiple buildings loaded */}
         {buildingsList.length > 1 && (

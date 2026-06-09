@@ -50,7 +50,7 @@ import { appRoot, getStorageRoot } from "./solidUtils.ts";
 import { ensureContainer, readModifyWrite } from "./podWrite.ts";
 import { logError } from "./logError.ts";
 import { mapPooled } from "./pool.ts";
-import { deleteContainerRecursive } from "./podDelete.ts";
+import { deleteContainerRecursive, listDirectChildren } from "./podDelete.ts";
 import { geocodeFields } from "./geocode.ts";
 import {
   generateEnergyDayTtl,
@@ -739,6 +739,22 @@ export async function deleteBuilding(
   if (!res.ok && res.status !== 404) {
     throw new Error(`Failed to delete building (HTTP ${res.status})`);
   }
+
+  // Read-after-write: the resource is gone, but the parent `buildings/` container's
+  // `ldp:contains` listing can briefly still list it (CSS eventual consistency).
+  // The caller (the delete mutation) invalidates the buildings query right after
+  // this resolves, so a refetch fired into that window would surface the just-
+  // deleted building as a phantom row and then not re-fetch. Wait (bounded) until
+  // the listing no longer contains it, so that refetch is consistent. Usually the
+  // first check already sees it gone, so this adds ~no latency; the backoff only
+  // engages in the rare lag window, and gives up gracefully (a reload reconciles).
+  const container = fileUri.replace(/[^/]+$/, ""); // …/buildings/
+  for (const delayMs of [0, 150, 300, 600, 900]) {
+    if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
+    const children = await listDirectChildren(container, session)
+      .catch(() => null);
+    if (children === null || !children.includes(fileUri)) return;
+  }
 }
 
 // ── Demo seed ─────────────────────────────────────────────────────────────────
@@ -754,6 +770,8 @@ interface DemoSpec {
   role: UserRole;
   energy: "annual" | "series";
   annual?: Record<string, string>;
+  /** For `energy: "series"`: how many demo days (15-min) to synthesize. */
+  seriesDays?: number;
 }
 
 /**
@@ -812,6 +830,95 @@ const DEMO_INVESTOR: DemoSpec = {
   },
 };
 
+/** Investor demo #2: a single-tenant fulfilment centre, lighter energy than #1. */
+const DEMO_INVESTOR_2: DemoSpec = {
+  fields: {
+    streetAddress: "Fürther Straße 244",
+    postalCode: "90429",
+    locality: "Nürnberg",
+    region: "Bayern",
+    customer: "Westpark Fulfilment GmbH",
+    investor: "Beispiel Real Estate Fund",
+    usedAs: "Fulfilment centre",
+    naceCode: "52.10",
+    buildingArea: "9800",
+    landArea: "15000",
+    officeArea: "1200",
+    yearOfConstruction: "2012",
+    hasPVSystem: "false",
+    buildingCode: "FUE-244",
+    hallArea: "8200",
+    officeSocialArea: "1100",
+    buildingHeight: "9.5",
+    numberOfLoadingDocks: "9",
+    yearOfRenovation: "2019",
+    leaseType: "Double net",
+    tenantIndustry: "E-commerce fulfilment",
+    shiftRegime: "ThreeShift",
+    tenancyType: "SingleTenant",
+    indoorTemperatureClass: "MaxEighteenDegrees",
+    hasGasBoiler: "true",
+    hasHeatPump: "false",
+    hasDistrictHeating: "true",
+    _cert_0_type: "BREEAM",
+    _cert_0_level: "Very Good",
+    _cert_0_scope: "In-use",
+    _opcost_propertyManagement: "Low",
+    _opcost_security: "Medium",
+  },
+  role: "investor",
+  energy: "annual",
+  annual: {
+    _inv_elec_2022: "96000", _inv_elec_2023: "99500", _inv_elec_2024: "101200",
+    _inv_heat_2022: "180000", _inv_heat_2023: "176000", _inv_heat_2024: "171500",
+    _inv_water_2022: "980", _inv_water_2023: "1010", _inv_water_2024: "995",
+  },
+};
+
+/** Investor demo #3: a cold store — electricity-heavy, low heat. */
+const DEMO_INVESTOR_3: DemoSpec = {
+  fields: {
+    streetAddress: "Hafenstraße 12",
+    postalCode: "90451",
+    locality: "Nürnberg",
+    region: "Bayern",
+    customer: "Frischlager Franken GmbH",
+    investor: "Beispiel Real Estate Fund",
+    usedAs: "Cold storage",
+    naceCode: "52.10",
+    buildingArea: "7400",
+    landArea: "12000",
+    officeArea: "600",
+    yearOfConstruction: "2018",
+    hasPVSystem: "true",
+    buildingCode: "HAF-12",
+    hallArea: "6800",
+    officeSocialArea: "550",
+    buildingHeight: "12.0",
+    numberOfLoadingDocks: "6",
+    leaseType: "Triple net",
+    tenantIndustry: "Food logistics",
+    shiftRegime: "ThreeShift",
+    tenancyType: "SingleTenant",
+    indoorTemperatureClass: "MaxTwelveDegrees",
+    hasGasBoiler: "false",
+    hasHeatPump: "true",
+    hasDistrictHeating: "false",
+    _cert_0_type: "LEED",
+    _cert_0_level: "Silver",
+    _cert_0_scope: "New construction",
+    _opcost_propertyManagement: "Medium",
+    _opcost_operationInspectionAndMaintenance: "true",
+  },
+  role: "investor",
+  energy: "annual",
+  annual: {
+    _inv_elec_2022: "210000", _inv_elec_2023: "205000", _inv_elec_2024: "198000",
+    _inv_heat_2022: "60000", _inv_heat_2023: "58000", _inv_heat_2024: "55000",
+    _inv_water_2022: "640", _inv_water_2023: "660", _inv_water_2024: "650",
+  },
+};
+
 /**
  * User demo: a 15-minute load-profile series (lazy-loaded, time-series chart) with
  * light metadata — the shape an end user produces. `operatedBy` is set to the
@@ -832,51 +939,38 @@ const DEMO_USER: DemoSpec = {
   },
   role: "user",
   energy: "series",
+  // A full month of demo days, so the Day View, Daily Totals and Average Profile
+  // are all populated (not just a single day).
+  seriesDays: 28,
 };
 
-/**
- * Benchmark Service Provider demo: a single-year annual aggregate (`_bsp_*`) with
- * BSP-specific master data (company, logistics function, climatisation, PV) — the
- * shape a benchmark provider works with.
- */
-const DEMO_BSP: DemoSpec = {
+/** User demo #2: a small workshop, a lighter (one-week) load profile. */
+const DEMO_USER_2: DemoSpec = {
   fields: {
-    streetAddress: "Andernacher Straße 30",
-    postalCode: "90411",
+    streetAddress: "Pirckheimerstraße 68",
+    postalCode: "90408",
     locality: "Nürnberg",
     region: "Bayern",
-    companyName: "Beispiel Benchmark Services GmbH",
-    label: "DC Nürnberg-Nord",
-    usedAs: "Distribution centre",
-    buildingArea: "18000",
-    landArea: "30000",
-    yearOfConstruction: "2019",
+    customer: "Werkstatt Pirckheimer",
+    usedAs: "Workshop",
+    buildingArea: "850",
+    yearOfConstruction: "2005",
     hasPVSystem: "true",
-    logisticsFunction: "Distribution",
-    climateControlType: "Partially air-conditioned",
-    indoorTemperature: "15 °C",
-    greenLeaseShare: "60",
-    pvInstallationYear: "2020",
-    pvCapacityKW: "750",
-    tenantIndustry: "Retail logistics",
   },
-  role: "benchmark_service_provider",
-  energy: "annual",
-  // Single-year `_bsp_*` energy (electricity/heat in kWh, water/wastewater in m³).
-  annual: {
-    _bsp_year: "2024",
-    _bsp_elec: "1850000",
-    _bsp_heat: "640000",
-    _bsp_water: "3200",
-    _bsp_wastewater: "2950",
-  },
+  role: "user",
+  energy: "series",
+  seriesDays: 7,
 };
+
+// No BSP demo: a Benchmark Service Provider doesn't own buildings — its data is
+// the buildings investors/users *share to it*, which it benchmarks. So a BSP gets
+// no "Add examples" offer (it starts empty until shares arrive); the demo is only
+// offered for the data-producer kinds below.
 
 /** Company kinds we have example data for (the only kinds the demo is offered for). */
 export const DEMO_KINDS: UserRole[] = [
   "investor",
   "user",
-  "benchmark_service_provider",
 ];
 
 /** Whether a demo building set exists for this company kind. */
@@ -885,19 +979,17 @@ export function companyKindHasDemo(kind?: UserRole | null): boolean {
 }
 
 /**
- * The demo set for a company kind: the one shape that kind actually produces
- * (investor → annual investor building, user → 15-minute series, BSP → annual
- * benchmark building). A kind we have no example data for seeds nothing — the
- * demo is only offered for {@link DEMO_KINDS}, so this is reached only defensively.
+ * The demo set for a company kind: a couple of example buildings in the shape that
+ * kind actually produces (investor → annual investor buildings; user → 15-minute
+ * series). A kind we have no example data for (incl. the BSP, which only receives
+ * shared buildings) seeds nothing — the demo is only offered for {@link DEMO_KINDS}.
  */
 function demoSetForKind(kind?: UserRole | null): DemoSpec[] {
   switch (kind) {
     case "investor":
-      return [DEMO_INVESTOR];
+      return [DEMO_INVESTOR, DEMO_INVESTOR_2, DEMO_INVESTOR_3];
     case "user":
-      return [DEMO_USER];
-    case "benchmark_service_provider":
-      return [DEMO_BSP];
+      return [DEMO_USER, DEMO_USER_2];
     default:
       return [];
   }
@@ -937,7 +1029,8 @@ export async function seedDemoBuildings(
       // Attribute the operator to the seeding user so the agent-link → contact
       // detail path resolves to a real profile out of the box.
       if (demo.role === "user") fields = { ...fields, operatedBy: webId };
-      const id = `${Date.now()}-${Math.random().toString(36).slice(2, 7)}`;
+      // A collision-free id (several demo buildings are written in a tight loop).
+      const id = crypto.randomUUID();
       const uri = newBuildingUri(webId, id);
       const subjectUri = `${uri}#${id}`;
 
@@ -949,13 +1042,24 @@ export async function seedDemoBuildings(
         // Annual aggregate (P1Y) — written as one gran:EnergyDataset per year.
         fields = { ...fields, ...(demo.annual ?? {}) };
       } else {
-        // 15-minute series (PT15M): one demo day of readings.
-        const day = "2024-06-03";
-        series = {
-          year: 2024,
-          days: [{ date: day, readings: synthDayReadings(day) }],
-          label: fields.streetAddress ?? "",
-        };
+        // 15-minute series (PT15M): `seriesDays` demo days from 2024-06-01, so the
+        // Day View, Daily Totals and Average Profile are all populated. Each day is
+        // scaled by a deterministic weekday/weekend factor (offices idle at the
+        // weekend), so the totals and average profile vary instead of being flat.
+        const n = demo.seriesDays ?? 28;
+        const start = new Date("2024-06-01T00:00:00Z").getTime();
+        const days: Array<{ date: string; readings: LastgangReading[] }> = [];
+        for (let i = 0; i < n; i++) {
+          const date = new Date(start + i * 86_400_000).toISOString().slice(0, 10);
+          const dow = new Date(`${date}T00:00:00Z`).getUTCDay(); // 0 Sun … 6 Sat
+          const factor = dow === 0 || dow === 6 ? 0.5 : 0.9 + (i % 5) * 0.05;
+          const readings = synthDayReadings(date).map((r) => ({
+            ...r,
+            valueKwh: (parseFloat(r.valueKwh) * factor).toFixed(6),
+          }));
+          days.push({ date, readings });
+        }
+        series = { year: 2024, days, label: fields.streetAddress ?? "" };
       }
 
       // Write the energy dataset resources, then the building (with the links).

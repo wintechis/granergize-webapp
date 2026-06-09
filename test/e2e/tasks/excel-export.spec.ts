@@ -47,9 +47,14 @@ test.describe("excel export", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);
-    // Self-seed an empty Pod so the export round-trip has buildings to export
-    // (the test no longer assumes a pre-seeded Pod). The `user` demo building
-    // round-trips through the generic "User" import template used below.
+    // Self-seed an empty Pod so the export round-trip has buildings to export (the
+    // test no longer assumes a pre-seeded Pod). The `user` demo seeds a couple of
+    // buildings, so this exercises the MULTI-building round-trip — incl. the cleanup
+    // that deletes the re-imported copies and asserts the listing converges back.
+    // That relies on `deleteBuilding`'s read-after-write (it waits until the
+    // `buildings/` listing drops a deleted file before resolving), so the per-delete
+    // refetch can't briefly surface a phantom row under CSS eventual consistency.
+    // They round-trip through the generic "User" import template used below.
     await ensureDemoBuildings(page, "user");
   });
 
