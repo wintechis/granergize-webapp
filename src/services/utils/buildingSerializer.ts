@@ -410,6 +410,49 @@ export async function writeEnergyYear(
 }
 
 /**
+ * Delete one year's annual `gran:EnergyDataset` resource and drop the building's
+ * `gran:hasEnergyDataset` link to it — the inverse of {@link writeEnergyYear},
+ * used by the per-year energy entry form to remove a year entered by mistake.
+ * Annual (single-file) datasets only; series (`PT15M`) live in a container and
+ * are not managed here. A 404 on the dataset is treated as "already gone".
+ * @operation mutation
+ */
+export async function deleteEnergyYear(
+  session: Session,
+  buildingFileUri: string,
+  buildingSubjectUri: string,
+  ds: Pick<EnergyDataset, "year" | "granularity" | "scenario">,
+): Promise<void> {
+  const fileUrl = datasetFileUrl(
+    buildingFileUri,
+    ds.year,
+    ds.granularity,
+    ds.scenario,
+  );
+  const del = await session.fetch(fileUrl, { method: "DELETE" });
+  if (!del.ok && del.status !== 404) {
+    throw new Error(
+      `Failed to delete energy dataset: ${del.status} ${del.statusText}`,
+    );
+  }
+  // Drop the now-orphaned per-resource ACL if it had one (best-effort).
+  await session.fetch(`${fileUrl}.acl`, { method: "DELETE" }).catch((err) =>
+    logError("delete energy dataset ACL", err)
+  );
+
+  // Unlink it from the building file (skip the PUT when there's nothing to remove).
+  const link = namedNode(datasetNodeUrl(fileUrl));
+  const subject = namedNode(buildingSubjectUri);
+  const pred = namedNode(`${GRAN_NS}hasEnergyDataset`);
+  await readModifyWrite(buildingFileUri, session, (store, { created }) => {
+    if (created) return false; // building file gone — nothing to unlink
+    const quads = store.getQuads(subject, pred, link, null);
+    if (quads.length === 0) return false;
+    for (const q of quads) store.removeQuad(q);
+  });
+}
+
+/**
  * Fetch each building's actual annual `gran:EnergyDataset` resources and attach
  * them as `annualData` — energy is no longer inline, but the synchronous Excel
  * export reads that field. Mutates the buildings in place and returns them; call

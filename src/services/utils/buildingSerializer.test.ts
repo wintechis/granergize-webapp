@@ -9,6 +9,7 @@ import {
   buildingsToXlsx,
   buildingToXlsx,
   deleteBuilding,
+  deleteEnergyYear,
   newBuildingUri,
   parseCsvToFields,
   seedDemoBuildings,
@@ -16,7 +17,12 @@ import {
   synthDayReadings,
   uploadBuilding,
   writeBuildingEnergy,
+  writeEnergyYear,
 } from "./buildingSerializer.ts";
+import {
+  datasetFileUrl,
+  datasetNodeUrl,
+} from "./energyDataset.ts";
 import { toggleBuildingVisibility } from "../interop/sharingManager.ts";
 import { parseBuildings } from "./buildingParser.ts";
 import { _setStorageRootForTesting, podResources } from "./solidUtils.ts";
@@ -886,5 +892,77 @@ Deno.test("deleteBuilding refuses a building outside the user's own Pod", async 
         "https://other.example/granergize/buildings/x.ttl#x",
       ),
     /outside your own Pod/,
+  );
+});
+
+// ── writeEnergyYear / deleteEnergyYear (the per-year energy entry round-trip) ──
+
+Deno.test("writeEnergyYear writes the dataset and links it; deleteEnergyYear undoes both", async () => {
+  const fileUri = newBuildingUri(WEBID, "b-e");
+  const subjectUri = `${fileUri}#b-e`;
+  // The building file must already exist (writeEnergyYear only adds a link).
+  const { session, calls, store } = makeSession({
+    [fileUri]: serializeBuildingToTurtle({ streetAddress: "X" }, fileUri),
+  });
+
+  await writeEnergyYear(session, fileUri, subjectUri, {
+    building: subjectUri,
+    year: 2099,
+    granularity: "P1Y",
+    scenario: "actual",
+    metrics: { electricityConsumption: 88888 },
+  });
+
+  const dsFile = datasetFileUrl(fileUri, 2099, "P1Y", "actual");
+  const dsNode = datasetNodeUrl(dsFile);
+  assert.ok(dsFile in store, "the dataset resource was written");
+  // The building file now links the dataset.
+  const linkedAfterWrite = parse(store[fileUri]).getQuads(
+    namedNode(subjectUri),
+    namedNode(`${GRAN_NS}hasEnergyDataset`),
+    namedNode(dsNode),
+    null,
+  );
+  assert.equal(linkedAfterWrite.length, 1, "one hasEnergyDataset link after write");
+
+  await deleteEnergyYear(session, fileUri, subjectUri, {
+    year: 2099,
+    granularity: "P1Y",
+    scenario: "actual",
+  });
+
+  assert.ok(!(dsFile in store), "the dataset resource was deleted");
+  assert.ok(
+    calls.some((c) => c.method === "DELETE" && c.url === dsFile),
+    "issued a DELETE for the dataset file",
+  );
+  const linkedAfterDelete = parse(store[fileUri]).getQuads(
+    namedNode(subjectUri),
+    namedNode(`${GRAN_NS}hasEnergyDataset`),
+    namedNode(dsNode),
+    null,
+  );
+  assert.equal(linkedAfterDelete.length, 0, "the link was removed from the building");
+});
+
+Deno.test("deleteEnergyYear tolerates an already-missing dataset (404) and skips the PUT when nothing is linked", async () => {
+  const fileUri = newBuildingUri(WEBID, "b-gone");
+  const subjectUri = `${fileUri}#b-gone`;
+  // Building file with NO energy link; the dataset file doesn't exist either.
+  const { session, calls } = makeSession({
+    [fileUri]: serializeBuildingToTurtle({ streetAddress: "X" }, fileUri),
+  });
+
+  await deleteEnergyYear(session, fileUri, subjectUri, {
+    year: 2050,
+    granularity: "P1Y",
+    scenario: "planned",
+  });
+
+  // The DELETE returns 404 (tolerated, no throw) and, with no link to remove,
+  // the building file is never re-PUT.
+  assert.ok(
+    !calls.some((c) => c.method === "PUT" && c.url === fileUri),
+    "no needless PUT of the building file when there was nothing to unlink",
   );
 });

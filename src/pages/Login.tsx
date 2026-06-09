@@ -121,6 +121,36 @@ export const Login: React.FC<LoginProps> = ({
     // still succeeds will set `activeWebId` and swap in the app.
     const watchdog = setTimeout(() => setLoading(false), 8000);
 
+    // Restoring a session on refresh does a *silent redirect* through the Solid
+    // identity provider, which drops the URL fragment — and with it the in-app
+    // HashRouter route plus its `?tab=`/`?b=`/`?dt=` UI-state params (see
+    // notes/ui-state.md). inrupt preserves the pre-redirect URL and hands it back
+    // as the `sessionRestore` event payload (its documented purpose); replay that
+    // URL's fragment so a reload lands back where the user was, not on the start
+    // tab. Setting the hash fires a `hashchange` the HashRouter picks up.
+    // Restoring a session on refresh does a *silent redirect* through the Solid
+    // identity provider, which drops the URL fragment — and with it the in-app
+    // HashRouter route plus its `?tab=`/`?b=`/`?dt=` UI-state params (see
+    // notes/ui-state.md). The `sessionRestore` event hands back the pre-redirect
+    // URL (inrupt preserves it for exactly this), but the event fires *while*
+    // `handleIncomingRedirect` is still cleaning the URL — applying the fragment
+    // synchronously there gets clobbered by that cleanup. Defer to a macrotask so
+    // it runs after the cleanup (and after the app has mounted); setting the hash
+    // fires a `hashchange` the HashRouter picks up.
+    const restoreRouteFrom = (url?: string) => {
+      if (!url) return;
+      setTimeout(() => {
+        try {
+          const { hash } = new URL(url);
+          if (hash && hash !== "#" && window.location.hash !== hash) {
+            window.location.hash = hash;
+          }
+        } catch {
+          // Ignore a malformed event URL — restoration is best-effort.
+        }
+      }, 0);
+    };
+
     const handleLogoutEvent = () => {
       loginHandled.current = false;
       markResponded();
@@ -146,8 +176,11 @@ export const Login: React.FC<LoginProps> = ({
       setLoading(false);
       fireLogin();
     };
-    const handleRestore = () => {
+    const handleRestore = (currentUrl?: string) => {
       markResponded();
+      // The event carries the page URL the user was on before the silent restore
+      // redirect — replay its in-app route (deferred past the library's cleanup).
+      restoreRouteFrom(currentUrl);
       // Same as the login event: keep the loading screen up (no login-form
       // flash) by setting the WebID as we clear `loading`.
       setActiveWebId(session.info.webId);

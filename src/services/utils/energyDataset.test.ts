@@ -6,6 +6,8 @@ import {
   datasetNodeUrl,
   datasetSlug,
   type EnergyDataset,
+  type EnergyDatasetRef,
+  loadEnergyDatasets,
   parseDatasetSlug,
   parseEnergyDataset,
   parseEnergyDatasetRefs,
@@ -118,6 +120,51 @@ Deno.test("series descriptor round-trips (located, no inline observations)", () 
   assert.equal(back!.granularity, "PT15M");
   assert.equal(back!.datasetLocation, loc);
   assert.equal(back!.metrics, undefined);
+});
+
+Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", async () => {
+  // This is the read path the energy-year edit form relies on: re-opening a
+  // stored year must surface its full figures so an edit doesn't drop the
+  // untouched ones (#5 data loss).
+  const fileUrl = datasetFileUrl(B, 2024, "P1Y", "actual");
+  const ref: EnergyDatasetRef = {
+    url: datasetNodeUrl(fileUrl),
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "actual",
+  };
+  const ds: EnergyDataset = {
+    building: B,
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "actual",
+    metrics: { electricityConsumption: 121500, waterConsumption: 1500 },
+  };
+  const ttl = serializeEnergyDataset(ds); // emits a relative <#ds> node
+  const fetchFn = (url: string): Promise<Response> => {
+    assert.equal(url, fileUrl); // ref's #fragment stripped before the GET
+    return Promise.resolve(
+      new Response(ttl, { headers: { "Content-Type": "text/turtle" } }),
+    );
+  };
+
+  const [back] = await loadEnergyDatasets([ref], fetchFn);
+  assert.ok(back);
+  assert.equal(back.metrics?.electricityConsumption, 121500);
+  assert.equal(back.metrics?.waterConsumption, 1500);
+  assert.equal(back.metrics?.heatConsumption, undefined);
+});
+
+Deno.test("loadEnergyDatasets skips an unreadable ref without throwing", async () => {
+  const ref: EnergyDatasetRef = {
+    url: datasetNodeUrl(datasetFileUrl(B, 2024, "P1Y", "actual")),
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "actual",
+  };
+  const fetchFn = (): Promise<Response> =>
+    Promise.resolve(new Response("Forbidden", { status: 403 }));
+  assert.deepEqual(await loadEnergyDatasets([ref], fetchFn), []);
 });
 
 Deno.test("parseEnergyDatasetRefs reads the building's hasEnergyDataset links", () => {
