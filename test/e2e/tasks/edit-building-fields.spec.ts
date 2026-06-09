@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, ensureCompanyKind, hasAccount, login } from "../helpers/login.ts";
+import { account, hasAccount, login } from "../helpers/login.ts";
 import { addBuilding } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -45,10 +45,8 @@ test.describe("edit building operating costs + certifications", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);
-    // Investor kind via the in-app form → the building added below gets investor
-    // provenance, so the Edit dialog renders the Operating-costs / Certifications
-    // sections this spec exercises.
-    await ensureCompanyKind(page, "investor", { force: true });
+    // The Edit dialog renders the Operating-costs / Certifications sections for every
+    // building now (one generic form, no role gating), so no setup is needed.
   });
 
   test.afterAll(async () => {

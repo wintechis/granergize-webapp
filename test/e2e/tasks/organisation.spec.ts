@@ -5,80 +5,43 @@ import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Provenance-from-profile e2e (PROBLEMS.md #1). Proves a building's PROV
- * provenance comes from the **profile company kind** (org:classification on the
- * org node), not the import template: set the company kind to *Investor* but add
- * a building with the *User* template, then in Create View the building filters
- * under **Investor** (its provenance) and NOT under **User** (its template) —
- * `CreateViewDialog` filters `b.provenance === selectedRole`.
+ * Organisation/profile e2e: uploading a company logo, and that a building produced
+ * by an agent whose profile carries an org logo renders that logo as its map marker
+ * (BuildingMarker → resolveAgentOrgLogo). The org logo is keyed on the producing
+ * agent (`prov:agent` / `attributedTo`), which survives the role removal.
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/tasks/organisation.spec.ts
  *   # tier 4 (real Pods):
  *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/organisation.spec.ts
  *
- * Also covers two related Organisation/profile features: that the five producer
- * roles added for the Praxishandbuch update are offered as a company kind, and
- * that a building produced by an agent with an org logo renders that logo as its
- * map marker (BuildingMarker → resolveAgentOrgLogo).
- *
- * MUTATES the Pod but fully reverses itself: it restores the prior profile
- * company kind in afterAll and adds+deletes its buildings. The uploaded company
- * logo persists (no remove-logo UI). Runs against Alice (account A). Skipped
- * without creds.
+ * MUTATES the Pod but reverses itself (adds+deletes its buildings). The uploaded
+ * company logo persists (no remove-logo UI). Runs against Alice (account A).
  */
 
-const ADDR = "Provenance E2E Strasse 1"; // unique, matchable building address
 const LOGO_ADDR = "Logo Marker E2E Strasse 2"; // building used for the logo-marker check
 
-// The company kind this Pod had before the test, restored in afterAll so the
-// spec fully reverses its profile mutation (defaults to "Not set" on a reseeded
-// Pod). Captured from the dialog in the test.
-let priorKind = "Not set";
-
-/** Open the avatar-menu Organisation dialog (waits for the kind prefill). */
+/** Open the avatar-menu Organisation dialog. */
 async function openOrgDialog(page: Page): Promise<Locator> {
   // Bounded clicks: Playwright's default action timeout is 0 (wait forever), so a
-  // stuck click here would consume a whole hook budget UNCATCHABLY (the best-effort
-  // afterAll restore could never swallow it). 15 s is ample for these interactions.
+  // stuck click here would consume a whole hook budget uncatchably. 15 s is ample.
   await page.getByRole("button", { name: "Account menu" }).click({ timeout: T.visible });
   await page.getByRole("menuitem", { name: /organisation/i })
     .click({ timeout: T.visible });
   const org = page.getByRole("dialog");
   await expect(org).toBeVisible({ timeout: T.action });
-  await page.waitForLoadState("networkidle").catch(() => {}); // kind prefills async
+  await page.waitForLoadState("networkidle").catch(() => {}); // fields load async
   return org;
-}
-
-/** Select a company kind in the open Organisation dialog and save (Cancel if unchanged). */
-async function setKindAndSave(
-  page: Page,
-  org: Locator,
-  label: string,
-): Promise<void> {
-  const sel = org.getByLabel("Kind of company");
-  if ((await sel.textContent())?.trim() === label) {
-    await org.getByRole("button", { name: /cancel/i }).click({ timeout: T.visible });
-    return;
-  }
-  // Bounded clicks (see openOrgDialog) — a stuck dropdown/option/save click must not
-  // hang a whole hook budget uncatchably.
-  await sel.click({ timeout: T.visible });
-  await page.getByRole("option", { name: label, exact: true })
-    .click({ timeout: T.visible });
-  await org.getByRole("button", { name: /^save$/i }).click({ timeout: T.visible });
-  await expect(page.getByText(/organisation saved/i))
-    .toBeVisible({ timeout: T.action });
 }
 
 const ACC = account("A"); // Alice -- solo specs use one account
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("provenance from profile", () => {
+test.describe("organisation logo", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the provenance e2e.`,
+    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the organisation e2e.`,
   );
 
   let page: Page;
@@ -92,106 +55,13 @@ test.describe("provenance from profile", () => {
   });
 
   test.afterAll(async () => {
-    // The restore opens the dialog + saves (setKindAndSave waits up to 60 s for
-    // the "saved" toast), so the default 30 s hook budget is too tight — give it
-    // room, otherwise a slow save fails teardown even though the test body passed.
     test.setTimeout(T.afterAll);
-    // Fully reverse the profile mutation: restore the kind this Pod started with.
-    try {
-      if (!page.isClosed()) {
-        const org = await openOrgDialog(page);
-        await setKindAndSave(page, org, priorKind);
-      }
-    } catch {
-      // best-effort restore; never fail teardown
-    } finally {
-      await verifyAndReset(page, "organisation");
-      await page.close();
-    }
+    await verifyAndReset(page, "organisation");
+    await page.close();
   });
 
-  test("the profile company kind, not the template, sets a building's provenance", async () => {
-    test.setTimeout(T.testSolo);
-
-    // 1. Capture the current company kind (to restore later), then set Investor.
-    const org = await openOrgDialog(page);
-    priorKind =
-      (await org.getByLabel("Kind of company").textContent())?.trim() ||
-      "Not set";
-    await setKindAndSave(page, org, "Investor");
-
-    // 2. Add a building with the USER template (≠ the profile kind). Wait for the
-    //    Add Building control (always present once Manage has loaded), NOT a
-    //    pre-existing building row — the Pod may legitimately have none.
-    await page.getByRole("tab", { name: "Manage" }).click();
-    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
-      .first();
-    await expect(addBtn).toBeVisible({ timeout: T.action });
-    await addBtn.click();
-    const add = page.getByRole("dialog");
-    await add.getByLabel("Template").click();
-    await page.getByRole("option", { name: "User", exact: true }).click();
-    await add.getByLabel(/street address/i).fill(ADDR);
-    await add.getByLabel(/locality/i).fill("Nürnberg");
-    await add.getByLabel(/postal code/i).fill("90451");
-    await add.getByLabel(/region/i).fill("Bayern");
-    await add.getByLabel(/latitude/i).fill("49.45");
-    await add.getByLabel(/longitude/i).fill("11.08");
-    await add.getByRole("button", { name: /^Add Building$/ }).click();
-    await expect(page.getByText(/building added/i))
-      .toBeVisible({ timeout: T.action });
-
-    // 3. Create View keys on provenance (CreateViewDialog filters
-    //    b.provenance === selectedRole): the building must appear under the Investor
-    //    filter (the profile company kind) — an exact provenance match — and must NOT appear
-    //    under the User filter (its import template). So provenance came from the
-    //    profile, not the template.
-    await page.waitForLoadState("networkidle").catch(() => {});
-    await page.getByRole("button", { name: /create view/i }).click();
-    const view = page.getByRole("dialog");
-    await expect(view).toBeVisible({ timeout: T.action });
-    const option = page.getByRole("option", { name: new RegExp(ADDR) });
-
-    // Under the Investor filter (the profile company kind) the building IS offered — that is
-    // its actual provenance.
-    await view.getByLabel("Role").click();
-    await page.getByRole("option", { name: "Investor", exact: true }).click();
-    await view.getByLabel("Select Buildings").click();
-    await expect(option).toBeVisible({ timeout: T.action });
-    await page.keyboard.press("Escape");
-
-    // Under the User filter (the import *template*) the building must NOT appear — had
-    // provenance wrongly followed the template, it would. Don't assume "User" is even a
-    // selectable role: whether it's offered depends on some OTHER user-provenance
-    // building existing (a demo-seeded one, residue, …), independent of ours. If it is
-    // offered, switch to it and confirm ours isn't among its buildings; if it isn't
-    // offered at all, then no building is User-provenance, so ours certainly isn't.
-    await view.getByLabel("Role").click();
-    // The dropdown is open once Investor (our building's provenance) has rendered.
-    await expect(page.getByRole("option", { name: "Investor", exact: true }))
-      .toBeVisible({ timeout: T.quick });
-    const userRole = page.getByRole("option", { name: "User", exact: true });
-    if (await userRole.count()) {
-      await userRole.click();
-      await view.getByLabel("Select Buildings").click();
-      await expect(option).toHaveCount(0, { timeout: T.quick });
-      await page.keyboard.press("Escape");
-    } else {
-      await page.keyboard.press("Escape"); // no User role offered — ours can't be User
-    }
-    await view.getByRole("button", { name: /cancel/i }).click();
-
-    // 4. Clean up the building.
-    await page.getByRole("tab", { name: "Manage" }).click();
-    const row = page.locator("li", { hasText: ADDR }).first();
-    await expect(row).toBeVisible({ timeout: T.action });
-    await row.getByRole("button", { name: "Delete building" }).click();
-    await expect(page.getByText("Building deleted").first())
-      .toBeVisible({ timeout: T.action });
-  });
-
-  // Upload a company logo in the Organisation dialog (PROBLEMS.md #11). Throwaway
-  // Pod: the logo persists (no remove-logo UI to reverse it), which is fine.
+  // Upload a company logo in the Organisation dialog. Throwaway Pod: the logo
+  // persists (no remove-logo UI to reverse it), which is fine.
   test("upload a company logo in the Organisation dialog", async () => {
     test.setTimeout(T.testSolo);
     // A minimal 1×1 PNG, inline — no fixture file needed.
@@ -219,30 +89,6 @@ test.describe("provenance from profile", () => {
     await reopened.getByRole("button", { name: /cancel/i }).click();
   });
 
-  // The five producer roles added for the Praxishandbuch update must be
-  // selectable wherever a role is chosen. The "Kind of company" dropdown maps
-  // ROOM_ROLE_OPTIONS → ROLE_LABELS, so it's the central proof they surface in
-  // the UI. Read-only: opens the dropdown and Cancels without changing the kind.
-  test("the new producer roles are offered as a company kind", async () => {
-    test.setTimeout(T.testSolo);
-    const org = await openOrgDialog(page);
-    await org.getByLabel("Kind of company").click({ timeout: T.visible });
-    for (
-      const label of [
-        "Facility Manager",
-        "Developer",
-        "Consultant / Broker",
-        "Software Provider",
-        "Energy Provider",
-      ]
-    ) {
-      await expect(page.getByRole("option", { name: label, exact: true }))
-        .toBeVisible({ timeout: T.visible });
-    }
-    await page.keyboard.press("Escape"); // close the dropdown, keep the kind
-    await org.getByRole("button", { name: /cancel/i }).click({ timeout: T.visible });
-  });
-
   // A building produced by an agent whose profile carries an org logo shows that
   // logo as its map marker (BuildingMarker → resolveAgentOrgLogo → an L.divIcon
   // whose <img alt="Building producer logo">). Runs after the logo-upload test,
@@ -251,16 +97,14 @@ test.describe("provenance from profile", () => {
   test("a building's company logo shows as its map marker", async () => {
     test.setTimeout(T.testSolo);
 
-    // Add an owned building (User template; provenance comes from the profile
-    // kind set earlier — irrelevant here, we only need a marker on the map).
+    // Add an owned building via the single generic form (no role/template).
     await page.getByRole("tab", { name: "Manage" }).click();
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await add.getByLabel("Template").click();
-    await page.getByRole("option", { name: "User", exact: true }).click();
+    await expect(add.getByLabel(/street address/i)).toBeVisible({ timeout: T.visible });
     await add.getByLabel(/street address/i).fill(LOGO_ADDR);
     await add.getByLabel(/locality/i).fill("Nürnberg");
     await add.getByLabel(/postal code/i).fill("90451");

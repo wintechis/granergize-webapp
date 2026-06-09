@@ -53,7 +53,7 @@ test.describe("map energy lens (Vertriebsoptimierung)", () => {
     await assertCleanStart(page);
     // The investor demo seeds three distinct-intensity annual buildings (+ two
     // series buildings) with energy baked in — the shape this lens categorises.
-    await ensureDemoBuildings(page, "investor");
+    await ensureDemoBuildings(page);
   });
 
   test.afterAll(async () => {

@@ -1,10 +1,5 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
-import type { UserRole } from "../../types.ts";
-import {
-  COMPANY_KIND_TO_IRI,
-  IRI_TO_COMPANY_KIND,
-} from "../../constants/roles.ts";
 import { fetchFresh } from "../pod/podFetch.ts";
 import { invalidateProfile, loadProfileStore } from "../pod/profileDocument.ts";
 import { getPodBaseUrl } from "../pod/solidUtils.ts";
@@ -56,9 +51,6 @@ const ORG_MEMBER = `${ORG_NS}member`;
 // The `org:organization` PROPERTY (lowercase) linking a Membership to its org —
 // distinct from `ORG_ORGANIZATION` above, which is the `org:Organization` CLASS.
 const ORG_ORGANIZATION_PRED = `${ORG_NS}organization`;
-// `org:classification` on the org node — which KIND of company it is (a gran:
-// concept, e.g. gran:Investor). The data-producer category is read from here.
-const ORG_CLASSIFICATION = `${ORG_NS}classification`;
 
 export interface Organization {
   /** Display name (foaf:name). */
@@ -314,65 +306,6 @@ export async function saveOrganization(
   else clearPredicate(store, org, FOAF_HOMEPAGE);
   if (sameAs) setNamedNode(store, org, OWL_SAME_AS, sameAs);
   else clearPredicate(store, org, OWL_SAME_AS);
-
-  await putProfile(docUrl, store, session);
-}
-
-/**
- * The user's company *kind* — read from `org:classification` on the org node
- * (`<#me> org:memberOf <#org> . <#org> org:classification <iri>`). This is the
- * provenance category applied to every building they add (mapped to the
- * `prov:hadRole` IRI when serializing). Returns null when unset (so the Add flow
- * records no attribution). Distinct from the data-room membership role.
- * @operation query
- */
-export async function getCompanyKind(
-  session: Session,
-): Promise<UserRole | null> {
-  const webId = session.info.webId;
-  if (!webId) return null;
-  const store = await loadProfile(webId, session);
-  if (!store) return null;
-
-  const orgIri = firstObject(store, webId, ORG_MEMBER_OF);
-  if (!orgIri) return null;
-  const kindIri = firstObject(store, orgIri, ORG_CLASSIFICATION);
-  if (!kindIri) return null;
-  return IRI_TO_COMPANY_KIND[kindIri] ?? null;
-}
-
-/**
- * Persist the user's company kind into the WebID profile as `org:classification`
- * on the org node (single PUT), ensuring the role-free person↔org membership.
- * `kind === null` clears the classification but leaves the org/membership intact.
- * Leaves the FOAF org fields untouched.
- * @operation mutation
- */
-export async function saveCompanyKind(
-  session: Session,
-  kind: UserRole | null,
-): Promise<void> {
-  const webId = session.info.webId;
-  if (!session.info.isLoggedIn || !webId) {
-    throw new Error("User is not logged in");
-  }
-  const docUrl = profileDocUrl(webId);
-  const response = await fetchFresh(docUrl, session);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch WebID profile at ${docUrl}: ${response.statusText}`,
-    );
-  }
-  const store = new Store(
-    new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(
-      await response.text(),
-    ),
-  );
-
-  const org = orgNodeIri(webId);
-  ensureOrgMembership(store, webId);
-  if (kind) setNamedNode(store, org, ORG_CLASSIFICATION, COMPANY_KIND_TO_IRI[kind]);
-  else clearPredicate(store, org, ORG_CLASSIFICATION);
 
   await putProfile(docUrl, store, session);
 }

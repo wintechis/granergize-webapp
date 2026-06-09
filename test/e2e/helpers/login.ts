@@ -3,8 +3,6 @@ import { account as resolveAccount, type TestAccount } from "../../config/accoun
 import { localProvider } from "../../config/providers.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { watchCloudflareRateLimit } from "./cloudflareGuard.ts";
-import { ROLE_LABELS } from "../../../src/constants/roles.ts";
-import type { UserRole } from "../../../src/types.ts";
 import { T } from "./timeouts.ts";
 
 const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
@@ -152,81 +150,8 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
       timeout: 1000,
     });
   }).toPass({ timeout: T.login });
-
-  // Adding a building now requires a company kind (it sets the building's
-  // provenance and selects the data shape), so the Add-building dialog stays
-  // blocked until one is set. Pre-set it here so the add-building specs aren't
-  // gated; bench runs don't use the add dialog, so skip the extra UI there.
-  if (!E2E_BENCH) await ensureCompanyKind(page);
 }
 
-/**
- * Set the logged-in account's company kind via the in-app Organisation form — the
- * single in-app path tests use to give an org a role/kind (the form is itself under
- * test). Pass a {@link UserRole}; it's mapped to the dialog's option label via
- * `ROLE_LABELS`.
- *
- * `force: false` (default) is the login baseline: set the kind only when the profile
- * has none yet, leaving an existing (possibly different) kind untouched — so a
- * per-spec `force` selection isn't clobbered by a later baseline call. `force: true`
- * CHANGES the kind even if one is already set, so a spec can switch the org's role
- * mid-suite (the role-diversity requirement).
- *
- * Reliable, not best-effort: each attempt ends on the "Organisation saved" toast
- * (the persistence signal), and the whole thing retries a few times and THROWS on
- * give-up — so a genuine failure surfaces here with a clear message instead of as a
- * downstream 30s "Add examples" banner timeout.
- */
-export async function ensureCompanyKind(
-  page: Page,
-  kind: UserRole = "user",
-  opts: { force?: boolean } = {},
-): Promise<void> {
-  const label = ROLE_LABELS[kind];
-  const attempt = async (): Promise<void> => {
-    await page.getByRole("button", { name: "Account menu" })
-      .click({ timeout: T.visible });
-    await page.getByRole("menuitem", { name: /organisation/i })
-      .click({ timeout: T.visible });
-    const org = page.getByRole("dialog");
-    await expect(org).toBeVisible({ timeout: T.action });
-    await page.waitForLoadState("networkidle").catch(() => {}); // kind prefills async
-    const sel = org.getByLabel("Kind of company");
-    // Normalise the Select's display text: MUI renders a zero-width space (U+200B)
-    // as the placeholder for an unselected value, which a plain truthy check would
-    // mistake for a set kind — strip it (and whitespace) so "unset" reads as empty.
-    const current = (await sel.textContent() ?? "").replace(/[\u200B\s]/g, "");
-    const isSet = current !== "" && current !== "Not set";
-    // Already the wanted kind, or a baseline call over an existing (different) kind:
-    // nothing to change — just close.
-    if ((isSet && current === label) || (isSet && !opts.force)) {
-      await org.getByRole("button", { name: /cancel/i }).click({ timeout: T.visible });
-      return;
-    }
-    await sel.click({ timeout: T.visible });
-    await page.getByRole("option", { name: label, exact: true })
-      .click({ timeout: T.visible });
-    await org.getByRole("button", { name: /^save$/i }).click({ timeout: T.visible });
-    await expect(page.getByText(/organisation saved/i))
-      .toBeVisible({ timeout: T.action });
-  };
-
-  let lastErr: unknown;
-  for (let i = 0; i < 3; i++) {
-    try {
-      await attempt();
-      return;
-    } catch (err) {
-      lastErr = err;
-      // A half-open dialog would block the next attempt's Account-menu click; press
-      // Escape to dismiss it before retrying.
-      await page.keyboard.press("Escape").catch(() => {});
-    }
-  }
-  throw new Error(
-    `ensureCompanyKind(${kind}, force=${!!opts.force}) failed after retries: ${String(lastErr)}`,
-  );
-}
 
 /** The app's login-screen heading (the `name` passed to <Login>). */
 export const LOGIN_HEADING = "Granergize App";

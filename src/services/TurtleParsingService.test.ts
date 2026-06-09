@@ -118,8 +118,6 @@ Deno.test("fetchAndParseData parses own buildings (by listing) and energy end-to
   assert.ok(b1, "building 1 present");
   assert.equal(b1!.lat, 49.0);
   assert.equal(b1!.long, 11.0);
-  // No PROV attribution in the file and no legacy registry fallback ⇒ undefined.
-  assert.equal(b1!.provenance, undefined);
   assert.equal(b1!.isShared, false); // discovered under the storage root = own
 
   const e1 = result.energyNeed.find((e) => e.id === 1);

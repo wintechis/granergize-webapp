@@ -1,6 +1,13 @@
 import { useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Button, IconButton, Tooltip, Typography } from "@mui/material";
+import {
+  Button,
+  IconButton,
+  Menu,
+  MenuItem,
+  Tooltip,
+  Typography,
+} from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import AddchartIcon from "@mui/icons-material/Addchart";
 import AttachFileIcon from "@mui/icons-material/AttachFile";
@@ -39,6 +46,7 @@ import {
   buildingsToXlsx,
   buildingToXlsx,
 } from "../services/rdf/building/buildingSerializer.ts";
+import type { ExportStyle } from "../services/rdf/buildingWorkbook.ts";
 import { buildBuildingDeletionPreview } from "../services/buildingActions.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { formatError } from "../lib/formatError.ts";
@@ -149,15 +157,29 @@ export default function ManagePage({ session }: ManagePageProps) {
     });
   };
 
-  const handleDownload = async (building: BuildingType) => {
+  // Per-building Excel export, in a user-chosen layout (a building no longer carries
+  // a role, so the spreadsheet shape is picked here). Anchored to the row's button.
+  const [exportMenu, setExportMenu] = useState<
+    { anchor: HTMLElement; building: BuildingType } | null
+  >(null);
+
+  const handleDownload = async (building: BuildingType, style: ExportStyle) => {
+    setExportMenu(null);
     try {
       // Energy is no longer inline; fetch the annual datasets for the export.
       const [enriched] = await attachAnnualData([building], session);
-      downloadXlsx(buildingToXlsx(enriched), `building-${building.id}.xlsx`);
+      downloadXlsx(buildingToXlsx(enriched, style), `building-${building.id}.xlsx`);
     } catch (error) {
       showNotification(formatError("export the building", error), "error");
     }
   };
+
+  // The export-layout options, labelled by spreadsheet shape (not a role).
+  const EXPORT_STYLES: { style: ExportStyle; label: string }[] = [
+    { style: "generic", label: "Generic (field-name columns)" },
+    { style: "investor", label: "Row-label sheet (one column per building)" },
+    { style: "benchmark", label: "Table (one row per building)" },
+  ];
 
   const handleDownloadAll = async () => {
     if (ownedBuildings.length === 0) return;
@@ -229,7 +251,6 @@ export default function ManagePage({ session }: ManagePageProps) {
         >
           {rdf && <RdfSourceLink href={rdf.buildings} />}
           <Button
-            size="small"
             variant="outlined"
             startIcon={<DownloadIcon />}
             onClick={handleDownloadAll}
@@ -343,7 +364,8 @@ export default function ManagePage({ session }: ManagePageProps) {
                           <IconButton
                             size="small"
                             aria-label="Download building data"
-                            onClick={() => handleDownload(b)}
+                            onClick={(e) =>
+                              setExportMenu({ anchor: e.currentTarget, building: b })}
                           >
                             <DownloadIcon fontSize="small" />
                           </IconButton>
@@ -367,6 +389,22 @@ export default function ManagePage({ session }: ManagePageProps) {
           )}
         <Pager paging={buildingPaging} />
 
+        <Menu
+          anchorEl={exportMenu?.anchor ?? null}
+          open={exportMenu != null}
+          onClose={() => setExportMenu(null)}
+        >
+          {EXPORT_STYLES.map(({ style, label }) => (
+            <MenuItem
+              key={style}
+              onClick={() =>
+                exportMenu && handleDownload(exportMenu.building, style)}
+            >
+              {label}
+            </MenuItem>
+          ))}
+        </Menu>
+
         <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
           <Button
             variant="outlined"
@@ -386,7 +424,7 @@ export default function ManagePage({ session }: ManagePageProps) {
               setAddOpen(true);
             }}
           >
-            Import from file
+            Autofill from file
           </Button>
         </div>
       </section>

@@ -3,27 +3,18 @@ import {
   Avatar,
   Box,
   Button,
-  FormControl,
-  FormHelperText,
-  InputLabel,
-  MenuItem,
-  Select,
   TextField,
   Typography,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { UserRole } from "../types.ts";
-import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../lib/formatError.ts";
 import Modal from "./Modal.tsx";
 import { logError } from "../lib/logError.ts";
 import {
-  getCompanyKind,
   getOrganization,
   isSupportedLogoType,
   type Organization,
-  saveCompanyKind,
   saveOrganization,
   uploadOrgLogo,
 } from "../services/organization/organizationManager.ts";
@@ -50,10 +41,6 @@ export default function OrganizationDialog(
   const [name, setName] = useState("");
   const [homepage, setHomepage] = useState("");
   const [sameAs, setSameAs] = useState("");
-  // The kind of company (org:classification on the org node) — also the PROV
-  // provenance category applied to buildings you add.
-  const [companyKind, setCompanyKind] = useState<UserRole | "">("");
-  const [initialKind, setInitialKind] = useState<UserRole | null>(null);
   const [initial, setInitial] = useState<Organization>({});
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [pickedFile, setPickedFile] = useState<File | null>(null);
@@ -65,10 +52,6 @@ export default function OrganizationDialog(
   useEffect(() => {
     if (!open) return;
     let revoke: string | null = null;
-    getCompanyKind(session).then((k) => {
-      setCompanyKind(k ?? "");
-      setInitialKind(k);
-    }).catch((err) => logError("load organisation company kind", err));
     getOrganization(session).then((org) => {
       const o = org ?? {};
       setInitial(o);
@@ -99,7 +82,6 @@ export default function OrganizationDialog(
   const dirty = name !== (initial.name ?? "") ||
     homepage !== (initial.homepage ?? "") ||
     sameAs !== (initial.sameAs ?? "") ||
-    (companyKind || null) !== initialKind ||
     pickedFile != null;
 
   const close = () => {
@@ -124,9 +106,6 @@ export default function OrganizationDialog(
     setSaving(true);
     try {
       await saveOrganization(session, { name, homepage, sameAs });
-      if ((companyKind || null) !== initialKind) {
-        await saveCompanyKind(session, companyKind || null);
-      }
       if (pickedFile) await uploadOrgLogo(pickedFile, session);
       showNotification("Organisation saved", "success");
       onSaved();
@@ -191,28 +170,6 @@ export default function OrganizationDialog(
             onChange={(e) => setName(e.target.value)}
             fullWidth
           />
-          <FormControl fullWidth>
-            <InputLabel id="company-kind-label">
-              Kind of company
-            </InputLabel>
-            <Select
-              labelId="company-kind-label"
-              label="Kind of company"
-              value={companyKind}
-              onChange={(e) => setCompanyKind(e.target.value as UserRole | "")}
-            >
-              <MenuItem value="">
-                <em>Not set</em>
-              </MenuItem>
-              {ROOM_ROLE_OPTIONS.map((r) => (
-                <MenuItem key={r} value={r}>{ROLE_LABELS[r]}</MenuItem>
-              ))}
-            </Select>
-            <FormHelperText>
-              What kind of company this is (e.g. a real-estate investor). Recorded
-              as the provenance (who produced the data) on every building you add.
-            </FormHelperText>
-          </FormControl>
           <TextField
             label="Homepage URI"
             type="url"

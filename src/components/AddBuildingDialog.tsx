@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react";
 import {
-  Alert,
   Box,
   Button,
   FormControl,
@@ -20,8 +19,8 @@ import MyLocationIcon from "@mui/icons-material/MyLocation";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
-import { logError } from "../lib/logError.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
+import { BuildingDetailFields } from "./BuildingDetailFields.tsx";
 import { AgentField } from "./AgentField.tsx";
 import RequestActivityList from "./RequestActivityList.tsx";
 import type { UserRole } from "../types.ts";
@@ -29,6 +28,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { useQueryClient } from "@tanstack/react-query";
 import { queryKeys, useSolidData } from "../hooks/queries.ts";
 import {
+  detectSpreadsheetFormat,
   geocodeFields,
   type LastgangReading,
   newBuildingUri,
@@ -37,7 +37,6 @@ import {
   uploadBuilding,
   writeBuildingEnergy,
 } from "../services/rdf/building/buildingSerializer.ts";
-import { getCompanyKind } from "../services/organization/organizationManager.ts";
 import { formatError } from "../lib/formatError.ts";
 import { rememberAgent } from "../services/contacts.ts";
 
@@ -51,33 +50,36 @@ interface AddBuildingDialogProps {
 }
 
 /**
- * The import/export *template* (spreadsheet shape) chosen when adding a building —
- * the parse/serialize shape only. It is NOT the building's PROV provenance (that
- * comes from your company kind in the profile, `getCompanyKind`) nor the
- * data-room membership role.
+ * The import *file format* (spreadsheet layout) chosen when importing buildings —
+ * the parse shape only, used by `parseCsvToFields`. Not a role, not provenance, and
+ * unrelated to the (single, generic) manual field set.
  */
 type Template = UserRole;
 
+// The file-format options name the spreadsheet *layout*, not a role: a row-label
+// sheet (one column per building), a table (one row per building), or generic
+// field-name columns. Mapped onto the three parse shapes `parseCsvToFields` knows.
 const TEMPLATE_LABEL: Record<UserRole, string> = {
-  dummy: "Demo / Dummy",
-  investor: "Investor",
-  user: "User",
-  benchmark_service_provider: "Benchmark Service Provider",
-  facility_manager: "Facility Manager",
-  developer: "Developer",
-  consultant_broker: "Consultant / Broker",
-  software_provider: "Software Provider",
-  energy_provider: "Energy Provider",
+  dummy: "Generic (field-name columns)",
+  investor: "Row-label sheet (one column per building)",
+  user: "Generic (field-name columns)",
+  benchmark_service_provider: "Table (one row per building)",
+  facility_manager: "Generic (field-name columns)",
+  developer: "Generic (field-name columns)",
+  consultant_broker: "Generic (field-name columns)",
+  software_provider: "Generic (field-name columns)",
+  energy_provider: "Generic (field-name columns)",
 };
 
 const GENERIC_CSV_HINT =
-  "Upload CSV with BuildingType field names as column headers";
+  "Generic: field-name column headers, or a 15-minute load-profile (Lastgang) export.";
 
 const CSV_HINT: Record<UserRole, string> = {
-  investor: "Upload investor.xlsx (row-label format, buildings in columns D–K)",
+  investor:
+    "Row-label sheet: field labels down column B, one column per building (D–K).",
   benchmark_service_provider:
-    "Upload BenchmarkServiceProvider.csv (column-header format, one row per building)",
-  user: "Upload Lastgang XLSX (15-min load profile from utility provider)",
+    "Table: one row per building, with column headers.",
+  user: GENERIC_CSV_HINT,
   dummy: GENERIC_CSV_HINT,
   facility_manager: GENERIC_CSV_HINT,
   developer: GENERIC_CSV_HINT,
@@ -102,35 +104,6 @@ const ADDRESS_FIELDS = [
   "long",
 ];
 
-/** Minimum fields that must be non-empty before submission is allowed. */
-const REQUIRED_FIELDS: Record<UserRole, string[]> = {
-  dummy: ADDRESS_FIELDS,
-  user: ADDRESS_FIELDS,
-  facility_manager: ADDRESS_FIELDS,
-  developer: ADDRESS_FIELDS,
-  consultant_broker: ADDRESS_FIELDS,
-  software_provider: ADDRESS_FIELDS,
-  energy_provider: ADDRESS_FIELDS,
-  investor: [
-    "streetAddress",
-    "locality",
-    "postalCode",
-    "region",
-    "lat",
-    "long",
-    "buildingCode",
-  ],
-  benchmark_service_provider: [
-    "streetAddress",
-    "locality",
-    "postalCode",
-    "region",
-    "lat",
-    "long",
-    "label",
-  ],
-};
-
 function tabLabel(b: Record<string, string>, idx: number): string {
   return b.buildingCode || b.label || `Building ${idx + 1}`;
 }
@@ -143,13 +116,10 @@ export default function AddBuildingDialog(
   const { buildings } = useSolidData();
   const qc = useQueryClient();
 
-  // The chosen import/export template — spreadsheet shape only. Provenance comes
-  // from the profile data-producer role (loaded below), not from this.
+  // The chosen import file-format (spreadsheet layout) for "Import from file".
+  // Auto-detected on upload; the selector lets the user override. It is not a
+  // role and does not affect the manual field set (one generic form).
   const [template, setTemplate] = useState<Template>(TEMPLATE_OPTIONS[0]);
-  // The profile data-producer role → the building's PROV provenance. Loaded on
-  // open; null (no role set) means we record no attribution + show a hint.
-  const [producingRole, setProducingRole] = useState<UserRole | null>(null);
-  const [roleLoaded, setRoleLoaded] = useState(false);
   const [buildingsList, setBuildingsList] = useState<Record<string, string>[]>([{}]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [lastgangReadings, setLastgangReadings] = useState<LastgangReading[] | null>(null);
@@ -167,50 +137,48 @@ export default function AddBuildingDialog(
     if (open && autostartImport) fileInputRef.current?.click();
   }, [open, autostartImport]);
 
-  // Derive the producing role from the profile's company kind when the dialog
-  // opens (cached read). The company kind also seeds the template default: an
-  // investor opens on the investor shape, a BSP on the benchmark shape, etc. — the
-  // selector below still lets the user override for a cross-shape import.
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    getCompanyKind(session).then((r) => {
-      if (!cancelled) {
-        setProducingRole(r);
-        setRoleLoaded(true);
-        if (r && TEMPLATE_OPTIONS.includes(r)) setTemplate(r);
-      }
-    }).catch((err) => logError("derive producing role from company kind", err));
-    return () => {
-      cancelled = true;
-    };
-  }, [open, session]);
-
   const isProcessing = uploading || parsing;
 
   const fields = buildingsList[activeIdx] ?? {};
-  const required = REQUIRED_FIELDS[template];
+  // One generic form: only address + coordinates are required, for any building.
+  const required = ADDRESS_FIELDS;
   const isRequired = (field: string) => required.includes(field);
+
+  // Autofill can carry energy as well as base data: the row-label layout brings
+  // per-year `_inv_*` figures and the column-per-building layout a single `_bsp_*`
+  // year (layout artifacts only — the stored energy carries no role). These aren't
+  // editable form fields (energy is entered via the per-year Energy dialog), but they
+  // DO get written on submit — so surface the years detected, read-only, so the user
+  // can see autofill picked up energy. (15-minute series are summarised below.)
+  const importedAnnualYears = (() => {
+    const years = new Set<string>();
+    for (const [k, v] of Object.entries(fields)) {
+      const m = k.match(/^_inv_[a-z]+_(\d{4})$/i);
+      if (m && v?.trim()) years.add(m[1]);
+    }
+    const bspFigures = ["_bsp_elec", "_bsp_heat", "_bsp_water", "_bsp_wastewater"];
+    if (fields._bsp_year?.trim() && bspFigures.some((k) => fields[k]?.trim())) {
+      years.add(fields._bsp_year.trim());
+    }
+    return [...years].sort();
+  })();
 
   const isBuildingValid = (b: Record<string, string>) =>
     required.every((f) => b[f]?.trim());
 
   const isValid = buildingsList.every(isBuildingValid);
 
-  // Adding requires a company kind: it sets the building's provenance and selects
-  // the data shape. Block submission until one is set (the warning below explains).
-  const mustSetKind = roleLoaded && producingRole === null;
-
   const existingCodes = new Set(
     buildings.map((b) => b.buildingCode).filter(Boolean),
   );
 
+  // A building code is optional, but when given it must be unique (against owned
+  // buildings and across a multi-building import) so codes stay a stable key.
   const isBuildingDuplicate = (b: Record<string, string>) =>
-    template === "investor" &&
     !!b.buildingCode?.trim() &&
     existingCodes.has(b.buildingCode.trim());
 
-  const hasCrossFileDuplicate = template === "investor" &&
+  const hasCrossFileDuplicate =
     buildingsList.some((b, i) =>
       !!b.buildingCode?.trim() &&
       buildingsList.some((other, j) =>
@@ -257,7 +225,11 @@ export default function AddBuildingDialog(
     if (!file) return;
     setParsing(true);
     try {
-      const parsed = await parseCsvToFields(file, template);
+      // Detect the sheet layout (so the user needn't pick a role) and reflect it in
+      // the format selector; the user can still override and re-choose the file.
+      const format = await detectSpreadsheetFormat(file);
+      setTemplate(format);
+      const parsed = await parseCsvToFields(file, format);
       if (parsed.length === 0) {
         showNotification("No buildings found in file", "warning");
         return;
@@ -337,10 +309,10 @@ export default function AddBuildingDialog(
       return;
     }
 
-    // Provenance is derived from the profile's company kind (authoritative cached
-    // read), not the import template; omit the attribution when none is set.
-    const category = await getCompanyKind(session);
-    const provenance = category ? { agent: webId, category } : undefined;
+    // Provenance records only WHO produced the building (the logged-in agent) as a
+    // PROV qualified attribution — no producing-role category (roles live only in
+    // data rooms now).
+    const provenance = { agent: webId };
 
     const controller = new AbortController();
     uploadAbort.current = controller;
@@ -442,7 +414,7 @@ export default function AddBuildingDialog(
         Object.values(b).some((v) => v && String(v).trim())
       ) || lastgangReadings != null}
       busy={isProcessing}
-      title={autostartImport ? "Import buildings from a file" : "Add Building"}
+      title={autostartImport ? "Autofill buildings from a file" : "Add Building"}
       overlay={isProcessing && (
         <Box
           sx={{
@@ -489,7 +461,7 @@ export default function AddBuildingDialog(
           <Button
             variant="contained"
             onClick={handleSubmit}
-            disabled={isProcessing || !isValid || isDuplicate || mustSetKind}
+            disabled={isProcessing || !isValid || isDuplicate}
           >
             {buildingsList.length === 1
               ? "Add Building"
@@ -499,39 +471,10 @@ export default function AddBuildingDialog(
       }
     >
       <Box>
-        {/* No company kind set → adding is blocked: the kind sets provenance and
-            selects the data shape. Point the user to set it (avatar → Organisation). */}
-        {mustSetKind && (
-          <Alert severity="warning" sx={{ mt: 1, mb: 2 }}>
-            Set your company kind first (avatar → Organisation). It defines who
-            produced the data and which building data you create, and is required
-            before adding a building.
-          </Alert>
-        )}
-      </Box>
-      {!mustSetKind && (
-      <Box>
-        {/* Template — the spreadsheet shape, defaulted from your company kind but
-            overridable for a cross-shape import. */}
-        <FormControl size="small" fullWidth sx={{ mt: 1, mb: 2 }}>
-          <InputLabel id="add-building-template-label">Template</InputLabel>
-          <Select
-            labelId="add-building-template-label"
-            label="Template"
-            value={template}
-            onChange={handleTemplateChange}
-          >
-            {TEMPLATE_OPTIONS.map((t) => (
-              <MenuItem key={t} value={t}>{TEMPLATE_LABEL[t]}</MenuItem>
-            ))}
-          </Select>
-        </FormControl>
-
         {/* The file input stays in the DOM in both modes (so a file import still
             works, including the e2e `setInputFiles`), but the *visible* upload
-            control shows only in import ("Import from file") mode — so the manual
-            "Add Building" entry stays a plain form and the two Manage entry points
-            (which open this same dialog) aren't identical. */}
+            control + format selector show only in import ("Import from file") mode —
+            so manual "Add Building" entry stays a plain, role-free form. */}
         <input
           ref={fileInputRef}
           type="file"
@@ -549,6 +492,21 @@ export default function AddBuildingDialog(
           >
             Choose file…
           </Button>
+          {/* File format — auto-detected on upload; override here if a sheet's layout
+              isn't recognised. A format, not a role. */}
+          <FormControl size="small" fullWidth sx={{ mt: 1, mb: 1 }}>
+            <InputLabel id="add-building-template-label">File format</InputLabel>
+            <Select
+              labelId="add-building-template-label"
+              label="File format"
+              value={template}
+              onChange={handleTemplateChange}
+            >
+              {TEMPLATE_OPTIONS.map((t) => (
+                <MenuItem key={t} value={t}>{TEMPLATE_LABEL[t]}</MenuItem>
+              ))}
+            </Select>
+          </FormControl>
           <Typography variant="caption" display="block" color="text.secondary">
             {CSV_HINT[template]}
           </Typography>
@@ -565,6 +523,17 @@ export default function AddBuildingDialog(
             color="success.main"
           >
             {lastgangReadings.length} readings ({new Set(lastgangReadings.map((r) => r.date)).size} days) ready to upload
+          </Typography>
+        )}
+        {importedAnnualYears.length > 0 && (
+          <Typography
+            variant="caption"
+            display="block"
+            sx={{ mb: 2 }}
+            color="success.main"
+          >
+            Annual energy detected for {importedAnnualYears.join(", ")} — saved with
+            the building.
           </Typography>
         )}
 
@@ -645,73 +614,16 @@ export default function AddBuildingDialog(
         />
         {check("PV system installed", "hasPVSystem")}
 
-        {/* Investor-specific fields */}
-        {template === "investor" && (
-          <>
-            {sectionHeader("Investor")}
-            {tf("Building code", "buildingCode", {
-              required: isRequired("buildingCode"),
-              error: currentIsDuplicate,
-              helperText: currentIsDuplicate ? "Building code already exists" : undefined,
-            })}
-            {tf("Label / name", "label")}
-            {tf("Hall area (m²)", "hallArea", { type: "number" })}
-            {tf("Office & social area (m²)", "officeSocialArea", { type: "number" })}
-            {tf("Building height (m)", "buildingHeight", { type: "number" })}
-            {tf("Number of loading docks", "numberOfLoadingDocks", { type: "number" })}
-            {tf("Year of renovation", "yearOfRenovation", { type: "number" })}
-            {tf("Lease type", "leaseType")}
-            {tf("Tenant industry", "tenantIndustry")}
-            {enumSelect("Shift regime", "shiftRegime", [
-              { value: "OneShift", label: "1-Shift" },
-              { value: "TwoShift", label: "2-Shift" },
-              { value: "ThreeShift", label: "3-Shift" },
-            ])}
-            {enumSelect("Tenancy type", "tenancyType", [
-              { value: "SingleTenant", label: "Single Tenant" },
-              { value: "MultiTenant", label: "Multi Tenant" },
-            ])}
-            {enumSelect("Indoor temperature class", "indoorTemperatureClass", [
-              { value: "MaxTwelveDegrees", label: "≤12 °C" },
-              { value: "MaxEighteenDegrees", label: "≤18 °C" },
-            ])}
-            {sectionHeader("Heating systems")}
-            {check("Oil boiler", "hasOilBoiler")}
-            {check("Gas boiler", "hasGasBoiler")}
-            {check("Electric boiler", "hasElectricBoiler")}
-            {check("Heat pump", "hasHeatPump")}
-            {check("District heating", "hasDistrictHeating")}
-          </>
-        )}
-
-        {/* BSP-specific fields */}
-        {template === "benchmark_service_provider" && (
-          <>
-            {sectionHeader("Benchmark Service Provider")}
-            {tf("Company name", "companyName")}
-            {tf("Label / building name", "label", { required: isRequired("label") })}
-            {tf("Logistics function", "logisticsFunction")}
-            {tf("Climate control type", "climateControlType")}
-            {tf("Indoor temperature", "indoorTemperature")}
-            {tf("Green lease share (%)", "greenLeaseShare", { type: "number" })}
-            {tf("PV installation year", "pvInstallationYear", { type: "number" })}
-            {tf("PV capacity (kW)", "pvCapacityKW", { type: "number" })}
-            {tf("Lease type", "leaseType")}
-            {tf("Tenant industry", "tenantIndustry")}
-            {enumSelect("Tenancy type", "tenancyType", [
-              { value: "SingleTenant", label: "Single Tenant" },
-              { value: "MultiTenant", label: "Multi Tenant" },
-            ])}
-            {sectionHeader("Energy & Water (annual observations)")}
-            {tf("Measurement year", "_bsp_year", { type: "number" })}
-            {tf("Electricity consumption (kWh)", "_bsp_elec", { type: "number" })}
-            {tf("Heat consumption (kWh)", "_bsp_heat", { type: "number" })}
-            {tf("Water consumption (m³)", "_bsp_water", { type: "number" })}
-            {tf("Wastewater (m³)", "_bsp_wastewater", { type: "number" })}
-          </>
-        )}
+        {/* One generic field set, shared with the Edit dialog (no per-role gating).
+            Annual energy figures are entered later via the per-year Energy dialog. */}
+        <BuildingDetailFields
+          f={{ tf, check, enumSelect, sectionHeader }}
+          buildingCode={{
+            error: currentIsDuplicate,
+            helperText: currentIsDuplicate ? "Building code already exists" : undefined,
+          }}
+        />
       </Box>
-      )}
     </Modal>
   );
 }

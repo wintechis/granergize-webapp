@@ -34,6 +34,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../lib/formatError.ts";
 import { logError } from "../lib/logError.ts";
 import Modal from "./Modal.tsx";
+import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
 
 const METRIC_FIELDS: Array<
   { key: EnergyMetricKey; label: string; short: string; decimals: number }
@@ -141,7 +142,15 @@ export default function EnergyYearDialog(
     if (key === loadedKey.current) return;
     const ds = existingByKey.get(key);
     if (!ds) {
-      // A year with no stored dataset — a fresh entry; don't touch the fields.
+      // No stored dataset for this (year, scenario). If we were showing a
+      // previously-loaded dataset, the user has navigated to an empty slot
+      // (a different scenario or year) — clear the figures so the loaded ones
+      // don't leak across (#5, e.g. Soll showing the Ist values). If nothing was
+      // loaded, this is a fresh entry being typed — leave the fields untouched.
+      if (loadedKey.current !== null) {
+        setValues({});
+        loadedKey.current = null;
+      }
       setEditingExisting(false);
       return;
     }
@@ -256,7 +265,7 @@ export default function EnergyYearDialog(
     <Modal
       open={open}
       onClose={close}
-      title="Energy years"
+      title={<BuildingDialogTitle building={building} action="Energy years" />}
       maxWidth="md"
       dirty={dirty}
       busy={busy}

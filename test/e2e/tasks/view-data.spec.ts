@@ -43,7 +43,7 @@ test.describe("energy view smoke", () => {
     await assertCleanStart(page);
     // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the
     // investor demo is the annual "Nordostpark" building this test renders).
-    await ensureDemoBuildings(page, "investor");
+    await ensureDemoBuildings(page);
   });
 
   test.afterAll(async () => {

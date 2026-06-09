@@ -55,7 +55,7 @@ test.describe("excel export", () => {
     // `buildings/` listing drops a deleted file before resolving), so the per-delete
     // refetch can't briefly surface a phantom row under CSS eventual consistency.
     // They round-trip through the generic "User" import template used below.
-    await ensureDemoBuildings(page, "user");
+    await ensureDemoBuildings(page);
   });
 
   test.afterAll(async () => {
@@ -101,11 +101,9 @@ test.describe("excel export", () => {
 
     await page.getByRole("button", { name: "Add Building", exact: true }).first()
       .click();
-    // The generic ("User") template is the shape buildingsToXlsx round-trips
-    // through; it also allows duplicate buildingCodes (investor template doesn't).
+    // buildingsToXlsx writes the generic flat shape; uploading it lets the importer
+    // auto-detect the generic format and re-parse every row.
     const dialog = page.getByRole("dialog");
-    await dialog.getByLabel("Template").click();
-    await page.getByRole("option", { name: "User", exact: true }).click();
     await dialog.locator('input[type="file"]').setInputFiles(path);
 
     const loaded = page.getByText(/Loaded \d+ building\(s\) from file/);

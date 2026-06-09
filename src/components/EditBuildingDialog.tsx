@@ -20,6 +20,8 @@ import { queryKeys } from "../hooks/queries.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
 import { AgentField } from "./AgentField.tsx";
 import Modal from "./Modal.tsx";
+import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
+import { BuildingDetailFields } from "./BuildingDetailFields.tsx";
 
 interface EditBuildingDialogProps {
   open: boolean;
@@ -117,7 +119,6 @@ export default function EditBuildingDialog(
   const [geocoding, setGeocoding] = useState(false);
   const dirty = JSON.stringify(fields) !== JSON.stringify(initialFields);
 
-  const role = building.provenance ?? "investor";
   const fileUri = building.sourceUri ?? building.uri.split("#")[0];
   // One row per existing certification, plus a blank row to add another.
   const certCount = (building.certifications?.length ?? 0) + 1;
@@ -191,7 +192,7 @@ export default function EditBuildingDialog(
       onClose={handleClose}
       dirty={dirty}
       busy={saving}
-      title="Edit Building"
+      title={<BuildingDialogTitle building={building} action="Edit building" />}
       actions={
         <>
           <Button onClick={handleClose} disabled={saving}>Cancel</Button>
@@ -230,78 +231,26 @@ export default function EditBuildingDialog(
         />
         {check("PV system installed", "hasPVSystem")}
 
-        {role === "investor" && (
-          <>
-            {sectionHeader("Investor")}
-            {tf("Building code", "buildingCode")}
-            {tf("Label / name", "label")}
-            {tf("Hall area (m²)", "hallArea", { type: "number" })}
-            {tf("Office & social area (m²)", "officeSocialArea", { type: "number" })}
-            {tf("Building height (m)", "buildingHeight", { type: "number" })}
-            {tf("Number of loading docks", "numberOfLoadingDocks", { type: "number" })}
-            {tf("Year of renovation", "yearOfRenovation", { type: "number" })}
-            {tf("Lease type", "leaseType")}
-            {tf("Tenant industry", "tenantIndustry")}
-            {enumSelect("Shift regime", "shiftRegime", [
-              { value: "OneShift", label: "1-Shift" },
-              { value: "TwoShift", label: "2-Shift" },
-              { value: "ThreeShift", label: "3-Shift" },
-            ])}
-            {enumSelect("Tenancy type", "tenancyType", [
-              { value: "SingleTenant", label: "Single Tenant" },
-              { value: "MultiTenant", label: "Multi Tenant" },
-            ])}
-            {enumSelect("Indoor temperature class", "indoorTemperatureClass", [
-              { value: "MaxTwelveDegrees", label: "≤12 °C" },
-              { value: "MaxEighteenDegrees", label: "≤18 °C" },
-            ])}
-            {sectionHeader("Heating systems")}
-            {check("Oil boiler", "hasOilBoiler")}
-            {check("Gas boiler", "hasGasBoiler")}
-            {check("Electric boiler", "hasElectricBoiler")}
-            {check("Heat pump", "hasHeatPump")}
-            {check("District heating", "hasDistrictHeating")}
+        <BuildingDetailFields f={{ tf, check, enumSelect, sectionHeader }} />
 
-            {sectionHeader("Operating costs")}
-            {OPCOST_FIELDS.map((f) =>
-              f.bool
-                ? <Box key={f.key}>{check(f.label, `_opcost_${f.key}`)}</Box>
-                : <Box key={f.key}>{tf(f.label, `_opcost_${f.key}`)}</Box>
-            )}
-
-            {sectionHeader("Certifications")}
-            {Array.from({ length: certCount }, (_, i) => (
-              <Box key={i} sx={{ mb: 1.5 }}>
-                <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-                  Certification {i + 1}
-                </Typography>
-                {tf("Type (e.g. LEED, DGNB, BREEAM)", `_cert_${i}_type`)}
-                {tf("Level", `_cert_${i}_level`)}
-                {tf("Scope", `_cert_${i}_scope`)}
-              </Box>
-            ))}
-          </>
+        {sectionHeader("Operating costs")}
+        {OPCOST_FIELDS.map((f) =>
+          f.bool
+            ? <Box key={f.key}>{check(f.label, `_opcost_${f.key}`)}</Box>
+            : <Box key={f.key}>{tf(f.label, `_opcost_${f.key}`)}</Box>
         )}
 
-        {role === "benchmark_service_provider" && (
-          <>
-            {sectionHeader("Benchmark Service Provider")}
-            {tf("Company name", "companyName")}
-            {tf("Label / building name", "label")}
-            {tf("Logistics function", "logisticsFunction")}
-            {tf("Climate control type", "climateControlType")}
-            {tf("Indoor temperature", "indoorTemperature")}
-            {tf("Green lease share (%)", "greenLeaseShare", { type: "number" })}
-            {tf("PV installation year", "pvInstallationYear", { type: "number" })}
-            {tf("PV capacity (kW)", "pvCapacityKW", { type: "number" })}
-            {tf("Lease type", "leaseType")}
-            {tf("Tenant industry", "tenantIndustry")}
-            {enumSelect("Tenancy type", "tenancyType", [
-              { value: "SingleTenant", label: "Single Tenant" },
-              { value: "MultiTenant", label: "Multi Tenant" },
-            ])}
-          </>
-        )}
+        {sectionHeader("Certifications")}
+        {Array.from({ length: certCount }, (_, i) => (
+          <Box key={i} sx={{ mb: 1.5 }}>
+            <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
+              Certification {i + 1}
+            </Typography>
+            {tf("Type (e.g. LEED, DGNB, BREEAM)", `_cert_${i}_type`)}
+            {tf("Level", `_cert_${i}_level`)}
+            {tf("Scope", `_cert_${i}_scope`)}
+          </Box>
+        ))}
       </Box>
     </Modal>
   );

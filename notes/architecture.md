@@ -1,7 +1,7 @@
 # Architecture — source layers & packages
 
 How the front-end source tree is sliced into layers and which way dependencies flow.
-Companion to [`operations.md`](./operations.md) (the query/mutation taxonomy that the
+Companion to [`read-write-operations.md`](./read-write-operations.md) (the query/mutation taxonomy that the
 data-access and service layers implement), [`storage-model.md`](./storage-model.md) and
 [`data-layout.md`](./data-layout.md) (the on-Pod side those layers read and write), and
 [`data-deref.md`](./data-deref.md) (the fetch/parse path through them). Where those notes
@@ -58,7 +58,7 @@ typography) are the UI-conventions section of CLAUDE.md.
 and services: read hooks in `queries.ts`, write hooks in `mutations.ts`, the single
 `QueryClient` and central error routing in `context/QueryProvider.tsx`, and the
 `getSession()` singleton the hooks read their transport from. This is the boundary the
-query/mutation split is named for — see [`operations.md`](./operations.md). UI gets Pod
+query/mutation split is named for — see [`read-write-operations.md`](./read-write-operations.md). UI gets Pod
 data only through this layer.
 
 **Services** (`src/services/`). The domain logic the hooks call. The multi-file domains
@@ -69,7 +69,7 @@ and cross-building appearances) — while single-resource units are **flat modul
 `prefs`, `attachmentManager`, `buildingActions` (the delete-orchestration helper), and
 `geocode` (external geocoding). A folder marks a sub-domain with several collaborating
 files, not a one-file-per-Pod-resource mirror; a single owned resource is just a module.
-The three mutation models live here — see [`operations.md`](./operations.md),
+The three mutation models live here — see [`read-write-operations.md`](./read-write-operations.md),
 [`sharing.md`](./sharing.md), [`room.md`](./room.md), and [`views.md`](./views.md). These
 domains are siblings: none imports another — cross-domain composition happens a layer up,
 in hooks or pages — and all rest on the Pod I/O and RDF layers below. The one sanctioned
@@ -102,6 +102,31 @@ folder, not in any of the three.
 **Constants & types** (`src/constants/`, `src/types.ts`). The leaf: role/colour maps and
 the `BuildingType`/`EnergyType` domain types. Imported by every layer, importing none.
 
+## The render cycle
+
+The layers above are the static slice; at runtime data flows in one direction. A
+component is a pure function from its inputs (props + state) to a *description* of the
+UI — it never touches the DOM. React reconciles each returned description against the
+last and applies the minimal DOM changes itself, so the UI is declarative, not
+imperatively redrawn.
+
+Requests never happen during render (render must stay pure and may run repeatedly).
+They live in two places: **event handlers** (a user acted → a mutation, an on-demand
+load) and the **React-Query hooks** (a screen mounted and needs data → a query). A
+resolved request does not redraw anything directly; it updates **state**, and the state
+change is what re-runs the affected components. This is the same query/mutation split
+the data-access layer is named for ([`read-write-operations.md`](./read-write-operations.md)): safe reads are
+queries, state-changing writes are mutations.
+
+State itself lives in three places, by lifetime and ownership. Server state — every
+fetched Pod resource — lives in the **React-Query cache**, owned by the data-access
+layer; mutations invalidate its keys and the dependent components re-render. Durable
+*navigational* state (which tab, which building) is encoded in the **URI hash** so it
+survives a reload and is shareable. Everything else — form drafts, busy flags, menu
+anchors, in-flight interaction — is **ephemeral React component state** that may vanish
+on unmount. The navigational/ephemeral split and the full inventory are
+[`ui-state.md`](./ui-state.md).
+
 ## The dependency rule
 
 Imports flow strictly downward, and two consequences are worth stating because they are
@@ -117,7 +142,7 @@ easy to violate:
 
 The single structural exception is the pair of queries that hide a mutation
 (`loadBuildings`, `drainInbox`) — documented as seams in
-[`operations.md`](./operations.md) (§Seams), not repeated here.
+[`read-write-operations.md`](./read-write-operations.md) (§Seams), not repeated here.
 
 ## Packages & runtime
 

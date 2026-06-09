@@ -23,20 +23,23 @@ function cellValue(v: unknown): string | number | null {
   return String(v);
 }
 
+/** The spreadsheet layout to export a building in (chosen by the user, since a
+ * building no longer carries a role); matches the import format adapters so the
+ * file re-imports via `parseCsvToFields`. */
+export type ExportStyle = "investor" | "benchmark" | "generic";
+
 /**
- * Build an XLSX workbook for a building, shaped to match the role's import
- * template so the file re-imports via `parseCsvToFields`:
+ * Build an XLSX workbook for a building in the chosen `style` so the file re-imports
+ * via `parseCsvToFields`:
  *   - investor → row-label sheet (label in col B, value in col D), with per-year
  *     energy rows, operating costs and the first certification block;
  *   - benchmark → single header row + value row, energy as `_bsp_*` columns;
- *   - user / dummy / unknown → flat sheet keyed by BuildingType field names.
+ *   - generic → flat sheet keyed by BuildingType field names.
  * Exports the *modelled* fields only (the whitelisted projection); the 15-minute
  * user series lives in separate lazy files and is not included.
  */
-function buildingSheet(b: BuildingType): XLSX.WorkSheet {
-  const role = b.provenance;
-
-  if (role === "investor") {
+function buildingSheet(b: BuildingType, style: ExportStyle): XLSX.WorkSheet {
+  if (style === "investor") {
     const rows: (string | number)[][] = [];
     const put = (label: string, raw: unknown) => {
       const v = cellValue(raw);
@@ -75,7 +78,7 @@ function buildingSheet(b: BuildingType): XLSX.WorkSheet {
   }
 
   const record: Record<string, string | number> = {};
-  if (role === "benchmark_service_provider") {
+  if (style === "benchmark") {
     for (const [field, header] of Object.entries(BSP_FIELD_TO_HEADER)) {
       if (field.startsWith("_")) continue; // energy headers handled below
       const v = cellValue(b[field as keyof BuildingType]);
@@ -102,9 +105,9 @@ function buildingSheet(b: BuildingType): XLSX.WorkSheet {
   return XLSX.utils.json_to_sheet([record]);
 }
 
-function buildingToWorkbook(b: BuildingType): XLSX.WorkBook {
+function buildingToWorkbook(b: BuildingType, style: ExportStyle): XLSX.WorkBook {
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, buildingSheet(b), "Gebäude");
+  XLSX.utils.book_append_sheet(wb, buildingSheet(b, style), "Gebäude");
   return wb;
 }
 
@@ -113,8 +116,10 @@ function buildingToWorkbook(b: BuildingType): XLSX.WorkBook {
  * BuildingType field names (so the row re-imports via the generic path), and the
  * structured parts use the importer's intermediate keys (`_inv_*` / `_bsp_*` /
  * `_opcost_*` / `_cert_0_*`) so energy, operating costs and the first
- * certification round-trip too. `id` / `role` are reference columns (no predicate,
- * ignored on import).
+ * certification round-trip too. `id` is a reference column (no predicate, ignored
+ * on import). Energy is shaped by the *data*: a single annual year carrying
+ * wastewater (the BSP shape) round-trips through `_bsp_*`; otherwise the years go
+ * out as multi-year `_inv_*`.
  */
 function buildingToFlatRecord(b: BuildingType): Record<string, string | number> {
   const rec: Record<string, string | number> = {};
@@ -123,10 +128,12 @@ function buildingToFlatRecord(b: BuildingType): Record<string, string | number> 
     if (v !== null) rec[k] = v;
   };
   set("id", b.id);
-  set("provenance", b.provenance);
   for (const field of SCALAR_FIELDS) set(field, b[field as keyof BuildingType]);
 
-  if (b.provenance === "benchmark_service_provider") {
+  const hasWastewater = (b.annualData ?? []).some(
+    (y) => y.wastewaterConsumption != null,
+  );
+  if (hasWastewater) {
     const y = b.annualData?.[0];
     if (y) {
       set("_bsp_year", y.year);
@@ -180,11 +187,15 @@ function workbookToBytes(wb: XLSX.WorkBook): ArrayBuffer {
 }
 
 /**
- * Serialize a building to `.xlsx` bytes (see {@link buildingToWorkbook}), as a
- * plain `ArrayBuffer` so it drops straight into `new Blob([...])` / `new File([...])`.
+ * Serialize a building to `.xlsx` bytes (see {@link buildingToWorkbook}) in the
+ * chosen `style` (default generic), as a plain `ArrayBuffer` so it drops straight
+ * into `new Blob([...])` / `new File([...])`.
  */
-export function buildingToXlsx(b: BuildingType): ArrayBuffer {
-  return workbookToBytes(buildingToWorkbook(b));
+export function buildingToXlsx(
+  b: BuildingType,
+  style: ExportStyle = "generic",
+): ArrayBuffer {
+  return workbookToBytes(buildingToWorkbook(b, style));
 }
 
 /** Serialize all buildings to one multi-sheet `.xlsx` (see {@link buildingsToWorkbook}). */

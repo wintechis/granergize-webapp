@@ -63,8 +63,6 @@ test.describe("building deletion", () => {
     // adding is decoupled from data-room roles.
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await add.getByLabel("Template").click();
-    await page.getByRole("option", { name: "User", exact: true }).click();
     await add.getByLabel(/street address/i).fill(ADDR);
     await add.getByLabel(/locality/i).fill("Nürnberg");
     await add.getByLabel(/postal code/i).fill("90451");

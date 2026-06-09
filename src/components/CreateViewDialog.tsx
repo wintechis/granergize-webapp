@@ -23,7 +23,6 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   AggregationType,
   BuildingType,
-  UserRole,
 } from "../types.ts";
 import { createViewDefinition } from "../services/aggregation/viewManager.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
@@ -33,8 +32,6 @@ import {
   bspContributorBuildings,
   computeAndStoreSnapshot,
   getAvailableBspMetrics,
-  getAvailableInvestorAnnualMetrics,
-  getAvailableMetrics,
 } from "../services/aggregation/viewComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import Modal from "./Modal.tsx";
@@ -58,62 +55,57 @@ const MenuProps = {
   },
 };
 
-const ROLE_DEFAULT_METRICS: Record<string, string[]> = {
-  dummy: ["gas", "electricity"],
-  investor: getAvailableInvestorAnnualMetrics().flatMap((c) => c.metrics),
-  benchmark_service_provider: getAvailableBspMetrics().flatMap((c) =>
-    c.metrics
-  ),
-  user: ["electricity"],
-  facility_manager: ["electricity"],
-  developer: ["electricity"],
-  consultant_broker: ["electricity"],
-  software_provider: ["electricity"],
-  energy_provider: ["electricity"],
+/**
+ * A view's *mode* — derived from the data shape, not a role: an annual portfolio
+ * over owned buildings, a monthly view over buildings with a 15-minute series, or a
+ * benchmark over the buildings shared *to* this user. Replaces the old per-role
+ * partition (roles live only in data rooms now).
+ */
+type ViewMode = "annual" | "monthly" | "benchmark";
+
+const MODE_LABEL: Record<ViewMode, string> = {
+  annual: "Annual portfolio",
+  monthly: "Monthly (15-minute series)",
+  benchmark: "Compare shared buildings",
 };
 
-const ROLE_LABEL: Record<UserRole, string> = {
-  dummy: "Demo",
-  investor: "Investor",
-  benchmark_service_provider: "BSP",
-  user: "User",
-  facility_manager: "Facility Manager",
-  developer: "Developer",
-  consultant_broker: "Consultant / Broker",
-  software_provider: "Software Provider",
-  energy_provider: "Energy Provider",
-};
-
-const GENERIC_VIEW_DESCRIPTION =
-  "Create an aggregated view that combines energy data across multiple " +
-  "buildings. The computed values are stored as a privacy-preserving snapshot " +
-  "that can be shared without revealing the source buildings.";
-
-const ROLE_DESCRIPTION: Record<string, string> = {
-  dummy:
-    "Create an aggregated view that combines energy data from multiple buildings. " +
-    "The computed values are stored as a privacy-preserving snapshot that can be shared " +
-    "without revealing the source buildings.",
-  investor:
-    "Create a portfolio overview comparing energy performance across your buildings. " +
-    "Cost-driving and generation metrics are pre-selected.",
-  benchmark_service_provider:
-    "Create a benchmark view aggregating annual consumption across multiple buildings. " +
+const MODE_DESCRIPTION: Record<ViewMode, string> = {
+  annual:
+    "Aggregate annual energy figures across your buildings. The computed values are " +
+    "stored as a privacy-preserving snapshot that can be shared without revealing the " +
+    "source buildings.",
+  monthly:
+    "Aggregate monthly electricity consumption across buildings that carry a 15-minute " +
+    "load profile. The result is a privacy-preserving snapshot of the combined kWh total.",
+  benchmark:
+    "Aggregate annual consumption across the buildings shared with you. " +
     "Metrics: electricity, heat, water, and wastewater consumption (kWh / m³).",
-  user: "Create a view that aggregates monthly electricity consumption " +
-    "across multiple buildings. The result is a privacy-preserving " +
-    "snapshot of the combined kWh total.",
-  facility_manager: GENERIC_VIEW_DESCRIPTION,
-  developer: GENERIC_VIEW_DESCRIPTION,
-  consultant_broker: GENERIC_VIEW_DESCRIPTION,
-  software_provider: GENERIC_VIEW_DESCRIPTION,
-  energy_provider: GENERIC_VIEW_DESCRIPTION,
 };
 
-function getMetricsForRole(role: UserRole) {
-  if (role === "benchmark_service_provider") return getAvailableBspMetrics();
-  if (role === "investor") return getAvailableInvestorAnnualMetrics();
-  return getAvailableMetrics();
+// Annual metrics any building may carry (read from building.annualData); a sparse
+// set the user ticks. Offered for both the annual portfolio and the benchmark.
+const ANNUAL_METRICS = [
+  {
+    category: "Annual Consumption",
+    metrics: [
+      "electricityConsumption",
+      "heatConsumption",
+      "waterConsumption",
+      "wastewaterConsumption",
+    ],
+  },
+  { category: "Renewable Generation", metrics: ["renewableSelfGeneratedShare"] },
+];
+
+const DEFAULT_ANNUAL_METRICS = [
+  "electricityConsumption",
+  "heatConsumption",
+  "waterConsumption",
+];
+const BSP_METRICS = getAvailableBspMetrics().flatMap((c) => c.metrics);
+
+function metricsForMode(mode: ViewMode) {
+  return mode === "benchmark" ? getAvailableBspMetrics() : ANNUAL_METRICS;
 }
 
 export default function CreateViewDialog({
@@ -154,31 +146,26 @@ export default function CreateViewDialog({
     [bspContributors],
   );
 
-  // Derive roles that actually exist in the buildings list, plus the BSP role
-  // whenever buildings have been shared to this user (so a benchmark can be built).
-  const availableRoles = useMemo<UserRole[]>(() => {
-    const roles = new Set<UserRole>();
-    buildings.forEach((b) => {
-      if (b.provenance) roles.add(b.provenance);
-    });
-    if (bspUriSet.size > 0) roles.add("benchmark_service_provider");
-    const order: UserRole[] = [
-      "dummy",
-      "investor",
-      "benchmark_service_provider",
-      "user",
-      "facility_manager",
-      "developer",
-      "consultant_broker",
-      "software_provider",
-      "energy_provider",
-    ];
-    return order.filter((r) => roles.has(r));
-  }, [buildings, bspUriSet]);
+  // Buildings the user owns (everything not shared *to* them as a benchmark roster).
+  const ownedBuildings = useMemo(
+    () => buildings.filter((b) => b.uri && !bspUriSet.has(b.uri.split("#")[0])),
+    [buildings, bspUriSet],
+  );
 
-  const initialRole: UserRole = availableRoles[0] ?? "dummy";
+  // The modes the data supports — by shape, not role: an annual portfolio always; a
+  // monthly view when some owned building carries a 15-minute series; a benchmark
+  // when buildings have been shared to this user.
+  const availableModes = useMemo<ViewMode[]>(() => {
+    const modes: ViewMode[] = ["annual"];
+    const hasSeries = ownedBuildings.some((b) =>
+      (b.energyDatasets ?? []).some((r) => isSeriesGranularity(r.granularity))
+    );
+    if (hasSeries) modes.push("monthly");
+    if (bspUriSet.size > 0) modes.push("benchmark");
+    return modes;
+  }, [ownedBuildings, bspUriSet]);
 
-  const [selectedRole, setSelectedRole] = useState<UserRole>(initialRole);
+  const [mode, setMode] = useState<ViewMode>("annual");
   const [creating, setCreating] = useState(false);
   const [viewName, setViewName] = useState("");
   const [selectedBuildings, setSelectedBuildings] = useState<string[]>([]);
@@ -186,17 +173,17 @@ export default function CreateViewDialog({
     "average",
   );
   const [selectedMetrics, setSelectedMetrics] = useState<string[]>(
-    ROLE_DEFAULT_METRICS[initialRole] ?? ["gas", "electricity"],
+    DEFAULT_ANNUAL_METRICS,
   );
   const [selectedPeriod, setSelectedPeriod] = useState<string>("");
 
-  const availableMetrics = getMetricsForRole(selectedRole);
+  const availableMetrics = metricsForMode(mode);
 
-  const handleRoleChange = (event: SelectChangeEvent<UserRole>) => {
-    const role = event.target.value as UserRole;
-    setSelectedRole(role);
+  const handleModeChange = (event: SelectChangeEvent<ViewMode>) => {
+    const next = event.target.value as ViewMode;
+    setMode(next);
     setSelectedBuildings([]);
-    setSelectedMetrics(ROLE_DEFAULT_METRICS[role] ?? ["gas", "electricity"]);
+    setSelectedMetrics(next === "benchmark" ? BSP_METRICS : DEFAULT_ANNUAL_METRICS);
     setSelectedPeriod("");
   };
 
@@ -204,9 +191,7 @@ export default function CreateViewDialog({
     setViewName("");
     setSelectedBuildings([]);
     setAggregationType("average");
-    setSelectedMetrics(
-      ROLE_DEFAULT_METRICS[selectedRole] ?? ["gas", "electricity"],
-    );
+    setSelectedMetrics(mode === "benchmark" ? BSP_METRICS : DEFAULT_ANNUAL_METRICS);
     setSelectedPeriod("");
     onClose();
   };
@@ -224,20 +209,22 @@ export default function CreateViewDialog({
     );
   };
 
-  // For the BSP role, candidates are the buildings shared *to* this user (the
-  // benchmark roster), regardless of their sharer-set provenance; for every other
-  // role they are the owned buildings whose provenance matches the selected role.
-  const availableBuildings =
-    selectedRole === "benchmark_service_provider"
-      ? buildings.filter((b) => b.uri && bspUriSet.has(b.uri.split("#")[0]))
-      : buildings.filter((b) => b.uri && b.provenance === selectedRole);
+  // Candidate buildings by mode: benchmark → the buildings shared *to* this user;
+  // monthly → owned buildings carrying a 15-minute series; annual → all owned.
+  const availableBuildings = mode === "benchmark"
+    ? buildings.filter((b) => b.uri && bspUriSet.has(b.uri.split("#")[0]))
+    : mode === "monthly"
+    ? ownedBuildings.filter((b) =>
+      (b.energyDatasets ?? []).some((r) => isSeriesGranularity(r.granularity))
+    )
+    : ownedBuildings;
 
   // Available months for user-role views: list each user building's 15-min
   // series container(s) and collect the months of the daily files (async — the
   // files are separate resources now, not inline on the building).
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   useEffect(() => {
-    if (selectedRole !== "user") {
+    if (mode !== "monthly") {
       setAvailableMonths([]);
       return;
     }
@@ -264,7 +251,7 @@ export default function CreateViewDialog({
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedRole]);
+  }, [mode]);
 
   // The latest annual (non-series) dataset year across the given buildings, as a
   // year string for bench:metricPeriod — undefined if none carry annual data.
@@ -290,21 +277,21 @@ export default function CreateViewDialog({
       showNotification("Please select at least one building", "warning");
       return;
     }
-    if (selectedRole === "user" && !selectedPeriod) {
+    if (mode === "monthly" && !selectedPeriod) {
       showNotification("Please select a month", "warning");
       return;
     }
-    if (selectedRole !== "user" && selectedMetrics.length === 0) {
+    if (mode !== "monthly" && selectedMetrics.length === 0) {
       showNotification("Please select at least one metric", "warning");
       return;
     }
 
     setCreating(true);
     try {
-      const metrics = selectedRole === "user"
+      const metrics = mode === "monthly"
         ? ["electricity"]
         : selectedMetrics;
-      const period = selectedRole === "user" ? selectedPeriod : undefined;
+      const period = mode === "monthly" ? selectedPeriod : undefined;
 
       const viewDef = await createViewDefinition(
         session,
@@ -317,7 +304,7 @@ export default function CreateViewDialog({
 
       // BSP benchmark: mark the snapshot as a benchmark result and stamp the year
       // it covers (the latest annual dataset year across the selected buildings).
-      const benchmarkOpts = selectedRole === "benchmark_service_provider"
+      const benchmarkOpts = mode === "benchmark"
         ? { benchmark: true, metricPeriod: latestAnnualYear(selectedBuildings) }
         : {};
       await computeAndStoreSnapshot(session, viewDef.id, benchmarkOpts);
@@ -338,18 +325,20 @@ export default function CreateViewDialog({
     }
   };
 
-  const roleDropdown = (
+  // Only worth showing when the data supports more than one mode; otherwise the
+  // single annual portfolio is implicit.
+  const modeDropdown = availableModes.length > 1 && (
     <FormControl fullWidth sx={{ mb: 3 }}>
-      <InputLabel id="role-label">Role</InputLabel>
-      <Select<UserRole>
-        labelId="role-label"
-        value={selectedRole}
-        onChange={handleRoleChange}
-        input={<OutlinedInput label="Role" />}
+      <InputLabel id="mode-label">View type</InputLabel>
+      <Select<ViewMode>
+        labelId="mode-label"
+        value={mode}
+        onChange={handleModeChange}
+        input={<OutlinedInput label="View type" />}
       >
-        {availableRoles.map((r) => (
-          <MenuItem key={r} value={r}>
-            {ROLE_LABEL[r]}
+        {availableModes.map((m) => (
+          <MenuItem key={m} value={m}>
+            {MODE_LABEL[m]}
           </MenuItem>
         ))}
       </Select>
@@ -427,7 +416,7 @@ export default function CreateViewDialog({
             onClick={handleCreate}
             variant="contained"
             disabled={!viewName.trim() || selectedBuildings.length === 0 ||
-              (selectedRole === "user"
+              (mode === "monthly"
                 ? !selectedPeriod
                 : selectedMetrics.length === 0)}
           >
@@ -442,14 +431,14 @@ export default function CreateViewDialog({
             Creating view and computing snapshot…
           </Typography>
         )
-        : selectedRole === "user"
+        : mode === "monthly"
         ? (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {ROLE_DESCRIPTION.user}
+              {MODE_DESCRIPTION.monthly}
             </Typography>
 
-            {roleDropdown}
+            {modeDropdown}
 
               <TextField
                 autoFocus
@@ -518,10 +507,10 @@ export default function CreateViewDialog({
         : (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {ROLE_DESCRIPTION[selectedRole]}
+              {MODE_DESCRIPTION[mode]}
             </Typography>
 
-            {roleDropdown}
+            {modeDropdown}
 
               <TextField
                 autoFocus
@@ -556,7 +545,7 @@ export default function CreateViewDialog({
                           <Typography variant="h6" color="textSecondary">
                             {category.category}
                           </Typography>
-                          {selectedRole === "benchmark_service_provider" && (
+                          {mode === "benchmark" && (
                             <Typography
                               variant="caption"
                               color="primary"

@@ -34,9 +34,5 @@ export async function loadSharedBuilding(
   const found = [...parsed.values()].find((b) => b.uri === entry.buildingUri) ??
     [...parsed.values()][0];
   if (!found) return null;
-  return {
-    ...found,
-    provenance: found.provenance ??
-      (entry.sharedRole as BuildingType["provenance"]),
-  };
+  return found;
 }

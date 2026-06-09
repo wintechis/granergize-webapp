@@ -47,7 +47,7 @@ test.describe("building details", () => {
     page.on("dialog", (d) => d.accept().catch(() => {})); // "Delete building" confirm
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page, "investor"); // Nordostpark annual, for the energy-benchmark task
+    await ensureDemoBuildings(page); // Nordostpark annual, for the energy-benchmark task
   });
 
   test.afterAll(async () => {
@@ -65,8 +65,6 @@ test.describe("building details", () => {
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await add.getByLabel("Template").click();
-    await page.getByRole("option", { name: "User", exact: true }).click();
     await add.getByLabel(/street address/i).fill(OP_STREET);
     await add.getByLabel(/locality/i).fill("Nürnberg");
     await add.getByLabel(/postal code/i).fill("90451");

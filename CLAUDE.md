@@ -119,7 +119,7 @@ Following **Command–Query Separation**, every Pod operation is either a **quer
 vocabulary the data layer already uses (`src/hooks/queries.ts` vs
 `src/hooks/mutations.ts`). A function shaped like a query must not hide a mutation; the
 two known exceptions (`loadBuildings`, `drainInbox`) are documented in
-`notes/operations.md` (§Seams).
+`notes/read-write-operations.md` (§Seams).
 
 Every Pod mutation uses one of **three mechanisms**, and the rule for which is:
 **event-source anything cross-agent or needing an audit trail / replay; overwrite
@@ -144,7 +144,7 @@ copying whatever the nearest function happened to do.
 Orthogonally, mutations split by **trigger**: most are *user-intent* (a person decided);
 a few are *reconciliation* (system-initiated to make a projection match reality — the
 stale-grant prune in `loadBuildings`, the ACL rebuild in `reissueGrants`), which is why
-those legitimately live in query/restore paths. `notes/operations.md` is the full
+those legitimately live in query/restore paths. `notes/read-write-operations.md` is the full
 taxonomy, mapping each operation to its model.
 
 ### Roles, provenance & data-shape dispatch

@@ -105,6 +105,27 @@ Read-only operations group by *how* they read, which mirrors the three mutation 
 A query is otherwise pure. Freshness is server-driven via `fetchFresh` (revalidating GET);
 React Query owns caching and invalidation.
 
+## The round-trip at runtime
+
+The taxonomy above is static — what each operation *is*. At runtime a query and a
+mutation are the two halves of one round-trip between the UI and the Pod, and they meet
+in the React-Query cache rather than calling each other.
+
+- A **mutation** runs from a user action: an event handler calls a `mutations.ts` hook,
+  which wraps the service function that commits through one of the three models. On
+  success the hook does not hand a result back to the UI — its job is the write plus
+  **invalidating its query keys**.
+- A **query** runs because a mounted component subscribes through a `queries.ts` hook;
+  the service function reads (direct GET / listing, or a log fold) and React Query caches
+  the result under a WebID-namespaced key, serving it until something invalidates it.
+
+The loop closes through the cache: a mutation never repaints the screen directly, it
+invalidates keys; the dependent queries refetch; and *those* re-render the components
+that read them. This is the operations-layer face of the render cycle in
+[`architecture.md`](./architecture.md) — CQS here is the same safe/unsafe split that
+drives the UI there. Freshness is server-driven (`fetchFresh` revalidates); the only
+trigger for a refetch is a mutation's invalidation.
+
 ## Seams — queries that hide a mutation
 
 Two operations are shaped like queries but contain a mutation — the one place the app

@@ -25,7 +25,6 @@ import {
   INVESTOR_NS,
   PROV_AGENT,
   PROV_ATTRIBUTION,
-  PROV_HAD_ROLE,
   PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE as RDF_TYPE_IRI,
   REC_BUILDING,
@@ -45,7 +44,6 @@ import {
   seriesDailyFileUrl,
 } from "../energyDataset.ts";
 import { isSeriesGranularity } from "../durationUtils.ts";
-import { PROVENANCE_TO_IRI } from "../../../constants/roles.ts";
 import { appRoot, getStorageRoot } from "../../pod/solidUtils.ts";
 import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";
 import { logError } from "../../../lib/logError.ts";
@@ -279,24 +277,19 @@ function addCertifications(
 
 /**
  * Provenance of the building data, expressed as a PROV-O qualified attribution:
- * `<#b> prov:qualifiedAttribution [ a prov:Attribution ; prov:agent <webid> ;
- * prov:hadRole gran:<category> ]`. Provenance only — it records who produced the
- * data and as what actor category; it never drives parsing/loading/rendering.
+ * `<#b> prov:qualifiedAttribution [ a prov:Attribution ; prov:agent <webid> ]`.
+ * Records only WHO produced the data (no producing-role category — roles live only
+ * in data rooms now); it never drives parsing/loading/rendering.
  */
 function addProvenance(
   store: Store,
   subject: ReturnType<typeof namedNode>,
-  provenance: { agent: string; category: UserRole },
+  provenance: { agent: string },
 ): void {
   const attr = blankNode("attribution");
   store.addQuad(subject, namedNode(PROV_QUALIFIED_ATTRIBUTION), attr);
   store.addQuad(attr, namedNode(RDF_TYPE_IRI), namedNode(PROV_ATTRIBUTION));
   store.addQuad(attr, namedNode(PROV_AGENT), namedNode(provenance.agent));
-  store.addQuad(
-    attr,
-    namedNode(PROV_HAD_ROLE),
-    namedNode(PROVENANCE_TO_IRI[provenance.category]),
-  );
 }
 
 /**
@@ -307,13 +300,13 @@ function addProvenance(
  * Energy is NOT inlined: each dataset is its own resource (see
  * {@link writeBuildingEnergy}); pass the dataset node URLs to emit as
  * `gran:hasEnergyDataset` links. `provenance`, when given, is recorded as a
- * PROV-O qualified attribution.
+ * PROV-O qualified attribution (the producing agent only).
  */
 export function serializeBuildingToTurtle(
   fields: Record<string, string>,
   buildingUri: string,
   energyDatasetUrls?: string[],
-  provenance?: { agent: string; category: UserRole },
+  provenance?: { agent: string },
 ): string {
   const store = new Store();
   const id = buildingUri.split("/").pop()?.replace(".ttl", "") ?? "building";
@@ -962,60 +955,36 @@ const DEMO_USER_2: DemoSpec = {
   seriesDays: 7,
 };
 
-// No BSP demo: a Benchmark Service Provider doesn't own buildings — its data is
-// the buildings investors/users *share to it*, which it benchmarks. So a BSP gets
-// no "Add examples" offer (it starts empty until shares arrive); the demo is only
-// offered for the data-producer kinds below.
-
-/** Company kinds we have example data for (the only kinds the demo is offered for). */
-export const DEMO_KINDS: UserRole[] = [
-  "investor",
-  "user",
-];
-
-/** Whether a demo building set exists for this company kind. */
-export function companyKindHasDemo(kind?: UserRole | null): boolean {
-  return kind != null && DEMO_KINDS.includes(kind);
-}
-
-/**
- * The demo set for a company kind: a couple of example buildings in the shape that
- * kind actually produces (investor → annual investor buildings; user → 15-minute
- * series). A kind we have no example data for (incl. the BSP, which only receives
- * shared buildings) seeds nothing — the demo is only offered for {@link DEMO_KINDS}.
- */
-function demoSetForKind(kind?: UserRole | null): DemoSpec[] {
-  switch (kind) {
-    case "investor":
-      return [DEMO_INVESTOR, DEMO_INVESTOR_2, DEMO_INVESTOR_3];
-    case "user":
-      return [DEMO_USER, DEMO_USER_2];
-    default:
-      return [];
-  }
-}
-
 // `geocodeFields` moved to ./geocode.ts (self-contained Nominatim lookup); it is
 // imported above and re-exported below so existing call sites keep importing it
 // from here.
 
 /**
- * Seed real, user-owned demo building(s) into the user's pod, matching the user's
- * company `kind` — an investor org gets the annual investor building, a user gets a
- * 15-minute series, a BSP gets the annual benchmark building (see
- * {@link demoSetForKind}; an unset/unsupported kind falls back to the investor+user
- * pair). The buildings are ordinary owned resources the user can delete. Coordinates
- * are geocoded at seed time; a building that can't be geocoded is still created (just
- * unmapped). Best-effort: failures are logged, never thrown, so a geocoder/network
- * hiccup can't block login.
+ * The demo building set: a few example buildings spanning both data shapes — annual
+ * investor buildings and a 15-minute user series — so a fresh account sees both. The
+ * buildings are ordinary owned resources the user can delete.
+ */
+const DEMO_BUILDINGS: DemoSpec[] = [
+  DEMO_INVESTOR,
+  DEMO_INVESTOR_2,
+  DEMO_INVESTOR_3,
+  DEMO_USER,
+  DEMO_USER_2,
+];
+
+/**
+ * Seed the example buildings (see {@link DEMO_BUILDINGS}) into the user's pod, as
+ * ordinary owned resources the user can delete. Coordinates are geocoded at seed
+ * time; a building that can't be geocoded is still created (just unmapped).
+ * Best-effort: failures are logged, never thrown, so a geocoder/network hiccup can't
+ * block login.
  * @operation mutation
  */
 export async function seedDemoBuildings(
   session: Session,
   webId: string,
-  kind?: UserRole | null,
 ): Promise<void> {
-  for (const demo of demoSetForKind(kind)) {
+  for (const demo of DEMO_BUILDINGS) {
     try {
       const coords = await geocodeFields(demo.fields);
       let fields: Record<string, string> = coords
@@ -1072,7 +1041,6 @@ export async function seedDemoBuildings(
       );
       const ttl = serializeBuildingToTurtle(fields, uri, energyLinks, {
         agent: webId,
-        category: demo.role,
       });
       await uploadBuilding(session, uri, ttl, webId);
     } catch (err) {
@@ -1085,6 +1053,35 @@ export async function seedDemoBuildings(
 }
 
 // ── CSV / XLSX autofill ───────────────────────────────────────────────────────
+
+/**
+ * Detect a spreadsheet's layout from its first sheet, so import can pick the right
+ * parser without the user declaring a role: an investor sheet labels rows in column
+ * B (`"Gebäude-Code"` etc.); a BSP sheet has the German column headers (incl. the
+ * BSP-only `"Schmutzwasser (m³)"`); anything else is treated as user/generic (a
+ * Lastgang 15-min profile or a flat field-name CSV). Returns the matching
+ * {@link parseCsvToFields} format; the import UI uses it as the default, overridable.
+ */
+export async function detectSpreadsheetFormat(file: File): Promise<UserRole> {
+  const buffer = await file.arrayBuffer();
+  const wb = XLSX.read(new Uint8Array(buffer), { type: "array", raw: true });
+  const ws = wb.Sheets[wb.SheetNames[0]];
+  if (!ws) return "user";
+  const range = XLSX.utils.decode_range(ws["!ref"] ?? "A1");
+  // Investor: a known row label in column B (the row-label layout).
+  for (let r = range.s.r; r <= range.e.r; r++) {
+    const cell = ws[XLSX.utils.encode_cell({ r, c: 1 })];
+    const v = cell?.v != null ? String(cell.v).trim() : "";
+    if (v && INVESTOR_ROW_MAP[v]) return "investor";
+  }
+  // BSP: a distinctive German column header in the first row.
+  for (let c = range.s.c; c <= range.e.c; c++) {
+    const cell = ws[XLSX.utils.encode_cell({ r: range.s.r, c })];
+    const v = cell?.v != null ? String(cell.v).trim() : "";
+    if (v && BSP_COL_MAP[v]) return "benchmark_service_provider";
+  }
+  return "user";
+}
 
 /**
  * Parse a CSV or XLSX file into one field map per building.

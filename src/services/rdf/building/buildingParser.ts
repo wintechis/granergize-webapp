@@ -24,7 +24,6 @@ import {
   INVESTOR_NS,
   IRI_TO_GEOCODE_PRECISION,
   PROV_AGENT,
-  PROV_HAD_ROLE,
   PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE,
   REC_BUILDING,
@@ -33,7 +32,6 @@ import {
   SCHEMA_NAME,
 } from "../vocabularies.ts";
 import { parseDatasetSlug } from "../energyDataset.ts";
-import { IRI_TO_PROVENANCE } from "../../../constants/roles.ts";
 
 /**
  * Extract building ID from a NamedNode IRI using *strict* patterns.
@@ -228,7 +226,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   >();
   const provData = new Map<
     string,
-    { agent?: string; category?: BuildingType["provenance"] }
+    { agent?: string }
   >();
   const geoData = new Map<
     string,
@@ -303,14 +301,14 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       return;
     }
 
-    // ── PROV qualified-attribution blank node (provenance) ──
+    // ── PROV qualified-attribution blank node (who produced the data) ──
+    // Only the agent is read; a legacy `prov:hadRole` category is ignored (roles
+    // live only in data rooms now).
     if (provBuildingMap.has(bId)) {
       if (!provData.has(bId)) provData.set(bId, {});
       const pd = provData.get(bId)!;
       if (pred === PROV_AGENT) {
         pd.agent = objVal;
-      } else if (pred === PROV_HAD_ROLE) {
-        pd.category = IRI_TO_PROVENANCE[objVal];
       }
       return;
     }
@@ -417,12 +415,11 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     }
   }
 
-  // Provenance (PROV qualified attribution)
+  // Provenance (PROV qualified attribution) — the producing agent only.
   for (const [blankId, buildingId] of provBuildingMap.entries()) {
     const building = buildings.get(buildingId);
     const pd = provData.get(blankId);
     if (building && pd) {
-      if (pd.category) building.provenance = pd.category;
       if (pd.agent) building.attributedTo = pd.agent;
     }
   }

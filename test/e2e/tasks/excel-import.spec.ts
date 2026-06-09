@@ -36,13 +36,6 @@ async function openAddDialog(page: Page): Promise<void> {
   await addBtn.click();
 }
 
-/** Pick an import template in the dialog's (always-populated) Template select. */
-async function selectTemplate(page: Page, label: string): Promise<void> {
-  const dialog = page.getByRole("dialog");
-  await dialog.getByLabel("Template").click();
-  await page.getByRole("option", { name: label, exact: true }).click();
-}
-
 const ACC = account("A"); // Alice -- solo specs use one account
 
 test.describe.configure({ mode: "serial" });
@@ -90,7 +83,7 @@ test.describe("excel upload", () => {
     test.setTimeout(T.longOp);
 
     await openAddDialog(page);
-    await selectTemplate(page, "Investor");
+    // The importer auto-detects the spreadsheet layout on upload (no format choice).
 
     const before = new Set(await buildingIds(page));
 
@@ -146,7 +139,7 @@ test.describe("excel upload", () => {
     test.setTimeout(T.testSolo);
 
     await openAddDialog(page);
-    await selectTemplate(page, "User");
+    // The importer auto-detects the Lastgang layout on upload (no format choice).
 
     await page.getByRole("dialog").locator('input[type="file"]').setInputFiles(
       "public/templates/user-lastgang-template.xlsx",

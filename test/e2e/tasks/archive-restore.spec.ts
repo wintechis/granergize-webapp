@@ -52,7 +52,7 @@ test.describe("archive backup/restore", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);
-    await ensureDemoBuildings(page, "user"); // any building; download → wipe → restore
+    await ensureDemoBuildings(page); // any building; download → wipe → restore
   });
 
   test.afterAll(async () => {

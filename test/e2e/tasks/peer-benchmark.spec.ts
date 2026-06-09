@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { account, ensureCompanyKind, webIdOf } from "../helpers/login.ts";
+import { account, webIdOf } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { shareByWebId } from "../helpers/manage.ts";
@@ -53,11 +53,11 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     // Five sequential logins (C, A, B, C, A); give the multi-pod budget headroom.
     test.setTimeout(T.testSharing + 2 * T.login);
 
-    // ── C declares the BSP company kind and we learn its WebID ──
+    // ── Learn C's WebID (the benchmark is now sharing-driven: C aggregates the
+    // buildings A and B share to it, with no company-kind/role declaration) ──
     const c1 = await freshPage(browser, C);
     let cWebId = "";
     try {
-      await ensureCompanyKind(c1.page, "benchmark_service_provider", { force: true });
       cWebId = await webIdOf(c1.page);
     } finally {
       await c1.ctx.close();
@@ -70,7 +70,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       const o = await freshPage(browser, owner.account);
       o.page.on("dialog", (d) => d.accept());
       try {
-        await ensureDemoBuildings(o.page, "investor");
+        await ensureDemoBuildings(o.page);
         await shareByWebId(o.page, owner.street, cWebId);
       } finally {
         await o.ctx.close();
@@ -85,15 +85,18 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       const dlg = c2.page.getByRole("dialog");
       await expect(dlg).toBeVisible({ timeout: T.action });
 
-      // The BSP role appears once the dialog has folded in the shared-with-me roster
-      // (an async effect); re-open the Role select until "BSP" is offered.
-      const roleSel = dlg.getByLabel("Role");
+      // The "Compare shared buildings" view type appears once the dialog has folded
+      // in the shared-with-me roster (an async effect); re-open the View type select
+      // until it's offered.
+      const modeSel = dlg.getByLabel("View type");
       await expect(async () => {
-        await roleSel.click();
-        const bsp = c2.page.getByRole("option", { name: "BSP", exact: true });
+        await modeSel.click();
+        const opt = c2.page.getByRole("option", {
+          name: /compare shared buildings/i,
+        });
         try {
-          await expect(bsp).toBeVisible({ timeout: T.visible });
-          await bsp.click();
+          await expect(opt).toBeVisible({ timeout: T.visible });
+          await opt.click();
         } catch (e) {
           await c2.page.keyboard.press("Escape").catch(() => {});
           throw e;

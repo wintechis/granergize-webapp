@@ -64,7 +64,7 @@ test.describe("view sharing across two pods", () => {
       // only offers roles that exist among the buildings' provenance — a "user"
       // building would leave the Role dropdown without an "Investor" option, so
       // ensureView's role selection would hang.
-      await ensureDemoBuildings(a.page, "investor");
+      await ensureDemoBuildings(a.page);
       await ensureView(a.page);
       const viewRow = a.page.locator("li").filter({ hasText: VIEW_NAME }).first();
       const shareDlg = a.page.getByRole("dialog");
