@@ -99,7 +99,10 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
   // only cushions *transient* throttling — a saturated limit will still exhaust
   // the retries.
   await expect(async () => {
-    await page.goto("/");
+    // "./" (not "/"): resolved against the full baseURL. The deployed tier's
+    // baseURL carries a subpath (…/testing/granergize/), which an absolute "/"
+    // would drop — landing on the host's homepage instead of the app.
+    await page.goto("./");
     // Pick the matching preset Identity Provider, or type a custom issuer.
     const recommended = page.getByRole("button", {
       name: new RegExp(host.replace(/\./g, "\\."), "i"),
