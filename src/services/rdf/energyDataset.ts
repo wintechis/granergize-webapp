@@ -1,6 +1,6 @@
 import { DataFactory, Parser, Store } from "n3";
 import {
-  GRAN_NS,
+  CONSUMPTION_NS,
   SOSA_NS,
   SSN_NS,
   TIME_NS,
@@ -14,14 +14,14 @@ const { namedNode } = DataFactory;
 export type { EnergyDatasetRef, Scenario };
 
 /**
- * The unified energy model: ONE `gran:EnergyDataset` per (building, year,
+ * The unified energy model: ONE `cons:EnergyDataset` per (building, year,
  * granularity, scenario), linked from the building by a single
- * `gran:hasEnergyDataset` predicate — replacing the old three-way split
- * (`investor:hasInvestorAnnualData` inline annual / `gran:hasEnergyMeasurementData`
- * / `gran:hasEnergyConsumptionDataset`). Every dataset is its OWN resource
+ * `cons:hasEnergyDataset` predicate — replacing the old three-way split
+ * (`investor:hasInvestorAnnualData` inline annual / `cons:hasEnergyMeasurementData`
+ * / `cons:hasEnergyConsumptionDataset`). Every dataset is its OWN resource
  * (annual included), so a year can be added, edited and shared independently.
  *
- *   <#b> gran:hasEnergyDataset <energy/2024-P1Y.ttl#ds> , <energy/2024-PT15M.ttl#ds> .
+ *   <#b> cons:hasEnergyDataset <energy/2024-P1Y.ttl#ds> , <energy/2024-PT15M.ttl#ds> .
  *
  * The link's slug (`<year>-<granularity>[-planned].ttl`) is self-describing, so
  * the year/granularity/scenario are known WITHOUT fetching the dataset — phase-1
@@ -29,18 +29,18 @@ export type { EnergyDatasetRef, Scenario };
  * series on click, dispatching purely on the declared granularity.
  *
  * Annual aggregate (small → inline `sosa:ObservationCollection`):
- *   <#ds> a gran:EnergyDataset , sosa:ObservationCollection ;
- *      gran:ofBuilding <…/b-1.ttl#b-1> ; gran:granularity "P1Y" ;
- *      gran:scenario gran:Actual ;
+ *   <#ds> a cons:EnergyDataset , sosa:ObservationCollection ;
+ *      cons:ofBuilding <…/b-1.ttl#b-1> ; cons:granularity "P1Y" ;
+ *      cons:scenario cons:Actual ;
  *      sosa:phenomenonTime [ a time:Interval ; time:hasBeginning "2024-01-01"^^xsd:date ;
  *                            time:hasEnd "2024-12-31"^^xsd:date ] ;
  *      sosa:hasMember [ a sosa:Observation ;
- *        sosa:observedProperty gran:ElectricityConsumption ;
+ *        sosa:observedProperty cons:ElectricityConsumption ;
  *        sosa:hasResult [ sosa:hasSimpleResult "121500"^^xsd:decimal ; ssn:hasUnit unit:KiloW-HR ] ] , … .
  *
  * Sub-hourly series (large → a located container of daily reading files):
- *   <#ds> a gran:EnergyDataset ; … gran:granularity "PT15M" ;
- *      gran:datasetLocation <2024-PT15M/> .
+ *   <#ds> a cons:EnergyDataset ; … cons:granularity "PT15M" ;
+ *      cons:datasetLocation <2024-PT15M/> .
  */
 
 export type EnergyMetricKey =
@@ -52,29 +52,29 @@ export type EnergyMetricKey =
 
 export type AnnualMetrics = Partial<Record<EnergyMetricKey, number>>;
 
-/** Each metric's observed-property IRI + result unit IRI (unified under gran:). */
+/** Each metric's observed-property IRI + result unit IRI (unified under cons:). */
 export const ENERGY_METRICS: Record<
   EnergyMetricKey,
   { prop: string; unit: string }
 > = {
   electricityConsumption: {
-    prop: `${GRAN_NS}ElectricityConsumption`,
+    prop: `${CONSUMPTION_NS}ElectricityConsumption`,
     unit: `${UNIT_NS}KiloW-HR`,
   },
   heatConsumption: {
-    prop: `${GRAN_NS}HeatConsumption`,
+    prop: `${CONSUMPTION_NS}HeatConsumption`,
     unit: `${UNIT_NS}KiloW-HR`,
   },
   waterConsumption: {
-    prop: `${GRAN_NS}WaterConsumption`,
+    prop: `${CONSUMPTION_NS}WaterConsumption`,
     unit: `${UNIT_NS}M3`,
   },
   wastewaterConsumption: {
-    prop: `${GRAN_NS}WastewaterConsumption`,
+    prop: `${CONSUMPTION_NS}WastewaterConsumption`,
     unit: `${UNIT_NS}M3`,
   },
   renewableSelfGeneratedShare: {
-    prop: `${GRAN_NS}RenewableSelfGeneratedShare`,
+    prop: `${CONSUMPTION_NS}RenewableSelfGeneratedShare`,
     unit: `${UNIT_NS}PERCENT`,
   },
 };
@@ -86,7 +86,7 @@ const PROP_TO_METRIC: Record<string, EnergyMetricKey> = Object.fromEntries(
 
 /** A full energy dataset (annual aggregate inline, or a series descriptor). */
 export interface EnergyDataset {
-  /** The building subject URI (`gran:ofBuilding`). */
+  /** The building subject URI (`cons:ofBuilding`). */
   building: string;
   year: number;
   /** xsd:duration: "P1Y" annual, "PT15M" sub-hourly series, … */
@@ -146,7 +146,7 @@ export function seriesDailyFileUrl(
 }
 
 /**
- * Derive `{year, granularity, scenario}` from a `gran:hasEnergyDataset` link URL
+ * Derive `{year, granularity, scenario}` from a `cons:hasEnergyDataset` link URL
  * by parsing its slug — so phase-1 needn't fetch each dataset. Returns null if
  * the slug isn't the expected `<year>-<granularity>[-planned]` shape.
  */
@@ -166,7 +166,7 @@ export function parseDatasetSlug(linkUrl: string): EnergyDatasetRef | null {
   return { url: linkUrl, year, granularity, scenario };
 }
 
-/** All dataset refs linked from a building node (`gran:hasEnergyDataset`). */
+/** All dataset refs linked from a building node (`cons:hasEnergyDataset`). */
 export function parseEnergyDatasetRefs(
   store: Store,
   buildingNodeUri: string,
@@ -174,7 +174,7 @@ export function parseEnergyDatasetRefs(
   return store
     .getObjects(
       namedNode(buildingNodeUri),
-      namedNode(`${GRAN_NS}hasEnergyDataset`),
+      namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
       null,
     )
     .map((o) => parseDatasetSlug(o.value))
@@ -182,17 +182,17 @@ export function parseEnergyDatasetRefs(
 }
 
 /**
- * Serialize one `gran:EnergyDataset` resource (subject `<#ds>`, relative to the
+ * Serialize one `cons:EnergyDataset` resource (subject `<#ds>`, relative to the
  * file it's PUT at). Emits the inline observation collection for an annual
  * aggregate, or the located descriptor when `datasetLocation` is set.
  */
 export function serializeEnergyDataset(ds: EnergyDataset): string {
-  const scenarioIri = ds.scenario === "planned" ? "gran:Planned" : "gran:Actual";
+  const scenarioIri = ds.scenario === "planned" ? "cons:Planned" : "cons:Actual";
   const interval = `[ a time:Interval ;\n` +
     `        time:hasBeginning "${ds.year}-01-01"^^xsd:date ;\n` +
     `        time:hasEnd "${ds.year}-12-31"^^xsd:date ]`;
   const header = [
-    `@prefix gran: <${GRAN_NS}> .`,
+    `@prefix cons: <${CONSUMPTION_NS}> .`,
     `@prefix sosa: <${SOSA_NS}> .`,
     `@prefix ssn: <${SSN_NS}> .`,
     `@prefix time: <${TIME_NS}> .`,
@@ -204,12 +204,12 @@ export function serializeEnergyDataset(ds: EnergyDataset): string {
 
   if (ds.datasetLocation) {
     return header +
-      `<#ds> a gran:EnergyDataset ;\n` +
-      `   gran:ofBuilding <${ds.building}> ;\n` +
-      `   gran:granularity "${ds.granularity}" ;\n` +
-      `   gran:scenario ${scenarioIri} ;\n` +
+      `<#ds> a cons:EnergyDataset ;\n` +
+      `   cons:ofBuilding <${ds.building}> ;\n` +
+      `   cons:granularity "${ds.granularity}" ;\n` +
+      `   cons:scenario ${scenarioIri} ;\n` +
       `   sosa:phenomenonTime ${interval} ;\n` +
-      `   gran:datasetLocation <${ds.datasetLocation}> .\n`;
+      `   cons:datasetLocation <${ds.datasetLocation}> .\n`;
   }
 
   const members = (Object.entries(ds.metrics ?? {}) as [EnergyMetricKey, number][])
@@ -223,10 +223,10 @@ export function serializeEnergyDataset(ds: EnergyDataset): string {
     .join(" ,\n");
 
   return header +
-    `<#ds> a gran:EnergyDataset , sosa:ObservationCollection ;\n` +
-    `   gran:ofBuilding <${ds.building}> ;\n` +
-    `   gran:granularity "${ds.granularity}" ;\n` +
-    `   gran:scenario ${scenarioIri} ;\n` +
+    `<#ds> a cons:EnergyDataset , sosa:ObservationCollection ;\n` +
+    `   cons:ofBuilding <${ds.building}> ;\n` +
+    `   cons:granularity "${ds.granularity}" ;\n` +
+    `   cons:scenario ${scenarioIri} ;\n` +
     `   sosa:phenomenonTime ${interval}` +
     (members ? ` ;\n   sosa:hasMember\n${members} .\n` : ` .\n`);
 }
@@ -274,8 +274,8 @@ function yearOf(store: Store, ds: ReturnType<typeof namedNode>): number {
 }
 
 /**
- * Parse one `gran:EnergyDataset` resource (its `<#ds>` node) from a store into an
- * {@link EnergyDataset}. Returns null if the node isn't a `gran:EnergyDataset`.
+ * Parse one `cons:EnergyDataset` resource (its `<#ds>` node) from a store into an
+ * {@link EnergyDataset}. Returns null if the node isn't a `cons:EnergyDataset`.
  */
 export function parseEnergyDataset(
   store: Store,
@@ -285,25 +285,25 @@ export function parseEnergyDataset(
   const isDataset = store.getQuads(
     ds,
     namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
-    namedNode(`${GRAN_NS}EnergyDataset`),
+    namedNode(`${CONSUMPTION_NS}EnergyDataset`),
     null,
   ).length > 0;
   if (!isDataset) return null;
 
   const building =
-    store.getObjects(ds, namedNode(`${GRAN_NS}ofBuilding`), null)[0]?.value ?? "";
+    store.getObjects(ds, namedNode(`${CONSUMPTION_NS}ofBuilding`), null)[0]?.value ?? "";
   const granularity =
-    store.getObjects(ds, namedNode(`${GRAN_NS}granularity`), null)[0]?.value ?? "";
-  const scenarioIri = store.getObjects(ds, namedNode(`${GRAN_NS}scenario`), null)[0]
+    store.getObjects(ds, namedNode(`${CONSUMPTION_NS}granularity`), null)[0]?.value ?? "";
+  const scenarioIri = store.getObjects(ds, namedNode(`${CONSUMPTION_NS}scenario`), null)[0]
     ?.value;
-  const scenario: Scenario = scenarioIri === `${GRAN_NS}Planned`
+  const scenario: Scenario = scenarioIri === `${CONSUMPTION_NS}Planned`
     ? "planned"
     : "actual";
   const year = yearOf(store, ds);
 
   const location = store.getObjects(
     ds,
-    namedNode(`${GRAN_NS}datasetLocation`),
+    namedNode(`${CONSUMPTION_NS}datasetLocation`),
     null,
   )[0]?.value;
   if (location) {

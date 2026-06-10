@@ -5,7 +5,7 @@
 
 On-Pod file layout, rooted at the storage location discovered via `pim:storage`.
 Companion to
-[`data-view.md`](./data-view.md) (the building pane) and
+[`building-pane.md`](./building-pane.md) (the building pane) and
 [`data-schema.md`](./data-schema.md) (provenance & graph shapes).
 
 Paths derive in `src/services/pod/solidUtils.ts`. Writes are PUT/POST only (no
@@ -52,7 +52,7 @@ logs (`shared-in/`, `shared-out/`). The old `dataSources.ttl` /
 `rooms.ttl` registries are gone (see *History* below).
 
 **Energy file layout.** Each building links its datasets with
-`gran:hasEnergyDataset`; the link slug `<year>-<granularity>[-planned]` is
+`cons:hasEnergyDataset`; the link slug `<year>-<granularity>[-planned]` is
 self-describing, so year/granularity/scenario are known **without** fetching the
 file. An annual aggregate (`P1Y`) holds inline SOSA observations in one
 `<year>-P1Y.ttl`; a 15-minute series (`PT15M`) is a descriptor `<year>-PT15M.ttl`
@@ -129,7 +129,7 @@ Organisation (`#org`, written by `organizationManager.ts`):
 that node is the only one we can write (holds name/logo/homepage); a supplied org
 WebID is recorded as `owl:sameAs`.
 
-Distinct from **building agents** (`gran:investor` / `gran:operatedBy` /
+Distinct from **building agents** (`bldg:investor` / `rec:operatedBy` /
 `schema:customer` → agent IRIs), which the building parser dereferences for
 `schema:name` only. There is no separate agent data source on the Pod (the old
 unused `agents.ttl` registry source is gone).
@@ -139,18 +139,18 @@ unused `agents.ttl` registry source is gone).
 1. **Own buildings** by *listing* `buildings/` (`listDirectChildren`): `null` (404)
    means a fresh Pod → load empty + offer the demo banner; `[]` means the container
    exists but is empty; otherwise the top-level `*.ttl` files.
-2. **Shared buildings** by *folding* the `shared-in/` log for `gran:Building` grants
+2. **Shared buildings** by *folding* the `shared-in/` log for `gran:kind rec:Building` grants
    (their resources may live on other Pods).
 3. Fetch each source (per-source blank-node scoping), prune inaccessible, subtract
    the hidden list and read the active room from `prefs.ttl`, parse via
    `buildingParser`. Provenance is read from each building file's PROV attribution.
-4. Declared `gran:granularity` decides energy strategy (not the producer role).
+4. Declared `cons:granularity` decides energy strategy (not the producer role).
 
 Fetch/load mechanics: see [`data-deref.md`](./data-deref.md). Inaccessible-source
 self-heal and the fold: see [`sharing.md`](./sharing.md).
 
 **Building coordinates.** Written as a `geo:location` → blank node
-`[a geo:Point ; geo:lat … ; geo:long … ; gran:geocodePrecision gran:Address|gran:Postcode|gran:City]`
+`[a geo:Point ; geo:lat … ; geo:long … ; bldg:geocodePrecision bldg:Address|bldg:Postcode|bldg:City]`
 (the precision records how exact the geocode was — full street vs postcode+city vs
 city only). The parser prefers this point but still reads a legacy *flat*
 `geo:lat`/`geo:long` on the building subject as a fallback (and `buildingSerializer`

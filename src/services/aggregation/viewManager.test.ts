@@ -12,13 +12,13 @@ import {
   loadComputedSnapshot,
   storeComputedSnapshot,
 } from "./viewManager.ts";
-import { BENCH_NS } from "../rdf/vocabularies.ts";
+import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");
 const VIEWS = "https://pod.example/granergize/views/";
 const SNAPSHOTS = "https://pod.example/granergize/views/snapshots/";
-const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
+const CONS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 
 /**
  * A stateful fake Pod: PUT/DELETE mutate an in-memory store; a GET of a container
@@ -107,11 +107,11 @@ Deno.test("createViewDefinition writes one views/<id>.ttl resource", async () =>
   assert.ok(store[defUrl], "the definition resource was PUT under views/");
   const s = parse(store[defUrl]);
   assert.equal(
-    s.getQuads(null, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", `${GRAN}AggregatedViewDefinition`, null).length,
+    s.getQuads(null, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", `${CONS}AggregatedViewDefinition`, null).length,
     1,
   );
-  assert.equal(s.getObjects(null, `${GRAN}viewName`, null)[0]?.value, "My view");
-  assert.equal(s.getObjects(null, `${GRAN}includesMetric`, null)[0]?.value, "electricity");
+  assert.equal(s.getObjects(null, `${CONS}viewName`, null)[0]?.value, "My view");
+  assert.equal(s.getObjects(null, `${CONS}includesMetric`, null)[0]?.value, "electricity");
 });
 
 Deno.test("getViewDefinitions lists the container and parses each view", async () => {
@@ -165,8 +165,10 @@ Deno.test("storeComputedSnapshot writes the shareable snapshot under snapshots/"
   const snapUrl = getSnapshotUrl(WEBID, v.id);
   assert.equal(snapUrl, `${SNAPSHOTS}${v.id}.ttl`);
   const s = parse(store[snapUrl]);
-  assert.equal(s.getObjects(null, `${GRAN}buildingCount`, null)[0]?.value, "3");
-  assert.equal(s.getObjects(null, `${GRAN}heatValue`, null)[0]?.value, "1234.50");
+  assert.equal(s.getObjects(null, `${CONS}buildingCount`, null)[0]?.value, "3");
+  // Full precision — the ground value is no longer rounded to two decimals
+  // (display formatting is the UI's job).
+  assert.equal(s.getObjects(null, `${CONS}heatValue`, null)[0]?.value, "1234.5");
 });
 
 Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot", async () => {
@@ -192,20 +194,20 @@ Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot
   const s = parse(store[snapUrl]);
   const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
   assert.equal(
-    s.getQuads(null, RDF_TYPE, `${GRAN}AggregatedViewSnapshot`, null).length,
+    s.getQuads(null, RDF_TYPE, `${CONS}AggregatedViewSnapshot`, null).length,
     1,
     "still a gra:AggregatedViewSnapshot (existing readers keep working)",
   );
   assert.equal(
-    s.getQuads(null, RDF_TYPE, `${BENCH_NS}BenchmarkResult`, null).length,
+    s.getQuads(null, RDF_TYPE, `${CONSUMPTION_NS}BenchmarkResult`, null).length,
     1,
   );
   assert.equal(
-    s.getObjects(null, `${BENCH_NS}computedBy`, null)[0]?.value,
+    s.getObjects(null, `${CONSUMPTION_NS}computedBy`, null)[0]?.value,
     "https://bsp.pod/profile/card#me",
   );
   assert.equal(
-    s.getObjects(null, `${BENCH_NS}metricPeriod`, null)[0]?.value,
+    s.getObjects(null, `${CONSUMPTION_NS}metricPeriod`, null)[0]?.value,
     "2024",
   );
 
@@ -233,6 +235,45 @@ Deno.test("a plain (non-benchmark) snapshot has no benchmark fields", async () =
   assert.equal(loaded?.isBenchmark, undefined);
   assert.equal(loaded?.computedBy, undefined);
   assert.equal(loaded?.metricPeriod, undefined);
+});
+
+Deno.test("createViewDefinition persists the benchmark flag and round-trips it", async () => {
+  // The flag is ground truth for the snapshot's bench:BenchmarkResult typing —
+  // every recompute derives from it, so a plain refresh can't strip it.
+  const { session, store } = makeSession();
+  const v = await createViewDefinition(session, "Bench", [], "average", [
+    "electricityConsumption",
+  ], { benchmark: true });
+  assert.equal(v.benchmark, true);
+
+  const s = parse(store[`${VIEWS}${v.id}.ttl`]);
+  assert.equal(s.getObjects(null, `${CONS}benchmark`, null)[0]?.value, "true");
+
+  const got = await getViewDefinition(session, v.id);
+  assert.equal(got?.benchmark, true);
+  // And a plain definition stays unflagged.
+  const plain = await createViewDefinition(session, "P", [], "average", ["heat"]);
+  assert.equal((await getViewDefinition(session, plain.id))?.benchmark, undefined);
+});
+
+Deno.test("loadComputedSnapshot: 404 means absence (null), a transient failure THROWS", async () => {
+  // Returning null on ANY failure once made the view page's auto-compute treat
+  // a throttled read of an EXISTING snapshot as "no snapshot yet" and fire a
+  // snapshot-overwriting recompute — a mutation triggered by a failed read.
+  const { session } = makeSession(); // empty store → GET is a genuine 404
+  assert.equal(
+    await loadComputedSnapshot(session, `${SNAPSHOTS}view-x.ttl`),
+    null,
+  );
+
+  const throttled = {
+    info: { webId: WEBID, isLoggedIn: true },
+    fetch: () => Promise.resolve(new Response("slow down", { status: 503 })),
+  } as unknown as Session;
+  await assert.rejects(
+    () => loadComputedSnapshot(throttled, `${SNAPSHOTS}view-x.ttl`),
+    /HTTP 503/,
+  );
 });
 
 Deno.test("deleteView removes the definition and its snapshot", async () => {

@@ -70,8 +70,11 @@ test.describe("edit building operating costs + certifications", () => {
       .toBeVisible();
 
     // Fill an operating-cost figure and the first certification, then save.
+    // The cert type is a select over the known systems (it mints an IRI local
+    // name, so free text is rejected), not a text field.
     await dialog.getByLabel("Insurance", { exact: true }).fill("1200");
-    await dialog.getByLabel(/^Type \(/).first().fill("LEED");
+    await dialog.getByLabel("Type", { exact: true }).first().click();
+    await page.getByRole("option", { name: "LEED" }).click();
     await dialog.getByLabel("Level", { exact: true }).first().fill("Gold");
     await dialog.getByRole("button", { name: /save changes/i }).click();
     await expect(page.getByText(/building updated/i))
@@ -83,7 +86,8 @@ test.describe("edit building operating costs + certifications", () => {
     dialog = page.getByRole("dialog");
     await expect(dialog.getByLabel("Insurance", { exact: true }))
       .toHaveValue("1200", { timeout: T.visible });
-    await expect(dialog.getByLabel(/^Type \(/).first()).toHaveValue("LEED");
+    await expect(dialog.getByLabel("Type", { exact: true }).first())
+      .toHaveText("LEED");
     await expect(dialog.getByLabel("Level", { exact: true }).first())
       .toHaveValue("Gold");
     await dialog.getByRole("button", { name: /^cancel$/i }).click();

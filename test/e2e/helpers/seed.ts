@@ -8,7 +8,7 @@ import { T } from "./timeouts.ts";
  *
  * The demo seed is a fixed set spanning both data shapes — the annual investor
  * "Nordostpark" buildings AND a 15-minute user series — independent of any role
- * (roles live only in data rooms now). So `building-details` / `view-data` find the
+ * (roles live only in data rooms now). So `building-details` / `materialised-views` find the
  * Nordostpark building, and specs that just need "any building" are satisfied too.
  *
  * Idempotent: a Pod that already lists buildings (incl. residue left by an earlier

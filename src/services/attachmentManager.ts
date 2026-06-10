@@ -21,9 +21,9 @@ const { namedNode, literal } = DataFactory;
 /**
  * Owner-side management of a building's file attachments. Each file is stored in
  * the building's per-building `files/` container and described in the building TTL
- * with `gran:hasAttachment <fileIRI>` plus schema.org `MediaObject` metadata (the
+ * with `bldg:hasAttachment <fileIRI>` plus schema.org `MediaObject` metadata (the
  * file IRI is the metadata subject — no blank node). The energy certificate is
- * just one such file, additionally flagged `gran:hasEnergyCertificate`.
+ * just one such file, additionally flagged `bldg:hasEnergyCertificate`.
  *
  * Binaries are PUT to a client-chosen URI and the TTL edit goes through
  * `readModifyWrite` (optimistic lock), matching the rest of the app's write model.
@@ -59,7 +59,7 @@ async function uniqueFileUrl(
 
 /**
  * Upload one file as a building attachment: PUT the binary into the building's
- * `files/` container, then add its `gran:hasAttachment` link + metadata to the
+ * `files/` container, then add its `bldg:hasAttachment` link + metadata to the
  * building TTL. Returns the new {@link AttachmentRef}.
  * @operation mutation
  */
@@ -113,8 +113,8 @@ export async function uploadAttachment(
 }
 
 /**
- * Delete an attachment: remove the binary, then drop its `gran:hasAttachment`
- * link + metadata from the building TTL (and clear `gran:hasEnergyCertificate`
+ * Delete an attachment: remove the binary, then drop its `bldg:hasAttachment`
+ * link + metadata from the building TTL (and clear `bldg:hasEnergyCertificate`
  * if it pointed at this file). A missing binary (404) is tolerated.
  * @operation mutation
  */
@@ -147,7 +147,7 @@ export async function deleteAttachment(
 
 /**
  * Mark `attachmentUrl` as the building's energy certificate (or clear it when
- * `attachmentUrl` is null). Replaces any existing `gran:hasEnergyCertificate`.
+ * `attachmentUrl` is null). Replaces any existing `bldg:hasEnergyCertificate`.
  * @operation mutation
  */
 export async function setEnergyCertificate(

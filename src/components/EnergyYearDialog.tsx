@@ -35,21 +35,18 @@ import { formatError } from "../lib/formatError.ts";
 import { logError } from "../lib/logError.ts";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
+import { ANNUAL_METRICS } from "../constants/annualMetrics.ts";
 
+// Derived from the shared annual-metric schema (constants/annualMetrics.ts) so
+// the entry form and the view dialogs can't drift on the metric set/labels.
 const METRIC_FIELDS: Array<
   { key: EnergyMetricKey; label: string; short: string; decimals: number }
-> = [
-  { key: "electricityConsumption", label: "Electricity (kWh)", short: "Electricity", decimals: 0 },
-  { key: "heatConsumption", label: "Heat (kWh)", short: "Heat", decimals: 0 },
-  { key: "waterConsumption", label: "Water (m³)", short: "Water", decimals: 1 },
-  { key: "wastewaterConsumption", label: "Wastewater (m³)", short: "Wastewater", decimals: 1 },
-  {
-    key: "renewableSelfGeneratedShare",
-    label: "Renewable self-generated share (%)",
-    short: "Renewable %",
-    decimals: 1,
-  },
-];
+> = ANNUAL_METRICS.map((m) => ({
+  key: m.key,
+  label: `${m.label} (${m.unit})`,
+  short: m.short,
+  decimals: m.decimals,
+}));
 
 const fmt = (value: number, decimals: number): string =>
   new Intl.NumberFormat("de-DE", {
@@ -72,7 +69,7 @@ interface EnergyYearDialogProps {
 
 /**
  * Add, edit or remove the annual energy figures for a building. Each (year,
- * scenario) is its own `gran:EnergyDataset` resource — choosing the *actual*
+ * scenario) is its own `cons:EnergyDataset` resource — choosing the *actual*
  * readings or the *planned* (Soll) figures (#16) — so touching one doesn't affect
  * the others (#5). A table at the top lists the years already stored (the
  * read-back of what you entered); a row's Edit loads it back into the form, and
@@ -154,12 +151,27 @@ export default function EnergyYearDialog(
       setEditingExisting(false);
       return;
     }
+    // Don't clobber live typing: the stored-years list loads asynchronously
+    // after open, so this effect can re-fire (existingByKey dep) AFTER the user
+    // already typed figures for this slot — pre-filling then would silently
+    // overwrite their input with the stored values. A fresh entry in progress
+    // (nothing loaded, fields non-empty) keeps the user's figures; the "editing
+    // existing figures" hint still appears so they know stored values exist.
+    if (
+      loadedKey.current === null &&
+      Object.values(values).some((v) => v.trim() !== "")
+    ) {
+      setEditingExisting(true);
+      return;
+    }
     loadedKey.current = key;
     const next: Record<string, string> = {};
     for (const [k, v] of Object.entries(ds.metrics ?? {})) next[k] = String(v);
     setValues(next);
     setEditingExisting(true);
-  }, [year, scenario, existingByKey]);
+    // `values` is a real dep (the live-typing guard reads it); re-fires per
+    // keystroke but the loadedKey/early-return guards make that a no-op.
+  }, [year, scenario, existingByKey, values]);
 
   const reset = () => {
     setYear("");
@@ -191,11 +203,22 @@ export default function EnergyYearDialog(
       return;
     }
     const metrics: AnnualMetrics = {};
-    for (const { key } of METRIC_FIELDS) {
+    for (const { key, label } of METRIC_FIELDS) {
       const raw = values[key];
       if (raw && raw.trim() !== "") {
         const n = parseFloat(raw);
-        if (!isNaN(n)) metrics[key] = n;
+        // Reject, don't skip: silently dropping an unparseable figure (e.g. a
+        // German "1,5" decimal comma — the read-back table itself formats
+        // de-DE, inviting commas) would, when EDITING a stored year, silently
+        // DELETE that metric from the PUT.
+        if (isNaN(n)) {
+          showNotification(
+            `"${raw}" is not a number (${label}) — use a dot as the decimal separator`,
+            "error",
+          );
+          return;
+        }
+        metrics[key] = n;
       }
     }
     if (Object.keys(metrics).length === 0) {
@@ -221,7 +244,11 @@ export default function EnergyYearDialog(
       });
       reload();
       showNotification("Energy data saved", "success");
+      // Clear year/figures but KEEP the scenario: entering several planned
+      // (Soll) years in a row shouldn't need re-selecting "Planned" each time.
+      const keep = scenario;
       reset();
+      setScenario(keep);
     } catch (err) {
       showNotification(formatError("save energy data", err), "error");
     } finally {

@@ -92,6 +92,12 @@ test.describe("handbuch screenshots", () => {
 
     await login(page, ACC);
 
+    // Handbuch figures are ALWAYS captured with Developer mode OFF — no raw-RDF /
+    // debug affordances (the dev-only header building-URI line, inline request
+    // URIs, the request log) should appear in the screenshots. uncheck() is a
+    // no-op when it's already off (the default), so this just pins the invariant.
+    await page.getByRole("checkbox", { name: "Developer mode" }).uncheck();
+
     // --- Seed account A's organisation (name + logo) so the producer's building
     //     marker shows the logo on the map (the "Daten ansehen" figure,
     //     map-tabs.png, demonstrates the logo-marker feature). A building added
@@ -197,7 +203,11 @@ test.describe("handbuch screenshots", () => {
       await dialog.getByLabel(/region/i).fill("Bayern");
       await dialog.getByLabel(/latitude/i).fill("49.45");
       await dialog.getByLabel(/longitude/i).fill("11.08");
-      await dialog.getByRole("button", { name: /^add building$/i }).click();
+      // A hall area so the building has a reference floor area — together with the
+      // energy year seeded below it gives a computable energy intensity, so the
+      // energy lens (energy-lens.png) tints its marker instead of leaving it neutral.
+      await dialog.getByLabel(/hall area/i).fill("8000");
+      await page.getByRole("button", { name: /^add building$/i }).click();
       await expect(dialog).toBeHidden({ timeout: 30_000 });
     } else {
       await page.keyboard.press("Escape");
@@ -280,6 +290,24 @@ test.describe("handbuch screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await page.waitForTimeout(800);
     await shot(page, "map-tabs.png");
+
+    // --- Energy lens (energy-lens.png): switch the map's colour lens from
+    //     Ownership to Energy so the markers are tinted by energy intensity, and
+    //     the legend shows the efficiency categories. The seeded building carries
+    //     a hall area + a 2023 energy year, so its intensity is computable and the
+    //     marker is tinted (a single building reads as "Typical"). Phase-2 energy
+    //     must have landed for the tint, so allow it to settle before the shot. ---
+    const energyLens = page.getByRole("button", { name: "Energy", exact: true });
+    if (await energyLens.count()) {
+      await energyLens.click({ force: true }).catch(() => {});
+      await page.waitForLoadState("networkidle").catch(() => {});
+      await page.waitForTimeout(1200);
+      await page.evaluate(() => globalThis.scrollTo(0, 0));
+      await shot(page, "energy-lens.png");
+      // Restore the default lens so it can't bleed into a later re-run's shots.
+      await page.getByRole("button", { name: "Ownership", exact: true })
+        .click({ force: true }).catch(() => {});
+    }
 
     // --- Recipient side of sharing (shared-with-you.png): A shares its building
     //     with B by WebID, then B logs in fresh and we capture B's "Buildings

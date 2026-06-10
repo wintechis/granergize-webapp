@@ -10,9 +10,9 @@ import { T } from "../helpers/timeouts.ts";
  * Excel-export e2e (PROBLEMS.md #8). Proves a workbook actually downloads in the
  * browser and re-imports to the same buildings (a full round-trip through the
  * UI — field-level fidelity is also unit-tested in buildingSerializer.test.ts).
- * The round-trip test MUTATES the Pod (re-imports the exported buildings, then
- * deletes the copies) and cleans up after itself. It self-seeds an empty Pod in
- * beforeAll (ensureDemoBuildings), so it doesn't assume a pre-seeded Pod.
+ * The round-trip test MUTATES the Pod (exports, deletes the originals, then
+ * re-imports the workbook); afterAll wipes the collection. It self-seeds an empty
+ * Pod in beforeAll (ensureDemoBuildings), so it doesn't assume a pre-seeded Pod.
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/tasks/excel-export.spec.ts
@@ -72,17 +72,24 @@ test.describe("excel export", () => {
     await page.getByRole("button", { name: "Download all (Excel)" }).click();
     expect((await dlAll).suggestedFilename()).toBe("buildings-mine.xlsx");
 
-    // A single building's row download → building-<id>.xlsx.
+    // A single building's row download opens a layout menu (the building carries no
+    // role, so the export style is chosen here); picking one → building-<id>.xlsx.
     const firstId = (await buildingRows(page).first().textContent())
       ?.match(/Building (\S+)/)?.[1];
-    const dlOne = page.waitForEvent("download");
     await buildingRows(page).first()
       .getByRole("button", { name: "Download building data" }).click();
+    const dlOne = page.waitForEvent("download");
+    await page.getByRole("menuitem", { name: /generic/i }).click();
     expect((await dlOne).suggestedFilename()).toBe(`building-${firstId}.xlsx`);
   });
 
   test("an exported workbook re-imports to the same buildings", async () => {
-    test.setTimeout(T.testSolo);
+    // Bulk round-trip — deletes every seeded building (incl. the heavy 15-min user
+    // series subtrees) then re-imports them, recreating the full series (dozens of
+    // daily-file PUTs) plus a full reload. The heaviest single test by round-trip
+    // count; `T.longOp` (and the inner `T.action`/`T.poll` waits) are backend-aware,
+    // so JSS already gets the headroom this volume needs — no per-backend bump here.
+    test.setTimeout(T.longOp);
     await openManage(page);
 
     const before = new Set(await buildingIds(page));
@@ -93,16 +100,30 @@ test.describe("excel export", () => {
     const addr = ((await buildingRows(page).first().textContent()) ?? "")
       .match(/Building \S+\s+—\s+(.+?)\s*https?:\/\//)?.[1]?.trim();
 
-    // Export every building, then re-import the workbook through the file picker.
+    // Export every building.
     const dl = page.waitForEvent("download");
     await page.getByRole("button", { name: "Download all (Excel)" }).click();
     const path = "test-results/roundtrip.xlsx";
     await (await dl).saveAs(path);
 
+    // Delete the originals first: building codes must be unique, so re-importing on
+    // top of the originals would (correctly) be blocked as duplicates. Deleting them
+    // makes this a genuine export → re-import round-trip.
+    for (const id of before) {
+      const row = page.locator("li", { hasText: `Building ${id}` }).first();
+      await row.getByRole("button", { name: "Delete building" }).click();
+      await expect(page.getByText("Building deleted").first())
+        .toBeVisible({ timeout: T.action });
+    }
+    await expect(async () => {
+      expect((await buildingIds(page)).length).toBe(0);
+    }).toPass({ timeout: T.poll });
+
+    // Re-import the workbook through the file picker. buildingsToXlsx writes the
+    // generic flat shape; uploading it lets the importer auto-detect the generic
+    // format and re-parse every row.
     await page.getByRole("button", { name: "Add Building", exact: true }).first()
       .click();
-    // buildingsToXlsx writes the generic flat shape; uploading it lets the importer
-    // auto-detect the generic format and re-parse every row.
     const dialog = page.getByRole("dialog");
     await dialog.locator('input[type="file"]').setInputFiles(path);
 
@@ -114,43 +135,21 @@ test.describe("excel export", () => {
     );
     expect(loadedN).toBe(before.size);
 
-    // Add succeeds → the required master fields (incl. street address) survived
-    // (an empty/garbled export would fail validation and disable the button).
+    // Add succeeds → the required master fields (incl. coordinates) survived the
+    // export (an empty/garbled export would fail validation and disable the button).
     await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
       .click();
-    // Case-insensitive: a single re-imported building toasts "Building added"
-    // (capital B), the plural case "N buildings added" — the kind-specific demo
-    // seeds one building, so the singular path is the common one here.
     await expect(page.getByText(/buildings? added/i).first())
       .toBeVisible({ timeout: T.action });
 
-    // Closing the dialog refetches the Manage list, so the re-imported rows appear
-    // a moment later — poll the id diff rather than reading it once.
+    // The same number of buildings are back, with the original address present.
     await expect(buildingRows(page).first()).toBeVisible({ timeout: T.action });
-    let added: string[] = [];
     await expect(async () => {
-      added = (await buildingIds(page)).filter((id) => !before.has(id));
-      expect(added.length, "the exported buildings re-imported").toBe(before.size);
+      expect((await buildingIds(page)).length).toBe(before.size);
     }).toPass({ timeout: T.poll });
     if (addr) {
-      // Original + re-imported copy → the address appears at least twice.
       expect(await page.getByText(addr, { exact: false }).count())
-        .toBeGreaterThanOrEqual(2);
+        .toBeGreaterThanOrEqual(1);
     }
-
-    // Clean up the re-imported copies so the test repeats.
-    for (const id of added) {
-      const row = page.locator("li", { hasText: `Building ${id}` }).first();
-      await row.getByRole("button", { name: "Delete building" }).click();
-      await expect(page.getByText("Building deleted").first())
-        .toBeVisible({ timeout: T.action });
-    }
-    // The "Building deleted" toast fires on the mutation; the Manage list refetch
-    // (invalidate buildings) lands a beat later, so the last-deleted row can still
-    // linger for a moment. Poll until the listing is back to exactly `before`
-    // (eventually-consistent, mirroring the re-import assertion above).
-    await expect(async () => {
-      expect(new Set(await buildingIds(page))).toEqual(before);
-    }).toPass({ timeout: T.poll });
   });
 });

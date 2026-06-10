@@ -14,8 +14,14 @@ import {
 // other.
 // ---------------------------------------------------------------------------
 
-// Years scanned for the investor `_inv_<metric>_<year>` annual fields.
-export const INV_YEARS = [2018, 2019, 2020, 2021, 2022, 2023, 2024];
+/**
+ * The spreadsheet *layout* — shared by import (`parseCsvToFields` /
+ * `detectSpreadsheetFormat`) and export (`buildingToWorkbook`). A file FORMAT, not a
+ * user role: an investor row-label sheet, a BSP column table, or a generic flat /
+ * Lastgang sheet. One literal set so a building exported in a style re-imports
+ * through the matching adapter.
+ */
+export type SpreadsheetFormat = "investor" | "benchmark" | "generic";
 
 // Investor operating-cost categories (one `investor:hasOperatingCosts` blank
 // node). Each is read from a `_opcost_<field>` key; `operationInspectionAndMaintenance`
@@ -56,7 +62,7 @@ export const BSP_COL_MAP: Record<string, string> = {
   "Alter der PV-Anlage (Baujahr)": "pvInstallationYear",
   "Leistung der PV-Anlage (kW)": "pvCapacityKW",
   "Funktion der Logistikimmobilie": "logisticsFunction",
-  "Innenraumtemperatur": "indoorTemperature",
+  "Innenraumtemperatur": "indoorTemperatureClass",
   "Klimatisierungstyp": "climateControlType",
   "Anteil GreenLeases": "greenLeaseShare",
   "Mietvertragsart": "leaseType",
@@ -109,7 +115,8 @@ export const INVESTOR_ROW_MAP: Record<string, string> = {
  * These are the labels of the template's "Servicelevel" section (the operating-
  * cost categories carry a categorical service level — Einfach/Mittel/Hoch/
  * All-Risk/…, see {@link investorLocalNameLabels}), matched verbatim to
- * `public/templates/investor-template.xlsx`. (`operationInspectionAndMaintenance`
+ * the partner sheet (`test/e2e/fixtures/investor-import.xlsx` is the synthetic
+ * stand-in). (`operationInspectionAndMaintenance`
  * is modelled as a boolean and round-trips as true/false.) Rows that don't match
  * are simply skipped (no error), so a stale label degrades to "not imported".
  */

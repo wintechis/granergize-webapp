@@ -28,7 +28,7 @@ import {
   getComputedSnapshotByViewId,
   getSnapshotUrl,
 } from "../services/aggregation/viewManager.ts";
-import { bspContributorBuildings } from "../services/aggregation/viewComputer.ts";
+import { sharedContributorBuildings } from "../services/aggregation/viewComputer.ts";
 import {
   type DataRoomMember,
   getActiveRoom,
@@ -117,7 +117,7 @@ export default function ShareViewDialog(
         return;
       }
       setIsBenchmarkView(true);
-      const { contributors } = await bspContributorBuildings(session);
+      const { contributors } = await sharedContributorBuildings(session);
       setContributors(contributors);
     } catch (err) {
       logError("load benchmark contributors", err);

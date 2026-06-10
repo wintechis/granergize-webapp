@@ -51,7 +51,7 @@ last-good projection stays on screen.
 ## The instance, and its fix — energy
 
 `useBuildings` (phase 1) parses each building, including its
-`gran:hasEnergyDataset` links; `useEnergy` (phase 2) folds those linked datasets
+`cons:hasEnergyDataset` links; `useEnergy` (phase 2) folds those linked datasets
 into the per-building energy the map and charts read. Its key was the **sorted set
 of building ids**, so writing an energy year to an *existing* building — which
 adds/replaces a link but not an id — did not refetch; the map energy lens, which

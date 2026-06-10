@@ -10,7 +10,7 @@ function readSheet(bytes: ArrayBuffer): XLSX.WorkSheet {
   return wb.Sheets[wb.SheetNames[0]];
 }
 
-Deno.test("buildingToXlsx (investor) emits a row-label sheet with per-year energy + certs", () => {
+Deno.test("buildingToXlsx (investor) emits a row-label sheet with per-year energy + certs", async () => {
   const b = {
     id: "b1",
     streetAddress: "Hauptstr 1",
@@ -25,7 +25,7 @@ Deno.test("buildingToXlsx (investor) emits a row-label sheet with per-year energ
   // The investor sheet is a label-in-col-B / value-in-col-D layout (aoa rows of
   // ["", label, "", value]); read it as arrays and index by the label cell.
   const rows = XLSX.utils.sheet_to_json<(string | number)[]>(
-    readSheet(buildingToXlsx(b, "investor")),
+    readSheet(await buildingToXlsx(b, "investor")),
     { header: 1 },
   );
   const byLabel = new Map(rows.map((r) => [r[1], r[3]]));
@@ -39,7 +39,7 @@ Deno.test("buildingToXlsx (investor) emits a row-label sheet with per-year energ
   assert.ok(!byLabel.has("Wärme - tatsächlicher Verbrauch 2098"));
 });
 
-Deno.test("buildingToXlsx (benchmark) emits BSP energy headers in a single record row", () => {
+Deno.test("buildingToXlsx (benchmark) emits BSP energy headers in a single record row", async () => {
   const b = {
     id: "b2",
     streetAddress: "Werkstr 2",
@@ -49,7 +49,7 @@ Deno.test("buildingToXlsx (benchmark) emits BSP energy headers in a single recor
   } as unknown as BuildingType;
 
   const record = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-    readSheet(buildingToXlsx(b, "benchmark")),
+    readSheet(await buildingToXlsx(b, "benchmark")),
   )[0];
   assert.equal(record["Strom - tatsächlicher Verbrauch (kWh)"], 4444);
   assert.equal(record["Trinkwasser (m³)"], 55);
@@ -57,7 +57,7 @@ Deno.test("buildingToXlsx (benchmark) emits BSP energy headers in a single recor
   assert.ok(!("Schmutzwasser (m³)" in record));
 });
 
-Deno.test("buildingsToXlsx emits one flat row per building keyed by field/intermediate names", () => {
+Deno.test("buildingsToXlsx emits one flat row per building keyed by field/intermediate names", async () => {
   const buildings = [
     {
       id: "b1",
@@ -71,7 +71,7 @@ Deno.test("buildingsToXlsx emits one flat row per building keyed by field/interm
   ] as unknown as BuildingType[];
 
   const records = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-    readSheet(buildingsToXlsx(buildings)),
+    readSheet(await buildingsToXlsx(buildings)),
   );
   assert.equal(records.length, 2);
   // Master data uses the BuildingType field names; energy uses the `_inv_*` keys.

@@ -10,6 +10,17 @@
  * some behind Cloudflare) gets the same budgets doubled via {@link t}. The scale is
  * fixed per run from `E2E_LOCAL` (set for Tier-3, unset for Tier-4).
  *
+ * Backend-aware too: under the local tier, JSS gets extra headroom over CSS. Not
+ * because JSS is slow per request (measured ~7ms/req — on par with CSS), but because
+ * the heaviest specs make many sequential round-trips (e.g. the excel round-trip
+ * deletes ~130 resources across recursive energy subtrees, each gated on a UI
+ * confirmation + list refetch), and that orchestration runs measurably longer under
+ * JSS — enough that a tight 30s inner `poll`/`action` budget flakes while the work is
+ * still legitimately draining (confirmed: the delete phase spanned 59s with every
+ * request answered, no stall). Scaling the budget only delays a FAILURE, never slows
+ * a pass, so the extra headroom costs nothing on green runs. One place beats per-spec
+ * `podServerKind()` timeout bumps.
+ *
  * Categories (pick by INTENT, not by the old number):
  *  - `tiny`        a fixed micro-pause (`waitForTimeout`) — NOT tier-scaled.
  *  - `quick`       a near-immediate element/check (already-rendering UI).
@@ -27,8 +38,15 @@ const ENV = (globalThis as { process?: { env: Record<string, string | undefined>
   .process?.env;
 /** Tier-4 (real Pods) unless the local tier is on. */
 const REMOTE = !ENV?.E2E_LOCAL;
-/** Scale a best-case LOCAL budget up for the slower remote tier. */
-const t = (localMs: number): number => (REMOTE ? localMs * 2 : localMs);
+/** Local tier against JSS (vs the default local CSS). */
+const LOCAL_JSS = !REMOTE && ENV?.LOCAL_POD_SERVER === "jss";
+/**
+ * Scale a best-case LOCAL-CSS budget for the run's backend: ×2 for the remote tier
+ * (network + Cloudflare), ×1.75 for local JSS (heavier multi-round-trip orchestration
+ * — see the file header), ×1 for the fast local CSS baseline.
+ */
+const t = (localMs: number): number =>
+  REMOTE ? localMs * 2 : LOCAL_JSS ? Math.round(localMs * 1.75) : localMs;
 
 export const T = {
   tiny: 1_000,

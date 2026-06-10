@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
-import { GRAN_NS } from "../rdf/vocabularies.ts";
+import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
@@ -19,18 +19,21 @@ import {
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { parseTtlReadings } from "../rdf/userEnergyParser.ts";
 import { getSharedWithMe } from "../interop/sharingManager.ts";
+import { mapPooled } from "../../lib/pool.ts";
 
 const { namedNode } = DataFactory;
 
-const VOCAB_PREFIX = GRAN_NS;
+const VOCAB_PREFIX = CONSUMPTION_NS;
 
 /**
- * Load energy data for a single building
+ * Load energy data for a single building. Returns the metrics of the latest
+ * actual annual dataset plus the YEAR they cover (so a benchmark compute can
+ * derive its bench:metricPeriod from the data it actually aggregated).
  */
 async function loadBuildingEnergyData(
   buildingUri: string,
   session: Session,
-): Promise<EnergyType | null> {
+): Promise<{ energy: EnergyType; year: number } | null> {
   buildingUri = buildingUri.split("#")[0];
   try {
     // Fetch building data to get energy data location
@@ -50,7 +53,7 @@ async function loadBuildingEnergyData(
     const buildingQuads = buildingParser.parse(buildingText);
     const buildingStore = new Store(buildingQuads);
 
-    // Discover the building's annual datasets from its gran:hasEnergyDataset
+    // Discover the building's annual datasets from its cons:hasEnergyDataset
     // links and load the latest actual year; its metrics become the energyNeed
     // (keyed by the AnnualMetrics names the view metrics use).
     const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "") || "0";
@@ -70,16 +73,19 @@ async function loadBuildingEnergyData(
     if (!ds?.metrics) return null;
 
     return {
-      id: Number(buildingId) || 0,
-      uri: `${buildingUri}#${buildingId}`,
-      energyNeed: { ...ds.metrics },
-      energyGeneration: {},
-      energyStorage: {},
-      energyDistribution: {},
-      energyTransfer: {},
-      energyUsage: {},
-      environmentalFactor: {},
-    } as EnergyType;
+      energy: {
+        id: Number(buildingId) || 0,
+        uri: `${buildingUri}#${buildingId}`,
+        energyNeed: { ...ds.metrics },
+        energyGeneration: {},
+        energyStorage: {},
+        energyDistribution: {},
+        energyTransfer: {},
+        energyUsage: {},
+        environmentalFactor: {},
+      } as EnergyType,
+      year: latest.year,
+    };
   } catch (error) {
     console.error(
       `Error loading energy data for building ${buildingUri}:`,
@@ -140,7 +146,7 @@ function extractMetricValue(
 }
 
 /**
- * Load the total electricity consumption (kWh) for a user-role building for a given month.
+ * Load the total electricity consumption (kWh) of a series-shaped building for a given month.
  * Returns null if the building or data cannot be loaded.
  */
 async function loadUserBuildingMonthlyTotal(
@@ -216,47 +222,40 @@ async function loadUserBuildingMonthlyTotal(
 }
 
 /**
- * Options marking a computed snapshot as a benchmark result — set by the BSP
- * compute-and-share flow so the snapshot is additionally a bench:BenchmarkResult
- * carrying the computing agent and the period covered.
- */
-export interface BenchmarkOptions {
-  benchmark?: boolean;
-  metricPeriod?: string; // year the metrics cover, e.g. "2024"
-}
-
-/**
- * Compute aggregated values for a view definition
+ * Compute aggregated values for a view definition.
+ *
+ * A definition flagged `benchmark` yields a snapshot additionally typed
+ * bench:BenchmarkResult, carrying the computing agent and the period covered.
+ * The flag lives ON the definition (not in call-site options), so every
+ * recompute — including a plain refresh — preserves the benchmark typing; the
+ * covered year is derived from the data actually aggregated.
  * @operation query
  */
 export async function computeAggregation(
   session: Session,
   viewDefinition: AggregatedViewDefinition,
-  opts: BenchmarkOptions = {},
 ): Promise<AggregatedViewSnapshot> {
-  const { id, name, buildingUris, aggregationType, metrics, period } =
+  const { id, name, buildingUris, aggregationType, metrics, period, benchmark } =
     viewDefinition;
-  const benchmarkFields = opts.benchmark
-    ? {
-      isBenchmark: true as const,
-      computedBy: session.info.webId,
-      ...(opts.metricPeriod ? { metricPeriod: opts.metricPeriod } : {}),
-    }
-    : {};
-
-  // User-role path: aggregate monthly electricity totals per building
-  if (period) {
-    const monthlyTotals: number[] = [];
-    for (const buildingUri of buildingUris) {
-      const total = await loadUserBuildingMonthlyTotal(
-        buildingUri,
-        period,
-        session,
-      );
-      if (total !== null) {
-        monthlyTotals.push(total);
+  const benchmarkFields = (metricPeriod?: string) =>
+    benchmark
+      ? {
+        isBenchmark: true as const,
+        computedBy: session.info.webId,
+        ...(metricPeriod ? { metricPeriod } : {}),
       }
-    }
+      : {};
+
+  // Monthly path (data shape: a sub-hourly series): aggregate the period's
+  // electricity totals per building. Bounded concurrency (mapPooled, the
+  // Cloudflare-safe pattern viewManager uses) instead of strictly serial
+  // round-trips — a 20-building view was 40+ sequential fetches.
+  if (period) {
+    const monthlyTotals = (await mapPooled(
+      buildingUris,
+      4,
+      (buildingUri) => loadUserBuildingMonthlyTotal(buildingUri, period, session),
+    )).filter((t): t is number => t !== null);
 
     const snapshot: AggregatedViewSnapshot = {
       id,
@@ -268,21 +267,24 @@ export async function computeAggregation(
       values: monthlyTotals.length > 0
         ? { electricity: aggregateValues(monthlyTotals, aggregationType) }
         : {},
-      ...benchmarkFields,
+      // A monthly benchmark's covered period is the month itself.
+      ...benchmarkFields(period),
     };
 
     return snapshot;
   }
 
-  // Annual path: each building's latest annual dataset, aggregated per metric.
-  const energyDataResults: EnergyType[] = [];
-
-  for (const buildingUri of buildingUris) {
-    const energyData = await loadBuildingEnergyData(buildingUri, session);
-    if (energyData) {
-      energyDataResults.push(energyData);
-    }
-  }
+  // Annual path: each building's latest annual dataset, aggregated per metric
+  // (bounded concurrency, as above).
+  const loadedAll = (await mapPooled(
+    buildingUris,
+    4,
+    (buildingUri) => loadBuildingEnergyData(buildingUri, session),
+  )).filter((l): l is { energy: EnergyType; year: number } => l !== null);
+  const energyDataResults = loadedAll.map((l) => l.energy);
+  const latestYear = loadedAll.length > 0
+    ? Math.max(...loadedAll.map((l) => l.year))
+    : undefined;
 
   // Compute aggregated values for each metric
   const aggregatedValues: Record<string, number> = {};
@@ -310,20 +312,23 @@ export async function computeAggregation(
     computedAt: new Date().toISOString(),
     buildingCount: energyDataResults.length,
     values: aggregatedValues,
-    ...benchmarkFields,
+    // The year the aggregated figures cover = the latest annual year actually
+    // used (per-building latest, max across buildings) — derived, not stored,
+    // so it stays truthful when a building gains a newer year.
+    ...benchmarkFields(latestYear === undefined ? undefined : String(latestYear)),
   };
 
   return snapshot;
 }
 
 /**
- * Compute and store a snapshot for a view
+ * Compute and store a snapshot for a view. Benchmark typing comes from the
+ * persisted definition (`benchmark` flag) — there are no call-site options.
  * @operation mutation
  */
 export async function computeAndStoreSnapshot(
   session: Session,
   viewId: string,
-  opts: BenchmarkOptions = {},
 ): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUrl: string }> {
   const viewDefinition = await getViewDefinition(session, viewId);
 
@@ -331,7 +336,7 @@ export async function computeAndStoreSnapshot(
     throw new Error(`View definition not found: ${viewId}`);
   }
 
-  const snapshot = await computeAggregation(session, viewDefinition, opts);
+  const snapshot = await computeAggregation(session, viewDefinition);
   const snapshotUrl = await storeComputedSnapshot(session, snapshot);
 
   return { snapshot, snapshotUrl };
@@ -348,150 +353,22 @@ export async function refreshSnapshot(
   return computeAndStoreSnapshot(session, viewId);
 }
 
-/**
- * Get available metrics from energy data categories
- * This returns a list of common energy metrics that can be aggregated
- */
-export function getAvailableMetrics(): {
-  category: string;
-  metrics: string[];
-}[] {
-  return [
-    {
-      category: "Energy Need",
-      metrics: [
-        "gas",
-        "electricity",
-        "gridSupply",
-        "solar",
-        "solarSpaceHeating",
-        "photovoltaic",
-        "selfConsumption",
-        "gridFeedIn",
-        "hallHeatingFromWasteLoss",
-        "frostProtectionHBWFromWasteLoss",
-        "ambientHeat",
-        "ventilationHeat",
-        "personHeat",
-        "groundwater",
-        "woodChips",
-      ],
-    },
-    {
-      category: "Energy Generation",
-      metrics: [
-        "hallLighting",
-        "heatGeneration",
-        "HbwHeat",
-        "hallHeat",
-      ],
-    },
-    {
-      category: "Energy Storage",
-      metrics: [
-        "forkliftBatteryCharging",
-        "heatStorage",
-      ],
-    },
-    {
-      category: "Energy Distribution",
-      metrics: [
-        "heatDistribution",
-        "intralogisticsHallDistribution",
-        "intralogisticsHbwDistribution",
-        "hallHeatDistribution",
-        "HbwHeatDistribution",
-      ],
-    },
-    {
-      category: "Energy Transfer",
-      metrics: [
-        "intralogisticsHallTransfer",
-        "intralogisticsHbwTransfer",
-        "hallHeatTransfer",
-        "HbwHeatTransfer",
-        "heatTransfer",
-        "ForkliftTransfer",
-      ],
-    },
-    {
-      category: "Energy Usage",
-      metrics: [
-        "hallSpaceHeating",
-        "work",
-        "HbwFrostProtection",
-      ],
-    },
-    {
-      category: "Environmental Factor",
-      metrics: [
-        "cold",
-      ],
-    },
-  ];
-}
-
-/**
- * Get available metrics for the Investor role (reads from building.annualData)
- */
-export function getAvailableInvestorAnnualMetrics(): {
-  category: string;
-  metrics: string[];
-}[] {
-  return [
-    {
-      category: "Annual Consumption",
-      metrics: [
-        "electricityConsumption",
-        "heatConsumption",
-        "waterConsumption",
-      ],
-    },
-    {
-      category: "Renewable Generation",
-      metrics: [
-        "renewableSelfGeneratedShare",
-      ],
-    },
-  ];
-}
-
-/**
- * Get available metrics for the BSP role (reads from building.annualData)
- */
-export function getAvailableBspMetrics(): {
-  category: string;
-  metrics: string[];
-}[] {
-  return [
-    {
-      category: "Annual Consumption",
-      metrics: [
-        "electricityConsumption",
-        "heatConsumption",
-        "waterConsumption",
-        "wastewaterConsumption",
-      ],
-    },
-  ];
-}
-
-/** The roster a BSP benchmarks over: the buildings shared *to* it. */
-export interface BspContributors {
-  buildingUris: string[]; // the contributing buildings (shared to the BSP)
+/** The roster a benchmark aggregates over: the buildings shared *to* this user. */
+export interface Contributors {
+  buildingUris: string[]; // the contributing buildings (shared to this user)
   contributors: string[]; // distinct WebIDs that shared them (the share-back targets)
 }
 
 /**
  * Pure fold of a shared-with-me roster into the benchmark's building list + the
  * distinct sharer WebIDs (the share-back targets). Split out from
- * {@link bspContributorBuildings} so it can be unit-tested without fixturing the
+ * {@link sharedContributorBuildings} so it can be unit-tested without fixturing the
  * whole shared-in event fold. "Unknown" sharers (an event with no owner) are
  * dropped from the contributor set but their building is still benchmarked.
  */
 export function summarizeContributors(
   shared: { buildingUri: string; sharedBy: string }[],
-): BspContributors {
+): Contributors {
   const buildingUris = [...new Set(shared.map((b) => b.buildingUri))];
   const contributors = [
     ...new Set(
@@ -505,16 +382,15 @@ export function summarizeContributors(
 
 /**
  * Populate the benchmark's building list from the roster of buildings shared *to*
- * the current user (the BSP). The aggregation engine works over an explicit
+ * the current user. The aggregation engine works over an explicit
  * building list; this folds the existing shared-with-me roster into that list and
- * collects the distinct sharer WebIDs as the share-back targets. Received buildings
- * carry the *sharer's* provenance, not benchmark_service_provider — so the BSP
- * create-view flow sources candidates here rather than from the owned-building
- * provenance filter.
+ * collects the distinct sharer WebIDs as the share-back targets. These are buildings
+ * owned by OTHERS (shared to this user), so the benchmark create-view flow sources its
+ * candidates here rather than from the user's own buildings.
  * @operation query
  */
-export async function bspContributorBuildings(
+export async function sharedContributorBuildings(
   session: Session,
-): Promise<BspContributors> {
+): Promise<Contributors> {
   return summarizeContributors(await getSharedWithMe(session));
 }

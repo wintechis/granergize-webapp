@@ -50,15 +50,15 @@ export async function buildBuildingDeletionPreview(
 
   const label = (building.streetAddress as string) || `Building ${building.id}`;
   const message = `Delete "${label}"?\n\nThis permanently deletes ${resources.length} ` +
-    `resource(s) and removes the building's registry entry:\n\n` +
+    `resource(s) and removes the building from your buildings list:\n\n` +
     `${formatResourceList(resources, root)}\n\nThis cannot be undone.`;
 
   return { fileUri, message };
 }
 
 /**
- * Permanently delete an owned building — its file, energy subtree, and registry
- * entry. Pure data operation (no confirmation UI); confirm first at the call site
+ * Permanently delete an owned building — its file and energy subtree (the
+ * Manage list is the container listing, so the row disappears with the file). Pure data operation (no confirmation UI); confirm first at the call site
  * with {@link buildBuildingDeletionPreview}. Throws if the delete fails.
  *
  * If the building was shared, every recipient is revoked + notified FIRST (mirrors

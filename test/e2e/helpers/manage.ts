@@ -22,8 +22,16 @@ export async function buildingIds(page: Page): Promise<string[]> {
   return ids;
 }
 
-/** Add a building via the single generic manual form (only the location fields). */
-export async function addBuilding(page: Page, street: string): Promise<void> {
+/**
+ * Add a building via the single generic manual form (location fields). Pass
+ * `operatedBy` to also set the "Operated by (WebID)" operator — needed when a
+ * spec exercises the operator-average (Betreiber) benchmark, which keys on it.
+ */
+export async function addBuilding(
+  page: Page,
+  street: string,
+  opts: { operatedBy?: string } = {},
+): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
   await page.getByRole("button", { name: /^add building$/i }).first().click();
   const dialog = page.getByRole("dialog");
@@ -34,6 +42,14 @@ export async function addBuilding(page: Page, street: string): Promise<void> {
   await dialog.getByLabel(/region/i).fill("Bayern");
   await dialog.getByLabel(/latitude/i).fill("49.45");
   await dialog.getByLabel(/longitude/i).fill("11.08");
+  if (opts.operatedBy) {
+    await dialog.getByLabel(/operated by/i).fill(opts.operatedBy);
+    // "Operated by" is a contacts Autocomplete: once the operator is a remembered
+    // contact (e.g. the 2nd building reusing it), a suggestion popup opens and would
+    // overlap/intercept the submit click. Escape closes just the popup (MUI consumes
+    // it; the dialog stays open).
+    await page.keyboard.press("Escape");
+  }
   await dialog.getByRole("button", { name: /^add building$/i }).click();
   await expect(dialog).toBeHidden({ timeout: T.action });
 }

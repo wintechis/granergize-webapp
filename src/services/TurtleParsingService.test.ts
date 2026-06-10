@@ -20,27 +20,27 @@ _setStorageRootForTesting(WEBID, "https://pod.example/");
 const BUILDINGS_CONTAINER = "https://pod.example/granergize/buildings/";
 const PREFS_URL = "https://pod.example/granergize/prefs.ttl";
 const BUILDINGS_URL = "https://pod.example/buildings.ttl";
-// Annual gran:EnergyDataset resources — the slug `<year>-P1Y` is self-describing.
+// Annual cons:EnergyDataset resources — the slug `<year>-P1Y` is self-describing.
 const ENERGY_B1_URL = "https://pod.example/energy/b1/2024-P1Y.ttl";
 const ENERGY_B2_URL = "https://pod.example/energy/b2/2024-P1Y.ttl";
 
-const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
+const CONS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 
-/** An annual aggregate gran:EnergyDataset declaring one electricity figure. */
+/** An annual aggregate cons:EnergyDataset declaring one electricity figure. */
 const annualDataset = (kwh: number) => `
-@prefix gran: <${GRAN}> .
+@prefix cons: <${CONS}> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix ssn: <http://www.w3.org/ns/ssn/> .
 @prefix time: <http://www.w3.org/2006/time#> .
 @prefix unit: <https://qudt.org/vocab/unit#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-<#ds> a gran:EnergyDataset , sosa:ObservationCollection ;
-  gran:granularity "P1Y" ;
-  gran:scenario gran:Actual ;
+<#ds> a cons:EnergyDataset , sosa:ObservationCollection ;
+  cons:granularity "P1Y" ;
+  cons:scenario cons:Actual ;
   sosa:phenomenonTime [ a time:Interval ;
     time:hasBeginning "2024-01-01"^^xsd:date ; time:hasEnd "2024-12-31"^^xsd:date ] ;
   sosa:hasMember [ a sosa:Observation ;
-    sosa:observedProperty gran:ElectricityConsumption ;
+    sosa:observedProperty cons:ElectricityConsumption ;
     sosa:hasResult [ sosa:hasSimpleResult "${kwh}"^^xsd:decimal ; ssn:hasUnit unit:KiloW-HR ] ] .
 `;
 
@@ -53,17 +53,17 @@ const FIXTURES: Record<string, string> = {
   // Present but empty: no current room, no hidden buildings.
   [PREFS_URL]: "",
   [BUILDINGS_URL]: `
-@prefix gran: <${GRAN}> .
+@prefix cons: <${CONS}> .
 @prefix rec: <https://w3id.org/rec#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <#building-1> a rec:Building ;
   geo:lat 49.0 ;
   geo:long 11.0 ;
-  gran:hasEnergyDataset <${ENERGY_B1_URL}#ds> .
+  cons:hasEnergyDataset <${ENERGY_B1_URL}#ds> .
 <#building-2> a rec:Building ;
   geo:lat 49.5 ;
   geo:long 11.5 ;
-  gran:hasEnergyDataset <${ENERGY_B2_URL}#ds> .
+  cons:hasEnergyDataset <${ENERGY_B2_URL}#ds> .
 `,
   [ENERGY_B1_URL]: annualDataset(1000),
   [ENERGY_B2_URL]: annualDataset(2000),
@@ -205,4 +205,96 @@ Deno.test("fetchAndParseData throws SessionExpiredError when sources return 401"
     () => fetchAndParseData(session),
     SessionExpiredError,
   );
+});
+
+// --- Operator average (Betreiber-Durchschnitt) ---------------------------------
+// The energy view benchmarks a building against the mean consumption of all
+// buildings of the SAME operator (rec:operatedBy). loadEnergy groups by operator
+// WebID; the Energy tab renders it as the "Operator average" column. Two operator
+// WebIDs to assign per case (b1 = 1000 kWh, b2 = 2000 kWh from the shared fixture).
+const OP_A = "https://op.example/a/profile/card#me";
+const OP_B = "https://op.example/b/profile/card#me";
+
+/** The own-buildings file with an explicit operator per building. */
+const buildingsWithOperators = (op1: string, op2: string) => `
+@prefix cons: <${CONS}> .
+@prefix rec: <https://w3id.org/rec#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+<#building-1> a rec:Building ;
+  geo:lat 49.0 ; geo:long 11.0 ;
+  rec:operatedBy <${op1}> ;
+  cons:hasEnergyDataset <${ENERGY_B1_URL}#ds> .
+<#building-2> a rec:Building ;
+  geo:lat 49.5 ; geo:long 11.5 ;
+  rec:operatedBy <${op2}> ;
+  cons:hasEnergyDataset <${ENERGY_B2_URL}#ds> .
+`;
+
+Deno.test("loadEnergy averages same-operator buildings into one operator benchmark", async () => {
+  const fixtures = {
+    ...FIXTURES,
+    [BUILDINGS_URL]: buildingsWithOperators(OP_A, OP_A),
+  };
+  const result = await fetchAndParseData(makeSession({ log: newLog(), fixtures }));
+
+  // Both buildings share OP_A: its average is the mean of 1000 and 2000.
+  assert.equal(result.operatorAverages[OP_A]?.Electricity, 1500);
+  // A single owner's portfolio mean coincides with the operator mean here.
+  assert.equal(result.portfolioAverages.Electricity, 1500);
+});
+
+Deno.test("loadEnergy publishes NO operator average for a single-building operator (no self-benchmark)", async () => {
+  // Two distinct operators with one building each. A single-building "mean" IS
+  // the building's own figure dressed up as a benchmark — and it would win the
+  // comparison-reference precedence over the portfolio mean, silently disabling
+  // the deviation tint. A metric needs ≥2 contributing buildings to publish.
+  const fixtures = {
+    ...FIXTURES,
+    [BUILDINGS_URL]: buildingsWithOperators(OP_A, OP_B),
+  };
+  const result = await fetchAndParseData(makeSession({ log: newLog(), fixtures }));
+
+  assert.equal(result.operatorAverages[OP_A], undefined);
+  assert.equal(result.operatorAverages[OP_B], undefined);
+});
+
+Deno.test("loadEnergy yields no operator average when buildings have no operator", async () => {
+  // The default fixture's buildings carry no rec:operatedBy.
+  const result = await fetchAndParseData(makeSession({ log: newLog() }));
+  assert.equal(Object.keys(result.operatorAverages).length, 0);
+});
+
+Deno.test("loadEnergy records the year the figures cover on each EnergyType", async () => {
+  // The energy heading renders this ("Energy Need … in <year>") — it must be
+  // the year actually loaded, never a hardcoded one.
+  const result = await fetchAndParseData(makeSession({ log: newLog() }));
+  for (const e of result.energyNeed) assert.equal(e.year, 2024);
+});
+
+Deno.test("loadEnergy falls back to the next-newest accessible year when the latest is unreadable", async () => {
+  // A per-year share grants only some years: the newest LINKED dataset can be
+  // forbidden/missing for the recipient while an older granted year is fine.
+  // Building 1 links 2024 (unreadable — not in the fixtures) and 2023 (500 kWh):
+  // the fold must use 2023, not show "no energy data".
+  const b1y2023 = "https://pod.example/energy/b1/2023-P1Y.ttl";
+  const fixtures: Record<string, string> = {
+    ...FIXTURES,
+    [BUILDINGS_URL]: `
+@prefix cons: <${CONS}> .
+@prefix rec: <https://w3id.org/rec#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+<#building-1> a rec:Building ;
+  geo:lat 49.0 ; geo:long 11.0 ;
+  cons:hasEnergyDataset <${ENERGY_B1_URL}#ds> , <${b1y2023}#ds> .
+`,
+    [b1y2023]: annualDataset(500),
+  };
+  delete fixtures[ENERGY_B1_URL]; // the linked 2024 dataset is not readable
+  delete fixtures[ENERGY_B2_URL];
+
+  const result = await fetchAndParseData(makeSession({ log: newLog(), fixtures }));
+  const b1 = result.energyNeed[0];
+  assert.ok(b1, "building 1 still carries energy");
+  assert.equal(b1.energyNeed["Electricity"], 500, "older year's figure used");
+  assert.equal(b1.year, 2023, "the year reflects the fallback");
 });

@@ -7,7 +7,6 @@ import type { BuildingType } from "../../types.ts";
 /** A shared-building entry as folded from the `shared-in/` log. */
 export interface SharedBuildingEntry {
   buildingUri: string;
-  sharedRole?: string;
 }
 
 /**
@@ -19,9 +18,9 @@ export interface SharedBuildingEntry {
  * (conditional GET / 304 revalidation + network-activity instrumentation), keeping
  * RDF parsing in the service layer rather than leaking into the page.
  *
- * Provenance comes from the shared file's PROV attribution; when the file carries
- * none, it falls back to the role the building was shared as. Throws on a non-ok
- * response (caller decides whether to surface or skip it).
+ * Provenance comes from the shared file's PROV attribution (`prov:agent`; no
+ * role travels with a share). Throws on a non-ok response (caller decides
+ * whether to surface or skip it).
  * @operation query
  */
 export async function loadSharedBuilding(

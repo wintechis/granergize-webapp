@@ -20,7 +20,10 @@ import {
   readBookmarks,
   removeBookmark,
 } from "../bookmarks.ts";
-import { IRI_TO_PROVENANCE, PROVENANCE_TO_IRI } from "../../constants/roles.ts";
+import {
+  IRI_TO_MEMBERSHIP_ROLE,
+  MEMBERSHIP_ROLE_TO_IRI,
+} from "../../constants/roles.ts";
 import { logError } from "../../lib/logError.ts";
 
 const { blankNode, literal, namedNode } = DataFactory;
@@ -37,10 +40,8 @@ const AS_OBJECT = namedNode(`${AS_NS}object`);
 const AS_PUBLISHED = namedNode(`${AS_NS}published`);
 const SIOC_HAS_FUNCTION = namedNode(`${SIOC_NS}has_function`);
 
-// Membership role ↔ gran: IRI is the same mapping as a building's provenance
-// role; reuse the single source of truth in constants/roles.ts.
-const ROLE_TO_IRI = PROVENANCE_TO_IRI;
-const IRI_TO_ROLE = IRI_TO_PROVENANCE;
+// Membership role ↔ gran: IRI — the single source of truth in constants/roles.ts.
+const IRI_TO_ROLE = IRI_TO_MEMBERSHIP_ROLE;
 
 // A GRANERGIZE data room is an append-only LDP container that ANY user can
 // create on their OWN Pod (where they have full control). The creator writes an
@@ -539,7 +540,7 @@ export async function setMyRole(
     literal(new Date().toISOString(), namedNode(XSD_DATETIME)),
   );
   for (const role of roles) {
-    store.addQuad(event, SIOC_HAS_FUNCTION, namedNode(ROLE_TO_IRI[role]));
+    store.addQuad(event, SIOC_HAS_FUNCTION, namedNode(MEMBERSHIP_ROLE_TO_IRI[role]));
   }
   await postEvent(roomUrl, store, session);
 }

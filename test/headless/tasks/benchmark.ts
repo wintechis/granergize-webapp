@@ -22,10 +22,10 @@ import {
   getReceivedBenchmarks,
 } from "../../../src/services/aggregation/viewManager.ts";
 import {
-  bspContributorBuildings,
   computeAndStoreSnapshot,
-  getAvailableBspMetrics,
+  sharedContributorBuildings,
 } from "../../../src/services/aggregation/viewComputer.ts";
+import { CONSUMPTION_METRIC_KEYS } from "../../../src/constants/annualMetrics.ts";
 import {
   deleteBuilding,
   newBuildingUri,
@@ -37,7 +37,7 @@ import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 export const name = "benchmark";
 
-const BSP_METRICS = getAvailableBspMetrics().flatMap((c) => c.metrics);
+const BSP_METRICS = CONSUMPTION_METRIC_KEYS as string[];
 
 /** Seed an annual `_bsp_*` building (with energy) owned by `actor`; returns its URI. */
 async function seedBspBuilding(
@@ -60,7 +60,6 @@ async function seedBspBuilding(
   const links = await writeBuildingEnergy(actor.session, uri, subjectUri, fields);
   const ttl = serializeBuildingToTurtle(fields, uri, links, {
     agent: actor.webId,
-    category: "benchmark_service_provider",
   });
   await uploadBuilding(actor.session, uri, ttl, actor.webId);
   return uri;
@@ -91,7 +90,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     await drainInbox(c.session); // archive both grants into C's shared-in/
 
     // 3. C folds the shared-with-me roster into the benchmark's building list.
-    const { buildingUris, contributors } = await bspContributorBuildings(c.session);
+    const { buildingUris, contributors } = await sharedContributorBuildings(c.session);
     check(
       "C's contributor roster holds both shared buildings",
       [aUri, bUri].every((u) =>
@@ -105,19 +104,21 @@ export async function run(ctx: TaskContext): Promise<void> {
       `contributors=[${contributors.join(", ")}]`,
     );
 
-    // 4. C creates the benchmark view and computes the snapshot (marked benchmark).
+    // 4. C creates the benchmark view (the flag lives ON the definition, so
+    // every recompute keeps the benchmark typing) and computes the snapshot;
+    // the covered year is derived from the aggregated data (both seeds: 2024).
     const view = await createViewDefinition(
       c.session,
       `Benchmark 2024 ${stamp}`,
       buildingUris,
       "average",
       BSP_METRICS,
+      { benchmark: true },
     );
     viewId = view.id;
     const { snapshot: snap, snapshotUrl } = await computeAndStoreSnapshot(
       c.session,
       view.id,
-      { benchmark: true, metricPeriod: "2024" },
     );
     check(
       "benchmark averages electricity across both contributors (1500)",
@@ -145,7 +146,7 @@ export async function run(ctx: TaskContext): Promise<void> {
       `computedBy=${mine?.computedBy}`,
     );
     check(
-      "the benchmark records the metric period",
+      "the benchmark records the metric period (derived from the data: 2024)",
       mine?.metricPeriod === "2024",
       `metricPeriod=${mine?.metricPeriod}`,
     );

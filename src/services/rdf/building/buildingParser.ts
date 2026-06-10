@@ -14,14 +14,14 @@ import {
   predicateMap,
 } from "./buildingConfig.ts";
 import {
+  BUILDING_NS,
+  CONSUMPTION_NS,
   DCTERMS_CREATED,
   GEO_LAT,
   GEO_LOCATION,
   GEO_LONG,
   GRAN_GEOCODE_PRECISION,
   GRAN_HAS_ATTACHMENT,
-  GRAN_NS,
-  INVESTOR_NS,
   IRI_TO_GEOCODE_PRECISION,
   PROV_AGENT,
   PROV_QUALIFIED_ATTRIBUTION,
@@ -84,7 +84,7 @@ function localName(iri: string): string {
 
 export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   const buildings = new Map<string, BuildingType>();
-  /** building ID → its `gran:hasEnergyDataset` link URLs (unified energy model). */
+  /** building ID → its `cons:hasEnergyDataset` link URLs (unified energy model). */
   const energyDatasetLinks = new Map<string, string[]>();
   /** blank node ID - building ID for operating costs */
   const opCostBuildingMap = new Map<string, string>();
@@ -94,7 +94,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   const provBuildingMap = new Map<string, string>();
   /** blank node ID - building ID for the geo:Point (coordinates + precision) */
   const geoPointBuildingMap = new Map<string, string>();
-  /** building ID → its gran:hasAttachment file URLs */
+  /** building ID → its bldg:hasAttachment file URLs */
   const attachmentLinks = new Map<string, string[]>();
   /** attachment file URL → building ID (the file IRI is the metadata subject) */
   const attachmentUrlBuilding = new Map<string, string>();
@@ -130,9 +130,9 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     const pred = quad.predicate.value;
     const obj = quad.object;
 
-    // Unified energy model: gran:hasEnergyDataset links (one per dataset
+    // Unified energy model: cons:hasEnergyDataset links (one per dataset
     // resource). The slug is self-describing, so refs are derived in post-processing.
-    if (pred === `${GRAN_NS}hasEnergyDataset`) {
+    if (pred === `${CONSUMPTION_NS}hasEnergyDataset`) {
       if (obj.termType === "NamedNode") {
         const links = energyDatasetLinks.get(buildingId) ?? [];
         links.push(obj.value);
@@ -141,7 +141,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       return;
     }
 
-    // Building file attachments: gran:hasAttachment → a file IRI. The file IRI is
+    // Building file attachments: bldg:hasAttachment → a file IRI. The file IRI is
     // itself the subject of the schema.org media metadata, collected separately
     // below (NamedNode subject, so both passes otherwise skip it).
     if (pred === GRAN_HAS_ATTACHMENT) {
@@ -155,7 +155,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     }
 
     // Investor operating costs blank-node
-    if (pred === `${INVESTOR_NS}hasOperatingCosts`) {
+    if (pred === `${BUILDING_NS}hasOperatingCosts`) {
       if (obj.termType === "BlankNode") {
         opCostBuildingMap.set(obj.value, buildingId);
       }
@@ -163,7 +163,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     }
 
     // Investor certification blank-node
-    if (pred === `${INVESTOR_NS}hasBuildingCertification`) {
+    if (pred === `${BUILDING_NS}hasBuildingCertification`) {
       if (obj.termType === "BlankNode") {
         certBuildingMap.set(obj.value, buildingId);
       }
@@ -258,27 +258,27 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
       if (!opCostData.has(bId)) opCostData.set(bId, {});
       const oc = opCostData.get(bId)!;
       const ln = localName(objVal);
-      if (pred === `${INVESTOR_NS}wasteDisposal`) {
+      if (pred === `${BUILDING_NS}wasteDisposal`) {
         oc.wasteDisposal = investorLocalNameLabels[ln] ?? ln;
-      } else if (pred === `${INVESTOR_NS}insurance`) {
+      } else if (pred === `${BUILDING_NS}insurance`) {
         oc.insurance = investorLocalNameLabels[ln] ?? ln;
-      } else if (pred === `${INVESTOR_NS}operationInspectionAndMaintenance`) {
+      } else if (pred === `${BUILDING_NS}operationInspectionAndMaintenance`) {
         oc.operationInspectionAndMaintenance = objVal.toLowerCase() === "true";
-      } else if (pred === `${INVESTOR_NS}routineCleaningOffice`) {
+      } else if (pred === `${BUILDING_NS}routineCleaningOffice`) {
         oc.routineCleaningOffice = investorLocalNameLabels[ln] ?? ln;
-      } else if (pred === `${INVESTOR_NS}routineCleaningWarehouse`) {
+      } else if (pred === `${BUILDING_NS}routineCleaningWarehouse`) {
         oc.routineCleaningWarehouse = investorLocalNameLabels[ln] ?? ln;
-      } else if (pred === `${INVESTOR_NS}glassCleaning`) {
+      } else if (pred === `${BUILDING_NS}glassCleaning`) {
         oc.glassCleaning = investorLocalNameLabels[ln] ?? ln;
-      } else if (pred === `${INVESTOR_NS}exteriorMaintenance`) {
+      } else if (pred === `${BUILDING_NS}exteriorMaintenance`) {
         oc.exteriorMaintenance = investorLocalNameLabels[ln] ?? ln;
-      } else if (pred === `${INVESTOR_NS}security`) {
+      } else if (pred === `${BUILDING_NS}security`) {
         oc.security = investorLocalNameLabels[ln] ?? ln;
-      } else if (pred === `${INVESTOR_NS}propertyManagement`) {
+      } else if (pred === `${BUILDING_NS}propertyManagement`) {
         oc.propertyManagement = investorLocalNameLabels[ln] ?? ln;
-      } else if (pred === `${INVESTOR_NS}caretaker`) {
+      } else if (pred === `${BUILDING_NS}caretaker`) {
         oc.caretaker = investorLocalNameLabels[ln] ?? ln;
-      } else if (pred === `${INVESTOR_NS}repairAndMaintenance`) {
+      } else if (pred === `${BUILDING_NS}repairAndMaintenance`) {
         oc.repairAndMaintenance = investorLocalNameLabels[ln] ?? ln;
       }
       return;
@@ -293,10 +293,12 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
         if (ln.endsWith("Certification") && ln !== "BuildingCertification") {
           cd.type = ln.replace("Certification", "");
         }
-      } else if (pred === `${INVESTOR_NS}certificationLevel`) {
+      } else if (pred === `${BUILDING_NS}certificationLevel`) {
         cd.level = objVal;
-      } else if (pred === `${INVESTOR_NS}certificationScope`) {
-        cd.scope = localName(objVal);
+      } else if (pred === `${BUILDING_NS}certificationScope`) {
+        // The scope is written as a plain literal (like the level) — reading it
+        // through localName() truncated any value containing '/' or '#'.
+        cd.scope = objVal;
       }
       return;
     }
@@ -339,7 +341,7 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
 
   // ── Post-processing ────────────────────────────────────────────────────────
 
-  // Unified energy model: derive dataset refs from the gran:hasEnergyDataset
+  // Unified energy model: derive dataset refs from the cons:hasEnergyDataset
   // link slugs (no fetch — year/granularity/scenario come from the slug).
   for (const [buildingId, links] of energyDatasetLinks.entries()) {
     const building = buildings.get(buildingId);
@@ -372,9 +374,9 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     }
   }
 
-  // Attachments (gran:hasAttachment → file IRI + schema.org metadata). The energy
-  // certificate is flagged. A legacy cert linked only via gran:hasEnergyCertificate
-  // (no gran:hasAttachment — e.g. still in the old shared certificates/ folder) is
+  // Attachments (bldg:hasAttachment → file IRI + schema.org metadata). The energy
+  // certificate is flagged. A legacy cert linked only via bldg:hasEnergyCertificate
+  // (no bldg:hasAttachment — e.g. still in the old shared certificates/ folder) is
   // synthesized below so it still lists.
   const certUrlOf = (b: BuildingType): string | undefined =>
     typeof b.energyCertificate === "string" && b.energyCertificate

@@ -13,7 +13,7 @@ import {
   parseEnergyDatasetRefs,
   serializeEnergyDataset,
 } from "./energyDataset.ts";
-import { GRAN_NS } from "./vocabularies.ts";
+import { CONSUMPTION_NS } from "./vocabularies.ts";
 
 const B = "https://pod.example/granergize/buildings/b-1.ttl#b-1";
 
@@ -88,7 +88,7 @@ Deno.test("annual dataset round-trips through serialize → parse", () => {
   );
 });
 
-Deno.test("planned scenario serializes gran:Planned and round-trips", () => {
+Deno.test("planned scenario serializes cons:Planned and round-trips", () => {
   const ds: EnergyDataset = {
     building: B,
     year: 2025,
@@ -97,7 +97,7 @@ Deno.test("planned scenario serializes gran:Planned and round-trips", () => {
     metrics: { electricityConsumption: 100000 },
   };
   const ttl = serializeEnergyDataset(ds);
-  assert.ok(ttl.includes("gran:scenario gran:Planned"));
+  assert.ok(ttl.includes("cons:scenario cons:Planned"));
   const node = "https://x/ds#ds";
   const store = parse(ttl.replace(/<#ds>/g, `<${node}>`));
   assert.equal(parseEnergyDataset(store, node)!.scenario, "planned");
@@ -171,7 +171,7 @@ Deno.test("parseEnergyDatasetRefs reads the building's hasEnergyDataset links", 
   const a = datasetNodeUrl(datasetFileUrl(B, 2024, "P1Y", "actual"));
   const b = datasetNodeUrl(datasetFileUrl(B, 2024, "PT15M", "actual"));
   const store = parse(
-    `@prefix gran: <${GRAN_NS}> .\n<${B}> gran:hasEnergyDataset <${a}>, <${b}> .\n`,
+    `@prefix cons: <${CONSUMPTION_NS}> .\n<${B}> cons:hasEnergyDataset <${a}>, <${b}> .\n`,
   );
   const refs = parseEnergyDatasetRefs(store, B);
   assert.equal(refs.length, 2);

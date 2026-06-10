@@ -98,6 +98,34 @@ test.describe("sharing across two pods", () => {
           b2.guard.assertNoAppErrors();
           throw timeout;
         }
+
+        // heike-1 / handbuch: B can hide a building shared with them from their
+        // OWN dashboard (map + lists) via the eye toggle, without touching the
+        // owner's share. The Share-tab row carries a "Shown/Hidden" Switch
+        // (gran:hiddenBuilding in prefs.ttl, re-read by getSharedWithMe). B owns
+        // nothing, so the shared building is the only Explore marker — a clean
+        // signal that hiding removes it from the map and showing brings it back.
+        const sharedRow = received.locator("li")
+          .filter({ has: b2.page.getByText(/^Building /) }).first();
+        const visToggle = sharedRow.getByRole("checkbox"); // the Shown/Hidden Switch
+        await expect(sharedRow.getByText("Shown")).toBeVisible({ timeout: T.action });
+        const markers = b2.page.locator(".leaflet-marker-icon");
+
+        // Hide → row reads "Hidden" and B's Explore map drops to no markers.
+        await visToggle.click();
+        await expect(sharedRow.getByText("Hidden")).toBeVisible({ timeout: T.action });
+        await b2.page.getByRole("tab", { name: "Explore" }).click();
+        await expect(async () => {
+          expect(await markers.count()).toBe(0);
+        }).toPass({ timeout: T.poll });
+
+        // Show → row reads "Shown" again and the marker returns.
+        await b2.page.getByRole("tab", { name: "Share" }).click();
+        await expect(sharedRow.getByText("Hidden")).toBeVisible({ timeout: T.action });
+        await visToggle.click();
+        await expect(sharedRow.getByText("Shown")).toBeVisible({ timeout: T.action });
+        await b2.page.getByRole("tab", { name: "Explore" }).click();
+        await expect(markers.first()).toBeVisible({ timeout: T.action });
       } finally {
         // Drop B's bookmark of A's room so it doesn't leak on B's Pod.
         await removeAllBookmarkedRooms(b2.page);
@@ -134,7 +162,7 @@ test.describe("sharing across two pods", () => {
   // PROBLEMS.md #17: share a single YEAR of energy, not all of it. A's building
   // carries two annual years (2098, 2099); A grants only 2099 via the per-year
   // picker. The crux is the recipient side: B can read 2099 but is denied 2098 —
-  // the building file lists both `gran:hasEnergyDataset` links (B reads the file),
+  // the building file lists both `cons:hasEnergyDataset` links (B reads the file),
   // but only 2099's dataset .acl grants B, so 2098 403s and InvestorEnergy skips
   // it. The map's Energy tab renders InvestorEnergy's per-year table, so both the
   // present (2099) and the withheld (2098) year are observable in one view.

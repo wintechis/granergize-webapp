@@ -307,32 +307,28 @@ legt die Anwendung automatisch an, sobald Sie Ihr erstes Gebäude speichern – 
 müssen sich darum nicht kümmern. Anschließend können Sie eigene Gebäudedaten
 hinzufügen und mit der eigentlichen Arbeit beginnen.
 
-## Ihre Organisation und Ihre Datenproduzenten-Rolle festlegen
+## Ihre Organisation festlegen
 
 Bevor Sie Gebäude anlegen, hinterlegen Sie einmalig Ihre **Organisation** – Ihr
-Unternehmen samt Datenproduzenten-Rolle und Logo. Diese Angaben gelten danach für
-alle Gebäude, die Sie erfassen; Sie müssen sie nicht bei jeder Dateneingabe
-wiederholen. Öffnen Sie über das Avatar-Symbol (oben rechts) den Dialog
-**Organisation** und füllen Sie die Felder aus:
+Unternehmen samt Logo. Diese Angaben gelten danach für alle Gebäude, die Sie
+erfassen; Sie müssen sie nicht bei jeder Dateneingabe wiederholen. Öffnen Sie über
+das Avatar-Symbol (oben rechts) den Dialog **Organisation** und füllen Sie die
+Felder aus:
 
 1. **Firmenname** („Company name"): der Name Ihres Unternehmens – etwa
    „Granergize AG".
-2. **Art des Unternehmens** („Kind of company"): Ihre Datenproduzenten-Rolle im
-   Immobilienökosystem. Zur Auswahl stehen **Investor**, **Nutzer** (Auswahl
-   „User"), **Benchmark Service Provider**, **Facility Manager**, **Entwickler**
-   (Auswahl „Developer"), **Berater/Makler** (Auswahl „Consultant / Broker"),
-   **Softwaredienstleister** (Auswahl „Software Provider") und
-   **Energiedienstleister** (Auswahl „Energy Provider"). Diese Rolle wird
-   automatisch als Herkunft (Provenienz) jedes Gebäudes vermerkt, das Sie anlegen.
-3. **Firmenlogo** („Choose logo…"): wählen Sie eine Bilddatei (PNG, JPG, SVG, WEBP
+2. **Firmenlogo** („Choose logo…"): wählen Sie eine Bilddatei (PNG, JPG, SVG, WEBP
    oder GIF); die Vorschau zeigt das Bild sofort.
-4. **Homepage** („Homepage URI", optional): die Website Ihres Unternehmens.
-5. **Organisations-WebID** („Organisation WebID", optional): besitzt Ihr
+3. **Homepage** („Homepage URI", optional): die Website Ihres Unternehmens.
+4. **Organisations-WebID** („Organisation WebID", optional): besitzt Ihr
    Unternehmen eine eigene WebID, verknüpfen Sie sie hier.
-6. **Speichern:** Bestätigen Sie mit „Save".
+5. **Speichern:** Bestätigen Sie mit „Save".
 
-Die Rolle bei der Dateneingabe ist damit entkoppelt: Im „Add Building"-Dialog
-wählen Sie nur noch die **Vorlage** (das Tabellenformat), nicht mehr die Rolle.
+Sie müssen **keine Rolle** festlegen, um Gebäude anzulegen: Jedes Gebäude und seine
+Energiedaten werden ohne Rollenzuordnung erfasst, lediglich mit Ihrer WebID als
+Datenproduzent vermerkt. Rollen kommen ausschließlich in **Datenräumen** zum Einsatz
+(siehe „Rollenbasierte Freigaben"). Der „Add Building"-Dialog zeigt für alle Gebäude
+dieselbe, einheitliche Eingabemaske.
 
 Das Firmenlogo erscheint anschließend als Markierung Ihrer Gebäude auf der Karte
 (siehe Abschnitt „Daten ansehen") und steigert so die Wiedererkennbarkeit
@@ -450,15 +446,17 @@ von Wetterdaten ist Gegenstand der Weiterentwicklung.
 Im Tab **Manage** unter „Your buildings" stehen zwei Wege zur Verfügung:
 
 - **Add Building:** Ein einzelnes Gebäude über das Formular erfassen (Adresse,
-  Koordinaten, Fläche usw.). Über „Get coordinates" können die Koordinaten aus
-  der Adresse automatisch ermittelt werden.
-- **Import from file:** Mehrere Gebäude auf einmal aus einer Excel-Vorlage
-  importieren. Die eingelesenen Gebäude können Sie vor dem Speichern prüfen und
-  anpassen; fehlende Koordinaten werden beim Import automatisch ergänzt.
+  Koordinaten, Fläche usw.). Für alle Gebäude erscheint dieselbe, einheitliche
+  Eingabemaske – es gibt keine Rollen- oder Vorlagenauswahl mehr. Über „Get
+  coordinates" können die Koordinaten aus der Adresse automatisch ermittelt werden.
+- **Autofill from file:** Mehrere Gebäude auf einmal aus einer Excel-Datei
+  einlesen. Das Tabellenformat wird beim Hochladen **automatisch erkannt** (bei
+  Bedarf über „File format" manuell überschreibbar); enthält die Datei auch
+  Energiedaten, werden diese mit übernommen. Die eingelesenen Gebäude können Sie vor
+  dem Speichern prüfen und anpassen; fehlende Koordinaten werden automatisch ergänzt.
 
-Im Dialog wählen Sie zunächst die **Vorlage** (das Tabellenformat). Nachdem Sie
-die Felder ausgefüllt bzw. die Datei eingelesen haben, klicken Sie auf „Add
-Building". Die eingegebenen Daten werden automatisch in das richtige Format
+Nachdem Sie die Felder ausgefüllt bzw. die Datei eingelesen haben, klicken Sie auf
+„Add Building". Die eingegebenen Daten werden automatisch in das richtige Format
 (RDF) überführt und in Ihrem Solid Pod gespeichert; anschließend erscheint das
 Gebäude in der Liste und auf der Karte.
 
@@ -485,7 +483,8 @@ am Zeilenende mehrere Aktionen:
   Dateien werden automatisch mitgeteilt, wenn Sie das Gebäude teilen, und teilen
   dessen Zugriffsrechte.
 - **Download this building's data:** Die Gebäudedaten als Excel-Datei
-  herunterladen.
+  herunterladen; dabei wählen Sie das gewünschte Tabellenformat (Zeilen-Layout,
+  Tabelle oder generisch).
 - **Share building data:** Das Gebäude mit Partnern teilen (siehe Kapitel „Daten
   gemeinsam nutzen und Mehrwerte schaffen").
 - **Delete building:** Das Gebäude dauerhaft entfernen. Nach einer
@@ -534,13 +533,46 @@ Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
   **Übersichtstabelle** mit den Jahreswerten, darunter als Diagramm. Haben Sie zu
   einem Jahr sowohl geplante (Soll-) als auch tatsächliche (Ist-)Werte erfasst, werden
   beide **nebeneinander** dargestellt – so erkennen Sie auf einen Blick, wie nah
-  der reale Verbrauch am Plan liegt (Soll-Ist-Vergleich). Liegen Verbrauchswerte
-  vergleichbarer Gebäude desselben Betreibers vor, wird Ihr Verbrauch zusätzlich
-  gegen diesen **Betreiber-Durchschnitt** als Benchmark eingeordnet.
+  der reale Verbrauch am Plan liegt (Soll-Ist-Vergleich). Sind weitere Gebäude
+  **mit demselben Betreiber** (Feld „Operated By") und Verbrauchsdaten für
+  dasselbe Jahr vorhanden, wird Ihr Verbrauch zusätzlich gegen diesen
+  **Betreiber-Durchschnitt** als Benchmark eingeordnet. Maßgeblich ist also der
+  eingetragene Betreiber, nicht etwa gleiche Fläche oder gleiches Baujahr – ohne
+  einen zweiten Betreiber-Gleichen mit Daten erscheint kein Benchmark.
 - **Weather data:** die zum Standort passenden Wetterdaten, die zur Einordnung des
   Verbrauchs (z. B. Heizgradtage) herangezogen werden können.
 
 ![Gebäudedetails im Explore-Tab mit Reitern](figures/map-tabs.png){width=100%}
+
+## Gebäude nach Energieverbrauch einordnen (Energie-Linse)
+
+Die Karte im Tab **Explore** kann die Gebäude-Marker auf zwei Arten einfärben.
+Über den Umschalter unten an der Karte wählen Sie die **Linse**:
+
+- **Ownership** (Voreinstellung): unterscheidet farblich nur Ihre **eigenen**
+  Gebäude von solchen, die **andere mit Ihnen geteilt** haben.
+- **Energy:** färbt jeden Marker nach dem **Energieverbrauch** ein – von „More
+  efficient" über „Typical" bis „Less efficient"; Gebäude ohne auswertbare
+  Energiedaten bleiben neutral („No energy data"). Damit setzt die Karte den
+  Anwendungsfall „Vertriebsoptimierung" um: Ein Objekt ist auf einen Blick als
+  energieeffizienter oder -ineffizienter als seine Nachbarn erkennbar.
+
+Die Einordnung erfolgt nach der **Energieintensität** (Verbrauch je m² Fläche,
+kWh/m²/a), nicht nach dem absoluten Verbrauch – so wird eine große, effiziente
+Halle nicht schlechter bewertet als ein kleiner, ineffizienter Bau. Maßgeblich
+ist der **aktuellste** erfasste Jahreswert; die Fläche entnimmt die Anwendung den
+Stammdaten (Hallenfläche, ersatzweise Gebäude- oder Bürofläche). Fehlt einem
+Gebäude die Fläche oder ein Jahresverbrauch, lässt sich keine Intensität
+berechnen, und der Marker bleibt neutral.
+
+Verglichen wird stets gegen die Gebäude, die **gerade im Kartenausschnitt
+sichtbar** sind – beim Verschieben oder Zoomen verschiebt sich also auch der
+Vergleichsmaßstab. Wichtig für die gemeinsame Nutzung: In diese Einordnung gehen
+**auch die mit Ihnen geteilten Gebäude** ein, sofern zu ihnen Energiedaten und
+eine Fläche vorliegen. Sie vergleichen damit eigene und fremde Objekte im selben
+Wettbewerbsumfeld.
+
+![Tab „Explore": die Karte mit aktiver Energie-Linse – die Marker sind nach Energieintensität eingefärbt, die Legende zeigt die Kategorien](figures/energy-lens.png){width=100%}
 
 # Daten gemeinsam nutzen und Mehrwerte schaffen
 
@@ -594,6 +626,23 @@ Investor benötigt grobe Jahreszahlen, ein Energiemanager hingegen hochauflösen
 Mitgliedern eines Datenraums, die eine bestimmte Rolle innehaben – die Auswahl
 der Empfänger ergibt sich aus der Rolle.
 
+Granergize kennt acht Rollen, die Sie sich im Datenraum zuweisen können (die
+Auswahl „My role(s)" zeigt sie mit ihren englischen Bezeichnungen):
+
+- **Investor** – Investoren und Bestandshalter
+- **User** – Nutzer der Immobilie
+- **Benchmark Service Provider** – Benchmark-Dienstleister
+- **Facility Manager** – Gebäude- und Betriebsverantwortliche
+- **Developer** – Projektentwickler
+- **Consultant / Broker** – Berater und Makler
+- **Software Provider** – Softwaredienstleister
+- **Energy Provider** – Energiedienstleister
+
+Diese Rollen sind bewusst nicht exklusiv: Sie können sich **mehrere oder alle**
+zuweisen (siehe „Rolle wählen"). Eine Rolle hängt ausschließlich an der
+Datenraum-Mitgliedschaft – nicht an einem Gebäude, seinen Energiedaten oder Ihrem
+Profil.
+
 ## Vorgehensweise beim Datenteilen
 
 ### Einem Datenraum beitreten oder einen Raum erstellen
@@ -608,8 +657,8 @@ die Grundlage für die rollenbasierte Freigabe. Im Tab **Connect**:
 - **Rolle wählen:** Weisen Sie sich Ihre Rolle(n) im Raum zu und speichern Sie
   mit „Save roles". Sie können sich dabei bewusst **mehrere oder alle Rollen**
   zuweisen – das ist so vorgesehen. Über diese Rollen können andere gezielt „By
-  role" mit Ihnen teilen. (Diese Raum-Rolle ist unabhängig von der
-  Datenproduzenten-Rolle aus Ihrem Profil.)
+  role" mit Ihnen teilen. Rollen gibt es ausschließlich hier, im Datenraum – sie
+  hängen nicht an Ihren Gebäuden oder Ihrem Profil.
 
 ![Tab „Connect": Raum erstellen oder beitreten und Rolle wählen](figures/room.png){width=100%}
 

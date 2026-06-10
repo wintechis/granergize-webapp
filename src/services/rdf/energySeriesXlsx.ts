@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { GRAN_NS, USERVOC_NS } from "./vocabularies.ts";
+import { CONSUMPTION_NS } from "./vocabularies.ts";
 
 // ---------------------------------------------------------------------------
 // Lastgang (15-min load profile) helpers — parse a utility load-profile XLSX
@@ -186,8 +186,8 @@ export function generateEnergyDayTtl(
   const blocks = readings
     .map(
       (r) =>
-        `:r_${r.slotId} a uservoc:EnergyConsumptionReading ;\n` +
-        `    sosa:observedProperty gran:ElectricityConsumption ;\n` +
+        `:r_${r.slotId} a cons:EnergyConsumptionReading ;\n` +
+        `    sosa:observedProperty cons:ElectricityConsumption ;\n` +
         `    sosa:hasFeatureOfInterest <${buildingSubjectUri}> ;\n` +
         `    sosa:hasResult [ a sosa:Result ; sosa:hasSimpleResult "${r.valueKwh}"^^xsd:decimal ; ssn:hasUnit unit:KiloW-HR ] ;\n` +
         `    sosa:phenomenonTime [ a time:Interval ; time:hasBeginning "${r.beginTs}"^^xsd:dateTime ; time:hasEnd "${r.endTs}"^^xsd:dateTime ] .`,
@@ -201,8 +201,7 @@ export function generateEnergyDayTtl(
     `@prefix ssn: <http://www.w3.org/ns/ssn/> .\n` +
     `@prefix time: <http://www.w3.org/2006/time#> .\n` +
     `@prefix unit: <https://qudt.org/vocab/unit#> .\n` +
-    `@prefix gran: <${GRAN_NS}> .\n` +
-    `@prefix uservoc: <${USERVOC_NS}> .\n` +
+    `@prefix cons: <${CONSUMPTION_NS}> .\n` +
     `\n# 15-minute energy readings — ${date} (UTC)\n` +
     `# ${label}\n` +
     `# ${readings.length} reading(s)\n\n` +

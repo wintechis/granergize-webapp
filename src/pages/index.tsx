@@ -105,15 +105,11 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const [archiveBusy, setArchiveBusy] = useState(false);
   const archiveInput = useRef<HTMLInputElement | null>(null);
 
-  // Re-evaluate the fresh-Pod demo offer from its actual inputs (buildings, prefs,
-  // company kind) and sync `companyKind`. Offer the demo when there are no buildings
-  // — whether the container is absent (null) or exists-but-empty (all buildings
-  // deleted), so the offer (the only in-app seed path) comes back, not only on a
-  // pristine Pod. Gated on the demo not being declined AND on a company kind we have
-  // example data for — the seed mirrors that kind, so without a supported kind
-  // there's nothing meaningful to seed. Runs at login AND whenever the organisation
-  // dialog saves: the offer depends on the company kind, so SETTING the kind must
-  // bring the banner back without a reload (a freshly-classified Pod still gets it).
+  // Re-evaluate the fresh-Pod demo offer from its actual inputs (buildings, prefs).
+  // Offer the demo when there are no buildings — whether the container is absent
+  // (null) or exists-but-empty (all buildings deleted), so the offer (the only in-app
+  // seed path) comes back, not only on a pristine Pod — and the demo hasn't been
+  // declined. The fixed demo set is role-independent (no company kind gating).
   const refreshDemoOffer = useCallback(async () => {
     try {
       const webId = session.info.webId;
@@ -136,9 +132,8 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   }, [refreshDemoOffer]);
 
   /**
-   * Seed the demo building(s) matching the user's company kind + refresh the
-   * dashboard (banner & menu share this). Requires a company kind — the offer is
-   * gated on it, so this is a no-op guard for the menu path.
+   * Seed the fixed demo building(s) + refresh the dashboard (banner & menu share
+   * this). Role-independent — no company kind required.
    */
   const seedDemos = async () => {
     const webId = session.info.webId;
@@ -245,8 +240,14 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     if (archiveBusy) return;
     setArchiveBusy(true);
     try {
-      const { buildings, views, skipped } = await reissueGrants(session);
-      const tail = skipped ? ` (${skipped} off-Pod skipped)` : "";
+      const { buildings, views, skipped, missing, revoked } =
+        await reissueGrants(session);
+      const tails = [
+        revoked ? `${revoked} revocation(s) replayed` : "",
+        missing ? `${missing} deleted skipped` : "",
+        skipped ? `${skipped} off-Pod skipped` : "",
+      ].filter(Boolean);
+      const tail = tails.length ? ` (${tails.join(", ")})` : "";
       showNotification(
         `Reissued ${buildings + views} share grant(s)${tail}`,
         "success",
@@ -527,6 +528,14 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             {devMode && (
               <MenuItem onClick={handleChangeAccount}>
                 Change account (full logout)
+              </MenuItem>
+            )}
+            {devMode && (
+              <MenuItem
+                component="a"
+                href={`${import.meta.env.BASE_URL}granergize-handbuch.docx`}
+              >
+                Praxishandbuch herunterladen
               </MenuItem>
             )}
             <MenuItem onClick={handleLogout}>

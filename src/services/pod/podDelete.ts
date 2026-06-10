@@ -4,8 +4,19 @@ import { fetchFresh } from "./podFetch.ts";
 import { appRoot } from "./solidUtils.ts";
 import { LDP_CONTAINS as LDP_CONTAINS_IRI } from "../rdf/vocabularies.ts";
 import { logError } from "../../lib/logError.ts";
+import { mapPooled } from "../../lib/pool.ts";
 
 const LDP_CONTAINS = DataFactory.namedNode(LDP_CONTAINS_IRI);
+
+/**
+ * How many children to delete at once within a container. Mirrors the write-side
+ * bound used to seed a 15-min series' daily files (`mapPooled(…, 8, …)` in
+ * `buildingSerializer.ts`): a heavy subtree (a sub-hourly series is dozens of
+ * daily files, each two sequential round-trips — resource then `.acl`) was
+ * deleted serially, which overran on a slower server (the JSS bulk-delete
+ * timeout). Bounded so a deep tree can't open hundreds of sockets at once.
+ */
+const DELETE_CONCURRENCY = 8;
 
 /**
  * Recursively delete an LDP container and everything beneath it.
@@ -33,14 +44,19 @@ export async function deleteContainerRecursive(
     const children = store
       .getObjects(DataFactory.namedNode(container), LDP_CONTAINS, null)
       .map((o) => o.value);
-    for (const child of children) {
+    // Children are independent and the container can only be removed once they're
+    // ALL gone, so delete them with bounded concurrency (then the container, below)
+    // rather than one-at-a-time. A sub-container recurses (and fully empties)
+    // before its own delete; the per-resource resource-then-`.acl` ordering stays
+    // intact inside deleteResourceThenAcl.
+    await mapPooled(children, DELETE_CONCURRENCY, async (child) => {
       signal?.throwIfAborted();
       if (child.endsWith("/")) {
         await deleteContainerRecursive(child, session, signal);
       } else {
         await deleteResourceThenAcl(child, session);
       }
-    }
+    });
   }
   signal?.throwIfAborted();
   await deleteResourceThenAcl(container, session);

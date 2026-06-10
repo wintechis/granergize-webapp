@@ -9,7 +9,7 @@ import {
   computeAggregation,
   summarizeContributors,
 } from "./viewComputer.ts";
-import { GRAN_NS } from "../rdf/vocabularies.ts";
+import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 import {
   datasetFileUrl,
   datasetNodeUrl,
@@ -24,7 +24,7 @@ function buildingDoc(uri: string, years: number[]): string {
   const links = years
     .map((y) => `<${datasetNodeUrl(datasetFileUrl(uri, y, "P1Y", "actual"))}>`)
     .join(" ,\n    ");
-  return `@prefix gran: <${GRAN_NS}> .\n<${uri}#b>\n  gran:hasEnergyDataset ${links} .\n`;
+  return `@prefix cons: <${CONSUMPTION_NS}> .\n<${uri}#b>\n  cons:hasEnergyDataset ${links} .\n`;
 }
 
 /**
@@ -75,6 +75,7 @@ function def(
   buildingUris: string[],
   aggregationType: AggregationType,
   metrics: string[] = [METRIC],
+  benchmark?: boolean,
 ): AggregatedViewDefinition {
   return {
     id: "v1",
@@ -83,6 +84,7 @@ function def(
     aggregationType,
     metrics,
     createdAt: "2026-06-06T00:00:00Z",
+    ...(benchmark ? { benchmark } : {}),
   };
 }
 
@@ -158,18 +160,28 @@ Deno.test("computeAggregation: a metric absent from the data is omitted", async 
   assert.equal("heatConsumption" in snap.values, false);
 });
 
-Deno.test("computeAggregation: benchmark opt marks the snapshot as a benchmark result", async () => {
+Deno.test("computeAggregation: a benchmark-flagged DEFINITION marks the snapshot (typing survives any recompute)", async () => {
+  // The flag lives on the definition, so a plain refresh re-derives the
+  // bench:BenchmarkResult typing — call-site options used to be the only
+  // carrier, and a refresh (which passed none) silently stripped it.
   const session = pod({ [B1]: [{ year: 2024, value: 100 }] });
-  const snap = await computeAggregation(session, def([B1], "average"), {
-    benchmark: true,
-    metricPeriod: "2024",
-  });
+  const snap = await computeAggregation(session, def([B1], "average", [METRIC], true));
   assert.equal(snap.isBenchmark, true);
   assert.equal(snap.computedBy, "https://me.example/profile/card#me");
+  // metricPeriod is DERIVED from the data actually aggregated (latest year).
   assert.equal(snap.metricPeriod, "2024");
 });
 
-Deno.test("computeAggregation: without the benchmark opt the snapshot is unmarked", async () => {
+Deno.test("computeAggregation: benchmark metricPeriod tracks the newest year across buildings", async () => {
+  const session = pod({
+    [B1]: [{ year: 2023, value: 50 }, { year: 2024, value: 100 }],
+    [B2]: [{ year: 2023, value: 200 }],
+  });
+  const snap = await computeAggregation(session, def([B1, B2], "average", [METRIC], true));
+  assert.equal(snap.metricPeriod, "2024");
+});
+
+Deno.test("computeAggregation: without the definition flag the snapshot is unmarked", async () => {
   const session = pod({ [B1]: [{ year: 2024, value: 100 }] });
   const snap = await computeAggregation(session, def([B1], "average"));
   assert.equal(snap.isBenchmark, undefined);

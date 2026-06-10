@@ -1,4 +1,4 @@
-# Operations — queries and mutations
+# Read and write operations — queries and mutations
 
 How the app's operations are organised. Following **Command–Query Separation**, every
 operation is one of two kinds:

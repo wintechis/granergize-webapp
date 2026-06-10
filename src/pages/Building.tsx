@@ -91,7 +91,7 @@ export default function Building(
     );
   }
 
-  function createNaceLink(naceCode: number) {
+  function createNaceLink(naceCode: string) {
     return <UriLink href={`https://nacecode.de/${naceCode}`}>{naceCode}</UriLink>;
   }
 

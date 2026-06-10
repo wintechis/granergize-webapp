@@ -85,7 +85,7 @@ export function ShareBuildingDialog({
 
   // Years the building has energy for (annual + series, both scenarios), so a
   // single year-share grants every dataset for that year. getEnergyDataUrls then
-  // filters the building's gran:hasEnergyDataset links by this selection.
+  // filters the building's cons:hasEnergyDataset links by this selection.
   const availableYears = useMemo(
     () =>
       [...new Set((building.energyDatasets ?? []).map((d) => d.year))]
@@ -129,6 +129,14 @@ export function ShareBuildingDialog({
             invalid.join(", ")
           }`,
         );
+        return;
+      }
+      // Sharing to yourself is a no-op with a cost: it appends a permanently
+      // active grant to shared-out/ (the revoke's removeFromACL self-no-ops, so
+      // the pair can never fold away) and posts a pointless self-notification.
+      // The role path already excludes self (getMembersByRole).
+      if (webIds.includes(session.info.webId ?? "")) {
+        setWebIdError("You cannot share a building with yourself");
         return;
       }
       setWebIdError("");

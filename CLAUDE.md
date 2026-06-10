@@ -69,9 +69,13 @@ mirroring the service-test pattern.
   all path builders move together. The e2e runs write to a throwaway collection so
   they never touch real `granergize/` data: Tier 3 bakes a fixed `granergize-e2e`
   into the build (its local CSS is wiped per spec), while Tier 4 (real Pods) writes
-  to a per-run `granergize-e2e-<uuid>` — generated in `playwright.config.ts` and
-  served by a freshly-started dev server (so `reuseExistingServer` is off for Tier
-  4). A unique segment per run means leftover/stuck resources from an earlier run
+  to a per-run `granergize-e2e-<uuid>` — generated in `playwright.config.ts`.
+  `reuseExistingServer` is off for the app server in BOTH tiers: Tier 4 because a
+  reused dev server would carry the wrong per-run collection; Tier 3 because a
+  reused `vite preview` serves its startup-time snapshot of `dist/`, not the build
+  the current run just produced (a stale snapshot once carried the remote
+  `VITE_OIDC_CLIENT_ID`, silently making "hermetic" local logins depend on an
+  external host). A unique segment per run means leftover/stuck resources from an earlier run
   (e.g. a Pod request that hung mid-cleanup) can't impede a fresh run, so there is
   no reset step. Set `VITE_POD_APP_DIR` explicitly to target a specific collection.
 
@@ -148,29 +152,37 @@ those legitimately live in query/restore paths. `notes/read-write-operations.md`
 taxonomy, mapping each operation to its model.
 
 ### Roles, provenance & data-shape dispatch
-`UserRole` (`types/types.ts`) — `dummy | investor | user | benchmark_service_provider` —
-is used for three *separate* things; do not conflate them:
-- **Provenance** — who produced a building's data, recorded in the building file as a
-  PROV-O qualified attribution: `<#b> prov:qualifiedAttribution [ a prov:Attribution ;
-  prov:agent <webid> ; prov:hadRole gran:<category> ]`. The parser
-  (`buildingParser.ts`) reads it into `BuildingType.provenance` / `attributedTo`;
-  `constants/roles.ts` holds the category↔IRI maps (`PROVENANCE_TO_IRI` /
-  `IRI_TO_PROVENANCE`). **Provenance never drives behaviour.** Legacy pods carry the
-  category as a `gran:dataSourceRole` triple in the registry; `TurtleParsingService.ts`
-  reads that only as a *fallback* when the file has no attribution.
+**A role never attaches to a building or its energy data — roles exist only as
+data-room membership.** A building is one generic shape (a flat bag of optional
+master-data parts; energy is a sparse, pick-and-choose set of metrics at a user-chosen
+modelling depth), the same in the Add and Edit dialogs (the shared `BuildingDetailFields`
++ `makeBuildingFields`). `UserRole` (`src/types.ts`) now serves ONE job — the data-room
+membership role — and must not pick up another:
 - **Data-room membership role** — the "My role(s)" you self-assign in a room
-  (`ConnectPage`), used as a sharing target. Unrelated to a building's provenance.
-- **Import/export template** — `parseCsvToFields(file, template)` /
-  `buildingToWorkbook` pick the spreadsheet shape (investor row-label / BSP columns /
-  generic) by category.
+  (`ConnectPage`), used as a sharing target; read as the role of the *organisation* the
+  member represents (see `notes/room.md`). `constants/roles.ts` holds the role↔IRI maps
+  (`MEMBERSHIP_ROLE_TO_IRI`/`IRI_TO_MEMBERSHIP_ROLE`; `dataRoom.ts` is their only
+  consumer).
+- **Import file-format / export style** — its own `SpreadsheetFormat` type
+  (`investor`/`benchmark`/`generic`), **not** `UserRole`: `parseCsvToFields` auto-detects
+  the spreadsheet *layout* on upload (`detectSpreadsheetFormat`: row-label / table /
+  generic), with a manual override in the "Autofill from file" sub-flow;
+  `buildingToXlsx(b, style)` takes a user-chosen layout at download. A format, not a role.
 
-**Behaviour dispatches on the data's shape, not the role.** Energy loading
+**Provenance is the producing *agent* only**, recorded in the building file as a PROV-O
+qualified attribution `<#b> prov:qualifiedAttribution [ a prov:Attribution ; prov:agent
+<webid> ]` — no `prov:hadRole`. The parser reads `prov:agent` into
+`BuildingType.attributedTo` (drives the producer-logo marker + the "Data source" row); a
+legacy `prov:hadRole` on an old Pod is ignored. There is no `BuildingType.provenance` and
+no "company kind" (`org:classification`) — a user declares no organisation role.
+
+**Behaviour dispatches on the data's shape, not a role.** Energy loading
 (`TurtleParsingService.ts`) and the energy-tab render (`Energy.tsx`, `ExplorePage.tsx`)
 key on the dataset's declared **granularity** via `isSeriesGranularity(...)`
 (`durationUtils.ts`): a sub-hourly series (`PT15M`) is lazy-loaded on click and renders
-the time-series chart; an annual aggregate (inline SOSA observations) is bulk-loaded and
-renders the annual chart. The map marker distinguishes only owned vs shared (visibility),
-not provenance.
+the time-series chart; an annual aggregate is bulk-loaded and renders the annual chart.
+The aggregated-view dialog (`CreateViewDialog`) and the map energy-lens categorise by the
+energy shape present, not a role. The map marker distinguishes only owned vs shared.
 
 ### RDF conventions
 - **Terminology: say "URI" (RFC 3986), or "IRI" (RFC 3987) for the
@@ -179,14 +191,21 @@ not provenance.
   mandate to use precise wording, so prefer URI/IRI in user-facing text, error
   messages, comments, and identifiers. (RDF terms are IRIs.)
 - Vocabulary IRIs are centralized in `src/services/rdf/vocabularies.ts` (`GRAN_NS`,
-  `INVESTOR_NS`, `BENCH_NS`, SOSA/TIME/SSN, XSD datatypes). Use these constants; don't
-  inline IRI strings.
-- The Granergize **ontologies themselves** (the gran / investor / benchmark / user
-  vocabularies, one per namespace) are versioned in `vocab/` — the repo is their source
-  of truth (see `vocab/README.md`); the documents on the Pod are a publish target, and the
-  app never fetches them at runtime. `vocab.test.ts` asserts every owned field-schema
-  predicate, object-property range, and controlled-vocab instance is defined there, so the
-  code and the published vocab can't drift.
+  `BUILDING_NS`, `CONSUMPTION_NS`, SOSA/TIME/SSN, XSD datatypes). Use these constants;
+  don't inline IRI strings.
+- The Granergize **ontologies themselves** — three vocabularies partitioned by
+  *subject*: building master data (`building.ttl#`, a RealEstateCore extension
+  profile), consumption (`consumption.ttl#`, a SOSA profile incl. views/benchmarks)
+  and core app plumbing (`vocab.ttl#`: roles, sharing `kind`, prefs, bookmarks) — are
+  versioned in `vocab/` — the repo is their source of truth (see `vocab/README.md`);
+  the documents on the Pod (public `gra/` base) are a publish target, and the app
+  never fetches them at runtime. `vocab.test.ts` asserts every owned field-schema
+  predicate, object-property range, controlled-vocab instance, and energy/view/core
+  term is defined there, so the code and the published vocab can't drift. Building
+  terms are minted in `BUILDING_NS` and aligned to REC 4 / Brick via `rdfs:seeAlso`
+  (subsumption only where shapes match); the spine (`rec:Building`, `rec:ownedBy`,
+  `rec:operatedBy`, geo, vCard, SOSA, PROV, FOAF, schema.org) is reused directly.
+  See `notes/plan-vocab-consolidation.md` for the partition rationale.
 - Predicate→`BuildingType` field mappings live in
   `src/services/rdf/building/buildingConfig.ts`. Each field carries its `rdfs:range`
   (an XSD datatype → typed literal; `foaf:Agent` → IRI reference; another class IRI →
@@ -229,7 +248,12 @@ not provenance.
 - **Aggregated views** — `src/services/aggregation/` (`viewManager` persists view
   definitions/snapshots as Turtle in the Pod; `viewComputer` computes them).
 - **Data integration** — `AddBuildingDialog.tsx` + `buildingSerializer.ts` import buildings
-  from XLSX templates (`public/templates/`, parsed with `xlsx`) and serialize to Turtle.
+  from partner XLSX files (parsed with `xlsx`; synthetic samples in
+  `test/e2e/fixtures/`) and serialize to Turtle. The export side
+  (`buildingWorkbook.ts`) writes styled workbooks with `exceljs` (lazy-loaded;
+  the community `xlsx` build can't write styles/images) — an exported building
+  re-imports via `parseCsvToFields`, so a demo-building export doubles as the
+  import template (there are no downloadable templates).
 
 ### UI stack
 MUI v6 (`@mui/material`, Emotion) with a custom theme in `src/theme.ts`. Charts use

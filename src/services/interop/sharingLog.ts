@@ -2,12 +2,14 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Store } from "n3";
 import {
   ACL_NS,
+  CONSUMPTION_NS,
   GRAN_NS,
   INTEROP_NS,
   PROV_GENERATED_AT_TIME,
   PROV_NS,
   PROV_WAS_ASSOCIATED_WITH,
   RDF_TYPE,
+  REC_BUILDING,
 } from "../rdf/vocabularies.ts";
 import { appRoot } from "../pod/solidUtils.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
@@ -29,8 +31,8 @@ const { namedNode } = DataFactory;
  *      interop:grantee        <recipient-webid> ;
  *      interop:forResource    <resource-uri> ;
  *      interop:accessMode     acl:Read ;
- *      gran:kind              gran:Building ;     # Building | View (routing hint)
- *      prov:generatedAtTime   "…"^^xsd:dateTime .
+ *      gran:kind              rec:Building ;      # the shared resource's class:
+ *      prov:generatedAtTime   "…"^^xsd:dateTime . # rec:Building | cons:View
  *
  * A revocation is `a interop:AccessRevocation` with the same (grantee, resource)
  * and a later time, and no accessMode/kind. Current state = fold the log: group
@@ -82,6 +84,12 @@ const WAS_ASSOCIATED_WITH = namedNode(PROV_WAS_ASSOCIATED_WITH);
 const GENERATED_AT = namedNode(PROV_GENERATED_AT_TIME);
 const KIND = namedNode(`${GRAN_NS}kind`);
 
+/** Sharing kind ↔ the shared resource's class IRI (the `gran:kind` value). */
+const KIND_TO_IRI: Record<SharingKind, string> = {
+  Building: REC_BUILDING,
+  View: `${CONSUMPTION_NS}View`,
+};
+
 /** Serialize one event resource (subject `<>` — the resource *is* the event). */
 export function buildSharingEventTurtle(e: SharingEvent): string {
   const triples = [
@@ -92,7 +100,7 @@ export function buildSharingEventTurtle(e: SharingEvent): string {
   ];
   if (e.type === "grant") {
     triples.push("interop:accessMode acl:Read");
-    if (e.kind) triples.push(`gran:kind gran:${e.kind}`);
+    if (e.kind) triples.push(`gran:kind <${KIND_TO_IRI[e.kind]}>`);
     if (e.includesEnergy !== undefined) {
       triples.push(`interop:includesEnergyData "${e.includesEnergy}"^^xsd:boolean`);
     }
@@ -150,9 +158,9 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
       const owner = store.getObjects(subj, WAS_ASSOCIATED_WITH, null)[0]?.value ??
         "";
       const kindIri = store.getObjects(subj, KIND, null)[0]?.value;
-      const kind: SharingKind | undefined = kindIri === `${GRAN_NS}View`
+      const kind: SharingKind | undefined = kindIri === KIND_TO_IRI.View
         ? "View"
-        : kindIri === `${GRAN_NS}Building`
+        : kindIri === KIND_TO_IRI.Building
         ? "Building"
         : undefined;
       const energy = store.getObjects(subj, INCLUDES_ENERGY, null)[0]?.value;
@@ -193,18 +201,18 @@ async function readAllEvents(
 }
 
 /**
- * Fold a log container to its currently-active grants: group events by
- * (grantee, resource), keep the latest by `prov:generatedAtTime`, and emit it
- * only if that latest event is a grant (a later revocation drops the pair). On an
- * exact timestamp tie a revocation wins (least-privilege; also makes a rapid
+ * Fold a log container to the LATEST event per (grantee, resource) pair —
+ * grants AND revocations. The latest is by `prov:generatedAtTime`; on an exact
+ * timestamp tie a revocation wins (least-privilege; also makes a rapid
  * grant→revoke within the same millisecond deterministic regardless of read
- * order).
+ * order). The revocation side exists so a log replay (`reissueGrants`) can also
+ * WITHDRAW enforcement the log says is gone — not just re-apply active grants.
  * @operation query
  */
-export async function foldSharingLog(
+export async function foldSharingLogEvents(
   containerUrl: string,
   session: Session,
-): Promise<ActiveGrant[]> {
+): Promise<SharingEvent[]> {
   const events = await readAllEvents(containerUrl, session);
   const latest = new Map<string, SharingEvent>();
   for (const e of events) {
@@ -214,7 +222,20 @@ export async function foldSharingLog(
       (e.at === prev.at && e.type === "revocation");
     if (wins) latest.set(key, e);
   }
-  return [...latest.values()]
+  return [...latest.values()];
+}
+
+/**
+ * Fold a log container to its currently-active grants: the latest event per
+ * (grantee, resource) pair, kept only if it is a grant (a later revocation
+ * drops the pair). See {@link foldSharingLogEvents} for the tie-break rule.
+ * @operation query
+ */
+export async function foldSharingLog(
+  containerUrl: string,
+  session: Session,
+): Promise<ActiveGrant[]> {
+  return (await foldSharingLogEvents(containerUrl, session))
     .filter((e) => e.type === "grant")
     .map((e): ActiveGrant => {
       const grant: ActiveGrant = {

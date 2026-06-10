@@ -8,11 +8,11 @@ import {
   parseLastgangXlsx,
   synthDayReadings,
 } from "./energySeriesXlsx.ts";
-import { USERVOC_NS } from "./vocabularies.ts";
+import { CONSUMPTION_NS } from "./vocabularies.ts";
 
 const { namedNode } = DataFactory;
 const RDF_TYPE = namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type");
-const READING = namedNode(`${USERVOC_NS}EnergyConsumptionReading`);
+const READING = namedNode(`${CONSUMPTION_NS}EnergyConsumptionReading`);
 
 /** aoa_to_sheet + its decoded range, the two args parseLastgangXlsx consumes. */
 function sheet(rows: (string | number | null)[][]): [XLSX.WorkSheet, XLSX.Range] {

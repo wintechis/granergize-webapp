@@ -19,7 +19,7 @@ import { T } from "../helpers/timeouts.ts";
  * the map's colour lens from Ownership to Energy and asserts the categorisation
  * spans the range — at least one `energy-efficient` (green) and one
  * `energy-inefficient` (red) marker (terciles over three distinct intensities give
- * one of each). Using the shared demo seed mirrors `view-data.spec.ts`, which the
+ * one of each). Using the shared demo seed mirrors `materialised-views.spec.ts`, which the
  * Tier-3 suite already relies on.
  *
  * The intensity / tercile maths is proved exhaustively in the Tier-1

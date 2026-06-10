@@ -58,10 +58,10 @@ export interface BuildingType {
   attributedTo?: string;
   type: string;
   customer?: string;
-  /** URL of the energy certificate file, if any (`gran:hasEnergyCertificate`). */
+  /** URL of the energy certificate file, if any (`bldg:hasEnergyCertificate`). */
   energyCertificate?: string;
   /**
-   * Files attached to the building (`gran:hasAttachment`), incl. the energy
+   * Files attached to the building (`bldg:hasAttachment`), incl. the energy
    * certificate (flagged `isEnergyCertificate`). Stored under the per-building
    * `files/` container on the owner's Pod; downloaded via authed `session.fetch`.
    */
@@ -71,30 +71,35 @@ export interface BuildingType {
   /** How precisely lat/long were geocoded (from the geo:Point), when known. */
   geocodePrecision?: "address" | "postcode" | "city";
   locality?: string;
-  postalCode?: number;
+  /** An identifier, not a number (leading zeros: "01067"). */
+  postalCode?: string;
   region?: string;
   streetAddress?: string;
   buildingArea?: number;
   landArea?: number;
   hasPVSystem?: boolean;
+  /** Investor WebID (`bldg:investor`, ranges over foaf:Agent — an agent link like
+   * operatedBy, not a free-text label). Legacy literal values tolerated on read. */
   investor?: string;
   officeArea?: number;
   usedAs?: string;
   yearOfConstruction?: number;
-  naceCode?: number;
+  /** An identifier, not a number ("52.10" ≠ 52.1). */
+  naceCode?: string;
   operatedBy?: string;
+  /** Owner WebID (`rec:ownedBy`, ranges over foaf:Agent — an agent link like
+   * operatedBy). Legacy literal values tolerated on read. */
+  ownedBy?: string;
   /**
-   * Unified energy model: the building's `gran:hasEnergyDataset` links (one per
+   * Unified energy model: the building's `cons:hasEnergyDataset` links (one per
    * year/granularity/scenario), derived from the link slugs. The actual figures
    * live in separate resources, fetched on demand (charts, export).
    */
   energyDatasets?: EnergyDatasetRef[];
   isShared?: boolean;
-  // BSP role fields
   logisticsFunction?: string;
   climateControlType?: string;
   greenLeaseShare?: number; // %
-  indoorTemperature?: string;
   pvInstallationYear?: number;
   pvCapacityKW?: number;
   companyName?: string;
@@ -122,7 +127,7 @@ export interface BuildingType {
 }
 
 /**
- * A file attached to a building (`gran:hasAttachment`), described by schema.org
+ * A file attached to a building (`bldg:hasAttachment`), described by schema.org
  * `MediaObject` metadata in the building TTL. The binary lives under the
  * per-building `files/` container; fetch it with an authenticated `session.fetch`.
  */
@@ -145,8 +150,8 @@ export interface AttachmentRef {
 export type Scenario = "actual" | "planned";
 
 /**
- * A reference to one `gran:EnergyDataset`, derived from a building's
- * `gran:hasEnergyDataset` link. The link slug (`<year>-<granularity>[-planned]`)
+ * A reference to one `cons:EnergyDataset`, derived from a building's
+ * `cons:hasEnergyDataset` link. The link slug (`<year>-<granularity>[-planned]`)
  * is self-describing, so year/granularity/scenario are known without fetching the
  * dataset (used to dispatch load: series lazy, annual prefetched). See
  * `services/rdf/energyDataset.ts`.
@@ -167,6 +172,8 @@ export type WeatherType = {
 export type EnergyType = {
   id: number;
   uri: string;
+  /** The annual year the figures cover (the latest accessible actual year). */
+  year?: number;
   energyNeed: EnergyNeed;
   energyGeneration: EnergyGeneration;
   energyStorage: EnergyStorage;
@@ -174,7 +181,7 @@ export type EnergyType = {
   energyTransfer: EnergyTransfer;
   energyUsage: EnergyUsage;
   environmentalFactor: EnvironmentalFactor;
-  /** Populated only for the User role: ordered 15-minute electricity readings */
+  /** Populated only for series-shaped data: ordered 15-minute electricity readings */
   timeSeries?: {
     electricityConsumption: Array<{ begin: string; value: number }>;
   };
@@ -265,6 +272,11 @@ export interface AggregatedViewDefinition {
   createdAt: string; // ISO timestamp
   lastComputedAt?: string; // ISO timestamp of last snapshot computation
   period?: string; // "YYYY-MM" — set for user-role electricity views
+  /** Marks the view as a benchmark: every (re)compute derives the snapshot's
+   * bench:BenchmarkResult typing from this persisted flag, so a refresh can't
+   * strip it. The covered year (metricPeriod) is derived from the data at
+   * compute time, not stored. */
+  benchmark?: boolean;
 }
 
 export interface AggregatedViewSnapshot {

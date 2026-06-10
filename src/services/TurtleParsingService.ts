@@ -188,7 +188,7 @@ async function discoverOwnBuildings(
 
 /**
  * Building URLs shared *with* the user (on other Pods), by folding the
- * `shared-in/` event log for `gran:kind gran:Building` grants. An empty/missing
+ * `shared-in/` event log for `gran:kind rec:Building` grants. An empty/missing
  * log (no shares received) yields `[]`.
  */
 async function listSharedBuildingSources(
@@ -272,7 +272,7 @@ export async function loadBuildings(
 /**
  * Phase 2: load + parse energy for already-parsed buildings, returning the energy
  * series, category averages, and per-operator averages. Reads each building's unified
- * `energyDatasets` refs (from the `gran:hasEnergyDataset` link slugs): sub-hourly
+ * `energyDatasets` refs (from the `cons:hasEnergyDataset` link slugs): sub-hourly
  * *series* are skipped (lazy-loaded on click); the latest actual annual aggregate
  * is fetched and parsed into the building's energyNeed + the cross-building
  * averages. A pure function of the buildings it's given — no registry re-read.
@@ -295,44 +295,55 @@ export async function loadEnergy(
   // "portfolio average" the energy view shows, distinct from the cross-all mean.
   const portfolioAggregatedValues: Record<string, number[]> = {};
 
-  // For each building, the latest ACTUAL annual (non-series) dataset paints the
-  // map and feeds the averages. Sub-hourly *series* datasets are skipped here and
-  // loaded lazily on click — dispatch is purely on the declared granularity. The
-  // annual datasets are now separate resources, so fetch them with bounded
+  // For each building, the latest ACCESSIBLE actual annual (non-series) dataset
+  // paints the map and feeds the averages. Sub-hourly *series* datasets are
+  // skipped here and loaded lazily on click — dispatch is purely on the declared
+  // granularity. The annual datasets are separate resources, fetched with bounded
   // concurrency (one Pod round-trip per building in series made the map slow).
-  const annualTasks: Array<{ building: BuildingType; ref: EnergyDatasetRef }> = [];
+  const annualTasks: Array<{ building: BuildingType; refs: EnergyDatasetRef[] }> =
+    [];
   for (const building of buildings) {
-    const annual = (building.energyDatasets ?? []).filter(
-      (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),
-    );
+    const annual = (building.energyDatasets ?? [])
+      .filter(
+        (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),
+      )
+      .sort((a, b) => b.year - a.year); // newest first
     if (annual.length === 0) continue;
-    const latest = annual.reduce((a, b) => (a.year >= b.year ? a : b));
-    annualTasks.push({ building, ref: latest });
+    annualTasks.push({ building, refs: annual });
   }
 
   const parsedAnnual = await mapPooled(
     annualTasks,
     6,
-    async ({ building, ref }) => {
-      try {
-        const fileUrl = ref.url.split("#")[0];
-        const res = await fetchFresh(fileUrl, session);
-        if (!res.ok) return null;
-        const store = new Store(
-          new Parser({ baseIRI: fileUrl }).parse(await res.text()),
-        );
-        const ds = parseEnergyDataset(store, ref.url);
-        return ds?.metrics ? { building, metrics: ds.metrics } : null;
-      } catch (error) {
-        console.error(`Failed to load energy for building ${building.id}:`, error);
-        return null;
+    async ({ building, refs }) => {
+      // Newest-first with fallback: a per-year share grants only some years, so
+      // the recipient's fetch of the newest LINKED year can 403 while an older
+      // granted year is readable — fall through to the next-newest instead of
+      // showing "no energy data" (and dropping out of the map's peer terciles).
+      for (const ref of refs) {
+        try {
+          const fileUrl = ref.url.split("#")[0];
+          const res = await fetchFresh(fileUrl, session);
+          if (!res.ok) continue;
+          const store = new Store(
+            new Parser({ baseIRI: fileUrl }).parse(await res.text()),
+          );
+          const ds = parseEnergyDataset(store, ref.url);
+          if (ds?.metrics) return { building, metrics: ds.metrics, year: ref.year };
+        } catch (error) {
+          console.error(
+            `Failed to load energy ${ref.year} for building ${building.id}:`,
+            error,
+          );
+        }
       }
+      return null;
     },
   );
 
   for (const entry of parsedAnnual) {
     if (!entry) continue;
-    const { building, metrics } = entry;
+    const { building, metrics, year } = entry;
     const energyNeed: Record<string, number> = {};
     if (metrics.electricityConsumption !== undefined) {
       energyNeed["Electricity"] = metrics.electricityConsumption;
@@ -351,6 +362,7 @@ export async function loadEnergy(
     energyData.set(building.id, {
       id: building.id,
       uri: building.uri as string,
+      year,
       energyNeed,
       energyGeneration: {},
       energyStorage: {},
@@ -396,15 +408,21 @@ export async function loadEnergy(
     portfolioAverages[property] = sum / values.length;
   }
 
-  // Calculate averages by operator
+  // Operator (Betreiber) averages — published per metric only when ≥2 buildings
+  // contribute: a single-building "mean" IS that building's own value, which
+  // would (a) render the own figure dressed up as a benchmark and (b) win the
+  // comparison-reference precedence over the portfolio mean, silently disabling
+  // the deviation tint (own vs itself is always neutral).
   const operatorAverages: Record<string, Record<string, number>> = {};
   for (const operator in operatorAggregatedValues) {
-    operatorAverages[operator] = {};
+    const perMetric: Record<string, number> = {};
     for (const property in operatorAggregatedValues[operator]) {
       const values = operatorAggregatedValues[operator][property];
+      if (values.length < 2) continue;
       const sum = values.reduce((acc, val) => acc + val, 0);
-      operatorAverages[operator][property] = sum / values.length;
+      perMetric[property] = sum / values.length;
     }
+    if (Object.keys(perMetric).length > 0) operatorAverages[operator] = perMetric;
   }
 
   return {

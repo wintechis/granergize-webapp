@@ -26,12 +26,14 @@ test.describe("smoke (no login)", () => {
     await expect(page.getByLabel(/Identity Provider/i)).toBeVisible();
   });
 
-  test("the login screen links the Praxishandbuch (PDF/DOCX download)", async ({ page }) => {
-    // The handbuch is reachable pre-login as a downloadable document (the in-app
-    // guide was retired); the login screen must offer it.
+  test("the login screen explains what the app is (pre-login)", async ({ page }) => {
+    // heike-1: the landing page (before login) gave no explanation. The login
+    // screen now leads with a one-line description of the app, so a first-time
+    // visitor sees what Granergize is for before authenticating. (The Praxishandbuch
+    // download moved off the login screen into the dev-mode account menu.)
     await page.goto("/");
-    const link = page.getByRole("link", { name: /praxishandbuch/i });
-    await expect(link).toBeVisible({ timeout: T.visible });
-    await expect(link).toHaveAttribute("href", /granergize-handbuch\.(docx|pdf)$/);
+    await expect(
+      page.getByText(/browse, compare and share energy consumption data/i),
+    ).toBeVisible({ timeout: T.visible });
   });
 });

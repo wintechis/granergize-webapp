@@ -18,7 +18,7 @@ import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { _resetProfileCacheForTesting } from "../services/pod/profileDocument.ts";
 
-const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
+const CONS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 const WEBID = "https://pod.example/profile/card#me";
 const PROFILE = "https://pod.example/profile/card";
 const REG = "https://pod.example/granergize/dataSources.ttl";
@@ -35,27 +35,27 @@ const FIXTURES: Record<string, string> = {
   [BUILDINGS_CONTAINER]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
 <${BUILDINGS_CONTAINER}> ldp:contains <${B1}> .`,
   // dataSources.ttl now holds only shared-in sources (none here).
-  [REG]: `@prefix gran: <${GRAN}> .
-<${REG}> a gran:DataSourceRegistry .`,
+  [REG]: `@prefix cons: <${CONS}> .
+<${REG}> a cons:DataSourceRegistry .`,
   [PREFS]: "",
   [SHARING]: "",
-  [B1]: `@prefix gran: <${GRAN}> .
+  [B1]: `@prefix cons: <${CONS}> .
 @prefix rec: <https://w3id.org/rec#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <#b1> a rec:Building ; geo:lat 49.0 ; geo:long 11.0 ;
-  gran:hasEnergyDataset <${ENERGY}#ds> .`,
-  [ENERGY]: `@prefix gran: <${GRAN}> .
+  cons:hasEnergyDataset <${ENERGY}#ds> .`,
+  [ENERGY]: `@prefix cons: <${CONS}> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix ssn: <http://www.w3.org/ns/ssn/> .
 @prefix time: <http://www.w3.org/2006/time#> .
 @prefix unit: <https://qudt.org/vocab/unit#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-<#ds> a gran:EnergyDataset , sosa:ObservationCollection ;
-  gran:granularity "P1Y" ; gran:scenario gran:Actual ;
+<#ds> a cons:EnergyDataset , sosa:ObservationCollection ;
+  cons:granularity "P1Y" ; cons:scenario cons:Actual ;
   sosa:phenomenonTime [ a time:Interval ;
     time:hasBeginning "2024-01-01"^^xsd:date ; time:hasEnd "2024-12-31"^^xsd:date ] ;
   sosa:hasMember [ a sosa:Observation ;
-    sosa:observedProperty gran:ElectricityConsumption ;
+    sosa:observedProperty cons:ElectricityConsumption ;
     sosa:hasResult [ sosa:hasSimpleResult "1000"^^xsd:decimal ; ssn:hasUnit unit:KiloW-HR ] ] .`,
 };
 

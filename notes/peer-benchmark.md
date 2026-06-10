@@ -5,9 +5,11 @@
 A building owner compares their energy figures against a *real* peer benchmark — an
 industry average a third party aggregates across many owners' buildings — instead of
 a self-referential local mean. (This is a domain benchmark of energy consumption, not
-a performance benchmark of the software.) The energy view distinguishes two
+a performance benchmark of the software.) The energy view distinguishes three
 comparisons: a **portfolio average** — the honest mean over the user's own
-buildings — and a **benchmark** that comes from outside the user's own portfolio.
+buildings — an **operator average** (Betreiber-Durchschnitt) — the mean over
+buildings of one operator — and a **benchmark** that comes from outside the user's
+own portfolio. See *Three comparison cases* below for how they relate.
 The benchmark is supplied by a **Benchmark Service Provider (BSP)**: not a server,
 but another Solid user (a third role alongside Alice and Bob) running the same app
 in a benchmark-provider capacity. Owners share their energy with the BSP; the BSP
@@ -44,13 +46,44 @@ grant read access, post an inbox event, append to the outgoing log under the vie
 kind — does this, fanned out to every contributor in one step.
 
 The owner consumes the returned benchmark. The energy view prefers a received BSP
-benchmark for the comparison figure when one is available for the metric, and
-otherwise falls back to the portfolio mean. The annual energy table shows the
-building's own (Ist) figure, the portfolio average, and a benchmark column that
-stays blank until a benchmark has been received; only the four annual-consumption
-metrics can carry a benchmark, so the other rows leave the benchmark cell empty. The
-computing BSP is surfaced as an agent reference, routed through the in-app contact
-detail view.
+benchmark for the comparison figure when one is available for the metric, then the
+operator average when same-operator figures exist, and otherwise falls back to the
+portfolio mean. The annual energy table shows the building's own (Ist) figure, the
+portfolio average, the operator average, and a benchmark column that stays blank
+until a benchmark has been received; only the four annual-consumption metrics can
+carry a benchmark, so the other rows leave the benchmark cell empty. The computing
+BSP is surfaced as an agent reference, routed through the in-app contact detail
+view.
+
+## Three comparison cases
+
+The three comparison figures are one idea — "how does my building sit against a
+peer mean?" — varied by **who already holds the peer data**, which dictates how
+much sharing machinery the figure needs:
+
+- **Portfolio average** — the peers are the user's *own* buildings. The data is
+  already on the user's Pod; no second agent, no sharing. Computed in the bulk
+  energy fold.
+- **Operator average (Betreiber-Durchschnitt)** — the peers are the buildings of
+  one *operator*. The operator, by operating them, already has the numbers; no
+  inbound data acquisition is needed before aggregating. The app today covers the
+  single-Pod form of this: the bulk energy fold groups the user's own buildings by
+  their `operatedBy` agent link (each contributing its latest actual annual year)
+  and surfaces the per-operator mean in the annual energy views. The full
+  cross-owner form — the operator computes over the buildings it operates and
+  shares the result to each building's owner — is structurally the BSP round-trip
+  below with its first movement already satisfied.
+- **BSP benchmark** — the peers span *other owners'* portfolios, and the
+  aggregating agent starts with nothing: participants must first share their
+  buildings (with energy) *to* the BSP before it can aggregate and share the
+  snapshot back. This is the full four-movement round-trip this note describes.
+
+So the operator benchmark is a variant of the peer benchmark distinguished by data
+acquisition — the operator holds the numbers already, the BSP has to collect them.
+Both cross-agent forms return their result the same way (an aggregated-view
+snapshot shared by WebID, see [`aggregated-views.md`](./aggregated-views.md)); the
+energy view's preference order (benchmark, then operator average, then portfolio
+mean) ranks them by how far outside the user's own data the peer set reaches.
 
 ## Vocabulary
 
