@@ -51,6 +51,14 @@ export function useInvalidateBuildingData() {
   return () => {
     qc.invalidateQueries({ queryKey: queryKeys.buildings });
     qc.invalidateQueries({ queryKey: queryKeys.energy });
+    // The per-building detail reads. The annualEnergy key's link fingerprint
+    // covers a year add/delete by itself, but editing an EXISTING year's
+    // figures changes no links — only this invalidation refetches that case.
+    // The series listings/readings likewise pick up freshly imported day files.
+    qc.invalidateQueries({ queryKey: queryKeys.annualEnergy });
+    qc.invalidateQueries({ queryKey: queryKeys.seriesDays });
+    qc.invalidateQueries({ queryKey: queryKeys.dayReadings });
+    qc.invalidateQueries({ queryKey: queryKeys.monthReadings });
   };
 }
 

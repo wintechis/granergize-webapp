@@ -9,7 +9,7 @@ export type UserRole =
   | "software_provider"
   | "energy_provider";
 
-export interface InvestorAnnualData {
+export interface AnnualData {
   year: number;
   electricityConsumption?: number; // kWh
   renewableSelfGeneratedShare?: number; // %
@@ -45,7 +45,7 @@ export interface BuildingType {
     | boolean
     | EnergyDatasetRef[]
     | AttachmentRef[]
-    | InvestorAnnualData[]
+    | AnnualData[]
     | InvestorCertification[]
     | InvestorOperatingCosts
     | undefined;
@@ -130,7 +130,7 @@ export interface BuildingType {
   hasHeatPump?: boolean;
   hasDistrictHeating?: boolean;
   certifications?: InvestorCertification[];
-  annualData?: InvestorAnnualData[];
+  annualData?: AnnualData[];
   operatingCosts?: InvestorOperatingCosts;
 }
 

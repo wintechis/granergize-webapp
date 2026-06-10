@@ -52,8 +52,7 @@ export const ENERGY_TYPICAL_COLOR = "#ffcc80"; // pale amber
 export const MARKER_NO_DATA_COLOR = "#bdbdbd"; // neutral grey
 
 /**
- * Per-metric bar colours for the annual energy charts (InvestorEnergy /
- * BspEnergy), drawn from the ColorBrewer palette above at reduced alpha;
+ * Per-metric bar colours for the annual energy charts (AnnualEnergy), drawn from the ColorBrewer palette above at reduced alpha;
  * centralised so the same metric keeps the same colour on every page.
  */
 export const ELECTRICITY_COLOR = "rgba(31, 120, 180, 0.8)";

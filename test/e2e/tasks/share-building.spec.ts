@@ -163,8 +163,8 @@ test.describe("sharing across two pods", () => {
   // carries two annual years (2098, 2099); A grants only 2099 via the per-year
   // picker. The crux is the recipient side: B can read 2099 but is denied 2098 —
   // the building file lists both `cons:hasEnergyDataset` links (B reads the file),
-  // but only 2099's dataset .acl grants B, so 2098 403s and InvestorEnergy skips
-  // it. The map's Energy tab renders InvestorEnergy's per-year table, so both the
+  // but only 2099's dataset .acl grants B, so 2098 403s and AnnualEnergy skips
+  // it. The map's Energy tab renders AnnualEnergy's per-year table, so both the
   // present (2099) and the withheld (2098) year are observable in one view.
   const STREET_Y = "Jahrgasse 9"; // distinct from the all-energy test's building
   const SHARED_YEAR = "2099";
@@ -207,7 +207,7 @@ test.describe("sharing across two pods", () => {
         await expect(markers.first()).toBeVisible({ timeout: T.action });
         await b2.page.waitForTimeout(1500); // let the map settle so clicks register
 
-        // Open the building's detail pane → Energy tab (InvestorEnergy per-year table).
+        // Open the building's detail pane → Energy tab (AnnualEnergy per-year table).
         const energyTab = b2.page.getByRole("tab", { name: "Energy data" });
         const count = await markers.count();
         for (let i = 0; i < count; i++) {
@@ -218,7 +218,7 @@ test.describe("sharing across two pods", () => {
         await energyTab.click();
 
         try {
-          // The granted year renders as an InvestorEnergy row with its electricity
+          // The granted year renders as an AnnualEnergy row with its electricity
           // figure (de-DE "22.222", 0 decimals)...
           const grantedRow = b2.page.getByRole("row", {
             name: new RegExp(SHARED_YEAR),

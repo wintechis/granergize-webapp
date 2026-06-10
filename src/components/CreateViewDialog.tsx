@@ -26,7 +26,7 @@ import type {
 } from "../types.ts";
 import { createViewDefinition } from "../services/aggregation/viewManager.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
-import { listSeriesDays } from "../services/rdf/energyDataset.ts";
+import { useSeriesDays } from "../hooks/queries.ts";
 import {
   type Contributors,
   computeAndStoreSnapshot,
@@ -229,35 +229,33 @@ export default function CreateViewDialog({
     [mode, buildings, sharedUriSet, ownedBuildings],
   );
 
-  // Available months for monthly views: list each series building's 15-min
-  // container(s) and collect the months of the daily files (async — the files
-  // are separate resources, not inline on the building). Honest deps: buildings
-  // arriving after the dialog opened must refresh the month list.
-  const [availableMonths, setAvailableMonths] = useState<string[]>([]);
-  useEffect(() => {
-    if (mode !== "monthly") {
-      setAvailableMonths([]);
-      return;
-    }
-    let cancelled = false;
-    (async () => {
-      const months = new Set<string>();
-      for (const b of availableBuildings) {
-        const seriesRefs = (b.energyDatasets ?? []).filter((r) =>
-          isSeriesGranularity(r.granularity)
-        );
-        for (const ref of seriesRefs) {
-          for (const { day } of await listSeriesDays(session, ref)) {
-            if (day.length >= 7) months.add(day.substring(0, 7));
-          }
-        }
-      }
-      if (!cancelled) setAvailableMonths([...months].sort());
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [mode, availableBuildings, session]);
+  // Available months for monthly views: the day files behind each candidate
+  // building's 15-min series (read through the data layer; the files are
+  // separate resources, not inline on the building), reduced to their months.
+  // The hook disables itself outside monthly mode (no refs → no query).
+  const seriesRefs = useMemo(
+    () =>
+      mode === "monthly"
+        ? availableBuildings.flatMap((b) =>
+          (b.energyDatasets ?? []).filter((r) =>
+            isSeriesGranularity(r.granularity)
+          )
+        )
+        : [],
+    [mode, availableBuildings],
+  );
+  const seriesDays = useSeriesDays(seriesRefs);
+  const availableMonths = useMemo(
+    () =>
+      [
+        ...new Set(
+          (seriesDays.data ?? [])
+            .map(({ day }) => day.substring(0, 7))
+            .filter((m) => m.length === 7),
+        ),
+      ].sort(),
+    [seriesDays.data],
+  );
 
   const handleCreate = async () => {
     if (!viewName.trim()) {

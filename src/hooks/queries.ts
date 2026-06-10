@@ -21,7 +21,16 @@ import {
   resolveAgent,
   resolveAgentOrgLogo,
 } from "../services/agents/agentResolver.ts";
+import {
+  type EnergyDatasetRef,
+  listSeriesDays,
+  loadEnergyDatasets,
+} from "../services/rdf/energyDataset.ts";
+import { parseTtlReadings } from "../services/rdf/userEnergyParser.ts";
+import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
+import { fetchFresh } from "../services/pod/podFetch.ts";
 import type {
+  AnnualData,
   BuildingType,
   EnergyType,
 } from "../types.ts";
@@ -220,6 +229,110 @@ export function useRoomState() {
   };
 }
 
+/** The `fetchFresh` transport as the parsers' `fetchFn` shape. */
+function freshFetchFn(): (url: string) => Promise<Response> {
+  const session = getSession();
+  return (url) => fetchFresh(url, session);
+}
+
+/**
+ * One building's annual (non-series) energy datasets, split by scenario and
+ * sorted by year — what the detail pane's annual view renders. Keyed on the
+ * dataset-link fingerprint (`energyKeyFor`), so saving/deleting an energy year
+ * refetches because the *data* changed, not because the view remembered to;
+ * content-only edits (same links) are covered by the explicit invalidation in
+ * `useInvalidateBuildingData`.
+ */
+export function useAnnualEnergy(building: BuildingType) {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: [
+      ...queryKeys.annualEnergy,
+      webId,
+      building.id,
+      energyKeyFor([building]),
+    ],
+    enabled: Boolean(webId),
+    queryFn: async () => {
+      const refs = (building.energyDatasets ?? []).filter(
+        (r) => !isSeriesGranularity(r.granularity),
+      );
+      const datasets = await loadEnergyDatasets(refs, freshFetchFn());
+      const rows = (scenario: "actual" | "planned") =>
+        datasets
+          .filter((d) => d.scenario === scenario && d.metrics)
+          .map((d) => ({ year: d.year, ...d.metrics }) as AnnualData)
+          .sort((a, b) => a.year - b.year);
+      return { actual: rows("actual"), planned: rows("planned") };
+    },
+  });
+}
+
+/**
+ * The day files behind a set of 15-minute series descriptors (one listing per
+ * ref, concurrent), merged and sorted by day. Feeds the user-energy chart's
+ * date/month pickers and the create-view dialog's month list (months are a
+ * cheap `day.substring(0, 7)` derivation at the call site).
+ */
+export function useSeriesDays(refs: EnergyDatasetRef[]) {
+  const webId = webIdOf();
+  const refKey = refs.map((r) => r.url).sort().join(";");
+  return useQuery({
+    queryKey: [...queryKeys.seriesDays, webId, refKey],
+    enabled: Boolean(webId) && refs.length > 0,
+    queryFn: async () => {
+      const session = getSession();
+      const perRef = await Promise.all(
+        refs.map((ref) => listSeriesDays(session, ref)),
+      );
+      return perRef.flat().sort((a, b) => a.day.localeCompare(b.day));
+    },
+  });
+}
+
+/** One day file's 15-minute readings; disabled until a date is picked. */
+export function useDayReadings(url: string | undefined) {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: [...queryKeys.dayReadings, webId, url],
+    enabled: Boolean(webId && url),
+    queryFn: () => parseTtlReadings(url as string, freshFetchFn()),
+  });
+}
+
+/**
+ * A month of day files at once, as `Map<day, readings>` — unreadable days are
+ * skipped (`allSettled`), matching the chart's previous tolerance. `enabled`
+ * gates it to the monthly tabs so the bulk fetch never runs for the day view.
+ */
+export function useMonthReadings(
+  entries: { day: string; url: string }[],
+  enabled: boolean,
+) {
+  const webId = webIdOf();
+  const entryKey = entries.map((e) => e.url).join(";");
+  return useQuery({
+    queryKey: [...queryKeys.monthReadings, webId, entryKey],
+    enabled: Boolean(webId) && enabled && entries.length > 0,
+    queryFn: async () => {
+      const fetchFn = freshFetchFn();
+      const result = new Map<string, Array<{ begin: string; value: number }>>();
+      const settled = await Promise.allSettled(
+        entries.map((e) =>
+          parseTtlReadings(e.url, fetchFn).then((data) => ({
+            day: e.day,
+            data,
+          }))
+        ),
+      );
+      for (const r of settled) {
+        if (r.status === "fulfilled") result.set(r.value.day, r.value.data);
+      }
+      return result;
+    },
+  });
+}
+
 /** The personal contacts address book (folds contacts.ttl). */
 export function useContacts() {
   const webId = webIdOf();
@@ -283,6 +396,14 @@ export const queryKeys = {
   agent: ["agent"] as const,
   /** A single resolved agent's org logo IRI, keyed by WebID. */
   agentLogo: ["agentLogo"] as const,
+  /** One building's annual datasets (detail pane), keyed by id + link fingerprint. */
+  annualEnergy: ["annualEnergy"] as const,
+  /** Day files behind a set of 15-min series descriptors, keyed by ref URLs. */
+  seriesDays: ["seriesDays"] as const,
+  /** One day file's readings, keyed by URL. */
+  dayReadings: ["dayReadings"] as const,
+  /** A month of day files (bulk), keyed by the entry URLs. */
+  monthReadings: ["monthReadings"] as const,
 };
 
 /**
