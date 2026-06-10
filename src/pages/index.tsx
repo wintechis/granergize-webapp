@@ -594,7 +594,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         }}
       >
         <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
-          <ExplorePage session={session} active={tabValue === 0} />
+          <ExplorePage active={tabValue === 0} />
         </Suspense>
       </Box>
       {tabValue === 1 && (

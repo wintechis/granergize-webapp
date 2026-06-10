@@ -25,7 +25,7 @@ import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import UserEnergyChart from "./UserEnergyChart.tsx";
-import { Session } from "@inrupt/solid-client-authn-browser";
+
 import {
   CHART_COLOR_PALETTE,
   ENERGY_ABOVE_AVG_COLOR,
@@ -37,11 +37,10 @@ import { formatNumber } from "../lib/formatNumber.ts";
 type EnergyProps = {
   selectedBuilding: string;
   building: BuildingType;
-  session: Session;
 };
 
 export default function Energy(
-  { selectedBuilding, building, session }: EnergyProps,
+  { selectedBuilding, building }: EnergyProps,
 ) {
   const { energyNeed, portfolioAverages, operatorAverages, isLoading, error } =
     useSolidData();
@@ -90,10 +89,7 @@ export default function Energy(
             {seriesDatasets.map((d) => (
               <RdfSourceLink key={d.url} href={d.url} />
             ))}
-            <UserEnergyChart
-              seriesDatasets={seriesDatasets}
-              session={session}
-            />
+            <UserEnergyChart seriesDatasets={seriesDatasets} />
           </CardContent>
         </Card>
       );

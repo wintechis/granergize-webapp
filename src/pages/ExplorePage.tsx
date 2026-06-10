@@ -32,9 +32,7 @@ import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import { useResolveOrgLogo, useSolidData } from "../hooks/queries.ts";
 import WeatherData from "./WeatherData.tsx";
-import InvestorEnergy from "./InvestorEnergy.tsx";
-import BspEnergy from "./BspEnergy.tsx";
-import { Session } from "@inrupt/solid-client-authn-browser";
+import AnnualEnergy from "./AnnualEnergy.tsx";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import OpenInFullIcon from "@mui/icons-material/OpenInFull";
 import CloseFullscreenIcon from "@mui/icons-material/CloseFullscreen";
@@ -321,13 +319,12 @@ function BoundsWatcher(
 }
 
 interface ExplorePageProps {
-  session: Session;
   /** Whether the Home tab is currently visible (the map stays mounted while hidden). */
   active?: boolean;
 }
 
 export default function ExplorePage(
-  { session, active = true }: ExplorePageProps,
+  { active = true }: ExplorePageProps,
 ) {
   const { buildings, energyNeed, error } = useSolidData();
   const dev = useDevMode();
@@ -672,28 +669,15 @@ export default function ExplorePage(
                     )}
 
                     {detailTab === 1 && (
-                      // Dispatch on the data the building actually carries, not its
-                      // provenance role: annual aggregates → an annual chart (the BSP
-                      // variant when bench-specific company/logistics fields are
-                      // present, else the investor variant); otherwise the
-                      // time-series / categorical Energy view.
+                      // Dispatch on the data the building actually carries, not
+                      // its provenance role: annual aggregates → the annual
+                      // view (its sections likewise derive from the data
+                      // present); otherwise the time-series / categorical
+                      // Energy view.
                       (selectedBuilding.energyDatasets?.some((d) =>
                           !isSeriesGranularity(d.granularity)
                         ))
-                        ? (selectedBuilding.companyName ||
-                            selectedBuilding.logisticsFunction)
-                          ? (
-                            <BspEnergy
-                              building={selectedBuilding}
-                              session={session}
-                            />
-                          )
-                          : (
-                            <InvestorEnergy
-                              building={selectedBuilding}
-                              session={session}
-                            />
-                          )
+                        ? <AnnualEnergy building={selectedBuilding} />
                         : (selectedEnergy ||
                             selectedBuilding.energyDatasets?.some((d) =>
                               isSeriesGranularity(d.granularity)
@@ -702,7 +686,6 @@ export default function ExplorePage(
                           <Energy
                             selectedBuilding={selectedBuilding.id.toString()}
                             building={selectedBuilding}
-                            session={session}
                           />
                         )
                         : (
