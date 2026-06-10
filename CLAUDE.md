@@ -96,8 +96,12 @@ why `vite.config.ts` sets `base: "./"` and routing uses `HashRouter`.
    `_setSessionForTesting`.
 2. **Data layer (React Query)** — data is read through hooks in `src/hooks/queries.ts`
    (each calls `getSession()` for the authed transport; query keys are namespaced by
-   WebID so a re-login can't read another user's cache). `useSolidData()` is a
-   selector composing `useBuildings` (phase 1: buildings, paints the map) and
+   WebID so a re-login can't read another user's cache). Each sharing log is folded
+   ONCE per load by the `sharedInLog`/`sharedOutLog` queries (`useSharedInGrants`/
+   `useSharedOutGrants`); every "shared with/by me" list derives from that data in
+   memory (`*FromGrants` in `sharingManager.ts`) — never fold a log again in a hook.
+   `useSolidData()` is a selector composing `useBuildings` (phase 1: buildings,
+   paints the map; dependent on the shared-in fold for its shared sources) and
    `useEnergy` (phase 2: energy, dependent on phase 1). The single
    `QueryClient` lives in `src/context/QueryProvider.tsx`, which centralizes error
    routing (`SessionExpiredError` → warning, `ConflictError`/else → error) and
@@ -108,8 +112,9 @@ why `vite.config.ts` sets `base: "./"` and routing uses `HashRouter`.
 3. **Fetch + parse** — `src/services/TurtleParsingService.ts` orchestrates loading.
    There is no registry: it discovers the user's OWN buildings by *listing* the
    `granergize/buildings/` container for top-level `*.ttl` files (a single PUT adds a
-   building, so the listing can't desync), and buildings shared *with* the user by
-   folding the `shared-in/` event log. It fetches those sources with per-source
+   building, so the listing can't desync), and buildings shared *with* the user from
+   the folded `shared-in/` log (passed in by the hooks' `sharedInLog` query, or folded
+   by `fetchAndParseData` itself for headless use). It fetches those sources with per-source
    blank-node scoping to avoid ID collisions, then delegates to parsers in
    `src/services/rdf/` (`buildingParser`; energy via `parseEnergyDataset` in
    `energyDataset.ts`; user-energy readings via `parseTtlReadings` in `userEnergyParser`).

@@ -116,10 +116,12 @@ function AppContent() {
       }
       await drainInbox(authSession);
       // drainInbox may have archived newly-granted shares into the user's
-      // shared-in/ log; refresh the queries that fold it so they appear
-      // (otherwise the cached read taken at mount would never reflect the grant).
-      queryClient.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
-      queryClient.invalidateQueries({ queryKey: queryKeys.receivedViews });
+      // shared-in/ log; refold it (the ONE shared-in fold — every "shared with
+      // me" reader derives from it) so they appear. receivedBenchmarks is also
+      // invalidated since snapshot contents can change with the grant set
+      // unchanged; buildings refetches via its shared-source key when the
+      // refolded grants differ.
+      queryClient.invalidateQueries({ queryKey: queryKeys.sharedInLog });
       queryClient.invalidateQueries({ queryKey: queryKeys.receivedBenchmarks });
       queryClient.invalidateQueries({ queryKey: queryKeys.buildings });
     } catch (error) {

@@ -85,8 +85,11 @@ export function useDeleteBuilding() {
     // and refreshes the dependent energy / shared-buildings queries.
     onSuccess: (_data, building) => {
       const webId = getSession().info.webId;
-      qc.setQueryData<{ buildings: BuildingType[] }>(
-        [...queryKeys.buildings, webId],
+      // Prefix-match (setQueriesData): the buildings key carries the shared-
+      // source fingerprint as a third element, so the exact key isn't knowable
+      // here — patch every cached buildings query for this WebID.
+      qc.setQueriesData<{ buildings: BuildingType[] }>(
+        { queryKey: [...queryKeys.buildings, webId] },
         (old) =>
           old
             ? { ...old, buildings: old.buildings.filter((b) => b.uri !== building.uri) }
@@ -96,7 +99,7 @@ export function useDeleteBuilding() {
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
       qc.invalidateQueries({ queryKey: queryKeys.energy });
-      qc.invalidateQueries({ queryKey: queryKeys.sharedBuildings });
+      qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
   });
 }
@@ -113,11 +116,11 @@ export function useCheckInbox() {
   return useMutation({
     mutationFn: () => drainInbox(getSession()),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
-      qc.invalidateQueries({ queryKey: queryKeys.receivedViews });
-      // receivedBenchmarks folds receivedViews (the benchmark subset); invalidate
-      // it too, else a newly-archived benchmark snapshot lags in the energy view's
-      // Benchmark column until the query is otherwise remounted.
+      // One log query feeds every "shared with me" reader (the lists derive
+      // in memory), so the drain refolds shared-in/ once. receivedBenchmarks
+      // stays separately invalidated: a snapshot's CONTENTS can change while
+      // the grant set (its key fingerprint) stays the same.
+      qc.invalidateQueries({ queryKey: queryKeys.sharedInLog });
       qc.invalidateQueries({ queryKey: queryKeys.receivedBenchmarks });
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
     },
@@ -134,9 +137,9 @@ export function useToggleVisibility() {
       // Both the Share-tab "shared with you" list (its Shown/Hidden state) AND the
       // buildings load depend on prefs' hiddenBuildings: the buildings load filters
       // hidden ones out (TurtleParsingService), so it governs whether a building
-      // shows on the Explore map / Manage list. Invalidate both — otherwise the
-      // toggle updates the Share tab but leaves the map/list stale until a reload.
-      qc.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
+      // shows on the Explore map / Manage list. The toggle writes prefs.ttl, so
+      // invalidate the prefs query (the Share list derives from it) + buildings.
+      qc.invalidateQueries({ queryKey: queryKeys.prefs });
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
     },
   });
@@ -149,7 +152,7 @@ export function useRevokeBuildingAccess() {
     mutationFn: ({ buildingUri, webId }: { buildingUri: string; webId: string }) =>
       revokeAccess(buildingUri, webId, getSession()),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.sharedBuildings });
+      qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
   });
 }
@@ -170,7 +173,7 @@ export function useDeleteView() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.viewDefinitions });
-      qc.invalidateQueries({ queryKey: queryKeys.sharedViews });
+      qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
   });
 }
@@ -191,7 +194,7 @@ export function useRevokeViewAccess() {
     mutationFn: ({ snapshotUrl, webId }: { snapshotUrl: string; webId: string }) =>
       revokeViewAccess(snapshotUrl, webId, getSession()),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.sharedViews });
+      qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
   });
 }
