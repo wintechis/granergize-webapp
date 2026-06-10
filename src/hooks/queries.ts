@@ -1,18 +1,26 @@
-import { useQuery } from "@tanstack/react-query";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useMemo } from "react";
 import { getSession } from "./session.ts";
 import {
   loadBuildings,
   loadEnergy,
+  sharedBuildingSourcesFromGrants,
 } from "../services/TurtleParsingService.ts";
 import { resolveStorageRoot } from "../services/pod/solidUtils.ts";
 import {
-  getReceivedViews,
-  getSharedBuildings,
-  getSharedViews,
-  getSharedWithMe,
-} from "../services/interop/sharingManager.ts";
+  foldSharingLog,
+  sharedInUrl,
+  sharedOutUrl,
+} from "../services/interop/sharingLog.ts";
 import {
-  getReceivedBenchmarks,
+  receivedViewsFromGrants,
+  sharedBuildingsFromGrants,
+  sharedViewsFromGrants,
+  sharedWithMeFromGrants,
+} from "../services/interop/sharingManager.ts";
+import { readPrefs } from "../services/prefs.ts";
+import {
+  getReceivedBenchmarksFor,
   getViewDefinitions,
 } from "../services/aggregation/viewManager.ts";
 import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
@@ -47,17 +55,77 @@ function webIdOf(): string | undefined {
   return getSession().info.webId ?? undefined;
 }
 
-/** Phase 1: buildings (paints the map). */
-export function useBuildings() {
+/**
+ * The folded `shared-in/` log — THE one fold per load. Everything "shared with
+ * me" (shared building sources, the Share-tab list, received views, received
+ * benchmarks) derives from this query's data instead of folding the log again;
+ * with N events a fold costs a container listing + N GETs, so the dedup is the
+ * difference between 1× and 4× that per load.
+ */
+export function useSharedInGrants() {
   const webId = webIdOf();
   return useQuery({
-    queryKey: [...queryKeys.buildings, webId],
+    queryKey: [...queryKeys.sharedInLog, webId],
     enabled: Boolean(webId),
+    queryFn: () => foldSharingLog(sharedInUrl(webId as string), getSession()),
+  });
+}
+
+/** The folded `shared-out/` log — see {@link useSharedInGrants}; the
+ * shared-buildings and shared-views lists derive from it. */
+export function useSharedOutGrants() {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: [...queryKeys.sharedOutLog, webId],
+    enabled: Boolean(webId),
+    queryFn: () => foldSharingLog(sharedOutUrl(webId as string), getSession()),
+  });
+}
+
+/** `prefs.ttl` (hidden buildings, …). Invalidated by the visibility toggle. */
+export function usePrefs() {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: [...queryKeys.prefs, webId],
+    enabled: Boolean(webId),
+    queryFn: () => readPrefs(getSession()),
+  });
+}
+
+/**
+ * Phase 1: buildings (paints the map). Dependent on the folded `shared-in/`
+ * log (the shared building sources come from its grants); the key carries the
+ * sorted source list, so a share arriving/leaving refetches buildings because
+ * the data changed. A FAILED log fold degrades to "no shared sources" rather
+ * than blocking own buildings (the old internal fold's tolerance).
+ */
+export function useBuildings() {
+  const webId = webIdOf();
+  const qc = useQueryClient();
+  const log = useSharedInGrants();
+  const sharedSources = log.data
+    ? sharedBuildingSourcesFromGrants(log.data).sort()
+    : log.isError
+    ? []
+    : undefined;
+  return useQuery({
+    queryKey: [...queryKeys.buildings, webId, (sharedSources ?? []).join(";")],
+    enabled: Boolean(webId) && sharedSources !== undefined,
     queryFn: async () => {
       const session = getSession();
       // Resolve the Pod storage root from pim:storage before any path is built.
       await resolveStorageRoot(session);
-      return loadBuildings(session);
+      const { buildings, prunedSources } = await loadBuildings(
+        session,
+        sharedSources ?? [],
+      );
+      // An inaccessible shared source was pruned (a self-revocation appended to
+      // shared-in/): refold the log so the grant set — and every reader derived
+      // from it, incl. this query's own key — drops the revoked source.
+      if (prunedSources.length > 0) {
+        qc.invalidateQueries({ queryKey: queryKeys.sharedInLog });
+      }
+      return { buildings };
     },
   });
 }
@@ -105,22 +173,42 @@ export function useEnergy(buildings: BuildingType[] | undefined) {
   });
 }
 
+// The sharing lists below are pure in-memory derivations of the two folded
+// logs (+ prefs), composed in the `useRoomState` style: `{ data, isLoading,
+// isFetching, error }` over the underlying queries — no fetch of their own.
+
+/** Buildings shared WITH the user (Share tab), from shared-in grants + prefs. */
 export function useSharedWithMe() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.sharedWithMe, webId],
-    enabled: Boolean(webId),
-    queryFn: () => getSharedWithMe(getSession()),
-  });
+  const log = useSharedInGrants();
+  const prefs = usePrefs();
+  const data = useMemo(
+    () =>
+      log.data && prefs.data
+        ? sharedWithMeFromGrants(log.data, prefs.data.hiddenBuildings)
+        : undefined,
+    [log.data, prefs.data],
+  );
+  return {
+    data,
+    isLoading: log.isLoading || prefs.isLoading,
+    isFetching: log.isFetching || prefs.isFetching,
+    error: log.error ?? prefs.error,
+  };
 }
 
+/** Buildings the user has shared with others, from shared-out grants. */
 export function useSharedBuildings() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.sharedBuildings, webId],
-    enabled: Boolean(webId),
-    queryFn: () => getSharedBuildings(getSession()),
-  });
+  const log = useSharedOutGrants();
+  const data = useMemo(
+    () => (log.data ? sharedBuildingsFromGrants(log.data) : undefined),
+    [log.data],
+  );
+  return {
+    data,
+    isLoading: log.isLoading,
+    isFetching: log.isFetching,
+    error: log.error,
+  };
 }
 
 export function useViewDefinitions() {
@@ -132,36 +220,58 @@ export function useViewDefinitions() {
   });
 }
 
+/** Views the user has shared with others, from shared-out grants. */
 export function useSharedViews() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.sharedViews, webId],
-    enabled: Boolean(webId),
-    queryFn: () => getSharedViews(getSession()),
-  });
+  const log = useSharedOutGrants();
+  const data = useMemo(
+    () => (log.data ? sharedViewsFromGrants(log.data) : undefined),
+    [log.data],
+  );
+  return {
+    data,
+    isLoading: log.isLoading,
+    isFetching: log.isFetching,
+    error: log.error,
+  };
 }
 
-/** Aggregated views shared *with* the current user (folds `shared-in/`). */
+/** Aggregated views shared *with* the current user, from shared-in grants. */
 export function useReceivedViews() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.receivedViews, webId],
-    enabled: Boolean(webId),
-    queryFn: () => getReceivedViews(getSession()),
-  });
+  const log = useSharedInGrants();
+  const data = useMemo(
+    () => (log.data ? receivedViewsFromGrants(log.data) : undefined),
+    [log.data],
+  );
+  return {
+    data,
+    isLoading: log.isLoading,
+    isFetching: log.isFetching,
+    error: log.error,
+  };
 }
 
 /**
- * The benchmark snapshots received from a BSP (the subset of received views marked
- * as a benchmark result). The energy view compares the owner's own figures against
- * these. Loads each received snapshot, so it sits behind its own query key.
+ * The benchmark snapshots received from a BSP (the subset of received views
+ * marked as a benchmark result). The energy view compares the owner's own
+ * figures against these. Loads each received snapshot, so it stays a real
+ * query — but DEPENDENT on the folded shared-in log (no second fold), keyed
+ * on the received-snapshot URLs so a grant arriving/leaving refetches because
+ * the data changed. The plain `receivedBenchmarks` prefix invalidation (inbox
+ * drain) still matches — snapshot CONTENTS can change with the grant set
+ * unchanged.
  */
 export function useReceivedBenchmarks() {
   const webId = webIdOf();
+  const log = useSharedInGrants();
+  const received = useMemo(
+    () => (log.data ? receivedViewsFromGrants(log.data) : undefined),
+    [log.data],
+  );
+  const fingerprint = (received ?? []).map((r) => r.snapshotUrl).sort().join(";");
   return useQuery({
-    queryKey: [...queryKeys.receivedBenchmarks, webId],
-    enabled: Boolean(webId),
-    queryFn: () => getReceivedBenchmarks(getSession()),
+    queryKey: [...queryKeys.receivedBenchmarks, webId, fingerprint],
+    enabled: Boolean(webId) && received !== undefined,
+    queryFn: () => getReceivedBenchmarksFor(getSession(), received ?? []),
   });
 }
 
@@ -379,11 +489,13 @@ export function useResolveOrgLogo(webId?: string) {
 export const queryKeys = {
   buildings: ["buildings"] as const,
   energy: ["energy"] as const,
-  sharedWithMe: ["sharedWithMe"] as const,
-  sharedBuildings: ["sharedBuildings"] as const,
+  /** The folded `shared-in/` log — everything "shared with me" derives from it. */
+  sharedInLog: ["sharedInLog"] as const,
+  /** The folded `shared-out/` log — the shared-buildings/-views lists derive from it. */
+  sharedOutLog: ["sharedOutLog"] as const,
+  /** prefs.ttl (hidden buildings, …). Invalidated by the visibility toggle. */
+  prefs: ["prefs"] as const,
   viewDefinitions: ["viewDefinitions"] as const,
-  sharedViews: ["sharedViews"] as const,
-  receivedViews: ["receivedViews"] as const,
   /** Benchmark snapshots received from a BSP (subset of received views). */
   receivedBenchmarks: ["receivedBenchmarks"] as const,
   /** The room registry (current + known). Set via setQueryData, not invalidated. */

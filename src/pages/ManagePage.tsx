@@ -211,7 +211,7 @@ export default function ManagePage({ session }: ManagePageProps) {
   const handleCloseShareDialog = () => {
     setViewToShare(null);
     queryClient.invalidateQueries({ queryKey: queryKeys.viewDefinitions });
-    queryClient.invalidateQueries({ queryKey: queryKeys.sharedViews });
+    queryClient.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
   };
 
   const handleRevokeViewAccess = (snapshotUrl: string, webId: string) => {
@@ -617,7 +617,7 @@ export default function ManagePage({ session }: ManagePageProps) {
           onClose={() => {
             setShareBuilding(null);
             queryClient.invalidateQueries({
-              queryKey: queryKeys.sharedBuildings,
+              queryKey: queryKeys.sharedOutLog,
             });
           }}
         />

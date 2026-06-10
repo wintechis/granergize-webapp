@@ -22,9 +22,17 @@ recipient's inbox message, the sharer's `shared-out/`, and the recipient's `shar
 Current state = **fold** the log (`foldSharingLog`): group by `(grantee, resource)`,
 keep the latest by `prov:generatedAtTime`, and emit the pair only if that latest event
 is a grant (a later revocation drops it; on an exact-timestamp tie the revocation wins,
-least-privilege). The WAC `.acl` stays the enforcement truth — the logs are the app's
-**record**, and the only way a recipient learns of an inbound grant (it lives in the
-sharer's `.acl`, reachable only via the inbox).
+least-privilege). "Fold" is functional programming's fold/reduce — collapse a list into
+one value in a single pass; here the event list collapses into the active-grant set.
+Two consequences follow. The state is *derived and replayable*: nothing on the Pod
+stores "who currently has access" — anyone holding the log can recompute it at any
+time (what `reissueGrants` exploits to rebuild the `.acl` projection). And reading it
+costs a container listing plus one GET per event, growing with the log — so each log
+is folded once per load (the `sharedInLog`/`sharedOutLog` queries in the data layer)
+and every sharing list derives from that one result in memory. The WAC `.acl` stays
+the enforcement truth — the logs are the app's **record**, and the only way a
+recipient learns of an inbound grant (it lives in the sharer's `.acl`, reachable only
+via the inbox).
 
 ## Flow
 
