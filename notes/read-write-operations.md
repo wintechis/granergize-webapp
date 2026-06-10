@@ -46,6 +46,22 @@ The fold queries (`foldSharingLog`, `getRoomLogState`) are the matching projecti
 group events by key, keep the latest, emit current state. Folding rules live in
 [`sharing.md`](./sharing.md) and [`room.md`](./room.md).
 
+Within the model there are two **delivery topologies**, chosen by whether the
+affected party can read where the fact lives:
+
+- **Shared container, pull** (the rooms): one container on the host's Pod that every
+  participant can read and append to. Each participant posts events about themselves;
+  nobody is notified — readers fold the container when they look. Events persist; the
+  container *is* the log.
+- **Inbox, push** (the sharing events): the fact (a grant) lives in the sharer's
+  `.acl` and `shared-out/`, which the recipient cannot read — so a copy of the event
+  is *delivered* into the recipient's inbox. The inbox is transport, not a log: the
+  drain archives each message into the recipient's own `shared-in/` and deletes it,
+  leaving the event recorded once per party.
+
+So: append in place and fold when the audience can already reach the container; push
+a copy when the authoritative record sits behind someone else's access control.
+
 ### 2. Direct in-place mutation
 
 GET → mutate the store → conditional PUT (`readModifyWrite`, If-Match). No event, no

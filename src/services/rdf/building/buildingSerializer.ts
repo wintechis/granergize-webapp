@@ -1031,14 +1031,18 @@ const DEMO_BUILDINGS: DemoSpec[] = [
  * Seed the example buildings (see {@link DEMO_BUILDINGS}) into the user's pod, as
  * ordinary owned resources the user can delete. Coordinates are geocoded at seed
  * time; a building that can't be geocoded is still created (just unmapped).
- * Best-effort: failures are logged, never thrown, so a geocoder/network hiccup can't
- * block login.
+ * Best-effort: per-building failures are logged, never thrown, so a network hiccup
+ * can't block login — but they ARE counted: the returned tally lets the caller
+ * report a partial seed ("Added 3 of 5") instead of a blanket success. Within one
+ * building the writes are ordered commit-last (datasets first, the discoverable
+ * building file last), so a failed building leaves only inert orphan files.
  * @operation mutation
  */
 export async function seedDemoBuildings(
   session: Session,
   webId: string,
-): Promise<void> {
+): Promise<{ seeded: number; total: number }> {
+  let seeded = 0;
   for (const demo of DEMO_BUILDINGS) {
     try {
       const coords = await geocodeFields(demo.fields);
@@ -1121,6 +1125,7 @@ export async function seedDemoBuildings(
         agent: webId,
       });
       await uploadBuilding(session, uri, ttl, webId);
+      seeded++;
     } catch (err) {
       console.error(
         `Failed to seed demo building ${demo.fields.streetAddress}:`,
@@ -1128,6 +1133,7 @@ export async function seedDemoBuildings(
       );
     }
   }
+  return { seeded, total: DEMO_BUILDINGS.length };
 }
 
 // ── CSV / XLSX autofill ───────────────────────────────────────────────────────
