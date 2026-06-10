@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import Modal from "./Modal.tsx";
 import {
   Alert,
@@ -18,12 +18,13 @@ import {
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { AggregatedViewDefinition } from "../types.ts";
-import { shareAggregatedView } from "../services/interop/share.ts";
 import { logError } from "../lib/logError.ts";
 import {
-  getSharedViews,
-  revokeViewAccess,
-} from "../services/interop/sharingManager.ts";
+  useRevokeViewAccess,
+  useShareViewSnapshot,
+} from "../hooks/mutations.ts";
+import { useSharedViews } from "../hooks/queries.ts";
+import { classifyQueryError } from "../hooks/queryErrors.ts";
 import {
   getComputedSnapshotByViewId,
   getSnapshotUrl,
@@ -35,7 +36,7 @@ import {
   getMembers,
 } from "../services/interop/dataRoom.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { formatError } from "../lib/formatError.ts";
+
 import { ROLE_LABELS } from "../constants/roles.ts";
 
 interface ShareViewDialogProps {
@@ -50,14 +51,29 @@ export default function ShareViewDialog(
 ) {
   const { showNotification } = useNotification();
   const [recipientWebId, setRecipientWebId] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [sharedWith, setSharedWith] = useState<string[]>([]);
-  const [loadingShared, setLoadingShared] = useState(false);
   const [webIdError, setWebIdError] = useState<string | null>(null);
-  const [shareError, setShareError] = useState<string | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
-  const [shareSuccess, setShareSuccess] = useState(false);
-  const [successRecipients, setSuccessRecipients] = useState<string[]>([]);
+  // The writes go through mutation hooks: busy/success/error are their state,
+  // and the share error renders inline (silent hook) through the same
+  // classifier the central toast would use. The "currently shared with" list
+  // derives from the folded shared-out log (no per-open re-fold); the hooks'
+  // sharedOutLog invalidation refreshes it after a share/revoke.
+  const share = useShareViewSnapshot({ silent: true });
+  const revoke = useRevokeViewAccess();
+  const loading = share.isPending || revoke.isPending;
+  const shareError = share.error
+    ? classifyQueryError(share.error).message
+    : null;
+  const shareSuccess = share.isSuccess;
+  const successRecipients = share.variables?.recipients ?? [];
+  const sharedViewsQuery = useSharedViews();
+  const sharedWith = useMemo(() => {
+    const shares = (sharedViewsQuery.data ?? []).filter(
+      (s) => s.viewId === view.id,
+    );
+    return [...new Set(shares.flatMap((s) => s.sharedWith))];
+  }, [sharedViewsQuery.data, view.id]);
+  const loadingShared = sharedViewsQuery.isLoading;
   const [members, setMembers] = useState<DataRoomMember[]>([]);
   const [membersLoading, setMembersLoading] = useState(false);
   // When this view is a benchmark, the WebIDs that contributed buildings to it —
@@ -74,22 +90,7 @@ export default function ShareViewDialog(
     if (current.includes(webId)) return;
     setRecipientWebId([...current, webId].join("\n"));
     setWebIdError(null);
-    setShareSuccess(false);
-  };
-
-  const loadSharedUsers = async () => {
-    if (!session.info.webId) return;
-    setLoadingShared(true);
-    try {
-      const shares = await getSharedViews(session);
-      const viewShares = shares.filter((s) => s.viewId === view.id);
-      const allSharedWith = viewShares.flatMap((s) => s.sharedWith);
-      setSharedWith([...new Set(allSharedWith)]);
-    } catch (err) {
-      console.error("Failed to load shared users:", err);
-    } finally {
-      setLoadingShared(false);
-    }
+    if (share.isSuccess) share.reset();
   };
 
   const loadMembers = async () => {
@@ -124,11 +125,11 @@ export default function ShareViewDialog(
     }
   };
 
-  // Load the current shares and data-room members when the dialog opens (the
-  // native <dialog> has no enter-transition hook to hang this off).
+  // Load the data-room members when the dialog opens (the native <dialog> has
+  // no enter-transition hook to hang this off). The shared-with list is a
+  // query derivation, so it needs no per-open load.
   useEffect(() => {
     if (!open) return;
-    loadSharedUsers();
     loadMembers();
     loadBenchmarkContributors();
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -156,62 +157,41 @@ export default function ShareViewDialog(
       return;
     }
     setWebIdError(null);
-    setShareError(null);
     setConfirmStep(true);
   };
 
-  const handleConfirmShare = async () => {
+  const handleConfirmShare = () => {
     if (!session.info.webId) return;
     const recipients = getRecipients();
-
-    setLoading(true);
-    setShareError(null);
-    try {
-      const snapshotUrl = getSnapshotUrl(session.info.webId!, view.id);
-      for (const recipient of recipients) {
-        await shareAggregatedView(snapshotUrl, recipient, session);
-      }
-      setSuccessRecipients(recipients);
-      setShareSuccess(true);
-      setConfirmStep(false);
-      showNotification(`View shared with ${recipients.join(", ")}`, "success");
-      setRecipientWebId("");
-      loadSharedUsers();
-    } catch (err) {
-      setShareError(err instanceof Error ? err.message : String(err));
-      setConfirmStep(false);
-    } finally {
-      setLoading(false);
-    }
+    const snapshotUrl = getSnapshotUrl(session.info.webId, view.id);
+    share.mutate({ snapshotUrl, recipients }, {
+      onSuccess: () => {
+        setConfirmStep(false);
+        showNotification(
+          `View shared with ${recipients.join(", ")}`,
+          "success",
+        );
+        setRecipientWebId("");
+      },
+      // Back to the form step, where the inline error Alert renders.
+      onError: () => setConfirmStep(false),
+    });
   };
 
-  const handleRevoke = async (webId: string) => {
+  const handleRevoke = (webId: string) => {
     if (!session.info.webId) return;
     if (!globalThis.confirm(`Revoke access for ${webId}?`)) return;
-
-    setLoading(true);
-    try {
-      await revokeViewAccess(
-        getSnapshotUrl(session.info.webId, view.id),
-        webId,
-        session,
-      );
-      showNotification("View access revoked", "success");
-      loadSharedUsers();
-    } catch (err) {
-      showNotification(formatError("revoke access", err), "error");
-    } finally {
-      setLoading(false);
-    }
+    revoke.mutate(
+      { snapshotUrl: getSnapshotUrl(session.info.webId, view.id), webId },
+      { onSuccess: () => showNotification("View access revoked", "success") },
+    );
   };
 
   const handleClose = () => {
     setRecipientWebId("");
     setWebIdError(null);
-    setShareError(null);
     setConfirmStep(false);
-    setShareSuccess(false);
-    setSuccessRecipients([]);
+    share.reset();
     onClose();
   };
 
@@ -268,7 +248,7 @@ export default function ShareViewDialog(
                       ];
                       setRecipientWebId(merged.join("\n"));
                       setWebIdError(null);
-                      setShareSuccess(false);
+                      if (share.isSuccess) share.reset();
                     }}
                     disabled={contributors.every((w) =>
                       getRecipients().includes(w) || sharedWith.includes(w)
@@ -345,7 +325,7 @@ export default function ShareViewDialog(
                 onChange={(e) => {
                   setRecipientWebId(e.target.value);
                   if (webIdError) setWebIdError(null);
-                  if (shareSuccess) setShareSuccess(false);
+                  if (share.isSuccess) share.reset();
                 }}
                 placeholder="https://example.solidcommunity.net/profile/card#me"
                 disabled={loading}

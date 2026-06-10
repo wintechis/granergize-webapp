@@ -16,7 +16,6 @@ import {
 import { alpha } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
-import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
 import { makeBuildingFields } from "./buildingFields.tsx";
 import {
@@ -26,16 +25,11 @@ import {
 import { ADDRESS_FIELDS } from "../constants/addressFields.ts";
 import RequestActivityList from "./RequestActivityList.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { useQueryClient } from "@tanstack/react-query";
 import { useSolidData } from "../hooks/queries.ts";
-import { rememberBuildingAgents } from "../hooks/rememberAgents.ts";
+import { useUploadBuildings } from "../hooks/mutations.ts";
 import {
   detectSpreadsheetFormat,
-  newBuildingUri,
   parseCsvToFields,
-  serializeBuildingToTurtle,
-  uploadBuilding,
-  writeBuildingEnergy,
 } from "../services/rdf/building/buildingSerializer.ts";
 import { geocodeFields } from "../services/geocode.ts";
 import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
@@ -43,15 +37,14 @@ import {
   SCALAR_FIELDS,
   type SpreadsheetFormat,
 } from "../services/rdf/buildingTemplates.ts";
+// Local file-parse errors only — the Pod-write errors toast centrally.
 import { formatError } from "../lib/formatError.ts";
 
 interface AddBuildingDialogProps {
   open: boolean;
-  session: Session;
   /** When true, open the file picker immediately (bulk "Import from file"). */
   autostartImport?: boolean;
   onClose: () => void;
-  onBuildingAdded: (newSubjectUris: string[]) => void;
 }
 
 // The file-format options name the spreadsheet *layout*: a row-label sheet (one
@@ -88,12 +81,15 @@ function tabLabel(b: Record<string, string>, idx: number): string {
 }
 
 export default function AddBuildingDialog(
-  { open, session, autostartImport, onClose, onBuildingAdded }:
-    AddBuildingDialogProps,
+  { open, autostartImport, onClose }: AddBuildingDialogProps,
 ) {
   const { showNotification } = useNotification();
   const { buildings } = useSolidData();
-  const qc = useQueryClient();
+  // The write goes through the mutation hook: busy state, the central error
+  // toast and the building-data invalidations are its job; the dialog keeps
+  // the progress overlay + cancel UI and the success/abort reporting.
+  const upload = useUploadBuildings();
+  const uploading = upload.isPending;
 
   // The chosen import file-format (spreadsheet layout) for "Import from file".
   // Auto-detected on upload; the selector lets the user override. It does not
@@ -102,7 +98,6 @@ export default function AddBuildingDialog(
   const [buildingsList, setBuildingsList] = useState<Record<string, string>[]>([{}]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [lastgangReadings, setLastgangReadings] = useState<LastgangReading[] | null>(null);
-  const [uploading, setUploading] = useState(false);
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [parsing, setParsing] = useState(false);
   const [geocoding, setGeocoding] = useState(false);
@@ -187,7 +182,6 @@ export default function AddBuildingDialog(
     setBuildingsList([{}]);
     setActiveIdx(0);
     setLastgangReadings(null);
-    setUploading(false);
     setUploadProgress(null);
     onClose();
   };
@@ -300,87 +294,41 @@ export default function AddBuildingDialog(
     }
   };
 
-  const handleSubmit = async () => {
-    const webId = session.info.webId;
-    if (!webId) {
-      showNotification("Not authenticated", "error");
-      return;
-    }
-
-    // Provenance records only WHO produced the building (the logged-in agent) as a
-    // PROV qualified attribution — no producing-role category (roles live only in
-    // data rooms now).
-    const provenance = { agent: webId };
-
+  const handleSubmit = () => {
     const controller = new AbortController();
     uploadAbort.current = controller;
-    setUploading(true);
-    const addedSubjectUris: string[] = [];
-    try {
-      for (const b of buildingsList) {
-        controller.signal.throwIfAborted();
-        // A collision-free id: `Date.now()`+short-random clashed when several
-        // buildings were written within the same millisecond in a bulk import,
-        // so the second PUT overwrote the first (buildings silently vanished).
-        const id = crypto.randomUUID();
-        const uri = newBuildingUri(webId, id);
-        const buildingSubjectUri = `${uri}#${id}`;
-        addedSubjectUris.push(buildingSubjectUri);
-
-        // Group the Lastgang (15-min) readings by day into a single series
-        // dataset; annual aggregates come from the field map (`_inv_*`/`_bsp_*`).
-        let series:
-          | { year: number; days: Array<{ date: string; readings: LastgangReading[] }>; label: string }
-          | undefined;
-        if (lastgangReadings && lastgangReadings.length > 0) {
-          const byDate = new Map<string, LastgangReading[]>();
-          for (const r of lastgangReadings) {
-            const list = byDate.get(r.date) ?? [];
-            list.push(r);
-            byDate.set(r.date, list);
+    upload.mutate(
+      {
+        buildings: buildingsList,
+        lastgangReadings,
+        signal: controller.signal,
+        onProgress: (done, total) => setUploadProgress({ done, total }),
+      },
+      {
+        onSuccess: ({ added, aborted }) => {
+          if (aborted) {
+            // A user cancel is an outcome, not an error: the buildings written
+            // before the cancel are kept (and already invalidated).
+            showNotification(
+              "Import cancelled — any buildings already written are kept",
+              "warning",
+            );
+            return;
           }
-          const days = [...byDate.entries()].map(([date, readings]) => ({ date, readings }));
-          // All readings are one calendar year; take it from the first date.
-          const year = parseInt(days[0].date.slice(0, 4));
-          series = { year, days, label: b.label ?? "" };
-        }
-
-        const energyLinks = await writeBuildingEnergy(
-          session,
-          uri,
-          buildingSubjectUri,
-          b,
-          series,
-          (done, total) => setUploadProgress({ done, total }),
-          controller.signal,
-        );
-
-        const ttl = serializeBuildingToTurtle(b, uri, energyLinks, provenance);
-        await uploadBuilding(session, uri, ttl, webId, controller.signal);
-        // Auto-remember the building's WebID agents in the address book and
-        // refresh the contacts query (shared helper — see rememberAgents.ts).
-        rememberBuildingAgents(session, qc, b);
-      }
-      showNotification(
-        buildingsList.length === 1 ? "Building added" : `${buildingsList.length} buildings added`,
-        "success",
-      );
-      onBuildingAdded(addedSubjectUris);
-      handleClose();
-    } catch (err) {
-      if (controller.signal.aborted) {
-        showNotification(
-          "Import cancelled — any buildings already written are kept",
-          "warning",
-        );
-      } else {
-        showNotification(formatError("add the building", err), "error");
-      }
-    } finally {
-      setUploading(false);
-      setUploadProgress(null);
-      uploadAbort.current = null;
-    }
+          showNotification(
+            added.length === 1
+              ? "Building added"
+              : `${added.length} buildings added`,
+            "success",
+          );
+          handleClose();
+        },
+        onSettled: () => {
+          setUploadProgress(null);
+          uploadAbort.current = null;
+        },
+      },
+    );
   };
 
   const handleCancelUpload = () => uploadAbort.current?.abort();
