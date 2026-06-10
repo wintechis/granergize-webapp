@@ -7,6 +7,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   useCreateRoom,
+  useDeleteBuilding,
   useExitRoom,
   useRemoveBookmark,
 } from "./mutations.ts";
@@ -14,6 +15,7 @@ import { queryKeys } from "./queries.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { resetActiveRoom } from "../services/interop/dataRoom.ts";
+import type { BuildingType } from "../types.ts";
 
 /**
  * The room-registry mutations don't invalidate the `["rooms", webId]` query —
@@ -126,6 +128,53 @@ Deno.test("useCreateRoom adds the new room to the registry and makes it current"
     assert.deepEqual(rooms(client).known, [room]);
     assert.ok(room.startsWith(`${ORIGIN}granergize/rooms/`));
     assert.ok(room.endsWith("/"), "room URL is normalized with a trailing slash");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useDeleteBuilding drops the deleted building from the list cache on success (no refetch needed)", async () => {
+  // Regression: a burst of rapid deletes left the Manage list showing a phantom
+  // row because the onSettled invalidation didn't refetch within the poll window
+  // (the just-emptied container was never re-read). The fix patches the
+  // `["buildings", webId]` cache authoritatively in onSuccess, so the list
+  // converges the instant the delete is confirmed — independent of any refetch.
+  // This hook renders no `useBuildings` observer, so invalidateQueries can't
+  // refetch; the assertion therefore isolates the cache patch.
+  const B1 = `${ORIGIN}granergize/buildings/b1.ttl`;
+  const B2 = `${ORIGIN}granergize/buildings/b2.ttl`;
+  const pod = new FakePod();
+  pod.containers.add(`${ORIGIN}granergize/buildings/`);
+  pod.resources.set(B1, "<#it> a <urn:Building> .");
+  pod.resources.set(B2, "<#it> a <urn:Building> .");
+  _setSessionForTesting(sessionFor(pod));
+  const b1 = { id: 1, uri: B1 } as unknown as BuildingType;
+  const b2 = { id: 2, uri: B2 } as unknown as BuildingType;
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  client.setQueryData<{ buildings: BuildingType[] }>(
+    [...queryKeys.buildings, WEBID],
+    { buildings: [b1, b2] },
+  );
+  const wrapper = ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+  try {
+    const { result } = renderHook(() => useDeleteBuilding(), { wrapper });
+    await result.current.mutateAsync(b1);
+    await waitFor(() => {
+      const data = client.getQueryData<{ buildings: BuildingType[] }>(
+        [...queryKeys.buildings, WEBID],
+      )!;
+      assert.deepEqual(
+        data.buildings.map((b) => b.uri),
+        [B2],
+        "the deleted building is removed; the other survives",
+      );
+    });
+    // The building file is actually gone server-side too.
+    assert.equal(pod.resources.has(B1), false);
+    assert.equal(pod.resources.has(B2), true);
   } finally {
     _setSessionForTesting(null);
   }

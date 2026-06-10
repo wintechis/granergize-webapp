@@ -6,7 +6,7 @@ Pod (no copy).
 
 Companion to [`storage-model.md`](./storage-model.md) (the event-log design),
 [`room.md`](./room.md) (rooms as a share-by-role directory), and
-[`views.md`](./views.md) (the view snapshots that get shared).
+[`aggregated-views.md`](./aggregated-views.md) (the view snapshots that get shared).
 
 ## Model — two append-only event logs
 
@@ -28,19 +28,31 @@ sharer's `.acl`, reachable only via the inbox).
 
 ## Flow
 
-Owner, three writes:
+Owner, three writes — **log first** (a failure mid-share must leave an
+event-without-ACL, which the replay repairs, never an ACL-without-event — live access
+the log doesn't know about):
 
-1. **Grant ACL** — `acl:Read` for the recipient WebID on the resource's `.acl`.
-2. **Notify** — POST a grant event to the recipient's inbox (`ldp:inbox` from their
-   WebID profile).
-3. **Record** — append a grant event to the owner's `shared-out/`.
+1. **Record** — append a grant event to the owner's `shared-out/` (the ground truth).
+2. **Grant ACL** — `acl:Read` for the recipient WebID on the resource's `.acl` (the
+   derived enforcement projection).
+3. **Notify** — POST a grant event to the recipient's inbox (`ldp:inbox` from their
+   WebID profile), once enforcement is in place.
+
+Revocation follows the same order (log → ACL → notify).
 
 Recipient — `drainInbox` lists the inbox and, per message: parse its sharing event(s),
 append each to the user's `shared-in/` log, then delete the message. "Shared with me,
 now" is the fold of `shared-in/`; a missed revocation self-heals because a building whose
 grant was withdrawn 403s on load and is pruned. A shared building's provenance comes from
-the shared building file's own PROV attribution (role sourced from the sharer's WebID
-profile `org:role`).
+the shared building file's own PROV attribution (`prov:agent` — the producing agent;
+no role travels with a share).
+
+**Replay** — `reissueGrants` folds `shared-out/` to the latest event per
+`(grantee, resource)` pair and replays it both ways: an active grant re-applies its
+ACL, a revocation withdraws it. Grants whose resource no longer exists are skipped
+(re-applying would resurrect empty containers), as are off-Pod resources (the log
+holds absolute IRIs; replay is same-Pod). Used after an archive restore and as the
+dev-mode "Rebuild sharing from log" repair.
 
 ## Event Turtle — `buildSharingEventTurtle`
 
@@ -53,8 +65,9 @@ blank nodes):
    interop:grantee        <recipient> ;
    interop:forResource    <resource> ;
    interop:accessMode     acl:Read ;        # grant only
-   gran:kind              gran:Building ;    # grant only: Building | View (routing hint)
+   gran:kind              rec:Building ;     # grant only: the shared class (rec:Building | cons:View)
    interop:includesEnergyData "true"^^xsd:boolean ;   # grant only, optional
+   interop:includesEnergyYear "2024"^^xsd:gYear ;     # grant only, one per granted year (absent ⇒ all)
    prov:generatedAtTime   "…"^^xsd:dateTime .
 ```
 
@@ -63,11 +76,12 @@ later time, and no `accessMode`/`kind`/`includesEnergyData`.
 
 ## Building — `shareBuildingData(buildingUri, webId, session, options)`
 
-`grantReadAccess` always grants the static building file; if `includeEnergyData`, also
-each `gran:hasEnergyDataset` resource (annual file / series descriptor), plus — for a
-sub-hourly series — its daily-files container with `acl:default` (dispatched on the
-dataset's declared granularity, not a role). Then notify + record. The `role` option is
-deprecated/ignored — provenance no longer travels with the share.
+Records the grant event first, then `grantReadAccess` grants the static building file;
+if `includeEnergyData`, also each `cons:hasEnergyDataset` resource (annual file / series
+descriptor), plus — for a sub-hourly series — its daily-files container with
+`acl:default` (dispatched on the dataset's declared granularity, not a role); then the
+inbox notify. The grant event carries every share dimension (incl. the per-year scope),
+on both the owner's `shared-out/` copy and the inbox/`shared-in/` copy.
 
 ## Revoke — `revokeAccess(buildingUri, webId, session)`
 
@@ -79,14 +93,14 @@ revocation succeeds even if it fails.
 ## Aggregated views — `shareAggregatedView(snapshotUrl, viewId, webId, session)`
 
 Same flow on the computed **snapshot only** (recipient sees aggregate values, not the
-source buildings); the grant event carries `gran:kind gran:View`. Recorded in
+source buildings); the grant event carries `gran:kind cons:View`. Recorded in
 `shared-out/`; the viewId is recoverable from the snapshot URI
 (`views/snapshots/<viewId>.ttl`), so it isn't stored separately. The view model itself
-(definition vs. snapshot, computation) is owned by [`views.md`](./views.md).
+(definition vs. snapshot, computation) is owned by [`aggregated-views.md`](./aggregated-views.md).
 
 Views have a **recipient side** too (previously view sharing was sender-only):
 
-- `getReceivedViews` folds `shared-in/` for `gran:kind gran:View`, surfaced in a "Views
+- `getReceivedViews` folds `shared-in/` for `gran:kind cons:View`, surfaced in a "Views
   shared with you" section on the Share tab and rendered via `loadComputedSnapshot`.
 - `getSharedViews` folds `shared-out/` for the sender's "shared with" list.
 - `revokeViewAccess` logs a revocation, withdraws the snapshot's `.acl`, and notifies the
@@ -123,9 +137,9 @@ direct share needs nothing room-related.)
 - **interop** (`http://www.w3.org/ns/solid/interop#`) — `AccessGrant`,
   `AccessRevocation`, `grantee`, `forResource`, `accessMode`, `includesEnergyData`.
 - **prov** — `prov:wasAssociatedWith` (the sharer) and `prov:generatedAtTime` (event
-  time) on each event; `prov:qualifiedAttribution` / `prov:agent` / `prov:hadRole` carry
-  a building's provenance in the building file.
+  time) on each event; `prov:qualifiedAttribution` / `prov:agent` carry a building's
+  provenance — the producing agent only, no `prov:hadRole` — in the building file.
 - **acl** — `acl:Read` / `acl:default` on `.acl` resources.
 - **ldp** — `ldp:inbox`, `ldp:contains`.
-- **gran** — `gran:kind` (`gran:Building` | `gran:View`, the event routing hint) and
+- **gran** — `gran:kind` (`rec:Building` | `cons:View`, the event routing hint) and
   `gran:hiddenBuilding` (local visibility, in `prefs.ttl`).

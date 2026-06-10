@@ -1,4 +1,73 @@
+import { Button } from "@mui/material";
+import MyLocationIcon from "@mui/icons-material/MyLocation";
 import type { BuildingFieldHelpers } from "./buildingFields.tsx";
+import { AgentField } from "./AgentField.tsx";
+
+/**
+ * The Address / Location & Physical / agent-link block shared by the Add and
+ * Edit dialogs — ONE rendering, so the two dialogs can't drift on this set
+ * (the original heike-3 complaint was exactly such drift, in copy-pasted
+ * blocks). Renders above {@link BuildingDetailFields}.
+ */
+export function BuildingAddressFields(
+  { f, fields, setField, isRequired, geocode }: {
+    f: BuildingFieldHelpers;
+    fields: Record<string, string>;
+    setField: (key: string, val: string) => void;
+    /** Whether a field is required (both dialogs require ADDRESS_FIELDS). */
+    isRequired: (field: string) => boolean;
+    /** The geocode affordance — label and enablement differ per dialog. */
+    geocode: {
+      onClick: () => void;
+      busy: boolean;
+      disabled?: boolean;
+      label: string;
+    };
+  },
+) {
+  const { tf, check, sectionHeader } = f;
+  return (
+    <>
+      {sectionHeader("Address")}
+      {tf("Street address", "streetAddress", { required: isRequired("streetAddress") })}
+      {tf("Locality (city)", "locality", { required: isRequired("locality") })}
+      {tf("Postal code", "postalCode", { required: isRequired("postalCode") })}
+      {tf("Region (state)", "region", { required: isRequired("region") })}
+
+      {sectionHeader("Location & Physical")}
+      <Button
+        variant="outlined"
+        startIcon={<MyLocationIcon />}
+        onClick={geocode.onClick}
+        disabled={geocode.busy || geocode.disabled}
+        sx={{ mb: 1.5 }}
+      >
+        {geocode.busy ? "Looking up…" : geocode.label}
+      </Button>
+      {tf("Latitude", "lat", { type: "number", required: isRequired("lat") })}
+      {tf("Longitude", "long", { type: "number", required: isRequired("long") })}
+      {tf("Building area (m²)", "buildingArea", { type: "number" })}
+      {tf("Land area (m²)", "landArea", { type: "number" })}
+      {tf("Year of construction", "yearOfConstruction", { type: "number" })}
+      <AgentField
+        label="Operated by (WebID)"
+        value={fields.operatedBy ?? ""}
+        onChange={(v) => setField("operatedBy", v)}
+      />
+      <AgentField
+        label="Owned by (WebID)"
+        value={fields.ownedBy ?? ""}
+        onChange={(v) => setField("ownedBy", v)}
+      />
+      <AgentField
+        label="Investor (WebID)"
+        value={fields.investor ?? ""}
+        onChange={(v) => setField("investor", v)}
+      />
+      {check("PV system installed", "hasPVSystem")}
+    </>
+  );
+}
 
 /**
  * The building master-data fields shared by the Add and Edit dialogs, rendered
@@ -31,7 +100,6 @@ export function BuildingDetailFields(
       {tf("Tenant industry", "tenantIndustry")}
       {tf("Logistics function", "logisticsFunction")}
       {tf("Climate control type", "climateControlType")}
-      {tf("Indoor temperature", "indoorTemperature")}
       {tf("Green lease share (%)", "greenLeaseShare", { type: "number" })}
       {tf("PV installation year", "pvInstallationYear", { type: "number" })}
       {tf("PV capacity (kW)", "pvCapacityKW", { type: "number" })}

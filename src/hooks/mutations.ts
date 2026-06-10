@@ -64,6 +64,27 @@ export function useDeleteBuilding() {
   return useMutation({
     mutationFn: (building: BuildingType) =>
       deleteBuildingResource(getSession(), building),
+    // Drop the building from the list cache authoritatively on success, so the
+    // Manage/Explore lists converge the instant the delete is confirmed instead of
+    // waiting on the onSettled invalidation to schedule a refetch. A burst of rapid
+    // deletes (the excel round-trip clears every building back-to-back) was leaving
+    // the list showing a phantom row: the coalesced invalidation didn't refetch
+    // within the poll window, so the just-emptied container was never re-read.
+    // `deleteBuildingResource` does a read-after-write (server-confirmed gone) before
+    // this runs, so removing it from the cache here is authoritative, not optimistic.
+    // Keyed by WebID to match `useBuildings` (`[...buildings, webId]`); matched on the
+    // stable `uri` (the building file IRI). onSettled still invalidates as a backstop
+    // and refreshes the dependent energy / shared-buildings queries.
+    onSuccess: (_data, building) => {
+      const webId = getSession().info.webId;
+      qc.setQueryData<{ buildings: BuildingType[] }>(
+        [...queryKeys.buildings, webId],
+        (old) =>
+          old
+            ? { ...old, buildings: old.buildings.filter((b) => b.uri !== building.uri) }
+            : old,
+      );
+    },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
       qc.invalidateQueries({ queryKey: queryKeys.energy });
@@ -102,7 +123,13 @@ export function useToggleVisibility() {
     mutationFn: (buildingUri: string) =>
       toggleBuildingVisibility(buildingUri, getSession()),
     onSettled: () => {
+      // Both the Share-tab "shared with you" list (its Shown/Hidden state) AND the
+      // buildings load depend on prefs' hiddenBuildings: the buildings load filters
+      // hidden ones out (TurtleParsingService), so it governs whether a building
+      // shows on the Explore map / Manage list. Invalidate both — otherwise the
+      // toggle updates the Share tab but leaves the map/list stale until a reload.
       qc.invalidateQueries({ queryKey: queryKeys.sharedWithMe });
+      qc.invalidateQueries({ queryKey: queryKeys.buildings });
     },
   });
 }

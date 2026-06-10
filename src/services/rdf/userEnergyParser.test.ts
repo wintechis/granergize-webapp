@@ -1,14 +1,14 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { parseTtlReadings } from "./userEnergyParser.ts";
-import { SOSA_NS, TIME_NS, USERVOC_NS } from "./vocabularies.ts";
+import { SOSA_NS, TIME_NS, CONSUMPTION_NS } from "./vocabularies.ts";
 
 const URL_ = "https://pod.example/granergize/buildings/b1/energy/2024-PT15M/2024-03-01.ttl";
 
 // `a` (rdf:type) is built into Turtle, so no rdf: prefix is needed.
 const PREFIXES = `@prefix sosa: <${SOSA_NS}> .
 @prefix time: <${TIME_NS}> .
-@prefix uv: <${USERVOC_NS}> .
+@prefix uv: <${CONSUMPTION_NS}> .
 `;
 
 /** One `uservoc:EnergyConsumptionReading` with a begin time and a simple result. */

@@ -124,6 +124,36 @@ test.describe("data rooms", () => {
       .toHaveCount(0, { timeout: SETTLE });
   });
 
+  test("the room role selector offers all eight Granergize roles", async () => {
+    test.setTimeout(T.testSolo);
+    // heike-1: early builds only exposed Investor / Nutzer / BSP, and partners
+    // missed the other actor types. Roles now live only as data-room membership,
+    // and every actor type must be assignable. Host a room (→ we're a member, so
+    // the "My role(s)" selector shows), open it, and assert the full set — the
+    // eight ROOM_ROLE_OPTIONS — is offered.
+    const { row, uri } = await hostRoom();
+    const ROLES = [
+      "Investor",
+      "User",
+      "Benchmark Service Provider",
+      "Facility Manager",
+      "Developer",
+      "Consultant / Broker",
+      "Software Provider",
+      "Energy Provider",
+    ];
+    await page.getByRole("combobox", { name: "My role(s)" }).click();
+    for (const role of ROLES) {
+      await expect(page.getByRole("option", { name: role, exact: true }))
+        .toBeVisible({ timeout: SETTLE });
+    }
+    await page.keyboard.press("Escape");
+
+    await row.getByRole("button", { name: "Delete data room" }).click();
+    await expect(page.locator("li").filter({ hasText: uri }))
+      .toHaveCount(0, { timeout: SETTLE });
+  });
+
   test("switch the active room back and forth between two rooms", async () => {
     test.setTimeout(T.testSolo);
     // Host two rooms. Hosting the second leaves the first, so room2 ends active.

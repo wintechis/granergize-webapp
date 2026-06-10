@@ -89,6 +89,22 @@ test.describe("organisation logo", () => {
     await reopened.getByRole("button", { name: /cancel/i }).click();
   });
 
+  // heike-2 / Andreas: the top-right avatar is the USER's identity and must never
+  // show the company logo. Runs right after the logo upload, so Alice's profile
+  // now carries an org logo — yet the header avatar still falls back to the person
+  // icon (this throwaway Pod's profile has no foaf:img), proving the org logo did
+  // not leak into the header. (The logo's only home is the building marker, next.)
+  test("the header avatar shows the person, never the company logo", async () => {
+    test.setTimeout(T.testSolo);
+    const accountBtn = page.getByRole("button", { name: /Account menu/ });
+    await expect(accountBtn).toBeVisible({ timeout: T.action });
+    // The avatar renders an <img> only when it has an image source. The header is
+    // the person's identity, and this throwaway Pod's profile carries no foaf:img,
+    // so the Avatar falls back to its PersonIcon child — NO <img>. A leaked company
+    // logo would render one, so asserting zero images is the regression guard.
+    await expect(accountBtn.locator("img")).toHaveCount(0);
+  });
+
   // A building produced by an agent whose profile carries an org logo shows that
   // logo as its map marker (BuildingMarker → resolveAgentOrgLogo → an L.divIcon
   // whose <img alt="Building producer logo">). Runs after the logo-upload test,

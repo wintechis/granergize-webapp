@@ -5,42 +5,40 @@ import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Regressions for the feedback in `docs/heike-3.md` (points 1–5). These started as
- * `test.fail()` reproductions; the fixes have landed, so they now assert the desired
- * behaviour directly:
+ * Building form + per-year energy entry (the fixes from `docs/heike-3.md`):
  *
- *   (1)(2)(3) One generic building form: every field offered when adding (here the
- *       heating type) is still editable afterwards — Add and Edit render the same set,
- *       independent of any role.
- *   (4) The per-year Energy dialog names the building it edits in its header.
- *   (5) Switching Actual→Planned for a year with no stored planned dataset clears the
- *       prefilled actual figures (no Soll-shows-Ist leak).
+ *   - One generic building form: every field offered when adding (here the heating
+ *     type) is still editable afterwards — Add and Edit render the same set,
+ *     independent of any role.
+ *   - The per-year Energy dialog names the building it edits in its header.
+ *   - Switching Actual→Planned for a year with no stored planned dataset clears the
+ *     prefilled actual figures (no Soll-shows-Ist leak).
  *
  *   # tier 3 (local CSS, no creds):
- *   deno task e2e:local test/e2e/tasks/heike-3-repro.spec.ts
+ *   deno task e2e:local test/e2e/tasks/building-form-and-energy.spec.ts
  *
  * Runs against Alice (account A). Skipped when account env vars are absent.
  */
 
 const ACC = account("A");
 
-const ADDR_FIELDS = "Heike3 Fields E2E Strasse 1"; // (1)(2)(3)
-const ADDR_HEADER = "Heike3 Header E2E Strasse 1"; // (4)
-const ADDR_PREFILL = "Heike3 Prefill E2E Strasse 1"; // (5)
+const ADDR_FIELDS = "Form Fields E2E Strasse 1"; // one-generic-form test
+const ADDR_HEADER = "Energy Header E2E Strasse 1"; // dialog-header test
+const ADDR_PREFILL = "Energy Prefill E2E Strasse 1"; // prefill-leak test
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("heike-3 feedback fixes", () => {
+test.describe("building form + energy entry", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the heike-3 e2e.`,
+    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the building-form e2e.`,
   );
 
   let page: Page;
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(T.setup); // login (IdP + consent) can be slow / retried
-    page = await newCapturedPage(browser, "heike-3-repro");
+    page = await newCapturedPage(browser, "building-form-and-energy");
     // "Delete building" confirms via window.confirm — accept automatically.
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
@@ -50,7 +48,7 @@ test.describe("heike-3 feedback fixes", () => {
   test.afterAll(async () => {
     test.setTimeout(T.afterAll);
     await closeAnyDialog();
-    await verifyAndReset(page, "heike-3-repro");
+    await verifyAndReset(page, "building-form-and-energy");
     await page.close();
   });
 

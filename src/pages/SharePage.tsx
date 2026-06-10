@@ -19,7 +19,6 @@ import type {
   AggregatedViewSnapshot,
   BuildingType,
 } from "../types.ts";
-import { ROLE_LABELS } from "../constants/roles.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { logError } from "../lib/logError.ts";
@@ -177,7 +176,7 @@ function ReceivedViewRow(
  */
 function SharedBuildingFiles(
   { entry, session }: {
-    entry: { buildingUri: string; buildingId: string; sharedRole?: string };
+    entry: { buildingUri: string; buildingId: string };
     session: Session;
   },
 ) {
@@ -239,13 +238,12 @@ export default function SharePage({ session }: SharePageProps) {
   const handleDownloadBuilding = async (entry: {
     buildingUri: string;
     buildingId: string;
-    sharedRole?: string;
   }) => {
     try {
       const building = await loadSharedBuilding(entry, session);
       if (!building) throw new Error("no building data found in the source file");
       const [enriched] = await attachAnnualData([building], session);
-      downloadXlsx(buildingToXlsx(enriched), `building-${entry.buildingId}.xlsx`);
+      downloadXlsx(await buildingToXlsx(enriched), `building-${entry.buildingId}.xlsx`);
     } catch (error) {
       showNotification(formatError("export the building", error), "error");
     }
@@ -271,7 +269,7 @@ export default function SharePage({ session }: SharePageProps) {
         throw new Error("none of the shared buildings could be read");
       }
       const enriched = await attachAnnualData(built, session);
-      downloadXlsx(buildingsToXlsx(enriched), "buildings-shared.xlsx");
+      downloadXlsx(await buildingsToXlsx(enriched), "buildings-shared.xlsx");
       if (built.length < sharedWithMe.length) {
         showNotification(
           `Exported ${built.length} of ${sharedWithMe.length} buildings; the rest could not be read.`,
@@ -310,8 +308,8 @@ export default function SharePage({ session }: SharePageProps) {
         : sharedWithMe.length === 0
         ? (
           <p>
-            No buildings have been shared with you yet. Ask a building owner to
-            share their data with your WebID.
+            No buildings have been shared with you yet. Join a data room so
+            owners can find you, or ask an owner to share with your WebID.
           </p>
         )
         : (
@@ -334,10 +332,6 @@ export default function SharePage({ session }: SharePageProps) {
                   <br />
                   <small>
                     Shared by: <AgentLabel value={building.sharedBy} />
-                    {building.sharedRole &&
-                      ` — Role: ${
-                        ROLE_LABELS[building.sharedRole] ?? building.sharedRole
-                      }`}
                   </small>
                 </span>
                 <div

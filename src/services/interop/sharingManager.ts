@@ -14,7 +14,7 @@ import { readPrefs, toggleHiddenBuilding } from "../prefs.ts";
 import {
   ACL_NS,
   GRAN_HAS_ENERGY_CERTIFICATE,
-  GRAN_NS,
+  CONSUMPTION_NS,
 } from "../rdf/vocabularies.ts";
 import { parseDatasetSlug } from "../rdf/energyDataset.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
@@ -31,7 +31,6 @@ interface SharedWithMeBuilding {
   buildingId: string;
   sharedBy: string;
   isVisible: boolean;
-  sharedRole?: string;
 }
 
 /** Building id from a building-file URL (`…/buildings/<id>.ttl` → `<id>`). */
@@ -43,7 +42,7 @@ function buildingIdFromUri(uri: string): string {
  * Buildings the user has shared with others, grouped by building → recipients.
  * Derived by folding the `shared-out/` event log (grant minus revocation); the
  * `.acl` remains the enforcement truth, this log is the app's record. A building
- * URL is `interop:forResource` with `gran:kind gran:Building`.
+ * URL is `interop:forResource` with `gran:kind rec:Building`.
  * @operation query
  */
 export async function getSharedBuildings(
@@ -203,11 +202,12 @@ export async function removeFromACL(
 /**
  * The building sub-resource URIs whose ACL entry must be removed when revoking:
  * the per-building `files/` container (attachments + certificate, mirroring the
- * `acl:default` grant in `share.ts`), each `gran:EnergyDataset` resource (annual
+ * `acl:default` grant in `share.ts`), each `cons:EnergyDataset` resource (annual
  * file / series descriptor) plus a series' daily-files container, and a legacy
- * energy certificate stored outside `files/`.
+ * energy certificate stored outside `files/`. Exported for the log replay
+ * (`reissueGrants`), which withdraws the same set for revoked pairs.
  */
-async function getSubresourceAclTargets(
+export async function getSubresourceAclTargets(
   buildingUri: string,
   session: Session,
 ): Promise<string[]> {
@@ -219,7 +219,7 @@ async function getSubresourceAclTargets(
     for (
       const link of store.getObjects(
         null,
-        DataFactory.namedNode(`${GRAN_NS}hasEnergyDataset`),
+        DataFactory.namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
         null,
       )
     ) {
@@ -376,7 +376,7 @@ interface ReceivedView {
 /**
  * Aggregated views shared *with* the user — the recipient counterpart of
  * {@link getSharedViews}. Folds the `shared-in/` log (where `drainInbox` archives
- * grants received in the inbox) for `gran:kind gran:View`. Only the computed
+ * grants received in the inbox) for `gran:kind cons:View`. Only the computed
  * snapshot is granted (not the definition), so each entry is just the snapshot
  * URL + who shared it; render it with {@link loadComputedSnapshot}.
  * @operation query
@@ -401,7 +401,7 @@ export async function getReceivedViews(
 
 /**
  * Views the user has shared with others, by folding the `shared-out/` log for
- * `gran:kind gran:View` grants. The viewId is recovered from the snapshot URL
+ * `gran:kind cons:View` grants. The viewId is recovered from the snapshot URL
  * (`views/snapshots/<viewId>.ttl`).
  * @operation query
  */

@@ -1,4 +1,3 @@
-import * as XLSX from "xlsx";
 import type { BuildingType } from "../../types.ts";
 import {
   BSP_FIELD_TO_HEADER,
@@ -7,15 +6,23 @@ import {
   OPCOST_FIELD_TO_LABEL,
   OPCOST_FIELDS,
   SCALAR_FIELDS,
+  type SpreadsheetFormat,
 } from "./buildingTemplates.ts";
+import { GRANERGIZE_LOGO_PNG_BASE64 } from "./logoPng.ts";
 
 // ---------------------------------------------------------------------------
 // XLSX export (inverse of parseCsvToFields) — build per-building and combined
-// workbooks shaped to re-import via the same template maps. Split out of
-// buildingSerializer.
+// workbooks shaped to re-import via the same template maps. Written with
+// exceljs (lazy-loaded; the read/import side stays on `xlsx`, which cannot
+// write styles) so the files carry the visual polish the community `xlsx`
+// build can't produce: a brand header, styled header rows, column widths and
+// the logo. The CELL layout is unchanged — detection and re-import read
+// values only, never styling.
 // ---------------------------------------------------------------------------
 
-function cellValue(v: unknown): string | number | null {
+type Cell = string | number | null;
+
+function cellValue(v: unknown): Cell {
   if (v === undefined || v === null || v === "") return null;
   if (typeof v === "number") return v;
   if (typeof v === "boolean") return v ? "true" : "false";
@@ -23,60 +30,61 @@ function cellValue(v: unknown): string | number | null {
   return String(v);
 }
 
-/** The spreadsheet layout to export a building in (chosen by the user, since a
- * building no longer carries a role); matches the import format adapters so the
- * file re-imports via `parseCsvToFields`. */
-export type ExportStyle = "investor" | "benchmark" | "generic";
+/** The spreadsheet layout to export a building in (chosen by the user); the shared
+ * {@link SpreadsheetFormat} — the import adapters read the same set back. */
+export type ExportStyle = SpreadsheetFormat;
 
 /**
- * Build an XLSX workbook for a building in the chosen `style` so the file re-imports
- * via `parseCsvToFields`:
- *   - investor → row-label sheet (label in col B, value in col D), with per-year
- *     energy rows, operating costs and the first certification block;
- *   - benchmark → single header row + value row, energy as `_bsp_*` columns;
- *   - generic → flat sheet keyed by BuildingType field names.
- * Exports the *modelled* fields only (the whitelisted projection); the 15-minute
- * user series lives in separate lazy files and is not included.
+ * The investor row-label rows (label in col B, value in col D) so the file
+ * re-imports via `parseCsvToFields("investor")`:
+ *   per-field rows, then per-year energy rows, operating costs and the first
+ *   certification block. Exports the *modelled* fields only (the whitelisted
+ *   projection); the 15-minute user series lives in separate lazy files and is
+ *   not included.
  */
-function buildingSheet(b: BuildingType, style: ExportStyle): XLSX.WorkSheet {
-  if (style === "investor") {
-    const rows: (string | number)[][] = [];
-    const put = (label: string, raw: unknown) => {
-      const v = cellValue(raw);
-      if (v !== null) rows.push(["", label, "", v]);
-    };
-    for (const [field, label] of Object.entries(INV_FIELD_TO_LABEL)) {
-      put(label, b[field as keyof BuildingType]);
-    }
-    let renewDone = false;
-    for (const y of b.annualData ?? []) {
-      put(`Stromverbrauch ${y.year}`, y.electricityConsumption);
-      put(`Wärme - tatsächlicher Verbrauch ${y.year}`, y.heatConsumption);
-      put(`Wasserverbrauch ${y.year}`, y.waterConsumption);
-      if (!renewDone && y.renewableSelfGeneratedShare != null) {
-        put(
-          "Anteil eigenerzeugter Strom aus erneuerbaren Quellen",
-          y.renewableSelfGeneratedShare,
-        );
-        renewDone = true;
-      }
-    }
-    if (b.operatingCosts) {
-      const oc = b.operatingCosts as Record<string, unknown>;
-      for (const [field, label] of Object.entries(OPCOST_FIELD_TO_LABEL)) {
-        put(label, oc[field]);
-      }
-    }
-    // Certifications: one yes/no + level pair per system (no per-system scope in
-    // the template, so scope is not exported to the row-label sheet).
-    for (const cert of b.certifications ?? []) {
-      if (!cert.type) continue;
-      put(cert.type, "Ja");
-      if (cert.level) put(certLevelLabel(cert.type), cert.level);
-    }
-    return XLSX.utils.aoa_to_sheet(rows);
+function investorRows(b: BuildingType): Cell[][] {
+  const rows: Cell[][] = [];
+  const put = (label: string, raw: unknown) => {
+    const v = cellValue(raw);
+    if (v !== null) rows.push([null, label, null, v]);
+  };
+  for (const [field, label] of Object.entries(INV_FIELD_TO_LABEL)) {
+    put(label, b[field as keyof BuildingType]);
   }
+  let renewDone = false;
+  for (const y of b.annualData ?? []) {
+    put(`Stromverbrauch ${y.year}`, y.electricityConsumption);
+    put(`Wärme - tatsächlicher Verbrauch ${y.year}`, y.heatConsumption);
+    put(`Wasserverbrauch ${y.year}`, y.waterConsumption);
+    if (!renewDone && y.renewableSelfGeneratedShare != null) {
+      put(
+        "Anteil eigenerzeugter Strom aus erneuerbaren Quellen",
+        y.renewableSelfGeneratedShare,
+      );
+      renewDone = true;
+    }
+  }
+  if (b.operatingCosts) {
+    const oc = b.operatingCosts as Record<string, unknown>;
+    for (const [field, label] of Object.entries(OPCOST_FIELD_TO_LABEL)) {
+      put(label, oc[field]);
+    }
+  }
+  // Certifications: one yes/no + level pair per system (no per-system scope in
+  // the row-label layout, so scope is not exported here).
+  for (const cert of b.certifications ?? []) {
+    if (!cert.type) continue;
+    put(cert.type, "Ja");
+    if (cert.level) put(certLevelLabel(cert.type), cert.level);
+  }
+  return rows;
+}
 
+/** Single-building column record for the benchmark / generic table layouts. */
+function buildingRecord(
+  b: BuildingType,
+  style: ExportStyle,
+): Record<string, string | number> {
   const record: Record<string, string | number> = {};
   if (style === "benchmark") {
     for (const [field, header] of Object.entries(BSP_FIELD_TO_HEADER)) {
@@ -102,13 +110,7 @@ function buildingSheet(b: BuildingType, style: ExportStyle): XLSX.WorkSheet {
       if (v !== null) record[field] = v;
     }
   }
-  return XLSX.utils.json_to_sheet([record]);
-}
-
-function buildingToWorkbook(b: BuildingType, style: ExportStyle): XLSX.WorkBook {
-  const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, buildingSheet(b, style), "Gebäude");
-  return wb;
+  return record;
 }
 
 /**
@@ -164,41 +166,191 @@ function buildingToFlatRecord(b: BuildingType): Record<string, string | number> 
   return rec;
 }
 
-/**
- * One workbook with a single sheet, one row per building — a unified table of all
- * buildings. Mixed-role buildings coexist as sparse columns; each row re-imports
- * via the generic path (import as user / dummy). See {@link buildingToFlatRecord}.
- */
-function buildingsToWorkbook(buildings: BuildingType[]): XLSX.WorkBook {
-  const wb = XLSX.utils.book_new();
-  const rows = buildings.map(buildingToFlatRecord);
-  XLSX.utils.book_append_sheet(wb, XLSX.utils.json_to_sheet(rows), "Gebäude");
-  return wb;
+// --- exceljs writing -------------------------------------------------------
+
+// Theme palette (src/theme.ts primary) in exceljs ARGB form.
+const BRAND = "FF0277BD";
+const ZEBRA = "FFF0F6FB";
+const GRID = "FFD0D7DE";
+
+type Exceljs = typeof import("exceljs");
+type Worksheet = import("exceljs").Worksheet;
+type Workbook = import("exceljs").Workbook;
+
+/** Lazy-load exceljs so the writer lands in its own code-split chunk. */
+async function loadExceljs(): Promise<Exceljs> {
+  const mod = await import("exceljs");
+  return (mod as { default?: Exceljs }).default ?? (mod as Exceljs);
 }
 
-function workbookToBytes(wb: XLSX.WorkBook): ArrayBuffer {
-  const out = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  const u8: Uint8Array = out instanceof Uint8Array
-    ? out
-    : new Uint8Array(out as ArrayBuffer);
+function thinBorder(): Record<string, { style: "thin"; color: { argb: string } }> {
+  const side = { style: "thin" as const, color: { argb: GRID } };
+  return { top: side, bottom: side, left: side, right: side };
+}
+
+/** Place the logo via a two-cell anchor (tl→br; LibreOffice renders a
+ * one-cell-anchor extent zero-sized). Images live in the drawing layer — they
+ * occupy no cells, so import is unaffected. Anchors are fractional col/row
+ * coordinates. */
+function placeLogo(
+  wb: Workbook,
+  ws: Worksheet,
+  tl: { col: number; row: number },
+  br: { col: number; row: number },
+): void {
+  const id = wb.addImage({
+    base64: GRANERGIZE_LOGO_PNG_BASE64,
+    extension: "png",
+  });
+  ws.addImage(id, {
+    tl,
+    br,
+    editAs: "oneCell",
+  } as Parameters<Worksheet["addImage"]>[1]);
+}
+
+/**
+ * Header-row + data-rows table sheet (benchmark / generic / combined export):
+ * brand-filled bold header in row 1 (the row the importer reads the column
+ * names from), zebra-striped data rows, fitted column widths, frozen header.
+ */
+function writeTableSheet(
+  wb: Workbook,
+  ws: Worksheet,
+  records: Record<string, string | number>[],
+): void {
+  // Union of keys across rows, first-seen order (sparse columns coexist).
+  const headers: string[] = [];
+  for (const r of records) {
+    for (const k of Object.keys(r)) if (!headers.includes(k)) headers.push(k);
+  }
+  const headerRow = ws.addRow(headers);
+  headerRow.eachCell((cell) => {
+    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
+    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
+    cell.border = thinBorder();
+    cell.alignment = { vertical: "middle" };
+  });
+  headerRow.height = 22;
+
+  for (const [i, rec] of records.entries()) {
+    const row = ws.addRow(headers.map((h) => rec[h] ?? null));
+    row.eachCell({ includeEmpty: true }, (cell) => {
+      cell.border = thinBorder();
+      if (i % 2 === 1) {
+        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } };
+      }
+    });
+  }
+
+  headers.forEach((h, i) => {
+    const longest = records.reduce(
+      (n, r) => Math.max(n, String(r[h] ?? "").length),
+      h.length,
+    );
+    ws.getColumn(i + 1).width = Math.min(40, Math.max(12, longest + 2));
+  });
+  ws.views = [{ state: "frozen", ySplit: 1 }];
+  // Floats right of the data; visible on screen (print ranges clip to the
+  // used cells, which is fine for a data table).
+  placeLogo(
+    wb,
+    ws,
+    { col: headers.length + 1, row: 0.1 },
+    { col: headers.length + 1.5, row: 1.7 },
+  );
+}
+
+/**
+ * Investor row-label sheet: a brand title band (row 1, columns A–D merged — the
+ * importer matches col-B labels by exact text, which the title is not), a bold
+ * "Datenfeld / Wert" header, then the label/value rows with zebra striping.
+ */
+function writeInvestorSheet(wb: Workbook, ws: Worksheet, rows: Cell[][]): void {
+  ws.getColumn(1).width = 3;
+  ws.getColumn(2).width = 52;
+  ws.getColumn(3).width = 3;
+  ws.getColumn(4).width = 20;
+
+  const title = ws.addRow([null]);
+  ws.mergeCells(1, 1, 1, 4);
+  const titleCell = ws.getCell(1, 1);
+  titleCell.value = "Gebäudedaten";
+  titleCell.font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
+  titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
+  titleCell.alignment = { vertical: "middle", indent: 1 };
+  title.height = 30;
+
+  ws.addRow([]);
+  const header = ws.addRow([null, "Datenfeld", null, "Wert"]);
+  header.eachCell((cell) => {
+    cell.font = { bold: true };
+    cell.border = {
+      bottom: { style: "medium", color: { argb: BRAND } },
+    };
+  });
+
+  for (const [i, r] of rows.entries()) {
+    const row = ws.addRow(r);
+    if (i % 2 === 1) {
+      for (const c of [2, 3, 4]) {
+        row.getCell(c).fill = {
+          type: "pattern",
+          pattern: "solid",
+          fgColor: { argb: ZEBRA },
+        };
+      }
+    }
+  }
+  // Badge in the title band's right corner — inside the used range, so it
+  // survives print/PDF too. Col D is 20 chars (~145px) wide and the band is
+  // 30pt (~40px) tall; the fractions keep the badge ~32px square.
+  placeLogo(wb, ws, { col: 3.3, row: 0.1 }, { col: 3.95, row: 0.9 });
+}
+
+async function newWorkbook(): Promise<{ wb: Workbook; ws: Worksheet }> {
+  const ExcelJS = await loadExceljs();
+  const wb = new ExcelJS.Workbook();
+  wb.creator = "Granergize";
+  const ws = wb.addWorksheet("Gebäude");
+  return { wb, ws };
+}
+
+async function workbookToBytes(wb: Workbook): Promise<ArrayBuffer> {
+  const out = await wb.xlsx.writeBuffer();
+  const u8 = out instanceof Uint8Array ? out : new Uint8Array(out);
+  // Plain ArrayBuffer copy so it drops straight into `new Blob([...])`.
   const copy = new ArrayBuffer(u8.byteLength);
   new Uint8Array(copy).set(u8);
   return copy;
 }
 
 /**
- * Serialize a building to `.xlsx` bytes (see {@link buildingToWorkbook}) in the
- * chosen `style` (default generic), as a plain `ArrayBuffer` so it drops straight
- * into `new Blob([...])` / `new File([...])`.
+ * Serialize a building to `.xlsx` bytes in the chosen `style` (default generic)
+ * so the file re-imports via `parseCsvToFields`:
+ *   - investor → row-label sheet (label in col B, value in col D);
+ *   - benchmark → single header row + value row, energy as BSP columns;
+ *   - generic → flat sheet keyed by BuildingType field names.
  */
-export function buildingToXlsx(
+export async function buildingToXlsx(
   b: BuildingType,
   style: ExportStyle = "generic",
-): ArrayBuffer {
-  return workbookToBytes(buildingToWorkbook(b, style));
+): Promise<ArrayBuffer> {
+  const { wb, ws } = await newWorkbook();
+  if (style === "investor") writeInvestorSheet(wb, ws, investorRows(b));
+  else writeTableSheet(wb, ws, [buildingRecord(b, style)]);
+  return workbookToBytes(wb);
 }
 
-/** Serialize all buildings to one multi-sheet `.xlsx` (see {@link buildingsToWorkbook}). */
-export function buildingsToXlsx(buildings: BuildingType[]): ArrayBuffer {
-  return workbookToBytes(buildingsToWorkbook(buildings));
+/**
+ * One workbook with a single sheet, one row per building — a unified table of all
+ * buildings. Mixed-role buildings coexist as sparse columns; each row re-imports
+ * via the generic path (import as user / dummy). See {@link buildingToFlatRecord}.
+ */
+export async function buildingsToXlsx(
+  buildings: BuildingType[],
+): Promise<ArrayBuffer> {
+  const { wb, ws } = await newWorkbook();
+  writeTableSheet(wb, ws, buildings.map(buildingToFlatRecord));
+  return workbookToBytes(wb);
 }

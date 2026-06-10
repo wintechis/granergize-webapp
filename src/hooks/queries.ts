@@ -56,7 +56,7 @@ export function useBuildings() {
 /** Phase 2: energy for the given buildings (dependent on phase 1).
  *
  * The key fingerprints what `loadEnergy` actually reads: each building's id PLUS
- * its `gran:hasEnergyDataset` links (year/granularity/scenario per dataset). Keying
+ * its `cons:hasEnergyDataset` links (year/granularity/scenario per dataset). Keying
  * on the id set alone under-covers the inputs — energy is folded from per-building
  * dataset links, so a building that merely *gains* or *loses* a link (an energy year
  * written/deleted on an existing building) leaves the id set unchanged, the key
@@ -69,7 +69,7 @@ export function useBuildings() {
  * still prefix-matches this key, so existing invalidations keep working. */
 /**
  * The energy query's content fingerprint: each building's id PLUS its
- * `gran:hasEnergyDataset` links (year/granularity/scenario), so the key changes
+ * `cons:hasEnergyDataset` links (year/granularity/scenario), so the key changes
  * whenever a dataset link is added/removed — not only when the building set does.
  * Exported (and pure) so the coverage is unit-testable.
  */

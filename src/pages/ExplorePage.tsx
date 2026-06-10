@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { BuildingType, EnergyType } from "../types.ts";
+import { BuildingType } from "../types.ts";
 import {
   detailIndexFromSlug,
   mergeParams,
@@ -52,6 +52,7 @@ import {
   beginActivity,
   endActivity,
 } from "../lib/networkActivity.ts";
+import { safeImageSrc } from "../lib/safeHref.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import {
   categorise,
@@ -111,9 +112,18 @@ function getIcon(building: BuildingType): L.Icon {
   return building.isShared ? SHARED_ICON : OWNED_ICON;
 }
 
+// Leaflet icons are CACHED at module level: react-leaflet calls
+// `marker.setIcon()` (replacing the marker's DOM node) whenever the `icon`
+// prop's IDENTITY changes, and every pan/zoom re-renders all markers — a fresh
+// icon object per render meant the whole fleet's DOM was rebuilt on every map
+// move. Stable cached instances make those re-renders no-ops.
+const selectedIconCache = new Map<string, L.DivIcon>();
 function createSelectedIcon(building: BuildingType): L.DivIcon {
+  const key = building.isShared ? "shared" : "owned";
+  const hit = selectedIconCache.get(key);
+  if (hit) return hit;
   const imgUrl = getIcon(building).options.iconUrl as string;
-  return L.divIcon({
+  const icon = L.divIcon({
     className: "",
     html:
       `<img src="${imgUrl}" alt="Selected building" style="width:25px;height:41px;filter:drop-shadow(0 0 3px ${MARKER_SELECTED_COLOR}) drop-shadow(0 0 5px ${MARKER_SELECTED_COLOR});" />`,
@@ -121,6 +131,8 @@ function createSelectedIcon(building: BuildingType): L.DivIcon {
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
   });
+  selectedIconCache.set(key, icon);
+  return icon;
 }
 
 /** The owned/shared ring colour — the only provenance-independent distinction. */
@@ -134,15 +146,19 @@ function ringColor(building: BuildingType): string {
  * categorisation is always legible. The category is baked into the `className`
  * (`energy-marker energy-<category>`) so the e2e spec can assert it.
  */
+const categoryIconCache = new Map<string, L.DivIcon>();
 function createCategoryIcon(
   category: EnergyCategory,
   selected: boolean,
 ): L.DivIcon {
+  const key = `${category}-${selected}`;
+  const hit = categoryIconCache.get(key);
+  if (hit) return hit;
   const ring = selected ? MARKER_SELECTED_COLOR : "#fff";
   const shadow = selected
     ? `box-shadow:0 0 0 2px ${MARKER_SELECTED_COLOR},0 1px 4px rgba(0,0,0,0.45);`
     : "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
-  return L.divIcon({
+  const icon = L.divIcon({
     className: `energy-marker energy-${category}`,
     html:
       `<div style="width:28px;height:28px;border-radius:50%;background:${
@@ -152,32 +168,47 @@ function createCategoryIcon(
     iconAnchor: [17, 17],
     popupAnchor: [0, -17],
   });
+  categoryIconCache.set(key, icon);
+  return icon;
 }
 
 // A marker showing the building producer's organisation logo inside a circular
 // owned/shared ring (selected = highlighted ring). If the logo image can't be
 // fetched (e.g. the producer's profile folder isn't public) the `onerror`
 // handler swaps in the default pin, so the marker degrades gracefully.
+// Cached per (logo, owned/shared, selected) — bounded by the number of
+// producers — for the same setIcon-churn reason as the caches above.
+const logoIconCache = new Map<string, L.DivIcon>();
 function createLogoIcon(
   logoUrl: string,
   building: BuildingType,
   selected: boolean,
 ): L.DivIcon {
+  const key = `${logoUrl}|${building.isShared ? "s" : "o"}|${selected}`;
+  const hit = logoIconCache.get(key);
+  if (hit) return hit;
   const ring = selected ? MARKER_SELECTED_COLOR : ringColor(building);
   const fallback = getIcon(building).options.iconUrl as string;
+  // `logoUrl` is the raw `foaf:logo` value from a THIRD PARTY's profile (shared-in
+  // buildings render markers for foreign producers), and it gets interpolated
+  // into the icon's HTML string below — sanitize it, or a crafted profile value
+  // could inject markup/script into the app origin. Unsafe → default pin.
+  const src = safeImageSrc(logoUrl) ?? fallback;
   const shadow = selected
     ? `box-shadow:0 0 0 2px ${MARKER_SELECTED_COLOR},0 1px 4px rgba(0,0,0,0.45);`
     : "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
-  return L.divIcon({
+  const icon = L.divIcon({
     className: "",
     html:
       `<div style="width:36px;height:36px;border-radius:50%;border:3px solid ${ring};background:#fff;overflow:hidden;${shadow}">` +
-      `<img src="${logoUrl}" alt="Building producer logo" style="width:100%;height:100%;object-fit:contain;display:block;" ` +
+      `<img src="${src}" alt="Building producer logo" style="width:100%;height:100%;object-fit:contain;display:block;" ` +
       `onerror="this.onerror=null;this.style.objectFit='cover';this.src='${fallback}';" /></div>`,
     iconSize: [42, 42],
     iconAnchor: [21, 21],
     popupAnchor: [0, -21],
   });
+  logoIconCache.set(key, icon);
+  return icon;
 }
 
 /**
@@ -316,6 +347,16 @@ export default function ExplorePage(
   // starts fetching tiles and `load` once the visible set is in), so panning/
   // zooming registers in the global indicator without a token per image.
   const tileToken = useRef<number | null>(null);
+  // Close a still-open tile burst on unmount (e.g. logout mid-pan) — otherwise
+  // the header indicator counts a phantom in-flight request forever.
+  useEffect(() => {
+    return () => {
+      if (tileToken.current !== null) {
+        endActivity(tileToken.current);
+        tileToken.current = null;
+      }
+    };
+  }, []);
   // The selected building and detail sub-tab live in the hash query params
   // (`?b=`/`?dt=`) so a reload / bookmark restores the view — see
   // notes/ui-state.md. The right pane shows the building `?b=` names; selection
@@ -331,7 +372,6 @@ export default function ExplorePage(
   // The map's current bounding box; the energy mix below the map is computed
   // over the buildings that fall inside it.
   const [bbox, setBbox] = useState<L.LatLngBounds | null>(null);
-  const [selectedEnergy, setSelectedEnergy] = useState<EnergyType | null>(null);
   // false = balanced 50/50 split with the map; true = the detail pane fills the
   // tab body and the map pane is hidden (kept mounted, see InvalidateOnActive).
   const [detailFull, setDetailFull] = useState(false);
@@ -393,16 +433,15 @@ export default function ExplorePage(
       replace: true,
     });
 
-  // Keep the energy data in sync with the building currently in view.
-  useEffect(() => {
-    if (currentBuilding && energyNeed) {
-      setSelectedEnergy(
-        energyNeed.find((e) => e.id === currentBuilding.id) || null,
-      );
-    } else {
-      setSelectedEnergy(null);
-    }
-  }, [currentBuilding, energyNeed]);
+  // The selected building's energy — pure derived data (a lookup), so a memo,
+  // not state+effect (which cost an extra render cycle per selection change).
+  const selectedEnergy = useMemo(
+    () =>
+      currentBuilding && energyNeed
+        ? energyNeed.find((e) => e.id === currentBuilding.id) || null
+        : null,
+    [currentBuilding, energyNeed],
+  );
 
   const togglePaneSize = () => {
     setDetailFull((v) => !v);

@@ -1,5 +1,5 @@
 /**
- * Whether a dataset's declared `gran:granularity` (xsd:duration) is a sub-hourly
+ * Whether a dataset's declared `cons:granularity` (xsd:duration) is a sub-hourly
  * *series* — large, fetched lazily on demand — vs. an *aggregate* (monthly/annual)
  * that's small enough to bulk-load. Drives the load strategy independently of the
  * producer's role. Sub-hourly = a time-only ISO-8601 duration with minutes/hours

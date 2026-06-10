@@ -90,7 +90,7 @@ test.describe("excel upload", () => {
     // The file input is hidden (display:none); set it directly rather than
     // driving the OS picker.
     await page.getByRole("dialog").locator('input[type="file"]').setInputFiles(
-      "public/templates/investor-template.xlsx",
+      "test/e2e/fixtures/investor-import.xlsx",
     );
     await expect(page.getByText(/Loaded \d+ building\(s\) from file/))
       .toBeVisible({ timeout: T.action });
@@ -142,7 +142,7 @@ test.describe("excel upload", () => {
     // The importer auto-detects the Lastgang layout on upload (no format choice).
 
     await page.getByRole("dialog").locator('input[type="file"]').setInputFiles(
-      "public/templates/user-lastgang-template.xlsx",
+      "test/e2e/fixtures/lastgang-import.xlsx",
     );
     // The Lastgang parse reports the readings/days it's ready to upload.
     await expect(page.getByText(/readings.*days.*ready to upload/))
@@ -158,11 +158,28 @@ test.describe("excel upload", () => {
     await dialog.getByLabel(/region/i).fill("Bayern");
     await dialog.getByLabel(/latitude/i).fill("49.45");
     await dialog.getByLabel(/longitude/i).fill("11.08");
+    // Hold each daily energy-file PUT briefly so the upload stays observably
+    // in-flight. A month of readings is 32 day-files, but on a fast local server
+    // (JSS especially, ~7ms/req) the whole batch can finish in tens of
+    // milliseconds — unmounting the busy overlay, and its Cancel control, before
+    // the click lands (the cause of the original detached-element flake). The
+    // delay only widens the cancel window; it changes nothing about the abort
+    // path being asserted, and is independent of the real-Pod latency that makes
+    // this a genuinely long upload in production (Tier 4).
+    await page.route(/\/energy\/[^/]*PT15M\/\d{4}-\d{2}-\d{2}\.ttl$/, async (route) => {
+      if (route.request().method() !== "PUT") return await route.continue();
+      await new Promise((r) => setTimeout(r, 300));
+      // Cancel aborts in-flight requests, so a parked one may already be gone by
+      // the time we resume it — tolerate that.
+      await route.continue().catch(() => {});
+    });
+
     await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
       .click();
 
     // The busy overlay surfaces the live requests and a Cancel control once the
-    // ~365 daily-file writes start. Cancel and assert the abort path.
+    // per-day energy writes start (a month of readings → 32 day-files). Cancel
+    // and assert the abort path.
     const cancel = page.getByRole("button", { name: "Cancel upload" });
     await expect(cancel).toBeVisible({ timeout: T.action });
     await cancel.click();

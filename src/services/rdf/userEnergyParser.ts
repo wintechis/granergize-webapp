@@ -1,5 +1,5 @@
 import { DataFactory } from "n3";
-import { RDF_TYPE, SOSA_NS, TIME_NS, USERVOC_NS } from "./vocabularies.ts";
+import { RDF_TYPE, SOSA_NS, TIME_NS, CONSUMPTION_NS } from "./vocabularies.ts";
 import { parseRdfText } from "./rdfHelpers.ts";
 
 const { namedNode } = DataFactory;
@@ -23,7 +23,7 @@ export async function parseTtlReadings(
   const readingQuads = store.getQuads(
     null,
     namedNode(RDF_TYPE),
-    namedNode(`${USERVOC_NS}EnergyConsumptionReading`),
+    namedNode(`${CONSUMPTION_NS}EnergyConsumptionReading`),
     null,
   );
 

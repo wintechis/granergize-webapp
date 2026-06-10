@@ -8,10 +8,10 @@ import type {
 import {
   BENCH_COMPUTED_BY,
   BENCH_METRIC_PERIOD,
-  BENCH_NS,
   BENCH_RESULT,
-  GRAN_NS,
+  CONSUMPTION_NS,
   RDF_TYPE,
+  XSD_BOOLEAN,
   XSD_DATETIME,
   XSD_DECIMAL,
   XSD_GYEAR,
@@ -27,7 +27,7 @@ import { logError } from "../../lib/logError.ts";
 
 const { namedNode, literal, quad } = DataFactory;
 
-const VOCAB_PREFIX = GRAN_NS;
+const VOCAB_PREFIX = CONSUMPTION_NS;
 
 /**
  * Standard prefixes for Turtle serialization
@@ -35,8 +35,7 @@ const VOCAB_PREFIX = GRAN_NS;
 const TTL_PREFIXES =
   `@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
-@prefix gra: <${VOCAB_PREFIX}> .
-@prefix bench: <${BENCH_NS}> .
+@prefix cons: <${VOCAB_PREFIX}> .
 
 `;
 
@@ -99,10 +98,12 @@ async function ensureViewsDirectoryExists(session: Session): Promise<void> {
 }
 
 /**
- * Generate a unique view ID
+ * Generate a unique view ID — collision-free via crypto.randomUUID (the same
+ * fix as building file ids; a timestamp+short-random id could collide in a
+ * tight loop).
  */
 function generateViewId(): string {
-  return `view-${Date.now()}-${Math.random().toString(36).substring(2, 9)}`;
+  return `view-${crypto.randomUUID()}`;
 }
 
 /**
@@ -115,8 +116,9 @@ export async function createViewDefinition(
   buildingUris: string[],
   aggregationType: AggregatedViewDefinition["aggregationType"],
   metrics: string[],
-  period?: string,
+  opts: { period?: string; benchmark?: boolean } = {},
 ): Promise<AggregatedViewDefinition> {
+  const { period, benchmark } = opts;
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
   }
@@ -136,6 +138,7 @@ export async function createViewDefinition(
     metrics,
     createdAt: now,
     ...(period ? { period } : {}),
+    ...(benchmark ? { benchmark } : {}),
   };
 
   const viewNode = viewNodeFor(webId, viewId);
@@ -165,6 +168,17 @@ export async function createViewDefinition(
       viewNode,
       namedNode(`${VOCAB_PREFIX}viewPeriod`),
       literal(period),
+    ));
+  }
+  // The benchmark flag is PERSISTED on the definition (ground truth), so every
+  // (re)compute — including a plain "Refresh Snapshot" — re-derives the
+  // snapshot's bench:BenchmarkResult typing from it instead of relying on
+  // call-site options that a refresh wouldn't know to pass.
+  if (benchmark) {
+    store.addQuad(quad(
+      viewNode,
+      namedNode(`${VOCAB_PREFIX}benchmark`),
+      literal("true", namedNode(XSD_BOOLEAN)),
     ));
   }
   // Building URIs (private, only in the definition file).
@@ -228,6 +242,10 @@ function parseViewDefinition(store: Store): AggregatedViewDefinition | null {
       namedNode(`${VOCAB_PREFIX}includesMetric`),
     ),
     period: getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewPeriod`)),
+    ...(getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}benchmark`)) ===
+        "true"
+      ? { benchmark: true }
+      : {}),
   };
 }
 
@@ -380,12 +398,21 @@ export async function storeComputedSnapshot(
     ));
   }
 
-  // Add computed values
+  // Add computed values. Full precision — rounding the GROUND value to two
+  // decimals lost real precision (share-% metrics, sums over 15-min readings);
+  // display formatting is the UI's job. `toFixed(20)` would be invalid lexical
+  // xsd:decimal for huge floats; plain String() of a finite number is fine
+  // except exponent forms, which we expand via toFixed's integer-digit form.
   for (const [metric, value] of Object.entries(snapshot.values)) {
+    const lexical = Number.isInteger(value)
+      ? String(value)
+      : String(value).includes("e")
+      ? value.toFixed(10)
+      : String(value);
     store.addQuad(quad(
       snapshotNode,
       namedNode(`${VOCAB_PREFIX}${metric}Value`),
-      literal(value.toFixed(2), namedNode(XSD_DECIMAL)),
+      literal(lexical, namedNode(XSD_DECIMAL)),
     ));
   }
 
@@ -438,107 +465,114 @@ async function updateViewLastComputed(
 }
 
 /**
- * Load a computed snapshot from URL
+ * Load a computed snapshot from URL.
+ *
+ * Distinguishes ABSENCE from FAILURE: `null` means the snapshot genuinely does
+ * not exist (404/410, or the document isn't a snapshot) — the signal the view
+ * page's auto-compute keys on. Any transient failure (throttling, network,
+ * unparseable response) THROWS instead: returning `null` there once made a
+ * failed read of an EXISTING snapshot trigger a snapshot-overwriting recompute.
+ * Callers that want per-item tolerance (e.g. folding received benchmarks)
+ * catch per snapshot.
  * @operation query
  */
 export async function loadComputedSnapshot(
   session: Session,
   snapshotUrl: string,
 ): Promise<AggregatedViewSnapshot | null> {
-  try {
-    const response = await fetchFresh(snapshotUrl, session);
-    if (!response.ok) {
-      return null;
-    }
-
-    const text = await response.text();
-    const parser = new Parser({ format: "text/turtle", baseIRI: snapshotUrl });
-    const quads = parser.parse(text);
-    const store = new Store(quads);
-
-    const snapshotType = namedNode(`${VOCAB_PREFIX}AggregatedViewSnapshot`);
-    const snapshotQuads = store.getQuads(
-      null,
-      namedNode(RDF_TYPE),
-      snapshotType,
-      null,
-    );
-
-    if (snapshotQuads.length === 0) {
-      return null;
-    }
-
-    const snapshotNode = snapshotQuads[0].subject;
-
-    const isBenchmark = store.getQuads(
-      snapshotNode,
-      namedNode(RDF_TYPE),
-      namedNode(BENCH_RESULT),
-      null,
-    ).length > 0;
-    const computedBy = getQuadValue(
-      store,
-      snapshotNode,
-      namedNode(BENCH_COMPUTED_BY),
-    );
-    const metricPeriod = getQuadValue(
-      store,
-      snapshotNode,
-      namedNode(BENCH_METRIC_PERIOD),
-    );
-
-    const metrics = getQuadValues(
-      store,
-      snapshotNode,
-      namedNode(`${VOCAB_PREFIX}includesMetric`),
-    );
-    const values: Record<string, number> = {};
-    for (const metric of metrics) {
-      const v = getQuadValue(
-        store,
-        snapshotNode,
-        namedNode(`${VOCAB_PREFIX}${metric}Value`),
-      );
-      if (v !== undefined) values[metric] = parseFloat(v);
-    }
-
-    return {
-      id:
-        getQuadValue(store, snapshotNode, namedNode(`${VOCAB_PREFIX}viewId`)) ??
-          "",
-      name: getQuadValue(
-        store,
-        snapshotNode,
-        namedNode(`${VOCAB_PREFIX}viewName`),
-      ) ?? "",
-      aggregationType: (getQuadValue(
-        store,
-        snapshotNode,
-        namedNode(`${VOCAB_PREFIX}aggregationType`),
-      ) ?? "average") as AggregatedViewSnapshot["aggregationType"],
-      computedAt: getQuadValue(
-        store,
-        snapshotNode,
-        namedNode(`${VOCAB_PREFIX}computedAt`),
-      ) ?? "",
-      buildingCount: parseInt(
-        getQuadValue(
-          store,
-          snapshotNode,
-          namedNode(`${VOCAB_PREFIX}buildingCount`),
-        ) ?? "0",
-        10,
-      ),
-      metrics,
-      values,
-      ...(isBenchmark ? { isBenchmark } : {}),
-      ...(computedBy ? { computedBy } : {}),
-      ...(metricPeriod ? { metricPeriod } : {}),
-    };
-  } catch (error) {
-    console.error("Error loading computed snapshot:", error);
+  const response = await fetchFresh(snapshotUrl, session);
+  if (response.status === 404 || response.status === 410) {
     return null;
   }
+  if (!response.ok) {
+    throw new Error(
+      `Failed to load snapshot (HTTP ${response.status}): ${snapshotUrl}`,
+    );
+  }
+
+  const text = await response.text();
+  const parser = new Parser({ format: "text/turtle", baseIRI: snapshotUrl });
+  const quads = parser.parse(text);
+  const store = new Store(quads);
+
+  const snapshotType = namedNode(`${VOCAB_PREFIX}AggregatedViewSnapshot`);
+  const snapshotQuads = store.getQuads(
+    null,
+    namedNode(RDF_TYPE),
+    snapshotType,
+    null,
+  );
+
+  if (snapshotQuads.length === 0) {
+    return null;
+  }
+
+  const snapshotNode = snapshotQuads[0].subject;
+
+  const isBenchmark = store.getQuads(
+    snapshotNode,
+    namedNode(RDF_TYPE),
+    namedNode(BENCH_RESULT),
+    null,
+  ).length > 0;
+  const computedBy = getQuadValue(
+    store,
+    snapshotNode,
+    namedNode(BENCH_COMPUTED_BY),
+  );
+  const metricPeriod = getQuadValue(
+    store,
+    snapshotNode,
+    namedNode(BENCH_METRIC_PERIOD),
+  );
+
+  const metrics = getQuadValues(
+    store,
+    snapshotNode,
+    namedNode(`${VOCAB_PREFIX}includesMetric`),
+  );
+  const values: Record<string, number> = {};
+  for (const metric of metrics) {
+    const v = getQuadValue(
+      store,
+      snapshotNode,
+      namedNode(`${VOCAB_PREFIX}${metric}Value`),
+    );
+    if (v !== undefined) values[metric] = parseFloat(v);
+  }
+
+  return {
+    id: getQuadValue(store, snapshotNode, namedNode(`${VOCAB_PREFIX}viewId`)) ??
+      "",
+    name: getQuadValue(
+      store,
+      snapshotNode,
+      namedNode(`${VOCAB_PREFIX}viewName`),
+    ) ?? "",
+    aggregationType: (getQuadValue(
+      store,
+      snapshotNode,
+      namedNode(`${VOCAB_PREFIX}aggregationType`),
+    ) ?? "average") as AggregatedViewSnapshot["aggregationType"],
+    computedAt: getQuadValue(
+      store,
+      snapshotNode,
+      namedNode(`${VOCAB_PREFIX}computedAt`),
+    ) ?? "",
+    buildingCount: parseInt(
+      getQuadValue(
+        store,
+        snapshotNode,
+        namedNode(`${VOCAB_PREFIX}buildingCount`),
+      ) ?? "0",
+      10,
+    ),
+    metrics,
+    values,
+    ...(isBenchmark ? { isBenchmark } : {}),
+    ...(computedBy ? { computedBy } : {}),
+    ...(metricPeriod ? { metricPeriod } : {}),
+  };
 }
 
 /**
@@ -555,7 +589,14 @@ export async function getReceivedBenchmarks(
   const snapshots = await mapPooled(
     received,
     4,
-    (rv) => loadComputedSnapshot(session, rv.snapshotUrl),
+    // Per-item tolerance: one unreadable foreign snapshot (revoked, throttled)
+    // must not fail the whole fold — loadComputedSnapshot throws on transient
+    // failures by design (so the view page can tell absence from failure).
+    (rv) =>
+      loadComputedSnapshot(session, rv.snapshotUrl).catch((err) => {
+        logError(`load received benchmark ${rv.snapshotUrl}`, err);
+        return null;
+      }),
   );
   return snapshots.filter(
     (s): s is AggregatedViewSnapshot => s !== null && Boolean(s.isBenchmark),

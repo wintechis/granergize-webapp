@@ -10,7 +10,7 @@ import { useEnterRoom } from "./mutations.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 
-const GRAN = "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
+const GRAN = "https://solid.ti.rw.fau.de/gra/vocab.ttl#";
 const WEBID = "https://pod.example/profile/card#me";
 const ROOT = "https://pod.example/";
 const PREFS = "https://pod.example/granergize/prefs.ttl";

@@ -15,18 +15,20 @@ import {
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
 import CloseIcon from "@mui/icons-material/Close";
-import MyLocationIcon from "@mui/icons-material/MyLocation";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
 import { makeBuildingFields } from "./buildingFields.tsx";
-import { BuildingDetailFields } from "./BuildingDetailFields.tsx";
-import { AgentField } from "./AgentField.tsx";
+import {
+  BuildingAddressFields,
+  BuildingDetailFields,
+} from "./BuildingDetailFields.tsx";
+import { ADDRESS_FIELDS } from "../constants/addressFields.ts";
 import RequestActivityList from "./RequestActivityList.tsx";
-import type { UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys, useSolidData } from "../hooks/queries.ts";
+import { useSolidData } from "../hooks/queries.ts";
+import { rememberBuildingAgents } from "../hooks/rememberAgents.ts";
 import {
   detectSpreadsheetFormat,
   geocodeFields,
@@ -37,8 +39,11 @@ import {
   uploadBuilding,
   writeBuildingEnergy,
 } from "../services/rdf/building/buildingSerializer.ts";
+import {
+  SCALAR_FIELDS,
+  type SpreadsheetFormat,
+} from "../services/rdf/buildingTemplates.ts";
 import { formatError } from "../lib/formatError.ts";
-import { rememberAgent } from "../services/contacts.ts";
 
 interface AddBuildingDialogProps {
   open: boolean;
@@ -49,59 +54,33 @@ interface AddBuildingDialogProps {
   onBuildingAdded: (newSubjectUris: string[]) => void;
 }
 
-/**
- * The import *file format* (spreadsheet layout) chosen when importing buildings —
- * the parse shape only, used by `parseCsvToFields`. Not a role, not provenance, and
- * unrelated to the (single, generic) manual field set.
- */
-type Template = UserRole;
-
-// The file-format options name the spreadsheet *layout*, not a role: a row-label
-// sheet (one column per building), a table (one row per building), or generic
-// field-name columns. Mapped onto the three parse shapes `parseCsvToFields` knows.
-const TEMPLATE_LABEL: Record<UserRole, string> = {
-  dummy: "Generic (field-name columns)",
+// The file-format options name the spreadsheet *layout*: a row-label sheet (one
+// column per building), a table (one row per building), or generic field-name
+// columns. Mapped onto the three parse shapes `parseCsvToFields` knows. (The
+// identifiers say "format", matching the SpreadsheetFormat type — the old
+// "template"/"role" vocabulary is retired.)
+const FORMAT_LABEL: Record<SpreadsheetFormat, string> = {
   investor: "Row-label sheet (one column per building)",
-  user: "Generic (field-name columns)",
-  benchmark_service_provider: "Table (one row per building)",
-  facility_manager: "Generic (field-name columns)",
-  developer: "Generic (field-name columns)",
-  consultant_broker: "Generic (field-name columns)",
-  software_provider: "Generic (field-name columns)",
-  energy_provider: "Generic (field-name columns)",
+  benchmark: "Table (one row per building)",
+  generic: "Generic (field-name columns)",
 };
 
 const GENERIC_CSV_HINT =
   "Generic: field-name column headers, or a 15-minute load-profile (Lastgang) export.";
 
-const CSV_HINT: Record<UserRole, string> = {
+const CSV_HINT: Record<SpreadsheetFormat, string> = {
   investor:
     "Row-label sheet: field labels down column B, one column per building (D–K).",
-  benchmark_service_provider:
+  benchmark:
     "Table: one row per building, with column headers.",
-  user: GENERIC_CSV_HINT,
-  dummy: GENERIC_CSV_HINT,
-  facility_manager: GENERIC_CSV_HINT,
-  developer: GENERIC_CSV_HINT,
-  consultant_broker: GENERIC_CSV_HINT,
-  software_provider: GENERIC_CSV_HINT,
-  energy_provider: GENERIC_CSV_HINT,
+  generic: GENERIC_CSV_HINT,
 };
 
-/** Templates a building can be added under (excludes the demo "dummy" shape). */
-const TEMPLATE_OPTIONS: Template[] = [
+/** The selectable import formats (excludes the demo "dummy" shape). */
+const FORMAT_OPTIONS: SpreadsheetFormat[] = [
   "investor",
-  "user",
-  "benchmark_service_provider",
-];
-
-const ADDRESS_FIELDS = [
-  "streetAddress",
-  "locality",
-  "postalCode",
-  "region",
-  "lat",
-  "long",
+  "generic",
+  "benchmark",
 ];
 
 function tabLabel(b: Record<string, string>, idx: number): string {
@@ -117,9 +96,9 @@ export default function AddBuildingDialog(
   const qc = useQueryClient();
 
   // The chosen import file-format (spreadsheet layout) for "Import from file".
-  // Auto-detected on upload; the selector lets the user override. It is not a
-  // role and does not affect the manual field set (one generic form).
-  const [template, setTemplate] = useState<Template>(TEMPLATE_OPTIONS[0]);
+  // Auto-detected on upload; the selector lets the user override. It does not
+  // affect the manual field set (one generic form).
+  const [format, setFormat] = useState<SpreadsheetFormat>(FORMAT_OPTIONS[0]);
   const [buildingsList, setBuildingsList] = useState<Record<string, string>[]>([{}]);
   const [activeIdx, setActiveIdx] = useState(0);
   const [lastgangReadings, setLastgangReadings] = useState<LastgangReading[] | null>(null);
@@ -204,7 +183,7 @@ export default function AddBuildingDialog(
 
   const handleClose = () => {
     if (isProcessing) return;
-    setTemplate(TEMPLATE_OPTIONS[0]);
+    setFormat(FORMAT_OPTIONS[0]);
     setBuildingsList([{}]);
     setActiveIdx(0);
     setLastgangReadings(null);
@@ -213,8 +192,8 @@ export default function AddBuildingDialog(
     onClose();
   };
 
-  const handleTemplateChange = (e: SelectChangeEvent<UserRole>) => {
-    setTemplate(e.target.value as Template);
+  const handleFormatChange = (e: SelectChangeEvent<SpreadsheetFormat>) => {
+    setFormat(e.target.value as SpreadsheetFormat);
     setBuildingsList([{}]);
     setActiveIdx(0);
     setLastgangReadings(null);
@@ -228,11 +207,30 @@ export default function AddBuildingDialog(
       // Detect the sheet layout (so the user needn't pick a role) and reflect it in
       // the format selector; the user can still override and re-choose the file.
       const format = await detectSpreadsheetFormat(file);
-      setTemplate(format);
+      setFormat(format);
       const parsed = await parseCsvToFields(file, format);
       if (parsed.length === 0) {
         showNotification("No buildings found in file", "warning");
         return;
+      }
+
+      // A generic import maps unknown column headers through verbatim, and the
+      // serializer then silently skips them — a typo'd header used to degrade
+      // to "field not imported" with zero indication. Surface what was ignored.
+      const isKnownField = (k: string) =>
+        SCALAR_FIELDS.includes(k) ||
+        /^_(inv|bsp|opcost|cert|readings)_/.test(k) ||
+        k === "geocodePrecision";
+      const ignored = [
+        ...new Set(
+          parsed.flatMap((b) => Object.keys(b).filter((k) => !isKnownField(k))),
+        ),
+      ];
+      if (ignored.length > 0) {
+        showNotification(
+          `Ignored unrecognised column(s): ${ignored.join(", ")}`,
+          "warning",
+        );
       }
 
       // Extract Lastgang energy readings if present, then remove internal field
@@ -359,22 +357,9 @@ export default function AddBuildingDialog(
 
         const ttl = serializeBuildingToTurtle(b, uri, energyLinks, provenance);
         await uploadBuilding(session, uri, ttl, webId, controller.signal);
-        // Auto-remember a WebID operator in the address book (fire-and-forget), then
-        // refresh the contacts query so the new contact appears without a reload (the
-        // direct rememberAgent write bypasses the addContact mutation's invalidation).
-        // `refetchType: "all"` is load-bearing: the contacts query is INACTIVE here
-        // (Connect is unmounted while this dialog is open), so a default invalidate
-        // would only mark it stale — and the app's `refetchOnMount: false` then
-        // suppresses the refetch when Connect mounts, leaving a stale list.
-        if (b.operatedBy) {
-          void rememberAgent(session, b.operatedBy)
-            .then(() =>
-              qc.invalidateQueries({
-                queryKey: queryKeys.contacts,
-                refetchType: "all",
-              })
-            );
-        }
+        // Auto-remember the building's WebID agents in the address book and
+        // refresh the contacts query (shared helper — see rememberAgents.ts).
+        rememberBuildingAgents(session, qc, b);
       }
       showNotification(
         buildingsList.length === 1 ? "Building added" : `${buildingsList.length} buildings added`,
@@ -495,20 +480,20 @@ export default function AddBuildingDialog(
           {/* File format — auto-detected on upload; override here if a sheet's layout
               isn't recognised. A format, not a role. */}
           <FormControl size="small" fullWidth sx={{ mt: 1, mb: 1 }}>
-            <InputLabel id="add-building-template-label">File format</InputLabel>
+            <InputLabel id="add-building-format-label">File format</InputLabel>
             <Select
-              labelId="add-building-template-label"
+              labelId="add-building-format-label"
               label="File format"
-              value={template}
-              onChange={handleTemplateChange}
+              value={format}
+              onChange={handleFormatChange}
             >
-              {TEMPLATE_OPTIONS.map((t) => (
-                <MenuItem key={t} value={t}>{TEMPLATE_LABEL[t]}</MenuItem>
+              {FORMAT_OPTIONS.map((t) => (
+                <MenuItem key={t} value={t}>{FORMAT_LABEL[t]}</MenuItem>
               ))}
             </Select>
           </FormControl>
           <Typography variant="caption" display="block" color="text.secondary">
-            {CSV_HINT[template]}
+            {CSV_HINT[format]}
           </Typography>
         </Box>
         )}
@@ -585,34 +570,20 @@ export default function AddBuildingDialog(
           </Box>
         )}
 
-        {/* Common fields */}
-        {sectionHeader("Address")}
-        {tf("Street address", "streetAddress", { required: isRequired("streetAddress") })}
-        {tf("Locality (city)", "locality", { required: isRequired("locality") })}
-        {tf("Postal code", "postalCode", { required: isRequired("postalCode") })}
-        {tf("Region (state)", "region", { required: isRequired("region") })}
-
-        {sectionHeader("Location & Physical")}
-        <Button
-          variant="outlined"
-          startIcon={<MyLocationIcon />}
-          onClick={handleGeocode}
-          disabled={geocoding || !["streetAddress", "postalCode", "locality", "region"].some((f) => fields[f]?.trim())}
-          sx={{ mb: 1.5 }}
-        >
-          {geocoding ? "Looking up…" : "Get coordinates"}
-        </Button>
-        {tf("Latitude", "lat", { type: "number", required: isRequired("lat") })}
-        {tf("Longitude", "long", { type: "number", required: isRequired("long") })}
-        {tf("Building area (m²)", "buildingArea", { type: "number" })}
-        {tf("Land area (m²)", "landArea", { type: "number" })}
-        {tf("Year of construction", "yearOfConstruction", { type: "number" })}
-        <AgentField
-          label="Operated by (WebID)"
-          value={fields.operatedBy ?? ""}
-          onChange={(v) => setField("operatedBy", v)}
+        {/* Common fields — one shared block with the Edit dialog (no drift). */}
+        <BuildingAddressFields
+          f={{ tf, check, enumSelect, sectionHeader }}
+          fields={fields}
+          setField={setField}
+          isRequired={isRequired}
+          geocode={{
+            onClick: handleGeocode,
+            busy: geocoding,
+            disabled: !["streetAddress", "postalCode", "locality", "region"]
+              .some((f) => fields[f]?.trim()),
+            label: "Get coordinates",
+          }}
         />
-        {check("PV system installed", "hasPVSystem")}
 
         {/* One generic field set, shared with the Edit dialog (no per-role gating).
             Annual energy figures are entered later via the per-year Energy dialog. */}

@@ -95,7 +95,7 @@ Deno.test("uploadAttachment stores the binary and links it with metadata", async
   assert.equal(
     g.getObjects(SUBJECT, GRAN_HAS_ATTACHMENT, null)[0]?.value,
     expectedUrl,
-    "gran:hasAttachment link",
+    "bldg:hasAttachment link",
   );
   assert.equal(g.getObjects(expectedUrl, SCHEMA_NAME, null)[0]?.value, "report.pdf");
   assert.equal(g.getObjects(expectedUrl, SCHEMA_CONTENT_SIZE, null)[0]?.value, "5");
@@ -156,7 +156,7 @@ Deno.test("setEnergyCertificate flags a file; deleteAttachment removes it + the 
   );
 });
 
-Deno.test("parser synthesizes an attachment for a legacy certificate (no gran:hasAttachment)", () => {
+Deno.test("parser synthesizes an attachment for a legacy certificate (no bldg:hasAttachment)", () => {
   const legacy =
     "https://pod.example/granergize/buildings/certificates/b1_energy_certificate.pdf";
   const ttl = `${building()}<${SUBJECT}> <${GRAN_HAS_ENERGY_CERTIFICATE}> <${legacy}> .\n`;

@@ -1,0 +1,278 @@
+# Granergize building vocabulary — published at
+#   https://solid.ti.rw.fau.de/gra/building.ttl#
+# Source of truth is this file in the app repo (see vocab/README.md).
+#
+# A RealEstateCore extension profile: every property here describes a
+# rec:Building (or a component node hanging off one) with logistics-real-estate
+# master data. Alignment policy (see notes/plan-vocab-consolidation.md): terms
+# are minted here and aligned to REC 4 / Brick via rdfs:seeAlso where those
+# vocabularies model the concept structurally (component nodes / entity
+# properties / equipment instances); rdfs:subPropertyOf is reserved for
+# shape-compatible targets, of which the audit found none. The structural
+# spine (rec:Building, rec:ownedBy, rec:operatedBy, geo, vCard, schema.org,
+# FOAF, PROV) is reused directly, not wrapped.
+
+@prefix :      <#> .
+@prefix owl:   <http://www.w3.org/2002/07/owl#> .
+@prefix rdf:   <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix rec:   <https://w3id.org/rec#> .
+@prefix brick: <https://brickschema.org/schema/Brick#> .
+@prefix foaf:  <http://xmlns.com/foaf/0.1/> .
+@prefix schema: <http://schema.org/> .
+@prefix geo:   <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix xsd:   <http://www.w3.org/2001/XMLSchema#> .
+
+<#> rdf:type owl:Ontology ;
+    rdfs:label "Granergize building vocabulary"@en ;
+    rdfs:comment "Logistics-real-estate master data for rec:Building resources."@en .
+
+############################
+###   Master data        ###
+############################
+
+:buildingCode rdf:type owl:DatatypeProperty ;
+    rdfs:label "building code"@en ;
+    rdfs:comment "The owner's internal identifier for the building."@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:string .
+
+:yearOfConstruction rdf:type owl:DatatypeProperty ;
+    rdfs:label "year of construction"@en ; rdfs:label "Baujahr"@de ;
+    rdfs:seeAlso brick:yearBuilt ;
+    rdfs:domain rec:Building ; rdfs:range xsd:integer .
+
+:yearOfRenovation rdf:type owl:DatatypeProperty ;
+    rdfs:label "year of renovation"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:integer .
+
+# Areas are flat literals (m²). REC models areas on a component node
+# (rec:area → rec:ArchitectureArea with grossArea/netArea/rentableArea) and
+# Brick as structured entity properties, so the links are rdfs:seeAlso, not
+# subsumption.
+:hasBuildingArea rdf:type owl:DatatypeProperty ;
+    rdfs:label "building area (m²)"@en ; rdfs:label "Gebäudefläche"@de ;
+    rdfs:seeAlso rec:grossArea , brick:grossArea ;
+    rdfs:domain rec:Building ; rdfs:range xsd:integer .
+
+:hasLandArea rdf:type owl:DatatypeProperty ;
+    rdfs:label "land area (m²)"@en ; rdfs:label "Grundstücksfläche"@de ;
+    rdfs:seeAlso rec:area ;
+    rdfs:domain rec:Building ; rdfs:range xsd:integer .
+
+:officeArea rdf:type owl:DatatypeProperty ;
+    rdfs:label "office area (m²)"@en ; rdfs:label "Bürofläche"@de ;
+    rdfs:domain rec:Building ; rdfs:range xsd:integer .
+
+:hallArea rdf:type owl:DatatypeProperty ;
+    rdfs:label "hall area (m²)"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+
+:officeSocialArea rdf:type owl:DatatypeProperty ;
+    rdfs:label "office & social area (m²)"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+
+:buildingHeight rdf:type owl:DatatypeProperty ;
+    rdfs:label "building height (m)"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+
+:numberOfLoadingDocks rdf:type owl:DatatypeProperty ;
+    rdfs:label "number of loading docks"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:integer .
+
+:usedAs rdf:type owl:DatatypeProperty ;
+    rdfs:label "used as"@en ; rdfs:label "genutzt als"@de ;
+    rdfs:comment "Free-text usage of the building."@en ;
+    rdfs:seeAlso brick:buildingPrimaryFunction ;
+    rdfs:domain rec:Building ; rdfs:range xsd:string .
+
+:logisticsFunction rdf:type owl:DatatypeProperty ;
+    rdfs:label "logistics function"@en ;
+    rdfs:seeAlso brick:buildingPrimaryFunction ;
+    rdfs:domain rec:Building ; rdfs:range xsd:string .
+
+:climateControlType rdf:type owl:DatatypeProperty ;
+    rdfs:label "climate control type"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:string .
+
+:greenLeaseShare rdf:type owl:DatatypeProperty ;
+    rdfs:label "green lease share (%)"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+
+:leaseType rdf:type owl:DatatypeProperty ;
+    rdfs:label "lease type"@en ;
+    rdfs:seeAlso rec:Lease ;
+    rdfs:domain rec:Building ; rdfs:range xsd:string .
+
+:tenantIndustry rdf:type owl:DatatypeProperty ;
+    rdfs:label "tenant industry"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:string .
+
+:companyName rdf:type owl:DatatypeProperty ;
+    rdfs:label "company name"@en ;
+    rdfs:comment "Denormalised name of the company behind the building; candidate for retirement in favour of the agent's profile."@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:string .
+
+# Agent link: who invests in the building, as a WebID (foaf:Agent) — the same
+# shape as rec:ownedBy / rec:operatedBy, which the app reuses directly.
+:investor rdf:type owl:ObjectProperty ;
+    rdfs:label "investor"@en ; rdfs:label "Investor"@de ;
+    rdfs:comment "The building's investor, identified by WebID."@en ;
+    rdfs:domain rec:Building ; rdfs:range foaf:Agent .
+
+############################
+###   Photovoltaics      ###
+############################
+
+:hasPVSystem rdf:type owl:DatatypeProperty ;
+    rdfs:label "has PV system"@en ; rdfs:label "Hat Photovoltaik-Anlage"@de ;
+    rdfs:seeAlso brick:PV_Generation_System ;
+    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+
+:pvInstallationYear rdf:type owl:DatatypeProperty ;
+    rdfs:label "PV installation year"@en ;
+    rdfs:seeAlso rec:installationDate ;
+    rdfs:domain rec:Building ; rdfs:range xsd:integer .
+
+:pvCapacityKW rdf:type owl:DatatypeProperty ;
+    rdfs:label "PV capacity (kW)"@en ;
+    rdfs:seeAlso brick:ratedPowerOutput ;
+    rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+
+############################
+###   Heating systems    ###
+############################
+
+# Boolean presence flags. Brick models these as equipment instances (with
+# feeds-topology); the flags are the deliberate flat form — the seeAlso links
+# name the equipment class where Brick has one (it lacks oil boilers, a
+# standalone heat pump, and district heating).
+:hasOilBoiler rdf:type owl:DatatypeProperty ;
+    rdfs:label "has oil boiler"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+
+:hasGasBoiler rdf:type owl:DatatypeProperty ;
+    rdfs:label "has gas boiler"@en ;
+    rdfs:seeAlso brick:Natural_Gas_Boiler ;
+    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+
+:hasElectricBoiler rdf:type owl:DatatypeProperty ;
+    rdfs:label "has electric boiler"@en ;
+    rdfs:seeAlso brick:Electric_Boiler ;
+    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+
+:hasHeatPump rdf:type owl:DatatypeProperty ;
+    rdfs:label "has heat pump"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+
+:hasDistrictHeating rdf:type owl:DatatypeProperty ;
+    rdfs:label "has district heating"@en ;
+    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+
+############################
+###   Controlled vocab   ###
+############################
+
+:shiftRegime rdf:type owl:ObjectProperty ;
+    rdfs:label "shift regime"@en ; rdfs:domain rec:Building ; rdfs:range :ShiftRegime .
+:tenancyType rdf:type owl:ObjectProperty ;
+    rdfs:label "tenancy type"@en ; rdfs:seeAlso rec:Lease ;
+    rdfs:domain rec:Building ; rdfs:range :TenancyType .
+:indoorTemperatureClass rdf:type owl:ObjectProperty ;
+    rdfs:label "indoor temperature class"@en ; rdfs:domain rec:Building ; rdfs:range :IndoorTemperatureClass .
+
+:ShiftRegime rdf:type rdfs:Class ; rdfs:label "Shift regime"@en .
+:OneShift   rdf:type :ShiftRegime ; rdfs:label "1-Shift"@en .
+:TwoShift   rdf:type :ShiftRegime ; rdfs:label "2-Shift"@en .
+:ThreeShift rdf:type :ShiftRegime ; rdfs:label "3-Shift"@en .
+
+:TenancyType rdf:type rdfs:Class ; rdfs:label "Tenancy type"@en .
+:SingleTenant rdf:type :TenancyType ; rdfs:label "Single Tenant"@en .
+:MultiTenant  rdf:type :TenancyType ; rdfs:label "Multi Tenant"@en .
+
+:IndoorTemperatureClass rdf:type rdfs:Class ; rdfs:label "Indoor temperature class"@en .
+:MaxTwelveDegrees   rdf:type :IndoorTemperatureClass ; rdfs:label "≤12 °C"@en .
+:MaxEighteenDegrees rdf:type :IndoorTemperatureClass ; rdfs:label "≤18 °C"@en .
+
+############################
+###   Operating costs    ###
+############################
+
+:hasOperatingCosts rdf:type owl:ObjectProperty ;
+    rdfs:label "has operating costs"@en ; rdfs:domain rec:Building ; rdfs:range :OperatingCosts .
+:OperatingCosts rdf:type rdfs:Class ; rdfs:label "Operating costs"@en .
+
+# Service-level categories used by the operating-cost properties below.
+:ServiceLevel rdf:type rdfs:Class ; rdfs:label "Service level"@en .
+:Low                  rdf:type :ServiceLevel ; rdfs:label "Low"@en .
+:Simple               rdf:type :ServiceLevel ; rdfs:label "Simple"@en .
+:Medium               rdf:type :ServiceLevel ; rdfs:label "Medium"@en .
+:High                 rdf:type :ServiceLevel ; rdfs:label "High"@en .
+:AllRisk              rdf:type :ServiceLevel ; rdfs:label "All-Risk"@en .
+:FullServiceManagement rdf:type :ServiceLevel ; rdfs:label "Full Service"@en .
+
+:wasteDisposal rdf:type owl:ObjectProperty ;
+    rdfs:label "waste disposal"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:insurance rdf:type owl:ObjectProperty ;
+    rdfs:label "insurance"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:operationInspectionAndMaintenance rdf:type owl:DatatypeProperty ;
+    rdfs:label "operation, inspection & maintenance"@en ; rdfs:domain :OperatingCosts ; rdfs:range xsd:boolean .
+:routineCleaningOffice rdf:type owl:ObjectProperty ;
+    rdfs:label "routine cleaning (office)"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:routineCleaningWarehouse rdf:type owl:ObjectProperty ;
+    rdfs:label "routine cleaning (warehouse)"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:glassCleaning rdf:type owl:ObjectProperty ;
+    rdfs:label "glass cleaning"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:exteriorMaintenance rdf:type owl:ObjectProperty ;
+    rdfs:label "exterior maintenance"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:security rdf:type owl:ObjectProperty ;
+    rdfs:label "security"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:propertyManagement rdf:type owl:ObjectProperty ;
+    rdfs:label "property management"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:caretaker rdf:type owl:ObjectProperty ;
+    rdfs:label "caretaker"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+:repairAndMaintenance rdf:type owl:ObjectProperty ;
+    rdfs:label "repair & maintenance"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+
+############################
+###   Certifications     ###
+############################
+
+:hasBuildingCertification rdf:type owl:ObjectProperty ;
+    rdfs:label "has building certification"@en ; rdfs:domain rec:Building ; rdfs:range :BuildingCertification .
+:BuildingCertification rdf:type rdfs:Class ; rdfs:label "Building certification"@en .
+:certificationLevel rdf:type owl:DatatypeProperty ;
+    rdfs:label "certification level"@en ; rdfs:domain :BuildingCertification ; rdfs:range xsd:string .
+:certificationScope rdf:type owl:DatatypeProperty ;
+    rdfs:label "certification scope"@en ; rdfs:domain :BuildingCertification ; rdfs:range xsd:string .
+
+############################
+###   File attachments   ###
+############################
+
+# A building links each uploaded file with :hasAttachment; the file IRI is the
+# subject of its schema:MediaObject metadata. The energy certificate is one such
+# file, additionally flagged with :hasEnergyCertificate. REC's analogue is
+# rec:documentation → rec:Document.
+:hasAttachment rdf:type owl:ObjectProperty ;
+    rdfs:label "has attachment"@en ;
+    rdfs:seeAlso rec:documentation ;
+    rdfs:domain rec:Building ; rdfs:range schema:MediaObject .
+
+:hasEnergyCertificate rdf:type owl:ObjectProperty ;
+    rdfs:label "has energy certificate"@en ;
+    rdfs:comment "Flags one attachment (a schema:MediaObject) as the energy certificate."@en ;
+    rdfs:domain rec:Building .
+
+############################
+###   Geocode precision  ###
+############################
+
+# Attached to a building's geo:Point: how precisely the coordinate was geocoded.
+:geocodePrecision rdf:type owl:ObjectProperty ;
+    rdfs:label "geocode precision"@en ;
+    rdfs:domain geo:Point ; rdfs:range :GeocodePrecision .
+
+:GeocodePrecision rdf:type rdfs:Class ; rdfs:label "Geocode precision"@en .
+:Address rdf:type :GeocodePrecision ; rdfs:label "Address"@en .
+:Postcode rdf:type :GeocodePrecision ; rdfs:label "Postcode"@en .
+:City rdf:type :GeocodePrecision ; rdfs:label "City"@en .

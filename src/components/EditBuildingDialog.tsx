@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import MyLocationIcon from "@mui/icons-material/MyLocation";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   BuildingType,
@@ -9,19 +8,23 @@ import type {
 } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
+import { INVESTOR_CERT_SYSTEMS } from "../services/rdf/buildingTemplates.ts";
 import {
   geocodeFields,
   updateBuilding,
 } from "../services/rdf/building/buildingSerializer.ts";
 import { formatError } from "../lib/formatError.ts";
-import { rememberAgent } from "../services/contacts.ts";
 import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../hooks/queries.ts";
+import { useSolidData } from "../hooks/queries.ts";
+import { rememberBuildingAgents } from "../hooks/rememberAgents.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
-import { AgentField } from "./AgentField.tsx";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
-import { BuildingDetailFields } from "./BuildingDetailFields.tsx";
+import {
+  BuildingAddressFields,
+  BuildingDetailFields,
+} from "./BuildingDetailFields.tsx";
+import { ADDRESS_FIELDS } from "../constants/addressFields.ts";
 
 interface EditBuildingDialogProps {
   open: boolean;
@@ -35,7 +38,6 @@ const SKIP_FIELDS = new Set([
   "id",
   "uri",
   "sourceUri",
-  "provenance",
   "attributedTo",
   "isShared",
   "energyData",
@@ -43,7 +45,6 @@ const SKIP_FIELDS = new Set([
   "annualData",
   "operatingCosts",
   "customer",
-  "investor",
   "type",
   "naceCode",
   "energyCertificate",
@@ -123,6 +124,23 @@ export default function EditBuildingDialog(
   // One row per existing certification, plus a blank row to add another.
   const certCount = (building.certifications?.length ?? 0) + 1;
 
+  // Mirror the Add dialog's validation (it was Add-only — an edit could blank
+  // the address/coordinates, deleting those triples and unmapping the building,
+  // or change the code into a collision): address + coordinates stay required,
+  // and a building code, when given, must stay unique against the OTHER
+  // buildings (this building's own current code is of course allowed).
+  const { buildings } = useSolidData();
+  const isAddressValid = ADDRESS_FIELDS.every((f) => fields[f]?.trim());
+  const otherCodes = new Set(
+    buildings
+      .filter((b) => b.id !== building.id)
+      .map((b) => b.buildingCode)
+      .filter(Boolean),
+  );
+  const isDuplicateCode = !!fields.buildingCode?.trim() &&
+    otherCodes.has(fields.buildingCode.trim());
+  const isValid = isAddressValid && !isDuplicateCode;
+
   const setField = (key: string, val: string) =>
     setFields((prev) => ({ ...prev, [key]: val }));
 
@@ -158,24 +176,9 @@ export default function EditBuildingDialog(
     setSaving(true);
     try {
       await updateBuilding(session, fileUri, building.uri as string, fields);
-      // Auto-remember a WebID operator in the address book (fire-and-forget), then
-      // refresh the contacts query so the new contact appears without a reload (the
-      // direct rememberAgent write bypasses the addContact mutation's invalidation).
-      if (fields.operatedBy) {
-        // `refetchType: "all"` is load-bearing: the contacts query is INACTIVE
-        // here (Connect is unmounted while this dialog is open), so a default
-        // invalidate would only mark it stale — and the app's `refetchOnMount:
-        // false` then suppresses the refetch when the user opens Connect, leaving
-        // a stale list. Refetch the inactive query now so the new contact is
-        // already present when Connect mounts.
-        void rememberAgent(session, fields.operatedBy)
-          .then(() =>
-            qc.invalidateQueries({
-              queryKey: queryKeys.contacts,
-              refetchType: "all",
-            })
-          );
-      }
+      // Auto-remember the building's WebID agents in the address book and
+      // refresh the contacts query (shared helper — see rememberAgents.ts).
+      rememberBuildingAgents(session, qc, fields);
       showNotification("Building updated", "success");
       onBuildingUpdated();
       onClose();
@@ -196,42 +199,39 @@ export default function EditBuildingDialog(
       actions={
         <>
           <Button onClick={handleClose} disabled={saving}>Cancel</Button>
-          <Button variant="contained" onClick={handleSubmit} disabled={saving}>
+          <Button
+            variant="contained"
+            onClick={handleSubmit}
+            disabled={saving || !isValid}
+          >
             {saving ? "Saving…" : "Save Changes"}
           </Button>
         </>
       }
     >
       <Box>
-        {sectionHeader("Address")}
-        {tf("Street address", "streetAddress")}
-        {tf("Locality (city)", "locality")}
-        {tf("Postal code", "postalCode")}
-        {tf("Region (state)", "region")}
-
-        {sectionHeader("Location & Physical")}
-        <Button
-          variant="outlined"
-          startIcon={<MyLocationIcon />}
-          onClick={handleGeocode}
-          disabled={geocoding}
-          sx={{ mb: 1.5 }}
-        >
-          {geocoding ? "Looking up…" : "Update coordinates"}
-        </Button>
-        {tf("Latitude", "lat", { type: "number" })}
-        {tf("Longitude", "long", { type: "number" })}
-        {tf("Building area (m²)", "buildingArea", { type: "number" })}
-        {tf("Land area (m²)", "landArea", { type: "number" })}
-        {tf("Year of construction", "yearOfConstruction", { type: "number" })}
-        <AgentField
-          label="Operated by (WebID)"
-          value={fields.operatedBy ?? ""}
-          onChange={(v) => setField("operatedBy", v)}
+        {/* Common fields — one shared block with the Add dialog (no drift). */}
+        <BuildingAddressFields
+          f={{ tf, check, enumSelect, sectionHeader }}
+          fields={fields}
+          setField={setField}
+          isRequired={(f) => ADDRESS_FIELDS.includes(f)}
+          geocode={{
+            onClick: handleGeocode,
+            busy: geocoding,
+            label: "Update coordinates",
+          }}
         />
-        {check("PV system installed", "hasPVSystem")}
 
-        <BuildingDetailFields f={{ tf, check, enumSelect, sectionHeader }} />
+        <BuildingDetailFields
+          f={{ tf, check, enumSelect, sectionHeader }}
+          buildingCode={{
+            error: isDuplicateCode,
+            helperText: isDuplicateCode
+              ? "Building code already exists"
+              : undefined,
+          }}
+        />
 
         {sectionHeader("Operating costs")}
         {OPCOST_FIELDS.map((f) =>
@@ -246,7 +246,14 @@ export default function EditBuildingDialog(
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
               Certification {i + 1}
             </Typography>
-            {tf("Type (e.g. LEED, DGNB, BREEAM)", `_cert_${i}_type`)}
+            {/* The type mints an IRI local name (`bldg:<type>Certification`),
+                so it's a select over the known systems, not free text — an
+                arbitrary string would make the building file unparseable. */}
+            {enumSelect(
+              "Type",
+              `_cert_${i}_type`,
+              INVESTOR_CERT_SYSTEMS.map((s) => ({ value: s, label: s })),
+            )}
             {tf("Level", `_cert_${i}_level`)}
             {tf("Scope", `_cert_${i}_scope`)}
           </Box>

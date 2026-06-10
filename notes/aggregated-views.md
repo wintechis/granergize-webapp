@@ -7,12 +7,15 @@ private **definition** (which buildings, which metrics, how to aggregate) and a
 the privacy-preserving artefact that gets shared — recipients see aggregate values, not
 the source buildings. Companion to [`energy-model.md`](./energy-model.md) (the energy
 data being aggregated), [`sharing.md`](./sharing.md) (how the snapshot is shared), and
-[`data-layout.md`](./data-layout.md) (where the resources sit).
+[`data-layout.md`](./data-layout.md) (where the resources sit). A snapshot additionally
+typed as a benchmark result carries a peer benchmark back to contributing owners —
+[`peer-benchmark.md`](./peer-benchmark.md) describes that round-trip and the three
+comparison cases (portfolio / operator / BSP).
 
 ## Two resources
 
 Both live under `granergize/views/` (container-native, discovered by listing — no
-registry); the `<view-id>` slug is the opaque `view-<ts>-<rand>` form. The definition
+registry); the `<view-id>` slug is the opaque `view-<uuid>` form. The definition
 is one resource per view; the snapshot is its computed copy under `snapshots/`.
 
 ### Definition — `views/<view-id>.ttl` (private)
@@ -20,36 +23,37 @@ is one resource per view; the snapshot is its computed copy under `snapshots/`.
 Holds the inputs, including the source building URIs (so it stays private).
 
 ```turtle
-@prefix gran: <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
+@prefix cons: <https://solid.ti.rw.fau.de/gra/consumption.ttl#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
-<#view> a gran:AggregatedViewDefinition ;
-   gran:viewId          "view-1717…-ab12" ;
-   gran:viewName        "Portfolio electricity 2024" ;
-   gran:aggregationType "average" ;                 # average | sum | min | max
-   gran:createdAt       "2026-…"^^xsd:dateTime ;
-   gran:lastComputedAt  "2026-…"^^xsd:dateTime ;    # optional
-   gran:viewPeriod      "2024-03" ;                 # optional, "YYYY-MM" (user monthly)
-   gran:includesBuilding <…/buildings/b-1.ttl#b-1> ,
+<#view> a cons:AggregatedViewDefinition ;
+   cons:viewId          "view-1717…-ab12" ;
+   cons:viewName        "Portfolio electricity 2024" ;
+   cons:aggregationType "average" ;                 # average | sum | min | max
+   cons:createdAt       "2026-…"^^xsd:dateTime ;
+   cons:lastComputedAt  "2026-…"^^xsd:dateTime ;    # optional
+   cons:viewPeriod      "2024-03" ;                 # optional, "YYYY-MM" (user monthly)
+   cons:benchmark       true ;                      # optional — see Benchmark flag below
+   cons:includesBuilding <…/buildings/b-1.ttl#b-1> ,
                          <…/buildings/b-2.ttl#b-2> ; # the private inputs
-   gran:includesMetric  "electricity" , "gas" .
+   cons:includesMetric  "electricity" , "gas" .
 ```
 
 ### Snapshot — `views/snapshots/<view-id>.ttl` (shareable)
 
-The computed copy. **No `gran:includesBuilding` triples** — only the count and the
+The computed copy. **No `cons:includesBuilding` triples** — only the count and the
 per-metric aggregate values, so a recipient can't infer individual buildings.
 
 ```turtle
-<#snapshot> a gran:AggregatedViewSnapshot ;
-   gran:viewId          "view-1717…-ab12" ;
-   gran:viewName        "Portfolio electricity 2024" ;
-   gran:aggregationType "average" ;
-   gran:computedAt      "2026-…"^^xsd:dateTime ;
-   gran:buildingCount   5 ;                          # how many buildings, not which
-   gran:includesMetric  "electricity" , "gas" ;
-   gran:electricityValue "1234.56"^^xsd:decimal ;    # one <metric>Value per metric
-   gran:gasValue         "567.89"^^xsd:decimal .
+<#snapshot> a cons:AggregatedViewSnapshot ;
+   cons:viewId          "view-1717…-ab12" ;
+   cons:viewName        "Portfolio electricity 2024" ;
+   cons:aggregationType "average" ;
+   cons:computedAt      "2026-…"^^xsd:dateTime ;
+   cons:buildingCount   5 ;                          # how many buildings, not which
+   cons:includesMetric  "electricity" , "gas" ;
+   cons:electricityValue "1234.56"^^xsd:decimal ;    # one <metric>Value per metric
+   cons:gasValue         "567.89"^^xsd:decimal .
 ```
 
 ## Computation
@@ -58,17 +62,28 @@ Computing a snapshot loads each building's energy and reduces it across the set 
 chosen `aggregationType`. Two paths, by the definition's shape:
 
 - **Annual** (no `viewPeriod`) — `loadBuildingEnergyData` fetches each building's latest
-  *actual* annual `gran:EnergyDataset` (the non-series one) and reads the requested
+  *actual* annual `cons:EnergyDataset` (the non-series one) and reads the requested
   metrics. This is the investor / benchmark case.
 - **Monthly** (`viewPeriod` set) — `loadUserBuildingMonthlyTotal` sums a building's
   `PT15M` series readings for that `YYYY-MM`. This is the user (load-profile) case;
   metrics reduce to `electricity`.
 
 Snapshots are computed **explicitly**, not reactively: on create (`computeAndStoreSnapshot`
-right after `createViewDefinition`) and on a manual refresh (`refreshSnapshot`), which
-also bumps the definition's `gran:lastComputedAt`. Underlying building edits do **not**
-auto-recompute — the snapshot is a point-in-time capture. All buildings in a view must
-be on the owner's own Pod (no cross-Pod aggregation).
+right after `createViewDefinition`), on a manual refresh (`refreshSnapshot`), which
+also bumps the definition's `cons:lastComputedAt`, and once on first open of the view
+page when no snapshot exists yet. The auto-compute keys on genuine absence:
+`loadComputedSnapshot` returns `null` only for a 404 and **throws** on transient
+failures, so a throttled read of an existing snapshot can never trigger an overwriting
+recompute. Underlying building edits do **not** auto-recompute — the snapshot is a
+point-in-time capture. All buildings in a view must be on the owner's own Pod (no
+cross-Pod aggregation).
+
+**Benchmark flag.** A benchmark view records `cons:benchmark true` **on the
+definition** — the same record-the-dimension-at-the-source principle as the sharing
+log. Every compute derives the snapshot's `cons:BenchmarkResult` typing (plus
+`computedBy` and a `metricPeriod` derived from the years actually aggregated) from
+that persisted flag, so a plain refresh cannot strip the benchmark typing; there are
+no call-site benchmark options. See [`peer-benchmark.md`](./peer-benchmark.md).
 
 ## Sharing the snapshot
 
@@ -77,10 +92,10 @@ View sharing is the building-sharing flow applied to the **snapshot only** (see
 
 - **Share** — `shareAggregatedView(snapshotUrl, webId, session)` grants `acl:Read` on
   the snapshot resource, POSTs a grant event to the recipient's inbox, and records it in
-  `shared-out/`. The event carries `gran:kind gran:View` (the routing hint that tells the
+  `shared-out/`. The event carries `cons:kind cons:View` (the routing hint that tells the
   recipient to load it as a view, not a building). The `view-id` is recoverable from the
   snapshot URI, so it isn't stored on the event.
-- **Receive** — `getReceivedViews` folds `shared-in/` for `gran:View` grants; the
+- **Receive** — `getReceivedViews` folds `shared-in/` for `cons:View` grants; the
   recipient has only the snapshot + its Read grant (never the definition), rendered via
   `loadComputedSnapshot`.
 - **Revoke** — `revokeViewAccess` logs a revocation, withdraws the snapshot `.acl`, and

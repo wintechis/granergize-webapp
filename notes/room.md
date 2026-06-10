@@ -15,6 +15,15 @@ between rooms you know about.
 Two **independent axes**: **membership** (in the room or not) and **role(s) held**.
 You can be a member with no role, or have left while role history remains.
 
+The data-room membership role is the **only role concept the app uses** — the former
+company-kind (organisation `org:classification`) and building producing-role (PROV
+`prov:hadRole`) no longer drive anything. The model is **user-centric**: every event,
+and every grant sharing produces, is keyed on the member's **WebID**. A role is read as
+**the role of the organisation the user represents** — the user is the authenticating
+identity, but the role belongs to their org (taken from the WebID profile's
+`org:memberOf`). "Alice holds the investor role here" means *Alice's organisation
+participates as the investor, with Alice as its representative*.
+
 ## Storage
 
 - **Identity = container URI**, e.g. `https://alice.example/granergize/rooms/<uuid>/`
@@ -72,7 +81,7 @@ state-centric (`sioc:has_member` is a fact, not an event), so AS2 supplies the v
    sioc:has_function gran:InvestorRole, gran:UserRoleInstance .
 ```
 
-Role IRIs (`ROLE_TO_IRI`): `investor`→`gran:InvestorRole`, `user`→
+Role IRIs (`MEMBERSHIP_ROLE_TO_IRI`): `investor`→`gran:InvestorRole`, `user`→
 `gran:UserRoleInstance`, `benchmark_service_provider`→`gran:BenchmarkRole`,
 `dummy`→`gran:DummyRole`.
 

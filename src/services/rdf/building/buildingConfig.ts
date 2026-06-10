@@ -1,10 +1,9 @@
 import type { BuildingType } from "../../../types.ts";
 import {
-  BENCH_NS,
+  BUILDING_NS,
   FOAF_AGENT,
-  GRAN_NS,
-  INVESTOR_NS,
   REC_NS,
+  REC_OWNED_BY,
   VCARD_NS,
   XSD_BOOLEAN,
   XSD_DECIMAL,
@@ -24,8 +23,8 @@ import {
  *   - an **XSD datatype** IRI (or omitted ⇒ `xsd:string`) → a typed **literal**;
  *   - **`foaf:Agent`** → an **IRI reference** (a WebID NamedNode, written verbatim);
  *   - any other **class IRI** → a controlled-vocabulary **object** whose instance is
- *     read/written by local name via {@link investorLocalNameLabels} (e.g. investor
- *     `shiftRegime` ranges over `investor:ShiftRegime`, value `OneShift`).
+ *     read/written by local name via {@link investorLocalNameLabels} (e.g.
+ *     `shiftRegime` ranges over `bldg:ShiftRegime`, value `OneShift`).
  *
  * See notes/data-schema.md → "Two schemas: RDF graph ⇄ app objects".
  */
@@ -37,7 +36,6 @@ interface FieldDesc {
 }
 
 export const BUILDING_FIELDS: FieldDesc[] = [
-  // Core (all roles).
   // NOTE: schema.org is inconsistently http/https across the codebase. Left as
   // http here to preserve matching of existing Pod data — reconciling it is a
   // separate, data-affecting change.
@@ -45,49 +43,53 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   { field: "lat", iri: "http://www.w3.org/2003/01/geo/wgs84_pos#lat", range: XSD_DECIMAL },
   { field: "long", iri: "http://www.w3.org/2003/01/geo/wgs84_pos#long", range: XSD_DECIMAL },
   { field: "locality", iri: `${VCARD_NS}locality` },
-  { field: "postalCode", iri: `${VCARD_NS}postal-code`, range: XSD_INTEGER },
+  // postalCode is an identifier, not a number — xsd:integer corrupted
+  // leading-zero German postcodes ("01067" → 1067) on every round-trip.
+  { field: "postalCode", iri: `${VCARD_NS}postal-code` },
   { field: "region", iri: `${VCARD_NS}region` },
   { field: "streetAddress", iri: `${VCARD_NS}street-address` },
   { field: "label", iri: "http://www.w3.org/2000/01/rdf-schema#label" },
-  { field: "buildingArea", iri: `${GRAN_NS}hasBuildingArea`, range: XSD_INTEGER },
-  { field: "landArea", iri: `${GRAN_NS}hasLandArea`, range: XSD_INTEGER },
-  { field: "hasPVSystem", iri: `${GRAN_NS}hasPVSystem`, range: XSD_BOOLEAN },
-  { field: "investor", iri: `${GRAN_NS}investor` },
-  { field: "officeArea", iri: `${GRAN_NS}officeArea`, range: XSD_INTEGER },
-  { field: "usedAs", iri: `${GRAN_NS}usedAs` },
-  { field: "yearOfConstruction", iri: `${GRAN_NS}yearOfConstruction`, range: XSD_INTEGER },
-  { field: "energyCertificate", iri: `${GRAN_NS}hasEnergyCertificate` },
-  { field: "naceCode", iri: `${REC_NS}nace-code`, range: XSD_DECIMAL },
-  // rec:operatedBy ranges over an Agent (a WebID IRI), so it round-trips as a NamedNode.
+  { field: "buildingArea", iri: `${BUILDING_NS}hasBuildingArea`, range: XSD_INTEGER },
+  { field: "landArea", iri: `${BUILDING_NS}hasLandArea`, range: XSD_INTEGER },
+  { field: "hasPVSystem", iri: `${BUILDING_NS}hasPVSystem`, range: XSD_BOOLEAN },
+  // Agent (WebID) links: investor, owner and operator range over foaf:Agent, so
+  // they round-trip as NamedNodes (a legacy xsd:string value is tolerated on
+  // read). Owner and operator are REC properties reused directly.
+  { field: "investor", iri: `${BUILDING_NS}investor`, range: FOAF_AGENT },
+  { field: "ownedBy", iri: REC_OWNED_BY, range: FOAF_AGENT },
   { field: "operatedBy", iri: `${REC_NS}operatedBy`, range: FOAF_AGENT },
+  { field: "officeArea", iri: `${BUILDING_NS}officeArea`, range: XSD_INTEGER },
+  { field: "usedAs", iri: `${BUILDING_NS}usedAs` },
+  { field: "yearOfConstruction", iri: `${BUILDING_NS}yearOfConstruction`, range: XSD_INTEGER },
+  { field: "energyCertificate", iri: `${BUILDING_NS}hasEnergyCertificate` },
+  // naceCode is an identifier, not a number — xsd:decimal mangled it
+  // ("52.10" → 52.1, a DIFFERENT NACE class).
+  { field: "naceCode", iri: `${REC_NS}nace-code` },
 
-  // Investor role.
-  { field: "buildingCode", iri: `${INVESTOR_NS}buildingCode` },
-  { field: "hallArea", iri: `${INVESTOR_NS}hallArea`, range: XSD_DECIMAL },
-  { field: "officeSocialArea", iri: `${INVESTOR_NS}officeSocialArea`, range: XSD_DECIMAL },
-  { field: "buildingHeight", iri: `${INVESTOR_NS}buildingHeight`, range: XSD_DECIMAL },
-  { field: "numberOfLoadingDocks", iri: `${INVESTOR_NS}numberOfLoadingDocks`, range: XSD_INTEGER },
-  { field: "yearOfRenovation", iri: `${INVESTOR_NS}yearOfRenovation`, range: XSD_INTEGER },
-  { field: "leaseType", iri: `${INVESTOR_NS}leaseType` },
-  { field: "tenantIndustry", iri: `${INVESTOR_NS}tenantIndustry` },
-  { field: "hasOilBoiler", iri: `${INVESTOR_NS}hasOilBoiler`, range: XSD_BOOLEAN },
-  { field: "hasGasBoiler", iri: `${INVESTOR_NS}hasGasBoiler`, range: XSD_BOOLEAN },
-  { field: "hasElectricBoiler", iri: `${INVESTOR_NS}hasElectricBoiler`, range: XSD_BOOLEAN },
-  { field: "hasHeatPump", iri: `${INVESTOR_NS}hasHeatPump`, range: XSD_BOOLEAN },
-  { field: "hasDistrictHeating", iri: `${INVESTOR_NS}hasDistrictHeating`, range: XSD_BOOLEAN },
-  // Investor object properties (controlled vocabulary — range is the value's class).
-  { field: "shiftRegime", iri: `${INVESTOR_NS}shiftRegime`, range: `${INVESTOR_NS}ShiftRegime` },
-  { field: "tenancyType", iri: `${INVESTOR_NS}tenancyType`, range: `${INVESTOR_NS}TenancyType` },
-  { field: "indoorTemperatureClass", iri: `${INVESTOR_NS}indoorTemperatureClass`, range: `${INVESTOR_NS}IndoorTemperatureClass` },
+  { field: "buildingCode", iri: `${BUILDING_NS}buildingCode` },
+  { field: "hallArea", iri: `${BUILDING_NS}hallArea`, range: XSD_DECIMAL },
+  { field: "officeSocialArea", iri: `${BUILDING_NS}officeSocialArea`, range: XSD_DECIMAL },
+  { field: "buildingHeight", iri: `${BUILDING_NS}buildingHeight`, range: XSD_DECIMAL },
+  { field: "numberOfLoadingDocks", iri: `${BUILDING_NS}numberOfLoadingDocks`, range: XSD_INTEGER },
+  { field: "yearOfRenovation", iri: `${BUILDING_NS}yearOfRenovation`, range: XSD_INTEGER },
+  { field: "leaseType", iri: `${BUILDING_NS}leaseType` },
+  { field: "tenantIndustry", iri: `${BUILDING_NS}tenantIndustry` },
+  { field: "hasOilBoiler", iri: `${BUILDING_NS}hasOilBoiler`, range: XSD_BOOLEAN },
+  { field: "hasGasBoiler", iri: `${BUILDING_NS}hasGasBoiler`, range: XSD_BOOLEAN },
+  { field: "hasElectricBoiler", iri: `${BUILDING_NS}hasElectricBoiler`, range: XSD_BOOLEAN },
+  { field: "hasHeatPump", iri: `${BUILDING_NS}hasHeatPump`, range: XSD_BOOLEAN },
+  { field: "hasDistrictHeating", iri: `${BUILDING_NS}hasDistrictHeating`, range: XSD_BOOLEAN },
+  // Object properties (controlled vocabulary — range is the value's class).
+  { field: "shiftRegime", iri: `${BUILDING_NS}shiftRegime`, range: `${BUILDING_NS}ShiftRegime` },
+  { field: "tenancyType", iri: `${BUILDING_NS}tenancyType`, range: `${BUILDING_NS}TenancyType` },
+  { field: "indoorTemperatureClass", iri: `${BUILDING_NS}indoorTemperatureClass`, range: `${BUILDING_NS}IndoorTemperatureClass` },
 
-  // Benchmark (BSP) role.
-  { field: "logisticsFunction", iri: `${BENCH_NS}logisticsFunction` },
-  { field: "climateControlType", iri: `${BENCH_NS}climateControlType` },
-  { field: "greenLeaseShare", iri: `${BENCH_NS}greenLeaseShare`, range: XSD_DECIMAL },
-  { field: "indoorTemperature", iri: `${BENCH_NS}indoorTemperature` },
-  { field: "pvInstallationYear", iri: `${BENCH_NS}pvInstallationYear`, range: XSD_INTEGER },
-  { field: "pvCapacityKW", iri: `${BENCH_NS}pvCapacityKW`, range: XSD_DECIMAL },
-  { field: "companyName", iri: `${BENCH_NS}companyName` },
+  { field: "logisticsFunction", iri: `${BUILDING_NS}logisticsFunction` },
+  { field: "climateControlType", iri: `${BUILDING_NS}climateControlType` },
+  { field: "greenLeaseShare", iri: `${BUILDING_NS}greenLeaseShare`, range: XSD_DECIMAL },
+  { field: "pvInstallationYear", iri: `${BUILDING_NS}pvInstallationYear`, range: XSD_INTEGER },
+  { field: "pvCapacityKW", iri: `${BUILDING_NS}pvCapacityKW`, range: XSD_DECIMAL },
+  { field: "companyName", iri: `${BUILDING_NS}companyName` },
 ];
 
 // ── Range classification (don't edit — change BUILDING_FIELDS) ──────────────────

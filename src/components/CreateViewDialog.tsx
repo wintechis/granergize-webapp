@@ -28,11 +28,15 @@ import { createViewDefinition } from "../services/aggregation/viewManager.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
-  type BspContributors,
-  bspContributorBuildings,
+  type Contributors,
   computeAndStoreSnapshot,
-  getAvailableBspMetrics,
+  sharedContributorBuildings,
 } from "../services/aggregation/viewComputer.ts";
+import {
+  ANNUAL_METRICS as ANNUAL_METRIC_SCHEMA,
+  annualMetricLabel,
+  CONSUMPTION_METRIC_KEYS,
+} from "../constants/annualMetrics.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import Modal from "./Modal.tsx";
 
@@ -82,19 +86,18 @@ const MODE_DESCRIPTION: Record<ViewMode, string> = {
     "Metrics: electricity, heat, water, and wastewater consumption (kWh / m³).",
 };
 
-// Annual metrics any building may carry (read from building.annualData); a sparse
-// set the user ticks. Offered for both the annual portfolio and the benchmark.
-const ANNUAL_METRICS = [
+// Annual metrics any building may carry (read from building.annualData); a
+// sparse set the user ticks. Grouped for the checklist but DERIVED from the
+// shared annual-metric schema (constants/annualMetrics.ts) — the same table the
+// entry form renders, so the checklist can never offer a metric no form
+// captures (heike-4's confusion). Offered for the annual portfolio and (minus
+// the ratio metric) the benchmark.
+const ANNUAL_METRIC_GROUPS = [
+  { category: "Annual Consumption", metrics: CONSUMPTION_METRIC_KEYS as string[] },
   {
-    category: "Annual Consumption",
-    metrics: [
-      "electricityConsumption",
-      "heatConsumption",
-      "waterConsumption",
-      "wastewaterConsumption",
-    ],
+    category: "Renewable Generation",
+    metrics: ANNUAL_METRIC_SCHEMA.filter((m) => m.unit === "%").map((m) => m.key as string),
   },
-  { category: "Renewable Generation", metrics: ["renewableSelfGeneratedShare"] },
 ];
 
 const DEFAULT_ANNUAL_METRICS = [
@@ -102,10 +105,12 @@ const DEFAULT_ANNUAL_METRICS = [
   "heatConsumption",
   "waterConsumption",
 ];
-const BSP_METRICS = getAvailableBspMetrics().flatMap((c) => c.metrics);
+const BENCHMARK_METRICS = CONSUMPTION_METRIC_KEYS as string[];
 
 function metricsForMode(mode: ViewMode) {
-  return mode === "benchmark" ? getAvailableBspMetrics() : ANNUAL_METRICS;
+  return mode === "benchmark"
+    ? [{ category: "Annual Consumption", metrics: BENCHMARK_METRICS }]
+    : ANNUAL_METRIC_GROUPS;
 }
 
 export default function CreateViewDialog({
@@ -117,10 +122,10 @@ export default function CreateViewDialog({
 }: CreateViewDialogProps) {
   const { showNotification } = useNotification();
 
-  // The buildings shared *to* this user (the BSP benchmarks over these), loaded
-  // while the dialog is open. Their provenance is the *sharer's*, not BSP — so
-  // they don't surface through the owned-building provenance filter below.
-  const [bspContributors, setBspContributors] = useState<BspContributors>({
+  // The buildings shared *to* this user (the benchmark aggregates these), loaded
+  // while the dialog is open. These are other people's buildings, kept separate
+  // from the user's own buildings that the annual/monthly modes aggregate.
+  const [sharedContributors, setSharedContributors] = useState<Contributors>({
     buildingUris: [],
     contributors: [],
   });
@@ -129,10 +134,10 @@ export default function CreateViewDialog({
     let cancelled = false;
     (async () => {
       try {
-        const c = await bspContributorBuildings(session);
-        if (!cancelled) setBspContributors(c);
+        const c = await sharedContributorBuildings(session);
+        if (!cancelled) setSharedContributors(c);
       } catch {
-        // best-effort: a BSP with no received buildings simply has no benchmark
+        // best-effort: a user with no received buildings simply has no benchmark
       }
     })();
     return () => {
@@ -140,16 +145,16 @@ export default function CreateViewDialog({
     };
   }, [open, session]);
 
-  // URIs (fragment-stripped) of buildings shared to the BSP, for membership tests.
-  const bspUriSet = useMemo(
-    () => new Set(bspContributors.buildingUris.map((u) => u.split("#")[0])),
-    [bspContributors],
+  // URIs (fragment-stripped) of buildings shared to this user, for membership tests.
+  const sharedUriSet = useMemo(
+    () => new Set(sharedContributors.buildingUris.map((u) => u.split("#")[0])),
+    [sharedContributors],
   );
 
   // Buildings the user owns (everything not shared *to* them as a benchmark roster).
   const ownedBuildings = useMemo(
-    () => buildings.filter((b) => b.uri && !bspUriSet.has(b.uri.split("#")[0])),
-    [buildings, bspUriSet],
+    () => buildings.filter((b) => b.uri && !sharedUriSet.has(b.uri.split("#")[0])),
+    [buildings, sharedUriSet],
   );
 
   // The modes the data supports — by shape, not role: an annual portfolio always; a
@@ -161,9 +166,9 @@ export default function CreateViewDialog({
       (b.energyDatasets ?? []).some((r) => isSeriesGranularity(r.granularity))
     );
     if (hasSeries) modes.push("monthly");
-    if (bspUriSet.size > 0) modes.push("benchmark");
+    if (sharedUriSet.size > 0) modes.push("benchmark");
     return modes;
-  }, [ownedBuildings, bspUriSet]);
+  }, [ownedBuildings, sharedUriSet]);
 
   const [mode, setMode] = useState<ViewMode>("annual");
   const [creating, setCreating] = useState(false);
@@ -183,7 +188,7 @@ export default function CreateViewDialog({
     const next = event.target.value as ViewMode;
     setMode(next);
     setSelectedBuildings([]);
-    setSelectedMetrics(next === "benchmark" ? BSP_METRICS : DEFAULT_ANNUAL_METRICS);
+    setSelectedMetrics(next === "benchmark" ? BENCHMARK_METRICS : DEFAULT_ANNUAL_METRICS);
     setSelectedPeriod("");
   };
 
@@ -191,7 +196,7 @@ export default function CreateViewDialog({
     setViewName("");
     setSelectedBuildings([]);
     setAggregationType("average");
-    setSelectedMetrics(mode === "benchmark" ? BSP_METRICS : DEFAULT_ANNUAL_METRICS);
+    setSelectedMetrics(mode === "benchmark" ? BENCHMARK_METRICS : DEFAULT_ANNUAL_METRICS);
     setSelectedPeriod("");
     onClose();
   };
@@ -211,17 +216,23 @@ export default function CreateViewDialog({
 
   // Candidate buildings by mode: benchmark → the buildings shared *to* this user;
   // monthly → owned buildings carrying a 15-minute series; annual → all owned.
-  const availableBuildings = mode === "benchmark"
-    ? buildings.filter((b) => b.uri && bspUriSet.has(b.uri.split("#")[0]))
-    : mode === "monthly"
-    ? ownedBuildings.filter((b) =>
-      (b.energyDatasets ?? []).some((r) => isSeriesGranularity(r.granularity))
-    )
-    : ownedBuildings;
+  // Memoized so the month-discovery effect below can honestly depend on it.
+  const availableBuildings = useMemo(
+    () =>
+      mode === "benchmark"
+        ? buildings.filter((b) => b.uri && sharedUriSet.has(b.uri.split("#")[0]))
+        : mode === "monthly"
+        ? ownedBuildings.filter((b) =>
+          (b.energyDatasets ?? []).some((r) => isSeriesGranularity(r.granularity))
+        )
+        : ownedBuildings,
+    [mode, buildings, sharedUriSet, ownedBuildings],
+  );
 
-  // Available months for user-role views: list each user building's 15-min
-  // series container(s) and collect the months of the daily files (async — the
-  // files are separate resources now, not inline on the building).
+  // Available months for monthly views: list each series building's 15-min
+  // container(s) and collect the months of the daily files (async — the files
+  // are separate resources, not inline on the building). Honest deps: buildings
+  // arriving after the dialog opened must refresh the month list.
   const [availableMonths, setAvailableMonths] = useState<string[]>([]);
   useEffect(() => {
     if (mode !== "monthly") {
@@ -250,23 +261,7 @@ export default function CreateViewDialog({
     return () => {
       cancelled = true;
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [mode]);
-
-  // The latest annual (non-series) dataset year across the given buildings, as a
-  // year string for bench:metricPeriod — undefined if none carry annual data.
-  const latestAnnualYear = (buildingUris: string[]): string | undefined => {
-    const set = new Set(buildingUris.map((u) => u.split("#")[0]));
-    let max: number | undefined;
-    for (const b of buildings) {
-      if (!b.uri || !set.has(b.uri.split("#")[0])) continue;
-      for (const ref of b.energyDatasets ?? []) {
-        if (isSeriesGranularity(ref.granularity)) continue;
-        if (max === undefined || ref.year > max) max = ref.year;
-      }
-    }
-    return max === undefined ? undefined : String(max);
-  };
+  }, [mode, availableBuildings, session]);
 
   const handleCreate = async () => {
     if (!viewName.trim()) {
@@ -293,21 +288,19 @@ export default function CreateViewDialog({
         : selectedMetrics;
       const period = mode === "monthly" ? selectedPeriod : undefined;
 
+      // A benchmark view records the flag ON the definition, so every later
+      // recompute (incl. plain refresh) re-derives the bench:BenchmarkResult
+      // typing + covered year from it — nothing to remember at call sites.
       const viewDef = await createViewDefinition(
         session,
         viewName.trim(),
         selectedBuildings,
         aggregationType,
         metrics,
-        period,
+        { period, benchmark: mode === "benchmark" },
       );
 
-      // BSP benchmark: mark the snapshot as a benchmark result and stamp the year
-      // it covers (the latest annual dataset year across the selected buildings).
-      const benchmarkOpts = mode === "benchmark"
-        ? { benchmark: true, metricPeriod: latestAnnualYear(selectedBuildings) }
-        : {};
-      await computeAndStoreSnapshot(session, viewDef.id, benchmarkOpts);
+      await computeAndStoreSnapshot(session, viewDef.id);
 
       showNotification("View created successfully", "success");
       onViewCreated();
@@ -456,21 +449,25 @@ export default function CreateViewDialog({
 
               {buildingSelect}
 
-              <TextField
-                type="month"
-                size="small"
-                label="Month"
-                value={selectedPeriod}
-                onChange={(e) => setSelectedPeriod(e.target.value)}
-                slotProps={{
-                  inputLabel: { shrink: true },
-                  htmlInput: {
-                    min: availableMonths[0],
-                    max: availableMonths[availableMonths.length - 1],
-                  },
-                }}
-                sx={{ mb: 3, minWidth: 160 }}
-              />
+              {/* A Select over the months that actually carry data — a free
+                  month input let the user pick an in-range but data-less month
+                  (months are sparse, not contiguous), whose compute yielded an
+                  empty snapshot (heike-4's empty diagram). */}
+              <FormControl size="small" sx={{ mb: 3, minWidth: 160 }}>
+                <InputLabel id="view-month-label">Month</InputLabel>
+                <Select
+                  labelId="view-month-label"
+                  label="Month"
+                  value={availableMonths.includes(selectedPeriod)
+                    ? selectedPeriod
+                    : ""}
+                  onChange={(e) => setSelectedPeriod(e.target.value)}
+                >
+                  {availableMonths.map((m) => (
+                    <MenuItem key={m} value={m}>{m}</MenuItem>
+                  ))}
+                </Select>
+              </FormControl>
 
               <FormControl component="fieldset" sx={{ mb: 1 }}>
                 <FormLabel component="legend">Aggregation Type</FormLabel>
@@ -579,7 +576,7 @@ export default function CreateViewDialog({
                                   size="small"
                                 />
                               }
-                              label={metric}
+                              label={annualMetricLabel(metric)}
                             />
                           ))}
                         </FormGroup>

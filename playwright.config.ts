@@ -80,20 +80,23 @@ const SOLO_SPECS = [
   "**/excel-import.spec.ts",
   "**/excel-export.spec.ts",
   "**/energy-entry.spec.ts",
-  "**/view-data.spec.ts",
+  "**/materialised-views.spec.ts",
   "**/map-energy-lens.spec.ts",
   "**/data-room.spec.ts",
   "**/building-details.spec.ts",
   "**/contacts.spec.ts",
   "**/archive-restore.spec.ts",
   "**/uri-state.spec.ts",
-  "**/heike-3-repro.spec.ts",
+  "**/building-form-and-energy.spec.ts",
 ];
 const SHARING_SPECS = [
   "**/share-building.spec.ts",
   "**/share-view.spec.ts",
   "**/share-files.spec.ts",
   "**/peer-benchmark.spec.ts",
+  // Diagnostic-only; self-skips unless LOGIN_STRESS=1 (see login-stress.spec.ts).
+  // Listed here so the Tier-3 `local` project can run it on demand.
+  "**/login-stress.spec.ts",
 ];
 
 export default defineConfig({
@@ -172,11 +175,17 @@ export default defineConfig({
         ? `deno run -A npm:vite preview --port ${PORT} --strictPort`
         : `deno run -A npm:vite dev --port ${PORT} --strictPort`,
       url: `http://localhost:${PORT}`,
-      // Tier 4 must NOT reuse a server from a previous run: each run bakes its own
-      // unique VITE_POD_APP_DIR (above) into a freshly-started dev server, so reusing
-      // one would serve the wrong collection. Tier 3 serves a build with a fixed
-      // segment against a throwaway local CSS, so reuse is safe (and faster).
-      reuseExistingServer: LOCAL,
+      // NEVER reuse the app server, either tier. Tier 4: each run bakes its own
+      // unique VITE_POD_APP_DIR (above) into a freshly-started dev server, so a
+      // reused one would serve the wrong collection. Tier 3: `vite preview`
+      // (sirv, production mode) snapshots dist/ into memory AT STARTUP — a
+      // leftover preview from an earlier invocation keeps serving THAT build no
+      // matter what the current run's `deno task build` just produced.
+      // Trace-proven (2026-06-10): a zombie preview served a stale bundle whose
+      // baked remote VITE_OIDC_CLIENT_ID made every local login dereference a
+      // flaky university host → the suite collapsed mid-run. A fresh preview of
+      // the fresh build is the only way the served app is the one just built.
+      reuseExistingServer: false,
       timeout: 120_000,
     },
     ...(LOCAL

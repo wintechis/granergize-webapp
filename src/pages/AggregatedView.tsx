@@ -1,7 +1,8 @@
-import { type ReactNode, useCallback, useEffect, useState } from "react";
+import { type ReactNode, useEffect, useState } from "react";
 import Modal from "../components/Modal.tsx";
 import { useNavigate, useParams } from "react-router-dom";
 import {
+  Alert,
   Box,
   Button,
   Card,
@@ -38,6 +39,8 @@ import { shareAggregatedView } from "../services/interop/share.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatDate, formatDateTime } from "../lib/formatDate.ts";
+import { formatError } from "../lib/formatError.ts";
+import { annualMetricLabel } from "../constants/annualMetrics.ts";
 
 interface AggregatedViewProps {
   session: Session;
@@ -59,35 +62,64 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
   const [shareWebId, setShareWebId] = useState("");
   const [sharing, setSharing] = useState(false);
 
-  const loadViewData = useCallback(async () => {
-    if (!viewId) return;
-
-    setLoading(true);
-    setError(null);
-
-    try {
-      const [definition, snapshotData] = await Promise.all([
-        getViewDefinition(session, viewId),
-        getComputedSnapshotByViewId(session, viewId),
-      ]);
-
-      if (!definition) {
-        setError("View not found");
-        return;
-      }
-
-      setViewDefinition(definition);
-      setSnapshot(snapshotData);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : "Failed to load view");
-    } finally {
-      setLoading(false);
-    }
-  }, [session, viewId]);
-
+  // Load (and possibly auto-compute) the view. Cancellation matters here:
+  // navigating /view/A → /view/B while A's load — or its multi-fetch
+  // auto-compute — is in flight must not let A's late completion land its
+  // state on top of B's page.
   useEffect(() => {
-    loadViewData();
-  }, [loadViewData]);
+    if (!viewId) return;
+    let cancelled = false;
+
+    (async () => {
+      setLoading(true);
+      setError(null);
+      try {
+        const [definition, snapshotData] = await Promise.all([
+          getViewDefinition(session, viewId),
+          getComputedSnapshotByViewId(session, viewId),
+        ]);
+        if (cancelled) return;
+
+        if (!definition) {
+          setError("View not found");
+          return;
+        }
+        setViewDefinition(definition);
+
+        // Auto-compute on first open: a freshly-created view has no snapshot yet,
+        // so the summary would otherwise show an empty "Refresh Snapshot" prompt.
+        // Materialise it now so the chart/table render immediately. Best-effort —
+        // on failure fall back to the manual Refresh affordance. Safe to key on
+        // null: loadComputedSnapshot returns null ONLY for genuine absence (404)
+        // and THROWS on transient failures (caught by the outer handler), so a
+        // failed read of an existing snapshot can never trigger this write.
+        let snap = snapshotData;
+        if (!snap) {
+          try {
+            const result = await refreshSnapshot(session, viewId);
+            const updated = await getViewDefinition(session, viewId);
+            if (cancelled) return;
+            snap = result.snapshot;
+            if (updated) setViewDefinition(updated);
+          } catch (err) {
+            if (cancelled) return;
+            showNotification(formatError("compute the view summary", err), "warning");
+          }
+        }
+        if (!cancelled) setSnapshot(snap);
+      } catch (err) {
+        if (!cancelled) {
+          setError(err instanceof Error ? err.message : "Failed to load view");
+        }
+      } finally {
+        if (!cancelled) setLoading(false);
+      }
+    })();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [session, viewId, showNotification]);
 
   const handleRefresh = async () => {
     if (!viewId) return;
@@ -103,12 +135,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
       }
       showNotification("Snapshot refreshed", "success");
     } catch (err) {
-      showNotification(
-        `Failed to refresh: ${
-          err instanceof Error ? err.message : String(err)
-        }`,
-        "error",
-      );
+      showNotification(formatError("refresh the snapshot", err), "error");
     } finally {
       setRefreshing(false);
     }
@@ -125,10 +152,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
       setShareWebId("");
       showNotification("View shared successfully", "success");
     } catch (err) {
-      showNotification(
-        `Failed to share: ${err instanceof Error ? err.message : String(err)}`,
-        "error",
-      );
+      showNotification(formatError("share the view", err), "error");
     } finally {
       setSharing(false);
     }
@@ -184,8 +208,13 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     );
   }
 
+  // Human metric labels (with units) from the shared annual-metric schema —
+  // never the raw camelCase identifier.
   const chartRows = snapshot
-    ? Object.entries(snapshot.values).map(([name, value]) => ({ name, value }))
+    ? Object.entries(snapshot.values).map(([metric, value]) => ({
+      name: annualMetricLabel(metric),
+      value,
+    }))
     : [];
   const aggregationLabel = `${
     viewDefinition.aggregationType.charAt(0).toUpperCase() +
@@ -207,15 +236,15 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
           <Typography variant="h5">{viewDefinition.name}</Typography>
         </Box>
         <Box display="flex" gap={1}>
+          {/* Buttons go disabled while in flight — no inline spinner (the
+              full-page-route spinner exemption covers the PAGE load only). */}
           <Button
             variant="outlined"
-            startIcon={refreshing
-              ? <CircularProgress size={20} />
-              : <RefreshIcon />}
+            startIcon={<RefreshIcon />}
             onClick={handleRefresh}
             disabled={refreshing}
           >
-            Refresh Snapshot
+            {refreshing ? "Refreshing…" : "Refresh Snapshot"}
           </Button>
           <Button
             variant="contained"
@@ -278,8 +307,19 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         </CardContent>
       </Card>
 
-      {snapshot
-        ? (
+      {snapshot && chartRows.length === 0 && (
+        // A snapshot can legitimately compute to NO values — the selected
+        // metrics are absent from every included building, or the chosen month
+        // has no readings. Say so instead of rendering bare empty axes
+        // (heike-4's "empty diagram"). Inline persistent state → Alert.
+        <Alert severity="info">
+          The computed summary contains no values: none of the included
+          buildings carry data for the selected metrics
+          {viewDefinition.period ? " in the selected month" : ""}. Enter energy
+          data for them (or adjust the view), then refresh the snapshot.
+        </Alert>
+      )}
+      {snapshot && chartRows.length > 0 && (
           <>
             <Card sx={{ mb: 3 }}>
               <CardHeader title="Aggregated Values Chart" />
@@ -311,9 +351,11 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
                       <TableRow>
                         <TableCell>Metric</TableCell>
                         <TableCell align="right">
+                          {/* Units live in the per-metric row labels — a flat
+                              "(kWh)" here lied for the m³ and % metrics. */}
                           {viewDefinition.aggregationType.charAt(0)
                             .toUpperCase() +
-                            viewDefinition.aggregationType.slice(1)} Value (kWh)
+                            viewDefinition.aggregationType.slice(1)} Value
                         </TableCell>
                       </TableRow>
                     </TableHead>
@@ -323,7 +365,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
                       ) => (
                         <TableRow key={metric}>
                           <TableCell component="th" scope="row">
-                            {metric.charAt(0).toUpperCase() + metric.slice(1)}
+                            {annualMetricLabel(metric)}
                           </TableCell>
                           <TableCell align="right">
                             {formatNumber(value)}
@@ -336,17 +378,17 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
               </CardContent>
             </Card>
           </>
-        )
-        : (
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" align="center">
-                No snapshot computed yet. Click "Refresh Snapshot" to compute
-                aggregated values.
-              </Typography>
-            </CardContent>
-          </Card>
-        )}
+      )}
+      {!snapshot && (
+        <Card>
+          <CardContent>
+            <Typography color="textSecondary" align="center">
+              No snapshot computed yet. Click "Refresh Snapshot" to compute
+              aggregated values.
+            </Typography>
+          </CardContent>
+        </Card>
+      )}
 
       {/* Share Dialog */}
       <Modal
@@ -368,7 +410,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
               variant="contained"
               disabled={!shareWebId.trim() || sharing}
             >
-              {sharing ? <CircularProgress size={20} /> : "Share"}
+              {sharing ? "Sharing…" : "Share"}
             </Button>
           </>
         }

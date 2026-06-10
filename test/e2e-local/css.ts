@@ -47,13 +47,46 @@ async function waitForPortFree(port: number, deadlineMs = 10_000): Promise<void>
 }
 
 /**
+ * Kill whatever still holds `port`. An orphaned CSS from a lost stop/boot race
+ * never releases the socket on its own — observed 2026-06-09 in a full run: one
+ * per-spec `/reset` lost the race, the orphan kept 3456, and EVERY later boot
+ * attempt failed for the remaining ~25 specs. Waiting alone can't recover from
+ * that; killing the holder can. TERM first, escalate to KILL.
+ */
+async function killPortHolder(port: number): Promise<void> {
+  for (const sig of ["-TERM", "-KILL"] as const) {
+    try {
+      const out = await new Deno.Command("fuser", {
+        args: [sig, `${port}/tcp`],
+        stdout: "null",
+        stderr: "null",
+      }).output();
+      if (!out.success) return; // nothing holds the port
+      console.error(`killed orphaned holder of :${port} (${sig})`);
+    } catch {
+      return; // fuser unavailable — fall back to the plain port wait
+    }
+    await new Promise((r) => setTimeout(r, 500));
+    try {
+      Deno.listen({ hostname: "127.0.0.1", port }).close();
+      return; // freed
+    } catch {
+      // still held — escalate to the next signal
+    }
+  }
+}
+
+/**
  * Boot CSS robustly: wait for the port to be free, then start — retrying a couple
  * times if we lose the tiny TOCTOU window between the probe and CSS's own bind.
+ * From the second attempt on, forcibly free the port first: a holder that
+ * survived a full waitForPortFree deadline is an orphan that will never leave.
  * This is what makes the per-spec `/reset` reliable instead of a coin-flip.
  */
 async function bootCss(): Promise<LocalPod> {
   let lastErr: unknown;
   for (let attempt = 1; attempt <= 3; attempt++) {
+    if (attempt > 1) await killPortHolder(LOCAL_CSS_PORT);
     await waitForPortFree(LOCAL_CSS_PORT);
     try {
       return await startLocalPod(LOCAL_CSS_PORT);

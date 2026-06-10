@@ -21,12 +21,12 @@ share that carries the files) and [`data-layout.md`](./data-layout.md) (where th
 ## RDF model (file IRI as subject — no blank node)
 
 ```turtle
-<#building> gran:hasAttachment <…/files/report.pdf> .
+<#building> bldg:hasAttachment <…/files/report.pdf> .
 <…/files/report.pdf> a schema:MediaObject ;
    schema:name "report.pdf" ; schema:encodingFormat "application/pdf" ;
    schema:contentSize 124533 ; dcterms:created "2026-…"^^xsd:dateTime .
 # the energy certificate is one such file, additionally flagged:
-<#building> gran:hasEnergyCertificate <…/files/<id>_energy_certificate.pdf> .
+<#building> bldg:hasEnergyCertificate <…/files/<id>_energy_certificate.pdf> .
 ```
 
 The file IRI is the metadata subject (not a blank node), so the metadata isn't
@@ -43,12 +43,12 @@ old `certificateUploader` but on the race-safe `readModifyWrite` (`podWrite.ts`)
   binary (de-duped filename) with its `file.type`; add the link + metadata.
 - `deleteAttachment` — DELETE the binary; drop the link + metadata (and clear the
   cert flag if it pointed there).
-- `setEnergyCertificate` — set/clear `gran:hasEnergyCertificate` (one file at a time).
+- `setEnergyCertificate` — set/clear `bldg:hasEnergyCertificate` (one file at a time).
 - `fetchAttachmentBlob` — authed `session.fetch` → `Blob` (works for recipients too).
 
-Parsing (`buildingParser.ts`) reads `gran:hasAttachment` + metadata into
+Parsing (`buildingParser.ts`) reads `bldg:hasAttachment` + metadata into
 `BuildingType.attachments` (`AttachmentRef[]`), flags the certificate, and
-synthesizes an entry for a legacy cert that has only `gran:hasEnergyCertificate`.
+synthesizes an entry for a legacy cert that has only `bldg:hasEnergyCertificate`.
 `updateBuilding` already preserves untouched triples, so building edits leave files
 intact — no change there.
 

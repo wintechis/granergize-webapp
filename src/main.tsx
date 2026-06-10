@@ -6,7 +6,6 @@ import * as React from "react";
 import { useCallback, useEffect, useState, useSyncExternalStore } from "react";
 import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
-import Box from "@mui/material/Box";
 import CssBaseline from "@mui/material/CssBaseline";
 import Typography from "@mui/material/Typography";
 import Link from "@mui/material/Link";
@@ -188,23 +187,11 @@ function AppContent() {
         "https://solid.iis.fraunhofer.de",
       ]}
       lead={
-        // One flex child (a Box, not a Fragment): the lead is a single section,
-        // so the intro paragraph and its download link stay tightly grouped
-        // (the `mt` below) instead of each picking up the card's section `gap`.
-        <Box>
-          <Typography variant="body1">
-            Use the Granergize App to browse, compare and share energy
-            consumption data of logistics real estate. With Granergize, you
-            keep control over your data.
-          </Typography>
-          <Typography variant="body2" sx={{ mt: 1.5 }}>
-            <Link
-              href={`${import.meta.env.BASE_URL}granergize-handbuch.docx`}
-            >
-              Praxishandbuch herunterladen
-            </Link>
-          </Typography>
-        </Box>
+        <Typography variant="body1">
+          Use the Granergize App to browse, compare and share energy
+          consumption data of logistics real estate. With Granergize, you
+          keep control over your data.
+        </Typography>
       }
       footer={
         <Typography variant="body2" color="text.secondary">

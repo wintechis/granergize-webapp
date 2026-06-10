@@ -38,7 +38,7 @@ resources are found by listing their container.
 - **`views/`** — aggregated views, container-native: one definition per resource,
   `views/<view-id>.ttl`, discovered by listing (skip `snapshots/`, same filter as
   `buildings/`). Shareable computed copies live in `views/snapshots/<view-id>.ttl`.
-  `<view-id>` is the opaque `view-<ts>-<rand>` slug (rename-safe, collision-free).
+  `<view-id>` is the opaque `view-<uuid>` slug (rename-safe, collision-free).
 - **`shared-in/`** — append-only log of sharing **received**: grant/revocation events
   archived from the inbox, each pointing at a building/view URI on another Pod. The
   one local record that is genuinely necessary — an inbound grant lives in the *other*
@@ -104,7 +104,8 @@ the mode, `gran:` for app bits. One event per resource, subject `<>` (the resour
 @prefix interop: <http://www.w3.org/ns/solid/interop#> .
 @prefix prov:    <http://www.w3.org/ns/prov#> .
 @prefix acl:     <http://www.w3.org/ns/auth/acl#> .
-@prefix gran:    <https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#> .
+@prefix gran:    <https://solid.ti.rw.fau.de/gra/vocab.ttl#> .
+@prefix rec:     <https://w3id.org/rec#> .
 @prefix xsd:     <http://www.w3.org/2001/XMLSchema#> .
 
 # GRANT — e.g. …/granergize/shared-out/01J….ttl
@@ -113,7 +114,7 @@ the mode, `gran:` for app bits. One event per resource, subject `<>` (the resour
    interop:grantee        <https://bob.example/profile/card#me> ;     # recipient
    interop:forResource    <https://owner.example/granergize/buildings/b-1.ttl#b-1> ;
    interop:accessMode     acl:Read ;
-   gran:kind              gran:Building ;        # routing hint: Building | View
+   gran:kind              rec:Building ;         # the shared resource's class: rec:Building | cons:View
    prov:generatedAtTime   "2026-06-04T10:15:00Z"^^xsd:dateTime .
 
 # REVOCATION — same (grantee, forResource), later. No accessMode/kind needed.
@@ -127,7 +128,7 @@ the mode, `gran:` for app bits. One event per resource, subject `<>` (the resour
 The same shape serves the inbox message, `shared-out/`, and `shared-in/`; only the
 roles differ. In `shared-out/`, `prov:wasAssociatedWith` = me and `interop:forResource`
 = *my* resource; in `shared-in/` (archived from the inbox) it's the external owner and
-*their* resource on another Pod. `gran:kind` (`gran:Building` | `gran:View`) routes the
+*their* resource on another Pod. `gran:kind` (`rec:Building` | `cons:View`) routes the
 recipient to the right loader without a probe fetch; an optional
 `interop:includesEnergyData "true"^^xsd:boolean` is a hint only — actual energy access
 is whatever the owner's `.acl` allows. The shape is flat (`interop:forResource` +

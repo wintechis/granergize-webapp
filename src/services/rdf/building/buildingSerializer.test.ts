@@ -33,11 +33,13 @@ import {
   GEO_POINT,
   GEOCODE_PRECISION_IRI,
   GRAN_GEOCODE_PRECISION,
+  BUILDING_NS,
+  CONSUMPTION_NS,
   GRAN_NS,
-  INVESTOR_NS,
   PROV_NS,
   RDF_TYPE,
   REC_NS,
+  REC_OWNED_BY,
   XSD_INTEGER,
 } from "../vocabularies.ts";
 
@@ -182,12 +184,57 @@ Deno.test("parseBuildings tolerates a legacy xsd:string operatedBy literal", () 
   assert.equal(b!.operatedBy, "Acme Facility GmbH");
 });
 
+Deno.test("serializeBuildingToTurtle writes investor + ownedBy as IRI references (agent links like operatedBy)", () => {
+  const uri = newBuildingUri(WEBID, "b-agents");
+  const investor = "https://investor.example/profile/card#me";
+  const owner = "https://owner.example/profile/card#me";
+  const ttl = serializeBuildingToTurtle({ investor, ownedBy: owner }, uri);
+  const store = parse(ttl);
+
+  for (
+    const [pred, iri, value] of [
+      ["investor", `${BUILDING_NS}investor`, investor],
+      ["ownedBy", REC_OWNED_BY, owner],
+    ]
+  ) {
+    const quads = store.getQuads(
+      namedNode(`${uri}#b-agents`),
+      namedNode(iri),
+      null,
+      null,
+    );
+    assert.equal(quads.length, 1, `one ${pred} triple`);
+    assert.equal(
+      quads[0].object.termType,
+      "NamedNode",
+      `${pred} is an IRI, not a literal`,
+    );
+    assert.equal(quads[0].object.value, value);
+  }
+
+  // And they round-trip back through the parser as the WebID strings.
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-agents");
+  assert.equal(b!.investor, investor);
+  assert.equal(b!.ownedBy, owner);
+});
+
+Deno.test("parseBuildings tolerates a legacy xsd:string investor literal", () => {
+  const uri = newBuildingUri(WEBID, "b-inv-legacy");
+  // Old Pods (and the partner import templates) stored investor as a plain string.
+  const ttl = `
+    @prefix bldg: <${BUILDING_NS}> .
+    <${uri}#b-inv-legacy> a <https://w3id.org/rec#Building> ;
+      bldg:investor "Aurelis" .`;
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-inv-legacy");
+  assert.equal(b!.investor, "Aurelis");
+});
+
 Deno.test("serializeBuildingToTurtle still types numeric literals with their XSD datatype", () => {
   const uri = newBuildingUri(WEBID, "b-dt");
   const ttl = serializeBuildingToTurtle({ buildingArea: "1200" }, uri);
   const obj = parse(ttl).getQuads(
     namedNode(`${uri}#b-dt`),
-    namedNode(`${GRAN_NS}hasBuildingArea`),
+    namedNode(`${BUILDING_NS}hasBuildingArea`),
     null,
     null,
   )[0].object;
@@ -262,18 +309,18 @@ Deno.test("parseBuildings still reads legacy flat geo:lat/long (no point)", () =
   assert.equal(b!.geocodePrecision, undefined);
 });
 
-Deno.test("serializeBuildingToTurtle links energy datasets via gran:hasEnergyDataset", () => {
+Deno.test("serializeBuildingToTurtle links energy datasets via cons:hasEnergyDataset", () => {
   const uri = newBuildingUri(WEBID, "b-1");
   const base = uri.replace(/\.ttl$/, "");
   const dsA = `${base}/energy/2024-P1Y.ttl#ds`;
   const dsB = `${base}/energy/2024-PT15M.ttl#ds`;
   const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, [dsA, dsB]);
 
-  // Raw shape: one gran:hasEnergyDataset link per dataset (no inline energy).
+  // Raw shape: one cons:hasEnergyDataset link per dataset (no inline energy).
   const store = parse(ttl);
   const links = store.getQuads(
     null,
-    namedNode(`${GRAN_NS}hasEnergyDataset`),
+    namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
     null,
     null,
   );
@@ -323,7 +370,7 @@ Deno.test("serializeBuildingToTurtle round-trips investor operating costs", () =
   // Raw shape: one investor:hasOperatingCosts blank node carries the categories.
   const store = parse(ttl);
   assert.equal(
-    store.getQuads(null, namedNode(`${INVESTOR_NS}hasOperatingCosts`), null, null)
+    store.getQuads(null, namedNode(`${BUILDING_NS}hasOperatingCosts`), null, null)
       .length,
     1,
   );
@@ -359,6 +406,36 @@ Deno.test("serializeBuildingToTurtle round-trips multiple building certification
   const dgnb = certs.find((c) => c.type === "DGNB");
   assert.ok(dgnb, "DGNB certification present");
   assert.equal(dgnb!.level, "Gold");
+});
+
+Deno.test("serializeBuildingToTurtle rejects an IRI-unsafe certification type (no silent corruption)", () => {
+  // The type mints `bldg:<type>Certification`; "DGNB Gold" (a space) would write
+  // an invalid IRI that breaks the WHOLE file on its next parse — the building
+  // silently vanishes from the listing. The serializer must fail loudly instead.
+  const uri = newBuildingUri(WEBID, "b-1");
+  assert.throws(
+    () =>
+      serializeBuildingToTurtle(
+        { streetAddress: "X", _cert_0_type: "DGNB Gold" },
+        uri,
+      ),
+    /certification type/,
+  );
+});
+
+Deno.test("postalCode and naceCode round-trip as identifier strings (leading zero, trailing zero kept)", () => {
+  // Regression: postalCode as xsd:integer turned "01067" (Dresden) into 1067,
+  // and naceCode as xsd:decimal turned "52.10" into 52.1 — a DIFFERENT NACE
+  // class. Both are identifiers, not numbers.
+  const uri = newBuildingUri(WEBID, "b-1");
+  const ttl = serializeBuildingToTurtle(
+    { streetAddress: "X", postalCode: "01067", naceCode: "52.10" },
+    uri,
+  );
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  assert.ok(b);
+  assert.equal(b!.postalCode, "01067");
+  assert.equal(b!.naceCode, "52.10");
 });
 
 Deno.test("parseCsvToFields extracts investor operating costs + certification, end-to-end", async () => {
@@ -420,7 +497,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
   } as unknown as BuildingType;
 
   // Export → bytes → re-import via the investor (row-label) path.
-  const file = new File([buildingToXlsx(building, "investor")], "b-1.xlsx");
+  const file = new File([await buildingToXlsx(building, "investor")], "b-1.xlsx");
   const parsed = await parseCsvToFields(file, "investor");
   assert.equal(parsed.length, 1);
   const f = parsed[0];
@@ -472,7 +549,7 @@ Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping vi
   ] as unknown as BuildingType[];
 
   // One sheet, two data rows (one per building).
-  const wb = XLSX.read(new Uint8Array(buildingsToXlsx(buildings)), {
+  const wb = XLSX.read(new Uint8Array(await buildingsToXlsx(buildings)), {
     type: "array",
   });
   assert.deepEqual(wb.SheetNames, ["Gebäude"]);
@@ -487,7 +564,7 @@ Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping vi
   // The unified sheet re-imports (generic path) and serialize→parse reproduces
   // each building's master data, energy, operating costs and certification.
   const buf = XLSX.write(wb, { type: "array", bookType: "xlsx" });
-  const parsed = await parseCsvToFields(new File([buf], "all.xlsx"), "user");
+  const parsed = await parseCsvToFields(new File([buf], "all.xlsx"), "generic");
   assert.equal(parsed.length, 2);
 
   const rt = (f: Record<string, string>, id: string) =>
@@ -701,7 +778,7 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   );
   assert.ok(energyPuts.length >= 1, "15-min daily reading files uploaded");
 
-  // Energy is NOT inline: each building links its datasets via gran:hasEnergyDataset.
+  // Energy is NOT inline: each building links its datasets via cons:hasEnergyDataset.
   // The two user demos link PT15M series; the three investor demos link P1Y annual.
   const bodies = buildingPuts.map((c) => c.body ?? "");
   assert.equal(
@@ -717,7 +794,7 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     "three buildings link P1Y annual datasets (the investor demos)",
   );
 
-  // The annual aggregate's figures live in their own gran:EnergyDataset resources
+  // The annual aggregate's figures live in their own cons:EnergyDataset resources
   // (unified metric IRIs), not inline in the building file.
   const annualFiles = calls
     .filter((c) => c.method === "PUT" && /\/energy\/\d{4}-P1Y\.ttl$/.test(c.url))
@@ -725,7 +802,7 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.ok(annualFiles.length >= 1, "annual dataset resources written");
   assert.ok(
     annualFiles.some((b) => b.includes("ElectricityConsumption")),
-    "an annual dataset declares gran:ElectricityConsumption",
+    "an annual dataset declares cons:ElectricityConsumption",
   );
 
   // The building files carry a PROV qualified attribution to the producing agent,
@@ -829,7 +906,7 @@ Deno.test("writeEnergyYear writes the dataset and links it; deleteEnergyYear und
   // The building file now links the dataset.
   const linkedAfterWrite = parse(store[fileUri]).getQuads(
     namedNode(subjectUri),
-    namedNode(`${GRAN_NS}hasEnergyDataset`),
+    namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
     namedNode(dsNode),
     null,
   );
@@ -848,7 +925,7 @@ Deno.test("writeEnergyYear writes the dataset and links it; deleteEnergyYear und
   );
   const linkedAfterDelete = parse(store[fileUri]).getQuads(
     namedNode(subjectUri),
-    namedNode(`${GRAN_NS}hasEnergyDataset`),
+    namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
     namedNode(dsNode),
     null,
   );

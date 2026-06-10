@@ -59,6 +59,11 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     let cWebId = "";
     try {
       cWebId = await webIdOf(c1.page);
+      // Let C's login-time self-provisioning settle before closing the context:
+      // ensureOwnInbox PUTs the inbox container + append ACL fire-and-forget, and
+      // closing mid-PUT leaves C without an inbox — A's grant POST then 403s and
+      // the share fails (trace-confirmed: PUT inbox/ → -1 on context close).
+      await c1.page.waitForLoadState("networkidle").catch(() => {});
     } finally {
       await c1.ctx.close();
     }

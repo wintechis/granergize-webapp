@@ -1,21 +1,19 @@
 /** Shared RDF vocabulary IRI constants used across services */
 
-export const GRAN_NS =
-  "https://solid.ti.rw.fau.de/private/granergize/vocab.ttl#";
-export const USERVOC_NS =
-  "https://solid.ti.rw.fau.de/private/granergize/user-vocab.ttl#";
-export const INVESTOR_NS =
-  "https://solid.ti.rw.fau.de/private/granergize/investor-vocab.ttl#";
-export const BENCH_NS =
-  "https://solid.ti.rw.fau.de/private/granergize/benchmark-vocab.ttl#";
+// The three Granergize vocabularies, partitioned by subject (see vocab/README.md):
+// core (app/interop plumbing), building (rec:Building master data), consumption
+// (SOSA energy observations + the views/benchmarks derived from them).
+export const GRAN_NS = "https://solid.ti.rw.fau.de/gra/vocab.ttl#";
+export const BUILDING_NS = "https://solid.ti.rw.fau.de/gra/building.ttl#";
+export const CONSUMPTION_NS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 /**
- * Benchmark result — a `gra:AggregatedViewSnapshot` a benchmark service provider
+ * Benchmark result — a `cons:AggregatedViewSnapshot` a benchmark service provider
  * computes over the buildings shared to it and shares back. `BENCH_COMPUTED_BY`
  * names the computing agent (foaf:Agent); `BENCH_METRIC_PERIOD` the year covered.
  */
-export const BENCH_RESULT = `${BENCH_NS}BenchmarkResult`;
-export const BENCH_COMPUTED_BY = `${BENCH_NS}computedBy`;
-export const BENCH_METRIC_PERIOD = `${BENCH_NS}metricPeriod`;
+export const BENCH_RESULT = `${CONSUMPTION_NS}BenchmarkResult`;
+export const BENCH_COMPUTED_BY = `${CONSUMPTION_NS}computedBy`;
+export const BENCH_METRIC_PERIOD = `${CONSUMPTION_NS}metricPeriod`;
 
 /** FOAF — personal avatar (foaf:img) and the organisation's name/logo/homepage. */
 export const FOAF_NS = "http://xmlns.com/foaf/0.1/";
@@ -37,7 +35,7 @@ export const VCARD_HAS_MEMBER = `${VCARD_NS}hasMember`;
 /**
  * W3C Basic Geo (WGS84). A building's coordinates live on a `geo:Point` blank
  * node linked by `geo:location`, so the geocoding precision can be attached to
- * the coordinate itself (`gran:geocodePrecision`) rather than the building.
+ * the coordinate itself (`bldg:geocodePrecision`) rather than the building.
  */
 export const GEO_NS = "http://www.w3.org/2003/01/geo/wgs84_pos#";
 export const GEO_LOCATION = `${GEO_NS}location`;
@@ -50,11 +48,11 @@ export const GEO_LONG = `${GEO_NS}long`;
  * street), `Postcode` (postcode + city) or `City` (city only) — recorded when
  * the lookup had to fall back to a coarser query. IRI-valued (controlled vocab).
  */
-export const GRAN_GEOCODE_PRECISION = `${GRAN_NS}geocodePrecision`;
+export const GRAN_GEOCODE_PRECISION = `${BUILDING_NS}geocodePrecision`;
 export const GEOCODE_PRECISION_IRI = {
-  address: `${GRAN_NS}Address`,
-  postcode: `${GRAN_NS}Postcode`,
-  city: `${GRAN_NS}City`,
+  address: `${BUILDING_NS}Address`,
+  postcode: `${BUILDING_NS}Postcode`,
+  city: `${BUILDING_NS}City`,
 } as const;
 export type GeocodePrecision = keyof typeof GEOCODE_PRECISION_IRI;
 /** Reverse of {@link GEOCODE_PRECISION_IRI} (IRI → precision key), for parsing. */
@@ -88,7 +86,6 @@ export const PROV_NS = "http://www.w3.org/ns/prov#";
 export const PROV_QUALIFIED_ATTRIBUTION = `${PROV_NS}qualifiedAttribution`;
 export const PROV_ATTRIBUTION = `${PROV_NS}Attribution`;
 export const PROV_AGENT = `${PROV_NS}agent`;
-export const PROV_HAD_ROLE = `${PROV_NS}hadRole`;
 export const PROV_WAS_ASSOCIATED_WITH = `${PROV_NS}wasAssociatedWith`;
 export const PROV_GENERATED_AT_TIME = `${PROV_NS}generatedAtTime`;
 
@@ -116,16 +113,18 @@ export const LDP_INBOX = `${LDP_NS}inbox`;
 /** RealEstateCore (industry ontology, not W3C) — a building resource is typed `rec:Building`. */
 export const REC_NS = "https://w3id.org/rec#";
 export const REC_BUILDING = `${REC_NS}Building`;
+/** rec:ownedBy — the building's owner as a WebID (reused directly, like rec:operatedBy). */
+export const REC_OWNED_BY = `${REC_NS}ownedBy`;
 
 /**
  * Building file attachments. A building links each uploaded file with
- * `gran:hasAttachment <fileIRI>`; the file IRI is itself the subject of the
+ * `bldg:hasAttachment <fileIRI>`; the file IRI is itself the subject of the
  * media metadata (schema.org `MediaObject`), so no blank node is needed. The
  * energy certificate is just one such file, additionally flagged with
- * `gran:hasEnergyCertificate` (see {@link GRAN_HAS_ENERGY_CERTIFICATE}).
+ * `bldg:hasEnergyCertificate` (see {@link GRAN_HAS_ENERGY_CERTIFICATE}).
  */
-export const GRAN_HAS_ATTACHMENT = `${GRAN_NS}hasAttachment`;
-export const GRAN_HAS_ENERGY_CERTIFICATE = `${GRAN_NS}hasEnergyCertificate`;
+export const GRAN_HAS_ATTACHMENT = `${BUILDING_NS}hasAttachment`;
+export const GRAN_HAS_ENERGY_CERTIFICATE = `${BUILDING_NS}hasEnergyCertificate`;
 
 /** schema.org — file metadata (a `schema:MediaObject` describing a stored file). */
 export const SCHEMA_NS = "http://schema.org/";

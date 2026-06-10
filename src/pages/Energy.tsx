@@ -42,7 +42,8 @@ type EnergyProps = {
 export default function Energy(
   { selectedBuilding, building, session }: EnergyProps,
 ) {
-  const { energyNeed, portfolioAverages, isLoading, error } = useSolidData();
+  const { energyNeed, portfolioAverages, operatorAverages, isLoading, error } =
+    useSolidData();
   // BSP benchmark snapshots shared with this user; the comparison figure prefers
   // these over the local portfolio mean when one covers the row's metric.
   const { data: benchmarks = [] } = useReceivedBenchmarks();
@@ -162,6 +163,12 @@ export default function Energy(
     if (!energy[title]) {
       return;
     }
+    // The Betreiber-Durchschnitt: the mean consumption across all buildings of
+    // this building's operator (operatedBy), keyed by the same metric labels as
+    // the row. Empty when the building has no operator or no operator peers.
+    const operatorAvg =
+      (typeof building.operatedBy === "string" &&
+        operatorAverages[building.operatedBy]) || {};
     return (
       <>
         <Typography variant="h6">{toTitleCase(title)}</Typography>
@@ -173,16 +180,24 @@ export default function Energy(
                     <TableCell>Energy Type</TableCell>
                     <TableCell align="right">kWh / a</TableCell>
                     <TableCell align="right">Portfolio average kWh / a</TableCell>
+                    <TableCell align="right">Operator average kWh / a</TableCell>
                     <TableCell align="right">Benchmark kWh / a</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>
                   {Object.entries(energy[title]).map(([key, value]) => {
                     const portfolioAverage = portfolioAverages[key] || 0;
+                    const operatorAverage = operatorAvg[key] || 0;
                     const benchmark = pickBenchmark(benchmarks, key);
                     // Compare the building's own value against the external
-                    // benchmark when one covers this metric, else the portfolio mean.
-                    const reference = benchmark ? benchmark.value : portfolioAverage;
+                    // benchmark when one covers this metric; else the operator
+                    // (Betreiber) average when comparable buildings of the same
+                    // operator exist; else the portfolio mean.
+                    const reference = benchmark
+                      ? benchmark.value
+                      : operatorAverage > 0
+                      ? operatorAverage
+                      : portfolioAverage;
                     return (
                       <TableRow hover key={key}>
                         <TableCell component="th" scope="row">
@@ -198,6 +213,11 @@ export default function Energy(
                         </TableCell>
                         <TableCell align="right">
                           {formatNumber(portfolioAverage)}
+                        </TableCell>
+                        <TableCell align="right">
+                          {operatorAverage > 0
+                            ? formatNumber(operatorAverage)
+                            : "—"}
                         </TableCell>
                         <TableCell align="right">
                           {benchmark ? formatNumber(benchmark.value) : "—"}
@@ -229,6 +249,17 @@ export default function Energy(
                           Object.keys(energy[title]).reduce((sum, key) =>
                             sum + (portfolioAverages[key] || 0), 0),
                         )}
+                      </strong>
+                    </TableCell>
+                    <TableCell align="right">
+                      <strong>
+                        {(() => {
+                          const total = Object.keys(energy[title]).reduce(
+                            (sum, key) => sum + (operatorAvg[key] || 0),
+                            0,
+                          );
+                          return total > 0 ? formatNumber(total) : "—";
+                        })()}
                       </strong>
                     </TableCell>
                     <TableCell align="right">
@@ -275,7 +306,11 @@ export default function Energy(
           <Typography variant="h5">
             {energy.timeSeries
               ? `Electricity Consumption for Building ${energy.id}`
-              : `Energy Need for Building ${energy.id} in 2023`}
+              // The year the bulk load actually used (latest accessible actual
+              // annual year) — plumbed through EnergyType, never hardcoded.
+              : `Energy Need for Building ${energy.id}${
+                energy.year ? ` in ${energy.year}` : ""
+              }`}
           </Typography>
         }
       />

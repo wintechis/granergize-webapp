@@ -22,15 +22,13 @@ import {
  *   <#membership> a org:Membership ;          # the person↔org link, role-free
  *          org:member <#me> ; org:organization <#org> .
  *   <#org> a org:Organization, foaf:Organization ;
- *          org:classification gran:Investor ;  # what KIND of company it is
  *          foaf:name "ACME" ; foaf:logo <…/logo.png> ;
  *          foaf:homepage <https://acme.example/> ;
  *          owl:sameAs <https://acme.example/profile/card#me> .  # org's own WebID
  *
- * The "kind of company" the form captures is a property of the org itself
- * (`org:classification` → a `gran:` concept), NOT a role the person plays — the
- * membership carries no `org:role`. The producing role recorded on buildings is
- * *derived* from this kind (see `COMPANY_KIND_TO_IRI` / `PROVENANCE_TO_IRI`).
+ * The membership is role-free (no `org:role`) and the org node carries only FOAF
+ * identity. A user's role exists only inside a data room and is the role of THIS
+ * org, held via the user (see notes/room.md); it is not recorded on the profile.
  *
  * The logo *image* lives at `<pod>/profile/logo.<ext>` (in the profile folder,
  * since the org is part of the profile); only the link (`foaf:logo` on `<#org>`)
@@ -43,8 +41,8 @@ const FOAF_ORGANIZATION = `${FOAF_NS}Organization`;
 const FOAF_NAME = `${FOAF_NS}name`;
 const FOAF_HOMEPAGE = `${FOAF_NS}homepage`;
 const OWL_SAME_AS = `${OWL_NS}sameAs`;
-// W3C Org membership — the role-free person↔org link. The company KIND is a
-// property of the org node (`org:classification`, below), not a role here.
+// W3C Org membership — the role-free person↔org link (no org:role). A user's role
+// lives only in a data room and is the role of this org, held via the user.
 const ORG_HAS_MEMBERSHIP = `${ORG_NS}hasMembership`;
 const ORG_MEMBERSHIP = `${ORG_NS}Membership`;
 const ORG_MEMBER = `${ORG_NS}member`;
@@ -226,9 +224,8 @@ function ensureType(store: Store, subject: string, type: string): void {
  * Ensure the role-free W3C Org skeleton: `<#me> org:memberOf <#org>`, the org
  * node's `org:Organization`/`foaf:Organization` types, and a membership
  * (`<#me> org:hasMembership <#membership>` → `<#membership> a org:Membership ;
- * org:member <#me> ; org:organization <#org>`). The company kind
- * (`org:classification`) and FOAF fields are set by the callers; this only wires
- * the person↔org link so both `saveOrganization` and `saveCompanyKind` agree.
+ * org:member <#me> ; org:organization <#org>`). The FOAF identity fields are set
+ * by the callers; this only wires the role-free person↔org link.
  */
 function ensureOrgMembership(store: Store, webId: string): void {
   const org = orgNodeIri(webId);

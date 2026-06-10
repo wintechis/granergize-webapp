@@ -168,7 +168,7 @@ export default function ManagePage({ session }: ManagePageProps) {
     try {
       // Energy is no longer inline; fetch the annual datasets for the export.
       const [enriched] = await attachAnnualData([building], session);
-      downloadXlsx(buildingToXlsx(enriched, style), `building-${building.id}.xlsx`);
+      downloadXlsx(await buildingToXlsx(enriched, style), `building-${building.id}.xlsx`);
     } catch (error) {
       showNotification(formatError("export the building", error), "error");
     }
@@ -185,7 +185,7 @@ export default function ManagePage({ session }: ManagePageProps) {
     if (ownedBuildings.length === 0) return;
     try {
       const enriched = await attachAnnualData(ownedBuildings, session);
-      downloadXlsx(buildingsToXlsx(enriched), "buildings-mine.xlsx");
+      downloadXlsx(await buildingsToXlsx(enriched), "buildings-mine.xlsx");
     } catch (error) {
       showNotification(formatError("export the buildings", error), "error");
     }

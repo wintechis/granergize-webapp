@@ -61,7 +61,7 @@ page address.
 - Ephemeral: the avatar-menu anchor, the Organisation dialog open flag, the
   demo-buildings banner (its dismissal is Pod-persistent in `prefs.ttl`, the banner
   visibility is not), the "Remove all app data" wiping flag, and the archive
-  import/export busy flags. The cached company kind is a read, not view state.
+  import/export busy flags.
 
 ### Explore — `src/pages/ExplorePage.tsx`
 

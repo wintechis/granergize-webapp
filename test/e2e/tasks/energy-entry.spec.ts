@@ -8,7 +8,7 @@ import { T } from "../helpers/timeouts.ts";
 /**
  * Energy per-year entry + planned/actual (Soll-Ist) e2e. Self-cleaning: it adds
  * its own throwaway building, writes a fixed year (2099) actual + planned
- * `gran:EnergyDataset` to it, proves the *actual* figure flows back through
+ * `cons:EnergyDataset` to it, proves the *actual* figure flows back through
  * `loadEnergy` into the energy view (with the Recharts SVG chart), then deletes
  * the building in afterAll — which removes its whole energy subtree, so nothing
  * leaks. A third test drives the map's Energy tab (InvestorEnergy), the only place

@@ -54,7 +54,7 @@ Resolved once per session, then cached:
      auto-seeded — the UI *offers* them via a banner (`useDemoSeedPrompt` /
      `seedDemoBuildings`), so a fresh Pod loads empty until the user chooses.
    - *Shared buildings* — `listSharedBuildingSources` folds the `shared-in/` event
-     log for `gran:kind gran:Building` grants (log owned by [`sharing.md`](./sharing.md)).
+     log for `gran:kind rec:Building` grants (log owned by [`sharing.md`](./sharing.md)).
      **These URIs may live on other Pods.**
 4. **Fetch each source.** `loadTtlFromMultipleSources` fetches all sources
    **concurrently** (`Promise.all`). Inaccessible sources (403/404) are tolerated
@@ -96,7 +96,7 @@ merged graph — the app does not re-dereference each IRI it encounters**:
 - Cross-references such as `rec:operatedBy` / `schema:customer` are kept as IRIs and
   resolved against the in-memory **agents** map (rendered as in-app links); the app
   does *not* fetch each agent IRI on its own.
-- **Energy** dispatches on the declared `gran:granularity`: aggregates are
+- **Energy** dispatches on the declared `cons:granularity`: aggregates are
   bulk-loaded with the building; sub-hourly series are **lazy-loaded on demand**
   (on building click) rather than eagerly dereferenced.
 - The UI exposes two ways to act on an IRI: `RefLink` (in-app router navigation,

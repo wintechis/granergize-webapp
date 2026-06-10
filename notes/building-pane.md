@@ -1,10 +1,16 @@
-# Data view — the building pane (what hangs off a building URI)
+# Building pane — what hangs off a building URI
 
 Two layers: §1 the RDF graph dangling off the building IRI on the Pod; §2 the
 typed projection the pane renders (a whitelist, not a triple browser). §3 maps each
 pane row/action back to its Pod file, keyed against
 [`data-layout.md`](./data-layout.md). Source: `buildingParser.ts`,
 `config/buildingConfig.ts`.
+
+"View" / "projection" here is the **UI** sense — a live, render-time projection
+recomputed from the in-memory parsed triples on every render, persisted nowhere. It is
+**not** a materialised view. The app's materialised views — persisted, point-in-time
+computed snapshots that are recomputed explicitly — are the unrelated **aggregated
+views** feature in [`aggregated-views.md`](./aggregated-views.md), which merely shares the word.
 
 ## 0. The root
 
@@ -24,36 +30,35 @@ verbatim atop the pane; everything below is processed.
 ├── direct datatype properties (predicateMap)
 │     schema:customer → customer (agent IRI); geo:lat/long → lat/long;
 │     vcard:locality/postal-code/region/street-address; rdfs:label;
-│     gran:hasBuildingArea/hasLandArea/officeArea (m²); gran:hasPVSystem (bool);
-│     gran:investor → investor (agent IRI); gran:usedAs; gran:yearOfConstruction;
-│     gran:hasEnergyCertificate (PDF URI); rec:nace-code; rec:operatedBy (agent IRI)
-├── investor-vocab datatypes (predicateMap, INVESTOR_NS)
+│     bldg:hasBuildingArea/hasLandArea/officeArea (m²); bldg:hasPVSystem (bool);
+│     bldg:investor → investor (agent IRI); bldg:usedAs; bldg:yearOfConstruction;
+│     bldg:hasEnergyCertificate (PDF URI); rec:nace-code; rec:ownedBy/operatedBy
+│     (agent IRIs)
+├── building-vocab datatypes (predicateMap, BUILDING_NS)
 │     buildingCode, hallArea, officeSocialArea, buildingHeight, numberOfLoadingDocks,
-│     yearOfRenovation, leaseType, tenantIndustry; hasOil/Gas/Electric/HeatPump/
-│     DistrictHeating (bool)
-├── investor-vocab IRI-valued (objectPropertyMap → relabelled local name)
+│     yearOfRenovation, leaseType, tenantIndustry, logisticsFunction,
+│     climateControlType, greenLeaseShare, pvInstallationYear, pvCapacityKW,
+│     companyName; hasOil/Gas/Electric/HeatPump/DistrictHeating (bool)
+├── building-vocab IRI-valued (objectPropertyMap → relabelled local name)
 │     shiftRegime, tenancyType, indoorTemperatureClass  (e.g. #OneShift→"1-Shift")
-├── benchmark-vocab datatypes (predicateMap, BENCH_NS)
-│     logisticsFunction, climateControlType, greenLeaseShare, indoorTemperature,
-│     pvInstallationYear, pvCapacityKW, companyName
-├── gran:hasEnergyDataset → <energy/<year>-<gran>[-planned].ttl#ds>  (repeatable)
-│     One `gran:EnergyDataset` per (building, year, granularity, scenario), each its
+├── cons:hasEnergyDataset → <energy/<year>-<gran>[-planned].ttl#ds>  (repeatable)
+│     One `cons:EnergyDataset` per (building, year, granularity, scenario), each its
 │     own file; the slug is self-describing, so `parseDatasetSlug` derives
 │     {year, granularity, scenario} from the URI WITHOUT fetching (model: see
 │     `energy-model.md`). ⇒ building.energyDatasets[] (EnergyDatasetRef[]); phase 1
 │     reads only the links, bodies fetched in phase 2 (annual) / lazily on click (series).
-├── investor:hasOperatingCosts → _:oc  ⇒ building.operatingCosts
+├── bldg:hasOperatingCosts → _:oc  ⇒ building.operatingCosts
 │     wasteDisposal, insurance, routineCleaning{Office,Warehouse}, glassCleaning,
 │     exteriorMaintenance, security, propertyManagement, caretaker,
 │     repairAndMaintenance, operationInspectionAndMaintenance (bool)
-├── investor:hasBuildingCertification → _:cert (repeatable)
+├── bldg:hasBuildingCertification → _:cert (repeatable)
 │     ⇒ building.certifications[]: { type (rdf:type *Certification), level, scope }
 └── prov:qualifiedAttribution → _:attr  (provenance, never drives behaviour)
-      prov:agent → attributedTo (WebID); prov:hadRole → provenance (category IRI)
+      prov:agent → attributedTo (WebID)   (no prov:hadRole — buildings carry no role)
 ```
 
-For the render/dispatch story the dataset declares its `gran:granularity`
-(`P1Y`|`PT15M`) and `gran:scenario` (`gran:Actual`|`gran:Planned`): annual (P1Y) carries
+For the render/dispatch story the dataset declares its `cons:granularity`
+(`P1Y`|`PT15M`) and `cons:scenario` (`cons:Actual`|`cons:Planned`): annual (P1Y) carries
 inline `sosa:ObservationCollection` observations, a series (PT15M) points at daily reading
 files. Full dataset body model in `energy-model.md`.
 
@@ -111,7 +116,7 @@ actions live on the **Manage** tab (`ManagePage.tsx`).
 Almost everything in the card is one file: every core/investor/benchmark property
 is a triple on `<…/buildings/<id>.ttl#<id>>` (surfaced as the "Source:" row). The
 exceptions are the energy datasets (separate per-(year,granularity,scenario) files,
-linked by `gran:hasEnergyDataset`) and the certificate PDF (sibling `certificates/`
+linked by `cons:hasEnergyDataset`) and the certificate PDF (sibling `certificates/`
 resource; only the link is in the building file). Per-row file map below.
 
 ### 3a. Where each row lives
@@ -122,7 +127,7 @@ Customer/Operated By/Investor      agent IRI (no separate agents source any more
 core datatypes, investor/benchmark blocks   same building file
 Energy Certificate                 link in building file; PDF in <dir>/certificates/<id>_energy_certificate.pdf
 §Certifications / §Operating Costs blank nodes in the building file
-energy charts (energyDatasets)     one gran:EnergyDataset file per (building, year,
+energy charts (energyDatasets)     one cons:EnergyDataset file per (building, year,
                                    granularity, scenario) under buildings/<id>/energy/
                                    (slug + bodies: see energy-model.md)
 ```
@@ -143,7 +148,7 @@ longer load (the field is kept empty for the back-compat return shape).
   and the array/object fields.
 - **Energy certificate** (`EnergyCertificateDialog` → `uploadEnergyCertificate`,
   `certificateUploader.ts`): PUTs the PDF to `certificates/<id>_energy_certificate.pdf`,
-  then PUTs the building file with a refreshed `gran:hasEnergyCertificate`. This and
+  then PUTs the building file with a refreshed `bldg:hasEnergyCertificate`. This and
   the per-year **Add / edit energy year** action (`EnergyYearDialog`) are per-building
   row actions on the **Manage** tab (`ManagePage.tsx`) — the map's detail pane is
   view-only.
@@ -170,11 +175,11 @@ How this pane relates to the data-driven model in
 a role:
 
 - **Predicate-driven render.** There is no role gate — `Building.tsx` renders whatever
-  predicates are present (REC/core + any `investor:*`/`bench:*` actually on the subject)
+  predicates are present (REC/core + any `bldg:*` actually on the subject)
   via `hasInvestorDetails`. The card shows "the fields this building has," not "the block
   for its role."
 - **Granularity-driven energy tab.** The energy tab dispatches by the dataset's declared
-  shape (`annualData` presence / `gran:granularity`): a series (PT15M) renders the
+  shape (`annualData` presence / `cons:granularity`): a series (PT15M) renders the
   time-series chart, an aggregate (P1Y) the annual chart — and **one building can show
   both**, regardless of role.
 
