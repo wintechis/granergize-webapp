@@ -99,9 +99,6 @@ const SHARING_SPECS = [
   "**/share-view.spec.ts",
   "**/share-files.spec.ts",
   "**/peer-benchmark.spec.ts",
-  // Diagnostic-only; self-skips unless LOGIN_STRESS=1 (see login-stress.spec.ts).
-  // Listed here so the Tier-3 `local` project can run it on demand.
-  "**/login-stress.spec.ts",
 ];
 
 export default defineConfig({
@@ -168,6 +165,18 @@ export default defineConfig({
     // local-CSS control server). `deno task bench:ui`. `--project=bench`.
     ...(process.env.E2E_BENCH
       ? [{ name: "bench", use: CHROME, testMatch: ["**/bench/**/*.spec.ts"] }]
+      : []),
+    // Diagnostic STRESS probes (currently the JSS concurrent-login hammer).
+    // Gated on LOGIN_STRESS like bench/deployed — absent the switch the spec
+    // isn't even collected, so catalog runs report zero skips and any skip
+    // that DOES appear is a real signal (a capability gate firing). The
+    // `e2e:stress` / `e2e:stress:jss` tasks set the var AND select the project.
+    ...(process.env.LOGIN_STRESS
+      ? [{
+        name: "stress",
+        use: CHROME,
+        testMatch: ["**/login-stress.spec.ts"],
+      }]
       : []),
     // Tier 5: smoke against the PUBLISHED app (E2E_DEPLOYED_URL is the baseURL;
     // no webServer). `deno task e2e:deployed`. `--project=deployed`.
