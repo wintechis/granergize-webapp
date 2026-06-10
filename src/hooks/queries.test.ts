@@ -19,6 +19,7 @@ import { useCheckInbox, useToggleVisibility } from "./mutations.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { _resetProfileCacheForTesting } from "../services/pod/profileDocument.ts";
+import { makeFakeSession } from "../services/testing/fakeSession.ts";
 
 const CONS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 const WEBID = "https://pod.example/profile/card#me";
@@ -62,34 +63,8 @@ const FIXTURES: Record<string, string> = {
 };
 
 /** A fake logged-in session serving the fixtures above (query string ignored). */
-function fakeSession(store: Record<string, string> = { ...FIXTURES }): Session {
-  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString())
-      .split("?")[0];
-    const method = (init?.method ?? "GET").toUpperCase();
-    if (method === "PUT" || method === "POST") {
-      if (init?.body != null) store[url] = String(init.body);
-      return Promise.resolve(new Response(null, { status: 201 }));
-    }
-    if (method === "DELETE") {
-      delete store[url];
-      return Promise.resolve(new Response(null, { status: 205 }));
-    }
-    const body = store[url];
-    if (body === undefined) {
-      return Promise.resolve(new Response("Not found", { status: 404 }));
-    }
-    return Promise.resolve(
-      new Response(body, {
-        status: 200,
-        headers: { "Content-Type": "text/turtle" },
-      }),
-    );
-  };
-  return {
-    info: { webId: WEBID, isLoggedIn: true },
-    fetch,
-  } as unknown as Session;
+function fakeSession(store: Record<string, string> = FIXTURES): Session {
+  return makeFakeSession({ webId: WEBID, resources: store }).session;
 }
 
 function makeWrapper() {

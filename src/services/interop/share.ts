@@ -23,6 +23,7 @@ import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
 import { filesContainerFor } from "../attachmentManager.ts";
 import { getStorageRoot } from "../pod/solidUtils.ts";
+import { mapPooled } from "../../lib/pool.ts";
 
 export interface ShareOptions {
   includeEnergyData: boolean;
@@ -111,9 +112,23 @@ export async function applyBuildingGrant(
   // resource (annual file / series descriptor), plus a series' daily-files
   // container (with acl:default, so the files inside are covered).
   if (options.includeEnergyData) {
-    for (const t of await getEnergyDataUrls(buildingFile, session, options.years)) {
-      await grantReadAccess(t.url, webId, session, t.isContainer);
-    }
+    // Each dataset has its OWN .acl, so the grants are independent and can run
+    // concurrently (bounded, like every other Pod fan-out). Deduped by URL so
+    // two dataset links into the same file can't race one read-modify-write.
+    // Error semantics: the first rejection propagates out of mapPooled (a
+    // failed grant must surface to the caller); the surviving workers may
+    // still attempt the remaining grants, which is fine here — each grant is
+    // an idempotent projection of the already-appended log event, so any
+    // extra successes only reduce log↔ACL drift (reissueGrants would re-apply
+    // exactly those grants anyway).
+    const targets = await getEnergyDataUrls(buildingFile, session, options.years);
+    const seen = new Set<string>();
+    const unique = targets.filter((t) => !seen.has(t.url) && !!seen.add(t.url));
+    await mapPooled(
+      unique,
+      4,
+      (t) => grantReadAccess(t.url, webId, session, t.isContainer),
+    );
   }
 }
 

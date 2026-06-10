@@ -592,7 +592,7 @@ export async function createRoom(session: Session): Promise<string> {
   // Provision the rooms/ parent first (announced once, on the first room) so the
   // structural folder isn't created silently; the per-room UUID container below
   // is then created quietly (it's nested, not a top-level granergize folder).
-  await ensureContainer(`${appRoot(webId)}rooms/`, session);
+  await ensureContainer(`${appRoot(webId)}rooms/`, session, { announce: true });
 
   const roomUrl = normalizeRoomUrl(
     `${appRoot(webId)}rooms/${crypto.randomUUID()}`,

@@ -64,7 +64,9 @@ export async function drainInbox(session: Session) {
   // create that a strict server rejects (e.g. JSS 409 "Cannot PUT to existing
   // container") and a lenient one (CSS) silently absorbs. With the container in
   // place the appends are plain POSTs into it, which ARE safe to run concurrently.
-  await ensureContainer(sharedIn, session);
+  // Announced: the inbox drain provisions shared-in/ as a side effect the user
+  // wouldn't otherwise see.
+  await ensureContainer(sharedIn, session, { announce: true });
 
   // Process each message fully (fetch → record in shared-in/ → delete) so a
   // re-read doesn't reprocess it. Distinct event resources, so the appends below

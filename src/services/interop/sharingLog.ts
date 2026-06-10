@@ -132,7 +132,9 @@ export async function appendSharingEvent(
   session: Session,
   event: SharingEvent,
 ): Promise<void> {
-  await ensureContainer(containerUrl, session);
+  // Announce: a first event lazily provisions shared-out//shared-in/, a creation
+  // the user wouldn't otherwise see.
+  await ensureContainer(containerUrl, session, { announce: true });
   await appendToContainer(containerUrl, buildSharingEventTurtle(event), session, {
     describeError: (res) => `Failed to append sharing event (HTTP ${res.status})`,
   });

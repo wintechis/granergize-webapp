@@ -154,7 +154,7 @@ Deno.test("readModifyWrite degrades to a plain PUT when the server sends no ETag
   assert.equal(srv.puts[0].ifMatch, null, "no If-Match without an ETag");
 });
 
-Deno.test("ensureContainer creates a missing container, reports it, and announces it once", async () => {
+Deno.test("ensureContainer creates a missing container, reports it, and announces it once when opted in", async () => {
   const srv = makeServer(null);
   const notices: string[] = [];
   setNotificationSink((m) => notices.push(m));
@@ -162,10 +162,28 @@ Deno.test("ensureContainer creates a missing container, reports it, and announce
     const created = await ensureContainer(
       "https://pod.example/granergize/shared-out/",
       srv.session,
+      { announce: true },
     );
     assert.equal(created, true);
     assert.equal(srv.puts.length, 1, "PUT created the container");
     assert.deepEqual(notices, ['Set up the "shared-out" folder on this Pod']);
+  } finally {
+    setNotificationSink(null);
+  }
+});
+
+Deno.test("ensureContainer is silent by default, even for a depth-1 app folder", async () => {
+  const srv = makeServer(null);
+  const notices: string[] = [];
+  setNotificationSink((m) => notices.push(m));
+  try {
+    const created = await ensureContainer(
+      "https://pod.example/granergize/views/",
+      srv.session,
+    );
+    assert.equal(created, true);
+    assert.equal(srv.puts.length, 1, "PUT created the container");
+    assert.deepEqual(notices, [], "announcing is opt-in");
   } finally {
     setNotificationSink(null);
   }
@@ -179,6 +197,7 @@ Deno.test("ensureContainer creates a deep per-content container without announci
     const created = await ensureContainer(
       "https://pod.example/granergize/rooms/3f9c-uuid/",
       srv.session,
+      { announce: true },
     );
     assert.equal(created, true);
     assert.equal(srv.puts.length, 1, "still created");

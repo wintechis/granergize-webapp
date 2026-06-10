@@ -3,28 +3,17 @@ import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { resolveAgent, resolveAgentOrgLogo } from "./agentResolver.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";
+import { makeFakeSession } from "../testing/fakeSession.ts";
 
 const WEBID = "https://alice.example/profile/card#me";
 const DOC = "https://alice.example/profile/card";
 
 /** Fake offline session: serves the given Turtle for the profile doc URL, 404 else. */
 function makeSession(profileTtl?: string): Session {
-  const fetch = (input: string | URL): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
-    if (url === DOC && profileTtl !== undefined) {
-      return Promise.resolve(
-        new Response(profileTtl, {
-          status: 200,
-          headers: { "Content-Type": "text/turtle" },
-        }),
-      );
-    }
-    return Promise.resolve(new Response("Not found", { status: 404 }));
-  };
-  return {
-    info: { webId: WEBID, isLoggedIn: true },
-    fetch,
-  } as unknown as Session;
+  return makeFakeSession({
+    webId: WEBID,
+    resources: profileTtl === undefined ? {} : { [DOC]: profileTtl },
+  }).session;
 }
 
 Deno.test("resolveAgent reads foaf:name and foaf:img from the profile", async () => {

@@ -9,6 +9,7 @@ import {
   resolveStorageRoot,
   _setStorageRootForTesting,
 } from "./solidUtils.ts";
+import { makeFakeSession } from "../testing/fakeSession.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 
@@ -19,23 +20,10 @@ const WEBID = "https://pod.example/profile/card#me";
  */
 function makeSession(webId: string, profileTtl: string | null): Session {
   const profileDoc = webId.split("#")[0];
-  const fetchImpl = (input: string | URL | Request): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString())
-      .split("?")[0];
-    if (url === profileDoc && profileTtl !== null) {
-      return Promise.resolve(
-        new Response(profileTtl, {
-          status: 200,
-          headers: { "Content-Type": "text/turtle" },
-        }),
-      );
-    }
-    return Promise.resolve(new Response("Not found", { status: 404 }));
-  };
-  return {
-    info: { isLoggedIn: true, webId },
-    fetch: fetchImpl as unknown as Session["fetch"],
-  } as unknown as Session;
+  return makeFakeSession({
+    webId,
+    resources: profileTtl === null ? {} : { [profileDoc]: profileTtl },
+  }).session;
 }
 
 Deno.test("resolveStorageRoot reads pim:storage from the profile", async () => {
@@ -81,30 +69,13 @@ Deno.test("resolveStorageRoot falls back to the pim:Storage-typed container", as
   // typed pim:Storage. Walk up from the WebID doc and discover it.
   const webId = "https://disco.example/alice/profile/card#me";
   const root = "https://disco.example/alice/";
-  const fetchImpl = (input: string | URL | Request): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
-    if (url === webId.split("#")[0]) {
-      return Promise.resolve(
-        new Response(`<${webId}> <http://xmlns.com/foaf/0.1/name> "A" .`, {
-          status: 200,
-          headers: { "Content-Type": "text/turtle" },
-        }),
-      );
-    }
-    if (url === root) {
-      return Promise.resolve(
-        new Response(`<${root}> a <http://www.w3.org/ns/pim/space#Storage> .`, {
-          status: 200,
-          headers: { "Content-Type": "text/turtle" },
-        }),
-      );
-    }
-    return Promise.resolve(new Response("Not found", { status: 404 }));
-  };
-  const session = {
-    info: { isLoggedIn: true, webId },
-    fetch: fetchImpl as unknown as Session["fetch"],
-  } as unknown as Session;
+  const { session } = makeFakeSession({
+    webId,
+    resources: {
+      [webId.split("#")[0]]: `<${webId}> <http://xmlns.com/foaf/0.1/name> "A" .`,
+      [root]: `<${root}> a <http://www.w3.org/ns/pim/space#Storage> .`,
+    },
+  });
   assert.deepEqual(await resolveStorageRoot(session), root);
 });
 

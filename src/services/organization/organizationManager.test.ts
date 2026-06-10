@@ -9,6 +9,7 @@ import {
   uploadOrgLogo,
 } from "./organizationManager.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";
+import { ConflictError } from "../pod/podWrite.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 const PROFILE_DOC = "https://pod.example/profile/card";
@@ -20,10 +21,15 @@ const FOAF_LOGO = "http://xmlns.com/foaf/0.1/logo";
 const FOAF_HOMEPAGE = "http://xmlns.com/foaf/0.1/homepage";
 const OWL_SAME_AS = "http://www.w3.org/2002/07/owl#sameAs";
 
-/** A fake Session that serves in-memory docs for GET and records PUT writes. */
+/**
+ * A fake Session that serves in-memory docs for GET and records PUT writes.
+ * By default it serves no ETag (readModifyWrite degrades to a plain PUT);
+ * `etag` makes GETs carry it, `failPutsWith` forces every PUT to that status.
+ */
 function makeSession(
   files: Record<string, string>,
-  writes: { url: string; contentType: string; body: unknown }[],
+  writes: { url: string; contentType: string; ifMatch: string | null; body: unknown }[],
+  opts: { etag?: string; failPutsWith?: number } = {},
 ): Session {
   const fetchImpl = (
     input: string | URL | Request,
@@ -34,12 +40,16 @@ function makeSession(
     const method = (init?.method ?? "GET").toUpperCase();
 
     if (method === "PUT") {
+      const headers = new Headers(init?.headers);
       writes.push({
         url,
-        contentType:
-          (init?.headers as Record<string, string>)?.["Content-Type"] ?? "",
+        contentType: headers.get("Content-Type") ?? "",
+        ifMatch: headers.get("If-Match"),
         body: init?.body,
       });
+      if (opts.failPutsWith) {
+        return Promise.resolve(new Response(null, { status: opts.failPutsWith }));
+      }
       files[url] = typeof init?.body === "string" ? init.body : "<binary>";
       return Promise.resolve(new Response(null, { status: 205 }));
     }
@@ -50,7 +60,10 @@ function makeSession(
         ? new Response("Not found", { status: 404 })
         : new Response(body, {
           status: 200,
-          headers: { "Content-Type": "text/turtle" },
+          headers: {
+            "Content-Type": "text/turtle",
+            ...(opts.etag ? { ETag: opts.etag } : {}),
+          },
         }),
     );
   };
@@ -59,6 +72,8 @@ function makeSession(
     fetch: fetchImpl as unknown as Session["fetch"],
   } as unknown as Session;
 }
+
+type Write = { url: string; contentType: string; ifMatch: string | null; body: unknown };
 
 /** Parse a PUT body and return objects for (subject, predicate). */
 function objectsOf(ttl: string, subject: string, predicate: string): string[] {
@@ -112,7 +127,7 @@ Deno.test("getOrganization returns null when no membership is set", async () => 
 });
 
 Deno.test("saveOrganization writes membership + org node into the WebID doc", async () => {
-  const writes: { url: string; contentType: string; body: unknown }[] = [];
+  const writes: Write[] = [];
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -142,7 +157,7 @@ Deno.test("saveOrganization writes membership + org node into the WebID doc", as
 });
 
 Deno.test("saveOrganization replaces values and preserves an existing logo", async () => {
-  const writes: { url: string; contentType: string; body: unknown }[] = [];
+  const writes: Write[] = [];
   const logo = "https://pod.example/profile/logo.png";
   const session = makeSession({
     [PROFILE_DOC]: `
@@ -165,7 +180,7 @@ Deno.test("saveOrganization replaces values and preserves an existing logo", asy
 });
 
 Deno.test("uploadOrgLogo stores the image and links foaf:logo on the org node", async () => {
-  const writes: { url: string; contentType: string; body: unknown }[] = [];
+  const writes: Write[] = [];
   const session = makeSession({
     [PROFILE_DOC]: `
       @prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -198,4 +213,46 @@ Deno.test("uploadOrgLogo rejects unsupported types", async () => {
     threw = true;
   }
   assert(threw, "expected uploadOrgLogo to throw on unsupported type");
+});
+
+Deno.test("saveOrganization guards the PUT with If-Match when the GET carries an ETag", async () => {
+  const writes: Write[] = [];
+  const session = makeSession({
+    [PROFILE_DOC]: `
+      @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+      <${WEBID}> foaf:name "Homer" .
+    `,
+  }, writes, { etag: '"v1"' });
+
+  await saveOrganization(session, { name: "ACME Logistics" });
+
+  assert.deepEqual(writes.length, 1);
+  assert.deepEqual(writes[0].ifMatch, '"v1"');
+});
+
+Deno.test("saveOrganization surfaces ConflictError after repeated 412s", async () => {
+  const writes: Write[] = [];
+  const session = makeSession({
+    [PROFILE_DOC]: `
+      @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+      <${WEBID}> foaf:name "Homer" .
+    `,
+  }, writes, { etag: '"v1"', failPutsWith: 412 });
+
+  await assert.rejects(
+    () => saveOrganization(session, { name: "ACME Logistics" }),
+    ConflictError,
+  );
+  assert(writes.length > 1, "expected the conditional PUT to be retried");
+});
+
+Deno.test("saveOrganization refuses to create a missing profile document", async () => {
+  const writes: Write[] = [];
+  const session = makeSession({}, writes); // no profile doc → GET 404
+
+  await assert.rejects(
+    () => saveOrganization(session, { name: "ACME Logistics" }),
+    /Failed to fetch WebID profile/,
+  );
+  assert.deepEqual(writes.length, 0, "no PUT may create the profile");
 });

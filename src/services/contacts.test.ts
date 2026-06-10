@@ -1,6 +1,5 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   addContact,
   contactsUrl,
@@ -8,6 +7,7 @@ import {
   removeContact,
 } from "./contacts.ts";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
+import { makeFakeSession } from "./testing/fakeSession.ts";
 
 const ALICE = "https://alice.example/profile/card#me";
 const BOB = "https://bob.example/profile/card#me";
@@ -15,34 +15,8 @@ const CARL = "https://carl.example/profile/card#me";
 
 _setStorageRootForTesting(ALICE, "https://alice.example/");
 
-/**
- * Minimal in-memory Pod: GET returns the stored body (+ ETag) or 404, PUT stores
- * the body. Enough for readContacts/addContact/removeContact's read-modify-write.
- */
-function makeSession(): { session: Session; store: Map<string, string> } {
-  const store = new Map<string, string>();
-  let seq = 0;
-  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
-    const method = (init?.method ?? "GET").toUpperCase();
-    if (method === "PUT") {
-      store.set(url, String(init?.body ?? ""));
-      return Promise.resolve(new Response("", { status: 201 }));
-    }
-    const body = store.get(url);
-    if (body === undefined) return Promise.resolve(new Response("", { status: 404 }));
-    return Promise.resolve(
-      new Response(body, {
-        status: 200,
-        headers: { "Content-Type": "text/turtle", ETag: `etag-${++seq}` },
-      }),
-    );
-  };
-  return {
-    session: { info: { isLoggedIn: true, webId: ALICE }, fetch } as unknown as Session,
-    store,
-  };
-}
+/** In-memory Pod with ETags, so the If-Match read-modify-write path runs. */
+const makeSession = () => makeFakeSession({ webId: ALICE, etags: true });
 
 Deno.test("addContact → readContacts round-trips WebID, name and avatar", async () => {
   const { session } = makeSession();
@@ -83,5 +57,5 @@ Deno.test("removeContact drops the member and its cached fields", async () => {
   const contacts = await readContacts(session);
   assert.deepEqual(contacts.map((c) => c.webId), [CARL]);
   // Bob's vCard fields are gone from the document, not just the membership.
-  assert.ok(!store.get(contactsUrl(ALICE))!.includes("Bob"));
+  assert.ok(!store[contactsUrl(ALICE)].includes("Bob"));
 });

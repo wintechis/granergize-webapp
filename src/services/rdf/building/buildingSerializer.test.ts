@@ -1,7 +1,6 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { DataFactory, Parser, Store } from "n3";
-import type { Session } from "@inrupt/solid-client-authn-browser";
 import * as XLSX from "xlsx";
 import type { BuildingType } from "../../../types.ts";
 import {
@@ -25,6 +24,7 @@ import {
 import { toggleBuildingVisibility } from "../../interop/sharingManager.ts";
 import { parseBuildings } from "./buildingParser.ts";
 import { _setStorageRootForTesting, podResources } from "../../pod/solidUtils.ts";
+import { makeFakeSession } from "../../testing/fakeSession.ts";
 import {
   GEO_LAT,
   GEO_LOCATION,
@@ -58,69 +58,13 @@ function parse(ttl: string): Store {
   return new Store(new Parser().parse(ttl));
 }
 
-interface Call {
-  url: string;
-  method: string;
-  body?: string;
-}
-
 /**
  * A stateful fake Session: GET reads the in-memory store, PUT/POST writes back to
- * it (so read-append-write flows accumulate), HEAD returns `headStatus`. Records
- * every call for assertions. The registry's `?t=` cache-buster is stripped.
+ * it (so read-append-write flows accumulate). Records every call for assertions.
+ * The registry's `?t=` cache-buster is stripped.
  */
-function makeSession(
-  initial: Record<string, string> = {},
-  headStatus = 200,
-): { session: Session; calls: Call[]; store: Record<string, string> } {
-  const store: Record<string, string> = { ...initial };
-  const calls: Call[] = [];
-  const fetch = (
-    input: string | URL,
-    init?: RequestInit,
-  ): Promise<Response> => {
-    const raw = typeof input === "string" ? input : input.toString();
-    const url = raw.split("?")[0];
-    const method = (init?.method ?? "GET").toUpperCase();
-    const body = init?.body != null ? String(init.body) : undefined;
-    calls.push({ url, method, body });
-
-    if (method === "HEAD") {
-      return Promise.resolve(new Response("", { status: headStatus }));
-    }
-    if (method === "PUT" || method === "POST") {
-      if (body !== undefined) store[url] = body;
-      return Promise.resolve(new Response("", { status: 201 }));
-    }
-    if (method === "DELETE") {
-      const existed = url in store;
-      delete store[url];
-      return Promise.resolve(
-        new Response(null, { status: existed ? 205 : 404 }),
-      );
-    }
-    const content = store[url];
-    if (content === undefined) {
-      return Promise.resolve(
-        new Response("Not found", { status: 404, statusText: "Not Found" }),
-      );
-    }
-    return Promise.resolve(
-      new Response(content, {
-        status: 200,
-        headers: { "Content-Type": "text/turtle" },
-      }),
-    );
-  };
-  return {
-    session: {
-      info: { webId: WEBID, isLoggedIn: true },
-      fetch,
-    } as unknown as Session,
-    calls,
-    store,
-  };
-}
+const makeSession = (initial: Record<string, string> = {}) =>
+  makeFakeSession({ webId: WEBID, resources: initial });
 
 // ── serialize (the create path) ────────────────────────────────────────────────
 
@@ -1031,40 +975,32 @@ Deno.test("deleteEnergyYear tolerates an already-missing dataset (404) and skips
  * counters so a test can assert how the read-after-write polled. */
 function deletingSession(uri: string, lagReads: number) {
   const container = uri.replace(/[^/]+$/, "");
-  const energy = `${uri.replace(/\.ttl$/, "")}/`;
   const other = `${container}other.ttl`;
   const counts = { containerGets: 0, deletes: 0 };
   const listing = (present: boolean) =>
     `@prefix ldp: <http://www.w3.org/ns/ldp#> .\n<${container}> ldp:contains ${
       present ? `<${uri}>, ` : ""
     }<${other}> .\n`;
-  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString())
-      .split("?")[0];
-    const method = (init?.method ?? "GET").toUpperCase();
-    if (method === "DELETE") {
-      counts.deletes++;
-      return Promise.resolve(new Response(null, { status: 205 }));
-    }
-    if (url === energy) {
-      return Promise.resolve(new Response("Not found", { status: 404 }));
-    }
-    if (url === container) {
-      counts.containerGets++;
-      // Still lists the deleted file for the first `lagReads` reads, then drops it.
-      return Promise.resolve(
-        new Response(listing(counts.containerGets <= lagReads), {
+  const { session } = makeFakeSession({
+    webId: WEBID,
+    // Everything not handled here (e.g. the energy/ probe) falls through to
+    // the empty store's 404.
+    respond: (url, init) => {
+      if ((init?.method ?? "GET").toUpperCase() === "DELETE") {
+        counts.deletes++;
+        return new Response(null, { status: 205 });
+      }
+      if (url === container) {
+        counts.containerGets++;
+        // Still lists the deleted file for the first `lagReads` reads, then drops it.
+        return new Response(listing(counts.containerGets <= lagReads), {
           status: 200,
           headers: { "Content-Type": "text/turtle" },
-        }),
-      );
-    }
-    return Promise.resolve(new Response("Not found", { status: 404 }));
-  };
-  const session = {
-    info: { webId: WEBID, isLoggedIn: true },
-    fetch,
-  } as unknown as Session;
+        });
+      }
+      return undefined;
+    },
+  });
   return { session, counts };
 }
 

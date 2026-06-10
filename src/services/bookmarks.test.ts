@@ -1,6 +1,5 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { Session } from "@inrupt/solid-client-authn-browser";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
 import {
   addBookmark,
@@ -8,6 +7,7 @@ import {
   readBookmarks,
   removeBookmark,
 } from "./bookmarks.ts";
+import { makeFakeSession } from "./testing/fakeSession.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");
@@ -16,36 +16,7 @@ const A = "https://pod.example/granergize/rooms/aaaa/";
 const B = "https://carol.example/granergize/rooms/bbbb/";
 
 /** Stateful fake Session (GET in-memory; PUT writes back; no ETag → plain PUT). */
-function makeSession(
-  store: Record<string, string> = {},
-): { session: Session; store: Record<string, string> } {
-  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString())
-      .split("?")[0];
-    const method = (init?.method ?? "GET").toUpperCase();
-    if (method === "PUT") {
-      store[url] = String(init?.body ?? "");
-      return Promise.resolve(new Response(null, { status: 201 }));
-    }
-    const body = store[url];
-    if (body === undefined) {
-      return Promise.resolve(new Response("Not found", { status: 404 }));
-    }
-    return Promise.resolve(
-      new Response(body, {
-        status: 200,
-        headers: { "Content-Type": "text/turtle" },
-      }),
-    );
-  };
-  return {
-    session: {
-      info: { webId: WEBID, isLoggedIn: true },
-      fetch,
-    } as unknown as Session,
-    store,
-  };
-}
+const makeSession = () => makeFakeSession({ webId: WEBID });
 
 Deno.test("readBookmarks on a missing file yields []", async () => {
   const { session } = makeSession();

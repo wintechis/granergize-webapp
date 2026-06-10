@@ -6,6 +6,7 @@ import {
   invalidateProfile,
   loadProfileStore,
 } from "./profileDocument.ts";
+import { makeFakeSession } from "../testing/fakeSession.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 const PROFILE = `@prefix foaf: <http://xmlns.com/foaf/0.1/> .
@@ -14,28 +15,14 @@ const PROFILE = `@prefix foaf: <http://xmlns.com/foaf/0.1/> .
 
 /** Fake Session whose fetch serves the profile and counts how often it's hit. */
 function makeSession(): { session: Session; calls: () => number } {
-  let calls = 0;
   const profileDoc = WEBID.split("#")[0];
-  const fetchImpl = (input: string | URL | Request): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString())
-      .split("?")[0];
-    if (url === profileDoc) {
-      calls++;
-      return Promise.resolve(
-        new Response(PROFILE, {
-          status: 200,
-          headers: { "Content-Type": "text/turtle" },
-        }),
-      );
-    }
-    return Promise.resolve(new Response("Not found", { status: 404 }));
-  };
+  const pod = makeFakeSession({
+    webId: WEBID,
+    resources: { [profileDoc]: PROFILE },
+  });
   return {
-    session: {
-      info: { isLoggedIn: true, webId: WEBID },
-      fetch: fetchImpl as unknown as Session["fetch"],
-    } as unknown as Session,
-    calls: () => calls,
+    session: pod.session,
+    calls: () => pod.calls.filter((c) => c.url === profileDoc).length,
   };
 }
 

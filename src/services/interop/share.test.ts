@@ -1,7 +1,11 @@
 /// <reference lib="deno.ns" />
 import assert from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { getEnergyDataUrls, shareBuildingData } from "./share.ts";
+import {
+  applyBuildingGrant,
+  getEnergyDataUrls,
+  shareBuildingData,
+} from "./share.ts";
 import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 
@@ -163,6 +167,32 @@ Deno.test("shareBuildingData orders log append BEFORE ACL writes BEFORE the inbo
   assert.ok(inboxPost !== -1, "recipient inbox notified");
   assert.ok(logAppend < firstAcl, "log append precedes ACL enforcement");
   assert.ok(firstAcl < inboxPost, "enforcement precedes the inbox notify");
+});
+
+Deno.test("applyBuildingGrant: a failed energy-dataset grant still rejects (pooled fan-out propagates)", async () => {
+  // The energy grants run through a bounded pool; the contract that a failed
+  // grant must SURFACE to the caller (so the share errors and the user sees it)
+  // is unchanged — pin it. One dataset's .acl PUT 500s; applyBuildingGrant
+  // must reject, even though the other (independent) grants may succeed.
+  const { session: s } = sharePod();
+  const FAIL_ACL = `${ENERGY}/2023-P1Y.ttl.acl`;
+  const inner = s.fetch;
+  const failing = {
+    info: s.info,
+    fetch: (input: string | URL | Request, init?: RequestInit) => {
+      const url = (typeof input === "string" ? input : input.toString())
+        .split("?")[0];
+      if (url === FAIL_ACL && (init?.method ?? "GET").toUpperCase() === "PUT") {
+        return Promise.resolve(new Response("boom", { status: 500 }));
+      }
+      return inner(input, init);
+    },
+  } as unknown as Session;
+
+  await assert.rejects(
+    () => applyBuildingGrant(BUILDING, RECIPIENT, failing),
+    /Failed to update ACL/,
+  );
 });
 
 Deno.test("the inbox grant event carries the per-year scope (every share dimension)", async () => {
