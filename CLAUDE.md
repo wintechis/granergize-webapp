@@ -108,7 +108,13 @@ why `vite.config.ts` sets `base: "./"` and routing uses `HashRouter`.
    `keepPreviousData` (a failed refetch keeps the last good data on screen). Freshness
    is server-driven (`staleTime: 0` + conditional GET via `fetchFresh`); the only
    refetch trigger is a write — mutations in `src/hooks/mutations.ts` invalidate their
-   own query keys (`queryKeys` in `queries.ts`).
+   own query keys (`queryKeys` in `queries.ts`). **Every user-intent Pod write goes
+   through a mutation hook** — a dialog never calls a service write directly: busy
+   state is the mutation's `isPending`, the error toast is central (the hook's
+   `meta.action` gives it the `"Failed to {action}: {detail}"` phrasing; a hook whose
+   canonical surface is an inline `<Alert>` sets `meta.silent` and the dialog renders
+   `mutation.error` through `classifyQueryError`), and the hook owns its invalidations
+   (no parent-callback invalidation).
 3. **Fetch + parse** — `src/services/TurtleParsingService.ts` orchestrates loading.
    There is no registry: it discovers the user's OWN buildings by *listing* the
    `granergize/buildings/` container for top-level `*.ttl` files (a single PUT adds a

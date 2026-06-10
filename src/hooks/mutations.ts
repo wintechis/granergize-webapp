@@ -1,6 +1,11 @@
-import { useMutation, useQueryClient } from "@tanstack/react-query";
+import {
+  type QueryClient,
+  useMutation,
+  useQueryClient,
+} from "@tanstack/react-query";
 import { getSession } from "./session.ts";
 import { queryKeys } from "./queries.ts";
+import { rememberBuildingAgents } from "./rememberAgents.ts";
 import { deleteBuildingResource } from "../services/buildingActions.ts";
 import {
   revokeAccess,
@@ -8,12 +13,41 @@ import {
   revokeViewAccess,
   toggleBuildingVisibility,
 } from "../services/interop/sharingManager.ts";
+import {
+  shareAggregatedView,
+  shareBuildingData,
+} from "../services/interop/share.ts";
 import { drainInbox } from "../services/interop/inbox.ts";
 import {
+  createViewDefinition,
   deleteView,
   getSnapshotUrl,
 } from "../services/aggregation/viewManager.ts";
-import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
+import {
+  computeAndStoreSnapshot,
+  refreshSnapshot,
+} from "../services/aggregation/viewComputer.ts";
+import {
+  deleteEnergyYear,
+  newBuildingUri,
+  serializeBuildingToTurtle,
+  updateBuilding,
+  uploadBuilding,
+  writeBuildingEnergy,
+  writeEnergyYear,
+} from "../services/rdf/building/buildingSerializer.ts";
+import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
+import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
+import {
+  deleteAttachment,
+  setEnergyCertificate,
+  uploadAttachment,
+} from "../services/attachmentManager.ts";
+import {
+  type Organization,
+  saveOrganization,
+  uploadOrgLogo,
+} from "../services/organization/organizationManager.ts";
 import {
   addKnownRoom,
   createRoom,
@@ -29,9 +63,15 @@ import {
 import {
   addContact,
   type Contact,
+  rememberAgent,
   removeContact,
 } from "../services/contacts.ts";
-import type { BuildingType, UserRole } from "../types.ts";
+import type {
+  AggregatedViewDefinition,
+  AttachmentRef,
+  BuildingType,
+  UserRole,
+} from "../types.ts";
 
 /**
  * Write hooks. Each wraps the existing service function as the `mutationFn` — so
@@ -39,27 +79,31 @@ import type { BuildingType, UserRole } from "../types.ts";
  * either invalidates the affected queries or, for the room registry, updates the
  * cache authoritatively via `setQueryData` (see the data-room section). Error
  * handling (ConflictError/SessionExpired notifications) is centralised in
- * `QueryProvider`.
+ * `QueryProvider`; each hook's `meta.action` gives the central toast its
+ * "Failed to {action}: {detail}" phrasing, and `meta.silent` hands the error to
+ * the dialog's inline <Alert> instead (see queryErrors.ts).
  */
 
 /**
- * Refresh the building + energy queries after a building add/edit/upload that the
- * dialog performed itself (those dialogs own the write; this just invalidates).
+ * The query keys a building write touches: the lists/energy folds plus the
+ * per-building detail reads. The annualEnergy key's link fingerprint covers a
+ * year add/delete by itself, but editing an EXISTING year's figures changes no
+ * links — only this invalidation refetches that case. The series
+ * listings/readings likewise pick up freshly imported day files.
  */
+function invalidateBuildingData(qc: QueryClient): void {
+  qc.invalidateQueries({ queryKey: queryKeys.buildings });
+  qc.invalidateQueries({ queryKey: queryKeys.energy });
+  qc.invalidateQueries({ queryKey: queryKeys.annualEnergy });
+  qc.invalidateQueries({ queryKey: queryKeys.seriesDays });
+  qc.invalidateQueries({ queryKey: queryKeys.dayReadings });
+  qc.invalidateQueries({ queryKey: queryKeys.monthReadings });
+}
+
+/** Refresh the building + energy queries after a building-data change. */
 export function useInvalidateBuildingData() {
   const qc = useQueryClient();
-  return () => {
-    qc.invalidateQueries({ queryKey: queryKeys.buildings });
-    qc.invalidateQueries({ queryKey: queryKeys.energy });
-    // The per-building detail reads. The annualEnergy key's link fingerprint
-    // covers a year add/delete by itself, but editing an EXISTING year's
-    // figures changes no links — only this invalidation refetches that case.
-    // The series listings/readings likewise pick up freshly imported day files.
-    qc.invalidateQueries({ queryKey: queryKeys.annualEnergy });
-    qc.invalidateQueries({ queryKey: queryKeys.seriesDays });
-    qc.invalidateQueries({ queryKey: queryKeys.dayReadings });
-    qc.invalidateQueries({ queryKey: queryKeys.monthReadings });
-  };
+  return () => invalidateBuildingData(qc);
 }
 
 /**
@@ -194,6 +238,302 @@ export function useRevokeViewAccess() {
       revokeViewAccess(snapshotUrl, webId, getSession()),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
+    },
+  });
+}
+
+// ── Building writes (the dialogs' Pod writes) ────────────────────────────────
+
+/**
+ * The add flow: per building, energy datasets first and the discoverable
+ * building file LAST (the commit point — a failure leaves only inert orphans),
+ * exactly the ordering the serializer documents. The abort signal and progress
+ * callback travel in the variables; a user cancel is an OUTCOME, not an error —
+ * the mutation resolves with `aborted: true` and the buildings already written
+ * (the dialog reports "kept"), while a real failure throws to the central toast.
+ */
+export function useUploadBuildings() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "add the building" },
+    mutationFn: async (vars: {
+      buildings: Array<Record<string, string>>;
+      lastgangReadings: LastgangReading[] | null;
+      signal: AbortSignal;
+      onProgress: (done: number, total: number) => void;
+    }) => {
+      const session = getSession();
+      const webId = session.info.webId;
+      if (!webId) throw new Error("Not authenticated");
+      // Provenance records only WHO produced the building (the logged-in agent)
+      // as a PROV qualified attribution.
+      const provenance = { agent: webId };
+      const added: string[] = [];
+      try {
+        for (const b of vars.buildings) {
+          vars.signal.throwIfAborted();
+          // A collision-free id: `Date.now()`+short-random clashed when several
+          // buildings were written within the same millisecond in a bulk import,
+          // so the second PUT overwrote the first (buildings silently vanished).
+          const id = crypto.randomUUID();
+          const uri = newBuildingUri(webId, id);
+          const subjectUri = `${uri}#${id}`;
+
+          // Group the Lastgang (15-min) readings by day into a single series
+          // dataset; annual aggregates come from the field map (`_inv_*`/`_bsp_*`).
+          let series:
+            | {
+              year: number;
+              days: Array<{ date: string; readings: LastgangReading[] }>;
+              label: string;
+            }
+            | undefined;
+          if (vars.lastgangReadings && vars.lastgangReadings.length > 0) {
+            const byDate = new Map<string, LastgangReading[]>();
+            for (const r of vars.lastgangReadings) {
+              const list = byDate.get(r.date) ?? [];
+              list.push(r);
+              byDate.set(r.date, list);
+            }
+            const days = [...byDate.entries()].map(([date, readings]) => ({
+              date,
+              readings,
+            }));
+            // All readings are one calendar year; take it from the first date.
+            const year = parseInt(days[0].date.slice(0, 4));
+            series = { year, days, label: b.label ?? "" };
+          }
+
+          const energyLinks = await writeBuildingEnergy(
+            session,
+            uri,
+            subjectUri,
+            b,
+            series,
+            vars.onProgress,
+            vars.signal,
+          );
+          const ttl = serializeBuildingToTurtle(b, uri, energyLinks, provenance);
+          await uploadBuilding(session, uri, ttl, webId, vars.signal);
+          added.push(subjectUri);
+          // Auto-remember the building's WebID agents in the address book.
+          rememberBuildingAgents(session, qc, b);
+        }
+      } catch (err) {
+        if (vars.signal.aborted) return { added, aborted: true };
+        throw err;
+      }
+      return { added, aborted: false };
+    },
+    onSettled: () => invalidateBuildingData(qc),
+  });
+}
+
+/** Save edited master data on an existing building (conditional RMW PUT). */
+export function useUpdateBuilding() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "update the building" },
+    mutationFn: async (vars: {
+      fileUri: string;
+      subjectUri: string;
+      fields: Record<string, string>;
+    }) => {
+      const session = getSession();
+      await updateBuilding(session, vars.fileUri, vars.subjectUri, vars.fields);
+      rememberBuildingAgents(session, qc, vars.fields);
+    },
+    onSettled: () => invalidateBuildingData(qc),
+  });
+}
+
+/** Write (create or replace) one annual (year, scenario) energy dataset. */
+export function useWriteEnergyYear() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "save energy data" },
+    mutationFn: (vars: {
+      fileUri: string;
+      subjectUri: string;
+      dataset: EnergyDataset;
+    }) => writeEnergyYear(getSession(), vars.fileUri, vars.subjectUri, vars.dataset),
+    onSettled: () => invalidateBuildingData(qc),
+  });
+}
+
+/** Delete one annual (year, scenario) energy dataset + its building link. */
+export function useDeleteEnergyYear() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "delete energy data" },
+    mutationFn: (vars: {
+      fileUri: string;
+      subjectUri: string;
+      dataset: Pick<EnergyDataset, "year" | "granularity" | "scenario">;
+    }) => deleteEnergyYear(getSession(), vars.fileUri, vars.subjectUri, vars.dataset),
+    onSettled: () => invalidateBuildingData(qc),
+  });
+}
+
+// ── Attachments (building files) ─────────────────────────────────────────────
+// Attachments link from the building file (`gran:hasAttachment`), so the
+// buildings query is the one reader to refresh.
+
+/**
+ * Upload files to a building's `files/` container, sequentially; `onUploaded`
+ * reports each landed file so the dialog's list can grow as the batch runs.
+ * Stops at the first failure (the files before it are kept and reported).
+ */
+export function useUploadAttachments() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "upload the file" },
+    mutationFn: async (vars: {
+      fileUri: string;
+      subjectUri: string;
+      files: File[];
+      onUploaded?: (ref: AttachmentRef) => void;
+    }) => {
+      const session = getSession();
+      for (const file of vars.files) {
+        const ref = await uploadAttachment(
+          vars.fileUri,
+          vars.subjectUri,
+          file,
+          session,
+        );
+        vars.onUploaded?.(ref);
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
+  });
+}
+
+export function useDeleteAttachment() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "delete the file" },
+    mutationFn: (vars: { fileUri: string; subjectUri: string; url: string }) =>
+      deleteAttachment(vars.fileUri, vars.subjectUri, vars.url, getSession()),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
+  });
+}
+
+/** Flag one attachment as the energy certificate (`url: null` clears it). */
+export function useSetEnergyCertificate() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "update the energy certificate" },
+    mutationFn: (vars: {
+      fileUri: string;
+      subjectUri: string;
+      url: string | null;
+    }) =>
+      setEnergyCertificate(vars.fileUri, vars.subjectUri, vars.url, getSession()),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
+  });
+}
+
+// ── Sharing & views (dialog side) ────────────────────────────────────────────
+
+/**
+ * Share a building with a list of recipients (sequential; stops at the first
+ * failure — recipients already granted stay granted). Silent: the share
+ * dialog's confirm step renders the error inline (the <Alert> carve-out).
+ */
+export function useShareBuilding() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "share the building", silent: true },
+    mutationFn: async (vars: {
+      buildingUri: string;
+      recipients: string[];
+      includeEnergyData: boolean;
+      years?: number[];
+    }) => {
+      const session = getSession();
+      for (const recipient of vars.recipients) {
+        await shareBuildingData(vars.buildingUri, recipient, session, {
+          includeEnergyData: vars.includeEnergyData,
+          years: vars.years,
+        });
+        // Auto-remember the recipient in the address book (fire-and-forget).
+        void rememberAgent(session, recipient);
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog }),
+  });
+}
+
+/**
+ * Share a view snapshot with a list of recipients. The share-view dialog
+ * renders errors inline (`silent: true`); the standalone view page toasts
+ * (no option).
+ */
+export function useShareViewSnapshot(opts: { silent?: boolean } = {}) {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "share the view", silent: opts.silent },
+    mutationFn: async (vars: { snapshotUrl: string; recipients: string[] }) => {
+      const session = getSession();
+      for (const recipient of vars.recipients) {
+        await shareAggregatedView(vars.snapshotUrl, recipient, session);
+      }
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog }),
+  });
+}
+
+/** Create a view definition and compute its first snapshot (one user intent). */
+export function useCreateView() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "create the view" },
+    mutationFn: async (vars: {
+      name: string;
+      buildingUris: string[];
+      aggregationType: AggregatedViewDefinition["aggregationType"];
+      metrics: string[];
+      period?: string;
+      benchmark?: boolean;
+    }) => {
+      const session = getSession();
+      const def = await createViewDefinition(
+        session,
+        vars.name,
+        vars.buildingUris,
+        vars.aggregationType,
+        vars.metrics,
+        { period: vars.period, benchmark: vars.benchmark },
+      );
+      await computeAndStoreSnapshot(session, def.id);
+      return def;
+    },
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.viewDefinitions }),
+  });
+}
+
+// ── Organisation ─────────────────────────────────────────────────────────────
+
+/**
+ * Save the organisation node in the WebID profile (+ optional logo upload).
+ * The resolved-agent caches read the profile, so both are refreshed.
+ */
+export function useSaveOrganization() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "save your organisation" },
+    mutationFn: async (vars: {
+      org: Pick<Organization, "name" | "homepage" | "sameAs">;
+      logo?: File | null;
+    }) => {
+      const session = getSession();
+      await saveOrganization(session, vars.org);
+      if (vars.logo) await uploadOrgLogo(vars.logo, session);
+    },
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.agent });
+      qc.invalidateQueries({ queryKey: queryKeys.agentLogo });
     },
   });
 }
