@@ -32,6 +32,7 @@ import {
   ENERGY_BELOW_AVG_COLOR,
 } from "../constants/chartColors.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
+import { formatNumber } from "../lib/formatNumber.ts";
 
 type EnergyProps = {
   selectedBuilding: string;
@@ -103,13 +104,6 @@ export default function Energy(
         this data.
       </Typography>
     );
-  }
-
-  function formatNumber(value: number): string {
-    return new Intl.NumberFormat("de-DE", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
   }
 
   function sumUpPropValues(obj: Record<string, unknown>): number {
@@ -209,18 +203,18 @@ export default function Energy(
                             backgroundColor: getBackgroundColor(value, reference),
                           }}
                         >
-                          {formatNumber(value)}
+                          {formatNumber(value, 2)}
                         </TableCell>
                         <TableCell align="right">
-                          {formatNumber(portfolioAverage)}
+                          {formatNumber(portfolioAverage, 2)}
                         </TableCell>
                         <TableCell align="right">
                           {operatorAverage > 0
-                            ? formatNumber(operatorAverage)
+                            ? formatNumber(operatorAverage, 2)
                             : "—"}
                         </TableCell>
                         <TableCell align="right">
-                          {benchmark ? formatNumber(benchmark.value) : "—"}
+                          {benchmark ? formatNumber(benchmark.value, 2) : "—"}
                         </TableCell>
                       </TableRow>
                     );
@@ -239,6 +233,7 @@ export default function Energy(
                             sumUpPropValues(
                               energy[title] as Record<string, unknown>,
                             ),
+                            2,
                           )
                           : 0}
                       </strong>
@@ -248,6 +243,7 @@ export default function Energy(
                         {formatNumber(
                           Object.keys(energy[title]).reduce((sum, key) =>
                             sum + (portfolioAverages[key] || 0), 0),
+                          2,
                         )}
                       </strong>
                     </TableCell>
@@ -258,7 +254,7 @@ export default function Energy(
                             (sum, key) => sum + (operatorAvg[key] || 0),
                             0,
                           );
-                          return total > 0 ? formatNumber(total) : "—";
+                          return total > 0 ? formatNumber(total, 2) : "—";
                         })()}
                       </strong>
                     </TableCell>
@@ -270,7 +266,7 @@ export default function Energy(
                               sum + (pickBenchmark(benchmarks, key)?.value ?? 0),
                             0,
                           );
-                          return total > 0 ? formatNumber(total) : "—";
+                          return total > 0 ? formatNumber(total, 2) : "—";
                         })()}
                       </strong>
                     </TableCell>

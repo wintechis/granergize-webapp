@@ -12,6 +12,13 @@ failure class (data-layer → UI → provider interop):
 - **Tier 4 — browser e2e, remote** (`deno task e2e:remote`): the same specs against
   real Pods; `source` a `test/.env.e2e.*.local` creds file first.
 
+On top sits a **Tier-5 deployed smoke** (`deno task e2e:deployed`, after sourcing a
+Tier-4 creds file): one shallow, read-only spec (`test/e2e/deployed-smoke.spec.ts`)
+against the PUBLISHED app (`E2E_DEPLOYED_URL`, default = the GitHub-Actions deploy
+target) — log in with a real Pod, walk the four tabs, fail on any uncaught page
+error or error toast. It checks the deployment wiring (subpath assets, hash
+routing, the baked OIDC ClientID), not app behaviour.
+
 Two roles, **A = Alice / B = Bob**: solo specs use A, sharing specs use A + B. The
 specs live in `test/e2e/tasks/` (one per feature: login, organisation, add-building,
 energy-entry, view-data, data-room, share-building, share-view); Tier 2 mirrors a

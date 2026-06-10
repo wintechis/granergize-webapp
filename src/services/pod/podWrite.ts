@@ -82,6 +82,35 @@ export async function ensureContainer(
 }
 
 /**
+ * Append one immutable Turtle resource to an append-only LDP container (the
+ * model-1 event-sourced primitive): POST — the server mints the child IRI, so
+ * concurrent appends never clobber. The one home for the POST + ok-check shared
+ * by the event-log writers (sharing logs, data-room logs, inbox notifications);
+ * callers keep their own {@link ensureContainer} where the container is theirs
+ * to provision. `describeError` lets a caller substitute a domain-specific
+ * message for the generic failure.
+ * @operation mutation
+ */
+export async function appendToContainer(
+  containerUrl: string,
+  turtle: string,
+  session: Session,
+  opts: { describeError?: (res: Response) => string } = {},
+): Promise<void> {
+  const res = await session.fetch(containerUrl, {
+    method: "POST",
+    headers: { "Content-Type": "text/turtle" },
+    body: turtle,
+  });
+  if (!res.ok) {
+    throw new Error(
+      opts.describeError?.(res) ??
+        `Failed to append to ${containerUrl} (HTTP ${res.status})`,
+    );
+  }
+}
+
+/**
  * PUT a WAC `.acl` Turtle body, falling back to JSON-LD on 415. JSS rejects Turtle
  * for ACL resources (it requires `application/ld+json`); CSS/NSS accept Turtle and
  * never 415, so their path is unchanged. The single home for direct `.acl` writes

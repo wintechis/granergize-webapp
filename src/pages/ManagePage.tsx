@@ -41,12 +41,12 @@ import {
   useRevokeViewAccess,
 } from "../hooks/mutations.ts";
 import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import { attachAnnualData } from "../services/rdf/building/buildingSerializer.ts";
 import {
-  attachAnnualData,
   buildingsToXlsx,
   buildingToXlsx,
-} from "../services/rdf/building/buildingSerializer.ts";
-import type { ExportStyle } from "../services/rdf/buildingWorkbook.ts";
+} from "../services/rdf/buildingWorkbook.ts";
+import type { SpreadsheetFormat } from "../services/rdf/buildingTemplates.ts";
 import { buildBuildingDeletionPreview } from "../services/buildingActions.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { formatError } from "../lib/formatError.ts";
@@ -115,7 +115,6 @@ export default function ManagePage({ session }: ManagePageProps) {
     ? buildings.find((b) => b.uri === shareBuilding.uri) ?? shareBuilding
     : null;
   const [createViewOpen, setCreateViewOpen] = useState(false);
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [viewToShare, setViewToShare] = useState<
     AggregatedViewDefinition | null
   >(null);
@@ -163,7 +162,7 @@ export default function ManagePage({ session }: ManagePageProps) {
     { anchor: HTMLElement; building: BuildingType } | null
   >(null);
 
-  const handleDownload = async (building: BuildingType, style: ExportStyle) => {
+  const handleDownload = async (building: BuildingType, style: SpreadsheetFormat) => {
     setExportMenu(null);
     try {
       // Energy is no longer inline; fetch the annual datasets for the export.
@@ -175,7 +174,7 @@ export default function ManagePage({ session }: ManagePageProps) {
   };
 
   // The export-layout options, labelled by spreadsheet shape (not a role).
-  const EXPORT_STYLES: { style: ExportStyle; label: string }[] = [
+  const EXPORT_STYLES: { style: SpreadsheetFormat; label: string }[] = [
     { style: "generic", label: "Generic (field-name columns)" },
     { style: "investor", label: "Row-label sheet (one column per building)" },
     { style: "benchmark", label: "Table (one row per building)" },
@@ -209,13 +208,7 @@ export default function ManagePage({ session }: ManagePageProps) {
     });
   };
 
-  const handleOpenShareDialog = (view: AggregatedViewDefinition) => {
-    setViewToShare(view);
-    setShareDialogOpen(true);
-  };
-
   const handleCloseShareDialog = () => {
-    setShareDialogOpen(false);
     setViewToShare(null);
     queryClient.invalidateQueries({ queryKey: queryKeys.viewDefinitions });
     queryClient.invalidateQueries({ queryKey: queryKeys.sharedViews });
@@ -535,7 +528,7 @@ export default function ManagePage({ session }: ManagePageProps) {
                           <IconButton
                             size="small"
                             aria-label="Share view"
-                            onClick={() => handleOpenShareDialog(view)}
+                            onClick={() => setViewToShare(view)}
                           >
                             <ShareIcon />
                           </IconButton>
@@ -642,7 +635,7 @@ export default function ManagePage({ session }: ManagePageProps) {
       {viewToShare && (
         <ShareViewDialog
           view={viewToShare}
-          open={shareDialogOpen}
+          open
           onClose={handleCloseShareDialog}
           session={session}
         />

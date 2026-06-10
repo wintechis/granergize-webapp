@@ -1,12 +1,15 @@
+import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import {
   CONSUMPTION_NS,
+  RDF_TYPE,
   SOSA_NS,
   SSN_NS,
   TIME_NS,
   UNIT_NS,
 } from "./vocabularies.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
+import { listDirectChildren } from "../pod/podDelete.ts";
 import { logError } from "../../lib/logError.ts";
 
 const { namedNode } = DataFactory;
@@ -146,6 +149,27 @@ export function seriesDailyFileUrl(
 }
 
 /**
+ * List a series dataset's daily reading files. Owns the descriptor→container
+ * convention: the ref's `…/<slug>.ttl` descriptor locates its sibling
+ * `…/<slug>/` container, whose `<date>.ttl` children are the days. Each entry
+ * is `{ day, url }` — `day` is the file's date label (e.g. `"2024-03-15"`),
+ * `url` the reading file to fetch — sorted ascending by day. A missing or
+ * inaccessible container yields `[]`.
+ * @operation query
+ */
+export async function listSeriesDays(
+  session: Session,
+  ref: EnergyDatasetRef,
+): Promise<{ day: string; url: string }[]> {
+  const container = ref.url.split("#")[0].replace(/\.ttl$/, "/");
+  const children = (await listDirectChildren(container, session)) ?? [];
+  return children
+    .filter((url) => url.endsWith(".ttl"))
+    .map((url) => ({ day: url.split("/").pop()!.replace(/\.ttl$/, ""), url }))
+    .sort((a, b) => a.day.localeCompare(b.day));
+}
+
+/**
  * Derive `{year, granularity, scenario}` from a `cons:hasEnergyDataset` link URL
  * by parsing its slug — so phase-1 needn't fetch each dataset. Returns null if
  * the slug isn't the expected `<year>-<granularity>[-planned]` shape.
@@ -166,14 +190,18 @@ export function parseDatasetSlug(linkUrl: string): EnergyDatasetRef | null {
   return { url: linkUrl, year, granularity, scenario };
 }
 
-/** All dataset refs linked from a building node (`cons:hasEnergyDataset`). */
+/**
+ * All dataset refs linked from a building node (`cons:hasEnergyDataset`).
+ * `buildingNodeUri: null` matches ANY subject — for a fetched building file,
+ * which holds only that one building's links.
+ */
 export function parseEnergyDatasetRefs(
   store: Store,
-  buildingNodeUri: string,
+  buildingNodeUri: string | null,
 ): EnergyDatasetRef[] {
   return store
     .getObjects(
-      namedNode(buildingNodeUri),
+      buildingNodeUri === null ? null : namedNode(buildingNodeUri),
       namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
       null,
     )
@@ -284,7 +312,7 @@ export function parseEnergyDataset(
   const ds = namedNode(datasetNodeUri);
   const isDataset = store.getQuads(
     ds,
-    namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type"),
+    namedNode(RDF_TYPE),
     namedNode(`${CONSUMPTION_NS}EnergyDataset`),
     null,
   ).length > 0;

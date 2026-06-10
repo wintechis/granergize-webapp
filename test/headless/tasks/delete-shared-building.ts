@@ -44,7 +44,7 @@ export async function run(ctx: TaskContext): Promise<void> {
       { streetAddress: "Löschweg 1", locality: "Nürnberg", lat: "49.45", long: "11.08" },
       uri,
       undefined,
-      { agent: a.webId, category: "investor" },
+      { agent: a.webId },
     );
     await uploadBuilding(a.session, uri, ttl, a.webId);
     await shareBuildingData(uri, b.webId, a.session, { includeEnergyData: false });

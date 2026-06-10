@@ -26,7 +26,7 @@ import type {
 } from "../types.ts";
 import { createViewDefinition } from "../services/aggregation/viewManager.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
-import { listDirectChildren } from "../services/pod/podDelete.ts";
+import { listSeriesDays } from "../services/rdf/energyDataset.ts";
 import {
   type Contributors,
   computeAndStoreSnapshot,
@@ -247,12 +247,8 @@ export default function CreateViewDialog({
           isSeriesGranularity(r.granularity)
         );
         for (const ref of seriesRefs) {
-          const container = ref.url.split("#")[0].replace(/\.ttl$/, "/");
-          const children = (await listDirectChildren(container, session)) ?? [];
-          for (const url of children) {
-            if (!url.endsWith(".ttl")) continue;
-            const label = url.split("/").pop()!.replace(".ttl", "");
-            if (label.length >= 7) months.add(label.substring(0, 7));
+          for (const { day } of await listSeriesDays(session, ref)) {
+            if (day.length >= 7) months.add(day.substring(0, 7));
           }
         }
       }

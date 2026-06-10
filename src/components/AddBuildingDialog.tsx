@@ -31,14 +31,14 @@ import { useSolidData } from "../hooks/queries.ts";
 import { rememberBuildingAgents } from "../hooks/rememberAgents.ts";
 import {
   detectSpreadsheetFormat,
-  geocodeFields,
-  type LastgangReading,
   newBuildingUri,
   parseCsvToFields,
   serializeBuildingToTurtle,
   uploadBuilding,
   writeBuildingEnergy,
 } from "../services/rdf/building/buildingSerializer.ts";
+import { geocodeFields } from "../services/geocode.ts";
+import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
 import {
   SCALAR_FIELDS,
   type SpreadsheetFormat,

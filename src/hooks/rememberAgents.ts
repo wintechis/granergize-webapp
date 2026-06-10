@@ -4,7 +4,8 @@ import { rememberAgent } from "../services/contacts.ts";
 import { queryKeys } from "./queries.ts";
 
 /**
- * Auto-remember a building's WebID agents (operator / owner / investor) in the
+ * Auto-remember a building's WebID agents (operator / owner / investor /
+ * facility manager / developer / consultant) in the
  * address book (fire-and-forget), then refresh the contacts query so the new
  * contacts appear without a reload (the direct `rememberAgent` write bypasses
  * the addContact mutation's invalidation). Only real WebIDs — a legacy literal
@@ -24,7 +25,14 @@ export function rememberBuildingAgents(
   qc: QueryClient,
   fields: Record<string, string | undefined>,
 ): void {
-  const agentWebIds = [fields.operatedBy, fields.ownedBy, fields.investor]
+  const agentWebIds = [
+    fields.operatedBy,
+    fields.ownedBy,
+    fields.investor,
+    fields.facilityManagedBy,
+    fields.developedBy,
+    fields.consultedBy,
+  ]
     .filter((w): w is string => typeof w === "string" && /^https?:\/\//.test(w));
   if (agentWebIds.length === 0) return;
   void Promise.all(agentWebIds.map((w) => rememberAgent(session, w)))

@@ -1,8 +1,6 @@
 import { Parser, Store } from "n3";
 import type { Quad, Term } from "n3";
-
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
-const XSD_STRING = "http://www.w3.org/2001/XMLSchema#string";
+import { RDF_TYPE, XSD_STRING } from "./vocabularies.ts";
 
 function pushInto(obj: Record<string, unknown>, key: string, val: unknown): void {
   const arr = obj[key];

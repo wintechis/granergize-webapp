@@ -12,7 +12,7 @@ import {
 } from "../rdf/vocabularies.ts";
 import { appRoot, getStorageRoot } from "../pod/solidUtils.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
-import { ensureContainer, putAcl } from "../pod/podWrite.ts";
+import { appendToContainer, ensureContainer, putAcl } from "../pod/podWrite.ts";
 import { mapPooled } from "../../lib/pool.ts";
 import { readPrefs, setCurrentRoom } from "../prefs.ts";
 import {
@@ -498,20 +498,13 @@ async function postEvent(
 
   await ensureContainer(containerUrl, session);
 
-  const res = await session.fetch(containerUrl, {
-    method: "POST",
-    headers: { "Content-Type": "text/turtle" },
-    body,
+  await appendToContainer(containerUrl, body, session, {
+    describeError: (res) =>
+      res.status === 401 || res.status === 403
+        ? `You don't have permission to write to the data room (HTTP ${res.status}). ` +
+          `Its owner must grant append access to ${containerUrl}.`
+        : `Failed to append to data room log (HTTP ${res.status})`,
   });
-  if (!res.ok) {
-    if (res.status === 401 || res.status === 403) {
-      throw new Error(
-        `You don't have permission to write to the data room (HTTP ${res.status}). ` +
-          `Its owner must grant append access to ${containerUrl}.`,
-      );
-    }
-    throw new Error(`Failed to append to data room log (HTTP ${res.status})`);
-  }
 }
 
 /**

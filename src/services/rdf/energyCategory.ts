@@ -69,34 +69,45 @@ function quantile(sorted: number[], q: number): number {
 }
 
 /**
- * Place an intensity into a category relative to its peers (the intensities of
- * the buildings currently in view — caller-supplied, so panning re-frames the
- * comparison). Lower intensity = more efficient = `"efficient"`.
+ * Build the classifier for one peer set (the intensities of the buildings
+ * currently in view — caller-supplied, so panning re-frames the comparison).
+ * The thresholds are computed once per peer set; the returned function places
+ * a single intensity into a category, cheap enough to call per marker per
+ * render. Lower intensity = more efficient = `"efficient"`.
  *
  * With three or more comparable peers the split is by terciles of the peer
  * distribution (robust across building types — a fixed kWh/m² threshold would
  * not be). With fewer, terciles aren't meaningful, so it falls back to a
  * split on the peer mean (the same below/above logic the energy grid uses).
+ * A missing (`null` / non-finite) intensity is always `"none"`; with no peers
+ * at all everything else reads as `"typical"` (nothing to compare against).
  */
-export function categorise(
-  intensity: number | null,
+export function categoriserFor(
   peerIntensities: number[],
-): EnergyCategory {
-  if (intensity == null || !Number.isFinite(intensity)) return "none";
+): (intensity: number | null) => EnergyCategory {
   const peers = peerIntensities.filter((v) => Number.isFinite(v));
-  if (peers.length === 0) return "typical";
 
-  if (peers.length < 3) {
+  let classify: (intensity: number) => EnergyCategory;
+  if (peers.length === 0) {
+    classify = () => "typical";
+  } else if (peers.length < 3) {
     const mean = peers.reduce((sum, v) => sum + v, 0) / peers.length;
-    if (intensity < mean) return "efficient";
-    if (intensity > mean) return "inefficient";
-    return "typical";
+    classify = (intensity) => {
+      if (intensity < mean) return "efficient";
+      if (intensity > mean) return "inefficient";
+      return "typical";
+    };
+  } else {
+    const sorted = [...peers].sort((a, b) => a - b);
+    const lower = quantile(sorted, 1 / 3);
+    const upper = quantile(sorted, 2 / 3);
+    classify = (intensity) => {
+      if (intensity <= lower) return "efficient";
+      if (intensity >= upper) return "inefficient";
+      return "typical";
+    };
   }
 
-  const sorted = [...peers].sort((a, b) => a - b);
-  const lower = quantile(sorted, 1 / 3);
-  const upper = quantile(sorted, 2 / 3);
-  if (intensity <= lower) return "efficient";
-  if (intensity >= upper) return "inefficient";
-  return "typical";
+  return (intensity) =>
+    intensity == null || !Number.isFinite(intensity) ? "none" : classify(intensity);
 }

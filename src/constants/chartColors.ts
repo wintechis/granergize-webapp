@@ -17,6 +17,11 @@ export const CHART_COLOR_PALETTE: string[] = [
   "rgba(177, 89, 40, 1)",
 ];
 
+/** The brand primary — consumed by theme.palette.primary.main AND non-MUI
+ * surfaces that can't import the theme (the XLSX export's title band runs
+ * under `deno test`, where MUI doesn't load). One hex, derived everywhere. */
+export const BRAND_PRIMARY = "#0277bd";
+
 /** Aligned with theme.palette.primary.main — owned building markers / primary actions */
 export const MARKER_OWNED_COLOR = "#ca2f44";
 
@@ -45,3 +50,16 @@ export const ENERGY_ABOVE_AVG_COLOR = "#ef9a9a"; // pale red
  */
 export const ENERGY_TYPICAL_COLOR = "#ffcc80"; // pale amber
 export const MARKER_NO_DATA_COLOR = "#bdbdbd"; // neutral grey
+
+/**
+ * Per-metric bar colours for the annual energy charts (InvestorEnergy /
+ * BspEnergy), drawn from the ColorBrewer palette above at reduced alpha;
+ * centralised so the same metric keeps the same colour on every page.
+ */
+export const ELECTRICITY_COLOR = "rgba(31, 120, 180, 0.8)";
+export const HEAT_COLOR = "rgba(227, 26, 28, 0.8)";
+export const WATER_COLOR = "rgba(51, 160, 44, 0.8)";
+export const WASTEWATER_COLOR = "rgba(0, 150, 136, 0.8)";
+export const RENEWABLE_COLOR = "rgba(178, 223, 138, 0.9)";
+// Planned (Soll) figures — one neutral colour across metrics, shown beside actual.
+export const PLANNED_COLOR = "rgba(120, 120, 120, 0.55)";

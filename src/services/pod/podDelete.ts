@@ -1,6 +1,6 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
-import { fetchFresh } from "./podFetch.ts";
+import { fetchFresh, readStoreOrEmpty } from "./podFetch.ts";
 import { appRoot } from "./solidUtils.ts";
 import { LDP_CONTAINS as LDP_CONTAINS_IRI } from "../rdf/vocabularies.ts";
 import { logError } from "../../lib/logError.ts";
@@ -108,11 +108,7 @@ export async function listContainedResources(
   session: Session,
 ): Promise<string[]> {
   const out: string[] = [];
-  const listing = await fetchFresh(container, session);
-  if (!listing.ok) return out;
-  const store = new Store(
-    new Parser({ baseIRI: container }).parse(await listing.text()),
-  );
+  const store = await readStoreOrEmpty(container, session);
   const children = store
     .getObjects(DataFactory.namedNode(container), LDP_CONTAINS, null)
     .map((o) => o.value)

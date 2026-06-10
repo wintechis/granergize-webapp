@@ -18,6 +18,7 @@ import {
 } from "../components/detail/DetailView.tsx";
 import FilesSection from "../components/detail/FilesSection.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
+import { useDevMode } from "../hooks/devMode.ts";
 
 interface BuildingProps {
   building: BuildingType;
@@ -34,6 +35,9 @@ interface BuildingProps {
 export default function Building(
   { building, onHide, embedded = false, hideHeader }: BuildingProps,
 ) {
+  // Raw storage IRIs (the building resource + its source file) are a
+  // Developer-mode affordance, like every other backing-resource link.
+  const dev = useDevMode();
   const hasValue = (value: unknown): boolean => {
     if (value == null) {
       return false;
@@ -114,15 +118,15 @@ export default function Building(
         )}
         sx={{ width: "100%" }}
       >
-        {/* Building IRI, shown prominently. In the map pane the identity header
-            (incl. the URI) is rendered above by ExplorePage.tsx, so only show it here in
-            the standalone card. */}
-        {!hideHeader && (
+        {/* Building IRI (standalone card only — in the map pane the identity
+            header is rendered above by ExplorePage.tsx) and the backing source
+            file: raw storage IRIs, so Developer mode only. */}
+        {dev && !hideHeader && (
           <Typography variant="body1" sx={{ mb: 1, wordBreak: "break-all" }}>
             <UriLink href={building.uri}>{building.uri}</UriLink>
           </Typography>
         )}
-        {hasValue(building.sourceUri) && (
+        {dev && hasValue(building.sourceUri) && (
           <DetailRow
             label="Source"
             value={
@@ -143,6 +147,12 @@ export default function Building(
           <DetailRow
             label="Operated By"
             value={<AgentLabel value={building.operatedBy as string} />}
+          />
+        )}
+        {hasValue(building.ownedBy) && (
+          <DetailRow
+            label="Owned By"
+            value={<AgentLabel value={building.ownedBy as string} />}
           />
         )}
         {hasValue(building.type) && (
@@ -170,6 +180,24 @@ export default function Building(
           <DetailRow
             label="Investor"
             value={<AgentLabel value={building.investor as string} />}
+          />
+        )}
+        {hasValue(building.facilityManagedBy) && (
+          <DetailRow
+            label="Facility Manager"
+            value={<AgentLabel value={building.facilityManagedBy as string} />}
+          />
+        )}
+        {hasValue(building.developedBy) && (
+          <DetailRow
+            label="Developed By"
+            value={<AgentLabel value={building.developedBy as string} />}
+          />
+        )}
+        {hasValue(building.consultedBy) && (
+          <DetailRow
+            label="Consultant / Broker"
+            value={<AgentLabel value={building.consultedBy as string} />}
           />
         )}
         {hasValue(building.attributedTo) && (

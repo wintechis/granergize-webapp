@@ -64,6 +64,21 @@ export function BuildingAddressFields(
         value={fields.investor ?? ""}
         onChange={(v) => setField("investor", v)}
       />
+      <AgentField
+        label="Facility manager (WebID)"
+        value={fields.facilityManagedBy ?? ""}
+        onChange={(v) => setField("facilityManagedBy", v)}
+      />
+      <AgentField
+        label="Developed by (WebID)"
+        value={fields.developedBy ?? ""}
+        onChange={(v) => setField("developedBy", v)}
+      />
+      <AgentField
+        label="Consultant / broker (WebID)"
+        value={fields.consultedBy ?? ""}
+        onChange={(v) => setField("consultedBy", v)}
+      />
       {check("PV system installed", "hasPVSystem")}
     </>
   );

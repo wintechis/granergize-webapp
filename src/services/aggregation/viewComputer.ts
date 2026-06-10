@@ -1,29 +1,22 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
-import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
   AggregationType,
   EnergyCategoryKey,
-  EnergyDatasetRef,
   EnergyType,
 } from "../../types.ts";
 import { getViewDefinition, storeComputedSnapshot } from "./viewManager.ts";
-import { fetchFresh } from "../pod/podFetch.ts";
+import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import {
   loadEnergyDatasets,
-  parseDatasetSlug,
+  parseEnergyDatasetRefs,
 } from "../rdf/energyDataset.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { parseTtlReadings } from "../rdf/userEnergyParser.ts";
 import { getSharedWithMe } from "../interop/sharingManager.ts";
 import { mapPooled } from "../../lib/pool.ts";
-
-const { namedNode } = DataFactory;
-
-const VOCAB_PREFIX = CONSUMPTION_NS;
 
 /**
  * Load energy data for a single building. Returns the metrics of the latest
@@ -36,33 +29,17 @@ async function loadBuildingEnergyData(
 ): Promise<{ energy: EnergyType; year: number } | null> {
   buildingUri = buildingUri.split("#")[0];
   try {
-    // Fetch building data to get energy data location
-    const buildingResponse = await fetchFresh(buildingUri, session);
-    if (!buildingResponse.ok) {
-      console.warn(
-        `Could not fetch building ${buildingUri}: ${buildingResponse.status}`,
-      );
-      return null;
-    }
-
-    const buildingText = await buildingResponse.text();
-    const buildingParser = new Parser({
-      format: "text/turtle",
-      baseIRI: buildingUri,
-    });
-    const buildingQuads = buildingParser.parse(buildingText);
-    const buildingStore = new Store(buildingQuads);
+    // Fetch building data to get energy data location (an unreadable building
+    // degrades to an empty store, i.e. no datasets).
+    const buildingStore = await readStoreOrEmpty(buildingUri, session);
 
     // Discover the building's annual datasets from its cons:hasEnergyDataset
     // links and load the latest actual year; its metrics become the energyNeed
     // (keyed by the AnnualMetrics names the view metrics use).
     const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "") || "0";
-    const annual = buildingStore
-      .getObjects(null, namedNode(`${VOCAB_PREFIX}hasEnergyDataset`), null)
-      .map((o) => parseDatasetSlug(o.value))
-      .filter((r): r is EnergyDatasetRef =>
-        r !== null && r.scenario === "actual" &&
-        !isSeriesGranularity(r.granularity)
+    const annual = parseEnergyDatasetRefs(buildingStore, null)
+      .filter((r) =>
+        r.scenario === "actual" && !isSeriesGranularity(r.granularity)
       );
     if (annual.length === 0) {
       console.warn(`No annual energy datasets for building ${buildingUri}`);
@@ -156,30 +133,13 @@ async function loadUserBuildingMonthlyTotal(
 ): Promise<number | null> {
   const cleanUri = buildingUri.split("#")[0];
   try {
-    const buildingResponse = await fetchFresh(cleanUri, session);
-    if (!buildingResponse.ok) {
-      console.warn(
-        `Could not fetch building ${cleanUri}: ${buildingResponse.status}`,
-      );
-      return null;
-    }
-
-    const buildingText = await buildingResponse.text();
-    const buildingParser = new Parser({
-      format: "text/turtle",
-      baseIRI: cleanUri,
-    });
-    const buildingQuads = buildingParser.parse(buildingText);
-    const buildingStore = new Store(buildingQuads);
+    // An unreadable building degrades to an empty store, i.e. no datasets.
+    const buildingStore = await readStoreOrEmpty(cleanUri, session);
 
     // Series datasets locate their daily files in a container; list each and
     // sum the readings of the days within the requested period (e.g. "2024-03").
-    const seriesRefs = buildingStore
-      .getObjects(null, namedNode(`${VOCAB_PREFIX}hasEnergyDataset`), null)
-      .map((o) => parseDatasetSlug(o.value))
-      .filter((r): r is EnergyDatasetRef =>
-        r !== null && isSeriesGranularity(r.granularity)
-      );
+    const seriesRefs = parseEnergyDatasetRefs(buildingStore, null)
+      .filter((r) => isSeriesGranularity(r.granularity));
     if (seriesRefs.length === 0) {
       console.warn(`No series energy datasets for building ${cleanUri}`);
       return null;

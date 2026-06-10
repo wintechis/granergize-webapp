@@ -1,12 +1,14 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
+import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   datasetFileUrl,
   datasetNodeUrl,
   datasetSlug,
   type EnergyDataset,
   type EnergyDatasetRef,
+  listSeriesDays,
   loadEnergyDatasets,
   parseDatasetSlug,
   parseEnergyDataset,
@@ -176,4 +178,35 @@ Deno.test("parseEnergyDatasetRefs reads the building's hasEnergyDataset links", 
   const refs = parseEnergyDatasetRefs(store, B);
   assert.equal(refs.length, 2);
   assert.deepEqual(refs.map((r) => r.granularity).sort(), ["P1Y", "PT15M"]);
+});
+
+Deno.test("listSeriesDays lists the descriptor's day files, sorted, .ttl only", async () => {
+  const ref: EnergyDatasetRef = {
+    url: datasetNodeUrl(datasetFileUrl(B, 2024, "PT15M", "actual")),
+    year: 2024,
+    granularity: "PT15M",
+    scenario: "actual",
+  };
+  const container =
+    "https://pod.example/granergize/buildings/b-1/energy/2024-PT15M/";
+  const listing = `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${container}> ldp:contains <${container}2024-01-02.ttl>,
+  <${container}2024-01-01.ttl>, <${container}notes.txt> .
+`;
+  const fetch = (input: string | URL): Promise<Response> => {
+    assert.equal(String(input), container, "descriptor URL → sibling container");
+    return Promise.resolve(
+      new Response(listing, {
+        status: 200,
+        headers: { "Content-Type": "text/turtle" },
+      }),
+    );
+  };
+  const session = { info: { webId: "x", isLoggedIn: true }, fetch } as unknown as
+    Session;
+  const days = await listSeriesDays(session, ref);
+  assert.deepEqual(days, [
+    { day: "2024-01-01", url: `${container}2024-01-01.ttl` },
+    { day: "2024-01-02", url: `${container}2024-01-02.ttl` },
+  ]);
 });

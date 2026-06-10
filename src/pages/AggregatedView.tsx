@@ -39,6 +39,7 @@ import { shareAggregatedView } from "../services/interop/share.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatDate, formatDateTime } from "../lib/formatDate.ts";
+import { formatNumber } from "../lib/formatNumber.ts";
 import { formatError } from "../lib/formatError.ts";
 import { annualMetricLabel } from "../constants/annualMetrics.ts";
 
@@ -156,13 +157,6 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     } finally {
       setSharing(false);
     }
-  };
-
-  const formatNumber = (value: number): string => {
-    return new Intl.NumberFormat("de-DE", {
-      minimumFractionDigits: 2,
-      maximumFractionDigits: 2,
-    }).format(value);
   };
 
   if (loading) {
@@ -368,7 +362,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
                             {annualMetricLabel(metric)}
                           </TableCell>
                           <TableCell align="right">
-                            {formatNumber(value)}
+                            {formatNumber(value, 2)}
                           </TableCell>
                         </TableRow>
                       ))}

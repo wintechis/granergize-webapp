@@ -90,6 +90,14 @@ export interface BuildingType {
   /** Owner WebID (`rec:ownedBy`, ranges over foaf:Agent — an agent link like
    * operatedBy). Legacy literal values tolerated on read. */
   ownedBy?: string;
+  /** Facility-manager WebID (`bldg:facilityManagedBy`) — an agent link, distinct
+   * from the operator. */
+  facilityManagedBy?: string;
+  /** Project-developer WebID (`bldg:developedBy`) — who developed the building. */
+  developedBy?: string;
+  /** Consultant/broker WebID (`bldg:consultedBy`) — who consults for / markets
+   * the building (Vertriebsoptimierung). */
+  consultedBy?: string;
   /**
    * Unified energy model: the building's `cons:hasEnergyDataset` links (one per
    * year/granularity/scenario), derived from the link slugs. The actual figures

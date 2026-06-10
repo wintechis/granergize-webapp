@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
-import { appRoot } from "../pod/solidUtils.ts";
+import { podResources } from "../pod/solidUtils.ts";
 import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
@@ -19,8 +19,8 @@ import {
 } from "../rdf/vocabularies.ts";
 import { getQuadValue, getQuadValues } from "../rdf/rdfHelpers.ts";
 import { getReceivedViews } from "../interop/sharingManager.ts";
-import { fetchFresh } from "../pod/podFetch.ts";
-import { readModifyWrite } from "../pod/podWrite.ts";
+import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
+import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import { mapPooled } from "../../lib/pool.ts";
 import { logError } from "../../lib/logError.ts";
@@ -50,12 +50,12 @@ function serializeWithPrefixes(store: Store): string {
 
 /** The `views/` container — one definition resource per view (discover by listing). */
 function viewsContainerUrl(webId: string): string {
-  return `${appRoot(webId)}views/`;
+  return podResources(webId).views;
 }
 
 /** The `views/snapshots/` container — one shareable computed copy per view. */
 function snapshotsContainerUrl(webId: string): string {
-  return `${appRoot(webId)}views/snapshots/`;
+  return podResources(webId).viewSnapshots;
 }
 
 /** A single view definition resource: `views/<viewId>.ttl`. */
@@ -73,28 +73,17 @@ function viewNodeFor(webId: string, viewId: string) {
   return namedNode(`${getViewDefinitionUrl(webId, viewId)}#view`);
 }
 
-/** Ensure the `views/` and `views/snapshots/` containers exist. */
+/** Ensure the `views/` and `views/snapshots/` containers exist (parent first).
+ * A creation failure propagates here, instead of resurfacing later as a
+ * confusing view-PUT failure. */
 async function ensureViewsDirectoryExists(session: Session): Promise<void> {
   const webId = session.info.webId;
   if (!webId) {
     throw new Error("User is not logged in");
   }
 
-  for (const dir of [viewsContainerUrl(webId), snapshotsContainerUrl(webId)]) {
-    try {
-      const response = await session.fetch(dir, { method: "HEAD" });
-      if (response.status === 404) {
-        await session.fetch(dir, {
-          method: "PUT",
-          headers: { "Content-Type": "text/turtle" },
-          body: "",
-        });
-      }
-    } catch (err) {
-      logError("ensure view container exists", err);
-      // Directory might already exist
-    }
-  }
+  await ensureContainer(viewsContainerUrl(webId), session);
+  await ensureContainer(snapshotsContainerUrl(webId), session);
 }
 
 /**
@@ -272,14 +261,11 @@ export async function getViewDefinitions(
   const defUrls = children.filter((u) => u.endsWith(".ttl"));
 
   // Bounded concurrency: a burst of GETs trips Cloudflare's rate limiter.
-  const views = await mapPooled(defUrls, 4, async (url) => {
-    const res = await fetchFresh(url, session);
-    if (!res.ok) return null;
-    const store = new Store(
-      new Parser({ baseIRI: url }).parse(await res.text()),
-    );
-    return parseViewDefinition(store);
-  });
+  const views = await mapPooled(
+    defUrls,
+    4,
+    async (url) => parseViewDefinition(await readStoreOrEmpty(url, session)),
+  );
   return views.filter((v): v is AggregatedViewDefinition => v !== null);
 }
 
@@ -295,11 +281,9 @@ export async function getViewDefinition(
   const webId = session.info.webId;
   if (!webId) return null;
   try {
-    const res = await fetchFresh(getViewDefinitionUrl(webId, viewId), session);
-    if (!res.ok) return null;
-    const store = new Store(
-      new Parser({ baseIRI: getViewDefinitionUrl(webId, viewId) })
-        .parse(await res.text()),
+    const store = await readStoreOrEmpty(
+      getViewDefinitionUrl(webId, viewId),
+      session,
     );
     return parseViewDefinition(store);
   } catch (error) {

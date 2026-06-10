@@ -52,12 +52,18 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   { field: "buildingArea", iri: `${BUILDING_NS}hasBuildingArea`, range: XSD_INTEGER },
   { field: "landArea", iri: `${BUILDING_NS}hasLandArea`, range: XSD_INTEGER },
   { field: "hasPVSystem", iri: `${BUILDING_NS}hasPVSystem`, range: XSD_BOOLEAN },
-  // Agent (WebID) links: investor, owner and operator range over foaf:Agent, so
-  // they round-trip as NamedNodes (a legacy xsd:string value is tolerated on
-  // read). Owner and operator are REC properties reused directly.
+  // Agent (WebID) links — building→agent relationship properties (NOT roles;
+  // roles live only in data rooms). All range over foaf:Agent, so they
+  // round-trip as NamedNodes (a legacy xsd:string value is tolerated on read).
+  // Owner and operator are REC properties reused directly; the rest are minted
+  // in BUILDING_NS. Only operatedBy carries behaviour (the Betreiber
+  // benchmark); the others are descriptive.
   { field: "investor", iri: `${BUILDING_NS}investor`, range: FOAF_AGENT },
   { field: "ownedBy", iri: REC_OWNED_BY, range: FOAF_AGENT },
   { field: "operatedBy", iri: `${REC_NS}operatedBy`, range: FOAF_AGENT },
+  { field: "facilityManagedBy", iri: `${BUILDING_NS}facilityManagedBy`, range: FOAF_AGENT },
+  { field: "developedBy", iri: `${BUILDING_NS}developedBy`, range: FOAF_AGENT },
+  { field: "consultedBy", iri: `${BUILDING_NS}consultedBy`, range: FOAF_AGENT },
   { field: "officeArea", iri: `${BUILDING_NS}officeArea`, range: XSD_INTEGER },
   { field: "usedAs", iri: `${BUILDING_NS}usedAs` },
   { field: "yearOfConstruction", iri: `${BUILDING_NS}yearOfConstruction`, range: XSD_INTEGER },

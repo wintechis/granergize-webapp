@@ -2,7 +2,12 @@
 import { strict as assert } from "node:assert";
 import { DataFactory } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { ConflictError, ensureContainer, readModifyWrite } from "./podWrite.ts";
+import {
+  appendToContainer,
+  ConflictError,
+  ensureContainer,
+  readModifyWrite,
+} from "./podWrite.ts";
 import { setNotificationSink } from "../../lib/notificationSink.ts";
 
 const { namedNode } = DataFactory;
@@ -198,6 +203,48 @@ Deno.test("ensureContainer is a silent no-op when the container already exists",
   } finally {
     setNotificationSink(null);
   }
+});
+
+Deno.test("appendToContainer POSTs Turtle to the container", async () => {
+  const posts: Array<{ url: string; contentType: string | null; body: string }> =
+    [];
+  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
+    posts.push({
+      url: String(input),
+      contentType: new Headers(init?.headers).get("Content-Type"),
+      body: String(init?.body ?? ""),
+    });
+    return Promise.resolve(new Response(null, { status: 201 }));
+  };
+  const session = { info: { webId: "x", isLoggedIn: true }, fetch } as unknown as
+    Session;
+  await appendToContainer(
+    "https://pod.example/granergize/shared-out/",
+    TTL(":s :p :o ."),
+    session,
+  );
+  assert.equal(posts.length, 1);
+  assert.equal(posts[0].url, "https://pod.example/granergize/shared-out/");
+  assert.equal(posts[0].contentType, "text/turtle");
+  assert.ok(posts[0].body.includes(":s :p :o ."));
+});
+
+Deno.test("appendToContainer throws on a non-ok response, honouring describeError", async () => {
+  const fetch = (): Promise<Response> =>
+    Promise.resolve(new Response(null, { status: 403 }));
+  const session = { info: { webId: "x", isLoggedIn: true }, fetch } as unknown as
+    Session;
+  await assert.rejects(
+    () =>
+      appendToContainer("https://pod.example/x/", "", session, {
+        describeError: (res) => `no permission (HTTP ${res.status})`,
+      }),
+    /no permission \(HTTP 403\)/,
+  );
+  await assert.rejects(
+    () => appendToContainer("https://pod.example/x/", "", session),
+    /Failed to append to https:\/\/pod\.example\/x\/ \(HTTP 403\)/,
+  );
 });
 
 Deno.test("readModifyWrite supports a custom serializer", async () => {

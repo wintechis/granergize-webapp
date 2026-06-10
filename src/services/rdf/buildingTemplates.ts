@@ -149,6 +149,29 @@ export function certLevelLabel(system: string): string {
   return `${system} Zertifizierungsstufe`;
 }
 
+/**
+ * The investor sheet's per-year energy rows: German row-label stem (the label
+ * is `"<stem> <year>"`), the `_inv_<key>_<year>` intermediate-field stem, and
+ * the annual-metrics field it maps to. One source for the export writer
+ * (buildingWorkbook), the import's year detection and its per-year row
+ * extraction (buildingSerializer) — previously three hand-synced label copies.
+ */
+export const INV_YEAR_ROW_STEMS = [
+  { label: "Stromverbrauch", key: "elec", field: "electricityConsumption" },
+  { label: "Wärme - tatsächlicher Verbrauch", key: "heat", field: "heatConsumption" },
+  { label: "Wasserverbrauch", key: "water", field: "waterConsumption" },
+] as const;
+
+/** Distinct years harvested from `keys` (capture group 1 of `re`), ascending. */
+export function yearsIn(keys: Iterable<string>, re: RegExp): number[] {
+  const out = new Set<number>();
+  for (const k of keys) {
+    const y = re.exec(k)?.[1];
+    if (y) out.add(Number(y));
+  }
+  return [...out].sort((a, b) => a - b);
+}
+
 // ── Normalizers — mirror scripts exactly ──────────────────────────────────────
 
 /** Mirrors investor-to-ttl.ts yesNo() + benchmark-to-ttl.ts parseBool() */

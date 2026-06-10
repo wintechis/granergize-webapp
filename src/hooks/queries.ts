@@ -42,7 +42,7 @@ function webIdOf(): string | undefined {
 export function useBuildings() {
   const webId = webIdOf();
   return useQuery({
-    queryKey: ["buildings", webId],
+    queryKey: [...queryKeys.buildings, webId],
     enabled: Boolean(webId),
     queryFn: async () => {
       const session = getSession();
@@ -90,7 +90,7 @@ export function useEnergy(buildings: BuildingType[] | undefined) {
   const webId = webIdOf();
   const energyKey = energyKeyFor(buildings);
   return useQuery({
-    queryKey: ["energy", webId, energyKey],
+    queryKey: [...queryKeys.energy, webId, energyKey],
     enabled: Boolean(webId) && Boolean(buildings),
     queryFn: () => loadEnergy(getSession(), buildings ?? []),
   });
@@ -99,7 +99,7 @@ export function useEnergy(buildings: BuildingType[] | undefined) {
 export function useSharedWithMe() {
   const webId = webIdOf();
   return useQuery({
-    queryKey: ["sharedWithMe", webId],
+    queryKey: [...queryKeys.sharedWithMe, webId],
     enabled: Boolean(webId),
     queryFn: () => getSharedWithMe(getSession()),
   });
@@ -108,7 +108,7 @@ export function useSharedWithMe() {
 export function useSharedBuildings() {
   const webId = webIdOf();
   return useQuery({
-    queryKey: ["sharedBuildings", webId],
+    queryKey: [...queryKeys.sharedBuildings, webId],
     enabled: Boolean(webId),
     queryFn: () => getSharedBuildings(getSession()),
   });
@@ -117,7 +117,7 @@ export function useSharedBuildings() {
 export function useViewDefinitions() {
   const webId = webIdOf();
   return useQuery({
-    queryKey: ["viewDefinitions", webId],
+    queryKey: [...queryKeys.viewDefinitions, webId],
     enabled: Boolean(webId),
     queryFn: () => getViewDefinitions(getSession()),
   });
@@ -126,7 +126,7 @@ export function useViewDefinitions() {
 export function useSharedViews() {
   const webId = webIdOf();
   return useQuery({
-    queryKey: ["sharedViews", webId],
+    queryKey: [...queryKeys.sharedViews, webId],
     enabled: Boolean(webId),
     queryFn: () => getSharedViews(getSession()),
   });
@@ -136,7 +136,7 @@ export function useSharedViews() {
 export function useReceivedViews() {
   const webId = webIdOf();
   return useQuery({
-    queryKey: ["receivedViews", webId],
+    queryKey: [...queryKeys.receivedViews, webId],
     enabled: Boolean(webId),
     queryFn: () => getReceivedViews(getSession()),
   });
@@ -258,7 +258,11 @@ export function useResolveOrgLogo(webId?: string) {
   });
 }
 
-/** Query keys other modules (mutations) invalidate. */
+/**
+ * Query-key prefixes — the single source for the hooks above AND the mutation
+ * invalidations (mutations.ts), so the invalidation contract can't drift on a
+ * key typo.
+ */
 export const queryKeys = {
   buildings: ["buildings"] as const,
   energy: ["energy"] as const,

@@ -93,21 +93,9 @@ export function ShareBuildingDialog({
     [building.energyDatasets],
   );
 
-  const handleClose = () => {
-    setShareMode("webid");
-    setWebIds([]);
-    setTargetRole("");
-    setRecipients([]);
-    setResolving(false);
-    setShareScope("all");
-    setSelectedYears([]);
-    setWebIdError("");
-    setShareError("");
-    setConfirmStep(false);
-    setShareSuccess(false);
-    onClose();
-  };
-
+  // Conditionally mounted per building (ManagePage gates on state), so closing
+  // unmounts the dialog and React discards all of the state above — no manual
+  // reset on close needed.
   const handleProceedToConfirm = async () => {
     if (shareMode === "webid") {
       if (webIds.length === 0) {
@@ -205,18 +193,18 @@ export function ShareBuildingDialog({
   return (
     <Modal
       open={open}
-      onClose={handleClose}
+      onClose={onClose}
       dirty={webIds.length > 0 || recipients.length > 0 || targetRole !== ""}
       busy={sharing}
       title="Share Building Data"
       actions={sharing
         ? undefined
         : shareSuccess
-        ? <Button onClick={handleClose} variant="contained">Done</Button>
+        ? <Button onClick={onClose} variant="contained">Done</Button>
         : !confirmStep
         ? (
           <>
-            <Button onClick={handleClose}>Cancel</Button>
+            <Button onClick={onClose}>Cancel</Button>
             <Button
               onClick={handleProceedToConfirm}
               variant="contained"

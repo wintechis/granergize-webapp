@@ -4,10 +4,10 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { loadProfileStore } from "./profileDocument.ts";
+import { RDF_TYPE } from "../rdf/vocabularies.ts";
 import { logError } from "../../lib/logError.ts";
 
 const PIM_NS = "http://www.w3.org/ns/pim/space#";
-const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 
 /**
  * Fallback storage discovery for Pods whose WebID profile omits `pim:storage`

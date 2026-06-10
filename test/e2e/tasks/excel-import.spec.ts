@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { buildingIds, buildingRows } from "../helpers/manage.ts";
+import { buildingIds, buildingRows, deleteBuildingRow } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -120,14 +120,7 @@ test.describe("excel upload", () => {
     // import landing asynchronously, which a user copes with the same way.
     await expect(async () => {
       const extra = (await buildingIds(page)).filter((id) => !before.has(id));
-      for (const id of extra) {
-        const row = page.locator("li", { hasText: `Building ${id}` }).first();
-        await row.getByRole("button", { name: "Delete building" }).click();
-        // Wait for THIS row to vanish, not the shared "Building deleted" toast — the
-        // toast lingers (~6 s) so it would still show from the previous delete and let
-        // the loop race ahead before this one actually completed.
-        await expect(row).toHaveCount(0, { timeout: T.action });
-      }
+      for (const id of extra) await deleteBuildingRow(page, id);
       // Late arrivals during the deletes above fail this check → toPass re-runs and
       // sweeps the stragglers, until the list is back to the original set.
       expect((await buildingIds(page)).filter((id) => !before.has(id)).length,

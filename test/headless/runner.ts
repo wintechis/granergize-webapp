@@ -23,6 +23,7 @@ import * as dataRoom from "./tasks/data-room.ts";
 import * as shareBuilding from "./tasks/share-building.ts";
 import * as shareView from "./tasks/share-view.ts";
 import * as addBuilding from "./tasks/add-building.ts";
+import * as excelRoundtrip from "./tasks/excel-roundtrip.ts";
 import * as attachmentShare from "./tasks/attachment-share.ts";
 import * as archiveRestore from "./tasks/archive-restore.ts";
 import * as deleteSharedBuilding from "./tasks/delete-shared-building.ts";
@@ -33,6 +34,7 @@ const TASKS: TaskModule[] = [
   shareBuilding,
   shareView,
   addBuilding,
+  excelRoundtrip,
   attachmentShare,
   archiveRestore,
   deleteSharedBuilding,
