@@ -46,5 +46,14 @@ notes/*.html
 # Internal user-reported-problems tracker — kept local, not in the repo
 PROBLEMS.md
 
+# Local working notes / review material / drafts — kept local, like PROBLEMS.md
+QUESTIONS.md
+docs/heike-*.md
+docs/paper.pdf
+docs/GRANERGIZE_Handbuch-v*.pdf
+
+# Scratch output from test runs
+test/tmp/
+
 # The generator excel/gen-templates.ts is tracked; only the .xlsx are ignored.
 excel/*.xlsx

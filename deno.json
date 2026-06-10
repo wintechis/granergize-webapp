@@ -24,5 +24,10 @@
   "imports": {
     "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@0.0.53"
   },
+  "test": {
+    // Agent worktrees live INSIDE the repo dir; without this, `deno task test`
+    // walks into them and a side worktree's red tests fail the main tree's run.
+    "exclude": [".claude/"]
+  },
   "allowScripts": ["npm:esbuild@0.21.5"]
 }

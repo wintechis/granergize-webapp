@@ -40,7 +40,9 @@ test.describe("deployed smoke", () => {
     page.on("pageerror", (e) => pageErrors.push(String(e)));
 
     // The published app loads at the subpath and shows the pre-login screen.
-    await page.goto("/");
+    // "./" keeps the baseURL's subpath (an absolute "/" would resolve to the
+    // host root — the university homepage, not the app).
+    await page.goto("./");
     await expect(page.getByRole("heading", { name: LOGIN_HEADING }))
       .toBeVisible({ timeout: 30_000 });
 
