@@ -7,7 +7,10 @@ import {
   QueryClientProvider,
 } from "@tanstack/react-query";
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
-import { classifyQueryError } from "../hooks/queryErrors.ts";
+import {
+  classifyMutationError,
+  classifyQueryError,
+} from "../hooks/queryErrors.ts";
 import { useNotification } from "./NotificationContext.tsx";
 
 /**
@@ -29,7 +32,15 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
 
     return new QueryClient({
       queryCache: new QueryCache({ onError: notify }),
-      mutationCache: new MutationCache({ onError: notify }),
+      // Mutations carry MutationNotificationMeta: `action` gives the toast the
+      // standard "Failed to {action}: {detail}" phrasing; `silent` hands the
+      // error to the dialog's inline <Alert> instead of toasting.
+      mutationCache: new MutationCache({
+        onError: (error, _variables, _context, mutation) => {
+          const note = classifyMutationError(error, mutation.meta);
+          if (note) showNotification(note.message, note.severity);
+        },
+      }),
       defaultOptions: {
         queries: {
           // Freshness is server-driven, not a client guess. The Pod sends only

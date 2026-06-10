@@ -1,5 +1,4 @@
 import { useMemo, useState } from "react";
-import { useQueryClient } from "@tanstack/react-query";
 import {
   Button,
   IconButton,
@@ -26,7 +25,6 @@ import type {
 } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import {
-  queryKeys,
   useSharedBuildings,
   useSharedViews,
   useSolidData,
@@ -35,7 +33,6 @@ import {
 import {
   useDeleteBuilding,
   useDeleteView,
-  useInvalidateBuildingData,
   useRefreshView,
   useRevokeBuildingAccess,
   useRevokeViewAccess,
@@ -91,8 +88,6 @@ const attachmentCount = (b: BuildingType): number =>
 export default function ManagePage({ session }: ManagePageProps) {
   const { showNotification } = useNotification();
   const { buildings, isLoading: buildingsLoading } = useSolidData();
-  const reloadData = useInvalidateBuildingData();
-  const queryClient = useQueryClient();
   const navigate = useNavigate();
   const ownedBuildings = buildings.filter((b) => !b.isShared);
   const buildingPaging = usePaging(ownedBuildings);
@@ -107,13 +102,15 @@ export default function ManagePage({ session }: ManagePageProps) {
     BuildingType | null
   >(null);
   const [shareBuilding, setShareBuilding] = useState<BuildingType | null>(null);
-  // Re-read the building being shared from the LIVE query rather than the frozen
+  // Re-read a dialog's building from the LIVE query rather than the frozen
   // object captured at click time: data added just before opening the dialog —
-  // notably a freshly-added energy year, which drives the per-year share picker —
-  // lands via a buildings refetch, and the dialog must reflect it without a reopen.
-  const liveShareBuilding = shareBuilding
-    ? buildings.find((b) => b.uri === shareBuilding.uri) ?? shareBuilding
-    : null;
+  // notably a freshly-added energy year, which drives the per-year share picker
+  // and the energy dialog's stored-years table — lands via a buildings refetch,
+  // and the dialog must reflect it without a reopen.
+  const liveBuilding = (b: BuildingType | null) =>
+    b ? buildings.find((x) => x.uri === b.uri) ?? b : null;
+  const liveShareBuilding = liveBuilding(shareBuilding);
+  const liveEnergyYearBuilding = liveBuilding(energyYearBuilding);
   const [createViewOpen, setCreateViewOpen] = useState(false);
   const [viewToShare, setViewToShare] = useState<
     AggregatedViewDefinition | null
@@ -206,12 +203,6 @@ export default function ManagePage({ session }: ManagePageProps) {
     deleteViewMut.mutate(viewId, {
       onSuccess: () => showNotification("View deleted", "success"),
     });
-  };
-
-  const handleCloseShareDialog = () => {
-    setViewToShare(null);
-    queryClient.invalidateQueries({ queryKey: queryKeys.viewDefinitions });
-    queryClient.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
   };
 
   const handleRevokeViewAccess = (snapshotUrl: string, webId: string) => {
@@ -586,9 +577,7 @@ export default function ManagePage({ session }: ManagePageProps) {
           key={editBuilding.uri as string}
           open
           building={editBuilding}
-          session={session}
           onClose={() => setEditBuilding(null)}
-          onBuildingUpdated={reloadData}
         />
       )}
       {filesBuilding && (
@@ -597,13 +586,12 @@ export default function ManagePage({ session }: ManagePageProps) {
           building={filesBuilding}
           session={session}
           onClose={() => setFilesBuilding(null)}
-          onChange={reloadData}
         />
       )}
       {energyYearBuilding && (
         <EnergyYearDialog
           open
-          building={energyYearBuilding}
+          building={liveEnergyYearBuilding ?? energyYearBuilding}
           session={session}
           onClose={() => setEnergyYearBuilding(null)}
         />
@@ -614,29 +602,19 @@ export default function ManagePage({ session }: ManagePageProps) {
           buildingUri={(shareBuilding.sourceUri ?? shareBuilding.uri) as string}
           building={liveShareBuilding ?? shareBuilding}
           session={session}
-          onClose={() => {
-            setShareBuilding(null);
-            queryClient.invalidateQueries({
-              queryKey: queryKeys.sharedOutLog,
-            });
-          }}
+          onClose={() => setShareBuilding(null)}
         />
       )}
       <AddBuildingDialog
         open={addOpen}
-        session={session}
         autostartImport={importMode}
         onClose={() => setAddOpen(false)}
-        onBuildingAdded={() => {
-          setAddOpen(false);
-          reloadData();
-        }}
       />
       {viewToShare && (
         <ShareViewDialog
           view={viewToShare}
           open
-          onClose={handleCloseShareDialog}
+          onClose={() => setViewToShare(null)}
           session={session}
         />
       )}
@@ -645,8 +623,6 @@ export default function ManagePage({ session }: ManagePageProps) {
         buildings={buildings}
         session={session}
         onClose={() => setCreateViewOpen(false)}
-        onViewCreated={() =>
-          queryClient.invalidateQueries({ queryKey: queryKeys.viewDefinitions })}
       />
     </section>
   );

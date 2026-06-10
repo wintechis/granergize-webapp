@@ -23,15 +23,15 @@ import {
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
 import { logError } from "../lib/logError.ts";
-import { shareBuildingData } from "../services/interop/share.ts";
-import { rememberAgent } from "../services/contacts.ts";
 import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
+import { fetchAttachmentBlob } from "../services/attachmentManager.ts";
 import {
-  deleteAttachment,
-  fetchAttachmentBlob,
-  setEnergyCertificate,
-  uploadAttachment,
-} from "../services/attachmentManager.ts";
+  useDeleteAttachment,
+  useSetEnergyCertificate,
+  useShareBuilding,
+  useUploadAttachments,
+} from "../hooks/mutations.ts";
+import { classifyQueryError } from "../hooks/queryErrors.ts";
 import { downloadBlob, formatBytes } from "../lib/download.ts";
 import { listStyle, rowStyle } from "../constants/listStyles.ts";
 import type { AttachmentRef, BuildingType, UserRole } from "../types.ts";
@@ -70,7 +70,6 @@ export function ShareBuildingDialog({
 }: ShareBuildingDialogProps) {
   const { showNotification } = useNotification();
   const agentOptions = useAgentOptions();
-  const [sharing, setSharing] = useState(false);
   const [shareMode, setShareMode] = useState<"webid" | "role">("webid");
   const [webIds, setWebIds] = useState<string[]>([]);
   const [targetRole, setTargetRole] = useState<UserRole | "">("");
@@ -79,9 +78,14 @@ export function ShareBuildingDialog({
   const [shareScope, setShareScope] = useState<ShareScope>("all");
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
   const [webIdError, setWebIdError] = useState("");
-  const [shareError, setShareError] = useState("");
   const [confirmStep, setConfirmStep] = useState(false);
-  const [shareSuccess, setShareSuccess] = useState(false);
+  // The write goes through the (silent) mutation hook: busy/success/error are
+  // its state; the error renders inline through the same classifier the central
+  // toast would use, so the wording can't fork.
+  const share = useShareBuilding();
+  const sharing = share.isPending;
+  const shareSuccess = share.isSuccess;
+  const shareError = share.error ? classifyQueryError(share.error).message : "";
 
   // Years the building has energy for (annual + series, both scenarios), so a
   // single year-share grants every dataset for that year. getEnergyDataUrls then
@@ -165,30 +169,21 @@ export function ShareBuildingDialog({
     }
   };
 
-  const handleShare = async () => {
-    setSharing(true);
-    setShareError("");
-    const includeEnergyData = shareScope !== "static";
-    const years = shareScope === "years" ? selectedYears : undefined;
-    try {
-      for (const recipient of recipients) {
-        await shareBuildingData(buildingUri, recipient, session, {
-          includeEnergyData,
-          years,
-        });
-        // Auto-remember the recipient in the address book (fire-and-forget).
-        void rememberAgent(session, recipient);
-      }
-      setShareSuccess(true);
-      showNotification("Building shared successfully", "success");
-    } catch (error) {
-      console.error("Error sharing building:", error);
-      setShareError(error instanceof Error ? error.message : String(error));
-      setConfirmStep(false);
-    } finally {
-      setSharing(false);
-    }
-  };
+  const handleShare = () =>
+    share.mutate(
+      {
+        buildingUri,
+        recipients,
+        includeEnergyData: shareScope !== "static",
+        years: shareScope === "years" ? selectedYears : undefined,
+      },
+      {
+        onSuccess: () =>
+          showNotification("Building shared successfully", "success"),
+        // Back to the form step, where the inline error Alert renders.
+        onError: () => setConfirmStep(false),
+      },
+    );
 
   return (
     <Modal
@@ -237,6 +232,13 @@ export function ShareBuildingDialog({
 
       {!sharing && !shareSuccess && !confirmStep && (
         <>
+            {/* A failed share lands back here — persistent, in-context (the
+                Alert carve-out); the hook is silent so there's no double toast. */}
+            {shareError && (
+              <Alert severity="error" sx={{ mb: 2 }}>
+                {shareError}
+              </Alert>
+            )}
             <ToggleButtonGroup
               value={shareMode}
               exclusive
@@ -386,11 +388,6 @@ export function ShareBuildingDialog({
 
       {!sharing && !shareSuccess && confirmStep && (
         <>
-            {shareError && (
-              <Alert severity="error" sx={{ mb: 2 }}>
-                {shareError}
-              </Alert>
-            )}
             <Typography variant="body2" color="text.secondary" gutterBottom>
               {shareMode === "role"
                 ? `Confirm sharing with ${recipients.length} data room member${
@@ -427,8 +424,6 @@ interface FilesDialogProps {
   building: BuildingType;
   session: Session;
   onClose: () => void;
-  /** Reload the underlying building data after a change. */
-  onChange: () => void;
 }
 
 /**
@@ -437,11 +432,11 @@ interface FilesDialogProps {
  * building's per-building `files/` container and are shared automatically with
  * anyone the building is shared with (the share grant covers the container).
  *
- * Keeps a local copy of the list so it stays live across uploads/deletes; also
- * calls `onChange` so the rest of the app refetches.
+ * Keeps a local copy of the list so it stays live across uploads/deletes; the
+ * mutation hooks invalidate the buildings query so the rest of the app refetches.
  */
 export function FilesDialog(
-  { open, building, session, onClose, onChange }: FilesDialogProps,
+  { open, building, session, onClose }: FilesDialogProps,
 ) {
   const { showNotification } = useNotification();
   // The building file URI (RMW target) and its RDF subject. attachmentManager
@@ -453,9 +448,16 @@ export function FilesDialog(
   const [items, setItems] = useState<AttachmentRef[]>(
     () => ((building.attachments as AttachmentRef[] | undefined) ?? []).slice(),
   );
-  const [busy, setBusy] = useState(false);
+  // The writes go through mutation hooks (busy = isPending, error toasts +
+  // invalidation central); the download is a READ, so it keeps a local flag.
+  const upload = useUploadAttachments();
+  const del = useDeleteAttachment();
+  const cert = useSetEnergyCertificate();
+  const [downloading, setDownloading] = useState(false);
+  const busy = upload.isPending || del.isPending || cert.isPending ||
+    downloading;
 
-  const handleFiles = async (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
     e.target.value = ""; // allow re-selecting the same file
     if (files.length === 0) return;
@@ -465,81 +467,60 @@ export function FilesDialog(
         "warning",
       );
     }
-    setBusy(true);
-    try {
-      for (const file of files) {
-        if (file.size > MAX_FILE_BYTES) {
-          showNotification(
-            `"${file.name}" is large (${
-              formatBytes(file.size)
-            }); the upload may be slow or rejected by the Pod.`,
-            "warning",
-          );
-        }
-        const ref = await uploadAttachment(fileUri, subjectUri, file, session);
-        setItems((prev) => [...prev, ref]);
+    for (const file of files) {
+      if (file.size > MAX_FILE_BYTES) {
+        showNotification(
+          `"${file.name}" is large (${
+            formatBytes(file.size)
+          }); the upload may be slow or rejected by the Pod.`,
+          "warning",
+        );
       }
-      onChange();
-    } catch (error) {
-      showNotification(formatError("upload the file", error), "error");
-    } finally {
-      setBusy(false);
     }
+    upload.mutate(
+      {
+        fileUri,
+        subjectUri,
+        files,
+        // Each landed file appears in the list as the batch runs.
+        onUploaded: (ref) => setItems((prev) => [...prev, ref]),
+      },
+    );
   };
 
   const handleDownload = async (a: AttachmentRef) => {
-    setBusy(true);
+    setDownloading(true);
     try {
       downloadBlob(await fetchAttachmentBlob(a.url, session), a.filename);
     } catch (error) {
       showNotification(formatError("download the file", error), "error");
     } finally {
-      setBusy(false);
+      setDownloading(false);
     }
   };
 
-  const handleDelete = async (a: AttachmentRef) => {
+  const handleDelete = (a: AttachmentRef) => {
     if (!globalThis.confirm(`Delete "${a.filename}"? This cannot be undone.`)) {
       return;
     }
-    setBusy(true);
-    try {
-      await deleteAttachment(fileUri, subjectUri, a.url, session);
-      setItems((prev) => prev.filter((x) => x.url !== a.url));
-      onChange();
-    } catch (error) {
-      showNotification(formatError("delete the file", error), "error");
-    } finally {
-      setBusy(false);
-    }
+    del.mutate({ fileUri, subjectUri, url: a.url }, {
+      onSuccess: () =>
+        setItems((prev) => prev.filter((x) => x.url !== a.url)),
+    });
   };
 
-  const handleToggleCert = async (a: AttachmentRef) => {
-    setBusy(true);
-    try {
-      const makeIt = !a.isEnergyCertificate;
-      await setEnergyCertificate(
-        fileUri,
-        subjectUri,
-        makeIt ? a.url : null,
-        session,
-      );
-      // Only one file can be the certificate at a time.
-      setItems((prev) =>
-        prev.map((x) => ({
-          ...x,
-          isEnergyCertificate: makeIt && x.url === a.url,
-        }))
-      );
-      onChange();
-    } catch (error) {
-      showNotification(
-        formatError("update the energy certificate", error),
-        "error",
-      );
-    } finally {
-      setBusy(false);
-    }
+  const handleToggleCert = (a: AttachmentRef) => {
+    const makeIt = !a.isEnergyCertificate;
+    cert.mutate({ fileUri, subjectUri, url: makeIt ? a.url : null }, {
+      onSuccess: () =>
+        // Only one file can be the certificate at a time.
+        setItems((prev) =>
+          prev.map((x) => ({
+            ...x,
+            isEnergyCertificate: makeIt && x.url === a.url,
+          }))
+        ),
+    });
   };
 
   return (

@@ -8,15 +8,13 @@ import {
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { formatError } from "../lib/formatError.ts";
 import Modal from "./Modal.tsx";
 import { logError } from "../lib/logError.ts";
+import { useSaveOrganization } from "../hooks/mutations.ts";
 import {
   getOrganization,
   isSupportedLogoType,
   type Organization,
-  saveOrganization,
-  uploadOrgLogo,
 } from "../services/organization/organizationManager.ts";
 
 interface OrganizationDialogProps {
@@ -45,7 +43,10 @@ export default function OrganizationDialog(
   const [logoPreview, setLogoPreview] = useState<string | null>(null);
   const [pickedFile, setPickedFile] = useState<File | null>(null);
   const [pickedPreview, setPickedPreview] = useState<string | null>(null);
-  const [saving, setSaving] = useState(false);
+  // Busy state, error toast (central, classified) and the resolved-agent cache
+  // invalidation come from the hook.
+  const save = useSaveOrganization();
+  const saving = save.isPending;
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   // Prefill from the Pod each time the dialog opens; revoke object URLs on close.
@@ -102,20 +103,17 @@ export default function OrganizationDialog(
     setPickedPreview(URL.createObjectURL(file));
   };
 
-  const handleSave = async () => {
-    setSaving(true);
-    try {
-      await saveOrganization(session, { name, homepage, sameAs });
-      if (pickedFile) await uploadOrgLogo(pickedFile, session);
-      showNotification("Organisation saved", "success");
-      onSaved();
-      close();
-    } catch (err) {
-      showNotification(formatError("save your organisation", err), "error");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const handleSave = () =>
+    save.mutate(
+      { org: { name, homepage, sameAs }, logo: pickedFile },
+      {
+        onSuccess: () => {
+          showNotification("Organisation saved", "success");
+          onSaved();
+          close();
+        },
+      },
+    );
 
   const shownLogo = pickedPreview ?? logoPreview ?? undefined;
 

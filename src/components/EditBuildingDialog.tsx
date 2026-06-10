@@ -1,6 +1,5 @@
 import { useMemo, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   BuildingType,
   InvestorCertification,
@@ -9,12 +8,9 @@ import type {
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
 import { INVESTOR_CERT_SYSTEMS } from "../services/rdf/buildingTemplates.ts";
-import { updateBuilding } from "../services/rdf/building/buildingSerializer.ts";
 import { geocodeFields } from "../services/geocode.ts";
-import { formatError } from "../lib/formatError.ts";
-import { useQueryClient } from "@tanstack/react-query";
 import { useSolidData } from "../hooks/queries.ts";
-import { rememberBuildingAgents } from "../hooks/rememberAgents.ts";
+import { useUpdateBuilding } from "../hooks/mutations.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
@@ -27,9 +23,7 @@ import { ADDRESS_FIELDS } from "../constants/addressFields.ts";
 interface EditBuildingDialogProps {
   open: boolean;
   building: BuildingType;
-  session: Session;
   onClose: () => void;
-  onBuildingUpdated: () => void;
 }
 
 const SKIP_FIELDS = new Set([
@@ -108,13 +102,15 @@ function buildingToFields(b: BuildingType): Record<string, string> {
 }
 
 export default function EditBuildingDialog(
-  { open, building, session, onClose, onBuildingUpdated }: EditBuildingDialogProps,
+  { open, building, onClose }: EditBuildingDialogProps,
 ) {
   const { showNotification } = useNotification();
-  const qc = useQueryClient();
   const initialFields = useMemo(() => buildingToFields(building), [building]);
   const [fields, setFields] = useState<Record<string, string>>(initialFields);
-  const [saving, setSaving] = useState(false);
+  // Busy state, error toast (central, classified) and the query invalidations
+  // all come from the mutation hook; the dialog only handles success UI.
+  const update = useUpdateBuilding();
+  const saving = update.isPending;
   const [geocoding, setGeocoding] = useState(false);
   const dirty = JSON.stringify(fields) !== JSON.stringify(initialFields);
 
@@ -170,22 +166,16 @@ export default function EditBuildingDialog(
     }
   };
 
-  const handleSubmit = async () => {
-    setSaving(true);
-    try {
-      await updateBuilding(session, fileUri, building.uri as string, fields);
-      // Auto-remember the building's WebID agents in the address book and
-      // refresh the contacts query (shared helper — see rememberAgents.ts).
-      rememberBuildingAgents(session, qc, fields);
-      showNotification("Building updated", "success");
-      onBuildingUpdated();
-      onClose();
-    } catch (err) {
-      showNotification(formatError("update the building", err), "error");
-    } finally {
-      setSaving(false);
-    }
-  };
+  const handleSubmit = () =>
+    update.mutate(
+      { fileUri, subjectUri: building.uri as string, fields },
+      {
+        onSuccess: () => {
+          showNotification("Building updated", "success");
+          onClose();
+        },
+      },
+    );
 
   return (
     <Modal

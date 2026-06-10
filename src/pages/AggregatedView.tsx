@@ -35,7 +35,10 @@ import {
   getViewDefinition,
 } from "../services/aggregation/viewManager.ts";
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
-import { shareAggregatedView } from "../services/interop/share.ts";
+import {
+  useRefreshView,
+  useShareViewSnapshot,
+} from "../hooks/mutations.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatDate, formatDateTime } from "../lib/formatDate.ts";
@@ -57,11 +60,16 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
   >(null);
   const [snapshot, setSnapshot] = useState<AggregatedViewSnapshot | null>(null);
   const [loading, setLoading] = useState(true);
-  const [refreshing, setRefreshing] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareWebId, setShareWebId] = useState("");
-  const [sharing, setSharing] = useState(false);
+  // The writes go through mutation hooks (busy = isPending, error toasts +
+  // invalidations central); this page keeps the results in local state because
+  // it renders outside the main data flow (standalone /view/:id route).
+  const refreshMut = useRefreshView();
+  const refreshing = refreshMut.isPending;
+  const shareMut = useShareViewSnapshot();
+  const sharing = shareMut.isPending;
 
   // Load (and possibly auto-compute) the view. Cancellation matters here:
   // navigating /view/A → /view/B while A's load — or its multi-fetch
@@ -122,41 +130,31 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     };
   }, [session, viewId, showNotification]);
 
-  const handleRefresh = async () => {
+  const handleRefresh = () => {
     if (!viewId) return;
-
-    setRefreshing(true);
-    try {
-      const result = await refreshSnapshot(session, viewId);
-      setSnapshot(result.snapshot);
-      // Reload definition to get updated lastComputedAt
-      const definition = await getViewDefinition(session, viewId);
-      if (definition) {
-        setViewDefinition(definition);
-      }
-      showNotification("Snapshot refreshed", "success");
-    } catch (err) {
-      showNotification(formatError("refresh the snapshot", err), "error");
-    } finally {
-      setRefreshing(false);
-    }
+    refreshMut.mutate(viewId, {
+      onSuccess: async (result) => {
+        setSnapshot(result.snapshot);
+        // Reload definition to get updated lastComputedAt
+        const definition = await getViewDefinition(session, viewId);
+        if (definition) {
+          setViewDefinition(definition);
+        }
+        showNotification("Snapshot refreshed", "success");
+      },
+    });
   };
 
-  const handleShare = async () => {
+  const handleShare = () => {
     if (!viewId || !shareWebId.trim() || !session.info.webId) return;
-
-    setSharing(true);
-    try {
-      const snapshotUrl = getSnapshotUrl(session.info.webId, viewId);
-      await shareAggregatedView(snapshotUrl, shareWebId.trim(), session);
-      setShareDialogOpen(false);
-      setShareWebId("");
-      showNotification("View shared successfully", "success");
-    } catch (err) {
-      showNotification(formatError("share the view", err), "error");
-    } finally {
-      setSharing(false);
-    }
+    const snapshotUrl = getSnapshotUrl(session.info.webId, viewId);
+    shareMut.mutate({ snapshotUrl, recipients: [shareWebId.trim()] }, {
+      onSuccess: () => {
+        setShareDialogOpen(false);
+        setShareWebId("");
+        showNotification("View shared successfully", "success");
+      },
+    });
   };
 
   if (loading) {

@@ -210,3 +210,199 @@ Deno.test("useRemoveBookmark drops the bookmark and clears current if it was cur
     _setSessionForTesting(null);
   }
 });
+
+// ── Dialog write hooks (invalidation contracts + central error wiring) ───────
+
+import { MutationCache } from "@tanstack/react-query";
+import {
+  useCreateView,
+  useSaveOrganization,
+  useShareBuilding,
+  useUpdateBuilding,
+  useUploadBuildings,
+  useWriteEnergyYear,
+} from "./mutations.ts";
+import { classifyMutationError } from "./queryErrors.ts";
+import { makeFakeSession } from "../services/testing/fakeSession.ts";
+
+/** A wrapper whose client records every invalidated key prefix. */
+function makeSpyWrapper() {
+  const client = new QueryClient({
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const invalidated: string[] = [];
+  const orig = client.invalidateQueries.bind(client);
+  client.invalidateQueries = ((arg: Parameters<typeof orig>[0]) => {
+    const key = (arg as { queryKey?: unknown[] } | undefined)?.queryKey;
+    if (Array.isArray(key)) invalidated.push(String(key[0]));
+    return orig(arg);
+  }) as typeof client.invalidateQueries;
+  const wrapper = ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+  return { wrapper, invalidated };
+}
+
+Deno.test("useWriteEnergyYear writes the dataset and invalidates the building-data keys", async () => {
+  const fake = makeFakeSession({ webId: WEBID });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const { wrapper, invalidated } = makeSpyWrapper();
+  const B = "https://pod.example/granergize/buildings/b1.ttl";
+  try {
+    const { result } = renderHook(() => useWriteEnergyYear(), { wrapper });
+    await result.current.mutateAsync({
+      fileUri: B,
+      subjectUri: `${B}#b1`,
+      dataset: {
+        building: `${B}#b1`,
+        year: 2024,
+        granularity: "P1Y",
+        scenario: "actual",
+        metrics: { electricityConsumption: 1000 },
+      },
+    });
+    const datasetPut = fake.calls.find(
+      (c) => c.method === "PUT" && c.url.includes("2024-P1Y"),
+    );
+    assert.ok(datasetPut, "the dataset resource was PUT");
+    for (
+      const key of [
+        "buildings",
+        "energy",
+        "annualEnergy",
+        "seriesDays",
+        "dayReadings",
+        "monthReadings",
+      ]
+    ) {
+      assert.ok(invalidated.includes(key), `${key} was invalidated`);
+    }
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useShareBuilding invalidates ONLY the shared-out log (not buildings)", async () => {
+  // The invalidation contract fires in onSettled — also on failure, which keeps
+  // this test independent of the share flow's many round-trips.
+  const fake = makeFakeSession({
+    webId: WEBID,
+    respond: () => new Response("boom", { status: 500 }),
+  });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const { wrapper, invalidated } = makeSpyWrapper();
+  try {
+    const { result } = renderHook(() => useShareBuilding(), { wrapper });
+    await result.current.mutateAsync({
+      buildingUri: "https://pod.example/granergize/buildings/b1.ttl",
+      recipients: ["https://bob.example/profile/card#me"],
+      includeEnergyData: true,
+    }).catch(() => {});
+    assert.ok(invalidated.includes("sharedOutLog"), "sharedOutLog invalidated");
+    assert.ok(
+      !invalidated.includes("buildings"),
+      "a share does not reload the buildings",
+    );
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useCreateView invalidates viewDefinitions; useSaveOrganization the resolved-agent caches", async () => {
+  const fake = makeFakeSession({
+    webId: WEBID,
+    respond: () => new Response("boom", { status: 500 }),
+  });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const view = makeSpyWrapper();
+  const org = makeSpyWrapper();
+  try {
+    const { result: createView } = renderHook(() => useCreateView(), {
+      wrapper: view.wrapper,
+    });
+    await createView.current.mutateAsync({
+      name: "v",
+      buildingUris: ["https://pod.example/granergize/buildings/b1.ttl#b1"],
+      aggregationType: "average",
+      metrics: ["electricityConsumption"],
+    }).catch(() => {});
+    assert.ok(view.invalidated.includes("viewDefinitions"));
+
+    const { result: saveOrg } = renderHook(() => useSaveOrganization(), {
+      wrapper: org.wrapper,
+    });
+    await saveOrg.current.mutateAsync({ org: { name: "ACME" } }).catch(() => {});
+    assert.ok(org.invalidated.includes("agent"), "agent cache invalidated");
+    assert.ok(org.invalidated.includes("agentLogo"), "agentLogo cache invalidated");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useUploadBuildings: a cancelled run resolves as an OUTCOME (aborted, partial adds kept)", async () => {
+  const fake = makeFakeSession({ webId: WEBID });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const { wrapper } = makeSpyWrapper();
+  const controller = new AbortController();
+  controller.abort();
+  try {
+    const { result } = renderHook(() => useUploadBuildings(), { wrapper });
+    const outcome = await result.current.mutateAsync({
+      buildings: [{ streetAddress: "X" }],
+      lastgangReadings: null,
+      signal: controller.signal,
+      onProgress: () => {},
+    });
+    assert.deepEqual(outcome, { added: [], aborted: true });
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("central mutation-error wiring: meta.silent suppresses the toast, meta.action shapes it", async () => {
+  // The same MutationCache wiring QueryProvider installs, with the notification
+  // sink spied — so the meta declared on the REAL hooks is what's exercised.
+  const fake = makeFakeSession({
+    webId: WEBID,
+    respond: () => new Response("boom", { status: 500 }),
+  });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const notifications: string[] = [];
+  const client = new QueryClient({
+    mutationCache: new MutationCache({
+      onError: (error, _v, _c, mutation) => {
+        const note = classifyMutationError(error, mutation.meta);
+        if (note) notifications.push(note.message);
+      },
+    }),
+    defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
+  });
+  const wrapper = ({ children }: { children: React.ReactNode }) =>
+    React.createElement(QueryClientProvider, { client }, children);
+  try {
+    // Silent hook (inline-Alert dialog): no toast despite the failure.
+    const { result: share } = renderHook(() => useShareBuilding(), { wrapper });
+    await share.current.mutateAsync({
+      buildingUri: "https://pod.example/granergize/buildings/b1.ttl",
+      recipients: ["https://bob.example/profile/card#me"],
+      includeEnergyData: false,
+    }).catch(() => {});
+    assert.deepEqual(notifications, [], "silent mutation produced no toast");
+
+    // Action-labelled hook: the standard phrasing.
+    const { result: update } = renderHook(() => useUpdateBuilding(), { wrapper });
+    await update.current.mutateAsync({
+      fileUri: "https://pod.example/granergize/buildings/b1.ttl",
+      subjectUri: "https://pod.example/granergize/buildings/b1.ttl#b1",
+      fields: { streetAddress: "X" },
+    }).catch(() => {});
+    assert.equal(notifications.length, 1);
+    assert.match(notifications[0], /^Failed to update the building: /);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
