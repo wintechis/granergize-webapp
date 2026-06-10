@@ -14,9 +14,11 @@ import {
   toggleBuildingVisibility,
 } from "../services/interop/sharingManager.ts";
 import {
+  reconcileBuildingGrants,
   shareAggregatedView,
   shareBuildingData,
 } from "../services/interop/share.ts";
+import { logError } from "../lib/logError.ts";
 import { drainInbox } from "../services/interop/inbox.ts";
 import {
   createViewDefinition,
@@ -352,11 +354,22 @@ export function useWriteEnergyYear() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "save energy data" },
-    mutationFn: (vars: {
+    mutationFn: async (vars: {
       fileUri: string;
       subjectUri: string;
       dataset: EnergyDataset;
-    }) => writeEnergyYear(getSession(), vars.fileUri, vars.subjectUri, vars.dataset),
+    }) => {
+      const session = getSession();
+      await writeEnergyYear(session, vars.fileUri, vars.subjectUri, vars.dataset);
+      // Reconciliation: an active all-years grant must extend to the dataset
+      // that now exists (its ACL projection is enumerated per dataset, so a
+      // grown scope needs a re-apply). Best-effort — the year is already
+      // saved, so a failed reconcile must not fail the save; the resulting
+      // drift is what auditGrants detects and reissueGrants repairs.
+      await reconcileBuildingGrants(vars.fileUri, session).catch((err) =>
+        logError("reconcile sharing grants after energy write", err)
+      );
+    },
     onSettled: () => invalidateBuildingData(qc),
   });
 }

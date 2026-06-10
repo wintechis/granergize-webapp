@@ -5,9 +5,11 @@ of it — the React Query cache of parsed RDF (buildings, energy, shares, rooms,
 views), joined and shaped in memory. Every freshness question reduces to one thing:
 **when the Pod changes, does the projection that depends on it refetch?** This note
 collects the mechanisms the app relies on for that, and the one structural place
-the contract currently leaks. Companion to [`data-deref.md`](./data-deref.md) (what
-gets dereferenced and joined) and [`data-layout.md`](./data-layout.md) (where it
-lives on the Pod).
+the contract currently leaks. The same staleness class also exists on the *write*
+side — derived state stored **on the Pod** (the `.acl` projection) rather than in
+the cache — audited at the end. Companion to [`data-deref.md`](./data-deref.md)
+(what gets dereferenced and joined) and [`data-layout.md`](./data-layout.md) (where
+it lives on the Pod).
 
 ## The sync contract
 
@@ -101,10 +103,65 @@ a missing `invalidateQueries`), not a *key-coverage* one — `useCheckInbox`'s
 `onSettled` now invalidates `queryKeys.receivedBenchmarks` alongside `receivedViews`
 (covered by a `queries.test.ts` case).
 
+## The write-side twin — projections stored on the Pod
+
+The React Query cache is not the app's only derived projection. The WAC `.acl`
+files are one too — derived from the `shared-out/` log *plus the current resource
+tree under each granted scope* ([`read-write-operations.md`](./read-write-operations.md)
+§model 3) — and the same staleness question applies: **which mutations change an
+input to the projection without re-running it?** The inputs split cleanly:
+
+- **The log itself** — covered: every share/revoke writes the `.acl` at the call
+  site, and `reissueGrants` repairs drift in both directions after the fact.
+- **The resource tree under a granted scope** — the under-covered input. A grant's
+  *recorded scope* can be intensional ("this building, all energy years") while its
+  *applied projection* is extensional (the per-dataset `.acl`s enumerated at apply
+  time). Any mutation that creates a resource inside an intensionally-granted scope
+  is then a projection input change with no projection update.
+
+Auditing the resource-creating mutations against that question:
+
+- **Attachment / certificate upload** into a shared building's `files/` — covered
+  by construction: the share grants the *container* with `acl:default`, so later
+  files inherit. The projection here is keyed on the scope, not its members —
+  the write-side analogue of `energyKeyFor`.
+- **`writeEnergyYear`** on a shared building — was the gap, now reconciled:
+  energy grants are per-dataset `.acl`s (deliberately, so per-year grants stay
+  enforceable) and `energy/` carries no default, so the write path runs
+  `reconcileBuildingGrants` (share.ts) — fold `shared-out/` for active grants on
+  the building, re-apply each per its *recorded* scope (all-years picks up the
+  new dataset; per-year correctly leaves it outside). Record-free and idempotent,
+  and best-effort in the mutation (the year is already saved, so a throttled ACL
+  write must not fail the save) — a failed reconcile is residual drift, caught
+  by the audit below and repaired by the log replay.
+- **`deleteEnergyYear` / building delete** — removal is the benign direction: a
+  dropped resource takes its `.acl` with it, and the delete path revokes
+  recipients first; a stale grant on a missing resource is skipped by replay
+  (`missing`).
+
+The invariant the projection must satisfy is executable, because Tier 2 has two
+real sessions: *a recipient can read exactly what the folded log says they may
+read*, checked with recipient-side GETs. The `grant-projection` headless task
+asserts it — exact at share time, kept exact by the write path
+(`writeEnergyYear` + reconcile), the residual drift class (a bare write,
+standing in for a failed best-effort reconcile) detected and then caught back
+up to the log by `reissueGrants`. The same invariant is observable in the field through
+`auditGrants` (`share.ts`), the dry-run diffing twin of the repair: it folds the
+log, computes the expected projection through the SAME enumeration the repair
+writes (`buildingGrantTargets` — one source of truth, so apply and audit cannot
+disagree), reads the actual `.acl`s back, and reports the diff in both
+directions (missing grants and lingering revoked ones) without writing. Surfaced
+as the dev-mode "Check sharing consistency" action next to the rebuild; the
+Tier-2 task uses it for full pair coverage where the recipient-side GETs sample.
+
 ## The principle
 
 Prefer making the refetch fall out of the data over making it fall out of
 discipline. Keying a derived read on the inputs it actually folds keeps it in sync
 by construction; relying on every mutation that touches a linked resource to
 remember to invalidate the dependent key is the fragile alternative — it works
-until one call site forgets.
+until one call site forgets. The write side obeys the same principle: a grant
+applied to a *scope* (a container default) stays correct by construction; a grant
+enumerated over a scope's *current members* must be re-run by every mutation that
+grows the scope — which is what the write-energy-year reconcile does, with the
+audit + replay pair as the safety net for the discipline-shaped remainder.

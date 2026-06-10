@@ -360,7 +360,8 @@ ESLint-enforced (`eslint.config.js`); the rest are review conventions.
   the in-list resource IRIs (building URIs, the energy dataset + weather adapter
   links), the dev-only "Your inbox" / "Outgoing shares" sections, the Share-tab
   "Check for new shares" button (manual inbox drain), the "Add demo buildings" /
-  "Download archive" / "Upload archive…" / "Rebuild sharing from log" / "Remove all
+  "Download archive" / "Upload archive…" / "Check sharing consistency" (dry-run
+  log↔ACL drift diff) / "Rebuild sharing from log" / "Remove all
   app data…" account actions, and the request log (`RequestActivityList` renders
   nothing outside dev mode; the header `NetworkActivityIndicator` collapses to a
   plain spinner — no inline URIs, no clickable log). WebIDs and data-room invite

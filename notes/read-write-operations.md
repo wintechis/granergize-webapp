@@ -98,10 +98,14 @@ orthogonally, by *trigger*:
 
 The two axes compose: a reconciliation mutation still uses one of the three mechanisms.
 The reconciliation mutations are a small family — the stale-grant prune in `loadBuildings`
-(model 1: appends a self-revocation to `shared-in/` when a shared source 403/404s) and
-the ACL rebuild in `reissueGrants` (model 3: regenerates `.acl` from the log). They are
-the mutations that legitimately live inside a query or a restore path rather than behind
-a user action, because their whole job is to make a projection match reality.
+(model 1: appends a self-revocation to `shared-in/` when a shared source 403/404s), the
+ACL rebuild in `reissueGrants` (model 3: regenerates `.acl` from the log), and the grant
+extension in `reconcileBuildingGrants` (model 3: a new energy year grew a granted scope,
+so the active grants on that building are re-applied per their recorded scope — run
+best-effort inside the write-energy-year mutation, since the year is already saved when
+it runs). They are the mutations that legitimately live inside a query, a restore path
+or another mutation rather than behind their own user action, because their whole job is
+to make a projection match reality.
 
 ## Queries
 

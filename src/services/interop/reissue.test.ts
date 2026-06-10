@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { reissueGrants } from "./share.ts";
+import { auditGrants, reconcileBuildingGrants, reissueGrants } from "./share.ts";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 import {
   CONSUMPTION_NS,
@@ -227,6 +227,161 @@ Deno.test("reissueGrants replays revocations: a revoked-in-log recipient is with
   assert.ok(!acl.includes(CAROL), "Carol's authorization withdrawn");
   assert.ok(acl.includes(WEBID), "the owner's Control authorization survives");
   assert.ok(acl.includes(BOB), "Bob's re-applied grant present");
+});
+
+// ── reconcileBuildingGrants — extend grown scopes on the write path ─────────────
+
+Deno.test("reconcileBuildingGrants extends an all-years grant to a dataset written after the share", async () => {
+  // The QUESTIONS.md gap, closed: the grant event records "all years"
+  // (intensional), the .acl was enumerated at share time (extensional). After
+  // the building gains the 2024 dataset, reconcile must re-derive the
+  // projection so Bob's grant covers it — and stay record-free (no new event,
+  // no inbox traffic: the logged event already covers the scope).
+  const { session, store, calls } = makePodWith(
+    {
+      [`${SHARED_OUT}e1`]: grantTtl(BOB, BUILDING, "Building", "2026-06-04T10:00:00Z"),
+    },
+    { [BUILDING]: BUILDING_TTL }, // links 2023 AND 2024 — 2024 is the new one
+  );
+  const applied = await reconcileBuildingGrants(BUILDING, session);
+
+  assert.equal(applied, 1, "one active grant re-applied");
+  assert.ok(store[`${ENERGY}/2024-P1Y.ttl.acl`]?.includes(BOB), "new dataset granted to Bob");
+  assert.ok(
+    !calls.some((c) => c.method === "POST" && c.url === SHARED_OUT),
+    "no new shared-out/ event appended",
+  );
+  assert.ok(
+    !calls.some((c) => c.url.includes("bob.example")),
+    "no recipient inbox/notify traffic",
+  );
+  const after = await auditGrants(session);
+  assert.equal(after.drift.length, 0, "projection matches the log after reconcile");
+});
+
+Deno.test("reconcileBuildingGrants honours a per-year scope: the new year stays outside it", async () => {
+  const { session, store } = makePodWith(
+    {
+      [`${SHARED_OUT}e1`]: grantTtl(BOB, BUILDING, "Building", "2026-06-04T10:00:00Z", [2023]),
+    },
+    { [BUILDING]: BUILDING_TTL },
+  );
+  const applied = await reconcileBuildingGrants(BUILDING, session);
+
+  assert.equal(applied, 1, "the per-year grant is re-applied (its own years)");
+  assert.ok(store[`${ENERGY}/2023-P1Y.ttl.acl`]?.includes(BOB), "recorded year granted");
+  assert.ok(
+    !(`${ENERGY}/2024-P1Y.ttl.acl` in store),
+    "the year outside the recorded scope is NOT granted",
+  );
+});
+
+Deno.test("reconcileBuildingGrants ignores revoked pairs, other buildings and views", async () => {
+  const OTHER = `${ROOT}granergize/buildings/b-2.ttl`;
+  const { session, calls } = makePodWith(
+    {
+      // Bob's grant on THIS building was revoked — nothing to extend.
+      [`${SHARED_OUT}e1`]: grantTtl(BOB, BUILDING, "Building", "2026-06-04T10:00:00Z"),
+      [`${SHARED_OUT}e2`]: revocationTtl(BOB, BUILDING, "2026-06-05T10:00:00Z"),
+      // Carol's grants target a different building / a view.
+      [`${SHARED_OUT}e3`]: grantTtl(CAROL, OTHER, "Building", "2026-06-04T11:00:00Z"),
+      [`${SHARED_OUT}e4`]: grantTtl(CAROL, SNAPSHOT, "View", "2026-06-04T12:00:00Z"),
+    },
+    { [BUILDING]: BUILDING_TTL, [OTHER]: BUILDING_TTL, [SNAPSHOT]: "<#s> a <x:S> ." },
+  );
+  const writesBefore = calls.filter((c) => c.method === "PUT").length;
+  const applied = await reconcileBuildingGrants(BUILDING, session);
+
+  assert.equal(applied, 0, "no active grant on this building");
+  assert.equal(
+    calls.filter((c) => c.method === "PUT").length,
+    writesBefore,
+    "an unshared (or fully-revoked) building reconciles to zero writes",
+  );
+});
+
+// ── auditGrants — the dry-run diffing twin ──────────────────────────────────────
+
+Deno.test("auditGrants reports missing grants for an event-without-ACL, and is clean after the repair", async () => {
+  // The same pod the replay test uses: grant events exist, no .acl was ever
+  // written (the archive-restore shape). The audit must surface every expected
+  // target as missing-grant — WITHOUT writing anything — and a subsequent
+  // reissueGrants must bring the diff to empty (audit as post-repair verification).
+  const { session, store, calls } = makePod();
+
+  const before = await auditGrants(session);
+  assert.equal(before.skipped, 1, "off-Pod grant skipped, like the replay");
+  assert.ok(before.drift.length > 0, "drift found before the repair");
+  assert.ok(
+    before.drift.every((d) => d.kind === "missing-grant"),
+    "all drift is missing-grant",
+  );
+  // Bob's per-year ([2024]) building grant: the building file and the 2024
+  // dataset are expected; 2023 is OUTSIDE the recorded scope, so its absence
+  // is NOT drift.
+  const bobResources = before.drift.filter((d) => d.grantee === BOB).map((d) => d.resource);
+  assert.ok(bobResources.includes(BUILDING), "building file missing for Bob");
+  assert.ok(bobResources.includes(`${ENERGY}/2024-P1Y.ttl`), "2024 dataset missing for Bob");
+  assert.ok(
+    !bobResources.includes(`${ENERGY}/2023-P1Y.ttl`),
+    "2023 is outside the per-year scope — not drift",
+  );
+  assert.ok(
+    before.drift.some((d) => d.grantee === CAROL && d.resource === SNAPSHOT),
+    "Carol's view snapshot missing",
+  );
+  // Dry run: the audit wrote nothing.
+  assert.ok(
+    !calls.some((c) => c.method === "PUT" || c.method === "POST" || c.method === "DELETE"),
+    "auditGrants performs no writes",
+  );
+
+  await reissueGrants(session);
+  const after = await auditGrants(session);
+  assert.equal(after.drift.length, 0, "diff empty after the repair");
+  assert.ok(after.checked >= before.checked, "same pairs re-checked");
+  assert.ok(`${BUILDING}.acl` in store, "repair actually wrote the ACLs");
+});
+
+Deno.test("auditGrants reports a lingering grant for a revoked-in-log recipient", async () => {
+  // The other drift direction: the log says revoked, the .acl still grants
+  // (a revoke whose ACL write failed). Carol must show up as lingering-grant;
+  // Bob's intact grant must not.
+  const { session, calls } = makePodWith(
+    {
+      [`${SHARED_OUT}e1`]: grantTtl(BOB, BUILDING, "Building", "2026-06-04T10:00:00Z"),
+      [`${SHARED_OUT}e2`]: revocationTtl(CAROL, BUILDING, "2026-06-05T10:00:00Z"),
+    },
+    { [BUILDING]: BUILDING_TTL, [`${BUILDING}.acl`]: STALE_ACL },
+  );
+  const result = await auditGrants(session);
+
+  const lingering = result.drift.filter((d) => d.kind === "lingering-grant");
+  assert.ok(
+    lingering.some((d) => d.grantee === CAROL && d.resource === BUILDING),
+    `Carol lingers on the building — drift=${JSON.stringify(result.drift)}`,
+  );
+  assert.ok(
+    !result.drift.some((d) => d.grantee === BOB && d.kind === "lingering-grant"),
+    "Bob's active grant is not lingering",
+  );
+  assert.ok(
+    !calls.some((c) => c.method === "PUT" || c.method === "POST" || c.method === "DELETE"),
+    "auditGrants performs no writes",
+  );
+});
+
+Deno.test("auditGrants counts a deleted resource as missing, not drift", async () => {
+  const GONE = `${ROOT}granergize/buildings/deleted.ttl`;
+  const { session } = makePodWith(
+    {
+      [`${SHARED_OUT}e1`]: grantTtl(BOB, GONE, "Building", "2026-06-04T10:00:00Z"),
+    },
+    {}, // the building file is NOT in the store → HEAD 404
+  );
+  const result = await auditGrants(session);
+  assert.equal(result.missing, 1, "deleted-resource grant counted missing");
+  assert.equal(result.drift.length, 0, "a deleted resource is not drift");
 });
 
 Deno.test("reissueGrants skips a grant whose resource was deleted (no ghost containers)", async () => {
