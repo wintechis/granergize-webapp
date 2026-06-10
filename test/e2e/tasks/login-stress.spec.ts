@@ -15,12 +15,15 @@ import { T } from "../helpers/timeouts.ts";
  * (`freshPagesParallel([A, B])`) many times to raise the odds of catching it, with
  * the JSS log captured so the thrown error + stack is recoverable.
  *
- * It is GATED behind LOGIN_STRESS so it never runs in the normal sharing suite
- * (it's a diagnostic, not a regression gate). Run on JSS with the server log on:
+ * It runs via its own gated `stress` Playwright project (the bench/deployed
+ * pattern: the project only exists when LOGIN_STRESS is set, so the normal
+ * suite never even collects it — no skipped-spec noise; it's a diagnostic, not
+ * a regression gate). The `e2e:stress` task bakes the gate + project selection
+ * in, like `e2e:deployed` does. Run on JSS with the server log on:
  *
- *   LOGIN_STRESS=1 LOGIN_STRESS_N=20 \
+ *   LOGIN_STRESS_N=20 \
  *   LOCAL_POD_LOG="$PWD/test-results/jss-login-stress.log" \
- *     deno task e2e:local:jss test/e2e/tasks/login-stress.spec.ts
+ *     deno task e2e:stress:jss
  *
  * On failure: the iteration that broke is logged, and the JSS log holds the
  * matching "Consent error (post-hijack)" / "Login redirect error (post-hijack)"
@@ -30,7 +33,6 @@ import { T } from "../helpers/timeouts.ts";
 // Reuse the env helper shape the other tests use (process is the Playwright/Node host).
 const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
   .process?.env;
-const STRESS = !!ENV?.LOGIN_STRESS;
 const ITERATIONS = Number(ENV?.LOGIN_STRESS_N ?? "20");
 
 const A = account("A");
@@ -40,10 +42,8 @@ const B = account("B");
 const pair = resolveAccounts({ count: 2 });
 
 test.describe("login stress (concurrent two-pod login)", () => {
-  test.skip(
-    !STRESS,
-    "Diagnostic only — set LOGIN_STRESS=1 (and run on JSS) to hammer the concurrent-login path.",
-  );
+  // The LOGIN_STRESS gate lives in playwright.config.ts (the `stress` project
+  // exists only when it's set) — in here only the capability gate remains.
   test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
   test("concurrent A+B logins all complete", async ({ browser }) => {

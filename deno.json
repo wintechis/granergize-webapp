@@ -7,6 +7,8 @@
     "check": "deno run -A npm:typescript/tsc --noEmit -p tsconfig.check.json",
     "e2e:local": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 npx playwright test --project=local",
     "e2e:local:jss": "LOCAL_POD_SERVER=jss deno task e2e:local",
+    "e2e:stress": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 LOGIN_STRESS=1 npx playwright test --project=stress",
+    "e2e:stress:jss": "LOCAL_POD_SERVER=jss deno task e2e:stress",
     "e2e:remote": "npx playwright test --project=solo --project=sharing",
     "e2e:deployed": "E2E_DEPLOYED_URL=https://paul.ti.rw.fau.de/~qa60fyri/testing/granergize/ npx playwright test --project=deployed",
     "e2e:remote:spec": "npx playwright test",
