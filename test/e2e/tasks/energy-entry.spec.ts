@@ -11,7 +11,7 @@ import { T } from "../helpers/timeouts.ts";
  * `cons:EnergyDataset` to it, proves the *actual* figure flows back through
  * `loadEnergy` into the energy view (with the Recharts SVG chart), then deletes
  * the building in afterAll — which removes its whole energy subtree, so nothing
- * leaks. A third test drives the map's Energy tab (InvestorEnergy), the only place
+ * leaks. A third test drives the map's Energy tab (AnnualEnergy), the only place
  * the Soll-Ist *comparison* renders, and asserts the entered planned figure
  * surfaces as the "(planned)" overlay beside actual. It selects the single map
  * marker, so it needs a pristine collection — the per-spec CSS reset (Tier 3) or
@@ -129,7 +129,7 @@ test.describe("energy entry + Soll-Ist", () => {
   test("the planned (Soll) figure shows beside actual in the comparison", async () => {
     test.setTimeout(T.testSolo);
     // The Soll-Ist comparison renders only in the map's Energy tab
-    // (InvestorEnergy), not the standalone /energy route — so drive the map:
+    // (AnnualEnergy), not the standalone /energy route — so drive the map:
     // return to the app shell, select the (only) building marker, open Energy.
     // Selecting the single marker assumes a pristine collection — guaranteed by the
     // per-spec CSS reset (Tier 3) or the per-run granergize-e2e-<uuid> (Tier 4).

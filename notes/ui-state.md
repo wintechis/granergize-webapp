@@ -72,7 +72,7 @@ page address.
   tile-loading token.
 - Children: `WeatherData` holds a selected parameter and station (deferred
   navigational); `UserEnergyChart` holds a view, a day and a month (deferred
-  navigational); `Building`, `Energy`, `InvestorEnergy` and `BspEnergy` hold only
+  navigational); `Building`, `Energy` and `AnnualEnergy` hold only
   fetched and derived data.
 
 ### Manage — `src/pages/ManagePage.tsx`

@@ -220,7 +220,12 @@ export async function ensureView(page: Page): Promise<void> {
   await firstBuilding.click();
   await page.keyboard.press("Escape");
   await dialog.getByRole("button", { name: /create view/i }).click();
-  await expect(page.getByText(/view created successfully/i))
+  // Wait on the durable outcome — the view appears in the Aggregated-views list
+  // and the dialog closes — NOT the transient success toast. The single FIFO
+  // snackbar can be mid-showing an earlier notice (e.g. first-time "Set up the
+  // views folder" provisioning), burying/delaying the success toast though the
+  // view itself was created.
+  await expect(page.locator("li").filter({ hasText: VIEW_NAME }).first())
     .toBeVisible({ timeout: T.action });
 }
 

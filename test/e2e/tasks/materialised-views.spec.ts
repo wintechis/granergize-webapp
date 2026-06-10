@@ -125,7 +125,7 @@ test.describe("energy view smoke", () => {
     await addEnergyYear(page, B, "2022", "3000");
 
     // Walk the surface Heike actually uses: the Explore detail pane's
-    // "Energy data" tab → InvestorEnergy (annual data dispatches there, never
+    // "Energy data" tab → AnnualEnergy (annual data dispatches there, never
     // to the standalone /energy route). Earlier tests in this spec seeded demo
     // buildings, so a blind marker click could land on any of them — select
     // building A deterministically via the URI-state deep link instead
@@ -141,7 +141,8 @@ test.describe("energy view smoke", () => {
     const avgRow = page.getByRole("row")
       .filter({ hasText: "Operator average" }).first();
     await expect(avgRow).toBeVisible({ timeout: T.action });
-    // Columns: [label, Electricity, Renewable, Heat, Water] → electricity = 1.
+    // Columns derive from the data present (schema order, electricity first);
+    // this seed carries electricity only → [label, Electricity] → electricity = 1.
     await expect(avgRow.getByRole("cell").nth(1)).toHaveText("2.000");
 
     // The standalone /energy/:id view (latest annual year) carries the same
@@ -196,8 +197,11 @@ test.describe("energy view smoke", () => {
     await dialog.getByRole("checkbox", { name: "Electricity (kWh)", exact: true })
       .check();
     await dialog.getByRole("button", { name: /create view/i }).click();
-    await expect(page.getByText(/view created successfully/i))
-      .toBeVisible({ timeout: T.action });
+    // Assert the durable outcome — the view row appears (step 3) — NOT the
+    // transient "view created successfully" toast. The single FIFO snackbar may
+    // be mid-showing an earlier notice (here the first-time "Set up the views
+    // folder" provisioning info), which delays/buries the success toast even
+    // though the view itself was created.
 
     // 3) Open the view (the "View details" action). The summary auto-computes its
     // snapshot on first open, so the chart must plot a bar straight away — WITHOUT

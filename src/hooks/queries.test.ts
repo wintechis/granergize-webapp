@@ -7,9 +7,11 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   energyKeyFor,
+  useAnnualEnergy,
   useBuildings,
   useEnergy,
   useResolveOrgLogo,
+  useSeriesDays,
   useSolidData,
 } from "./queries.ts";
 import type { BuildingType } from "../types.ts";
@@ -250,6 +252,81 @@ Deno.test("useCheckInbox invalidates the received-benchmarks fold (not just rece
     // a newly-received benchmark stale — both must be invalidated by the drain.
     assert.ok(keyed("receivedViews"), "receivedViews was invalidated");
     assert.ok(keyed("receivedBenchmarks"), "receivedBenchmarks was invalidated");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useAnnualEnergy splits actual vs planned, sorted by year", async () => {
+  const PLANNED = ENERGY.replace("2024-P1Y.ttl", "2024-P1Y-planned.ttl");
+  const EARLIER = ENERGY.replace("2024-P1Y.ttl", "2023-P1Y.ttl");
+  const ds = (year: number, value: number, scenario: string) =>
+    `@prefix cons: <${CONS}> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix ssn: <http://www.w3.org/ns/ssn/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<#ds> a cons:EnergyDataset , sosa:ObservationCollection ;
+  cons:granularity "P1Y" ; cons:scenario cons:${scenario} ;
+  sosa:phenomenonTime [ a time:Interval ;
+    time:hasBeginning "${year}-01-01"^^xsd:date ;
+    time:hasEnd "${year}-12-31"^^xsd:date ] ;
+  sosa:hasMember [ a sosa:Observation ;
+    sosa:observedProperty cons:ElectricityConsumption ;
+    sosa:hasResult [ sosa:hasSimpleResult "${value}"^^xsd:decimal ] ] .`;
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession({
+    ...FIXTURES,
+    [PLANNED]: ds(2024, 900, "Planned"),
+    [EARLIER]: ds(2023, 800, "Actual"),
+  }));
+  const { wrapper } = makeWrapper();
+  const building = {
+    id: 1,
+    uri: `${B1}#b1`,
+    energyDatasets: [
+      { url: `${ENERGY}#ds`, year: 2024, granularity: "P1Y", scenario: "actual" },
+      { url: `${EARLIER}#ds`, year: 2023, granularity: "P1Y", scenario: "actual" },
+      { url: `${PLANNED}#ds`, year: 2024, granularity: "P1Y", scenario: "planned" },
+      // A 15-min series ref must be ignored (annual view only).
+      { url: `${ENERGY}#s`, year: 2024, granularity: "PT15M", scenario: "actual" },
+    ],
+  } as unknown as BuildingType;
+  try {
+    const { result } = renderHook(() => useAnnualEnergy(building), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    const { actual, planned } = result.current.data!;
+    assert.deepEqual(actual.map((d) => d.year), [2023, 2024], "sorted actual");
+    assert.equal(actual[0].electricityConsumption, 800);
+    assert.equal(actual[1].electricityConsumption, 1000);
+    assert.deepEqual(planned.map((d) => d.year), [2024]);
+    assert.equal(planned[0].electricityConsumption, 900);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useSeriesDays lists the day files behind series refs, sorted", async () => {
+  const SERIES = "https://pod.example/granergize/buildings/b1/energy/2024-PT15M.ttl";
+  const CONTAINER = SERIES.replace(/\.ttl$/, "/");
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession({
+    ...FIXTURES,
+    [CONTAINER]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${CONTAINER}> ldp:contains <${CONTAINER}2024-01-02.ttl>,
+  <${CONTAINER}2024-01-01.ttl> .`,
+  }));
+  const { wrapper } = makeWrapper();
+  const refs = [
+    { url: `${SERIES}#ds`, year: 2024, granularity: "PT15M", scenario: "actual" as const },
+  ];
+  try {
+    const { result } = renderHook(() => useSeriesDays(refs), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    assert.deepEqual(result.current.data, [
+      { day: "2024-01-01", url: `${CONTAINER}2024-01-01.ttl` },
+      { day: "2024-01-02", url: `${CONTAINER}2024-01-02.ttl` },
+    ]);
   } finally {
     _setSessionForTesting(null);
   }

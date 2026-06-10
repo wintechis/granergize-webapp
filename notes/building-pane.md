@@ -77,9 +77,9 @@ stack). The right grid renders the last entry:
         enlarge/shrink toggle
       Tabs: [Building data] [Energy data] [Weather data]
         tab 0 → <Building embedded hideHeader>  (§2)
-        tab 1 → by data shape: annualData present → <BspEnergy> (company/logistics
-                 fields) else <InvestorEnergy>; declared series / selected energy →
-                 <Energy>; else "No energy data"
+        tab 1 → by data shape: annual datasets present → <AnnualEnergy> (its
+                 columns/charts/master-data block derive from the data carried);
+                 declared series / selected energy → <Energy>; else "No energy data"
         tab 2 → <WeatherData>
 ```
 

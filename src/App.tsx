@@ -94,14 +94,13 @@ function BuildingWrapper() {
   );
 }
 
-function EnergyWrapper({ session }: { session: Session }) {
+function EnergyWrapper() {
   return (
     <BuildingRouteGuard>
       {(building, selectedBuilding) => (
         <Energy
           selectedBuilding={selectedBuilding}
           building={building}
-          session={session}
         />
       )}
     </BuildingRouteGuard>
@@ -245,7 +244,7 @@ function App({ onLogout, session }: AppProps) {
         />
         <Route
           path="/energy/:selectedBuilding"
-          element={<EnergyWrapper session={session} />}
+          element={<EnergyWrapper />}
         />
         <Route
           path="/view/:viewId"

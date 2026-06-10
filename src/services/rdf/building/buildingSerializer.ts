@@ -1,6 +1,6 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Store, Writer } from "n3";
-import type { BuildingType, InvestorAnnualData } from "../../../types.ts";
+import type { BuildingType, AnnualData } from "../../../types.ts";
 import {
   BOOLEAN_FIELDS,
   DECIMAL_FIELDS,
@@ -510,7 +510,7 @@ export function attachAnnualData(
     const datasets = await loadEnergyDatasets(refs, session.fetch.bind(session));
     const annualData = datasets
       .filter((d) => d.metrics)
-      .map((d) => ({ year: d.year, ...d.metrics }) as InvestorAnnualData)
+      .map((d) => ({ year: d.year, ...d.metrics }) as AnnualData)
       .sort((a, c) => a.year - c.year);
     return { ...b, annualData }; // clone — don't mutate React Query's cache
   }));
