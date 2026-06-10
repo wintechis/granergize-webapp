@@ -224,6 +224,7 @@ import {
 } from "./mutations.ts";
 import { classifyMutationError } from "./queryErrors.ts";
 import { makeFakeSession } from "../services/testing/fakeSession.ts";
+import { GRAN_NS, REC_BUILDING } from "../services/rdf/vocabularies.ts";
 
 /** A wrapper whose client records every invalidated key prefix. */
 function makeSpyWrapper() {
@@ -277,6 +278,63 @@ Deno.test("useWriteEnergyYear writes the dataset and invalidates the building-da
     ) {
       assert.ok(invalidated.includes(key), `${key} was invalidated`);
     }
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useWriteEnergyYear reconciles an active all-years grant onto the new dataset", async () => {
+  // The QUESTIONS.md gap, closed at the hook: saving a year on a SHARED
+  // building re-applies the all-years grant, so its ACL projection covers the
+  // dataset that now exists (no manual rebuild needed).
+  const BOB = "https://bob.example/profile/card#me";
+  const ROOT = "https://pod.example/";
+  const SHARED_OUT = `${ROOT}granergize/shared-out/`;
+  const B = `${ROOT}granergize/buildings/b1.ttl`;
+  const grantEvent = `@prefix interop: <http://www.w3.org/ns/solid/interop#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix acl: <http://www.w3.org/ns/auth/acl#> .
+@prefix gran: <${GRAN_NS}> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<> a interop:AccessGrant ;
+   prov:wasAssociatedWith <${WEBID}> ;
+   interop:grantee <${BOB}> ;
+   interop:forResource <${B}> ;
+   interop:accessMode acl:Read ;
+   gran:kind <${REC_BUILDING}> ;
+   prov:generatedAtTime "2026-06-04T10:00:00Z"^^xsd:dateTime .
+`;
+  const fake = makeFakeSession({
+    webId: WEBID,
+    resources: {
+      [B]: `<${B}#b1> a <https://w3id.org/rec#Building> .`,
+      [SHARED_OUT]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${SHARED_OUT}> ldp:contains <${SHARED_OUT}e1> .`,
+      [`${SHARED_OUT}e1`]: grantEvent,
+    },
+  });
+  _setStorageRootForTesting(WEBID, ROOT);
+  _setSessionForTesting(fake.session);
+  const { wrapper } = makeSpyWrapper();
+  try {
+    const { result } = renderHook(() => useWriteEnergyYear(), { wrapper });
+    await result.current.mutateAsync({
+      fileUri: B,
+      subjectUri: `${B}#b1`,
+      dataset: {
+        building: `${B}#b1`,
+        year: 2024,
+        granularity: "P1Y",
+        scenario: "actual",
+        metrics: { electricityConsumption: 1000 },
+      },
+    });
+    const dsAcl = fake.store[`${B.replace(/\.ttl$/, "")}/energy/2024-P1Y.ttl.acl`];
+    assert.ok(dsAcl?.includes(BOB), "the new dataset's .acl grants the recipient");
+    assert.ok(
+      !fake.calls.some((c) => c.method === "POST" && c.url === SHARED_OUT),
+      "record-free: no new shared-out/ event",
+    );
   } finally {
     _setSessionForTesting(null);
   }

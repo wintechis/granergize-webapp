@@ -51,7 +51,7 @@ import {
   importArchive,
   inspectArchive,
 } from "../services/pod/podArchive.ts";
-import { reissueGrants } from "../services/interop/share.ts";
+import { auditGrants, reissueGrants } from "../services/interop/share.ts";
 import { downloadBlob } from "../lib/download.ts";
 
 interface IndexPageProps {
@@ -263,6 +263,43 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       );
     } catch (err) {
       showNotification(formatError("upload archive", err), "error");
+    } finally {
+      setArchiveBusy(false);
+    }
+  };
+
+  /** Dev-mode: dry-run diff of the .acl projection against the shared-out/ log —
+   * read-only drift detection (the diffing twin of "Rebuild sharing from log"). */
+  const handleAuditGrants = async () => {
+    if (archiveBusy) return;
+    setArchiveBusy(true);
+    try {
+      const { checked, drift, skipped, missing } = await auditGrants(session);
+      const tails = [
+        missing ? `${missing} deleted skipped` : "",
+        skipped ? `${skipped} off-Pod skipped` : "",
+      ].filter(Boolean);
+      const tail = tails.length ? ` (${tails.join(", ")})` : "";
+      if (drift.length === 0) {
+        showNotification(
+          `Sharing consistent: ${checked} grant(s) match the log${tail}`,
+          "success",
+        );
+      } else {
+        // Name each drifted pair on the console so a dev sees exactly what a
+        // rebuild would change (the toast only carries the count).
+        console.warn(
+          "Sharing drift:",
+          drift.map((d) => `${d.kind} ${d.resource} → ${d.grantee}`),
+        );
+        showNotification(
+          `Sharing drift: ${drift.length} of ${checked} grant(s) differ from the log` +
+            ` — run "Rebuild sharing from log"${tail}`,
+          "warning",
+        );
+      }
+    } catch (err) {
+      showNotification(formatError("check sharing consistency", err), "error");
     } finally {
       setArchiveBusy(false);
     }
@@ -529,6 +566,11 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
                 disabled={archiveBusy}
               >
                 Upload archive…
+              </MenuItem>
+            )}
+            {devMode && (
+              <MenuItem onClick={handleAuditGrants} disabled={archiveBusy}>
+                Check sharing consistency
               </MenuItem>
             )}
             {devMode && (

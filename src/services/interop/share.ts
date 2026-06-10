@@ -89,48 +89,77 @@ export async function applyBuildingGrant(
   session: Session,
   options: ShareOptions = { includeEnergyData: true },
 ): Promise<void> {
-  // Always share the building's static data
-  await grantReadAccess(buildingFile, webId, session);
-
-  // Share the per-building files/ container (attachments + the energy
-  // certificate). One acl:default grant covers every file in it — including
-  // uploads added after this share — so the recipient can download them. The
-  // container is provisioned first so the grant has something to attach to.
+  // Provision the per-building files/ container first so its acl:default grant
+  // has something to attach to (attachments + the energy certificate; one
+  // default covers every file in it — including uploads added after this share).
   const filesContainer = filesContainerFor(buildingFile);
   await ensureContainer(filesContainer.replace(/files\/$/, ""), session);
   await ensureContainer(filesContainer, session);
-  await grantReadAccess(filesContainer, webId, session, true);
+
+  // The target set comes from the ONE enumeration shared with auditGrants
+  // (buildingGrantTargets), so the applied projection and the audited
+  // expectation cannot disagree about what a grant covers.
+  // Each target has its OWN .acl, so the grants are independent and can run
+  // concurrently (bounded, like every other Pod fan-out). Error semantics: the
+  // first rejection propagates out of mapPooled (a failed grant must surface to
+  // the caller); the surviving workers may still attempt the remaining grants,
+  // which is fine here — each grant is an idempotent projection of the
+  // already-appended log event, so any extra successes only reduce log↔ACL
+  // drift (reissueGrants would re-apply exactly those grants anyway).
+  const targets = await buildingGrantTargets(buildingFile, session, options);
+  await mapPooled(
+    targets,
+    4,
+    (t) => grantReadAccess(t.url, webId, session, t.isContainer),
+  );
+}
+
+/** One resource a grant's ACL projection covers. */
+export interface GrantTarget {
+  url: string;
+  /** Granted with `acl:default` (a container whose members inherit). */
+  isContainer: boolean;
+}
+
+/**
+ * Every resource a building grant covers — the *expected* ACL projection of one
+ * folded `shared-out/` grant event: the building file, its `files/` container
+ * (acl:default), a legacy certificate outside `files/`, and — when energy is
+ * included — each `cons:EnergyDataset` (restricted to `options.years` if given)
+ * plus a series' daily-files container. Deduped by URL.
+ *
+ * This is the single source of "what a grant covers": {@link applyBuildingGrant}
+ * writes exactly this set and {@link auditGrants} diffs against exactly this
+ * set, so apply and audit cannot drift apart. Pure read — no provisioning.
+ * @operation query
+ */
+export async function buildingGrantTargets(
+  buildingFile: string,
+  session: Session,
+  options: ShareOptions = { includeEnergyData: true },
+): Promise<GrantTarget[]> {
+  const filesContainer = filesContainerFor(buildingFile);
+  const targets: GrantTarget[] = [
+    { url: buildingFile, isContainer: false },
+    { url: filesContainer, isContainer: true },
+  ];
 
   // A legacy energy certificate stored OUTSIDE files/ (the old shared
-  // certificates/ folder) isn't covered by the container grant — grant the file
-  // itself so existing shares keep working without a re-upload.
+  // certificates/ folder) isn't covered by the container grant — the file
+  // itself is a target so existing shares keep working without a re-upload.
   const certUrl = await getEnergyCertificateUrl(buildingFile, session);
   if (certUrl && !certUrl.startsWith(filesContainer)) {
-    await grantReadAccess(certUrl, webId, session, false);
+    targets.push({ url: certUrl, isContainer: false });
   }
 
-  // Conditionally share energy data: grant access to each cons:EnergyDataset
-  // resource (annual file / series descriptor), plus a series' daily-files
-  // container (with acl:default, so the files inside are covered).
   if (options.includeEnergyData) {
-    // Each dataset has its OWN .acl, so the grants are independent and can run
-    // concurrently (bounded, like every other Pod fan-out). Deduped by URL so
-    // two dataset links into the same file can't race one read-modify-write.
-    // Error semantics: the first rejection propagates out of mapPooled (a
-    // failed grant must surface to the caller); the surviving workers may
-    // still attempt the remaining grants, which is fine here — each grant is
-    // an idempotent projection of the already-appended log event, so any
-    // extra successes only reduce log↔ACL drift (reissueGrants would re-apply
-    // exactly those grants anyway).
-    const targets = await getEnergyDataUrls(buildingFile, session, options.years);
-    const seen = new Set<string>();
-    const unique = targets.filter((t) => !seen.has(t.url) && !!seen.add(t.url));
-    await mapPooled(
-      unique,
-      4,
-      (t) => grantReadAccess(t.url, webId, session, t.isContainer),
-    );
+    targets.push(...await getEnergyDataUrls(buildingFile, session, options.years));
   }
+
+  // Dedup: two dataset links into the same file must not yield one target twice
+  // (a doubled grant would race one read-modify-write against itself).
+  const seen = new Set<string>();
+  return targets.filter((t) => !seen.has(t.url) && !!seen.add(t.url));
 }
 
 export interface ReissueResult {
@@ -229,6 +258,197 @@ export async function reissueGrants(session: Session): Promise<ReissueResult> {
     }
   }
   return result;
+}
+
+/**
+ * Reconciliation (the Model-3 projection update for a grown scope): after a
+ * building's dataset set changes — a new energy year — re-apply the ACL
+ * projection of every ACTIVE grant on that building, so a grant recorded with
+ * an *intensional* scope ("all energy years") extends to the dataset that now
+ * exists. The recorded scope is honoured exactly: an all-years grant (no
+ * recorded years) picks up the new dataset via {@link buildingGrantTargets}'
+ * re-enumeration; a per-year grant re-applies only its recorded years, so the
+ * new year correctly stays outside it. Record-free like {@link reissueGrants}
+ * (no log append, no inbox post — the logged event already covers the scope,
+ * so replayability is untouched) and idempotent (re-applying an intact grant
+ * is a no-op). Returns the number of grants re-applied; an unshared building
+ * folds to zero matching events and writes nothing.
+ *
+ * Called from the write-energy-year mutation path (a *reconciliation*-triggered
+ * mutation living inside a user-intent one — see
+ * `notes/read-write-operations.md` §trigger); best-effort there, since the
+ * year is already saved when it runs — drift from a failed reconciliation is
+ * exactly what {@link auditGrants} detects and {@link reissueGrants} repairs.
+ * @operation mutation
+ */
+export async function reconcileBuildingGrants(
+  buildingFile: string,
+  session: Session,
+): Promise<number> {
+  const webId = session.info.webId;
+  if (!session.info.isLoggedIn || !webId) {
+    throw new Error("User is not logged in");
+  }
+  const events = await foldSharingLogEvents(sharedOutUrl(webId), session);
+  const active = events.filter((e) =>
+    e.type !== "revocation" &&
+    e.kind !== "View" &&
+    e.resource.split("#")[0] === buildingFile
+  );
+  for (const e of active) {
+    await applyBuildingGrant(buildingFile, e.grantee, session, {
+      includeEnergyData: e.includesEnergy ?? true,
+      years: e.years,
+    });
+  }
+  return active.length;
+}
+
+/** One disagreement between the `shared-out/` log and an actual `.acl`. */
+export interface GrantDrift {
+  /** `missing-grant`: the log says the grantee may read it, the `.acl` doesn't.
+   *  `lingering-grant`: the log's latest event is a revocation, the `.acl` still grants. */
+  kind: "missing-grant" | "lingering-grant";
+  grantee: string;
+  /** The specific resource whose `.acl` disagrees (not the whole building). */
+  resource: string;
+}
+
+export interface GrantAuditResult {
+  /** (grantee, resource) pairs compared. */
+  checked: number;
+  /** Empty ⇔ the ACL projection matches the folded log. */
+  drift: GrantDrift[];
+  /** Events whose resource isn't on this Pod — not auditable from this session. */
+  skipped: number;
+  /** Active grants whose resource no longer exists (deleted) — not drift; replay skips them too. */
+  missing: number;
+}
+
+/**
+ * Dry-run twin of {@link reissueGrants}: fold the `shared-out/` log to the latest
+ * event per (grantee, resource) pair, compute the *expected* ACL projection — the
+ * same enumeration the repair would write ({@link buildingGrantTargets}, against
+ * the building's CURRENT datasets) — read the actual `.acl`s, and report the
+ * diff. **No writes**: this makes log↔ACL drift observable without touching the
+ * Pod, so it serves as a pre-repair audit ("is a rebuild needed?"), a post-repair
+ * verification (re-run, expect empty), and the field-side form of the Tier-2
+ * `grant-projection` invariant: a grantee can read exactly what the folded log
+ * says.
+ *
+ * Both drift directions are reported: a `missing-grant` (a share whose ACL write
+ * failed, or a dataset written AFTER an all-years share — the known
+ * `writeEnergyYear` gap, see QUESTIONS.md) and a `lingering-grant` (a revocation
+ * whose ACL withdrawal failed). Same scope rules as the repair: off-Pod events
+ * are skipped, deleted resources counted `missing`, out-of-band agents (in an
+ * `.acl` but never in the log) are not reported, and a self-grantee revocation
+ * is not flagged (`removeFromACL` never withdraws the owner). Advisory by
+ * nature: `readStoreOrEmpty` degrades a transient error to an empty store, so a
+ * throttled `.acl` read can show up as a spurious `missing-grant` — re-run
+ * before acting on one.
+ * @operation query
+ */
+export async function auditGrants(session: Session): Promise<GrantAuditResult> {
+  const webId = session.info.webId;
+  if (!session.info.isLoggedIn || !webId) {
+    throw new Error("User is not logged in");
+  }
+  const root = getStorageRoot(webId);
+  const events = await foldSharingLogEvents(sharedOutUrl(webId), session);
+
+  const result: GrantAuditResult = {
+    checked: 0,
+    drift: [],
+    skipped: 0,
+    missing: 0,
+  };
+  for (const e of events) {
+    const resourceFile = e.resource.split("#")[0];
+    if (!resourceFile.startsWith(root)) {
+      result.skipped++;
+      continue;
+    }
+
+    if (e.type === "revocation") {
+      // The repair never withdraws the owner's own access (removeFromACL's
+      // lockout guard), so a self-grantee revocation can't be drift.
+      if (e.grantee === webId) continue;
+      let targets = [resourceFile];
+      try {
+        targets = [
+          ...new Set([
+            resourceFile,
+            ...await getSubresourceAclTargets(resourceFile, session),
+          ]),
+        ];
+      } catch {
+        // The resource is gone — only the file-level ACL could linger.
+      }
+      for (const t of targets) {
+        result.checked++;
+        if (await hasReadGrant(t, e.grantee, session)) {
+          result.drift.push({
+            kind: "lingering-grant",
+            grantee: e.grantee,
+            resource: t,
+          });
+        }
+      }
+      continue;
+    }
+
+    // Same rule as the repair: a grant for a deleted resource is not drift.
+    const head = await session.fetch(resourceFile, { method: "HEAD" });
+    if (head.status === 404 || head.status === 410) {
+      result.missing++;
+      continue;
+    }
+
+    const targets: GrantTarget[] = e.kind === "View"
+      ? [{ url: resourceFile, isContainer: false }]
+      : await buildingGrantTargets(resourceFile, session, {
+        includeEnergyData: e.includesEnergy ?? true,
+        years: e.years,
+      });
+    for (const t of targets) {
+      result.checked++;
+      if (!(await hasReadGrant(t.url, e.grantee, session, t.isContainer))) {
+        result.drift.push({
+          kind: "missing-grant",
+          grantee: e.grantee,
+          resource: t.url,
+        });
+      }
+    }
+  }
+  return result;
+}
+
+/**
+ * Does the resource's own `.acl` hold an authorization granting `webId`
+ * `acl:Read` on it (with `acl:default` too when the target is a container)?
+ * The read-side mirror of {@link writeAuthorization}'s shape. An absent or
+ * unreadable `.acl` reads as "no grant".
+ */
+async function hasReadGrant(
+  resourceUri: string,
+  webId: string,
+  session: Session,
+  isContainer = false,
+): Promise<boolean> {
+  const { namedNode } = DataFactory;
+  const store = await readStoreOrEmpty(`${resourceUri}.acl`, session);
+  return store
+    .getQuads(null, namedNode(`${ACL_NS}agent`), namedNode(webId), null)
+    .some(({ subject: s }) =>
+      store.getQuads(s, namedNode(`${ACL_NS}accessTo`), namedNode(resourceUri), null)
+          .length > 0 &&
+      store.getQuads(s, namedNode(`${ACL_NS}mode`), namedNode(`${ACL_NS}Read`), null)
+          .length > 0 &&
+      (!isContainer ||
+        store.getQuads(s, namedNode(`${ACL_NS}default`), namedNode(resourceUri), null)
+            .length > 0)
+    );
 }
 
 async function postToInbox(
