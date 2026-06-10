@@ -155,15 +155,33 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     if (!webId) return;
     setDemoBusy(true);
     try {
-      await seedDemoBuildings(session, webId);
+      const { seeded, total } = await seedDemoBuildings(session, webId);
       // Refetch buildings; energy follows automatically because useEnergy is keyed on
       // the building set (so the seeded annual building's energy loads without a
       // separate, race-prone energy invalidation here).
       await queryClient.invalidateQueries({
         queryKey: queryKeys.buildings,
       });
-      setDemoShow(false);
-      showNotification("Demo buildings added", "success");
+      // The seeder is best-effort per building (it never throws), so the tally is
+      // the only place a partial failure surfaces — report it honestly.
+      if (seeded === total) {
+        setDemoShow(false);
+        showNotification("Demo buildings added", "success");
+      } else if (seeded > 0) {
+        setDemoShow(false);
+        showNotification(
+          `Added ${seeded} of ${total} demo buildings`,
+          "warning",
+        );
+      } else {
+        showNotification(
+          formatError(
+            "add demo buildings",
+            new Error("no building could be written"),
+          ),
+          "error",
+        );
+      }
     } catch (err) {
       showNotification(formatError("add demo buildings", err), "error");
     } finally {

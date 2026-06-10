@@ -739,12 +739,14 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     return Promise.resolve(new Response("nope", { status: 404 }));
   }) as typeof fetch;
 
+  let tally: { seeded: number; total: number };
   try {
     // The demo set spans both energy shapes (annual P1Y + 15-minute series).
-    await seedDemoBuildings(session, WEBID);
+    tally = await seedDemoBuildings(session, WEBID);
   } finally {
     globalThis.fetch = realFetch;
   }
+  assert.deepEqual(tally, { seeded: 5, total: 5 }, "full seed reports 5/5");
 
   // Two building files written (under granergize/buildings/, not the energy files).
   const buildingPuts = calls.filter((c) =>
@@ -855,6 +857,59 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   const userBody = bodies.find((b) => b.includes("PT15M")) ?? "";
   const usr = [...parseBuildings(new Parser().parse(userBody)).values()][0];
   assert.equal(usr.operatedBy, WEBID, "user demo building operatedBy = seeder");
+});
+
+Deno.test("seedDemoBuildings counts a failed building instead of throwing — and never writes its building file (commit-last)", async () => {
+  // Fail the planned (Soll) dataset PUT: it belongs to exactly one demo (demo #1),
+  // and it is the only deterministically-addressable URL in the seed (building ids
+  // are random UUIDs). The seed has no transactions; this asserts the substitute
+  // guarantees: the loop continues, the tally reports the shortfall, and the failed
+  // demo's discoverable building file is never written (its earlier dataset PUTs
+  // become inert orphans).
+  const { session, calls } = makeFakeSession({
+    webId: WEBID,
+    respond: (url, init) =>
+      (init?.method ?? "GET").toUpperCase() === "PUT" &&
+        url.endsWith("/energy/2024-P1Y-planned.ttl")
+        ? new Response("boom", { status: 500 })
+        : undefined,
+  });
+
+  // Stub the geocoder (global fetch) so the seed runs offline.
+  const realFetch = globalThis.fetch;
+  globalThis.fetch = ((input: string | URL) => {
+    const url = typeof input === "string" ? input : input.toString();
+    if (url.includes("nominatim")) {
+      return Promise.resolve(
+        new Response(JSON.stringify([{ lat: "49.45", lon: "11.08" }]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        }),
+      );
+    }
+    return Promise.resolve(new Response("nope", { status: 404 }));
+  }) as typeof fetch;
+
+  let tally: { seeded: number; total: number };
+  try {
+    tally = await seedDemoBuildings(session, WEBID);
+  } finally {
+    globalThis.fetch = realFetch;
+  }
+
+  assert.deepEqual(tally, { seeded: 4, total: 5 }, "partial seed reports 4/5");
+
+  // Commit-last: the failed demo never reaches its building-file PUT, so only the
+  // four healthy demos are discoverable (top-level *.ttl under buildings/).
+  const buildingPuts = calls.filter((c) =>
+    c.method === "PUT" &&
+    /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
+  );
+  assert.equal(buildingPuts.length, 4, "failed demo's building file not written");
+  assert.ok(
+    buildingPuts.every((c) => !(c.body ?? "").includes("2024-P1Y-planned.ttl")),
+    "no surviving building links the failed planned dataset",
+  );
 });
 
 // ── delete a building (hard delete) ─────────────────────────────────────────────
