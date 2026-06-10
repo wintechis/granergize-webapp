@@ -24,12 +24,11 @@ import type {
   AggregationType,
   BuildingType,
 } from "../types.ts";
-import { createViewDefinition } from "../services/aggregation/viewManager.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { useSeriesDays } from "../hooks/queries.ts";
+import { useCreateView } from "../hooks/mutations.ts";
 import {
   type Contributors,
-  computeAndStoreSnapshot,
   sharedContributorBuildings,
 } from "../services/aggregation/viewComputer.ts";
 import {
@@ -45,7 +44,6 @@ interface CreateViewDialogProps {
   buildings: BuildingType[];
   session: Session;
   onClose: () => void;
-  onViewCreated: () => void;
 }
 
 const ITEM_HEIGHT = 48;
@@ -118,7 +116,6 @@ export default function CreateViewDialog({
   buildings,
   session,
   onClose,
-  onViewCreated,
 }: CreateViewDialogProps) {
   const { showNotification } = useNotification();
 
@@ -171,7 +168,10 @@ export default function CreateViewDialog({
   }, [ownedBuildings, sharedUriSet]);
 
   const [mode, setMode] = useState<ViewMode>("annual");
-  const [creating, setCreating] = useState(false);
+  // Busy state, error toast (central, classified) and the view-definitions
+  // invalidation come from the hook.
+  const create = useCreateView();
+  const creating = create.isPending;
   const [viewName, setViewName] = useState("");
   const [selectedBuildings, setSelectedBuildings] = useState<string[]>([]);
   const [aggregationType, setAggregationType] = useState<AggregationType>(
@@ -257,7 +257,7 @@ export default function CreateViewDialog({
     [seriesDays.data],
   );
 
-  const handleCreate = async () => {
+  const handleCreate = () => {
     if (!viewName.trim()) {
       showNotification("Please enter a view name", "warning");
       return;
@@ -275,41 +275,25 @@ export default function CreateViewDialog({
       return;
     }
 
-    setCreating(true);
-    try {
-      const metrics = mode === "monthly"
-        ? ["electricity"]
-        : selectedMetrics;
-      const period = mode === "monthly" ? selectedPeriod : undefined;
-
-      // A benchmark view records the flag ON the definition, so every later
-      // recompute (incl. plain refresh) re-derives the bench:BenchmarkResult
-      // typing + covered year from it — nothing to remember at call sites.
-      const viewDef = await createViewDefinition(
-        session,
-        viewName.trim(),
-        selectedBuildings,
+    // A benchmark view records the flag ON the definition, so every later
+    // recompute (incl. plain refresh) re-derives the bench:BenchmarkResult
+    // typing + covered year from it — nothing to remember at call sites.
+    create.mutate(
+      {
+        name: viewName.trim(),
+        buildingUris: selectedBuildings,
         aggregationType,
-        metrics,
-        { period, benchmark: mode === "benchmark" },
-      );
-
-      await computeAndStoreSnapshot(session, viewDef.id);
-
-      showNotification("View created successfully", "success");
-      onViewCreated();
-      handleClose();
-    } catch (error) {
-      console.error("Error creating view:", error);
-      showNotification(
-        `Failed to create view: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
-        "error",
-      );
-    } finally {
-      setCreating(false);
-    }
+        metrics: mode === "monthly" ? ["electricity"] : selectedMetrics,
+        period: mode === "monthly" ? selectedPeriod : undefined,
+        benchmark: mode === "benchmark",
+      },
+      {
+        onSuccess: () => {
+          showNotification("View created successfully", "success");
+          handleClose();
+        },
+      },
+    );
   };
 
   // Only worth showing when the data supports more than one mode; otherwise the

@@ -26,12 +26,11 @@ import {
   loadEnergyDatasets,
 } from "../services/rdf/energyDataset.ts";
 import {
-  deleteEnergyYear,
-  writeEnergyYear,
-} from "../services/rdf/building/buildingSerializer.ts";
-import { useInvalidateBuildingData } from "../hooks/mutations.ts";
+  useDeleteEnergyYear,
+  useWriteEnergyYear,
+} from "../hooks/mutations.ts";
+import { energyKeyFor } from "../hooks/queries.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { formatError } from "../lib/formatError.ts";
 import { logError } from "../lib/logError.ts";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
@@ -79,13 +78,16 @@ interface EnergyYearDialogProps {
 export default function EnergyYearDialog(
   { open, building, session, onClose }: EnergyYearDialogProps,
 ) {
-  const reload = useInvalidateBuildingData();
   const { showNotification } = useNotification();
+  // Busy state, error toasts (central, classified) and the building-data
+  // invalidations come from the hooks; the dialog owns the form + read-back UI.
+  const write = useWriteEnergyYear();
+  const del = useDeleteEnergyYear();
+  const busy = write.isPending || del.isPending;
 
   const [year, setYear] = useState("");
   const [scenario, setScenario] = useState<Scenario>("actual");
   const [values, setValues] = useState<Record<string, string>>({});
-  const [busy, setBusy] = useState(false);
   const [editingExisting, setEditingExisting] = useState(false);
 
   // The annual (P1Y) datasets currently stored for this building, with their
@@ -104,7 +106,12 @@ export default function EnergyYearDialog(
     [datasets],
   );
 
-  // Load the building's stored annual datasets once per open.
+  // Load the building's stored annual datasets per open — re-seeded when the
+  // building's dataset LINKS change (the `energyKeyFor` fingerprint): the parent
+  // passes the live building, so a year saved moments before opening can land
+  // via the buildings refetch while the dialog is already showing and still
+  // appear in the table (the click-time building object would miss it forever).
+  const refsKey = energyKeyFor([building]);
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
@@ -124,7 +131,7 @@ export default function EnergyYearDialog(
       cancelled = true;
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, building.id]);
+  }, [open, building.id, refsKey]);
 
   // The (year, scenario) currently reflected in the form from a load, so a
   // re-render doesn't clobber what the user has edited.
@@ -226,62 +233,63 @@ export default function EnergyYearDialog(
       return;
     }
 
-    setBusy(true);
-    try {
-      const subjectUri = building.uri as string;
-      await writeEnergyYear(session, subjectUri.split("#")[0], subjectUri, {
-        building: subjectUri,
-        year: y,
-        granularity: "P1Y",
-        scenario,
-        metrics,
-      });
-      // Reflect the saved year in the table without a round-trip, then clear the
-      // form so the user can see it land and add/edit another.
-      setDatasets((prev) => {
-        const rest = prev.filter((d) => dsKey(d.year, d.scenario) !== dsKey(y, scenario));
-        return [...rest, { building: subjectUri, year: y, granularity: "P1Y", scenario, metrics }];
-      });
-      reload();
-      showNotification("Energy data saved", "success");
-      // Clear year/figures but KEEP the scenario: entering several planned
-      // (Soll) years in a row shouldn't need re-selecting "Planned" each time.
-      const keep = scenario;
-      reset();
-      setScenario(keep);
-    } catch (err) {
-      showNotification(formatError("save energy data", err), "error");
-    } finally {
-      setBusy(false);
-    }
+    const subjectUri = building.uri as string;
+    const dataset = {
+      building: subjectUri,
+      year: y,
+      granularity: "P1Y",
+      scenario,
+      metrics,
+    };
+    write.mutate(
+      { fileUri: subjectUri.split("#")[0], subjectUri, dataset },
+      {
+        onSuccess: () => {
+          // Reflect the saved year in the table without a round-trip, then clear
+          // the form so the user can see it land and add/edit another.
+          setDatasets((prev) => {
+            const rest = prev.filter(
+              (d) => dsKey(d.year, d.scenario) !== dsKey(y, scenario),
+            );
+            return [...rest, dataset];
+          });
+          showNotification("Energy data saved", "success");
+          // Clear year/figures but KEEP the scenario: entering several planned
+          // (Soll) years in a row shouldn't need re-selecting "Planned" each time.
+          const keep = scenario;
+          reset();
+          setScenario(keep);
+        },
+      },
+    );
   };
 
-  const handleDelete = async (d: EnergyDataset) => {
+  const handleDelete = (d: EnergyDataset) => {
     if (
       !globalThis.confirm(
         `Delete the ${scenarioLabel(d.scenario)} figures for ${d.year}?`,
       )
     ) return;
-    setBusy(true);
-    try {
-      const subjectUri = building.uri as string;
-      await deleteEnergyYear(session, subjectUri.split("#")[0], subjectUri, {
-        year: d.year,
-        granularity: "P1Y",
-        scenario: d.scenario,
-      });
-      setDatasets((prev) =>
-        prev.filter((x) => dsKey(x.year, x.scenario) !== dsKey(d.year, d.scenario))
-      );
-      // If the deleted year was loaded in the form, clear it.
-      if (loadedKey.current === dsKey(d.year, d.scenario)) reset();
-      reload();
-      showNotification("Energy year deleted", "success");
-    } catch (err) {
-      showNotification(formatError("delete energy data", err), "error");
-    } finally {
-      setBusy(false);
-    }
+    const subjectUri = building.uri as string;
+    del.mutate(
+      {
+        fileUri: subjectUri.split("#")[0],
+        subjectUri,
+        dataset: { year: d.year, granularity: "P1Y", scenario: d.scenario },
+      },
+      {
+        onSuccess: () => {
+          setDatasets((prev) =>
+            prev.filter(
+              (x) => dsKey(x.year, x.scenario) !== dsKey(d.year, d.scenario),
+            )
+          );
+          // If the deleted year was loaded in the form, clear it.
+          if (loadedKey.current === dsKey(d.year, d.scenario)) reset();
+          showNotification("Energy year deleted", "success");
+        },
+      },
+    );
   };
 
   const sorted = [...datasets].sort((a, b) =>
