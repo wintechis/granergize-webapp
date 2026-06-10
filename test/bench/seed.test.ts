@@ -31,6 +31,12 @@ class FakePod {
     const method = init?.method ?? "GET";
     const turtle = { "Content-Type": "text/turtle" };
 
+    if (method === "HEAD") {
+      const exists = url.endsWith("/")
+        ? this.containers.has(url)
+        : this.resources.has(url);
+      return this.res("", exists ? 200 : 404);
+    }
     if (method === "GET") {
       if (url.endsWith("/")) {
         if (!this.containers.has(url)) return this.res("", 404);

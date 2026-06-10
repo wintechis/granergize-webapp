@@ -183,6 +183,18 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
   return out;
 }
 
+/**
+ * Parsed events per event URL, scoped per Session (so a fresh login — or a
+ * fresh fake session in tests — never sees another's entries). An event
+ * resource is IMMUTABLE once POSTed (append-only log, server-minted IRI, never
+ * rewritten), so its parse can be reused for the session's lifetime: a re-fold
+ * then costs only the container listing, not one GET per event. Only non-empty
+ * parses are cached — an empty result can be a TRANSIENT failure
+ * (`readStoreOrEmpty` degrades 403/throttle to an empty store) and must stay
+ * retryable.
+ */
+const eventCacheBySession = new WeakMap<Session, Map<string, SharingEvent[]>>();
+
 /** Read every event resource in a log container (bounded concurrency). */
 async function readAllEvents(
   containerUrl: string,
@@ -191,8 +203,15 @@ async function readAllEvents(
   const children = await listDirectChildren(containerUrl, session);
   if (!children) return []; // container doesn't exist yet
   const eventUrls = children.filter((u) => !u.endsWith("/"));
+  const cache = eventCacheBySession.get(session) ??
+    new Map<string, SharingEvent[]>();
+  eventCacheBySession.set(session, cache);
   const parsed = await mapPooled(eventUrls, 4, async (url) => {
-    return parseSharingEvents(await readStoreOrEmpty(url, session));
+    const cached = cache.get(url);
+    if (cached) return cached;
+    const events = parseSharingEvents(await readStoreOrEmpty(url, session));
+    if (events.length > 0) cache.set(url, events);
+    return events;
   });
   return parsed.flat();
 }

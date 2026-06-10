@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { DataFactory, Store } from "n3";
-import { quadsToJsonLd } from "./rdfHelpers.ts";
+import { mintLocalIri, quadsToJsonLd } from "./rdfHelpers.ts";
 
 const { namedNode, literal } = DataFactory;
 const ACL = "http://www.w3.org/ns/auth/acl#";
@@ -48,4 +48,23 @@ Deno.test("quadsToJsonLd: literals carry datatype, xsd:string is implicit", () =
   // Non-acl/foaf predicate IRIs stay absolute (no matching prefix).
   assert.deepEqual(node["http://ex/n"], [{ "@value": "5", "@type": `${XSD}integer` }]);
   assert.deepEqual(node["http://ex/s"], [{ "@value": "hi" }]); // xsd:string omitted
+});
+
+Deno.test("mintLocalIri: a valid local name mints <ns><local>", () => {
+  assert.equal(mintLocalIri(ACL, "Read").value, `${ACL}Read`);
+  assert.equal(mintLocalIri(ACL, "Read").termType, "NamedNode");
+  // Digits, underscore and hyphen are fine after a leading letter.
+  assert.equal(mintLocalIri("http://ex/", "A_b-2").value, "http://ex/A_b-2");
+});
+
+Deno.test("mintLocalIri: an IRI-unsafe local name throws (with the caller's hint)", () => {
+  // Space, umlaut, slash, leading digit — each would mint an IRI that breaks
+  // the containing file on its next parse.
+  for (const bad of ["DGNB Gold", "Bürofläche", "a/b", "1shift", ""]) {
+    assert.throws(() => mintLocalIri("http://ex/", bad), /not usable as an IRI local name/);
+  }
+  assert.throws(
+    () => mintLocalIri("http://ex/", "x y", "use a known system"),
+    /use a known system/,
+  );
 });

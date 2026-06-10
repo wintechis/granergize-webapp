@@ -134,13 +134,12 @@ export function useToggleVisibility() {
     mutationFn: (buildingUri: string) =>
       toggleBuildingVisibility(buildingUri, getSession()),
     onSettled: () => {
-      // Both the Share-tab "shared with you" list (its Shown/Hidden state) AND the
-      // buildings load depend on prefs' hiddenBuildings: the buildings load filters
-      // hidden ones out (TurtleParsingService), so it governs whether a building
-      // shows on the Explore map / Manage list. The toggle writes prefs.ttl, so
-      // invalidate the prefs query (the Share list derives from it) + buildings.
+      // The toggle writes prefs.ttl; every reader follows from that one
+      // invalidation. The Share-tab "shared with you" list derives from the
+      // prefs query in memory, and the buildings query keys on the hidden set
+      // (its load filters hidden buildings out), so the prefs refetch re-keys
+      // buildings — no separate buildings invalidation, which would double-load.
       qc.invalidateQueries({ queryKey: queryKeys.prefs });
-      qc.invalidateQueries({ queryKey: queryKeys.buildings });
     },
   });
 }

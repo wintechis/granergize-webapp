@@ -161,8 +161,9 @@ Deno.test("drainInbox creates shared-in/ once when draining multiple messages (n
       const mi = msgs.indexOf(url);
       if (mi >= 0 && method === "GET") return ttl(grant(`https://a.example/b${mi}.ttl`));
       if (mi >= 0 && method === "DELETE") return ttl("");
-      // shared-in/ ensure: 404 until created, PUT creates, POST appends
-      if (url === sharedIn && method === "GET") {
+      // shared-in/ ensure (HEAD existence check): 404 until created, PUT
+      // creates, POST appends
+      if (url === sharedIn && (method === "GET" || method === "HEAD")) {
         return sharedInExists ? ttl("") : ttl("Not found", 404);
       }
       if (url === sharedIn && method === "PUT") {

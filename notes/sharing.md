@@ -29,7 +29,9 @@ stores "who currently has access" — anyone holding the log can recompute it at
 time (what `reissueGrants` exploits to rebuild the `.acl` projection). And reading it
 costs a container listing plus one GET per event, growing with the log — so each log
 is folded once per load (the `sharedInLog`/`sharedOutLog` queries in the data layer)
-and every sharing list derives from that one result in memory. The WAC `.acl` stays
+and every sharing list derives from that one result in memory. Because an event is
+immutable once POSTed, its parse is also cached per session: a re-fold pays only the
+container listing plus GETs for events it hasn't seen before. The WAC `.acl` stays
 the enforcement truth — the logs are the app's **record**, and the only way a
 recipient learns of an inbound grant (it lives in the sharer's `.acl`, reachable only
 via the inbox).

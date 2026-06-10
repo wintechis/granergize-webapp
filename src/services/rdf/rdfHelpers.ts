@@ -1,6 +1,27 @@
-import { Parser, Store } from "n3";
-import type { Quad, Term } from "n3";
+import { DataFactory, Parser, Store } from "n3";
+import type { NamedNode, Quad, Term } from "n3";
 import { RDF_TYPE, XSD_STRING } from "./vocabularies.ts";
+
+/**
+ * Mint `<ns><localName>` after validating that `localName` is usable as an IRI
+ * local name — the validate-then-mint chokepoint for every place a runtime
+ * string becomes part of an IRI. An arbitrary string (space, umlaut, slash …)
+ * would mint an invalid IRI that breaks the WHOLE containing file on its next
+ * parse — the resource silently drops out of the listing. Fail loudly instead
+ * of corrupting; `hint` adds a domain-specific pointer to the error.
+ */
+export function mintLocalIri(
+  ns: string,
+  localName: string,
+  hint?: string,
+): NamedNode {
+  if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(localName)) {
+    throw new Error(
+      `"${localName}" is not usable as an IRI local name${hint ? ` — ${hint}` : ""}`,
+    );
+  }
+  return DataFactory.namedNode(`${ns}${localName}`);
+}
 
 function pushInto(obj: Record<string, unknown>, key: string, val: unknown): void {
   const arr = obj[key];

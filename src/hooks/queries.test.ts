@@ -144,6 +144,12 @@ Deno.test("one shared-in fold serves buildings + sharedWithMe + receivedViews + 
       (c) => c.method === "GET" && c.url === SHARED_IN,
     );
     assert.equal(folds.length, 1, "shared-in/ folded once for all consumers");
+    // …and prefs.ttl was read exactly once (the `prefs` query): the buildings
+    // load takes the hidden set as a parameter instead of re-fetching it.
+    const prefsReads = calls.filter(
+      (c) => c.method === "GET" && c.url === PREFS,
+    );
+    assert.equal(prefsReads.length, 1, "prefs.ttl read once for all consumers");
   } finally {
     _setSessionForTesting(null);
   }
@@ -242,7 +248,7 @@ Deno.test("useResolveOrgLogo is disabled until a WebID is provided", () => {
   }
 });
 
-Deno.test("useToggleVisibility invalidates prefs (the shared-with-me input) + buildings", async () => {
+Deno.test("useToggleVisibility invalidates ONLY prefs (buildings re-keys off the hidden set)", async () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession());
   const { client, wrapper } = makeWrapper();
@@ -259,9 +265,10 @@ Deno.test("useToggleVisibility invalidates prefs (the shared-with-me input) + bu
     const keyed = (name: string) =>
       invalidated.some((k) => Array.isArray(k) && k[0] === name);
     // The toggle writes prefs.ttl; the Share-tab list derives from the prefs
-    // query, and the buildings load filters hidden buildings via prefs too.
+    // query, and the buildings query keys on the hidden set, so the prefs
+    // refetch re-keys it — a second buildings invalidation would double-load.
     assert.ok(keyed("prefs"), "prefs was invalidated");
-    assert.ok(keyed("buildings"), "buildings was invalidated");
+    assert.ok(!keyed("buildings"), "no redundant buildings invalidation");
   } finally {
     _setSessionForTesting(null);
   }

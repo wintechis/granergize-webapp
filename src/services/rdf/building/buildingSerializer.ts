@@ -46,6 +46,7 @@ import { logError } from "../../../lib/logError.ts";
 import { mapPooled } from "../../../lib/pool.ts";
 import { deleteContainerRecursive, listDirectChildren } from "../../pod/podDelete.ts";
 import { geocodeFields } from "../../geocode.ts";
+import { mintLocalIri } from "../rdfHelpers.ts";
 import {
   generateEnergyDayTtl,
   type LastgangReading,
@@ -128,7 +129,10 @@ function objectTermFor(
   value: string,
 ): ReturnType<typeof namedNode> | ReturnType<typeof literal> {
   if (field in fieldToObjectPredicate) {
-    return namedNode(`${BUILDING_NS}${value}`);
+    // A controlled-vocab value is an IRI local name ("OneShift"); validate-then-
+    // mint so junk reaching this path (e.g. an unmapped import label) fails
+    // loudly instead of corrupting the building file.
+    return mintLocalIri(BUILDING_NS, value, `not a known "${field}" value`);
   }
   if (field in fieldToIriPredicate) {
     return isIriValue(value) ? namedNode(value) : literal(value);
@@ -291,17 +295,13 @@ function addCertifications(
   for (let i = 0; i < MAX_CERTS; i++) {
     const type = fields[`_cert_${i}_type`]?.trim();
     if (!type) continue;
-    // The type becomes an IRI local name (`bldg:<type>Certification`): an
-    // arbitrary string (space, umlaut, slash …) would mint an invalid IRI that
-    // breaks the WHOLE building file on its next parse — the building silently
-    // drops out of the listing. Fail loudly instead of corrupting.
-    if (!/^[A-Za-z][A-Za-z0-9_-]*$/.test(type)) {
-      throw new Error(
-        `certification type "${type}" is not usable in an IRI — use a known system (e.g. ${
-          INVESTOR_CERT_SYSTEMS.join(", ")
-        })`,
-      );
-    }
+    // The type becomes an IRI local name (`bldg:<type>Certification`);
+    // validate-then-mint, see {@link mintLocalIri}.
+    const certClass = mintLocalIri(
+      BUILDING_NS,
+      `${type}Certification`,
+      `use a known certification system (e.g. ${INVESTOR_CERT_SYSTEMS.join(", ")})`,
+    );
     const c = blankNode(`cert${i}`);
     store.addQuad(
       subject,
@@ -313,11 +313,7 @@ function addCertifications(
       namedNode(RDF_TYPE_IRI),
       namedNode(`${BUILDING_NS}BuildingCertification`),
     );
-    store.addQuad(
-      c,
-      namedNode(RDF_TYPE_IRI),
-      namedNode(`${BUILDING_NS}${type}Certification`),
-    );
+    store.addQuad(c, namedNode(RDF_TYPE_IRI), certClass);
     const level = fields[`_cert_${i}_level`]?.trim();
     if (level) {
       store.addQuad(
