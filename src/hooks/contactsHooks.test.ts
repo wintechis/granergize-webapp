@@ -9,6 +9,7 @@ import { useContacts, useResolveAgent } from "./queries.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { _resetProfileCacheForTesting } from "../services/pod/profileDocument.ts";
+import { makeFakeSession } from "../services/testing/fakeSession.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 const CONTACTS = "https://pod.example/granergize/contacts.ttl";
@@ -24,18 +25,8 @@ const FIXTURES: Record<string, string> = {
   foaf:img <https://bob.example/avatar.png> .`,
 };
 
-function fakeSession(store: Record<string, string> = { ...FIXTURES }): Session {
-  const fetch = (input: string | URL): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
-    const body = store[url];
-    if (body === undefined) {
-      return Promise.resolve(new Response("Not found", { status: 404 }));
-    }
-    return Promise.resolve(
-      new Response(body, { status: 200, headers: { "Content-Type": "text/turtle" } }),
-    );
-  };
-  return { info: { webId: WEBID, isLoggedIn: true }, fetch } as unknown as Session;
+function fakeSession(store: Record<string, string> = FIXTURES): Session {
+  return makeFakeSession({ webId: WEBID, resources: store }).session;
 }
 
 function makeWrapper() {

@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser, Store } from "n3";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
+import { makeFakeSession } from "../testing/fakeSession.ts";
 import {
   createViewDefinition,
   deleteView,
@@ -23,71 +24,10 @@ const CONS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 /**
  * A stateful fake Pod: PUT/DELETE mutate an in-memory store; a GET of a container
  * (URL ending "/") synthesizes an `ldp:contains` listing of its direct children,
- * so the container-native discovery (list `views/`) runs offline. HEAD on a
- * container is 200 (so ensure-dirs is a no-op).
+ * so the container-native discovery (list `views/`) runs offline (the helper's
+ * `listContainers` mode; containers also HEAD 200, so ensure-dirs is a no-op).
  */
-function makeSession(
-  store: Record<string, string> = {},
-): { session: Session; store: Record<string, string> } {
-  const directChildren = (container: string): string[] => {
-    const seen = new Set<string>();
-    for (const key of Object.keys(store)) {
-      if (!key.startsWith(container) || key === container) continue;
-      const rest = key.slice(container.length);
-      const slash = rest.indexOf("/");
-      seen.add(slash === -1 ? key : `${container}${rest.slice(0, slash)}/`);
-    }
-    return [...seen];
-  };
-  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString())
-      .split("?")[0];
-    const method = (init?.method ?? "GET").toUpperCase();
-    if (method === "PUT") {
-      store[url] = String(init?.body ?? "");
-      return Promise.resolve(new Response(null, { status: 201 }));
-    }
-    if (method === "DELETE") {
-      delete store[url];
-      return Promise.resolve(new Response(null, { status: 205 }));
-    }
-    if (method === "HEAD") {
-      // Containers always "exist" (skip creation); leaves 404 if absent.
-      const ok = url.endsWith("/") || url in store;
-      return Promise.resolve(new Response(null, { status: ok ? 200 : 404 }));
-    }
-    // GET
-    if (url.endsWith("/")) {
-      const refs = directChildren(url).map((c) => `<${c}>`).join(", ");
-      const body = `@prefix ldp: <http://www.w3.org/ns/ldp#> .\n<${url}> a ldp:Container${
-        refs ? ` ; ldp:contains ${refs}` : ""
-      } .\n`;
-      return Promise.resolve(
-        new Response(body, {
-          status: 200,
-          headers: { "Content-Type": "text/turtle" },
-        }),
-      );
-    }
-    const body = store[url];
-    if (body === undefined) {
-      return Promise.resolve(new Response("Not found", { status: 404 }));
-    }
-    return Promise.resolve(
-      new Response(body, {
-        status: 200,
-        headers: { "Content-Type": "text/turtle" },
-      }),
-    );
-  };
-  return {
-    session: {
-      info: { webId: WEBID, isLoggedIn: true },
-      fetch,
-    } as unknown as Session,
-    store,
-  };
-}
+const makeSession = () => makeFakeSession({ webId: WEBID, listContainers: true });
 
 function parse(ttl: string): Store {
   return new Store(new Parser().parse(ttl));

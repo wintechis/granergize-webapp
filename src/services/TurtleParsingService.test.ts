@@ -6,6 +6,7 @@ import {
   SessionExpiredError,
 } from "./TurtleParsingService.ts";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
+import { makeFakeSession } from "./testing/fakeSession.ts";
 
 // Offline fixtures for a single Pod. The fake Session below serves these by URL
 // so fetchAndParseData runs end-to-end with no network. WebID resolves to:
@@ -79,31 +80,22 @@ function makeSession(
   opts: { log: FetchLog; fixtures?: Record<string, string>; delayMs?: number },
 ): Session {
   const { log, fixtures = FIXTURES, delayMs = 20 } = opts;
-  const fetch = async (input: string | URL): Promise<Response> => {
-    const raw = typeof input === "string" ? input : input.toString();
-    const url = raw.split("?")[0]; // drop the registry's ?t=<timestamp> cache-buster
-    const isEnergy = url.startsWith("https://pod.example/energy/");
-    if (isEnergy) {
-      log.energyInFlight++;
-      log.maxEnergyInFlight = Math.max(log.maxEnergyInFlight, log.energyInFlight);
-      // Hold the connection open so overlapping (concurrent) fetches are visible.
-      await new Promise((r) => setTimeout(r, delayMs));
-      log.energyInFlight--;
-      log.energyResolved++;
-    }
-    const body = fixtures[url];
-    if (body === undefined) {
-      return new Response("Not found", { status: 404, statusText: "Not Found" });
-    }
-    return new Response(body, {
-      status: 200,
-      headers: { "Content-Type": "text/turtle" },
-    });
-  };
-  return {
-    info: { webId: WEBID, isLoggedIn: true },
-    fetch,
-  } as unknown as Session;
+  return makeFakeSession({
+    webId: WEBID,
+    resources: fixtures,
+    // Observe-and-fall-through: hold each energy fetch open so overlapping
+    // (concurrent) fetches are visible in the log.
+    respond: async (url) => {
+      if (url.startsWith("https://pod.example/energy/")) {
+        log.energyInFlight++;
+        log.maxEnergyInFlight = Math.max(log.maxEnergyInFlight, log.energyInFlight);
+        await new Promise((r) => setTimeout(r, delayMs));
+        log.energyInFlight--;
+        log.energyResolved++;
+      }
+      return undefined;
+    },
+  }).session;
 }
 
 function newLog(): FetchLog {
@@ -177,29 +169,14 @@ Deno.test("fetchAndParseData tolerates an inaccessible energy source", async () 
 Deno.test("fetchAndParseData throws SessionExpiredError when sources return 401", async () => {
   // Token expired: the building source 401s. fetchAndParseData must signal this
   // distinctly so the caller keeps prior data instead of blanking the map.
-  const fetch = (input: string | URL): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString())
-      .split("?")[0];
-    if (url === BUILDINGS_URL) {
-      return Promise.resolve(
-        new Response(null, { status: 401, statusText: "Unauthorized" }),
-      );
-    }
-    const body = FIXTURES[url];
-    if (body === undefined) {
-      return Promise.resolve(new Response("Not found", { status: 404 }));
-    }
-    return Promise.resolve(
-      new Response(body, {
-        status: 200,
-        headers: { "Content-Type": "text/turtle" },
-      }),
-    );
-  };
-  const session = {
-    info: { webId: WEBID, isLoggedIn: true },
-    fetch,
-  } as unknown as Session;
+  const { session } = makeFakeSession({
+    webId: WEBID,
+    resources: FIXTURES,
+    respond: (url) =>
+      url === BUILDINGS_URL
+        ? new Response(null, { status: 401, statusText: "Unauthorized" })
+        : undefined,
+  });
 
   await assert.rejects(
     () => fetchAndParseData(session),

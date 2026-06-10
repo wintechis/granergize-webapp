@@ -9,6 +9,7 @@ import {
   removeAppData,
 } from "./podDelete.ts";
 import { _setStorageRootForTesting } from "./solidUtils.ts";
+import { makeFakeSession } from "../testing/fakeSession.ts";
 
 // storageRoot = https://pod.example/ ; the app tree is https://pod.example/granergize/
 const WEBID = "https://pod.example/profile/card#me";
@@ -52,40 +53,23 @@ const FIXTURES: Record<string, string> = {
 `,
 };
 
-interface Call {
-  url: string;
-  method: string;
-}
-
-function makeSession(): { session: Session; deletes: string[]; calls: Call[] } {
+/**
+ * Read-only fixture tree + recorded DELETEs: the fixtures stay intact (the
+ * walk re-lists containers), so DELETE is overridden to record and respond
+ * (.acl probes 404 — none in fixtures; real resources 205) without mutating.
+ */
+function makeSession(): { session: Session; deletes: string[] } {
   const deletes: string[] = [];
-  const calls: Call[] = [];
-  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString())
-      .split("?")[0];
-    const method = (init?.method ?? "GET").toUpperCase();
-    calls.push({ url, method });
-    if (method === "DELETE") {
+  const pod = makeFakeSession({
+    webId: WEBID,
+    resources: FIXTURES,
+    respond: (url, init) => {
+      if ((init?.method ?? "GET").toUpperCase() !== "DELETE") return undefined;
       deletes.push(url);
-      // .acl probes 404 (none in fixtures); real resources 205.
-      return Promise.resolve(new Response(null, { status: url.endsWith(".acl") ? 404 : 205 }));
-    }
-    const body = FIXTURES[url];
-    if (body === undefined) {
-      return Promise.resolve(new Response("Not found", { status: 404 }));
-    }
-    return Promise.resolve(
-      new Response(body, { status: 200, headers: { "Content-Type": "text/turtle" } }),
-    );
-  };
-  return {
-    session: {
-      info: { webId: WEBID, isLoggedIn: true },
-      fetch,
-    } as unknown as Session,
-    deletes,
-    calls,
-  };
+      return new Response(null, { status: url.endsWith(".acl") ? 404 : 205 });
+    },
+  });
+  return { session: pod.session, deletes };
 }
 
 Deno.test("deleteContainerRecursive descends and deletes the whole subtree", async () => {

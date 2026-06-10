@@ -1,6 +1,5 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser, Store } from "n3";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
 import {
@@ -11,6 +10,7 @@ import {
   toggleHiddenBuilding,
 } from "./prefs.ts";
 import { GRAN_NS } from "./rdf/vocabularies.ts";
+import { makeFakeSession } from "./testing/fakeSession.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");
@@ -24,36 +24,7 @@ const B2 = "https://other.example/granergize/buildings/y.ttl#y";
  * PUT writes back — so the read-modify-write paths run with no Pod or network.
  * No ETag header is served, so writes degrade to plain PUTs (which is fine).
  */
-function makeSession(
-  store: Record<string, string> = {},
-): { session: Session; store: Record<string, string> } {
-  const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
-    const url = (typeof input === "string" ? input : input.toString())
-      .split("?")[0];
-    const method = (init?.method ?? "GET").toUpperCase();
-    if (method === "PUT") {
-      store[url] = String(init?.body ?? "");
-      return Promise.resolve(new Response(null, { status: 201 }));
-    }
-    const body = store[url];
-    if (body === undefined) {
-      return Promise.resolve(new Response("Not found", { status: 404 }));
-    }
-    return Promise.resolve(
-      new Response(body, {
-        status: 200,
-        headers: { "Content-Type": "text/turtle" },
-      }),
-    );
-  };
-  return {
-    session: {
-      info: { webId: WEBID, isLoggedIn: true },
-      fetch,
-    } as unknown as Session,
-    store,
-  };
-}
+const makeSession = () => makeFakeSession({ webId: WEBID });
 
 Deno.test("readPrefs on a missing file yields empty prefs", async () => {
   const { session } = makeSession();

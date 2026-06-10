@@ -661,8 +661,9 @@ export async function uploadBuilding(
   webId: string,
   signal?: AbortSignal,
 ): Promise<void> {
-  // Provision the buildings/ container first (announced once, on first add) so
-  // the building-file PUT below has somewhere to land — via the shared helper.
+  // Provision the buildings/ container first (silently — the add flow has its
+  // own "Building added" toast) so the building-file PUT below has somewhere
+  // to land — via the shared helper.
   await ensureContainer(podResources(webId).buildings, session);
   signal?.throwIfAborted();
   const res = await session.fetch(buildingUri, {

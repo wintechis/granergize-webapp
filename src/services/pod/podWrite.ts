@@ -7,7 +7,7 @@ import { APP_DIR } from "./solidUtils.ts";
 
 /** The name to announce when an app container is provisioned, or null to stay
  * quiet. Only the structural folders — direct children of the app collection
- * (`<APP_DIR>/`) like `shared-out`, `shared-in` — are announced; deeper
+ * (`<APP_DIR>/`) like `shared-out`, `shared-in` — are announceable; deeper
  * per-content containers (a building's time-series, a data-room id) are created
  * silently so the notice stays meaningful and not noisy. */
 function announceableContainer(containerUrl: string): string | null {
@@ -56,15 +56,18 @@ export interface RmwContext {
  * or an auth error) is left as-is. Shared by the event-log writers (data rooms,
  * sharing logs).
  *
- * Returns `true` only when it actually created the container this call, and tells
- * the user about it (a one-time "set up …" notice) — so first-time provisioning
- * of a lazily-created granergize folder isn't silent. Returns `false` when the
- * container already existed.
+ * Returns `true` only when it actually created the container this call;
+ * `false` when it already existed. Silent by default — the primitive creates
+ * and reports, the caller decides whether provisioning is worth announcing:
+ * pass `announce: true` to emit a one-time "Set up …" notice when a structural
+ * app folder (a direct child of `<APP_DIR>/`) is created, for first-time
+ * provisioning that would otherwise be invisible to the user.
  * @operation mutation
  */
 export async function ensureContainer(
   containerUrl: string,
   session: Session,
+  opts: { announce?: boolean } = {},
 ): Promise<boolean> {
   const head = await session.fetch(containerUrl, { method: "GET" });
   if (head.ok || head.status !== 404) return false;
@@ -76,8 +79,10 @@ export async function ensureContainer(
   if (!put.ok) {
     throw new Error(`Failed to create container ${containerUrl} (HTTP ${put.status})`);
   }
-  const label = announceableContainer(containerUrl);
-  if (label) emitNotification(`Set up the "${label}" folder on this Pod`, "info");
+  if (opts.announce) {
+    const label = announceableContainer(containerUrl);
+    if (label) emitNotification(`Set up the "${label}" folder on this Pod`, "info");
+  }
   return true;
 }
 

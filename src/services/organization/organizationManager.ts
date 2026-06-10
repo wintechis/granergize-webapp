@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store, Writer } from "n3";
-import { fetchFresh } from "../pod/podFetch.ts";
+import { DataFactory, Store } from "n3";
+import { readModifyWrite } from "../pod/podWrite.ts";
 import { invalidateProfile, loadProfileStore } from "../pod/profileDocument.ts";
 import { getPodBaseUrl } from "../pod/solidUtils.ts";
 import { logError } from "../../lib/logError.ts";
@@ -32,8 +32,10 @@ import {
  *
  * The logo *image* lives at `<pod>/profile/logo.<ext>` (in the profile folder,
  * since the org is part of the profile); only the link (`foaf:logo` on `<#org>`)
- * is what we rewrite here. Writes are PUT-only (the
- * server ignores PATCH): GET the profile, mutate the in-memory store, PUT it back.
+ * is what we rewrite here. Profile writes are model-2 in-place mutations through
+ * the shared {@link readModifyWrite} (GET → mutate → conditional PUT with
+ * If-Match, the server ignores PATCH); a missing profile document is an error,
+ * never silently created.
  */
 
 const ORG_ORGANIZATION = `${ORG_NS}Organization`;
@@ -240,26 +242,25 @@ function ensureOrgMembership(store: Store, webId: string): void {
   setNamedNode(store, membership, ORG_ORGANIZATION_PRED, org);
 }
 
-async function putProfile(
+/**
+ * Apply `edit` to the WebID profile document via the shared conditional
+ * read-modify-write (If-Match optimistic locking). The profile must already
+ * exist — a 404 throws instead of silently creating a profile document.
+ * On success the shared profile cache is dropped so the next read (org panel,
+ * avatar) sees the new state instead of the stale Store.
+ */
+async function mutateProfile(
   docUrl: string,
-  store: Store,
   session: Session,
+  edit: (store: Store) => void,
 ): Promise<void> {
-  const ttl = new Writer({ format: "text/turtle" }).quadsToString(
-    store.getQuads(null, null, null, null),
-  );
-  const put = await session.fetch(docUrl, {
-    method: "PUT",
-    headers: { "Content-Type": "text/turtle" },
-    body: ttl,
+  await readModifyWrite(docUrl, session, (store, { created }) => {
+    if (created) {
+      // A WebID profile is provisioned by the identity provider, never by us.
+      throw new Error(`Failed to fetch WebID profile at ${docUrl}: Not Found`);
+    }
+    edit(store);
   });
-  if (!put.ok) {
-    throw new Error(
-      `Failed to update WebID profile at ${docUrl}: ${put.statusText}`,
-    );
-  }
-  // The profile changed on the server — drop the shared cache so the next
-  // read (org panel, avatar) sees the new state instead of the stale Store.
   invalidateProfile(session.info.webId ?? undefined);
 }
 
@@ -279,32 +280,20 @@ export async function saveOrganization(
     throw new Error("User is not logged in");
   }
   const docUrl = profileDocUrl(webId);
-  const response = await fetchFresh(docUrl, session);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch WebID profile at ${docUrl}: ${response.statusText}`,
-    );
-  }
-  const store = new Store(
-    new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(
-      await response.text(),
-    ),
-  );
-
   const org = orgNodeIri(webId);
-  ensureOrgMembership(store, webId);
-
   const name = fields.name?.trim();
   const homepage = fields.homepage?.trim();
   const sameAs = fields.sameAs?.trim();
-  if (name) setLiteral(store, org, FOAF_NAME, name);
-  else clearPredicate(store, org, FOAF_NAME);
-  if (homepage) setNamedNode(store, org, FOAF_HOMEPAGE, homepage);
-  else clearPredicate(store, org, FOAF_HOMEPAGE);
-  if (sameAs) setNamedNode(store, org, OWL_SAME_AS, sameAs);
-  else clearPredicate(store, org, OWL_SAME_AS);
 
-  await putProfile(docUrl, store, session);
+  await mutateProfile(docUrl, session, (store) => {
+    ensureOrgMembership(store, webId);
+    if (name) setLiteral(store, org, FOAF_NAME, name);
+    else clearPredicate(store, org, FOAF_NAME);
+    if (homepage) setNamedNode(store, org, FOAF_HOMEPAGE, homepage);
+    else clearPredicate(store, org, FOAF_HOMEPAGE);
+    if (sameAs) setNamedNode(store, org, OWL_SAME_AS, sameAs);
+    else clearPredicate(store, org, OWL_SAME_AS);
+  });
 }
 
 /**
@@ -338,24 +327,12 @@ export async function uploadOrgLogo(
     throw new Error(`Failed to upload logo to ${logoUrl}: ${put.statusText}`);
   }
 
-  // 2. Link it as foaf:logo on the org node (GET → rewrite → PUT).
+  // 2. Link it as foaf:logo on the org node (conditional GET → rewrite → PUT).
   const docUrl = profileDocUrl(webId);
-  const response = await fetchFresh(docUrl, session);
-  if (!response.ok) {
-    throw new Error(
-      `Failed to fetch WebID profile at ${docUrl}: ${response.statusText}`,
-    );
-  }
-  const store = new Store(
-    new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(
-      await response.text(),
-    ),
-  );
-
   const org = orgNodeIri(webId);
-  ensureOrgMembership(store, webId);
-  setNamedNode(store, org, FOAF_LOGO, logoUrl);
-
-  await putProfile(docUrl, store, session);
+  await mutateProfile(docUrl, session, (store) => {
+    ensureOrgMembership(store, webId);
+    setNamedNode(store, org, FOAF_LOGO, logoUrl);
+  });
   return logoUrl;
 }

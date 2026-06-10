@@ -19,6 +19,7 @@ import {
 import { parseDatasetSlug } from "../rdf/energyDataset.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { logError } from "../../lib/logError.ts";
+import { mapPooled } from "../../lib/pool.ts";
 
 interface SharedBuilding {
   buildingUri: string;
@@ -128,10 +129,16 @@ export async function revokeAccess(
   // Withdraw the building's sub-resources too: the files/ container (attachments
   // + certificate), any energy datasets, and a legacy cert outside files/.
   // removeFromACL is idempotent, so revoking a never-granted target is a no-op.
+  // Each target is a distinct .acl (deduped to be safe), so the withdrawals run
+  // concurrently (bounded); the whole fan-out stays inside the same try/catch,
+  // so a failure is still warned-and-tolerated rather than failing the
+  // revocation (mapPooled rejects with the first error, exactly like the
+  // serial loop did — the catch swallows it identically).
   try {
-    for (const target of await getSubresourceAclTargets(buildingUri, session)) {
-      await removeFromACL(target, webId, session);
-    }
+    const targets = [
+      ...new Set(await getSubresourceAclTargets(buildingUri, session)),
+    ];
+    await mapPooled(targets, 4, (target) => removeFromACL(target, webId, session));
   } catch (error) {
     console.warn("Could not revoke sub-resource access:", error);
   }
@@ -265,6 +272,11 @@ export async function revokeAllBuildingRecipients(
   const recipients = shared
     .find((b) => b.buildingUri.split("#")[0] === fileUri)
     ?.sharedWith ?? [];
+  // Deliberately SERIAL: every recipient's revokeAccess read-modify-writes the
+  // SAME .acl files (the building's and its sub-resources'), just for a
+  // different grantee — not a distinct-resource fan-out. On servers that emit
+  // no ETag, readModifyWrite degrades to a plain PUT, so concurrent revokes of
+  // recipients A and B could last-write-win and resurrect a just-removed grant.
   for (const webId of recipients) {
     await revokeAccess(fileUri, webId, session).catch((err) =>
       logError("revoke building access for recipient", err)
@@ -472,6 +484,10 @@ export async function revokeAllViewRecipients(
   const shared = await getSharedViews(session);
   const recipients = shared.find((v) => v.snapshotUrl === snapshotUrl)
     ?.sharedWith ?? [];
+  // Deliberately SERIAL: every recipient's revokeViewAccess read-modify-writes
+  // the SAME snapshot .acl, just for a different grantee — see the matching
+  // note in revokeAllBuildingRecipients (no-ETag servers degrade to a plain
+  // PUT, so parallel revokes could clobber each other's removals).
   for (const webId of recipients) {
     await revokeViewAccess(snapshotUrl, webId, session).catch((err) =>
       logError("revoke view access for recipient", err)

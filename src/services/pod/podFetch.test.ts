@@ -1,7 +1,8 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { Session } from "@inrupt/solid-client-authn-browser";
 import { readStoreOrEmpty } from "./podFetch.ts";
+import { makeFakeSession } from "../testing/fakeSession.ts";
 
 /** A fake offline session whose fetch serves a canned Response and records the
  *  request init, so we can assert the read is sent with Accept: text/turtle. */
@@ -9,12 +10,12 @@ function fakeSession(
   handler: (url: string) => Response,
 ): { session: Session; lastInit: () => RequestInit | undefined } {
   let init: RequestInit | undefined;
-  const session = {
-    fetch: (input: string | URL, requestInit?: RequestInit) => {
+  const { session } = makeFakeSession({
+    respond: (url, requestInit) => {
       init = requestInit;
-      return Promise.resolve(handler(String(input)));
+      return handler(url);
     },
-  } as unknown as Session;
+  });
   return { session, lastInit: () => init };
 }
 
