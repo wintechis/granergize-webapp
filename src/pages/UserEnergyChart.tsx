@@ -2,10 +2,12 @@ import { useEffect, useMemo, useState } from "react";
 import { Box, TextField, Typography } from "@mui/material";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import { Session } from "@inrupt/solid-client-authn-browser";
 import type { EnergyDatasetRef } from "../types.ts";
-import { parseTtlReadings } from "../services/rdf/userEnergyParser.ts";
-import { listSeriesDays } from "../services/rdf/energyDataset.ts";
+import {
+  useDayReadings,
+  useMonthReadings,
+  useSeriesDays,
+} from "../hooks/queries.ts";
 import { formatNumber } from "../lib/formatNumber.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import MetricLineChart from "../components/detail/MetricLineChart.tsx";
@@ -14,78 +16,30 @@ const SERIES_COLOR = "rgba(31, 120, 180, 1)";
 
 interface UserEnergyChartProps {
   seriesDatasets: EnergyDatasetRef[];
-  session: Session;
 }
 
+const errText = (err: unknown) =>
+  err instanceof Error ? err.message : String(err);
+
 export default function UserEnergyChart(
-  { seriesDatasets, session }: UserEnergyChartProps,
+  { seriesDatasets }: UserEnergyChartProps,
 ) {
-  // The daily reading files live in each series descriptor's container; list
-  // them (async) to build the date/month pickers.
-  const [dateEntries, setDateEntries] = useState<
-    Array<{ label: string; location: string }>
-  >([]);
+  // The daily reading files live in each series descriptor's container; the
+  // listing feeds the date/month pickers (read through the data layer).
+  const days = useSeriesDays(seriesDatasets);
+  const dateEntries = useMemo(() => days.data ?? [], [days.data]);
 
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      const perRef = await Promise.all(
-        seriesDatasets.map((ref) => listSeriesDays(session, ref)),
-      );
-      const entries = perRef
-        .flat()
-        .map(({ day, url }) => ({ label: day, location: url }))
-        .sort((a, b) => a.label.localeCompare(b.label));
-      if (!cancelled) setDateEntries(entries);
-    })();
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
-
-  const availableMonths = [
-    ...new Set(dateEntries.map((d) => d.label.substring(0, 7))),
-  ];
+  const availableMonths = useMemo(
+    () => [...new Set(dateEntries.map((d) => d.day.substring(0, 7)))],
+    [dateEntries],
+  );
 
   // ── Tab 0: Day View ──────────────────────────────────────────────────────
   const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
-  const [selectedLabel, setSelectedLabel] = useState<string>("");
-  const [readings, setReadings] = useState<
-    Array<{ begin: string; value: number }>
-  >([]);
-  const [loading, setLoading] = useState(false);
-  const [fetchError, setFetchError] = useState<string | null>(null);
-
-  useEffect(() => {
-    const entry = dateEntries.find((d) => d.label === selectedLabel);
-    if (!entry) return;
-
-    let cancelled = false;
-    setLoading(true);
-    setFetchError(null);
-
-    (async () => {
-      try {
-        const data = await parseTtlReadings(
-          entry.location,
-          session.fetch.bind(session),
-        );
-        if (!cancelled) setReadings(data);
-      } catch (err) {
-        if (!cancelled) {
-          setFetchError(err instanceof Error ? err.message : String(err));
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedLabel]);
+  const [selectedDay, setSelectedDay] = useState<string>("");
+  const selectedEntry = dateEntries.find((d) => d.day === selectedDay);
+  const dayQuery = useDayReadings(selectedEntry?.url);
+  const readings = useMemo(() => dayQuery.data ?? [], [dayQuery.data]);
 
   // ── Tabs 1 & 2: Monthly bulk fetch ───────────────────────────────────────
   const [selectedMonth, setSelectedMonth] = useState<string>("");
@@ -94,68 +48,36 @@ export default function UserEnergyChart(
   // latest month (the listing arrives async, after the initial render).
   useEffect(() => {
     if (dateEntries.length === 0) return;
-    if (!dateEntries.find((d) => d.label === selectedLabel)) {
-      setSelectedLabel(dateEntries[0].label);
+    if (!dateEntries.find((d) => d.day === selectedDay)) {
+      setSelectedDay(dateEntries[0].day);
     }
     if (!availableMonths.includes(selectedMonth)) {
       setSelectedMonth(availableMonths[availableMonths.length - 1]);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [dateEntries]);
-  const [allDaysData, setAllDaysData] = useState<
-    Map<string, Array<{ begin: string; value: number }>> | null
-  >(null);
-  const [bulkLoading, setBulkLoading] = useState(false);
-  const [bulkProgress, setBulkProgress] = useState({ loaded: 0, total: 0 });
-  const [bulkError, setBulkError] = useState<string | null>(null);
 
-  const monthEntries = dateEntries.filter((d) =>
-    d.label.startsWith(selectedMonth)
+  const monthEntries = useMemo(
+    () => dateEntries.filter((d) => d.day.startsWith(selectedMonth)),
+    [dateEntries, selectedMonth],
   );
-
-  async function fetchMonthDays() {
-    if (bulkLoading) return;
-    setBulkLoading(true);
-    setAllDaysData(null);
-    setBulkError(null);
-    setBulkProgress({ loaded: 0, total: monthEntries.length });
-
-    const result = new Map<string, Array<{ begin: string; value: number }>>();
-    try {
-      const settled = await Promise.allSettled(
-        monthEntries.map((e) =>
-          parseTtlReadings(e.location, session.fetch.bind(session)).then((
-            data,
-          ) => ({ label: e.label, data }))
-        ),
-      );
-      settled.forEach((r, i) => {
-        if (r.status === "fulfilled") result.set(r.value.label, r.value.data);
-        setBulkProgress({ loaded: i + 1, total: monthEntries.length });
-      });
-    } catch (err) {
-      setBulkError(err instanceof Error ? err.message : String(err));
-    }
-
-    setAllDaysData(result);
-    setBulkLoading(false);
-  }
-
-  useEffect(() => {
-    if (activeTab === 1 || activeTab === 2) fetchMonthDays();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [activeTab, selectedMonth]);
+  const monthQuery = useMonthReadings(
+    monthEntries,
+    activeTab === 1 || activeTab === 2,
+  );
+  const allDaysData = monthQuery.data ?? null;
+  const bulkLoading = monthQuery.isFetching;
 
   // ── Derived data (memoized — a month is ~31 × 96 readings, and any state
   // change re-renders; fresh array identities would also re-render Recharts) ──
   const dailyTotals = useMemo(() =>
     allDaysData
       ? Array.from(allDaysData.entries())
-        .map(([label, rs]) => ({
-          label,
+        .map(([day, rs]) => ({
+          day,
           total: rs.reduce((s, r) => s + r.value, 0),
         }))
-        .sort((a, b) => a.label.localeCompare(b.label))
+        .sort((a, b) => a.day.localeCompare(b.day))
       : [], [allDaysData]);
 
   const avgDailyTotal = dailyTotals.length
@@ -185,7 +107,7 @@ export default function UserEnergyChart(
     })), [readings]);
   const dailyTotalsRows = useMemo(() =>
     dailyTotals.map((d) => ({
-      t: d.label,
+      t: d.day,
       value: d.total,
     })), [dailyTotals]);
   const avgProfileRows = useMemo(
@@ -195,7 +117,7 @@ export default function UserEnergyChart(
 
   const dailyTotal = readings.reduce((sum, r) => sum + r.value, 0);
 
-  // ── Shared month picker + progress ────────────────────────────────────────
+  // ── Shared month picker + loading/error state ─────────────────────────────
   const monthPickerAndProgress = (
     <>
       <TextField
@@ -203,10 +125,7 @@ export default function UserEnergyChart(
         size="small"
         label="Month"
         value={selectedMonth}
-        onChange={(e) => {
-          setAllDaysData(null);
-          setSelectedMonth(e.target.value);
-        }}
+        onChange={(e) => setSelectedMonth(e.target.value)}
         slotProps={{
           inputLabel: { shrink: true },
           htmlInput: {
@@ -218,12 +137,12 @@ export default function UserEnergyChart(
       />
       {bulkLoading && (
         <Typography variant="body2" sx={{ mb: 2 }}>
-          Loading {bulkProgress.loaded} / {bulkProgress.total} days…
+          Loading…
         </Typography>
       )}
-      {bulkError && (
+      {monthQuery.error != null && (
         <Typography color="error" variant="body2" sx={{ mb: 1 }}>
-          {bulkError}
+          {errText(monthQuery.error)}
         </Typography>
       )}
     </>
@@ -248,34 +167,34 @@ export default function UserEnergyChart(
             type="date"
             size="small"
             label="Date"
-            value={selectedLabel}
-            onChange={(e) => setSelectedLabel(e.target.value)}
+            value={selectedDay}
+            onChange={(e) => setSelectedDay(e.target.value)}
             slotProps={{
               inputLabel: { shrink: true },
               htmlInput: {
-                min: dateEntries[0]?.label,
-                max: dateEntries[dateEntries.length - 1]?.label,
+                min: dateEntries[0]?.day,
+                max: dateEntries[dateEntries.length - 1]?.day,
               },
             }}
             sx={{ mb: 2, minWidth: 160 }}
           />
 
-          {loading && (
+          {dayQuery.isFetching && (
             <Typography variant="body2" sx={{ mb: 1 }}>Loading…</Typography>
           )}
-          {fetchError && (
+          {dayQuery.error != null && (
             <Typography color="error" variant="body2" sx={{ mb: 1 }}>
-              {fetchError}
+              {errText(dayQuery.error)}
             </Typography>
           )}
-          {!loading && !fetchError && selectedLabel && !dateEntries.find((d) =>
-            d.label === selectedLabel
-          ) && (
+          {!dayQuery.isFetching && dayQuery.error == null && selectedDay &&
+            !selectedEntry && (
             <Typography variant="body2" color="text.secondary">
               No data available for this date.
             </Typography>
           )}
-          {!loading && !fetchError && readings.length > 0 && (
+          {!dayQuery.isFetching && dayQuery.error == null &&
+            readings.length > 0 && (
             <>
               <Typography variant="body2" sx={{ mb: 1 }}>
                 Daily total: <strong>{formatNumber(dailyTotal, 2)} kWh</strong>

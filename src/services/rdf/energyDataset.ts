@@ -20,7 +20,7 @@ export type { EnergyDatasetRef, Scenario };
  * The unified energy model: ONE `cons:EnergyDataset` per (building, year,
  * granularity, scenario), linked from the building by a single
  * `cons:hasEnergyDataset` predicate — replacing the old three-way split
- * (`investor:hasInvestorAnnualData` inline annual / `cons:hasEnergyMeasurementData`
+ * (`investor:hasAnnualData` inline annual / `cons:hasEnergyMeasurementData`
  * / `cons:hasEnergyConsumptionDataset`). Every dataset is its OWN resource
  * (annual included), so a year can be added, edited and shared independently.
  *

@@ -114,7 +114,7 @@ container), so sharing exactly one year is granting its `.acl`, exactly like a b
 - **Share a single year** = the share dialog lists the building's datasets; granting one
   grants that resource's `.acl`.
 - **Planned vs actual** = a `cons:Planned` dataset alongside the `cons:Actual` one for the
-  same year; `InvestorEnergy` / `BspEnergy` overlay the planned (Soll) figures beside the
+  same year; `AnnualEnergy` overlays the planned (Soll) figures beside the
   actual per metric/year.
 
 ## Decisions
