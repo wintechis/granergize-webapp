@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { buildingIds, buildingRows } from "../helpers/manage.ts";
+import { buildingIds, buildingRows, deleteBuildingRow } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -109,12 +109,7 @@ test.describe("excel export", () => {
     // Delete the originals first: building codes must be unique, so re-importing on
     // top of the originals would (correctly) be blocked as duplicates. Deleting them
     // makes this a genuine export → re-import round-trip.
-    for (const id of before) {
-      const row = page.locator("li", { hasText: `Building ${id}` }).first();
-      await row.getByRole("button", { name: "Delete building" }).click();
-      await expect(page.getByText("Building deleted").first())
-        .toBeVisible({ timeout: T.action });
-    }
+    for (const id of before) await deleteBuildingRow(page, id);
     await expect(async () => {
       expect((await buildingIds(page)).length).toBe(0);
     }).toPass({ timeout: T.poll });

@@ -1,7 +1,7 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
-import { ensureContainer, putAcl } from "../pod/podWrite.ts";
+import { appendToContainer, ensureContainer, putAcl } from "../pod/podWrite.ts";
 import { LDP_CONTAINS, LDP_INBOX } from "../rdf/vocabularies.ts";
 import {
   APP_DIR,
@@ -202,16 +202,10 @@ export async function postSharingEventToInbox(
   event: SharingEvent,
 ): Promise<void> {
   const inboxUrl = await getRecipientInboxUrl(webId, session);
-  const res = await session.fetch(inboxUrl, {
-    method: "POST",
-    headers: { "Content-Type": "text/turtle" },
-    body: buildSharingEventTurtle(event),
-  });
-  if (!res.ok) {
-    throw new Error(
+  await appendToContainer(inboxUrl, buildSharingEventTurtle(event), session, {
+    describeError: (res) =>
       `Failed to post sharing message to inbox at ${inboxUrl}: ${res.statusText}`,
-    );
-  }
+  });
 }
 
 /**

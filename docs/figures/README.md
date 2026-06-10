@@ -7,8 +7,10 @@ Two kinds of figures live here:
 
 - **App screenshots** — captured from the running app by
   `test/e2e/support/screenshots.spec.ts`: `anmelden.png`, `room.png`,
-  `add-building.png`, `energy-year.png`, `share-building.png`, `create-view.png`,
-  `map-tabs.png`, `energy-lens.png`.
+  `contacts.png`, `add-building.png`, `manage-actions.png`, `energy-year.png`,
+  `share-building.png`, `create-view.png`, `aggregated-view.png`, `map-tabs.png`,
+  `energy-data-tab.png`, `energy-detail.png`, `energy-lens.png`,
+  `shared-with-you.png`.
 - **Conceptual diagrams** — carried over from the original handbuch (still
   accurate): `architektur.png`, `wac.png`, `wissensgraph.png`,
   `sharing-vergleich.png`.

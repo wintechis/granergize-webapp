@@ -300,9 +300,15 @@ installieren.
 
 **Was beim ersten Start passiert:** Bei der ersten Anmeldung ist Ihr Dashboard
 zunächst leer – es werden keine Daten vorausgesetzt und nichts im Voraus
-angelegt. Für einen schnellen Einstieg bietet Ihnen Granergize im Tab **Manage**
-an, beispielhafte Demo-Gebäude hinzuzufügen („Add examples"); diesen Hinweis
-können Sie auch ausblenden. Die benötigte Ordnerstruktur unter `granergize/`
+angelegt. Für einen schnellen Einstieg bietet Ihnen Granergize an, **fünf
+beispielhafte Demo-Gebäude** hinzuzufügen („Add examples"); diesen Hinweis
+können Sie auch ausblenden. Die Beispiele decken beide Datenformen ab – drei
+Gebäude mit Jahreswerten (2022–2024) und vollständigen Stammdaten, zwei mit
+15-Minuten-Messreihen. Zwei der Jahreswert-Gebäude teilen sich denselben
+Betreiber und eines enthält zusätzlich geplante (Soll-)Werte, sodass
+Betreiber-Durchschnitt und Soll-Ist-Vergleich direkt an den Beispieldaten
+sichtbar sind. Die Abbildungen in diesem Handbuch zeigen genau diese
+Demo-Gebäude. Die benötigte Ordnerstruktur unter `granergize/`
 legt die Anwendung automatisch an, sobald Sie Ihr erstes Gebäude speichern – Sie
 müssen sich darum nicht kümmern. Anschließend können Sie eigene Gebäudedaten
 hinzufügen und mit der eigentlichen Arbeit beginnen.
@@ -452,8 +458,16 @@ Im Tab **Manage** unter „Your buildings" stehen zwei Wege zur Verfügung:
 - **Autofill from file:** Mehrere Gebäude auf einmal aus einer Excel-Datei
   einlesen. Das Tabellenformat wird beim Hochladen **automatisch erkannt** (bei
   Bedarf über „File format" manuell überschreibbar); enthält die Datei auch
-  Energiedaten, werden diese mit übernommen. Die eingelesenen Gebäude können Sie vor
+  Energiedaten, werden diese mit übernommen – sowohl **Jahreswerte** als auch
+  **15-Minuten-Lastgänge** (das Hochladen einer langen Messreihe lässt sich
+  jederzeit abbrechen). Die eingelesenen Gebäude können Sie vor
   dem Speichern prüfen und anpassen; fehlende Koordinaten werden automatisch ergänzt.
+
+Ein gesondertes Template wird **nicht benötigt**: Laden Sie ein vorhandenes
+Gebäude über „Download this building's data" als Excel-Datei herunter – diese
+Datei lässt sich (auch ausgefüllt mit eigenen Werten) über „Autofill from file"
+wieder einlesen und dient damit zugleich als Vorlage. Für einen schnellen Start
+eignen sich dazu auch die Demo-Gebäude („Add examples").
 
 Nachdem Sie die Felder ausgefüllt bzw. die Datei eingelesen haben, klicken Sie auf
 „Add Building". Die eingegebenen Daten werden automatisch in das richtige Format
@@ -497,9 +511,11 @@ am Zeilenende mehrere Aktionen:
 
 Energieverbrauchsdaten werden je Gebäude und **Jahr** gepflegt. Öffnen Sie im
 Tab **Manage** beim gewünschten Gebäude über das Symbol **„Add / edit energy
-year"** den Dialog. Oben listet die Tabelle **„Stored years"** alle bereits
-erfassten Jahre mit ihren Werten auf – so sehen Sie auf einen Blick, was
-gespeichert ist; darunter steht das Eingabeformular.
+year"** den Dialog. Die Kopfzeile des Dialogs nennt **Name und Anschrift des
+Gebäudes**, sodass Sie beim Wechsel zwischen mehreren Gebäuden stets sehen,
+wessen Daten Sie gerade bearbeiten. Oben listet die Tabelle **„Stored years"**
+alle bereits erfassten Jahre mit ihren Werten auf – so sehen Sie auf einen
+Blick, was gespeichert ist; darunter steht das Eingabeformular.
 
 - **Jahr erfassen:** Wählen Sie ein Jahr und tragen Sie die Verbrauchswerte ein.
   Nach dem Speichern bleibt der Dialog geöffnet, und das neue Jahr erscheint
@@ -533,16 +549,47 @@ Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
   **Übersichtstabelle** mit den Jahreswerten, darunter als Diagramm. Haben Sie zu
   einem Jahr sowohl geplante (Soll-) als auch tatsächliche (Ist-)Werte erfasst, werden
   beide **nebeneinander** dargestellt – so erkennen Sie auf einen Blick, wie nah
-  der reale Verbrauch am Plan liegt (Soll-Ist-Vergleich). Sind weitere Gebäude
-  **mit demselben Betreiber** (Feld „Operated By") und Verbrauchsdaten für
-  dasselbe Jahr vorhanden, wird Ihr Verbrauch zusätzlich gegen diesen
-  **Betreiber-Durchschnitt** als Benchmark eingeordnet. Maßgeblich ist also der
-  eingetragene Betreiber, nicht etwa gleiche Fläche oder gleiches Baujahr – ohne
-  einen zweiten Betreiber-Gleichen mit Daten erscheint kein Benchmark.
+  der reale Verbrauch am Plan liegt (Soll-Ist-Vergleich). Gibt es **mindestens ein
+  weiteres Gebäude mit demselben Betreiber** (Feld „Operated by") und
+  Verbrauchsdaten, erscheint in der Übersichtstabelle zusätzlich die Zeile
+  **„Operator average"** – der **Betreiber-Durchschnitt** als Benchmark. In den
+  Durchschnitt geht jedes Gebäude mit seinem **aktuellsten Ist-Jahr** ein; die
+  Jahre müssen also nicht übereinstimmen. Maßgeblich ist allein der eingetragene
+  Betreiber, nicht etwa gleiche Fläche oder gleiches Baujahr – ohne ein zweites
+  Gebäude desselben Betreibers mit Daten zur jeweiligen Kennzahl erscheint kein
+  Benchmark. Trägt ein Gebäude statt Jahreswerten eine **15-Minuten-Messreihe**
+  (z. B. aus einem Lastgang-Import), zeigt dieser Reiter stattdessen
+  Zeitreihen-Diagramme: Tagessummen und ein durchschnittliches Tagesprofil.
 - **Weather data:** die zum Standort passenden Wetterdaten, die zur Einordnung des
   Verbrauchs (z. B. Heizgradtage) herangezogen werden können.
 
 ![Gebäudedetails im Explore-Tab mit Reitern](figures/map-tabs.png){width=100%}
+
+![Reiter „Energy data": Jahresübersicht mit dem Betreiber-Durchschnitt („Operator average")](figures/energy-data-tab.png){width=100%}
+
+### Energie-Detailseite eines Gebäudes (Direktaufruf)
+
+Zu jedem Gebäude gibt es zusätzlich eine eigenständige Energie-Detailseite, die
+Sie direkt über die Adresszeile des Browsers aufrufen und als **Lesezeichen**
+ablegen können: `…/#/energy/<Gebäude-ID>` (die Gebäude-ID ist der technische
+Bezeichner des Gebäudes; im Developer-Modus wird sie in der Gebäudeliste
+angezeigt). Die Seite zeigt die Kennzahlen des **aktuellsten erfassten Jahres**
+als Tabelle und stellt jedem Wert bis zu drei Vergleichswerte gegenüber:
+
+- **Portfolio average** – der Durchschnitt über Ihre eigenen Gebäude.
+- **Operator average** – der Betreiber-Durchschnitt (siehe oben): Gebäude
+  desselben Betreibers, jedes mit seinem aktuellsten Ist-Jahr.
+- **Benchmark** – ein extern berechneter Vergleichswert, den ein
+  Benchmark-Dienstleister als aggregierte Ansicht mit Ihnen geteilt hat.
+
+Der eigene Wert wird farblich eingeordnet – grün, wenn er unter dem
+Vergleichswert liegt, rot darüber; je größer die Abweichung, desto kräftiger die
+Färbung. Als Maßstab dient dabei der **spezifischste verfügbare Vergleich**: der
+externe Benchmark vor dem Betreiber-Durchschnitt vor dem Portfolio-Durchschnitt.
+Damit vereint diese Seite die drei Vergleichsperspektiven – eigenes Portfolio,
+Betreiber, externer Benchmark – in einer Ansicht.
+
+![Energie-Detailseite: eigener Verbrauch neben Portfolio-, Betreiber- und Benchmark-Vergleich](figures/energy-detail.png){width=100%}
 
 ## Gebäude nach Energieverbrauch einordnen (Energie-Linse)
 
@@ -704,12 +751,30 @@ Löschen (siehe Abschnitt „Gebäude bearbeiten, Dateien verwalten und löschen
 
 1. Wechseln Sie im Tab **Manage** zum Abschnitt „Aggregated views" und klicken
    Sie auf „Create View".
-2. Geben Sie einen Namen ein, wählen Sie die zu aggregierenden Gebäude und
-   Kennzahlen sowie die Aggregatsfunktion und erstellen Sie die Ansicht.
-3. Teilen Sie die fertige Ansicht über das Teilen-Symbol mit der WebID des
+2. Wählen Sie die **Art der Ansicht**:
+   - **Annual portfolio** – Jahreskennzahlen über Ihre eigenen Gebäude
+     aggregieren.
+   - **Monthly (15-minute series)** – Monatssummen über Gebäude, die eine
+     15-Minuten-Messreihe tragen; zur Auswahl stehen nur Monate, für die
+     tatsächlich Messwerte vorliegen.
+   - **Compare shared buildings** – Jahresverbräuche über die **mit Ihnen
+     geteilten** Gebäude aggregieren (z. B. als Benchmark-Dienstleister).
+3. Geben Sie einen Namen ein, wählen Sie die zu aggregierenden Gebäude und
+   Kennzahlen sowie die Aggregatsfunktion und erstellen Sie die Ansicht. Zur
+   Auswahl stehen genau die Kennzahlen, die auch das Eingabeformular „Add / edit
+   energy year" erfasst – was Sie dort eingeben können, können Sie hier
+   aggregieren.
+4. Beim ersten Öffnen berechnet die Anwendung die Ansicht **automatisch**; über
+   „Refresh Snapshot" können Sie sie jederzeit neu berechnen, etwa nachdem sich
+   Energiedaten geändert haben. Enthält das Ergebnis keine Werte – z. B. weil
+   die gewählten Gebäude zu den angekreuzten Kennzahlen keine Daten tragen –
+   weist ein Hinweis darauf hin, statt ein leeres Diagramm zu zeigen.
+5. Teilen Sie die fertige Ansicht über das Teilen-Symbol mit der WebID des
    Empfängers.
 
 ![Dialog zur Erstellung aggregierter Ansichten](figures/create-view.png){width=80%}
+
+![Geöffnete aggregierte Ansicht: die automatisch berechnete Zusammenfassung als Diagramm und Tabelle](figures/aggregated-view.png){width=100%}
 
 > **Technische Details (für Administratoren)**
 >

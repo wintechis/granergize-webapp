@@ -1,4 +1,5 @@
 import { createTheme } from "@mui/material/styles";
+import { BRAND_PRIMARY } from "./constants/chartColors.ts";
 
 // A custom theme for this app
 const theme = createTheme({
@@ -10,7 +11,7 @@ const theme = createTheme({
   spacing: (factor: number) => `${factor * 0.5}rem`,
   palette: {
     primary: {
-      main: "#0277bd", // Clean professional blue — evokes energy infrastructure
+      main: BRAND_PRIMARY, // Clean professional blue — evokes energy infrastructure
     },
     secondary: {
       main: "#388e3c", // Medium green — sustainability / renewables
@@ -75,6 +76,17 @@ const theme = createTheme({
     MuiButton: {
       defaultProps: {
         disableElevation: true,
+      },
+    },
+    MuiTooltip: {
+      defaultProps: {
+        // Our tooltips are pure labels (icon-action names, hints) — never
+        // content to hover INTO. Interactive tooltips (the MUI default) take
+        // pointer events, so an orphaned one — its anchor row deleted under
+        // the cursor — lingers over the row that shifts up beneath it and
+        // swallows the next click (seen as a 3-minute click retry in the
+        // excel-export e2e's delete loop).
+        disableInteractive: true,
       },
     },
   },

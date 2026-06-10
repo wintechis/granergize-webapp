@@ -14,6 +14,9 @@ import { providerIdForIssuer } from "./test/config/providers.ts";
 // Tier 3 (browser × local CSS): boot a throwaway CSS and run the specs against it,
 // credential-free (E2E_LOCAL=1, via `deno task e2e:local`). Off for real-Pod runs.
 const LOCAL = !!process.env.E2E_LOCAL;
+// Tier 5 (deployed smoke): drive the PUBLISHED app at this URL instead of a
+// locally served build — no app webServer is started. `deno task e2e:deployed`.
+const DEPLOYED = process.env.E2E_DEPLOYED_URL;
 // Tier 3 serves the app on LOCAL_APP_PORT; Tier 4 (real Pods) on 4173.
 const PORT = LOCAL ? LOCAL_APP_PORT : 4173;
 
@@ -51,6 +54,8 @@ const TIER4_POD = process.env.E2E_POD_LABEL ||
   providerIdForIssuer(process.env.E2E_ISSUER_A);
 const SCOPE = process.env.E2E_BENCH
   ? `bench-${BACKEND}`
+  : DEPLOYED
+  ? "deployed"
   : LOCAL
   ? `tier-3-${BACKEND}`
   : TIER4_POD
@@ -131,7 +136,7 @@ export default defineConfig({
     ["./test/e2e/cf1015Reporter.ts"],
   ],
   use: {
-    baseURL: `http://localhost:${PORT}`,
+    baseURL: DEPLOYED ?? `http://localhost:${PORT}`,
     // Capture a trace for every test and keep it on failure — so the FIRST failure
     // always yields a trace, no retry needed (unlike `on-first-retry`, which writes
     // nothing on a retries=0 run).
@@ -164,10 +169,20 @@ export default defineConfig({
     ...(process.env.E2E_BENCH
       ? [{ name: "bench", use: CHROME, testMatch: ["**/bench/**/*.spec.ts"] }]
       : []),
+    // Tier 5: smoke against the PUBLISHED app (E2E_DEPLOYED_URL is the baseURL;
+    // no webServer). `deno task e2e:deployed`. `--project=deployed`.
+    ...(DEPLOYED
+      ? [{
+        name: "deployed",
+        use: CHROME,
+        testMatch: ["**/deployed-smoke.spec.ts"],
+      }]
+      : []),
   ],
-  // Always the Vite app; plus the throwaway CSS when running the local tier.
+  // The Vite app (except for the deployed smoke, which targets the published
+  // URL); plus the throwaway CSS when running the local tier.
   webServer: [
-    {
+    ...(DEPLOYED ? [] : [{
       // Tier 3 (local) serves the production build (`deno task build` runs first in
       // the task) to rule out Vite-dev/HMR artifacts; Tier 4 (remote) uses the dev
       // server. Keyed off LOCAL — no separate E2E_PREVIEW knob.
@@ -187,7 +202,7 @@ export default defineConfig({
       // the fresh build is the only way the served app is the one just built.
       reuseExistingServer: false,
       timeout: 120_000,
-    },
+    }]),
     ...(LOCAL
       ? [{
         command: "deno run -A test/e2e-local/css.ts",

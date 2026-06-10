@@ -1,11 +1,12 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Box, TextField, Typography } from "@mui/material";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { EnergyDatasetRef } from "../types.ts";
 import { parseTtlReadings } from "../services/rdf/userEnergyParser.ts";
-import { listDirectChildren } from "../services/pod/podDelete.ts";
+import { listSeriesDays } from "../services/rdf/energyDataset.ts";
+import { formatNumber } from "../lib/formatNumber.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import MetricLineChart from "../components/detail/MetricLineChart.tsx";
 
@@ -28,20 +29,13 @@ export default function UserEnergyChart(
   useEffect(() => {
     let cancelled = false;
     (async () => {
-      const entries: Array<{ label: string; location: string }> = [];
-      for (const ref of seriesDatasets) {
-        // Descriptor `…/<year>-PT15M.ttl` → sibling `…/<year>-PT15M/` container.
-        const container = ref.url.split("#")[0].replace(/\.ttl$/, "/");
-        const children = (await listDirectChildren(container, session)) ?? [];
-        for (const url of children) {
-          if (!url.endsWith(".ttl")) continue;
-          entries.push({
-            label: url.split("/").pop()!.replace(".ttl", ""),
-            location: url,
-          });
-        }
-      }
-      entries.sort((a, b) => a.label.localeCompare(b.label));
+      const perRef = await Promise.all(
+        seriesDatasets.map((ref) => listSeriesDays(session, ref)),
+      );
+      const entries = perRef
+        .flat()
+        .map(({ day, url }) => ({ label: day, location: url }))
+        .sort((a, b) => a.label.localeCompare(b.label));
       if (!cancelled) setDateEntries(entries);
     })();
     return () => {
@@ -152,21 +146,23 @@ export default function UserEnergyChart(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [activeTab, selectedMonth]);
 
-  // ── Derived data ──────────────────────────────────────────────────────────
-  const dailyTotals = allDaysData
-    ? Array.from(allDaysData.entries())
-      .map(([label, rs]) => ({
-        label,
-        total: rs.reduce((s, r) => s + r.value, 0),
-      }))
-      .sort((a, b) => a.label.localeCompare(b.label))
-    : [];
+  // ── Derived data (memoized — a month is ~31 × 96 readings, and any state
+  // change re-renders; fresh array identities would also re-render Recharts) ──
+  const dailyTotals = useMemo(() =>
+    allDaysData
+      ? Array.from(allDaysData.entries())
+        .map(([label, rs]) => ({
+          label,
+          total: rs.reduce((s, r) => s + r.value, 0),
+        }))
+        .sort((a, b) => a.label.localeCompare(b.label))
+      : [], [allDaysData]);
 
   const avgDailyTotal = dailyTotals.length
     ? dailyTotals.reduce((s, d) => s + d.total, 0) / dailyTotals.length
     : 0;
 
-  const avgProfile = (() => {
+  const avgProfile = useMemo(() => {
     if (!allDaysData) return [];
     const acc = new Map<string, { sum: number; count: number }>();
     allDaysData.forEach((rs) =>
@@ -179,18 +175,23 @@ export default function UserEnergyChart(
     return Array.from(acc.entries())
       .map(([slot, { sum, count }]) => ({ slot, avg: sum / count }))
       .sort((a, b) => a.slot.localeCompare(b.slot));
-  })();
+  }, [allDaysData]);
 
   // ── Chart rows (one `{ t, value }` point per reading/day/slot) ─────────────
-  const dayViewRows = readings.map((r) => ({
-    t: r.begin.substring(11, 16),
-    value: r.value,
-  }));
-  const dailyTotalsRows = dailyTotals.map((d) => ({
-    t: d.label,
-    value: d.total,
-  }));
-  const avgProfileRows = avgProfile.map((d) => ({ t: d.slot, value: d.avg }));
+  const dayViewRows = useMemo(() =>
+    readings.map((r) => ({
+      t: r.begin.substring(11, 16),
+      value: r.value,
+    })), [readings]);
+  const dailyTotalsRows = useMemo(() =>
+    dailyTotals.map((d) => ({
+      t: d.label,
+      value: d.total,
+    })), [dailyTotals]);
+  const avgProfileRows = useMemo(
+    () => avgProfile.map((d) => ({ t: d.slot, value: d.avg })),
+    [avgProfile],
+  );
 
   const dailyTotal = readings.reduce((sum, r) => sum + r.value, 0);
 
@@ -277,13 +278,8 @@ export default function UserEnergyChart(
           {!loading && !fetchError && readings.length > 0 && (
             <>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Daily total:{" "}
-                <strong>
-                  {dailyTotal.toLocaleString("de-DE", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })} kWh
-                </strong>{" "}
+                Daily total: <strong>{formatNumber(dailyTotal, 2)} kWh</strong>
+                {" "}
                 ({readings.length} readings)
               </Typography>
               <Box sx={{ position: "relative", width: "100%" }}>
@@ -310,12 +306,7 @@ export default function UserEnergyChart(
             <>
               <Typography variant="body2" sx={{ mb: 1 }}>
                 Average daily consumption:{" "}
-                <strong>
-                  {avgDailyTotal.toLocaleString("de-DE", {
-                    minimumFractionDigits: 2,
-                    maximumFractionDigits: 2,
-                  })} kWh
-                </strong>{" "}
+                <strong>{formatNumber(avgDailyTotal, 2)} kWh</strong>{" "}
                 ({dailyTotals.length} days)
               </Typography>
               <Box sx={{ position: "relative", width: "100%" }}>

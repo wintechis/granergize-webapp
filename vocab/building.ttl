@@ -112,11 +112,28 @@
     rdfs:comment "Denormalised name of the company behind the building; candidate for retirement in favour of the agent's profile."@en ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
-# Agent link: who invests in the building, as a WebID (foaf:Agent) — the same
-# shape as rec:ownedBy / rec:operatedBy, which the app reuses directly.
+# Agent links: building→agent relationship properties, each identifying the
+# agent by WebID (foaf:Agent) — the same shape as rec:ownedBy / rec:operatedBy,
+# which the app reuses directly. These are relationships of a building, NOT
+# roles of a person (roles exist only as data-room membership).
 :investor rdf:type owl:ObjectProperty ;
     rdfs:label "investor"@en ; rdfs:label "Investor"@de ;
     rdfs:comment "The building's investor, identified by WebID."@en ;
+    rdfs:domain rec:Building ; rdfs:range foaf:Agent .
+
+:facilityManagedBy rdf:type owl:ObjectProperty ;
+    rdfs:label "facility managed by"@en ; rdfs:label "Facility Manager"@de ;
+    rdfs:comment "The building's facility manager, identified by WebID. Distinct from rec:operatedBy (the operator running the building's use)."@en ;
+    rdfs:domain rec:Building ; rdfs:range foaf:Agent .
+
+:developedBy rdf:type owl:ObjectProperty ;
+    rdfs:label "developed by"@en ; rdfs:label "Projektentwickler"@de ;
+    rdfs:comment "The project developer that developed the building, identified by WebID."@en ;
+    rdfs:domain rec:Building ; rdfs:range foaf:Agent .
+
+:consultedBy rdf:type owl:ObjectProperty ;
+    rdfs:label "consulted by"@en ; rdfs:label "Berater/Makler"@de ;
+    rdfs:comment "A consultant or broker advising on / marketing the building, identified by WebID."@en ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
 ############################

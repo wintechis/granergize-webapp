@@ -6,19 +6,18 @@ import * as XLSX from "xlsx";
 import type { BuildingType } from "../../../types.ts";
 import {
   annualDatasetsFromFields,
-  buildingsToXlsx,
-  buildingToXlsx,
   deleteBuilding,
   deleteEnergyYear,
   newBuildingUri,
   parseCsvToFields,
   seedDemoBuildings,
   serializeBuildingToTurtle,
-  synthDayReadings,
   uploadBuilding,
   writeBuildingEnergy,
   writeEnergyYear,
 } from "./buildingSerializer.ts";
+import { buildingsToXlsx, buildingToXlsx } from "../buildingWorkbook.ts";
+import { synthDayReadings } from "../energySeriesXlsx.ts";
 import {
   datasetFileUrl,
   datasetNodeUrl,
@@ -216,6 +215,46 @@ Deno.test("serializeBuildingToTurtle writes investor + ownedBy as IRI references
   const b = parseBuildings(new Parser().parse(ttl)).get("b-agents");
   assert.equal(b!.investor, investor);
   assert.equal(b!.ownedBy, owner);
+});
+
+Deno.test("serializeBuildingToTurtle writes facilityManagedBy/developedBy/consultedBy as IRI references", () => {
+  const uri = newBuildingUri(WEBID, "b-agents2");
+  const fm = "https://fm.example/profile/card#me";
+  const dev = "https://developer.example/profile/card#me";
+  const consultant = "https://broker.example/profile/card#me";
+  const ttl = serializeBuildingToTurtle(
+    { facilityManagedBy: fm, developedBy: dev, consultedBy: consultant },
+    uri,
+  );
+  const store = parse(ttl);
+
+  for (
+    const [pred, value] of [
+      ["facilityManagedBy", fm],
+      ["developedBy", dev],
+      ["consultedBy", consultant],
+    ]
+  ) {
+    const quads = store.getQuads(
+      namedNode(`${uri}#b-agents2`),
+      namedNode(`${BUILDING_NS}${pred}`),
+      null,
+      null,
+    );
+    assert.equal(quads.length, 1, `one ${pred} triple`);
+    assert.equal(
+      quads[0].object.termType,
+      "NamedNode",
+      `${pred} is an IRI, not a literal`,
+    );
+    assert.equal(quads[0].object.value, value);
+  }
+
+  // And they round-trip back through the parser as the WebID strings.
+  const b = parseBuildings(new Parser().parse(ttl)).get("b-agents2");
+  assert.equal(b!.facilityManagedBy, fm);
+  assert.equal(b!.developedBy, dev);
+  assert.equal(b!.consultedBy, consultant);
 });
 
 Deno.test("parseBuildings tolerates a legacy xsd:string investor literal", () => {
@@ -803,6 +842,38 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.ok(
     annualFiles.some((b) => b.includes("ElectricityConsumption")),
     "an annual dataset declares cons:ElectricityConsumption",
+  );
+
+  // Self-operated demos (investor #1+#2 and both user demos) carry operatedBy =
+  // the seeding user's WebID — the shared operator group that makes the
+  // Betreiber benchmark show on the demo data. The cold store (demo #3) stays
+  // outside the group, so the set also demonstrates a building WITHOUT it.
+  const operated = bodies.filter((b) => b.includes("operatedBy"));
+  assert.equal(operated.length, 4, "four demo buildings are self-operated");
+  assert.ok(
+    operated.every((b) => b.includes(WEBID)),
+    "operatedBy points at the seeding user's WebID",
+  );
+
+  // The two series demos are owner-occupiers (ownedBy = the seeding user); the
+  // investor demos carry no ownedBy (their economic side is the fictional fund).
+  const owned = bodies.filter((b) => b.includes("ownedBy"));
+  assert.equal(owned.length, 2, "the two series demos are self-owned");
+
+  // Demo #1 carries an extra planned (Soll) 2024 dataset next to the actual
+  // 2024 figures — the out-of-the-box Soll-Ist pair.
+  const plannedPuts = calls.filter((c) =>
+    c.method === "PUT" && /\/energy\/2024-P1Y-planned\.ttl$/.test(c.url)
+  );
+  assert.equal(plannedPuts.length, 1, "one planned 2024 dataset written");
+  assert.ok(
+    (plannedPuts[0].body ?? "").includes("ElectricityConsumption"),
+    "the planned dataset carries metric observations",
+  );
+  assert.equal(
+    bodies.filter((b) => b.includes("2024-P1Y-planned.ttl#ds")).length,
+    1,
+    "exactly one building links the planned dataset",
   );
 
   // The building files carry a PROV qualified attribution to the producing agent,

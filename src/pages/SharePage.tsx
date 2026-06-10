@@ -26,11 +26,12 @@ import { formatError } from "../lib/formatError.ts";
 import { useReceivedViews, useSharedWithMe } from "../hooks/queries.ts";
 import { useCheckInbox, useToggleVisibility } from "../hooks/mutations.ts";
 import { loadSharedBuilding } from "../services/interop/sharedBuilding.ts";
+import { attachAnnualData } from "../services/rdf/building/buildingSerializer.ts";
 import {
-  attachAnnualData,
   buildingsToXlsx,
   buildingToXlsx,
-} from "../services/rdf/building/buildingSerializer.ts";
+} from "../services/rdf/buildingWorkbook.ts";
+import { formatNumber } from "../lib/formatNumber.ts";
 import { loadComputedSnapshot } from "../services/aggregation/viewManager.ts";
 import { downloadXlsx } from "../lib/download.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
@@ -138,10 +139,7 @@ function ReceivedViewRow(
                     <TableRow key={metric}>
                       <TableCell>{metric}</TableCell>
                       <TableCell align="right">
-                        {value.toLocaleString("de-DE", {
-                          minimumFractionDigits: 2,
-                          maximumFractionDigits: 2,
-                        })}
+                        {formatNumber(value, 2)}
                       </TableCell>
                     </TableRow>
                   ))}

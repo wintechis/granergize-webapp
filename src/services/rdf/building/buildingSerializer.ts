@@ -40,7 +40,7 @@ import {
   seriesDailyFileUrl,
 } from "../energyDataset.ts";
 import { isSeriesGranularity } from "../durationUtils.ts";
-import { appRoot, getStorageRoot } from "../../pod/solidUtils.ts";
+import { getStorageRoot, podResources } from "../../pod/solidUtils.ts";
 import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";
 import { logError } from "../../../lib/logError.ts";
 import { mapPooled } from "../../../lib/pool.ts";
@@ -56,6 +56,7 @@ import {
   applyNormalization,
   BSP_COL_MAP,
   certLevelLabel,
+  INV_YEAR_ROW_STEMS,
   INVESTOR_CERT_SYSTEMS,
   INVESTOR_OPCOST_ROW_MAP,
   INVESTOR_ROW_MAP,
@@ -65,16 +66,9 @@ import {
   OPCOST_BOOLEAN_FIELDS,
   OPCOST_FIELDS,
   type SpreadsheetFormat,
+  yearsIn,
 } from "../buildingTemplates.ts";
-import { buildingsToXlsx, buildingToXlsx } from "../buildingWorkbook.ts";
 import * as XLSX from "xlsx";
-
-// Re-exported so existing importers can keep getting them from buildingSerializer
-// (geocode, the Lastgang/energy-series helpers, and the XLSX export now live in
-// their own modules).
-export { geocodeFields };
-export { generateEnergyDayTtl, type LastgangReading, synthDayReadings };
-export { buildingsToXlsx, buildingToXlsx };
 
 const { namedNode, literal, blankNode } = DataFactory;
 
@@ -110,15 +104,39 @@ function xsdType(field: string): string {
   return XSD_STRING;
 }
 
+/**
+ * The predicate IRI a building field is written under, or undefined for a field
+ * the config doesn't map. Checked in the same precedence the field tables are
+ * partitioned by: controlled-vocab object property, then agent/IRI reference,
+ * then typed literal.
+ */
+function predicateFor(field: string): string | undefined {
+  return fieldToObjectPredicate[field] ?? fieldToIriPredicate[field] ??
+    fieldToPredicate[field];
+}
 
 /**
- * Serialize investor operating costs as a single `investor:hasOperatingCosts`
- * blank node, from `_opcost_<field>` keys. The boolean category is typed
- * `xsd:boolean`; the rest are plain literals of the (already human-readable)
- * value — which is exactly what `buildingParser` reads back (its controlled-vocab
- * label lookup is a no-op for values that are already labels). No-op when no
- * `_opcost_*` keys are present.
+ * The RDF object term for a building field's value: a controlled-vocab field's
+ * local name (e.g. "OneShift") expands to a `BUILDING_NS` IRI; an agent/IRI field
+ * is a NamedNode when the value carries a URI scheme (a legacy non-IRI value
+ * stays a plain literal — see {@link isIriValue}); everything else is a literal
+ * typed by the field's XSD datatype. Shared by the create (serialize) and edit
+ * (update) paths so the two can't drift.
  */
+function objectTermFor(
+  field: string,
+  value: string,
+): ReturnType<typeof namedNode> | ReturnType<typeof literal> {
+  if (field in fieldToObjectPredicate) {
+    return namedNode(`${BUILDING_NS}${value}`);
+  }
+  if (field in fieldToIriPredicate) {
+    return isIriValue(value) ? namedNode(value) : literal(value);
+  }
+  return literal(value, namedNode(xsdType(field)));
+}
+
+
 /**
  * Write the building's coordinates as a `geo:Point` blank node linked by
  * `geo:location`, carrying `bldg:geocodePrecision` when known. Keeping the point
@@ -149,6 +167,30 @@ function addGeoPoint(
 }
 
 /**
+ * The shared edit-path shape behind {@link replaceGeoPoint} /
+ * {@link replaceOperatingCosts} / {@link replaceCertifications}: drop every node
+ * linked from `subject` via `predIri` (with the linked node's own triples), then
+ * re-add fresh ones from `fields` via `addFn`.
+ */
+function replaceLinkedNodes(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  predIri: string,
+  fields: Record<string, string>,
+  addFn: (
+    store: Store,
+    subject: ReturnType<typeof namedNode>,
+    fields: Record<string, string>,
+  ) => void,
+): void {
+  for (const link of store.getQuads(subject, namedNode(predIri), null, null)) {
+    store.removeQuads(store.getQuads(link.object, null, null, null));
+    store.removeQuad(link);
+  }
+  addFn(store, subject, fields);
+}
+
+/**
  * Replace the building's coordinates on an EXISTING store (the edit path): drop
  * the current geo:Point (and any legacy flat geo:lat/long), then re-add a fresh
  * point from `fields`. Migrates legacy flat-coordinate buildings to the point
@@ -159,13 +201,9 @@ function replaceGeoPoint(
   subject: ReturnType<typeof namedNode>,
   fields: Record<string, string>,
 ): void {
-  for (const link of store.getQuads(subject, namedNode(GEO_LOCATION), null, null)) {
-    store.removeQuads(store.getQuads(link.object, null, null, null));
-    store.removeQuad(link);
-  }
   store.removeQuads(store.getQuads(subject, namedNode(GEO_LAT), null, null));
   store.removeQuads(store.getQuads(subject, namedNode(GEO_LONG), null, null));
-  addGeoPoint(store, subject, fields);
+  replaceLinkedNodes(store, subject, GEO_LOCATION, fields, addGeoPoint);
 }
 
 /**
@@ -179,12 +217,13 @@ function replaceOperatingCosts(
   subject: ReturnType<typeof namedNode>,
   fields: Record<string, string>,
 ): void {
-  const pred = namedNode(`${BUILDING_NS}hasOperatingCosts`);
-  for (const link of store.getQuads(subject, pred, null, null)) {
-    store.removeQuads(store.getQuads(link.object, null, null, null));
-    store.removeQuad(link);
-  }
-  addOperatingCosts(store, subject, fields);
+  replaceLinkedNodes(
+    store,
+    subject,
+    `${BUILDING_NS}hasOperatingCosts`,
+    fields,
+    addOperatingCosts,
+  );
 }
 
 /**
@@ -197,14 +236,23 @@ function replaceCertifications(
   subject: ReturnType<typeof namedNode>,
   fields: Record<string, string>,
 ): void {
-  const pred = namedNode(`${BUILDING_NS}hasBuildingCertification`);
-  for (const link of store.getQuads(subject, pred, null, null)) {
-    store.removeQuads(store.getQuads(link.object, null, null, null));
-    store.removeQuad(link);
-  }
-  addCertifications(store, subject, fields);
+  replaceLinkedNodes(
+    store,
+    subject,
+    `${BUILDING_NS}hasBuildingCertification`,
+    fields,
+    addCertifications,
+  );
 }
 
+/**
+ * Serialize investor operating costs as a single `investor:hasOperatingCosts`
+ * blank node, from `_opcost_<field>` keys. The boolean category is typed
+ * `xsd:boolean`; the rest are plain literals of the (already human-readable)
+ * value — which is exactly what `buildingParser` reads back (its controlled-vocab
+ * label lookup is a no-op for values that are already labels). No-op when no
+ * `_opcost_*` keys are present.
+ */
 function addOperatingCosts(
   store: Store,
   subject: ReturnType<typeof namedNode>,
@@ -335,24 +383,9 @@ export function serializeBuildingToTurtle(
     // legacy flat-coordinate Pods can still be parsed).
     if (field === "lat" || field === "long") continue;
 
-    if (field in fieldToObjectPredicate) {
-      store.addQuad(
-        subject,
-        namedNode(fieldToObjectPredicate[field]),
-        namedNode(`${BUILDING_NS}${value}`),
-      );
-    } else if (field in fieldToIriPredicate) {
-      store.addQuad(
-        subject,
-        namedNode(fieldToIriPredicate[field]),
-        isIriValue(value) ? namedNode(value) : literal(value),
-      );
-    } else if (field in fieldToPredicate) {
-      store.addQuad(
-        subject,
-        namedNode(fieldToPredicate[field]),
-        literal(value, namedNode(xsdType(field))),
-      );
+    const predIri = predicateFor(field);
+    if (predIri) {
+      store.addQuad(subject, namedNode(predIri), objectTermFor(field, value));
     }
   }
 
@@ -463,7 +496,7 @@ export async function deleteEnergyYear(
  * Fetch each building's actual annual `cons:EnergyDataset` resources and attach
  * them as `annualData` — energy is no longer inline, but the synchronous Excel
  * export reads that field. Mutates the buildings in place and returns them; call
- * before {@link buildingToXlsx} / {@link buildingsToXlsx}.
+ * before `buildingToXlsx` / `buildingsToXlsx` (buildingWorkbook.ts).
  */
 export function attachAnnualData(
   buildings: BuildingType[],
@@ -513,23 +546,14 @@ export function annualDatasetsFromFields(
   // Investor: one dataset per year carrying any of elec/heat/water/renew. The
   // years come from the `_inv_*_<year>` field keys themselves, not a hardcoded
   // range — an import carrying a newer year must not silently drop it.
-  const invYears = [
-    ...new Set(
-      Object.keys(fields)
-        .map((k) => k.match(/^_inv_[a-z]+_(\d{4})$/i)?.[1])
-        .filter((y): y is string => Boolean(y))
-        .map(Number),
-    ),
-  ].sort((a, b) => a - b);
+  const invYears = yearsIn(Object.keys(fields), /^_inv_[a-z]+_(\d{4})$/i);
   for (const year of invYears) {
     const metrics: AnnualMetrics = {};
-    const elec = num(fields[`_inv_elec_${year}`]);
-    const heat = num(fields[`_inv_heat_${year}`]);
-    const water = num(fields[`_inv_water_${year}`]);
+    for (const { key, field } of INV_YEAR_ROW_STEMS) {
+      const v = num(fields[`_inv_${key}_${year}`]);
+      if (v !== undefined) metrics[field] = v;
+    }
     const renew = num(fields[`_inv_renew_${year}`]);
-    if (elec !== undefined) metrics.electricityConsumption = elec;
-    if (heat !== undefined) metrics.heatConsumption = heat;
-    if (water !== undefined) metrics.waterConsumption = water;
     if (renew !== undefined) metrics.renewableSelfGeneratedShare = renew;
     annual(year, metrics);
   }
@@ -639,7 +663,7 @@ export async function uploadBuilding(
 ): Promise<void> {
   // Provision the buildings/ container first (announced once, on first add) so
   // the building-file PUT below has somewhere to land — via the shared helper.
-  await ensureContainer(`${appRoot(webId)}buildings/`, session);
+  await ensureContainer(podResources(webId).buildings, session);
   signal?.throwIfAborted();
   const res = await session.fetch(buildingUri, {
     method: "PUT",
@@ -672,37 +696,13 @@ export async function updateBuilding(
       // Coordinates are rewritten as a geo:Point below, not flat on the subject.
       if (field === "lat" || field === "long") continue;
 
-      const isObjProp = field in fieldToObjectPredicate;
-      const isIriProp = field in fieldToIriPredicate;
-      const predIri = isObjProp
-        ? fieldToObjectPredicate[field]
-        : isIriProp
-        ? fieldToIriPredicate[field]
-        : fieldToPredicate[field];
+      const predIri = predicateFor(field);
       if (!predIri) continue;
 
       store.removeQuads(store.getQuads(subject, namedNode(predIri), null, null));
       if (!value?.trim()) continue;
 
-      if (isObjProp) {
-        store.addQuad(
-          subject,
-          namedNode(predIri),
-          namedNode(`${BUILDING_NS}${value}`),
-        );
-      } else if (isIriProp) {
-        store.addQuad(
-          subject,
-          namedNode(predIri),
-          isIriValue(value) ? namedNode(value) : literal(value),
-        );
-      } else {
-        store.addQuad(
-          subject,
-          namedNode(predIri),
-          literal(value, namedNode(xsdType(field))),
-        );
-      }
+      store.addQuad(subject, namedNode(predIri), objectTermFor(field, value));
     }
     // Rewrite the geo:Point when coordinates were edited (also migrates a legacy
     // flat-coordinate building to the point model).
@@ -723,7 +723,7 @@ export async function updateBuilding(
 
 /** Construct the POD URL for a new building file. */
 export function newBuildingUri(webId: string, id: string): string {
-  return `${appRoot(webId)}buildings/${id}.ttl`;
+  return `${podResources(webId).buildings}${id}.ttl`;
 }
 
 /**
@@ -781,19 +781,37 @@ export async function deleteBuilding(
 // ── Demo seed ─────────────────────────────────────────────────────────────────
 
 /**
- * A demo building's master data and energy shape. `role` is a demo-spec
- * discriminator only (e.g. a `"user"` demo also gets `operatedBy`); the render/load
- * paths key on the data *shape* (the energy granularity), never a role. `annual`,
- * when present, holds the `_inv_*`/`_bsp_*` fields merged in for an
+ * A demo building's master data and energy shape. The render/load paths key on
+ * the data *shape* (the energy granularity), never a role. `annual`, when
+ * present, holds the `_inv_*`/`_bsp_*` fields merged in for an
  * `energy: "annual"` building (turned into annual SOSA observations).
  */
 interface DemoSpec {
   fields: Record<string, string>;
-  role: "investor" | "user";
   energy: "annual" | "series";
   annual?: Record<string, string>;
   /** For `energy: "series"`: how many demo days (15-min) to synthesize. */
   seriesDays?: number;
+  /**
+   * Set `operatedBy` to the seeding user's own WebID at seed time. Two effects:
+   * the agent-link → contact detail path resolves to a real profile out of the
+   * box, and every self-operated building with annual data joins ONE operator
+   * group — so the operator-average (Betreiber) benchmark shows on the demo data
+   * without any extra setup (it needs ≥2 buildings sharing an operator).
+   */
+  selfOperated?: boolean;
+  /**
+   * Set `ownedBy` to the seeding user's own WebID at seed time — the
+   * owner-occupier constellation. The agent links are independent axes: a demo
+   * can be operated-but-not-owned (the investor demos, owned economically by
+   * the fictional fund) or owned-and-operated (the small series buildings).
+   */
+  selfOwned?: boolean;
+  /**
+   * An extra planned (Soll) annual dataset, so the demo shows a Soll-Ist pair
+   * next to the actual figures of the same year out of the box.
+   */
+  planned?: { year: number; metrics: AnnualMetrics };
 }
 
 /**
@@ -841,13 +859,23 @@ const DEMO_INVESTOR: DemoSpec = {
     _opcost_security: "High",
     _opcost_operationInspectionAndMaintenance: "true",
   },
-  role: "investor",
   energy: "annual",
+  selfOperated: true,
   // Multi-year `_inv_*` energy (electricity/heat in kWh, water in m³).
   annual: {
     _inv_elec_2022: "118000", _inv_elec_2023: "121500", _inv_elec_2024: "115200",
     _inv_heat_2022: "240000", _inv_heat_2023: "232000", _inv_heat_2024: "228500",
     _inv_water_2022: "1450", _inv_water_2023: "1500", _inv_water_2024: "1410",
+  },
+  // Planned (Soll) 2024 next to the actual 2024 figures — the demo data shows
+  // the Soll-Ist comparison out of the box (the actuals run slightly over plan).
+  planned: {
+    year: 2024,
+    metrics: {
+      electricityConsumption: 110000,
+      heatConsumption: 220000,
+      waterConsumption: 1400,
+    },
   },
 };
 
@@ -887,8 +915,8 @@ const DEMO_INVESTOR_2: DemoSpec = {
     _opcost_propertyManagement: "Low",
     _opcost_security: "Medium",
   },
-  role: "investor",
   energy: "annual",
+  selfOperated: true, // shares the operator group with demo #1 (Betreiber benchmark)
   annual: {
     _inv_elec_2022: "96000", _inv_elec_2023: "99500", _inv_elec_2024: "101200",
     _inv_heat_2022: "180000", _inv_heat_2023: "176000", _inv_heat_2024: "171500",
@@ -931,7 +959,8 @@ const DEMO_INVESTOR_3: DemoSpec = {
     _opcost_propertyManagement: "Medium",
     _opcost_operationInspectionAndMaintenance: "true",
   },
-  role: "investor",
+  // Deliberately NOT self-operated: the cold store stays outside the operator
+  // group, so the demo set also shows a building WITHOUT the Betreiber benchmark.
   energy: "annual",
   annual: {
     _inv_elec_2022: "210000", _inv_elec_2023: "205000", _inv_elec_2024: "198000",
@@ -942,8 +971,7 @@ const DEMO_INVESTOR_3: DemoSpec = {
 
 /**
  * User demo: a 15-minute load-profile series (lazy-loaded, time-series chart) with
- * light metadata — the shape an end user produces. `operatedBy` is set to the
- * seeding user's own WebID at seed time (see {@link seedDemoBuildings}) so the
+ * light metadata — the shape an end user produces. Self-operated, so the
  * agent-link → contact path resolves out of the box.
  */
 const DEMO_USER: DemoSpec = {
@@ -958,8 +986,9 @@ const DEMO_USER: DemoSpec = {
     yearOfConstruction: "1998",
     hasPVSystem: "false",
   },
-  role: "user",
   energy: "series",
+  selfOperated: true,
+  selfOwned: true, // owner-occupier: the small office is owned AND operated
   // A full month of demo days, so the Day View, Daily Totals and Average Profile
   // are all populated (not just a single day).
   seriesDays: 28,
@@ -978,14 +1007,11 @@ const DEMO_USER_2: DemoSpec = {
     yearOfConstruction: "2005",
     hasPVSystem: "true",
   },
-  role: "user",
   energy: "series",
+  selfOperated: true,
+  selfOwned: true, // owner-occupier, like DEMO_USER
   seriesDays: 7,
 };
-
-// `geocodeFields` moved to ./geocode.ts (self-contained Nominatim lookup); it is
-// imported above and re-exported below so existing call sites keep importing it
-// from here.
 
 /**
  * The demo building set: a few example buildings spanning both data shapes — annual
@@ -1023,9 +1049,11 @@ export async function seedDemoBuildings(
           geocodePrecision: coords.precision,
         }
         : { ...demo.fields };
-      // Attribute the operator to the seeding user so the agent-link → contact
-      // detail path resolves to a real profile out of the box.
-      if (demo.role === "user") fields = { ...fields, operatedBy: webId };
+      // Attribute the operator/owner to the seeding user (see {@link DemoSpec}'s
+      // `selfOperated`/`selfOwned`: real profile resolution + the shared
+      // operator group that makes the Betreiber benchmark show on the demo data).
+      if (demo.selfOperated) fields = { ...fields, operatedBy: webId };
+      if (demo.selfOwned) fields = { ...fields, ownedBy: webId };
       // A collision-free id (several demo buildings are written in a tight loop).
       const id = crypto.randomUUID();
       const uri = newBuildingUri(webId, id);
@@ -1067,6 +1095,27 @@ export async function seedDemoBuildings(
         fields,
         series,
       );
+      if (demo.planned) {
+        // The extra planned (Soll) dataset — its own resource, like the actuals.
+        const fileUrl = datasetFileUrl(uri, demo.planned.year, "P1Y", "planned");
+        const put = await session.fetch(fileUrl, {
+          method: "PUT",
+          headers: { "Content-Type": "text/turtle" },
+          body: serializeEnergyDataset({
+            building: subjectUri,
+            year: demo.planned.year,
+            granularity: "P1Y",
+            scenario: "planned",
+            metrics: demo.planned.metrics,
+          }),
+        });
+        if (!put.ok) {
+          throw new Error(
+            `Energy upload failed (${fileUrl}): ${put.status} ${put.statusText}`,
+          );
+        }
+        energyLinks.push(datasetNodeUrl(fileUrl));
+      }
       const ttl = serializeBuildingToTurtle(fields, uri, energyLinks, {
         agent: webId,
       });
@@ -1151,6 +1200,14 @@ export async function parseCsvToFields(
     // Renewable share: single row applied to every year that has electricity data
     const renewRowIdx = rowIndex["Anteil eigenerzeugter Strom aus erneuerbaren Quellen"];
 
+    // Years come from the sheet's own row labels ("Stromverbrauch 2025"), not a
+    // hardcoded range — a partner sheet with a newer year row used to be
+    // silently dropped. (Same labels the per-year extraction below reads.)
+    const yearLabelRe = new RegExp(
+      `^(?:${INV_YEAR_ROW_STEMS.map((s) => s.label).join("|")}) (\\d{4})$`,
+    );
+    const sheetYears = yearsIn(Object.keys(rowIndex), yearLabelRe);
+
     // Buildings in columns D–K (indices 3–10), matching investor-to-ttl.ts
     for (const col of [3, 4, 5, 6, 7, 8, 9, 10]) {
       // Skip column if no building code present
@@ -1178,34 +1235,14 @@ export async function parseCsvToFields(
         : null;
       const renewNorm = renewRaw != null ? normalizeNumber(String(renewRaw)) : "";
 
-      // Years come from the sheet's own row labels ("Stromverbrauch 2025"),
-      // not a hardcoded range — a partner sheet with a newer year row used to
-      // be silently dropped.
-      const sheetYears = [
-        ...new Set(
-          Object.keys(rowIndex)
-            .map((l) =>
-              l.match(
-                /^(?:Stromverbrauch|Wärme - tatsächlicher Verbrauch|Wasserverbrauch) (\d{4})$/,
-              )?.[1]
-            )
-            .filter((y): y is string => Boolean(y))
-            .map(Number),
-        ),
-      ].sort((a, b) => a - b);
       for (const year of sheetYears) {
-        const yearRows: [string, string][] = [
-          [`Stromverbrauch ${year}`, `_inv_elec_${year}`],
-          [`Wärme - tatsächlicher Verbrauch ${year}`, `_inv_heat_${year}`],
-          [`Wasserverbrauch ${year}`, `_inv_water_${year}`],
-        ];
-        for (const [rowLabel, fieldKey] of yearRows) {
-          const r = rowIndex[rowLabel];
+        for (const { label, key } of INV_YEAR_ROW_STEMS) {
+          const r = rowIndex[`${label} ${year}`];
           if (r === undefined) continue;
           const cell = ws[XLSX.utils.encode_cell({ r, c: col })];
           if (cell?.v == null) continue;
           const v = normalizeNumber(String(cell.v));
-          if (v) result[fieldKey] = v;
+          if (v) result[`_inv_${key}_${year}`] = v;
         }
         // Attach renewable share to each year that has electricity data
         if (renewNorm && result[`_inv_elec_${year}`]) {

@@ -23,25 +23,19 @@ import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { loadEnergyDatasets } from "../services/rdf/energyDataset.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { energyKeyFor, useSolidData } from "../hooks/queries.ts";
+import { formatNumber } from "../lib/formatNumber.ts";
+import {
+  ELECTRICITY_COLOR,
+  HEAT_COLOR,
+  PLANNED_COLOR,
+  RENEWABLE_COLOR,
+  WATER_COLOR,
+} from "../constants/chartColors.ts";
 
 interface InvestorEnergyProps {
   building: BuildingType;
   session: Session;
 }
-
-function formatNumber(value: number, decimals = 0): string {
-  return new Intl.NumberFormat("de-DE", {
-    minimumFractionDigits: decimals,
-    maximumFractionDigits: decimals,
-  }).format(value);
-}
-
-const ELECTRICITY_COLOR = "rgba(31, 120, 180, 0.8)";
-const HEAT_COLOR = "rgba(227, 26, 28, 0.8)";
-const WATER_COLOR = "rgba(51, 160, 44, 0.8)";
-const RENEWABLE_COLOR = "rgba(178, 223, 138, 0.9)";
-// Planned (Soll) figures — one neutral colour across metrics, shown beside actual.
-const PLANNED_COLOR = "rgba(120, 120, 120, 0.55)";
 
 class ChartErrorBoundary extends React.Component<
   { children: React.ReactNode },

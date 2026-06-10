@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import {
   annualEnergyKwh,
-  categorise,
+  categoriserFor,
   energyIntensity,
   referenceArea,
 } from "./energyCategory.ts";
@@ -61,26 +61,27 @@ Deno.test("energyIntensity: kWh / reference area; null when incomputable", () =>
   assert.equal(energyIntensity(building({ hallArea: 0 }), energy({ gas: 1000 })), null);
 });
 
-Deno.test("categorise: terciles over 3+ peers — low intensity = efficient", () => {
-  const peers = [10, 20, 30, 40, 50, 60];
-  assert.equal(categorise(10, peers), "efficient");
-  assert.equal(categorise(35, peers), "typical");
-  assert.equal(categorise(60, peers), "inefficient");
+Deno.test("categoriserFor: terciles over 3+ peers — low intensity = efficient", () => {
+  const categorise = categoriserFor([10, 20, 30, 40, 50, 60]);
+  assert.equal(categorise(10), "efficient");
+  assert.equal(categorise(35), "typical");
+  assert.equal(categorise(60), "inefficient");
 });
 
-Deno.test("categorise: fewer than 3 peers falls back to the mean split", () => {
+Deno.test("categoriserFor: fewer than 3 peers falls back to the mean split", () => {
   // Two buildings: the cheaper one is efficient, the dearer inefficient — the
   // exact case the Vertriebsoptimierung spec seeds.
-  const peers = [10, 30];
-  assert.equal(categorise(10, peers), "efficient");
-  assert.equal(categorise(30, peers), "inefficient");
+  const categorise = categoriserFor([10, 30]);
+  assert.equal(categorise(10), "efficient");
+  assert.equal(categorise(30), "inefficient");
   // A single building compared only to itself reads as typical.
-  assert.equal(categorise(10, [10]), "typical");
+  assert.equal(categoriserFor([10])(10), "typical");
 });
 
-Deno.test("categorise: missing intensity → none", () => {
-  assert.equal(categorise(null, [10, 20, 30]), "none");
-  assert.equal(categorise(Number.NaN, [10, 20, 30]), "none");
+Deno.test("categoriserFor: missing intensity → none", () => {
+  const categorise = categoriserFor([10, 20, 30]);
+  assert.equal(categorise(null), "none");
+  assert.equal(categorise(Number.NaN), "none");
   // No peers at all → typical (nothing to compare against).
-  assert.equal(categorise(10, []), "typical");
+  assert.equal(categoriserFor([])(10), "typical");
 });

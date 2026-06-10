@@ -70,12 +70,13 @@ test.describe("handbuch screenshots", () => {
   );
 
   test("capture", async ({ page, browser }) => {
-    // Bounded by the cooldown cost: ~11 shots × COOLDOWN_MS plus two logins and
-    // the cross-pod share. On a throttled provider that's many minutes; on a plain
-    // CSS it's ~3–4 min. Every best-effort interaction is itself time-boxed (the
-    // default action timeout is 0 = wait forever), so a stuck locator fails in
-    // seconds rather than eating this cap.
-    test.setTimeout(ACC.provider.throttled ? 720_000 : 300_000);
+    // Bounded by the cooldown cost: ~14 shots × COOLDOWN_MS plus two logins, the
+    // demo-buildings seed (5 geocodes + a 35-day series) and the cross-pod share.
+    // On a throttled provider that's many minutes; on a plain CSS it's ~5 min.
+    // Every best-effort interaction is itself time-boxed (the default action
+    // timeout is 0 = wait forever), so a stuck locator fails in seconds rather
+    // than eating this cap.
+    test.setTimeout(ACC.provider.throttled ? 1_200_000 : 600_000);
     await page.setViewportSize({ width: 1200, height: 900 });
 
     // --- Login screen (captured BEFORE logging in) (anmelden.png — handbuch figure).
@@ -99,9 +100,10 @@ test.describe("handbuch screenshots", () => {
     await page.getByRole("checkbox", { name: "Developer mode" }).uncheck();
 
     // --- Seed account A's organisation (name + logo) so the producer's building
-    //     marker shows the logo on the map (the "Daten ansehen" figure,
-    //     map-tabs.png, demonstrates the logo-marker feature). A building added
-    //     below attributes its provenance to A, so its marker resolves this logo. ---
+    //     markers show the logo on the map (the "Daten ansehen" figure,
+    //     map-tabs.png, demonstrates the logo-marker feature). The demo buildings
+    //     seeded below attribute their provenance to A, so their markers resolve
+    //     this logo. ---
     await page.getByRole("button", { name: "Account menu" }).click();
     await page.getByRole("menuitem", { name: /organisation/i }).click();
     const orgDialog = page.getByRole("dialog");
@@ -144,13 +146,21 @@ test.describe("handbuch screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "room.png");
 
-    // Dismiss the "Roles updated" toast, then the fresh-Pod "No buildings yet"
-    // onboarding banner (an Alert with "Add examples"/"No thanks" and NO close
-    // button — declining it persists and clears its role=alert so it can't shadow
-    // later dismisses or the Contacts field). Both are time-boxed.
+    // Dismiss the "Roles updated" toast, then ACCEPT the fresh-Pod onboarding
+    // banner's "Add examples": every figure is captured over the SAME five demo
+    // buildings a reader gets from that banner (handbuch examples = app
+    // examples). The seed geocodes five Nürnberg addresses and writes the
+    // energy datasets (incl. a 35-day 15-min series), so the toast wait is
+    // generous. Time-boxed click: on an idempotent re-run against a non-fresh
+    // Pod the banner doesn't show and the buildings already exist.
     await dismissToasts(page);
-    await page.getByRole("button", { name: "No thanks" })
-      .click({ timeout: 8_000 }).catch(() => {});
+    const addExamples = page.getByRole("button", { name: "Add examples" });
+    if (await addExamples.count()) {
+      await addExamples.click({ timeout: 8_000 }).catch(() => {});
+      await expect(page.getByText("Demo buildings added").first())
+        .toBeVisible({ timeout: 300_000 });
+      await dismissToasts(page);
+    }
 
     // --- Contacts: seed one address-book entry, then capture the Contacts
     //     section at the top of the Connect tab. The list is otherwise empty on
@@ -171,47 +181,24 @@ test.describe("handbuch screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "contacts.png");
 
-    // --- Data: seed one building (only if none yet) so Share/View/Views have
-    //     data; the Add Building dialog now lives on the Manage tab ---
+    // --- Data: the five demo buildings (seeded via "Add examples" above) give
+    //     every later figure its content; the Add Building dialog lives on the
+    //     Manage tab ---
     await page.getByRole("tab", { name: "Manage" }).click();
     const dialog = page.getByRole("dialog");
-    // A per-building row action (only present once a building has loaded) and the
-    // empty-state text. WAIT for the list to settle into one or the other before
-    // reading state / screenshotting — on the slow C Pod it shows "Loading…" for
-    // several seconds, during which the empty-state check would wrongly read
-    // "no buildings" and share-building.png would capture a "Loading…" panel.
+    // Wait for a per-building row action (only present once a building has
+    // loaded) so no figure captures a "Loading…" panel.
     const shareAction = page.getByRole("button", { name: "Share building data" })
       .first();
-    const emptyState = page.getByText(/you haven't added any buildings yet/i);
-    await Promise.race([
-      shareAction.waitFor({ state: "visible", timeout: 60_000 }).catch(() => {}),
-      emptyState.waitFor({ state: "visible", timeout: 60_000 }).catch(() => {}),
-    ]);
-    const noBuildings = (await emptyState.count()) > 0;
+    await shareAction.waitFor({ state: "visible", timeout: 60_000 });
 
-    // Add Building dialog — capture it (role is assigned, so it shows the form).
+    // Add Building dialog — capture the one generic form, then close (the demo
+    // buildings are the data; nothing is added manually).
     await page.getByRole("button", { name: /^add building$/i }).click();
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.waitForTimeout(500);
     await shot(page, "add-building.png");
-
-    if (noBuildings) {
-      // One generic form — only address + coordinates are required.
-      await dialog.getByLabel(/street address/i).fill("Musterstraße 1");
-      await dialog.getByLabel(/locality/i).fill("Nürnberg");
-      await dialog.getByLabel(/postal code/i).fill("90451");
-      await dialog.getByLabel(/region/i).fill("Bayern");
-      await dialog.getByLabel(/latitude/i).fill("49.45");
-      await dialog.getByLabel(/longitude/i).fill("11.08");
-      // A hall area so the building has a reference floor area — together with the
-      // energy year seeded below it gives a computable energy intensity, so the
-      // energy lens (energy-lens.png) tints its marker instead of leaving it neutral.
-      await dialog.getByLabel(/hall area/i).fill("8000");
-      await page.getByRole("button", { name: /^add building$/i }).click();
-      await expect(dialog).toBeHidden({ timeout: 30_000 });
-    } else {
-      await page.keyboard.press("Escape");
-    }
+    await page.keyboard.press("Escape");
 
     // Manage tab now lists the building with its per-row actions (edit / share /
     // download / delete) — the subject of the sharing section. Wait for a row's action
@@ -232,71 +219,98 @@ test.describe("handbuch screenshots", () => {
     await shotOf(buildingRow, "manage-actions.png");
 
     // --- Energy-year dialog: the per-year consumption form plus the "Stored
-    //     years" read-back table, opened from a building's "Add or edit energy
-    //     year" row action. Seed a year first so the table isn't empty — saving
-    //     keeps the dialog open, so the shot shows both the table (with its
-    //     edit/delete row actions) and the form below. ---
-    const energyYearBtn = page.getByRole("button", {
-      name: "Add or edit energy year",
-    }).first();
-    if (await energyYearBtn.count()) {
-      await energyYearBtn.click();
-      await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 });
-      // Only seed if this building has no stored years yet (idempotent re-runs).
-      const stored = page.getByRole("dialog").getByRole("row", {
-        name: /\b2023\b/,
-      });
-      if (!(await stored.count())) {
-        await page.getByRole("spinbutton", { name: "Year", exact: true })
-          .fill("2023");
-        await page.getByRole("spinbutton", { name: "Electricity (kWh)" })
-          .fill("125000");
-        await page.getByRole("spinbutton", { name: "Heat (kWh)" }).fill("48000");
-        await page.getByRole("spinbutton", { name: "Water (m³)", exact: true })
-          .fill("310");
-        await page.getByRole("button", { name: "Save" }).click();
-        await expect(page.getByText("Energy data saved").first())
-          .toBeVisible({ timeout: 30_000 });
-      }
-      await page.waitForTimeout(500);
-      await shot(page, "energy-year.png");
-      await page.getByRole("button", { name: "Close" }).click();
-    }
+    //     years" read-back table, opened on the Nordostpark demo — its table is
+    //     populated out of the box (actual 2022–2024 AND the planned 2024, so
+    //     the figure shows the Soll-Ist pair and the building-name header). ---
+    const nordostparkRow = page.locator("li").filter({ hasText: "Nordostpark" })
+      .first();
+    await expect(nordostparkRow).toBeVisible({ timeout: 30_000 });
+    await nordostparkRow
+      .getByRole("button", { name: "Add or edit energy year" }).click();
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 });
+    // The stored-years table loads the datasets — wait for the planned 2024 row.
+    await expect(
+      page.getByRole("dialog").getByRole("row", { name: /Planned/ }).first(),
+    ).toBeVisible({ timeout: 60_000 });
+    await page.waitForTimeout(500);
+    await shot(page, "energy-year.png");
+    await page.getByRole("button", { name: "Close" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: 10_000 });
 
     // --- Manage: aggregated views (Create View lives here, with buildings) ---
     await page.getByRole("tab", { name: "Manage" }).click();
     await page.waitForTimeout(500);
 
-    // --- Create View dialog (a building is now selectable) ---
+    // --- Create View dialog (buildings are now selectable) ---
     await page.getByRole("button", { name: /create view/i }).click();
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.waitForTimeout(500);
     await shot(page, "create-view.png");
-    await page.keyboard.press("Escape");
 
-    // --- Explore: select a building marker → its Building/Energy/Weather tabs ---
-    await page.getByRole("tab", { name: "Explore" }).click();
+    // --- Aggregated-view result page (aggregated-view.png): finish creating the
+    //     view over the three annual demo buildings (idempotent: skip if a prior
+    //     run created it), then open it — the summary auto-computes its snapshot
+    //     on first open, so the figure shows the chart + table without a manual
+    //     refresh. ---
+    const VIEW_NAME = "Portfolio Nürnberg";
+    const viewRow = page.locator("li").filter({ hasText: VIEW_NAME }).first();
+    if (await viewRow.count()) {
+      await page.keyboard.press("Escape"); // view exists from a prior run
+    } else {
+      await dialog.getByLabel("View Name").fill(VIEW_NAME);
+      await dialog.getByLabel("Select Buildings").click();
+      for (const street of ["Nordostpark", "Fürther Straße", "Hafenstraße"]) {
+        await page.getByRole("option").filter({ hasText: street }).first()
+          .click({ timeout: 10_000 }).catch(() => {});
+      }
+      await page.keyboard.press("Escape"); // close the building multi-select
+      await dialog.getByRole("button", { name: /create view/i }).click();
+      await expect(page.getByText(/view created successfully/i))
+        .toBeVisible({ timeout: 60_000 });
+      await dismissToasts(page);
+    }
+    await expect(viewRow).toBeVisible({ timeout: 30_000 });
+    await viewRow.getByRole("button", { name: "View details" }).click();
+    // The standalone view route: wait for the auto-computed chart to draw.
+    await expect(
+      page.locator("svg.recharts-surface .recharts-bar-rectangle").first(),
+    ).toBeVisible({ timeout: 120_000 });
+    await page.waitForLoadState("networkidle").catch(() => {});
+    // Park the pointer off the chart — the click that opened the view leaves the
+    // mouse over a bar, whose hover tooltip would photobomb the figure.
+    await page.mouse.move(0, 0);
+    await page.waitForTimeout(800);
+    await shot(page, "aggregated-view.png");
+    // Back to the app shell (the view page is a standalone route without tabs).
+    await page.goto("/#/");
+    await expect(page.getByRole("tab", { name: "Explore" }))
+      .toBeVisible({ timeout: 30_000 });
+
+    // --- Explore: the Nordostpark demo's Building/Energy/Weather detail pane.
+    //     Selected deterministically via the URI-state deep link (the same
+    //     selection a marker click produces) — a blind marker click could land
+    //     on any of the five demo markers. The fully-populated investor demo
+    //     gives the figure a rich detail panel. ---
+    await page.getByRole("tab", { name: "Manage" }).click();
+    const nordRow = page.locator("li").filter({ hasText: "Nordostpark" }).first();
+    await expect(nordRow).toBeVisible({ timeout: 30_000 });
+    const buildingId = (await nordRow.textContent())?.match(/Building (\S+)/)?.[1];
+    await page.goto(`/#/?tab=explore&b=${buildingId}`);
+    await expect(page.getByRole("tab", { name: "Building data" }))
+      .toBeVisible({ timeout: 60_000 });
     const markers = page.locator(".leaflet-marker-icon");
     await markers.first().waitFor({ timeout: 20_000 }).catch(() => {});
-    await page.waitForTimeout(1500); // let the map settle so clicks register
-    const buildingTab = page.getByRole("tab", { name: "Building data" });
-    // Overlapping pins can swallow a click — try each until the detail pane opens.
-    const count = await markers.count();
-    for (let i = 0; i < count; i++) {
-      await markers.nth(i).click({ force: true }).catch(() => {});
-      if (await buildingTab.isVisible().catch(() => false)) break;
-      await page.waitForTimeout(400);
-    }
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await page.waitForTimeout(1500); // let the map/tiles settle
     await page.evaluate(() => globalThis.scrollTo(0, 0));
-    await page.waitForTimeout(800);
     await shot(page, "map-tabs.png");
 
     // --- Energy lens (energy-lens.png): switch the map's colour lens from
     //     Ownership to Energy so the markers are tinted by energy intensity, and
-    //     the legend shows the efficiency categories. The seeded building carries
-    //     a hall area + a 2023 energy year, so its intensity is computable and the
-    //     marker is tinted (a single building reads as "Typical"). Phase-2 energy
-    //     must have landed for the tint, so allow it to settle before the shot. ---
+    //     the legend shows the efficiency categories. The annual demo buildings
+    //     carry areas + energy years, so their intensities are computable and the
+    //     markers are tinted. Phase-2 energy must have landed for the tint, so
+    //     allow it to settle before the shot. ---
     const energyLens = page.getByRole("button", { name: "Energy", exact: true });
     if (await energyLens.count()) {
       await energyLens.click({ force: true }).catch(() => {});
@@ -307,6 +321,41 @@ test.describe("handbuch screenshots", () => {
       // Restore the default lens so it can't bleed into a later re-run's shots.
       await page.getByRole("button", { name: "Ownership", exact: true })
         .click({ force: true }).catch(() => {});
+    }
+
+    // --- Energy-data tab with the operator average (energy-data-tab.png): the
+    //     Nordostpark demo's "Energy data" tab. Two annual demos (Nordostpark +
+    //     Fürther Straße) are self-operated, so the summary table shows the
+    //     "Operator average" row — the Betreiber benchmark of the handbuch's
+    //     "Daten ansehen" section — plus the planned-2024 (Soll) column pair. ---
+    if (buildingId) {
+      await page.goto(`/#/?tab=explore&b=${buildingId}&dt=energy`);
+      await expect(
+        page.getByRole("row").filter({ hasText: "Operator average" }).first(),
+      ).toBeVisible({ timeout: 60_000 });
+      await page.waitForLoadState("networkidle").catch(() => {});
+      await page.waitForTimeout(800);
+      await page.evaluate(() => globalThis.scrollTo(0, 0));
+      await shot(page, "energy-data-tab.png");
+
+      // --- Energy detail page (energy-detail.png): the standalone /energy/:id
+      //     route — latest year's figures with the Portfolio / Operator /
+      //     Benchmark comparison columns side by side. ---
+      await page.goto(`/#/energy/${buildingId}`);
+      await expect(
+        page.getByRole("heading", { name: /Energy Need for Building/ }),
+      ).toBeVisible({ timeout: 60_000 });
+      await expect(
+        page.locator("th", { hasText: "Operator average kWh / a" }).first(),
+      ).toBeVisible({ timeout: 60_000 });
+      await page.waitForLoadState("networkidle").catch(() => {});
+      await page.waitForTimeout(800);
+      await shot(page, "energy-detail.png");
+
+      // Back to the app shell (the detail page is a standalone route without tabs).
+      await page.goto("/#/");
+      await expect(page.getByRole("tab", { name: "Manage" }))
+        .toBeVisible({ timeout: 30_000 });
     }
 
     // --- Recipient side of sharing (shared-with-you.png): A shares its building

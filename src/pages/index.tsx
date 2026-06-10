@@ -84,16 +84,31 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const [logoUrl, setLogoUrl] = useState<string | null>(null);
   const [orgOpen, setOrgOpen] = useState(false);
 
-  const loadAvatar = () => {
-    return getAvatarObjectUrl(session)
+  // One effect owns the avatar object-URL lifecycle: it loads on mount /
+  // session change and re-loads when `avatarVersion` is bumped (after the
+  // organisation dialog saves a new avatar); the cleanup revokes the URL the
+  // run loaded, covering both replace and unmount. A run cancelled mid-fetch
+  // revokes its own URL instead of setting it, so nothing leaks.
+  const [avatarVersion, setAvatarVersion] = useState(0);
+  const loadAvatar = () => setAvatarVersion((v) => v + 1);
+  useEffect(() => {
+    let cancelled = false;
+    let current: string | null = null;
+    getAvatarObjectUrl(session)
       .then((url) => {
-        setLogoUrl((prev) => {
-          if (prev) URL.revokeObjectURL(prev);
-          return url;
-        });
+        if (cancelled) {
+          if (url) URL.revokeObjectURL(url);
+          return;
+        }
+        current = url;
+        setLogoUrl(url);
       })
       .catch((err) => logError("load organisation logo / avatar", err));
-  };
+    return () => {
+      cancelled = true;
+      if (current) URL.revokeObjectURL(current);
+    };
+  }, [session, avatarVersion]);
 
   const queryClient = useQueryClient();
   // Fresh-Pod demo-buildings offer (non-blocking banner): shown when the buildings
@@ -258,20 +273,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       setArchiveBusy(false);
     }
   };
-
-  // Load (and revoke) the avatar object URL for the current session.
-  useEffect(() => {
-    let current: string | null = null;
-    getAvatarObjectUrl(session)
-      .then((url) => {
-        current = url;
-        setLogoUrl(url);
-      })
-      .catch((err) => logError("load avatar object URL", err));
-    return () => {
-      if (current) URL.revokeObjectURL(current);
-    };
-  }, [session]);
 
   const handleOrganisation = () => {
     handleMenuClose();

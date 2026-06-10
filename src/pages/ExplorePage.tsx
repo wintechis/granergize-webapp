@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
-import { BuildingType } from "../types.ts";
+import { BuildingType, EnergyType } from "../types.ts";
 import {
   detailIndexFromSlug,
   mergeParams,
@@ -9,7 +9,6 @@ import {
 import Building from "./Building.tsx";
 import { UriLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
-import VisibleEnergyMix from "../components/VisibleEnergyMix.tsx";
 import {
   MapContainer,
   Marker,
@@ -55,7 +54,7 @@ import {
 import { safeImageSrc } from "../lib/safeHref.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import {
-  categorise,
+  categoriserFor,
   type EnergyCategory,
   energyIntensity,
 } from "../services/rdf/energyCategory.ts";
@@ -85,11 +84,6 @@ const BASEMAP_DE = {
   attribution:
     '&copy; <a href="https://basemap.de/">basemap.de</a> / &copy; <a href="https://www.bkg.bund.de/">BKG</a>',
 } as const;
-
-// Feature flag: the "Energy mix — visible area" panel below the map is
-// deactivated for now. Flip to `true` to re-enable; the bbox/visibleBuildings
-// machinery that feeds it is kept intact.
-const SHOW_VISIBLE_ENERGY_MIX = false;
 
 function makeIcon(url: string): L.Icon {
   return new L.Icon({
@@ -332,12 +326,6 @@ interface ExplorePageProps {
   active?: boolean;
 }
 
-/**
- * One entry in the right-pane focus trail. The pane shows the focused entry;
- * selecting a marker sets it to that building, hiding clears it.
- */
-type FocusTarget = { kind: "building"; id: string };
-
 export default function ExplorePage(
   { session, active = true }: ExplorePageProps,
 ) {
@@ -363,13 +351,10 @@ export default function ExplorePage(
   // is a single building (no "back" stack), so the id captures it fully.
   const [searchParams, setSearchParams] = useSearchParams();
   const selectedId = searchParams.get("b");
-  const trail: FocusTarget[] = selectedId
-    ? [{ kind: "building", id: selectedId }]
-    : [];
   // Which detail tab is shown for the selected building: 0=building, 1=energy,
   // 2=weather (only meaningful while a building is selected).
   const detailTab = detailIndexFromSlug(searchParams.get("dt"));
-  // The map's current bounding box; the energy mix below the map is computed
+  // The map's current bounding box; the energy lens's peer set is computed
   // over the buildings that fall inside it.
   const [bbox, setBbox] = useState<L.LatLngBounds | null>(null);
   // false = balanced 50/50 split with the map; true = the detail pane fills the
@@ -394,13 +379,20 @@ export default function ExplorePage(
   // buildings currently in view — the peer set the energy lens categorises
   // against, so panning/zooming re-frames the comparison. Recomputes when
   // phase-2 energy arrives, re-tinting the markers without a refetch.
+  const energyById = useMemo(() => {
+    const m = new Map<number, EnergyType>();
+    for (const e of energyNeed ?? []) {
+      if (!m.has(e.id)) m.set(e.id, e);
+    }
+    return m;
+  }, [energyNeed]);
   const intensityById = useMemo(() => {
     const m = new Map<number, number | null>();
     for (const b of buildings) {
-      m.set(b.id, energyIntensity(b, energyNeed?.find((e) => e.id === b.id)));
+      m.set(b.id, energyIntensity(b, energyById.get(b.id)));
     }
     return m;
-  }, [buildings, energyNeed]);
+  }, [buildings, energyById]);
   const peerIntensities = useMemo(
     () =>
       visibleBuildings
@@ -408,22 +400,23 @@ export default function ExplorePage(
         .filter((v): v is number => v != null),
     [visibleBuildings, intensityById],
   );
+  // The per-value classifier for the current peer set — the tercile thresholds
+  // are computed once per peer set here, not per marker per render.
+  const categoriseIntensity = useMemo(
+    () => categoriserFor(peerIntensities),
+    [peerIntensities],
+  );
 
   // Whether the map renders any markers at all — a marker only appears for a
   // building that has coordinates (see the `building.lat && building.long`
   // guard in the Marker map below), so buildings can exist with none shown.
   const hasMarkers = buildings.some((b) => b.lat != null && b.long != null);
 
-  const current = trail[trail.length - 1] ?? null;
-  const findBuilding = (id: string) =>
-    buildings.find((b) => b.id.toString() === id) ?? null;
-  // The building the view is anchored on (the marker that started the trail);
-  // stays highlighted on the map even while drilling into a related object.
-  const anchorTarget = trail.find((t) => t.kind === "building") ?? null;
-  const anchorBuilding = anchorTarget ? findBuilding(anchorTarget.id) : null;
-  // Resolved object for the entry currently shown (re-resolved each render, so
-  // it survives data reloads and disappears if the object is removed).
-  const currentBuilding = current ? findBuilding(current.id) : null;
+  // The selected building, re-resolved from `?b=` each render so it survives
+  // data reloads and disappears if the building is removed.
+  const selectedBuilding = selectedId
+    ? buildings.find((b) => b.id.toString() === selectedId) ?? null
+    : null;
 
   // Select a building: set `?b=` and drop `?dt=` so the detail view opens on the
   // Building tab. `replace` keeps selection out of the browser history;
@@ -437,10 +430,8 @@ export default function ExplorePage(
   // not state+effect (which cost an extra render cycle per selection change).
   const selectedEnergy = useMemo(
     () =>
-      currentBuilding && energyNeed
-        ? energyNeed.find((e) => e.id === currentBuilding.id) || null
-        : null,
-    [currentBuilding, energyNeed],
+      selectedBuilding ? energyById.get(selectedBuilding.id) ?? null : null,
+    [selectedBuilding, energyById],
   );
 
   const togglePaneSize = () => {
@@ -520,11 +511,10 @@ export default function ExplorePage(
                       key={building.id}
                       building={building}
                       position={[building.lat, building.long]}
-                      selected={anchorBuilding?.id === building.id}
+                      selected={selectedBuilding?.id === building.id}
                       lens={lens}
-                      category={categorise(
+                      category={categoriseIntensity(
                         intensityById.get(building.id) ?? null,
-                        peerIntensities,
                       )}
                       onClick={() => focusBuilding(building.id.toString())}
                     />
@@ -579,12 +569,6 @@ export default function ExplorePage(
                 </Box>
               ))}
           </Paper>
-          {SHOW_VISIBLE_ENERGY_MIX && (
-            <VisibleEnergyMix
-              buildings={visibleBuildings}
-              energyNeed={energyNeed}
-            />
-          )}
         </Grid>
         <Grid
           size={{ xs: 12, md: detailFull ? 12 : 6 }}
@@ -593,7 +577,7 @@ export default function ExplorePage(
             overflow: { xs: "visible", md: "auto" },
           }}
         >
-          {!current
+          {!selectedId
             ? (
               <Typography variant="body1">
                 {buildings.length === 0
@@ -605,7 +589,7 @@ export default function ExplorePage(
             )
             : (
               <Stack spacing={2}>
-                {currentBuilding && (
+                {selectedBuilding && (
                   <>
                     {/* Persistent building identity — the building stays the
                         focus while the tabs below switch its detail views. */}
@@ -620,16 +604,16 @@ export default function ExplorePage(
                       <CorporateFareIcon color="action" />
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography variant="h6">
-                          Building {currentBuilding.id}
+                          Building {selectedBuilding.id}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {currentBuilding.streetAddress}
+                          {selectedBuilding.streetAddress}
                           <br />
-                          {`${currentBuilding.postalCode ?? ""} ${
-                            currentBuilding.locality ?? ""
+                          {`${selectedBuilding.postalCode ?? ""} ${
+                            selectedBuilding.locality ?? ""
                           }${
-                            currentBuilding.region
-                              ? `, ${currentBuilding.region}`
+                            selectedBuilding.region
+                              ? `, ${selectedBuilding.region}`
                               : ""
                           }`}
                         </Typography>
@@ -638,8 +622,8 @@ export default function ExplorePage(
                             variant="body1"
                             sx={{ mt: 0.5, wordBreak: "break-all" }}
                           >
-                            <UriLink href={currentBuilding.uri}>
-                              {currentBuilding.uri}
+                            <UriLink href={selectedBuilding.uri}>
+                              {selectedBuilding.uri}
                             </UriLink>
                           </Typography>
                         )}
@@ -676,7 +660,7 @@ export default function ExplorePage(
 
                     {detailTab === 0 && (
                       <Building
-                        building={currentBuilding}
+                        building={selectedBuilding}
                         onHide={() =>
                           setSearchParams(
                             (p) => mergeParams(p, { b: null, dt: null }),
@@ -693,31 +677,31 @@ export default function ExplorePage(
                       // variant when bench-specific company/logistics fields are
                       // present, else the investor variant); otherwise the
                       // time-series / categorical Energy view.
-                      (currentBuilding.energyDatasets?.some((d) =>
+                      (selectedBuilding.energyDatasets?.some((d) =>
                           !isSeriesGranularity(d.granularity)
                         ))
-                        ? (currentBuilding.companyName ||
-                            currentBuilding.logisticsFunction)
+                        ? (selectedBuilding.companyName ||
+                            selectedBuilding.logisticsFunction)
                           ? (
                             <BspEnergy
-                              building={currentBuilding}
+                              building={selectedBuilding}
                               session={session}
                             />
                           )
                           : (
                             <InvestorEnergy
-                              building={currentBuilding}
+                              building={selectedBuilding}
                               session={session}
                             />
                           )
                         : (selectedEnergy ||
-                            currentBuilding.energyDatasets?.some((d) =>
+                            selectedBuilding.energyDatasets?.some((d) =>
                               isSeriesGranularity(d.granularity)
                             ))
                         ? (
                           <Energy
-                            selectedBuilding={currentBuilding.id.toString()}
-                            building={currentBuilding}
+                            selectedBuilding={selectedBuilding.id.toString()}
+                            building={selectedBuilding}
                             session={session}
                           />
                         )
@@ -729,7 +713,7 @@ export default function ExplorePage(
                     )}
 
                     {detailTab === 2 && (
-                      <WeatherData building={currentBuilding} />
+                      <WeatherData building={selectedBuilding} />
                     )}
                   </>
                 )}

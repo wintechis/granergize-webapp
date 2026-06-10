@@ -1,5 +1,5 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
+import { DataFactory, Store } from "n3";
 import {
   RDF_TYPE,
   VCARD_ADDRESS_BOOK,
@@ -9,7 +9,7 @@ import {
   VCARD_INDIVIDUAL,
 } from "./rdf/vocabularies.ts";
 import { podResources } from "./pod/solidUtils.ts";
-import { fetchFresh } from "./pod/podFetch.ts";
+import { readStoreOrEmpty } from "./pod/podFetch.ts";
 import { readModifyWrite } from "./pod/podWrite.ts";
 import { resolveAgent, webIdFragment } from "./agents/agentResolver.ts";
 import { logError } from "../lib/logError.ts";
@@ -52,9 +52,7 @@ export async function readContacts(session: Session): Promise<Contact[]> {
   const webId = session.info.webId;
   if (!webId) return [];
   const url = contactsUrl(webId);
-  const res = await fetchFresh(url, session);
-  if (!res.ok) return [];
-  const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
+  const store = await readStoreOrEmpty(url, session);
   return store.getObjects(bookNode(url), HAS_MEMBER, null)
     .filter((m) => m.termType === "NamedNode")
     .map((m) => {

@@ -1,14 +1,17 @@
+import type { Borders, Fill, Worksheet } from "exceljs";
 import type { BuildingType } from "../../types.ts";
 import {
   BSP_FIELD_TO_HEADER,
   certLevelLabel,
   INV_FIELD_TO_LABEL,
+  INV_YEAR_ROW_STEMS,
   OPCOST_FIELD_TO_LABEL,
   OPCOST_FIELDS,
   SCALAR_FIELDS,
   type SpreadsheetFormat,
 } from "./buildingTemplates.ts";
 import { GRANERGIZE_LOGO_PNG_BASE64 } from "./logoPng.ts";
+import { BRAND_PRIMARY } from "../../constants/chartColors.ts";
 
 // ---------------------------------------------------------------------------
 // XLSX export (inverse of parseCsvToFields) — build per-building and combined
@@ -30,10 +33,6 @@ function cellValue(v: unknown): Cell {
   return String(v);
 }
 
-/** The spreadsheet layout to export a building in (chosen by the user); the shared
- * {@link SpreadsheetFormat} — the import adapters read the same set back. */
-export type ExportStyle = SpreadsheetFormat;
-
 /**
  * The investor row-label rows (label in col B, value in col D) so the file
  * re-imports via `parseCsvToFields("investor")`:
@@ -53,9 +52,9 @@ function investorRows(b: BuildingType): Cell[][] {
   }
   let renewDone = false;
   for (const y of b.annualData ?? []) {
-    put(`Stromverbrauch ${y.year}`, y.electricityConsumption);
-    put(`Wärme - tatsächlicher Verbrauch ${y.year}`, y.heatConsumption);
-    put(`Wasserverbrauch ${y.year}`, y.waterConsumption);
+    for (const { label, field } of INV_YEAR_ROW_STEMS) {
+      put(`${label} ${y.year}`, y[field]);
+    }
     if (!renewDone && y.renewableSelfGeneratedShare != null) {
       put(
         "Anteil eigenerzeugter Strom aus erneuerbaren Quellen",
@@ -83,7 +82,7 @@ function investorRows(b: BuildingType): Cell[][] {
 /** Single-building column record for the benchmark / generic table layouts. */
 function buildingRecord(
   b: BuildingType,
-  style: ExportStyle,
+  style: SpreadsheetFormat,
 ): Record<string, string | number> {
   const record: Record<string, string | number> = {};
   if (style === "benchmark") {
@@ -146,9 +145,9 @@ function buildingToFlatRecord(b: BuildingType): Record<string, string | number> 
     }
   } else {
     for (const y of b.annualData ?? []) {
-      set(`_inv_elec_${y.year}`, y.electricityConsumption);
-      set(`_inv_heat_${y.year}`, y.heatConsumption);
-      set(`_inv_water_${y.year}`, y.waterConsumption);
+      for (const { key, field } of INV_YEAR_ROW_STEMS) {
+        set(`_inv_${key}_${y.year}`, y[field]);
+      }
       set(`_inv_renew_${y.year}`, y.renewableSelfGeneratedShare);
     }
   }
@@ -168,14 +167,33 @@ function buildingToFlatRecord(b: BuildingType): Record<string, string | number> 
 
 // --- exceljs writing -------------------------------------------------------
 
-// Theme palette (src/theme.ts primary) in exceljs ARGB form.
-const BRAND = "FF0277BD";
+// Brand primary (shared with theme.palette) in exceljs ARGB form, plus the
+// derived accents. Style objects are module-level constants — exceljs assigns
+// them by reference, so one object serves every cell.
+const BRAND = "FF" + BRAND_PRIMARY.slice(1).toUpperCase();
 const ZEBRA = "FFF0F6FB";
 const GRID = "FFD0D7DE";
 
+const THIN_SIDE = { style: "thin", color: { argb: GRID } } as const;
+const THIN_BORDER: Partial<Borders> = {
+  top: THIN_SIDE,
+  bottom: THIN_SIDE,
+  left: THIN_SIDE,
+  right: THIN_SIDE,
+};
+const ZEBRA_FILL: Fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: ZEBRA },
+};
+const BRAND_FILL: Fill = {
+  type: "pattern",
+  pattern: "solid",
+  fgColor: { argb: BRAND },
+};
+const HEADER_FONT = { bold: true, color: { argb: "FFFFFFFF" } };
+
 type Exceljs = typeof import("exceljs");
-type Worksheet = import("exceljs").Worksheet;
-type Workbook = import("exceljs").Workbook;
 
 /** Lazy-load exceljs so the writer lands in its own code-split chunk. */
 async function loadExceljs(): Promise<Exceljs> {
@@ -183,22 +201,16 @@ async function loadExceljs(): Promise<Exceljs> {
   return (mod as { default?: Exceljs }).default ?? (mod as Exceljs);
 }
 
-function thinBorder(): Record<string, { style: "thin"; color: { argb: string } }> {
-  const side = { style: "thin" as const, color: { argb: GRID } };
-  return { top: side, bottom: side, left: side, right: side };
-}
-
 /** Place the logo via a two-cell anchor (tl→br; LibreOffice renders a
  * one-cell-anchor extent zero-sized). Images live in the drawing layer — they
  * occupy no cells, so import is unaffected. Anchors are fractional col/row
  * coordinates. */
 function placeLogo(
-  wb: Workbook,
   ws: Worksheet,
   tl: { col: number; row: number },
   br: { col: number; row: number },
 ): void {
-  const id = wb.addImage({
+  const id = ws.workbook.addImage({
     base64: GRANERGIZE_LOGO_PNG_BASE64,
     extension: "png",
   });
@@ -215,20 +227,16 @@ function placeLogo(
  * names from), zebra-striped data rows, fitted column widths, frozen header.
  */
 function writeTableSheet(
-  wb: Workbook,
   ws: Worksheet,
   records: Record<string, string | number>[],
 ): void {
   // Union of keys across rows, first-seen order (sparse columns coexist).
-  const headers: string[] = [];
-  for (const r of records) {
-    for (const k of Object.keys(r)) if (!headers.includes(k)) headers.push(k);
-  }
+  const headers = [...new Set(records.flatMap((r) => Object.keys(r)))];
   const headerRow = ws.addRow(headers);
   headerRow.eachCell((cell) => {
-    cell.font = { bold: true, color: { argb: "FFFFFFFF" } };
-    cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
-    cell.border = thinBorder();
+    cell.font = HEADER_FONT;
+    cell.fill = BRAND_FILL;
+    cell.border = THIN_BORDER;
     cell.alignment = { vertical: "middle" };
   });
   headerRow.height = 22;
@@ -236,10 +244,8 @@ function writeTableSheet(
   for (const [i, rec] of records.entries()) {
     const row = ws.addRow(headers.map((h) => rec[h] ?? null));
     row.eachCell({ includeEmpty: true }, (cell) => {
-      cell.border = thinBorder();
-      if (i % 2 === 1) {
-        cell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: ZEBRA } };
-      }
+      cell.border = THIN_BORDER;
+      if (i % 2 === 1) cell.fill = ZEBRA_FILL;
     });
   }
 
@@ -254,7 +260,6 @@ function writeTableSheet(
   // Floats right of the data; visible on screen (print ranges clip to the
   // used cells, which is fine for a data table).
   placeLogo(
-    wb,
     ws,
     { col: headers.length + 1, row: 0.1 },
     { col: headers.length + 1.5, row: 1.7 },
@@ -266,18 +271,17 @@ function writeTableSheet(
  * importer matches col-B labels by exact text, which the title is not), a bold
  * "Datenfeld / Wert" header, then the label/value rows with zebra striping.
  */
-function writeInvestorSheet(wb: Workbook, ws: Worksheet, rows: Cell[][]): void {
+function writeInvestorSheet(ws: Worksheet, rows: Cell[][]): void {
   ws.getColumn(1).width = 3;
   ws.getColumn(2).width = 52;
   ws.getColumn(3).width = 3;
   ws.getColumn(4).width = 20;
 
-  const title = ws.addRow([null]);
+  const title = ws.addRow(["Gebäudedaten"]);
   ws.mergeCells(1, 1, 1, 4);
-  const titleCell = ws.getCell(1, 1);
-  titleCell.value = "Gebäudedaten";
+  const titleCell = title.getCell(1);
   titleCell.font = { bold: true, size: 14, color: { argb: "FFFFFFFF" } };
-  titleCell.fill = { type: "pattern", pattern: "solid", fgColor: { argb: BRAND } };
+  titleCell.fill = BRAND_FILL;
   titleCell.alignment = { vertical: "middle", indent: 1 };
   title.height = 30;
 
@@ -293,31 +297,24 @@ function writeInvestorSheet(wb: Workbook, ws: Worksheet, rows: Cell[][]): void {
   for (const [i, r] of rows.entries()) {
     const row = ws.addRow(r);
     if (i % 2 === 1) {
-      for (const c of [2, 3, 4]) {
-        row.getCell(c).fill = {
-          type: "pattern",
-          pattern: "solid",
-          fgColor: { argb: ZEBRA },
-        };
-      }
+      for (const c of [2, 3, 4]) row.getCell(c).fill = ZEBRA_FILL;
     }
   }
   // Badge in the title band's right corner — inside the used range, so it
   // survives print/PDF too. Col D is 20 chars (~145px) wide and the band is
   // 30pt (~40px) tall; the fractions keep the badge ~32px square.
-  placeLogo(wb, ws, { col: 3.3, row: 0.1 }, { col: 3.95, row: 0.9 });
+  placeLogo(ws, { col: 3.3, row: 0.1 }, { col: 3.95, row: 0.9 });
 }
 
-async function newWorkbook(): Promise<{ wb: Workbook; ws: Worksheet }> {
+async function newSheet(): Promise<Worksheet> {
   const ExcelJS = await loadExceljs();
   const wb = new ExcelJS.Workbook();
   wb.creator = "Granergize";
-  const ws = wb.addWorksheet("Gebäude");
-  return { wb, ws };
+  return wb.addWorksheet("Gebäude");
 }
 
-async function workbookToBytes(wb: Workbook): Promise<ArrayBuffer> {
-  const out = await wb.xlsx.writeBuffer();
+async function sheetToBytes(ws: Worksheet): Promise<ArrayBuffer> {
+  const out = await ws.workbook.xlsx.writeBuffer();
   const u8 = out instanceof Uint8Array ? out : new Uint8Array(out);
   // Plain ArrayBuffer copy so it drops straight into `new Blob([...])`.
   const copy = new ArrayBuffer(u8.byteLength);
@@ -326,20 +323,20 @@ async function workbookToBytes(wb: Workbook): Promise<ArrayBuffer> {
 }
 
 /**
- * Serialize a building to `.xlsx` bytes in the chosen `style` (default generic)
- * so the file re-imports via `parseCsvToFields`:
+ * Serialize a building to `.xlsx` bytes in the user-chosen layout `style`
+ * (default generic) so the file re-imports via `parseCsvToFields`:
  *   - investor → row-label sheet (label in col B, value in col D);
  *   - benchmark → single header row + value row, energy as BSP columns;
  *   - generic → flat sheet keyed by BuildingType field names.
  */
 export async function buildingToXlsx(
   b: BuildingType,
-  style: ExportStyle = "generic",
+  style: SpreadsheetFormat = "generic",
 ): Promise<ArrayBuffer> {
-  const { wb, ws } = await newWorkbook();
-  if (style === "investor") writeInvestorSheet(wb, ws, investorRows(b));
-  else writeTableSheet(wb, ws, [buildingRecord(b, style)]);
-  return workbookToBytes(wb);
+  const ws = await newSheet();
+  if (style === "investor") writeInvestorSheet(ws, investorRows(b));
+  else writeTableSheet(ws, [buildingRecord(b, style)]);
+  return sheetToBytes(ws);
 }
 
 /**
@@ -350,7 +347,7 @@ export async function buildingToXlsx(
 export async function buildingsToXlsx(
   buildings: BuildingType[],
 ): Promise<ArrayBuffer> {
-  const { wb, ws } = await newWorkbook();
-  writeTableSheet(wb, ws, buildings.map(buildingToFlatRecord));
-  return workbookToBytes(wb);
+  const ws = await newSheet();
+  writeTableSheet(ws, buildings.map(buildingToFlatRecord));
+  return sheetToBytes(ws);
 }

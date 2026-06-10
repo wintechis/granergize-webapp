@@ -10,6 +10,17 @@ import { T } from "./timeouts.ts";
 export const buildingRows = (page: Page) =>
   page.locator("li", { hasText: /Building \S+/ });
 
+/**
+ * Delete one building row and wait for THAT row to vanish — not the shared
+ * "Building deleted" toast, which lingers ~6 s from the previous delete and
+ * lets a loop race ahead into mid-refetch re-renders that swallow clicks.
+ */
+export async function deleteBuildingRow(page: Page, id: string): Promise<void> {
+  const row = page.locator("li", { hasText: `Building ${id}` }).first();
+  await row.getByRole("button", { name: "Delete building" }).click();
+  await expect(row).toHaveCount(0, { timeout: T.action });
+}
+
 /** The numeric/hash ids of all building rows currently listed on Manage. */
 export async function buildingIds(page: Page): Promise<string[]> {
   const rows = buildingRows(page);

@@ -11,9 +11,9 @@ import {
   RDF_TYPE,
   REC_BUILDING,
 } from "../rdf/vocabularies.ts";
-import { appRoot } from "../pod/solidUtils.ts";
+import { podResources } from "../pod/solidUtils.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
-import { ensureContainer } from "../pod/podWrite.ts";
+import { appendToContainer, ensureContainer } from "../pod/podWrite.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import { mapPooled } from "../../lib/pool.ts";
 
@@ -65,12 +65,12 @@ export type ActiveGrant = Omit<SharingEvent, "type">;
 
 /** `granergize/shared-in/` — sharing received (folded for "shared with me"). */
 export function sharedInUrl(webId: string): string {
-  return `${appRoot(webId)}shared-in/`;
+  return podResources(webId).sharedIn;
 }
 
 /** `granergize/shared-out/` — sharing performed (history + "shared with" badge). */
 export function sharedOutUrl(webId: string): string {
-  return `${appRoot(webId)}shared-out/`;
+  return podResources(webId).sharedOut;
 }
 
 const A = namedNode(RDF_TYPE);
@@ -133,14 +133,9 @@ export async function appendSharingEvent(
   event: SharingEvent,
 ): Promise<void> {
   await ensureContainer(containerUrl, session);
-  const res = await session.fetch(containerUrl, {
-    method: "POST",
-    headers: { "Content-Type": "text/turtle" },
-    body: buildSharingEventTurtle(event),
+  await appendToContainer(containerUrl, buildSharingEventTurtle(event), session, {
+    describeError: (res) => `Failed to append sharing event (HTTP ${res.status})`,
   });
-  if (!res.ok) {
-    throw new Error(`Failed to append sharing event (HTTP ${res.status})`);
-  }
 }
 
 /** Extract every grant/revocation event from one parsed event resource. */

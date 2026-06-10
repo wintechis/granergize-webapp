@@ -9,10 +9,8 @@ import type {
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
 import { INVESTOR_CERT_SYSTEMS } from "../services/rdf/buildingTemplates.ts";
-import {
-  geocodeFields,
-  updateBuilding,
-} from "../services/rdf/building/buildingSerializer.ts";
+import { updateBuilding } from "../services/rdf/building/buildingSerializer.ts";
+import { geocodeFields } from "../services/geocode.ts";
 import { formatError } from "../lib/formatError.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import { useSolidData } from "../hooks/queries.ts";

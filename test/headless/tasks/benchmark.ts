@@ -37,7 +37,7 @@ import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 export const name = "benchmark";
 
-const BSP_METRICS = CONSUMPTION_METRIC_KEYS as string[];
+const BSP_METRICS = CONSUMPTION_METRIC_KEYS;
 
 /** Seed an annual `_bsp_*` building (with energy) owned by `actor`; returns its URI. */
 async function seedBspBuilding(
