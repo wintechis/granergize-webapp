@@ -10,8 +10,11 @@ import {
   useAnnualEnergy,
   useBuildings,
   useEnergy,
+  useReceivedBenchmarks,
+  useReceivedViews,
   useResolveOrgLogo,
   useSeriesDays,
+  useSharedWithMe,
   useSolidData,
 } from "./queries.ts";
 import type { BuildingType } from "../types.ts";
@@ -84,6 +87,63 @@ Deno.test("useBuildings loads + parses from the session", async () => {
     const { result } = renderHook(() => useBuildings(), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
     assert.equal(result.current.data?.buildings.length, 1);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("one shared-in fold serves buildings + sharedWithMe + receivedViews + benchmarks", async () => {
+  const SHARED_IN = "https://pod.example/granergize/shared-in/";
+  const EVT = `${SHARED_IN}evt-1`;
+  const B2 = "https://other.example/granergize/buildings/b2.ttl";
+  const fixtures: Record<string, string> = {
+    ...FIXTURES,
+    [SHARED_IN]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${SHARED_IN}> ldp:contains <${EVT}> .`,
+    [EVT]: `@prefix interop: <http://www.w3.org/ns/solid/interop#> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
+@prefix gran: <https://solid.ti.rw.fau.de/gra/vocab.ttl#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<> a interop:AccessGrant ;
+   prov:wasAssociatedWith <https://other.example/profile/card#me> ;
+   interop:grantee <${WEBID}> ;
+   interop:forResource <${B2}#b2> ;
+   gran:kind <https://w3id.org/rec#Building> ;
+   prov:generatedAtTime "2026-01-01T00:00:00Z"^^xsd:dateTime .`,
+    [B2]: `@prefix rec: <https://w3id.org/rec#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+<#b2> a rec:Building ; geo:lat 50.0 ; geo:long 10.0 .`,
+  };
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  const { session, calls } = makeFakeSession({
+    webId: WEBID,
+    resources: fixtures,
+  });
+  _setSessionForTesting(session);
+  const { wrapper } = makeWrapper();
+  try {
+    // Mount EVERY shared-in consumer at once — the dedup's whole point.
+    const { result } = renderHook(() => ({
+      buildings: useBuildings(),
+      sharedWithMe: useSharedWithMe(),
+      receivedViews: useReceivedViews(),
+      benchmarks: useReceivedBenchmarks(),
+    }), { wrapper });
+    await waitFor(() => {
+      assert.ok(result.current.buildings.isSuccess);
+      assert.ok(result.current.benchmarks.isSuccess);
+      assert.ok(result.current.sharedWithMe.data);
+    });
+    // The shared grant flowed into every reader…
+    assert.equal(result.current.buildings.data?.buildings.length, 2);
+    assert.equal(result.current.sharedWithMe.data?.length, 1);
+    assert.equal(result.current.sharedWithMe.data?.[0].buildingUri, `${B2}#b2`);
+    assert.deepEqual(result.current.receivedViews.data, []);
+    // …from ONE fold: the shared-in/ container was listed exactly once.
+    const folds = calls.filter(
+      (c) => c.method === "GET" && c.url === SHARED_IN,
+    );
+    assert.equal(folds.length, 1, "shared-in/ folded once for all consumers");
   } finally {
     _setSessionForTesting(null);
   }
@@ -182,7 +242,7 @@ Deno.test("useResolveOrgLogo is disabled until a WebID is provided", () => {
   }
 });
 
-Deno.test("useToggleVisibility invalidates the shared-with-me query", async () => {
+Deno.test("useToggleVisibility invalidates prefs (the shared-with-me input) + buildings", async () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession());
   const { client, wrapper } = makeWrapper();
@@ -196,10 +256,12 @@ Deno.test("useToggleVisibility invalidates the shared-with-me query", async () =
   try {
     const { result } = renderHook(() => useToggleVisibility(), { wrapper });
     await result.current.mutateAsync("https://other.example/b.ttl#b");
-    assert.ok(
-      invalidated.some((k) => Array.isArray(k) && k[0] === "sharedWithMe"),
-      "sharedWithMe was invalidated",
-    );
+    const keyed = (name: string) =>
+      invalidated.some((k) => Array.isArray(k) && k[0] === name);
+    // The toggle writes prefs.ttl; the Share-tab list derives from the prefs
+    // query, and the buildings load filters hidden buildings via prefs too.
+    assert.ok(keyed("prefs"), "prefs was invalidated");
+    assert.ok(keyed("buildings"), "buildings was invalidated");
   } finally {
     _setSessionForTesting(null);
   }
@@ -223,9 +285,10 @@ Deno.test("useCheckInbox invalidates the received-benchmarks fold (not just rece
     await result.current.mutateAsync().catch(() => {});
     const keyed = (name: string) =>
       invalidated.some((k) => Array.isArray(k) && k[0] === name);
-    // receivedBenchmarks folds receivedViews, so invalidating only the latter left
-    // a newly-received benchmark stale — both must be invalidated by the drain.
-    assert.ok(keyed("receivedViews"), "receivedViews was invalidated");
+    // The drain refolds the one shared-in log (every "shared with me" reader
+    // derives from it) AND receivedBenchmarks — snapshot contents can change
+    // while the grant set (the benchmarks query's key fingerprint) does not.
+    assert.ok(keyed("sharedInLog"), "sharedInLog was invalidated");
     assert.ok(keyed("receivedBenchmarks"), "receivedBenchmarks was invalidated");
   } finally {
     _setSessionForTesting(null);

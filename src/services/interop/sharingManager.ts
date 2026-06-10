@@ -2,6 +2,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory } from "n3";
 import { postSharingEventToInbox } from "./inbox.ts";
 import {
+  type ActiveGrant,
   appendSharingEvent,
   foldSharingLog,
   sharedInUrl,
@@ -39,24 +40,17 @@ function buildingIdFromUri(uri: string): string {
   return uri.split("/").pop()?.replace(".ttl", "") || "";
 }
 
-/**
- * Buildings the user has shared with others, grouped by building → recipients.
- * Derived by folding the `shared-out/` event log (grant minus revocation); the
- * `.acl` remains the enforcement truth, this log is the app's record. A building
- * URL is `interop:forResource` with `gran:kind rec:Building`.
- * @operation query
- */
-export async function getSharedBuildings(
-  session: Session,
-): Promise<SharedBuilding[]> {
-  if (!session.info.isLoggedIn || !session.info.webId) {
-    throw new Error("User is not logged in");
-  }
+// ── Pure derivations over a folded log ──────────────────────────────────────
+// Each sharing log is folded ONCE per load (the `sharedInLog`/`sharedOutLog`
+// queries in hooks/queries.ts); the list shapes below are cheap in-memory
+// derivations of that fold. Hook code composes these with the log queries —
+// only non-hook callers (headless tasks, service-internal reads) use the
+// session-taking wrappers further down, which fold for themselves.
 
-  // No try/catch: a network/parse failure propagates to React Query (which keeps
-  // the last good list via keepPreviousData) rather than being masked as
-  // "nothing shared".
-  const grants = await foldSharingLog(sharedOutUrl(session.info.webId), session);
+/** {@link getSharedBuildings}, derived from already-folded `shared-out/` grants. */
+export function sharedBuildingsFromGrants(
+  grants: ActiveGrant[],
+): SharedBuilding[] {
   const buildingsMap = new Map<string, Set<string>>();
   for (const g of grants) {
     if (g.kind !== "Building") continue;
@@ -70,10 +64,80 @@ export async function getSharedBuildings(
   }));
 }
 
+/** {@link getSharedWithMe}, derived from already-folded `shared-in/` grants
+ * plus the hidden-buildings set from prefs. */
+export function sharedWithMeFromGrants(
+  grants: ActiveGrant[],
+  hiddenBuildings: ReadonlySet<string>,
+): SharedWithMeBuilding[] {
+  return grants
+    .filter((g) => g.kind === "Building")
+    .map((g) => ({
+      buildingUri: g.resource,
+      buildingId: buildingIdFromUri(g.resource),
+      sharedBy: g.owner || "Unknown",
+      isVisible: !hiddenBuildings.has(g.resource),
+    }));
+}
+
+/** {@link getReceivedViews}, derived from already-folded `shared-in/` grants. */
+export function receivedViewsFromGrants(grants: ActiveGrant[]): ReceivedView[] {
+  return grants
+    .filter((g) => g.kind === "View")
+    .map((g) => ({
+      snapshotUrl: g.resource,
+      viewId: buildingIdFromUri(g.resource), // basename without ".ttl"
+      sharedBy: g.owner || "Unknown",
+    }));
+}
+
+/** {@link getSharedViews}, derived from already-folded `shared-out/` grants. */
+export function sharedViewsFromGrants(grants: ActiveGrant[]): SharedView[] {
+  const viewsMap = new Map<string, Set<string>>();
+  for (const g of grants) {
+    if (g.kind !== "View") continue;
+    if (!viewsMap.has(g.resource)) viewsMap.set(g.resource, new Set());
+    viewsMap.get(g.resource)!.add(g.grantee);
+  }
+  return [...viewsMap.entries()].map(([snapshotUrl, webIds]) => ({
+    snapshotUrl,
+    viewId: buildingIdFromUri(snapshotUrl), // basename without ".ttl"
+    sharedWith: [...webIds],
+  }));
+}
+
+/**
+ * Buildings the user has shared with others, grouped by building → recipients.
+ * Derived by folding the `shared-out/` event log (grant minus revocation); the
+ * `.acl` remains the enforcement truth, this log is the app's record. A building
+ * URL is `interop:forResource` with `gran:kind rec:Building`.
+ *
+ * NON-HOOK callers only (headless tasks, service-internal reads): it folds the
+ * whole log for itself. Hook code derives from the `sharedOutLog` query via
+ * {@link sharedBuildingsFromGrants} so the log is folded once per load.
+ * @operation query
+ */
+export async function getSharedBuildings(
+  session: Session,
+): Promise<SharedBuilding[]> {
+  if (!session.info.isLoggedIn || !session.info.webId) {
+    throw new Error("User is not logged in");
+  }
+
+  // No try/catch: a network/parse failure propagates to React Query (which keeps
+  // the last good list via keepPreviousData) rather than being masked as
+  // "nothing shared".
+  const grants = await foldSharingLog(sharedOutUrl(session.info.webId), session);
+  return sharedBuildingsFromGrants(grants);
+}
+
 /**
  * Buildings shared with the user, derived by folding the `shared-in/` event log
  * (each event was archived from the inbox). The sharer is `prov:wasAssociatedWith`
  * (the event's `owner`). Visibility comes from `prefs.ttl`.
+ *
+ * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via
+ * {@link sharedWithMeFromGrants} from the `sharedInLog` + `prefs` queries.
  * @operation query
  */
 export async function getSharedWithMe(
@@ -89,15 +153,7 @@ export async function getSharedWithMe(
     readPrefs(session),
     foldSharingLog(sharedInUrl(session.info.webId), session),
   ]);
-
-  return grants
-    .filter((g) => g.kind === "Building")
-    .map((g) => ({
-      buildingUri: g.resource,
-      buildingId: buildingIdFromUri(g.resource),
-      sharedBy: g.owner || "Unknown",
-      isVisible: !hiddenBuildings.has(g.resource),
-    }));
+  return sharedWithMeFromGrants(grants, hiddenBuildings);
 }
 
 /**
@@ -378,7 +434,7 @@ interface SharedView {
   sharedWith: string[];
 }
 
-interface ReceivedView {
+export interface ReceivedView {
   /** The sharer's snapshot URL (`…/views/snapshots/<viewId>.ttl`); we have Read on it. */
   snapshotUrl: string;
   viewId: string;
@@ -391,6 +447,9 @@ interface ReceivedView {
  * grants received in the inbox) for `gran:kind cons:View`. Only the computed
  * snapshot is granted (not the definition), so each entry is just the snapshot
  * URL + who shared it; render it with {@link loadComputedSnapshot}.
+ *
+ * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via
+ * {@link receivedViewsFromGrants} from the `sharedInLog` query.
  * @operation query
  */
 export async function getReceivedViews(
@@ -402,19 +461,16 @@ export async function getReceivedViews(
 
   // Errors propagate to React Query (keepPreviousData keeps the last good list).
   const grants = await foldSharingLog(sharedInUrl(session.info.webId), session);
-  return grants
-    .filter((g) => g.kind === "View")
-    .map((g) => ({
-      snapshotUrl: g.resource,
-      viewId: buildingIdFromUri(g.resource), // basename without ".ttl"
-      sharedBy: g.owner || "Unknown",
-    }));
+  return receivedViewsFromGrants(grants);
 }
 
 /**
  * Views the user has shared with others, by folding the `shared-out/` log for
  * `gran:kind cons:View` grants. The viewId is recovered from the snapshot URL
  * (`views/snapshots/<viewId>.ttl`).
+ *
+ * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via
+ * {@link sharedViewsFromGrants} from the `sharedOutLog` query.
  * @operation query
  */
 export async function getSharedViews(session: Session): Promise<SharedView[]> {
@@ -424,17 +480,7 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
 
   // Errors propagate to React Query / the dialog's own catch (not masked as empty).
   const grants = await foldSharingLog(sharedOutUrl(session.info.webId), session);
-  const viewsMap = new Map<string, Set<string>>();
-  for (const g of grants) {
-    if (g.kind !== "View") continue;
-    if (!viewsMap.has(g.resource)) viewsMap.set(g.resource, new Set());
-    viewsMap.get(g.resource)!.add(g.grantee);
-  }
-  return [...viewsMap.entries()].map(([snapshotUrl, webIds]) => ({
-    snapshotUrl,
-    viewId: buildingIdFromUri(snapshotUrl), // basename without ".ttl"
-    sharedWith: [...webIds],
-  }));
+  return sharedViewsFromGrants(grants);
 }
 
 /**

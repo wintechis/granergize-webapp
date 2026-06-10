@@ -83,7 +83,10 @@ export function makeFakeSession(opts: FakeSessionOptions = {}): FakeSession {
       : input instanceof URL
       ? input.href
       : input.url;
-    const url = raw.split("?")[0];
+    // Strip query AND fragment: a real fetch never sends either to the server
+    // (the fragment is client-side), so a fixture keyed by the resource URL
+    // must match a request URL that still carries `#…`.
+    const url = raw.split("?")[0].split("#")[0];
     const method = (init?.method ?? "GET").toUpperCase();
     const body = init?.body != null ? String(init.body) : undefined;
     calls.push({ method, url, body });

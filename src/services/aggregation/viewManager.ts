@@ -18,7 +18,10 @@ import {
   XSD_INTEGER,
 } from "../rdf/vocabularies.ts";
 import { getQuadValue, getQuadValues } from "../rdf/rdfHelpers.ts";
-import { getReceivedViews } from "../interop/sharingManager.ts";
+import {
+  getReceivedViews,
+  type ReceivedView,
+} from "../interop/sharingManager.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
 import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
@@ -560,16 +563,17 @@ export async function loadComputedSnapshot(
 }
 
 /**
- * The benchmark snapshots shared *with* the current user: fold the received-views
- * log, load each snapshot, and keep the ones marked as a benchmark result. These
- * are what the energy view compares the owner's own figures against. Unreadable or
+ * Load the given received views' snapshots and keep the ones marked as a
+ * benchmark result — what the energy view compares the owner's own figures
+ * against. Takes the already-derived received views (from the folded
+ * `shared-in/` log) so it performs no fold of its own; unreadable or
  * non-benchmark snapshots are dropped.
  * @operation query
  */
-export async function getReceivedBenchmarks(
+export async function getReceivedBenchmarksFor(
   session: Session,
+  received: ReceivedView[],
 ): Promise<AggregatedViewSnapshot[]> {
-  const received = await getReceivedViews(session);
   const snapshots = await mapPooled(
     received,
     4,
@@ -585,6 +589,18 @@ export async function getReceivedBenchmarks(
   return snapshots.filter(
     (s): s is AggregatedViewSnapshot => s !== null && Boolean(s.isBenchmark),
   );
+}
+
+/**
+ * {@link getReceivedBenchmarksFor} over a fresh fold of the received views.
+ * NON-HOOK callers only (headless tasks); hook code passes the views derived
+ * from the `sharedInLog` query so the log is folded once per load.
+ * @operation query
+ */
+export async function getReceivedBenchmarks(
+  session: Session,
+): Promise<AggregatedViewSnapshot[]> {
+  return getReceivedBenchmarksFor(session, await getReceivedViews(session));
 }
 
 /**

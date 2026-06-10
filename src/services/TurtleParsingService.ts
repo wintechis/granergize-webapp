@@ -14,6 +14,7 @@ import { mapPooled } from "../lib/pool.ts";
 import { parseEnergyDataset } from "./rdf/energyDataset.ts";
 import { readPrefs } from "./prefs.ts";
 import {
+  type ActiveGrant,
   appendSharingEvent,
   foldSharingLog,
   sharedInUrl,
@@ -187,27 +188,19 @@ async function discoverOwnBuildings(
 }
 
 /**
- * Building URLs shared *with* the user (on other Pods), by folding the
- * `shared-in/` event log for `gran:kind rec:Building` grants. An empty/missing
- * log (no shares received) yields `[]`.
+ * Building URLs shared *with* the user, derived from the already-folded
+ * `shared-in/` grants (`gran:kind rec:Building`).
  */
-async function listSharedBuildingSources(
-  session: Session,
-  webId: string,
-): Promise<string[]> {
-  try {
-    const grants = await foldSharingLog(sharedInUrl(webId), session);
-    return grants.filter((g) => g.kind === "Building").map((g) => g.resource);
-  } catch (error) {
-    console.error("Error loading shared building sources:", error);
-    return [];
-  }
+export function sharedBuildingSourcesFromGrants(grants: ActiveGrant[]): string[] {
+  return grants.filter((g) => g.kind === "Building").map((g) => g.resource);
 }
 
 /**
  * Phase 1: discover, fetch and parse the visible buildings (no energy). Own
  * buildings come from listing the `buildings/` container; buildings shared with
- * the user come from folding the `shared-in/` log. Fast enough to paint the map
+ * the user are passed in as `sharedSources` — derived from the `shared-in/` log
+ * folded ONCE per load by the `sharedInLog` query (hooks) or by
+ * {@link fetchAndParseData} (headless). Fast enough to paint the map
  * immediately; energy streams in via {@link loadEnergy}.
  *
  * Pure on the happy path, but carries one *reconciliation* write: a shared source
@@ -215,25 +208,23 @@ async function listSharedBuildingSources(
  * {@link removeInaccessibleBuildingSources}, which appends a self-revocation to
  * `shared-in/` so the next fold drops it. Best-effort (failures logged, never
  * thrown) and only when a source actually fails — so the call performs no write
- * when every source is accessible. See `notes/operations.md` (§Seams) for why this
- * reconciliation write lives in the read path.
+ * when every source is accessible. The pruned sources are reported back so the
+ * caller can invalidate the folded-log query (the fold itself happens upstream
+ * now). See `notes/operations.md` (§Seams) for why this reconciliation write
+ * lives in the read path.
  * @operation query
  */
 export async function loadBuildings(
   session: Session,
-): Promise<{ buildings: BuildingType[] }> {
+  sharedSources: string[],
+): Promise<{ buildings: BuildingType[]; prunedSources: string[] }> {
   const webId = session.info.webId;
   if (!webId) {
     throw new Error("No WebID found in session.");
   }
 
-  // Own buildings (container listing) and shared sources (registry) are
-  // independent; discover them concurrently.
-  const [ownBuildings, sharedBuildings] = await Promise.all([
-    discoverOwnBuildings(session, webId),
-    listSharedBuildingSources(session, webId),
-  ]);
-  const buildingSources = [...new Set([...ownBuildings, ...sharedBuildings])];
+  const ownBuildings = await discoverOwnBuildings(session, webId);
+  const buildingSources = [...new Set([...ownBuildings, ...sharedSources])];
 
   const [hiddenBuildingUris, buildingsResult] = await Promise.all([
     readPrefs(session).then((p) => p.hiddenBuildings),
@@ -266,6 +257,7 @@ export async function loadBuildings(
 
   return {
     buildings: Array.from(visibleBuildings.values()),
+    prunedSources: buildingsResult.failedSources.map((f) => f.url),
   };
 }
 
@@ -434,16 +426,39 @@ export async function loadEnergy(
 }
 
 /**
- * Two-phase orchestrator: phase 1 (buildings) then phase 2 (energy), with a
- * callback fired after phase 1. Used by the live harness and the offline tests;
- * the app drives the two phases as separate React Query queries instead.
+ * Building URLs shared *with* the user, by folding the `shared-in/` log once.
+ * An empty/missing log (no shares received) yields `[]`; other failures are
+ * logged and tolerated (own buildings must still load).
+ * @operation query
+ */
+export async function listSharedBuildingSources(
+  session: Session,
+  webId: string,
+): Promise<string[]> {
+  try {
+    const grants = await foldSharingLog(sharedInUrl(webId), session);
+    return sharedBuildingSourcesFromGrants(grants);
+  } catch (error) {
+    console.error("Error loading shared building sources:", error);
+    return [];
+  }
+}
+
+/**
+ * Two-phase orchestrator: phase 0+1 (fold shared-in once, then buildings) and
+ * phase 2 (energy), with a callback fired after phase 1. Used by the live
+ * harness and the offline tests; the app drives the phases as separate React
+ * Query queries instead (the `sharedInLog` query owning the one fold).
  * @operation query
  */
 export async function fetchAndParseData(
   session: Session,
   onBuildings?: (partial: { buildings: BuildingType[] }) => void,
 ) {
-  const { buildings } = await loadBuildings(session);
+  const webId = session.info.webId;
+  if (!webId) throw new Error("No WebID found in session.");
+  const sharedSources = await listSharedBuildingSources(session, webId);
+  const { buildings } = await loadBuildings(session, sharedSources);
   onBuildings?.({ buildings });
   const energy = await loadEnergy(session, buildings);
   return { buildings, ...energy };
