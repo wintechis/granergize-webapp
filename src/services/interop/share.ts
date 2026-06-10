@@ -18,6 +18,7 @@ import {
   RDF_TYPE,
 } from "../rdf/vocabularies.ts";
 import { parseDatasetSlug } from "../rdf/energyDataset.ts";
+import { mintLocalIri } from "../rdf/rdfHelpers.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
@@ -389,7 +390,9 @@ function writeAuthorization(
   add(`${ACL_NS}agent`, agentWebId);
   add(`${ACL_NS}accessTo`, opts.resourceUri);
   if (opts.isContainer) add(`${ACL_NS}default`, opts.resourceUri);
-  for (const mode of opts.modes) add(`${ACL_NS}mode`, `${ACL_NS}${mode}`);
+  for (const mode of opts.modes) {
+    add(`${ACL_NS}mode`, mintLocalIri(ACL_NS, mode).value);
+  }
 }
 
 /**

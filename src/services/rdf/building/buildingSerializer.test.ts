@@ -402,7 +402,22 @@ Deno.test("serializeBuildingToTurtle rejects an IRI-unsafe certification type (n
         { streetAddress: "X", _cert_0_type: "DGNB Gold" },
         uri,
       ),
-    /certification type/,
+    /not usable as an IRI local name/,
+  );
+});
+
+Deno.test("serializeBuildingToTurtle rejects an IRI-unsafe controlled-vocab value (no silent corruption)", () => {
+  // Same failure class as the certification type: a controlled-vocab field's
+  // value is minted as a BUILDING_NS local name, so junk reaching it (e.g. an
+  // unmapped import label like "Ein-Schicht (Tag)") must throw, not corrupt.
+  const uri = newBuildingUri(WEBID, "b-1");
+  assert.throws(
+    () =>
+      serializeBuildingToTurtle(
+        { streetAddress: "X", shiftRegime: "Ein-Schicht (Tag)" },
+        uri,
+      ),
+    /not usable as an IRI local name/,
   );
 });
 

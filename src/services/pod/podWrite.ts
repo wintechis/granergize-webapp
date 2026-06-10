@@ -69,7 +69,8 @@ export async function ensureContainer(
   session: Session,
   opts: { announce?: boolean } = {},
 ): Promise<boolean> {
-  const head = await session.fetch(containerUrl, { method: "GET" });
+  // HEAD, not GET: only existence matters, so don't transfer the container body.
+  const head = await session.fetch(containerUrl, { method: "HEAD" });
   if (head.ok || head.status !== 404) return false;
   const put = await session.fetch(containerUrl, {
     method: "PUT",

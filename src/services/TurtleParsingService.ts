@@ -200,8 +200,11 @@ export function sharedBuildingSourcesFromGrants(grants: ActiveGrant[]): string[]
  * buildings come from listing the `buildings/` container; buildings shared with
  * the user are passed in as `sharedSources` — derived from the `shared-in/` log
  * folded ONCE per load by the `sharedInLog` query (hooks) or by
- * {@link fetchAndParseData} (headless). Fast enough to paint the map
- * immediately; energy streams in via {@link loadEnergy}.
+ * {@link fetchAndParseData} (headless). `hiddenBuildings` (the prefs
+ * `gran:hiddenBuilding` set) is likewise passed in — read ONCE per load by the
+ * `prefs` query (hooks) or by {@link fetchAndParseData}, not re-fetched here.
+ * Fast enough to paint the map immediately; energy streams in via
+ * {@link loadEnergy}.
  *
  * Pure on the happy path, but carries one *reconciliation* write: a shared source
  * that 403/404s (access revoked since the grant) is pruned via
@@ -217,6 +220,7 @@ export function sharedBuildingSourcesFromGrants(grants: ActiveGrant[]): string[]
 export async function loadBuildings(
   session: Session,
   sharedSources: string[],
+  hiddenBuildingUris: Set<string>,
 ): Promise<{ buildings: BuildingType[]; prunedSources: string[] }> {
   const webId = session.info.webId;
   if (!webId) {
@@ -226,10 +230,11 @@ export async function loadBuildings(
   const ownBuildings = await discoverOwnBuildings(session, webId);
   const buildingSources = [...new Set([...ownBuildings, ...sharedSources])];
 
-  const [hiddenBuildingUris, buildingsResult] = await Promise.all([
-    readPrefs(session).then((p) => p.hiddenBuildings),
-    loadTtlFromMultipleSources(buildingSources, session, "buildings"),
-  ]);
+  const buildingsResult = await loadTtlFromMultipleSources(
+    buildingSources,
+    session,
+    "buildings",
+  );
 
   // A shared source that 403/404s (e.g. access revoked since the grant) is
   // pruned from the registry; own buildings always load, so this self-heals
@@ -445,10 +450,11 @@ export async function listSharedBuildingSources(
 }
 
 /**
- * Two-phase orchestrator: phase 0+1 (fold shared-in once, then buildings) and
- * phase 2 (energy), with a callback fired after phase 1. Used by the live
- * harness and the offline tests; the app drives the phases as separate React
- * Query queries instead (the `sharedInLog` query owning the one fold).
+ * Two-phase orchestrator: phase 0+1 (fold shared-in once + read prefs once,
+ * then buildings) and phase 2 (energy), with a callback fired after phase 1.
+ * Used by the live harness and the offline tests; the app drives the phases as
+ * separate React Query queries instead (the `sharedInLog` query owning the one
+ * fold, the `prefs` query the one prefs read).
  * @operation query
  */
 export async function fetchAndParseData(
@@ -457,8 +463,15 @@ export async function fetchAndParseData(
 ) {
   const webId = session.info.webId;
   if (!webId) throw new Error("No WebID found in session.");
-  const sharedSources = await listSharedBuildingSources(session, webId);
-  const { buildings } = await loadBuildings(session, sharedSources);
+  const [sharedSources, prefs] = await Promise.all([
+    listSharedBuildingSources(session, webId),
+    readPrefs(session),
+  ]);
+  const { buildings } = await loadBuildings(
+    session,
+    sharedSources,
+    prefs.hiddenBuildings,
+  );
   onBuildings?.({ buildings });
   const energy = await loadEnergy(session, buildings);
   return { buildings, ...energy };

@@ -40,14 +40,19 @@ function makeServer(
 
   const fetch = (_input: string | URL, init?: RequestInit): Promise<Response> => {
     const method = (init?.method ?? "GET").toUpperCase();
-    if (method === "GET") {
+    if (method === "GET" || method === "HEAD") {
       gets++;
       if (!state) return Promise.resolve(new Response("Not found", { status: 404 }));
       const headers: Record<string, string> = {
         "Content-Type": "text/turtle",
       };
       if (withEtag) headers.ETag = state.etag;
-      return Promise.resolve(new Response(state.body, { status: 200, headers }));
+      return Promise.resolve(
+        new Response(method === "HEAD" ? null : state.body, {
+          status: 200,
+          headers,
+        }),
+      );
     }
     if (method === "PUT") {
       const h = new Headers(init?.headers);

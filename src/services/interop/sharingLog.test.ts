@@ -26,8 +26,13 @@ const B2 = "https://alice.example/granergize/buildings/b2.ttl";
  * its direct children; HEAD on a container is 200. Lets the append/fold event-log
  * paths run offline.
  */
-function makePod(): { session: Session; store: Record<string, string> } {
+function makePod(): {
+  session: Session;
+  store: Record<string, string>;
+  gets: string[];
+} {
   const store: Record<string, string> = {};
+  const gets: string[] = [];
   let seq = 0;
   const directChildren = (container: string): string[] => {
     const out = new Set<string>();
@@ -59,6 +64,7 @@ function makePod(): { session: Session; store: Record<string, string> } {
         new Response(null, { status: url.endsWith("/") || url in store ? 200 : 404 }),
       );
     }
+    gets.push(url);
     if (url.endsWith("/")) {
       const refs = directChildren(url).map((c) => `<${c}>`).join(", ");
       const body = `@prefix ldp: <http://www.w3.org/ns/ldp#> .\n<${url}> a ldp:Container${
@@ -82,6 +88,7 @@ function makePod(): { session: Session; store: Record<string, string> } {
       fetch,
     } as unknown as Session,
     store,
+    gets,
   };
 }
 
@@ -205,4 +212,37 @@ Deno.test("foldSharingLog: (grantee, resource) pairs fold independently", async 
 Deno.test("foldSharingLog on a missing container is empty", async () => {
   const { session } = makePod();
   assert.deepEqual(await foldSharingLog(sharedInUrl(WEBID), session), []);
+});
+
+Deno.test("foldSharingLog: a re-fold re-reads only the listing, not the immutable events", async () => {
+  const { session, gets } = makePod();
+  const log = sharedInUrl(WEBID);
+  await appendSharingEvent(log, session, {
+    type: "grant", owner: OWNER, grantee: WEBID, resource: B1, kind: "Building",
+    at: "2026-06-04T10:00:00Z",
+  });
+  await appendSharingEvent(log, session, {
+    type: "grant", owner: OWNER, grantee: WEBID, resource: B2, kind: "Building",
+    at: "2026-06-04T11:00:00Z",
+  });
+
+  assert.equal((await foldSharingLog(log, session)).length, 2);
+  const eventGets = () => gets.filter((u) => !u.endsWith("/")).length;
+  assert.equal(eventGets(), 2, "first fold reads each event once");
+
+  // Events are immutable once POSTed: a second fold revalidates the container
+  // listing but serves the parsed events from the per-session cache.
+  assert.equal((await foldSharingLog(log, session)).length, 2);
+  assert.equal(eventGets(), 2, "re-fold reads NO event resource again");
+  assert.equal(gets.filter((u) => u === log).length, 2, "listing re-read");
+
+  // A NEW event (here: a revocation) is the only one fetched on the next fold,
+  // and the fold's result reflects it.
+  await appendSharingEvent(log, session, {
+    type: "revocation", owner: OWNER, grantee: WEBID, resource: B2,
+    at: "2026-06-05T10:00:00Z",
+  });
+  const active = await foldSharingLog(log, session);
+  assert.deepEqual(active.map((g) => g.resource), [B1]);
+  assert.equal(eventGets(), 3, "only the new event was read");
 });

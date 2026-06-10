@@ -94,23 +94,37 @@ export function usePrefs() {
 
 /**
  * Phase 1: buildings (paints the map). Dependent on the folded `shared-in/`
- * log (the shared building sources come from its grants); the key carries the
- * sorted source list, so a share arriving/leaving refetches buildings because
- * the data changed. A FAILED log fold degrades to "no shared sources" rather
- * than blocking own buildings (the old internal fold's tolerance).
+ * log (the shared building sources come from its grants) AND on the `prefs`
+ * query (the hidden-building set the load filters by) — so neither resource is
+ * fetched twice per load. The key carries the sorted source list and the hidden
+ * fingerprint, so a share arriving/leaving or a visibility toggle refetches
+ * buildings because the data changed. A FAILED dependency degrades (no shared
+ * sources / nothing hidden) rather than blocking own buildings.
  */
 export function useBuildings() {
   const webId = webIdOf();
   const qc = useQueryClient();
   const log = useSharedInGrants();
+  const prefs = usePrefs();
   const sharedSources = log.data
     ? sharedBuildingSourcesFromGrants(log.data).sort()
     : log.isError
     ? []
     : undefined;
+  const hidden = prefs.data
+    ? prefs.data.hiddenBuildings
+    : prefs.isError
+    ? new Set<string>()
+    : undefined;
   return useQuery({
-    queryKey: [...queryKeys.buildings, webId, (sharedSources ?? []).join(";")],
-    enabled: Boolean(webId) && sharedSources !== undefined,
+    queryKey: [
+      ...queryKeys.buildings,
+      webId,
+      (sharedSources ?? []).join(";"),
+      [...(hidden ?? [])].sort().join(";"),
+    ],
+    enabled: Boolean(webId) && sharedSources !== undefined &&
+      hidden !== undefined,
     queryFn: async () => {
       const session = getSession();
       // Resolve the Pod storage root from pim:storage before any path is built.
@@ -118,6 +132,7 @@ export function useBuildings() {
       const { buildings, prunedSources } = await loadBuildings(
         session,
         sharedSources ?? [],
+        hidden ?? new Set(),
       );
       // An inaccessible shared source was pruned (a self-revocation appended to
       // shared-in/): refold the log so the grant set — and every reader derived
