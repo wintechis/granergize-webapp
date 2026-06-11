@@ -8,7 +8,9 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   useCreateRoom,
   useDeleteBuilding,
+  useDeleteView,
   useExitRoom,
+  useRefreshView,
   useRemoveBookmark,
 } from "./mutations.ts";
 import { queryKeys } from "./queries.ts";
@@ -362,6 +364,34 @@ Deno.test("useShareBuilding invalidates ONLY the shared-out log (not buildings)"
       !invalidated.includes("buildings"),
       "a share does not reload the buildings",
     );
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useRefreshView and useDeleteView invalidate viewDetail (the standalone page reads through it)", async () => {
+  const fake = makeFakeSession({
+    webId: WEBID,
+    respond: () => new Response("boom", { status: 500 }),
+  });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const refresh = makeSpyWrapper();
+  const del = makeSpyWrapper();
+  try {
+    const { result: refreshView } = renderHook(() => useRefreshView(), {
+      wrapper: refresh.wrapper,
+    });
+    await refreshView.current.mutateAsync("v1").catch(() => {});
+    assert.ok(refresh.invalidated.includes("viewDefinitions"));
+    assert.ok(refresh.invalidated.includes("viewDetail"));
+
+    const { result: deleteView } = renderHook(() => useDeleteView(), {
+      wrapper: del.wrapper,
+    });
+    await deleteView.current.mutateAsync("v1").catch(() => {});
+    assert.ok(del.invalidated.includes("viewDetail"));
+    assert.ok(del.invalidated.includes("sharedOutLog"));
   } finally {
     _setSessionForTesting(null);
   }

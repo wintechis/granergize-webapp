@@ -16,6 +16,7 @@ import {
   useSeriesDays,
   useSharedWithMe,
   useSolidData,
+  useViewDetail,
 } from "./queries.ts";
 import type { BuildingType } from "../types.ts";
 import { useCheckInbox, useToggleVisibility } from "./mutations.ts";
@@ -372,6 +373,95 @@ Deno.test("useSeriesDays lists the day files behind series refs, sorted", async 
       { day: "2024-01-01", url: `${CONTAINER}2024-01-01.ttl` },
       { day: "2024-01-02", url: `${CONTAINER}2024-01-02.ttl` },
     ]);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+// ── useViewDetail (the standalone /view page's query) ────────────────────────
+
+const VIEW_DEF = "https://pod.example/granergize/views/v1.ttl";
+const VIEW_SNAP = "https://pod.example/granergize/views/snapshots/v1.ttl";
+const VIEW_DEF_TTL = `@prefix cons: <${CONS}> .
+<#view> a cons:AggregatedViewDefinition ;
+  cons:viewId "v1" ; cons:viewName "My view" ;
+  cons:aggregationType "average" ;
+  cons:createdAt "2026-01-01T00:00:00Z" ;
+  cons:includesBuilding <${B1}> ;
+  cons:includesMetric "electricityConsumption" .`;
+const VIEW_SNAP_TTL = `@prefix cons: <${CONS}> .
+<#snapshot> a cons:AggregatedViewSnapshot ;
+  cons:viewId "v1" ; cons:viewName "My view" ;
+  cons:aggregationType "average" ;
+  cons:computedAt "2026-01-02T00:00:00Z" ;
+  cons:buildingCount "1" ;
+  cons:includesMetric "electricityConsumption" ;
+  cons:electricityConsumptionValue "1000" .`;
+
+Deno.test("useViewDetail loads definition + snapshot, and an existing snapshot writes NOTHING", async () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  const fake = makeFakeSession({
+    webId: WEBID,
+    resources: { ...FIXTURES, [VIEW_DEF]: VIEW_DEF_TTL, [VIEW_SNAP]: VIEW_SNAP_TTL },
+  });
+  _setSessionForTesting(fake.session);
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useViewDetail("v1"), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    assert.equal(result.current.data?.definition?.name, "My view");
+    assert.equal(result.current.data?.snapshot?.values.electricityConsumption, 1000);
+    assert.equal(result.current.data?.computeError, undefined);
+    // The seam's guard: with a snapshot present the read stays pure.
+    assert.ok(
+      fake.calls.every((c) => c.method === "GET" || c.method === "HEAD"),
+      `unexpected write: ${JSON.stringify(fake.calls.filter((c) => c.method !== "GET" && c.method !== "HEAD"))}`,
+    );
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useViewDetail auto-materialises a MISSING snapshot (the documented seam)", async () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  const fake = makeFakeSession({
+    webId: WEBID,
+    resources: { ...FIXTURES, [VIEW_DEF]: VIEW_DEF_TTL },
+  });
+  _setSessionForTesting(fake.session);
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useViewDetail("v1"), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    assert.equal(result.current.data?.definition?.name, "My view");
+    assert.ok(result.current.data?.snapshot, "snapshot computed on first open");
+    assert.ok(
+      fake.calls.some((c) => c.method === "PUT" && c.url === VIEW_SNAP),
+      "computed snapshot stored on the Pod",
+    );
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useViewDetail degrades a failed auto-compute to definition-only + computeError", async () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  const fake = makeFakeSession({
+    webId: WEBID,
+    resources: { ...FIXTURES, [VIEW_DEF]: VIEW_DEF_TTL },
+    respond: (url, init) =>
+      init?.method === "PUT" && url.startsWith(VIEW_SNAP)
+        ? new Response("boom", { status: 500 })
+        : undefined,
+  });
+  _setSessionForTesting(fake.session);
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useViewDetail("v1"), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    assert.equal(result.current.data?.definition?.name, "My view");
+    assert.equal(result.current.data?.snapshot, null);
+    assert.ok(result.current.data?.computeError, "the failure travels in the data");
   } finally {
     _setSessionForTesting(null);
   }

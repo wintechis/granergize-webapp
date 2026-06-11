@@ -85,6 +85,7 @@ const SOLO_SPECS = [
   "**/excel-import.spec.ts",
   "**/excel-export.spec.ts",
   "**/energy-entry.spec.ts",
+  "**/energy-resolutions.spec.ts",
   "**/materialised-views.spec.ts",
   "**/map-energy-lens.spec.ts",
   "**/data-room.spec.ts",

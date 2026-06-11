@@ -27,7 +27,7 @@ import Stack from "@mui/material/Stack";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import Grid from "@mui/material/Grid2";
-import Energy from "./Energy.tsx";
+import SeriesEnergy from "./SeriesEnergy.tsx";
 import IconButton from "@mui/material/IconButton";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
@@ -51,7 +51,8 @@ import {
   endActivity,
 } from "../lib/networkActivity.ts";
 import { safeImageSrc } from "../lib/safeHref.ts";
-import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
+import { splitEnergyDatasets } from "../lib/energyResolution.ts";
+import EnergyResolutionSwitch from "../components/EnergyResolutionSwitch.tsx";
 import {
   categoriserFor,
   type EnergyCategory,
@@ -425,14 +426,6 @@ export default function ExplorePage(
       replace: true,
     });
 
-  // The selected building's energy — pure derived data (a lookup), so a memo,
-  // not state+effect (which cost an extra render cycle per selection change).
-  const selectedEnergy = useMemo(
-    () =>
-      selectedBuilding ? energyById.get(selectedBuilding.id) ?? null : null,
-    [selectedBuilding, energyById],
-  );
-
   const togglePaneSize = () => {
     setDetailFull((v) => !v);
   };
@@ -675,32 +668,32 @@ export default function ExplorePage(
                       />
                     )}
 
-                    {detailTab === 1 && (
+                    {detailTab === 1 && (() => {
                       // Dispatch on the data the building actually carries, not
-                      // its provenance role: annual aggregates → the annual
-                      // view (its sections likewise derive from the data
-                      // present); otherwise the time-series / categorical
-                      // Energy view.
-                      (selectedBuilding.energyDatasets?.some((d) =>
-                          !isSeriesGranularity(d.granularity)
-                        ))
-                        ? <AnnualEnergy building={selectedBuilding} />
-                        : (selectedEnergy ||
-                            selectedBuilding.energyDatasets?.some((d) =>
-                              isSeriesGranularity(d.granularity)
-                            ))
-                        ? (
-                          <Energy
-                            selectedBuilding={selectedBuilding.id}
-                            building={selectedBuilding}
-                          />
-                        )
-                        : (
+                      // its provenance role: each granularity kind present gets
+                      // its view (annual aggregates → AnnualEnergy, sub-hourly
+                      // series → SeriesEnergy), and with both the user switches.
+                      const { aggregates, series } = splitEnergyDatasets(
+                        selectedBuilding.energyDatasets,
+                      );
+                      if (aggregates.length === 0 && series.length === 0) {
+                        return (
                           <Typography variant="body2">
                             No energy data for this building.
                           </Typography>
-                        )
-                    )}
+                        );
+                      }
+                      return (
+                        <EnergyResolutionSwitch
+                          annual={aggregates.length > 0
+                            ? <AnnualEnergy building={selectedBuilding} />
+                            : undefined}
+                          series={series.length > 0
+                            ? <SeriesEnergy building={selectedBuilding} />
+                            : undefined}
+                        />
+                      );
+                    })()}
 
                     {detailTab === 2 && (
                       <WeatherData building={selectedBuilding} />

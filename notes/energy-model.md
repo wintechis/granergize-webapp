@@ -125,6 +125,32 @@ container), so sharing exactly one year is granting its `.acl`, exactly like a b
   same year; `AnnualEnergy` overlays the planned (Soll) figures beside the
   actual per metric/year.
 
+## Rendering across resolutions
+
+A building may carry datasets of both kinds at once. The render surfaces never
+pick one for the user: wherever a building's energy is shown (the map's Energy
+tab, `/energy/:id`), each kind present gets its view, and with both present a
+small toggle switches between them (`EnergyResolutionSwitch`; the kind split is
+`splitEnergyDatasets`, `src/lib/energyResolution.ts`). Annual is the default —
+the aggregates are already bulk-loaded — and the series keeps its lazy load
+until selected, so the toggle changes nothing about the load strategy.
+
+Deferred decisions, deliberately not built yet:
+
+- **Intermediate cadences.** `P1M`/`PT1H` are model-legal but unminted; the
+  aggregate view assumes annual (kWh/a labels, one figure per metric, the year
+  title). Generalising it to period-generic rendering waits until a real
+  producer of such data exists — the load split already handles any cadence.
+- **Series → annual derivation.** A series-only building takes no part in
+  benchmarks, portfolio/operator averages, or views. If that is ever wanted,
+  prefer write-time summary observations in the series *descriptor* (it is
+  already fetched at bulk-load and is overwritten atomically with the upload)
+  over a derived `P1Y` dataset (a dual representation of the same readings) or
+  render-time folding (fetching a year of daily files defeats the lazy layout).
+- **Mixed-resolution comparison.** When datasets of different cadences are
+  compared, compare at the coarsest resolution present: finer data rolls up,
+  coarser data is never interpolated down.
+
 ## Decisions
 
 - **Every year is its own resource** (`energy/<year>-P1Y.ttl`, `energy/<year>-PT15M.ttl`),

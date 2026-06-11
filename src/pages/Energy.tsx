@@ -25,14 +25,15 @@ import { AgentLabel } from "../components/AgentLabel.tsx";
 import { BackLink, RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
-import UserEnergyChart from "./UserEnergyChart.tsx";
 
 import {
   CHART_COLOR_PALETTE,
   ENERGY_ABOVE_AVG_COLOR,
   ENERGY_BELOW_AVG_COLOR,
 } from "../constants/chartColors.ts";
-import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
+import { splitEnergyDatasets } from "../lib/energyResolution.ts";
+import EnergyResolutionSwitch from "../components/EnergyResolutionSwitch.tsx";
+import SeriesEnergy from "./SeriesEnergy.tsx";
 import { formatNumber } from "../lib/formatNumber.ts";
 
 type EnergyProps = {
@@ -71,30 +72,9 @@ export default function Energy(
     );
   }
 
-  if (!energy) {
-    const seriesDatasets = building.energyDatasets?.filter((d) =>
-      isSeriesGranularity(d.granularity)
-    ) ?? [];
-    if (seriesDatasets.length > 0) {
-      return (
-        <Card>
-          <CardHeader
-            avatar={<ElectricBoltIcon />}
-            title={
-              <Typography variant="h5">
-                Electricity Consumption for {buildingDisplayName(building)}
-              </Typography>
-            }
-          />
-          <CardContent>
-            {seriesDatasets.map((d) => (
-              <RdfSourceLink key={d.url} href={d.url} />
-            ))}
-            <UserEnergyChart seriesDatasets={seriesDatasets} />
-          </CardContent>
-        </Card>
-      );
-    }
+  const { series } = splitEnergyDatasets(building.energyDatasets);
+
+  if (!energy && series.length === 0) {
     return (
       <Typography>
         No energy data available for this building. You may not have access to
@@ -291,19 +271,17 @@ export default function Energy(
     );
   }
 
-  return (
+  const annualView = energy && (
     <Card>
       <CardHeader
         avatar={<ElectricBoltIcon />}
         title={
           <Typography variant="h5">
-            {energy.timeSeries
-              ? `Electricity Consumption for ${buildingDisplayName(building)}`
-              // The year the bulk load actually used (latest accessible actual
-              // annual year) — plumbed through EnergyType, never hardcoded.
-              : `Energy Need for ${buildingDisplayName(building)}${
-                energy.year ? ` in ${energy.year}` : ""
-              }`}
+            {/* The year the bulk load actually used (latest accessible actual
+                annual year) — plumbed through EnergyType, never hardcoded. */}
+            {`Energy Need for ${buildingDisplayName(building)}${
+              energy.year ? ` in ${energy.year}` : ""
+            }`}
           </Typography>
         }
       />
@@ -338,5 +316,12 @@ export default function Energy(
         <BackLink />
       </CardContent>
     </Card>
+  );
+
+  return (
+    <EnergyResolutionSwitch
+      annual={annualView || undefined}
+      series={series.length > 0 ? <SeriesEnergy building={building} /> : undefined}
+    />
   );
 }

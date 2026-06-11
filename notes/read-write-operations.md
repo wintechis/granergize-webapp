@@ -148,8 +148,8 @@ trigger for a refetch is a mutation's invalidation.
 
 ## Seams — queries that hide a mutation
 
-Two operations are shaped like queries but contain a mutation — the one place the app
-violates Command–Query Separation. Both embed a reconciliation mutation (see the trigger
+Three operations are shaped like queries but contain a mutation — the one place the app
+violates Command–Query Separation. Each embeds a reconciliation mutation (see the trigger
 axis above), kept in the query path so the app self-heals without an explicit cleanup
 step:
 
@@ -161,8 +161,16 @@ step:
 - `drainInbox` (`inbox.ts`) drains the inbox: copies each message into `shared-in/`, then
   DELETEs it. Named and called like a refresh, it is in fact a destructive move — and
   unlike the prune it writes on every call that finds messages.
+- `useViewDetail` (`queries.ts`) — the standalone view page's query —
+  **auto-materialises a missing snapshot** (`refreshSnapshot`) when the definition
+  exists but no snapshot does, so a freshly created view renders its chart on first
+  open instead of an empty "Refresh Snapshot" prompt. Like the prune it is
+  exceptional, not per-call: a present snapshot keeps the read pure (absence is a
+  definitive 404 — a transient read failure throws and can never trigger the write),
+  and it is best-effort (a failed compute degrades to a definition-only result
+  carrying the error for the page to surface inline).
 
 These are the exceptions to "a query is pure"; the rest of the read surface holds the
 line. That the reconciliation mutations exist is fine — they belong in query/restore
-paths. The seam is only that these two carry query-shaped names; see
+paths. The seam is only that these three carry query-shaped names; see
 [`plan-operation-seams.md`](./plan-operation-seams.md).
