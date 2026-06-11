@@ -14,6 +14,7 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { safeHref } from "../../lib/safeHref.ts";
 import { useDevMode } from "../../hooks/devMode.ts";
+import { useBackNavigation } from "../../hooks/backNavigation.ts";
 
 /**
  * Shared building blocks for detail views (buildings, agents, energy, weather)
@@ -148,6 +149,12 @@ export function RefLink({ to, onClick, children }: RefLinkProps) {
       {children}
     </Link>
   );
+}
+
+/** The detail pages' standard back link — see {@link useBackNavigation}. */
+export function BackLink() {
+  const goBack = useBackNavigation();
+  return <RefLink onClick={goBack}>🠠 Back</RefLink>;
 }
 
 /**

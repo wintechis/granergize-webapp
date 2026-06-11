@@ -6,7 +6,9 @@
  *
  *   D1 buildings — fetchAndParseData() vs # of owned buildings (the listing+parse).
  *   D2 series    — list + parse a PT15M series vs # of daily files (UserEnergyChart path).
- *   D3 shared    — getSharedWithMe()+fold vs # of buildings shared in from B.
+ *   D3 shared    — B shares n buildings with A via a DATA ROOM (per-share role
+ *                  resolution + share + inbox), then A drains and loads — the
+ *                  write side, the drain, and the read fold each timed.
  *   D4 rooms     — data-room lifecycle (create/join/leave/getMembers fold/delete)
  *                  vs # of members in the room's append-only event log.
  *   D5 churn     — getMembers fold vs # of role-assignment events at FIXED
@@ -17,14 +19,16 @@
  * Nothing here asserts a time budget — hardware variance makes that flaky; the
  * graphs are the deliverable (paper figures).
  *
- *   deno task bench                       # defaults (buildings 10..100)
+ *   deno task bench                       # JSS (default); buildings 100..1000
+ *   deno task bench:css                   # same sweep against CSS
  *   BENCH_SIZES=0,100,200 deno task bench # custom sweep
  *   deno task bench:plot                  # re-render PNGs from existing .dat (after installing gnuplot)
  */
 import { type LiveSessionLike, type LocalPod, startLocalPod } from "../headless/localPod.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import { resolveStorageRoot, podResources } from "../../src/services/pod/solidUtils.ts";
-import { ensureOwnInbox } from "../../src/services/interop/inbox.ts";
+import { drainInbox, ensureOwnInbox } from "../../src/services/interop/inbox.ts";
+import { ensureContainer } from "../../src/services/pod/podWrite.ts";
 import { fetchAndParseData } from "../../src/services/TurtleParsingService.ts";
 import { getSharedWithMe } from "../../src/services/interop/sharingManager.ts";
 import {
@@ -43,7 +47,8 @@ import {
   seedRoomMembers,
   seedRoomRoleChurn,
   seedSeriesBuilding,
-  seedSharedBuildings,
+  setupShareRoom,
+  shareBuildingsViaRoom,
   wipeBuildings,
   wipeRooms,
 } from "./seed.ts";
@@ -57,11 +62,14 @@ function sizes(envVar: string, def: number[]): number[] {
   return raw.split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
 }
 
-// Modest defaults — the throwaway local CSS gets unstable under heavy seeding, so
-// the sweeps stay small (10…100). Raise via the BENCH_* env vars on a sturdier
-// server. Sharing/series are heavier per item (ACL writes / daily files), so their
-// defaults are a touch lighter still.
-const BUILDING_SIZES = sizes("BENCH_SIZES", [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
+// Defaults sized for the JSS default server (sub-ms per request): buildings sweep
+// to 1000. The heavier-per-item dimensions (sharing = log+ACL+inbox per building,
+// series = 96 readings per day-file) stay at 10…100. Raise/lower via BENCH_*;
+// `bench:css` runs the same sweeps against CSS (~10 ms/request — expect minutes).
+const BUILDING_SIZES = sizes(
+  "BENCH_SIZES",
+  [100, 200, 300, 400, 500, 600, 700, 800, 900, 1000],
+);
 const SERIES_DAYS = sizes("BENCH_SERIES_DAYS", [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
 const SHARED_SIZES = sizes("BENCH_SHARED_SIZES", [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
 const ROOM_SIZES = sizes("BENCH_ROOM_SIZES", [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
@@ -134,26 +142,49 @@ try {
     await wipeBuildings(sessionA, a.webId);
   }
 
-  // ── D3: getSharedWithMe + fold vs # buildings shared in from B ───────────────
-  console.log(`D3 shared: ${SHARED_SIZES.join(", ")}`);
+  // ── D3: B shares n buildings with A via a data room ──────────────────────────
+  // The share dialog's "By role" flow end-to-end: per building B re-resolves the
+  // role to member WebIDs (a fold of the room log) and shares; then A drains the
+  // inbox (n messages → n shared-in events); then A's read side (the shared-with-me
+  // fold + full load). share/drain are one-shot mutations — timed once per size —
+  // while the read fold takes the usual median of RUNS.
+  console.log(`D3 shared via room: ${SHARED_SIZES.join(", ")}`);
   {
     const sharedInA = podResources(a.webId).sharedIn;
+    // One room for the whole dimension: B owns it, A is a member holding the
+    // role B shares to, so each per-share resolution finds exactly A.
+    const room = await setupShareRoom(a, b);
     const rows: number[][] = [];
     for (const n of SHARED_SIZES) {
       // Isolate each size: clear A's owned buildings + shared-in log and B's pod.
       await wipeBuildings(sessionA, a.webId);
       await wipeBuildings(sessionB, b.webId);
       await sessionA.fetch(sharedInA, { method: "DELETE" }).catch(() => {});
-      await seedSharedBuildings(a, b, n);
+      const seeded = await seedBuildings(sessionB, b.webId, n, "bench-shared");
+      const shareMs = await measure(
+        () => shareBuildingsViaRoom(b, room, seeded),
+        1,
+      );
+      // Pre-create shared-in/ once so the drain's concurrent folds don't race
+      // to create the container (409).
+      await ensureContainer(sharedInA, sessionA);
+      const drainMs = await measure(() => drainInbox(sessionA), 1);
       let shared = 0;
-      const ms = await measure(async () => {
+      const loadMs = await measure(async () => {
         shared = (await getSharedWithMe(sessionA)).length;
         await fetchAndParseData(sessionA);
       }, RUNS);
-      rows.push([n, ms, perItem(ms, n)]);
-      console.log(`  n=${n}  ${ms.toFixed(1)} ms  (sharedWithMe=${shared})`);
+      rows.push([n, shareMs, perItem(shareMs, n), drainMs, loadMs]);
+      console.log(
+        `  n=${n}  share ${shareMs.toFixed(1)} (${perItem(shareMs, n).toFixed(1)} ms/bldg)  drain ${drainMs.toFixed(1)}  load ${loadMs.toFixed(1)} ms  (sharedWithMe=${shared})`,
+      );
     }
-    await writeDat(RESULTS_DIR, "shared", ["n_shared", "total_ms", "ms_per_shared"], rows);
+    await writeDat(
+      RESULTS_DIR,
+      "shared",
+      ["n_shared", "share_ms", "share_ms_per_building", "drain_ms", "load_ms"],
+      rows,
+    );
     await wipeBuildings(sessionA, a.webId);
     await wipeBuildings(sessionB, b.webId);
     await sessionA.fetch(sharedInA, { method: "DELETE" }).catch(() => {});

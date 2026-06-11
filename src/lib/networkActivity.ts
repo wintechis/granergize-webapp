@@ -7,7 +7,11 @@
  * (useSyncExternalStore).
  */
 import { withRetry } from "../services/pod/retryFetch.ts";
-import { isSessionExpired } from "../services/pod/sessionGate.ts";
+import {
+  isSessionExpired,
+  markSessionExpired,
+} from "../services/pod/sessionGate.ts";
+import { getStorageRoot } from "../services/pod/solidUtils.ts";
 import { logError } from "./logError.ts";
 
 export interface ActiveRequest {
@@ -174,22 +178,49 @@ export async function trackedFetch(
 
 const INSTRUMENTED = Symbol.for("granergize.networkActivity.instrumented");
 
+/** How long to let an in-flight token refresh settle before the confirm retry. */
+const EXPIRY_CONFIRM_DELAY_MS = 1000;
+
+/**
+ * Whether `url` lives on the logged-in user's OWN Pod. A 401 there means the
+ * auth token is dead (an authenticated-but-forbidden request would 403); a 401
+ * from someone ELSE's Pod is an ordinary outcome (e.g. a share was revoked) and
+ * must not count as session expiry. `false` until the storage root resolves.
+ */
+function isOwnPodUrl(url: string | undefined, webId: string | undefined): boolean {
+  if (!url || !webId) return false;
+  try {
+    return url.startsWith(getStorageRoot(webId));
+  } catch {
+    return false; // storage root not resolved yet — can't attribute the 401
+  }
+}
+
 /**
  * Wrap a Solid session's `fetch` in place (once) so every authenticated Pod
  * request flows through the activity store AND retries transient rate-limiting
  * (Cloudflare 429/503; see retryFetch.ts). Idempotent — safe to call on each
  * login / mount. Because callers across the app hold the same session object and
  * call `session.fetch(...)`, this captures them all without touching call sites.
+ *
+ * The wrapper is also where session expiry is DETECTED: a 401 from the user's
+ * own Pod is retried once after a pause (a lone 401 can be a race with the
+ * library's background token refresh); if it repeats, the session gate trips
+ * (`markSessionExpired`) and the app cleanly logs out (see main.tsx). The
+ * library's `sessionExpired` event also trips the gate, but providers whose
+ * refresh dies silently never emit it — the transport is the reliable signal.
  */
-export function instrumentSessionFetch(session: { fetch: typeof fetch }): void {
+export function instrumentSessionFetch(
+  session: { fetch: typeof fetch; info?: { webId?: string } },
+): void {
   const original = session.fetch?.bind(session);
   const current = session.fetch as (typeof fetch & { [k: symbol]: unknown }) | undefined;
   if (!original || current?.[INSTRUMENTED]) return;
   const retrying = withRetry(original);
   const wrapped = (async (input: string | URL | Request, init?: RequestInit) => {
-    // Session-expiry gate: once expiry is known (the library's `sessionExpired`
-    // event trips it), short-circuit further requests with a synthetic 401 rather
-    // than hammering a dead token during logout. Not tracked as activity — local.
+    // Session-expiry gate: once tripped, short-circuit further requests with a
+    // synthetic 401 rather than hammering a dead token during logout. Not
+    // tracked as activity — local.
     if (isSessionExpired()) {
       return new Response(null, { status: 401, statusText: "Session expired" });
     }
@@ -197,7 +228,15 @@ export function instrumentSessionFetch(session: { fetch: typeof fetch }): void {
     const id = beginActivity(describeRequest(input, init), inputUrl(input));
     let outcome: RequestOutcome | undefined;
     try {
-      const res = await retrying(input, init);
+      let res = await retrying(input, init);
+      if (res.status === 401 && isOwnPodUrl(inputUrl(input), session.info?.webId)) {
+        // Confirm before declaring the session dead: wait out a possible
+        // in-flight token refresh, then retry once (session.fetch signs with
+        // the CURRENT token). A transient race recovers invisibly here.
+        await new Promise((r) => setTimeout(r, EXPIRY_CONFIRM_DELAY_MS));
+        res = await retrying(input, init);
+        if (res.status === 401) markSessionExpired();
+      }
       outcome = { status: res.status };
       return res;
     } catch (e) {

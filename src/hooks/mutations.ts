@@ -68,6 +68,7 @@ import {
   rememberAgent,
   removeContact,
 } from "../services/contacts.ts";
+import { seedDemoContacts, seedDemoRooms } from "../services/demoConnect.ts";
 import type {
   AggregatedViewDefinition,
   AttachmentRef,
@@ -571,6 +572,16 @@ export function useRemoveContact() {
   });
 }
 
+/** Dev-mode: seed the demo contacts (see {@link seedDemoContacts}). */
+export function useSeedDemoContacts() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => seedDemoContacts(getSession()),
+    meta: { action: "add demo contacts" },
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
+  });
+}
+
 // ── Data room mutations ──────────────────────────────────────────────────────
 // The registry (current + known) is OWNED here: each mutation patches the
 // ["rooms", webId] cache authoritatively via setQueryData and never invalidates
@@ -603,6 +614,20 @@ export function useCreateRoom() {
     mutationFn: () => createRoom(getSession()),
     onSuccess: (room) =>
       patchRooms(qc, (reg) => ({ known: withRoom(reg.known, room), current: room })),
+  });
+}
+
+/** Dev-mode: seed the demo data rooms (see {@link seedDemoRooms}). */
+export function useSeedDemoRooms() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: () => seedDemoRooms(getSession()),
+    meta: { action: "add demo data rooms" },
+    onSuccess: ({ rooms }) =>
+      patchRooms(qc, (reg) => ({
+        known: rooms.reduce(withRoom, reg.known),
+        current: rooms[rooms.length - 1] ?? reg.current,
+      })),
   });
 }
 

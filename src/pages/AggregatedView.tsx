@@ -1,6 +1,7 @@
 import { type ReactNode, useEffect, useState } from "react";
 import Modal from "../components/Modal.tsx";
-import { useNavigate, useParams } from "react-router-dom";
+import { useParams } from "react-router-dom";
+import { useBackNavigation } from "../hooks/backNavigation.ts";
 import {
   Alert,
   Box,
@@ -52,7 +53,9 @@ interface AggregatedViewProps {
 
 export default function AggregatedView({ session }: AggregatedViewProps) {
   const { viewId } = useParams<{ viewId: string }>();
-  const navigate = useNavigate();
+  // Back = the in-app location the user came from (Manage, Share, …), falling
+  // back to the overview for a deep link — see useBackNavigation.
+  const goBack = useBackNavigation();
   const { showNotification } = useNotification();
 
   const [viewDefinition, setViewDefinition] = useState<
@@ -175,10 +178,10 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate("/")}
+          onClick={goBack}
           sx={{ mb: 2 }}
         >
-          Back to Overview
+          Back
         </Button>
         <Typography color="error">{error}</Typography>
       </Container>
@@ -190,10 +193,10 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Button
           startIcon={<ArrowBackIcon />}
-          onClick={() => navigate("/")}
+          onClick={goBack}
           sx={{ mb: 2 }}
         >
-          Back to Overview
+          Back
         </Button>
         <Typography>View not found</Typography>
       </Container>
@@ -222,7 +225,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         mb={3}
       >
         <Box display="flex" alignItems="center" gap={2}>
-          <IconButton onClick={() => navigate("/")} aria-label="Back to overview">
+          <IconButton onClick={goBack} aria-label="Back">
             <ArrowBackIcon />
           </IconButton>
           <Typography variant="h5">{viewDefinition.name}</Typography>

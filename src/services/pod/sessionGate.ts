@@ -1,10 +1,13 @@
 /**
  * A one-bit, framework-agnostic store for "the Solid session has expired".
  *
- * The transport ({@link instrumentSessionFetch}) trips this on the FIRST 401 and
- * then short-circuits every subsequent Pod request — so an expired token produces
- * one 401 instead of an N-concurrent volley (and another volley on every later
- * mount/focus). React reads it with `useSyncExternalStore` and logs the user out.
+ * The transport ({@link instrumentSessionFetch}) trips this on the first
+ * CONFIRMED own-Pod 401 (retried once to rule out a token-refresh race; foreign
+ * Pods don't count — a revoked share 401s legitimately) and then short-circuits
+ * every subsequent Pod request — so an expired token produces one 401 instead of
+ * an N-concurrent volley (and another volley on every later mount/focus). The
+ * library's `sessionExpired` event trips it too, when it fires at all. React
+ * reads it with `useSyncExternalStore` and logs the user out.
  */
 
 let expired = false;

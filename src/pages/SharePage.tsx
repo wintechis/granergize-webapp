@@ -289,18 +289,35 @@ export default function SharePage({ session }: SharePageProps) {
       <Typography variant="h6" sx={{ mb: 1 }}>
         Buildings shared with you
       </Typography>
-      {dev && (
+      <div
+        style={{
+          display: "flex",
+          alignItems: "center",
+          gap: "0.75rem",
+          flexWrap: "wrap",
+          marginBottom: "0.5rem",
+        }}
+      >
+        {collections && <RdfSourceLink href={collections.sharedIn} />}
+        {dev && (
+          <Button
+            size="small"
+            variant="outlined"
+            onClick={handleCheckInbox}
+            disabled={checkInbox.isPending}
+          >
+            {checkInbox.isPending ? "Checking…" : "Check for new shares"}
+          </Button>
+        )}
         <Button
-          size="small"
           variant="outlined"
-          onClick={handleCheckInbox}
-          disabled={checkInbox.isPending}
-          sx={{ mb: 1 }}
+          startIcon={<DownloadIcon />}
+          onClick={handleDownloadAll}
+          disabled={bundling || sharedWithMe.length === 0}
         >
-          {checkInbox.isPending ? "Checking…" : "Check for new shares"}
+          {bundling ? "Preparing…" : "Download all (Excel)"}
         </Button>
-      )}
-      {collections && <RdfSourceLink href={collections.sharedIn} />}
+      </div>
       {loading
         ? <p>Loading…</p>
         : sharedWithMe.length === 0
@@ -375,17 +392,6 @@ export default function SharePage({ session }: SharePageProps) {
           </ul>
         )}
       <Pager paging={sharedPaging} />
-      {sharedWithMe.length > 0 && (
-        <Button
-          variant="outlined"
-          startIcon={<DownloadIcon />}
-          onClick={handleDownloadAll}
-          disabled={bundling}
-          sx={{ mt: 1 }}
-        >
-          {bundling ? "Preparing…" : "Download all (Excel)"}
-        </Button>
-      )}
 
       <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
         Views shared with you

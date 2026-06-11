@@ -549,7 +549,7 @@ export default function ExplorePage(
                 [CATEGORY_COLOR.none, "No energy data"],
               ] as const)
               : ([
-                [MARKER_OWNED_COLOR, "My Buildings"],
+                [MARKER_OWNED_COLOR, "My buildings"],
                 [MARKER_SHARED_COLOR, "Shared with me"],
               ] as const)).map(([color, label]) => (
                 <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
