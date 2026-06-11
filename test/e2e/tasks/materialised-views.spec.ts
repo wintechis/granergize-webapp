@@ -62,7 +62,7 @@ test.describe("energy view smoke", () => {
     await page.getByRole("tab", { name: "Manage" }).click();
     const row = page.locator("li", { hasText: "Nordostpark" }).first();
     await expect(row).toBeVisible({ timeout: T.action });
-    const id = (await row.textContent())?.match(/Building (\S+)/)?.[1];
+    const id = await row.getAttribute("data-building-id");
     expect(id, "the annual demo building's id on Manage").toBeTruthy();
 
     // The /energy/:id deep link renders the building's energy detail — proving
@@ -71,7 +71,7 @@ test.describe("energy view smoke", () => {
     await page.goto(`/#/energy/${id}`);
     await expect(
       page.getByRole("heading", {
-        name: /Energy Need for Building|Electricity Consumption for Building/,
+        name: /Energy Need for |Electricity Consumption for /,
       }),
     ).toBeVisible({ timeout: T.action });
 
@@ -94,7 +94,7 @@ test.describe("energy view smoke", () => {
     await page.getByRole("tab", { name: "Manage" }).click();
     await expect(page.getByRole("heading", { name: "Your buildings" }))
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByText(/^Building /).first())
+    await expect(page.locator("li[data-building-id]").first())
       .toBeVisible({ timeout: T.action });
     await expect(page.getByRole("heading", { name: "Aggregated views" }))
       .toBeVisible({ timeout: T.action });
@@ -135,7 +135,7 @@ test.describe("energy view smoke", () => {
     await page.getByRole("tab", { name: "Manage" }).click();
     const rowA = page.locator("li", { hasText: A }).first();
     await expect(rowA).toBeVisible({ timeout: T.action });
-    const id = (await rowA.textContent())?.match(/Building (\S+)/)?.[1];
+    const id = await rowA.getAttribute("data-building-id");
     expect(id, "building A's id").toBeTruthy();
     await page.goto(`/#/?tab=explore&b=${id}&dt=energy`);
     const avgRow = page.getByRole("row")
@@ -149,7 +149,7 @@ test.describe("energy view smoke", () => {
     // benchmark as its "Operator average" column.
     await page.goto(`/#/energy/${id}`);
     await expect(
-      page.getByRole("heading", { name: /Energy Need for Building/ }),
+      page.getByRole("heading", { name: /Energy Need for / }),
     ).toBeVisible({ timeout: T.action });
     await expect(
       page.locator("th", { hasText: "Operator average kWh / a" }).first(),

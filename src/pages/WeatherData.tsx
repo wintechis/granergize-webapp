@@ -1,3 +1,4 @@
+import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { useEffect, useState } from "react";
 import {
   Station,
@@ -161,7 +162,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
       <CardHeader
         avatar={<WbSunnyIcon />}
         titleTypographyProps={{ variant: "h5" }}
-        title={`Weather Data for Building ${building.id}`}
+        title={`Weather Data for ${buildingDisplayName(building)}`}
       />
       <CardContent>
         <Grid container spacing={2} sx={{ mb: 2 }}>

@@ -157,7 +157,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       await a2.page.getByRole("tab", { name: "Manage" }).click();
       const row = a2.page.locator("li", { hasText: STREET }).first();
       await expect(row).toBeVisible({ timeout: T.action });
-      const id = (await row.textContent())?.match(/Building (\S+)/)?.[1];
+      const id = await row.getAttribute("data-building-id");
       expect(id, "the shared building's id on Manage").toBeTruthy();
 
       await a2.page.goto(`/#/energy/${id}`);

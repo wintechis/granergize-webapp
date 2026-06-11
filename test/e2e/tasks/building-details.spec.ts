@@ -77,10 +77,10 @@ test.describe("building details", () => {
       timeout: T.action,
     });
 
-    // --- resolve its numeric id from the Manage row ("Building <id> — …") ---
+    // --- resolve its id from the Manage row's data attribute ---
     const row = page.locator("li", { hasText: OP_STREET }).first();
     await expect(row).toBeVisible({ timeout: T.action });
-    const id = (await row.textContent())?.match(/Building (\S+)/)?.[1];
+    const id = await row.getAttribute("data-building-id");
     expect(id, "the new building's id on Manage").toBeTruthy();
 
     // --- view the building: the operator renders as a link to its in-app contact
@@ -120,12 +120,12 @@ test.describe("building details", () => {
     await page.getByRole("tab", { name: "Manage" }).click();
     const annual = page.locator("li", { hasText: "Nordostpark" }).first();
     await expect(annual).toBeVisible({ timeout: T.action });
-    const id = (await annual.textContent())?.match(/Building (\S+)/)?.[1];
+    const id = await annual.getAttribute("data-building-id");
     expect(id, "the annual demo building's id").toBeTruthy();
 
     await page.goto(`/#/energy/${id}`);
     await expect(
-      page.getByRole("heading", { name: /Energy Need for Building/ }),
+      page.getByRole("heading", { name: /Energy Need for / }),
     ).toBeVisible({ timeout: T.action });
 
     // The building's own figures sit beside the portfolio-average comparison column

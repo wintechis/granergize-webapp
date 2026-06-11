@@ -1,3 +1,4 @@
+import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { useMemo, useState } from "react";
 import {
   Button,
@@ -274,12 +275,22 @@ export default function ManagePage({ session }: ManagePageProps) {
                 const fileUri = (b.sourceUri ?? b.uri).split("#")[0];
                 const sharedWith = recipients[fileUri] ?? recipients[b.uri] ??
                   [];
+                const name = buildingDisplayName(b);
                 return (
-                  <li key={b.uri} style={{ marginBottom: "1rem" }}>
+                  // data-building-id: the row shows the DISPLAY name (label /
+                  // address), so the e2e suite resolves a row's id from this
+                  // attribute instead of parsing the old "Building <id>" text.
+                  <li
+                    key={b.uri}
+                    data-building-id={b.id}
+                    style={{ marginBottom: "1rem" }}
+                  >
                     <div style={{ ...rowStyle, alignItems: "flex-start" }}>
                       <div style={{ minWidth: 0 }}>
-                        <strong>Building {b.id}</strong>
-                        {b.streetAddress ? ` — ${b.streetAddress}` : ""}
+                        <strong>{name}</strong>
+                        {b.streetAddress && b.streetAddress !== name
+                          ? ` — ${b.streetAddress}`
+                          : ""}
                         {dev && (
                           <>
                             <br />

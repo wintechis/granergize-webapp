@@ -1,14 +1,19 @@
-import { expect, type Page } from "@playwright/test";
+import { expect, type Locator, type Page } from "@playwright/test";
 import { T } from "./timeouts.ts";
 
 /**
  * Manage-tab building/view helpers shared across the building/excel/sharing specs
- * (extracted from per-spec copies). Building rows render as "Building <id> — …".
+ * (extracted from per-spec copies). Building rows show the building's DISPLAY
+ * name (label / code / address — heike-5 #1), so the id is resolved from the
+ * row's `data-building-id` attribute, never parsed from its text.
  */
 
 /** Locator for the building rows on Manage. */
-export const buildingRows = (page: Page) =>
-  page.locator("li", { hasText: /Building \S+/ });
+export const buildingRows = (page: Page) => page.locator("li[data-building-id]");
+
+/** A row's building id (the IRI-extracted id, verbatim). */
+export const buildingIdOf = (row: Locator): Promise<string | null> =>
+  row.getAttribute("data-building-id");
 
 /**
  * Delete one building row and wait for THAT row to vanish — not the shared
@@ -16,18 +21,18 @@ export const buildingRows = (page: Page) =>
  * lets a loop race ahead into mid-refetch re-renders that swallow clicks.
  */
 export async function deleteBuildingRow(page: Page, id: string): Promise<void> {
-  const row = page.locator("li", { hasText: `Building ${id}` }).first();
+  const row = page.locator(`li[data-building-id="${id}"]`).first();
   await row.getByRole("button", { name: "Delete building" }).click();
   await expect(row).toHaveCount(0, { timeout: T.action });
 }
 
-/** The numeric/hash ids of all building rows currently listed on Manage. */
+/** The ids of all building rows currently listed on Manage. */
 export async function buildingIds(page: Page): Promise<string[]> {
   const rows = buildingRows(page);
   const n = await rows.count();
   const ids: string[] = [];
   for (let i = 0; i < n; i++) {
-    const id = (await rows.nth(i).textContent())?.match(/Building (\S+)/)?.[1];
+    const id = await buildingIdOf(rows.nth(i));
     if (id) ids.push(id);
   }
   return ids;

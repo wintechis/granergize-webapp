@@ -34,7 +34,7 @@ function useBuildingParam(): {
   const { selectedBuilding = "" } = useParams();
   const { buildings, isLoading, error } = useSolidData();
   const building =
-    buildings.find((b) => b.id.toString() === selectedBuilding) ?? null;
+    buildings.find((b) => b.id === selectedBuilding) ?? null;
   return { building, selectedBuilding, isLoading, error };
 }
 

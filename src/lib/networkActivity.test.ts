@@ -87,6 +87,9 @@ Deno.test("instrumentSessionFetch tracks each pod request and is idempotent", as
       r.label === "GET pod.example/granergize/x.ttl"
     ),
   );
+  // The concurrency limiter dispatches the underlying fetch on a microtask —
+  // wait for it so `resolve` is captured before we call it.
+  await new Promise((r) => setTimeout(r, 0));
   resolve(new Response("ok"));
   await p;
   assert.equal(getActivitySnapshot().length, base, "untracked once resolved");

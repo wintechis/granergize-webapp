@@ -1,3 +1,4 @@
+import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import {
   BuildingType,
   InvestorCertification,
@@ -106,7 +107,7 @@ export default function Building(
     <>
       <DetailCard
         icon={hideHeader ? undefined : <CorporateFareIcon />}
-        title={hideHeader ? undefined : `Building ${building.id}`}
+        title={hideHeader ? undefined : buildingDisplayName(building)}
         subheader={hideHeader ? undefined : (
           <>
             {building["streetAddress"]}

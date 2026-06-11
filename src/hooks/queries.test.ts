@@ -170,32 +170,32 @@ Deno.test("useSolidData merges phase-1 buildings + phase-2 energy", async () => 
 });
 
 Deno.test("energyKeyFor changes when a building's dataset links change (not only its id set)", () => {
-  const mk = (id: number, datasets: BuildingType["energyDatasets"]): BuildingType =>
-    ({ id, uri: `urn:b${id}`, energyDatasets: datasets } as BuildingType);
+  const mk = (id: string, datasets: BuildingType["energyDatasets"]): BuildingType =>
+    ({ id, uri: `urn:b${id}`, type: "x", energyDatasets: datasets } as BuildingType);
 
   // Same building set, but one building gains an energy-dataset link: the key
   // MUST change, else the bulk energy read stays stale after an energy write.
-  const before = energyKeyFor([mk(1, []), mk(2, [])]);
+  const before = energyKeyFor([mk("1", []), mk("2", [])]);
   const after = energyKeyFor([
-    mk(1, [{ url: "u", year: 2099, granularity: "P1Y", scenario: "actual" }]),
-    mk(2, []),
+    mk("1", [{ url: "u", year: 2099, granularity: "P1Y", scenario: "actual" }]),
+    mk("2", []),
   ]);
   assert.notEqual(before, after);
 
   // Stable under building order and dataset order (so it doesn't churn spuriously).
   const a = energyKeyFor([
-    mk(2, []),
-    mk(1, [
+    mk("2", []),
+    mk("1", [
       { url: "u", year: 2099, granularity: "P1Y", scenario: "actual" },
       { url: "v", year: 2098, granularity: "P1Y", scenario: "planned" },
     ]),
   ]);
   const b = energyKeyFor([
-    mk(1, [
+    mk("1", [
       { url: "v", year: 2098, granularity: "P1Y", scenario: "planned" },
       { url: "u", year: 2099, granularity: "P1Y", scenario: "actual" },
     ]),
-    mk(2, []),
+    mk("2", []),
   ]);
   assert.equal(a, b);
   assert.equal(energyKeyFor(undefined), "");
@@ -327,7 +327,7 @@ Deno.test("useAnnualEnergy splits actual vs planned, sorted by year", async () =
   }));
   const { wrapper } = makeWrapper();
   const building = {
-    id: 1,
+    id: "b1",
     uri: `${B1}#b1`,
     energyDatasets: [
       { url: `${ENERGY}#ds`, year: 2024, granularity: "P1Y", scenario: "actual" },

@@ -1,3 +1,4 @@
+import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { BuildingType, EnergyType } from "../types.ts";
 import {
   Box,
@@ -56,7 +57,7 @@ export default function Energy(
   const dev = useDevMode();
 
   // Find the energy data for the selected building
-  const energy = energyNeed?.find((e) => e.id.toString() === selectedBuilding);
+  const energy = energyNeed?.find((e) => e.id === selectedBuilding);
 
   // While the global load is in flight, stay blank — the header spinner is the
   // single loading indicator; this avoids a misleading "no data" flash.
@@ -81,7 +82,7 @@ export default function Energy(
             avatar={<ElectricBoltIcon />}
             title={
               <Typography variant="h5">
-                Electricity Consumption for Building {building.id}
+                Electricity Consumption for {buildingDisplayName(building)}
               </Typography>
             }
           />
@@ -297,10 +298,10 @@ export default function Energy(
         title={
           <Typography variant="h5">
             {energy.timeSeries
-              ? `Electricity Consumption for Building ${energy.id}`
+              ? `Electricity Consumption for ${buildingDisplayName(building)}`
               // The year the bulk load actually used (latest accessible actual
               // annual year) — plumbed through EnergyType, never hardcoded.
-              : `Energy Need for Building ${energy.id}${
+              : `Energy Need for ${buildingDisplayName(building)}${
                 energy.year ? ` in ${energy.year}` : ""
               }`}
           </Typography>

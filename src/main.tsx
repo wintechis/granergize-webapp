@@ -191,8 +191,8 @@ function AppContent() {
       lead={
         <Typography variant="body1">
           Use the Granergize App to browse, compare and share energy
-          consumption data of logistics real estate. With Granergize, you
-          keep control over your data.
+          consumption data of logistics real estate. With the Granergize
+          App, you keep control over your data.
         </Typography>
       }
       footer={

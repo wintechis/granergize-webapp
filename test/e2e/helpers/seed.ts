@@ -23,7 +23,7 @@ import { T } from "./timeouts.ts";
  */
 export async function ensureDemoBuildings(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
-  const rows = page.locator("li", { hasText: /Building \S+/ });
+  const rows = page.locator("li[data-building-id]");
 
   // Already populated (used Pod, or residue from an earlier spec) — nothing to do.
   if (await rows.first().isVisible({ timeout: T.visible }).catch(() => false)) {
