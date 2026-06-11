@@ -16,8 +16,7 @@ import {
 import { synthDayReadings } from "../../src/services/rdf/energySeriesXlsx.ts";
 import { seriesContainerUrl } from "../../src/services/rdf/energyDataset.ts";
 import { shareBuildingData } from "../../src/services/interop/share.ts";
-import { drainInbox } from "../../src/services/interop/inbox.ts";
-import { appRoot, podResources } from "../../src/services/pod/solidUtils.ts";
+import { appRoot } from "../../src/services/pod/solidUtils.ts";
 import { deleteContainerRecursive } from "../../src/services/pod/podDelete.ts";
 import { ensureContainer } from "../../src/services/pod/podWrite.ts";
 import { mapPooled } from "../../src/lib/pool.ts";
@@ -27,7 +26,14 @@ import {
   SIOC_NS,
   XSD_DATETIME,
 } from "../../src/services/rdf/vocabularies.ts";
-import { normalizeRoomUrl } from "../../src/services/interop/dataRoom.ts";
+import {
+  createRoom,
+  getMembersByRole,
+  joinRoom,
+  normalizeRoomUrl,
+  setMyRole,
+} from "../../src/services/interop/dataRoom.ts";
+import type { UserRole } from "../../src/types.ts";
 
 /** Bounded write concurrency — same small pool the app uses for daily files. */
 const POOL = 8;
@@ -133,29 +139,44 @@ export interface BenchActor {
 }
 
 /**
- * Seed `n` buildings into B's Pod and share each with A (no energy payload), then
- * have A fold its inbox into `shared-in/`. Returns B's seeded buildings so the
- * caller can delete them. Mirrors the `share-building` task flow but without a
- * data-room (shareBuildingData takes A's WebID directly).
+ * One-time room setup for the via-room share flow: B (the sharer) creates the
+ * room, A joins and assumes `role` — so B's per-share role resolution finds
+ * exactly A, mirroring the share dialog's "By role" path.
  */
-export async function seedSharedBuildings(
+export async function setupShareRoom(
   a: BenchActor,
   b: BenchActor,
-  n: number,
-): Promise<SeededBuilding[]> {
-  const seeded = await seedBuildings(b.session, b.webId, n, "bench-shared");
-  // Share SERIALLY: each share appends to B's single shared-out log (a
-  // read-modify-write) and posts to A's inbox — concurrent shares would contend on
-  // that one log and race to create the shared-out/ container. Sequential is also
-  // how the real flow runs (one share at a time from the UI).
-  for (const s of seeded) {
-    await shareBuildingData(s.uri, a.webId, b.session, { includeEnergyData: false });
+  role: UserRole = "investor",
+): Promise<string> {
+  const room = await createRoom(b.session);
+  await joinRoom(room, a.session);
+  await setMyRole(room, [role], a.session);
+  return room;
+}
+
+/**
+ * B shares each seeded building with the room members holding `role` — the
+ * dialog's "By role" flow verbatim: every share action re-resolves the role to
+ * member WebIDs (a fold of the room log), then shares to each. SERIAL on
+ * purpose: each share appends to B's single shared-out log and posts to the
+ * recipient's inbox — concurrent shares would contend on that one log and race
+ * to create the shared-out/ container; sequential is also how the real flow
+ * runs (one share at a time from the UI).
+ */
+export async function shareBuildingsViaRoom(
+  b: BenchActor,
+  room: string,
+  buildings: SeededBuilding[],
+  role: UserRole = "investor",
+): Promise<void> {
+  for (const s of buildings) {
+    const recipients = await getMembersByRole(room, role, b.session);
+    for (const recipient of recipients) {
+      await shareBuildingData(s.uri, recipient, b.session, {
+        includeEnergyData: false,
+      });
+    }
   }
-  // drainInbox folds the grants concurrently, each ensuring shared-in/ — pre-create
-  // it once so those folds don't race to create the container (409).
-  await ensureContainer(podResources(a.webId).sharedIn, a.session);
-  await drainInbox(a.session); // archive the grants into A's shared-in/
-  return seeded;
 }
 
 /** Delete the owner's whole `buildings/` container (best-effort) — reset between sizes. */

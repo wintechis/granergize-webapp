@@ -236,6 +236,26 @@ export default function ManagePage({ session }: ManagePageProps) {
           {rdf && <RdfSourceLink href={rdf.buildings} />}
           <Button
             variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setImportMode(false);
+              setAddOpen(true);
+            }}
+          >
+            Add Building
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<UploadFileIcon />}
+            onClick={() => {
+              setImportMode(true);
+              setAddOpen(true);
+            }}
+          >
+            Autofill from file
+          </Button>
+          <Button
+            variant="outlined"
             startIcon={<DownloadIcon />}
             onClick={handleDownloadAll}
             disabled={ownedBuildings.length === 0}
@@ -372,7 +392,6 @@ export default function ManagePage({ session }: ManagePageProps) {
             </ul>
           )}
         <Pager paging={buildingPaging} />
-
         <Menu
           anchorEl={exportMenu?.anchor ?? null}
           open={exportMenu != null}
@@ -388,36 +407,30 @@ export default function ManagePage({ session }: ManagePageProps) {
             </MenuItem>
           ))}
         </Menu>
-
-        <div style={{ display: "flex", gap: "0.5rem", flexWrap: "wrap" }}>
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              setImportMode(false);
-              setAddOpen(true);
-            }}
-          >
-            Add Building
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<UploadFileIcon />}
-            onClick={() => {
-              setImportMode(true);
-              setAddOpen(true);
-            }}
-          >
-            Autofill from file
-          </Button>
-        </div>
       </section>
 
       <section>
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
           Aggregated views
         </Typography>
-        {rdf && <RdfSourceLink href={rdf.views} />}
+        <div
+          style={{
+            display: "flex",
+            alignItems: "center",
+            gap: "0.75rem",
+            flexWrap: "wrap",
+            marginBottom: "0.5rem",
+          }}
+        >
+          {rdf && <RdfSourceLink href={rdf.views} />}
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => setCreateViewOpen(true)}
+          >
+            Create View
+          </Button>
+        </div>
         {viewDefsQuery.isLoading
           ? <p>Loading…</p>
           : viewDefinitions.length === 0
@@ -545,13 +558,6 @@ export default function ManagePage({ session }: ManagePageProps) {
             </ul>
           )}
         <Pager paging={viewPaging} />
-        <Button
-          variant="outlined"
-          startIcon={<AddIcon />}
-          onClick={() => setCreateViewOpen(true)}
-        >
-          Create View
-        </Button>
       </section>
 
       {/* Outgoing-share log — the append-only record of buildings and views you've

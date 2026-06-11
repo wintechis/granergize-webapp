@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import { logError } from "../lib/logError.ts";
+import { describeCameraError } from "../lib/cameraError.ts";
 
 interface QrScannerProps {
   /** Called with the decoded text once a QR code is read. */
@@ -23,6 +24,7 @@ export default function QrScanner({ onResult, onCancel }: QrScannerProps) {
 
   useEffect(() => {
     let stopped = false;
+    let running = false;
     type Scanner = {
       start: (
         camera: { facingMode: string },
@@ -35,6 +37,23 @@ export default function QrScanner({ onResult, onCancel }: QrScannerProps) {
     };
     let scanner: Scanner | null = null;
 
+    // Release the camera exactly once, and only if it actually started:
+    // html5-qrcode's stop() THROWS (synchronously) on a scanner that isn't
+    // running — e.g. when the camera permission was denied — and a throwing
+    // effect cleanup unmounts the whole React tree (a blank page). So the
+    // not-running case must be a no-op, and the sync throw must be contained.
+    const release = () => {
+      if (!scanner || !running) return;
+      running = false;
+      try {
+        scanner.stop().then(() => scanner?.clear()).catch((err) =>
+          logError("stop QR scanner", err)
+        );
+      } catch (err) {
+        logError("stop QR scanner", err);
+      }
+    };
+
     (async () => {
       try {
         const { Html5Qrcode } = await import("html5-qrcode");
@@ -46,25 +65,26 @@ export default function QrScanner({ onResult, onCancel }: QrScannerProps) {
           (decodedText: string) => {
             if (stopped) return;
             stopped = true;
-            scanner?.stop().then(() => scanner?.clear()).catch((err) =>
-              logError("stop QR scanner after decode", err)
-            );
+            release();
             onResultRef.current(decodedText);
           },
           () => {/* per-frame decode failures are normal; ignore */},
         );
+        running = true;
+        // Closed while the camera was still starting (the permission prompt
+        // answered after unmount) — the cleanup already ran, so release here.
+        if (stopped) release();
       } catch (err) {
-        setError(
-          err instanceof Error ? err.message : "Could not start the camera.",
-        );
+        // The raw failure (DOMException name + library detail) goes to the
+        // console; the UI gets a plain actionable sentence.
+        logError("start QR scanner camera", err);
+        setError(describeCameraError(err));
       }
     })();
 
     return () => {
       stopped = true;
-      scanner?.stop().then(() => scanner?.clear()).catch((err) =>
-        logError("stop QR scanner on unmount", err)
-      );
+      release();
     };
   }, []);
 

@@ -253,9 +253,6 @@ export default function ConnectPage({ session }: ConnectPageProps) {
           agent's own profile. */}
       <Typography variant="h6" sx={{ mb: 1 }}>Contacts</Typography>
       {rdf && <RdfSourceLink href={rdf.contacts} />}
-      <p>
-        People and organisations you've referenced. Paste a WebID to add one.
-      </p>
       <div style={buttonRowStyle}>
         <TextField
           size="small"
@@ -276,7 +273,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
       {contactsQuery.isLoading
         ? <p>Loading…</p>
         : contacts.length === 0
-        ? <p>No contacts yet.</p>
+        ? <p>No contacts yet. Paste a WebID above to add one.</p>
         : (
           <ul style={listStyle} aria-label="Contacts">
             {contactPaging.pageItems.map((c) => (
@@ -301,15 +298,63 @@ export default function ConnectPage({ session }: ConnectPageProps) {
         )}
       <Pager paging={contactPaging} />
 
-      {/* Your data rooms — one ordered list. Each row shows the room URI with
-          enter / delete-or-remove; the active room expands in place, its QR,
-          roles and members in a box directly beneath its own row. */}
+      {/* Your data rooms — one ordered list mixing rooms you host and rooms
+          others host. The toolbar above it holds both ways of getting a room
+          into the list: host a new one, or add someone else's by URI / QR.
+          Each row shows the room URI with enter / delete-or-remove; the active
+          room expands in place, its QR, roles and members in a box directly
+          beneath its own row. */}
       <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Your data rooms</Typography>
-      {rdf && <RdfSourceLink href={rdf.bookmarks} />}
+      <div
+        style={{
+          ...buttonRowStyle,
+          alignItems: "center",
+          marginBottom: "0.5rem",
+        }}
+      >
+        {rdf && <RdfSourceLink href={rdf.bookmarks} />}
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={handleCreate}
+          disabled={busy}
+        >
+          {create.isPending ? "Creating…" : "Host a data room"}
+        </Button>
+        <TextField
+          size="small"
+          label="Data room URI"
+          value={roomInput}
+          onChange={(e) => setRoomInput(e.target.value)}
+          sx={{ minWidth: 320 }}
+        />
+        <Button
+          variant="outlined"
+          disabled={!roomInput.trim() || busy}
+          onClick={() => handleAdd(roomInput)}
+        >
+          {add.isPending ? "Adding…" : "Add"}
+        </Button>
+        {/* Opener only — the scanner's own Cancel button (right under the
+            camera view) is the one way to close it. */}
+        <Button
+          variant="outlined"
+          onClick={() => setScanning(true)}
+          disabled={scanning}
+        >
+          Scan QR code
+        </Button>
+      </div>
+      {scanning && (
+        <QrScanner
+          onResult={handleScanResult}
+          onCancel={() => setScanning(false)}
+        />
+      )}
       {roomQuery.isLoading
         ? <p>Loading…</p>
         : !hasRooms
-        ? <p>No data rooms yet. Add or create one below.</p>
+        ? <p>No data rooms yet. Host one, or add one by URI or QR code.</p>
         : (
           <ul style={listStyle}>
             {roomPaging.pageItems.map((r) => {
@@ -471,48 +516,6 @@ export default function ConnectPage({ session }: ConnectPageProps) {
           </ul>
         )}
       <Pager paging={roomPaging} />
-
-      {/* Add a room — paste a URI or scan a QR; both just add to the list above */}
-      <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Add a data room</Typography>
-      <p>Paste a data room URI or scan its QR code to add it to your list.</p>
-      <div style={buttonRowStyle}>
-        <TextField
-          size="small"
-          label="Data room URI"
-          value={roomInput}
-          onChange={(e) => setRoomInput(e.target.value)}
-          sx={{ minWidth: 320 }}
-        />
-        <Button
-          variant="outlined"
-          disabled={!roomInput.trim() || busy}
-          onClick={() => handleAdd(roomInput)}
-        >
-          {add.isPending ? "Adding…" : "Add"}
-        </Button>
-        <Button variant="outlined" onClick={() => setScanning((s) => !s)}>
-          {scanning ? "Close scanner" : "Scan QR code"}
-        </Button>
-      </div>
-
-      {scanning && (
-        <QrScanner
-          onResult={handleScanResult}
-          onCancel={() => setScanning(false)}
-        />
-      )}
-
-      {/* Create a room */}
-      <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Host a data room</Typography>
-      <p>Host a new data room. You're added as a member automatically.</p>
-      <Button
-        variant="outlined"
-        startIcon={<AddIcon />}
-        onClick={handleCreate}
-        disabled={busy}
-      >
-        {create.isPending ? "Creating…" : "Host a data room"}
-      </Button>
     </section>
   );
 }

@@ -39,7 +39,7 @@ import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import Collapse from "@mui/material/Collapse";
 import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys } from "../hooks/queries.ts";
+import { queryKeys, useSharedWithMe } from "../hooks/queries.ts";
 import {
   seedDemoBuildings,
 } from "../services/rdf/building/buildingSerializer.ts";
@@ -53,6 +53,10 @@ import {
 } from "../services/pod/podArchive.ts";
 import { auditGrants, reissueGrants } from "../services/interop/share.ts";
 import { downloadBlob } from "../lib/download.ts";
+import {
+  useSeedDemoContacts,
+  useSeedDemoRooms,
+} from "../hooks/mutations.ts";
 
 interface IndexPageProps {
   session: Session;
@@ -115,6 +119,15 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   // container is absent (404) and the user hasn't declined. The choice persists in
   // prefs.ttl, so it doesn't nag on every login.
   const [demoShow, setDemoShow] = useState(false);
+  // "No buildings yet" would mislead someone who has buildings SHARED with them
+  // (they do have buildings to explore — just none of their own), so the offer
+  // also waits for the shared-in fold and stands down if any shares exist. The
+  // query is warm: the buildings load already depends on the same fold.
+  const sharedWithMeQuery = useSharedWithMe();
+  // `data` defined ⇔ the underlying folds resolved (the composite hook has no
+  // isSuccess); undefined-while-loading keeps the banner down, no flash.
+  const nothingShared = sharedWithMeQuery.data !== undefined &&
+    sharedWithMeQuery.data.length === 0;
   const [demoBusy, setDemoBusy] = useState(false);
   // Dev-mode archive (download/upload the whole granergize/ collection as a ZIP).
   const [archiveBusy, setArchiveBusy] = useState(false);
@@ -188,6 +201,31 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       setDemoBusy(false);
     }
   };
+
+  // Dev-mode Connect-tab demo data — the contacts/rooms counterpart of
+  // `seedDemos` (the seeders tally partial success the same way).
+  const seedContactsMut = useSeedDemoContacts();
+  const seedRoomsMut = useSeedDemoRooms();
+  const seedDemoContactsClick = () =>
+    seedContactsMut.mutate(undefined, {
+      onSuccess: ({ seeded, total }) =>
+        showNotification(
+          seeded === total
+            ? "Demo contacts added"
+            : `Added ${seeded} of ${total} demo contacts`,
+          seeded === total ? "success" : "warning",
+        ),
+    });
+  const seedDemoRoomsClick = () =>
+    seedRoomsMut.mutate(undefined, {
+      onSuccess: ({ rooms, total }) =>
+        showNotification(
+          rooms.length === total
+            ? "Demo data rooms added"
+            : `Added ${rooms.length} of ${total} demo data rooms`,
+          rooms.length === total ? "success" : "warning",
+        ),
+    });
 
   const declineDemos = () => {
     setDemoShow(false);
@@ -556,6 +594,26 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               </MenuItem>
             )}
             {devMode && (
+              <MenuItem
+                onClick={seedDemoContactsClick}
+                disabled={seedContactsMut.isPending}
+              >
+                {seedContactsMut.isPending
+                  ? "Adding demo contacts…"
+                  : "Add demo contacts"}
+              </MenuItem>
+            )}
+            {devMode && (
+              <MenuItem
+                onClick={seedDemoRoomsClick}
+                disabled={seedRoomsMut.isPending}
+              >
+                {seedRoomsMut.isPending
+                  ? "Adding demo data rooms…"
+                  : "Add demo data rooms"}
+              </MenuItem>
+            )}
+            {devMode && (
               <MenuItem onClick={handleDownloadArchive} disabled={archiveBusy}>
                 {archiveBusy ? "Working…" : "Download archive"}
               </MenuItem>
@@ -615,7 +673,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       />
       {/* Fresh-Pod onboarding: offer the demo buildings instead of writing them
           silently. Non-blocking (the app stays usable); dismissing it persists. */}
-      <Collapse in={demoShow} sx={{ flexShrink: 0 }}>
+      <Collapse in={demoShow && nothingShared} sx={{ flexShrink: 0 }}>
         <Alert
           severity="info"
           sx={{ borderRadius: 0 }}

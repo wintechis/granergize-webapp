@@ -8,6 +8,7 @@ import {
 } from "../hooks/queries.ts";
 import { useSaveContact } from "../hooks/mutations.ts";
 import {
+  BackLink,
   DetailCard,
   DetailRow,
   RefLink,
@@ -105,7 +106,7 @@ export default function Contact({ webId }: { webId: string }) {
         )}
       </Box>
 
-      <RefLink to="/">🠠 Back to map overview</RefLink>
+      <BackLink />
     </DetailCard>
   );
 }

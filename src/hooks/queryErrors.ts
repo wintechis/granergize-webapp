@@ -40,7 +40,13 @@ export function classifyQueryError(
   action?: string,
 ): { message: string; severity: ErrorSeverity } {
   if (error instanceof SessionExpiredError) {
-    return { message: error.message, severity: "warning" };
+    // Fixed wording (not error.message, which carries HTTP detail for the log):
+    // same sentence as the session-gate logout toast in main.tsx, so the
+    // notification queue collapses the duplicates into one.
+    return {
+      message: "Session expired — please log in again",
+      severity: "warning",
+    };
   }
   if (error instanceof ConflictError) {
     return {

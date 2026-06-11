@@ -21,7 +21,7 @@ import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import { useReceivedBenchmarks, useSolidData } from "../hooks/queries.ts";
 import { pickBenchmark } from "../services/aggregation/benchmarkSelector.ts";
 import { AgentLabel } from "../components/AgentLabel.tsx";
-import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
+import { BackLink, RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import UserEnergyChart from "./UserEnergyChart.tsx";
@@ -334,7 +334,7 @@ export default function Energy(
             ))}
           </Typography>
         )}
-        <RefLink to="/">🠠 Back to map overview</RefLink>
+        <BackLink />
       </CardContent>
     </Card>
   );

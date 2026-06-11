@@ -4,10 +4,12 @@ import { classifyMutationError, classifyQueryError } from "./queryErrors.ts";
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
 
-Deno.test("classifyQueryError: SessionExpiredError → warning, keeps its message", () => {
+Deno.test("classifyQueryError: SessionExpiredError → warning with the fixed re-login sentence", () => {
+  // NOT error.message (which carries HTTP detail like "… (HTTP 401)" for the
+  // log) — the user-facing sentence matches the session-gate logout toast.
   const r = classifyQueryError(new SessionExpiredError("token gone"));
   assert.equal(r.severity, "warning");
-  assert.equal(r.message, "token gone");
+  assert.equal(r.message, "Session expired — please log in again");
 });
 
 Deno.test("classifyQueryError: ConflictError → warning, reload-and-retry message", () => {
@@ -43,7 +45,7 @@ Deno.test("classifyQueryError: the classified warnings ignore the action", () =>
     new SessionExpiredError("token gone"),
     "update the building",
   );
-  assert.equal(expired.message, "token gone");
+  assert.equal(expired.message, "Session expired — please log in again");
   assert.equal(expired.severity, "warning");
   const conflict = classifyQueryError(
     new ConflictError("https://pod.example/x.ttl"),

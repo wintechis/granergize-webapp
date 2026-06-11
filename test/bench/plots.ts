@@ -36,13 +36,15 @@ export const ALL_PLOTS: PlotSpec[] = [
   },
   {
     name: "shared",
-    title: "getSharedWithMe+fold time vs. number of shared-in buildings",
-    xlabel: "# shared-in buildings",
-    ylabel: "resolve+fold time (ms)",
-    y2label: "per-building (ms)",
+    title: "Sharing n buildings via a data room (B shares, A drains + loads)",
+    xlabel: "# buildings shared",
+    ylabel: "time (ms)",
+    y2label: "share per-building (ms)",
     series: [
-      { col: 2, title: "total (ms)" },
-      { col: 3, title: "per building (ms)", y2: true },
+      { col: 2, title: "share (resolve role + share each)" },
+      { col: 4, title: "drain inbox (A)" },
+      { col: 5, title: "fold + load (A)" },
+      { col: 3, title: "share per building (ms)", y2: true },
     ],
   },
   {
