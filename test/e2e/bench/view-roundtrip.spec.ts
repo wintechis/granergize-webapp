@@ -55,7 +55,7 @@ test.describe.configure({ mode: "serial" });
 test.describe("view-roundtrip benchmark", () => {
   test.skip(!LOCAL, "Tier-3 render bench runs only on the local pod server (deno task bench:ui).");
 
-  let page: Page; // A's page, logged in once on the warm server
+  let page: Page; // A's page, logged in once (login resets the pod server per spec file)
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000);
