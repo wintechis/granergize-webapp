@@ -1,9 +1,11 @@
 /// <reference lib="deno.ns" />
 /**
  * Benchmark output: timing helpers + gnuplot data files (`.dat`) + plot scripts
- * (`.gp`) + rendered PNG graphs (for the paper). The benchmark is
- * MEASURE-AND-REPORT — nothing here asserts a time budget; it records numbers and
- * draws them.
+ * (`.gp`) + rendered PNG graphs (for the paper) + a per-run `index.html` showing
+ * all figures. Each run writes into its own dated directory
+ * `test-results/bench/<run-id>/`, beside the e2e scopes (see `runId.ts`).
+ * The benchmark is MEASURE-AND-REPORT — nothing here asserts a time budget; it
+ * records numbers and draws them.
  *
  * Split so the formatting is testable offline (Tier 1, `report.test.ts`): the pure
  * functions `formatDat` / `gnuplotScript` build strings; `writeDat` / `writeGp` are
@@ -15,8 +17,42 @@
  * is the generic formatting/render machinery it builds on.
  */
 
-/** Output directory for all benchmark artifacts (`test/bench/results/`). */
-export const RESULTS_DIR = `${import.meta.dirname}/results`;
+import { resolve } from "node:path";
+import { benchRunId } from "./runId.ts";
+
+/**
+ * Root under which each run gets its own dated directory — under the repo's
+ * `test-results/`, beside the e2e scopes (`tier-3-css/<run>`, `bench-css/<run>`
+ * traces, …), so ALL run artifacts live in one tree. One scope for the figures
+ * (no `-css`/`-jss` split): a run's figures span the Tier-2 runner and the
+ * Tier-3 specs, and a server comparison is told apart by its run id instead
+ * (`BENCH_RUN_ID=2026-06-11-jss`).
+ */
+export const RESULTS_ROOT = resolve(`${import.meta.dirname}/../../test-results/bench`);
+
+/** This run's output directory — `results/<run-id>/` (see {@link benchRunId}). */
+export function benchRunDir(): string {
+  return `${RESULTS_ROOT}/${benchRunId()}`;
+}
+
+// Run directories are date-named (possibly suffixed via BENCH_RUN_ID), so the
+// lexicographic max is the most recent run.
+const RUN_DIR_RE = /^\d{4}-\d{2}-\d{2}/;
+
+/** The most recent existing run directory, for plot-only re-rendering. */
+export async function latestRunDir(): Promise<string | undefined> {
+  const names: string[] = [];
+  try {
+    for await (const e of Deno.readDir(RESULTS_ROOT)) {
+      if (e.isDirectory && RUN_DIR_RE.test(e.name)) names.push(e.name);
+    }
+  } catch {
+    return undefined;
+  }
+  if (names.length === 0) return undefined;
+  names.sort();
+  return `${RESULTS_ROOT}/${names[names.length - 1]}`;
+}
 
 // ── Timing ────────────────────────────────────────────────────────────────────
 
@@ -194,4 +230,79 @@ export async function renderGraphs(dir: string): Promise<void> {
     }
   }
   console.log(`\nGraphs written to ${dir}`);
+}
+
+// ── Run index page ──────────────────────────────────────────────────────────────
+
+/** One entry on a run's index page. */
+export interface IndexFigure {
+  /** Base name: links `<name>.dat` and (when rendered) embeds `<name>.png`. */
+  name: string;
+  title: string;
+  /** Whether the PNG was rendered (gnuplot present). */
+  png: boolean;
+}
+
+const escapeHtml = (s: string): string =>
+  s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
+
+/**
+ * Build the self-contained `index.html` for one run directory: every measured
+ * figure in catalog order, each PNG inline with a caption linking the raw `.dat`
+ * (or, without gnuplot, a pointer to the `.dat` + `.gp` pair to render later).
+ */
+export function indexHtml(runId: string, figures: IndexFigure[]): string {
+  const body = figures.map((f) => {
+    const dat = `<a href="${f.name}.dat">${f.name}.dat</a>`;
+    const inner = f.png
+      ? `    <img src="${f.name}.png" alt="${escapeHtml(f.title)}" />\n` +
+        `    <figcaption>${escapeHtml(f.title)} — ${dat}</figcaption>`
+      : `    <figcaption>${escapeHtml(f.title)} — not rendered (gnuplot missing): ` +
+        `${dat}, <a href="${f.name}.gp">${f.name}.gp</a></figcaption>`;
+    return `  <figure>\n${inner}\n  </figure>`;
+  });
+  return [
+    `<!doctype html>`,
+    `<html lang="en">`,
+    `<head>`,
+    `  <meta charset="utf-8" />`,
+    `  <title>Benchmark results — ${escapeHtml(runId)}</title>`,
+    `  <style>`,
+    `    body { font-family: sans-serif; max-width: 960px; margin: 2rem auto; }`,
+    `    figure { margin: 2rem 0; }`,
+    `    img { max-width: 100%; }`,
+    `    figcaption { color: #555; margin-top: 0.25rem; }`,
+    `  </style>`,
+    `</head>`,
+    `<body>`,
+    `  <h1>Benchmark results — ${escapeHtml(runId)}</h1>`,
+    ...body,
+    `</body>`,
+    `</html>`,
+  ].join("\n") + "\n";
+}
+
+/**
+ * Write the run's `index.html` for the given plot specs (only those whose `.dat`
+ * was measured), checking per spec whether the PNG actually rendered.
+ */
+export async function writeIndexHtml(
+  dir: string,
+  specs: Array<Pick<PlotSpec, "name" | "title">>,
+): Promise<string> {
+  const figures: IndexFigure[] = [];
+  for (const { name, title } of specs) {
+    let png = false;
+    try {
+      await Deno.stat(`${dir}/${name}.png`);
+      png = true;
+    } catch {
+      // not rendered (no gnuplot) — the index links the .dat/.gp instead.
+    }
+    figures.push({ name, title, png });
+  }
+  const path = `${dir}/index.html`;
+  await Deno.writeTextFile(path, indexHtml(dir.split("/").pop() ?? dir, figures));
+  console.log(`  wrote ${path}`);
+  return path;
 }

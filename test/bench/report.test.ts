@@ -7,7 +7,8 @@
  * gnuplot reads and the plot script it runs.
  */
 import { strict as assert } from "node:assert";
-import { formatDat, gnuplotScript, median } from "./report.ts";
+import { formatDat, gnuplotScript, indexHtml, median } from "./report.ts";
+import { benchRunId } from "./runId.ts";
 
 Deno.test("median: odd, even, empty", () => {
   assert.equal(median([3, 1, 2]), 2);
@@ -48,6 +49,35 @@ Deno.test("gnuplotScript: pngcairo terminal, output name, one plot per series", 
   assert.match(gp, /"buildings\.dat" using 1:2 .*title "total \(ms\)"/);
   assert.match(gp, /"buildings\.dat" using 1:3 axes x1y2 .*title "per building \(ms\)"/);
   assert.equal((gp.match(/buildings\.dat/g) ?? []).length, 2);
+});
+
+Deno.test("benchRunId: local date by default, BENCH_RUN_ID overrides", () => {
+  const before = Deno.env.get("BENCH_RUN_ID");
+  try {
+    Deno.env.delete("BENCH_RUN_ID");
+    // 2026-06-09 local time (month is 0-based) — zero-padded YYYY-MM-DD.
+    assert.equal(benchRunId(new Date(2026, 5, 9, 14, 30)), "2026-06-09");
+    Deno.env.set("BENCH_RUN_ID", "2026-06-11-jss");
+    assert.equal(benchRunId(new Date(2026, 5, 9)), "2026-06-11-jss");
+  } finally {
+    if (before === undefined) Deno.env.delete("BENCH_RUN_ID");
+    else Deno.env.set("BENCH_RUN_ID", before);
+  }
+});
+
+Deno.test("indexHtml: run id in title, figure per plot, dat/gp fallback without png", () => {
+  const html = indexHtml("2026-06-11", [
+    { name: "buildings", title: "Load & parse", png: true },
+    { name: "rooms", title: "Rooms", png: false },
+  ]);
+  assert.match(html, /<title>Benchmark results — 2026-06-11<\/title>/);
+  // Rendered figure: inline image + a caption linking the raw data.
+  assert.match(html, /<img src="buildings\.png" alt="Load &amp; parse" \/>/);
+  assert.match(html, /<a href="buildings\.dat">buildings\.dat<\/a>/);
+  // Unrendered figure: no image, points at the .dat + .gp pair instead.
+  assert.doesNotMatch(html, /rooms\.png/);
+  assert.match(html, /not rendered .*<a href="rooms\.dat">.*<a href="rooms\.gp">/);
+  assert.equal((html.match(/<figure>/g) ?? []).length, 2);
 });
 
 Deno.test("gnuplotScript: custom x column, no y2 axis when unused", () => {

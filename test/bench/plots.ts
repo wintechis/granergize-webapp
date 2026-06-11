@@ -7,7 +7,14 @@
  *
  *   deno task bench:plot     # = deno run -A test/bench/plots.ts
  */
-import { RESULTS_DIR, type PlotSpec, renderGraphs, writeGp } from "./report.ts";
+import {
+  benchRunDir,
+  latestRunDir,
+  type PlotSpec,
+  renderGraphs,
+  writeGp,
+  writeIndexHtml,
+} from "./report.ts";
 
 /** Every benchmark graph. Each `name` reads `<name>.dat`, writes `<name>.png`. */
 export const ALL_PLOTS: PlotSpec[] = [
@@ -96,10 +103,10 @@ export const ALL_PLOTS: PlotSpec[] = [
   },
 ];
 
-/** True if `<name>.dat` exists in RESULTS_DIR (so we only plot what was measured). */
-async function datExists(name: string): Promise<boolean> {
+/** True if `<name>.dat` exists in `dir` (so we only plot what was measured). */
+async function datExists(dir: string, name: string): Promise<boolean> {
   try {
-    await Deno.stat(`${RESULTS_DIR}/${name}.dat`);
+    await Deno.stat(`${dir}/${name}.dat`);
     return true;
   } catch {
     return false;
@@ -107,15 +114,30 @@ async function datExists(name: string): Promise<boolean> {
 }
 
 /**
- * Write a `.gp` for every plot whose `.dat` is present, then render them all
- * (gnuplot if available, else a hint). Called by the Tier-2 runner at the end and
- * as the `bench:plot` entry point.
+ * Write a `.gp` for every plot whose `.dat` is present in the run directory,
+ * render them all (gnuplot if available, else a hint), and write the run's
+ * `index.html`. Called by the Tier-2 runner at the end and as the `bench:plot`
+ * entry point.
  */
-export async function regenerateAndRender(): Promise<void> {
+export async function regenerateAndRender(dir: string): Promise<void> {
+  const measured: PlotSpec[] = [];
   for (const spec of ALL_PLOTS) {
-    if (await datExists(spec.name)) await writeGp(RESULTS_DIR, spec);
+    if (await datExists(dir, spec.name)) measured.push(spec);
   }
-  await renderGraphs(RESULTS_DIR);
+  for (const spec of measured) await writeGp(dir, spec);
+  await renderGraphs(dir);
+  if (measured.length > 0) await writeIndexHtml(dir, measured);
 }
 
-if (import.meta.main) await regenerateAndRender();
+if (import.meta.main) {
+  // Plot-only entry: re-render an explicitly named run (BENCH_RUN_ID), else the
+  // most recent run directory — so a post-midnight plot step still lands in the
+  // directory its benchmark wrote.
+  const dir = Deno.env.get("BENCH_RUN_ID") ? benchRunDir() : (await latestRunDir());
+  if (!dir) {
+    console.log("no run directory under test-results/bench/ — run a benchmark first");
+  } else {
+    console.log(`rendering ${dir}`);
+    await regenerateAndRender(dir);
+  }
+}

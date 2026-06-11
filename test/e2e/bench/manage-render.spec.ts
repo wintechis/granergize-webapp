@@ -4,11 +4,12 @@ import { fileURLToPath } from "node:url";
 import { account, login } from "../helpers/login.ts";
 import { buildingRows } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
+import { benchRunId } from "../../bench/runId.ts";
 
 /**
  * Tier-3 scalability BENCHMARK (`deno task bench:ui`): end-to-end browser
  * time-to-render of the Manage building list as the number of buildings grows.
- * Measure-and-report — it records timings to `test/bench/results/manage-render.dat`
+ * Measure-and-report — it records timings to `test-results/bench/<run-id>/manage-render.dat`
  * (the Deno `plots.ts` step then draws the PNG); no time-based assertions.
  *
  * Seeding goes through the local-CSS control server (`POST /seed?n=`), which runs
@@ -24,7 +25,11 @@ import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
  */
 const LOCAL = !!process.env.E2E_LOCAL;
 const CONTROL = `http://localhost:${LOCAL_CSS_CONTROL_PORT}`;
-const RESULTS_DIR = fileURLToPath(new URL("../../bench/results", import.meta.url));
+// Same dated run directory as the Deno side (test-results/bench/<run-id>/), so
+// the follow-up plots.ts step picks this .dat up with the rest of the run.
+const RESULTS_DIR = fileURLToPath(
+  new URL(`../../../test-results/bench/${benchRunId()}`, import.meta.url),
+);
 const PAGE_SIZE = 20; // DEFAULT_PAGE_SIZE in usePaging.ts
 
 function sizes(): number[] {

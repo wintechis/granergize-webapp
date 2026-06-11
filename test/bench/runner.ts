@@ -14,8 +14,10 @@
  *   D5 churn     — getMembers fold vs # of role-assignment events at FIXED
  *                  membership (the log grows by HISTORY, not members).
  *
- * Measure-and-report: it records medians, writes gnuplot `.dat` + `.gp` into
- * test/bench/results/, and renders PNGs when gnuplot is on PATH (else prints a hint).
+ * Measure-and-report: it records medians, writes gnuplot `.dat` + `.gp` + an
+ * `index.html` into a dated run directory test-results/bench/<run-id>/ (run id =
+ * local date, or BENCH_RUN_ID — see runId.ts), and renders PNGs when gnuplot is
+ * on PATH (else prints a hint).
  * Nothing here asserts a time budget — hardware variance makes that flaky; the
  * graphs are the deliverable (paper figures).
  *
@@ -52,8 +54,12 @@ import {
   wipeBuildings,
   wipeRooms,
 } from "./seed.ts";
-import { measure, RESULTS_DIR, writeDat } from "./report.ts";
+import { benchRunDir, measure, writeDat } from "./report.ts";
 import { regenerateAndRender } from "./plots.ts";
+
+// One dated directory per run (results/<run-id>/, like test-results) — minted
+// once so a run crossing midnight stays in one place.
+const RESULTS_DIR = benchRunDir();
 
 /** Parse a `BENCH_*` size list ("0,50,100"), falling back to `def`. */
 function sizes(envVar: string, def: number[]): number[] {
@@ -283,7 +289,7 @@ try {
     await wipeRooms(sessionA, a.webId);
   }
 
-  await regenerateAndRender();
+  await regenerateAndRender(RESULTS_DIR);
 } finally {
   console.log("\ncleanup");
   await sA?.dispose().catch(() => {});
