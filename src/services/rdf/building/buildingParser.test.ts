@@ -27,3 +27,16 @@ Deno.test("parseBuildings derives energyDatasets from cons:hasEnergyDataset link
   assert.ok(byGran["2023-P1Y-planned"]);
   assert.ok(byGran["2024-PT15M-actual"]);
 });
+
+Deno.test("parseBuildings keeps the IRI's id verbatim (label id = IRI id, heike-5 #1)", () => {
+  const uuid = "0d3f9a4e-1b2c-4d5e-8f90-1a2b3c4d5e6f";
+  const iri = `https://pod.example/granergize/buildings/${uuid}.ttl#${uuid}`;
+  const ttl = `@prefix rec: <https://w3id.org/rec#> .
+<${iri}> a rec:Building .
+`;
+  const buildings = parseBuildings(new Parser().parse(ttl));
+  const building = buildings.get(uuid);
+  assert.ok(building, "building keyed by its verbatim id");
+  assert.equal(building!.id, uuid);
+  assert.equal(building!.uri, iri);
+});

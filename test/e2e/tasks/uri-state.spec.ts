@@ -54,7 +54,7 @@ async function ensureBuilding(page: Page): Promise<string> {
 
   const row = page.locator("li", { hasText: ADDR }).first();
   await expect(row).toBeVisible({ timeout: T.action });
-  const id = (await row.textContent())?.match(/Building (\S+)/)?.[1] ?? "";
+  const id = (await row.getAttribute("data-building-id")) ?? "";
   expect(id, "the added building's id").toBeTruthy();
   return id;
 }

@@ -106,14 +106,14 @@ Deno.test("fetchAndParseData parses own buildings (by listing) and energy end-to
   const result = await fetchAndParseData(makeSession({ log: newLog() }));
 
   assert.equal(result.buildings.length, 2);
-  const b1 = result.buildings.find((b) => b.id === 1);
+  const b1 = result.buildings.find((b) => b.id === "1");
   assert.ok(b1, "building 1 present");
   assert.equal(b1!.lat, 49.0);
   assert.equal(b1!.long, 11.0);
   assert.equal(b1!.isShared, false); // discovered under the storage root = own
 
-  const e1 = result.energyNeed.find((e) => e.id === 1);
-  const e2 = result.energyNeed.find((e) => e.id === 2);
+  const e1 = result.energyNeed.find((e) => e.id === "1");
+  const e2 = result.energyNeed.find((e) => e.id === "2");
   assert.equal(e1?.energyNeed.Electricity, 1000);
   assert.equal(e2?.energyNeed.Electricity, 2000);
 
@@ -159,8 +159,8 @@ Deno.test("fetchAndParseData tolerates an inaccessible energy source", async () 
   );
 
   assert.equal(result.buildings.length, 2);
-  const e1 = result.energyNeed.find((e) => e.id === 1);
-  const e2 = result.energyNeed.find((e) => e.id === 2);
+  const e1 = result.energyNeed.find((e) => e.id === "1");
+  const e2 = result.energyNeed.find((e) => e.id === "2");
   assert.equal(e1?.energyNeed.Electricity, 1000);
   assert.equal(e2, undefined);
   assert.equal(result.averages.Electricity, 1000);

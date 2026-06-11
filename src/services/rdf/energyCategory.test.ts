@@ -12,7 +12,7 @@ import { BuildingType, EnergyType } from "../../types.ts";
 // the other sections are irrelevant to the categorisation and left empty.
 function energy(need: Record<string, number>): EnergyType {
   return {
-    id: 1,
+    id: "e1",
     uri: "urn:e",
     energyNeed: need,
     energyGeneration: {},
@@ -25,7 +25,7 @@ function energy(need: Record<string, number>): EnergyType {
 }
 
 function building(fields: Partial<BuildingType>): BuildingType {
-  return { id: 1, uri: "urn:b", ...fields } as BuildingType;
+  return { id: "b1", uri: "urn:b", ...fields } as BuildingType;
 }
 
 Deno.test("annualEnergyKwh: sums the energyNeed carriers, ignores non-numbers", () => {

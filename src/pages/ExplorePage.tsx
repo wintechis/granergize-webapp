@@ -1,3 +1,4 @@
+import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BuildingType, EnergyType } from "../types.ts";
@@ -238,8 +239,9 @@ function BuildingMarker(
         <Box sx={{ display: "flex", gap: 1 }}>
           <CorporateFareIcon fontSize="small" />
           <span>
-            <strong>Building {building.id}</strong>
-            {building.streetAddress && (
+            <strong>{buildingDisplayName(building)}</strong>
+            {building.streetAddress &&
+              building.streetAddress !== buildingDisplayName(building) && (
               <>
                 <br />
                 {building.streetAddress}
@@ -377,14 +379,14 @@ export default function ExplorePage(
   // against, so panning/zooming re-frames the comparison. Recomputes when
   // phase-2 energy arrives, re-tinting the markers without a refetch.
   const energyById = useMemo(() => {
-    const m = new Map<number, EnergyType>();
+    const m = new Map<string, EnergyType>();
     for (const e of energyNeed ?? []) {
       if (!m.has(e.id)) m.set(e.id, e);
     }
     return m;
   }, [energyNeed]);
   const intensityById = useMemo(() => {
-    const m = new Map<number, number | null>();
+    const m = new Map<string, number | null>();
     for (const b of buildings) {
       m.set(b.id, energyIntensity(b, energyById.get(b.id)));
     }
@@ -412,7 +414,7 @@ export default function ExplorePage(
   // The selected building, re-resolved from `?b=` each render so it survives
   // data reloads and disappears if the building is removed.
   const selectedBuilding = selectedId
-    ? buildings.find((b) => b.id.toString() === selectedId) ?? null
+    ? buildings.find((b) => b.id === selectedId) ?? null
     : null;
 
   // Select a building: set `?b=` and drop `?dt=` so the detail view opens on the
@@ -513,7 +515,7 @@ export default function ExplorePage(
                       category={categoriseIntensity(
                         intensityById.get(building.id) ?? null,
                       )}
-                      onClick={() => focusBuilding(building.id.toString())}
+                      onClick={() => focusBuilding(building.id)}
                     />
                   )
                 ))}
@@ -601,11 +603,16 @@ export default function ExplorePage(
                       <CorporateFareIcon color="action" />
                       <Box sx={{ flexGrow: 1 }}>
                         <Typography variant="h6">
-                          Building {selectedBuilding.id}
+                          {buildingDisplayName(selectedBuilding)}
                         </Typography>
                         <Typography variant="body2" color="text.secondary">
-                          {selectedBuilding.streetAddress}
-                          <br />
+                          {selectedBuilding.streetAddress !==
+                              buildingDisplayName(selectedBuilding) && (
+                            <>
+                              {selectedBuilding.streetAddress}
+                              <br />
+                            </>
+                          )}
                           {`${selectedBuilding.postalCode ?? ""} ${
                             selectedBuilding.locality ?? ""
                           }${
@@ -684,7 +691,7 @@ export default function ExplorePage(
                             ))
                         ? (
                           <Energy
-                            selectedBuilding={selectedBuilding.id.toString()}
+                            selectedBuilding={selectedBuilding.id}
                             building={selectedBuilding}
                           />
                         )

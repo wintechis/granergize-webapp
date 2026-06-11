@@ -284,7 +284,7 @@ export async function loadEnergy(
   portfolioAverages: Record<string, number>;
   operatorAverages: Record<string, Record<string, number>>;
 }> {
-  const energyData = new Map<number, EnergyType>();
+  const energyData = new Map<string, EnergyType>();
   // Object to store aggregated values for each measurement
   const aggregatedValues: Record<string, number[]> = {};
   const operatorAggregatedValues: Record<string, Record<string, number[]>> = {};

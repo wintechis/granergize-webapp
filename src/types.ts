@@ -49,7 +49,8 @@ export interface BuildingType {
     | InvestorCertification[]
     | InvestorOperatingCosts
     | undefined;
-  id: number;
+  /** The building's id as it appears in its IRI (file name / fragment), verbatim. */
+  id: string;
   uri: string;
   sourceUri?: string;
   /** Provenance: the WebID the data was attributed to (`prov:agent`). Records only
@@ -178,7 +179,8 @@ export type WeatherType = {
 };
 
 export type EnergyType = {
-  id: number;
+  /** The owning building's id (see {@link BuildingType.id}). */
+  id: string;
   uri: string;
   /** The annual year the figures cover (the latest accessible actual year). */
   year?: number;

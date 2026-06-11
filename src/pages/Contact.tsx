@@ -16,13 +16,7 @@ import {
   UriLink,
 } from "../components/detail/DetailView.tsx";
 import { appearancesOf } from "../services/agents/agentAppearances.ts";
-import type { BuildingType } from "../types.ts";
-
-/** Display label for a building row (address, else its id). */
-function buildingLabel(b: BuildingType): string {
-  const addr = b.streetAddress?.toString().trim();
-  return addr && addr.length > 0 ? addr : `Building ${b.id}`;
-}
+import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 
 /**
  * Standalone detail view for an agent (a party referenced by a building's
@@ -96,7 +90,7 @@ export default function Contact({ webId }: { webId: string }) {
                   label={roles.join(", ")}
                   value={
                     <RefLink to={`/building/${building.id}`}>
-                      {buildingLabel(building)}
+                      {buildingDisplayName(building)}
                     </RefLink>
                   }
                   dense

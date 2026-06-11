@@ -148,8 +148,8 @@ Deno.test("useDeleteBuilding drops the deleted building from the list cache on s
   pod.resources.set(B1, "<#it> a <urn:Building> .");
   pod.resources.set(B2, "<#it> a <urn:Building> .");
   _setSessionForTesting(sessionFor(pod));
-  const b1 = { id: 1, uri: B1 } as unknown as BuildingType;
-  const b2 = { id: 2, uri: B2 } as unknown as BuildingType;
+  const b1 = { id: "1", uri: B1 } as unknown as BuildingType;
+  const b2 = { id: "2", uri: B2 } as unknown as BuildingType;
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
   });

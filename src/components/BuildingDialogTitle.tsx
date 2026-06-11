@@ -1,16 +1,9 @@
 import { Box, Typography } from "@mui/material";
 import type { BuildingType } from "../types.ts";
-
-/** A building's display name: its label, else its code, else "Building <id>". */
-function buildingDisplayName(b: BuildingType): string {
-  return b.label || b.buildingCode || `Building ${b.id}`;
-}
-
-/** One-line address ("Street, 12345 City"), omitting the parts that are unset. */
-function buildingAddressLine(b: BuildingType): string {
-  const cityLine = [b.postalCode, b.locality].filter(Boolean).join(" ");
-  return [b.streetAddress, cityLine].filter(Boolean).join(", ");
-}
+import {
+  buildingAddressLine,
+  buildingDisplayName,
+} from "../lib/buildingDisplay.ts";
 
 /**
  * A dialog header that names the building it acts on — `<action> — <name>` with the
@@ -21,13 +14,16 @@ function buildingAddressLine(b: BuildingType): string {
 export function BuildingDialogTitle(
   { building, action }: { building: BuildingType; action: string },
 ) {
+  const name = buildingDisplayName(building);
   const addr = buildingAddressLine(building);
   return (
     <Box>
       <Typography variant="h6" component="span" sx={{ display: "block" }}>
-        {action} — {buildingDisplayName(building)}
+        {action} — {name}
       </Typography>
-      {addr && (
+      {/* When the name already IS the street address (no label/code set), the
+          address line would just repeat it — show it only when it adds info. */}
+      {addr && addr !== name && !addr.startsWith(`${name},`) && (
         <Typography variant="body2" color="text.secondary">
           {addr}
         </Typography>

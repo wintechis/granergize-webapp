@@ -1,5 +1,7 @@
+import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { useEffect, useMemo, useState } from "react";
 import {
+  Alert,
   Box,
   Button,
   Checkbox,
@@ -7,6 +9,7 @@ import {
   FormControl,
   FormControlLabel,
   FormGroup,
+  FormHelperText,
   FormLabel,
   InputLabel,
   ListItemText,
@@ -25,6 +28,7 @@ import type {
   BuildingType,
 } from "../types.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
+import { monthsFromDays, selectedSeriesRefs } from "./createViewMonths.ts";
 import { useSeriesDays } from "../hooks/queries.ts";
 import { useCreateView } from "../hooks/mutations.ts";
 import {
@@ -229,33 +233,38 @@ export default function CreateViewDialog({
     [mode, buildings, sharedUriSet, ownedBuildings],
   );
 
-  // Available months for monthly views: the day files behind each candidate
-  // building's 15-min series (read through the data layer; the files are
+  // Available months for monthly views: the day files behind the SELECTED
+  // buildings' 15-min series (read through the data layer; the files are
   // separate resources, not inline on the building), reduced to their months.
-  // The hook disables itself outside monthly mode (no refs → no query).
+  // Scoped to the selection so every offered month has data in the view
+  // (heike-5 #4). The hook disables itself with nothing selected (no refs →
+  // no query).
   const seriesRefs = useMemo(
     () =>
       mode === "monthly"
-        ? availableBuildings.flatMap((b) =>
-          (b.energyDatasets ?? []).filter((r) =>
-            isSeriesGranularity(r.granularity)
-          )
-        )
+        ? selectedSeriesRefs(availableBuildings, selectedBuildings)
         : [],
-    [mode, availableBuildings],
+    [mode, availableBuildings, selectedBuildings],
   );
   const seriesDays = useSeriesDays(seriesRefs);
+  // A disabled query (no selection yet) stays "pending" forever — only count a
+  // real in-flight load. A selection change serves the PREVIOUS selection's
+  // days as placeholder data (the global keepPreviousData), whose months must
+  // not be offered — that would reintroduce the pick-a-dataless-month bug.
+  const monthsLoading = seriesRefs.length > 0 &&
+    (seriesDays.isPending || seriesDays.isPlaceholderData);
   const availableMonths = useMemo(
     () =>
-      [
-        ...new Set(
-          (seriesDays.data ?? [])
-            .map(({ day }) => day.substring(0, 7))
-            .filter((m) => m.length === 7),
-        ),
-      ].sort(),
-    [seriesDays.data],
+      seriesDays.isPlaceholderData
+        ? []
+        : monthsFromDays(seriesDays.data ?? []),
+    [seriesDays.data, seriesDays.isPlaceholderData],
   );
+  // The selection can change under a picked month; only a month the current
+  // selection actually carries counts (the Select's value guard shows the same).
+  const effectivePeriod = availableMonths.includes(selectedPeriod)
+    ? selectedPeriod
+    : "";
 
   const handleCreate = () => {
     if (!viewName.trim()) {
@@ -266,7 +275,7 @@ export default function CreateViewDialog({
       showNotification("Please select at least one building", "warning");
       return;
     }
-    if (mode === "monthly" && !selectedPeriod) {
+    if (mode === "monthly" && !effectivePeriod) {
       showNotification("Please select a month", "warning");
       return;
     }
@@ -284,7 +293,7 @@ export default function CreateViewDialog({
         buildingUris: selectedBuildings,
         aggregationType,
         metrics: mode === "monthly" ? ["electricity"] : selectedMetrics,
-        period: mode === "monthly" ? selectedPeriod : undefined,
+        period: mode === "monthly" ? effectivePeriod : undefined,
         benchmark: mode === "benchmark",
       },
       {
@@ -335,7 +344,7 @@ export default function CreateViewDialog({
               return (
                 <Chip
                   key={uri}
-                  label={building ? `Building ${building.id}` : uri}
+                  label={building ? buildingDisplayName(building) : uri}
                   size="small"
                 />
               );
@@ -348,8 +357,10 @@ export default function CreateViewDialog({
           <MenuItem key={building.uri} value={building.uri}>
             <Checkbox checked={selectedBuildings.includes(building.uri)} />
             <ListItemText
-              primary={`Building ${building.id}`}
-              secondary={building.streetAddress || building.locality || ""}
+              primary={buildingDisplayName(building)}
+              secondary={building.streetAddress !== buildingDisplayName(building)
+                ? building.streetAddress || building.locality || ""
+                : building.locality || ""}
             />
           </MenuItem>
         ))}
@@ -388,7 +399,7 @@ export default function CreateViewDialog({
             variant="contained"
             disabled={!viewName.trim() || selectedBuildings.length === 0 ||
               (mode === "monthly"
-                ? !selectedPeriod
+                ? !effectivePeriod
                 : selectedMetrics.length === 0)}
           >
             Create View
@@ -427,25 +438,44 @@ export default function CreateViewDialog({
 
               {buildingSelect}
 
-              {/* A Select over the months that actually carry data — a free
-                  month input let the user pick an in-range but data-less month
-                  (months are sparse, not contiguous), whose compute yielded an
-                  empty snapshot (heike-4's empty diagram). */}
-              <FormControl size="small" sx={{ mb: 3, minWidth: 160 }}>
+              {/* A Select over the months the SELECTED buildings actually carry
+                  data for — a free month input let the user pick an in-range but
+                  data-less month (months are sparse, not contiguous), whose
+                  compute yielded an empty snapshot (heike-4's empty diagram;
+                  heike-5 #4 was the same hole via unselected buildings' months).
+                  Disabled until the months are knowable; the discovery is a real
+                  Pod listing, so it says so instead of sitting empty (heike-5 #2). */}
+              <FormControl
+                size="small"
+                sx={{ mb: 3, minWidth: 160 }}
+                disabled={selectedBuildings.length === 0 || monthsLoading}
+              >
                 <InputLabel id="view-month-label">Month</InputLabel>
                 <Select
                   labelId="view-month-label"
                   label="Month"
-                  value={availableMonths.includes(selectedPeriod)
-                    ? selectedPeriod
-                    : ""}
+                  value={effectivePeriod}
                   onChange={(e) => setSelectedPeriod(e.target.value)}
                 >
                   {availableMonths.map((m) => (
                     <MenuItem key={m} value={m}>{m}</MenuItem>
                   ))}
                 </Select>
+                {(selectedBuildings.length === 0 || monthsLoading) && (
+                  <FormHelperText>
+                    {selectedBuildings.length === 0
+                      ? "Select buildings first"
+                      : "Loading…"}
+                  </FormHelperText>
+                )}
               </FormControl>
+              {selectedBuildings.length > 0 && !monthsLoading &&
+                seriesDays.isSuccess && availableMonths.length === 0 && (
+                <Alert severity="info" sx={{ mb: 3 }}>
+                  The selected buildings carry no 15-minute series data for any
+                  month.
+                </Alert>
+              )}
 
               <FormControl component="fieldset" sx={{ mb: 1 }}>
                 <FormLabel component="legend">Aggregation Type</FormLabel>

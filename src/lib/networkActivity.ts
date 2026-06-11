@@ -7,6 +7,7 @@
  * (useSyncExternalStore).
  */
 import { withRetry } from "../services/pod/retryFetch.ts";
+import { withConcurrencyLimit } from "./fetchLimiter.ts";
 import {
   isSessionExpired,
   markSessionExpired,
@@ -216,7 +217,10 @@ export function instrumentSessionFetch(
   const original = session.fetch?.bind(session);
   const current = session.fetch as (typeof fetch & { [k: symbol]: unknown }) | undefined;
   if (!original || current?.[INSTRUMENTED]) return;
-  const retrying = withRetry(original);
+  // Concurrency cap OUTSIDE the retry: a request sleeping in 429-backoff keeps
+  // its slot, throttling the pipeline exactly while the server asks for relief
+  // (heike-5 #3 — see fetchLimiter.ts).
+  const retrying = withConcurrencyLimit(withRetry(original));
   const wrapped = (async (input: string | URL | Request, init?: RequestInit) => {
     // Session-expiry gate: once tripped, short-circuit further requests with a
     // synthetic 401 rather than hammering a dead token during logout. Not

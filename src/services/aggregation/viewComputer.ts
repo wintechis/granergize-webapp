@@ -51,7 +51,7 @@ async function loadBuildingEnergyData(
 
     return {
       energy: {
-        id: Number(buildingId) || 0,
+        id: buildingId,
         uri: `${buildingUri}#${buildingId}`,
         energyNeed: { ...ds.metrics },
         energyGeneration: {},

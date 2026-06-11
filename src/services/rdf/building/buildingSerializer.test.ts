@@ -478,7 +478,7 @@ Deno.test("parseCsvToFields extracts investor operating costs + certification, e
 
 Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the building", async () => {
   const building = {
-    id: 1,
+    id: "b-1",
     uri: "https://pod.example/granergize/buildings/b-1.ttl#b-1",
     buildingCode: "B-1",
     streetAddress: "Nordostpark 84",
@@ -528,7 +528,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
 Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping via generic import", async () => {
   const buildings = [
     {
-      id: 1,
+      id: "1",
       streetAddress: "A-Straße 1",
       yearOfConstruction: 1990,
       annualData: [{ year: 2023, electricityConsumption: 1000 }],
@@ -536,7 +536,7 @@ Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping vi
       certifications: [{ type: "BREEAM", level: "Very Good" }],
     },
     {
-      id: 2,
+      id: "2",
       streetAddress: "B-Weg 2",
       annualData: [{
         year: 2024,

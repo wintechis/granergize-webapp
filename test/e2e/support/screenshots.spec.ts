@@ -294,7 +294,7 @@ test.describe("handbuch screenshots", () => {
     await page.getByRole("tab", { name: "Manage" }).click();
     const nordRow = page.locator("li").filter({ hasText: "Nordostpark" }).first();
     await expect(nordRow).toBeVisible({ timeout: 30_000 });
-    const buildingId = (await nordRow.textContent())?.match(/Building (\S+)/)?.[1];
+    const buildingId = await nordRow.getAttribute("data-building-id");
     await page.goto(`/#/?tab=explore&b=${buildingId}`);
     await expect(page.getByRole("tab", { name: "Building data" }))
       .toBeVisible({ timeout: 60_000 });
@@ -343,7 +343,7 @@ test.describe("handbuch screenshots", () => {
       //     Benchmark comparison columns side by side. ---
       await page.goto(`/#/energy/${buildingId}`);
       await expect(
-        page.getByRole("heading", { name: /Energy Need for Building/ }),
+        page.getByRole("heading", { name: /Energy Need for / }),
       ).toBeVisible({ timeout: 60_000 });
       await expect(
         page.locator("th", { hasText: "Operator average kWh / a" }).first(),

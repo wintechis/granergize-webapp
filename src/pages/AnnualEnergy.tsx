@@ -1,3 +1,4 @@
+import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import React from "react";
 import {
   Chip,
@@ -197,9 +198,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
     <ChartErrorBoundary>
       <DetailCard
         icon={<ElectricBoltIcon />}
-        title={`Annual Energy & Water — Building ${
-          building.label ?? building.id
-        }`}
+        title={`Annual Energy & Water — ${buildingDisplayName(building)}`}
         subheader={[companyName, logisticsFunction].filter(Boolean).join(" · ") ||
           undefined}
         spacing={2}

@@ -73,10 +73,10 @@ test.describe("energy entry + Soll-Ist", () => {
     await expect(page.getByText(/building added/i))
       .toBeVisible({ timeout: T.action });
 
-    // Capture its (generated, non-numeric) id from the Manage row.
+    // Capture its (generated) id from the Manage row's data attribute.
     const row = page.locator("li", { hasText: ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
-    id = (await row.textContent())?.match(/Building (\S+)/)?.[1] ?? "";
+    id = (await row.getAttribute("data-building-id")) ?? "";
     expect(id, "the added building's id").toBeTruthy();
   });
 

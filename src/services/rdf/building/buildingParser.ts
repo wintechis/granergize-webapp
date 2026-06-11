@@ -107,16 +107,10 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
     if (!buildingId) return;
 
     if (!buildings.has(buildingId)) {
-      const numericId = /^\d+$/.test(buildingId)
-        ? parseInt(buildingId)
-        : buildingId
-          .split("")
-          .reduce(
-            (h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0,
-            0,
-          ) >>> 0;
       buildings.set(buildingId, {
-        id: numericId,
+        // The IRI-extracted id verbatim — what the user sees in a label must
+        // match what they see in the building's IRI (heike-5 #1).
+        id: buildingId,
         // Use the RDF subject as the building URI so it links correctly with observations.
         // Store the source file URL separately for ownership checks.
         uri: quad.subject.value,

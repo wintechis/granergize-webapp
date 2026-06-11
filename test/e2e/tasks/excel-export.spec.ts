@@ -1,6 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { buildingIds, buildingRows, deleteBuildingRow } from "../helpers/manage.ts";
+import {
+  buildingIdOf,
+  buildingIds,
+  buildingRows,
+  deleteBuildingRow,
+} from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -74,8 +79,7 @@ test.describe("excel export", () => {
 
     // A single building's row download opens a layout menu (the building carries no
     // role, so the export style is chosen here); picking one → building-<id>.xlsx.
-    const firstId = (await buildingRows(page).first().textContent())
-      ?.match(/Building (\S+)/)?.[1];
+    const firstId = await buildingIdOf(buildingRows(page).first());
     await buildingRows(page).first()
       .getByRole("button", { name: "Download building data" }).click();
     const dlOne = page.waitForEvent("download");
@@ -95,10 +99,11 @@ test.describe("excel export", () => {
     const before = new Set(await buildingIds(page));
     expect(before.size, "a seeded building to export (reseed if 0)")
       .toBeGreaterThan(0);
-    // Best-effort: the first building's street address (row reads
-    // "Building <id> — <addr><uri>"), to assert it survives the round-trip.
-    const addr = ((await buildingRows(page).first().textContent()) ?? "")
-      .match(/Building \S+\s+—\s+(.+?)\s*https?:\/\//)?.[1]?.trim();
+    // Best-effort: the first building's display name (its <strong> headline —
+    // the street address for the seeded buildings), to assert it survives the
+    // round-trip.
+    const addr = (await buildingRows(page).first().locator("strong").first()
+      .textContent())?.trim();
 
     // Export every building.
     const dl = page.waitForEvent("download");
