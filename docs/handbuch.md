@@ -296,13 +296,22 @@ installieren.
    Anwendung nicht auf Ihre Daten zugreifen oder neue Gebäude speichern. Sie
    können die Berechtigung jederzeit in den Einstellungen Ihres Pods widerrufen.
 
+> **Hinweis:** Läuft Ihre Anmeldung nach längerer Nutzung ab, zeigt die
+> Anwendung einmalig den Hinweis „Session expired – please log in again" und
+> meldet Sie ab. Melden Sie sich danach einfach erneut an – Ihre Daten sind
+> davon nicht betroffen.
+
 ![Anmeldung: Identity Provider wählen](figures/anmelden.png){width=100%}
 
 **Was beim ersten Start passiert:** Bei der ersten Anmeldung ist Ihr Dashboard
 zunächst leer – es werden keine Daten vorausgesetzt und nichts im Voraus
 angelegt. Für einen schnellen Einstieg bietet Ihnen Granergize an, **fünf
 beispielhafte Demo-Gebäude** hinzuzufügen („Add examples"); diesen Hinweis
-können Sie auch ausblenden. Die Beispiele decken beide Datenformen ab – drei
+können Sie auch ausblenden. Er erscheint nur, solange Sie weder eigene noch
+mit Ihnen geteilte Gebäude haben; schlägt das Anlegen einzelner Beispiele fehl
+(etwa durch eine instabile Verbindung), meldet die Anwendung, wie viele der
+fünf Gebäude angelegt wurden, und das Angebot bleibt zum erneuten Versuch
+verfügbar. Die Beispiele decken beide Datenformen ab – drei
 Gebäude mit Jahreswerten (2022–2024) und vollständigen Stammdaten, zwei mit
 15-Minuten-Messreihen. Zwei der Jahreswert-Gebäude teilen sich denselben
 Betreiber und eines enthält zusätzlich geplante (Soll-)Werte, sodass
@@ -449,7 +458,9 @@ von Wetterdaten ist Gegenstand der Weiterentwicklung.
 
 ## Gebäude hinzufügen
 
-Im Tab **Manage** unter „Your buildings" stehen zwei Wege zur Verfügung:
+Im Tab **Manage** bündelt eine Aktionsleiste über der Liste „Your buildings"
+alle Aktionen, die den Bestand betreffen. Zum Erfassen stehen zwei Wege zur
+Verfügung:
 
 - **Add Building:** Ein einzelnes Gebäude über das Formular erfassen (Adresse,
   Koordinaten, Fläche usw.). Für alle Gebäude erscheint dieselbe, einheitliche
@@ -462,6 +473,10 @@ Im Tab **Manage** unter „Your buildings" stehen zwei Wege zur Verfügung:
   **15-Minuten-Lastgänge** (das Hochladen einer langen Messreihe lässt sich
   jederzeit abbrechen). Die eingelesenen Gebäude können Sie vor
   dem Speichern prüfen und anpassen; fehlende Koordinaten werden automatisch ergänzt.
+
+Daneben bietet die Aktionsleiste **„Download all (Excel)"**: Damit laden Sie
+alle eigenen Gebäude samt ihrer Jahreswerte in eine gemeinsame Excel-Datei
+herunter – etwa zur Weitergabe oder als Sicherung.
 
 Ein gesondertes Template wird **nicht benötigt**: Laden Sie ein vorhandenes
 Gebäude über „Download this building's data" als Excel-Datei herunter – diese
@@ -572,8 +587,7 @@ Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
 Zu jedem Gebäude gibt es zusätzlich eine eigenständige Energie-Detailseite, die
 Sie direkt über die Adresszeile des Browsers aufrufen und als **Lesezeichen**
 ablegen können: `…/#/energy/<Gebäude-ID>` (die Gebäude-ID ist der technische
-Bezeichner des Gebäudes; im Developer-Modus wird sie in der Gebäudeliste
-angezeigt). Die Seite zeigt die Kennzahlen des **aktuellsten erfassten Jahres**
+Bezeichner des Gebäudes). Die Seite zeigt die Kennzahlen des **aktuellsten erfassten Jahres**
 als Tabelle und stellt jedem Wert bis zu drei Vergleichswerte gegenüber:
 
 - **Portfolio average** – der Durchschnitt über Ihre eigenen Gebäude.
@@ -643,11 +657,15 @@ Umfang Sie freigeben:
   ohne Verbrauchswerte. Nützlich, wenn Sie jemandem zunächst zeigen möchten,
   welche Gebäude Sie verwalten, ohne sofort sensible Verbrauchsdaten preiszugeben.
 - **Static building data and all energy readings** – zusätzlich die
-  Verbrauchswerte (Strom, Gas, Fernwärme, Wasser) **aller** Jahre.
+  Verbrauchswerte (Strom, Gas, Fernwärme, Wasser) **aller** Jahre. Diese
+  Freigabe umfasst auch Jahre, die Sie erst **nach** dem Teilen erfassen: Ein
+  neu gespeichertes Energiejahr wird automatisch mit freigegeben, ohne dass
+  Sie das Gebäude erneut teilen müssen.
 - **Static building data and energy for specific year(s)** – nur die
   Verbrauchsdaten der von Ihnen angekreuzten Jahre. Da jedes Jahr als eigene
   Ressource gespeichert ist, können Sie gezielt etwa nur den aktuellsten
-  Jahrgang freigeben und ältere zurückhalten.
+  Jahrgang freigeben und ältere zurückhalten; später ergänzte Jahre bleiben
+  bei dieser Variante außen vor.
 
 ### Aggregierte Ansichten teilen
 
@@ -695,12 +713,16 @@ Profil.
 ### Einem Datenraum beitreten oder einen Raum erstellen
 
 Ein **Datenraum** bündelt die Akteure, die untereinander Daten teilen, und ist
-die Grundlage für die rollenbasierte Freigabe. Im Tab **Connect**:
+die Grundlage für die rollenbasierte Freigabe. Im Tab **Connect** versammelt
+der Abschnitt „Your data rooms" alle Datenraum-Aktionen in einer Leiste über
+der Liste:
 
 - **Raum erstellen:** „Host a data room" legt einen Raum auf Ihrem Pod an. Teilen
   Sie dessen Link oder QR-Code, damit andere beitreten können.
 - **Beitreten:** Fügen Sie eine Raum-URI in das Feld ein und klicken Sie auf
-  „Add", oder nutzen Sie „Scan QR code".
+  „Add", oder nutzen Sie „Scan QR code". Verweigert der Browser den
+  Kamerazugriff, erscheint ein verständlicher Hinweis; „Cancel" unter dem
+  Kamerabild beendet das Scannen.
 - **Rolle wählen:** Weisen Sie sich Ihre Rolle(n) im Raum zu und speichern Sie
   mit „Save roles". Sie können sich dabei bewusst **mehrere oder alle Rollen**
   zuweisen – das ist so vorgesehen. Über diese Rollen können andere gezielt „By
@@ -746,6 +768,14 @@ Löschen (siehe Abschnitt „Gebäude bearbeiten, Dateien verwalten und löschen
 > sendet eine Access-Grant-Benachrichtigung an den Posteingang (`inbox/`) des
 > Empfängers und vermerkt die Freigabe im eigenen Pod. Der Empfänger verarbeitet
 > die Benachrichtigung und sieht anschließend die geteilten Daten.
+>
+> Maßgeblich ist dabei das im eigenen Pod geführte Freigabeprotokoll
+> (`shared-out/`); die ACL-Dateien sind eine daraus abgeleitete Projektion.
+> Nach dem Speichern eines neuen Energiejahres gleicht Granergize die
+> Berechtigungen automatisch mit den bestehenden Freigaben ab: Eine
+> „alle Jahre"-Freigabe erhält Zugriff auf die neue Energiedatei, eine
+> jahresbezogene Freigabe nicht. Da das Protokoll alle Freigabedimensionen
+> festhält, lassen sich die ACLs daraus jederzeit prüfen und wiederherstellen.
 
 ### Aggregierte Ansicht erstellen und teilen
 
