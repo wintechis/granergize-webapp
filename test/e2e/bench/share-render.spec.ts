@@ -106,6 +106,12 @@ test.describe("share-render benchmark", () => {
 
       rows.push([n, listMs, mapMs, drainMs]);
       console.log(`  n=${n}  list ${listMs}  map ${mapMs}  drain ${drainMs} ms`);
+
+      // Park the app before the next size's seed: a live page can write during
+      // the wipe window (the prune reconciliation reacting to its sources
+      // vanishing), contaminating the freshly seeded log — observed as a
+      // post-seed verify failure (36 events, want 30).
+      await page.goto("about:blank");
     }
 
     writeBenchDat(
