@@ -27,6 +27,8 @@ import { drainInbox, ensureOwnInbox } from "../../src/services/interop/inbox.ts"
 import { deleteContainerRecursive } from "../../src/services/pod/podDelete.ts";
 import {
   type BenchActor,
+  lastAnnualYears,
+  SEED_ANNUAL_YEARS,
   seedBuildings,
   seedRoomMembers,
   setupShareRoom,
@@ -179,14 +181,22 @@ async function actorSession(
   return { live, actor: { webId: css[slot].webId, session } };
 }
 
-// Seed the PAIR substrate for the Tier-3 share-render BENCHMARK: B owns N
-// buildings, ALL shared with A via a data room (the Tier-2 D3 scenario). Both
-// actors' app collections are wiped first so each size starts clean (stale
-// shared-in grants from a previous size would otherwise be pruned during A's
-// timed load and distort it). `drained` archives A's inbox into shared-in/
-// up front (steady-state recipient); undrained leaves the N notifications for
-// the app's login/reload drain (the first-visit cost the spec times).
-async function seedSharedPair(n: number, drained: boolean): Promise<void> {
+// Seed the PAIR substrate for the Tier-3 share-render / login-settle /
+// series-render BENCHMARKS: B owns N buildings — each carrying the seeded
+// annual-data baseline (2020–2025, or the most recent `years` of it), the FIRST
+// optionally a PT15M series of `seriesDays` daily files — ALL shared with A via
+// a data room, energy included (the Tier-2 D3 scenario). Both actors' app
+// collections are wiped first so each size starts clean (stale shared-in grants
+// from a previous size would otherwise be pruned during A's timed load and
+// distort it). `drained` archives A's inbox into shared-in/ up front
+// (steady-state recipient); undrained leaves the N notifications for the app's
+// login/reload drain (the first-visit cost the spec times).
+async function seedSharedPair(
+  n: number,
+  drained: boolean,
+  years: number,
+  seriesDays: number,
+): Promise<void> {
   const [a, b] = await Promise.all([actorSession("A"), actorSession("B")]);
   try {
     await Promise.all([
@@ -194,7 +204,14 @@ async function seedSharedPair(n: number, drained: boolean): Promise<void> {
       deleteContainerRecursive(appRoot(b.actor.webId), b.actor.session).catch(() => {}),
     ]);
     await ensureOwnInbox(a.actor.session);
-    const seeded = await seedBuildings(b.actor.session, b.actor.webId, n);
+    const seeded = await seedBuildings(
+      b.actor.session,
+      b.actor.webId,
+      n,
+      "bench",
+      lastAnnualYears(years),
+      seriesDays,
+    );
     const room = await setupShareRoom(a.actor, b.actor);
     await shareBuildingsViaRoom(b.actor, room, seeded);
     if (drained) await drainInbox(a.actor.session);
@@ -205,9 +222,10 @@ async function seedSharedPair(n: number, drained: boolean): Promise<void> {
 }
 
 // Seed the TRIO substrate for the Tier-3 view-roundtrip BENCHMARK: B and C each
-// own N buildings WITH an annual energy dataset, all shared (energy included) to
-// A via a pair room each, and A's inbox drained — so A's browser can build a
-// benchmark view over the 2N contributed buildings and share it back.
+// own N buildings carrying the annual-data baseline (2020–2025), all shared
+// (energy included) to A via a pair room each, and A's inbox drained — so A's
+// browser can build a benchmark view over the 2N contributed buildings and
+// share it back.
 async function seedContribTrio(n: number): Promise<void> {
   const [a, b, c] = await Promise.all([
     actorSession("A"),
@@ -230,12 +248,9 @@ async function seedContribTrio(n: number): Promise<void> {
         contributor.actor.webId,
         n,
         prefix,
-        [2023],
       );
       const room = await setupShareRoom(a.actor, contributor.actor);
-      await shareBuildingsViaRoom(contributor.actor, room, seeded, "investor", {
-        includeEnergyData: true,
-      });
+      await shareBuildingsViaRoom(contributor.actor, room, seeded);
     }
     await drainInbox(a.actor.session);
   } finally {
@@ -270,8 +285,18 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
   if (req.method === "POST" && pathname === "/seed-shared") {
     const n = Number(searchParams.get("n") ?? "0");
     const drained = searchParams.get("drained") !== "0";
+    // Energy-depth knobs: `years=K` keeps the most recent K of the 2020–2025
+    // annual baseline (default: all); `seriesDays=D` puts a PT15M series of D
+    // daily files on the first building (default: none).
+    const years = Number(searchParams.get("years") ?? `${SEED_ANNUAL_YEARS.length}`);
+    const seriesDays = Number(searchParams.get("seriesDays") ?? "0");
     try {
-      await seedSharedPair(Number.isFinite(n) && n >= 0 ? n : 0, drained);
+      await seedSharedPair(
+        Number.isFinite(n) && n >= 0 ? n : 0,
+        drained,
+        Number.isFinite(years) && years >= 0 ? years : SEED_ANNUAL_YEARS.length,
+        Number.isFinite(seriesDays) && seriesDays >= 0 ? seriesDays : 0,
+      );
       return new Response("ok\n");
     } catch (e) {
       console.error(`/seed-shared failed: ${e}`);

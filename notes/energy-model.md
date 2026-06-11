@@ -24,8 +24,14 @@ role.
   resource (or container, for series), so it can be added, edited, and shared independently.
 - **Observations stay SOSA.** The reading shape is unchanged (`sosa:Observation` +
   `sosa:hasResult` + `sosa:phenomenonTime`); only the grouping and metric IRIs unify.
-- **Granularity is a duration literal,** not a minted class: `"P1Y"`, `"P1M"`, `"PT15M"`
-  — the value `isSeriesGranularity` switches on.
+- **Granularity is a duration literal,** not a minted class: `"P1Y"`, `"P1M"`, `"PT15M"`.
+  The value sorts every dataset into one of two kinds (`isSeriesGranularity`,
+  `durationUtils.ts`): a duration with a **date part** (`P1Y`, `P1M`, `P1W`, …) is an
+  **aggregate** — small, bulk-loaded with the building; a **time-only** duration
+  (`PT15M`, `PT1H`, …) is a **time series** — large, located in a container of daily
+  files and lazy-loaded on demand. Any cadence is model-legal, but the write paths
+  currently mint only the two ends: annual aggregates (`P1Y`, the year form's metric
+  figures) and 15-minute series (`PT15M`, the Lastgang upload).
 
 ## The unified dataset
 
@@ -63,7 +69,7 @@ is declared separately): `cons:ElectricityConsumption`, `cons:HeatConsumption`,
                          ssn:hasUnit unit:M3 ] ] .
 ```
 
-### Sub-hourly series (large → a located container of daily reading files)
+### Time series (sub-hourly; large → a located container of daily reading files)
 
 ```turtle
 # in …/buildings/<id>/energy/2024-PT15M.ttl (the dataset descriptor)
@@ -78,7 +84,9 @@ is declared separately): `cons:ElectricityConsumption`, `cons:HeatConsumption`,
 ```
 
 Each daily file under `2024-PT15M/` holds the readings (`sosa:Observation` per 15-min
-slot). The series is lazy-loaded — the descriptor's `cons:granularity "PT15M"` drives that.
+slot). Unlike the aggregates, the series is never bulk-loaded: the descriptor's
+time-only `cons:granularity "PT15M"` marks it lazy, and the daily files are fetched
+only when the user opens that building's series chart.
 
 ### The building link (one predicate)
 

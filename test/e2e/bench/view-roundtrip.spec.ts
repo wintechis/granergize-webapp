@@ -34,6 +34,22 @@ const VIEW = "Bench Roundtrip";
 const A = account("A");
 const B = account("B");
 
+/**
+ * Cold-load the app, tolerating a failed silent session restore: JSS's IdP
+ * occasionally rejects the restore's token exchange (`invalid_grant` on a
+ * replayed authorization code) and the app lands on the Login screen — re-login
+ * and continue. Untimed: every timed phase starts after this returns.
+ */
+async function gotoLoggedIn(page: Page): Promise<void> {
+  await page.goto("/");
+  try {
+    await expect(page.getByRole("tab", { name: "Manage" }))
+      .toBeVisible({ timeout: 15_000 });
+  } catch {
+    await login(page, A);
+  }
+}
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("view-roundtrip benchmark", () => {
@@ -63,7 +79,7 @@ test.describe("view-roundtrip benchmark", () => {
       expect(res.ok, `seed-contrib n=${n} (HTTP ${res.status})`).toBeTruthy();
 
       // ── A: build the benchmark view over the 2N contributed buildings ──
-      await page.goto("/"); // cold load; seed wiped A's app data (views included)
+      await gotoLoggedIn(page); // cold load; seed wiped A's app data (views included)
       await page.getByRole("tab", { name: "Manage" }).click();
       await page.getByRole("button", { name: /create view/i }).click();
       const dlg = page.getByRole("dialog");
