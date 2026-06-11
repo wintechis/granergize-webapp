@@ -58,42 +58,73 @@ function buildingFields(i: number): Record<string, string> {
 }
 
 /**
+ * Annual-data years every seeded building carries BY DEFAULT — the example-data
+ * baseline: one annual `cons:EnergyDataset` per year, 2020–2025, with
+ * per-building, per-year distinct values (so charts and benchmark averages show
+ * real, different numbers). Override per call: `lastAnnualYears(K)` for a depth
+ * knob, `[]` for a bare building.
+ */
+export const SEED_ANNUAL_YEARS = [2020, 2021, 2022, 2023, 2024, 2025];
+
+/** The most recent `k` of the seeded annual years (`k=3` → 2023–2025). */
+export function lastAnnualYears(k: number): number[] {
+  return SEED_ANNUAL_YEARS.slice(Math.max(0, SEED_ANNUAL_YEARS.length - k));
+}
+
+/**
  * Seed `n` throwaway buildings into the session owner's Pod via the real
  * serialize→PUT path (coords inline, so no geocoding). Returns their URIs for
  * later cleanup. `n === 0` is a no-op (the empty-Pod baseline).
  *
- * `annualYears` additionally writes one annual `cons:EnergyDataset` per listed
- * year (the `_inv_*` field convention → `writeBuildingEnergy`), with per-building
- * distinct values — so a benchmark view computed over the seeded set averages
- * real, different numbers (the view-roundtrip bench needs this).
+ * Each building carries one annual `cons:EnergyDataset` per `annualYears` entry
+ * (the `_inv_*` field convention → `writeBuildingEnergy`). `seriesDaysOnFirst`
+ * makes the FIRST building (`<idPrefix>-0`) a SERIES-ONLY building instead: a
+ * PT15M series of that many daily files (96 readings each), no annual data —
+ * one designated lazy click target (the `/energy/:id` series chart renders only
+ * for buildings without annual data; the bulk load never touches series, so
+ * seeding them everywhere would be cost without measurement value).
  */
 export async function seedBuildings(
   session: Session,
   webId: string,
   n: number,
   idPrefix = "bench",
-  annualYears: number[] = [],
+  annualYears: number[] = SEED_ANNUAL_YEARS,
+  seriesDaysOnFirst = 0,
 ): Promise<SeededBuilding[]> {
   const specs = Array.from({ length: n }, (_, i) => {
     const id = `${idPrefix}-${i}`;
     const uri = newBuildingUri(webId, id);
     return { i, id, uri, subjectUri: `${uri}#${id}`, fields: buildingFields(i) };
   });
+  const seriesYear = annualYears[annualYears.length - 1] ?? 2025;
   // Provision buildings/ ONCE up front: uploadBuilding ensures it per call, and a
   // pool of concurrent first-writers would otherwise race to create it (all see
   // 404, all PUT, the losers get a 409). After this the per-call ensure no-ops.
   if (n > 0) await ensureContainer(`${appRoot(webId)}buildings/`, session);
   return mapPooled(specs, POOL, async (s) => {
-    let links: string[] | undefined;
-    if (annualYears.length > 0) {
-      const energyFields = Object.fromEntries(
-        annualYears.flatMap((year) => [
-          [`_inv_elec_${year}`, String(10_000 + s.i * 137)],
-          [`_inv_heat_${year}`, String(20_000 + s.i * 211)],
-        ]),
-      );
-      links = await writeBuildingEnergy(session, s.uri, s.subjectUri, energyFields);
-    }
+    const series = s.i === 0 && seriesDaysOnFirst > 0
+      ? {
+        year: seriesYear,
+        label: "bench series",
+        days: consecutiveDates(seriesYear, seriesDaysOnFirst).map((date) => ({
+          date,
+          readings: synthDayReadings(date),
+        })),
+      }
+      : undefined;
+    // The series click target stays series-only; every other building carries
+    // the annual baseline.
+    const yearsFor = series ? [] : annualYears;
+    const energyFields = Object.fromEntries(
+      yearsFor.flatMap((year) => [
+        [`_inv_elec_${year}`, String(10_000 + s.i * 137 + (year - 2020) * 250)],
+        [`_inv_heat_${year}`, String(20_000 + s.i * 211 + (year - 2020) * 400)],
+      ]),
+    );
+    const links = yearsFor.length > 0 || series
+      ? await writeBuildingEnergy(session, s.uri, s.subjectUri, energyFields, series)
+      : undefined;
     const ttl = serializeBuildingToTurtle(s.fields, s.uri, links, {
       agent: webId,
     });
@@ -177,16 +208,18 @@ export async function setupShareRoom(
  * purpose: each share appends to B's single shared-out log and posts to the
  * recipient's inbox — concurrent shares would contend on that one log and race
  * to create the shared-out/ container; sequential is also how the real flow
- * runs (one share at a time from the UI). The default share scope excludes
- * energy (the D3 building-only measurement); pass `options` to include it
- * (the view-roundtrip seeding shares the annual datasets too).
+ * runs (one share at a time from the UI). The default share scope INCLUDES
+ * energy — the dialog's default, and the only scope consistent with seeded
+ * buildings that carry annual data (an energy-less grant would make the
+ * recipient's timed load burn one 403 per dataset, a flow real shares never
+ * produce).
  */
 export async function shareBuildingsViaRoom(
   b: BenchActor,
   room: string,
   buildings: SeededBuilding[],
   role: UserRole = "investor",
-  options: ShareOptions = { includeEnergyData: false },
+  options: ShareOptions = { includeEnergyData: true },
 ): Promise<void> {
   for (const s of buildings) {
     const recipients = await getMembersByRole(room, role, b.session);

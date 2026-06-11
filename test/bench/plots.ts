@@ -126,6 +126,18 @@ export const ALL_PLOTS: PlotSpec[] = [
     ],
   },
   {
+    // Tier-3 pair: lazy series click on a SHARED building — day view scales with
+    // the container listing, the month view with its ~constant per-month burst.
+    name: "series-render",
+    title: "Time-to-chart for a shared 15-min series vs. day-file count",
+    xlabel: "# daily files (96 readings each)",
+    ylabel: "time to chart (ms)",
+    series: [
+      { col: 3, title: "Day View (listing + 1 day)" },
+      { col: 4, title: "Daily Totals (one month bulk)" },
+    ],
+  },
+  {
     // Tier-3 trio: B + C contribute N buildings each; A computes + shares back.
     name: "view-roundtrip",
     title: "Benchmark-view roundtrip vs. contribution size (B+C → A → back)",

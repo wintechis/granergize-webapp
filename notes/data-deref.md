@@ -96,9 +96,11 @@ merged graph — the app does not re-dereference each IRI it encounters**:
 - Cross-references such as `rec:operatedBy` / `schema:customer` are kept as IRIs and
   resolved against the in-memory **agents** map (rendered as in-app links); the app
   does *not* fetch each agent IRI on its own.
-- **Energy** dispatches on the declared `cons:granularity`: aggregates are
-  bulk-loaded with the building; sub-hourly series are **lazy-loaded on demand**
-  (on building click) rather than eagerly dereferenced.
+- **Energy** dispatches on the declared `cons:granularity` (an `xsd:duration`):
+  date-part durations (`P1Y`, `P1M`, …) are **aggregates**, bulk-loaded with the
+  building; time-only durations (`PT15M`, `PT1H`, …) are **time series**,
+  **lazy-loaded on demand** (on building click) rather than eagerly dereferenced —
+  see [`energy-model.md`](./energy-model.md).
 - The UI exposes two ways to act on an IRI: `RefLink` (in-app router navigation,
   resolved against already-loaded data) and `UriLink` (opens the raw resource in a
   new tab — lets the browser dereference it). See

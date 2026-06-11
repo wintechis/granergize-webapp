@@ -90,6 +90,7 @@ const RUNS = Number(Deno.env.get("BENCH_RUNS") ?? "3");
 recordSetup(RESULTS_DIR, {
   "pod server": Deno.env.get("LOCAL_POD_SERVER") === "jss" ? "JSS" : "CSS",
   "data layer (Tier 2)": `headless service calls, median of ${RUNS} runs per point`,
+  "seeded energy": "annual P1Y 2020–2025 per building; shares include energy",
   "buildings sweep": BUILDING_SIZES.join(" "),
   "series sweep (days)": SERIES_DAYS.join(" "),
   "shared sweep (buildings)": SHARED_SIZES.join(" "),

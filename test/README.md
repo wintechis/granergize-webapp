@@ -96,13 +96,16 @@ deno task bench:plot    # re-render PNGs from existing .dat (after installing gn
   member list (`room-render`), the PAIR recipient-at-scale scenario
   (`share-render`: B shared N buildings with A — Share list, map markers, and
   the first-visit inbox drain), the post-login settle (`login-settle`: fresh
-  login → map usable → network idle, on the pair substrate), and the TRIO
-  benchmark roundtrip
+  login → map usable → network idle, on the pair substrate), the lazy series
+  click (`series-render`: time-to-chart for a shared PT15M series vs. day-file
+  count), and the TRIO benchmark roundtrip
   (`view-roundtrip`: B + C contribute N buildings each; A computes a benchmark
   view and shares it back; B sees it) — see `notes/plan-bench-pair-trio.md`.
-  Seeding goes through the control server (`POST /seed`, `/seed-room`,
-  `/seed-shared`, `/seed-contrib`; Deno side), sweeps via `BENCH_SIZES` /
-  `BENCH_ROOM_SIZES` / `BENCH_SHARED_SIZES` / `BENCH_CONTRIB_SIZES`. Uses the
+  Every seeded building carries annual data 2020–2025 and seeded shares include
+  energy. Seeding goes through the control server (`POST /seed`, `/seed-room`,
+  `/seed-shared` — with `years=K` / `seriesDays=D` depth knobs —,
+  `/seed-contrib`; Deno side), sweeps via `BENCH_SIZES` / `BENCH_ROOM_SIZES` /
+  `BENCH_SHARED_SIZES` / `BENCH_SERIES_DAYS` / `BENCH_CONTRIB_SIZES`. Uses the
   default `granergize/` collection, builds with `VITE_OIDC_CLIENT_ID=` unset (so
   localhost login uses dynamic registration, not the prod client-ID doc), and
   `--retries=2` to ride out the JWKS warmup race.
