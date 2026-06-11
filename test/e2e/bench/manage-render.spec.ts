@@ -1,11 +1,8 @@
 import { expect, type Page, test } from "@playwright/test";
-import { mkdirSync, writeFileSync } from "node:fs";
-import { fileURLToPath } from "node:url";
 import { account, login } from "../helpers/login.ts";
 import { buildingRows } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
-import { benchRunId } from "../../bench/runId.ts";
-import { recordSetup } from "../../bench/runSetup.ts";
+import { sweepSizes, writeBenchDat } from "./benchSpec.ts";
 
 /**
  * Tier-3 scalability BENCHMARK (`deno task bench:ui`): end-to-end browser
@@ -26,19 +23,7 @@ import { recordSetup } from "../../bench/runSetup.ts";
  */
 const LOCAL = !!process.env.E2E_LOCAL;
 const CONTROL = `http://localhost:${LOCAL_CSS_CONTROL_PORT}`;
-// Same dated run directory as the Deno side (test-results/bench/<run-id>/), so
-// the follow-up plots.ts step picks this .dat up with the rest of the run.
-const RESULTS_DIR = fileURLToPath(
-  new URL(`../../../test-results/bench/${benchRunId()}`, import.meta.url),
-);
 const PAGE_SIZE = 20; // DEFAULT_PAGE_SIZE in usePaging.ts
-
-function sizes(): number[] {
-  const raw = process.env.BENCH_SIZES;
-  const def = [10, 20, 30, 40, 50, 60, 70, 80, 90, 100];
-  if (!raw) return def;
-  return raw.split(",").map((s) => Number(s.trim())).filter((n) => Number.isFinite(n));
-}
 
 const ACC = account("A");
 
@@ -60,7 +45,7 @@ test.describe("manage-render benchmark", () => {
   });
 
   test("time-to-render the Manage list across building counts", async () => {
-    const SIZES = sizes();
+    const SIZES = sweepSizes("BENCH_SIZES", [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);
     test.setTimeout(60_000 + SIZES.length * 130_000);
     const rows: Array<[number, number, number]> = [];
 
@@ -94,16 +79,7 @@ test.describe("manage-render benchmark", () => {
 
     // Write the gnuplot data file; the `bench:ui` task then runs the Deno plot
     // step (plots.ts) which renders manage-render.png alongside the Tier-2 graphs.
-    mkdirSync(RESULTS_DIR, { recursive: true });
-    const header = "# n_buildings  total_ms  ms_per_building";
-    const body = rows
-      .map(([n, ms, per]) => `${n}  ${ms}  ${per.toFixed(3)}`)
-      .join("\n");
-    writeFileSync(`${RESULTS_DIR}/manage-render.dat`, `${header}\n${body}\n`);
-    console.log(`wrote ${RESULTS_DIR}/manage-render.dat`);
-    recordSetup(RESULTS_DIR, {
-      "pod server": process.env.LOCAL_POD_SERVER === "jss" ? "JSS" : "CSS",
-      "browser (Tier 3)": "Chromium cold load of the production build (vite preview)",
+    writeBenchDat("manage-render", "n_buildings  total_ms  ms_per_building", rows, {
       "manage-render sweep (buildings)": SIZES.join(" "),
     });
   });

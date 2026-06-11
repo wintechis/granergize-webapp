@@ -15,7 +15,7 @@ import {
 } from "../../src/services/rdf/building/buildingSerializer.ts";
 import { synthDayReadings } from "../../src/services/rdf/energySeriesXlsx.ts";
 import { seriesContainerUrl } from "../../src/services/rdf/energyDataset.ts";
-import { shareBuildingData } from "../../src/services/interop/share.ts";
+import { shareBuildingData, type ShareOptions } from "../../src/services/interop/share.ts";
 import { appRoot } from "../../src/services/pod/solidUtils.ts";
 import { deleteContainerRecursive } from "../../src/services/pod/podDelete.ts";
 import { ensureContainer } from "../../src/services/pod/podWrite.ts";
@@ -61,24 +61,40 @@ function buildingFields(i: number): Record<string, string> {
  * Seed `n` throwaway buildings into the session owner's Pod via the real
  * serialize→PUT path (coords inline, so no geocoding). Returns their URIs for
  * later cleanup. `n === 0` is a no-op (the empty-Pod baseline).
+ *
+ * `annualYears` additionally writes one annual `cons:EnergyDataset` per listed
+ * year (the `_inv_*` field convention → `writeBuildingEnergy`), with per-building
+ * distinct values — so a benchmark view computed over the seeded set averages
+ * real, different numbers (the view-roundtrip bench needs this).
  */
 export async function seedBuildings(
   session: Session,
   webId: string,
   n: number,
   idPrefix = "bench",
+  annualYears: number[] = [],
 ): Promise<SeededBuilding[]> {
   const specs = Array.from({ length: n }, (_, i) => {
     const id = `${idPrefix}-${i}`;
     const uri = newBuildingUri(webId, id);
-    return { id, uri, subjectUri: `${uri}#${id}`, fields: buildingFields(i) };
+    return { i, id, uri, subjectUri: `${uri}#${id}`, fields: buildingFields(i) };
   });
   // Provision buildings/ ONCE up front: uploadBuilding ensures it per call, and a
   // pool of concurrent first-writers would otherwise race to create it (all see
   // 404, all PUT, the losers get a 409). After this the per-call ensure no-ops.
   if (n > 0) await ensureContainer(`${appRoot(webId)}buildings/`, session);
   return mapPooled(specs, POOL, async (s) => {
-    const ttl = serializeBuildingToTurtle(s.fields, s.uri, undefined, {
+    let links: string[] | undefined;
+    if (annualYears.length > 0) {
+      const energyFields = Object.fromEntries(
+        annualYears.flatMap((year) => [
+          [`_inv_elec_${year}`, String(10_000 + s.i * 137)],
+          [`_inv_heat_${year}`, String(20_000 + s.i * 211)],
+        ]),
+      );
+      links = await writeBuildingEnergy(session, s.uri, s.subjectUri, energyFields);
+    }
+    const ttl = serializeBuildingToTurtle(s.fields, s.uri, links, {
       agent: webId,
     });
     await uploadBuilding(session, s.uri, ttl, webId);
@@ -161,20 +177,21 @@ export async function setupShareRoom(
  * purpose: each share appends to B's single shared-out log and posts to the
  * recipient's inbox — concurrent shares would contend on that one log and race
  * to create the shared-out/ container; sequential is also how the real flow
- * runs (one share at a time from the UI).
+ * runs (one share at a time from the UI). The default share scope excludes
+ * energy (the D3 building-only measurement); pass `options` to include it
+ * (the view-roundtrip seeding shares the annual datasets too).
  */
 export async function shareBuildingsViaRoom(
   b: BenchActor,
   room: string,
   buildings: SeededBuilding[],
   role: UserRole = "investor",
+  options: ShareOptions = { includeEnergyData: false },
 ): Promise<void> {
   for (const s of buildings) {
     const recipients = await getMembersByRole(room, role, b.session);
     for (const recipient of recipients) {
-      await shareBuildingData(s.uri, recipient, b.session, {
-        includeEnergyData: false,
-      });
+      await shareBuildingData(s.uri, recipient, b.session, options);
     }
   }
 }
