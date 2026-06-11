@@ -24,7 +24,10 @@ import {
 } from "../../src/services/pod/solidUtils.ts";
 import { createRoom } from "../../src/services/interop/dataRoom.ts";
 import { drainInbox, ensureOwnInbox } from "../../src/services/interop/inbox.ts";
-import { deleteContainerRecursive } from "../../src/services/pod/podDelete.ts";
+import {
+  deleteContainerRecursive,
+  listDirectChildren,
+} from "../../src/services/pod/podDelete.ts";
 import {
   type BenchActor,
   lastAnnualYears,
@@ -181,6 +184,21 @@ async function actorSession(
   return { live, actor: { webId: css[slot].webId, session } };
 }
 
+// Wipe an actor's whole app collection, VERIFIED: recursive deletes under a
+// write-heavy tree have been observed to leave residue (a later seed found 5
+// stale events past the wipe), so confirm the container is actually gone and
+// retry a couple of times — a benchmark substrate must start exactly empty.
+async function wipeAppData(x: BenchActor): Promise<void> {
+  const root = appRoot(x.webId);
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    await deleteContainerRecursive(root, x.session).catch(() => {});
+    const left = await listDirectChildren(root, x.session);
+    if (left === null || left.length === 0) return;
+    console.error(`wipe ${root}: ${left.length} children left after attempt ${attempt}`);
+  }
+  throw new Error(`wipe ${root}: residue remains after 3 attempts`);
+}
+
 // Seed the PAIR substrate for the Tier-3 share-render / login-settle /
 // series-render BENCHMARKS: B owns N buildings — each carrying the seeded
 // annual-data baseline (2020–2025, or the most recent `years` of it), the FIRST
@@ -199,10 +217,7 @@ async function seedSharedPair(
 ): Promise<void> {
   const [a, b] = await Promise.all([actorSession("A"), actorSession("B")]);
   try {
-    await Promise.all([
-      deleteContainerRecursive(appRoot(a.actor.webId), a.actor.session).catch(() => {}),
-      deleteContainerRecursive(appRoot(b.actor.webId), b.actor.session).catch(() => {}),
-    ]);
+    await Promise.all([wipeAppData(a.actor), wipeAppData(b.actor)]);
     await ensureOwnInbox(a.actor.session);
     const seeded = await seedBuildings(
       b.actor.session,
@@ -215,6 +230,23 @@ async function seedSharedPair(
     const room = await setupShareRoom(a.actor, b.actor);
     await shareBuildingsViaRoom(b.actor, room, seeded);
     if (drained) await drainInbox(a.actor.session);
+    // Verify the substrate before letting the spec time anything against it —
+    // a silent seeding shortfall (observed: stale JSS listings after wipes, see
+    // ../../javascript-solid-server/jss-open-suspects.md) must fail HERE, not
+    // as a mysterious browser-side timeout.
+    const log = drained ? "shared-in" : "inbox";
+    const children =
+      await listDirectChildren(`${appRoot(a.actor.webId)}${log}/`, a.actor.session) ?? [];
+    const events = children.filter((c) => !c.endsWith(".acl"));
+    if (events.length !== n) {
+      throw new Error(`post-seed verify: ${log}/ holds ${events.length} events, want ${n}`);
+    }
+    if (n > 0) {
+      const b0 = await a.actor.session.fetch(seeded[0].uri);
+      if (!b0.ok) {
+        throw new Error(`post-seed verify: ${seeded[0].uri} → HTTP ${b0.status} for A`);
+      }
+    }
   } finally {
     await a.live.dispose().catch(() => {});
     await b.live.dispose().catch(() => {});
@@ -233,11 +265,7 @@ async function seedContribTrio(n: number): Promise<void> {
     actorSession("C"),
   ]);
   try {
-    await Promise.all(
-      [a, b, c].map((x) =>
-        deleteContainerRecursive(appRoot(x.actor.webId), x.actor.session).catch(() => {})
-      ),
-    );
+    await Promise.all([a, b, c].map((x) => wipeAppData(x.actor)));
     // Re-provision EVERY actor's inbox: the wipe took them, and the share-back
     // (A → B, C) posts each grant to the recipient's inbox — in the real flow
     // they'd exist because each actor logged in once (ensureOwnInbox at login).
