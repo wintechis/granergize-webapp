@@ -67,7 +67,12 @@ test.describe("view sharing across two pods", () => {
       await ensureDemoBuildings(a.page);
       await ensureView(a.page);
       const viewRow = a.page.locator("li").filter({ hasText: VIEW_NAME }).first();
-      const shareDlg = a.page.getByRole("dialog");
+      // Scope to the SHARE dialog by its title: a generic role=dialog locator
+      // once bound to the CreateViewDialog mid close-transition, so the poll
+      // below skipped its "Share view" click and waited its whole budget on a
+      // dialog that no longer existed.
+      const shareDlg = a.page.getByRole("dialog")
+        .filter({ hasText: `Share "${VIEW_NAME}"` });
       const add = shareDlg.getByRole("button", { name: /^add$/i });
       // Add B from the room-members list (B joined + took a role above). The
       // dialog loads members ONCE on open, asynchronously, so the "Add" row only
@@ -84,8 +89,12 @@ test.describe("view sharing across two pods", () => {
           await expect(add.first()).toBeVisible({ timeout: T.visible });
           return;
         } catch {
-          // Not yet — close so the next iteration re-opens and re-runs loadMembers.
-          await shareDlg.getByRole("button", { name: /close/i }).click();
+          // Not yet — close so the next iteration re-opens and re-reads the
+          // members. Bound + tolerate the click: if the dialog vanished since
+          // the visibility check, an unbounded click would wedge this and
+          // every remaining poll iteration (it did — see the trace notes).
+          await shareDlg.getByRole("button", { name: /close/i })
+            .click({ timeout: T.quick }).catch(() => {});
           await expect(shareDlg).toBeHidden({ timeout: T.quick }).catch(() => {});
           throw new Error("B not yet listed as a room member");
         }

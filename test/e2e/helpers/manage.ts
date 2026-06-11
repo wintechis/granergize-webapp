@@ -232,6 +232,10 @@ export async function ensureView(page: Page): Promise<void> {
   // view itself was created.
   await expect(page.locator("li").filter({ hasText: VIEW_NAME }).first())
     .toBeVisible({ timeout: T.action });
+  // The row appears while the dialog is still fading out (MUI keeps it in the
+  // DOM through the close transition). Don't return until it's gone, so a
+  // caller's next role=dialog locator can't bind to this dialog's ghost.
+  await expect(dialog).toBeHidden({ timeout: T.quick });
 }
 
 /**

@@ -42,7 +42,7 @@ bounded retries.
 
 ## Spec invariants (these caused silent hangs)
 
-Three coupling rules the specs and the app must respect — each one, when broken,
+Coupling rules the specs and the app must respect — each one, when broken,
 surfaces as a spec that hangs to its full timeout rather than a clear assertion:
 
 - **Teardown extends the budget, never replaces it.** `test.setTimeout(x)` sets the
@@ -64,6 +64,17 @@ surfaces as a spec that hangs to its full timeout rather than a clear assertion:
   leaves no "Investor" option in the Role dropdown and the spec hangs selecting it.
   More generally: a spec that drives the view/share dialogs must seed a building
   whose kind matches the role it then selects.
+- **A dialog-presence *decision* needs a scoped locator, and recovery clicks need
+  a timeout.** MUI keeps a closing dialog in the DOM through its fade-out, so a
+  generic `getByRole("dialog").isVisible()` run right after another dialog was
+  submitted can bind to that dialog's ghost — a poll that uses the check to decide
+  "already open, skip the open click" then waits its whole budget on a dialog that
+  no longer exists (`share-view` did, against the just-closed `CreateViewDialog`).
+  Scope such locators by the dialog's title text
+  (`.filter({ hasText: ... })`), have helpers that submit a dialog not return
+  until it is hidden (`ensureView` does), and give any click inside a
+  poll's recovery path a `timeout` + `catch` — an unbounded click on a vanished
+  element silently wedges every remaining poll iteration.
 
 ## Benchmarks (measure-and-report)
 

@@ -781,13 +781,15 @@ export async function deleteBuilding(
  * A demo building's master data and energy shape. The render/load paths key on
  * the data *shape* (the energy granularity), never a role. `annual`, when
  * present, holds the `_inv_*`/`_bsp_*` fields merged in for an
- * `energy: "annual"` building (turned into annual SOSA observations).
+ * `energy: "annual"` (or `"both"`) building (turned into annual SOSA
+ * observations); `"both"` carries annual aggregates AND a 15-minute series,
+ * the shape that surfaces the Annual | Time series toggle.
  */
 interface DemoSpec {
   fields: Record<string, string>;
-  energy: "annual" | "series";
+  energy: "annual" | "series" | "both";
   annual?: Record<string, string>;
-  /** For `energy: "series"`: how many demo days (15-min) to synthesize. */
+  /** For a series-carrying shape: how many demo days (15-min) to synthesize. */
   seriesDays?: number;
   /**
    * Set `operatedBy` to the seeding user's own WebID at seed time. Two effects:
@@ -967,9 +969,11 @@ const DEMO_INVESTOR_3: DemoSpec = {
 };
 
 /**
- * User demo: a 15-minute load-profile series (lazy-loaded, time-series chart) with
- * light metadata — the shape an end user produces. Self-operated, so the
- * agent-link → contact path resolves out of the box.
+ * User demo: a 15-minute load-profile series (lazy-loaded, time-series chart)
+ * PLUS a couple of annual years — the one demo carrying BOTH energy shapes, so
+ * the Annual | Time series toggle shows on the demo data out of the box.
+ * Light metadata otherwise — the shape an end user produces. Self-operated, so
+ * the agent-link → contact path resolves out of the box.
  */
 const DEMO_USER: DemoSpec = {
   fields: {
@@ -983,12 +987,19 @@ const DEMO_USER: DemoSpec = {
     yearOfConstruction: "1998",
     hasPVSystem: "false",
   },
-  energy: "series",
+  energy: "both",
   selfOperated: true,
   selfOwned: true, // owner-occupier: the small office is owned AND operated
   // A full month of demo days, so the Day View, Daily Totals and Average Profile
   // are all populated (not just a single day).
   seriesDays: 28,
+  // The annual aggregates next to the series (a small 1400 m² office's scale),
+  // so the building also joins the operator group and the annual comparisons.
+  annual: {
+    _inv_elec_2023: "48200", _inv_elec_2024: "46900",
+    _inv_heat_2023: "142000", _inv_heat_2024: "138500",
+    _inv_water_2023: "260", _inv_water_2024: "255",
+  },
 };
 
 /** User demo #2: a small workshop, a lighter (one-week) load profile. */
@@ -1011,8 +1022,9 @@ const DEMO_USER_2: DemoSpec = {
 };
 
 /**
- * The demo building set: a few example buildings spanning both data shapes — annual
- * investor buildings and a 15-minute user series — so a fresh account sees both. The
+ * The demo building set: a few example buildings spanning the data shapes — annual
+ * investor buildings, a 15-minute user series, and one building carrying BOTH
+ * (the Annual | Time series toggle) — so a fresh account sees each. The
  * buildings are ordinary owned resources the user can delete.
  */
 const DEMO_BUILDINGS: DemoSpec[] = [
@@ -1064,10 +1076,11 @@ export async function seedDemoBuildings(
         | { year: number; days: Array<{ date: string; readings: LastgangReading[] }>; label: string }
         | undefined;
 
-      if (demo.energy === "annual") {
+      if (demo.energy !== "series") {
         // Annual aggregate (P1Y) — written as one cons:EnergyDataset per year.
         fields = { ...fields, ...(demo.annual ?? {}) };
-      } else {
+      }
+      if (demo.energy !== "annual") {
         // 15-minute series (PT15M): `seriesDays` demo days from 2024-06-01, so the
         // Day View, Daily Totals and Average Profile are all populated. Each day is
         // scaled by a deterministic weekday/weekend factor (offices idle at the

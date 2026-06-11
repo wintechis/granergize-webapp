@@ -1,4 +1,5 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import Modal from "./Modal.tsx";
 import {
   Alert,
@@ -24,6 +25,7 @@ import {
   useShareViewSnapshot,
 } from "../hooks/mutations.ts";
 import {
+  queryKeys,
   useRoomState,
   useSharedViews,
   useSharedWithMe,
@@ -76,6 +78,16 @@ export default function ShareViewDialog(
   // room-log query (one fold, refreshed by role saves), contributors derived
   // in memory from the shared-in fold (never fold a log in a component).
   const room = useRoomState();
+  // The room log is CROSS-AGENT state: a member's join is appended by THEM
+  // into the room container, so no local write ever invalidates it — and the
+  // global policy is refetch-on-invalidation only (refetchOnMount: false).
+  // Opening this dialog is the user's "look" at the membership (the pull
+  // topology: readers fold the container when they look), so it triggers the
+  // one refetch. The dialog mounts fresh per open, so once per open.
+  const qc = useQueryClient();
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: queryKeys.roomLog });
+  }, [qc]);
   const members = useMemo(
     // Exclude yourself — you can't share a view with your own WebID.
     () =>

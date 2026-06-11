@@ -16,12 +16,15 @@ import {
 import { synthDayReadings } from "../../src/services/rdf/energySeriesXlsx.ts";
 import { seriesContainerUrl } from "../../src/services/rdf/energyDataset.ts";
 import { shareBuildingData, type ShareOptions } from "../../src/services/interop/share.ts";
-import { appRoot } from "../../src/services/pod/solidUtils.ts";
+import { appRoot, getPodBaseUrl } from "../../src/services/pod/solidUtils.ts";
 import { deleteContainerRecursive } from "../../src/services/pod/podDelete.ts";
-import { ensureContainer } from "../../src/services/pod/podWrite.ts";
+import { ensureContainer, readModifyWrite } from "../../src/services/pod/podWrite.ts";
+import { DataFactory } from "n3";
 import { mapPooled } from "../../src/lib/pool.ts";
 import {
   AS_NS,
+  FOAF_IMG,
+  FOAF_NAME,
   GRAN_NS,
   SIOC_NS,
   XSD_DATETIME,
@@ -183,6 +186,62 @@ export async function seedSeriesBuilding(
 export interface BenchActor {
   webId: string;
   session: Session;
+}
+
+/**
+ * Give an actor's WebID profile a human identity: a `foaf:name` plus a publicly
+ * readable avatar image (PUT beside the profile document, linked via `foaf:img`)
+ * — so agent labels resolve to a name + face across pods instead of the WebID
+ * fragment. The avatar gets its own public-read `.acl`: other agents' browsers
+ * load it via a plain `<img src>`, i.e. unauthenticated. The profile write is the
+ * app's model-2 in-place mutation (read–modify–write, never PATCH).
+ */
+export async function seedProfile(
+  x: BenchActor,
+  name: string,
+  avatar?: { bytes: Uint8Array; mime: string },
+): Promise<void> {
+  const { namedNode, literal } = DataFactory;
+  let avatarUrl: string | undefined;
+  if (avatar) {
+    avatarUrl = `${getPodBaseUrl(x.webId)}avatar.png`;
+    const put = await x.session.fetch(avatarUrl, {
+      method: "PUT",
+      headers: { "Content-Type": avatar.mime },
+      body: avatar.bytes as BodyInit,
+    });
+    if (!put.ok) {
+      throw new Error(`seed avatar: PUT ${avatarUrl} → HTTP ${put.status}`);
+    }
+    const acl = [
+      "@prefix acl: <http://www.w3.org/ns/auth/acl#>.",
+      "@prefix foaf: <http://xmlns.com/foaf/0.1/>.",
+      `<#public> a acl:Authorization; acl:accessTo <${avatarUrl}>;`,
+      "  acl:agentClass foaf:Agent; acl:mode acl:Read.",
+      `<#owner> a acl:Authorization; acl:accessTo <${avatarUrl}>;`,
+      `  acl:agent <${x.webId}>; acl:mode acl:Read, acl:Write, acl:Control.`,
+      "",
+    ].join("\n");
+    const aclPut = await x.session.fetch(`${avatarUrl}.acl`, {
+      method: "PUT",
+      headers: { "Content-Type": "text/turtle" },
+      body: acl,
+    });
+    if (!aclPut.ok) {
+      throw new Error(`seed avatar: PUT ${avatarUrl}.acl → HTTP ${aclPut.status}`);
+    }
+  }
+  const docUrl = x.webId.split("#")[0];
+  await readModifyWrite(docUrl, x.session, (store, { created }) => {
+    if (created) {
+      // A WebID profile is provisioned by the identity provider, never by us.
+      throw new Error(`seed profile: no profile document at ${docUrl}`);
+    }
+    store.addQuad(namedNode(x.webId), namedNode(FOAF_NAME), literal(name));
+    if (avatarUrl) {
+      store.addQuad(namedNode(x.webId), namedNode(FOAF_IMG), namedNode(avatarUrl));
+    }
+  });
 }
 
 /**
