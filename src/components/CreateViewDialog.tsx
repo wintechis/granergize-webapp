@@ -1,5 +1,5 @@
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
@@ -22,18 +22,17 @@ import {
   TextField,
   Typography,
 } from "@mui/material";
-import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   AggregationType,
   BuildingType,
 } from "../types.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { monthsFromDays, selectedSeriesRefs } from "./createViewMonths.ts";
-import { useSeriesDays } from "../hooks/queries.ts";
+import { useSeriesDays, useSharedWithMe } from "../hooks/queries.ts";
 import { useCreateView } from "../hooks/mutations.ts";
 import {
   type Contributors,
-  sharedContributorBuildings,
+  summarizeContributors,
 } from "../services/aggregation/viewComputer.ts";
 import {
   ANNUAL_METRICS as ANNUAL_METRIC_SCHEMA,
@@ -46,7 +45,6 @@ import Modal from "./Modal.tsx";
 interface CreateViewDialogProps {
   open: boolean;
   buildings: BuildingType[];
-  session: Session;
   onClose: () => void;
 }
 
@@ -118,33 +116,20 @@ function metricsForMode(mode: ViewMode) {
 export default function CreateViewDialog({
   open,
   buildings,
-  session,
   onClose,
 }: CreateViewDialogProps) {
   const { showNotification } = useNotification();
 
-  // The buildings shared *to* this user (the benchmark aggregates these), loaded
-  // while the dialog is open. These are other people's buildings, kept separate
-  // from the user's own buildings that the annual/monthly modes aggregate.
-  const [sharedContributors, setSharedContributors] = useState<Contributors>({
-    buildingUris: [],
-    contributors: [],
-  });
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    (async () => {
-      try {
-        const c = await sharedContributorBuildings(session);
-        if (!cancelled) setSharedContributors(c);
-      } catch {
-        // best-effort: a user with no received buildings simply has no benchmark
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [open, session]);
+  // The buildings shared *to* this user (the benchmark aggregates these),
+  // kept separate from the user's own buildings that the annual/monthly modes
+  // aggregate. Derived in memory from the shared-in fold (never fold a log in
+  // a component); the share/revoke/drain invalidations keep it fresh, and a
+  // user with no received buildings simply has no benchmark mode.
+  const sharedWithMe = useSharedWithMe();
+  const sharedContributors = useMemo<Contributors>(
+    () => summarizeContributors(sharedWithMe.data ?? []),
+    [sharedWithMe.data],
+  );
 
   // URIs (fragment-stripped) of buildings shared to this user, for membership tests.
   const sharedUriSet = useMemo(

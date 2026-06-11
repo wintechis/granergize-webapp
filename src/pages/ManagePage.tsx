@@ -638,7 +638,6 @@ export default function ManagePage({ session }: ManagePageProps) {
       <CreateViewDialog
         open={createViewOpen}
         buildings={buildings}
-        session={session}
         onClose={() => setCreateViewOpen(false)}
       />
     </section>

@@ -166,4 +166,11 @@ caveat comment retires.
   structural enforcement of "dialogs never write directly") — worth doing once
   the migration proves the shape, not before.
 - Converting the dialogs' local read-back lists (stored years, files) into
-  queries of their own.
+  queries of their own. Resolved on the read-side pass that followed: the
+  dialogs' *log-folding* reads became query derivations (the share-view and
+  create-view contributor/member loads — see the queries in `queries.ts`),
+  while the energy-year stored-years list deliberately stays local: it is
+  updated optimistically on save/delete (the stays-open behaviour preserved
+  above), which a query's invalidate-and-refetch cycle would regress. The
+  organisation dialog's prefill also stays: it reads the per-session-cached
+  profile and seeds form state the dialog itself overwrites.

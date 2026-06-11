@@ -20,9 +20,12 @@ import {
 } from "../services/interop/sharingManager.ts";
 import { readPrefs } from "../services/prefs.ts";
 import {
+  getComputedSnapshotByViewId,
   getReceivedBenchmarksFor,
+  getViewDefinition,
   getViewDefinitions,
 } from "../services/aggregation/viewManager.ts";
+import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
 import { readContacts } from "../services/contacts.ts";
 import {
@@ -38,6 +41,8 @@ import { parseTtlReadings } from "../services/rdf/userEnergyParser.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { fetchFresh } from "../services/pod/podFetch.ts";
 import type {
+  AggregatedViewDefinition,
+  AggregatedViewSnapshot,
   AnnualData,
   BuildingType,
   EnergyType,
@@ -232,6 +237,51 @@ export function useViewDefinitions() {
     queryKey: [...queryKeys.viewDefinitions, webId],
     enabled: Boolean(webId),
     queryFn: () => getViewDefinitions(getSession()),
+  });
+}
+
+export interface ViewDetail {
+  definition: AggregatedViewDefinition | null;
+  snapshot: AggregatedViewSnapshot | null;
+  /** Set when the snapshot auto-materialise failed; the page surfaces it inline. */
+  computeError?: unknown;
+}
+
+/**
+ * One view's standalone-page data (/view/:id): definition + computed snapshot,
+ * keyed by view id. A definition without a snapshot — a freshly created view —
+ * is auto-materialised here so the chart renders immediately instead of an
+ * empty "Refresh Snapshot" prompt: a reconciliation write inside a read path
+ * (a documented seam — notes/read-write-operations.md §Seams). Best-effort: a
+ * failed compute travels in `computeError` and the read still succeeds with
+ * the definition (Refresh is the retry affordance). Safe to key the write on a
+ * null snapshot: loadComputedSnapshot returns null ONLY for genuine absence
+ * (404) and THROWS on transient failures, so a failed read of an EXISTING
+ * snapshot can never trigger it. Invalidated by the refresh-view and
+ * delete-view mutations.
+ */
+export function useViewDetail(viewId: string | undefined) {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: [...queryKeys.viewDetail, webId, viewId],
+    enabled: Boolean(webId && viewId),
+    queryFn: async (): Promise<ViewDetail> => {
+      const session = getSession();
+      const id = viewId as string;
+      const [definition, snapshot] = await Promise.all([
+        getViewDefinition(session, id),
+        getComputedSnapshotByViewId(session, id),
+      ]);
+      if (!definition || snapshot) return { definition, snapshot };
+      try {
+        const { snapshot: computed } = await refreshSnapshot(session, id);
+        // Re-read the definition so lastComputedAt reflects the compute.
+        const updated = await getViewDefinition(session, id);
+        return { definition: updated ?? definition, snapshot: computed };
+      } catch (computeError) {
+        return { definition, snapshot: null, computeError };
+      }
+    },
   });
 }
 
@@ -511,6 +561,8 @@ export const queryKeys = {
   /** prefs.ttl (hidden buildings, …). Invalidated by the visibility toggle. */
   prefs: ["prefs"] as const,
   viewDefinitions: ["viewDefinitions"] as const,
+  /** One view's definition + computed snapshot (the standalone /view page), keyed by view id. */
+  viewDetail: ["viewDetail"] as const,
   /** Benchmark snapshots received from a BSP (subset of received views). */
   receivedBenchmarks: ["receivedBenchmarks"] as const,
   /** The room registry (current + known). Set via setQueryData, not invalidated. */

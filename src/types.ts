@@ -191,10 +191,6 @@ export type EnergyType = {
   energyTransfer: EnergyTransfer;
   energyUsage: EnergyUsage;
   environmentalFactor: EnvironmentalFactor;
-  /** Populated only for series-shaped data: ordered 15-minute electricity readings */
-  timeSeries?: {
-    electricityConsumption: Array<{ begin: string; value: number }>;
-  };
 };
 
 export type EnergyCategoryKey =

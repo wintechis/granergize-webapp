@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import Modal from "./Modal.tsx";
 import {
   Alert,
@@ -23,18 +23,14 @@ import {
   useRevokeViewAccess,
   useShareViewSnapshot,
 } from "../hooks/mutations.ts";
-import { useSharedViews } from "../hooks/queries.ts";
+import {
+  useRoomState,
+  useSharedViews,
+  useSharedWithMe,
+} from "../hooks/queries.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
-import {
-  getComputedSnapshotByViewId,
-  getSnapshotUrl,
-} from "../services/aggregation/viewManager.ts";
-import { sharedContributorBuildings } from "../services/aggregation/viewComputer.ts";
-import {
-  type DataRoomMember,
-  getActiveRoom,
-  getMembers,
-} from "../services/interop/dataRoom.ts";
+import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import { summarizeContributors } from "../services/aggregation/viewComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 
 import { ROLE_LABELS } from "../constants/roles.ts";
@@ -74,12 +70,35 @@ export default function ShareViewDialog(
     return [...new Set(shares.flatMap((s) => s.sharedWith))];
   }, [sharedViewsQuery.data, view.id]);
   const loadingShared = sharedViewsQuery.isLoading;
-  const [members, setMembers] = useState<DataRoomMember[]>([]);
-  const [membersLoading, setMembersLoading] = useState(false);
+  // The reads are queries too — the dialog mounts fresh per open (ManagePage
+  // renders it conditionally), so subscribing here refetches on open like the
+  // old per-open loads did, but through the shared caches: members from the
+  // room-log query (one fold, refreshed by role saves), contributors derived
+  // in memory from the shared-in fold (never fold a log in a component).
+  const room = useRoomState();
+  const members = useMemo(
+    // Exclude yourself — you can't share a view with your own WebID.
+    () =>
+      (room.data?.members ?? []).filter((m) =>
+        m.webId !== session.info.webId
+      ),
+    [room.data?.members, session.info.webId],
+  );
+  const membersLoading = room.isLoading || room.isFetching;
   // When this view is a benchmark, the WebIDs that contributed buildings to it —
   // the natural share-back targets, offered as a one-click "add all" below.
-  const [contributors, setContributors] = useState<string[]>([]);
-  const [isBenchmarkView, setIsBenchmarkView] = useState(false);
+  // The snapshot's isBenchmark flag is derived from the definition's benchmark
+  // flag at compute time, so the definition prop already answers "is this a
+  // benchmark?" — no per-open snapshot fetch.
+  const isBenchmarkView = Boolean(view.benchmark);
+  const sharedWithMe = useSharedWithMe();
+  const contributors = useMemo(
+    () =>
+      isBenchmarkView
+        ? summarizeContributors(sharedWithMe.data ?? []).contributors
+        : [],
+    [isBenchmarkView, sharedWithMe.data],
+  );
 
   const getRecipients = () =>
     recipientWebId.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
@@ -92,48 +111,6 @@ export default function ShareViewDialog(
     setWebIdError(null);
     if (share.isSuccess) share.reset();
   };
-
-  const loadMembers = async () => {
-    setMembersLoading(true);
-    try {
-      const all = await getMembers(getActiveRoom(), session);
-      // Exclude yourself — you can't share a view with your own WebID.
-      setMembers(all.filter((m) => m.webId !== session.info.webId));
-    } catch (err) {
-      console.error("Failed to load data room members:", err);
-      setMembers([]);
-    } finally {
-      setMembersLoading(false);
-    }
-  };
-
-  // Whether this view's snapshot is a BSP benchmark; if so, load the contributors
-  // (the share-back targets). Best-effort — a missing snapshot just hides the button.
-  const loadBenchmarkContributors = async () => {
-    try {
-      const snap = await getComputedSnapshotByViewId(session, view.id);
-      if (!snap?.isBenchmark) {
-        setIsBenchmarkView(false);
-        setContributors([]);
-        return;
-      }
-      setIsBenchmarkView(true);
-      const { contributors } = await sharedContributorBuildings(session);
-      setContributors(contributors);
-    } catch (err) {
-      logError("load benchmark contributors", err);
-    }
-  };
-
-  // Load the data-room members when the dialog opens (the native <dialog> has
-  // no enter-transition hook to hang this off). The shared-with list is a
-  // query derivation, so it needs no per-open load.
-  useEffect(() => {
-    if (!open) return;
-    loadMembers();
-    loadBenchmarkContributors();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open]);
 
   const handleProceedToConfirm = () => {
     const recipients = getRecipients();

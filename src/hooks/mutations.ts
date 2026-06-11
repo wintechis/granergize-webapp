@@ -219,6 +219,7 @@ export function useDeleteView() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.viewDefinitions });
+      qc.invalidateQueries({ queryKey: queryKeys.viewDetail });
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
   });
@@ -230,6 +231,9 @@ export function useRefreshView() {
     mutationFn: (viewId: string) => refreshSnapshot(getSession(), viewId),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.viewDefinitions });
+      // The standalone /view page reads through viewDetail (definition +
+      // snapshot), so the recompute must refetch it.
+      qc.invalidateQueries({ queryKey: queryKeys.viewDetail });
     },
   });
 }

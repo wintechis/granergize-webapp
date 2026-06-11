@@ -1,4 +1,4 @@
-import { type ReactNode, useEffect, useState } from "react";
+import { type ReactNode, useState } from "react";
 import Modal from "../components/Modal.tsx";
 import { useParams } from "react-router-dom";
 import { useBackNavigation } from "../hooks/backNavigation.ts";
@@ -26,16 +26,9 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import ShareIcon from "@mui/icons-material/Share";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type {
-  AggregatedViewDefinition,
-  AggregatedViewSnapshot,
-} from "../types.ts";
-import {
-  getComputedSnapshotByViewId,
-  getSnapshotUrl,
-  getViewDefinition,
-} from "../services/aggregation/viewManager.ts";
-import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
+import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import { useViewDetail } from "../hooks/queries.ts";
+import { classifyQueryError } from "../hooks/queryErrors.ts";
 import {
   useRefreshView,
   useShareViewSnapshot,
@@ -58,93 +51,27 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
   const goBack = useBackNavigation();
   const { showNotification } = useNotification();
 
-  const [viewDefinition, setViewDefinition] = useState<
-    AggregatedViewDefinition | null
-  >(null);
-  const [snapshot, setSnapshot] = useState<AggregatedViewSnapshot | null>(null);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareWebId, setShareWebId] = useState("");
-  // The writes go through mutation hooks (busy = isPending, error toasts +
-  // invalidations central); this page keeps the results in local state because
-  // it renders outside the main data flow (standalone /view/:id route).
+  // Reads go through the viewDetail query (definition + snapshot; a missing
+  // snapshot is auto-materialised in the queryFn — see useViewDetail), so the
+  // navigate-away race is the cache's problem, not this page's: a late /view/A
+  // completion lands in A's cache entry, never on B's render. Writes go
+  // through mutation hooks (busy = isPending, error toasts central); their
+  // viewDetail invalidation refetches the query, so no result lands in local
+  // state.
+  const detail = useViewDetail(viewId);
+  const viewDefinition = detail.data?.definition ?? null;
+  const snapshot = detail.data?.snapshot ?? null;
   const refreshMut = useRefreshView();
   const refreshing = refreshMut.isPending;
   const shareMut = useShareViewSnapshot();
   const sharing = shareMut.isPending;
 
-  // Load (and possibly auto-compute) the view. Cancellation matters here:
-  // navigating /view/A → /view/B while A's load — or its multi-fetch
-  // auto-compute — is in flight must not let A's late completion land its
-  // state on top of B's page.
-  useEffect(() => {
-    if (!viewId) return;
-    let cancelled = false;
-
-    (async () => {
-      setLoading(true);
-      setError(null);
-      try {
-        const [definition, snapshotData] = await Promise.all([
-          getViewDefinition(session, viewId),
-          getComputedSnapshotByViewId(session, viewId),
-        ]);
-        if (cancelled) return;
-
-        if (!definition) {
-          setError("View not found");
-          return;
-        }
-        setViewDefinition(definition);
-
-        // Auto-compute on first open: a freshly-created view has no snapshot yet,
-        // so the summary would otherwise show an empty "Refresh Snapshot" prompt.
-        // Materialise it now so the chart/table render immediately. Best-effort —
-        // on failure fall back to the manual Refresh affordance. Safe to key on
-        // null: loadComputedSnapshot returns null ONLY for genuine absence (404)
-        // and THROWS on transient failures (caught by the outer handler), so a
-        // failed read of an existing snapshot can never trigger this write.
-        let snap = snapshotData;
-        if (!snap) {
-          try {
-            const result = await refreshSnapshot(session, viewId);
-            const updated = await getViewDefinition(session, viewId);
-            if (cancelled) return;
-            snap = result.snapshot;
-            if (updated) setViewDefinition(updated);
-          } catch (err) {
-            if (cancelled) return;
-            showNotification(formatError("compute the view summary", err), "warning");
-          }
-        }
-        if (!cancelled) setSnapshot(snap);
-      } catch (err) {
-        if (!cancelled) {
-          setError(err instanceof Error ? err.message : "Failed to load view");
-        }
-      } finally {
-        if (!cancelled) setLoading(false);
-      }
-    })();
-
-    return () => {
-      cancelled = true;
-    };
-  }, [session, viewId, showNotification]);
-
   const handleRefresh = () => {
     if (!viewId) return;
     refreshMut.mutate(viewId, {
-      onSuccess: async (result) => {
-        setSnapshot(result.snapshot);
-        // Reload definition to get updated lastComputedAt
-        const definition = await getViewDefinition(session, viewId);
-        if (definition) {
-          setViewDefinition(definition);
-        }
-        showNotification("Snapshot refreshed", "success");
-      },
+      onSuccess: () => showNotification("Snapshot refreshed", "success"),
     });
   };
 
@@ -160,7 +87,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     });
   };
 
-  if (loading) {
+  if (detail.isPending) {
     return (
       <Box
         display="flex"
@@ -173,7 +100,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     );
   }
 
-  if (error) {
+  if (detail.isError) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Button
@@ -183,7 +110,9 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         >
           Back
         </Button>
-        <Typography color="error">{error}</Typography>
+        <Typography color="error">
+          {classifyQueryError(detail.error).message}
+        </Typography>
       </Container>
     );
   }
@@ -375,14 +304,24 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
           </>
       )}
       {!snapshot && (
-        <Card>
-          <CardContent>
-            <Typography color="textSecondary" align="center">
-              No snapshot computed yet. Click "Refresh Snapshot" to compute
-              aggregated values.
-            </Typography>
-          </CardContent>
-        </Card>
+        <>
+          {detail.data?.computeError != null && (
+            // The auto-compute on first open failed (the load itself
+            // succeeded) — persistent in-place state → Alert; "Refresh
+            // Snapshot" is the retry affordance.
+            <Alert severity="warning" sx={{ mb: 3 }}>
+              {formatError("compute the view summary", detail.data.computeError)}
+            </Alert>
+          )}
+          <Card>
+            <CardContent>
+              <Typography color="textSecondary" align="center">
+                No snapshot computed yet. Click "Refresh Snapshot" to compute
+                aggregated values.
+              </Typography>
+            </CardContent>
+          </Card>
+        </>
       )}
 
       {/* Share Dialog */}

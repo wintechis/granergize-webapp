@@ -133,8 +133,8 @@ Following **Command–Query Separation**, every Pod operation is either a **quer
 (reads state, returns it, no side effect) or a **mutation** (changes state) — the
 vocabulary the data layer already uses (`src/hooks/queries.ts` vs
 `src/hooks/mutations.ts`). A function shaped like a query must not hide a mutation; the
-two known exceptions (`loadBuildings`, `drainInbox`) are documented in
-`notes/read-write-operations.md` (§Seams).
+three known exceptions (`loadBuildings`, `drainInbox`, `useViewDetail`'s snapshot
+auto-materialise) are documented in `notes/read-write-operations.md` (§Seams).
 
 Every Pod mutation uses one of **three mechanisms**, and the rule for which is:
 **event-source anything cross-agent or needing an audit trail / replay; overwrite
@@ -191,7 +191,10 @@ no "company kind" (`org:classification`) — a user declares no organisation rol
 (`TurtleParsingService.ts`) and the energy-tab render (`Energy.tsx`, `ExplorePage.tsx`)
 key on the dataset's declared **granularity** via `isSeriesGranularity(...)`
 (`durationUtils.ts`): a sub-hourly series (`PT15M`) is lazy-loaded on click and renders
-the time-series chart; an annual aggregate is bulk-loaded and renders the annual chart.
+the time-series chart; an annual aggregate is bulk-loaded and renders the annual chart;
+a building carrying both kinds offers an Annual | Time series toggle
+(`EnergyResolutionSwitch`, kind split via `splitEnergyDatasets` in
+`src/lib/energyResolution.ts`) on both surfaces.
 The aggregated-view dialog (`CreateViewDialog`) and the map energy-lens categorise by the
 energy shape present, not a role. The map marker distinguishes only owned vs shared.
 
