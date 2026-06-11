@@ -93,6 +93,10 @@ test.describe("series-render benchmark", () => {
 
       rows.push([days, days * 96, dayMs, monthMs]);
       console.log(`  days=${days}  day-view ${dayMs}  daily-totals ${monthMs} ms`);
+
+      // Park the app before the next size's seed (see share-render: a live
+      // page can write during the wipe window and contaminate the next seed).
+      await page.goto("about:blank");
     }
 
     writeBenchDat(
