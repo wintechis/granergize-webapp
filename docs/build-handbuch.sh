@@ -22,8 +22,16 @@ SRC="docs/handbuch.md"
 OUT_PDF="public/granergize-handbuch.pdf"
 OUT_DOCX="public/granergize-handbuch.docx"
 
+# Stamp the title page with the app version the handbuch describes: the short
+# commit hash, marked "+" when the working tree has uncommitted changes. The
+# month/year stays authored in the Markdown frontmatter; the version is
+# appended at build time (command-line metadata overrides the frontmatter), so
+# it can never go stale in the source.
+VERSION="$(git describe --always --dirty=+ 2>/dev/null || echo unbekannt)"
+DATE_LINE="$(sed -n 's/^date: *"\(.*\)"$/\1/p' "$SRC")"
+
 # Image paths in the Markdown are repo-root-relative (docs/figures/*.png).
-COMMON=(--resource-path=.:docs)
+COMMON=(--resource-path=.:docs --metadata=date:"${DATE_LINE} · Version ${VERSION}")
 
 echo "→ $OUT_DOCX"
 pandoc "$SRC" "${COMMON[@]}" -o "$OUT_DOCX"
