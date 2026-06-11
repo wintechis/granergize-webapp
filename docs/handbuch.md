@@ -106,6 +106,11 @@ Energieeffizienz in Logistikimmobilien.
 
 ## Praxisbeispiele: Use Cases für die Anwendung
 
+Drei Anwendungsfälle haben die Entwicklung der Granergize-App geleitet. Jeder
+wird hier zunächst fachlich beschrieben; wo die App ihn einlöst, nennt der
+jeweilige Abschnitt – und die betreffenden Stellen im praktischen Teil dieses
+Handbuchs greifen den Anwendungsfall namentlich wieder auf.
+
 ### Energieverbrauchsbenchmark
 
 Das systematische Benchmarking von Energieverbräuchen bildet einen zentralen
@@ -120,6 +125,16 @@ werden. Für die Umsetzung werden insbesondere Objekt-, Nutzungs- sowie
 Verbrauchsdaten benötigt, sowohl in aggregierter als auch in detaillierter Form.
 Besonders relevant ist dieser Use Case für Nutzer, Investoren bzw.
 Bestandshalter, Facility Manager und spezialisierte Benchmarking-Anbieter.
+
+Die Granergize-App löst diesen Anwendungsfall auf zwei Ebenen ein: Innerhalb
+des eigenen Bestands stellt die Energie-Detailseite jeden Verbrauchswert dem
+Portfolio- und dem Betreiber-Durchschnitt gegenüber (siehe Abschnitt
+„Energie-Detailseite eines Gebäudes"). Über den eigenen Bestand hinaus kommt
+der Vergleichswert von einem Benchmark-Dienstleister – in der App die Rolle
+„Benchmark Service Provider" –, der über die Gebäude mehrerer Eigentümer
+aggregiert; das vollständige Zusammenspiel beschreibt das Szenario
+„Peer-Benchmarking" am Ende des Kapitels „Daten gemeinsam nutzen und Mehrwerte
+schaffen".
 
 ### Soll-Ist-Vergleich
 
@@ -158,6 +173,12 @@ ist. Die bereitgestellten Informationen unterstützen Investoren und Makler bei
 der Vermarktung von Immobilien und fördern die Zusammenarbeit zwischen Beratern,
 Facility Managern und Nutzern. Für diesen Anwendungsfall werden vor allem
 aggregierte Verbrauchsdaten sowie allgemeine Objektdaten benötigt.
+
+In der Granergize-App übernimmt das die Energie-Linse der Karte: Sie färbt die
+Gebäude-Marker nach Energieintensität ein und ordnet ein Objekt so auf einen
+Blick in sein sichtbares Umfeld ein – einschließlich der Gebäude, die andere
+mit Ihnen geteilt haben (siehe Abschnitt „Gebäude nach Energieverbrauch
+einordnen").
 
 # Sicherer Umgang mit Energieverbrauchsdaten im Immobilienökosystem
 
@@ -678,6 +699,9 @@ Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
   Benchmark. Trägt ein Gebäude statt Jahreswerten eine **15-Minuten-Messreihe**
   (z. B. aus einem Lastgang-Import), zeigt dieser Reiter stattdessen
   Zeitreihen-Diagramme: Tagessummen und ein durchschnittliches Tagesprofil.
+  Trägt ein Gebäude **beides** – Jahreswerte und Messreihe –, schalten Sie über
+  den Umschalter **Annual | Time series** zwischen den Darstellungen um (so
+  z. B. beim Beispielgebäude Lange Gasse 20).
 - **Weather data:** die zum Standort passenden Wetterdaten, die zur Einordnung des
   Verbrauchs (z. B. Heizgradtage) herangezogen werden können.
 
@@ -704,7 +728,10 @@ Vergleichswert liegt, rot darüber; je größer die Abweichung, desto kräftiger
 Färbung. Als Maßstab dient dabei der **spezifischste verfügbare Vergleich**: der
 externe Benchmark vor dem Betreiber-Durchschnitt vor dem Portfolio-Durchschnitt.
 Damit vereint diese Seite die drei Vergleichsperspektiven – eigenes Portfolio,
-Betreiber, externer Benchmark – in einer Ansicht.
+Betreiber, externer Benchmark – in einer Ansicht: Hier löst die App den
+eingangs beschriebenen Anwendungsfall „Energieverbrauchsbenchmark" für das
+einzelne Gebäude ein. Woher der externe Benchmark kommt, zeigt das Szenario
+„Peer-Benchmarking" im Kapitel „Daten gemeinsam nutzen und Mehrwerte schaffen".
 
 ![Energie-Detailseite: eigener Verbrauch neben Portfolio-, Betreiber- und Benchmark-Vergleich](figures/energy-detail.png){width=100%}
 
@@ -924,7 +951,7 @@ Gebäude, die andere mit Ihnen geteilt haben, finden Sie im Tab **Share** unter
 können. Aggregierte Ansichten, die andere mit Ihnen geteilt haben, finden Sie
 ebenda unter „Views shared with you".
 
-![Tab „Share": mit Ihnen geteilte Gebäude unter „Buildings shared with you"](figures/shared-with-you.png){width=100%}
+![Tab „Share": ein mit Ihnen geteiltes Gebäude unter „Buildings shared with you" und ein von einem Benchmark-Dienstleister zurückgeteilter Benchmark unter „Views shared with you" – aufgeklappt („Show values") die empfangenen Durchschnittswerte über alle beigetragenen Gebäude](figures/shared-with-you.png){width=100%}
 
 Über das Augen-Symbol können Sie ein mit Ihnen geteiltes Gebäude bei Bedarf aus
 Ihrer eigenen Karten- und Listenansicht ausblenden und später wieder einblenden.
@@ -946,6 +973,127 @@ Daten.
 > Empfängers gesendet; beim nächsten Abruf entfernt dessen Anwendung den Eintrag
 > aus der Liste der geteilten Daten. (In einer früheren Version erhielt der
 > Empfänger keine Benachrichtigung – dies ist nun behoben.)
+
+## Zwei Szenarien im Zusammenspiel
+
+Die vorangegangenen Abschnitte beschreiben jeden Arbeitsschritt für sich. Die
+folgenden zwei Szenarien zeigen, wie die Schritte über mehrere Beteiligte hinweg
+ineinandergreifen: einmal das Teilen eines Gebäudes aus der Sicht **beider**
+Seiten (A und B), und einmal das Peer-Benchmarking mit **drei** Beteiligten
+(A, B und C). In den Bildschirmfotos dieses Handbuchs treten die drei als
+Alice, Bob und Charlie auf – etwa als „Shared by: Alice Ahlmann" beim
+Empfänger oder als Absender des zurückgeteilten Benchmarks.
+
+### Szenario 1: Ein Gebäude teilen – aus beiden Perspektiven
+
+Beteiligt sind zwei Personen mit jeweils eigenem Solid Pod: **A**, eine
+Bestandshalterin, die ein Gebäude mit erfassten Energiejahren verwaltet, und
+**B**, ein Geschäftspartner (etwa ein Investor), der diese Daten einsehen soll.
+Wichtig vorab: Die Daten werden zu keinem Zeitpunkt kopiert oder an einen
+zentralen Dienst übertragen – sie bleiben auf A's Pod, und B liest sie dort
+direkt mit seiner eigenen WebID.
+
+**Was A tut (die teilende Seite):**
+
+1. A öffnet im Tab **Manage** unter „Your buildings" das Teilen-Symbol des
+   Gebäudes. Der Dialog „Share Building Data" erscheint.
+2. A wählt **By WebID** und gibt B's WebID ein – hat A schon einmal mit B
+   geteilt, schlägt das Adressbuch (siehe „Kontakte verwalten") die WebID vor.
+   Alternativ wählt A **By role**, wenn beide Mitglied desselben Datenraums
+   sind und B sich dort eine passende Rolle zugewiesen hat.
+3. A legt unter „What to share" den Umfang fest – etwa nur Stammdaten oder
+   Stammdaten mit ausgewählten Energiejahren – und bestätigt mit **Share**.
+
+Anschließend sieht A die Freigabe direkt beim Gebäude unter „Shared with:" und
+kann sie dort jederzeit wieder entfernen. B wird automatisch in A's Kontakte
+aufgenommen.
+
+**Was B sieht (die empfangende Seite):**
+
+1. Die Freigabe-Benachrichtigung landet im Posteingang von B's Pod. Beim
+   nächsten Öffnen oder Neuladen der App verarbeitet B's Anwendung sie
+   automatisch – B muss dafür nichts tun.
+2. Das Gebäude erscheint bei B im Tab **Share** unter „Buildings shared with
+   you" und zusätzlich auf der Karte im Tab **Explore**, dort als geteiltes
+   Gebäude gekennzeichnet und neben B's eigenen Gebäuden auswertbar.
+3. B öffnet das Gebäude und sieht genau das, was A freigegeben hat: die
+   Stammdaten und – je nach gewähltem Umfang – die Energiejahre. Hat A „alle
+   Energiejahre" freigegeben, sieht B auch Jahre, die A erst später erfasst.
+4. Möchte B das Gebäude vorübergehend nicht in seinen Listen sehen, blendet er
+   es über das Augen-Symbol aus – die Freigabe selbst bleibt bestehen.
+
+Widerruft A die Freigabe später (siehe „Zugriff widerrufen"), wird B
+benachrichtigt, und das Gebäude verschwindet beim nächsten Abruf aus B's
+Ansicht. Beide Seiten behalten so jederzeit den Überblick: A sieht in ihrem Pod,
+was sie an wen freigegeben hat; B sieht, was mit ihm geteilt wurde – und beides
+bleibt auch nach dem Widerruf nachvollziehbar.
+
+![Gebäude teilen aus beiden Perspektiven: A vergibt die Freigabe auf dem eigenen Pod, B wird benachrichtigt und liest die Daten direkt von A's Pod](figures/szenario-teilen.png){width=100%}
+
+### Szenario 2: Peer-Benchmarking mit einem Benchmark-Dienstleister
+
+Ein einzelner Bestandshalter kann seine Gebäude nur mit dem eigenen Portfolio
+vergleichen. Ein echter **Peer-Vergleich** – „Wie steht mein Gebäude im
+Branchendurchschnitt da?", der eingangs beschriebene Anwendungsfall
+„Energieverbrauchsbenchmark" – braucht Daten mehrerer Eigentümer, ohne dass
+diese ihre Gebäude einander offenlegen müssen. Genau das leistet das
+Zusammenspiel von Gebäude-Freigabe und aggregierten Ansichten, mit drei
+Beteiligten:
+
+- **A** und **B** sind Bestandshalter mit eigenen Gebäuden und Energiedaten.
+  Sie kennen einander nicht notwendigerweise und sehen gegenseitig keine Daten.
+- **C** ist ein **Benchmark-Dienstleister** (Benchmark Service Provider) – kein
+  Server und kein Sonderkonto, sondern ein gewöhnlicher Nutzer derselben App
+  mit eigenem Pod.
+
+Der Ablauf hat vier Schritte:
+
+1. **A und B teilen ihre Gebäude an C.** Jeder nutzt den normalen
+   Teilen-Dialog (siehe „Ein Gebäude teilen") und gibt die Gebäude
+   **einschließlich Energiedaten** an C's WebID frei – wahlweise alle Jahre
+   oder gezielt ausgewählte. Sind alle drei Mitglied eines Datenraums, geht es
+   auch in einem Zug rollenbasiert: „By role" an die Rolle **Benchmark Service
+   Provider**.
+2. **C berechnet den Benchmark.** C erstellt eine aggregierte Ansicht vom Typ
+   **Compare shared buildings** (siehe „Aggregierte Ansicht erstellen und
+   teilen"). Zur Auswahl stehen dabei genau die Gebäude, die **mit C geteilt**
+   wurden – also die Beiträge von A und B. C wählt die Kennzahlen (jährlicher
+   Strom-, Wärme-, Wasser- und Abwasserverbrauch) und die Funktion
+   „Durchschnitt"; die App berechnet das Ergebnis als Snapshot.
+3. **C teilt das Ergebnis an alle Beitragenden zurück.** Im Teilen-Dialog der
+   Ansicht bietet die App dafür eine Ein-Klick-Hilfe an: „Add all
+   contributors" trägt automatisch alle ein, deren Gebäude in den Benchmark
+   eingeflossen sind – hier A und B.
+4. **A und B sehen den Benchmark neben den eigenen Zahlen.** Die
+   zurückerhaltene Ansicht erscheint im Tab **Share** unter „Views shared with
+   you". Vor allem aber füllt sich auf der Energie-Detailseite der eigenen
+   Gebäude die Spalte **Benchmark**: Der eigene Verbrauch wird nun gegen den
+   externen Branchenwert eingefärbt statt nur gegen den eigenen
+   Portfolio-Durchschnitt, und ein Hinweis nennt den Dienstleister, der den
+   Benchmark berechnet hat. Genau diesen Zustand zeigt die Abbildung der
+   Energie-Detailseite im Abschnitt „Daten ansehen": Die Benchmark-Spalte dort
+   trägt die von einem Dienstleister zurückgeteilten Branchenwerte.
+
+![Der Benchmark-Roundtrip: A und B teilen Gebäude an den Dienstleister C, C berechnet den Durchschnitt und teilt nur den Snapshot zurück](figures/szenario-benchmark.png){width=100%}
+
+![Die Sicht des Benchmark-Dienstleisters beim Zurückteilen: „Add all contributors" trägt alle Beitragenden mit einem Klick als Empfänger ein](figures/benchmark-share-back.png){width=100%}
+
+Entscheidend ist, was dabei **nicht** sichtbar wird: A und B sehen zu keinem
+Zeitpunkt die Gebäude des jeweils anderen. Der zurückgeteilte Snapshot enthält
+nur die berechneten Durchschnittswerte und die Anzahl der eingeflossenen
+Gebäude – nicht, welche Gebäude das waren. Jeder Beitragende kann seine
+Freigabe an C zudem jederzeit widerrufen und steigt damit aus künftigen
+Benchmark-Berechnungen aus.
+
+> **Technische Details (für Administratoren)**
+>
+> Die View-Definition – sie enthält die IRIs der beitragenden Gebäude – bleibt
+> auf C's Pod und wird nie geteilt; nur der berechnete Snapshot wandert zu den
+> Empfängern. Der Snapshot ist dabei als Benchmark-Ergebnis typisiert und
+> vermerkt den berechnenden Agenten und den abgedeckten Zeitraum, sodass die
+> Energie-Ansicht der Empfänger ihn von gewöhnlichen geteilten Ansichten
+> unterscheiden und als Vergleichswert bevorzugen kann (Reihenfolge: externer
+> Benchmark vor Betreiber-Durchschnitt vor Portfolio-Durchschnitt).
 
 # Was steckt hinter Granergize
 

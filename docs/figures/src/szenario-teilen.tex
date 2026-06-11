@@ -1,0 +1,83 @@
+% Szenario 1 (handbuch.md): Ein Gebäude teilen — beide Seiten.
+% Build: see build.sh in this directory.
+\documentclass[border=12pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{tikz}
+\usepackage{fontawesome5}
+\usepackage{pifont}% \ding{182..} = negative circled digits, used as step badges
+\usetikzlibrary{shadows,arrows.meta,positioning,calc}
+
+\newcommand{\stepnum}[1]{{\color{blue!70}\ding{#1}}}
+
+\begin{document}
+\begin{tikzpicture}[
+  font=\small,
+  pod/.style={draw=black!70, thick, rounded corners=6pt, fill=green!15,
+    drop shadow, inner sep=10pt, align=left, minimum width=5.4cm, minimum height=3.1cm},
+  app/.style={draw=black!70, thick, rounded corners=6pt, fill=orange!30,
+    drop shadow, inner sep=10pt, align=left, minimum width=5.4cm, minimum height=2.6cm},
+  share/.style={-{Stealth[length=3mm]}, blue!70, dashed, very thick},
+  https/.style={-{Stealth[length=3mm]}, black!60, very thick},
+  lab/.style={fill=white, inner sep=2pt, align=center},
+]
+
+% --- title ---
+\node[font=\Large\bfseries] at (6.4,2.7) {Gebäude teilen -- beide Seiten};
+\node[font=\normalsize, text=black!60] at (6.4,2.05)
+  {Die Daten bleiben auf dem Pod von A -- B liest sie dort direkt};
+
+% --- pods (top row) ---
+\node[pod] (podA) at (0,0) {%
+  \faDatabase~~{\large\bfseries Pod von A}\\[4pt]
+  \textbullet~ \texttt{buildings/halle.ttl}\\
+  \textbullet~ \texttt{energy/halle-2024.ttl}\\
+  \textbullet~ \texttt{shared-out/} (Protokoll)\\
+  \textbullet~ \texttt{.acl} (Zugriffsrechte)};
+\node[pod] (podB) at (12.8,0) {%
+  \faDatabase~~{\large\bfseries Pod von B}\\[4pt]
+  \textbullet~ \texttt{inbox/} (Posteingang)\\
+  \textbullet~ \texttt{shared-in/} (Protokoll)};
+
+% --- apps (bottom row) ---
+\node[app] (appA) at (0,-6.2) {%
+  \faLaptop~~{\large\bfseries A teilt}\\[4pt]
+  Dialog \glqq Share Building Data\grqq:\\
+  Empfänger (WebID oder Rolle) und\\
+  Umfang (\glqq What to share\grqq) wählen,\\
+  dann \textbf{Share}};
+\node[app] (appB) at (12.8,-6.2) {%
+  \faLaptop~~{\large\bfseries B empfängt}\\[4pt]
+  Tab \textbf{Share}: \glqq Buildings\\
+  shared with you\grqq\\
+  Tab \textbf{Explore}: Gebäude\\
+  als geteilter Marker};
+
+% --- vertical arrows (own pod) ---
+\draw[https] (appA) -- (podA)
+  node[lab, midway] {\stepnum{182}~ACL setzen,\\in \texttt{shared-out/}\\vermerken};
+\draw[https] (appB) -- (podB)
+  node[lab, midway] {\stepnum{184}~beim Login:\\\texttt{inbox/} automatisch\\nach \texttt{shared-in/}};
+
+% --- cross arrows (pod-übergreifend), labels placed explicitly ---
+\draw[share] (2.0,-4.75) -- (11.4,-1.75);
+\node[lab] at (4.5,-4.5) {\stepnum{183}~Benachrichtigung\\an \texttt{inbox/} von B};
+\draw[share] (10.8,-4.75) -- (1.4,-1.75);
+\node[lab] at (8.0,-5.05) {\stepnum{185}~liest die Freigabe direkt\\von Pod A (mit der WebID von B)};
+
+% --- revoke note ---
+\node[align=center, text=black!60, font=\small] at (6.4,-8.5)
+  {\faUndo~~Widerruf: A entfernt den Empfänger unter \glqq Shared with:\grqq~-- B wird benachrichtigt,\\
+   das Gebäude verschwindet beim nächsten Abruf aus der Ansicht von B.};
+
+% --- legend ---
+\node[draw=black!40, rounded corners=4pt, fill=white, inner sep=7pt, align=left,
+      font=\footnotesize] at (6.4,0.2) {%
+  \textbf{Legende:}\\[2pt]
+  \tikz{\fill[green!15,draw=black!70] (0,0) rectangle (0.4,0.25);}~ Solid Pod (Datenspeicher)\\
+  \tikz{\fill[orange!30,draw=black!70] (0,0) rectangle (0.4,0.25);}~ Granergize-App (Browser)\\
+  \tikz{\draw[https] (0,0.1) -- (0.55,0.1);}~ am eigenen Pod\\
+  \tikz{\draw[share] (0,0.1) -- (0.55,0.1);}~ Pod-übergreifend};
+
+\end{tikzpicture}
+\end{document}

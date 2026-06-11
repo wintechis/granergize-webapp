@@ -33,12 +33,20 @@ import {
   lastAnnualYears,
   SEED_ANNUAL_YEARS,
   seedBuildings,
+  seedProfile,
   seedRoomMembers,
   setupShareRoom,
   shareBuildingsViaRoom,
   wipeBuildings,
   wipeRooms,
 } from "../bench/seed.ts";
+import { shareBuildingData } from "../../src/services/interop/share.ts";
+import { createViewDefinition } from "../../src/services/aggregation/viewManager.ts";
+import {
+  computeAndStoreSnapshot,
+  sharedContributorBuildings,
+} from "../../src/services/aggregation/viewComputer.ts";
+import { CONSUMPTION_METRIC_KEYS } from "../../src/constants/annualMetrics.ts";
 
 /**
  * Resolve once `port` is actually bindable again — i.e. the previous CSS has fully
@@ -286,6 +294,91 @@ async function seedContribTrio(n: number): Promise<void> {
   }
 }
 
+// Human identities for the three seeded actors: a `foaf:name` + public avatar
+// on each WebID profile, so the handbuch screenshots show recognisable people
+// (agent labels otherwise fall back to the WebID fragment — "me"). Names follow
+// the A=Alice / B=Bob / C=Charlie role model; the avatar fixtures live with the
+// other e2e fixtures (paths relative to the repo root, the webServer's cwd).
+const PROFILE_SEED: Record<"A" | "B" | "C", { name: string; avatar: string }> = {
+  A: { name: "Alice Ahlmann", avatar: "test/e2e/fixtures/alice-avatar.png" },
+  B: { name: "Bob Bauer", avatar: "test/e2e/fixtures/bob-avatar.png" },
+  C: { name: "Charlie Conrad", avatar: "test/e2e/fixtures/charlie-avatar.png" },
+};
+
+// Seed all three actor profiles; returns slot → WebID so the caller can use the
+// REAL WebIDs (e.g. as a contact entry) instead of constructing them.
+async function seedProfiles(): Promise<Record<string, string>> {
+  const webIds: Record<string, string> = {};
+  for (const slot of ["A", "B", "C"] as const) {
+    const { live, actor } = await actorSession(slot);
+    try {
+      const bytes = await Deno.readFile(PROFILE_SEED[slot].avatar);
+      await seedProfile(actor, PROFILE_SEED[slot].name, {
+        bytes,
+        mime: "image/png",
+      });
+      webIds[slot] = actor.webId;
+    } finally {
+      await live.dispose().catch(() => {});
+    }
+  }
+  return webIds;
+}
+
+// The BSP contribution + computation seeded over the pods' CURRENT contents
+// (no wipe — the screenshots spec calls this after the demo buildings exist):
+// A's owned buildings plus two seeded B buildings are shared (energy included)
+// to C, the benchmark service provider, who folds the shared-with-me roster
+// into a benchmark view and computes the snapshot. The share-BACK is NOT
+// seeded: the screenshots spec performs it through C's real share dialog (the
+// "Add all contributors" figure) — which also keeps that button enabled here.
+async function seedBenchmark(viewName: string): Promise<void> {
+  const [a, b, c] = await Promise.all([
+    actorSession("A"),
+    actorSession("B"),
+    actorSession("C"),
+  ]);
+  try {
+    // B and C never logged in at this point, so their inboxes don't exist yet.
+    await Promise.all([a, b, c].map((x) => ensureOwnInbox(x.actor.session)));
+    const children = await listDirectChildren(
+      `${appRoot(a.actor.webId)}buildings/`,
+      a.actor.session,
+    ) ?? [];
+    const aBuildings = children.filter((u) => u.endsWith(".ttl"));
+    if (aBuildings.length === 0) {
+      throw new Error("seed-benchmark: A owns no buildings to contribute");
+    }
+    const bSeeded = await seedBuildings(b.actor.session, b.actor.webId, 2, "contrib");
+    for (const uri of aBuildings) {
+      await shareBuildingData(uri, c.actor.webId, a.actor.session, {
+        includeEnergyData: true,
+      });
+    }
+    for (const s of bSeeded) {
+      await shareBuildingData(s.uri, c.actor.webId, b.actor.session, {
+        includeEnergyData: true,
+      });
+    }
+    await drainInbox(c.actor.session);
+    const { buildingUris } = await sharedContributorBuildings(c.actor.session);
+    if (buildingUris.length === 0) {
+      throw new Error("seed-benchmark: C's contributor roster is empty");
+    }
+    const view = await createViewDefinition(
+      c.actor.session,
+      viewName,
+      buildingUris,
+      "average",
+      CONSUMPTION_METRIC_KEYS,
+      { benchmark: true },
+    );
+    await computeAndStoreSnapshot(c.actor.session, view.id);
+  } finally {
+    for (const x of [a, b, c]) await x.live.dispose().catch(() => {});
+  }
+}
+
 // Control server (separate port): POST /reset restarts CSS and replies once the
 // fresh instance is ready, so the caller can await a clean slate.
 Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
@@ -339,6 +432,24 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
     } catch (e) {
       console.error(`/seed-contrib failed: ${e}`);
       return new Response(`seed-contrib failed: ${e}\n`, { status: 500 });
+    }
+  }
+  if (req.method === "POST" && pathname === "/seed-profiles") {
+    try {
+      return Response.json(await seedProfiles());
+    } catch (e) {
+      console.error(`/seed-profiles failed: ${e}`);
+      return new Response(`seed-profiles failed: ${e}\n`, { status: 500 });
+    }
+  }
+  if (req.method === "POST" && pathname === "/seed-benchmark") {
+    const name = searchParams.get("name") ?? "Energie-Benchmark";
+    try {
+      await seedBenchmark(name);
+      return new Response("ok\n");
+    } catch (e) {
+      console.error(`/seed-benchmark failed: ${e}`);
+      return new Response(`seed-benchmark failed: ${e}\n`, { status: 500 });
     }
   }
   if (req.method === "POST" && pathname === "/reset") {

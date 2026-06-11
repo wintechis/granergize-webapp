@@ -779,7 +779,9 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.ok(energyPuts.length >= 1, "15-min daily reading files uploaded");
 
   // Energy is NOT inline: each building links its datasets via cons:hasEnergyDataset.
-  // The two user demos link PT15M series; the three investor demos link P1Y annual.
+  // The two user demos link PT15M series; the three investor demos link P1Y
+  // annual — and the first user demo (Lange Gasse) carries BOTH shapes, the
+  // constellation that surfaces the Annual | Time series toggle.
   const bodies = buildingPuts.map((c) => c.body ?? "");
   assert.equal(
     bodies.filter((b) => b.includes("hasEnergyDataset") && b.includes("PT15M"))
@@ -790,8 +792,13 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.equal(
     bodies.filter((b) => b.includes("hasEnergyDataset") && b.includes("-P1Y"))
       .length,
-    3,
-    "three buildings link P1Y annual datasets (the investor demos)",
+    4,
+    "four buildings link P1Y annual datasets (the investors + the both-shapes user demo)",
+  );
+  assert.equal(
+    bodies.filter((b) => b.includes("PT15M") && b.includes("-P1Y")).length,
+    1,
+    "exactly one demo carries BOTH shapes (annual + series → the resolution toggle)",
   );
 
   // The annual aggregate's figures live in their own cons:EnergyDataset resources

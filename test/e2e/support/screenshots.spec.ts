@@ -1,3 +1,4 @@
+/// <reference lib="dom" />
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import {
   account,
@@ -7,12 +8,16 @@ import {
   webIdOf,
 } from "../helpers/login.ts";
 import { freshPage } from "../helpers/twoPod.ts";
+import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 
 /**
  * Captures the Praxishandbuch figures (docs/figures/*.png) by driving the
- * logged-in app. Uses account **A** (a solidcommunity.net Pod — the sharing pair)
- * so the handbuch shows canonical solidcommunity.net WebIDs/URIs. THROWAWAY Pod
- * only — never a real account — passed via env so no credentials live in the repo:
+ * logged-in app. The usual run is the LOCAL tier (`deno task handbuch:figures`,
+ * E2E_LOCAL=1): the control server seeds the three actors with human identities
+ * (foaf:name + avatar — Alice/Bob/Charlie) and the BSP benchmark round-trip, so
+ * the figures show distinguishable people and a real Benchmark column. The same
+ * spec also runs remotely (canonical solidcommunity.net URIs; no seeding —
+ * profiles there are whatever the throwaway accounts carry):
  *
  *   E2E_USERNAME_A=...  E2E_PASSWORD_A=...  [E2E_PROVIDER_A=solidcommunity] \
  *   E2E_USERNAME_B=...  E2E_PASSWORD_B=...  [E2E_PROVIDER_B=...] \
@@ -27,12 +32,28 @@ import { freshPage } from "../helpers/twoPod.ts";
  *   deno task e2e:remote:spec test/e2e/support/screenshots.spec.ts -- --headed
  */
 
+const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
+  .process?.env;
+const E2E_LOCAL = !!ENV?.E2E_LOCAL;
+/** POST a control-server seed endpoint (local tier only); fails the run loudly. */
+async function controlSeed(path: string): Promise<Response> {
+  const res = await fetch(
+    `http://localhost:${LOCAL_CSS_CONTROL_PORT}${path}`,
+    { method: "POST" },
+  );
+  if (!res.ok) throw new Error(`${path} → HTTP ${res.status}: ${await res.text()}`);
+  return res;
+}
+
 const ACC = account("A");
 // A WebID to seed the Contacts address book before its screenshot. Prefer a
 // configured account's WebID (resolves to a real name/avatar); fall back to the
-// handbuch's example WebID so the figure still shows a populated list.
+// handbuch's example WebID so the figure still shows a populated list. The local
+// tier replaces this with B's REAL WebID from /seed-profiles (never constructed).
 const CONTACT_WEBID = account("B").webId || ACC.webId ||
   "https://maxmustermann.solidcommunity.net/profile/card#me";
+/** The benchmark view name seeded by /seed-benchmark (shows on received rows). */
+const BENCHMARK_NAME = "Energie-Benchmark";
 const OUT = "docs/figures";
 // Cooldown after every screenshot. Its only purpose is to let a Cloudflare-fronted
 // provider's rate limit relax between request bursts, so it's only long when A's
@@ -49,6 +70,21 @@ async function shot(page: Page, name: string) {
 async function shotOf(locator: Locator, name: string) {
   await locator.screenshot({ path: `${OUT}/${name}`, animations: "disabled" });
   await locator.page().waitForTimeout(COOLDOWN_MS);
+}
+
+/**
+ * Wait until the Leaflet map has its tiles drawn: every `.leaflet-tile` carries
+ * `leaflet-tile-loaded` (Leaflet sets it when the tile image has loaded).
+ * `networkidle` is not enough for the map figures — it can fall in a lull
+ * between the data burst and the tile requests, capturing a grey map.
+ * Time-boxed so a slow tile server degrades the figure, not the run.
+ */
+async function waitForMapTiles(page: Page) {
+  await page.waitForFunction(() => {
+    const tiles = document.querySelectorAll(".leaflet-tile");
+    return tiles.length > 0 &&
+      Array.from(tiles).every((t) => t.classList.contains("leaflet-tile-loaded"));
+  }, undefined, { timeout: 60_000 }).catch(() => {});
 }
 
 /**
@@ -92,6 +128,22 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "anmelden.png");
 
     await login(page, ACC);
+
+    // Local tier: give the three seeded actors their human identity (foaf:name +
+    // public avatar — Alice Ahlmann, Bob Bauer, Charlie Conrad), so every figure
+    // shows resolvable names and faces instead of WebID-fragment labels ("me").
+    // Runs AFTER login on purpose: the first login restarts the CSS
+    // (resetLocalPodsOnce), which would wipe an earlier seed. The reload makes
+    // the already-running session re-read the now-named profiles.
+    let contactWebId = CONTACT_WEBID;
+    if (E2E_LOCAL) {
+      const webIds = await (await controlSeed("/seed-profiles")).json() as
+        Record<string, string>;
+      contactWebId = webIds.B ?? contactWebId;
+      await page.reload();
+      await expect(page.getByRole("tab", { name: "Connect" }))
+        .toBeVisible({ timeout: 60_000 });
+    }
 
     // Handbuch figures are ALWAYS captured with Developer mode OFF — no raw-RDF /
     // debug affordances (the dev-only header building-URI line, inline request
@@ -162,6 +214,57 @@ test.describe("handbuch screenshots", () => {
       await dismissToasts(page);
     }
 
+    // Local tier: seed the BSP contribution + computation over the demo
+    // buildings — A's and two of B's buildings shared (energy included) to C
+    // (Charlie), who computes the "Compare shared buildings" benchmark. The
+    // share-BACK then happens in C's real UI below, so the figure shows the
+    // live "Add all contributors" moment and the later figures its results
+    // (A's filled Benchmark column naming Charlie, B's received view).
+    if (E2E_LOCAL) {
+      await controlSeed(`/seed-benchmark?name=${BENCHMARK_NAME}`);
+
+      // --- The BSP's perspective (benchmark-share-back.png): Charlie opens the
+      //     benchmark view's share dialog and adds both contributors with one
+      //     click — Szenario 2's share-back, captured mid-flow — then actually
+      //     shares so the round-trip completes.
+      const c = await freshPage(browser, account("C"));
+      try {
+        // C owns no buildings: dismiss C's fresh-Pod onboarding banner.
+        await c.page.getByRole("button", { name: "No thanks" })
+          .click({ timeout: 8_000 }).catch(() => {});
+        await c.page.getByRole("tab", { name: "Manage" }).click();
+        const viewRow = c.page.locator("li").filter({ hasText: BENCHMARK_NAME })
+          .first();
+        await expect(viewRow).toBeVisible({ timeout: 60_000 });
+        await viewRow.getByRole("button", { name: "Share view" }).click();
+        const shareDialog = c.page.getByRole("dialog");
+        const addAll = shareDialog.getByRole("button", {
+          name: /add all \d+ contributors/i,
+        });
+        await expect(addAll).toBeEnabled({ timeout: 60_000 });
+        await addAll.click();
+        await c.page.waitForTimeout(500);
+        await shot(c.page, "benchmark-share-back.png");
+        await shareDialog.getByRole("button", { name: "Review & Share" }).click();
+        await shareDialog.getByRole("button", { name: "Confirm Share" })
+          .click({ timeout: 10_000 });
+        await expect(shareDialog.getByText(/shared successfully/i))
+          .toBeVisible({ timeout: 120_000 });
+      } finally {
+        await c.ctx.close();
+      }
+
+      // The seeding + share-back wrote A's pod from OUTSIDE the running session
+      // (cross-agent writes), and all later figure navigations are same-document
+      // hash gotos that never refetch the shared-in fold — so reload ONCE here
+      // (the app's reload drain archives the received grant), then return to
+      // the Connect tab the next section expects.
+      await page.reload();
+      const connectTab = page.getByRole("tab", { name: "Connect" });
+      await expect(connectTab).toBeVisible({ timeout: 60_000 });
+      await connectTab.click();
+    }
+
     // --- Contacts: seed one address-book entry, then capture the Contacts
     //     section at the top of the Connect tab. The list is otherwise empty on
     //     a fresh Pod, so the figure would read "No contacts yet". ---
@@ -170,7 +273,7 @@ test.describe("handbuch screenshots", () => {
     await page.waitForLoadState("networkidle").catch(() => {});
     const webIdField = page.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
-    await webIdField.fill(CONTACT_WEBID, { timeout: 15_000 });
+    await webIdField.fill(contactWebId, { timeout: 15_000 });
     const addContact = page.getByRole("button", { name: "Add contact" });
     await expect(addContact).toBeEnabled({ timeout: 10_000 });
     await addContact.click();
@@ -301,7 +404,8 @@ test.describe("handbuch screenshots", () => {
     const markers = page.locator(".leaflet-marker-icon");
     await markers.first().waitFor({ timeout: 20_000 }).catch(() => {});
     await page.waitForLoadState("networkidle").catch(() => {});
-    await page.waitForTimeout(1500); // let the map/tiles settle
+    await waitForMapTiles(page);
+    await page.waitForTimeout(1500); // let markers/logos settle
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "map-tabs.png");
 
@@ -315,6 +419,7 @@ test.describe("handbuch screenshots", () => {
     if (await energyLens.count()) {
       await energyLens.click({ force: true }).catch(() => {});
       await page.waitForLoadState("networkidle").catch(() => {});
+      await waitForMapTiles(page);
       await page.waitForTimeout(1200);
       await page.evaluate(() => globalThis.scrollTo(0, 0));
       await shot(page, "energy-lens.png");
@@ -334,6 +439,7 @@ test.describe("handbuch screenshots", () => {
         page.getByRole("row").filter({ hasText: "Operator average" }).first(),
       ).toBeVisible({ timeout: 60_000 });
       await page.waitForLoadState("networkidle").catch(() => {});
+      await waitForMapTiles(page);
       await page.waitForTimeout(800);
       await page.evaluate(() => globalThis.scrollTo(0, 0));
       await shot(page, "energy-data-tab.png");
@@ -348,6 +454,13 @@ test.describe("handbuch screenshots", () => {
       await expect(
         page.locator("th", { hasText: "Operator average kWh / a" }).first(),
       ).toBeVisible({ timeout: 60_000 });
+      // Local tier: the seeded BSP benchmark must be on the page — the filled
+      // Benchmark column plus the provider caption naming Charlie — before the
+      // shot (the figure's caption promises all three comparison columns).
+      if (E2E_LOCAL) {
+        await expect(page.getByText(/Benchmark provided by/i))
+          .toBeVisible({ timeout: 60_000 });
+      }
       await page.waitForLoadState("networkidle").catch(() => {});
       await page.waitForTimeout(800);
       await shot(page, "energy-detail.png");
@@ -407,9 +520,22 @@ test.describe("handbuch screenshots", () => {
         b.page.getByRole("list", { name: /buildings shared with you/i })
           .getByText(/^Building /),
       ).toBeVisible({ timeout: 120_000 });
-      // B owns no buildings, so dismiss B's own fresh-Pod "No buildings yet"
-      // banner (bounded) and let the inbox-drain network settle, so the figure
-      // shows only the received-buildings list.
+      // Local tier: B also contributed to the seeded benchmark, so the snapshot
+      // Charlie shared back must show under "Views shared with you" — and the
+      // figure shows the received PEER NUMBERS: expand it and wait for the
+      // snapshot's averages (count line, value table, chart) to render.
+      if (E2E_LOCAL) {
+        await expect(b.page.getByText(BENCHMARK_NAME).first())
+          .toBeVisible({ timeout: 120_000 });
+        await b.page.getByRole("button", { name: "Show values" }).click();
+        await expect(b.page.getByText(/across \d+ building/))
+          .toBeVisible({ timeout: 60_000 });
+        await b.page.locator("svg.recharts-surface .recharts-bar-rectangle")
+          .first().waitFor({ timeout: 60_000 });
+      }
+      // Dismiss B's fresh-Pod "No buildings yet" banner if present (B owns
+      // nothing on the remote tier; bounded no-op when absent) and let the
+      // inbox-drain network settle before the shot.
       await b.page.getByRole("button", { name: "No thanks" })
         .click({ timeout: 8_000 }).catch(() => {});
       await b.page.waitForLoadState("networkidle").catch(() => {});

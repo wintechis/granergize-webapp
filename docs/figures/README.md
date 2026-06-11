@@ -10,10 +10,12 @@ Two kinds of figures live here:
   `contacts.png`, `add-building.png`, `manage-actions.png`, `energy-year.png`,
   `share-building.png`, `create-view.png`, `aggregated-view.png`, `map-tabs.png`,
   `energy-data-tab.png`, `energy-detail.png`, `energy-lens.png`,
-  `shared-with-you.png`.
+  `benchmark-share-back.png`, `shared-with-you.png`.
 - **Conceptual diagrams** — carried over from the original handbuch (still
   accurate): `architektur.png`, `wac.png`, `wissensgraph.png`,
-  `sharing-vergleich.png`.
+  `sharing-vergleich.png`. The two scenario diagrams `szenario-teilen.png` and
+  `szenario-benchmark.png` have TikZ sources in `src/`; rebuild them with
+  `src/build.sh` (needs pdflatex + pdftoppm).
 
 To refresh the screenshots after UI changes, run the capture **credential-free
 against the throwaway local CSS** (Tier 3) and rebuild the handbuch:
