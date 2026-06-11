@@ -15,9 +15,9 @@
  *                  membership (the log grows by HISTORY, not members).
  *
  * Measure-and-report: it records medians, writes gnuplot `.dat` + `.gp` + an
- * `index.html` into a dated run directory test-results/bench/<run-id>/ (run id =
- * local date, or BENCH_RUN_ID — see runId.ts), and renders PNGs when gnuplot is
- * on PATH (else prints a hint).
+ * `index.html` into a per-run directory test-results/bench/<run-id>/ (run id =
+ * ISO-second UTC timestamp, or BENCH_RUN_ID — see runId.ts), and renders PNGs
+ * when gnuplot is on PATH (else prints a hint).
  * Nothing here asserts a time budget — hardware variance makes that flaky; the
  * graphs are the deliverable (paper figures).
  *
@@ -57,8 +57,8 @@ import {
 import { benchRunDir, measure, writeDat } from "./report.ts";
 import { regenerateAndRender } from "./plots.ts";
 
-// One dated directory per run (results/<run-id>/, like test-results) — minted
-// once so a run crossing midnight stays in one place.
+// One directory per run (test-results/bench/<run-id>/) — minted once so the
+// whole sweep lands in one place.
 const RESULTS_DIR = benchRunDir();
 
 /** Parse a `BENCH_*` size list ("0,50,100"), falling back to `def`. */

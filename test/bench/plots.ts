@@ -130,10 +130,12 @@ export async function regenerateAndRender(dir: string): Promise<void> {
 }
 
 if (import.meta.main) {
-  // Plot-only entry: re-render an explicitly named run (BENCH_RUN_ID), else the
-  // most recent run directory — so a post-midnight plot step still lands in the
-  // directory its benchmark wrote.
-  const dir = Deno.env.get("BENCH_RUN_ID") ? benchRunDir() : (await latestRunDir());
+  // Plot-only entry: re-render an explicitly named run (BENCH_RUN_ID, or an
+  // exported E2E_RUN_ID — the id the bench specs write under), else the most
+  // recent run directory — so the closing plot step of a `bench:ui` invocation
+  // lands in the directory its specs just wrote.
+  const explicit = Deno.env.get("BENCH_RUN_ID") || Deno.env.get("E2E_RUN_ID");
+  const dir = explicit ? benchRunDir() : (await latestRunDir());
   if (!dir) {
     console.log("no run directory under test-results/bench/ — run a benchmark first");
   } else {
