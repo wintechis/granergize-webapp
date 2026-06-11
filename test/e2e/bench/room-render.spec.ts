@@ -50,7 +50,7 @@ test.describe("room-render benchmark", () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(240_000);
     page = await browser.newPage();
-    await login(page, ACC); // bench skips the CSS reset; logs into the warm CSS
+    await login(page, ACC); // resets the pod server first (per spec file), then logs in
   });
 
   test.afterAll(async () => {

@@ -8,11 +8,6 @@ import { T } from "./timeouts.ts";
 const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
   .process?.env;
 const E2E_LOCAL = !!ENV?.E2E_LOCAL;
-// The benchmark seeds its own data per size via the control server's /seed, so it
-// has no use for a pristine reset — and a reset RESTARTS CSS, then logs in against
-// a cold OIDC (the JWKS boot race), which is the single most flaky moment. Skip it
-// for the bench: log into the CSS the webServer already booted + warmed.
-const E2E_BENCH = !!ENV?.E2E_BENCH;
 
 // Optional login pacing for Cloudflare-fronted hosts (e.g. solidcommunity): a wait
 // (ms) before each login on a `throttled` provider, to stay under the edge rate
@@ -20,14 +15,19 @@ const E2E_BENCH = !!ENV?.E2E_BENCH;
 // only ever applied to throttled providers, so local/non-CF runs are unaffected.
 const E2E_THROTTLE_MS = Number(ENV?.E2E_THROTTLE_MS) || 0;
 
-// Tier 3 (local CSS) isolation: restart CSS ONCE per spec file so each spec starts
-// with pristine, freshly-seeded pods (no shared mutable state across the 8 solo
-// specs on one pod). Keyed by spec file; the shared promise dedupes the concurrent
-// A/B logins a sharing spec fires. No-op outside the local tier (or for the bench).
+// Tier 3 (local CSS) isolation: restart the pod server ONCE per spec file so each
+// spec starts with pristine, freshly-seeded pods (no shared mutable state across
+// the specs on one pod). Keyed by spec file; the shared promise dedupes the
+// concurrent A/B logins a sharing spec fires. No-op outside the local tier. The
+// BENCH specs get this too (they used to skip it and log into the warm server):
+// their per-size wipes rely on recursive deletes, and under JSS a heavily-written
+// pod left by a previous spec serves STALE container listings afterwards — see
+// ../../javascript-solid-server/jss-open-suspects.md §2 — so spec-file isolation
+// is what keeps the bench substrates trustworthy.
 let resetForFile: string | undefined;
 let resetInFlight: Promise<unknown> | undefined;
 async function resetLocalPodsOnce(): Promise<void> {
-  if (!E2E_LOCAL || E2E_BENCH) return;
+  if (!E2E_LOCAL) return;
   const file = test.info().file;
   if (file !== resetForFile) {
     resetForFile = file;
