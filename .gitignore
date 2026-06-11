@@ -11,10 +11,7 @@ node_modules
 dist
 dist-ssr
 
-# Benchmark artifacts (measure-and-report output: data, gnuplot scripts, graphs)
-test/bench/results
-
-# Playwright
+# Run artifacts: Playwright traces/reports + benchmark output (test-results/bench/)
 test-results
 playwright-report
 .playwright

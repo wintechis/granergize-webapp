@@ -68,8 +68,15 @@ surfaces as a spec that hangs to its full timeout rather than a clear assertion:
 ## Benchmarks (measure-and-report)
 
 Scalability suite beside the tiers — never gates. Sweeps a size axis, times the real
-code paths, and draws gnuplot graphs (for the paper). Output → `test/bench/results/`
-(gitignored): `<name>.dat` + `<name>.gp` + `<name>.png`.
+code paths, and draws gnuplot graphs (for the paper). Output → a dated run directory
+`test-results/bench/<run-id>/` (gitignored), beside the e2e scopes
+(`test-results/<scope>/<RUN_ID>`): `<name>.dat` + `<name>.gp` + `<name>.png` + an
+`index.html` showing all the run's figures. One scope for the figures (the per-backend
+`bench-css/`/`bench-jss/` dirs hold the Playwright traces); the run id defaults to the
+local date (`YYYY-MM-DD`, so every process of one run converges on one directory) —
+set `BENCH_RUN_ID` to label a run explicitly (e.g. `2026-06-11-jss` to keep a same-day
+JSS/CSS comparison apart), see `test/bench/runId.ts`. `bench:plot` re-renders the
+latest run dir (or `BENCH_RUN_ID`).
 
 ```
 deno task bench       # Tier 2: data layer (buildings / series / shared)

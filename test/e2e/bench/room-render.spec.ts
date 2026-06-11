@@ -3,12 +3,13 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { fileURLToPath } from "node:url";
 import { account, login } from "../helpers/login.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
+import { benchRunId } from "../../bench/runId.ts";
 
 /**
  * Tier-3 scalability BENCHMARK (`deno task bench:ui`): end-to-end browser
  * time-to-render of a data room's MEMBER LIST as its membership grows. Companion
  * to manage-render.spec.ts — same measure-and-report shape, writing timings to
- * `test/bench/results/room-render.dat` (the Deno `plots.ts` step then draws the
+ * `test-results/bench/<run-id>/room-render.dat` (the Deno `plots.ts` step then draws the
  * PNG); no time-based assertions.
  *
  * Seeding goes through the local-CSS control server (`POST /seed-room?n=`), which
@@ -25,7 +26,11 @@ import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
  */
 const LOCAL = !!process.env.E2E_LOCAL;
 const CONTROL = `http://localhost:${LOCAL_CSS_CONTROL_PORT}`;
-const RESULTS_DIR = fileURLToPath(new URL("../../bench/results", import.meta.url));
+// Same dated run directory as the Deno side (test-results/bench/<run-id>/), so
+// the follow-up plots.ts step picks this .dat up with the rest of the run.
+const RESULTS_DIR = fileURLToPath(
+  new URL(`../../../test-results/bench/${benchRunId()}`, import.meta.url),
+);
 
 function sizes(): number[] {
   const raw = process.env.BENCH_ROOM_SIZES;
