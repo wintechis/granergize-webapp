@@ -9,6 +9,7 @@
 import { strict as assert } from "node:assert";
 import { formatDat, gnuplotScript, indexHtml, median } from "./report.ts";
 import { benchRunId } from "./runId.ts";
+import { recordSetup } from "./runSetup.ts";
 
 Deno.test("median: odd, even, empty", () => {
   assert.equal(median([3, 1, 2]), 2);
@@ -90,6 +91,39 @@ Deno.test("indexHtml: run id in title, figure per plot, dat/gp fallback without 
   assert.doesNotMatch(html, /rooms\.png/);
   assert.match(html, /not rendered .*<a href="rooms\.dat">.*<a href="rooms\.gp">/);
   assert.equal((html.match(/<figure>/g) ?? []).length, 2);
+  // No setup recorded → no Setup section.
+  assert.doesNotMatch(html, /<h2>Setup<\/h2>/);
+});
+
+Deno.test("indexHtml: setup rendered as a definition list, escaped", () => {
+  const html = indexHtml("run", [{ name: "rooms", title: "Rooms", png: true }], {
+    "pod server": "JSS",
+    "churn sweep": "10 20 <30>",
+  });
+  assert.match(html, /<h2>Setup<\/h2>/);
+  assert.match(html, /<dt>pod server<\/dt><dd>JSS<\/dd>/);
+  assert.match(html, /<dd>10 20 &lt;30&gt;<\/dd>/); // values are HTML-escaped
+});
+
+Deno.test("recordSetup: writers merge into one setup.json", async () => {
+  const dir = await Deno.makeTempDir();
+  try {
+    recordSetup(dir, { "pod server": "JSS", "buildings sweep": "100 200" });
+    // A second writer (e.g. the other Tier-3 spec) adds its line and may
+    // restate a shared one — last write wins per key, nothing else is lost.
+    const merged = recordSetup(dir, { "pod server": "JSS", "rooms sweep": "10 20" });
+    assert.deepEqual(merged, {
+      "pod server": "JSS",
+      "buildings sweep": "100 200",
+      "rooms sweep": "10 20",
+    });
+    assert.deepEqual(
+      JSON.parse(await Deno.readTextFile(`${dir}/setup.json`)),
+      merged,
+    );
+  } finally {
+    await Deno.remove(dir, { recursive: true });
+  }
 });
 
 Deno.test("gnuplotScript: custom x column, no y2 axis when unused", () => {

@@ -56,6 +56,7 @@ import {
 } from "./seed.ts";
 import { benchRunDir, measure, writeDat } from "./report.ts";
 import { regenerateAndRender } from "./plots.ts";
+import { recordSetup } from "./runSetup.ts";
 
 // One directory per run (test-results/bench/<run-id>/) — minted once so the
 // whole sweep lands in one place.
@@ -83,6 +84,19 @@ const CHURN_SIZES = sizes("BENCH_ROOM_CHURN", [10, 20, 30, 40, 50, 60, 70, 80, 9
 // Members held fixed across the churn sweep, so only the role-event history grows.
 const CHURN_MEMBERS = Number(Deno.env.get("BENCH_ROOM_CHURN_MEMBERS") ?? "5");
 const RUNS = Number(Deno.env.get("BENCH_RUNS") ?? "3");
+
+// Record the run's setup up front (even a crashed run keeps it) so the figures
+// stay tied to what they were measured against — rendered by the run index.
+recordSetup(RESULTS_DIR, {
+  "pod server": Deno.env.get("LOCAL_POD_SERVER") === "jss" ? "JSS" : "CSS",
+  "data layer (Tier 2)": `headless service calls, median of ${RUNS} runs per point`,
+  "buildings sweep": BUILDING_SIZES.join(" "),
+  "series sweep (days)": SERIES_DAYS.join(" "),
+  "shared sweep (buildings)": SHARED_SIZES.join(" "),
+  "rooms sweep (members)": ROOM_SIZES.join(" "),
+  "churn sweep (role events)":
+    `${CHURN_SIZES.join(" ")} (membership fixed at ${CHURN_MEMBERS})`,
+});
 
 const perItem = (total: number, n: number): number => (n > 0 ? total / n : 0);
 
