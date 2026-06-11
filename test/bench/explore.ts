@@ -5,9 +5,9 @@
  * shares them all with A via a data room — then STAYS UP so you can log into
  * the real app and browse the data as either actor. Ctrl-C stops the server.
  *
- *   deno task bench:explore              # N=20
- *   EXPLORE_N=100 deno task bench:explore
- *   EXPLORE_CONTACTS=21 EXPLORE_ROOMS=21 deno task bench:explore   # Connect tab at scale
+ *   deno task explore              # N=20
+ *   EXPLORE_N=100 deno task explore
+ *   EXPLORE_CONTACTS=21 EXPLORE_ROOMS=21 deno task explore   # Connect tab at scale
  *   LOCAL_POD_SERVER=css deno run -A --node-modules-dir=auto test/bench/explore.ts
  *
  * EXPLORE_CONTACTS seeds A's address book with that many contacts (each backed

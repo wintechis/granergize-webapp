@@ -42,19 +42,22 @@ function sizes(): number[] {
 const ACC = account("A");
 
 /**
- * The seeded synthetic member rows in the active room's expanded box. Their WebIDs
- * carry the bench marker, so this counts exactly the N seeded members — A's own
- * (auto-joined) row doesn't match. `:not(:has(ul))` keeps it to the leaf member
- * `<li>`s: the active room's OUTER row is also an `<li>` and wraps the members
- * `<ul>`, so it contains the same marker text and would otherwise be miscounted.
+ * The seeded synthetic member rows in the active room's expanded box. A member row
+ * renders as an AgentLabel — the WebID is the contact-detail link's HREF, while the
+ * visible text is the resolved name (for these unresolvable synthetic WebIDs, the
+ * `#me` fragment fallback) — so the bench marker is matched in the href, not the
+ * text. Counts exactly the N seeded members; A's own (auto-joined) row doesn't
+ * match. `:not(:has(ul))` keeps it to the leaf member `<li>`s: the active room's
+ * OUTER row is also an `<li>` and wraps the members `<ul>`, so it contains the
+ * same links and would otherwise be miscounted.
  */
 const memberRows = (page: Page) =>
-  page.locator("li:not(:has(ul))", { hasText: /bench\.example\/member-/ });
+  page.locator('li:not(:has(ul)):has(a[href*="bench.example"])');
 
 test.describe.configure({ mode: "serial" });
 
 test.describe("room-render benchmark", () => {
-  test.skip(!LOCAL, "Tier-3 render bench runs only on the local CSS (deno task bench:ui).");
+  test.skip(!LOCAL, "Tier-3 render bench runs only on the local pod server (deno task bench:ui).");
 
   let page: Page;
 

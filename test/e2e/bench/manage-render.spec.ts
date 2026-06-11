@@ -44,7 +44,7 @@ const ACC = account("A");
 test.describe.configure({ mode: "serial" });
 
 test.describe("manage-render benchmark", () => {
-  test.skip(!LOCAL, "Tier-3 render bench runs only on the local CSS (deno task bench:ui).");
+  test.skip(!LOCAL, "Tier-3 render bench runs only on the local pod server (deno task bench:ui).");
 
   let page: Page;
 

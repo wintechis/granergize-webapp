@@ -68,32 +68,37 @@ surfaces as a spec that hangs to its full timeout rather than a clear assertion:
 ## Benchmarks (measure-and-report)
 
 Scalability suite beside the tiers — never gates. Sweeps a size axis, times the real
-code paths, and draws gnuplot graphs (for the paper). Output → a dated run directory
+code paths, and draws gnuplot graphs (for the paper). Output → a per-run directory
 `test-results/bench/<run-id>/` (gitignored), beside the e2e scopes
 (`test-results/<scope>/<RUN_ID>`): `<name>.dat` + `<name>.gp` + `<name>.png` + an
 `index.html` showing all the run's figures. One scope for the figures (the per-backend
-`bench-css/`/`bench-jss/` dirs hold the Playwright traces); the run id defaults to the
-local date (`YYYY-MM-DD`, so every process of one run converges on one directory) —
-set `BENCH_RUN_ID` to label a run explicitly (e.g. `2026-06-11-jss` to keep a same-day
-JSS/CSS comparison apart), see `test/bench/runId.ts`. `bench:plot` re-renders the
-latest run dir (or `BENCH_RUN_ID`).
+`bench-css/`/`bench-jss/` dirs hold the Playwright traces); each invocation (`bench`,
+`bench:ui`) is its own run directory, named by the same second-resolution ISO 8601 UTC
+timestamp the e2e RUN_ID uses (within a `bench:ui` run, the specs reuse Playwright's
+`E2E_RUN_ID`, and the closing plot step targets the latest run dir). Set `BENCH_RUN_ID`
+to label a run, or to point several invocations at one combined figure set — see
+`test/bench/runId.ts`. `bench:plot` re-renders the latest run dir (or `BENCH_RUN_ID`).
 
 ```
-deno task bench       # Tier 2: data layer (buildings / series / shared)
-deno task bench:ui    # Tier 3: browser cold-load of the Manage list
-deno task bench:plot  # re-render PNGs from existing .dat (after installing gnuplot)
+deno task bench         # Tier 2: data layer (JSS; bench:css for the CSS sweep)
+deno task bench:ui      # Tier 3: browser cold-load renders (JSS; bench:ui:css for CSS)
+deno task bench:plot    # re-render PNGs from existing .dat (after installing gnuplot)
 ```
 
-- `bench` boots the local CSS + A/B actors and times: `buildings`
-  (`fetchAndParseData` vs. # owned), `series` (list+parse vs. # daily files),
-  `shared` (`getSharedWithMe`+fold vs. # shared-in from B).
-- `bench:ui` builds + serves the prod app and times time-to-render the Manage list;
-  seeding goes through the control server's `POST /seed?n=` (Deno side). Uses the
-  default `granergize/` collection, builds with `VITE_OIDC_CLIENT_ID=` unset (so
-  localhost login uses dynamic registration, not the prod client-ID doc), and
-  `--retries=2` to ride out the JWKS warmup race.
+- `bench` boots the local pod server (JSS by default — `bench:css` runs the same
+  sweeps against CSS) + A/B actors and times: `buildings` (`fetchAndParseData` vs.
+  # owned), `series` (list+parse vs. # daily files), `shared` (share via a data
+  room + drain + fold vs. # shared from B), `rooms` (room lifecycle vs. # members),
+  `room-churn` (fold vs. # role events at fixed membership).
+- `bench:ui` builds + serves the prod app and times time-to-render of the Manage
+  building list (`manage-render`) and a data room's member list (`room-render`);
+  seeding goes through the control server (`POST /seed?n=` / `/seed-room?n=`,
+  Deno side). Uses the default `granergize/` collection, builds with
+  `VITE_OIDC_CLIENT_ID=` unset (so localhost login uses dynamic registration, not
+  the prod client-ID doc), and `--retries=2` to ride out the JWKS warmup race.
 
-Sweeps default to `10,20,…,100` (the local CSS gets unstable under heavier seeding);
+The buildings sweep defaults to `100,…,1000` (sized for JSS's sub-ms requests —
+expect minutes on CSS); the heavier-per-item dimensions default to `10,20,…,100`;
 override with `BENCH_SIZES` / `BENCH_SERIES_DAYS` / `BENCH_SHARED_SIZES`, samples per
 point with `BENCH_RUNS` (median, default 3). Graphs are PNG (pngcairo). gnuplot is
 optional: `.dat` + `.gp` are always written; PNGs render only when `gnuplot` is on

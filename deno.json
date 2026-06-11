@@ -17,9 +17,10 @@
     "it:jss": "LOCAL_POD_SERVER=jss deno task it",
     "bench": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/runner.ts",
     "bench:css": "LOCAL_POD_SERVER=css deno run -A --node-modules-dir=auto test/bench/runner.ts",
-    "bench:explore": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/explore.ts",
-    "bench:ui": "VITE_OIDC_CLIENT_ID= deno task build && E2E_LOCAL=1 E2E_BENCH=1 npx playwright test --project=bench && deno run -A --node-modules-dir=auto test/bench/plots.ts",
+    "bench:ui": "VITE_OIDC_CLIENT_ID= deno task build && LOCAL_POD_SERVER=jss E2E_LOCAL=1 E2E_BENCH=1 npx playwright test --project=bench && deno run -A --node-modules-dir=auto test/bench/plots.ts",
+    "bench:ui:css": "VITE_OIDC_CLIENT_ID= deno task build && LOCAL_POD_SERVER=css E2E_LOCAL=1 E2E_BENCH=1 npx playwright test --project=bench && deno run -A --node-modules-dir=auto test/bench/plots.ts",
     "bench:plot": "deno run -A test/bench/plots.ts",
+    "explore": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/explore.ts",
     "handbuch": "bash docs/build-handbuch.sh",
     "handbuch:figures": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 npx playwright test --project=support",
     "handbuch:full": "deno task handbuch:figures && deno task handbuch"

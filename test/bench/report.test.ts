@@ -51,17 +51,29 @@ Deno.test("gnuplotScript: pngcairo terminal, output name, one plot per series", 
   assert.equal((gp.match(/buildings\.dat/g) ?? []).length, 2);
 });
 
-Deno.test("benchRunId: local date by default, BENCH_RUN_ID overrides", () => {
-  const before = Deno.env.get("BENCH_RUN_ID");
+Deno.test("benchRunId: ISO-second UTC timestamp; E2E_RUN_ID, then BENCH_RUN_ID override", () => {
+  const beforeBench = Deno.env.get("BENCH_RUN_ID");
+  const beforeE2e = Deno.env.get("E2E_RUN_ID");
   try {
     Deno.env.delete("BENCH_RUN_ID");
-    // 2026-06-09 local time (month is 0-based) — zero-padded YYYY-MM-DD.
-    assert.equal(benchRunId(new Date(2026, 5, 9, 14, 30)), "2026-06-09");
-    Deno.env.set("BENCH_RUN_ID", "2026-06-11-jss");
-    assert.equal(benchRunId(new Date(2026, 5, 9)), "2026-06-11-jss");
+    Deno.env.delete("E2E_RUN_ID");
+    // Same format as the e2e RUN_ID: second resolution, milliseconds dropped.
+    assert.equal(
+      benchRunId(new Date("2026-06-09T14:30:05.123Z")),
+      "2026-06-09T14:30:05Z",
+    );
+    // Under Playwright the config-stamped E2E_RUN_ID wins, so both bench specs
+    // (separate worker processes) land in one run directory.
+    Deno.env.set("E2E_RUN_ID", "2026-06-11T09:52:14Z");
+    assert.equal(benchRunId(new Date("2026-06-09T14:30:05Z")), "2026-06-11T09:52:14Z");
+    // An explicit BENCH_RUN_ID label beats both.
+    Deno.env.set("BENCH_RUN_ID", "paper-run-jss");
+    assert.equal(benchRunId(new Date("2026-06-09T14:30:05Z")), "paper-run-jss");
   } finally {
-    if (before === undefined) Deno.env.delete("BENCH_RUN_ID");
-    else Deno.env.set("BENCH_RUN_ID", before);
+    if (beforeBench === undefined) Deno.env.delete("BENCH_RUN_ID");
+    else Deno.env.set("BENCH_RUN_ID", beforeBench);
+    if (beforeE2e === undefined) Deno.env.delete("E2E_RUN_ID");
+    else Deno.env.set("E2E_RUN_ID", beforeE2e);
   }
 });
 

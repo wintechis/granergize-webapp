@@ -21,12 +21,12 @@ import { resolve } from "node:path";
 import { benchRunId } from "./runId.ts";
 
 /**
- * Root under which each run gets its own dated directory — under the repo's
- * `test-results/`, beside the e2e scopes (`tier-3-css/<run>`, `bench-css/<run>`
- * traces, …), so ALL run artifacts live in one tree. One scope for the figures
- * (no `-css`/`-jss` split): a run's figures span the Tier-2 runner and the
- * Tier-3 specs, and a server comparison is told apart by its run id instead
- * (`BENCH_RUN_ID=2026-06-11-jss`).
+ * Root under which each run gets its own timestamped directory — under the
+ * repo's `test-results/`, beside the e2e scopes (`tier-3-css/<run>`,
+ * `bench-css/<run>` traces, …), so ALL run artifacts live in one tree. One
+ * scope for the figures (no `-css`/`-jss` split): each invocation (`bench`,
+ * `bench:ui`) is its own run directory, told apart — and sorted — by its
+ * timestamp id (see runId.ts).
  */
 export const RESULTS_ROOT = resolve(`${import.meta.dirname}/../../test-results/bench`);
 
