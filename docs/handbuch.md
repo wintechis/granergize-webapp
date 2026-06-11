@@ -31,7 +31,7 @@ urlcolor: "blue"
 # Was dieses Praxishandbuch leistet und für wen es gedacht ist
 
 Dieses Praxishandbuch bietet eine anwendungsorientierte Einführung in die
-Konzeption und Nutzung von Granergize – einer Anwendung, die einen
+Konzeption und Nutzung der Granergize-App – einer Webanwendung, die einen
 Wissensgraphen für Energieverbrauchsdaten von Logistikimmobilien nutzbar macht.
 Ziel ist es, heterogene Datenquellen zu integrieren, semantisch zu
 harmonisieren und für Analyse-, Benchmarking- und Entscheidungsprozesse nutzbar
@@ -140,7 +140,7 @@ Wetterdaten benötigt, um äußere Einflüsse zu berücksichtigen. Besonders rel
 für Nutzer, Gebäudetechnikausstatter, Investoren, Facility Manager und
 Projektentwickler.
 
-Granergize unterstützt diesen Anwendungsfall direkt: Zu jedem Gebäude und Jahr
+Die Granergize-App unterstützt diesen Anwendungsfall direkt: Zu jedem Gebäude und Jahr
 können neben den Ist-Werten auch geplante (Soll-)Werte erfasst und in der
 Energieansicht nebeneinander dargestellt werden (siehe Abschnitt „Energiedaten
 erfassen und aktualisieren").
@@ -163,11 +163,11 @@ aggregierte Verbrauchsdaten sowie allgemeine Objektdaten benötigt.
 
 ## Daten sicher steuern und teilen
 
-Granergize ist eine moderne Webanwendung, die Ihnen hilft,
+Die Granergize-App ist eine moderne Webanwendung, die Ihnen hilft,
 Energieverbrauchsdaten Ihrer Logistikimmobilien zu verwalten und mit anderen
-Akteuren zu teilen. Was Granergize besonders macht: Sie behalten die volle
+Akteuren zu teilen. Was die App besonders macht: Sie behalten die volle
 Kontrolle über Ihre Daten. Im Gegensatz zu herkömmlichen Cloud-Plattformen, bei
-denen Ihre Daten auf fremden Servern liegen, speichert Granergize **nichts
+denen Ihre Daten auf fremden Servern liegen, speichert die Granergize-App **nichts
 zentral**.
 
 Die Anwendung läuft komplett in Ihrem Webbrowser – Sie benötigen keine
@@ -184,7 +184,7 @@ vertrauen müssten.
 
 ### Architektur im Überblick
 
-Granergize läuft in Ihrem Browser und ruft Ihre Daten aus Ihrem persönlichen
+Die Granergize-App läuft in Ihrem Browser und ruft Ihre Daten aus Ihrem persönlichen
 Solid Pod ab. Möchten Sie mit Kollegen zusammenarbeiten, geben Sie diesen gezielt
 Zugriff auf bestimmte Teile Ihres Pods – die Daten bleiben aber immer in Ihrem
 Besitz. Wenn Sie sich anmelden, verbindet sich die Anwendung über eine sichere
@@ -199,7 +199,7 @@ den jemand anderes kontrolliert.
 ## Datenschutz und sicherer Umgang mit sensiblen Daten
 
 Energieverbrauchsdaten von Logistikimmobilien sind sensible Geschäftsdaten.
-Granergize setzt deshalb auf Datensouveränität: Über Solid verbleiben die Daten
+Die Granergize-App setzt deshalb auf Datensouveränität: Über Solid verbleiben die Daten
 im persönlichen Datenspeicher (Solid Pod) des jeweiligen Akteurs. Die Anwendung
 hält selbst keine Daten vor, sondern greift erst nach Anmeldung und
 ausdrücklicher Einwilligung zu. Wer welche Daten sehen darf, regelt der
@@ -217,13 +217,14 @@ Infrastruktur zu betreiben, etwa bei einem Hoster mit Standort in Deutschland
 bzw. der EU (z. B. Hetzner) oder auf eigener Infrastruktur, um Datenschutz und
 DSGVO-Konformität sicherzustellen. Das Souveränitäts- und Zugriffsmodell bleibt
 dabei unverändert, und die Anwendung muss dafür nicht angepasst werden, da sie
-unabhängig vom Pod-Anbieter arbeitet.
+unabhängig vom Pod-Anbieter arbeitet. Wie Sie einen solchen Server selbst
+aufsetzen, beschreibt der Abschnitt „Einen eigenen Solid-Server betreiben".
 
-# Granergize in der Praxis nutzen
+# Die Granergize-App in der Praxis nutzen
 
 ## Voraussetzungen
 
-Um Granergize zu nutzen, benötigen Sie lediglich einen aktuellen Webbrowser und
+Um die Granergize-App zu nutzen, benötigen Sie lediglich einen aktuellen Webbrowser und
 eine Internetverbindung. Die meisten modernen Browser, die sich automatisch
 aktualisieren, erfüllen alle technischen Voraussetzungen. Dazu gehören Google
 Chrome, Microsoft Edge, Mozilla Firefox und Safari.
@@ -248,12 +249,13 @@ Jahresverbrauchsdaten genügen wenige Kilobyte.
 
 ## Solid Pod einrichten
 
-Bevor Sie Granergize nutzen können, benötigen Sie einen Solid Pod. Einen Pod
+Bevor Sie die Granergize-App nutzen können, benötigen Sie einen Solid Pod. Einen Pod
 einzurichten ist einfach und kostenlos. Für den Einstieg empfehlen wir
 [solidcommunity.net](https://solidcommunity.net/) – einen öffentlich
 zugänglichen, kostenlosen Service. Später können Sie bei Bedarf einen eigenen
-Solid-Server betreiben oder auf einen kommerziellen Anbieter umsteigen (siehe
-Abschnitt „Datenschutz").
+Solid-Server betreiben (siehe Abschnitt „Einen eigenen Solid-Server betreiben")
+oder auf einen kommerziellen Anbieter umsteigen; die Hintergründe erläutert der
+Abschnitt „Datenschutz".
 
 So erstellen Sie Ihren Solid Pod bei solidcommunity.net:
 
@@ -267,32 +269,125 @@ So erstellen Sie Ihren Solid Pod bei solidcommunity.net:
    `https://maxmustermann.solidcommunity.net/profile/card#me`. Diese WebID ist
    wie eine digitale Ausweisnummer.
 
+Ein Dienst wie solidcommunity.net übernimmt dabei zwei getrennte Rollen: Er ist
+Ihr **Identity Provider** – er verwaltet Ihre WebID und bestätigt beim Anmelden,
+dass Sie deren Inhaber sind – und zugleich Ihr **Speicheranbieter**, der Ihren
+Pod beherbergt. Diese Rollen müssen nicht beim selben Anbieter liegen: Ihr
+WebID-Profil verweist auf Ihren Speicherort, sodass Ihre Identität nicht an
+einen bestimmten Datenspeicher gebunden ist. In diesem Handbuch gehen wir vom
+üblichen Fall aus, dass beides aus einer Hand kommt.
+
 **Wichtig:** Notieren Sie sich Ihre WebID. Sie benötigen sie jedes Mal, wenn Sie
 sich anmelden, und Sie geben sie an Geschäftspartner weiter, wenn diese Daten mit
 Ihnen teilen möchten.
 
 **Die Struktur Ihres Pods:** Ihr Pod enthält u. a. einen Ordner `profile/` mit
 Ihrem öffentlichen Profil sowie einen Posteingang (`inbox/`) für
-Benachrichtigungen, wenn andere Daten mit Ihnen teilen möchten. Granergize legt
+Benachrichtigungen, wenn andere Daten mit Ihnen teilen möchten. Die Granergize-App legt
 seine eigene Unterstruktur (`granergize/`), in der alle Gebäude-, Energie- und
 Freigabedaten organisiert abgelegt werden, automatisch an, sobald Sie das erste
 Mal Daten speichern. Um diese Struktur müssen Sie sich nicht kümmern – die
 Anwendung übernimmt das für Sie.
 
-## Erste Anmeldung in der Granergize-Anwendung
+## Einen eigenen Solid-Server betreiben (für Administratoren)
 
-Nachdem Sie Ihren Solid Pod eingerichtet haben, können Sie sich bei Granergize
-anmelden. Die Anwendung ist über Ihren Webbrowser zugänglich – Sie müssen nichts
+Für die Funktionserprobung genügt ein öffentlicher Dienst wie
+solidcommunity.net. Sobald reale, sensible Daten ins Spiel kommen, sollten die
+Pods dagegen auf Infrastruktur liegen, die Sie selbst kontrollieren (siehe
+Abschnitt „Datenschutz"). Da die Granergize-App unabhängig vom Pod-Anbieter arbeitet,
+brauchen Sie dafür nur einen spezifikationskonformen Solid-Server – an der
+Anwendung selbst ändert sich nichts, und auch die Bedienung bleibt identisch:
+Bei der Anmeldung geben Sie statt solidcommunity.net einfach die Adresse Ihres
+eigenen Servers als Identity Provider ein. Ein so betriebener Server übernimmt
+– wie solidcommunity.net – beide Rollen zugleich: Er ist Identity Provider und
+Speicheranbieter für die Pods, die auf ihm liegen (siehe Abschnitt „Solid Pod
+einrichten").
+
+Wir empfehlen den [Community Solid
+Server](https://communitysolidserver.github.io/CommunitySolidServer/) (CSS) –
+eine quelloffene, frei verfügbare Server-Implementierung, die vom
+Solid-Projekt gepflegt wird. Die Granergize-App wird fortlaufend automatisiert gegen
+den Community Solid Server (Version 7) getestet, von der Datenschicht bis zur
+Browser-Oberfläche; diese Kombination ist damit gut abgesichert.
+
+**Ausprobieren auf dem eigenen Rechner:** Sie benötigen lediglich
+[Node.js](https://nodejs.org/) (Version 18 oder neuer). Ein einziger Befehl
+startet den Server:
+
+```
+npx @solid/community-server@7 -p 3000 -b http://localhost:3000/ -f ./solid-daten
+```
+
+Die drei Optionen bedeuten:
+
+- `-p` – der Port, auf dem der Server erreichbar ist.
+- `-b` – die Basis-Adresse des Servers. Sie wird Bestandteil aller WebIDs und
+  Pod-Adressen, die auf diesem Server entstehen.
+- `-f` – das Verzeichnis, in dem die Daten als Dateien abgelegt werden. Ohne
+  diese Option hält der Server alle Daten nur im Arbeitsspeicher – nach einem
+  Neustart wäre alles verloren.
+
+Öffnen Sie anschließend `http://localhost:3000/` im Browser, legen Sie dort ein
+Konto und einen Pod an (der Ablauf entspricht dem im Abschnitt „Solid Pod
+einrichten" beschriebenen), und melden Sie sich in der Granergize-App mit
+`http://localhost:3000` als Identity Provider an.
+
+**Produktiver Betrieb:** Für den Dauerbetrieb auf einem eigenen Server kommen
+einige Punkte hinzu:
+
+- **Verschlüsselung (HTTPS):** Betreiben Sie den Server hinter einem Reverse
+  Proxy (z. B. nginx oder Caddy), der TLS-Zertifikate bereitstellt. Browser
+  lassen die Solid-Anmeldung außerhalb des eigenen Rechners nur über
+  verschlüsselte Verbindungen zu. Die Option `-b` muss dabei auf die
+  öffentliche `https://`-Adresse zeigen.
+- **Basis-Adresse mit Bedacht wählen:** Wie der Pod-Name ist auch die
+  Server-Adresse später nur schwer zu ändern – sie steckt in jeder WebID und
+  in allen gespeicherten Verweisen. Wählen Sie also von Anfang an die
+  endgültige Domain.
+- **Als Dienst betreiben:** Richten Sie den Server als Systemdienst (z. B.
+  systemd) ein oder nutzen Sie das offizielle Docker-Image
+  `solidproject/community-server`; in beiden Fällen geben Sie dieselben
+  Optionen `-b` und `-f` an.
+- **Datensicherung:** Das mit `-f` gewählte Verzeichnis enthält alle Pods als
+  gewöhnliche Dateien. Eine regelmäßige Sicherung dieses Verzeichnisses
+  genügt als Backup.
+- **Benutzerverwaltung:** Neue Nutzer registrieren sich selbst über die
+  Startseite des Servers. Alternativ können Sie Konten und Pods beim
+  Serverstart über die Option `--seedConfig` (eine JSON-Datei mit
+  Kontenliste) vorab anlegen.
+
+**Auch die Anwendung selbst können Sie betreiben:** Die Granergize-App
+ist quelloffen
+(siehe Abschnitt „Was steckt hinter Granergize"); der Quellcode liegt auf GitHub
+unter
+[github.com/wintechis/granergize-webapp](https://github.com/wintechis/granergize-webapp).
+Die Anwendung läuft vollständig im Browser und hat kein eigenes Backend:
+`deno task build` erzeugt einen statischen Build (`dist/`), den jeder
+gewöhnliche Webserver ausliefern kann – etwa derselbe Reverse Proxy, hinter dem
+Ihr Solid-Server läuft. Damit liegen alle drei Bausteine – Identität, Speicher
+und Anwendung – auf Infrastruktur, die Sie selbst kontrollieren.
+
+> **Hinweis:** Auch andere spezifikationskonforme Solid-Server und
+> kommerzielle Anbieter funktionieren mit der Granergize-App – sie ist an
+> keinen Anbieter gebunden. Der Community Solid Server ist lediglich die vom
+> Projekt am intensivsten erprobte Variante.
+
+## Erste Anmeldung in der Granergize-App
+
+Nachdem Sie Ihren Solid Pod eingerichtet haben, können Sie sich bei der
+Granergize-App anmelden. Die Anwendung ist über Ihren Webbrowser zugänglich – Sie müssen nichts
 installieren.
 
-1. Öffnen Sie die Granergize-Webanwendung in Ihrem Browser. Auf der Startseite
+1. Öffnen Sie die Granergize-App in Ihrem Browser. Auf der Startseite
    sehen Sie eine kurze Erklärung der Anwendung und einen „Login"-Button.
-2. Wählen Sie Ihren Identity Provider – den Dienst, bei dem Ihr Solid Pod liegt.
-   Wenn Sie Ihren Pod bei solidcommunity.net erstellt haben, wählen Sie diesen
+2. Wählen Sie Ihren Identity Provider – den Dienst, der Ihre WebID verwaltet
+   und beim Anmelden bestätigt, dass Sie deren Inhaber sind (in der Regel
+   derselbe Dienst, bei dem auch Ihr Pod liegt). Wenn Sie Ihren Pod bei
+   solidcommunity.net erstellt haben, wählen Sie diesen
    aus der Liste oder geben Sie die Adresse `solidcommunity.net` ein.
    Alternativ können Sie auch Ihre vollständige WebID eingeben.
-3. Melden Sie sich beim Anbieter an und **bestätigen** Sie, dass Granergize
-   Zugriff auf Ihren Pod erhalten darf. Ohne diese Berechtigung kann die
+3. Melden Sie sich beim Identity Provider an und **bestätigen** Sie, dass die
+   Granergize-App Zugriff auf Ihren Pod erhalten darf. Ohne diese Berechtigung kann die
    Anwendung nicht auf Ihre Daten zugreifen oder neue Gebäude speichern. Sie
    können die Berechtigung jederzeit in den Einstellungen Ihres Pods widerrufen.
 
@@ -305,7 +400,7 @@ installieren.
 
 **Was beim ersten Start passiert:** Bei der ersten Anmeldung ist Ihr Dashboard
 zunächst leer – es werden keine Daten vorausgesetzt und nichts im Voraus
-angelegt. Für einen schnellen Einstieg bietet Ihnen Granergize an, **fünf
+angelegt. Für einen schnellen Einstieg bietet Ihnen die Granergize-App an, **fünf
 beispielhafte Demo-Gebäude** hinzuzufügen („Add examples"); diesen Hinweis
 können Sie auch ausblenden. Er erscheint nur, solange Sie weder eigene noch
 mit Ihnen geteilte Gebäude haben; schlägt das Anlegen einzelner Beispiele fehl
@@ -350,17 +445,25 @@ Das Firmenlogo erscheint anschließend als Markierung Ihrer Gebäude auf der Kar
 gegenüber Geschäftspartnern.
 
 > **Hinweis:** Ihr persönlicher **Anzeigename** und Ihr Profilbild stammen aus
-> Ihrem Solid-WebID-Profil (über Ihren Pod-Anbieter gepflegt), nicht aus diesem
-> Dialog. Ist dort ein Name hinterlegt, erscheint er überall dort, wo Granergize
-> Sie als Person ausweist – etwa als Absender einer Freigabe.
+> Ihrem Solid-WebID-Profil (Teil Ihrer Identität, gepflegt bei Ihrem Identity
+> Provider), nicht aus diesem
+> Dialog. Ist dort ein Name hinterlegt, erscheint er überall dort, wo die
+> Granergize-App Sie als Person ausweist – etwa als Absender einer Freigabe.
 
-## Wie Granergize Gebäudedaten organisiert und sicher freigibt
+## Wie die Granergize-App Gebäudedaten organisiert und sicher freigibt
 
 Sie haben die volle Kontrolle darüber, wer welche Ihrer Gebäudedaten sehen darf.
-Granergize baut auf dem Solid-Prinzip auf, das eine klare Trennung vorsieht: Ihre
+Die Granergize-App baut auf dem Solid-Prinzip auf, das eine klare Trennung vorsieht: Ihre
 Identität, Ihre Daten und die Anwendungen, die darauf zugreifen, sind voneinander
-unabhängig. Das bedeutet konkret: Ihre Energiedaten gehören Ihnen und liegen auf
-Ihrem eigenen Solid Pod – nicht auf einem Server, den andere kontrollieren.
+unabhängig. Das bedeutet konkret: Ihre **Identität** ist Ihre WebID samt Profil –
+sie weist Sie aus, unabhängig davon, wo Ihre Daten liegen. Ihre **Daten** gehören
+Ihnen und liegen auf Ihrem eigenen Solid Pod – nicht auf einem Server, den andere
+kontrollieren. Und die **Anwendung** ist austauschbar: die Granergize-App ist eine von
+beliebig vielen Anwendungen, die – jeweils nur mit Ihrer Erlaubnis – auf dieselben
+Daten zugreifen können; keiner der drei Bausteine bindet Sie an die anderen.
+Die Anwendung selbst ist quelloffen und kann wie Identität und Speicher auf
+eigener Infrastruktur betrieben werden (siehe Abschnitt „Was steckt hinter
+Granergize").
 
 ### Zugriffskontrolle über Web Access Control (WAC)
 
@@ -368,7 +471,7 @@ Wenn Sie eine Datei mit einem Kollegen teilen möchten – zum Beispiel ein
 Energiezertifikat im PDF-Format oder die Verbrauchsdaten eines Gebäudes – legen
 Sie fest, welche Rechte diese Person erhält: nur lesen oder auch ändern. Diese
 Berechtigungen werden technisch über Zugriffskontroll-Dateien (Access Control
-Lists, ACL) geregelt, die Granergize automatisch im Hintergrund erstellt, wenn
+Lists, ACL) geregelt, die die App automatisch im Hintergrund erstellt, wenn
 Sie auf „Teilen" klicken.
 
 Stellen Sie sich das wie ein digitales Dokumentenmanagementsystem vor: Jede Datei
@@ -404,13 +507,13 @@ Kernvorteil des Solid-Ansatzes.
 
 ### Die strukturierte Datenbasis
 
-Granergize speichert Ihre Gebäude- und Energiedaten in einer strukturierten Form,
+Die Granergize-App speichert Ihre Gebäude- und Energiedaten in einer strukturierten Form,
 die mehrere Vorteile bietet. Das System nutzt ein Datenmodell, das auf
 internationalen Standards basiert – dadurch können Daten aus verschiedenen
 Quellen problemlos zusammengeführt werden, und andere Anwendungen können Ihre
 Daten ebenfalls lesen, falls Sie das wünschen.
 
-Granergize trennt grundsätzlich zwei Arten von Informationen: **statische
+Die App trennt grundsätzlich zwei Arten von Informationen: **statische
 Metadaten** (Adresse, Baujahr, Fläche, Nutzungsart) und **Energiemessdaten**
 (Strom-, Gas-, Wärme- und Wasserverbrauch pro Jahr). Diese Trennung ist
 entscheidend: Die Metadaten eines Gebäudes – wo es steht, wie groß es ist, ob
@@ -419,7 +522,7 @@ dass dieser die sensiblen Verbrauchswerte sieht. Umgekehrt können Sie jemandem
 Zugriff auf die Energiedaten eines bestimmten Jahres geben, ohne ältere Jahre
 freizugeben.
 
-Für jedes Gebäude erstellt Granergize eine Hauptdatei mit allen Stammdaten
+Für jedes Gebäude erstellt die App eine Hauptdatei mit allen Stammdaten
 (geografische Koordinaten für die Karte, Adresse, Flächen, Baujahr, Information
 über vorhandene Photovoltaik-Anlagen). Diese Datei verweist auf separate
 Energiedateien – für jedes Jahr eine eigene Datei. Jede dieser Dateien kann
@@ -431,7 +534,7 @@ bestimmten Jahres oder alles.
 
 ### Verknüpfung mit externem Wissen
 
-Ein weiterer Vorteil der strukturierten Datenbasis: Granergize kann Ihre
+Ein weiterer Vorteil der strukturierten Datenbasis: die App kann Ihre
 Gebäudedaten mit externen Informationsquellen verknüpfen. So lassen sich etwa
 Wetterdaten für eine Region heranziehen, um äußere Einflüsse auf den
 Energieverbrauch (z. B. über Heizgradtage) einzuordnen, oder internationale
@@ -645,7 +748,7 @@ Gebäudedaten, aggregierte Ansichten oder rollenbasierte Freigaben nutzen. Die
 Wahl der richtigen Freigabe-Option hängt davon ab, mit wem Sie teilen und wie
 viel Vertrauen Sie dieser Person entgegenbringen.
 
-![Vergleich der drei Freigabemechanismen in Granergize](figures/sharing-vergleich.png){width=90%}
+![Vergleich der drei Freigabemechanismen in der Granergize-App](figures/sharing-vergleich.png){width=90%}
 
 ### Individuelle Gebäudedaten teilen
 
@@ -672,11 +775,11 @@ Umfang Sie freigeben:
 Manchmal möchten Sie Informationen teilen, ohne dass der Empfänger Details über
 einzelne Gebäude sieht. Zum Beispiel möchte ein Investor wissen, wie effizient
 ein Gesamt-Portfolio ist, muss aber nicht wissen, welches spezifische Gebäude wie
-viel verbraucht. Für solche Fälle bietet Granergize **aggregierte Ansichten**
+viel verbraucht. Für solche Fälle bietet die Granergize-App **aggregierte Ansichten**
 („Views") an: eine Zusammenfassung mehrerer Gebäude. Was der Empfänger erhält,
 ist nur diese Zusammenfassung – er sieht nicht, welche Gebäude dahinterstecken.
 
-Granergize bietet vier Aggregationsfunktionen:
+Die App bietet vier Aggregationsfunktionen:
 
 - **Durchschnitt (average):** Mittelwert über alle ausgewählten Gebäude.
 - **Summe (sum):** addiert alle Werte.
@@ -691,7 +794,7 @@ Investor benötigt grobe Jahreszahlen, ein Energiemanager hingegen hochauflösen
 Mitgliedern eines Datenraums, die eine bestimmte Rolle innehaben – die Auswahl
 der Empfänger ergibt sich aus der Rolle.
 
-Granergize kennt acht Rollen, die Sie sich im Datenraum zuweisen können (die
+Die Granergize-App kennt acht Rollen, die Sie sich im Datenraum zuweisen können (die
 Auswahl „My role(s)" zeigt sie mit ihren englischen Bezeichnungen):
 
 - **Investor** – Investoren und Bestandshalter
@@ -735,7 +838,7 @@ der Liste:
 
 Ebenfalls im Tab **Connect** führen Sie unter „Contacts" ein persönliches
 Adressbuch Ihrer Geschäftspartner – jeder Eintrag ist eine WebID, zu der
-Granergize automatisch den hinterlegten Namen und das Profilbild auflöst.
+die App automatisch den hinterlegten Namen und das Profilbild auflöst.
 Geschäftspartner, mit denen Sie Daten teilen, werden hier automatisch gemerkt;
 zusätzlich können Sie eine WebID von Hand eintragen und mit „Add" hinzufügen oder
 einen Eintrag über das Lösch-Symbol wieder entfernen. Ihre Kontakte erscheinen
@@ -763,7 +866,7 @@ Löschen (siehe Abschnitt „Gebäude bearbeiten, Dateien verwalten und löschen
 
 > **Technische Details (für Administratoren)**
 >
-> Im Hintergrund setzt Granergize die ACL-Berechtigung für die Gebäudedatei
+> Im Hintergrund setzt die App die ACL-Berechtigung für die Gebäudedatei
 > (und, falls Energiedaten geteilt werden, für die betreffenden Energiedateien),
 > sendet eine Access-Grant-Benachrichtigung an den Posteingang (`inbox/`) des
 > Empfängers und vermerkt die Freigabe im eigenen Pod. Der Empfänger verarbeitet
@@ -771,7 +874,7 @@ Löschen (siehe Abschnitt „Gebäude bearbeiten, Dateien verwalten und löschen
 >
 > Maßgeblich ist dabei das im eigenen Pod geführte Freigabeprotokoll
 > (`shared-out/`); die ACL-Dateien sind eine daraus abgeleitete Projektion.
-> Nach dem Speichern eines neuen Energiejahres gleicht Granergize die
+> Nach dem Speichern eines neuen Energiejahres gleicht die App die
 > Berechtigungen automatisch mit den bestehenden Freigaben ab: Eine
 > „alle Jahre"-Freigabe erhält Zugriff auf die neue Energiedatei, eine
 > jahresbezogene Freigabe nicht. Da das Protokoll alle Freigabedimensionen
@@ -859,13 +962,23 @@ sowohl unternehmensintern als auch -übergreifend bereitgestellt werden können.
 Die entwickelte Webanwendung dient dabei als zentrale Benutzeroberfläche für den
 Zugriff auf die im Wissensgraphen verwalteten Daten.
 
-Granergize ist ein Projekt der Industriellen Gemeinschaftsforschung (IGF) und
-wird durch das Bundesministerium für Wirtschaft und Energie (BMWE) gefördert
+Das Forschungsprojekt ist ein Vorhaben der Industriellen Gemeinschaftsforschung
+(IGF) und wird durch das Bundesministerium für Wirtschaft und Energie (BMWE) gefördert
 (Förderkennzeichen 01IF23286N). Das Projekt läuft von April 2024 bis Juni 2026
 und wird gemeinsam von Partnern aus Wissenschaft und Wirtschaft umgesetzt –
 beteiligt sind das Fraunhofer IIS, die Friedrich-Alexander-Universität
 Erlangen-Nürnberg sowie einzelne Praxispartner aus dem
 Logistikimmobilienökosystem.
+
+Die Granergize-App ist **quelloffen**: Der Quellcode steht unter der GNU Affero
+General Public License, Version 3 (AGPL-3.0) auf GitHub zur Verfügung –
+[github.com/wintechis/granergize-webapp](https://github.com/wintechis/granergize-webapp).
+Die Lizenz erlaubt es jedem, die Anwendung frei zu nutzen, den Quellcode zu
+prüfen, sie anzupassen und selbst zu betreiben (siehe Abschnitt „Einen eigenen
+Solid-Server betreiben"); wer eine veränderte Fassung als Dienst anbietet, muss
+deren Quellcode ebenfalls offenlegen. Für die Trennung von Identität, Daten und
+Anwendung heißt das: Auch der dritte Baustein ist überprüfbar und liegt nicht
+in der Hand eines einzelnen Anbieters.
 
 # Literaturverzeichnis
 
