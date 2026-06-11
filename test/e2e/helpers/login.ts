@@ -26,7 +26,12 @@ const E2E_THROTTLE_MS = Number(ENV?.E2E_THROTTLE_MS) || 0;
 // is what keeps the bench substrates trustworthy.
 let resetForFile: string | undefined;
 let resetInFlight: Promise<unknown> | undefined;
-async function resetLocalPodsOnce(): Promise<void> {
+/**
+ * Exported for specs that SEED before their first login (login-settle): the
+ * lazy first-login reset would wipe that seed, so they fire the reset
+ * explicitly in beforeAll — later login() calls then dedupe on the file key.
+ */
+export async function resetLocalPodsOnce(): Promise<void> {
   if (!E2E_LOCAL) return;
   const file = test.info().file;
   if (file !== resetForFile) {

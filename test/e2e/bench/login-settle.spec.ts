@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { account, login } from "../helpers/login.ts";
+import { account, login, resetLocalPodsOnce } from "../helpers/login.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { sweepSizes, writeBenchDat } from "./benchSpec.ts";
 
@@ -61,6 +61,13 @@ test.describe.configure({ mode: "serial" });
 
 test.describe("login-settle benchmark", () => {
   test.skip(!LOCAL, "Tier-3 render bench runs only on the local pod server (deno task bench:ui).");
+
+  test.beforeAll(async () => {
+    test.setTimeout(240_000);
+    // This spec SEEDS before its first login() — fire the per-spec-file reset
+    // now, or the first login would lazily reset the server and wipe the seed.
+    await resetLocalPodsOnce();
+  });
 
   test("time from OIDC return to usable and to settled across shared-in sizes", async ({ browser }) => {
     const SIZES = sweepSizes("BENCH_SHARED_SIZES", [10, 20, 30, 40, 50, 60, 70, 80, 90, 100]);

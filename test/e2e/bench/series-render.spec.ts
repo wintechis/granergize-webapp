@@ -29,8 +29,15 @@ const LOCAL = !!process.env.E2E_LOCAL;
 const CONTROL = `http://localhost:${LOCAL_CSS_CONTROL_PORT}`;
 // Constant shared-buildings background, so D is the only moving axis.
 const N_SHARED = 20;
-// The seeded series building's id (`bench-0` is the series-only click target).
-const SERIES_ID = "bench-0";
+// The app folds a NON-NUMERIC building fragment into a numeric id
+// (buildingParser.ts: the 31-multiplier string hash, unsigned) and the
+// /energy/:id route matches on THAT — replicate the fold to deep-link the
+// seeded series building (`bench-0`, the series-only click target).
+const routeId = (fragment: string): number =>
+  fragment
+    .split("")
+    .reduce((h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0, 0) >>> 0;
+const SERIES_ID = routeId("bench-0");
 
 const ACC = account("A");
 
@@ -67,6 +74,9 @@ test.describe("series-render benchmark", () => {
       // Cold navigation straight to the series building's energy view: loads
       // phase 1 (resolves the building), lists the series container (D
       // children), fetches the first day, renders the Day View chart.
+      // Via about:blank — a hash-only navigation from "/" would NOT reload the
+      // document, leaving the app on its stale in-memory (pre-seed) data.
+      await page.goto("about:blank");
       let t0 = Date.now();
       await page.goto(`/#/energy/${SERIES_ID}`);
       await expect(page.locator(".recharts-wrapper").first())
