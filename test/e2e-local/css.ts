@@ -17,11 +17,20 @@
 import { type LocalPod, startLocalPod } from "../headless/localPod.ts";
 import { LOCAL_CSS_CONTROL_PORT, LOCAL_CSS_PORT } from "../config/localSeed.ts";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { podResources, resolveStorageRoot } from "../../src/services/pod/solidUtils.ts";
-import { createRoom } from "../../src/services/interop/dataRoom.ts";
 import {
+  appRoot,
+  podResources,
+  resolveStorageRoot,
+} from "../../src/services/pod/solidUtils.ts";
+import { createRoom } from "../../src/services/interop/dataRoom.ts";
+import { drainInbox, ensureOwnInbox } from "../../src/services/interop/inbox.ts";
+import { deleteContainerRecursive } from "../../src/services/pod/podDelete.ts";
+import {
+  type BenchActor,
   seedBuildings,
   seedRoomMembers,
+  setupShareRoom,
+  shareBuildingsViaRoom,
   wipeBuildings,
   wipeRooms,
 } from "../bench/seed.ts";
@@ -159,6 +168,81 @@ async function seedRoomPodA(n: number): Promise<void> {
   }
 }
 
+// One live actor session per slot for the multi-actor seeding below. Disposed by
+// the caller; storage root pre-resolved so the data-layer path builders work.
+async function actorSession(
+  slot: "A" | "B" | "C",
+): Promise<{ live: Awaited<ReturnType<LocalPod["liveSession"]>>; actor: BenchActor }> {
+  const live = await css.liveSession(slot);
+  const session = live as unknown as Session;
+  await resolveStorageRoot(session);
+  return { live, actor: { webId: css[slot].webId, session } };
+}
+
+// Seed the PAIR substrate for the Tier-3 share-render BENCHMARK: B owns N
+// buildings, ALL shared with A via a data room (the Tier-2 D3 scenario). Both
+// actors' app collections are wiped first so each size starts clean (stale
+// shared-in grants from a previous size would otherwise be pruned during A's
+// timed load and distort it). `drained` archives A's inbox into shared-in/
+// up front (steady-state recipient); undrained leaves the N notifications for
+// the app's login/reload drain (the first-visit cost the spec times).
+async function seedSharedPair(n: number, drained: boolean): Promise<void> {
+  const [a, b] = await Promise.all([actorSession("A"), actorSession("B")]);
+  try {
+    await Promise.all([
+      deleteContainerRecursive(appRoot(a.actor.webId), a.actor.session).catch(() => {}),
+      deleteContainerRecursive(appRoot(b.actor.webId), b.actor.session).catch(() => {}),
+    ]);
+    await ensureOwnInbox(a.actor.session);
+    const seeded = await seedBuildings(b.actor.session, b.actor.webId, n);
+    const room = await setupShareRoom(a.actor, b.actor);
+    await shareBuildingsViaRoom(b.actor, room, seeded);
+    if (drained) await drainInbox(a.actor.session);
+  } finally {
+    await a.live.dispose().catch(() => {});
+    await b.live.dispose().catch(() => {});
+  }
+}
+
+// Seed the TRIO substrate for the Tier-3 view-roundtrip BENCHMARK: B and C each
+// own N buildings WITH an annual energy dataset, all shared (energy included) to
+// A via a pair room each, and A's inbox drained — so A's browser can build a
+// benchmark view over the 2N contributed buildings and share it back.
+async function seedContribTrio(n: number): Promise<void> {
+  const [a, b, c] = await Promise.all([
+    actorSession("A"),
+    actorSession("B"),
+    actorSession("C"),
+  ]);
+  try {
+    await Promise.all(
+      [a, b, c].map((x) =>
+        deleteContainerRecursive(appRoot(x.actor.webId), x.actor.session).catch(() => {})
+      ),
+    );
+    // Re-provision EVERY actor's inbox: the wipe took them, and the share-back
+    // (A → B, C) posts each grant to the recipient's inbox — in the real flow
+    // they'd exist because each actor logged in once (ensureOwnInbox at login).
+    await Promise.all([a, b, c].map((x) => ensureOwnInbox(x.actor.session)));
+    for (const [contributor, prefix] of [[b, "bench-b"], [c, "bench-c"]] as const) {
+      const seeded = await seedBuildings(
+        contributor.actor.session,
+        contributor.actor.webId,
+        n,
+        prefix,
+        [2023],
+      );
+      const room = await setupShareRoom(a.actor, contributor.actor);
+      await shareBuildingsViaRoom(contributor.actor, room, seeded, "investor", {
+        includeEnergyData: true,
+      });
+    }
+    await drainInbox(a.actor.session);
+  } finally {
+    for (const x of [a, b, c]) await x.live.dispose().catch(() => {});
+  }
+}
+
 // Control server (separate port): POST /reset restarts CSS and replies once the
 // fresh instance is ready, so the caller can await a clean slate.
 Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
@@ -181,6 +265,27 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
     } catch (e) {
       console.error(`/seed-room failed: ${e}`);
       return new Response(`seed-room failed: ${e}\n`, { status: 500 });
+    }
+  }
+  if (req.method === "POST" && pathname === "/seed-shared") {
+    const n = Number(searchParams.get("n") ?? "0");
+    const drained = searchParams.get("drained") !== "0";
+    try {
+      await seedSharedPair(Number.isFinite(n) && n >= 0 ? n : 0, drained);
+      return new Response("ok\n");
+    } catch (e) {
+      console.error(`/seed-shared failed: ${e}`);
+      return new Response(`seed-shared failed: ${e}\n`, { status: 500 });
+    }
+  }
+  if (req.method === "POST" && pathname === "/seed-contrib") {
+    const n = Number(searchParams.get("n") ?? "0");
+    try {
+      await seedContribTrio(Number.isFinite(n) && n >= 0 ? n : 0);
+      return new Response("ok\n");
+    } catch (e) {
+      console.error(`/seed-contrib failed: ${e}`);
+      return new Response(`seed-contrib failed: ${e}\n`, { status: 500 });
     }
   }
   if (req.method === "POST" && pathname === "/reset") {

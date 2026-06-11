@@ -101,6 +101,42 @@ export const ALL_PLOTS: PlotSpec[] = [
       { col: 3, title: "per member (ms)", y2: true },
     ],
   },
+  {
+    // Tier-3 pair: recipient cold-load with N buildings shared in from B.
+    name: "share-render",
+    title: "Recipient time-to-render vs. number of shared-in buildings",
+    xlabel: "# buildings shared with A",
+    ylabel: "time to all N reflected (ms)",
+    series: [
+      { col: 2, title: "Share list (drained)" },
+      { col: 3, title: "map markers (drained)" },
+      { col: 4, title: "Share list incl. inbox drain (first visit)" },
+    ],
+  },
+  {
+    // Tier-3 pair: post-login settle time on a fresh context (usable = map
+    // painted; settled = network idle — incl. its constant 500 ms quiet window).
+    name: "login-settle",
+    title: "Time from OIDC return to usable / settled vs. shared-in buildings",
+    xlabel: "# buildings shared with A",
+    ylabel: "time after OIDC return (ms)",
+    series: [
+      { col: 2, title: "usable (map painted)" },
+      { col: 3, title: "settled (network idle)" },
+    ],
+  },
+  {
+    // Tier-3 trio: B + C contribute N buildings each; A computes + shares back.
+    name: "view-roundtrip",
+    title: "Benchmark-view roundtrip vs. contribution size (B+C → A → back)",
+    xlabel: "# buildings per contributor (2 contributors)",
+    ylabel: "time (ms)",
+    series: [
+      { col: 2, title: "create + compute view (A)" },
+      { col: 3, title: "share back to contributors (A)" },
+      { col: 4, title: "recipient sees view (B, after login)" },
+    ],
+  },
 ];
 
 /** True if `<name>.dat` exists in `dir` (so we only plot what was measured). */

@@ -91,12 +91,21 @@ deno task bench:plot    # re-render PNGs from existing .dat (after installing gn
   # owned), `series` (list+parse vs. # daily files), `shared` (share via a data
   room + drain + fold vs. # shared from B), `rooms` (room lifecycle vs. # members),
   `room-churn` (fold vs. # role events at fixed membership).
-- `bench:ui` builds + serves the prod app and times time-to-render of the Manage
-  building list (`manage-render`) and a data room's member list (`room-render`);
-  seeding goes through the control server (`POST /seed?n=` / `/seed-room?n=`,
-  Deno side). Uses the default `granergize/` collection, builds with
-  `VITE_OIDC_CLIENT_ID=` unset (so localhost login uses dynamic registration, not
-  the prod client-ID doc), and `--retries=2` to ride out the JWKS warmup race.
+- `bench:ui` builds + serves the prod app and times the browser end-to-end:
+  time-to-render of the Manage building list (`manage-render`) and a data room's
+  member list (`room-render`), the PAIR recipient-at-scale scenario
+  (`share-render`: B shared N buildings with A — Share list, map markers, and
+  the first-visit inbox drain), the post-login settle (`login-settle`: fresh
+  login → map usable → network idle, on the pair substrate), and the TRIO
+  benchmark roundtrip
+  (`view-roundtrip`: B + C contribute N buildings each; A computes a benchmark
+  view and shares it back; B sees it) — see `notes/plan-bench-pair-trio.md`.
+  Seeding goes through the control server (`POST /seed`, `/seed-room`,
+  `/seed-shared`, `/seed-contrib`; Deno side), sweeps via `BENCH_SIZES` /
+  `BENCH_ROOM_SIZES` / `BENCH_SHARED_SIZES` / `BENCH_CONTRIB_SIZES`. Uses the
+  default `granergize/` collection, builds with `VITE_OIDC_CLIENT_ID=` unset (so
+  localhost login uses dynamic registration, not the prod client-ID doc), and
+  `--retries=2` to ride out the JWKS warmup race.
 
 The buildings sweep defaults to `100,…,1000` (sized for JSS's sub-ms requests —
 expect minutes on CSS); the heavier-per-item dimensions default to `10,20,…,100`;
