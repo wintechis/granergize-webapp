@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url";
 import { account, login } from "../helpers/login.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { benchRunId } from "../../bench/runId.ts";
+import { recordSetup } from "../../bench/runSetup.ts";
 
 /**
  * Tier-3 scalability BENCHMARK (`deno task bench:ui`): end-to-end browser
@@ -104,5 +105,10 @@ test.describe("room-render benchmark", () => {
       .join("\n");
     writeFileSync(`${RESULTS_DIR}/room-render.dat`, `${header}\n${body}\n`);
     console.log(`wrote ${RESULTS_DIR}/room-render.dat`);
+    recordSetup(RESULTS_DIR, {
+      "pod server": process.env.LOCAL_POD_SERVER === "jss" ? "JSS" : "CSS",
+      "browser (Tier 3)": "Chromium cold load of the production build (vite preview)",
+      "room-render sweep (members)": SIZES.join(" "),
+    });
   });
 });

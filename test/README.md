@@ -71,7 +71,8 @@ Scalability suite beside the tiers — never gates. Sweeps a size axis, times th
 code paths, and draws gnuplot graphs (for the paper). Output → a per-run directory
 `test-results/bench/<run-id>/` (gitignored), beside the e2e scopes
 (`test-results/<scope>/<RUN_ID>`): `<name>.dat` + `<name>.gp` + `<name>.png` + an
-`index.html` showing all the run's figures. One scope for the figures (the per-backend
+`index.html` showing the run's setup (pod server, sweeps — recorded by each writer
+into `setup.json`, see `runSetup.ts`) and all its figures. One scope for the figures (the per-backend
 `bench-css/`/`bench-jss/` dirs hold the Playwright traces); each invocation (`bench`,
 `bench:ui`) is its own run directory, named by the same second-resolution ISO 8601 UTC
 timestamp the e2e RUN_ID uses (within a `bench:ui` run, the specs reuse Playwright's

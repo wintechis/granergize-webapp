@@ -247,11 +247,25 @@ const escapeHtml = (s: string): string =>
   s.replaceAll("&", "&amp;").replaceAll("<", "&lt;").replaceAll(">", "&gt;");
 
 /**
- * Build the self-contained `index.html` for one run directory: every measured
- * figure in catalog order, each PNG inline with a caption linking the raw `.dat`
- * (or, without gnuplot, a pointer to the `.dat` + `.gp` pair to render later).
+ * Build the self-contained `index.html` for one run directory: the run's setup
+ * (from `setup.json` — see runSetup.ts) and every measured figure in catalog
+ * order, each PNG inline with a caption linking the raw `.dat` (or, without
+ * gnuplot, a pointer to the `.dat` + `.gp` pair to render later).
  */
-export function indexHtml(runId: string, figures: IndexFigure[]): string {
+export function indexHtml(
+  runId: string,
+  figures: IndexFigure[],
+  setup: Record<string, string> = {},
+): string {
+  const setupEntries = Object.entries(setup);
+  const setupSection = setupEntries.length === 0 ? [] : [
+    `  <h2>Setup</h2>`,
+    `  <dl>`,
+    ...setupEntries.map(([k, v]) =>
+      `    <dt>${escapeHtml(k)}</dt><dd>${escapeHtml(v)}</dd>`
+    ),
+    `  </dl>`,
+  ];
   const body = figures.map((f) => {
     const dat = `<a href="${f.name}.dat">${f.name}.dat</a>`;
     const inner = f.png
@@ -272,10 +286,13 @@ export function indexHtml(runId: string, figures: IndexFigure[]): string {
     `    figure { margin: 2rem 0; }`,
     `    img { max-width: 100%; }`,
     `    figcaption { color: #555; margin-top: 0.25rem; }`,
+    `    dt { font-weight: 600; }`,
+    `    dd { margin: 0 0 0.5rem 0; }`,
     `  </style>`,
     `</head>`,
     `<body>`,
     `  <h1>Benchmark results — ${escapeHtml(runId)}</h1>`,
+    ...setupSection,
     ...body,
     `</body>`,
     `</html>`,
@@ -284,12 +301,19 @@ export function indexHtml(runId: string, figures: IndexFigure[]): string {
 
 /**
  * Write the run's `index.html` for the given plot specs (only those whose `.dat`
- * was measured), checking per spec whether the PNG actually rendered.
+ * was measured), checking per spec whether the PNG actually rendered and
+ * including the recorded setup (`setup.json`) when present.
  */
 export async function writeIndexHtml(
   dir: string,
   specs: Array<Pick<PlotSpec, "name" | "title">>,
 ): Promise<string> {
+  let setup: Record<string, string> = {};
+  try {
+    setup = JSON.parse(await Deno.readTextFile(`${dir}/setup.json`));
+  } catch {
+    // no setup recorded (e.g. a pre-setup.json run dir) — index goes without
+  }
   const figures: IndexFigure[] = [];
   for (const { name, title } of specs) {
     let png = false;
@@ -302,7 +326,10 @@ export async function writeIndexHtml(
     figures.push({ name, title, png });
   }
   const path = `${dir}/index.html`;
-  await Deno.writeTextFile(path, indexHtml(dir.split("/").pop() ?? dir, figures));
+  await Deno.writeTextFile(
+    path,
+    indexHtml(dir.split("/").pop() ?? dir, figures, setup),
+  );
   console.log(`  wrote ${path}`);
   return path;
 }
