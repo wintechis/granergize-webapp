@@ -761,15 +761,15 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   } finally {
     globalThis.fetch = realFetch;
   }
-  assert.deepEqual(tally, { seeded: 5, total: 5 }, "full seed reports 5/5");
+  assert.deepEqual(tally, { seeded: 4, total: 4 }, "full seed reports 4/4");
 
   // Two building files written (under granergize/buildings/, not the energy files).
   const buildingPuts = calls.filter((c) =>
     c.method === "PUT" &&
     /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
   );
-  // 3 investor + 2 user demo buildings.
-  assert.equal(buildingPuts.length, 5, "five demo buildings uploaded");
+  // 2 investor + 2 user demo buildings.
+  assert.equal(buildingPuts.length, 4, "four demo buildings uploaded");
 
   // Daily 15-minute reading files, inside a series container (one file per series
   // day; the two user demos carry multi-day series).
@@ -779,7 +779,7 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.ok(energyPuts.length >= 1, "15-min daily reading files uploaded");
 
   // Energy is NOT inline: each building links its datasets via cons:hasEnergyDataset.
-  // The two user demos link PT15M series; the three investor demos link P1Y
+  // The two user demos link PT15M series; the two investor demos link P1Y
   // annual — and the first user demo (Lange Gasse) carries BOTH shapes, the
   // constellation that surfaces the Annual | Time series toggle.
   const bodies = buildingPuts.map((c) => c.body ?? "");
@@ -792,8 +792,8 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.equal(
     bodies.filter((b) => b.includes("hasEnergyDataset") && b.includes("-P1Y"))
       .length,
-    4,
-    "four buildings link P1Y annual datasets (the investors + the both-shapes user demo)",
+    3,
+    "three buildings link P1Y annual datasets (the investors + the both-shapes user demo)",
   );
   assert.equal(
     bodies.filter((b) => b.includes("PT15M") && b.includes("-P1Y")).length,
@@ -812,12 +812,12 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
     "an annual dataset declares cons:ElectricityConsumption",
   );
 
-  // Self-operated demos (investor #1+#2 and both user demos) carry operatedBy =
+  // Self-operated demos (investor #1 and both user demos) carry operatedBy =
   // the seeding user's WebID — the shared operator group that makes the
-  // Betreiber benchmark show on the demo data. The cold store (demo #3) stays
+  // Betreiber benchmark show on the demo data. The cold store (demo #2) stays
   // outside the group, so the set also demonstrates a building WITHOUT it.
   const operated = bodies.filter((b) => b.includes("operatedBy"));
-  assert.equal(operated.length, 4, "four demo buildings are self-operated");
+  assert.equal(operated.length, 3, "three demo buildings are self-operated");
   assert.ok(
     operated.every((b) => b.includes(WEBID)),
     "operatedBy points at the seeding user's WebID",
@@ -919,15 +919,15 @@ Deno.test("seedDemoBuildings counts a failed building instead of throwing — an
     globalThis.fetch = realFetch;
   }
 
-  assert.deepEqual(tally, { seeded: 4, total: 5 }, "partial seed reports 4/5");
+  assert.deepEqual(tally, { seeded: 3, total: 4 }, "partial seed reports 3/4");
 
   // Commit-last: the failed demo never reaches its building-file PUT, so only the
-  // four healthy demos are discoverable (top-level *.ttl under buildings/).
+  // three healthy demos are discoverable (top-level *.ttl under buildings/).
   const buildingPuts = calls.filter((c) =>
     c.method === "PUT" &&
     /\/granergize\/buildings\/[^/]+\.ttl$/.test(c.url)
   );
-  assert.equal(buildingPuts.length, 4, "failed demo's building file not written");
+  assert.equal(buildingPuts.length, 3, "failed demo's building file not written");
   assert.ok(
     buildingPuts.every((c) => !(c.body ?? "").includes("2024-P1Y-planned.ttl")),
     "no surviving building links the failed planned dataset",

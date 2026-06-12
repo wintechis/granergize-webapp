@@ -110,7 +110,7 @@ test.describe("handbuch screenshots", () => {
 
   test("capture", async ({ page, browser }) => {
     // Bounded by the cooldown cost: ~14 shots × COOLDOWN_MS plus two logins, the
-    // demo-buildings seed (5 geocodes + a 35-day series) and the cross-pod share.
+    // demo-buildings seed (4 geocodes + a 21-day series) and the cross-pod share.
     // On a throttled provider that's many minutes; on a plain CSS it's ~5 min.
     // Every best-effort interaction is itself time-boxed (the default action
     // timeout is 0 = wait forever), so a stuck locator fails in seconds rather
@@ -206,10 +206,10 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "room.png");
 
     // Dismiss the "Roles updated" toast, then ACCEPT the fresh-Pod onboarding
-    // banner's "Add examples": every figure is captured over the SAME five demo
+    // banner's "Add examples": every figure is captured over the SAME four demo
     // buildings a reader gets from that banner (handbuch examples = app
-    // examples). The seed geocodes five Nürnberg addresses and writes the
-    // energy datasets (incl. a 35-day 15-min series), so the toast wait is
+    // examples). The seed geocodes four Nürnberg addresses and writes the
+    // energy datasets (incl. a 21-day 15-min series), so the toast wait is
     // generous. Time-boxed click: on an idempotent re-run against a non-fresh
     // Pod the banner doesn't show and the buildings already exist.
     await dismissToasts(page);
@@ -292,7 +292,7 @@ test.describe("handbuch screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "contacts.png");
 
-    // --- Data: the five demo buildings (seeded via "Add examples" above) give
+    // --- Data: the four demo buildings (seeded via "Add examples" above) give
     //     every later figure its content; the Add Building dialog lives on the
     //     Manage tab ---
     await page.getByRole("tab", { name: "Manage" }).click();
@@ -359,10 +359,11 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "create-view.png");
 
     // --- Aggregated-view result page (aggregated-view.png): finish creating the
-    //     view over the three annual demo buildings (idempotent: skip if a prior
-    //     run created it), then open it — the summary auto-computes its snapshot
-    //     on first open, so the figure shows the chart + table without a manual
-    //     refresh. ---
+    //     view over the three annual-carrying demo buildings (the two investors
+    //     plus Lange Gasse, which carries annual data next to its series;
+    //     idempotent: skip if a prior run created it), then open it — the summary
+    //     auto-computes its snapshot on first open, so the figure shows the
+    //     chart + table without a manual refresh. ---
     const VIEW_NAME = "Portfolio Nürnberg";
     const viewRow = page.locator("li").filter({ hasText: VIEW_NAME }).first();
     if (await viewRow.count()) {
@@ -370,7 +371,7 @@ test.describe("handbuch screenshots", () => {
     } else {
       await dialog.getByLabel("View Name").fill(VIEW_NAME);
       await dialog.getByLabel("Select Buildings").click();
-      for (const street of ["Nordostpark", "Fürther Straße", "Hafenstraße"]) {
+      for (const street of ["Nordostpark", "Hafenstraße", "Lange Gasse"]) {
         await page.getByRole("option").filter({ hasText: street }).first()
           .click({ timeout: 10_000 }).catch(() => {});
       }
@@ -400,7 +401,7 @@ test.describe("handbuch screenshots", () => {
     // --- Explore: the Nordostpark demo's Building/Energy/Weather detail pane.
     //     Selected deterministically via the URI-state deep link (the same
     //     selection a marker click produces) — a blind marker click could land
-    //     on any of the five demo markers. The fully-populated investor demo
+    //     on any of the four demo markers. The fully-populated investor demo
     //     gives the figure a rich detail panel. ---
     await page.getByRole("tab", { name: "Manage" }).click();
     const nordRow = page.locator("li").filter({ hasText: "Nordostpark" }).first();
@@ -437,10 +438,11 @@ test.describe("handbuch screenshots", () => {
     }
 
     // --- Energy-data tab with the operator average (energy-data-tab.png): the
-    //     Nordostpark demo's "Energy data" tab. Two annual demos (Nordostpark +
-    //     Fürther Straße) are self-operated, so the summary table shows the
-    //     "Operator average" row — the Betreiber benchmark of the handbuch's
-    //     "Daten ansehen" section — plus the planned-2024 (Soll) column pair. ---
+    //     Nordostpark demo's "Energy data" tab. Two annual-carrying demos
+    //     (Nordostpark + Lange Gasse) are self-operated, so the summary table
+    //     shows the "Operator average" row — the Betreiber benchmark of the
+    //     handbuch's "Daten ansehen" section — plus the planned-2024 (Soll)
+    //     column pair. ---
     if (buildingId) {
       await page.goto(exploreRoute(buildingId, "energy"));
       await expect(

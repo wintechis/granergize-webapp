@@ -878,53 +878,8 @@ const DEMO_INVESTOR: DemoSpec = {
   },
 };
 
-/** Investor demo #2: a single-tenant fulfilment centre, lighter energy than #1. */
+/** Investor demo #2: a cold store — electricity-heavy, low heat. */
 const DEMO_INVESTOR_2: DemoSpec = {
-  fields: {
-    streetAddress: "Fürther Straße 244",
-    postalCode: "90429",
-    locality: "Nürnberg",
-    region: "Bayern",
-    customer: "Westpark Fulfilment GmbH",
-    investor: "Beispiel Real Estate Fund",
-    usedAs: "Fulfilment centre",
-    naceCode: "52.10",
-    buildingArea: "9800",
-    landArea: "15000",
-    officeArea: "1200",
-    yearOfConstruction: "2012",
-    hasPVSystem: "false",
-    buildingCode: "FUE-244",
-    hallArea: "8200",
-    officeSocialArea: "1100",
-    buildingHeight: "9.5",
-    numberOfLoadingDocks: "9",
-    yearOfRenovation: "2019",
-    leaseType: "Double net",
-    tenantIndustry: "E-commerce fulfilment",
-    shiftRegime: "ThreeShift",
-    tenancyType: "SingleTenant",
-    indoorTemperatureClass: "MaxEighteenDegrees",
-    hasGasBoiler: "true",
-    hasHeatPump: "false",
-    hasDistrictHeating: "true",
-    _cert_0_type: "BREEAM",
-    _cert_0_level: "Very Good",
-    _cert_0_scope: "In-use",
-    _opcost_propertyManagement: "Low",
-    _opcost_security: "Medium",
-  },
-  energy: "annual",
-  selfOperated: true, // shares the operator group with demo #1 (Betreiber benchmark)
-  annual: {
-    _inv_elec_2022: "96000", _inv_elec_2023: "99500", _inv_elec_2024: "101200",
-    _inv_heat_2022: "180000", _inv_heat_2023: "176000", _inv_heat_2024: "171500",
-    _inv_water_2022: "980", _inv_water_2023: "1010", _inv_water_2024: "995",
-  },
-};
-
-/** Investor demo #3: a cold store — electricity-heavy, low heat. */
-const DEMO_INVESTOR_3: DemoSpec = {
   fields: {
     streetAddress: "Hafenstraße 12",
     postalCode: "90451",
@@ -990,11 +945,14 @@ const DEMO_USER: DemoSpec = {
   energy: "both",
   selfOperated: true,
   selfOwned: true, // owner-occupier: the small office is owned AND operated
-  // A full month of demo days, so the Day View, Daily Totals and Average Profile
-  // are all populated (not just a single day).
-  seriesDays: 28,
-  // The annual aggregates next to the series (a small 1400 m² office's scale),
-  // so the building also joins the operator group and the annual comparisons.
+  // Two weeks of demo days — enough to populate the Day View, Daily Totals and
+  // Average Profile with weekday/weekend variation, while keeping the seed's
+  // request count low (each day is one Pod write; throttling providers such as
+  // solidcommunity.net rate-limit bursts).
+  seriesDays: 14,
+  // The annual aggregates next to the series (a small 1400 m² office's scale).
+  // They make this the SECOND member of the operator group (with the investor
+  // demo), so the Betreiber benchmark shows on the demo data.
   annual: {
     _inv_elec_2023: "48200", _inv_elec_2024: "46900",
     _inv_heat_2023: "142000", _inv_heat_2024: "138500",
@@ -1022,15 +980,22 @@ const DEMO_USER_2: DemoSpec = {
 };
 
 /**
- * The demo building set: a few example buildings spanning the data shapes — annual
- * investor buildings, a 15-minute user series, and one building carrying BOTH
- * (the Annual | Time series toggle) — so a fresh account sees each. The
- * buildings are ordinary owned resources the user can delete.
+ * The demo building set — deliberately small (each building costs several Pod
+ * writes and throttling providers such as solidcommunity.net rate-limit bursts),
+ * but still one demo per special case:
+ *  - DEMO_INVESTOR — annual aggregates with the fully-populated investor panel
+ *    (cert, operating costs), a planned (Soll) dataset → the Soll-Ist pair, and
+ *    a member of the operator group;
+ *  - DEMO_INVESTOR_2 — annual but NOT self-operated → a building WITHOUT the
+ *    Betreiber benchmark;
+ *  - DEMO_USER — the one demo carrying BOTH shapes (Annual | Time series
+ *    toggle), owner-occupier, and the operator group's second member;
+ *  - DEMO_USER_2 — a series-ONLY building (no annual data, no toggle).
+ * The buildings are ordinary owned resources the user can delete.
  */
 const DEMO_BUILDINGS: DemoSpec[] = [
   DEMO_INVESTOR,
   DEMO_INVESTOR_2,
-  DEMO_INVESTOR_3,
   DEMO_USER,
   DEMO_USER_2,
 ];
@@ -1041,7 +1006,7 @@ const DEMO_BUILDINGS: DemoSpec[] = [
  * time; a building that can't be geocoded is still created (just unmapped).
  * Best-effort: per-building failures are logged, never thrown, so a network hiccup
  * can't block login — but they ARE counted: the returned tally lets the caller
- * report a partial seed ("Added 3 of 5") instead of a blanket success. Within one
+ * report a partial seed ("Added 3 of 4") instead of a blanket success. Within one
  * building the writes are ordered commit-last (datasets first, the discoverable
  * building file last), so a failed building leaves only inert orphan files.
  * @operation mutation
@@ -1085,7 +1050,7 @@ export async function seedDemoBuildings(
         // Day View, Daily Totals and Average Profile are all populated. Each day is
         // scaled by a deterministic weekday/weekend factor (offices idle at the
         // weekend), so the totals and average profile vary instead of being flat.
-        const n = demo.seriesDays ?? 28;
+        const n = demo.seriesDays ?? 14;
         const start = new Date("2024-06-01T00:00:00Z").getTime();
         const days: Array<{ date: string; readings: LastgangReading[] }> = [];
         for (let i = 0; i < n; i++) {

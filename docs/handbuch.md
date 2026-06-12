@@ -459,18 +459,18 @@ installieren.
 
 **Was beim ersten Start passiert:** Bei der ersten Anmeldung ist Ihr Dashboard
 zunächst leer – es werden keine Daten vorausgesetzt und nichts im Voraus
-angelegt. Für einen schnellen Einstieg bietet Ihnen die Granergize-App an, **fünf
+angelegt. Für einen schnellen Einstieg bietet Ihnen die Granergize-App an, **vier
 beispielhafte Demo-Gebäude** hinzuzufügen („Add examples"); diesen Hinweis
 können Sie auch ausblenden. Er erscheint nur, solange Sie weder eigene noch
 mit Ihnen geteilte Gebäude haben; schlägt das Anlegen einzelner Beispiele fehl
 (etwa durch eine instabile Verbindung), meldet die Anwendung, wie viele der
-fünf Gebäude angelegt wurden, und das Angebot bleibt zum erneuten Versuch
-verfügbar. Die Beispiele decken beide Datenformen ab – drei
+vier Gebäude angelegt wurden, und das Angebot bleibt zum erneuten Versuch
+verfügbar. Die Beispiele decken beide Datenformen ab – zwei
 Gebäude mit Jahreswerten (2022–2024) und vollständigen Stammdaten, zwei mit
-15-Minuten-Messreihen. Zwei der Jahreswert-Gebäude teilen sich denselben
-Betreiber und eines enthält zusätzlich geplante (Soll-)Werte, sodass
-Betreiber-Durchschnitt und Soll-Ist-Vergleich direkt an den Beispieldaten
-sichtbar sind. Die Abbildungen in diesem Handbuch zeigen genau diese
+15-Minuten-Messreihen (eines davon trägt zusätzlich Jahreswerte). Zwei der
+Gebäude mit Jahreswerten teilen sich denselben Betreiber und eines enthält
+zusätzlich geplante (Soll-)Werte, sodass Betreiber-Durchschnitt und
+Soll-Ist-Vergleich direkt an den Beispieldaten sichtbar sind. Die Abbildungen in diesem Handbuch zeigen genau diese
 Demo-Gebäude. Die benötigte Ordnerstruktur unter `granergize/`
 legt die Anwendung automatisch an, sobald Sie Ihr erstes Gebäude speichern – Sie
 müssen sich darum nicht kümmern. Anschließend können Sie eigene Gebäudedaten
