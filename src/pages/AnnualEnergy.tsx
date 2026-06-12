@@ -36,6 +36,7 @@ import {
   ELECTRICITY_COLOR,
   HEAT_COLOR,
   PLANNED_COLOR,
+  GENERATION_COLOR,
   RENEWABLE_COLOR,
   WASTEWATER_COLOR,
   WATER_COLOR,
@@ -51,6 +52,7 @@ const METRIC_COLORS: Record<EnergyMetricKey, string> = {
   waterConsumption: WATER_COLOR,
   wastewaterConsumption: WASTEWATER_COLOR,
   renewableSelfGeneratedShare: RENEWABLE_COLOR,
+  electricityGeneration: GENERATION_COLOR,
 };
 
 const METRIC_ICONS: Partial<Record<EnergyMetricKey, React.ReactElement>> = {

@@ -301,15 +301,50 @@ async function seedContribTrio(n: number): Promise<void> {
   }
 }
 
-// Human identities for the three seeded actors: a `foaf:name` + public avatar
-// on each WebID profile, so the handbuch screenshots show recognisable people
-// (agent labels otherwise fall back to the WebID fragment — "me"). Names follow
-// the A=Alice / B=Bob / C=Charlie role model; the avatar fixtures live with the
-// other e2e fixtures (paths relative to the repo root, the webServer's cwd).
-const PROFILE_SEED: Record<"A" | "B" | "C", { name: string; avatar: string }> = {
-  A: { name: "Alice Ahlmann", avatar: "test/e2e/fixtures/alice-avatar.png" },
-  B: { name: "Bob Bauer", avatar: "test/e2e/fixtures/bob-avatar.png" },
-  C: { name: "Charlie Conrad", avatar: "test/e2e/fixtures/charlie-avatar.png" },
+// Human + company identities for the three seeded actors: a `foaf:name` +
+// public avatar on each WebID profile, plus an organisation (`<#org>` node with
+// name/homepage/logo) — so the handbuch screenshots show recognisable people
+// AND firms (the map's producer-logo marker resolves the org logo from a
+// building's `attributedTo`). Names follow the A=Alice / B=Bob / C=Charlie role
+// model; the invented companies carry a real-estate ring matching each role
+// (A Logistikerin — a USER of her own halls, B Bestandshalter, C
+// Benchmark-Dienstleister). Fixture paths are relative to the repo root (the
+// webServer's cwd).
+const PROFILE_SEED: Record<
+  "A" | "B" | "C",
+  {
+    name: string;
+    avatar: string;
+    org: { name: string; homepage: string; logo: string };
+  }
+> = {
+  A: {
+    name: "Alice Ahlmann",
+    avatar: "test/e2e/fixtures/alice-avatar.png",
+    org: {
+      name: "Ahlmann Logistik",
+      homepage: "https://ahlmann-logistik.example/",
+      logo: "test/e2e/fixtures/ahlmann-logistik-logo.svg",
+    },
+  },
+  B: {
+    name: "Bob Bauer",
+    avatar: "test/e2e/fixtures/bob-avatar.png",
+    org: {
+      name: "Bauer Grundbesitz",
+      homepage: "https://bauer-grundbesitz.example/",
+      logo: "test/e2e/fixtures/bauer-grundbesitz-logo.svg",
+    },
+  },
+  C: {
+    name: "Charlie Conrad",
+    avatar: "test/e2e/fixtures/charlie-avatar.png",
+    org: {
+      name: "Conrad Kennwert",
+      homepage: "https://conrad-kennwert.example/",
+      logo: "test/e2e/fixtures/conrad-kennwert-logo.svg",
+    },
+  },
 };
 
 // Seed all three actor profiles; returns slot → WebID so the caller can use the
@@ -319,10 +354,13 @@ async function seedProfiles(): Promise<Record<string, string>> {
   for (const slot of ["A", "B", "C"] as const) {
     const { live, actor } = await actorSession(slot);
     try {
-      const bytes = await Deno.readFile(PROFILE_SEED[slot].avatar);
-      await seedProfile(actor, PROFILE_SEED[slot].name, {
-        bytes,
-        mime: "image/png",
+      const seed = PROFILE_SEED[slot];
+      const bytes = await Deno.readFile(seed.avatar);
+      const logoBytes = await Deno.readFile(seed.org.logo);
+      await seedProfile(actor, seed.name, { bytes, mime: "image/png" }, {
+        name: seed.org.name,
+        homepage: seed.org.homepage,
+        logo: { bytes: logoBytes, mime: "image/svg+xml" },
       });
       webIds[slot] = actor.webId;
     } finally {

@@ -31,7 +31,7 @@ import SeriesEnergy from "./SeriesEnergy.tsx";
 import IconButton from "@mui/material/IconButton";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import { useResolveOrgLogo, useSolidData } from "../hooks/queries.ts";
+import { useResolveOrg, useSolidData } from "../hooks/queries.ts";
 import WeatherData from "./WeatherData.tsx";
 import AnnualEnergy from "./AnnualEnergy.tsx";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
@@ -166,10 +166,12 @@ function createCategoryIcon(
   return icon;
 }
 
-// A marker showing the building producer's organisation logo inside a circular
-// owned/shared ring (selected = highlighted ring). If the logo image can't be
-// fetched (e.g. the producer's profile folder isn't public) the `onerror`
-// handler swaps in the default pin, so the marker degrades gracefully.
+// A marker showing the building producer's organisation logo inside a pill-
+// shaped owned/shared ring (selected = highlighted ring). The pill is landscape
+// because the logos are: a wide lockup keeps the wordmark legible at marker
+// size where a square crop would not. If the logo image can't be fetched
+// (e.g. the producer's profile folder isn't public) the `onerror` handler
+// swaps in the default pin, so the marker degrades gracefully.
 // Cached per (logo, owned/shared, selected) — bounded by the number of
 // producers — for the same setIcon-churn reason as the caches above.
 const logoIconCache = new Map<string, L.DivIcon>();
@@ -194,12 +196,12 @@ function createLogoIcon(
   const icon = L.divIcon({
     className: "",
     html:
-      `<div style="width:36px;height:36px;border-radius:50%;border:3px solid ${ring};background:#fff;overflow:hidden;${shadow}">` +
+      `<div style="width:88px;height:28px;border-radius:17px;border:3px solid ${ring};background:#fff;overflow:hidden;padding:1px 6px;box-sizing:content-box;${shadow}">` +
       `<img src="${src}" alt="Building producer logo" style="width:100%;height:100%;object-fit:contain;display:block;" ` +
-      `onerror="this.onerror=null;this.style.objectFit='cover';this.src='${fallback}';" /></div>`,
-    iconSize: [42, 42],
-    iconAnchor: [21, 21],
-    popupAnchor: [0, -21],
+      `onerror="this.onerror=null;this.style.objectFit='contain';this.src='${fallback}';" /></div>`,
+    iconSize: [106, 36],
+    iconAnchor: [53, 18],
+    popupAnchor: [0, -18],
   });
   logoIconCache.set(key, icon);
   return icon;
@@ -207,7 +209,7 @@ function createLogoIcon(
 
 /**
  * One map marker. A dedicated component so the per-producer org-logo lookup
- * (`useResolveOrgLogo`) is a single hook call per marker rather than inside the
+ * (`useResolveOrg`) is a single hook call per marker rather than inside the
  * buildings `.map()`. The marker shows the producer's (`attributedTo`) logo when
  * one resolves, else the default owned/shared pin.
  */
@@ -221,7 +223,8 @@ function BuildingMarker(
     category: EnergyCategory;
   },
 ) {
-  const { data: logoUrl } = useResolveOrgLogo(building.attributedTo);
+  const { data: org } = useResolveOrg(building.attributedTo);
+  const logoUrl = org?.logoUrl;
   const icon = lens === "energy"
     ? createCategoryIcon(category, selected)
     : logoUrl
@@ -229,7 +232,7 @@ function BuildingMarker(
     : selected
     ? createSelectedIcon(building)
     : getIcon(building);
-  const tooltipOffset: [number, number] = logoUrl ? [0, -24] : [0, -38];
+  const tooltipOffset: [number, number] = logoUrl ? [0, -20] : [0, -38];
   return (
     <Marker
       position={position}
@@ -252,6 +255,12 @@ function BuildingMarker(
             {`${building.postalCode ?? ""} ${building.locality ?? ""}${
               building.region ? `, ${building.region}` : ""
             }`}
+            {org?.name && (
+              <>
+                <br />
+                <em>{org.name}</em>
+              </>
+            )}
           </span>
         </Box>
       </Tooltip>

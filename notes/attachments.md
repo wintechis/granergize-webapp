@@ -61,6 +61,12 @@ intact — no change there.
   `removeFromACL` (idempotent), alongside the building TTL and energy datasets.
 - Recipients fetch binaries on demand with their own session; no recipient-side
   change was needed.
+- Attachments are **always included** in a building share — unlike energy data
+  (`includeEnergyData`, per-year `interop:includesEnergyYear`) there is no option
+  to withhold them; restricting them would follow that precedent (a `ShareOptions`
+  flag recorded in the grant event, the `files/` target made conditional in
+  `buildingGrantTargets`), with the wrinkle that the energy certificate lives in
+  the same `files/` container and would need its own file-IRI grant to stay shared.
 
 ## UI
 

@@ -60,5 +60,6 @@ export const HEAT_COLOR = "rgba(227, 26, 28, 0.8)";
 export const WATER_COLOR = "rgba(51, 160, 44, 0.8)";
 export const WASTEWATER_COLOR = "rgba(0, 150, 136, 0.8)";
 export const RENEWABLE_COLOR = "rgba(178, 223, 138, 0.9)";
+export const GENERATION_COLOR = "rgba(255, 127, 0, 0.8)";
 // Planned (Soll) figures — one neutral colour across metrics, shown beside actual.
 export const PLANNED_COLOR = "rgba(120, 120, 120, 0.55)";

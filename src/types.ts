@@ -16,6 +16,7 @@ export interface AnnualData {
   heatConsumption?: number; // kWh
   waterConsumption?: number; // m³
   wastewaterConsumption?: number; // m³
+  electricityGeneration?: number; // kWh
 }
 
 export interface InvestorOperatingCosts {
@@ -83,6 +84,7 @@ export interface BuildingType {
   buildingArea?: number;
   landArea?: number;
   hasPVSystem?: boolean;
+  hasBatteryStorage?: boolean;
   /** Investor WebID (`bldg:investor`, ranges over foaf:Agent — an agent link like
    * operatedBy, not a free-text label). Legacy literal values tolerated on read. */
   investor?: string;
@@ -115,6 +117,8 @@ export interface BuildingType {
   greenLeaseShare?: number; // %
   pvInstallationYear?: number;
   pvCapacityKW?: number;
+  /** Usable battery storage capacity (kWh), Ist (operating units only). */
+  storageCapacityKWh?: number;
   companyName?: string;
   // Investor role fields
   label?: string;

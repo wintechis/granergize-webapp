@@ -68,6 +68,8 @@
     rdfs:label "Wastewater consumption"@en .
 :RenewableSelfGeneratedShare rdf:type sosa:ObservableProperty ;
     rdfs:label "Renewable self-generated share"@en .
+:ElectricityGeneration rdf:type sosa:ObservableProperty ;
+    rdfs:label "Electricity generation"@en .
 
 # A single sub-hourly energy-meter reading (observedProperty + featureOfInterest
 # + result + phenomenonTime). Many readings make up a daily series file in a

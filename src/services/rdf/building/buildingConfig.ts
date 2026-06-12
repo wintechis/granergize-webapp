@@ -95,6 +95,8 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   { field: "greenLeaseShare", iri: `${BUILDING_NS}greenLeaseShare`, range: XSD_DECIMAL },
   { field: "pvInstallationYear", iri: `${BUILDING_NS}pvInstallationYear`, range: XSD_INTEGER },
   { field: "pvCapacityKW", iri: `${BUILDING_NS}pvCapacityKW`, range: XSD_DECIMAL },
+  { field: "hasBatteryStorage", iri: `${BUILDING_NS}hasBatteryStorage`, range: XSD_BOOLEAN },
+  { field: "storageCapacityKWh", iri: `${BUILDING_NS}storageCapacityKWh`, range: XSD_DECIMAL },
   { field: "companyName", iri: `${BUILDING_NS}companyName` },
 ];
 

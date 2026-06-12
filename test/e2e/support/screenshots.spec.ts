@@ -15,8 +15,10 @@ import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
  * Captures the Praxishandbuch figures (docs/figures/*.png) by driving the
  * logged-in app. The usual run is the LOCAL tier (`deno task handbuch:figures`,
  * E2E_LOCAL=1): the control server seeds the three actors with human identities
- * (foaf:name + avatar — Alice/Bob/Charlie) and the BSP benchmark round-trip, so
- * the figures show distinguishable people and a real Benchmark column. The same
+ * (foaf:name + avatar — Alice/Bob/Charlie), company identities (an org node with
+ * name + logo — Ahlmann Logistik / Bauer Grundbesitz / Conrad Kennwert) and the BSP
+ * benchmark round-trip, so the figures show distinguishable people and firms
+ * and a real Benchmark column. The same
  * spec also runs remotely (canonical solidcommunity.net URIs; no seeding —
  * profiles there are whatever the throwaway accounts carry):
  *
@@ -152,29 +154,33 @@ test.describe("handbuch screenshots", () => {
     // no-op when it's already off (the default), so this just pins the invariant.
     await page.getByRole("checkbox", { name: "Developer mode" }).uncheck();
 
-    // --- Seed account A's organisation (name + logo) so the producer's building
+    // --- Account A's organisation (name + logo), so the producer's building
     //     markers show the logo on the map (the "Daten ansehen" figure,
     //     map-tabs.png, demonstrates the logo-marker feature). The demo buildings
     //     seeded below attribute their provenance to A, so their markers resolve
-    //     this logo. ---
-    await page.getByRole("button", { name: "Account menu" }).click();
-    await page.getByRole("menuitem", { name: /organisation/i }).click();
-    const orgDialog = page.getByRole("dialog");
-    await expect(orgDialog).toBeVisible({ timeout: 30_000 });
-    await orgDialog.getByLabel("Company name")
-      .fill("Friedrich-Alexander-Universität Erlangen-Nürnberg");
-    // The org logo resolves on a building's map marker via its PROV attribution to
-    // the producing agent (A), which is recorded on every building A adds.
-    await orgDialog.locator('input[type="file"]')
-      .setInputFiles("test/e2e/fixtures/fau-logo.png");
-    await expect(orgDialog.getByAltText("Organisation logo"))
-      .toBeVisible({ timeout: 15_000 });
-    await orgDialog.getByRole("button", { name: /^save$/i }).click();
-    await expect(page.getByText(/organisation saved/i))
-      .toBeVisible({ timeout: 60_000 });
-    // Dismiss the toast so it doesn't linger into the next (room) screenshot.
-    await dismissToasts(page);
-    await page.waitForTimeout(1000);
+    //     this logo. The LOCAL tier gets its org from /seed-profiles (Ahlmann
+    //     Logistik, with a world-readable logo) — setting one here would
+    //     overwrite it — so only the remote tier sets an org through the UI. ---
+    if (!E2E_LOCAL) {
+      await page.getByRole("button", { name: "Account menu" }).click();
+      await page.getByRole("menuitem", { name: /organisation/i }).click();
+      const orgDialog = page.getByRole("dialog");
+      await expect(orgDialog).toBeVisible({ timeout: 30_000 });
+      await orgDialog.getByLabel("Company name")
+        .fill("Friedrich-Alexander-Universität Erlangen-Nürnberg");
+      // The org logo resolves on a building's map marker via its PROV attribution
+      // to the producing agent (A), which is recorded on every building A adds.
+      await orgDialog.locator('input[type="file"]')
+        .setInputFiles("test/e2e/fixtures/fau-logo.png");
+      await expect(orgDialog.getByAltText("Organisation logo"))
+        .toBeVisible({ timeout: 15_000 });
+      await orgDialog.getByRole("button", { name: /^save$/i }).click();
+      await expect(page.getByText(/organisation saved/i))
+        .toBeVisible({ timeout: 60_000 });
+      // Dismiss the toast so it doesn't linger into the next (room) screenshot.
+      await dismissToasts(page);
+      await page.waitForTimeout(1000);
+    }
 
     // --- Meet: be in a room with a role (seeds an empty Pod so the rest of the
     //     app has something to show) ---
@@ -226,7 +232,8 @@ test.describe("handbuch screenshots", () => {
 
       // --- The BSP's perspective (benchmark-share-back.png): Charlie opens the
       //     benchmark view's share dialog and adds both contributors with one
-      //     click — Szenario 2's share-back, captured mid-flow — then actually
+      //     click — the Energieverbrauchsbenchmark walkthrough's share-back,
+      //     captured mid-flow — then actually
       //     shares so the round-trip completes.
       const c = await freshPage(browser, account("C"));
       try {
@@ -445,6 +452,17 @@ test.describe("handbuch screenshots", () => {
       await page.evaluate(() => globalThis.scrollTo(0, 0));
       await shot(page, "energy-data-tab.png");
 
+      // --- The Soll-Ist walkthrough punchline (soll-ist-payoff.png): the
+      //     annual overview table alone — the planned (Soll) entry next to the
+      //     actual years. Embedded in the handbuch's "Soll-Ist-Vergleich
+      //     durchgespielt" walkthrough. ---
+      await shotOf(
+        page.locator("table").filter({
+          has: page.getByText(/\(planned\)/i),
+        }).first(),
+        "soll-ist-payoff.png",
+      );
+
       // --- Energy detail page (energy-detail.png): the standalone /energy/:id
       //     route — latest year's figures with the Portfolio / Operator /
       //     Benchmark comparison columns side by side. ---
@@ -465,6 +483,23 @@ test.describe("handbuch screenshots", () => {
       await page.waitForLoadState("networkidle").catch(() => {});
       await page.waitForTimeout(800);
       await shot(page, "energy-detail.png");
+
+      // --- The Energieverbrauchsbenchmark walkthrough punchline
+      //     (benchmark-payoff.png): a focused
+      //     shot of the comparison table alone — A's own consumption now reads
+      //     against the Benchmark column filled with the values C shared back.
+      //     Embedded in the handbuch's "Energieverbrauchsbenchmark
+      //     durchgespielt" walkthrough as the roundtrip's payoff.
+      //     Local-only: it needs the seeded benchmark (remote keeps the
+      //     committed figure). ---
+      if (E2E_LOCAL) {
+        await shotOf(
+          page.locator("table").filter({
+            has: page.locator("th", { hasText: "Benchmark kWh / a" }),
+          }).first(),
+          "benchmark-payoff.png",
+        );
+      }
 
       // Back to the app shell (the detail page is a standalone route without tabs).
       await page.goto("/#/");
@@ -543,6 +578,31 @@ test.describe("handbuch screenshots", () => {
       await b.page.evaluate(() => globalThis.scrollTo(0, 0));
       await b.page.waitForTimeout(800);
       await shot(b.page, "shared-with-you.png");
+
+      // --- The Vertriebsoptimierung walkthrough punchline (teilen-payoff.png):
+      //     B's Explore map with
+      //     A's shared building SELECTED — the shared marker (A's producer
+      //     logo) next to B's own buildings, and the detail panel reading A's
+      //     master data live from A's Pod. Local-only: the shared marker is
+      //     targeted via its producer-logo `img` pointing at A's pod, which
+      //     needs the seeded org identities (remote keeps the committed
+      //     figure). ---
+      if (E2E_LOCAL) {
+        await b.page.getByRole("tab", { name: "Explore" }).click();
+        const sharedMarker = b.page
+          .locator(".leaflet-marker-icon img[src*='/alice/']").first();
+        await sharedMarker.waitFor({ timeout: 60_000 });
+        await b.page.waitForLoadState("networkidle").catch(() => {});
+        await waitForMapTiles(b.page);
+        await b.page.waitForTimeout(1500); // let markers/logos settle
+        await sharedMarker.click();
+        await expect(b.page.getByRole("tab", { name: "Building data" }))
+          .toBeVisible({ timeout: 60_000 });
+        await b.page.waitForLoadState("networkidle").catch(() => {});
+        await b.page.waitForTimeout(800);
+        await b.page.evaluate(() => globalThis.scrollTo(0, 0));
+        await shot(b.page, "teilen-payoff.png");
+      }
     } finally {
       await b.ctx.close();
     }

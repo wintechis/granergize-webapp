@@ -7,7 +7,7 @@ import { T } from "../helpers/timeouts.ts";
 /**
  * Organisation/profile e2e: uploading a company logo, and that a building produced
  * by an agent whose profile carries an org logo renders that logo as its map marker
- * (BuildingMarker → resolveAgentOrgLogo). The org logo is keyed on the producing
+ * (BuildingMarker → resolveAgentOrg). The org logo is keyed on the producing
  * agent (`prov:agent` / `attributedTo`), which survives the role removal.
  *
  *   # tier 3 (local CSS, no creds):
@@ -106,7 +106,7 @@ test.describe("organisation logo", () => {
   });
 
   // A building produced by an agent whose profile carries an org logo shows that
-  // logo as its map marker (BuildingMarker → resolveAgentOrgLogo → an L.divIcon
+  // logo as its map marker (BuildingMarker → resolveAgentOrg → an L.divIcon
   // whose <img alt="Building producer logo">). Runs after the logo-upload test,
   // so Alice's profile has a logo; her own building's `attributedTo` is herself,
   // so the lookup resolves over the authed session (no public-ACL dependency).

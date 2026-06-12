@@ -155,6 +155,16 @@
     rdfs:seeAlso brick:ratedPowerOutput ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
+:hasBatteryStorage rdf:type owl:DatatypeProperty ;
+    rdfs:label "has battery storage"@en ; rdfs:label "Hat Batteriespeicher"@de ;
+    rdfs:seeAlso brick:Battery ;
+    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+
+:storageCapacityKWh rdf:type owl:DatatypeProperty ;
+    rdfs:label "Usable storage capacity (kWh)"@en ;
+    rdfs:seeAlso brick:Battery ;
+    rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+
 ############################
 ###   Heating systems    ###
 ############################

@@ -52,7 +52,8 @@ export type EnergyMetricKey =
   | "heatConsumption"
   | "waterConsumption"
   | "wastewaterConsumption"
-  | "renewableSelfGeneratedShare";
+  | "renewableSelfGeneratedShare"
+  | "electricityGeneration";
 
 export type AnnualMetrics = Partial<Record<EnergyMetricKey, number>>;
 
@@ -80,6 +81,10 @@ export const ENERGY_METRICS: Record<
   renewableSelfGeneratedShare: {
     prop: `${CONSUMPTION_NS}RenewableSelfGeneratedShare`,
     unit: `${UNIT_NS}PERCENT`,
+  },
+  electricityGeneration: {
+    prop: `${CONSUMPTION_NS}ElectricityGeneration`,
+    unit: `${UNIT_NS}KiloW-HR`,
   },
 };
 

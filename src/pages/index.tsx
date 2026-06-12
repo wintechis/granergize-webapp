@@ -34,6 +34,7 @@ import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { getAvatarObjectUrl } from "../services/organization/logoManager.ts";
+import { getOrgLogoObjectUrl } from "../services/organization/organizationManager.ts";
 import OrganizationDialog from "../components/OrganizationDialog.tsx";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
@@ -65,6 +66,42 @@ interface IndexPageProps {
   ) => void;
 }
 
+/**
+ * Owns the object-URL lifecycle for a profile image (personal avatar or
+ * organisation logo): loads on mount / session change and re-loads when
+ * `version` is bumped (after the organisation dialog saves); the cleanup
+ * revokes the URL the run loaded, covering both replace and unmount. A run
+ * cancelled mid-fetch revokes its own URL instead of setting it, so nothing
+ * leaks.
+ */
+function useProfileImageUrl(
+  session: Session,
+  version: number,
+  load: (session: Session) => Promise<string | null>,
+  action: string,
+): string | null {
+  const [url, setUrl] = useState<string | null>(null);
+  useEffect(() => {
+    let cancelled = false;
+    let current: string | null = null;
+    load(session)
+      .then((loaded) => {
+        if (cancelled) {
+          if (loaded) URL.revokeObjectURL(loaded);
+          return;
+        }
+        current = loaded;
+        setUrl(loaded);
+      })
+      .catch((err) => logError(action, err));
+    return () => {
+      cancelled = true;
+      if (current) URL.revokeObjectURL(current);
+    };
+  }, [session, version, load, action]);
+  return url;
+}
+
 function IndexPage({ session, onLogout }: IndexPageProps) {
   // Tabs: 0 = Explore (map), 1 = Manage (your buildings + views), 2 = Share
   // (inbox), 3 = Connect (rooms). The active tab lives in the hash query param
@@ -81,38 +118,26 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const removeAbort = useRef<AbortController | null>(null);
   const { showNotification } = useNotification();
 
-  // Avatar shown top-right: the person's own avatar (foaf:img / vcard:hasPhoto)
-  // if set, else a PersonIcon. This is always the user's identity — never the
-  // organisation logo (the logo's place is the building markers, where it
-  // identifies the producer).
-  const [logoUrl, setLogoUrl] = useState<string | null>(null);
+  // Header images, top-right: the organisation logo (foaf:logo on the <#org>
+  // node) when one is set, then the person's own avatar (foaf:img /
+  // vcard:hasPhoto) if set, else a PersonIcon. The avatar is always the user's
+  // identity; the logo is the organisation's. Both re-load when
+  // `avatarVersion` is bumped (after the organisation dialog saves).
   const [orgOpen, setOrgOpen] = useState(false);
-
-  // One effect owns the avatar object-URL lifecycle: it loads on mount /
-  // session change and re-loads when `avatarVersion` is bumped (after the
-  // organisation dialog saves a new avatar); the cleanup revokes the URL the
-  // run loaded, covering both replace and unmount. A run cancelled mid-fetch
-  // revokes its own URL instead of setting it, so nothing leaks.
   const [avatarVersion, setAvatarVersion] = useState(0);
   const loadAvatar = () => setAvatarVersion((v) => v + 1);
-  useEffect(() => {
-    let cancelled = false;
-    let current: string | null = null;
-    getAvatarObjectUrl(session)
-      .then((url) => {
-        if (cancelled) {
-          if (url) URL.revokeObjectURL(url);
-          return;
-        }
-        current = url;
-        setLogoUrl(url);
-      })
-      .catch((err) => logError("load organisation logo / avatar", err));
-    return () => {
-      cancelled = true;
-      if (current) URL.revokeObjectURL(current);
-    };
-  }, [session, avatarVersion]);
+  const avatarUrl = useProfileImageUrl(
+    session,
+    avatarVersion,
+    getAvatarObjectUrl,
+    "load avatar",
+  );
+  const orgLogoUrl = useProfileImageUrl(
+    session,
+    avatarVersion,
+    getOrgLogoObjectUrl,
+    "load organisation logo",
+  );
 
   const queryClient = useQueryClient();
   // Fresh-Pod demo-buildings offer (non-blocking banner): shown when the buildings
@@ -543,6 +568,14 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           }}
         >
           <NetworkActivityIndicator />
+          {orgLogoUrl && (
+            <Box
+              component="img"
+              src={orgLogoUrl}
+              alt="Organisation logo"
+              sx={{ height: 40, maxWidth: 120, objectFit: "contain" }}
+            />
+          )}
           <Tooltip title={session.info.webId ?? "Account menu"}>
             <IconButton
               onClick={handleMenuOpen}
@@ -552,7 +585,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               sx={{ p: 0 }}
             >
               <Avatar
-                src={logoUrl ?? undefined}
+                src={avatarUrl ?? undefined}
                 sx={{
                   bgcolor: "primary.main",
                   width: 40,

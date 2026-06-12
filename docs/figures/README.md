@@ -10,7 +10,8 @@ Two kinds of figures live here:
   `contacts.png`, `add-building.png`, `manage-actions.png`, `energy-year.png`,
   `share-building.png`, `create-view.png`, `aggregated-view.png`, `map-tabs.png`,
   `energy-data-tab.png`, `energy-detail.png`, `energy-lens.png`,
-  `benchmark-share-back.png`, `shared-with-you.png`.
+  `benchmark-share-back.png`, `benchmark-payoff.png`, `shared-with-you.png`,
+  `teilen-payoff.png`, `soll-ist-payoff.png`.
 - **Conceptual diagrams** — carried over from the original handbuch (still
   accurate): `architektur.png`, `wac.png`, `wissensgraph.png`,
   `sharing-vergleich.png`. The two scenario diagrams `szenario-teilen.png` and

@@ -12,7 +12,7 @@ import {
   useEnergy,
   useReceivedBenchmarks,
   useReceivedViews,
-  useResolveOrgLogo,
+  useResolveOrg,
   useSeriesDays,
   useSharedWithMe,
   useSolidData,
@@ -215,31 +215,36 @@ Deno.test("useEnergy is disabled until buildings are provided", () => {
   }
 });
 
-Deno.test("useResolveOrgLogo resolves the producer's org logo", async () => {
+Deno.test("useResolveOrg resolves the producer's org name + logo", async () => {
   _resetProfileCacheForTesting();
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   const store = {
     [PROFILE]: `@prefix foaf: <http://xmlns.com/foaf/0.1/> .
 @prefix org: <http://www.w3.org/ns/org#> .
 <#me> org:memberOf <#org> .
-<#org> foaf:logo <https://pod.example/profile/logo.png> .`,
+<#org> foaf:name "Ahlmann Logistik" ;
+  foaf:logo <https://pod.example/profile/logo.png> .`,
   };
   _setSessionForTesting(fakeSession(store));
   const { wrapper } = makeWrapper();
   try {
-    const { result } = renderHook(() => useResolveOrgLogo(WEBID), { wrapper });
+    const { result } = renderHook(() => useResolveOrg(WEBID), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
-    assert.equal(result.current.data, "https://pod.example/profile/logo.png");
+    assert.equal(result.current.data?.name, "Ahlmann Logistik");
+    assert.equal(
+      result.current.data?.logoUrl,
+      "https://pod.example/profile/logo.png",
+    );
   } finally {
     _setSessionForTesting(null);
   }
 });
 
-Deno.test("useResolveOrgLogo is disabled until a WebID is provided", () => {
+Deno.test("useResolveOrg is disabled until a WebID is provided", () => {
   _setSessionForTesting(fakeSession());
   const { wrapper } = makeWrapper();
   try {
-    const { result } = renderHook(() => useResolveOrgLogo(undefined), {
+    const { result } = renderHook(() => useResolveOrg(undefined), {
       wrapper,
     });
     assert.equal(result.current.fetchStatus, "idle");
