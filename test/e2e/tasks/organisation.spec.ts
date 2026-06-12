@@ -6,8 +6,9 @@ import { T } from "../helpers/timeouts.ts";
 
 /**
  * Organisation/profile e2e: uploading a company logo, and that a building produced
- * by an agent whose profile carries an org logo renders that logo as its map marker
- * (BuildingMarker → resolveAgentOrg). The org logo is keyed on the producing
+ * by an agent whose profile carries an org logo shows that logo in its map
+ * marker's hover card (BuildingMarker → resolveAgentOrg; the marker itself is a
+ * plain owned/shared pin). The org logo is keyed on the producing
  * agent (`prov:agent` / `attributedTo`), which survives the role removal.
  *
  *   # tier 3 (local CSS, no creds):
@@ -106,11 +107,12 @@ test.describe("organisation logo", () => {
   });
 
   // A building produced by an agent whose profile carries an org logo shows that
-  // logo as its map marker (BuildingMarker → resolveAgentOrg → an L.divIcon
-  // whose <img alt="Building producer logo">). Runs after the logo-upload test,
-  // so Alice's profile has a logo; her own building's `attributedTo` is herself,
-  // so the lookup resolves over the authed session (no public-ACL dependency).
-  test("a building's company logo shows as its map marker", async () => {
+  // logo in its marker's HOVER CARD (BuildingMarker → resolveAgentOrg → the
+  // tooltip's <img alt="Building producer logo">; the marker itself is a plain
+  // pin). Runs after the logo-upload test, so Alice's profile has a logo; her
+  // own building's `attributedTo` is herself, so the lookup resolves over the
+  // authed session (no public-ACL dependency).
+  test("a building's company logo shows in its marker's hover card", async () => {
     test.setTimeout(T.testSolo);
 
     // Add an owned building via the single generic form (no role/template).
@@ -139,10 +141,14 @@ test.describe("organisation logo", () => {
     await expect(page.getByRole("tab", { name: "Explore" }))
       .toBeVisible({ timeout: T.action });
 
-    // On the map, the building's marker renders the producer's org logo image.
-    // (Several owned buildings would all show Alice's logo, so match the first.)
+    // On the map, hovering the building's pin opens the hover card, which
+    // renders the producer's org logo image. (Several owned buildings would
+    // all show Alice's logo, so hover the first owned pin.)
     await page.getByRole("tab", { name: "Explore" }).click();
     await page.waitForLoadState("networkidle").catch(() => {});
+    const ownedPin = page.locator(".leaflet-marker-icon.pin-owned").first();
+    await expect(ownedPin).toBeVisible({ timeout: T.action });
+    await ownedPin.hover();
     await expect(page.getByAltText("Building producer logo").first())
       .toBeVisible({ timeout: T.action });
 

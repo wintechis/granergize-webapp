@@ -70,9 +70,6 @@ const CATEGORY_COLOR: Record<EnergyCategory, string> = {
   none: MARKER_NO_DATA_COLOR,
 };
 
-const SHADOW =
-  "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png";
-
 // Basemap: the official German basemap.de Web Raster (BKG) via its WMS endpoint
 // (CRS EPSG:3857, Leaflet's default). The "farbe" (colour) layer; switch to
 // "de_basemapde_web_raster_grau" for the muted grey variant. NOTE: basemap.de
@@ -85,53 +82,38 @@ const BASEMAP_DE = {
     '&copy; <a href="https://basemap.de/">basemap.de</a> / &copy; <a href="https://www.bkg.bund.de/">BKG</a>',
 } as const;
 
-function makeIcon(url: string): L.Icon {
-  return new L.Icon({
-    iconUrl: url,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-    shadowUrl: SHADOW,
-    shadowSize: [41, 41],
-  });
-}
-
-// One marker style; the only distinction is visibility (owned vs shared with you),
-// not the data's provenance.
-const BASE = import.meta.env.BASE_URL;
-const OWNED_ICON = makeIcon(`${BASE}marker-dummy.png`);
-const SHARED_ICON = makeIcon(`${BASE}marker-dummy-shared.png`);
-
-function getIcon(building: BuildingType): L.Icon {
-  return building.isShared ? SHARED_ICON : OWNED_ICON;
-}
-
+// Ownership-lens marker: a plain SVG pin tinted by the theme's owned/shared
+// colour (the marker encodes ownership and nothing else; the producer's logo
+// lives in the marker's hover card). Selected = gold glow.
+//
 // Leaflet icons are CACHED at module level: react-leaflet calls
 // `marker.setIcon()` (replacing the marker's DOM node) whenever the `icon`
 // prop's IDENTITY changes, and every pan/zoom re-renders all markers — a fresh
 // icon object per render meant the whole fleet's DOM was rebuilt on every map
 // move. Stable cached instances make those re-renders no-ops.
-const selectedIconCache = new Map<string, L.DivIcon>();
-function createSelectedIcon(building: BuildingType): L.DivIcon {
-  const key = building.isShared ? "shared" : "owned";
-  const hit = selectedIconCache.get(key);
+const pinIconCache = new Map<string, L.DivIcon>();
+function createPinIcon(shared: boolean, selected: boolean): L.DivIcon {
+  const key = `${shared ? "s" : "o"}-${selected}`;
+  const hit = pinIconCache.get(key);
   if (hit) return hit;
-  const imgUrl = getIcon(building).options.iconUrl as string;
+  const color = shared ? MARKER_SHARED_COLOR : MARKER_OWNED_COLOR;
+  const glow = selected
+    ? `filter:drop-shadow(0 0 3px ${MARKER_SELECTED_COLOR}) drop-shadow(0 0 5px ${MARKER_SELECTED_COLOR});`
+    : "filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));";
+  // The ownership is baked into the className (`pin-owned`/`pin-shared`) so
+  // the e2e specs can target a marker by it (the energy-marker precedent).
   const icon = L.divIcon({
-    className: "",
+    className: `pin-marker pin-${shared ? "shared" : "owned"}`,
     html:
-      `<img src="${imgUrl}" alt="Selected building" style="width:25px;height:41px;filter:drop-shadow(0 0 3px ${MARKER_SELECTED_COLOR}) drop-shadow(0 0 5px ${MARKER_SELECTED_COLOR});" />`,
+      `<svg width="25" height="41" viewBox="0 0 25 41" style="${glow}" aria-hidden="true">` +
+      `<path d="M12.5 0.5C5.9 0.5 0.5 5.9 0.5 12.5c0 9 12 27.5 12 27.5s12-18.5 12-27.5C24.5 5.9 19.1 0.5 12.5 0.5z" fill="${color}" stroke="#fff" stroke-width="1"/>` +
+      `<circle cx="12.5" cy="12.5" r="4.5" fill="#fff"/></svg>`,
     iconSize: [25, 41],
     iconAnchor: [12, 41],
     popupAnchor: [1, -34],
   });
-  selectedIconCache.set(key, icon);
+  pinIconCache.set(key, icon);
   return icon;
-}
-
-/** The owned/shared ring colour — the only provenance-independent distinction. */
-function ringColor(building: BuildingType): string {
-  return building.isShared ? MARKER_SHARED_COLOR : MARKER_OWNED_COLOR;
 }
 
 /**
@@ -166,52 +148,12 @@ function createCategoryIcon(
   return icon;
 }
 
-// A marker showing the building producer's organisation logo inside a pill-
-// shaped owned/shared ring (selected = highlighted ring). The pill is landscape
-// because the logos are: a wide lockup keeps the wordmark legible at marker
-// size where a square crop would not. If the logo image can't be fetched
-// (e.g. the producer's profile folder isn't public) the `onerror` handler
-// swaps in the default pin, so the marker degrades gracefully.
-// Cached per (logo, owned/shared, selected) — bounded by the number of
-// producers — for the same setIcon-churn reason as the caches above.
-const logoIconCache = new Map<string, L.DivIcon>();
-function createLogoIcon(
-  logoUrl: string,
-  building: BuildingType,
-  selected: boolean,
-): L.DivIcon {
-  const key = `${logoUrl}|${building.isShared ? "s" : "o"}|${selected}`;
-  const hit = logoIconCache.get(key);
-  if (hit) return hit;
-  const ring = selected ? MARKER_SELECTED_COLOR : ringColor(building);
-  const fallback = getIcon(building).options.iconUrl as string;
-  // `logoUrl` is the raw `foaf:logo` value from a THIRD PARTY's profile (shared-in
-  // buildings render markers for foreign producers), and it gets interpolated
-  // into the icon's HTML string below — sanitize it, or a crafted profile value
-  // could inject markup/script into the app origin. Unsafe → default pin.
-  const src = safeImageSrc(logoUrl) ?? fallback;
-  const shadow = selected
-    ? `box-shadow:0 0 0 2px ${MARKER_SELECTED_COLOR},0 1px 4px rgba(0,0,0,0.45);`
-    : "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
-  const icon = L.divIcon({
-    className: "",
-    html:
-      `<div style="width:88px;height:28px;border-radius:17px;border:3px solid ${ring};background:#fff;overflow:hidden;padding:1px 6px;box-sizing:content-box;${shadow}">` +
-      `<img src="${src}" alt="Building producer logo" style="width:100%;height:100%;object-fit:contain;display:block;" ` +
-      `onerror="this.onerror=null;this.style.objectFit='contain';this.src='${fallback}';" /></div>`,
-    iconSize: [106, 36],
-    iconAnchor: [53, 18],
-    popupAnchor: [0, -18],
-  });
-  logoIconCache.set(key, icon);
-  return icon;
-}
-
 /**
  * One map marker. A dedicated component so the per-producer org-logo lookup
  * (`useResolveOrg`) is a single hook call per marker rather than inside the
- * buildings `.map()`. The marker shows the producer's (`attributedTo`) logo when
- * one resolves, else the default owned/shared pin.
+ * buildings `.map()`. The marker itself is an owned/shared-coloured pin; the
+ * producer's (`attributedTo`) organisation — name and logo, when they resolve —
+ * shows in the hover card.
  */
 function BuildingMarker(
   { building, position, selected, onClick, lens, category }: {
@@ -224,15 +166,15 @@ function BuildingMarker(
   },
 ) {
   const { data: org } = useResolveOrg(building.attributedTo);
-  const logoUrl = org?.logoUrl;
+  // The logo URL is the raw `foaf:logo` value from a THIRD PARTY's profile
+  // (shared-in buildings resolve foreign producers) — sanitize before rendering.
+  const logoSrc = org?.logoUrl ? safeImageSrc(org.logoUrl) : null;
   const icon = lens === "energy"
     ? createCategoryIcon(category, selected)
-    : logoUrl
-    ? createLogoIcon(logoUrl, building, selected)
-    : selected
-    ? createSelectedIcon(building)
-    : getIcon(building);
-  const tooltipOffset: [number, number] = logoUrl ? [0, -20] : [0, -38];
+    : createPinIcon(building.isShared ?? false, selected);
+  const tooltipOffset: [number, number] = lens === "energy"
+    ? [0, -20]
+    : [0, -38];
   return (
     <Marker
       position={position}
@@ -260,6 +202,24 @@ function BuildingMarker(
                 <br />
                 <em>{org.name}</em>
               </>
+            )}
+            {logoSrc && (
+              <img
+                src={logoSrc}
+                alt="Building producer logo"
+                style={{
+                  display: "block",
+                  height: 20,
+                  maxWidth: 140,
+                  objectFit: "contain",
+                  marginTop: 4,
+                }}
+                // A foreign producer's logo may not be publicly readable —
+                // hide the broken image, the org name line still identifies.
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
             )}
           </span>
         </Box>

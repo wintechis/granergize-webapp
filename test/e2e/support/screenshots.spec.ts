@@ -154,13 +154,13 @@ test.describe("handbuch screenshots", () => {
     // no-op when it's already off (the default), so this just pins the invariant.
     await page.getByRole("checkbox", { name: "Developer mode" }).uncheck();
 
-    // --- Account A's organisation (name + logo), so the producer's building
-    //     markers show the logo on the map (the "Daten ansehen" figure,
-    //     map-tabs.png, demonstrates the logo-marker feature). The demo buildings
-    //     seeded below attribute their provenance to A, so their markers resolve
-    //     this logo. The LOCAL tier gets its org from /seed-profiles (Ahlmann
-    //     Logistik, with a world-readable logo) — setting one here would
-    //     overwrite it — so only the remote tier sets an org through the UI. ---
+    // --- Account A's organisation (name + logo), so a building marker's hover
+    //     card identifies the producer (org name + logo; the marker itself is a
+    //     plain owned/shared pin). The demo buildings seeded below attribute
+    //     their provenance to A, so their hover cards resolve this org. The
+    //     LOCAL tier gets its org from /seed-profiles (Ahlmann Logistik, with a
+    //     world-readable logo) — setting one here would overwrite it — so only
+    //     the remote tier sets an org through the UI. ---
     if (!E2E_LOCAL) {
       await page.getByRole("button", { name: "Account menu" }).click();
       await page.getByRole("menuitem", { name: /organisation/i }).click();
@@ -168,8 +168,8 @@ test.describe("handbuch screenshots", () => {
       await expect(orgDialog).toBeVisible({ timeout: 30_000 });
       await orgDialog.getByLabel("Company name")
         .fill("Friedrich-Alexander-Universität Erlangen-Nürnberg");
-      // The org logo resolves on a building's map marker via its PROV attribution
-      // to the producing agent (A), which is recorded on every building A adds.
+      // The org resolves in a building marker's hover card via its PROV
+      // attribution to the producing agent (A), recorded on every building A adds.
       await orgDialog.locator('input[type="file"]')
         .setInputFiles("test/e2e/fixtures/fau-logo.png");
       await expect(orgDialog.getByAltText("Organisation logo"))
