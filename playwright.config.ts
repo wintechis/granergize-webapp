@@ -161,6 +161,28 @@ export default defineConfig({
     ...(LOCAL
       ? [{ name: "local", use: CHROME, testMatch: [...SOLO_SPECS, ...SHARING_SPECS] }]
       : []),
+    // Handbuch VIDEO recording (notes/plan-handbuch-videos.md): the walkthrough
+    // specs under test/e2e/videos/ drive the app with the demo polish and record
+    // via Playwright's built-in video. Local tier only (`deno task
+    // handbuch:videos`) — like `support`, never part of the catalog runs.
+    ...(LOCAL
+      ? [{
+        name: "video",
+        use: {
+          ...CHROME,
+          // Fail fast: the config default is 0 (wait forever), and a video
+          // spec's un-boxed paced click once retried for 14 minutes against a
+          // marker outside the map's fitted bounds. 30 s says "broken scene".
+          actionTimeout: 30_000,
+          viewport: { width: 1280, height: 720 },
+          video: {
+            mode: "on" as const,
+            size: { width: 1280, height: 720 },
+          },
+        },
+        testMatch: ["**/videos/**/*.spec.ts"],
+      }]
+      : []),
     // Tier-3 scalability BENCHMARK (measure-and-report). Gated on E2E_BENCH so it
     // never runs in the normal suite, and needs E2E_LOCAL too (it seeds via the
     // local-CSS control server). `deno task bench:ui`. `--project=bench`.

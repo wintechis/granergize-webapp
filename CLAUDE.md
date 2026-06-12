@@ -136,31 +136,39 @@ vocabulary the data layer already uses (`src/hooks/queries.ts` vs
 three known exceptions (`loadBuildings`, `drainInbox`, `useViewDetail`'s snapshot
 auto-materialise) are documented in `notes/read-write-operations.md` (§Seams).
 
-Every Pod mutation uses one of **three mechanisms**, and the rule for which is:
-**event-source anything cross-agent or needing an audit trail / replay; overwrite
-single-writer owned state in place; treat enforcement artifacts as projections of
-the event log.** A new mutation should land in the right model *by this rule*, not by
-copying whatever the nearest function happened to do.
-- **Model 1 — event-sourced append.** Immutable events POSTed to an append-only LDP
-  container (server mints the child IRI, so concurrent appends never clobber),
-  *folded* on read to derive current state. The log is ground truth. Used for
-  cross-agent / auditable state: the `shared-out/` & `shared-in/` sharing logs, the
-  `rooms/<id>/` membership+role logs, the inbox notifications.
-- **Model 2 — in-place mutation.** GET → mutate → conditional PUT (`readModifyWrite`,
-  If-Match); the resource *is* the state, no history. Used for single-writer owned
-  data: building files & energy datasets, `prefs.ttl`/`bookmarks.ttl`/`contacts.ttl`,
-  view definitions/snapshots, the WebID profile/org node.
-- **Model 3 — ACL projection.** WAC `.acl` files are not ground truth; they are an
-  enforcement cache rebuilt from the `shared-out/` log (`reissueGrants` →
-  `applyBuildingGrant` → `grantReadAccess`/`removeFromACL`). Writes the `.acl` at the
-  call site but the authoritative record is the model-1 event — keep it replayable
-  (see Sharing/interop below).
+Every Pod mutation commits against one of **two storage models**, distinguished by
+where authority (ground truth) lives. A new mutation lands by the rules below, not
+by copying whatever the nearest function happened to do.
+- **In-place resource** (`in-place-write`) — the default. The resource *is* the
+  state: GET → mutate → conditional PUT (`readModifyWrite`, If-Match), no history.
+  Right wherever the data has a single writer who owns it: building files & energy
+  datasets, `prefs.ttl`/`bookmarks.ttl`/`contacts.ttl`, view definitions/snapshots,
+  the WebID profile/org node.
+- **Event-sourced log** (`event-sourced-append`) — the escalation when in-place
+  breaks down: several agents write (immutable events POSTed to an append-only LDP
+  container never clobber — the server mints the child IRI — where concurrent PUTs
+  would), or the history itself is the point (audit trail / replay). The log is
+  ground truth; current state is always derived through a projection. Used for: the
+  `shared-out/` & `shared-in/` sharing logs, the `rooms/<id>/` membership+role
+  logs, the inbox notifications.
+
+A log's derived state reaches its consumer through one of two **projection
+disciplines**, chosen by whether the consumer can fold the log itself:
+- **Fold-on-read** — the default: the projection is computed in memory each time a
+  query reads the log, never persisted; the consumer is the app.
+- **Materialized projection** (`acl-projection`) — persisted as a resource because
+  the consumer cannot fold. Sole instance: the WAC `.acl` files, an enforcement
+  cache read only by the server's WAC engine. Written at the call site
+  (mechanically an in-place PUT) and rebuilt from the `shared-out/` log
+  (`reissueGrants` → `applyBuildingGrant` → `grantReadAccess`/`removeFromACL`);
+  the authoritative record stays the event — keep it replayable (see
+  Sharing/interop below).
 
 Orthogonally, mutations split by **trigger**: most are *user-intent* (a person decided);
 a few are *reconciliation* (system-initiated to make a projection match reality — the
 stale-grant prune in `loadBuildings`, the ACL rebuild in `reissueGrants`), which is why
 those legitimately live in query/restore paths. `notes/read-write-operations.md` is the full
-taxonomy, mapping each operation to its model.
+taxonomy, mapping each operation to its place in it.
 
 ### Roles, provenance & data-shape dispatch
 **A role never attaches to a building or its energy data — roles exist only as

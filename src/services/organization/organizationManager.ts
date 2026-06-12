@@ -32,7 +32,7 @@ import {
  *
  * The logo *image* lives at `<pod>/profile/logo.<ext>` (in the profile folder,
  * since the org is part of the profile); only the link (`foaf:logo` on `<#org>`)
- * is what we rewrite here. Profile writes are model-2 in-place mutations through
+ * is what we rewrite here. Profile writes are in-place mutations through
  * the shared {@link readModifyWrite} (GET → mutate → conditional PUT with
  * If-Match, the server ignores PATCH); a missing profile document is an error,
  * never silently created.
