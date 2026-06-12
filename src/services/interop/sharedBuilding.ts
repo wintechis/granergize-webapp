@@ -2,6 +2,8 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser } from "n3";
 import { fetchFresh } from "../pod/podFetch.ts";
 import { parseBuildings } from "../rdf/building/buildingParser.ts";
+import { buildingFileUrl } from "../rdf/building/buildingId.ts";
+import { getStorageRoot } from "../pod/solidUtils.ts";
 import type { BuildingType } from "../../types.ts";
 
 /** A shared-building entry as folded from the `shared-in/` log. */
@@ -29,9 +31,24 @@ export async function loadSharedBuilding(
 ): Promise<BuildingType | null> {
   const res = await fetchFresh(entry.buildingUri, session);
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
-  const parsed = parseBuildings(new Parser().parse(await res.text()));
-  const found = [...parsed.values()].find((b) => b.uri === entry.buildingUri) ??
-    [...parsed.values()][0];
+  // Resolve any relative refs against the document; derive ids against the
+  // RECIPIENT's storage root, so a self-shared own building folds to the same
+  // id as on the owner path — one identity per building, however it loaded.
+  let ownRoot: string | undefined;
+  try {
+    ownRoot = session.info.webId ? getStorageRoot(session.info.webId) : undefined;
+  } catch {
+    ownRoot = undefined; // headless callers without a primed root cache
+  }
+  const parsed = parseBuildings(
+    new Parser({ baseIRI: entry.buildingUri }).parse(await res.text()),
+    ownRoot,
+  );
+  // The log records the shared RESOURCE (file) IRI; match on the document,
+  // not text-equality with a `#it` subject.
+  const fileUrl = buildingFileUrl(entry.buildingUri);
+  const found = [...parsed.values()]
+    .find((b) => buildingFileUrl(b.uri) === fileUrl) ?? [...parsed.values()][0];
   if (!found) return null;
   return found;
 }

@@ -40,14 +40,19 @@ import {
 import { datasetFileUrl } from "../../../src/services/rdf/energyDataset.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
+import {
+  buildingFileUrl,
+  mintBuildingSubject,
+} from "../../../src/services/rdf/building/buildingId.ts";
+
 export const name = "grant-projection";
 
 export async function run(ctx: TaskContext): Promise<void> {
   const { a, b, check } = ctx;
   const id = `gp-${Date.now()}`;
   const uri = newBuildingUri(a.webId, id);
-  const fileUri = uri.split("#")[0];
-  const subjectUri = `${uri}#${id}`;
+  const fileUri = buildingFileUrl(uri);
+  const subjectUri = mintBuildingSubject(uri);
   const bSharedIn = podResources(b.webId).sharedIn;
   const bSharedInSnap = await snapshot(b.raw, bSharedIn);
 

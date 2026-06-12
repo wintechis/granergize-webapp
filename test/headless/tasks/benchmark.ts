@@ -35,6 +35,11 @@ import {
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
+import {
+  buildingFileUrl,
+  mintBuildingSubject,
+} from "../../../src/services/rdf/building/buildingId.ts";
+
 export const name = "benchmark";
 
 const BSP_METRICS = CONSUMPTION_METRIC_KEYS;
@@ -46,7 +51,7 @@ async function seedBspBuilding(
   elec: number,
 ): Promise<string> {
   const uri = newBuildingUri(actor.webId, id);
-  const subjectUri = `${uri}#${id}`;
+  const subjectUri = mintBuildingSubject(uri);
   const fields: Record<string, string> = {
     streetAddress: "Benchmarkweg 1",
     locality: "Nürnberg",
@@ -94,7 +99,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     check(
       "C's contributor roster holds both shared buildings",
       [aUri, bUri].every((u) =>
-        buildingUris.some((x) => x.split("#")[0] === u.split("#")[0])
+        buildingUris.some((x) => buildingFileUrl(x) === buildingFileUrl(u))
       ),
       `roster=[${buildingUris.join(", ")}]`,
     );

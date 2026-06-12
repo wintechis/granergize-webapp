@@ -49,7 +49,11 @@ export interface BuildingType {
     | InvestorCertification[]
     | InvestorOperatingCosts
     | undefined;
-  /** The building's id as it appears in its IRI (file name / fragment), verbatim. */
+  /** The building's identifier IS its subject IRI (see buildingId.ts):
+   * storage-root-relative for the user's own buildings
+   * (`granergize/buildings/<file>.ttl#it`), the full absolute IRI for
+   * foreign/shared ones. Contains `/` and `#` — route builders must
+   * `encodeURIComponent` it. */
   id: string;
   uri: string;
   sourceUri?: string;

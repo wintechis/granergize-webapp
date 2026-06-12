@@ -16,6 +16,11 @@ import {
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { parseTtlReadings } from "../rdf/userEnergyParser.ts";
 import { getSharedWithMe } from "../interop/sharingManager.ts";
+import {
+  buildingFileUrl,
+  buildingIdFor,
+} from "../rdf/building/buildingId.ts";
+import { getStorageRoot } from "../pod/solidUtils.ts";
 import { mapPooled } from "../../lib/pool.ts";
 
 /**
@@ -27,22 +32,24 @@ async function loadBuildingEnergyData(
   buildingUri: string,
   session: Session,
 ): Promise<{ energy: EnergyType; year: number } | null> {
-  buildingUri = buildingUri.split("#")[0];
+  // The view definition records the SUBJECT IRI; the document is its
+  // fragment-free form. Carry the subject through verbatim — identity is the
+  // IRI, never reconstructed from the file name.
+  const fileUrl = buildingFileUrl(buildingUri);
   try {
     // Fetch building data to get energy data location (an unreadable building
     // degrades to an empty store, i.e. no datasets).
-    const buildingStore = await readStoreOrEmpty(buildingUri, session);
+    const buildingStore = await readStoreOrEmpty(fileUrl, session);
 
     // Discover the building's annual datasets from its cons:hasEnergyDataset
     // links and load the latest actual year; its metrics become the energyNeed
     // (keyed by the AnnualMetrics names the view metrics use).
-    const buildingId = buildingUri.split("/").pop()?.replace(".ttl", "") || "0";
     const annual = parseEnergyDatasetRefs(buildingStore, null)
       .filter((r) =>
         r.scenario === "actual" && !isSeriesGranularity(r.granularity)
       );
     if (annual.length === 0) {
-      console.warn(`No annual energy datasets for building ${buildingUri}`);
+      console.warn(`No annual energy datasets for building ${fileUrl}`);
       return null;
     }
     const latest = annual.reduce((a, b) => (a.year >= b.year ? a : b));
@@ -51,8 +58,8 @@ async function loadBuildingEnergyData(
 
     return {
       energy: {
-        id: buildingId,
-        uri: `${buildingUri}#${buildingId}`,
+        id: buildingIdFor(buildingUri, ownStorageRootOrUndefined(session)),
+        uri: buildingUri,
         energyNeed: { ...ds.metrics },
         energyGeneration: {},
         energyStorage: {},
@@ -69,6 +76,19 @@ async function loadBuildingEnergyData(
       error,
     );
     return null;
+  }
+}
+
+/**
+ * The session owner's storage root for id derivation, or undefined when the
+ * cache isn't primed (headless callers) — ids then stay absolute, which the
+ * two-shape id model treats as equivalent.
+ */
+function ownStorageRootOrUndefined(session: Session): string | undefined {
+  try {
+    return session.info.webId ? getStorageRoot(session.info.webId) : undefined;
+  } catch {
+    return undefined;
   }
 }
 
@@ -131,7 +151,7 @@ async function loadUserBuildingMonthlyTotal(
   period: string,
   session: Session,
 ): Promise<number | null> {
-  const cleanUri = buildingUri.split("#")[0];
+  const cleanUri = buildingFileUrl(buildingUri);
   try {
     // An unreadable building degrades to an empty store, i.e. no datasets.
     const buildingStore = await readStoreOrEmpty(cleanUri, session);
@@ -147,7 +167,7 @@ async function loadUserBuildingMonthlyTotal(
 
     const dailyUrls: string[] = [];
     for (const ref of seriesRefs) {
-      const container = ref.url.split("#")[0].replace(/\.ttl$/, "/");
+      const container = buildingFileUrl(ref.url).replace(/\.ttl$/, "/");
       const children = (await listDirectChildren(container, session)) ?? [];
       for (const url of children) {
         if (url.endsWith(".ttl") && url.includes(period)) dailyUrls.push(url);

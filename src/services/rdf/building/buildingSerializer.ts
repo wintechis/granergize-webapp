@@ -47,6 +47,7 @@ import { mapPooled } from "../../../lib/pool.ts";
 import { deleteContainerRecursive, listDirectChildren } from "../../pod/podDelete.ts";
 import { geocodeFields } from "../../geocode.ts";
 import { mintLocalIri } from "../rdfHelpers.ts";
+import { buildingFileUrl, mintBuildingSubject } from "./buildingId.ts";
 import {
   generateEnergyDayTtl,
   type LastgangReading,
@@ -367,8 +368,7 @@ export function serializeBuildingToTurtle(
   provenance?: { agent: string },
 ): string {
   const store = new Store();
-  const id = buildingUri.split("/").pop()?.replace(".ttl", "") ?? "building";
-  const subject = namedNode(`${buildingUri}#${id}`);
+  const subject = namedNode(mintBuildingSubject(buildingUri));
 
   store.addQuad(subject, namedNode(RDF_TYPE_IRI), namedNode(REC_BUILDING));
 
@@ -737,7 +737,7 @@ export async function deleteBuilding(
   webId: string,
   buildingFileUri: string,
 ): Promise<void> {
-  const fileUri = buildingFileUri.split("#")[0];
+  const fileUri = buildingFileUrl(buildingFileUri);
   if (!fileUri.startsWith(getStorageRoot(webId))) {
     throw new Error("Refusing to delete a building outside your own Pod");
   }
@@ -1067,10 +1067,10 @@ export async function seedDemoBuildings(
       // operator group that makes the Betreiber benchmark show on the demo data).
       if (demo.selfOperated) fields = { ...fields, operatedBy: webId };
       if (demo.selfOwned) fields = { ...fields, ownedBy: webId };
-      // A collision-free id (several demo buildings are written in a tight loop).
-      const id = crypto.randomUUID();
-      const uri = newBuildingUri(webId, id);
-      const subjectUri = `${uri}#${id}`;
+      // A collision-free FILE name (several demo buildings are written in a
+      // tight loop); identity is the subject IRI, not the uuid.
+      const uri = newBuildingUri(webId, crypto.randomUUID());
+      const subjectUri = mintBuildingSubject(uri);
 
       let series:
         | { year: number; days: Array<{ date: string; readings: LastgangReading[] }>; label: string }

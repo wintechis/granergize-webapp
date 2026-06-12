@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { addEnergyYear } from "../helpers/manage.ts";
+import { addEnergyYear, buildingRoute } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -123,7 +123,7 @@ test.describe("energy resolution toggle", () => {
 
   test("/energy/:id offers the toggle and reaches the series chart", async () => {
     test.setTimeout(T.testSolo);
-    await page.goto(`/#/energy/${id}`);
+    await page.goto(buildingRoute("energy", id));
     // Annual is the default view — the entered figure shows (de-DE formatted).
     await expect(page.getByText("77.777,00").first())
       .toBeVisible({ timeout: T.action });

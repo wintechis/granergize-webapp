@@ -38,6 +38,7 @@ import {
   writeBuildingEnergy,
   writeEnergyYear,
 } from "../services/rdf/building/buildingSerializer.ts";
+import { mintBuildingSubject } from "../services/rdf/building/buildingId.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
 import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
 import {
@@ -279,12 +280,12 @@ export function useUploadBuildings() {
       try {
         for (const b of vars.buildings) {
           vars.signal.throwIfAborted();
-          // A collision-free id: `Date.now()`+short-random clashed when several
-          // buildings were written within the same millisecond in a bulk import,
-          // so the second PUT overwrote the first (buildings silently vanished).
-          const id = crypto.randomUUID();
-          const uri = newBuildingUri(webId, id);
-          const subjectUri = `${uri}#${id}`;
+          // A collision-free FILE name: `Date.now()`+short-random clashed when
+          // several buildings were written within the same millisecond in a bulk
+          // import, so the second PUT overwrote the first (buildings silently
+          // vanished). Identity is the subject IRI, not the uuid.
+          const uri = newBuildingUri(webId, crypto.randomUUID());
+          const subjectUri = mintBuildingSubject(uri);
 
           // Group the Lastgang (15-min) readings by day into a single series
           // dataset; annual aggregates come from the field map (`_inv_*`/`_bsp_*`).

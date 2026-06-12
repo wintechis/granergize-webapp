@@ -89,7 +89,7 @@ export default function Contact({ webId }: { webId: string }) {
                   key={building.id}
                   label={roles.join(", ")}
                   value={
-                    <RefLink to={`/building/${building.id}`}>
+                    <RefLink to={`/building/${encodeURIComponent(building.id)}`}>
                       {buildingDisplayName(building)}
                     </RefLink>
                   }

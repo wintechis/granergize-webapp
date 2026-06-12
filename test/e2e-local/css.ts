@@ -216,13 +216,15 @@ async function wipeAppData(x: BenchActor): Promise<void> {
 // from a previous size would otherwise be pruned during A's timed load and
 // distort it). `drained` archives A's inbox into shared-in/ up front
 // (steady-state recipient); undrained leaves the N notifications for the app's
-// login/reload drain (the first-visit cost the spec times).
+// login/reload drain (the first-visit cost the spec times). Returns the series
+// building's SUBJECT IRI (when `seriesDays` made one), so the series-render
+// spec can deep-link it verbatim — identity is the IRI, never reconstructed.
 async function seedSharedPair(
   n: number,
   drained: boolean,
   years: number,
   seriesDays: number,
-): Promise<void> {
+): Promise<{ seriesSubject: string | null }> {
   const [a, b] = await Promise.all([actorSession("A"), actorSession("B")]);
   try {
     await Promise.all([wipeAppData(a.actor), wipeAppData(b.actor)]);
@@ -255,6 +257,11 @@ async function seedSharedPair(
         throw new Error(`post-seed verify: ${seeded[0].uri} → HTTP ${b0.status} for A`);
       }
     }
+    return {
+      seriesSubject: seriesDays > 0 && seeded.length > 0
+        ? seeded[0].subjectUri
+        : null,
+    };
   } finally {
     await a.live.dispose().catch(() => {});
     await b.live.dispose().catch(() => {});
@@ -412,13 +419,16 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
     const years = Number(searchParams.get("years") ?? `${SEED_ANNUAL_YEARS.length}`);
     const seriesDays = Number(searchParams.get("seriesDays") ?? "0");
     try {
-      await seedSharedPair(
+      const out = await seedSharedPair(
         Number.isFinite(n) && n >= 0 ? n : 0,
         drained,
         Number.isFinite(years) && years >= 0 ? years : SEED_ANNUAL_YEARS.length,
         Number.isFinite(seriesDays) && seriesDays >= 0 ? seriesDays : 0,
       );
-      return new Response("ok\n");
+      // JSON body: callers that only check res.ok are unaffected; the
+      // series-render spec reads `seriesSubject` to deep-link the series
+      // building by its subject IRI.
+      return Response.json(out);
     } catch (e) {
       console.error(`/seed-shared failed: ${e}`);
       return new Response(`seed-shared failed: ${e}\n`, { status: 500 });

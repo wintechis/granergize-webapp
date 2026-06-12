@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { exploreRoute } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -132,7 +133,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     await expect(energyTab).toHaveAttribute("aria-selected", "true", {
       timeout: T.action,
     });
-    expect(page.url()).toContain(`b=${id}`);
+    expect(page.url()).toContain(`b=${encodeURIComponent(id)}`);
     expect(page.url()).toContain("dt=energy");
 
     await page.reload();
@@ -140,7 +141,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     // The selection and detail tab come back from the URI on the fresh page.
     await expect(page.getByRole("tab", { name: "Energy data" }))
       .toHaveAttribute("aria-selected", "true", { timeout: T.action });
-    expect(page.url()).toContain(`b=${id}`);
+    expect(page.url()).toContain(`b=${encodeURIComponent(id)}`);
     expect(page.url()).toContain("dt=energy");
   });
 
@@ -148,7 +149,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     test.setTimeout(T.testSolo);
     if (!id) id = await ensureBuilding(page);
     // No clicking: drive the read path straight from the address.
-    await page.goto(`/#/?tab=explore&b=${id}&dt=weather`);
+    await page.goto(exploreRoute(id, "weather"));
     await expect(page.getByRole("tab", { name: "Weather data" }))
       .toHaveAttribute("aria-selected", "true", { timeout: T.action });
   });

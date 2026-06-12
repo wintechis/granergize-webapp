@@ -1,4 +1,5 @@
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
+import { buildingFileUrl } from "../services/rdf/building/buildingId.ts";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -133,13 +134,13 @@ export default function CreateViewDialog({
 
   // URIs (fragment-stripped) of buildings shared to this user, for membership tests.
   const sharedUriSet = useMemo(
-    () => new Set(sharedContributors.buildingUris.map((u) => u.split("#")[0])),
+    () => new Set(sharedContributors.buildingUris.map(buildingFileUrl)),
     [sharedContributors],
   );
 
   // Buildings the user owns (everything not shared *to* them as a benchmark roster).
   const ownedBuildings = useMemo(
-    () => buildings.filter((b) => b.uri && !sharedUriSet.has(b.uri.split("#")[0])),
+    () => buildings.filter((b) => b.uri && !sharedUriSet.has(buildingFileUrl(b.uri))),
     [buildings, sharedUriSet],
   );
 
@@ -209,7 +210,7 @@ export default function CreateViewDialog({
   const availableBuildings = useMemo(
     () =>
       mode === "benchmark"
-        ? buildings.filter((b) => b.uri && sharedUriSet.has(b.uri.split("#")[0]))
+        ? buildings.filter((b) => b.uri && sharedUriSet.has(buildingFileUrl(b.uri)))
         : mode === "monthly"
         ? ownedBuildings.filter((b) =>
           (b.energyDatasets ?? []).some((r) => isSeriesGranularity(r.granularity))

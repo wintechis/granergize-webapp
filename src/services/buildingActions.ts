@@ -4,11 +4,15 @@ import { deleteBuilding } from "./rdf/building/buildingSerializer.ts";
 import { formatResourceList, listContainedResources } from "./pod/podDelete.ts";
 import { getStorageRoot } from "./pod/solidUtils.ts";
 import { revokeAllBuildingRecipients } from "./interop/sharingManager.ts";
+import {
+  buildingFileUrl,
+  buildingIdStem,
+} from "./rdf/building/buildingId.ts";
 import { logError } from "../lib/logError.ts";
 
 /** The building file URI (fragment stripped) for an owned building. */
 function buildingFileUri(building: BuildingType): string {
-  return ((building.sourceUri ?? building.uri) as string).split("#")[0];
+  return buildingFileUrl((building.sourceUri ?? building.uri) as string);
 }
 
 /**
@@ -48,7 +52,8 @@ export async function buildBuildingDeletionPreview(
     /* preview only */
   }
 
-  const label = (building.streetAddress as string) || `Building ${building.id}`;
+  const label = (building.streetAddress as string) ||
+    `Building ${buildingIdStem(building.id)}`;
   const message = `Delete "${label}"?\n\nThis permanently deletes ${resources.length} ` +
     `resource(s) and removes the building from your buildings list:\n\n` +
     `${formatResourceList(resources, root)}\n\nThis cannot be undone.`;

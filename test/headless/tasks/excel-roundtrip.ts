@@ -22,6 +22,10 @@ import {
 import { buildingsToXlsx } from "../../../src/services/rdf/buildingWorkbook.ts";
 import { fetchAndParseData } from "../../../src/services/TurtleParsingService.ts";
 
+import {
+  mintBuildingSubject,
+} from "../../../src/services/rdf/building/buildingId.ts";
+
 export const name = "excel-roundtrip";
 
 export async function run(ctx: TaskContext): Promise<void> {
@@ -50,7 +54,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     const links1 = await writeBuildingEnergy(
       a.session,
       uri1,
-      `${uri1}#${id1}`,
+      mintBuildingSubject(uri1),
       fields,
     );
     check("annual dataset written and linked", links1.length === 1);
@@ -103,7 +107,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     const links2 = await writeBuildingEnergy(
       a.session,
       uri2,
-      `${uri2}#${id2}`,
+      mintBuildingSubject(uri2),
       row,
     );
     await uploadBuilding(

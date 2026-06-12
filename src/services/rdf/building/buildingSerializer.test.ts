@@ -88,7 +88,7 @@ Deno.test("serializeBuildingToTurtle round-trips core fields through the parser"
     { streetAddress: "Nordostpark 84", locality: "Nürnberg", lat: "49.4", long: "11.1" },
     uri,
   );
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.ok(b, "building parsed back");
   assert.equal(b!.streetAddress, "Nordostpark 84");
   assert.equal(b!.locality, "Nürnberg");
@@ -102,7 +102,7 @@ Deno.test("serializeBuildingToTurtle writes operatedBy as a rec:operatedBy IRI r
   const ttl = serializeBuildingToTurtle({ operatedBy: operator }, uri);
   const store = parse(ttl);
   const quads = store.getQuads(
-    namedNode(`${uri}#b-op`),
+    namedNode(`${uri}#it`),
     namedNode(`${REC_NS}operatedBy`),
     null,
     null,
@@ -112,7 +112,7 @@ Deno.test("serializeBuildingToTurtle writes operatedBy as a rec:operatedBy IRI r
   assert.equal(quads[0].object.value, operator);
 
   // And it round-trips back through the parser as the WebID string.
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-op");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.equal(b!.operatedBy, operator);
 });
 
@@ -123,7 +123,7 @@ Deno.test("parseBuildings tolerates a legacy xsd:string operatedBy literal", () 
     @prefix rec: <${REC_NS}> .
     <${uri}#b-legacy> a <https://w3id.org/rec#Building> ;
       rec:operatedBy "Acme Facility GmbH" .`;
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-legacy");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#b-legacy`);
   assert.equal(b!.operatedBy, "Acme Facility GmbH");
 });
 
@@ -141,7 +141,7 @@ Deno.test("serializeBuildingToTurtle writes investor + ownedBy as IRI references
     ]
   ) {
     const quads = store.getQuads(
-      namedNode(`${uri}#b-agents`),
+      namedNode(`${uri}#it`),
       namedNode(iri),
       null,
       null,
@@ -156,7 +156,7 @@ Deno.test("serializeBuildingToTurtle writes investor + ownedBy as IRI references
   }
 
   // And they round-trip back through the parser as the WebID strings.
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-agents");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.equal(b!.investor, investor);
   assert.equal(b!.ownedBy, owner);
 });
@@ -180,7 +180,7 @@ Deno.test("serializeBuildingToTurtle writes facilityManagedBy/developedBy/consul
     ]
   ) {
     const quads = store.getQuads(
-      namedNode(`${uri}#b-agents2`),
+      namedNode(`${uri}#it`),
       namedNode(`${BUILDING_NS}${pred}`),
       null,
       null,
@@ -195,7 +195,7 @@ Deno.test("serializeBuildingToTurtle writes facilityManagedBy/developedBy/consul
   }
 
   // And they round-trip back through the parser as the WebID strings.
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-agents2");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.equal(b!.facilityManagedBy, fm);
   assert.equal(b!.developedBy, dev);
   assert.equal(b!.consultedBy, consultant);
@@ -208,7 +208,7 @@ Deno.test("parseBuildings tolerates a legacy xsd:string investor literal", () =>
     @prefix bldg: <${BUILDING_NS}> .
     <${uri}#b-inv-legacy> a <https://w3id.org/rec#Building> ;
       bldg:investor "Aurelis" .`;
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-inv-legacy");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#b-inv-legacy`);
   assert.equal(b!.investor, "Aurelis");
 });
 
@@ -216,7 +216,7 @@ Deno.test("serializeBuildingToTurtle still types numeric literals with their XSD
   const uri = newBuildingUri(WEBID, "b-dt");
   const ttl = serializeBuildingToTurtle({ buildingArea: "1200" }, uri);
   const obj = parse(ttl).getQuads(
-    namedNode(`${uri}#b-dt`),
+    namedNode(`${uri}#it`),
     namedNode(`${BUILDING_NS}hasBuildingArea`),
     null,
     null,
@@ -239,7 +239,7 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
   );
   const quads = new Parser().parse(ttl);
   const store = new Store(quads);
-  const subject = namedNode(`${uri}#b-geo`);
+  const subject = namedNode(`${uri}#it`);
 
   // No flat coordinates on the building subject.
   assert.equal(
@@ -271,7 +271,7 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
   );
 
   // Round-trips through the parser back to flat BuildingType fields.
-  const b = parseBuildings(quads).get("b-geo");
+  const b = parseBuildings(quads).get(`${uri}#it`);
   assert.ok(b, "building parsed back");
   assert.equal(b!.lat, 48.46);
   assert.equal(b!.long, 9.15);
@@ -285,7 +285,7 @@ Deno.test("parseBuildings still reads legacy flat geo:lat/long (no point)", () =
     <https://pod.example/granergize/buildings/b-legacy.ttl#b-legacy>
       a rec:Building ; geo:lat 49.0 ; geo:long 11.0 .
   `;
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-legacy");
+  const b = parseBuildings(new Parser().parse(ttl)).get("https://pod.example/granergize/buildings/b-legacy.ttl#b-legacy");
   assert.ok(b, "legacy building parsed");
   assert.equal(b!.lat, 49.0);
   assert.equal(b!.long, 11.0);
@@ -311,7 +311,7 @@ Deno.test("serializeBuildingToTurtle links energy datasets via cons:hasEnergyDat
 
   // Parsed shape: refs surface on building.energyDatasets (the loader dispatches
   // on the granularity in the slug).
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.ok(b);
   assert.equal(b!.energyDatasets!.length, 2);
   assert.deepEqual(
@@ -359,7 +359,7 @@ Deno.test("serializeBuildingToTurtle round-trips investor operating costs", () =
   );
 
   // Parsed shape: the values land on building.operatingCosts (boolean coerced).
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.ok(b);
   assert.ok(b!.operatingCosts);
   assert.equal(b!.operatingCosts!.wasteDisposal, "Landlord");
@@ -378,7 +378,7 @@ Deno.test("serializeBuildingToTurtle round-trips multiple building certification
     _cert_1_level: "Gold",
   }, uri);
 
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.ok(b);
   const certs = b!.certifications ?? [];
   assert.equal(certs.length, 2);
@@ -430,7 +430,7 @@ Deno.test("postalCode and naceCode round-trip as identifier strings (leading zer
     { streetAddress: "X", postalCode: "01067", naceCode: "52.10" },
     uri,
   );
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.ok(b);
   assert.equal(b!.postalCode, "01067");
   assert.equal(b!.naceCode, "52.10");
@@ -467,7 +467,7 @@ Deno.test("parseCsvToFields extracts investor operating costs + certification, e
   // Full Excel → serialize → parse chain materialises them on the building.
   const uri = newBuildingUri(WEBID, "inv-1");
   const b = parseBuildings(new Parser().parse(serializeBuildingToTurtle(f, uri)))
-    .get("inv-1");
+    .get(`${uri}#it`);
   assert.ok(b);
   assert.equal(b!.operatingCosts!.wasteDisposal, "Mittel");
   assert.equal(b!.operatingCosts!.operationInspectionAndMaintenance, true);
@@ -510,7 +510,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
   // …and serialize → parse reproduces the building's modelled data.
   const uri = newBuildingUri(WEBID, "b-1");
   const rt = parseBuildings(new Parser().parse(serializeBuildingToTurtle(f, uri)))
-    .get("b-1");
+    .get(`${uri}#it`);
   assert.ok(rt);
   assert.equal(rt!.streetAddress, "Nordostpark 84");
   assert.equal(rt!.shiftRegime, "1-Shift");
@@ -565,10 +565,10 @@ Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping vi
   const parsed = await parseCsvToFields(new File([buf], "all.xlsx"), "generic");
   assert.equal(parsed.length, 2);
 
-  const rt = (f: Record<string, string>, id: string) =>
+  const rt = (f: Record<string, string>, fileName: string) =>
     parseBuildings(new Parser().parse(
-      serializeBuildingToTurtle(f, newBuildingUri(WEBID, id)),
-    )).get(id);
+      serializeBuildingToTurtle(f, newBuildingUri(WEBID, fileName)),
+    )).get(`${newBuildingUri(WEBID, fileName)}#it`);
 
   const b1 = rt(parsed[0], "b-1");
   assert.ok(b1);
@@ -616,7 +616,7 @@ Deno.test("serializeBuildingToTurtle records the producing agent only (no role)"
   );
 
   // Parsed shape: only attributedTo (the agent) lands on the building.
-  const b = parseBuildings(new Parser().parse(ttl)).get("b-1");
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.ok(b);
   assert.equal(b!.attributedTo, agent);
 });
@@ -658,7 +658,7 @@ Deno.test("writeBuildingEnergy stops writing daily files once aborted", async ()
   }) as typeof fetch;
 
   const uri = newBuildingUri(WEBID, "b-cancel");
-  const subject = `${uri}#b-cancel`;
+  const subject = `${uri}#it`;
   const days = Array.from({ length: 12 }, (_, i) => {
     const date = `2099-01-${String(i + 1).padStart(2, "0")}`;
     return { date, readings: synthDayReadings(date) };

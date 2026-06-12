@@ -1,4 +1,8 @@
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
+import {
+  buildingFileUrl,
+  buildingIdStem,
+} from "../services/rdf/building/buildingId.ts";
 import { useMemo, useState } from "react";
 import {
   Button,
@@ -165,7 +169,12 @@ export default function ManagePage({ session }: ManagePageProps) {
     try {
       // Energy is no longer inline; fetch the annual datasets for the export.
       const [enriched] = await attachAnnualData([building], session);
-      downloadXlsx(await buildingToXlsx(enriched, style), `building-${building.id}.xlsx`);
+      // The id is an IRI reference ("/" and "#" — browsers mangle both in
+      // filenames); the stem is the filename-safe display form.
+      downloadXlsx(
+        await buildingToXlsx(enriched, style),
+        `building-${buildingIdStem(building.id)}.xlsx`,
+      );
     } catch (error) {
       showNotification(formatError("export the building", error), "error");
     }
@@ -272,7 +281,7 @@ export default function ManagePage({ session }: ManagePageProps) {
           : (
             <ul style={listStyle}>
               {buildingPaging.pageItems.map((b) => {
-                const fileUri = (b.sourceUri ?? b.uri).split("#")[0];
+                const fileUri = buildingFileUrl(b.sourceUri ?? b.uri);
                 const sharedWith = recipients[fileUri] ?? recipients[b.uri] ??
                   [];
                 const name = buildingDisplayName(b);

@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { addBuilding, addEnergyYear } from "../helpers/manage.ts";
+import { addBuilding, addEnergyYear, buildingRoute, exploreRoute } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -68,7 +68,7 @@ test.describe("energy view smoke", () => {
     // The /energy/:id deep link renders the building's energy detail — proving
     // loadEnergy + the chart run on the new model (annual aggregate fetched from
     // its own `<year>-P1Y.ttl`, or the series listed from its `<year>-PT15M/`).
-    await page.goto(`/#/energy/${id}`);
+    await page.goto(buildingRoute("energy", id));
     await expect(
       page.getByRole("heading", {
         name: /Energy Need for |Electricity Consumption for /,
@@ -137,7 +137,7 @@ test.describe("energy view smoke", () => {
     await expect(rowA).toBeVisible({ timeout: T.action });
     const id = await rowA.getAttribute("data-building-id");
     expect(id, "building A's id").toBeTruthy();
-    await page.goto(`/#/?tab=explore&b=${id}&dt=energy`);
+    await page.goto(exploreRoute(id, "energy"));
     const avgRow = page.getByRole("row")
       .filter({ hasText: "Operator average" }).first();
     await expect(avgRow).toBeVisible({ timeout: T.action });
@@ -147,7 +147,7 @@ test.describe("energy view smoke", () => {
 
     // The standalone /energy/:id view (latest annual year) carries the same
     // benchmark as its "Operator average" column.
-    await page.goto(`/#/energy/${id}`);
+    await page.goto(buildingRoute("energy", id));
     await expect(
       page.getByRole("heading", { name: /Energy Need for / }),
     ).toBeVisible({ timeout: T.action });

@@ -32,47 +32,7 @@ import {
   SCHEMA_NAME,
 } from "../vocabularies.ts";
 import { parseDatasetSlug } from "../energyDataset.ts";
-
-/**
- * Extract building ID from a NamedNode IRI using *strict* patterns.
- *
- * Keep this strict because we use it during building creation (Pass 1) and
- * we don't want to accidentally treat arbitrary named nodes as buildings.
- */
-function hashIri(iri: string): string {
-  let h = 0;
-  for (let i = 0; i < iri.length; i++) {
-    h = (Math.imul(31, h) + iri.charCodeAt(i)) | 0;
-  }
-  return (h >>> 0).toString(36);
-}
-
-function extractBuildingIdStrict(iri: string): string | null {
-  const fragment = iri.split("#")[1];
-  if (fragment) {
-    const id = fragment.replace(/^building-/, "");
-    // Generic fragment names (e.g. "building1") are not unique across files.
-    // Incorporate the document URL to avoid collisions when multiple files use the same fragment.
-    if (/^building\d*$/.test(id)) {
-      return `${id}_${hashIri(iri.split("#")[0])}`;
-    }
-    return id;
-  }
-
-  // Canonical pattern: .../buildings/<id>
-  const canonicalMatch = iri.match(/\/buildings\/([^/#]+)$/);
-  if (canonicalMatch) {
-    return canonicalMatch[1];
-  }
-
-  // Investor file/subject patterns: .../building-<id> or .../building-<id>.ttl
-  const investorMatch = iri.match(/\/building-([^/#]+?)(?:\.ttl)?$/);
-  if (investorMatch) {
-    return investorMatch[1];
-  }
-
-  return null;
-}
+import { buildingIdFor } from "./buildingId.ts";
 
 /** Get the local name (after # or last /) from an IRI */
 function localName(iri: string): string {
@@ -82,8 +42,34 @@ function localName(iri: string): string {
   return parts[parts.length - 1];
 }
 
-export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
+/**
+ * Parse buildings out of a quad set. Detection is TYPE-driven: a named-node
+ * subject is a building iff it carries `rdf:type rec:Building` — the explicit
+ * assertion every producer writes — so arbitrary named nodes (dataset nodes,
+ * attachment metadata, profile nodes) are never mistaken for buildings, the
+ * job the old strict IRI-pattern matcher used to do. Identity is the subject
+ * IRI itself (see buildingId.ts): the map key / `id` is the storage-relative
+ * reference when `ownStorageRoot` is given and the subject lives under it,
+ * else the absolute IRI verbatim — so foreign documents holding SEVERAL
+ * buildings (`<#building-1>`, `<#building-2>`) stay distinct without any
+ * uniqueness assumption about their naming.
+ */
+export function parseBuildings(
+  quads: Quad[],
+  ownStorageRoot?: string,
+): Map<string, BuildingType> {
   const buildings = new Map<string, BuildingType>();
+  // ── Pass 0: the building roster — subjects typed rec:Building ─────────────
+  const buildingSubjects = new Set<string>();
+  for (const quad of quads) {
+    if (
+      quad.subject.termType === "NamedNode" &&
+      quad.predicate.value === RDF_TYPE &&
+      quad.object.value === REC_BUILDING
+    ) {
+      buildingSubjects.add(quad.subject.value);
+    }
+  }
   /** building ID → its `cons:hasEnergyDataset` link URLs (unified energy model). */
   const energyDatasetLinks = new Map<string, string[]>();
   /** blank node ID - building ID for operating costs */
@@ -99,17 +85,18 @@ export function parseBuildings(quads: Quad[]): Map<string, BuildingType> {
   /** attachment file URL → building ID (the file IRI is the metadata subject) */
   const attachmentUrlBuilding = new Map<string, string>();
 
-  // ── Pass 1: Create buildings from named-node subjects ─────────────────────
+  // ── Pass 1: Create buildings from the typed roster ────────────────────────
   quads.forEach((quad: Quad) => {
     if (quad.subject.termType === "BlankNode") return;
+    if (!buildingSubjects.has(quad.subject.value)) return;
 
-    const buildingId = extractBuildingIdStrict(quad.subject.value);
-    if (!buildingId) return;
+    // The subject IRI IS the identity; the id is its storage-relative form
+    // for own buildings (verbatim part of the IRI, so a label built from it
+    // still matches what the user sees in the IRI — heike-5 #1).
+    const buildingId = buildingIdFor(quad.subject.value, ownStorageRoot);
 
     if (!buildings.has(buildingId)) {
       buildings.set(buildingId, {
-        // The IRI-extracted id verbatim — what the user sees in a label must
-        // match what they see in the building's IRI (heike-5 #1).
         id: buildingId,
         // Use the RDF subject as the building URI so it links correctly with observations.
         // Store the source file URL separately for ownership checks.

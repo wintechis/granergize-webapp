@@ -9,6 +9,7 @@ import {
   UNIT_NS,
 } from "./vocabularies.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
+import { buildingFileUrl } from "./building/buildingId.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import { logError } from "../../lib/logError.ts";
 
@@ -117,7 +118,7 @@ export function datasetFileUrl(
   granularity: string,
   scenario: Scenario,
 ): string {
-  const base = buildingUri.split("#")[0].replace(/\.ttl$/, "");
+  const base = buildingFileUrl(buildingUri).replace(/\.ttl$/, "");
   return `${base}/energy/${datasetSlug(year, granularity, scenario)}.ttl`;
 }
 

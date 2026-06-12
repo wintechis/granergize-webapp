@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, login } from "../helpers/login.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { sweepSizes, writeBenchDat } from "./benchSpec.ts";
+import { buildingRoute } from "../helpers/manage.ts";
 
 /**
  * Tier-3 scalability BENCHMARK (`deno task bench:ui`): time-to-chart for a
@@ -28,16 +29,9 @@ import { sweepSizes, writeBenchDat } from "./benchSpec.ts";
 const LOCAL = !!process.env.E2E_LOCAL;
 const CONTROL = `http://localhost:${LOCAL_CSS_CONTROL_PORT}`;
 // Constant shared-buildings background, so D is the only moving axis.
+// The series building's identity is its SUBJECT IRI, returned by /seed-shared
+// — the deep link uses it verbatim (no derived/reconstructed ids).
 const N_SHARED = 20;
-// The app folds a NON-NUMERIC building fragment into a numeric id
-// (buildingParser.ts: the 31-multiplier string hash, unsigned) and the
-// /energy/:id route matches on THAT — replicate the fold to deep-link the
-// seeded series building (`bench-0`, the series-only click target).
-const routeId = (fragment: string): number =>
-  fragment
-    .split("")
-    .reduce((h, c) => (Math.imul(31, h) + c.charCodeAt(0)) | 0, 0) >>> 0;
-const SERIES_ID = routeId("bench-0");
 
 const ACC = account("A");
 
@@ -70,6 +64,9 @@ test.describe("series-render benchmark", () => {
         { method: "POST" },
       );
       expect(res.ok, `seed-shared seriesDays=${days} (HTTP ${res.status})`).toBeTruthy();
+      const { seriesSubject } = await res.json() as { seriesSubject: string | null };
+      expect(seriesSubject, "seed returned the series building's subject IRI")
+        .toBeTruthy();
 
       // Cold navigation straight to the series building's energy view: loads
       // phase 1 (resolves the building), lists the series container (D
@@ -78,7 +75,7 @@ test.describe("series-render benchmark", () => {
       // document, leaving the app on its stale in-memory (pre-seed) data.
       await page.goto("about:blank");
       let t0 = Date.now();
-      await page.goto(`/#/energy/${SERIES_ID}`);
+      await page.goto(buildingRoute("energy", seriesSubject!));
       await expect(page.locator(".recharts-wrapper").first())
         .toBeVisible({ timeout: 120_000 });
       const dayMs = Date.now() - t0;

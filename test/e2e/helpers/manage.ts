@@ -11,9 +11,31 @@ import { T } from "./timeouts.ts";
 /** Locator for the building rows on Manage. */
 export const buildingRows = (page: Page) => page.locator("li[data-building-id]");
 
-/** A row's building id (the IRI-extracted id, verbatim). */
+/** A row's building id (the building's IRI-based identifier, verbatim). */
 export const buildingIdOf = (row: Locator): Promise<string | null> =>
   row.getAttribute("data-building-id");
+
+/**
+ * Hash route to a building's standalone page. The id is an IRI reference
+ * (contains `/` and `#`), so it MUST be URL-encoded — a raw `#` truncates the
+ * hash route. Every spec goto goes through this, never hand-built paths.
+ * Accepts `null` (getAttribute's type) and fails LOUDLY instead of routing to
+ * the literal string "null".
+ */
+export function buildingRoute(
+  kind: "building" | "energy",
+  id: string | null,
+): string {
+  if (!id) throw new Error(`buildingRoute(${kind}): missing building id`);
+  return `/#/${kind}/${encodeURIComponent(id)}`;
+}
+
+/** Hash route to the Explore tab with a building selected (`?b=`), optionally
+ * on a detail sub-tab (`?dt=`). Encodes + null-rejects like {@link buildingRoute}. */
+export function exploreRoute(id: string | null, dt?: string): string {
+  if (!id) throw new Error("exploreRoute: missing building id");
+  return `/#/?tab=explore&b=${encodeURIComponent(id)}${dt ? `&dt=${dt}` : ""}`;
+}
 
 /**
  * Delete one building row and wait for THAT row to vanish — not the shared

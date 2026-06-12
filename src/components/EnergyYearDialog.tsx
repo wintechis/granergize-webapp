@@ -25,6 +25,7 @@ import {
   type EnergyMetricKey,
   loadEnergyDatasets,
 } from "../services/rdf/energyDataset.ts";
+import { buildingFileUrl } from "../services/rdf/building/buildingId.ts";
 import {
   useDeleteEnergyYear,
   useWriteEnergyYear,
@@ -242,7 +243,7 @@ export default function EnergyYearDialog(
       metrics,
     };
     write.mutate(
-      { fileUri: subjectUri.split("#")[0], subjectUri, dataset },
+      { fileUri: buildingFileUrl(subjectUri), subjectUri, dataset },
       {
         onSuccess: () => {
           // Reflect the saved year in the table without a round-trip, then clear
@@ -273,7 +274,7 @@ export default function EnergyYearDialog(
     const subjectUri = building.uri as string;
     del.mutate(
       {
-        fileUri: subjectUri.split("#")[0],
+        fileUri: buildingFileUrl(subjectUri),
         subjectUri,
         dataset: { year: d.year, granularity: "P1Y", scenario: d.scenario },
       },

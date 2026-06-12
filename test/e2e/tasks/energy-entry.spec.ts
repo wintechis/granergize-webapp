@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { addEnergyYear } from "../helpers/manage.ts";
+import { addEnergyYear, buildingRoute } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -118,7 +118,7 @@ test.describe("energy entry + Soll-Ist", () => {
     test.setTimeout(T.testSolo);
     // 2099 is the building's only/latest actual year, so loadEnergy surfaces our
     // electricity figure (de-DE formatted "88.888,00") in the energy-need table.
-    await page.goto(`/#/energy/${id}`);
+    await page.goto(buildingRoute("energy", id));
     await expect(page.getByText("88.888,00").first())
       .toBeVisible({ timeout: T.action });
     // The migrated chart is a Recharts SVG (not a canvas) — assert it draws.
