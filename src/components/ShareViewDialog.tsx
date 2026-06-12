@@ -3,9 +3,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import Modal from "./Modal.tsx";
 import {
   Alert,
+  Autocomplete,
   Box,
   Button,
-  Chip,
   Divider,
   IconButton,
   List,
@@ -34,6 +34,8 @@ import { classifyQueryError } from "../hooks/queryErrors.ts";
 import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
 import { summarizeContributors } from "../services/aggregation/viewComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
+import { useAgentOptions } from "../hooks/useAgentOptions.ts";
 
 import { ROLE_LABELS } from "../constants/roles.ts";
 
@@ -48,7 +50,8 @@ export default function ShareViewDialog(
   { open, onClose, view, session }: ShareViewDialogProps,
 ) {
   const { showNotification } = useNotification();
-  const [recipientWebId, setRecipientWebId] = useState("");
+  const agentOptions = useAgentOptions();
+  const [recipients, setRecipients] = useState<string[]>([]);
   const [webIdError, setWebIdError] = useState<string | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
   // The writes go through mutation hooks: busy/success/error are their state,
@@ -112,20 +115,14 @@ export default function ShareViewDialog(
     [isBenchmarkView, sharedWithMe.data],
   );
 
-  const getRecipients = () =>
-    recipientWebId.split(/[\n,]+/).map((s) => s.trim()).filter(Boolean);
-
-  /** Append a member's WebID to the recipient field (deduped). */
+  /** Append a member's WebID to the recipient tokens (deduped). */
   const addRecipient = (webId: string) => {
-    const current = getRecipients();
-    if (current.includes(webId)) return;
-    setRecipientWebId([...current, webId].join("\n"));
+    setRecipients((prev) => prev.includes(webId) ? prev : [...prev, webId]);
     setWebIdError(null);
     if (share.isSuccess) share.reset();
   };
 
   const handleProceedToConfirm = () => {
-    const recipients = getRecipients();
     if (recipients.length === 0) {
       setWebIdError("Enter at least one WebID");
       return;
@@ -151,16 +148,17 @@ export default function ShareViewDialog(
 
   const handleConfirmShare = () => {
     if (!session.info.webId) return;
-    const recipients = getRecipients();
     const snapshotUrl = getSnapshotUrl(session.info.webId, view.id);
     share.mutate({ snapshotUrl, recipients }, {
       onSuccess: () => {
         setConfirmStep(false);
         showNotification(
-          `View shared with ${recipients.join(", ")}`,
+          `View shared with ${recipients.length} recipient${
+            recipients.length === 1 ? "" : "s"
+          }`,
           "success",
         );
-        setRecipientWebId("");
+        setRecipients([]);
       },
       // Back to the form step, where the inline error Alert renders.
       onError: () => setConfirmStep(false),
@@ -177,7 +175,7 @@ export default function ShareViewDialog(
   };
 
   const handleClose = () => {
-    setRecipientWebId("");
+    setRecipients([]);
     setWebIdError(null);
     setConfirmStep(false);
     share.reset();
@@ -188,7 +186,7 @@ export default function ShareViewDialog(
     <Modal
       open={open}
       onClose={handleClose}
-      dirty={recipientWebId.trim() !== ""}
+      dirty={recipients.length > 0}
       busy={loading}
       title={`Share "${view.name}"`}
       actions={<Button onClick={handleClose}>Close</Button>}
@@ -207,7 +205,19 @@ export default function ShareViewDialog(
 
           {shareSuccess && (
             <Alert severity="success" sx={{ mb: 2 }}>
-              Shared successfully with {successRecipients.join(", ")}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  flexWrap: "wrap",
+                  gap: 0.5,
+                }}
+              >
+                Shared successfully with{" "}
+                {successRecipients.map((r) => (
+                  <AgentChip key={r} value={r} size="small" variant="outlined" />
+                ))}
+              </Box>
             </Alert>
           )}
 
@@ -228,19 +238,14 @@ export default function ShareViewDialog(
                   <Button
                     variant="outlined"
                     onClick={() => {
-                      // Add ALL contributors in one state update — calling
-                      // addRecipient per item would read stale field state each
-                      // iteration (React hasn't re-rendered), so only the last
-                      // would survive.
-                      const merged = [
-                        ...new Set([...getRecipients(), ...contributors]),
-                      ];
-                      setRecipientWebId(merged.join("\n"));
+                      setRecipients((prev) => [
+                        ...new Set([...prev, ...contributors]),
+                      ]);
                       setWebIdError(null);
                       if (share.isSuccess) share.reset();
                     }}
                     disabled={contributors.every((w) =>
-                      getRecipients().includes(w) || sharedWith.includes(w)
+                      recipients.includes(w) || sharedWith.includes(w)
                     )}
                   >
                     Add all {contributors.length} contributors
@@ -271,12 +276,12 @@ export default function ShareViewDialog(
                 : (
                   <List dense sx={{ mb: 1 }}>
                     {members.map((m) => {
-                      const inField = getRecipients().includes(m.webId);
+                      const inField = recipients.includes(m.webId);
                       const alreadyShared = sharedWith.includes(m.webId);
                       return (
                         <ListItem key={m.webId}>
                           <ListItemText
-                            primary={m.webId}
+                            primary={<AgentLabel value={m.webId} />}
                             secondary={m.roles.map((r) => ROLE_LABELS[r] ?? r)
                               .join(", ") || "no role"}
                             primaryTypographyProps={{
@@ -305,28 +310,46 @@ export default function ShareViewDialog(
                   </List>
                 )}
 
-              <TextField
-                label="Recipient WebID(s)"
-                fullWidth
-                multiline
-                minRows={2}
-                value={recipientWebId}
-                onChange={(e) => {
-                  setRecipientWebId(e.target.value);
+              <Autocomplete
+                multiple
+                freeSolo
+                options={agentOptions}
+                value={recipients}
+                onChange={(_e, value) => {
+                  setRecipients(value as string[]);
                   if (webIdError) setWebIdError(null);
                   if (share.isSuccess) share.reset();
                 }}
-                placeholder="https://example.solidcommunity.net/profile/card#me"
                 disabled={loading}
-                error={!!webIdError}
-                helperText={webIdError ||
-                  "One WebID per line, or comma-separated"}
-                sx={{ mb: 2 }}
+                renderOption={(props, option) => (
+                  <Box component="li" {...props} key={option}>
+                    <AgentLabel value={option} />
+                  </Box>
+                )}
+                renderTags={(value, getTagProps) =>
+                  value.map((option, index) => (
+                    <AgentChip
+                      {...getTagProps({ index })}
+                      key={option}
+                      value={option}
+                      size="small"
+                    />
+                  ))}
+                renderInput={(params) => (
+                  <TextField
+                    {...params}
+                    label="Recipient WebID(s)"
+                    error={!!webIdError}
+                    helperText={webIdError ||
+                      "Pick a contact/member, or type a WebID and press Enter"}
+                    sx={{ mb: 2 }}
+                  />
+                )}
               />
               <Button
                 variant="contained"
                 onClick={handleProceedToConfirm}
-                disabled={loading || !recipientWebId.trim()}
+                disabled={loading || recipients.length === 0}
               >
                 Review & Share
               </Button>
@@ -344,8 +367,8 @@ export default function ShareViewDialog(
                 Confirm sharing with:
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
-                {getRecipients().map((r) => (
-                  <Chip key={r} label={r} size="small" variant="outlined" />
+                {recipients.map((r) => (
+                  <AgentChip key={r} value={r} size="small" variant="outlined" />
                 ))}
               </Box>
               <Typography variant="body2" sx={{ mb: 2 }}>
@@ -384,7 +407,7 @@ export default function ShareViewDialog(
                 {sharedWith.map((webId) => (
                   <ListItem key={webId}>
                     <ListItemText
-                      primary={webId}
+                      primary={<AgentLabel value={webId} />}
                       primaryTypographyProps={{
                         variant: "body2",
                         sx: {

@@ -1062,8 +1062,11 @@ direkt mit seiner eigenen WebID.
 
 1. A öffnet im Tab **Manage** unter „Your buildings" das Teilen-Symbol des
    Gebäudes. Der Dialog „Share Building Data" erscheint.
-2. A wählt **By WebID** und gibt B's WebID ein – hat A schon einmal mit B
-   geteilt, schlägt das Adressbuch (siehe „Kontakte verwalten") die WebID vor.
+2. A wählt **By WebID**. B's WebID hat A von B selbst erhalten – eine WebID
+   gibt man weiter wie eine E-Mail-Adresse, etwa in der Signatur oder auf der
+   Visitenkarte. Einmal unter „Contacts" abgelegt (siehe „Kontakte
+   verwalten"), schlägt die App B fortan mit Namen und Profilbild als
+   Empfänger vor – die WebID muss nie wieder eingetippt werden.
    Alternativ wählt A **By role**, wenn beide Mitglied desselben Datenraums
    sind und B sich dort eine passende Rolle zugewiesen hat.
 3. A legt unter „What to share" den Umfang fest – etwa nur Stammdaten oder
@@ -1119,7 +1122,9 @@ Beteiligten:
 1. Jeder teilt seine Gebäude über den normalen Teilen-Dialog an C – genau die
    Schritte aus „Vertriebsoptimierung durchgespielt", nur dass A unter „What to share" diesmal
    **einschließlich Energiedaten** freigibt, wahlweise alle Jahre oder gezielt
-   ausgewählte.
+   ausgewählte. C's WebID liegt dabei längst im Adressbuch – sie kam mit der
+   Beauftragung des Dienstleisters, wie eine E-Mail-Adresse –, sodass der
+   Teilen-Dialog C mit Namen und Profilbild vorschlägt.
 2. Sind alle drei Mitglied desselben Datenraums, geht es auch in einem Zug
    rollenbasiert: **By role** an die Rolle **Benchmark Service Provider**
    erreicht C, ohne dass A und B dessen WebID kennen müssen.

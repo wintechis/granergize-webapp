@@ -90,6 +90,16 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await dismissToasts(stage);
     const demo = await Demo.install(stage, "A", t0);
 
+    // --- Scene zero: establish the actor and her problem before the
+    //     resolution starts. ---
+    await demo.intro("Soll-Ist-Vergleich", [
+      {
+        slot: "A",
+        tagline:
+          "Bestandshalterin und Nutzerin ihrer Hallen: Hält der reale Verbrauch, was der Plan verspricht?",
+      },
+    ]);
+
     // --- Scene 1: the actual (Ist) year, in the per-building energy dialog. ---
     await demo.scene(
       "ist",
@@ -136,15 +146,24 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await demo.click(stage.getByRole("button", { name: "Close" }));
     await expect(dialog).toBeHidden({ timeout: 10_000 });
 
-    // --- Scene 3: the payoff — plan next to actual in the annual overview. ---
+    // --- Scene 3: the payoff — plan next to actual in the annual overview.
+    //     Land on the building first (the deep link reads as a scene cut),
+    //     settle, then switch to Energy data with a VISIBLE click — a raw
+    //     `?dt=energy` teleport was too fast to follow. ---
     await demo.scene(
       "payoff",
       "Im Explore-Tab zeigt die Jahresübersicht Soll und Ist nebeneinander",
     );
-    await stage.goto(exploreRoute(buildingId, "energy"));
+    await stage.goto(exploreRoute(buildingId));
+    await expect(stage.getByRole("tab", { name: "Building data" }))
+      .toBeVisible({ timeout: 60_000 });
+    await stage.waitForLoadState("networkidle").catch(() => {});
+    await demo.pause(1_500);
+    await demo.click(stage.getByRole("tab", { name: "Energy data" }));
     const planned = stage.getByText(/\(planned\)/i).first();
     await expect(planned).toBeVisible({ timeout: 60_000 });
     await stage.waitForLoadState("networkidle").catch(() => {});
+    await demo.pause(1_200);
     await demo.moveTo(planned);
     await demo.pause(2_000);
     await demo.caption(
@@ -153,6 +172,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     );
     await demo.caption("");
     await demo.pause(800);
+    await demo.outro();
 
     // --- Save the stage recording + scene marks. The video file is complete
     //     only once its page closes, so close first, then export. ---

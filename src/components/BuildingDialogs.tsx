@@ -38,7 +38,7 @@ import type { AttachmentRef, BuildingType, UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { formatError } from "../lib/formatError.ts";
 import { useAgentOptions } from "../hooks/useAgentOptions.ts";
-import { AgentLabel } from "./AgentLabel.tsx";
+import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
 import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 
 /**
@@ -226,7 +226,19 @@ export function ShareBuildingDialog({
 
       {!sharing && shareSuccess && (
         <Alert severity="success">
-          Shared successfully with {recipients.join(", ")}
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              flexWrap: "wrap",
+              gap: 0.5,
+            }}
+          >
+            Shared successfully with{" "}
+            {recipients.map((r) => (
+              <AgentChip key={r} value={r} size="small" variant="outlined" />
+            ))}
+          </Box>
         </Alert>
       )}
 
@@ -280,6 +292,15 @@ export function ShareBuildingDialog({
                         <AgentLabel value={option} />
                       </Box>
                     )}
+                    renderTags={(value, getTagProps) =>
+                      value.map((option, index) => (
+                        <AgentChip
+                          {...getTagProps({ index })}
+                          key={option}
+                          value={option}
+                          size="small"
+                        />
+                      ))}
                     renderInput={(params) => (
                       <TextField
                         {...params}
@@ -397,7 +418,7 @@ export function ShareBuildingDialog({
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
               {recipients.map((r) => (
-                <Chip key={r} label={r} size="small" variant="outlined" />
+                <AgentChip key={r} value={r} size="small" variant="outlined" />
               ))}
             </Box>
             <Typography variant="body2">

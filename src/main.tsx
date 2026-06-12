@@ -83,14 +83,26 @@ function AppContent() {
       setSuppressRestore(true);
       clearRequestLog();
       resetActiveRoom();
-      // Evict this user's in-memory data so the next login (possibly a different
-      // user on the same tab) starts clean — not just unreadable (WebID-keyed),
-      // but actually gone from memory.
-      queryClient.clear();
-      clearStorageRootCache();
       session.logout().then(() => setSession(null));
     }
-  }, [expired, session, showNotification, queryClient]);
+  }, [expired, session, showNotification]);
+
+  // Evict the logged-out user's in-memory data — the React Query cache and the
+  // resolved storage roots — so the next login (possibly a different user on
+  // the same tab) starts clean: not just unreadable (WebID-keyed), but actually
+  // gone from memory. This must run AFTER the app shell has unmounted (i.e.
+  // when `session` has become null): clearing while query observers are still
+  // mounted makes every active query refetch immediately (an emptied cache
+  // bypasses `refetchOnMount: false`), and those query fns call the synchronous
+  // `getStorageRoot` on the just-wiped cache — surfacing spurious "Storage root
+  // … not resolved" error toasts mid-logout. The idp-logout path navigates the
+  // browser away instead; the page unload evicts for it.
+  useEffect(() => {
+    if (session === null) {
+      queryClient.clear();
+      clearStorageRootCache();
+    }
+  }, [session, queryClient]);
 
   const handleLogin = useCallback(async (authSession: Session) => {
     console.log("User logged in successfully", authSession.info.webId);
@@ -138,12 +150,10 @@ function AppContent() {
     // screen / header log.
     clearRequestLog();
     // Clear the in-memory current-room pointer so a different user logging in on
-    // the same tab can't briefly target the previous user's room.
+    // the same tab can't briefly target the previous user's room. (The query
+    // cache and storage roots are evicted by the session-null effect above,
+    // after the shell has unmounted.)
     resetActiveRoom();
-    // Evict cached data (React Query) and the resolved storage roots so the
-    // previous user's data doesn't linger in memory until the tab closes.
-    queryClient.clear();
-    clearStorageRootCache();
     if (opts?.suppressAutoLogin) {
       sessionStorage.setItem(NO_RESTORE_KEY, "1");
       setSuppressRestore(true);

@@ -1,9 +1,16 @@
 import { readFileSync } from "node:fs";
+import { createElement } from "react";
+import { renderToStaticMarkup } from "react-dom/server";
+import { QRCodeSVG } from "qrcode.react";
 import type { Locator, Page } from "@playwright/test";
 import {
   ACTOR_THEMES,
   CAPTION_ID,
+  endCardHtml,
   installOverlayScript,
+  INTRO_ID,
+  introCardHtml,
+  loadingCardHtml,
 } from "./overlay.ts";
 
 /**
@@ -22,6 +29,25 @@ const AVATARS: Record<"A" | "B" | "C", string> = {
   B: "test/e2e/fixtures/bob-avatar.png",
   C: "test/e2e/fixtures/charlie-avatar.png",
 };
+
+const dataUri = (path: string, mime: string) =>
+  `data:${mime};base64,${readFileSync(path).toString("base64")}`;
+const avatarUri = (slot: "A" | "B" | "C") => dataUri(AVATARS[slot], "image/png");
+const brandLogoUri = () => dataUri("public/favicon.svg", "image/svg+xml");
+
+/** QR as inline SVG markup, rendered in this Node process via qrcode.react. */
+const qrSvg = (value: string) =>
+  renderToStaticMarkup(createElement(QRCodeSVG, {
+    value,
+    size: 120,
+    fgColor: "#1d1d1f",
+    bgColor: "#ffffff",
+  }));
+
+/** The two project pages the end card's QR codes point at (login footer). */
+const PROJECT_FAU = "https://www.ti.rw.fau.de/granergize/";
+const PROJECT_IIS =
+  "https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html";
 
 export interface SceneMark {
   label: string;
@@ -48,13 +74,92 @@ export class Demo {
     slot: "A" | "B" | "C",
     t0: number,
   ): Promise<Demo> {
-    const avatar = `data:image/png;base64,${
-      readFileSync(AVATARS[slot]).toString("base64")
-    }`;
-    const script = installOverlayScript(ACTOR_THEMES[slot], avatar);
+    const script = installOverlayScript(ACTOR_THEMES[slot]);
     await page.addInitScript({ content: script }); // survives reload/goto
     await page.evaluate(script); // and the document already open
     return new Demo(page, t0);
+  }
+
+  /** Show full-frame card HTML in the intro/end container. */
+  private async showCard(html: string, light = false): Promise<void> {
+    await this.page.evaluate(
+      ([id, html, light]) => {
+        const el = document.getElementById(id as string);
+        if (!el) return;
+        el.innerHTML = html as string;
+        el.classList.toggle("demo-card-light", !!light);
+        el.classList.remove("demo-intro-fading");
+        el.hidden = false;
+      },
+      [INTRO_ID, html, light] as const,
+    );
+  }
+
+  private async fadeOutCard(): Promise<void> {
+    await this.page.evaluate((id) => {
+      document.getElementById(id)?.classList.add("demo-intro-fading");
+    }, INTRO_ID);
+    await this.pause(500); // the CSS fade
+    await this.page.evaluate((id) => {
+      const el = document.getElementById(id);
+      if (el) el.hidden = true;
+    }, INTRO_ID);
+  }
+
+  /**
+   * Scene zero, two beats. First a ~1 s replica of the app's branded
+   * "Loading…" screen (`ActivityScreen`), so the video opens exactly like
+   * the app does — the stage page has long settled by now, and without this
+   * the trimmed video opened on a flash of the logged-in screen. Then the
+   * full-frame cast card — title, then every participant with avatar, name,
+   * company and a one-line problem statement — so the actors and the problem
+   * are established before the resolution starts. The card hold scales with
+   * the cast (more taglines = more reading time) unless overridden. Fades
+   * out. The loading beat is the clip's first scene mark = the trim point.
+   */
+  async intro(
+    title: string,
+    cast: Array<{ slot: "A" | "B" | "C"; tagline: string }>,
+    holdMs?: number,
+  ): Promise<void> {
+    this.marks.push({
+      label: "loading",
+      caption: "Loading…",
+      t: Date.now() - this.t0,
+    });
+    // Held 1.6 s: postprocess cuts ~0.4 s INTO this flash (see its comment),
+    // so ≥1 s of it survives as the video's opening.
+    await this.showCard(loadingCardHtml(brandLogoUri()), true);
+    await this.pause(1_600);
+    this.marks.push({ label: "intro", caption: title, t: Date.now() - this.t0 });
+    await this.showCard(introCardHtml(
+      title,
+      cast.map((c) => ({
+        theme: ACTOR_THEMES[c.slot],
+        avatarDataUri: avatarUri(c.slot),
+        tagline: c.tagline,
+      })),
+    ));
+    await this.pause(holdMs ?? 3_500 + 2_500 * cast.length);
+    await this.fadeOutCard();
+  }
+
+  /**
+   * The closing card every video holds on (no fade-out — the video ends on
+   * it): the project contact and QR codes for the two project pages. The
+   * hold leaves time to scan a QR.
+   */
+  async outro(holdMs = 10_000): Promise<void> {
+    this.marks.push({
+      label: "outro",
+      caption: "Granergize",
+      t: Date.now() - this.t0,
+    });
+    await this.showCard(endCardHtml({
+      qrFauSvg: qrSvg(PROJECT_FAU),
+      qrIisSvg: qrSvg(PROJECT_IIS),
+    }));
+    await this.pause(holdMs);
   }
 
   /** Mark a scene start and show its caption (the walkthrough step text). */
@@ -96,9 +201,9 @@ export class Demo {
   /** A deliberate click: travel, settle, click, settle. */
   async click(target: Locator): Promise<void> {
     await this.moveTo(target);
-    await this.pause(400);
+    await this.pause(550);
     await target.click();
-    await this.pause(300);
+    await this.pause(450);
   }
 
   /** Click into a field and type its value per-character. */

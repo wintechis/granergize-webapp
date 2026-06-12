@@ -345,6 +345,12 @@ ESLint-enforced (`eslint.config.js`); the rest are review conventions.
     inside the weather panel / share dialog) — a snackbar can't stay put or sit
     in context. Use `<Alert>` for in-place state; `showNotification` for transient
     global events.
+- **Explaining text — empty states carry the guidance.** A section gets no
+  standing explanatory prose under its heading (heading + affordances explain
+  themselves; education belongs in the Handbuch). Guidance lives in the
+  empty state, phrased `"No X yet. <how to get one>"`; a contextual hint that
+  must sit next to a specific widget (e.g. under the room QR code) is a
+  `body2` + `color="text.secondary"` line directly at that widget.
 - **Typography — the theme scale only.** Use a `Typography` `variant` (or the
   semantic-HTML the page already uses); inline `fontSize`/`fontWeight` are
   **ESLint-warned**. One variant per role: page title → `h5`, section header →

@@ -22,15 +22,23 @@ trim_one() { # <clip> <target.mp4>
   local clip="$1" target="$2"
   local webm="$dir/$clip.webm" marks="$dir/$clip.marks.json"
   [ -f "$webm" ] || { echo "missing $webm — run: deno task handbuch:videos"; exit 1; }
-  # First scene mark (ms since ≈recording start), minus a 1 s lead-in that
-  # also absorbs the small offset between page creation and the spec's t0.
+  # Cut 400 ms AFTER the first scene mark (the "Loading…" flash). The marks
+  # are wall-clock but video time runs slightly compressed, so the flash's
+  # video position lands AT or just under mark.t — any lead before the mark
+  # re-exposes the settled logged-in screen the flash exists to hide
+  # (observed with both 1 s and 250 ms leads). Cutting inside the flash is
+  # safe: it holds 1.6 s, so ≥1 s of it survives the trim.
   local start_ms start_s
   start_ms=$(deno eval "
     const m = JSON.parse(Deno.readTextFileSync('$marks'));
-    console.log(Math.max(0, (m[0]?.t ?? 0) - 1000));
+    console.log(Math.max(0, (m[0]?.t ?? 0) + 400));
   ")
   start_s=$(awk "BEGIN{printf \"%.3f\", $start_ms/1000}")
-  ffmpeg -y -loglevel error -ss "$start_s" -i "$webm" \
+  # `-ss` AFTER `-i` (output seeking): decode from the start and drop frames
+  # up to the cut. Input seeking (`-ss` before `-i`) snaps to the previous
+  # keyframe on Playwright's sparse-keyframe VP8, which leaked a flash of
+  # pre-trim frames at the very start of the clip.
+  ffmpeg -y -loglevel error -i "$webm" -ss "$start_s" \
     -c:v libx264 -pix_fmt yuv420p -crf 23 -an "$target"
   echo "  $clip → $target (trimmed ${start_s}s of setup)"
 }
