@@ -38,7 +38,7 @@ const C = account("C");
 // fixed energy → a meaningful, repeatable benchmark, not two identical copies).
 const OWNERS = [
   { account: A, street: "Nordostpark 84" },
-  { account: B, street: "Fürther Straße 244" },
+  { account: B, street: "Hafenstraße 12" },
 ];
 const STREET = OWNERS[0].street; // A's building — asserted on A's energy view below
 
