@@ -499,9 +499,10 @@ Datenproduzent vermerkt. Rollen kommen ausschließlich in **Datenräumen** zum E
 (siehe „Rollenbasierte Freigaben"). Der „Add Building"-Dialog zeigt für alle Gebäude
 dieselbe, einheitliche Eingabemaske.
 
-Das Firmenlogo erscheint anschließend als Markierung Ihrer Gebäude auf der Karte
-(siehe Abschnitt „Daten ansehen") und steigert so die Wiedererkennbarkeit
-gegenüber Geschäftspartnern.
+Das Firmenlogo erscheint anschließend im Hinweisfenster, das sich öffnet, wenn
+man auf der Karte mit der Maus über eine Gebäude-Markierung fährt (siehe
+Abschnitt „Daten ansehen"), und steigert so die Wiedererkennbarkeit gegenüber
+Geschäftspartnern.
 
 > **Hinweis:** Ihr persönlicher **Anzeigename** und Ihr Profilbild stammen aus
 > Ihrem Solid-WebID-Profil (Teil Ihrer Identität, gepflegt bei Ihrem Identity
@@ -714,9 +715,11 @@ ihn unter **„Manage files"** hoch und markieren Sie ihn dort als Energieauswei
 
 ## Daten ansehen
 
-Wählen Sie im Tab **Explore** einen Gebäude-Marker. Jeder Marker zeigt das
-Firmenlogo des jeweiligen Datenproduzenten, sofern dieses im Dialog
-**Organisation** hinterlegt wurde – andernfalls eine neutrale Standard-Markierung.
+Wählen Sie im Tab **Explore** einen Gebäude-Marker. Die Farbe der Markierung
+unterscheidet eigene Gebäude (blau) von mit Ihnen geteilten (orange). Beim
+Überfahren eines Markers mit der Maus zeigt ein Hinweisfenster Name und Adresse
+des Gebäudes sowie Firmenname und -logo des jeweiligen Datenproduzenten, sofern
+diese im Dialog **Organisation** hinterlegt wurden.
 Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
 
 - **Building data:** die Stammdaten des Gebäudes (Adresse, Fläche, Baujahr,
@@ -1091,7 +1094,7 @@ aufgenommen.
 4. Möchte B das Gebäude vorübergehend nicht in seinen Listen sehen, blendet er
    es über das Augen-Symbol aus – die Freigabe selbst bleibt bestehen.
 
-![Die Pointe des Teilens bei B: Auf B's Karte steht A's freigegebenes Gebäude neben B's eigenen Beständen – an der Markierung mit A's Firmenlogo zu erkennen –, und die Detailansicht zeigt A's Stammdaten, live von A's Pod gelesen](figures/teilen-payoff.png){width=100%}
+![Die Pointe des Teilens bei B: Auf B's Karte steht A's freigegebenes Gebäude neben B's eigenen Beständen – an der orangefarbenen Markierung zu erkennen, das Hinweisfenster nennt A's Firma samt Logo –, und die Detailansicht zeigt A's Stammdaten, live von A's Pod gelesen](figures/teilen-payoff.png){width=100%}
 
 Widerruft A die Freigabe später (siehe „Zugriff widerrufen"), wird B
 benachrichtigt, und das Gebäude verschwindet beim nächsten Abruf aus B's

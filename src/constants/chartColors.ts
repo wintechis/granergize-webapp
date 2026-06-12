@@ -22,11 +22,14 @@ export const CHART_COLOR_PALETTE: string[] = [
  * under `deno test`, where MUI doesn't load). One hex, derived everywhere. */
 export const BRAND_PRIMARY = "#0277bd";
 
-/** Aligned with theme.palette.primary.main — owned building markers / primary actions */
-export const MARKER_OWNED_COLOR = "#ca2f44";
+/** Owned building markers — the brand primary: your buildings wear the app's colour. */
+export const MARKER_OWNED_COLOR = BRAND_PRIMARY;
 
-/** Aligned with theme.palette.secondary.main — buildings shared with the user */
-export const MARKER_SHARED_COLOR = "#388e3c";
+/** Buildings shared with the user — a warm orange. With the owned blue this is
+ * the classic colourblind-safe complementary pair (the old red/green was the
+ * worst pair for deuteranopia), and deliberately NOT the energy lens's pale
+ * green/amber/red, so the two lenses can't be read into each other. */
+export const MARKER_SHARED_COLOR = "#ef6c00";
 
 /** Gold glow border applied to the selected building marker */
 export const MARKER_SELECTED_COLOR = "#FFD700";

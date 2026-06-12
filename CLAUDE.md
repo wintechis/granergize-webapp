@@ -191,7 +191,8 @@ membership role — and must not pick up another:
 **Provenance is the producing *agent* only**, recorded in the building file as a PROV-O
 qualified attribution `<#b> prov:qualifiedAttribution [ a prov:Attribution ; prov:agent
 <webid> ]` — no `prov:hadRole`. The parser reads `prov:agent` into
-`BuildingType.attributedTo` (drives the producer-logo marker + the "Data source" row); a
+`BuildingType.attributedTo` (drives the producer org name + logo in the map marker's
+hover card and the "Data source" row); a
 legacy `prov:hadRole` on an old Pod is ignored. There is no `BuildingType.provenance` and
 no "company kind" (`org:classification`) — a user declares no organisation role.
 

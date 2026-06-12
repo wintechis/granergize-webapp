@@ -220,11 +220,11 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
 
     await demoB.scene(
       "map",
-      "Auf der Karte: A's Halle mit Ahlmann-Logo neben B's eigenen Objekten",
+      "Auf der Karte: A's freigegebene Halle (orange markiert) neben B's eigenen Objekten",
     );
     await demoB.click(stageB.getByRole("tab", { name: "Explore" }));
     const sharedMarker = stageB
-      .locator(".leaflet-marker-icon img[src*='/alice/']").first();
+      .locator(".leaflet-marker-icon.pin-shared").first();
     await sharedMarker.waitFor({ timeout: 60_000 });
     await waitForMapTiles(stageB);
     await demoB.pause(1_500);
