@@ -158,7 +158,7 @@ escalation:
 Sharing stays **independent of rooms** — a room grants no access on its own; it is
 only a recipient directory, and "share by role" loops the resolved WebIDs through
 the bilateral grant. Two structural notes. The escalation reuses the event-sourced
-storage model ([read-write-operations.md](read-write-operations.md)) — multi-agent
+storage model ([queries-mutations.md](queries-mutations.md)) — multi-agent
 discovery is inherently cross-agent state, so the room *is* an append-only log with
 fold-on-read. And resolution is **at share time**: the grant events record the
 resolved users, so a member who joins later does not retroactively receive earlier

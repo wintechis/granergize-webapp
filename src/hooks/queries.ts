@@ -252,7 +252,7 @@ export interface ViewDetail {
  * keyed by view id. A definition without a snapshot — a freshly created view —
  * is auto-materialised here so the chart renders immediately instead of an
  * empty "Refresh Snapshot" prompt: a reconciliation write inside a read path
- * (a documented seam — notes/read-write-operations.md §Seams). Best-effort: a
+ * (a documented seam — notes/queries-mutations.md §Seams). Best-effort: a
  * failed compute travels in `computeError` and the read still succeeds with
  * the definition (Refresh is the retry affordance). Safe to key the write on a
  * null snapshot: loadComputedSnapshot returns null ONLY for genuine absence

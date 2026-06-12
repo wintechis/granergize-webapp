@@ -1,7 +1,7 @@
-# Read and write operations — queries and mutations
+# Queries and mutations
 
-How the app's operations are organised. Following **Command–Query Separation**, every
-operation is one of two kinds:
+How the app's read and write operations are organised. Following **Command–Query
+Separation**, every operation is one of two kinds:
 
 - a **query** — looks up Pod state and returns it, no observable side effect; and
 - a **mutation** — changes Pod state (the *command* side of CQS).
@@ -10,7 +10,9 @@ Companion to [`architecture.md`](./architecture.md) (the source layers these ope
 live in), [`storage-model.md`](./storage-model.md) (the registry-free / log-folding
 design), [`sharing.md`](./sharing.md) (the sharing event logs),
 [`data-layout.md`](./data-layout.md) (the on-Pod tree) and
-[`data-deref.md`](./data-deref.md) (fetch/load mechanics).
+[`data-deref.md`](./data-deref.md) (fetch/load mechanics);
+[`app-intents.md`](./app-intents.md) is the layer above — the named user-intent
+catalog whose verbs commit through the operations classified here.
 
 The terminology is already the codebase's: queries live behind React Query hooks in
 `src/hooks/queries.ts`; mutations behind `src/hooks/mutations.ts`, a thin invalidation

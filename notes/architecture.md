@@ -1,7 +1,7 @@
 # Architecture — source layers & packages
 
 How the front-end source tree is sliced into layers and which way dependencies flow.
-Companion to [`read-write-operations.md`](./read-write-operations.md) (the query/mutation taxonomy that the
+Companion to [`queries-mutations.md`](./queries-mutations.md) (the query/mutation taxonomy that the
 data-access and service layers implement), [`storage-model.md`](./storage-model.md) and
 [`data-layout.md`](./data-layout.md) (the on-Pod side those layers read and write), and
 [`data-deref.md`](./data-deref.md) (the fetch/parse path through them). Where those notes
@@ -58,7 +58,7 @@ typography) are the UI-conventions section of CLAUDE.md.
 and services: read hooks in `queries.ts`, write hooks in `mutations.ts`, the single
 `QueryClient` and central error routing in `context/QueryProvider.tsx`, and the
 `getSession()` singleton the hooks read their transport from. This is the boundary the
-query/mutation split is named for — see [`read-write-operations.md`](./read-write-operations.md). UI gets Pod
+query/mutation split is named for — see [`queries-mutations.md`](./queries-mutations.md). UI gets Pod
 data only through this layer.
 
 **Services** (`src/services/`). The domain logic the hooks call. The multi-file domains
@@ -69,7 +69,7 @@ and cross-building appearances) — while single-resource units are **flat modul
 `prefs`, `attachmentManager`, `buildingActions` (the delete-orchestration helper), and
 `geocode` (external geocoding). A folder marks a sub-domain with several collaborating
 files, not a one-file-per-Pod-resource mirror; a single owned resource is just a module.
-The storage models and projection disciplines live here — see [`read-write-operations.md`](./read-write-operations.md),
+The storage models and projection disciplines live here — see [`queries-mutations.md`](./queries-mutations.md),
 [`sharing.md`](./sharing.md), [`room.md`](./room.md), and [`aggregated-views.md`](./aggregated-views.md). These
 domains are siblings: none imports another — cross-domain composition happens a layer up,
 in hooks or pages — and all rest on the Pod I/O and RDF layers below. The one sanctioned
@@ -115,7 +115,7 @@ They live in two places: **event handlers** (a user acted → a mutation, an on-
 load) and the **React-Query hooks** (a screen mounted and needs data → a query). A
 resolved request does not redraw anything directly; it updates **state**, and the state
 change is what re-runs the affected components. This is the same query/mutation split
-the data-access layer is named for ([`read-write-operations.md`](./read-write-operations.md)): safe reads are
+the data-access layer is named for ([`queries-mutations.md`](./queries-mutations.md)): safe reads are
 queries, state-changing writes are mutations.
 
 State itself lives in three places, by lifetime and ownership. Server state — every
@@ -142,7 +142,7 @@ easy to violate:
 
 The single structural exception is the pair of queries that hide a mutation
 (`loadBuildings`, `drainInbox`) — documented as seams in
-[`read-write-operations.md`](./read-write-operations.md) (§Seams), not repeated here.
+[`queries-mutations.md`](./queries-mutations.md) (§Seams), not repeated here.
 
 ## Packages & runtime
 

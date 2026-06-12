@@ -79,15 +79,15 @@ export function overlayCss(accent: string): string {
 }
 #${CURSOR_ID}.demo-cursor-down { transform: scale(0.55); }
 #${CAPTION_ID} {
-  left: 50%; bottom: 18px;
+  left: 50%; bottom: 20px;
   transform: translateX(-50%);
-  max-width: 62%;
-  padding: 10px 18px;
+  max-width: 80%;
+  padding: 14px 24px;
   border-radius: 8px;
-  border-left: 5px solid ${accent};
+  border-left: 6px solid ${accent};
   background: #1d1d1fd9;
   color: #fff;
-  font-size: 17px; line-height: 1.4;
+  font-size: 26px; line-height: 1.4;
   text-align: center;
 }
 #${CAPTION_ID}[hidden] { display: none; }
@@ -114,14 +114,14 @@ export function overlayCss(accent: string): string {
 #${INTRO_ID}[hidden] { display: none; }
 #${INTRO_ID}.demo-intro-fading { opacity: 0; }
 #${INTRO_ID} .demo-intro-title {
-  color: #fff; font-size: 30px; font-weight: 600;
+  color: #fff; font-size: 45px; font-weight: 600;
 }
 #${INTRO_ID} .demo-intro-cast {
   display: flex; gap: 56px; align-items: flex-start; justify-content: center;
 }
 #${INTRO_ID} .demo-intro-actor {
   display: flex; flex-direction: column; align-items: center;
-  gap: 6px; max-width: 280px; text-align: center;
+  gap: 8px; max-width: 380px; text-align: center;
 }
 #${INTRO_ID} .demo-intro-actor img {
   width: 96px; height: 96px;
@@ -131,15 +131,15 @@ export function overlayCss(accent: string): string {
   border: 3px solid var(--demo-accent);
   margin-bottom: 6px;
 }
-#${INTRO_ID} .demo-intro-name { color: #fff; font-size: 19px; font-weight: 600; }
-#${INTRO_ID} .demo-intro-company { color: #c9c9c9; font-size: 14px; }
+#${INTRO_ID} .demo-intro-name { color: #fff; font-size: 29px; font-weight: 600; }
+#${INTRO_ID} .demo-intro-company { color: #c9c9c9; font-size: 21px; }
 #${INTRO_ID} .demo-intro-tagline {
-  color: #e8e8e8; font-size: 15px; font-style: italic; margin-top: 8px;
+  color: #e8e8e8; font-size: 22px; font-style: italic; margin-top: 8px;
 }
-#${INTRO_ID} .demo-end-contact { color: #e8e8e8; font-size: 17px; text-align: center; line-height: 1.6; }
+#${INTRO_ID} .demo-end-contact { color: #e8e8e8; font-size: 26px; text-align: center; line-height: 1.6; }
 #${INTRO_ID} .demo-end-contact a { color: #e8e8e8; }
 #${INTRO_ID} .demo-end-ack {
-  color: #b5b5b5; font-size: 13px; text-align: center; line-height: 1.6;
+  color: #b5b5b5; font-size: 20px; text-align: center; line-height: 1.6;
 }
 #${INTRO_ID} .demo-end-row {
   display: flex; gap: 48px; align-items: center; justify-content: center;
@@ -152,7 +152,7 @@ export function overlayCss(accent: string): string {
   display: flex; align-items: center; justify-content: center;
 }
 #${INTRO_ID} .demo-end-panel img { max-height: 96px; display: block; }
-#${INTRO_ID} .demo-end-label { color: #fff; font-size: 15px; font-weight: 600; }
+#${INTRO_ID} .demo-end-label { color: #fff; font-size: 22px; font-weight: 600; }
 `;
 }
 
