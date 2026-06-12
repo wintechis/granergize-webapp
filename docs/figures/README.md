@@ -12,6 +12,12 @@ Two kinds of figures live here:
   `energy-data-tab.png`, `energy-detail.png`, `energy-lens.png`,
   `benchmark-share-back.png`, `benchmark-payoff.png`, `shared-with-you.png`,
   `teilen-payoff.png`, `soll-ist-payoff.png`.
+- **Actor identity images** — the example ensemble introduced in the use-case
+  chapter: `alice-avatar.png`, `bob-avatar.png`, `charlie-avatar.png` (copied
+  from `test/e2e/fixtures/`) and `ahlmann-logistik-logo.png`,
+  `bauer-grundbesitz-logo.png`, `conrad-kennwert-logo.png` (rendered from the
+  SVG fixtures via `rsvg-convert -h 240`). Regenerate after changing the
+  fixtures.
 - **Conceptual diagrams** — carried over from the original handbuch (still
   accurate): `architektur.png`, `wac.png`, `wissensgraph.png`,
   `sharing-vergleich.png`. The two scenario diagrams `szenario-teilen.png` and
