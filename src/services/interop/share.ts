@@ -276,7 +276,7 @@ export async function reissueGrants(session: Session): Promise<ReissueResult> {
  *
  * Called from the write-energy-year mutation path (a *reconciliation*-triggered
  * mutation living inside a user-intent one — see
- * `notes/read-write-operations.md` §trigger); best-effort there, since the
+ * `notes/queries-mutations.md` §trigger); best-effort there, since the
  * year is already saved when it runs — drift from a failed reconciliation is
  * exactly what {@link auditGrants} detects and {@link reissueGrants} repairs.
  * @operation mutation

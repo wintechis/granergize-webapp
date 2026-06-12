@@ -107,7 +107,7 @@ a missing `invalidateQueries`), not a *key-coverage* one — `useCheckInbox`'s
 
 The React Query cache is not the app's only derived projection. The WAC `.acl`
 files are one too — derived from the `shared-out/` log *plus the current resource
-tree under each granted scope* ([`read-write-operations.md`](./read-write-operations.md)
+tree under each granted scope* ([`queries-mutations.md`](./queries-mutations.md)
 §materialized projection) — and the same staleness question applies: **which mutations change an
 input to the projection without re-running it?** The inputs split cleanly:
 

@@ -3,7 +3,7 @@
  * Invariant task `grant-projection` (headless): the WAC `.acl`s are a derived
  * projection of the `shared-out/` log — so a recipient must be able to read
  * exactly what the folded log says they may read (see
- * `notes/app-pod-state-sync.md` §write-side, `notes/read-write-operations.md`
+ * `notes/app-pod-state-sync.md` §write-side, `notes/queries-mutations.md`
  * §materialized projection). Checked recipient-side with real GETs, the enforcement truth:
  *
  * 1. At share time the projection is exact: B reads the building AND every
