@@ -583,16 +583,14 @@ test.describe("handbuch screenshots", () => {
 
       // --- The Vertriebsoptimierung walkthrough punchline (teilen-payoff.png):
       //     B's Explore map with
-      //     A's shared building SELECTED — the shared marker (A's producer
-      //     logo) next to B's own buildings, and the detail panel reading A's
-      //     master data live from A's Pod. Local-only: the shared marker is
-      //     targeted via its producer-logo `img` pointing at A's pod, which
-      //     needs the seeded org identities (remote keeps the committed
-      //     figure). ---
+      //     A's shared building SELECTED — the orange shared pin next to B's
+      //     own (blue) buildings, and the detail panel reading A's master data
+      //     live from A's Pod. Local-only: it needs the seeded share (remote
+      //     keeps the committed figure). ---
       if (E2E_LOCAL) {
         await b.page.getByRole("tab", { name: "Explore" }).click();
         const sharedMarker = b.page
-          .locator(".leaflet-marker-icon img[src*='/alice/']").first();
+          .locator(".leaflet-marker-icon.pin-shared").first();
         await sharedMarker.waitFor({ timeout: 60_000 });
         await b.page.waitForLoadState("networkidle").catch(() => {});
         await waitForMapTiles(b.page);
