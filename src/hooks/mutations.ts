@@ -14,7 +14,9 @@ import {
   toggleBuildingVisibility,
 } from "../services/interop/sharingManager.ts";
 import {
+  auditGrants,
   reconcileBuildingGrants,
+  reissueGrants,
   shareAggregatedView,
   shareBuildingData,
 } from "../services/interop/share.ts";
@@ -32,12 +34,15 @@ import {
 import {
   deleteEnergyYear,
   newBuildingUri,
+  seedDemoBuildings,
   serializeBuildingToTurtle,
   updateBuilding,
   uploadBuilding,
   writeBuildingEnergy,
   writeEnergyYear,
 } from "../services/rdf/building/buildingSerializer.ts";
+import { removeAppData } from "../services/pod/podDelete.ts";
+import { exportArchive, importArchive } from "../services/pod/podArchive.ts";
 import { mintBuildingSubject } from "../services/rdf/building/buildingId.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
 import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
@@ -725,5 +730,126 @@ export function useSaveRoles() {
       setMyRole(room, roles, getSession()),
     // Roles live in the room's log, not the registry — refresh just that.
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomLog }),
+  });
+}
+
+// ── Account-scope operations ─────────────────────────────────────────────────
+// The dashboard's account actions: bulk seeding, the whole-collection wipe, the
+// archive pair, and the sharing projection's audit/repair. The caller keeps the
+// UI surfaces these need beyond the standard busy/toast handling — the
+// computed-preview confirms, the full-page activity screen, and outcome
+// rendering (tally toasts) — while the hook owns execution, busy state, the
+// central error toast, and the invalidations.
+
+/**
+ * Dev-mode/banner: seed the fixed demo building set
+ * (see {@link seedDemoBuildings}). Per-building best-effort — the result is a
+ * tally `{seeded, total}`, never a throw for an individual building; the
+ * caller renders partial success ("Added N of M").
+ */
+export function useSeedDemoBuildings() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "add demo buildings" },
+    mutationFn: () => {
+      const session = getSession();
+      const webId = session.info.webId;
+      if (!webId) throw new Error("Not authenticated");
+      return seedDemoBuildings(session, webId);
+    },
+    // Energy follows automatically: useEnergy is keyed on the building set.
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
+  });
+}
+
+/**
+ * Remove the entire app collection from the Pod (see {@link removeAppData}).
+ * Long-running and cancellable: the abort signal travels in the variables and
+ * a cancel resolves as an OUTCOME (`{aborted: true}`), never an error — the
+ * `useUploadBuildings` pattern. The caller owns the confirmation (with its
+ * resource-list preview) and the progress surface (`ActivityScreen` on
+ * `isPending`); it must drive post-success flow from the `mutateAsync`
+ * continuation, because the settle clears the whole cache (below).
+ */
+export function useRemoveAppData() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "remove app data" },
+    mutationFn: async (vars: { signal: AbortSignal }) => {
+      try {
+        await removeAppData(getSession(), vars.signal);
+      } catch (err) {
+        if (vars.signal.aborted) return { aborted: true };
+        throw err;
+      }
+      return { aborted: false };
+    },
+    // The "entire-cache" invalidation: success leaves an empty Pod, an abort
+    // or failure an unknown partially-deleted subset — in every case nothing
+    // cached can be trusted, so reset rather than enumerate key families.
+    onSettled: () => qc.clear(),
+  });
+}
+
+/**
+ * Dev-mode: restore an archive into the Pod (see {@link importArchive}), then
+ * rebuild the WAC ACLs by replaying the shared-out log — the reconciliation
+ * follow-up is part of the restore intent, because the archive carries the
+ * log (ground truth) but not the derived `.acl` files. The caller owns the
+ * confirmation (with its `inspectArchive` preview) and the tally toast.
+ */
+export function useRestoreArchive() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "restore the archive" },
+    mutationFn: async (vars: { bytes: Uint8Array }) => {
+      const session = getSession();
+      const restore = await importArchive(session, vars.bytes);
+      const reissue = await reissueGrants(session);
+      return { ...restore, reissued: reissue.buildings + reissue.views };
+    },
+    // The restore may have replaced anything under the app collection.
+    onSettled: () => qc.invalidateQueries(),
+  });
+}
+
+/**
+ * Dev-mode: rebuild the WAC `.acl` projection from the shared-out event log
+ * (see {@link reissueGrants}) — a Model-3 reconciliation behind a user-intent
+ * button. No invalidations: it writes only the ACL projection, which no
+ * query reads.
+ */
+export function useReissueGrants() {
+  return useMutation({
+    meta: { action: "rebuild sharing" },
+    mutationFn: () => reissueGrants(getSession()),
+  });
+}
+
+/**
+ * Dev-mode: export the whole app collection as a ZIP.
+ * @operation query — an imperative READ-intent: `useMutation` here is the
+ * on-demand trigger primitive (busy state + the central error toast), not a
+ * write; nothing on the Pod changes. The caller saves the blob and toasts
+ * the count.
+ */
+export function useExportArchive() {
+  return useMutation({
+    meta: { action: "download the archive" },
+    mutationFn: () => exportArchive(getSession()),
+  });
+}
+
+/**
+ * Dev-mode: dry-run diff of the `.acl` projection against the shared-out log
+ * (see {@link auditGrants}).
+ * @operation query — an imperative READ-intent like {@link useExportArchive}.
+ * Deliberately not a `useQuery`: every click must re-read the Pod — a cached
+ * audit would report stale consistency. The caller renders the verdict.
+ */
+export function useAuditGrants() {
+  return useMutation({
+    meta: { action: "check sharing consistency" },
+    mutationFn: () => auditGrants(getSession()),
   });
 }
