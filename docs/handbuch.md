@@ -117,6 +117,30 @@ einen dritten Akteur ins Spiel. Am Ende des praktischen Teils läuft jeder der
 drei noch einmal als durchgehender Ablauf ab (Kapitel „Die Anwendungsfälle
 durchgespielt").
 
+Durch das gesamte Handbuch begleitet dabei ein festes Beispiel-Ensemble aus
+drei Personen mit ihren Firmen:
+
+- ![](figures/alice-avatar.png){height=2.4em}
+  ![](figures/ahlmann-logistik-logo.png){height=1.6em}
+  **A — Alice Ahlmann** von der **Ahlmann Logistik GmbH**, einer Logistikfirma,
+  die ihre eigenen Hallen nutzt. Im Soll-Ist-Vergleich agiert sie allein; in
+  den beiden anderen Anwendungsfällen ist sie die Bestandshalterin, die ihre
+  Daten teilt.
+- ![](figures/bob-avatar.png){height=2.4em}
+  ![](figures/bauer-grundbesitz-logo.png){height=1.6em}
+  **B — Bob Bauer** von **Bauer Grundbesitz**, ein Geschäftspartner von A — je
+  nach Anwendungsfall Investor, Makler oder Berater, der geteilte Daten
+  einsieht, und im Benchmark selbst Bestandshalter.
+- ![](figures/charlie-avatar.png){height=2.4em}
+  ![](figures/conrad-kennwert-logo.png){height=1.6em}
+  **C — Charlie Conrad** von der **Conrad Kennwert GmbH**, ein
+  Benchmark-Dienstleister (Benchmark Service Provider), der die Gebäude von A
+  und B vergleichbar macht.
+
+Alle Bildschirmfotos dieses Handbuchs zeigen diese drei: Avatar und Firmenlogo
+erscheinen in der App in der Kopfzeile und an den Gebäude-Markern auf der
+Karte, sodass in jedem Bild erkennbar ist, wessen Sicht gerade gezeigt wird.
+
 ### Soll-Ist-Vergleich
 
 Ein zentraler Anwendungsfall ist die Durchführung von
@@ -999,10 +1023,11 @@ laufen die drei Anwendungsfälle vom Anfang dieses Handbuchs noch einmal als
 durchgehende Abläufe ab, in derselben Reihenfolge wie dort – mit wachsender
 Zahl der Beteiligten: der Soll-Ist-Vergleich allein auf dem eigenen Pod, die
 Vertriebsoptimierung zu zweit (A teilt an B), das Energieverbrauchsbenchmark
-zu dritt (A, B und der Dienstleister C). In den Bildschirmfotos dieses
-Handbuchs treten die drei als Alice, Bob und Charlie auf – etwa als „Shared
-by: Alice Ahlmann" beim Empfänger oder als Absender des zurückgeteilten
-Benchmarks.
+zu dritt (A, B und der Dienstleister C). A, B und C sind dabei wieder Alice
+Ahlmann, Bob Bauer und Charlie Conrad mit ihren Firmen, wie eingangs im
+Abschnitt „Praxisbeispiele: Use Cases für die Anwendung" vorgestellt – in den
+Bildschirmfotos etwa als „Shared by: Alice Ahlmann" beim Empfänger oder als
+Absender des zurückgeteilten Benchmarks.
 
 ## Soll-Ist-Vergleich durchgespielt: Plan und Verbrauch nebeneinander
 
