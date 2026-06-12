@@ -15,13 +15,17 @@ import {
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
 import { fetchAndParseData } from "../../../src/services/TurtleParsingService.ts";
 
+import {
+  mintBuildingSubject,
+} from "../../../src/services/rdf/building/buildingId.ts";
+
 export const name = "add-building";
 
 export async function run(ctx: TaskContext): Promise<void> {
   const { a, check } = ctx;
   const id = `ab-${Date.now()}`;
   const uri = newBuildingUri(a.webId, id);
-  const subjectUri = `${uri}#${id}`;
+  const subjectUri = mintBuildingSubject(uri);
 
   try {
     const ttl = serializeBuildingToTurtle(

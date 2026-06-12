@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { account, webIdOf } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { shareByWebId } from "../helpers/manage.ts";
+import { buildingRoute, shareByWebId } from "../helpers/manage.ts";
 import { receivedViews } from "../helpers/manage.ts";
 import { freshPage } from "../helpers/twoPod.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -160,7 +160,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       const id = await row.getAttribute("data-building-id");
       expect(id, "the shared building's id on Manage").toBeTruthy();
 
-      await a2.page.goto(`/#/energy/${id}`);
+      await a2.page.goto(buildingRoute("energy", id));
       try {
         // The Benchmark column header is always present; the provenance caption
         // appears only once a benchmark has actually been received.

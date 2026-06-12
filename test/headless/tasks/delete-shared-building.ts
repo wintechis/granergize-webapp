@@ -23,19 +23,23 @@ import {
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 import type { BuildingType } from "../../../src/types.ts";
 
+import {
+  buildingFileUrl,
+} from "../../../src/services/rdf/building/buildingId.ts";
+
 export const name = "delete-shared-building";
 
 export async function run(ctx: TaskContext): Promise<void> {
   const { a, b, check } = ctx;
   const id = `dsb-${Date.now()}`;
   const uri = newBuildingUri(a.webId, id);
-  const fileUri = uri.split("#")[0];
+  const fileUri = buildingFileUrl(uri);
   const bSharedIn = podResources(b.webId).sharedIn;
   const bSharedInSnap = await snapshot(b.raw, bSharedIn);
 
   const bSeesIt = async () =>
     (await getSharedWithMe(b.session)).some((s) =>
-      s.buildingUri.split("#")[0] === fileUri
+      buildingFileUrl(s.buildingUri) === fileUri
     );
 
   try {
@@ -58,7 +62,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     const ownerShared = await getSharedBuildings(a.session);
     check(
       "owner's shared-out/ no longer lists the deleted building",
-      !ownerShared.some((s) => s.buildingUri.split("#")[0] === fileUri),
+      !ownerShared.some((s) => buildingFileUrl(s.buildingUri) === fileUri),
       `shared=[${ownerShared.map((s) => s.buildingUri).join(", ")}]`,
     );
 

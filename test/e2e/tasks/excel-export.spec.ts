@@ -78,13 +78,16 @@ test.describe("excel export", () => {
     expect((await dlAll).suggestedFilename()).toBe("buildings-mine.xlsx");
 
     // A single building's row download opens a layout menu (the building carries no
-    // role, so the export style is chosen here); picking one → building-<id>.xlsx.
+    // role, so the export style is chosen here); picking one → building-<stem>.xlsx.
+    // The filename carries the id's filename-safe STEM (the file basename), not
+    // the raw IRI-reference id — browsers mangle "/" and "#" in filenames.
     const firstId = await buildingIdOf(buildingRows(page).first());
+    const stem = firstId!.split("#")[0].split("/").pop()!.replace(/\.ttl$/, "");
     await buildingRows(page).first()
       .getByRole("button", { name: "Download building data" }).click();
     const dlOne = page.waitForEvent("download");
     await page.getByRole("menuitem", { name: /generic/i }).click();
-    expect((await dlOne).suggestedFilename()).toBe(`building-${firstId}.xlsx`);
+    expect((await dlOne).suggestedFilename()).toBe(`building-${stem}.xlsx`);
   });
 
   test("an exported workbook re-imports to the same buildings", async () => {

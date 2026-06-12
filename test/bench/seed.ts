@@ -13,6 +13,7 @@ import {
   uploadBuilding,
   writeBuildingEnergy,
 } from "../../src/services/rdf/building/buildingSerializer.ts";
+import { mintBuildingSubject } from "../../src/services/rdf/building/buildingId.ts";
 import { synthDayReadings } from "../../src/services/rdf/energySeriesXlsx.ts";
 import { seriesContainerUrl } from "../../src/services/rdf/energyDataset.ts";
 import { shareBuildingData, type ShareOptions } from "../../src/services/interop/share.ts";
@@ -41,11 +42,12 @@ import type { UserRole } from "../../src/types.ts";
 /** Bounded write concurrency — same small pool the app uses for daily files. */
 const POOL = 8;
 
-/** A seeded building: its file URI + the `<file>#id` subject URI. */
+/** A seeded building: its file URI, `<file>#it` subject IRI, and the seed's
+ * LOCAL file stem (a naming convenience — identity is the subject IRI). */
 export interface SeededBuilding {
   uri: string;
   subjectUri: string;
-  id: string;
+  fileStem: string;
 }
 
 /** Field map for the i-th throwaway building (coords nudged so map markers spread). */
@@ -98,7 +100,7 @@ export async function seedBuildings(
   const specs = Array.from({ length: n }, (_, i) => {
     const id = `${idPrefix}-${i}`;
     const uri = newBuildingUri(webId, id);
-    return { i, id, uri, subjectUri: `${uri}#${id}`, fields: buildingFields(i) };
+    return { i, id, uri, subjectUri: mintBuildingSubject(uri), fields: buildingFields(i) };
   });
   const seriesYear = annualYears[annualYears.length - 1] ?? 2025;
   // Provision buildings/ ONCE up front: uploadBuilding ensures it per call, and a
@@ -132,7 +134,7 @@ export async function seedBuildings(
       agent: webId,
     });
     await uploadBuilding(session, s.uri, ttl, webId);
-    return { uri: s.uri, subjectUri: s.subjectUri, id: s.id };
+    return { uri: s.uri, subjectUri: s.subjectUri, fileStem: s.id };
   });
 }
 
@@ -160,7 +162,7 @@ export async function seedSeriesBuilding(
   id = `bench-series-${days}`,
 ): Promise<{ building: SeededBuilding; seriesContainer: string }> {
   const uri = newBuildingUri(webId, id);
-  const subjectUri = `${uri}#${id}`;
+  const subjectUri = mintBuildingSubject(uri);
   const series = days > 0
     ? {
       year,
@@ -177,7 +179,7 @@ export async function seedSeriesBuilding(
   });
   await uploadBuilding(session, uri, ttl, webId);
   return {
-    building: { uri, subjectUri, id },
+    building: { uri, subjectUri, fileStem: id },
     seriesContainer: seriesContainerUrl(uri, year),
   };
 }

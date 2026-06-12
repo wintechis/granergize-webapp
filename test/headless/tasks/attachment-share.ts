@@ -23,13 +23,17 @@ import {
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
+import {
+  buildingFileUrl,
+} from "../../../src/services/rdf/building/buildingId.ts";
+
 export const name = "attachment-share";
 
 export async function run(ctx: TaskContext): Promise<void> {
   const { a, b, check } = ctx;
   const id = `at-${Date.now()}`;
   const uri = newBuildingUri(a.webId, id);
-  const fileUri = uri.split("#")[0];
+  const fileUri = buildingFileUrl(uri);
   const bSharedIn = podResources(b.webId).sharedIn;
   const bSharedInSnap = await snapshot(b.raw, bSharedIn);
 
@@ -63,7 +67,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     const shared = await getSharedWithMe(b.session);
     check(
       "B sees the shared building",
-      shared.some((s) => s.buildingUri.split("#")[0] === fileUri),
+      shared.some((s) => buildingFileUrl(s.buildingUri) === fileUri),
       `shared=[${shared.map((s) => s.buildingUri).join(", ")}]`,
     );
 

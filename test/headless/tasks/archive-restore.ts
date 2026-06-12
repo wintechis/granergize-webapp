@@ -23,13 +23,17 @@ import {
 import { filesContainerFor } from "../../../src/services/attachmentManager.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
+import {
+  buildingFileUrl,
+} from "../../../src/services/rdf/building/buildingId.ts";
+
 export const name = "archive-restore";
 
 export async function run(ctx: TaskContext): Promise<void> {
   const { a, b, check } = ctx;
   const id = `ar-${Date.now()}`;
   const uri = newBuildingUri(a.webId, id);
-  const fileUri = uri.split("#")[0];
+  const fileUri = buildingFileUrl(uri);
   const bSharedIn = podResources(b.webId).sharedIn;
   const bSharedInSnap = await snapshot(b.raw, bSharedIn);
 

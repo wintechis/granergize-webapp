@@ -713,8 +713,11 @@ Im rechten Bereich wechseln Sie über die Reiter zwischen drei Ansichten:
 
 Zu jedem Gebäude gibt es zusätzlich eine eigenständige Energie-Detailseite, die
 Sie direkt über die Adresszeile des Browsers aufrufen und als **Lesezeichen**
-ablegen können: `…/#/energy/<Gebäude-ID>` (die Gebäude-ID ist der technische
-Bezeichner des Gebäudes). Die Seite zeigt die Kennzahlen des **aktuellsten erfassten Jahres**
+ablegen können: `…/#/energy/<Gebäude-Referenz>`. Die Gebäude-Referenz ist der
+technische Bezeichner des Gebäudes – ein Verweis auf seine Datei im Pod, in der
+Adresszeile URL-kodiert. Am einfachsten kopieren Sie die Adresse direkt aus der
+Adresszeile, statt sie von Hand zu bilden.
+Die Seite zeigt die Kennzahlen des **aktuellsten erfassten Jahres**
 als Tabelle und stellt jedem Wert bis zu drei Vergleichswerte gegenüber:
 
 - **Portfolio average** – der Durchschnitt über Ihre eigenen Gebäude.

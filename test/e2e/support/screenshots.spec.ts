@@ -8,6 +8,7 @@ import {
   webIdOf,
 } from "../helpers/login.ts";
 import { freshPage } from "../helpers/twoPod.ts";
+import { buildingRoute, exploreRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 
 /**
@@ -398,7 +399,7 @@ test.describe("handbuch screenshots", () => {
     const nordRow = page.locator("li").filter({ hasText: "Nordostpark" }).first();
     await expect(nordRow).toBeVisible({ timeout: 30_000 });
     const buildingId = await nordRow.getAttribute("data-building-id");
-    await page.goto(`/#/?tab=explore&b=${buildingId}`);
+    await page.goto(exploreRoute(buildingId));
     await expect(page.getByRole("tab", { name: "Building data" }))
       .toBeVisible({ timeout: 60_000 });
     const markers = page.locator(".leaflet-marker-icon");
@@ -434,7 +435,7 @@ test.describe("handbuch screenshots", () => {
     //     "Operator average" row — the Betreiber benchmark of the handbuch's
     //     "Daten ansehen" section — plus the planned-2024 (Soll) column pair. ---
     if (buildingId) {
-      await page.goto(`/#/?tab=explore&b=${buildingId}&dt=energy`);
+      await page.goto(exploreRoute(buildingId, "energy"));
       await expect(
         page.getByRole("row").filter({ hasText: "Operator average" }).first(),
       ).toBeVisible({ timeout: 60_000 });
@@ -447,7 +448,7 @@ test.describe("handbuch screenshots", () => {
       // --- Energy detail page (energy-detail.png): the standalone /energy/:id
       //     route — latest year's figures with the Portfolio / Operator /
       //     Benchmark comparison columns side by side. ---
-      await page.goto(`/#/energy/${buildingId}`);
+      await page.goto(buildingRoute("energy", buildingId));
       await expect(
         page.getByRole("heading", { name: /Energy Need for / }),
       ).toBeVisible({ timeout: 60_000 });

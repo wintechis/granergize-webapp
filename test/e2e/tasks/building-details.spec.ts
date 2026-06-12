@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { buildingRoute } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -86,7 +87,7 @@ test.describe("building details", () => {
     // --- view the building: the operator renders as a link to its in-app contact
     // detail view (/contact/:webId), labelled by the agent's name — the WebID's
     // #fragment until a profile name resolves (AgentLabel → RefLink) ---
-    await page.goto(`/#/building/${id}`);
+    await page.goto(buildingRoute("building", id));
     const opLink = page.locator(`a[href$="${encodeURIComponent(OP_WEBID)}"]`);
     await expect(opLink).toBeVisible({ timeout: T.action });
     await expect(opLink).toHaveText(OP_HASH); // shows the agent name (the IRI's #fragment)
@@ -123,7 +124,7 @@ test.describe("building details", () => {
     const id = await annual.getAttribute("data-building-id");
     expect(id, "the annual demo building's id").toBeTruthy();
 
-    await page.goto(`/#/energy/${id}`);
+    await page.goto(buildingRoute("energy", id));
     await expect(
       page.getByRole("heading", { name: /Energy Need for / }),
     ).toBeVisible({ timeout: T.action });

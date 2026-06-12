@@ -1,5 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { parseBuildings } from "./rdf/building/buildingParser.ts";
+import { buildingFileUrl } from "./rdf/building/buildingId.ts";
 import type {
   BuildingType,
   EnergyDatasetRef,
@@ -246,13 +247,13 @@ export async function loadBuildings(
     );
   }
 
-  const buildings = parseBuildings(buildingsResult.quads);
   const storageRoot = getStorageRoot(webId);
+  const buildings = parseBuildings(buildingsResult.quads, storageRoot);
 
   // Filter out hidden buildings and mark shared buildings.
   const visibleBuildings = new Map<string, BuildingType>();
   for (const [buildingId, building] of buildings) {
-    if (!hiddenBuildingUris.has(building.uri.split("#")[0])) {
+    if (!hiddenBuildingUris.has(buildingFileUrl(building.uri))) {
       // Ownership = whether the source file lives under the user's storage root.
       const sourceForOwnershipCheck = building.sourceUri || building.uri;
       building.isShared = !sourceForOwnershipCheck.startsWith(storageRoot);
@@ -319,7 +320,7 @@ export async function loadEnergy(
       // showing "no energy data" (and dropping out of the map's peer terciles).
       for (const ref of refs) {
         try {
-          const fileUrl = ref.url.split("#")[0];
+          const fileUrl = buildingFileUrl(ref.url);
           const res = await fetchFresh(fileUrl, session);
           if (!res.ok) continue;
           const store = new Store(

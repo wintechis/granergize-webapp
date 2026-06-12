@@ -9,7 +9,7 @@ import {
 import { BUILDING_NS } from "../vocabularies.ts";
 
 const FILE = "https://pod.example/granergize/buildings/b1.ttl";
-const SUBJECT = `${FILE}#b1`;
+const SUBJECT = `${FILE}#it`;
 
 /** A stateful single-resource fake: GET serves the body, PUT overwrites it. */
 function podWith(initialBody: string): { session: Session; body: () => string } {

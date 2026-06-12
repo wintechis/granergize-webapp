@@ -23,6 +23,10 @@ import {
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
+import {
+  buildingFileUrl,
+} from "../../../src/services/rdf/building/buildingId.ts";
+
 export const name = "share-building";
 
 export async function run(ctx: TaskContext): Promise<void> {
@@ -57,10 +61,10 @@ export async function run(ctx: TaskContext): Promise<void> {
     await drainInbox(b.session); // archive the grant into B's shared-in/
 
     const shared = await getSharedWithMe(b.session);
-    const fileUri = uri.split("#")[0];
+    const fileUri = buildingFileUrl(uri);
     check(
       "B sees the shared building under 'shared with you'",
-      shared.some((s) => s.buildingUri.split("#")[0] === fileUri),
+      shared.some((s) => buildingFileUrl(s.buildingUri) === fileUri),
       `shared=[${shared.map((s) => s.buildingUri).join(", ")}]`,
     );
 
