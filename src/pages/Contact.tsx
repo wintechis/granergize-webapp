@@ -3,7 +3,7 @@ import PersonIcon from "@mui/icons-material/Person";
 import {
   useContacts,
   useResolveAgent,
-  useResolveOrgLogo,
+  useResolveOrg,
   useSolidData,
 } from "../hooks/queries.ts";
 import { useSaveContact } from "../hooks/mutations.ts";
@@ -31,7 +31,7 @@ import { buildingDisplayName } from "../lib/buildingDisplay.ts";
  */
 export default function Contact({ webId }: { webId: string }) {
   const { data: agent } = useResolveAgent(webId);
-  const { data: orgLogo } = useResolveOrgLogo(webId);
+  const { data: org } = useResolveOrg(webId);
   const { buildings, isLoading } = useSolidData();
   const contacts = useContacts();
   const saveContact = useSaveContact();
@@ -63,11 +63,12 @@ export default function Contact({ webId }: { webId: string }) {
         : undefined}
       spacing={2}
     >
-      {orgLogo && (
+      {org?.logoUrl && (
         <Box
           component="img"
-          src={orgLogo}
-          alt=""
+          src={org.logoUrl}
+          alt={org.name ?? ""}
+          title={org.name}
           sx={{ maxHeight: 48, maxWidth: 200, objectFit: "contain" }}
         />
       )}

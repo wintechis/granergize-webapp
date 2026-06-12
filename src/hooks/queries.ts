@@ -30,7 +30,7 @@ import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
 import { readContacts } from "../services/contacts.ts";
 import {
   resolveAgent,
-  resolveAgentOrgLogo,
+  resolveAgentOrg,
 } from "../services/agents/agentResolver.ts";
 import {
   type EnergyDatasetRef,
@@ -533,16 +533,16 @@ export function useResolveAgent(webId?: string) {
 }
 
 /**
- * Resolve a single WebID to its organisation's logo IRI (read from the agent's
- * own profile via `org:memberOf` → `foaf:logo`). Per-WebID keyed and cached;
- * disabled until a WebID is given. Resolution never throws — a private/
- * unreachable profile or a logo-less org resolves to `null`.
+ * Resolve a single WebID to its organisation — name + logo IRI — (read from the
+ * agent's own profile via `org:memberOf` → `foaf:name`/`foaf:logo`). Per-WebID
+ * keyed and cached; disabled until a WebID is given. Resolution never throws —
+ * a private/unreachable profile or an org-less agent resolves to `null`.
  */
-export function useResolveOrgLogo(webId?: string) {
+export function useResolveOrg(webId?: string) {
   return useQuery({
-    queryKey: [...queryKeys.agentLogo, webId],
+    queryKey: [...queryKeys.agentOrg, webId],
     enabled: Boolean(webId),
-    queryFn: () => resolveAgentOrgLogo(webId as string, getSession()),
+    queryFn: () => resolveAgentOrg(webId as string, getSession()),
   });
 }
 
@@ -573,8 +573,8 @@ export const queryKeys = {
   contacts: ["contacts"] as const,
   /** A single resolved agent (name/avatar), keyed by WebID. */
   agent: ["agent"] as const,
-  /** A single resolved agent's org logo IRI, keyed by WebID. */
-  agentLogo: ["agentLogo"] as const,
+  /** A single resolved agent's organisation (name + logo IRI), keyed by WebID. */
+  agentOrg: ["agentOrg"] as const,
   /** One building's annual datasets (detail pane), keyed by id + link fingerprint. */
   annualEnergy: ["annualEnergy"] as const,
   /** Day files behind a set of 15-min series descriptors, keyed by ref URLs. */

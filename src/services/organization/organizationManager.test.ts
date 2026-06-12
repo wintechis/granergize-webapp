@@ -196,6 +196,34 @@ Deno.test("uploadOrgLogo stores the image and links foaf:logo on the org node", 
   assert(imgPut, "expected an image PUT");
   assert.deepEqual(imgPut!.contentType, "image/png");
 
+  // ACL PUT makes the logo world-readable: markers load it via plain
+  // unauthenticated <img>, and a default-private Pod (e.g. CSS) serves
+  // profile/ siblings owner-only — only the WebID document itself is public.
+  const aclPut = writes.find((w) => w.url === `${stored}.acl`);
+  assert(aclPut, "expected a public-read ACL PUT beside the logo");
+  const aclStore = new Store(
+    new Parser({ baseIRI: `${stored}.acl` }).parse(aclPut!.body as string),
+  );
+  const ACL = "http://www.w3.org/ns/auth/acl#";
+  const publicAuth = aclStore.getQuads(
+    null,
+    `${ACL}agentClass`,
+    "http://xmlns.com/foaf/0.1/Agent",
+    null,
+  );
+  assert.equal(publicAuth.length, 1, "expected a foaf:Agent authorization");
+  const auth = publicAuth[0].subject;
+  assert.deepEqual(
+    aclStore.getQuads(auth, `${ACL}mode`, null, null).map((q) => q.object.value),
+    [`${ACL}Read`],
+    "public authorization grants exactly Read",
+  );
+  assert.deepEqual(
+    aclStore.getQuads(auth, `${ACL}accessTo`, null, null).map((q) => q.object.value),
+    [stored],
+    "public authorization targets the logo",
+  );
+
   // Profile PUT links foaf:logo on the org node and establishes membership.
   const profilePut = writes.find((w) => w.url === PROFILE_DOC);
   assert(profilePut, "expected a profile PUT");

@@ -31,6 +31,13 @@ export const ANNUAL_METRICS: AnnualMetricDesc[] = [
     short: "Renewable %",
     decimals: 1,
   },
+  {
+    key: "electricityGeneration",
+    label: "Electricity generation",
+    unit: "kWh",
+    short: "Generation",
+    decimals: 0,
+  },
 ];
 
 export function annualMetricDesc(key: string): AnnualMetricDesc | undefined {
@@ -47,7 +54,8 @@ export function annualMetricLabel(key: string): string {
 }
 
 /** The four absolute-consumption metrics (kWh / m³) — what a benchmark
- * aggregates; the share-% metric is a ratio and stays out. */
+ * aggregates; the share-% metric is a ratio and generation is not a
+ * consumption, so both stay out. */
 export const CONSUMPTION_METRIC_KEYS: EnergyMetricKey[] = ANNUAL_METRICS
-  .filter((m) => m.unit !== "%")
+  .filter((m) => m.unit !== "%" && m.key !== "electricityGeneration")
   .map((m) => m.key);

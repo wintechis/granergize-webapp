@@ -37,6 +37,10 @@ import {
   normalizeRoomUrl,
   setMyRole,
 } from "../../src/services/interop/dataRoom.ts";
+import {
+  saveOrganization,
+  uploadOrgLogo,
+} from "../../src/services/organization/organizationManager.ts";
 import type { UserRole } from "../../src/types.ts";
 
 /** Bounded write concurrency — same small pool the app uses for daily files. */
@@ -190,18 +194,56 @@ export interface BenchActor {
   session: Session;
 }
 
+/** An actor's organisation identity: name (+ optional homepage and logo image). */
+export interface SeedOrg {
+  name: string;
+  homepage?: string;
+  logo?: { bytes: Uint8Array; mime: string };
+}
+
+/**
+ * Make `url` world-readable via its own `.acl` (owner keeps full control).
+ * Profile images (avatar, org logo) need this: other agents' browsers load
+ * them via a plain `<img src>`, i.e. unauthenticated.
+ */
+async function putPublicReadAcl(url: string, x: BenchActor): Promise<void> {
+  const acl = [
+    "@prefix acl: <http://www.w3.org/ns/auth/acl#>.",
+    "@prefix foaf: <http://xmlns.com/foaf/0.1/>.",
+    `<#public> a acl:Authorization; acl:accessTo <${url}>;`,
+    "  acl:agentClass foaf:Agent; acl:mode acl:Read.",
+    `<#owner> a acl:Authorization; acl:accessTo <${url}>;`,
+    `  acl:agent <${x.webId}>; acl:mode acl:Read, acl:Write, acl:Control.`,
+    "",
+  ].join("\n");
+  const aclPut = await x.session.fetch(`${url}.acl`, {
+    method: "PUT",
+    headers: { "Content-Type": "text/turtle" },
+    body: acl,
+  });
+  if (!aclPut.ok) {
+    throw new Error(`seed acl: PUT ${url}.acl → HTTP ${aclPut.status}`);
+  }
+}
+
 /**
  * Give an actor's WebID profile a human identity: a `foaf:name` plus a publicly
  * readable avatar image (PUT beside the profile document, linked via `foaf:img`)
  * — so agent labels resolve to a name + face across pods instead of the WebID
- * fragment. The avatar gets its own public-read `.acl`: other agents' browsers
- * load it via a plain `<img src>`, i.e. unauthenticated. The profile write is the
- * app's model-2 in-place mutation (read–modify–write, never PATCH).
+ * fragment. The profile write is the app's model-2 in-place mutation
+ * (read–modify–write, never PATCH).
+ *
+ * With `org` set, the actor additionally gets a company identity through the
+ * app's own org functions (`saveOrganization` + `uploadOrgLogo`): the `<#org>`
+ * node with `foaf:name`/`foaf:homepage`, and a `foaf:logo` image — which is what
+ * the map's producer-logo marker resolves from a building's `attributedTo`.
+ * The logo, like the avatar, gets a public-read `.acl`.
  */
 export async function seedProfile(
   x: BenchActor,
   name: string,
   avatar?: { bytes: Uint8Array; mime: string },
+  org?: SeedOrg,
 ): Promise<void> {
   const { namedNode, literal } = DataFactory;
   let avatarUrl: string | undefined;
@@ -215,23 +257,7 @@ export async function seedProfile(
     if (!put.ok) {
       throw new Error(`seed avatar: PUT ${avatarUrl} → HTTP ${put.status}`);
     }
-    const acl = [
-      "@prefix acl: <http://www.w3.org/ns/auth/acl#>.",
-      "@prefix foaf: <http://xmlns.com/foaf/0.1/>.",
-      `<#public> a acl:Authorization; acl:accessTo <${avatarUrl}>;`,
-      "  acl:agentClass foaf:Agent; acl:mode acl:Read.",
-      `<#owner> a acl:Authorization; acl:accessTo <${avatarUrl}>;`,
-      `  acl:agent <${x.webId}>; acl:mode acl:Read, acl:Write, acl:Control.`,
-      "",
-    ].join("\n");
-    const aclPut = await x.session.fetch(`${avatarUrl}.acl`, {
-      method: "PUT",
-      headers: { "Content-Type": "text/turtle" },
-      body: acl,
-    });
-    if (!aclPut.ok) {
-      throw new Error(`seed avatar: PUT ${avatarUrl}.acl → HTTP ${aclPut.status}`);
-    }
+    await putPublicReadAcl(avatarUrl, x);
   }
   const docUrl = x.webId.split("#")[0];
   await readModifyWrite(docUrl, x.session, (store, { created }) => {
@@ -244,6 +270,19 @@ export async function seedProfile(
       store.addQuad(namedNode(x.webId), namedNode(FOAF_IMG), namedNode(avatarUrl));
     }
   });
+  if (org) {
+    await saveOrganization(x.session, {
+      name: org.name,
+      homepage: org.homepage,
+    });
+    if (org.logo) {
+      const file = new File([org.logo.bytes as BlobPart], "logo", {
+        type: org.logo.mime,
+      });
+      const logoUrl = await uploadOrgLogo(file, x.session);
+      await putPublicReadAcl(logoUrl, x);
+    }
+  }
 }
 
 /**

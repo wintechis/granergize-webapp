@@ -78,28 +78,40 @@ export async function resolveAgent(
 }
 
 /**
- * Resolve a WebID to its organisation's logo IRI by reading the agent's own
- * profile: follow `org:memberOf` to the org node, then read its `foaf:logo`.
- * Serves *arbitrary* producers (e.g. a building's `attributedTo`), unlike the
- * self-only `organizationManager`. Returns `null` when the profile is
- * unreachable/private, states no org, or the org has no logo — never throws, so
+ * An agent's organisation resolved from its own profile: the `org:memberOf`
+ * node's `foaf:name` and `foaf:logo`. Either may be absent (a logo-less or
+ * name-less org); the logo image itself is a separate world-readable resource.
+ */
+export interface ResolvedOrg {
+  name?: string;
+  logoUrl?: string;
+}
+
+/**
+ * Resolve a WebID to its organisation (name + logo IRI) by reading the agent's
+ * own profile: follow `org:memberOf` to the org node, then read its
+ * `foaf:name`/`foaf:logo`. Serves *arbitrary* producers (e.g. a building's
+ * `attributedTo`), unlike the self-only `organizationManager`. Returns `null`
+ * when the profile is unreachable/private or states no org — never throws, so
  * the map can fall back to a default marker unconditionally.
  * @operation query
  */
-export async function resolveAgentOrgLogo(
+export async function resolveAgentOrg(
   webId: string,
   session: Session,
-): Promise<string | null> {
+): Promise<ResolvedOrg | null> {
   let store: Store | null = null;
   try {
     store = await loadProfileStoreFor(webId, session);
   } catch (err) {
-    logError("load agent profile for org logo", err);
+    logError("load agent profile for org resolution", err);
     store = null;
   }
   if (!store) return null;
 
   const org = firstObject(store, webId, ORG_MEMBER_OF);
   if (!org) return null;
-  return firstObject(store, org, FOAF_LOGO) ?? null;
+  const name = firstObject(store, org, FOAF_NAME);
+  const logoUrl = firstObject(store, org, FOAF_LOGO);
+  return { ...(name ? { name } : {}), ...(logoUrl ? { logoUrl } : {}) };
 }

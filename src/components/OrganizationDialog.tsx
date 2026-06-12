@@ -143,7 +143,13 @@ export default function OrganizationDialog(
               src={shownLogo}
               alt="Organisation logo"
               variant="rounded"
-              sx={{ width: 56, height: 56 }}
+              sx={{
+                width: 160,
+                height: 48,
+                // Logos are landscape lockups; Avatar's default `cover` would
+                // crop the wordmark away.
+                "& .MuiAvatar-img": { objectFit: "contain" },
+              }}
             />
             <Box>
               <Button onClick={() => fileInputRef.current?.click()}>

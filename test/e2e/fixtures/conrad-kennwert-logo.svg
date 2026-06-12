@@ -1,0 +1,20 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120">
+  <!-- Conrad Kennwert (actor C, Charlie Conrad) — Benchmark-Dienstleister.
+       Landscape lockup: mark left, wordmark dominant, so the type stays
+       legible in height-constrained UI slots. Mark: three dots on a dashed
+       reference line — abstract values against the Kennwert. Wordmark: just
+       "Conrad" in a monospace (data/measurement feel); the full name lives
+       in the org's foaf:name (shown on hover). Palette sampled from
+       Charlie's classic-yellow Lego head (golden #e2a907, print #2b2b2b).
+       Transparent background, so the yellow lives in the mark. -->
+  <line x1="8" y1="58" x2="104" y2="58" stroke="#e2a907" stroke-width="8"
+        stroke-dasharray="13 10" stroke-linecap="round"/>
+  <g fill="#2b2b2b">
+    <circle cx="30" cy="74" r="11"/>
+    <circle cx="56" cy="40" r="14"/>
+    <circle cx="84" cy="66" r="11"/>
+  </g>
+  <text x="292" y="88" text-anchor="middle"
+        font-family="'Courier New', Courier, monospace"
+        font-size="82" font-weight="bold" fill="#2b2b2b">Conrad</text>
+</svg>

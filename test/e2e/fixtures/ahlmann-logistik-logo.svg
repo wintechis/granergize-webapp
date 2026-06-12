@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120">
+  <!-- Ahlmann Logistik (actor A, Alice Ahlmann) — Logistikunternehmen,
+       Nutzerin ihrer eigenen Hallen. Landscape lockup: mark left, wordmark
+       dominant, so the type stays legible in height-constrained UI slots.
+       Mark: three forward-leaning bars — abstract motion/flow. Wordmark:
+       just "Ahlmann" in a heavy grotesque; the full name lives in the org's
+       foaf:name (shown on hover). Palette sampled from Alice's light-nougat
+       Lego head (skin #f6ccb7/#deb5a2, lip shadow #894c40). Transparent
+       background. -->
+  <g transform="skewX(-18)">
+    <rect x="34" y="12" width="22" height="96" rx="9" fill="#f6ccb7"/>
+    <rect x="68" y="12" width="22" height="96" rx="9" fill="#deb5a2"/>
+    <rect x="102" y="12" width="22" height="96" rx="9" fill="#894c40"/>
+  </g>
+  <text x="292" y="90" text-anchor="middle"
+        font-family="'Arial Black', 'Helvetica Neue', Arial, sans-serif"
+        font-size="78" font-weight="900" fill="#894c40">Ahlmann</text>
+</svg>

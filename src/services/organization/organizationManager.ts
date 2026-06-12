@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Store } from "n3";
-import { readModifyWrite } from "../pod/podWrite.ts";
+import { putAcl, readModifyWrite } from "../pod/podWrite.ts";
 import { invalidateProfile, loadProfileStore } from "../pod/profileDocument.ts";
 import { getPodBaseUrl } from "../pod/solidUtils.ts";
 import { logError } from "../../lib/logError.ts";
@@ -327,7 +327,25 @@ export async function uploadOrgLogo(
     throw new Error(`Failed to upload logo to ${logoUrl}: ${put.statusText}`);
   }
 
-  // 2. Link it as foaf:logo on the org node (conditional GET → rewrite → PUT).
+  // 2. Make the logo world-readable via its own `.acl`: the logo is consumed
+  //    cross-agent by plain `<img>` loads — the map's producer-logo markers
+  //    resolve it on OTHER users' maps (and even the owner's own marker `<img>`
+  //    goes out unauthenticated). Without this, a default-private Pod serves
+  //    the logo only to its owner's authed fetches and every marker falls back
+  //    to the default pin. Best-effort: a non-WAC pod rejects the `.acl` PUT
+  //    without breaking the upload; there the provider's profile-folder
+  //    defaults decide visibility.
+  const acl = `@prefix acl: <http://www.w3.org/ns/auth/acl#>.
+@prefix foaf: <http://xmlns.com/foaf/0.1/>.
+<#public> a acl:Authorization; acl:accessTo <${logoUrl}>;
+  acl:agentClass foaf:Agent; acl:mode acl:Read.
+<#owner> a acl:Authorization; acl:accessTo <${logoUrl}>;
+  acl:agent <${webId}>; acl:mode acl:Read, acl:Write, acl:Control.
+`;
+  await putAcl(`${logoUrl}.acl`, acl, session)
+    .catch((err) => logError("publish org logo ACL", err));
+
+  // 3. Link it as foaf:logo on the org node (conditional GET → rewrite → PUT).
   const docUrl = profileDocUrl(webId);
   const org = orgNodeIri(webId);
   await mutateProfile(docUrl, session, (store) => {

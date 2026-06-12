@@ -423,7 +423,7 @@ Deno.test("useCreateView invalidates viewDefinitions; useSaveOrganization the re
     });
     await saveOrg.current.mutateAsync({ org: { name: "ACME" } }).catch(() => {});
     assert.ok(org.invalidated.includes("agent"), "agent cache invalidated");
-    assert.ok(org.invalidated.includes("agentLogo"), "agentLogo cache invalidated");
+    assert.ok(org.invalidated.includes("agentOrg"), "agentOrg cache invalidated");
   } finally {
     _setSessionForTesting(null);
   }

@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { resolveAgent, resolveAgentOrgLogo } from "./agentResolver.ts";
+import { resolveAgent, resolveAgentOrg } from "./agentResolver.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";
 import { makeFakeSession } from "../testing/fakeSession.ts";
 
@@ -58,37 +58,41 @@ Deno.test("resolveAgent prefers foaf:name over vcard:fn when both are present", 
   assert.equal(agent.name, "FOAF Name");
 });
 
-Deno.test("resolveAgentOrgLogo follows org:memberOf → foaf:logo", async () => {
+Deno.test("resolveAgentOrg follows org:memberOf → foaf:name + foaf:logo", async () => {
   _resetProfileCacheForTesting();
   const ttl = `
     @prefix foaf: <http://xmlns.com/foaf/0.1/> .
     @prefix org: <http://www.w3.org/ns/org#> .
     <${WEBID}> a foaf:Person ; org:memberOf <https://alice.example/profile/card#org> .
     <https://alice.example/profile/card#org> a org:Organization ;
+      foaf:name "Ahlmann Logistik" ;
       foaf:logo <https://alice.example/profile/logo.png> .`;
-  const logo = await resolveAgentOrgLogo(WEBID, makeSession(ttl));
-  assert.equal(logo, "https://alice.example/profile/logo.png");
+  const org = await resolveAgentOrg(WEBID, makeSession(ttl));
+  assert.equal(org?.name, "Ahlmann Logistik");
+  assert.equal(org?.logoUrl, "https://alice.example/profile/logo.png");
 });
 
-Deno.test("resolveAgentOrgLogo returns null when there is no org or no logo", async () => {
+Deno.test("resolveAgentOrg returns null without an org, partial fields otherwise", async () => {
   _resetProfileCacheForTesting();
   // No org membership at all.
   const noOrg = `
     @prefix foaf: <http://xmlns.com/foaf/0.1/> .
     <${WEBID}> a foaf:Person ; foaf:name "Alice" .`;
-  assert.equal(await resolveAgentOrgLogo(WEBID, makeSession(noOrg)), null);
+  assert.equal(await resolveAgentOrg(WEBID, makeSession(noOrg)), null);
 
-  // Org present but logo-less.
+  // Org present but logo-less: the name still resolves.
   _resetProfileCacheForTesting();
   const noLogo = `
     @prefix foaf: <http://xmlns.com/foaf/0.1/> .
     @prefix org: <http://www.w3.org/ns/org#> .
     <${WEBID}> org:memberOf <https://alice.example/profile/card#org> .
     <https://alice.example/profile/card#org> foaf:name "ACME" .`;
-  assert.equal(await resolveAgentOrgLogo(WEBID, makeSession(noLogo)), null);
+  assert.deepEqual(await resolveAgentOrg(WEBID, makeSession(noLogo)), {
+    name: "ACME",
+  });
 });
 
-Deno.test("resolveAgentOrgLogo returns null for an unreachable profile", async () => {
+Deno.test("resolveAgentOrg returns null for an unreachable profile", async () => {
   _resetProfileCacheForTesting();
-  assert.equal(await resolveAgentOrgLogo(WEBID, makeSession(undefined)), null);
+  assert.equal(await resolveAgentOrg(WEBID, makeSession(undefined)), null);
 });

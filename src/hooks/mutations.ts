@@ -552,7 +552,7 @@ export function useSaveOrganization() {
     },
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.agent });
-      qc.invalidateQueries({ queryKey: queryKeys.agentLogo });
+      qc.invalidateQueries({ queryKey: queryKeys.agentOrg });
     },
   });
 }
