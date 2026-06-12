@@ -125,6 +125,54 @@ Read-only operations group by *how* they read, which mirrors the three mutation 
 A query is otherwise pure. Freshness is server-driven via `fetchFresh` (revalidating GET);
 React Query owns caching and invalidation.
 
+Queries split by *consumption shape*, which decides their hook home:
+
+- **Subscriptions** — a mounted component declares a standing data need; the read
+  re-runs when a mutation invalidates its key. The `queries.ts` hooks; the normal case.
+- **Imperative read-intents** — a user *invokes* a read as an action with its own
+  feedback surface, and the answer must be fresh per invocation (caching an audit
+  would report stale consistency): `auditGrants` ("Check sharing consistency"),
+  `exportArchive` ("Download archive"), the wipe preview (`listContainedResources`)
+  and the restore preview (`inspectArchive`). The two Pod-reading ones are reified as
+  hooks (`useAuditGrants`, `useExportArchive`) on the `useMutation` *primitive* — used
+  here purely as the on-demand trigger (busy state + the central error toast), not as
+  a write; they stay `@operation query` and invalidate nothing. The previews stay
+  plain service calls inside their confirmation flows.
+
+## Account-scope operations
+
+The dashboard's account actions cover whole-collection ground the per-entity catalog
+doesn't, but they classify with the same axes — no fourth model is needed:
+
+- **Demo seeding** (`seedDemoBuildings`, `seedDemoContacts`, `seedDemoRooms`) —
+  user-intent model-2 bulk creates. Integrity is ordering, not transactions: per
+  building, datasets first and the discoverable building file LAST (the commit
+  point), so a failure leaves only inert orphans and a retry mints fresh UUIDs.
+  Per-item best-effort with a tally outcome (`{seeded, total}`) — partial success is
+  a *result* the caller renders ("Added N of M"), not an error.
+- **`removeAppData`** — user-intent terminal in-place mutation: the recursive,
+  depth-first delete treats every resource — event logs, in-place state, ACL
+  projections alike — uniformly as state to destroy; nothing is appended, folded or
+  projected. Long-running and cancellable (abort signal; a cancel resolves as the
+  outcome `{aborted: true}`). Its invalidation is the entire cache (`qc.clear()`),
+  on every settle: success leaves an empty Pod, an abort or failure an unknown
+  partially-deleted subset — either way nothing cached can be trusted. The
+  confirmation embeds a query (`listContainedResources` enumerates what will be
+  lost).
+- **`importArchive` (restore)** — user-intent model-2 bulk write with an *embedded
+  reconciliation*: the archive carries the `shared-out/` log (ground truth) but not
+  the derived `.acl` files, so the restore mutation runs `reissueGrants` as part of
+  the same intent, then invalidates everything.
+- **`reissueGrants` ("Rebuild sharing from log")** — the model-3 reconciliation
+  reachable behind its own user-intent button (the same function the restore embeds).
+  No invalidations: it writes only the ACL projection, which no query reads.
+- **`exportArchive` / `auditGrants`** — user-intent queries (read-intents above).
+
+All six now go through hooks in `mutations.ts` (the account actions were the last
+hand-rolled handlers); what stays at the call site is exactly the UI these intents
+need beyond the standard busy/toast shape — the computed-preview confirms, the
+full-page activity screen, and outcome rendering.
+
 ## The round-trip at runtime
 
 The taxonomy above is static — what each operation *is*. At runtime a query and a

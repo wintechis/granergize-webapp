@@ -228,7 +228,8 @@ import { classifyMutationError } from "./queryErrors.ts";
 import { makeFakeSession } from "../services/testing/fakeSession.ts";
 import { GRAN_NS, REC_BUILDING } from "../services/rdf/vocabularies.ts";
 
-/** A wrapper whose client records every invalidated key prefix. */
+/** A wrapper whose client records every invalidated key prefix
+ * (a keyless invalidate-everything call is recorded as `"*"`). */
 function makeSpyWrapper() {
   const client = new QueryClient({
     defaultOptions: { queries: { retry: false }, mutations: { retry: false } },
@@ -237,12 +238,12 @@ function makeSpyWrapper() {
   const orig = client.invalidateQueries.bind(client);
   client.invalidateQueries = ((arg: Parameters<typeof orig>[0]) => {
     const key = (arg as { queryKey?: unknown[] } | undefined)?.queryKey;
-    if (Array.isArray(key)) invalidated.push(String(key[0]));
+    invalidated.push(Array.isArray(key) ? String(key[0]) : "*");
     return orig(arg);
   }) as typeof client.invalidateQueries;
   const wrapper = ({ children }: { children: React.ReactNode }) =>
     React.createElement(QueryClientProvider, { client }, children);
-  return { wrapper, invalidated };
+  return { client, wrapper, invalidated };
 }
 
 Deno.test("useWriteEnergyYear writes the dataset and invalidates the building-data keys", async () => {
@@ -490,6 +491,172 @@ Deno.test("central mutation-error wiring: meta.silent suppresses the toast, meta
     }).catch(() => {});
     assert.equal(notifications.length, 1);
     assert.match(notifications[0], /^Failed to update the building: /);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+// ── Account-scope hooks (seeding, wipe, archive, sharing repair) ─────────────
+// These were the last hand-rolled handlers (index.tsx) — folded into the
+// mutation layer; the two archive/audit READ-intents use the same trigger
+// primitive but must leave the Pod untouched.
+
+import {
+  useAuditGrants,
+  useExportArchive,
+  useReissueGrants,
+  useRemoveAppData,
+  useRestoreArchive,
+  useSeedDemoBuildings,
+} from "./mutations.ts";
+import { exportArchive } from "../services/pod/podArchive.ts";
+
+Deno.test("useSeedDemoBuildings seeds the full demo set and invalidates the buildings", async () => {
+  const fake = makeFakeSession({ webId: WEBID, listContainers: true });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const { wrapper, invalidated } = makeSpyWrapper();
+  try {
+    const { result } = renderHook(() => useSeedDemoBuildings(), { wrapper });
+    const outcome = await result.current.mutateAsync();
+    assert.equal(outcome.seeded, outcome.total, "all demo buildings written");
+    assert.ok(outcome.total > 0);
+    assert.ok(invalidated.includes("buildings"));
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useRemoveAppData wipes the collection; the outcome survives the cache clear", async () => {
+  const fake = makeFakeSession({
+    webId: WEBID,
+    listContainers: true,
+    resources: {
+      "https://pod.example/granergize/prefs.ttl": "<a> <b> <c> .",
+      "https://pod.example/granergize/buildings/b1.ttl": "<a> <b> <c> .",
+    },
+  });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const { client, wrapper } = makeSpyWrapper();
+  client.setQueryData(["anything"], 42);
+  try {
+    const { result } = renderHook(() => useRemoveAppData(), { wrapper });
+    const outcome = await result.current.mutateAsync({
+      signal: new AbortController().signal,
+    });
+    assert.deepEqual(outcome, { aborted: false });
+    assert.equal(Object.keys(fake.store).length, 0, "every resource deleted");
+    assert.equal(
+      client.getQueryCache().getAll().length,
+      0,
+      "the entire query cache is reset",
+    );
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useRemoveAppData: a cancelled wipe resolves as an OUTCOME (aborted), and still resets the cache", async () => {
+  const fake = makeFakeSession({ webId: WEBID, listContainers: true });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const { client, wrapper } = makeSpyWrapper();
+  client.setQueryData(["anything"], 42);
+  const controller = new AbortController();
+  controller.abort();
+  try {
+    const { result } = renderHook(() => useRemoveAppData(), { wrapper });
+    const outcome = await result.current.mutateAsync({
+      signal: controller.signal,
+    });
+    assert.deepEqual(outcome, { aborted: true });
+    // An aborted wipe leaves an unknown partially-deleted subset — nothing
+    // cached can be trusted, so the reset must fire on this path too.
+    assert.equal(client.getQueryCache().getAll().length, 0);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useRestoreArchive restores the archive, replays the log, and invalidates everything", async () => {
+  // Real archive bytes, produced by exporting a small seeded Pod.
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  const source = makeFakeSession({
+    webId: WEBID,
+    listContainers: true,
+    resources: {
+      "https://pod.example/granergize/prefs.ttl": "<x> <y> <z> .",
+      "https://pod.example/granergize/buildings/b1.ttl": "<x> <y> <z> .",
+    },
+  });
+  const { bytes } = await exportArchive(source.session);
+
+  const target = makeFakeSession({ webId: WEBID, listContainers: true });
+  _setSessionForTesting(target.session);
+  const { wrapper, invalidated } = makeSpyWrapper();
+  try {
+    const { result } = renderHook(() => useRestoreArchive(), { wrapper });
+    const outcome = await result.current.mutateAsync({ bytes });
+    assert.equal(outcome.restored, 2);
+    assert.equal(outcome.reissued, 0, "no grants in the restored log");
+    assert.ok(
+      target.store["https://pod.example/granergize/buildings/b1.ttl"],
+      "the building file is back",
+    );
+    assert.ok(invalidated.includes("*"), "a restore invalidates every query");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useExportArchive and useAuditGrants are READ-intents: results, zero Pod writes", async () => {
+  const fake = makeFakeSession({
+    webId: WEBID,
+    listContainers: true,
+    resources: {
+      "https://pod.example/granergize/prefs.ttl": "<x> <y> <z> .",
+    },
+  });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const exp = makeSpyWrapper();
+  const audit = makeSpyWrapper();
+  try {
+    const { result: exporter } = renderHook(() => useExportArchive(), {
+      wrapper: exp.wrapper,
+    });
+    const { bytes, count } = await exporter.current.mutateAsync();
+    assert.ok(bytes.length > 0);
+    assert.equal(count, 1);
+
+    const { result: auditor } = renderHook(() => useAuditGrants(), {
+      wrapper: audit.wrapper,
+    });
+    const verdict = await auditor.current.mutateAsync();
+    assert.deepEqual(verdict.drift, [], "an empty log audits clean");
+
+    assert.ok(
+      !fake.calls.some((c) => c.method !== "GET" && c.method !== "HEAD"),
+      "read-intents: no write reached the Pod",
+    );
+    assert.deepEqual(exp.invalidated, [], "a read invalidates nothing");
+    assert.deepEqual(audit.invalidated, [], "a read invalidates nothing");
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useReissueGrants replays an empty log to zero counts without invalidating", async () => {
+  const fake = makeFakeSession({ webId: WEBID, listContainers: true });
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fake.session);
+  const { wrapper, invalidated } = makeSpyWrapper();
+  try {
+    const { result } = renderHook(() => useReissueGrants(), { wrapper });
+    const res = await result.current.mutateAsync();
+    assert.equal(res.buildings + res.views, 0);
+    assert.deepEqual(invalidated, [], "the ACL projection is not a query");
   } finally {
     _setSessionForTesting(null);
   }

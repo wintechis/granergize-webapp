@@ -18,7 +18,6 @@ import {
   formatResourceList,
   listContainedResources,
   listDirectChildren,
-  removeAppData,
 } from "../services/pod/podDelete.ts";
 import { APP_DIR, getStorageRoot, podResources } from "../services/pod/solidUtils.ts";
 import { Session } from "@inrupt/solid-client-authn-browser";
@@ -39,22 +38,19 @@ import OrganizationDialog from "../components/OrganizationDialog.tsx";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import Collapse from "@mui/material/Collapse";
-import { useQueryClient } from "@tanstack/react-query";
-import { queryKeys, useSharedWithMe } from "../hooks/queries.ts";
-import {
-  seedDemoBuildings,
-} from "../services/rdf/building/buildingSerializer.ts";
+import { useSharedWithMe } from "../hooks/queries.ts";
 import { readPrefs, setDemoSeedDeclined } from "../services/prefs.ts";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
-import {
-  exportArchive,
-  importArchive,
-  inspectArchive,
-} from "../services/pod/podArchive.ts";
-import { auditGrants, reissueGrants } from "../services/interop/share.ts";
+import { inspectArchive } from "../services/pod/podArchive.ts";
 import { downloadBlob } from "../lib/download.ts";
 import {
+  useAuditGrants,
+  useExportArchive,
+  useReissueGrants,
+  useRemoveAppData,
+  useRestoreArchive,
+  useSeedDemoBuildings,
   useSeedDemoContacts,
   useSeedDemoRooms,
 } from "../hooks/mutations.ts";
@@ -112,9 +108,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const tabValue = tabIndexFromSlug(searchParams.get("tab"));
   const devMode = useDevMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  // True while "Remove all app data" is wiping the Pod — shows a full-page
-  // activity screen with the live deletion requests and a Cancel button.
-  const [removing, setRemoving] = useState(false);
+  // "Remove all app data" — while the mutation is pending the page renders a
+  // full-page activity screen with the live deletion requests and a Cancel
+  // button wired to this controller.
+  const removeMut = useRemoveAppData();
   const removeAbort = useRef<AbortController | null>(null);
   const { showNotification } = useNotification();
 
@@ -139,7 +136,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     "load organisation logo",
   );
 
-  const queryClient = useQueryClient();
   // Fresh-Pod demo-buildings offer (non-blocking banner): shown when the buildings
   // container is absent (404) and the user hasn't declined. The choice persists in
   // prefs.ttl, so it doesn't nag on every login.
@@ -153,9 +149,16 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   // isSuccess); undefined-while-loading keeps the banner down, no flash.
   const nothingShared = sharedWithMeQuery.data !== undefined &&
     sharedWithMeQuery.data.length === 0;
-  const [demoBusy, setDemoBusy] = useState(false);
-  // Dev-mode archive (download/upload the whole granergize/ collection as a ZIP).
-  const [archiveBusy, setArchiveBusy] = useState(false);
+  // Dev-mode archive (download/upload the whole granergize/ collection as a ZIP)
+  // and the sharing projection's audit/repair pair. The export and audit are
+  // imperative READ-intents (see mutations.ts); the menu items disable on the
+  // union since archive/sharing maintenance shouldn't interleave.
+  const exportMut = useExportArchive();
+  const restoreMut = useRestoreArchive();
+  const auditMut = useAuditGrants();
+  const reissueMut = useReissueGrants();
+  const accountBusy = exportMut.isPending || restoreMut.isPending ||
+    auditMut.isPending || reissueMut.isPending;
   const archiveInput = useRef<HTMLInputElement | null>(null);
 
   // Re-evaluate the fresh-Pod demo offer from its actual inputs (buildings, prefs).
@@ -185,47 +188,36 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   }, [refreshDemoOffer]);
 
   /**
-   * Seed the fixed demo building(s) + refresh the dashboard (banner & menu share
-   * this). Role-independent — no company kind required.
+   * Seed the fixed demo building(s) — banner & menu share this. The hook owns
+   * execution + the buildings invalidation (energy follows: useEnergy is keyed
+   * on the building set); the seeder is best-effort per building (it never
+   * throws for one), so the tally is the only place a partial failure
+   * surfaces — rendered honestly here. Thrown errors toast centrally.
    */
-  const seedDemos = async () => {
-    const webId = session.info.webId;
-    if (!webId) return;
-    setDemoBusy(true);
-    try {
-      const { seeded, total } = await seedDemoBuildings(session, webId);
-      // Refetch buildings; energy follows automatically because useEnergy is keyed on
-      // the building set (so the seeded annual building's energy loads without a
-      // separate, race-prone energy invalidation here).
-      await queryClient.invalidateQueries({
-        queryKey: queryKeys.buildings,
-      });
-      // The seeder is best-effort per building (it never throws), so the tally is
-      // the only place a partial failure surfaces — report it honestly.
-      if (seeded === total) {
-        setDemoShow(false);
-        showNotification("Demo buildings added", "success");
-      } else if (seeded > 0) {
-        setDemoShow(false);
-        showNotification(
-          `Added ${seeded} of ${total} demo buildings`,
-          "warning",
-        );
-      } else {
-        showNotification(
-          formatError(
-            "add demo buildings",
-            new Error("no building could be written"),
-          ),
-          "error",
-        );
-      }
-    } catch (err) {
-      showNotification(formatError("add demo buildings", err), "error");
-    } finally {
-      setDemoBusy(false);
-    }
-  };
+  const seedBuildingsMut = useSeedDemoBuildings();
+  const seedDemos = () =>
+    seedBuildingsMut.mutate(undefined, {
+      onSuccess: ({ seeded, total }) => {
+        if (seeded === total) {
+          setDemoShow(false);
+          showNotification("Demo buildings added", "success");
+        } else if (seeded > 0) {
+          setDemoShow(false);
+          showNotification(
+            `Added ${seeded} of ${total} demo buildings`,
+            "warning",
+          );
+        } else {
+          showNotification(
+            formatError(
+              "add demo buildings",
+              new Error("no building could be written"),
+            ),
+            "error",
+          );
+        }
+      },
+    });
 
   // Dev-mode Connect-tab demo data — the contacts/rooms counterpart of
   // `seedDemos` (the seeders tally partial success the same way).
@@ -260,137 +252,122 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   };
 
   /** Dev-mode: download the whole granergize/ collection as a ZIP backup. */
-  const handleDownloadArchive = async () => {
-    if (archiveBusy) return;
-    setArchiveBusy(true);
-    try {
-      const { bytes, count } = await exportArchive(session);
-      const stamp = new Date().toISOString().slice(0, 10);
-      downloadBlob(
-        new Blob([bytes], { type: "application/zip" }),
-        `granergize-archive-${stamp}.zip`,
-      );
-      showNotification(`Archived ${count} resource(s)`, "success");
-    } catch (err) {
-      showNotification(formatError("download archive", err), "error");
-    } finally {
-      setArchiveBusy(false);
-    }
-  };
+  const handleDownloadArchive = () =>
+    exportMut.mutate(undefined, {
+      onSuccess: ({ bytes, count }) => {
+        const stamp = new Date().toISOString().slice(0, 10);
+        downloadBlob(
+          new Blob([bytes], { type: "application/zip" }),
+          `granergize-archive-${stamp}.zip`,
+        );
+        showNotification(`Archived ${count} resource(s)`, "success");
+      },
+    });
 
-  /** Dev-mode: restore a previously downloaded archive into the current Pod. */
+  /** Dev-mode: restore a previously downloaded archive into the current Pod.
+   * The file read + `inspectArchive` preview parameterise the confirm; the
+   * restore itself (incl. the ACL rebuild from the restored log) is the
+   * mutation, which also owns the invalidate-all. */
   const handleArchiveFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     e.target.value = ""; // allow re-selecting the same file later
     if (!file) return;
-    setArchiveBusy(true);
+    let bytes: Uint8Array;
+    let count: number;
+    let rebaseNote: string;
     try {
-      const bytes = new Uint8Array(await file.arrayBuffer());
+      bytes = new Uint8Array(await file.arrayBuffer());
       // Restore overwrites resources at matching paths (no merge) — confirm first.
-      const { count, base, webId: srcWebId } = inspectArchive(bytes);
+      const preview = inspectArchive(bytes);
+      count = preview.count;
       const webId = session.info.webId;
       const targetRoot = webId ? getStorageRoot(webId) : "";
       const notes = [
-        base && base !== targetRoot
-          ? `Content will be rebased from ${base} to ${targetRoot}.`
+        preview.base && preview.base !== targetRoot
+          ? `Content will be rebased from ${preview.base} to ${targetRoot}.`
           : "",
-        srcWebId && srcWebId !== webId
-          ? `Owner WebID will be rewritten from ${srcWebId} to ${webId}.`
+        preview.webId && preview.webId !== webId
+          ? `Owner WebID will be rewritten from ${preview.webId} to ${webId}.`
           : "",
       ].filter(Boolean);
-      const rebaseNote = notes.length ? "\n\n" + notes.join("\n") : "";
-      if (
-        !globalThis.confirm(
-          `Restore ${count} resource(s) from "${file.name}" into this Pod?\n\n` +
-            "This overwrites any existing resource at a matching path under " +
-            "granergize/. This cannot be undone — intended for a wiped Pod." +
-            rebaseNote,
-        )
-      ) {
-        setArchiveBusy(false);
-        return;
-      }
-      const { restored, rebasedTo, rebasedWebId } = await importArchive(session, bytes);
-      // The archive carries the shared-out/ log but not the derived .acl files,
-      // so rebuild enforcement by replaying the log (now valid on this Pod since
-      // the log's IRIs were rebased onto it).
-      const { buildings, views } = await reissueGrants(session);
-      await queryClient.invalidateQueries();
-      hydrateActiveRoom(session).catch((err) =>
-        logError("hydrate active data room", err)
-      );
-      const rebased = rebasedTo || rebasedWebId ? " (rebased)" : "";
-      showNotification(
-        `Restored ${restored} resource(s)${rebased}; reissued ${buildings + views} share grant(s)`,
-        "success",
-      );
+      rebaseNote = notes.length ? "\n\n" + notes.join("\n") : "";
     } catch (err) {
-      showNotification(formatError("upload archive", err), "error");
-    } finally {
-      setArchiveBusy(false);
+      // A pre-mutation failure (unreadable file / not an archive) — the
+      // mutation's central toast can't cover it.
+      showNotification(formatError("read the archive", err), "error");
+      return;
     }
+    if (
+      !globalThis.confirm(
+        `Restore ${count} resource(s) from "${file.name}" into this Pod?\n\n` +
+          "This overwrites any existing resource at a matching path under " +
+          "granergize/. This cannot be undone — intended for a wiped Pod." +
+          rebaseNote,
+      )
+    ) {
+      return;
+    }
+    restoreMut.mutate({ bytes }, {
+      onSuccess: ({ restored, rebasedTo, rebasedWebId, reissued }) => {
+        hydrateActiveRoom(session).catch((err) =>
+          logError("hydrate active data room", err)
+        );
+        const rebased = rebasedTo || rebasedWebId ? " (rebased)" : "";
+        showNotification(
+          `Restored ${restored} resource(s)${rebased}; reissued ${reissued} share grant(s)`,
+          "success",
+        );
+      },
+    });
   };
 
   /** Dev-mode: dry-run diff of the .acl projection against the shared-out/ log —
    * read-only drift detection (the diffing twin of "Rebuild sharing from log"). */
-  const handleAuditGrants = async () => {
-    if (archiveBusy) return;
-    setArchiveBusy(true);
-    try {
-      const { checked, drift, skipped, missing } = await auditGrants(session);
-      const tails = [
-        missing ? `${missing} deleted skipped` : "",
-        skipped ? `${skipped} off-Pod skipped` : "",
-      ].filter(Boolean);
-      const tail = tails.length ? ` (${tails.join(", ")})` : "";
-      if (drift.length === 0) {
-        showNotification(
-          `Sharing consistent: ${checked} grant(s) match the log${tail}`,
-          "success",
-        );
-      } else {
-        // Name each drifted pair on the console so a dev sees exactly what a
-        // rebuild would change (the toast only carries the count).
-        console.warn(
-          "Sharing drift:",
-          drift.map((d) => `${d.kind} ${d.resource} → ${d.grantee}`),
-        );
-        showNotification(
-          `Sharing drift: ${drift.length} of ${checked} grant(s) differ from the log` +
-            ` — run "Rebuild sharing from log"${tail}`,
-          "warning",
-        );
-      }
-    } catch (err) {
-      showNotification(formatError("check sharing consistency", err), "error");
-    } finally {
-      setArchiveBusy(false);
-    }
-  };
+  const handleAuditGrants = () =>
+    auditMut.mutate(undefined, {
+      onSuccess: ({ checked, drift, skipped, missing }) => {
+        const tails = [
+          missing ? `${missing} deleted skipped` : "",
+          skipped ? `${skipped} off-Pod skipped` : "",
+        ].filter(Boolean);
+        const tail = tails.length ? ` (${tails.join(", ")})` : "";
+        if (drift.length === 0) {
+          showNotification(
+            `Sharing consistent: ${checked} grant(s) match the log${tail}`,
+            "success",
+          );
+        } else {
+          // Name each drifted pair on the console so a dev sees exactly what a
+          // rebuild would change (the toast only carries the count).
+          console.warn(
+            "Sharing drift:",
+            drift.map((d) => `${d.kind} ${d.resource} → ${d.grantee}`),
+          );
+          showNotification(
+            `Sharing drift: ${drift.length} of ${checked} grant(s) differ from the log` +
+              ` — run "Rebuild sharing from log"${tail}`,
+            "warning",
+          );
+        }
+      },
+    });
 
   /** Dev-mode: rebuild WAC ACLs from the shared-out/ event log (repair / audit). */
-  const handleReissueGrants = async () => {
-    if (archiveBusy) return;
-    setArchiveBusy(true);
-    try {
-      const { buildings, views, skipped, missing, revoked } =
-        await reissueGrants(session);
-      const tails = [
-        revoked ? `${revoked} revocation(s) replayed` : "",
-        missing ? `${missing} deleted skipped` : "",
-        skipped ? `${skipped} off-Pod skipped` : "",
-      ].filter(Boolean);
-      const tail = tails.length ? ` (${tails.join(", ")})` : "";
-      showNotification(
-        `Reissued ${buildings + views} share grant(s)${tail}`,
-        "success",
-      );
-    } catch (err) {
-      showNotification(formatError("rebuild sharing", err), "error");
-    } finally {
-      setArchiveBusy(false);
-    }
-  };
+  const handleReissueGrants = () =>
+    reissueMut.mutate(undefined, {
+      onSuccess: ({ buildings, views, skipped, missing, revoked }) => {
+        const tails = [
+          revoked ? `${revoked} revocation(s) replayed` : "",
+          missing ? `${missing} deleted skipped` : "",
+          skipped ? `${skipped} off-Pod skipped` : "",
+        ].filter(Boolean);
+        const tail = tails.length ? ` (${tails.join(", ")})` : "";
+        showNotification(
+          `Reissued ${buildings + views} share grant(s)${tail}`,
+          "success",
+        );
+      },
+    });
 
   const handleOrganisation = () => {
     handleMenuClose();
@@ -478,18 +455,29 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       return;
     }
     // Take over the screen with the live deletion requests (and a Cancel
-    // button) instead of wiping silently behind a notification.
+    // button) instead of wiping silently behind a notification. The mutation
+    // settle clears the WHOLE query cache (mutation cache included), so the
+    // post-success flow runs in this continuation — mutate-option callbacks
+    // would not survive the clear. A cancel resolves as an outcome
+    // ({aborted: true}); a real failure rejects and the central
+    // "Failed to remove app data" toast has already reported it.
     const controller = new AbortController();
     removeAbort.current = controller;
-    setRemoving(true);
     try {
-      await removeAppData(session, controller.signal);
-      // Stay logged in: the Pod is now a fresh, empty granergize/. Reset the
-      // query caches so everything refetches empty, re-hydrate the (now absent)
-      // active room, and re-offer the demo buildings — startup no longer
-      // re-seeds silently, so there's nothing to "log out to avoid" any more.
-      setRemoving(false);
-      queryClient.clear();
+      const { aborted } = await removeMut.mutateAsync({
+        signal: controller.signal,
+      });
+      if (aborted) {
+        showNotification(
+          "Removal cancelled — some data may already be deleted",
+          "warning",
+        );
+        return;
+      }
+      // Stay logged in: the Pod is now a fresh, empty granergize/ (the caches
+      // were reset by the mutation). Re-hydrate the (now absent) active room
+      // and re-offer the demo buildings — startup no longer re-seeds silently,
+      // so there's nothing to "log out to avoid" any more.
       hydrateActiveRoom(session).catch((err) =>
         logError("hydrate active data room", err)
       );
@@ -497,19 +485,8 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       setDemoShow(true);
       setSearchParams((p) => mergeParams(p, { tab: "explore" }), { replace: true });
       showNotification("All app data removed", "success");
-    } catch (err) {
-      setRemoving(false);
-      if (controller.signal.aborted) {
-        showNotification(
-          "Removal cancelled — some data may already be deleted",
-          "warning",
-        );
-      } else {
-        showNotification(
-          `Failed to remove app data: ${(err as Error).message}`,
-          "error",
-        );
-      }
+    } catch {
+      // Already toasted centrally via the hook's meta.action.
     } finally {
       removeAbort.current = null;
     }
@@ -526,7 +503,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
 
   // While wiping the Pod, take over the screen so the user sees the deletions
   // in flight and can cancel — rather than the app shell sitting there.
-  if (removing) {
+  if (removeMut.isPending) {
     return (
       <ActivityScreen
         title="Removing all app data…"
@@ -622,8 +599,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               Organisation…
             </MenuItem>
             {devMode && (
-              <MenuItem onClick={seedDemos} disabled={demoBusy}>
-                {demoBusy ? "Adding demo buildings…" : "Add demo buildings"}
+              <MenuItem onClick={seedDemos} disabled={seedBuildingsMut.isPending}>
+                {seedBuildingsMut.isPending
+                  ? "Adding demo buildings…"
+                  : "Add demo buildings"}
               </MenuItem>
             )}
             {devMode && (
@@ -647,25 +626,25 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               </MenuItem>
             )}
             {devMode && (
-              <MenuItem onClick={handleDownloadArchive} disabled={archiveBusy}>
-                {archiveBusy ? "Working…" : "Download archive"}
+              <MenuItem onClick={handleDownloadArchive} disabled={accountBusy}>
+                {accountBusy ? "Working…" : "Download archive"}
               </MenuItem>
             )}
             {devMode && (
               <MenuItem
                 onClick={() => archiveInput.current?.click()}
-                disabled={archiveBusy}
+                disabled={accountBusy}
               >
                 Upload archive…
               </MenuItem>
             )}
             {devMode && (
-              <MenuItem onClick={handleAuditGrants} disabled={archiveBusy}>
+              <MenuItem onClick={handleAuditGrants} disabled={accountBusy}>
                 Check sharing consistency
               </MenuItem>
             )}
             {devMode && (
-              <MenuItem onClick={handleReissueGrants} disabled={archiveBusy}>
+              <MenuItem onClick={handleReissueGrants} disabled={accountBusy}>
                 Rebuild sharing from log
               </MenuItem>
             )}
@@ -716,15 +695,15 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
                 color="inherit"
                 size="small"
                 onClick={seedDemos}
-                disabled={demoBusy}
+                disabled={seedBuildingsMut.isPending}
               >
-                {demoBusy ? "Adding…" : "Add examples"}
+                {seedBuildingsMut.isPending ? "Adding…" : "Add examples"}
               </Button>
               <Button
                 color="inherit"
                 size="small"
                 onClick={declineDemos}
-                disabled={demoBusy}
+                disabled={seedBuildingsMut.isPending}
               >
                 No thanks
               </Button>
