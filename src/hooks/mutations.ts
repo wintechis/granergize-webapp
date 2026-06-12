@@ -815,7 +815,7 @@ export function useRestoreArchive() {
 
 /**
  * Dev-mode: rebuild the WAC `.acl` projection from the shared-out event log
- * (see {@link reissueGrants}) — a Model-3 reconciliation behind a user-intent
+ * (see {@link reissueGrants}) — a materialized-projection reconciliation behind a user-intent
  * button. No invalidations: it writes only the ACL projection, which no
  * query reads.
  */

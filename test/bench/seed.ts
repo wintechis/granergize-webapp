@@ -230,7 +230,7 @@ async function putPublicReadAcl(url: string, x: BenchActor): Promise<void> {
  * Give an actor's WebID profile a human identity: a `foaf:name` plus a publicly
  * readable avatar image (PUT beside the profile document, linked via `foaf:img`)
  * — so agent labels resolve to a name + face across pods instead of the WebID
- * fragment. The profile write is the app's model-2 in-place mutation
+ * fragment. The profile write is the app's in-place mutation
  * (read–modify–write, never PATCH).
  *
  * With `org` set, the actor additionally gets a company identity through the

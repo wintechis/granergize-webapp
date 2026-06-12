@@ -89,7 +89,7 @@ export async function ensureContainer(
 
 /**
  * Append one immutable Turtle resource to an append-only LDP container (the
- * model-1 event-sourced primitive): POST — the server mints the child IRI, so
+ * event-sourced-append primitive): POST — the server mints the child IRI, so
  * concurrent appends never clobber. The one home for the POST + ok-check shared
  * by the event-log writers (sharing logs, data-room logs, inbox notifications);
  * callers keep their own {@link ensureContainer} where the container is theirs

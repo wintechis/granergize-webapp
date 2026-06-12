@@ -23,7 +23,8 @@
     "explore": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/explore.ts",
     "handbuch": "bash docs/build-handbuch.sh",
     "handbuch:figures": "VITE_OIDC_CLIENT_ID= deno task build && E2E_LOCAL=1 npx playwright test --project=support",
-    "handbuch:full": "deno task handbuch:figures && deno task handbuch"
+    "handbuch:full": "deno task handbuch:figures && deno task handbuch",
+    "handbuch:videos": "VITE_OIDC_CLIENT_ID= deno task build && E2E_LOCAL=1 npx playwright test --project=video"
   },
   "imports": {
     "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@0.0.53"

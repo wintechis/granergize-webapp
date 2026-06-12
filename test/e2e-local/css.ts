@@ -482,6 +482,34 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
       return new Response(`seed-contrib failed: ${e}\n`, { status: 500 });
     }
   }
+  // Seed N owned buildings (annual baseline, attributed to the actor) for ONE
+  // slot — e.g. B's own surroundings in the two-actor walkthrough video,
+  // without dragging in the benchmark roundtrip that `/seed-benchmark` seeds.
+  if (req.method === "POST" && pathname === "/seed-actor-buildings") {
+    const slotParam = (searchParams.get("slot") ?? "B").toUpperCase();
+    const n = Number(searchParams.get("n") ?? "2");
+    if (!["A", "B", "C"].includes(slotParam)) {
+      return new Response(`unknown slot ${slotParam}\n`, { status: 400 });
+    }
+    const slot = slotParam as "A" | "B" | "C";
+    try {
+      const x = await actorSession(slot);
+      try {
+        await seedBuildings(
+          x.actor.session,
+          x.actor.webId,
+          Number.isFinite(n) && n >= 0 ? n : 2,
+          `own-${slot.toLowerCase()}`,
+        );
+      } finally {
+        await x.live.dispose().catch(() => {});
+      }
+      return new Response("ok\n");
+    } catch (e) {
+      console.error(`/seed-actor-buildings failed: ${e}`);
+      return new Response(`seed-actor-buildings failed: ${e}\n`, { status: 500 });
+    }
+  }
   if (req.method === "POST" && pathname === "/seed-profiles") {
     try {
       return Response.json(await seedProfiles());

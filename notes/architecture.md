@@ -69,7 +69,7 @@ and cross-building appearances) — while single-resource units are **flat modul
 `prefs`, `attachmentManager`, `buildingActions` (the delete-orchestration helper), and
 `geocode` (external geocoding). A folder marks a sub-domain with several collaborating
 files, not a one-file-per-Pod-resource mirror; a single owned resource is just a module.
-The three mutation models live here — see [`read-write-operations.md`](./read-write-operations.md),
+The storage models and projection disciplines live here — see [`read-write-operations.md`](./read-write-operations.md),
 [`sharing.md`](./sharing.md), [`room.md`](./room.md), and [`aggregated-views.md`](./aggregated-views.md). These
 domains are siblings: none imports another — cross-domain composition happens a layer up,
 in hooks or pages — and all rest on the Pod I/O and RDF layers below. The one sanctioned

@@ -261,7 +261,7 @@ export async function reissueGrants(session: Session): Promise<ReissueResult> {
 }
 
 /**
- * Reconciliation (the Model-3 projection update for a grown scope): after a
+ * Reconciliation (the materialized-projection update for a grown scope): after a
  * building's dataset set changes — a new energy year — re-apply the ACL
  * projection of every ACTIVE grant on that building, so a grant recorded with
  * an *intensional* scope ("all energy years") extends to the dataset that now
