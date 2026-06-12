@@ -106,22 +106,58 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     await dismissToasts(stageA);
     const demoA = await Demo.install(stageA, "A", t0a);
 
+    // --- Scene zero: establish the cast and whose problem this solves,
+    //     before the resolution starts. ---
+    await demoA.intro("Vertriebsoptimierung", [
+      {
+        slot: "A",
+        tagline:
+          "Bestandshalterin: Ihre effiziente Halle soll im Marktumfeld sichtbar sein",
+      },
+      {
+        slot: "B",
+        tagline:
+          "Makler & Berater: Ihm fehlen Energiedaten für einen echten Marktüberblick",
+      },
+    ]);
+
+    // --- Scene: first contact — a WebID is exchanged like an email address
+    //     and remembered once in the address book, which resolves it to a
+    //     person (name + picture). ---
+    await demoA.scene(
+      "contact",
+      "B's WebID hat A von ihm selbst – wie eine E-Mail-Adresse. Einmal ins Adressbuch:",
+    );
+    await demoA.click(stageA.getByRole("tab", { name: "Connect" }));
+    const webIdField = stageA.getByRole("textbox", { name: "WebID" });
+    await webIdField.waitFor({ state: "visible", timeout: 30_000 });
+    await demoA.type(webIdField, bWebId);
+    await demoA.click(stageA.getByRole("button", { name: "Add contact" }));
+    // The entry resolves to the person: name + avatar, no raw IRI.
+    await expect(
+      stageA.getByRole("list", { name: "Contacts" }).getByText("Bob Bauer"),
+    ).toBeVisible({ timeout: 30_000 });
+    await demoA.moveTo(stageA.getByRole("list", { name: "Contacts" }));
+    await demoA.pause(2_000);
+    await dismissToasts(stageA);
+
     await demoA.scene(
       "share-open",
-      "A (Alice Ahlmann) teilt ihr Gebäude: das Teilen-Symbol im Manage-Tab",
+      "A teilt ihr Gebäude: das Teilen-Symbol im Manage-Tab",
     );
+    await demoA.click(stageA.getByRole("tab", { name: "Manage" }));
     await demoA.click(row.getByRole("button", { name: "Share building data" }));
     const shareDialog = stageA.getByRole("dialog");
     await expect(shareDialog).toBeVisible({ timeout: 10_000 });
 
     await demoA.scene(
-      "share-webid",
-      "Empfänger ist ihr Geschäftspartner B (Bob Bauer) – direkt per WebID",
+      "share-pick",
+      "Als Empfänger schlägt die App B aus dem Adressbuch vor",
     );
     await demoA.click(shareDialog.getByRole("button", { name: /by webid/i }));
     const recipient = shareDialog.getByLabel(/Recipient WebID/i);
-    await demoA.type(recipient, bWebId);
-    await recipient.press("Enter");
+    await demoA.click(recipient);
+    await demoA.click(stageA.getByRole("option", { name: /Bob Bauer/ }));
     await demoA.pause(600);
 
     await demoA.scene(
@@ -208,6 +244,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     );
     await demoB.caption("");
     await demoB.pause(800);
+    await demoB.outro();
 
     const videoB = stageB.video();
     saveMarks("vertrieb-b", demoB.marks);

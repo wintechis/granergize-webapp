@@ -289,6 +289,7 @@ export default function SharePage({ session }: SharePageProps) {
       <Typography variant="h6" sx={{ mb: 1 }}>
         Buildings shared with you
       </Typography>
+      {collections && <RdfSourceLink href={collections.sharedIn} />}
       <div
         style={{
           display: "flex",
@@ -298,7 +299,6 @@ export default function SharePage({ session }: SharePageProps) {
           marginBottom: "0.5rem",
         }}
       >
-        {collections && <RdfSourceLink href={collections.sharedIn} />}
         {dev && (
           <Button
             size="small"
@@ -419,11 +419,6 @@ export default function SharePage({ session }: SharePageProps) {
       {dev && collections && (
         <>
           <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Your inbox</Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            Sharing invitations and notifications from others arrive in your app
-            inbox, then surface in the lists above. Open it to browse the raw
-            RDF.
-          </Typography>
           <RdfSourceLink href={collections.inbox} />
         </>
       )}

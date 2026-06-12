@@ -1,4 +1,4 @@
-import { Avatar, Box } from "@mui/material";
+import { Avatar, Box, Chip, type ChipProps } from "@mui/material";
 import { useResolveAgent } from "../hooks/queries.ts";
 import { RefLink } from "./detail/DetailView.tsx";
 
@@ -37,6 +37,31 @@ export function AgentLabel({ value }: { value: string }) {
       </Avatar>
       <RefLink to={`/contact/${encodeURIComponent(value)}`}>{name}</RefLink>
     </Box>
+  );
+}
+
+/**
+ * The chip-shaped sibling of {@link AgentLabel}: avatar + resolved name as an
+ * MUI Chip, no navigation (a link inside a removable token would fight its
+ * delete affordance). For places where agents appear as tokens — the share
+ * dialog's recipient chips and its confirm list — so a picked recipient reads
+ * as a person, not a raw IRI. The IRI stays discoverable via the title
+ * attribute. Until (or unless) a name resolves, the WebID fragment stands in.
+ */
+export function AgentChip({ value, ...chipProps }: { value: string } & ChipProps) {
+  const webId = isWebId(value) ? value : undefined;
+  const { data } = useResolveAgent(webId);
+  const name = webId ? data?.name ?? fragmentOf(value) : value;
+  const avatarUrl = data?.avatarUrl;
+  return (
+    <Chip
+      avatar={
+        <Avatar src={avatarUrl}>{avatarUrl ? null : initials(name)}</Avatar>
+      }
+      label={name}
+      title={value}
+      {...chipProps}
+    />
   );
 }
 

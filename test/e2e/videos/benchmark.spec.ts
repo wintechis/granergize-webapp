@@ -128,6 +128,19 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await shareFirstBuildingTo(bPage, cWebId);
     await bCtx.close();
 
+    // C into A's address book OFF camera (the walkthrough story: the
+    // provider's WebID arrived with the engagement; the contact-add moment
+    // itself is established once, in the Vertriebsoptimierung video). The
+    // share dialog then offers "Charlie Conrad" as a suggestion on camera.
+    await page.getByRole("tab", { name: "Connect" }).click();
+    const webIdField = page.getByRole("textbox", { name: "WebID" });
+    await webIdField.waitFor({ state: "visible", timeout: 30_000 });
+    await webIdField.fill(cWebId);
+    await page.getByRole("button", { name: "Add contact" }).click();
+    await expect(
+      page.getByRole("list", { name: "Contacts" }).getByText("Charlie Conrad"),
+    ).toBeVisible({ timeout: 30_000 });
+
     // ============ Clip A: Alice contributes her hall. ============
     const stageA = await page.context().newPage();
     const t0a = Date.now();
@@ -141,22 +154,35 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await dismissToasts(stageA);
     const demoA = await Demo.install(stageA, "A", t0a);
 
-    await demoA.scene(
-      "contribute",
-      "Peer-Benchmark mit drei Beteiligten: A und B sind Bestandshalter, C (Conrad Kennwert) der Benchmark-Dienstleister",
-    );
-    await demoA.pause(1_500);
+    // --- Scene zero: establish the cast and whose problem this solves,
+    //     before the resolution starts. ---
+    await demoA.intro("Energieverbrauchsbenchmark", [
+      {
+        slot: "A",
+        tagline: "Bestandshalterin: Wo steht ihre Halle im Branchenvergleich?",
+      },
+      {
+        slot: "B",
+        tagline:
+          "Bestandshalter: Will denselben Vergleich – ohne A seine Zahlen zu zeigen",
+      },
+      {
+        slot: "C",
+        tagline:
+          "Benchmark-Dienstleister: Berechnet den Branchenwert aus geteilten Gebäuden",
+      },
+    ]);
     await demoA.scene(
       "share-energy",
-      "A teilt ihr Gebäude an C – einschließlich der Energiedaten",
+      "A teilt ihr Gebäude an C – einschließlich der Energiedaten. C's WebID liegt aus der Beauftragung im Adressbuch",
     );
     await demoA.click(row.getByRole("button", { name: "Share building data" }));
     const shareDialog = stageA.getByRole("dialog");
     await expect(shareDialog).toBeVisible({ timeout: 10_000 });
     await demoA.click(shareDialog.getByRole("button", { name: /by webid/i }));
     const recipient = shareDialog.getByLabel(/Recipient WebID/i);
-    await demoA.type(recipient, cWebId);
-    await recipient.press("Enter");
+    await demoA.click(recipient);
+    await demoA.click(stageA.getByRole("option", { name: /Charlie Conrad/ }));
     await demoA.moveTo(
       shareDialog.getByRole("radio", { name: /all energy readings/i }),
     );
@@ -331,6 +357,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await expect(stageA2.getByText(/benchmark provided by/i))
       .toBeVisible({ timeout: 60_000 });
     await stageA2.waitForLoadState("networkidle").catch(() => {});
+    await demoP.pause(1_500); // let the page read before the cursor moves
     await demoP.moveTo(
       stageA2.locator("table").filter({
         has: stageA2.locator("th", { hasText: "Benchmark kWh / a" }),
@@ -343,6 +370,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     );
     await demoP.caption("");
     await demoP.pause(800);
+    await demoP.outro();
 
     const videoP = stageA2.video();
     saveMarks("benchmark-payoff", demoP.marks);

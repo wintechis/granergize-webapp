@@ -78,6 +78,7 @@ if (!LOCAL && !process.env.VITE_POD_APP_DIR) {
 const CHROME = { ...devices["Desktop Chrome"] };
 const SOLO_SPECS = [
   "**/login.spec.ts",
+  "**/logout.spec.ts",
   "**/organisation.spec.ts",
   "**/add-building.spec.ts",
   "**/attachments.spec.ts",

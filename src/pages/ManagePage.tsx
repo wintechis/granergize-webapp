@@ -234,6 +234,7 @@ export default function ManagePage({ session }: ManagePageProps) {
     <section style={{ padding: "1.5rem" }}>
       <section>
         <Typography variant="h6" sx={{ mb: 1 }}>Your buildings</Typography>
+        {rdf && <RdfSourceLink href={rdf.buildings} />}
         <div
           style={{
             display: "flex",
@@ -243,7 +244,6 @@ export default function ManagePage({ session }: ManagePageProps) {
             marginBottom: "0.5rem",
           }}
         >
-          {rdf && <RdfSourceLink href={rdf.buildings} />}
           <Button
             variant="outlined"
             startIcon={<AddIcon />}
@@ -277,7 +277,7 @@ export default function ManagePage({ session }: ManagePageProps) {
         {buildingsLoading
           ? <p>Loading…</p>
           : ownedBuildings.length === 0
-          ? <p>You haven't added any buildings yet.</p>
+          ? <p>No buildings yet. Add one, or autofill it from a file.</p>
           : (
             <ul style={listStyle}>
               {buildingPaging.pageItems.map((b) => {
@@ -433,6 +433,7 @@ export default function ManagePage({ session }: ManagePageProps) {
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
           Aggregated views
         </Typography>
+        {rdf && <RdfSourceLink href={rdf.views} />}
         <div
           style={{
             display: "flex",
@@ -442,7 +443,6 @@ export default function ManagePage({ session }: ManagePageProps) {
             marginBottom: "0.5rem",
           }}
         >
-          {rdf && <RdfSourceLink href={rdf.views} />}
           <Button
             variant="outlined"
             startIcon={<AddIcon />}
@@ -454,7 +454,12 @@ export default function ManagePage({ session }: ManagePageProps) {
         {viewDefsQuery.isLoading
           ? <p>Loading…</p>
           : viewDefinitions.length === 0
-          ? <p>No aggregated views yet.</p>
+          ? (
+            <p>
+              No aggregated views yet. Create one to aggregate energy values
+              across buildings.
+            </p>
+          )
           : (
             <ul style={listStyle}>
               {viewPaging.pageItems.map((view) => {
@@ -588,11 +593,6 @@ export default function ManagePage({ session }: ManagePageProps) {
         <section>
           <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
             Outgoing shares
-          </Typography>
-          <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            The append-only log of buildings and views you've shared with others.
-            It records the "Shared with" history above. Open it to browse the raw
-            RDF.
           </Typography>
           <RdfSourceLink href={rdf.sharedOut} />
         </section>

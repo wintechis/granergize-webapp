@@ -211,6 +211,10 @@ export async function shareByWebId(
   const recipientInput = dialog.getByLabel(/Recipient WebID/i);
   await recipientInput.fill(webId);
   await recipientInput.press("Enter");
+  // The committed chip renders as a resolved AgentChip — the profile's name,
+  // or the WebID fragment as fallback — never the raw IRI (the IRI stays on
+  // the chip's title attribute).
+  await expect(dialog.getByText(webId, { exact: true })).toHaveCount(0);
 
   const confirm = dialog.getByRole("button", { name: /confirm share/i });
   await expect(async () => {

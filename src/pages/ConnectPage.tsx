@@ -89,7 +89,9 @@ export default function ConnectPage({ session }: ConnectPageProps) {
   const contactPaging = usePaging(contacts);
 
   const [roomInput, setRoomInput] = useState("");
-  const [scanning, setScanning] = useState(false);
+  // Which QR scanner is open (one camera view at a time): a scanned code adds
+  // a contact (WebID) or a data room (invite link), depending on the opener.
+  const [scanning, setScanning] = useState<"contact" | "room" | null>(null);
   // All known rooms in their natural order; the active one expands in place (its
   // detail box renders beneath its own row). If the active room isn't bookmarked,
   // it is shown first so it's never hidden.
@@ -171,14 +173,13 @@ export default function ConnectPage({ session }: ConnectPageProps) {
     }
   };
 
-  const handleScanResult = (text: string) => {
-    setScanning(false);
+  const handleRoomScan = (text: string) => {
+    setScanning(null);
     handleAdd(text); // scanning adds the room to your list; click it to enter
   };
 
   /** Add a contact: resolve the WebID's name/avatar, then persist it. */
-  const handleAddContact = async () => {
-    const webId = contactInput.trim();
+  const addContact = async (webId: string) => {
     if (!/^https?:\/\//i.test(webId)) {
       showNotification("Enter a WebID (an http(s) URI)", "error");
       return;
@@ -191,6 +192,18 @@ export default function ConnectPage({ session }: ConnectPageProps) {
     } catch (e) {
       showNotification(formatError("add contact", e), "error");
     }
+  };
+
+  const handleAddContact = () => addContact(contactInput.trim());
+
+  // A scanned WebID QR (e.g. the one on a solidcommunity.net profile page)
+  // is added directly; the input keeps the value so a failed resolve stays
+  // visible and editable.
+  const handleContactScan = (text: string) => {
+    setScanning(null);
+    const webId = text.trim();
+    setContactInput(webId);
+    addContact(webId);
   };
 
   const handleRemoveContact = (webId: string) =>
@@ -269,11 +282,26 @@ export default function ConnectPage({ session }: ConnectPageProps) {
         >
           {saveContact.isPending ? "Adding…" : "Add"}
         </Button>
+        {/* Opener only — the scanner's own Cancel button (right under the
+            camera view) is the one way to close it. */}
+        <Button
+          variant="outlined"
+          onClick={() => setScanning("contact")}
+          disabled={scanning !== null}
+        >
+          Scan QR code
+        </Button>
       </div>
+      {scanning === "contact" && (
+        <QrScanner
+          onResult={handleContactScan}
+          onCancel={() => setScanning(null)}
+        />
+      )}
       {contactsQuery.isLoading
         ? <p>Loading…</p>
         : contacts.length === 0
-        ? <p>No contacts yet. Paste a WebID above to add one.</p>
+        ? <p>No contacts yet. Add one by WebID or QR code.</p>
         : (
           <ul style={listStyle} aria-label="Contacts">
             {contactPaging.pageItems.map((c) => (
@@ -305,6 +333,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
           room expands in place, its QR, roles and members in a box directly
           beneath its own row. */}
       <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Your data rooms</Typography>
+      {rdf && <RdfSourceLink href={rdf.bookmarks} />}
       <div
         style={{
           ...buttonRowStyle,
@@ -312,7 +341,6 @@ export default function ConnectPage({ session }: ConnectPageProps) {
           marginBottom: "0.5rem",
         }}
       >
-        {rdf && <RdfSourceLink href={rdf.bookmarks} />}
         <Button
           variant="outlined"
           startIcon={<AddIcon />}
@@ -339,16 +367,16 @@ export default function ConnectPage({ session }: ConnectPageProps) {
             camera view) is the one way to close it. */}
         <Button
           variant="outlined"
-          onClick={() => setScanning(true)}
-          disabled={scanning}
+          onClick={() => setScanning("room")}
+          disabled={scanning !== null}
         >
           Scan QR code
         </Button>
       </div>
-      {scanning && (
+      {scanning === "room" && (
         <QrScanner
-          onResult={handleScanResult}
-          onCancel={() => setScanning(false)}
+          onResult={handleRoomScan}
+          onCancel={() => setScanning(null)}
         />
       )}
       {roomQuery.isLoading
@@ -446,10 +474,15 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                       <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
                         My role(s)
                       </Typography>
-                      <p style={{ marginTop: 0 }}>
-                        Independent of membership — assign or change your role(s)
-                        anytime. This is how others share data with you by role.
-                      </p>
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mb: 1 }}
+                      >
+                        Independent of membership — assign or change your
+                        role(s) anytime. This is how others share data with you
+                        by role.
+                      </Typography>
                       <div style={buttonRowStyle}>
                         <FormControl size="small" sx={{ minWidth: 280 }}>
                           <InputLabel id="my-roles-label">
