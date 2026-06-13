@@ -40,8 +40,14 @@ const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 
 /** B (a freshly-logged-in recipient page) downloads the shared file. */
 async function downloadSharedFile(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Share" }).click();
-  await expect(page.getByText("sample.pdf")).toBeVisible({ timeout: T.action });
+  // Poll, reloading to re-drain B's inbox each attempt, until the shared file
+  // surfaces — replaces a blind write→read cooldown at the call sites. The download
+  // itself fires once, after the file is confirmed present.
+  await expect(async () => {
+    await page.reload();
+    await page.getByRole("tab", { name: "Share" }).click();
+    await expect(page.getByText("sample.pdf")).toBeVisible({ timeout: T.action });
+  }).toPass({ timeout: T.poll });
   const dl = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download", exact: true }).first()
     .click();
@@ -77,7 +83,6 @@ test.describe("file sharing across two pods", () => {
       await shareByWebId(a.page, street, bWebId);
       await b1.ctx.close(); // inbox provisioned; B re-logs in fresh below to drain it
 
-      await a.page.waitForTimeout(2000); // write→read cooldown
       const b2 = await freshPage(browser, B); // fresh login → inbox archives grant
       try {
         await downloadSharedFile(b2.page);
@@ -120,7 +125,6 @@ test.describe("file sharing across two pods", () => {
       await uploadBuildingFile(a.page, street, FIXTURE);
       await shareByRole(a.page, street);
 
-      await a.page.waitForTimeout(2000);
       const b2 = await freshPage(browser, B);
       try {
         await downloadSharedFile(b2.page);

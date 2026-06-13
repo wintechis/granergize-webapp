@@ -2,6 +2,7 @@ import { defineConfig, devices } from "@playwright/test";
 import { randomUUID } from "node:crypto";
 import { LOCAL_APP_PORT, LOCAL_CSS_CONTROL_PORT } from "./test/config/localSeed.ts";
 import { providerIdForIssuer } from "./test/config/providers.ts";
+import { DUO_SPECS, SOLO_SPECS, TRIO_SPECS } from "./test/config/specCatalog.ts";
 
 /**
  * Playwright config for the browser tiers: Tier 4 drives Chromium against real Pods
@@ -75,36 +76,8 @@ if (!LOCAL && !process.env.VITE_POD_APP_DIR) {
 }
 
 const CHROME = { ...devices["Desktop Chrome"] };
-const SOLO_SPECS = [
-  "**/login.spec.ts",
-  "**/logout.spec.ts",
-  "**/organisation.spec.ts",
-  "**/add-building.spec.ts",
-  "**/attachments.spec.ts",
-  "**/edit-building-fields.spec.ts",
-  "**/excel-import.spec.ts",
-  "**/excel-export.spec.ts",
-  "**/energy-entry.spec.ts",
-  "**/energy-resolutions.spec.ts",
-  "**/materialised-views.spec.ts",
-  "**/map-energy-lens.spec.ts",
-  "**/data-room.spec.ts",
-  "**/building-details.spec.ts",
-  "**/contacts.spec.ts",
-  "**/archive-restore.spec.ts",
-  "**/uri-state.spec.ts",
-  "**/building-form-and-energy.spec.ts",
-];
-// DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
-const DUO_SPECS = [
-  "**/share-building.spec.ts",
-  "**/share-view.spec.ts",
-  "**/share-files.spec.ts",
-];
-// TRIO — three pods (A + B + C = Charlie): the benchmark-service round-trip.
-const TRIO_SPECS = [
-  "**/peer-benchmark.spec.ts",
-];
+// Spec catalogs (SOLO/DUO/TRIO) are the shared single source of truth in
+// test/config/specCatalog.ts — the matrix launcher anti-phases them across lanes.
 
 export default defineConfig({
   testDir: "./test/e2e",

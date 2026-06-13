@@ -124,13 +124,6 @@ export const Login: React.FC<LoginProps> = ({
     // Restoring a session on refresh does a *silent redirect* through the Solid
     // identity provider, which drops the URL fragment — and with it the in-app
     // HashRouter route plus its `?tab=`/`?b=`/`?dt=` UI-state params (see
-    // notes/ui-state.md). inrupt preserves the pre-redirect URL and hands it back
-    // as the `sessionRestore` event payload (its documented purpose); replay that
-    // URL's fragment so a reload lands back where the user was, not on the start
-    // tab. Setting the hash fires a `hashchange` the HashRouter picks up.
-    // Restoring a session on refresh does a *silent redirect* through the Solid
-    // identity provider, which drops the URL fragment — and with it the in-app
-    // HashRouter route plus its `?tab=`/`?b=`/`?dt=` UI-state params (see
     // notes/ui-state.md). The `sessionRestore` event hands back the pre-redirect
     // URL (inrupt preserves it for exactly this), but the event fires *while*
     // `handleIncomingRedirect` is still cleaning the URL — applying the fragment

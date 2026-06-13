@@ -63,12 +63,10 @@ const FIXTURES: Record<string, string> = {
 @prefix rec: <https://w3id.org/rec#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <#building-1> a rec:Building ;
-  geo:lat 49.0 ;
-  geo:long 11.0 ;
+  geo:location [ a geo:Point ; geo:lat 49.0 ; geo:long 11.0 ] ;
   cons:hasEnergyDataset <${ENERGY_B1_URL}#ds> .
 <#building-2> a rec:Building ;
-  geo:lat 49.5 ;
-  geo:long 11.5 ;
+  geo:location [ a geo:Point ; geo:lat 49.5 ; geo:long 11.5 ] ;
   cons:hasEnergyDataset <${ENERGY_B2_URL}#ds> .
 `,
   [ENERGY_B1_URL]: annualDataset(1000),
@@ -123,7 +121,7 @@ Deno.test("fetchAndParseData parses own buildings (by listing) and energy end-to
   assert.equal(e2?.energyNeed.Electricity, 2000);
 
   // Average across both buildings.
-  assert.equal(result.averages.Electricity, 1500);
+  assert.equal(result.portfolioAverages.Electricity, 1500);
 });
 
 Deno.test("fetchAndParseData fetches energy files concurrently, not serially", async () => {
@@ -168,7 +166,7 @@ Deno.test("fetchAndParseData tolerates an inaccessible energy source", async () 
   const e2 = result.energyNeed.find((e) => e.id === B2_ID);
   assert.equal(e1?.energyNeed.Electricity, 1000);
   assert.equal(e2, undefined);
-  assert.equal(result.averages.Electricity, 1000);
+  assert.equal(result.portfolioAverages.Electricity, 1000);
 });
 
 Deno.test("fetchAndParseData throws SessionExpiredError when sources return 401", async () => {
@@ -235,11 +233,11 @@ const buildingsWithOperators = (op1: string, op2: string) => `
 @prefix rec: <https://w3id.org/rec#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <#building-1> a rec:Building ;
-  geo:lat 49.0 ; geo:long 11.0 ;
+  geo:location [ a geo:Point ; geo:lat 49.0 ; geo:long 11.0 ] ;
   rec:operatedBy <${op1}> ;
   cons:hasEnergyDataset <${ENERGY_B1_URL}#ds> .
 <#building-2> a rec:Building ;
-  geo:lat 49.5 ; geo:long 11.5 ;
+  geo:location [ a geo:Point ; geo:lat 49.5 ; geo:long 11.5 ] ;
   rec:operatedBy <${op2}> ;
   cons:hasEnergyDataset <${ENERGY_B2_URL}#ds> .
 `;
@@ -298,7 +296,7 @@ Deno.test("loadEnergy falls back to the next-newest accessible year when the lat
 @prefix rec: <https://w3id.org/rec#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <#building-1> a rec:Building ;
-  geo:lat 49.0 ; geo:long 11.0 ;
+  geo:location [ a geo:Point ; geo:lat 49.0 ; geo:long 11.0 ] ;
   cons:hasEnergyDataset <${ENERGY_B1_URL}#ds> , <${b1y2023}#ds> .
 `,
     [b1y2023]: annualDataset(500),

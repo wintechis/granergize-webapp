@@ -114,6 +114,10 @@ class FakePod {
     if (method === "DELETE") {
       if (url.endsWith("/")) this.containers.delete(url);
       else this.resources.delete(url);
+      // A real Solid server removes a resource's / container's auxiliary `.acl`
+      // along with it (auxiliaries aren't independent) — so the recursive delete
+      // never has to touch `.acl` paths itself. Model that here.
+      this.resources.delete(`${url}.acl`);
       return this.res("", 205);
     }
 

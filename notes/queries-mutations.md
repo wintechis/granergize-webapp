@@ -8,7 +8,7 @@ Separation**, every operation is one of two kinds:
 
 Companion to [`architecture.md`](./architecture.md) (the source layers these operations
 live in), [`sharing.md`](./sharing.md) (the sharing event logs),
-[`data-layout.md`](./data-layout.md) (the on-Pod tree) and
+[`storage-layout.md`](./storage-layout.md) (the on-Pod tree) and
 [`data-deref.md`](./data-deref.md) (fetch/load mechanics). The named user-intent
 catalog whose verbs commit through these operations — and a proposed registry that
 would reify it — is the design sketch
@@ -26,6 +26,12 @@ the richer classification (storage model, trigger, resource) and a generated inv
 are still to come — see [`explore-intent-registry.md`](./explore-intent-registry.md).
 
 ## Two storage models
+
+The storage model is a facet of an entity's **resource profile** (with storage
+layout and addressing — see [`storage-layout.md`](./storage-layout.md), where the
+schema and the profiles that apply it are framed); it is the facet this note
+governs. The query/mutation operations below are the **action profile**, the
+sibling profile this note also owns.
 
 A mutation commits against one of two storage models, distinguished by **where
 authority (ground truth) lives**. The choice is not arbitrary but it is also not

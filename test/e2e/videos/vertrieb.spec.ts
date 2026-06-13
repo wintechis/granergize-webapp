@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, webIdOf } from "../helpers/login.ts";
+import { setDevMode } from "../helpers/accountMenu.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo, type SceneMark } from "./demoPolish.ts";
 
@@ -15,7 +16,7 @@ import { Demo, type SceneMark } from "./demoPolish.ts";
  *   bash test/e2e/videos/postprocess.sh vertrieb vertrieb-a vertrieb-b
  *
  * Clip A: Alice shares her hall with Bob by WebID (Share Building Data →
- * By WebID → Review & Share). Clip B: Bob's fresh app load drains the grant,
+ * By WebID → Review and Share). Clip B: Bob's fresh app load drains the grant,
  * the building shows under "Shared with you", and on the Explore map A's
  * logo-marked hall stands among B's own buildings — read live from A's Pod.
  * B's own surroundings come from the control server's `/seed-actor-buildings`
@@ -74,7 +75,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     await page.reload();
     await expect(page.getByRole("tab", { name: "Connect" }))
       .toBeVisible({ timeout: 60_000 });
-    await page.getByRole("checkbox", { name: "Developer mode" }).uncheck();
+    await setDevMode(page, false);
     const addExamples = page.getByRole("button", { name: "Add examples" });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
@@ -162,9 +163,9 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
 
     await demoA.scene(
       "share-confirm",
-      "Review & Share: B erhält Lesezugriff – die Daten bleiben auf A's Pod",
+      "Review and Share: B erhält Lesezugriff – die Daten bleiben auf A's Pod",
     );
-    await demoA.click(shareDialog.getByRole("button", { name: /review & share/i }));
+    await demoA.click(shareDialog.getByRole("button", { name: /review and share/i }));
     const confirm = shareDialog.getByRole("button", { name: /confirm share/i });
     await expect(confirm).toBeVisible({ timeout: 30_000 });
     await demoA.click(confirm);

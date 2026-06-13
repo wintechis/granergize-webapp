@@ -1,16 +1,11 @@
-import { useState } from "react";
-import { Button, Chip, Typography } from "@mui/material";
+import { Button } from "@mui/material";
 import type { AttachmentRef, BuildingType } from "../../types.ts";
 import { RdfSourceLink, SectionTitle } from "./DetailView.tsx";
 import { listStyle, rowStyle } from "../../constants/listStyles.ts";
-import {
-  fetchAttachmentBlob,
-  filesContainerFor,
-} from "../../services/attachmentManager.ts";
-import { downloadBlob, formatBytes } from "../../lib/download.ts";
+import { filesContainerFor } from "../../services/attachmentManager.ts";
 import { getSession } from "../../hooks/session.ts";
-import { useNotification } from "../../context/NotificationContext.tsx";
-import { formatError } from "../../lib/formatError.ts";
+import { useAttachmentDownload } from "../../hooks/useAttachmentDownload.ts";
+import AttachmentInfo from "../AttachmentInfo.tsx";
 
 /**
  * Read-only list of a building's file attachments with a Download action. The
@@ -20,22 +15,9 @@ import { formatError } from "../../lib/formatError.ts";
  */
 export default function FilesSection({ building }: { building: BuildingType }) {
   const attachments = (building.attachments as AttachmentRef[] | undefined) ?? [];
-  const { showNotification } = useNotification();
-  const [busy, setBusy] = useState<string | null>(null);
+  const { download, downloadingUrl } = useAttachmentDownload(getSession());
 
   if (attachments.length === 0) return null;
-
-  const download = async (a: AttachmentRef) => {
-    setBusy(a.url);
-    try {
-      const blob = await fetchAttachmentBlob(a.url, getSession());
-      downloadBlob(blob, a.filename);
-    } catch (error) {
-      showNotification(formatError("download the file", error), "error");
-    } finally {
-      setBusy(null);
-    }
-  };
 
   return (
     <>
@@ -43,27 +25,13 @@ export default function FilesSection({ building }: { building: BuildingType }) {
       <ul style={listStyle}>
         {attachments.map((a) => (
           <li key={a.url} style={rowStyle}>
-            <span style={{ minWidth: 0 }}>
-              {a.filename}
-              {a.isEnergyCertificate && (
-                <Chip
-                  size="small"
-                  label="Energy certificate"
-                  sx={{ ml: 1 }}
-                />
-              )}
-              <br />
-              <Typography component="span" variant="caption" color="text.secondary">
-                {a.mediaType}
-                {a.size ? ` · ${formatBytes(a.size)}` : ""}
-              </Typography>
-            </span>
+            <AttachmentInfo a={a} />
             <Button
               size="small"
               onClick={() => download(a)}
-              disabled={busy === a.url}
+              disabled={downloadingUrl === a.url}
             >
-              {busy === a.url ? "Downloading…" : "Download"}
+              {downloadingUrl === a.url ? "Downloading…" : "Download"}
             </Button>
           </li>
         ))}

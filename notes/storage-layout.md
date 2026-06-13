@@ -1,12 +1,52 @@
-# Data layout — on the Pod (LDP)
+# Storage layout — on the Pod (LDP)
 
-On-Pod file layout, rooted at the storage location discovered via `pim:storage`.
-Companion to
-[`building-pane.md`](./building-pane.md) (the building pane) and
-[`data-schema.md`](./data-schema.md) (provenance & graph shapes).
+The **storage layout** is how each entity's data is arranged as LDP resources on
+the Pod — container vs. file vs. fragment, the partitioning of a thing into
+resources, and which relationships are realised as containment vs. links — rooted
+at the storage location discovered via `pim:storage`. Paths derive in
+`src/services/pod/solidUtils.ts`. Writes are PUT/POST only (no PATCH);
+cache-sensitive reads use `fetchFresh`.
 
-Paths derive in `src/services/pod/solidUtils.ts`. Writes are PUT/POST only (no
-PATCH); cache-sensitive reads use `fetchFresh`.
+## Schema and profiles
+
+A **schema** — the shared RDFS vocabulary (`vocab/`, see
+[`data-schema.md`](./data-schema.md)) — says what an entity *is*. It is reusable
+and not app-specific. Around that schema the app keeps a set of **profiles**,
+each its own application of the schema for one concern (the Linked-Data sense of
+an *application profile*). The schema sits at the centre; the profiles dance
+around it:
+
+- **Resource profile** — how the entity lives as an LDP resource: container/file/
+  fragment, partitioning, contained-vs-linked relationships, storage model, and
+  addressing. **This document's concern** (with the storage model in
+  [`queries-mutations.md`](./queries-mutations.md) and addressing in
+  [`data-deref.md`](./data-deref.md)).
+- **Presentation profile** — how an instance renders. See
+  [`explore-presentation-profile.md`](./explore-presentation-profile.md).
+- **Action profile** — what you can do to it; the intents. See
+  [`queries-mutations.md`](./queries-mutations.md) and
+  [`explore-intent-registry.md`](./explore-intent-registry.md).
+
+("Lens" is loose prose for one of these profiles — the artifact is the profile.)
+
+### The resource profile
+
+Its facets — the storage-side decisions — are orthogonal but coupled:
+
+- **Storage layout** — container/file/fragment, partitioning, contained-vs-linked
+  relationships (the *Tree* below).
+- **Storage model** — in-place resource vs. event-sourced log, and the projection
+  discipline ([`queries-mutations.md`](./queries-mutations.md)).
+- **Addressing** — how the resource is named and dereferenced
+  ([`data-deref.md`](./data-deref.md)).
+
+The couplings: a thing's volume/granularity drives its partitioning (an annual
+figure inline, a 15-minute series split per day); a relationship is realised as
+containment *or* a link (a building's energy hangs in its subtree; its agents are
+linked IRIs); the writer/concurrency situation picks the storage model
+(single-writer files vs. multi-writer append-only logs). The *Tree* and
+*Rationale* below record the current profiles; companion:
+[`building-pane.md`](./building-pane.md) (what hangs off a building URI).
 
 ## One root
 

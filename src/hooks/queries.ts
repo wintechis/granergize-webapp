@@ -476,8 +476,8 @@ function freshFetchFn(): (url: string) => Promise<Response> {
  * sorted by year — what the detail pane's annual view renders. Keyed on the
  * dataset-link fingerprint (`energyKeyFor`), so saving/deleting an energy year
  * refetches because the *data* changed, not because the view remembered to;
- * content-only edits (same links) are covered by the explicit invalidation in
- * `useInvalidateBuildingData`.
+ * content-only edits (same links) are covered by the energy mutations' explicit
+ * `invalidateBuildingData` invalidation.
  */
 export function useAnnualEnergy(building: BuildingType) {
   return useWebIdQuery(
@@ -636,14 +636,13 @@ export const queryKeys = {
 };
 
 /**
- * Back-compat selector returning the legacy `SolidDataContext` shape, now backed
- * by React Query. Existing consumers keep working; new code can call the granular
- * hooks above directly.
+ * The composed buildings + energy view: `useSolidData` folds `useBuildings` and
+ * `useEnergy` into one shape for the surfaces that need both. Surfaces needing only
+ * one can call the granular hooks above directly.
  */
 export interface SolidData {
   buildings: BuildingType[];
   energyNeed: EnergyType[];
-  averages: Record<string, number>;
   portfolioAverages: Record<string, number>;
   operatorAverages: Record<string, Record<string, number>>;
   isLoading: boolean;
@@ -658,7 +657,6 @@ export function useSolidData(): SolidData {
   return {
     buildings: ba.data?.buildings ?? [],
     energyNeed: energy.data?.energyNeed ?? [],
-    averages: energy.data?.averages ?? {},
     portfolioAverages: energy.data?.portfolioAverages ?? {},
     operatorAverages: energy.data?.operatorAverages ?? {},
     // True for the whole initial window — including while `useBuildings` is still

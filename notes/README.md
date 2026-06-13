@@ -11,7 +11,7 @@ it might do. Nothing here links into `plans/`.
 
 - [architecture.md](./architecture.md) — how `src/` is sliced into layers and which way imports flow.
 - [queries-mutations.md](./queries-mutations.md) — the query/mutation (CQS) taxonomy, the two storage models, and the PUT-vs-POST rationale.
-- [data-layout.md](./data-layout.md) — the on-Pod `granergize/` directory tree and the building load flow.
+- [storage-layout.md](./storage-layout.md) — the storage layout: the on-Pod `granergize/` directory tree and the building load flow; frames the *schema* (shared vocabulary) at the centre with the app's *profiles* dancing around it, and defines the *resource profile* (storage layout · storage model · addressing).
 - [data-schema.md](./data-schema.md) — building provenance, import/export formats, and dispatch on data shape rather than role.
 - [energy-model.md](./energy-model.md) — the unified `cons:EnergyDataset`, one per (building, year, granularity).
 - [data-deref.md](./data-deref.md) — how a WebID becomes in-memory objects: what's fetched, in what order, joined in memory.
@@ -28,3 +28,5 @@ it might do. Nothing here links into `plans/`.
 
 - [explore-client-boundary.md](./explore-client-boundary.md) — two not-adopted thought experiments (server-side intent layer; getting away from the SPA) and the shared credentials-in-the-browser constraint.
 - [explore-intent-registry.md](./explore-intent-registry.md) — an explicit, enumerable app-intent catalog on top of the mutation hooks.
+- [explore-resource-profile.md](./explore-resource-profile.md) — reifying the *resource profile* (storage facet) as declarative data that generates storage layout, paths and routes; the storage-side sibling of the action profile (intent registry) and presentation profile, all dancing around the schema.
+- [explore-presentation-profile.md](./explore-presentation-profile.md) — rendering an instance from its class via a *presentation profile* (range-driven generic rows + rich-widget overrides); the third profile, with the resource and action profiles, around the schema.

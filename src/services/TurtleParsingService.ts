@@ -321,16 +321,13 @@ export async function loadEnergy(
   buildings: BuildingType[],
 ): Promise<{
   energyNeed: EnergyType[];
-  averages: Record<string, number>;
   portfolioAverages: Record<string, number>;
   operatorAverages: Record<string, Record<string, number>>;
 }> {
   const energyData = new Map<string, EnergyType>();
-  // Object to store aggregated values for each measurement
-  const aggregatedValues: Record<string, number[]> = {};
   const operatorAggregatedValues: Record<string, Record<string, number[]>> = {};
   // The user's OWN buildings only (excludes shared-in) — feeds the honest
-  // "portfolio average" the energy view shows, distinct from the cross-all mean.
+  // "portfolio average" the energy view shows.
   const portfolioAggregatedValues: Record<string, number[]> = {};
 
   // For each building, the latest ACCESSIBLE actual annual (non-series) dataset
@@ -411,8 +408,6 @@ export async function loadEnergy(
     });
 
     for (const [prop, val] of Object.entries(energyNeed)) {
-      if (!aggregatedValues[prop]) aggregatedValues[prop] = [];
-      aggregatedValues[prop].push(val);
       if (!building.isShared) {
         if (!portfolioAggregatedValues[prop]) portfolioAggregatedValues[prop] = [];
         portfolioAggregatedValues[prop].push(val);
@@ -429,8 +424,7 @@ export async function loadEnergy(
     }
   }
 
-  // Calculate averages (cross-building, and the user's OWN buildings only).
-  const averages = meanByMetric(aggregatedValues);
+  // The portfolio average (the user's OWN buildings only).
   const portfolioAverages = meanByMetric(portfolioAggregatedValues);
 
   // Operator (Betreiber) averages — published per metric only when ≥2 buildings
@@ -446,7 +440,6 @@ export async function loadEnergy(
 
   return {
     energyNeed: Array.from(energyData.values()),
-    averages,
     portfolioAverages,
     operatorAverages,
   };

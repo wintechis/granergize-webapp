@@ -234,7 +234,7 @@ export default function Building(
             )}
             {building["officeSocialArea"] != null && (
               <DetailRow
-                label="Office & Social Area"
+                label="Office and Social Area"
                 value={`${building["officeSocialArea"]} m²`}
               />
             )}

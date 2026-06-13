@@ -3,7 +3,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import Modal from "./Modal.tsx";
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Divider,
@@ -12,14 +11,13 @@ import {
   ListItem,
   ListItemSecondaryAction,
   ListItemText,
-  TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { AggregatedViewDefinition } from "../types.ts";
-import { logError } from "../lib/logError.ts";
+import { webIdsError } from "../lib/webId.ts";
 import {
   useRevokeViewAccess,
   useShareViewSnapshot,
@@ -36,7 +34,7 @@ import { summarizeContributors } from "../services/aggregation/viewComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
-import { useAgentOptions } from "../hooks/useAgentOptions.ts";
+import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
 
 import { ROLE_LABELS } from "../constants/roles.ts";
 
@@ -52,7 +50,6 @@ export default function ShareViewDialog(
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
-  const agentOptions = useAgentOptions();
   const [recipients, setRecipients] = useState<string[]>([]);
   const [webIdError, setWebIdError] = useState<string | null>(null);
   const [confirmStep, setConfirmStep] = useState(false);
@@ -129,19 +126,9 @@ export default function ShareViewDialog(
       setWebIdError("Enter at least one WebID");
       return;
     }
-    const invalid = recipients.filter((r) => {
-      try {
-        new URL(r);
-        return false;
-      } catch (err) {
-        logError("validate view-share recipient WebID", err);
-        return true;
-      }
-    });
-    if (invalid.length > 0) {
-      setWebIdError(
-        `Invalid WebID${invalid.length > 1 ? "s" : ""}: ${invalid.join(", ")}`,
-      );
+    const err = webIdsError(recipients);
+    if (err) {
+      setWebIdError(err);
       return;
     }
     setWebIdError(null);
@@ -318,48 +305,22 @@ export default function ShareViewDialog(
                   </List>
                 )}
 
-              <Autocomplete
-                multiple
-                freeSolo
-                options={agentOptions}
+              <RecipientAutocomplete
                 value={recipients}
-                onChange={(_e, value) => {
-                  setRecipients(value as string[]);
+                onChange={(next) => {
+                  setRecipients(next);
                   if (webIdError) setWebIdError(null);
                   if (share.isSuccess) share.reset();
                 }}
                 disabled={loading}
-                renderOption={(props, option) => (
-                  <Box component="li" {...props} key={option}>
-                    <AgentLabel value={option} />
-                  </Box>
-                )}
-                renderTags={(value, getTagProps) =>
-                  value.map((option, index) => (
-                    <AgentChip
-                      {...getTagProps({ index })}
-                      key={option}
-                      value={option}
-                      size="small"
-                    />
-                  ))}
-                renderInput={(params) => (
-                  <TextField
-                    {...params}
-                    label="Recipient WebID(s)"
-                    error={!!webIdError}
-                    helperText={webIdError ||
-                      "Pick a contact/member, or type a WebID and press Enter"}
-                    sx={{ mb: 2 }}
-                  />
-                )}
+                error={webIdError}
               />
               <Button
                 variant="contained"
                 onClick={handleProceedToConfirm}
                 disabled={loading || recipients.length === 0}
               >
-                Review & Share
+                Review and Share
               </Button>
             </>
           )}

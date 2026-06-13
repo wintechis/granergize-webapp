@@ -3,7 +3,7 @@
 Arbitrary files (PDF / DOCX / JPG / anything) attached to a building, shared
 automatically with whoever the building is shared with. The energy certificate is
 modelled as one of these files. Companion to [`sharing.md`](./sharing.md) (the building
-share that carries the files) and [`data-layout.md`](./data-layout.md) (where they sit).
+share that carries the files) and [`storage-layout.md`](./storage-layout.md) (where they sit).
 
 ## Storage
 

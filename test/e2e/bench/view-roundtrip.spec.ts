@@ -126,7 +126,7 @@ test.describe("view-roundtrip benchmark", () => {
       t0 = Date.now();
       const confirm = shareDlg.getByRole("button", { name: /confirm share/i });
       await expect(async () => {
-        await shareDlg.getByRole("button", { name: /review & share/i }).click();
+        await shareDlg.getByRole("button", { name: /review and share/i }).click();
         await expect(confirm).toBeVisible({ timeout: 2_000 });
       }).toPass({ timeout: 60_000 });
       await confirm.click();

@@ -134,7 +134,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       await addAll.click();
       const confirm = shareDlg.getByRole("button", { name: /confirm share/i });
       await expect(async () => {
-        await shareDlg.getByRole("button", { name: /review & share/i }).click();
+        await shareDlg.getByRole("button", { name: /review and share/i }).click();
         await expect(confirm).toBeVisible({ timeout: T.quick });
       }).toPass({ timeout: T.poll });
       await confirm.click();

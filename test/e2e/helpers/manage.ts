@@ -158,11 +158,11 @@ export async function shareByRole(
     }
   }
 
-  // "Review & Share" resolves the role to member WebIDs over the network; retry
+  // "Review and Share" resolves the role to member WebIDs over the network; retry
   // until the review step's Confirm appears.
   const confirm = dialog.getByRole("button", { name: /confirm share/i });
   await expect(async () => {
-    await dialog.getByRole("button", { name: /review & share/i }).click();
+    await dialog.getByRole("button", { name: /review and share/i }).click();
     await expect(confirm).toBeVisible({ timeout: T.quick });
   }).toPass({ timeout: T.poll });
   await confirm.click();
@@ -220,7 +220,7 @@ export async function shareByWebId(
 
   const confirm = dialog.getByRole("button", { name: /confirm share/i });
   await expect(async () => {
-    await dialog.getByRole("button", { name: /review & share/i }).click();
+    await dialog.getByRole("button", { name: /review and share/i }).click();
     await expect(confirm).toBeVisible({ timeout: T.quick });
   }).toPass({ timeout: T.poll });
   await confirm.click();

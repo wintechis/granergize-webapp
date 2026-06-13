@@ -8,7 +8,7 @@ collects the mechanisms the app relies on for that, and the one structural place
 the contract currently leaks. The same staleness class also exists on the *write*
 side — derived state stored **on the Pod** (the `.acl` projection) rather than in
 the cache — audited at the end. Companion to [`data-deref.md`](./data-deref.md)
-(what gets dereferenced and joined) and [`data-layout.md`](./data-layout.md) (where
+(what gets dereferenced and joined) and [`storage-layout.md`](./storage-layout.md) (where
 it lives on the Pod).
 
 ## The sync contract

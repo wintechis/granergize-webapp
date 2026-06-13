@@ -4,6 +4,8 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
+import Divider from "@mui/material/Divider";
+import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 const ExplorePage = lazy(() => import("./ExplorePage.tsx"));
@@ -29,7 +31,7 @@ import SharePage from "./SharePage.tsx";
 import ManagePage from "./ManagePage.tsx";
 import ConnectPage from "./ConnectPage.tsx";
 import Footer from "../components/Footer.tsx";
-import { useDevMode } from "../hooks/devMode.ts";
+import { setDevMode, useDevMode } from "../hooks/devMode.ts";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
@@ -599,39 +601,54 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               },
             }}
           >
+            {/* Identity */}
             <MenuItem onClick={handleProfile}>
               Profile
             </MenuItem>
             <MenuItem onClick={handleOrganisation}>
               Organisation…
             </MenuItem>
+
+            {/* Developer-mode toggle — fixed third entry, present in both modes */}
+            <Divider />
+            <MenuItem
+              // Keep the menu open and flip the switch in place — this toggles a
+              // setting rather than running an action, so don't dismiss.
+              onClick={(e) => {
+                e.stopPropagation();
+                setDevMode(!devMode);
+              }}
+              sx={{ justifyContent: "space-between", gap: 2 }}
+            >
+              Developer mode
+              <Switch edge="end" size="small" checked={devMode} tabIndex={-1} />
+            </MenuItem>
+
+            {/* Dev: demo fixtures */}
+            {devMode && <Divider />}
             {devMode && (
               <MenuItem onClick={seedDemos} disabled={seedBuildingsMut.isPending}>
                 {seedBuildingsMut.isPending
-                  ? "Adding demo buildings…"
-                  : "Add demo buildings"}
+                  ? "Adding…"
+                  : "Add example buildings"}
               </MenuItem>
             )}
             {devMode && (
               <MenuItem
-                onClick={seedDemoContactsClick}
-                disabled={seedContactsMut.isPending}
+                onClick={() => {
+                  seedDemoContactsClick();
+                  seedDemoRoomsClick();
+                }}
+                disabled={seedContactsMut.isPending || seedRoomsMut.isPending}
               >
-                {seedContactsMut.isPending
-                  ? "Adding demo contacts…"
-                  : "Add demo contacts"}
+                {seedContactsMut.isPending || seedRoomsMut.isPending
+                  ? "Adding…"
+                  : "Add example contacts and rooms"}
               </MenuItem>
             )}
-            {devMode && (
-              <MenuItem
-                onClick={seedDemoRoomsClick}
-                disabled={seedRoomsMut.isPending}
-              >
-                {seedRoomsMut.isPending
-                  ? "Adding demo data rooms…"
-                  : "Add demo data rooms"}
-              </MenuItem>
-            )}
+
+            {/* Dev: archive */}
+            {devMode && <Divider />}
             {devMode && (
               <MenuItem onClick={handleDownloadArchive} disabled={accountBusy}>
                 {accountBusy ? "Working…" : "Download archive"}
@@ -645,6 +662,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
                 Upload archive…
               </MenuItem>
             )}
+
+            {/* Dev: sharing maintenance */}
+            {devMode && <Divider />}
             {devMode && (
               <MenuItem onClick={handleAuditGrants} disabled={accountBusy}>
                 Check sharing consistency
@@ -655,6 +675,20 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
                 Rebuild sharing from log
               </MenuItem>
             )}
+
+            {/* Dev: documentation */}
+            {devMode && <Divider />}
+            {devMode && (
+              <MenuItem
+                component="a"
+                href={`${import.meta.env.BASE_URL}granergize-handbuch.docx`}
+              >
+                Praxishandbuch herunterladen
+              </MenuItem>
+            )}
+
+            {/* Dev: destructive */}
+            {devMode && <Divider />}
             {devMode && (
               <MenuItem
                 onClick={handleRemoveAppData}
@@ -663,17 +697,12 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
                 Remove all app data…
               </MenuItem>
             )}
+
+            {/* Logout */}
+            <Divider />
             {devMode && (
               <MenuItem onClick={handleChangeAccount}>
                 Change account (full logout)
-              </MenuItem>
-            )}
-            {devMode && (
-              <MenuItem
-                component="a"
-                href={`${import.meta.env.BASE_URL}granergize-handbuch.docx`}
-              >
-                Praxishandbuch herunterladen
               </MenuItem>
             )}
             <MenuItem onClick={handleLogout}>

@@ -33,7 +33,7 @@ participates as the investor, with Alice as its representative*.
 - Appends via **LDP container `POST`** (server mints each child URI); the Pod applies
   no SPARQL `PATCH`.
 
-For where these files sit in the Pod tree, see [data-layout.md](data-layout.md).
+For where these files sit in the Pod tree, see [storage-layout.md](storage-layout.md).
 
 ### Room state on your Pod (no localStorage)
 

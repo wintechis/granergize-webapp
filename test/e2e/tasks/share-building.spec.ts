@@ -82,19 +82,21 @@ test.describe("sharing across two pods", () => {
       await expect(sharedRow.getByRole("button", { name: "Revoke access" }).first())
         .toBeVisible({ timeout: T.action });
 
-      // ── 2 s cooldown between the write part and the read part ──
-      await a.page.waitForTimeout(2000);
-
       // ── Read part: B logs in fresh → drainInbox archives the grant → verify ──
       const b2 = await freshPage(browser, B);
       try {
-        await b2.page.getByRole("tab", { name: "Share" }).click();
         const received = b2.page.getByRole("list", {
           name: /buildings shared with you/i,
         });
         try {
-          await expect(received.getByText(/^Building /))
-            .toBeVisible({ timeout: T.action });
+          // No blind write→read cooldown: poll B's view, reloading to re-drain the
+          // inbox each attempt, until A's grant propagates and folds in.
+          await expect(async () => {
+            await b2.page.reload();
+            await b2.page.getByRole("tab", { name: "Share" }).click();
+            await expect(received.getByText(/^Building /))
+              .toBeVisible({ timeout: T.action });
+          }).toPass({ timeout: T.poll });
         } catch (timeout) {
           b2.guard.assertNoAppErrors();
           throw timeout;
@@ -197,26 +199,31 @@ test.describe("sharing across two pods", () => {
       await addEnergyYear(a.page, STREET_Y, SHARED_YEAR, "22222");
       await shareByRole(a.page, STREET_Y, [Number(SHARED_YEAR)]);
 
-      // ── 2 s cooldown between the write part and the read part ──
-      await a.page.waitForTimeout(2000);
-
       // ── Read part: B logs in fresh → drainInbox archives the grant → verify ──
       const b2 = await freshPage(browser, B);
       try {
         // B owns no buildings (none seeded), so the shared one is the only marker.
-        await b2.page.getByRole("tab", { name: "Explore" }).click();
+        // No blind write→read cooldown: poll, reloading to re-drain the inbox each
+        // attempt, until the shared marker propagates and renders.
         const markers = b2.page.locator(".leaflet-marker-icon");
-        await expect(markers.first()).toBeVisible({ timeout: T.action });
-        await b2.page.waitForTimeout(1500); // let the map settle so clicks register
+        await expect(async () => {
+          await b2.page.reload();
+          await b2.page.getByRole("tab", { name: "Explore" }).click();
+          await expect(markers.first()).toBeVisible({ timeout: T.action });
+        }).toPass({ timeout: T.poll });
 
         // Open the building's detail pane → Energy tab (AnnualEnergy per-year table).
+        // No blind map-settle wait: click each marker until the Energy tab appears,
+        // letting toPass pace the retries (it returns the instant the pane opens).
         const energyTab = b2.page.getByRole("tab", { name: "Energy data" });
-        const count = await markers.count();
-        for (let i = 0; i < count; i++) {
-          await markers.nth(i).click({ force: true }).catch(() => {});
-          if (await energyTab.isVisible().catch(() => false)) break;
-          await b2.page.waitForTimeout(400);
-        }
+        await expect(async () => {
+          const count = await markers.count();
+          for (let i = 0; i < count; i++) {
+            await markers.nth(i).click({ force: true }).catch(() => {});
+            if (await energyTab.isVisible().catch(() => false)) return;
+          }
+          throw new Error("building detail (Energy tab) not open yet");
+        }).toPass({ timeout: T.poll });
         await energyTab.click();
 
         try {
@@ -319,14 +326,13 @@ test.describe("sharing across two pods", () => {
         await confirmDialog(a.page, "Delete");
         await expect(a.page.getByText("Building deleted").first())
           .toBeVisible({ timeout: T.action });
-        await a.page.waitForTimeout(2000); // let the revocation settle
-
-        // ── B reloads → drainInbox drains the revocation → it folds out ──
-        await b.page.reload();
-        await b.page.getByRole("tab", { name: "Share" }).click();
+        // ── B reloads → drainInbox drains the revocation → it folds out. No blind
+        //    settle wait: reload inside the poll so each attempt re-drains. ──
         try {
           // B owned nothing else, so the received list must have no building rows.
           await expect(async () => {
+            await b.page.reload();
+            await b.page.getByRole("tab", { name: "Share" }).click();
             expect(await received().getByText(/^Building /).count()).toBe(0);
           }).toPass({ timeout: T.poll });
         } catch (timeout) {

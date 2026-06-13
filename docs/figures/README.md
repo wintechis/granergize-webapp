@@ -6,7 +6,8 @@ into the generated `public/granergize-handbuch.{pdf,docx}` via `deno task handbu
 Two kinds of figures live here:
 
 - **App screenshots** — captured from the running app by
-  `test/e2e/support/screenshots.spec.ts`: `anmelden.png`, `room.png`,
+  `test/e2e/support/screenshots.spec.ts`: `anmelden.png`, `erster-start.png`,
+  `room.png`,
   `contacts.png`, `add-building.png`, `manage-actions.png`, `energy-year.png`,
   `share-building.png`, `create-view.png`, `aggregated-view.png`, `map-tabs.png`,
   `energy-data-tab.png`, `energy-detail.png`, `energy-lens.png`,
@@ -27,8 +28,17 @@ Two kinds of figures live here:
 To refresh the screenshots after UI changes, run the capture **credential-free
 against the throwaway local CSS** (Tier 3) and rebuild the handbuch:
 
-    deno task handbuch:figures   # build + E2E_LOCAL=1 playwright --project=support
-    deno task handbuch
+    deno task handbuch:full      # build once → capture figures → rebuild PDF/DOCX
+
+`handbuch:full` chains the steps via task dependencies. The bundle build is the
+separate `handbuch:capture:build` task, so the screenshot capture
+(`handbuch:figures`, Playwright `--project=support`) and the video capture
+(`handbuch:videos`, `--project=video`) can **run in parallel** over one shared
+build — `deno task handbuch:capture` does both at once. Each capture lane carries
+a distinct `LOCAL_PORT_OFFSET` (figures 0, videos 20) so their Tier-3 pod /
+control / app servers bind disjoint ports and never collide. Run a single lane
+on its own (`deno task handbuch:figures`) and the build dependency still runs
+first automatically (deduped, so a combined run builds only once).
 
 Recommended: ~1200px-wide light-theme PNGs; keep file sizes modest (they ship in
 the static build). The shown URLs are then `localhost` (the local CSS); to capture

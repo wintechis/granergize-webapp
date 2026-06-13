@@ -155,15 +155,3 @@ Deno.test("setEnergyCertificate flags a file; deleteAttachment removes it + the 
     "metadata removed",
   );
 });
-
-Deno.test("parser synthesizes an attachment for a legacy certificate (no bldg:hasAttachment)", () => {
-  const legacy =
-    "https://pod.example/granergize/buildings/certificates/b1_energy_certificate.pdf";
-  const ttl = `${building()}<${SUBJECT}> <${GRAN_HAS_ENERGY_CERTIFICATE}> <${legacy}> .\n`;
-  const parsed = [...parseBuildings([...parse(ttl)]).values()][0];
-  const list = parsed.attachments as AttachmentRef[];
-  assert.equal(list.length, 1);
-  assert.equal(list[0].url, legacy);
-  assert.equal(list[0].filename, "b1_energy_certificate.pdf");
-  assert.equal(list[0].isEnergyCertificate, true);
-});

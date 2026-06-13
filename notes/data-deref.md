@@ -2,7 +2,7 @@
 
 How the app turns a logged-in WebID into in-memory buildings/agents/energy: which
 resources it dereferences, in what order, and how references between resources are
-resolved. Companion to [`data-layout.md`](./data-layout.md) (where things live on
+resolved. Companion to [`storage-layout.md`](./storage-layout.md) (where things live on
 the Pod) and [`data-schema.md`](./data-schema.md) (the shapes of what's fetched).
 
 Line references drift — treat them as signposts, not coordinates.
@@ -44,7 +44,7 @@ Resolved once per session, then cached:
    with n3, and reads `<webId> pim:storage <root>`. Throws if absent — there is no
    WebID string-munge fallback. Cached so the many synchronous callers stay simple.
 2. **Storage root → fixed paths.** `podResources(webId)` returns every app path as
-   `<root>granergize/…` (layout owned by [`data-layout.md`](./data-layout.md)). One
+   `<root>granergize/…` (layout owned by [`storage-layout.md`](./storage-layout.md)). One
    tree; no per-call base munging.
 3. **Discover source URIs.** Own and shared buildings are discovered separately
    (`loadBuildingsAndAgents`, `src/services/TurtleParsingService.ts`):

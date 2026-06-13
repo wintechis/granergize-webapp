@@ -4,7 +4,7 @@ Every energy reading is a `cons:EnergyDataset` that declares its own granularity
 period, and scenario; a building references each via a single `cons:hasEnergyDataset`
 predicate. This is the *representation* counterpart to behaviour already dispatching on
 declared granularity rather than role (see [`data-schema.md`](./data-schema.md));
-where these resources sit on the Pod is owned by [`data-layout.md`](./data-layout.md).
+where these resources sit on the Pod is owned by [`storage-layout.md`](./storage-layout.md).
 
 The unified shape replaces what used to be three linking predicates
 (`investor:hasInvestorAnnualData`, `cons:hasEnergyConsumptionDataset`,

@@ -91,17 +91,6 @@ function membershipNodeIri(webId: string): string {
   return `${profileDocUri(webId)}#membership`;
 }
 
-/**
- * Parse the user's WebID profile into a store, or null if unreadable — via the
- * shared profile cache, so org/avatar/storage-root reads share one fetch.
- */
-function loadProfile(
-  _webId: string,
-  session: Session,
-): Promise<Store | null> {
-  return loadProfileStore(session);
-}
-
 /** First object value for (subject, predicate), or undefined. */
 function firstObject(
   store: Store,
@@ -127,7 +116,7 @@ export async function getOrganization(
 ): Promise<Organization | null> {
   const webId = session.info.webId;
   if (!webId) return null;
-  const store = await loadProfile(webId, session);
+  const store = await loadProfileStore(session);
   if (!store) return null;
 
   const orgIri = firstObject(store, webId, ORG_MEMBER_OF);
