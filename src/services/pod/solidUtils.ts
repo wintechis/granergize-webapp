@@ -140,16 +140,30 @@ export function clearStorageRootCache(): void {
 /**
  * The app's on-Pod collection segment (no surrounding slashes) — every app
  * resource lives under `<storageRoot><APP_DIR>/`. Defaults to `granergize`; the
- * Tier-4 browser e2e run sets `VITE_POD_APP_DIR=granergize-e2e` so those tests
- * write to a throwaway collection and NEVER touch the user's real `granergize/`
- * data. Read once here as the single source of truth for {@link appRoot} and
- * {@link podResources}. Vite injects `import.meta.env` in the browser build; under
- * `deno test` (Tiers 1–2) it's absent, so read defensively and fall back.
+ * browser e2e runs set `VITE_POD_APP_DIR=granergize-e2e` (or a per-run variant) so
+ * those tests write to a throwaway collection and NEVER touch the user's real
+ * `granergize/` data. Read once here as the single source of truth for
+ * {@link appRoot} and {@link podResources}.
+ *
+ * Two runtimes resolve it differently and BOTH must land on the same value, or e.g.
+ * the Tier-3 control server would wipe/seed a different collection than the browser
+ * build uses (observed: a `/wipe` cleared an empty `granergize/` while the app's data
+ * sat in `granergize-e2e/`). Vite injects `import.meta.env` into the BROWSER build;
+ * non-Vite runtimes (the Deno control server in `test/e2e-local/`, Tier-2 headless)
+ * have no `import.meta.env`, so also honour a runtime env var (`Deno.env`/`process.env`)
+ * — guarded so it's a no-op (undefined) in the browser, where `import.meta.env` wins.
  */
 const POD_ENV =
   (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-export const APP_DIR: string = (POD_ENV?.VITE_POD_APP_DIR ?? "granergize")
-  .replace(/^\/+|\/+$/g, "");
+const RUNTIME_GLOBALS = globalThis as unknown as {
+  Deno?: { env?: { get?: (key: string) => string | undefined } };
+  process?: { env?: Record<string, string | undefined> };
+};
+const RUNTIME_APP_DIR = RUNTIME_GLOBALS.Deno?.env?.get?.("VITE_POD_APP_DIR") ??
+  RUNTIME_GLOBALS.process?.env?.VITE_POD_APP_DIR;
+export const APP_DIR: string =
+  (POD_ENV?.VITE_POD_APP_DIR ?? RUNTIME_APP_DIR ?? "granergize")
+    .replace(/^\/+|\/+$/g, "");
 
 /** `<storageRoot><APP_DIR>/` — the root container of the app's Pod collection. */
 export function appRoot(webId: string): string {

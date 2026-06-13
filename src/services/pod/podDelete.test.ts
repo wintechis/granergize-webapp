@@ -161,6 +161,129 @@ Deno.test("deleteContainerRecursive recovers a 403 (locked) resource: drop .acl,
   );
 });
 
+Deno.test("deleteContainerRecursive self-corrects an INCOMPLETE listing (no silent residue)", async () => {
+  // Regression for the silent-residue bug: a stale container listing omitted a child
+  // (`b.ttl`), so the walk skipped it, the non-empty container DELETE 409'd, and that
+  // was swallowed into a false "clean" — leaving the building behind (seen on CSS and
+  // JSS). The fix: a 409 on the container is ground truth that it is still non-empty,
+  // so re-read and delete again. Here the FIRST listing of C/ hides `b.ttl`; C/ DELETE
+  // returns 409 while any child remains; a re-read reveals `b.ttl`.
+  const C = `${GRAN}c/`;
+  const a = `${C}a.ttl`;
+  const b = `${C}b.ttl`;
+  const exists = new Set([a, b]); // server-side truth
+  const deletes: string[] = [];
+  let listGets = 0;
+  const session = {
+    info: { webId: WEBID, isLoggedIn: true },
+    fetch: (input: string | URL, init?: RequestInit) => {
+      const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "DELETE") {
+        deletes.push(url);
+        if (url.endsWith(".acl")) return Promise.resolve(new Response(null, { status: 404 }));
+        if (url === C) {
+          // The container can only be removed once empty; else 409 Conflict.
+          const empty = !exists.has(a) && !exists.has(b);
+          return Promise.resolve(new Response(null, { status: empty ? 205 : 409 }));
+        }
+        exists.delete(url);
+        return Promise.resolve(new Response(null, { status: 205 }));
+      }
+      if (url === C) {
+        // FIRST listing is stale and hides b.ttl; later reads tell the truth.
+        const shown = listGets++ === 0
+          ? [...exists].filter((u) => u !== b)
+          : [...exists];
+        return Promise.resolve(
+          new Response(listing(C, shown), {
+            status: 200,
+            headers: { "Content-Type": "text/turtle" },
+          }),
+        );
+      }
+      return Promise.resolve(new Response("Not found", { status: 404 }));
+    },
+  } as unknown as Session;
+
+  await deleteContainerRecursive(C, session); // must NOT throw
+
+  const real = deletes.filter((u) => !u.endsWith(".acl"));
+  assert.ok(real.includes(a), "the listed child was deleted");
+  assert.ok(real.includes(b), "the INITIALLY-HIDDEN child was deleted (no residue)");
+  assert.ok(real.includes(C), "the container was deleted once truly empty");
+  assert.ok(listGets >= 2, "re-read the listing after the 409 instead of trusting it");
+});
+
+Deno.test("deleteContainerRecursive throws (no false success) when a container can't be emptied", async () => {
+  // A container that stays non-empty no matter what (a child the server refuses to
+  // remove) must surface as a thrown error, never a silent clean — the property the
+  // wipe verify relies on.
+  const C = `${GRAN}stuck/`;
+  const stuck = `${C}x.ttl`;
+  const session = {
+    info: { webId: WEBID, isLoggedIn: true },
+    fetch: (input: string | URL, init?: RequestInit) => {
+      const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "DELETE") {
+        if (url.endsWith(".acl")) return Promise.resolve(new Response(null, { status: 404 }));
+        // The child won't delete (409, e.g. server-locked) and so the container stays
+        // non-empty and 409s too.
+        return Promise.resolve(new Response(null, { status: 409 }));
+      }
+      if (url === C) {
+        return Promise.resolve(
+          new Response(listing(C, [stuck]), {
+            status: 200,
+            headers: { "Content-Type": "text/turtle" },
+          }),
+        );
+      }
+      return Promise.resolve(new Response("Not found", { status: 404 }));
+    },
+  } as unknown as Session;
+
+  await assert.rejects(() => deleteContainerRecursive(C, session));
+});
+
+Deno.test("deleteContainerRecursive never derives a .acl.acl (an .acl has no own ACL)", async () => {
+  // Some servers (JSS) list `.acl` as an `ldp:contains` member, so the walk can be
+  // handed an `.acl` to delete. It must NOT then issue `DELETE <uri>.acl.acl` — an
+  // `.acl` has no ACL of its own; that nonexistent request is wasted and has stalled a
+  // server's teardown. Container lists its own `.acl` as a child (JSS-style).
+  const C = `${GRAN}j/`;
+  const deletes: string[] = [];
+  const session = {
+    info: { webId: WEBID, isLoggedIn: true },
+    fetch: (input: string | URL, init?: RequestInit) => {
+      const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
+      const method = (init?.method ?? "GET").toUpperCase();
+      if (method === "DELETE") {
+        deletes.push(url);
+        return Promise.resolve(new Response(null, { status: 205 }));
+      }
+      if (url === C) {
+        return Promise.resolve(
+          new Response(listing(C, [`${C}.acl`]), {
+            status: 200,
+            headers: { "Content-Type": "text/turtle" },
+          }),
+        );
+      }
+      return Promise.resolve(new Response("Not found", { status: 404 }));
+    },
+  } as unknown as Session;
+
+  await deleteContainerRecursive(C, session);
+
+  assert.ok(deletes.includes(`${C}.acl`), "the listed .acl child was deleted");
+  assert.ok(
+    !deletes.some((u) => u.endsWith(".acl.acl")),
+    "no .acl.acl was ever requested",
+  );
+});
+
 Deno.test("deleteContainerRecursive tolerates a missing container", async () => {
   const { session, deletes } = makeSession();
   await deleteContainerRecursive(`${ROOT}does-not-exist/`, session);

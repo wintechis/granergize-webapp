@@ -6,13 +6,25 @@
  * is seeded with. Runtime-agnostic (no Deno/Node APIs) so either side can import it.
  */
 import { localProvider, type PodProvider } from "./providers.ts";
+import { getEnv } from "./env.ts";
 
-export const LOCAL_CSS_PORT = 3456;
+/**
+ * Per-lane port offset, added to every Tier-3 port below. 0 (the default) is the
+ * normal single-lane run. A second, concurrent lane sets `LOCAL_PORT_OFFSET` to a
+ * value large enough to clear all three ports (e.g. 10) so the two lanes — e.g. a
+ * CSS lane and a JSS lane run in parallel — bind disjoint pod/control/app ports and
+ * never collide. Read once at module load; both processes a lane spawns (the
+ * Playwright runner and the `webServer`-spawned pod/preview) inherit the same env,
+ * so they compute the same ports. See the matrix launcher (test/e2e-local/matrix.ts).
+ */
+const PORT_OFFSET = Number(getEnv("LOCAL_PORT_OFFSET") ?? "0") || 0;
+
+export const LOCAL_CSS_PORT = 3456 + PORT_OFFSET;
 export const LOCAL_CSS_BASE = `http://localhost:${LOCAL_CSS_PORT}/`;
 /** Side port for the Tier-3 control server: `POST /restart` (boot a fresh server)
  * or `POST /wipe` (in-place) gives each spec pristine pods — the caller picks (see
  * test/e2e-local/css.ts + helpers/login.ts). */
-export const LOCAL_CSS_CONTROL_PORT = 3457;
+export const LOCAL_CSS_CONTROL_PORT = 3457 + PORT_OFFSET;
 
 /**
  * App (Vite) port for Tier 3 specifically — DISTINCT from the Tier-4 port (4173)
@@ -20,7 +32,7 @@ export const LOCAL_CSS_CONTROL_PORT = 3457;
  * to bind the app server. playwright.config.ts serves the app here (and points
  * baseURL here) only when E2E_LOCAL=1.
  */
-export const LOCAL_APP_PORT = 4183;
+export const LOCAL_APP_PORT = 4183 + PORT_OFFSET;
 
 /** A seeded CSS account: email+password login + its pod name (→ derived WebID). */
 export interface LocalSeedAccount {

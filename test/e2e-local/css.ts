@@ -260,19 +260,18 @@ async function actorSession(
   return { live, actor: { webId: css[slot].webId, session } };
 }
 
-// Wipe an actor's whole app collection, VERIFIED: recursive deletes under a
-// write-heavy tree have been observed to leave residue (a later seed found 5
-// stale events past the wipe), so confirm the container is actually gone and
-// retry a couple of times — a benchmark substrate must start exactly empty.
+// Wipe an actor's whole app collection. `deleteContainerRecursive` is now
+// self-correcting (unconditional listings + retry on a 409 non-empty container), so
+// it either empties the tree or THROWS — it no longer silently leaves residue under a
+// stale write-heavy listing. So we don't swallow its error (a throw must propagate so
+// `/wipe` returns 500, not a false-clean) and verify once as a backstop.
 async function wipeAppData(x: BenchActor): Promise<void> {
   const root = appRoot(x.webId);
-  for (let attempt = 1; attempt <= 3; attempt++) {
-    await deleteContainerRecursive(root, x.session).catch(() => {});
-    const left = await listDirectChildren(root, x.session);
-    if (left === null || left.length === 0) return;
-    console.error(`wipe ${root}: ${left.length} children left after attempt ${attempt}`);
+  await deleteContainerRecursive(root, x.session);
+  const left = await listDirectChildren(root, x.session);
+  if (left !== null && left.length > 0) {
+    throw new Error(`wipe ${root}: ${left.length} children remain after delete`);
   }
-  throw new Error(`wipe ${root}: residue remains after 3 attempts`);
 }
 
 // Seed the PAIR substrate for the Tier-3 share-render / login-settle /

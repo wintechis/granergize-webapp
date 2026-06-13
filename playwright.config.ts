@@ -1,6 +1,6 @@
 import { defineConfig, devices } from "@playwright/test";
 import { randomUUID } from "node:crypto";
-import { LOCAL_APP_PORT } from "./test/config/localSeed.ts";
+import { LOCAL_APP_PORT, LOCAL_CSS_CONTROL_PORT } from "./test/config/localSeed.ts";
 import { providerIdForIssuer } from "./test/config/providers.ts";
 
 /**
@@ -202,6 +202,14 @@ export default defineConfig({
         testMatch: ["**/login-stress.spec.ts"],
       }]
       : []),
+    // SPIKE (throwaway, gated on SPIKE): does inrupt's session survive a
+    // storageState round-trip? Needs E2E_LOCAL (its CSS webServer) and reuses the
+    // current dist/ — run on its own ports (LOCAL_PORT_OFFSET) so it can't collide
+    // with another local run. `E2E_LOCAL=1 SPIKE=1 LOCAL_PORT_OFFSET=10 npx
+    // playwright test --project=spike`.
+    ...(process.env.SPIKE
+      ? [{ name: "spike", use: CHROME, testMatch: ["**/spike/**/*.spec.ts"] }]
+      : []),
     // Tier 5: smoke against the PUBLISHED app (E2E_DEPLOYED_URL is the baseURL;
     // no webServer). `deno task e2e:deployed`. `--project=deployed`.
     ...(DEPLOYED
@@ -239,11 +247,13 @@ export default defineConfig({
     ...(LOCAL
       ? [{
         command: "deno run -A test/e2e-local/css.ts",
-        // Wait on the control server's health (port 3457): it starts listening only
-        // AFTER startLocalCss() resolves (CSS booted + SEEDED), so this one wait
-        // guarantees CSS is ready AND the per-spec `/reset` endpoint is up (no
-        // first-spec race against seeding or against the control server).
-        url: "http://localhost:3457/",
+        // Wait on the control server's health (LOCAL_CSS_CONTROL_PORT): it starts
+        // listening only AFTER startLocalCss() resolves (CSS booted + SEEDED), so this
+        // one wait guarantees CSS is ready AND the per-spec `/restart`|`/wipe` endpoint
+        // is up (no first-spec race against seeding or against the control server). The
+        // port carries the per-lane LOCAL_PORT_OFFSET so a parallel lane waits on ITS
+        // own control server, not the other lane's.
+        url: `http://localhost:${LOCAL_CSS_CONTROL_PORT}/`,
         // Reuse a still-running control server (faster re-runs); the run's own
         // `globalTeardown` stops it at the end via `POST /stop` (see above), so it
         // doesn't leak. A leftover from a hard-killed earlier run is adopted here

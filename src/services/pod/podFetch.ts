@@ -36,6 +36,32 @@ export async function fetchFresh(
 }
 
 /**
+ * GET a Pod resource UNCONDITIONALLY (`cache: "reload"`): unlike {@link fetchFresh}
+ * it sends no `If-None-Match`, so the server cannot answer `304 Not Modified` from a
+ * (possibly stale) cached representation — it must compute and return the CURRENT
+ * body. Use it where a stale read is unsafe rather than merely slow: the destructive
+ * container walk ({@link deleteContainerRecursive}). A revalidating GET there can be
+ * 304'd onto a stale container listing under an ETag collision (a write burst sharing
+ * one mtime-derived ETag — observed on JSS, possible on CSS), which would omit
+ * children and leave silent residue. Same network-error annotation as `fetchFresh`.
+ * @operation query
+ */
+export async function fetchUncached(
+  url: string,
+  session: Session,
+): Promise<Response> {
+  try {
+    return await session.fetch(url, {
+      cache: "reload",
+      headers: { Accept: "text/turtle" },
+    });
+  } catch (e) {
+    const detail = e instanceof Error ? e.message : String(e);
+    throw new Error(`Network error fetching ${url}: ${detail}`, { cause: e });
+  }
+}
+
+/**
  * GET a Pod resource and parse it (Turtle) into an n3 `Store`, with `baseIRI`
  * set to the resource IRI. The one chokepoint for "read a resource I'm about to
  * n3-parse": it always goes through {@link fetchFresh}, so the read is fresh AND
