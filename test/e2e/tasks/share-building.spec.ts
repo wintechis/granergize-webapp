@@ -1,8 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { account } from "../helpers/login.ts";
+import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
-import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
+import {
+  deleteAllOwnedRooms,
+  removeAllBookmarkedRooms,
+} from "../helpers/rooms.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
 import {
   assignUserRole,
@@ -20,9 +24,9 @@ import { T } from "../helpers/timeouts.ts";
  *   • write part — A hosts a room + takes the User role; B joins + takes the User
  *     role; A adds a building and shares it "By role" → User (the room resolves the
  *     role to B's WebID);
- *   • a 2 s cooldown;
  *   • read part — B logs in fresh (so `drainInbox` archives the grant into B's
- *     `shared-in/`) and sees the building under "Buildings shared with you".
+ *     `shared-in/`), reloading until the building appears under "Buildings shared
+ *     with you".
  *
  * Previously split into 4 single-account parts to stay under solidcommunity.net's
  * Cloudflare burst limit; on the reliable Pods (solidweb.org) it runs as one test
@@ -79,7 +83,9 @@ test.describe("sharing across two pods", () => {
       const sharedRow = a.page.locator("li", { hasText: STREET }).first();
       await expect(sharedRow.getByText(/shared with/i))
         .toBeVisible({ timeout: T.action });
-      await expect(sharedRow.getByRole("button", { name: "Revoke access" }).first())
+      await expect(
+        sharedRow.getByRole("button", { name: "Revoke access" }).first(),
+      )
         .toBeVisible({ timeout: T.action });
 
       // ── Read part: B logs in fresh → drainInbox archives the grant → verify ──
@@ -91,12 +97,11 @@ test.describe("sharing across two pods", () => {
         try {
           // No blind write→read cooldown: poll B's view, reloading to re-drain the
           // inbox each attempt, until A's grant propagates and folds in.
-          await expect(async () => {
-            await b2.page.reload();
+          await reloadUntil(b2.page, async () => {
             await b2.page.getByRole("tab", { name: "Share" }).click();
             await expect(received.getByText(/^Building /))
               .toBeVisible({ timeout: T.action });
-          }).toPass({ timeout: T.poll });
+          });
         } catch (timeout) {
           b2.guard.assertNoAppErrors();
           throw timeout;
@@ -111,12 +116,16 @@ test.describe("sharing across two pods", () => {
         const sharedRow = received.locator("li")
           .filter({ has: b2.page.getByText(/^Building /) }).first();
         const visToggle = sharedRow.getByRole("checkbox"); // the Shown/Hidden Switch
-        await expect(sharedRow.getByText("Shown")).toBeVisible({ timeout: T.action });
+        await expect(sharedRow.getByText("Shown")).toBeVisible({
+          timeout: T.action,
+        });
         const markers = b2.page.locator(".leaflet-marker-icon");
 
         // Hide → row reads "Hidden" and B's Explore map drops to no markers.
         await visToggle.click();
-        await expect(sharedRow.getByText("Hidden")).toBeVisible({ timeout: T.action });
+        await expect(sharedRow.getByText("Hidden")).toBeVisible({
+          timeout: T.action,
+        });
         await b2.page.getByRole("tab", { name: "Explore" }).click();
         await expect(async () => {
           expect(await markers.count()).toBe(0);
@@ -124,9 +133,13 @@ test.describe("sharing across two pods", () => {
 
         // Show → row reads "Shown" again and the marker returns.
         await b2.page.getByRole("tab", { name: "Share" }).click();
-        await expect(sharedRow.getByText("Hidden")).toBeVisible({ timeout: T.action });
+        await expect(sharedRow.getByText("Hidden")).toBeVisible({
+          timeout: T.action,
+        });
         await visToggle.click();
-        await expect(sharedRow.getByText("Shown")).toBeVisible({ timeout: T.action });
+        await expect(sharedRow.getByText("Shown")).toBeVisible({
+          timeout: T.action,
+        });
         await b2.page.getByRole("tab", { name: "Explore" }).click();
         await expect(markers.first()).toBeVisible({ timeout: T.action });
       } finally {
@@ -206,11 +219,10 @@ test.describe("sharing across two pods", () => {
         // No blind write→read cooldown: poll, reloading to re-drain the inbox each
         // attempt, until the shared marker propagates and renders.
         const markers = b2.page.locator(".leaflet-marker-icon");
-        await expect(async () => {
-          await b2.page.reload();
+        await reloadUntil(b2.page, async () => {
           await b2.page.getByRole("tab", { name: "Explore" }).click();
           await expect(markers.first()).toBeVisible({ timeout: T.action });
-        }).toPass({ timeout: T.poll });
+        });
 
         // Open the building's detail pane → Energy tab (AnnualEnergy per-year table).
         // No blind map-settle wait: click each marker until the Energy tab appears,
@@ -330,11 +342,10 @@ test.describe("sharing across two pods", () => {
         //    settle wait: reload inside the poll so each attempt re-drains. ──
         try {
           // B owned nothing else, so the received list must have no building rows.
-          await expect(async () => {
-            await b.page.reload();
+          await reloadUntil(b.page, async () => {
             await b.page.getByRole("tab", { name: "Share" }).click();
             expect(await received().getByText(/^Building /).count()).toBe(0);
-          }).toPass({ timeout: T.poll });
+          });
         } catch (timeout) {
           b.guard.assertNoAppErrors();
           throw timeout;

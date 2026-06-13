@@ -12,31 +12,16 @@
  * separate accounts/servers. Both reset per spec with the fast in-place `/wipe`
  * (`E2E_RESET=wipe`). Nothing is shared but CPU — the idle slack this exploits.
  *
- * ANTI-PHASING: the shared resource (CPU) is scarce exactly when both lanes run a
- * heavy multi-pod spec — several concurrent OIDC logins each — at the same instant;
- * run together that starved the sharing specs into timeouts. So each lane runs the
- * suite in TWO phases, light (`SOLO_SPECS`) and heavy (`DUO`+`TRIO`), in the OPPOSITE
- * order: one lane light→heavy, the other heavy→light. The short heavy phases land at
- * opposite ends of the long run and never overlap; whenever one lane is in its heavy
- * phase the other is in light (single-login, contention-tolerant) work. A single
- * Playwright invocation can't reorder within itself (alphabetical, no shuffle), hence
- * two invocations per lane. A targeted single-spec run (CLI args) bypasses phasing.
+ * Running both lanes' heavy multi-pod specs at the same instant is SAFE (verified
+ * 2026-06-14: a full simple-parallel run stayed green with the heavy `share-*` /
+ * `peer-benchmark` specs overlapping across lanes). The apparent "contention" that
+ * once timed the sharing specs out — and likely the old "no parallel Playwright"
+ * rule — was a stale test locator (a `/review & share/i` that stopped matching the
+ * "Review and Share" button after a UI-text change), not CPU starvation. So the lanes
+ * just run their full suites in parallel; no spec-ordering games are needed.
  *
  * Run from the repo root. Exits non-zero if EITHER lane fails.
  */
-import { DUO_SPECS, SOLO_SPECS, TRIO_SPECS } from "../config/specCatalog.ts";
-
-// Glob `**/foo.spec.ts` → `foo.spec.ts`, a `playwright test` positional file filter.
-const basename = (glob: string) => glob.replace(/^\*\*\//, "");
-const LIGHT_PHASE = SOLO_SPECS.map(basename);
-const HEAVY_PHASE = [...DUO_SPECS, ...TRIO_SPECS].map(basename);
-
-// Anti-phasing is on by default. `E2E_ANTIPHASE=0` runs each lane as ONE plain
-// invocation (no light/heavy split) — the experiment for whether the heavy specs
-// actually contend across lanes now that the stale-locator "hang" is fixed (the
-// "contention" that motivated anti-phasing turned out to be that bug). If a plain
-// parallel run stays green, anti-phasing is needless overhead and can be retired.
-const ANTIPHASE = (Deno.env.get("E2E_ANTIPHASE") ?? "1") !== "0";
 
 const RUN_ID = Deno.env.get("E2E_RUN_ID") ??
   new Date().toISOString().replace(/\.\d+Z$/, "Z");
@@ -45,16 +30,13 @@ interface Lane {
   name: string;
   backend: "css" | "jss";
   offset: number;
-  // Anti-phase the heavy multi-pod specs: one lane runs them first, the other last,
-  // so they never overlap across lanes (see ANTI-PHASING above).
-  heavyFirst: boolean;
 }
 
 // Offset clears all three Tier-3 ports (pod 3456, control 3457, app 4183), so the
 // JSS lane at +10 binds 3466/3467/4193 — disjoint from the CSS lane at +0.
 const LANES: Lane[] = [
-  { name: "css", backend: "css", offset: 0, heavyFirst: false },
-  { name: "jss", backend: "jss", offset: 10, heavyFirst: true },
+  { name: "css", backend: "css", offset: 0 },
+  { name: "jss", backend: "jss", offset: 10 },
 ];
 
 const logPath = (name: string) => `/tmp/e2e-matrix-${name}-${RUN_ID}.log`;
@@ -76,46 +58,15 @@ async function runLane(
     E2E_RUN_ID: RUN_ID,
   };
   // `vite preview` of the prebuilt dist/ + the pod server are started by Playwright's
-  // own `webServer` (per the config), so a phase is just `playwright test` filtered to
-  // that phase's spec files. A targeted run (CLI args, e.g. one spec on both lanes)
-  // bypasses anti-phasing and runs as-is; otherwise the two phases run in this lane's
-  // order. Each phase's Playwright is a fresh invocation (the only way to control order
-  // — see ANTI-PHASING), so its own webServer reboots between phases; tolerated for the
-  // contention win. Tee both phases to one per-lane log so summarize() finds each
-  // phase's summary line.
-  const phases: { label: string; files: string[] }[] = Deno.args.length
-    ? [{ label: "run", files: Deno.args }]
-    : !ANTIPHASE
-    ? [{ label: "all", files: [] }] // one plain invocation, no file filter
-    : lane.heavyFirst
-    ? [{ label: "heavy", files: HEAVY_PHASE }, {
-      label: "light",
-      files: LIGHT_PHASE,
-    }]
-    : [{ label: "light", files: LIGHT_PHASE }, {
-      label: "heavy",
-      files: HEAVY_PHASE,
-    }];
-
+  // own `webServer` (per the config), so the lane is just `playwright test`. Any extra
+  // CLI args (e.g. a spec path to run one spec on both lanes) are forwarded. Tee to a
+  // per-lane log so the combined report can pull each lane's summary line.
+  const extra = Deno.args.length ? " " + Deno.args.join(" ") : "";
   const t0 = performance.now();
-  let code = 0;
-  for (let i = 0; i < phases.length; i++) {
-    const { label, files } = phases[i];
-    const redirect = i === 0 ? ">" : ">>"; // first phase truncates, rest append
-    const marker = `=== lane ${lane.name} phase ${
-      i + 1
-    }/${phases.length}: ${label} ===`;
-    const { code: phaseCode } = await new Deno.Command("sh", {
-      args: [
-        "-c",
-        `echo "${marker}" ${redirect} ${log} 2>&1; ` +
-        `npx playwright test --project=local ${files.join(" ")} >> ${log} 2>&1`,
-      ],
-      env,
-    }).output();
-    // Lane fails if ANY phase fails, but keep running later phases for full diagnostics.
-    if (phaseCode !== 0) code = phaseCode;
-  }
+  const { code } = await new Deno.Command("sh", {
+    args: ["-c", `npx playwright test --project=local${extra} > ${log} 2>&1`],
+    env,
+  }).output();
   const ms = performance.now() - t0;
   const text = await Deno.readTextFile(log).catch(() => "");
   return { lane, code, ms, log: text };
@@ -133,11 +84,7 @@ function summarize(log: string): string {
 
 console.log(
   `matrix: launching ${LANES.length} lanes in parallel (run ${RUN_ID}) — ` +
-    LANES.map((l) =>
-      `${l.name}@+${l.offset} (${
-        !ANTIPHASE ? "simple" : l.heavyFirst ? "heavy→light" : "light→heavy"
-      })`
-    ).join(", "),
+    LANES.map((l) => `${l.name}@+${l.offset}`).join(", "),
 );
 const results = await Promise.all(LANES.map(runLane));
 

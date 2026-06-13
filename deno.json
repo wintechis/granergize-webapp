@@ -12,7 +12,6 @@
     "e2e:local:reuse": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 VITE_POD_APP_DIR=granergize-e2e E2E_RESET=wipe E2E_LOGIN_REUSE=1 npx playwright test --project=local",
     "e2e:local:reuse:jss": "LOCAL_POD_SERVER=jss deno task e2e:local:reuse",
     "e2e:local:matrix": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && deno run -A test/e2e-local/matrix.ts",
-    "e2e:local:matrix:reuse": "E2E_LOGIN_REUSE=1 deno task e2e:local:matrix",
     "e2e:stress": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 LOGIN_STRESS=1 npx playwright test --project=stress",
     "e2e:stress:jss": "LOCAL_POD_SERVER=jss deno task e2e:stress",
     "e2e:remote": "npx playwright test --project=solo --project=duo --project=trio",
