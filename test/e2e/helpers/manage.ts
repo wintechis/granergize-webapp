@@ -269,7 +269,7 @@ export async function ensureView(page: Page): Promise<void> {
 /**
  * The Share-tab "Views shared with you" list (named via the `<ul>`'s aria-label).
  * Present only when at least one view is shared; for the empty state assert the
- * section's "no aggregated views…" text on the page directly.
+ * section's "no views shared with you yet…" text on the page directly.
  */
 export const receivedViews = (page: Page) =>
   page.getByRole("list", { name: /views shared with you/i });

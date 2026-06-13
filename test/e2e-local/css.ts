@@ -2,10 +2,12 @@
 /**
  * Playwright-managed local CSS for Tier 3 (E2E_LOCAL=1). Boots a throwaway CSS via
  * startLocalCss() (the same one the headless tier uses) and keeps it up for the
- * run. Also runs a tiny control server on LOCAL_CSS_CONTROL_PORT whose `POST /reset`
- * RESTARTS CSS from scratch — giving each spec pristine, freshly-seeded pods so
- * specs never share mutable pod state. `login()` hits it once per spec file (see
- * helpers/login.ts).
+ * run. Also runs a tiny control server on LOCAL_CSS_CONTROL_PORT giving each spec a
+ * pristine, freshly-seeded pod so specs never share mutable pod state — via one of
+ * two operations the caller chooses (`login()` hits one once per spec file, see
+ * helpers/login.ts): `POST /restart` RESTARTS the pod server from scratch (safe,
+ * slow, the default), `POST /wipe` deletes each app collection in place + restores
+ * the WebID profile (fast, CSS only — see the two handlers below).
  *
  * Shutdown is owned by Playwright's lifecycle: its `globalTeardown`
  * (`test/e2e-local/globalTeardown.ts`) hits `POST /stop`, which does the orderly
@@ -72,7 +74,7 @@ async function waitForPortFree(port: number, deadlineMs = 10_000): Promise<void>
 /**
  * Kill whatever still holds `port`. An orphaned CSS from a lost stop/boot race
  * never releases the socket on its own — observed 2026-06-09 in a full run: one
- * per-spec `/reset` lost the race, the orphan kept 3456, and EVERY later boot
+ * per-spec `/restart` lost the race, the orphan kept 3456, and EVERY later boot
  * attempt failed for the remaining ~25 specs. Waiting alone can't recover from
  * that; killing the holder can. TERM first, escalate to KILL.
  */
@@ -104,7 +106,7 @@ async function killPortHolder(port: number): Promise<void> {
  * times if we lose the tiny TOCTOU window between the probe and CSS's own bind.
  * From the second attempt on, forcibly free the port first: a holder that
  * survived a full waitForPortFree deadline is an orphan that will never leave.
- * This is what makes the per-spec `/reset` reliable instead of a coin-flip.
+ * This is what makes the per-spec `/restart` reliable instead of a coin-flip.
  */
 async function bootCss(): Promise<LocalPod> {
   let lastErr: unknown;
@@ -122,7 +124,7 @@ async function bootCss(): Promise<LocalPod> {
 }
 
 // Boot-time snapshot of each account's PRISTINE WebID profile document, keyed by
-// slot. A per-spec `/reset` restores these after wiping the pod: the app mutates
+// slot. A per-spec `/wipe` restores these after wiping the pod: the app mutates
 // the profile OUTSIDE the granergize/ tree (`saveOrganization` writes org fields
 // into the WebID card), so a data-only wipe would leak an org edit into the next
 // spec — a full CSS restart reset the profile for free, so the in-place wipe must
@@ -151,7 +153,7 @@ function watchExit(c: LocalPod) {
 }
 watchExit(css);
 
-// Capture each account's pristine WebID profile so a per-spec `/reset` can restore
+// Capture each account's pristine WebID profile so a per-spec `/wipe` can restore
 // it in place after the pod wipe (see `pristineProfiles`/`resetToPristine`). Done
 // once at boot, before any spec runs.
 await snapshotProfiles();
@@ -159,7 +161,7 @@ await snapshotProfiles();
 // GET each account's WebID card document and stash its body + content-type, so
 // `resetToPristine` can PUT it back verbatim. The card doc is the WebID minus its
 // fragment. Throws on a non-OK read — a missing pristine profile would silently
-// turn `/reset` into a data-only wipe.
+// turn `/wipe` into a data-only wipe (no profile restore).
 async function snapshotProfiles(): Promise<void> {
   for (const slot of ["A", "B", "C"] as const) {
     const { live, actor } = await actorSession(slot);
@@ -209,7 +211,7 @@ async function resetToPristine(): Promise<void> {
 // Deno-only deps (npm:jose in liveSession, the npm import map) that don't load
 // under Playwright's Node loader — so the spec drives this over HTTP instead. A
 // fresh client-credentials session is minted per call so it can't go stale across
-// a /reset. Replaces whatever buildings/ held (wipe then seed) → exactly N.
+// a /restart. Replaces whatever buildings/ held (wipe then seed) → exactly N.
 async function seedPodA(n: number): Promise<void> {
   const live = await css.liveSession("A");
   try {
@@ -492,8 +494,9 @@ async function seedBenchmark(viewName: string): Promise<void> {
   }
 }
 
-// Control server (separate port): POST /reset restarts CSS and replies once the
-// fresh instance is ready, so the caller can await a clean slate.
+// Control server (separate port): the per-spec clean-slate ops are POST /restart
+// (boot a fresh server) and POST /wipe (in-place) — each replies once the pod is
+// ready, so the caller can await a clean slate. Plus the /seed* and /stop ops.
 Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
   const { pathname, searchParams } = new URL(req.url);
   if (req.method === "POST" && pathname === "/seed") {
@@ -596,35 +599,45 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
       return new Response(`seed-benchmark failed: ${e}\n`, { status: 500 });
     }
   }
-  if (req.method === "POST" && pathname === "/reset") {
-    // Fast path: wipe each pod's granergize/ tree + restore the WebID profile in
-    // place, against the still-running CSS — no process bounce, no port-release
-    // wait, no re-seed (see `resetToPristine`). This is the dominant per-spec
-    // setup cost removed.
+  // Per-spec clean slate, split into two EXPLICIT operations so the caller picks
+  // the tradeoff (see `resetLocalPodsOnce` in helpers/login.ts) rather than the
+  // server guessing:
+  //   /restart — the safe, slow default. Stop the pod server and boot a fresh one
+  //              with a fresh data dir → genuinely empty pods, no container listing
+  //              involved. The only reliable reset on JSS, whose post-write
+  //              container listings go stale and defeat an in-place delete (see
+  //              ../../javascript-solid-server/issues/stale-container-listing-
+  //              after-writes-defeats-recursive-delete-tier3.md).
+  //   /wipe    — the fast path. Delete each account's app collection in place and
+  //              restore the WebID profile, against the running server — no process
+  //              bounce, no port wait, no re-seed. ~Free on a warm CSS; NOT safe on
+  //              JSS. No fallback: a wipe that can't reach a clean slate returns 500
+  //              so the caller sees it, instead of a silent restart masking a bug.
+  if (req.method === "POST" && pathname === "/wipe") {
     try {
       await resetToPristine();
       return new Response("ok\n");
     } catch (e) {
-      // Fall back to the full restart if the in-place wipe can't reach a clean
-      // slate (a wedged account, JSS listing residue) — preserving the old hard
-      // guarantee. The worst case is the prior behaviour, not a dirty pod.
-      console.error(`/reset in-place wipe failed, falling back to CSS restart: ${e}`);
+      console.error(`/wipe failed to reach a clean slate: ${e}`);
+      return new Response(`wipe failed: ${e}\n`, { status: 500 });
     }
+  }
+  if (req.method === "POST" && pathname === "/restart") {
     restarting = true;
     await css.stop();
     try {
       css = await bootCss(); // waits for port release + retries; no blind delay
     } catch (e) {
       restarting = false;
-      console.error(`/reset failed to reboot CSS: ${e}`);
-      return new Response("reset failed\n", { status: 500 });
+      console.error(`/restart failed to reboot the pod server: ${e}`);
+      return new Response("restart failed\n", { status: 500 });
     }
     restarting = false;
     watchExit(css);
-    // The restart minted a fresh data dir + re-seeded accounts; re-capture the
-    // pristine profiles so the next in-place wipe restores the right baseline.
+    // Fresh data dir + re-seeded accounts → re-capture the pristine profiles so a
+    // later /wipe restores the right baseline.
     await snapshotProfiles().catch((e) =>
-      console.error(`/reset re-snapshot after restart failed: ${e}`)
+      console.error(`/restart re-snapshot failed: ${e}`)
     );
     return new Response("ok\n");
   }

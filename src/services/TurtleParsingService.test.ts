@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   fetchAndParseData,
+  loadBuildings,
   SessionExpiredError,
 } from "./TurtleParsingService.ts";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
@@ -186,6 +187,38 @@ Deno.test("fetchAndParseData throws SessionExpiredError when sources return 401"
     () => fetchAndParseData(session),
     SessionExpiredError,
   );
+});
+
+Deno.test("loadBuildings surfaces a transiently-failed source without pruning it", async () => {
+  // Two OWN building files; one source 500s (a slow/throttled Pod shedding a
+  // connection). The healthy building must still load, the failure must be
+  // REPORTED (transientFailures) for the user notice, and — unlike a 403/404 —
+  // it must NOT be pruned, so it gets another chance on the next refresh.
+  const C = "https://pod.example/granergize/buildings/";
+  const B_OK = `${C}ok.ttl`;
+  const B_FLAKY = `${C}flaky.ttl`;
+  const building = `@prefix rec: <https://w3id.org/rec#> .
+<#b> a rec:Building .`;
+  const { session } = makeFakeSession({
+    webId: WEBID,
+    resources: {
+      [C]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${C}> ldp:contains <${B_OK}>, <${B_FLAKY}> .`,
+      [PREFS_URL]: "",
+      [B_OK]: building,
+      [B_FLAKY]: building,
+    },
+    respond: (url) =>
+      url === B_FLAKY
+        ? new Response("boom", { status: 500, statusText: "Server Error" })
+        : undefined,
+  });
+
+  const res = await loadBuildings(session, [], new Set());
+
+  assert.equal(res.buildings.length, 1); // the healthy source still loaded
+  assert.deepEqual(res.prunedSources, []); // 500 is transient — never pruned
+  assert.deepEqual(res.transientFailures, [B_FLAKY]); // …but it IS surfaced
 });
 
 // --- Operator average (Betreiber-Durchschnitt) ---------------------------------

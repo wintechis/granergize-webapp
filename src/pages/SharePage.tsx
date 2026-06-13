@@ -3,6 +3,7 @@ import {
   Box,
   Button,
   IconButton,
+  Stack,
   Switch,
   Table,
   TableBody,
@@ -41,7 +42,7 @@ import { AgentLabel } from "../components/AgentLabel.tsx";
 import FilesSection from "../components/detail/FilesSection.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
-import { listStyle, rowStyle } from "../constants/listStyles.ts";
+import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 
@@ -83,20 +84,15 @@ function ReceivedViewRow(
   const entries = snapshot ? Object.entries(snapshot.values) : [];
 
   return (
-    <li style={{ marginBottom: "1rem" }}>
-      <div style={rowStyle}>
-        <span style={{ minWidth: 0 }}>
-          {label}
-          <br />
-          <small>
-            Shared by: <AgentLabel value={view.sharedBy} />
-          </small>
-        </span>
+    <ResourceRow
+      title={label}
+      subtitle={<>Shared by: <AgentLabel value={view.sharedBy} /></>}
+      actions={
         <Button size="small" variant="text" onClick={toggle}>
           {open ? "Hide values" : "Show values"}
         </Button>
-      </div>
-      {open && (
+      }
+      expansion={open && (
         <Box sx={{ mt: 1 }}>
           {loading && (
             <Typography variant="body2" color="text.secondary">
@@ -146,7 +142,7 @@ function ReceivedViewRow(
           )}
         </Box>
       )}
-    </li>
+    />
   );
 }
 
@@ -253,19 +249,17 @@ export default function SharePage({ session }: SharePageProps) {
     toggleVis.mutate(buildingUri);
 
   return (
-    <section style={{ padding: "1.5rem" }}>
+    <Box component="section" sx={{ p: 3 }}>
       <Typography variant="h6" sx={{ mb: 1 }}>
         Buildings shared with you
       </Typography>
       {collections && <RdfSourceLink href={collections.sharedIn} />}
-      <div
-        style={{
-          display: "flex",
-          alignItems: "center",
-          gap: "0.75rem",
-          flexWrap: "wrap",
-          marginBottom: "0.5rem",
-        }}
+      <Stack
+        direction="row"
+        spacing={1.5}
+        flexWrap="wrap"
+        useFlexGap
+        sx={{ alignItems: "center", mb: 1 }}
       >
         {dev && (
           <Button
@@ -285,79 +279,75 @@ export default function SharePage({ session }: SharePageProps) {
         >
           {bundling ? "Preparing…" : "Download all (Excel)"}
         </Button>
-      </div>
+      </Stack>
       {loading
-        ? <p>Loading…</p>
+        ? <Typography variant="body2">Loading…</Typography>
         : sharedWithMe.length === 0
         ? (
-          <p>
+          <Typography variant="body2">
             No buildings shared with you yet. Join a data room so owners can
             find you, or ask an owner to share with your WebID.
-          </p>
+          </Typography>
         )
         : (
-          <ul style={listStyle} aria-label="Buildings shared with you">
+          <Box
+            component="ul"
+            aria-label="Buildings shared with you"
+            sx={{ listStyle: "none", pl: 0, m: 0 }}
+          >
             {sharedPaging.pageItems.map((building) => (
-              <li key={building.buildingUri} style={{ marginBottom: "1rem" }}>
-                <div style={rowStyle}>
-                <span style={{ minWidth: 0 }}>
-                  Building {building.buildingId}
-                  {dev && (
-                    <>
-                      <br />
-                      <span style={{ wordBreak: "break-all" }}>
+              <ResourceRow
+                key={building.buildingUri}
+                title={
+                  <>
+                    Building {building.buildingId}
+                    {dev && (
+                      <Box
+                        component="span"
+                        sx={{ display: "block", wordBreak: "break-all" }}
+                      >
                         <UriLink href={building.buildingUri}>
                           {building.buildingUri}
                         </UriLink>
-                      </span>
-                    </>
-                  )}
-                  <br />
-                  <small>
-                    Shared by: <AgentLabel value={building.sharedBy} />
-                  </small>
-                </span>
-                <div
-                  style={{
-                    display: "flex",
-                    alignItems: "center",
-                    gap: "0.25rem",
-                  }}
-                >
-                  <Tooltip title="Download this building's data (Excel)">
-                    <IconButton
-                      size="small"
-                      aria-label="Download this building's data"
-                      onClick={() => handleDownloadBuilding(building)}
-                    >
-                      <DownloadIcon fontSize="small" />
-                    </IconButton>
-                  </Tooltip>
-                  <Tooltip title="Controls whether this building appears in your dashboard. Does not affect the owner's sharing settings.">
-                    <label
-                      style={{
-                        display: "inline-flex",
-                        alignItems: "center",
-                      }}
-                    >
-                      <Switch
-                        checked={building.isVisible}
-                        onChange={() =>
-                          handleToggleVisibility(building.buildingUri)}
-                        disabled={toggleVis.isPending &&
-                          toggleVis.variables === building.buildingUri}
-                        icon={<VisibilityOffIcon />}
-                        checkedIcon={<VisibilityIcon />}
-                      />
-                      {building.isVisible ? "Shown" : "Hidden"}
-                    </label>
-                  </Tooltip>
-                </div>
-                </div>
-                <SharedBuildingFiles entry={building} />
-              </li>
+                      </Box>
+                    )}
+                  </>
+                }
+                subtitle={<>Shared by: <AgentLabel value={building.sharedBy} /></>}
+                actions={
+                  <>
+                    <Tooltip title="Download this building's data (Excel)">
+                      <IconButton
+                        size="small"
+                        aria-label="Download this building's data"
+                        onClick={() => handleDownloadBuilding(building)}
+                      >
+                        <DownloadIcon fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                    <Tooltip title="Controls whether this building appears in your dashboard. Does not affect the owner's sharing settings.">
+                      <Box
+                        component="label"
+                        sx={{ display: "inline-flex", alignItems: "center" }}
+                      >
+                        <Switch
+                          checked={building.isVisible}
+                          onChange={() =>
+                            handleToggleVisibility(building.buildingUri)}
+                          disabled={toggleVis.isPending &&
+                            toggleVis.variables === building.buildingUri}
+                          icon={<VisibilityOffIcon />}
+                          checkedIcon={<VisibilityIcon />}
+                        />
+                        {building.isVisible ? "Shown" : "Hidden"}
+                      </Box>
+                    </Tooltip>
+                  </>
+                }
+                expansion={<SharedBuildingFiles entry={building} />}
+              />
             ))}
-          </ul>
+          </Box>
         )}
       <Pager paging={sharedPaging} />
 
@@ -365,15 +355,23 @@ export default function SharePage({ session }: SharePageProps) {
         Views shared with you
       </Typography>
       {receivedViewsQuery.isLoading
-        ? <p>Loading…</p>
+        ? <Typography variant="body2">Loading…</Typography>
         : receivedViews.length === 0
-        ? <p>No views shared with you yet. A view a partner shares appears here.</p>
+        ? (
+          <Typography variant="body2">
+            No views shared with you yet. A view a partner shares appears here.
+          </Typography>
+        )
         : (
-          <ul style={listStyle} aria-label="Views shared with you">
+          <Box
+            component="ul"
+            aria-label="Views shared with you"
+            sx={{ listStyle: "none", pl: 0, m: 0 }}
+          >
             {receivedViewsPaging.pageItems.map((view) => (
               <ReceivedViewRow key={view.snapshotUri} view={view} />
             ))}
-          </ul>
+          </Box>
         )}
       <Pager paging={receivedViewsPaging} />
 
@@ -386,6 +384,6 @@ export default function SharePage({ session }: SharePageProps) {
           <RdfSourceLink href={collections.inbox} />
         </>
       )}
-    </section>
+    </Box>
   );
 }

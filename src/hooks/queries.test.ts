@@ -170,6 +170,35 @@ Deno.test("useSolidData merges phase-1 buildings + phase-2 energy", async () => 
   }
 });
 
+Deno.test("useSolidData stays isLoading until buildings resolve — no empty-state flash", async () => {
+  // A Pod with NO own buildings (empty buildings/ container). The bug: while
+  // `useBuildings` is GATED on the shared-in/prefs queries it is disabled, and a
+  // disabled query reports `isLoading: false` — which momentarily renders the
+  // "No buildings yet" empty state before the fetch even starts. `useSolidData`
+  // must report `isLoading: true` for that whole window (buildings undefined),
+  // and only flip to false once the (genuinely empty) buildings have resolved.
+  const EMPTY: Record<string, string> = {
+    ...FIXTURES,
+    [BUILDINGS_CONTAINER]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${BUILDINGS_CONTAINER}> a ldp:Container .`,
+  };
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession(EMPTY));
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useSolidData(), { wrapper });
+    // Initial render: nothing resolved yet → loading, never the empty state.
+    assert.equal(result.current.isLoading, true);
+    assert.equal(result.current.buildings.length, 0);
+    // Buildings resolve to a genuinely empty set → loading clears.
+    await waitFor(() => assert.equal(result.current.isLoading, false));
+    assert.equal(result.current.buildings.length, 0);
+    assert.equal(result.current.error, null);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
 Deno.test("energyKeyFor changes when a building's dataset links change (not only its id set)", () => {
   const mk = (id: string, datasets: BuildingType["energyDatasets"]): BuildingType =>
     ({ id, uri: `urn:b${id}`, type: "x", energyDatasets: datasets } as BuildingType);
