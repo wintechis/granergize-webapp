@@ -41,9 +41,15 @@ async function loadTtlFromMultipleSources(
   urls: string[],
   session: Session,
   description: string,
-): Promise<
-  { quads: Quad[]; failedSources: Array<{ url: string; status: number }> }
-> {
+): Promise<{
+  quads: Quad[];
+  /** Sources that 403/404'd — access revoked since the grant; prunable. */
+  failedSources: Array<{ url: string; status: number }>;
+  /** Sources that failed transiently (timeout / network / 5xx, NOT 403/404).
+   * These are NOT pruned — they may load on the next refresh — but the caller
+   * surfaces them so a slow Pod silently shedding files is never invisible. */
+  transientFailures: string[];
+}> {
   const allQuads: Quad[] = [];
   const successfulSources: string[] = [];
   const failedSources: { url: string; error: string; status?: number }[] = [];
@@ -137,6 +143,11 @@ async function loadTtlFromMultipleSources(
     failedSources: failedSources
       .filter((f) => f.status === 403 || f.status === 404)
       .map((f) => ({ url: f.url, status: f.status! })),
+    // Everything else that failed without a 401 (which already threw above):
+    // timeouts, network errors, 5xx. Reported, not pruned.
+    transientFailures: failedSources
+      .filter((f) => f.status !== 403 && f.status !== 404)
+      .map((f) => f.url),
   };
 }
 
@@ -222,7 +233,13 @@ export async function loadBuildings(
   session: Session,
   sharedSources: string[],
   hiddenBuildingUris: Set<string>,
-): Promise<{ buildings: BuildingType[]; prunedSources: string[] }> {
+): Promise<{
+  buildings: BuildingType[];
+  prunedSources: string[];
+  /** Building files that failed transiently (slow/throttled Pod) — kept for a
+   * later refresh, but reported so the missing buildings aren't a silent gap. */
+  transientFailures: string[];
+}> {
   const webId = session.info.webId;
   if (!webId) {
     throw new Error("No WebID found in session.");
@@ -264,6 +281,7 @@ export async function loadBuildings(
   return {
     buildings: Array.from(visibleBuildings.values()),
     prunedSources: buildingsResult.failedSources.map((f) => f.url),
+    transientFailures: buildingsResult.transientFailures,
   };
 }
 

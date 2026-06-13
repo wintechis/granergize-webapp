@@ -148,9 +148,7 @@ test.describe("view sharing across two pods", () => {
         // Positive empty-state assertion: the section's empty notice is shown
         // (the list is absent when empty) AND the view is gone.
         await expect(
-          b.page.getByText(
-            /no aggregated views have been shared with you/i,
-          ),
+          b.page.getByText(/no views shared with you yet/i),
         ).toBeVisible({ timeout: T.action });
         await expect(receivedViews(b.page).getByText(VIEW_NAME)).toHaveCount(0);
       } catch (timeout) {

@@ -46,6 +46,7 @@ import {
 import { parseTtlReadings } from "../services/rdf/userEnergyParser.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { fetchFresh } from "../services/pod/podFetch.ts";
+import { emitNotification } from "../lib/notificationSink.ts";
 import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
@@ -187,16 +188,30 @@ export function useBuildings() {
     async (session) => {
       // Resolve the Pod storage root from pim:storage before any path is built.
       await resolveStorageRoot(session);
-      const { buildings, prunedSources } = await loadBuildings(
-        session,
-        sharedSources ?? [],
-        hidden ?? new Set(),
-      );
+      const { buildings, prunedSources, transientFailures } =
+        await loadBuildings(
+          session,
+          sharedSources ?? [],
+          hidden ?? new Set(),
+        );
       // An inaccessible shared source was pruned (a self-revocation appended to
       // shared-in/): refold the log so the grant set — and every reader derived
       // from it, incl. this query's own key — drops the revoked source.
       if (prunedSources.length > 0) {
         qc.invalidateQueries({ queryKey: queryKeys.sharedInLog });
+      }
+      // Some building files failed transiently (a slow/throttled Pod shedding
+      // connections). They're NOT pruned — but nothing refetches on its own
+      // (refetchOnMount/focus/reconnect are all off; the only triggers are first
+      // load and a write-driven invalidation), so tell the user the action that
+      // actually retries: reloading the page. Beats a silent gap on the map.
+      if (transientFailures.length > 0) {
+        const n = transientFailures.length;
+        emitNotification(
+          `Couldn't load ${n} building${n === 1 ? "" : "s"} — the Pod was slow ` +
+            `to respond. Reload the page to try again.`,
+          "warning",
+        );
       }
       return { buildings };
     },
@@ -646,7 +661,12 @@ export function useSolidData(): SolidData {
     averages: energy.data?.averages ?? {},
     portfolioAverages: energy.data?.portfolioAverages ?? {},
     operatorAverages: energy.data?.operatorAverages ?? {},
-    isLoading: ba.isLoading,
+    // True for the whole initial window — including while `useBuildings` is still
+    // GATED on its shared-in/prefs dependencies (a disabled query reports
+    // `isLoading: false`, which would otherwise flash the empty state before the
+    // fetch even starts). Once buildings resolve, `ba.data` is defined even for an
+    // empty Pod, so a genuinely-empty account reads as loaded, not loading.
+    isLoading: !err && ba.data === undefined,
     error: err ? (err instanceof Error ? err.message : String(err)) : null,
   };
 }

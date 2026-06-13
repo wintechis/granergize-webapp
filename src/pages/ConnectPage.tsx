@@ -10,6 +10,7 @@ import {
   MenuItem,
   OutlinedInput,
   Select,
+  Stack,
   TextField,
   Tooltip,
   Typography,
@@ -43,7 +44,7 @@ import { resolveAgent } from "../services/agents/agentResolver.ts";
 import { formatError } from "../lib/formatError.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
-import { buttonRowStyle, listStyle, rowStyle } from "../constants/listStyles.ts";
+import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import QrScanner from "../components/QrScanner.tsx";
@@ -261,9 +262,10 @@ export default function ConnectPage({ session }: ConnectPageProps) {
         </Tooltip>
       );
 
-  /** The "Hosted by …" / "active" sub-line shared by every room row. */
+  /** The "Hosted by …" / "active" sub-line shared by every room row (rendered as
+   * ResourceRow's caption subtitle). */
   const roomMeta = (r: string) => (
-    <Typography variant="caption" color="text.secondary" component="span">
+    <>
       {ownsRoom(r, session) ? "Hosted by you" : `Hosted by ${roomHost(r)}`}
       {r === activeRoom && (
         <>
@@ -271,20 +273,20 @@ export default function ConnectPage({ session }: ConnectPageProps) {
           <strong style={{ color: "inherit" }}>active</strong>
         </>
       )}
-    </Typography>
+    </>
   );
 
   const hasRooms = activeRoom !== null || knownRooms.length > 0;
 
   return (
-    <section style={{ padding: "1.5rem" }}>
+    <Box component="section" sx={{ p: 3 }}>
       {/* Contacts — a personal address book of WebID agents. Referenced agents
           (share recipients, building operators) are auto-remembered here; you can
           also add or remove one by hand. Names/avatars are resolved live from each
           agent's own profile. */}
       <Typography variant="h6" sx={{ mb: 1 }}>Contacts</Typography>
       {rdf && <RdfSourceLink href={rdf.contacts} />}
-      <div style={buttonRowStyle}>
+      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
         <TextField
           size="small"
           label="WebID"
@@ -309,7 +311,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
         >
           Scan QR code
         </Button>
-      </div>
+      </Stack>
       {scanning === "contact" && (
         <QrScanner
           onResult={handleContactScan}
@@ -317,30 +319,35 @@ export default function ConnectPage({ session }: ConnectPageProps) {
         />
       )}
       {contactsQuery.isLoading
-        ? <p>Loading…</p>
+        ? <Typography variant="body2">Loading…</Typography>
         : contacts.length === 0
-        ? <p>No contacts yet. Add one by WebID or QR code.</p>
+        ? (
+          <Typography variant="body2">
+            No contacts yet. Add one by WebID or QR code.
+          </Typography>
+        )
         : (
-          <ul style={listStyle} aria-label="Contacts">
+          <Box component="ul" aria-label="Contacts" sx={{ listStyle: "none", pl: 0, m: 0 }}>
             {contactPaging.pageItems.map((c) => (
-              <li key={c.webId} style={rowStyle}>
-                <span style={{ minWidth: 0 }}>
-                  <AgentLabel value={c.webId} />
-                </span>
-                <Tooltip title="Remove contact">
-                  <IconButton
-                    size="small"
-                    color="error"
-                    aria-label="Remove contact"
-                    onClick={() => handleRemoveContact(c.webId)}
-                    disabled={removeContact.isPending}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              </li>
+              <ResourceRow
+                key={c.webId}
+                title={<AgentLabel value={c.webId} />}
+                actions={
+                  <Tooltip title="Remove contact">
+                    <IconButton
+                      size="small"
+                      color="error"
+                      aria-label="Remove contact"
+                      onClick={() => handleRemoveContact(c.webId)}
+                      disabled={removeContact.isPending}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                }
+              />
             ))}
-          </ul>
+          </Box>
         )}
       <Pager paging={contactPaging} />
 
@@ -352,12 +359,12 @@ export default function ConnectPage({ session }: ConnectPageProps) {
           beneath its own row. */}
       <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Your data rooms</Typography>
       {rdf && <RdfSourceLink href={rdf.bookmarks} />}
-      <div
-        style={{
-          ...buttonRowStyle,
-          alignItems: "center",
-          marginBottom: "0.5rem",
-        }}
+      <Stack
+        direction="row"
+        spacing={1}
+        flexWrap="wrap"
+        useFlexGap
+        sx={{ alignItems: "center", mb: 1 }}
       >
         <Button
           variant="outlined"
@@ -390,7 +397,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
         >
           Scan QR code
         </Button>
-      </div>
+      </Stack>
       {scanning === "room" && (
         <QrScanner
           onResult={handleRoomScan}
@@ -398,36 +405,40 @@ export default function ConnectPage({ session }: ConnectPageProps) {
         />
       )}
       {roomQuery.isLoading
-        ? <p>Loading…</p>
+        ? <Typography variant="body2">Loading…</Typography>
         : !hasRooms
-        ? <p>No data rooms yet. Host one, or add one by URI or QR code.</p>
+        ? (
+          <Typography variant="body2">
+            No data rooms yet. Host one, or add one by URI or QR code.
+          </Typography>
+        )
         : (
-          <ul style={listStyle}>
+          <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
             {roomPaging.pageItems.map((r) => {
               const isActive = r === activeRoom;
               return (
-                <li key={r} style={{ marginBottom: "1rem" }}>
-                  <div style={rowStyle}>
-                    <div style={{ minWidth: 0 }}>
-                      <span style={{ wordBreak: "break-all" }}>
-                        <UriLink href={r}>{r}</UriLink>
-                        {isActive && (
-                          <Tooltip title="Copy invite link">
-                            <IconButton
-                              size="small"
-                              aria-label="Copy invite link"
-                              onClick={handleCopyLink}
-                              sx={{ ml: 0.5 }}
-                            >
-                              <ContentCopyIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        )}
-                      </span>
-                      <br />
-                      {roomMeta(r)}
-                    </div>
-                    <div style={{ display: "flex", gap: "0.25rem" }}>
+                <ResourceRow
+                  key={r}
+                  title={
+                    <Box component="span" sx={{ wordBreak: "break-all" }}>
+                      <UriLink href={r}>{r}</UriLink>
+                      {isActive && (
+                        <Tooltip title="Copy invite link">
+                          <IconButton
+                            size="small"
+                            aria-label="Copy invite link"
+                            onClick={handleCopyLink}
+                            sx={{ ml: 0.5 }}
+                          >
+                            <ContentCopyIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      )}
+                    </Box>
+                  }
+                  subtitle={roomMeta(r)}
+                  actions={
+                    <>
                       {isActive
                         ? (
                           <Tooltip
@@ -462,11 +473,9 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                           </Tooltip>
                         )}
                       {deleteOrRemove(r)}
-                    </div>
-                  </div>
-
-                  {/* Active room: detail box directly beneath its own row. */}
-                  {isActive && (
+                    </>
+                  }
+                  expansion={isActive && (
                     <Box
                       sx={{
                         border: 1,
@@ -497,7 +506,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                         Assign or change your role(s) anytime — this is how
                         others share data with you by role.
                       </Typography>
-                      <div style={buttonRowStyle}>
+                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
                         <FormControl size="small" sx={{ minWidth: 280 }}>
                           <InputLabel id="my-roles-label">
                             My role(s)
@@ -535,34 +544,41 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                         >
                           {saveRoles.isPending ? "Saving…" : "Save roles"}
                         </Button>
-                      </div>
+                      </Stack>
 
                       <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
                         Members
                       </Typography>
                       {members.length === 0
-                        ? <p style={{ marginBottom: 0 }}>No members yet.</p>
+                        ? <Typography variant="body2">No members yet.</Typography>
                         : (
-                          <ul style={listStyle}>
+                          <Box
+                            component="ul"
+                            sx={{ listStyle: "none", pl: 0, m: 0 }}
+                          >
                             {members.map((m) => (
-                              <li key={m.webId}>
+                              <Box component="li" key={m.webId}>
                                 <AgentLabel value={m.webId} /> —{" "}
-                                <small>
+                                <Typography
+                                  component="span"
+                                  variant="caption"
+                                  color="text.secondary"
+                                >
                                   {m.roles.map((role) => ROLE_LABELS[role] ?? role)
                                     .join(", ") || "no role"}
-                                </small>
-                              </li>
+                                </Typography>
+                              </Box>
                             ))}
-                          </ul>
+                          </Box>
                         )}
                     </Box>
                   )}
-                </li>
+                />
               );
             })}
-          </ul>
+          </Box>
         )}
       <Pager paging={roomPaging} />
-    </section>
+    </Box>
   );
 }

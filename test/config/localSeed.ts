@@ -9,8 +9,9 @@ import { localProvider, type PodProvider } from "./providers.ts";
 
 export const LOCAL_CSS_PORT = 3456;
 export const LOCAL_CSS_BASE = `http://localhost:${LOCAL_CSS_PORT}/`;
-/** Side port for the Tier-3 control server: `POST /reset` restarts CSS so each
- * spec starts with pristine pods (see test/e2e-local/css.ts + helpers/login.ts). */
+/** Side port for the Tier-3 control server: `POST /restart` (boot a fresh server)
+ * or `POST /wipe` (in-place) gives each spec pristine pods — the caller picks (see
+ * test/e2e-local/css.ts + helpers/login.ts). */
 export const LOCAL_CSS_CONTROL_PORT = 3457;
 
 /**

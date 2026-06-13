@@ -30,6 +30,12 @@ export async function loadSharedBuilding(
   session: Session,
 ): Promise<BuildingType | null> {
   const res = await fetchFresh(entry.buildingUri, session);
+  // 404/410 = deleted, 403 = the owner revoked your access — both mean "gone",
+  // a normal lifecycle event for a building shared WITH you (not a failure).
+  // Other non-ok statuses are real and still throw.
+  if (res.status === 404 || res.status === 410 || res.status === 403) {
+    return null;
+  }
   if (!res.ok) throw new Error(`HTTP ${res.status}`);
   // Resolve any relative refs against the document; derive ids against the
   // RECIPIENT's storage root, so a self-shared own building folds to the same

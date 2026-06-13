@@ -206,6 +206,16 @@ Deno.test("loadComputedSnapshot: 404 means absence (null), a transient failure T
     null,
   );
 
+  // 403 (owner revoked the recipient's access) is also "gone", not a failure.
+  const forbidden = {
+    info: { webId: WEBID, isLoggedIn: true },
+    fetch: () => Promise.resolve(new Response("forbidden", { status: 403 })),
+  } as unknown as Session;
+  assert.equal(
+    await loadComputedSnapshot(forbidden, `${SNAPSHOTS}view-x.ttl`),
+    null,
+  );
+
   const throttled = {
     info: { webId: WEBID, isLoggedIn: true },
     fetch: () => Promise.resolve(new Response("slow down", { status: 503 })),

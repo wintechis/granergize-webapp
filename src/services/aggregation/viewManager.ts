@@ -464,7 +464,12 @@ export async function loadComputedSnapshot(
   snapshotUri: string,
 ): Promise<AggregatedViewSnapshot | null> {
   const response = await fetchFresh(snapshotUri, session);
-  if (response.status === 404 || response.status === 410) {
+  // 404/410 = deleted, 403 = the owner revoked your access — all mean "gone",
+  // a normal lifecycle event for a resource shared WITH you, not a failure.
+  if (
+    response.status === 404 || response.status === 410 ||
+    response.status === 403
+  ) {
     return null;
   }
   if (!response.ok) {

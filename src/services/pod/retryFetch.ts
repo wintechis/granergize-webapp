@@ -81,10 +81,14 @@ export function withRetry(
   fetchFn: typeof fetch,
   opts: RetryOptions = {},
 ): typeof fetch {
-  const maxRetries = opts.maxRetries ?? 3;
-  // Backoff doubles per attempt, so the default 2 s base gives 2 s → 4 s → 8 s
-  // across the 3 retries — generous spacing for Cloudflare's rate limiter to relax
-  // (a `Retry-After` header, when present, overrides the computed backoff).
+  // 5 retries (was 3): a slow Cloudflare-fronted Pod (solidcommunity.net) drops
+  // bursts of connections under load, and each lost building file is otherwise
+  // given up after ~3 attempts (~10 s) and silently vanishes from the map. Two
+  // more attempts buy that source the extra backoff windows it needs to land.
+  const maxRetries = opts.maxRetries ?? 5;
+  // Backoff doubles per attempt, so the default 2 s base gives 2 s → 4 s → 8 s →
+  // 16 s → 32 s across the 5 retries — generous spacing for Cloudflare's rate
+  // limiter to relax (a `Retry-After` header, when present, overrides the backoff).
   const baseDelayMs = opts.baseDelayMs ?? 2000;
   const timeoutMs = opts.timeoutMs ?? DEFAULT_TIMEOUT_MS;
 

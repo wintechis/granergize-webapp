@@ -37,7 +37,7 @@ export async function startCss(port = LOCAL_CSS_PORT): Promise<LocalPod> {
   );
 
   // Diagnostic opt-in: `LOCAL_POD_LOG=<path>` tees CSS's FULL log (at `-l debug`) to
-  // that file, appended across per-spec `/reset` restarts. Off by default — CSS runs
+  // that file, appended across per-spec `/restart` reboots. Off by default — CSS runs
   // at `-l warn` and its log is drained-but-discarded, so a swallowed auth 401 ("no
   // applicable key found in JWKS", a 401/403 on a resource read) is otherwise
   // invisible. Set it to attribute Tier-3 read/write flakiness to the substrate.

@@ -38,9 +38,23 @@ Deno.test("loadSharedBuilding fetches + parses the shared building file", async 
   assert.equal((b!.energyDatasets ?? []).length, 1);
 });
 
-Deno.test("loadSharedBuilding throws on a non-ok response", async () => {
+Deno.test("loadSharedBuilding: a revoked/deleted share is 'gone' (null), not an error", async () => {
+  // The owner revoking your access (403) or deleting the building (404) is a
+  // normal lifecycle event for a building shared WITH you — null, not a throw,
+  // so it doesn't raise a global error notification.
+  assert.equal(
+    await loadSharedBuilding({ buildingUri: FILE }, session("forbidden", 403)),
+    null,
+  );
+  assert.equal(
+    await loadSharedBuilding({ buildingUri: FILE }, session("gone", 404)),
+    null,
+  );
+});
+
+Deno.test("loadSharedBuilding throws on a genuine failure (e.g. HTTP 500)", async () => {
   await assert.rejects(
-    () => loadSharedBuilding({ buildingUri: FILE }, session("nope", 403)),
-    /HTTP 403/,
+    () => loadSharedBuilding({ buildingUri: FILE }, session("boom", 500)),
+    /HTTP 500/,
   );
 });

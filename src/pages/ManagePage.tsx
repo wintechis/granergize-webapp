@@ -5,10 +5,12 @@ import {
 } from "../services/rdf/building/buildingId.ts";
 import { useMemo, useState } from "react";
 import {
+  Box,
   Button,
   IconButton,
   Menu,
   MenuItem,
+  Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -57,7 +59,7 @@ import { formatDate } from "../lib/formatDate.ts";
 import { downloadXlsx } from "../lib/download.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
-import { listStyle, rowStyle } from "../constants/listStyles.ts";
+import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
@@ -245,18 +247,16 @@ export default function ManagePage({ session }: ManagePageProps) {
   };
 
   return (
-    <section style={{ padding: "1.5rem" }}>
+    <Box component="section" sx={{ p: 3 }}>
       <section>
         <Typography variant="h6" sx={{ mb: 1 }}>Your buildings</Typography>
         {rdf && <RdfSourceLink href={rdf.buildings} />}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            flexWrap: "wrap",
-            marginBottom: "0.5rem",
-          }}
+        <Stack
+          direction="row"
+          spacing={1.5}
+          flexWrap="wrap"
+          useFlexGap
+          sx={{ alignItems: "center", mb: 1 }}
         >
           <Button
             variant="outlined"
@@ -286,14 +286,18 @@ export default function ManagePage({ session }: ManagePageProps) {
           >
             Download all (Excel)
           </Button>
-        </div>
+        </Stack>
 
         {buildingsLoading
-          ? <p>Loading…</p>
+          ? <Typography variant="body2">Loading…</Typography>
           : ownedBuildings.length === 0
-          ? <p>No buildings yet. Add one, or autofill it from a file.</p>
+          ? (
+            <Typography variant="body2">
+              No buildings yet. Add one, or autofill it from a file.
+            </Typography>
+          )
           : (
-            <ul style={listStyle}>
+            <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
               {buildingPaging.pageItems.map((b) => {
                 const fileUri = buildingFileUri(b.sourceUri ?? b.uri);
                 const sharedWith = recipients[fileUri] ?? recipients[b.uri] ??
@@ -303,45 +307,27 @@ export default function ManagePage({ session }: ManagePageProps) {
                   // data-building-id: the row shows the DISPLAY name (label /
                   // address), so the e2e suite resolves a row's id from this
                   // attribute instead of parsing the old "Building <id>" text.
-                  <li
+                  <ResourceRow
                     key={b.uri}
-                    data-building-id={b.id}
-                    style={{ marginBottom: "1rem" }}
-                  >
-                    <div style={{ ...rowStyle, alignItems: "flex-start" }}>
-                      <div style={{ minWidth: 0 }}>
+                    buildingId={b.id}
+                    title={
+                      <>
                         <strong>{name}</strong>
                         {b.streetAddress && b.streetAddress !== name
                           ? ` — ${b.streetAddress}`
                           : ""}
                         {dev && (
-                          <>
-                            <br />
-                            <span style={{ wordBreak: "break-all" }}>
-                              <UriLink href={b.uri as string}>{b.uri}</UriLink>
-                            </span>
-                          </>
+                          <Box
+                            component="span"
+                            sx={{ display: "block", wordBreak: "break-all" }}
+                          >
+                            <UriLink href={b.uri as string}>{b.uri}</UriLink>
+                          </Box>
                         )}
-                        {sharedQuery.isLoading
-                          ? (
-                            <>
-                              <br />
-                              <small>Shared with: Loading…</small>
-                            </>
-                          )
-                          : (
-                            <NestedAgentList
-                              agents={sharedWith}
-                              label="Shared with:"
-                              onRevoke={(webId) => handleRevoke(fileUri, webId)}
-                              isRevoking={(webId) =>
-                                revoke.isPending &&
-                                revoke.variables?.buildingUri === fileUri &&
-                                revoke.variables?.webId === webId}
-                            />
-                          )}
-                      </div>
-                      <div style={{ display: "flex", gap: "0.25rem" }}>
+                      </>
+                    }
+                    actions={
+                      <>
                         <Tooltip title="Edit building">
                           <IconButton
                             size="small"
@@ -402,12 +388,30 @@ export default function ManagePage({ session }: ManagePageProps) {
                             <DeleteIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                      </div>
-                    </div>
-                  </li>
+                      </>
+                    }
+                  >
+                    {sharedQuery.isLoading
+                      ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Shared with: Loading…
+                        </Typography>
+                      )
+                      : (
+                        <NestedAgentList
+                          agents={sharedWith}
+                          label="Shared with:"
+                          onRevoke={(webId) => handleRevoke(fileUri, webId)}
+                          isRevoking={(webId) =>
+                            revoke.isPending &&
+                            revoke.variables?.buildingUri === fileUri &&
+                            revoke.variables?.webId === webId}
+                        />
+                      )}
+                  </ResourceRow>
                 );
               })}
-            </ul>
+            </Box>
           )}
         <Pager paging={buildingPaging} />
         <Menu
@@ -432,14 +436,12 @@ export default function ManagePage({ session }: ManagePageProps) {
           Aggregated views
         </Typography>
         {rdf && <RdfSourceLink href={rdf.views} />}
-        <div
-          style={{
-            display: "flex",
-            alignItems: "center",
-            gap: "0.75rem",
-            flexWrap: "wrap",
-            marginBottom: "0.5rem",
-          }}
+        <Stack
+          direction="row"
+          spacing={1.5}
+          flexWrap="wrap"
+          useFlexGap
+          sx={{ alignItems: "center", mb: 1 }}
         >
           <Button
             variant="outlined"
@@ -448,64 +450,37 @@ export default function ManagePage({ session }: ManagePageProps) {
           >
             Create View
           </Button>
-        </div>
+        </Stack>
         {viewDefsQuery.isLoading
-          ? <p>Loading…</p>
+          ? <Typography variant="body2">Loading…</Typography>
           : viewDefinitions.length === 0
           ? (
-            <p>
+            <Typography variant="body2">
               No aggregated views yet. Create one to aggregate energy values
               across buildings.
-            </p>
+            </Typography>
           )
           : (
-            <ul style={listStyle}>
+            <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
               {viewPaging.pageItems.map((view) => {
                 const sharedWith = getViewSharedWith(view.id);
                 return (
-                  <li key={view.id}>
-                    <div style={{ ...rowStyle, alignItems: "flex-start" }}>
-                      <div>
-                        <strong>{view.name}</strong>
+                  <ResourceRow
+                    key={view.id}
+                    title={<strong>{view.name}</strong>}
+                    subtitle={
+                      <>
+                        Type: {view.aggregationType} | Buildings:{" "}
+                        {view.buildingUris.length} | Metrics:{" "}
+                        {view.metrics.length}
                         <br />
-                        <small>
-                          Type: {view.aggregationType} | Buildings:{" "}
-                          {view.buildingUris.length} | Metrics:{" "}
-                          {view.metrics.length}
-                        </small>
-                        <br />
-                        <small>
-                          Created: {formatDate(view.createdAt)}
-                          {view.lastComputedAt &&
-                            ` | Last computed: ${
-                              formatDate(view.lastComputedAt)
-                            }`}
-                        </small>
-                        {sharedViewsQuery.isLoading
-                          ? (
-                            <>
-                              <br />
-                              <small>Shared with: Loading…</small>
-                            </>
-                          )
-                          : (
-                            <NestedAgentList
-                              agents={sharedWith}
-                              label="Shared with:"
-                              onRevoke={(webId) =>
-                                handleRevokeViewAccess(
-                                  getSnapshotUri(session.info.webId!, view.id),
-                                  webId,
-                                )}
-                              isRevoking={(webId) =>
-                                revokeView.isPending &&
-                                revokeView.variables?.snapshotUri ===
-                                  getSnapshotUri(session.info.webId!, view.id) &&
-                                revokeView.variables?.webId === webId}
-                            />
-                          )}
-                      </div>
-                      <div style={{ display: "flex", gap: "0.25rem" }}>
+                        Created: {formatDate(view.createdAt)}
+                        {view.lastComputedAt &&
+                          ` | Last computed: ${formatDate(view.lastComputedAt)}`}
+                      </>
+                    }
+                    actions={
+                      <>
                         <Tooltip title="View details">
                           <IconButton
                             size="small"
@@ -551,12 +526,35 @@ export default function ManagePage({ session }: ManagePageProps) {
                             </IconButton>
                           </span>
                         </Tooltip>
-                      </div>
-                    </div>
-                  </li>
+                      </>
+                    }
+                  >
+                    {sharedViewsQuery.isLoading
+                      ? (
+                        <Typography variant="caption" color="text.secondary">
+                          Shared with: Loading…
+                        </Typography>
+                      )
+                      : (
+                        <NestedAgentList
+                          agents={sharedWith}
+                          label="Shared with:"
+                          onRevoke={(webId) =>
+                            handleRevokeViewAccess(
+                              getSnapshotUri(session.info.webId!, view.id),
+                              webId,
+                            )}
+                          isRevoking={(webId) =>
+                            revokeView.isPending &&
+                            revokeView.variables?.snapshotUri ===
+                              getSnapshotUri(session.info.webId!, view.id) &&
+                            revokeView.variables?.webId === webId}
+                        />
+                      )}
+                  </ResourceRow>
                 );
               })}
-            </ul>
+            </Box>
           )}
         <Pager paging={viewPaging} />
       </section>
@@ -625,6 +623,6 @@ export default function ManagePage({ session }: ManagePageProps) {
         buildings={buildings}
         onClose={() => setCreateViewOpen(false)}
       />
-    </section>
+    </Box>
   );
 }

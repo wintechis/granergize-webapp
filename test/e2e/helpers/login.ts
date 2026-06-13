@@ -15,15 +15,18 @@ const E2E_LOCAL = !!ENV?.E2E_LOCAL;
 // only ever applied to throttled providers, so local/non-CF runs are unaffected.
 const E2E_THROTTLE_MS = Number(ENV?.E2E_THROTTLE_MS) || 0;
 
-// Tier 3 (local CSS) isolation: restart the pod server ONCE per spec file so each
-// spec starts with pristine, freshly-seeded pods (no shared mutable state across
-// the specs on one pod). Keyed by spec file; the shared promise dedupes the
-// concurrent A/B logins a sharing spec fires. No-op outside the local tier. The
-// BENCH specs get this too (they used to skip it and log into the warm server):
-// their per-size wipes rely on recursive deletes, and under JSS a heavily-written
-// pod left by a previous spec serves STALE container listings afterwards — see
-// ../../javascript-solid-server/jss-open-suspects.md §2 — so spec-file isolation
-// is what keeps the bench substrates trustworthy.
+// Tier 3 (local pod server) isolation: reset state ONCE per spec file so each spec
+// starts with pristine, freshly-seeded pods (no shared mutable state across the
+// specs on one pod). The control server (test/e2e-local/css.ts) offers two ops and
+// the caller picks: `/restart` boots a fresh server (safe, slow — the DEFAULT, and
+// the only reliable reset on JSS, whose stale post-write container listings defeat
+// an in-place delete: see ../../javascript-solid-server/issues/stale-container-
+// listing-after-writes-defeats-recursive-delete-tier3.md); `/wipe` deletes the app
+// collection in place (fast, CSS only). Opt into the fast path with E2E_RESET=wipe.
+// Keyed by spec file; the shared promise dedupes the concurrent A/B logins a sharing
+// spec fires. No-op outside the local tier. The BENCH specs get this too: their
+// per-size resets rely on this isolation to keep the bench substrates trustworthy.
+const RESET_PATH = ENV?.E2E_RESET === "wipe" ? "/wipe" : "/restart";
 let resetForFile: string | undefined;
 let resetInFlight: Promise<unknown> | undefined;
 /**
@@ -36,7 +39,7 @@ export async function resetLocalPodsOnce(): Promise<void> {
   const file = test.info().file;
   if (file !== resetForFile) {
     resetForFile = file;
-    resetInFlight = fetch(`http://localhost:${LOCAL_CSS_CONTROL_PORT}/reset`, {
+    resetInFlight = fetch(`http://localhost:${LOCAL_CSS_CONTROL_PORT}${RESET_PATH}`, {
       method: "POST",
     }).catch(() => {});
   }
