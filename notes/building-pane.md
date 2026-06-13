@@ -3,8 +3,14 @@
 Two layers: §1 the RDF graph dangling off the building IRI on the Pod; §2 the
 typed projection the pane renders (a whitelist, not a triple browser). §3 maps each
 pane row/action back to its Pod file, keyed against
-[`data-layout.md`](./data-layout.md). Source: `buildingParser.ts`,
+[`storage-layout.md`](./storage-layout.md). Source: `buildingParser.ts`,
 `config/buildingConfig.ts`.
+
+Two of the building entity's facets meet here: §1 is its **schema** in instance
+form (what it *is*); §2–§3 are its **presentation profile** (how it renders) and
+**resource profile** (where each row's data lives — its storage layout). The
+schema and the profiles that dance around it are framed in
+[`storage-layout.md`](./storage-layout.md).
 
 "View" / "projection" here is the **UI** sense — a live, render-time projection
 recomputed from the in-memory parsed triples on every render, persisted nowhere. It is
@@ -162,7 +168,7 @@ longer load (the field is kept empty for the back-compat return shape).
   (`prefs.ts`, `toggleHiddenBuilding`), folded into `readPrefs().hiddenBuildings`.
 
 After Edit / certificate upload / energy-year edit the card invalidates the building
-data, re-running the load flow (`data-layout.md`).
+data, re-running the load flow (`storage-layout.md`).
 
 ### 3c. Gaps
 

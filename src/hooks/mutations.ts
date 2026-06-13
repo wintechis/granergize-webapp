@@ -109,12 +109,6 @@ function invalidateBuildingData(qc: QueryClient): void {
   qc.invalidateQueries({ queryKey: queryKeys.monthReadings });
 }
 
-/** Refresh the building + energy queries after a building-data change. */
-export function useInvalidateBuildingData() {
-  const qc = useQueryClient();
-  return () => invalidateBuildingData(qc);
-}
-
 /**
  * Permanently delete an owned building. The caller confirms first (see
  * `buildBuildingDeletionPreview` + the component's `confirm`); this only performs

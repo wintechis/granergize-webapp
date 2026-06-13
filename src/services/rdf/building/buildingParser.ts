@@ -356,9 +356,8 @@ export function parseBuildings(
   }
 
   // Attachments (bldg:hasAttachment → file IRI + schema.org metadata). The energy
-  // certificate is flagged. A legacy cert linked only via bldg:hasEnergyCertificate
-  // (no bldg:hasAttachment — e.g. still in the old shared certificates/ folder) is
-  // synthesized below so it still lists.
+  // certificate (a real attachment also pointed at by bldg:hasEnergyCertificate) is
+  // flagged.
   const certUriOf = (b: BuildingType): string | undefined =>
     typeof b.energyCertificate === "string" && b.energyCertificate
       ? b.energyCertificate
@@ -381,22 +380,6 @@ export function parseBuildings(
     }
     building.attachments = list;
   }
-  for (const building of buildings.values()) {
-    const certUri = certUriOf(building);
-    if (!certUri) continue;
-    const list = (building.attachments as AttachmentRef[] | undefined) ?? [];
-    if (!list.some((a) => a.url === certUri)) {
-      list.push({
-        url: certUri,
-        filename: decodeURIComponent(certUri.split("/").pop() ?? certUri),
-        mediaType: "application/pdf",
-        size: 0,
-        uploadDate: "",
-        isEnergyCertificate: true,
-      });
-      building.attachments = list;
-    }
-  }
 
   // Provenance (PROV qualified attribution) — the producing agent only.
   for (const [blankId, buildingId] of provBuildingMap.entries()) {
@@ -407,8 +390,7 @@ export function parseBuildings(
     }
   }
 
-  // Coordinates (geo:Point). Preferred over any legacy flat geo:lat/long read in
-  // pass 1, so a building that carries both reflects the current point model.
+  // Coordinates: read from the geo:Point blank node (the only place they live).
   for (const [blankId, buildingId] of geoPointBuildingMap.entries()) {
     const building = buildings.get(buildingId);
     const gd = geoData.get(blankId);

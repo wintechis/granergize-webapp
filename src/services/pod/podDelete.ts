@@ -3,7 +3,6 @@ import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh, fetchUncached, readStoreOrEmpty } from "./podFetch.ts";
 import { appRoot } from "./solidUtils.ts";
 import { LDP_CONTAINS as LDP_CONTAINS_IRI } from "../rdf/vocabularies.ts";
-import { logError } from "../../lib/logError.ts";
 import { createLimiter, type Limiter } from "../../lib/pool.ts";
 
 const LDP_CONTAINS = DataFactory.namedNode(LDP_CONTAINS_IRI);
@@ -17,8 +16,8 @@ const LDP_CONTAINS = DataFactory.namedNode(LDP_CONTAINS_IRI);
  * ~6 connections/host means that flood queues, and an unlucky request can sit
  * `pending` past the test budget — the "Remove all app data" stall tracked in
  * the JSS issue delete-acl-of-acl-hangs-tier3. A global ceiling keeps a heavy
- * subtree (a sub-hourly series is dozens of daily files, each two sequential
- * round-trips — resource then `.acl`) from ever opening more sockets than this.
+ * subtree (a sub-hourly series is dozens of daily files) from ever opening more
+ * sockets than this.
  */
 const DELETE_CONCURRENCY = 8;
 
@@ -41,8 +40,10 @@ const isGone = (status: number) =>
  * A Solid (CSS) container can only be deleted once empty, and it may hold nested
  * sub-containers (e.g. `buildings/<id>/energy/`), so we descend depth-first:
  * list the container, recurse into child containers (URLs ending in `/`), delete
- * leaf resources, then delete the container itself. Per-resource ACLs are removed
- * (safely — see {@link deleteResourceThenAcl}). A 404 anywhere is "already gone".
+ * leaf resources, then delete the container itself. `.acl` sidecars need no special
+ * handling ({@link deleteResource}): the server removes a resource's `.acl` with the
+ * resource (and the container's with the container), and JSS — which lists `.acl` as
+ * a child — just deletes it in the walk. A 404 anywhere is "already gone".
  *
  * Two safeguards keep this from silently leaving residue (it had — a stale container
  * listing made the walk skip children, the non-empty container delete 409'd, and that
@@ -70,7 +71,7 @@ export async function deleteContainerRecursive(
   // stays bounded; a slot is held only around the request itself, never across a
   // recursive descent (which would deadlock a tree deeper than the limit).
   const getListing = () => limit(() => fetchUncached(container, session));
-  const del = (uri: string) => limit(() => deleteResourceThenAcl(uri, session));
+  const del = (uri: string) => limit(() => deleteResource(uri, session));
 
   for (let round = 1; round <= MAX_DELETE_ROUNDS; round++) {
     signal?.throwIfAborted();
@@ -86,8 +87,7 @@ export async function deleteContainerRecursive(
       // Children are independent and the container can only be removed once they're
       // ALL gone, so kick them all off and let the shared `limit` meter the actual
       // requests; the container is deleted below, after they settle. A sub-container
-      // recurses (and fully empties) before its own delete; the per-resource
-      // resource-then-`.acl` ordering stays intact inside deleteResourceThenAcl.
+      // recurses (and fully empties) before its own delete.
       await Promise.all(children.map(async (child) => {
         signal?.throwIfAborted();
         if (child.endsWith("/")) {
@@ -115,46 +115,24 @@ export async function deleteContainerRecursive(
 }
 
 /**
- * Delete a resource, THEN its now-orphaned `.acl` — in that order, so a resource
- * with a restrictive own ACL is never briefly exposed under the container's
- * (possibly more permissive) inherited ACL: a TOCTOU window we must not open. The
- * `.acl` is auxiliary, so it never blocks the resource/container delete.
+ * DELETE a resource (or container), returning the final status — does NOT throw on a
+ * non-ok one, so the caller can react; chiefly a `409` on a non-empty container, which
+ * is not an error but the signal to re-read and recurse (see
+ * {@link deleteContainerRecursive}).
  *
- * Only if the resource DELETE is forbidden (403 — typically a corrupt own `.acl`
- * that locked even the owner out) do we fall back to removing the `.acl` FIRST and
- * retrying: that resource is already broken and is being destroyed anyway, so the
- * brief fall-back exposure is an acceptable last resort, not the default path. A
- * 404 anywhere is "already gone".
- *
- * Returns the FINAL resource-DELETE status (does not throw on a non-ok one) so the
- * caller can react — chiefly a `409` on a non-empty container, which is not an
- * error but a signal to re-read and recurse (see {@link deleteContainerRecursive}).
+ * No `.acl` handling, deliberately. Auxiliary resources (`.acl`, `.meta`) are NOT
+ * `ldp:contains` members, so the walk never needs to delete them explicitly: JSS lists
+ * `.acl` files as container children (so they're deleted in the walk like any other
+ * resource), and CSS removes a resource's `.acl` with the resource and a container's
+ * `.acl` with the container. Deriving an `<uri>.acl` path here was pointless on CSS
+ * (auto-cleaned) and harmful on JSS — a listed `.acl` would yield a wasted
+ * `<uri>.acl.acl` request that only loaded a heavy teardown (see the JSS issue
+ * delete-acl-of-acl-hangs-tier3). A resource self-locked by a corrupt own `.acl` (a
+ * `403` that even the owner can't delete) is left for MANUAL cleanup — a rare
+ * broken-ACL case not worth a special-cased recovery path.
  */
-async function deleteResourceThenAcl(
-  uri: string,
-  session: Session,
-): Promise<number> {
-  // An `.acl` is itself an auxiliary resource — it has no `.acl` of its own — so
-  // never derive `<uri>.acl.acl`. The walk can be handed an `.acl` to delete because
-  // some servers (JSS) list `.acl` as an `ldp:contains` member (CSS does not); issuing
-  // the nonexistent `.acl.acl` DELETE is wasted at best and has stalled a server's
-  // teardown at worst. `null` = this resource has no associated ACL to clean up.
-  const aclUri = uri.endsWith(".acl") ? null : `${uri}.acl`;
-  let del = await session.fetch(uri, { method: "DELETE" });
-  if (del.status === 403 && aclUri) {
-    await session.fetch(aclUri, { method: "DELETE" }).catch((err) =>
-      logError("delete resource ACL (lockout recovery)", err)
-    );
-    del = await session.fetch(uri, { method: "DELETE" });
-  }
-  // Drop the now-orphaned .acl only once the resource itself is gone (2xx/404), so a
-  // resource still present (e.g. a non-empty 409 container) keeps its ACL until it is
-  // actually removed — no exposure window, no premature ACL delete on a retry path.
-  if (aclUri && isGone(del.status)) {
-    await session.fetch(aclUri, { method: "DELETE" }).catch((err) =>
-      logError("delete resource ACL", err)
-    );
-  }
+async function deleteResource(uri: string, session: Session): Promise<number> {
+  const del = await session.fetch(uri, { method: "DELETE" });
   return del.status;
 }
 

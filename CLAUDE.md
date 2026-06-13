@@ -369,15 +369,17 @@ ESLint-enforced (`eslint.config.js`); the rest are review conventions.
 - **Developer mode — one gate for raw/debug affordances.** A client-only,
   `localStorage`-persisted flag (pure store `src/lib/devMode.ts` +
   `useDevMode()` in `src/hooks/devMode.ts`, mirroring the
-  `networkActivity`/`requestActivity` split), toggled from the footer. It gates
+  `networkActivity`/`requestActivity` split), toggled from a switch that is the
+  fixed third entry of the profile menu (after Profile/Organisation, present in
+  both modes; the dev-only account actions appear grouped below it). It gates
   everything that exposes RDF/Solid plumbing rather than user content, and is OFF
   by default. Gated by it: the `RdfSourceLink` raw-RDF source links (the component
   **self-hides** outside dev mode, so it's the one-call way to add a dev-only
   source link — prefer it over a bespoke `UriLink` for any backing-resource link),
   the in-list resource IRIs (building URIs, the energy dataset + weather adapter
   links), the dev-only "Your inbox" / "Outgoing shares" sections, the Share-tab
-  "Check for new shares" button (manual inbox drain), the "Add demo buildings" /
-  "Add demo contacts" / "Add demo data rooms" (Connect-tab layout/paging
+  "Check for new shares" button (manual inbox drain), the "Add example
+  buildings" / "Add example contacts and rooms" (Connect-tab layout/paging
   fixtures — `demoConnect.ts`) /
   "Download archive" / "Upload archive…" / "Check sharing consistency" (dry-run
   log↔ACL drift diff) / "Rebuild sharing from log" / "Remove all

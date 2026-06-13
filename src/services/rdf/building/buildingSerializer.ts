@@ -187,18 +187,14 @@ function replaceLinkedNodes(
 }
 
 /**
- * Replace the building's coordinates on an EXISTING store (the edit path): drop
- * the current geo:Point (and any legacy flat geo:lat/long), then re-add a fresh
- * point from `fields`. Migrates legacy flat-coordinate buildings to the point
- * model on first edit.
+ * Replace the building's coordinates on an EXISTING store (the edit path): drop the
+ * current geo:Point, then re-add a fresh one from `fields`.
  */
 function replaceGeoPoint(
   store: Store,
   subject: ReturnType<typeof namedNode>,
   fields: Record<string, string>,
 ): void {
-  store.removeQuads(store.getQuads(subject, namedNode(GEO_LAT), null, null));
-  store.removeQuads(store.getQuads(subject, namedNode(GEO_LONG), null, null));
   replaceLinkedNodes(store, subject, GEO_LOCATION, fields, addGeoPoint);
 }
 
@@ -365,11 +361,8 @@ export function serializeBuildingToTurtle(
 
   for (const [field, value] of Object.entries(fields)) {
     if (!value || value.trim() === "" || field.startsWith("_")) continue;
-    // lat/long are written as a geo:Point blank node (see addGeoPoint), not flat
-    // on the building — skip them here even though the config still maps them (so
-    // legacy flat-coordinate Pods can still be parsed).
-    if (field === "lat" || field === "long") continue;
-
+    // lat/long aren't config-mapped — they go to a geo:Point (addGeoPoint, below) —
+    // so `predicateFor` returns undefined for them and the `if (predIri)` skips them.
     const predIri = predicateFor(field);
     if (predIri) {
       store.addQuad(subject, namedNode(predIri), objectTermFor(field, value));

@@ -103,7 +103,7 @@ test.describe("view sharing across two pods", () => {
       await add.first().click();
       const confirm = shareDlg.getByRole("button", { name: /confirm share/i });
       await expect(async () => {
-        await shareDlg.getByRole("button", { name: /review & share/i }).click();
+        await shareDlg.getByRole("button", { name: /review and share/i }).click();
         await expect(confirm).toBeVisible({ timeout: T.quick });
       }).toPass({ timeout: T.poll });
       await confirm.click();
@@ -111,13 +111,15 @@ test.describe("view sharing across two pods", () => {
         .toBeVisible({ timeout: T.action });
       await shareDlg.getByRole("button", { name: /close/i }).click();
 
-      // ── 2 s cooldown → B reloads (cold re-fetch) and sees the view + its values ──
-      await a.page.waitForTimeout(2000);
-      await b.page.reload();
-      await b.page.getByRole("tab", { name: "Share" }).click();
+      // ── B reloads (cold re-fetch, re-draining the inbox) until the shared view
+      //    propagates and folds in, then reads its values — no blind cooldown ──
       try {
-        await expect(receivedViews(b.page).getByText(VIEW_NAME))
-          .toBeVisible({ timeout: T.action });
+        await expect(async () => {
+          await b.page.reload();
+          await b.page.getByRole("tab", { name: "Share" }).click();
+          await expect(receivedViews(b.page).getByText(VIEW_NAME))
+            .toBeVisible({ timeout: T.action });
+        }).toPass({ timeout: T.poll });
         await b.page.getByRole("button", { name: /show values/i }).first()
           .click();
         await expect(b.page.locator("svg.recharts-surface").first())
@@ -140,17 +142,19 @@ test.describe("view sharing across two pods", () => {
           .toBeVisible({ timeout: T.action }).catch(() => {});
       }
 
-      // ── 2 s cooldown → B reloads (cold re-fetch) and no longer sees the view ──
-      await a.page.waitForTimeout(2000);
-      await b.page.reload();
-      await b.page.getByRole("tab", { name: "Share" }).click();
+      // ── B reloads (cold re-fetch, re-draining the revocation) until the view
+      //    folds out — no blind cooldown ──
       try {
         // Positive empty-state assertion: the section's empty notice is shown
         // (the list is absent when empty) AND the view is gone.
-        await expect(
-          b.page.getByText(/no views shared with you yet/i),
-        ).toBeVisible({ timeout: T.action });
-        await expect(receivedViews(b.page).getByText(VIEW_NAME)).toHaveCount(0);
+        await expect(async () => {
+          await b.page.reload();
+          await b.page.getByRole("tab", { name: "Share" }).click();
+          await expect(
+            b.page.getByText(/no views shared with you yet/i),
+          ).toBeVisible({ timeout: T.action });
+          await expect(receivedViews(b.page).getByText(VIEW_NAME)).toHaveCount(0);
+        }).toPass({ timeout: T.poll });
       } catch (timeout) {
         b.guard.assertNoAppErrors();
         throw timeout;

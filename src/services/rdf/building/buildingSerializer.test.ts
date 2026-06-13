@@ -278,20 +278,6 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
   assert.equal(b!.geocodePrecision, "postcode");
 });
 
-Deno.test("parseBuildings still reads legacy flat geo:lat/long (no point)", () => {
-  const ttl = `
-    @prefix rec: <https://w3id.org/rec#> .
-    @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
-    <https://pod.example/granergize/buildings/b-legacy.ttl#b-legacy>
-      a rec:Building ; geo:lat 49.0 ; geo:long 11.0 .
-  `;
-  const b = parseBuildings(new Parser().parse(ttl)).get("https://pod.example/granergize/buildings/b-legacy.ttl#b-legacy");
-  assert.ok(b, "legacy building parsed");
-  assert.equal(b!.lat, 49.0);
-  assert.equal(b!.long, 11.0);
-  assert.equal(b!.geocodePrecision, undefined);
-});
-
 Deno.test("serializeBuildingToTurtle links energy datasets via cons:hasEnergyDataset", () => {
   const uri = newBuildingUri(WEBID, "b-1");
   const base = uri.replace(/\.ttl$/, "");

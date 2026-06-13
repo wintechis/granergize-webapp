@@ -8,7 +8,7 @@ import type {
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
 import { INVESTOR_CERT_SYSTEMS } from "../services/rdf/buildingTemplates.ts";
-import { geocodeFields } from "../services/geocode.ts";
+import { useGeocodeFields } from "../hooks/useGeocodeFields.ts";
 import { useSolidData } from "../hooks/queries.ts";
 import { useUpdateBuilding } from "../hooks/mutations.ts";
 import { makeBuildingFields } from "./buildingFields.tsx";
@@ -57,7 +57,7 @@ const OPCOST_FIELDS: { key: string; label: string; bool?: boolean }[] = [
   { key: "insurance", label: "Insurance" },
   {
     key: "operationInspectionAndMaintenance",
-    label: "Operation, inspection & maintenance",
+    label: "Operation, inspection and maintenance",
     bool: true,
   },
   { key: "routineCleaningOffice", label: "Routine cleaning (office)" },
@@ -67,7 +67,7 @@ const OPCOST_FIELDS: { key: string; label: string; bool?: boolean }[] = [
   { key: "security", label: "Security" },
   { key: "propertyManagement", label: "Property management" },
   { key: "caretaker", label: "Caretaker" },
-  { key: "repairAndMaintenance", label: "Repair & maintenance" },
+  { key: "repairAndMaintenance", label: "Repair and maintenance" },
 ];
 
 function buildingToFields(b: BuildingType): Record<string, string> {
@@ -112,7 +112,6 @@ export default function EditBuildingDialog(
   // all come from the mutation hook; the dialog only handles success UI.
   const update = useUpdateBuilding();
   const saving = update.isPending;
-  const [geocoding, setGeocoding] = useState(false);
   const dirty = JSON.stringify(fields) !== JSON.stringify(initialFields);
 
   const fileUri = building.sourceUri ?? buildingFileUri(building.uri);
@@ -150,22 +149,11 @@ export default function EditBuildingDialog(
     onClose();
   };
 
-  const handleGeocode = async () => {
-    setGeocoding(true);
-    try {
-      const coords = await geocodeFields(fields);
-      if (!coords) {
-        showNotification("Address not found", "warning");
-        return;
-      }
-      setField("lat", coords.lat);
-      setField("long", coords.long);
-      setField("geocodePrecision", coords.precision);
-      showNotification("Coordinates updated", "success");
-    } finally {
-      setGeocoding(false);
-    }
-  };
+  const { onGeocode, busy: geocoding } = useGeocodeFields(
+    fields,
+    setField,
+    "Coordinates updated",
+  );
 
   const handleSubmit = () =>
     update.mutate(
@@ -206,7 +194,7 @@ export default function EditBuildingDialog(
           setField={setField}
           isRequired={(f) => ADDRESS_FIELDS.includes(f)}
           geocode={{
-            onClick: handleGeocode,
+            onClick: onGeocode,
             busy: geocoding,
             label: "Update coordinates",
           }}

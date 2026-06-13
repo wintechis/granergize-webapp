@@ -1,9 +1,10 @@
 {
+  "license": "AGPL-3.0-only",
   "tasks": {
     "dev": "deno run -A npm:vite dev",
     "build": "deno run -A npm:vite build",
     "test": "deno test -A",
-    "loc": "deno run --allow-read --allow-run=git scripts/loc.ts",
+    "loc": "deno run --allow-read --allow-run=git test/loc.ts",
     "lint": "deno run -A npm:eslint .",
     "check": "deno run -A npm:typescript/tsc --noEmit -p tsconfig.check.json",
     "e2e:local": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 VITE_POD_APP_DIR=granergize-e2e npx playwright test --project=local",
@@ -26,9 +27,23 @@
     "bench:plot": "deno run -A test/bench/plots.ts",
     "explore": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/explore.ts",
     "handbuch": "bash docs/build-handbuch.sh",
-    "handbuch:figures": "VITE_OIDC_CLIENT_ID= deno task build && E2E_LOCAL=1 npx playwright test --project=support",
-    "handbuch:full": "deno task handbuch:figures && deno task handbuch",
-    "handbuch:videos": "VITE_OIDC_CLIENT_ID= deno task build && E2E_LOCAL=1 npx playwright test --project=video"
+    "handbuch:capture:build": "VITE_OIDC_CLIENT_ID= deno task build",
+    "handbuch:figures": {
+      "command": "E2E_LOCAL=1 LOCAL_PORT_OFFSET=0 npx playwright test --project=support",
+      "dependencies": ["handbuch:capture:build"]
+    },
+    "handbuch:videos": {
+      "command": "E2E_LOCAL=1 LOCAL_PORT_OFFSET=20 npx playwright test --project=video",
+      "dependencies": ["handbuch:capture:build"]
+    },
+    "handbuch:capture": {
+      "command": "echo 'handbuch figures + videos captured'",
+      "dependencies": ["handbuch:figures", "handbuch:videos"]
+    },
+    "handbuch:full": {
+      "command": "deno task handbuch",
+      "dependencies": ["handbuch:figures"]
+    }
   },
   "imports": {
     "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@0.0.53"

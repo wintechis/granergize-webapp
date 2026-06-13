@@ -40,8 +40,8 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   // http here to preserve matching of existing Pod data — reconciling it is a
   // separate, data-affecting change.
   { field: "customer", iri: "http://schema.org/customer" },
-  { field: "lat", iri: "http://www.w3.org/2003/01/geo/wgs84_pos#lat", range: XSD_DECIMAL },
-  { field: "long", iri: "http://www.w3.org/2003/01/geo/wgs84_pos#long", range: XSD_DECIMAL },
+  // Coordinates are NOT mapped here — they live on a `geo:Point` blank node
+  // (`addGeoPoint` / parser pass-2), never as flat `geo:lat`/`geo:long` on the building.
   { field: "locality", iri: `${VCARD_NS}locality` },
   // postalCode is an identifier, not a number — xsd:integer corrupted
   // leading-zero German postcodes ("01067" → 1067) on every round-trip.

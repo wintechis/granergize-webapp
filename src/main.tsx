@@ -8,11 +8,11 @@ import ReactDOM from "react-dom/client";
 import App from "./App.tsx";
 import CssBaseline from "@mui/material/CssBaseline";
 import Typography from "@mui/material/Typography";
-import Link from "@mui/material/Link";
 import { ThemeProvider } from "@mui/material/styles";
 import "./index.css";
 import theme from "./theme.ts";
 import Login from "./pages/Login.tsx";
+import Footer from "./components/Footer.tsx";
 import { getDefaultSession, Session } from "@inrupt/solid-client-authn-browser";
 import {
   NotificationProvider,
@@ -206,27 +206,7 @@ function AppContent() {
           App, you keep control over your data.
         </Typography>
       }
-      footer={
-        <Typography variant="body2" color="text.secondary">
-          <Link
-            href="https://www.ti.rw.fau.de/granergize/"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Granergize@FAU
-          </Link>
-          {" · "}
-          <Link
-            href="https://www.scs.fraunhofer.de/de/referenzen/granergize-graphenbasierter-datenraum-logistikimmobilien.html"
-            target="_blank"
-            rel="noopener noreferrer"
-          >
-            Granergize@IIS
-          </Link>
-          {" · "}
-          {__APP_COMMIT__}
-        </Typography>
-      }
+      footer={<Footer />}
     >
       <App session={session!} onLogout={handleLogout} />
     </Login>

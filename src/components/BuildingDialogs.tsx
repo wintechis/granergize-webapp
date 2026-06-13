@@ -1,11 +1,9 @@
 import { useMemo, useState } from "react";
 import {
   Alert,
-  Autocomplete,
   Box,
   Button,
   Checkbox,
-  Chip,
   FormControl,
   FormControlLabel,
   FormGroup,
@@ -15,16 +13,16 @@ import {
   Radio,
   RadioGroup,
   Select,
-  TextField,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import Modal from "./Modal.tsx";
-import { logError } from "../lib/logError.ts";
+import { webIdsError } from "../lib/webId.ts";
 import { getActiveRoom, getMembersByRole } from "../services/interop/dataRoom.ts";
-import { fetchAttachmentBlob } from "../services/attachmentManager.ts";
+import { useAttachmentDownload } from "../hooks/useAttachmentDownload.ts";
+import AttachmentInfo from "./AttachmentInfo.tsx";
 import {
   useDeleteAttachment,
   useSetEnergyCertificate,
@@ -32,14 +30,13 @@ import {
   useUploadAttachments,
 } from "../hooks/mutations.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
-import { downloadBlob, formatBytes } from "../lib/download.ts";
+import { formatBytes } from "../lib/download.ts";
 import { listStyle, rowStyle } from "../constants/listStyles.ts";
 import type { AttachmentRef, BuildingType, UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
-import { formatError } from "../lib/formatError.ts";
-import { useAgentOptions } from "../hooks/useAgentOptions.ts";
-import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
+import { AgentChip } from "./AgentLabel.tsx";
+import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
 import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 
 /**
@@ -70,7 +67,6 @@ export function ShareBuildingDialog({
   onClose,
 }: ShareBuildingDialogProps) {
   const { showNotification } = useNotification();
-  const agentOptions = useAgentOptions();
   const [shareMode, setShareMode] = useState<"webid" | "role">("webid");
   const [webIds, setWebIds] = useState<string[]>([]);
   const [targetRole, setTargetRole] = useState<UserRole | "">("");
@@ -107,21 +103,9 @@ export function ShareBuildingDialog({
         setWebIdError("Enter at least one WebID");
         return;
       }
-      const invalid = webIds.filter((r) => {
-        try {
-          new URL(r);
-          return false;
-        } catch (err) {
-          logError("validate share recipient WebID", err);
-          return true;
-        }
-      });
-      if (invalid.length > 0) {
-        setWebIdError(
-          `Invalid WebID${invalid.length > 1 ? "s" : ""}: ${
-            invalid.join(", ")
-          }`,
-        );
+      const err = webIdsError(webIds);
+      if (err) {
+        setWebIdError(err);
         return;
       }
       // Sharing to yourself is a no-op with a cost: it appends a permanently
@@ -208,7 +192,7 @@ export function ShareBuildingDialog({
                 (shareMode === "webid" ? webIds.length === 0 : !targetRole) ||
                 (shareScope === "years" && selectedYears.length === 0)}
             >
-              {resolving ? "Resolving…" : "Review & Share"}
+              {resolving ? "Resolving…" : "Review and Share"}
             </Button>
           </>
         )
@@ -279,40 +263,14 @@ export function ShareBuildingDialog({
                     Choose recipients from your contacts and data room members, or
                     type a WebID and press Enter to add it.
                   </Typography>
-                  <Autocomplete
-                    multiple
-                    freeSolo
-                    options={agentOptions}
+                  <RecipientAutocomplete
                     value={webIds}
-                    onChange={(_e, value) => {
-                      setWebIds(value as string[]);
+                    onChange={(next) => {
+                      setWebIds(next);
                       if (webIdError) setWebIdError("");
                     }}
-                    renderOption={(props, option) => (
-                      <Box component="li" {...props} key={option}>
-                        <AgentLabel value={option} />
-                      </Box>
-                    )}
-                    renderTags={(value, getTagProps) =>
-                      value.map((option, index) => (
-                        <AgentChip
-                          {...getTagProps({ index })}
-                          key={option}
-                          value={option}
-                          size="small"
-                        />
-                      ))}
-                    renderInput={(params) => (
-                      <TextField
-                        {...params}
-                        autoFocus
-                        margin="dense"
-                        label="Recipient WebID(s)"
-                        error={!!webIdError}
-                        helperText={webIdError ||
-                          "Pick a contact/member, or type a WebID and press Enter"}
-                      />
-                    )}
+                    error={webIdError}
+                    autoFocus
                   />
                 </>
               )
@@ -472,13 +430,13 @@ export function FilesDialog(
     () => ((building.attachments as AttachmentRef[] | undefined) ?? []).slice(),
   );
   // The writes go through mutation hooks (busy = isPending, error toasts +
-  // invalidation central); the download is a READ, so it keeps a local flag.
+  // invalidation central); the download is a READ, so it owns its own flag.
   const upload = useUploadAttachments();
   const del = useDeleteAttachment();
   const cert = useSetEnergyCertificate();
-  const [downloading, setDownloading] = useState(false);
+  const { download, downloadingUrl } = useAttachmentDownload(session);
   const busy = upload.isPending || del.isPending || cert.isPending ||
-    downloading;
+    downloadingUrl !== null;
 
   const handleFiles = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files ?? []);
@@ -511,16 +469,6 @@ export function FilesDialog(
     );
   };
 
-  const handleDownload = async (a: AttachmentRef) => {
-    setDownloading(true);
-    try {
-      downloadBlob(await fetchAttachmentBlob(a.url, session), a.filename);
-    } catch (error) {
-      showNotification(formatError("download the file", error), "error");
-    } finally {
-      setDownloading(false);
-    }
-  };
 
   const handleDelete = async (a: AttachmentRef) => {
     if (
@@ -572,29 +520,11 @@ export function FilesDialog(
           <ul style={listStyle}>
             {items.map((a) => (
               <li key={a.url} style={rowStyle}>
-                <span style={{ minWidth: 0 }}>
-                  {a.filename}
-                  {a.isEnergyCertificate && (
-                    <Chip
-                      size="small"
-                      label="Energy certificate"
-                      sx={{ ml: 1 }}
-                    />
-                  )}
-                  <br />
-                  <Typography
-                    component="span"
-                    variant="caption"
-                    color="text.secondary"
-                  >
-                    {a.mediaType}
-                    {a.size ? ` · ${formatBytes(a.size)}` : ""}
-                  </Typography>
-                </span>
+                <AttachmentInfo a={a} />
                 <span style={{ display: "flex", gap: "0.25rem" }}>
                   <Button
                     size="small"
-                    onClick={() => handleDownload(a)}
+                    onClick={() => download(a)}
                     disabled={busy}
                   >
                     Download

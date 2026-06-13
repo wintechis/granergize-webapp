@@ -133,7 +133,7 @@ each entry visible/hidden.
 The three sharing resources — `shared-out/` (grants/revocations you issued),
 `shared-in/` (events archived from your inbox), and `prefs.ttl` (local
 `gran:hiddenBuilding` entries) — sit under `granergize/`; see
-[data-layout.md](data-layout.md) for the full Pod tree.
+[storage-layout.md](storage-layout.md) for the full Pod tree.
 
 ## Recipient discovery — two models
 

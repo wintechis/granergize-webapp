@@ -5,6 +5,7 @@ import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { menuAction, setDevMode } from "../helpers/accountMenu.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -30,11 +31,6 @@ async function openManage(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
 }
 
-/** Open the header account menu and click one item by (partial) name. */
-async function menuAction(page: Page, name: RegExp): Promise<void> {
-  await page.getByRole("button", { name: /Account menu/ }).click();
-  await page.getByRole("menuitem", { name }).click();
-}
 
 test.describe.configure({ mode: "serial" });
 
@@ -69,7 +65,7 @@ test.describe("archive backup/restore", () => {
     expect(before.size, "seeded buildings to back up").toBeGreaterThan(0);
 
     // Developer mode gates the archive menu items (off by default).
-    await page.getByRole("checkbox", { name: "Developer mode" }).check();
+    await setDevMode(page, true);
 
     // Download archive → capture the .zip.
     const dl = page.waitForEvent("download");

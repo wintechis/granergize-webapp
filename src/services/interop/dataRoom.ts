@@ -13,6 +13,7 @@ import {
 import { appRoot, getStorageRoot } from "../pod/solidUtils.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
 import { appendToContainer, ensureContainer, putAcl } from "../pod/podWrite.ts";
+import { deleteContainerRecursive } from "../pod/podDelete.ts";
 import { mapPooled } from "../../lib/pool.ts";
 import { readPrefs, setCurrentRoom } from "../prefs.ts";
 import {
@@ -642,29 +643,14 @@ export function ownsRoom(roomUri: string, session: Session): boolean {
 }
 
 /**
- * Delete a room you own: remove all its event resources, then its ACL, then the
- * container itself (LDP containers must be emptied before they can be deleted).
+ * Delete a room you own: it's just an LDP container under your own storage, so the
+ * shared recursive walk empties and removes it (and its `.acl`) — with the stale-
+ * listing / 409-self-correction guards the hand-rolled version lacked.
  * @operation mutation
  */
 export async function deleteRoom(
   roomUri: string,
   session: Session,
 ): Promise<void> {
-  const container = normalizeRoomUri(roomUri);
-  const store = await readStoreOrEmpty(container, session);
-  const children = store.getObjects(namedNode(container), LDP_CONTAINS, null)
-    .map((o) => o.value);
-  // Bounded concurrency (not Promise.all) to avoid a delete burst tripping the
-  // rate limit. See utils/pool.ts.
-  await mapPooled(children, 4, (c) => session.fetch(c, { method: "DELETE" }));
-  // Best-effort ACL removal; deleting the container is what matters.
-  await session.fetch(`${container}.acl`, { method: "DELETE" }).catch((err) =>
-    logError("delete data-room container ACL", err)
-  );
-  const del = await session.fetch(container, { method: "DELETE" });
-  if (!del.ok && del.status !== 404) {
-    throw new Error(`Failed to delete room (HTTP ${del.status})`);
-  }
+  await deleteContainerRecursive(normalizeRoomUri(roomUri), session);
 }
-
-/** Create the container if it doesn't exist yet (idempotent). */

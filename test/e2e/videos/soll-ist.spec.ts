@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { setDevMode } from "../helpers/accountMenu.ts";
 import { exploreRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo } from "./demoPolish.ts";
@@ -62,7 +63,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await page.reload();
     await expect(page.getByRole("tab", { name: "Connect" }))
       .toBeVisible({ timeout: 60_000 });
-    await page.getByRole("checkbox", { name: "Developer mode" }).uncheck();
+    await setDevMode(page, false);
     // The fresh-Pod onboarding banner appears once the (empty) buildings query
     // settles — wait for it rather than poll-and-skip (the pod is reset per
     // spec file, so it always comes).

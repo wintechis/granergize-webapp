@@ -40,7 +40,7 @@ import {
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
-import { resolveAgent } from "../services/agents/agentResolver.ts";
+import { resolveAgent, webIdFragment } from "../services/agents/agentResolver.ts";
 import { formatError } from "../lib/formatError.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
@@ -204,10 +204,16 @@ export default function ConnectPage({ session }: ConnectPageProps) {
       return;
     }
     try {
-      const agent = await resolveAgent(webId, session);
-      await saveContact.mutateAsync(agent);
+      // Write the contact NOW with the WebID's fragment name — it appears at once and
+      // the add never blocks on a slow/dead WebID host. Refine name/avatar from the
+      // agent's profile in the BACKGROUND, mirroring `rememberAgent`'s design (the
+      // resolve reads the agent's own profile, which can retry for many seconds).
+      await saveContact.mutateAsync({ webId, name: webIdFragment(webId) });
       setContactInput("");
       showNotification("Contact added", "success");
+      void resolveAgent(webId, session)
+        .then((agent) => saveContact.mutateAsync(agent))
+        .catch((e) => logError("upgrade added contact profile", e));
     } catch (e) {
       showNotification(formatError("add contact", e), "error");
     }

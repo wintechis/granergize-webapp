@@ -98,15 +98,13 @@ function aggregateValues(values: number[], type: AggregationType): number {
   if (values.length === 0) return 0;
 
   switch (type) {
-    case "average":
-      return values.reduce((a, b) => a + b, 0) / values.length;
     case "sum":
       return values.reduce((a, b) => a + b, 0);
     case "min":
       return Math.min(...values);
     case "max":
       return Math.max(...values);
-    default:
+    case "average":
       return values.reduce((a, b) => a + b, 0) / values.length;
   }
 }

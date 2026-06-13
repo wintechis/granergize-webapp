@@ -32,6 +32,7 @@ import {
   parseCsvToFields,
 } from "../services/rdf/building/buildingImport.ts";
 import { geocodeFields } from "../services/geocode.ts";
+import { useGeocodeFields } from "../hooks/useGeocodeFields.ts";
 import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
 import {
   SCALAR_FIELDS,
@@ -100,7 +101,6 @@ export default function AddBuildingDialog(
   const [lastgangReadings, setLastgangReadings] = useState<LastgangReading[] | null>(null);
   const [uploadProgress, setUploadProgress] = useState<{ done: number; total: number } | null>(null);
   const [parsing, setParsing] = useState(false);
-  const [geocoding, setGeocoding] = useState(false);
   const fileInputRef = useRef<HTMLInputElement>(null);
   // Lets the user cancel a long upload (e.g. a 15-min year = ~365 daily files).
   const uploadAbort = useRef<AbortController | null>(null);
@@ -277,22 +277,11 @@ export default function AddBuildingDialog(
     }
   };
 
-  const handleGeocode = async () => {
-    setGeocoding(true);
-    try {
-      const coords = await geocodeFields(fields);
-      if (!coords) {
-        showNotification("Address not found", "warning");
-        return;
-      }
-      setField("lat", coords.lat);
-      setField("long", coords.long);
-      setField("geocodePrecision", coords.precision);
-      showNotification("Coordinates filled", "success");
-    } finally {
-      setGeocoding(false);
-    }
-  };
+  const { onGeocode, busy: geocoding } = useGeocodeFields(
+    fields,
+    setField,
+    "Coordinates filled",
+  );
 
   const handleSubmit = () => {
     const controller = new AbortController();
@@ -525,7 +514,7 @@ export default function AddBuildingDialog(
           setField={setField}
           isRequired={isRequired}
           geocode={{
-            onClick: handleGeocode,
+            onClick: onGeocode,
             busy: geocoding,
             disabled: !["streetAddress", "postalCode", "locality", "region"]
               .some((f) => fields[f]?.trim()),

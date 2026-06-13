@@ -7,7 +7,7 @@ private **definition** (which buildings, which metrics, how to aggregate) and a
 the privacy-preserving artefact that gets shared — recipients see aggregate values, not
 the source buildings. Companion to [`energy-model.md`](./energy-model.md) (the energy
 data being aggregated), [`sharing.md`](./sharing.md) (how the snapshot is shared), and
-[`data-layout.md`](./data-layout.md) (where the resources sit). A snapshot additionally
+[`storage-layout.md`](./storage-layout.md) (where the resources sit). A snapshot additionally
 typed as a benchmark result carries a peer benchmark back to contributing owners —
 [`peer-benchmark.md`](./peer-benchmark.md) describes that round-trip and the three
 comparison cases (portfolio / operator / BSP).

@@ -34,7 +34,7 @@ export function BuildingAddressFields(
       {tf("Postal code", "postalCode", { required: isRequired("postalCode") })}
       {tf("Region (state)", "region", { required: isRequired("region") })}
 
-      {sectionHeader("Location & Physical")}
+      {sectionHeader("Location and Physical")}
       <Button
         variant="outlined"
         startIcon={<MyLocationIcon />}
@@ -107,7 +107,7 @@ export function BuildingDetailFields(
       {tf("Label / name", "label")}
       {tf("Company name", "companyName")}
       {tf("Hall area (m²)", "hallArea", { type: "number" })}
-      {tf("Office & social area (m²)", "officeSocialArea", { type: "number" })}
+      {tf("Office and social area (m²)", "officeSocialArea", { type: "number" })}
       {tf("Building height (m)", "buildingHeight", { type: "number" })}
       {tf("Number of loading docks", "numberOfLoadingDocks", { type: "number" })}
       {tf("Year of renovation", "yearOfRenovation", { type: "number" })}

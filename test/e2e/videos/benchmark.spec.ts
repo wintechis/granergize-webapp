@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, webIdOf } from "../helpers/login.ts";
+import { setDevMode } from "../helpers/accountMenu.ts";
 import { buildingRoute, receivedViews } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo, type SceneMark } from "./demoPolish.ts";
@@ -67,7 +68,7 @@ async function shareFirstBuildingTo(page: Page, webId: string) {
   await recipient.press("Enter");
   const confirm = dlg.getByRole("button", { name: /confirm share/i });
   await expect(async () => {
-    await dlg.getByRole("button", { name: /review & share/i }).click();
+    await dlg.getByRole("button", { name: /review and share/i }).click();
     await expect(confirm).toBeVisible({ timeout: 10_000 });
   }).toPass({ timeout: 90_000 });
   await confirm.click();
@@ -95,7 +96,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await page.reload();
     await expect(page.getByRole("tab", { name: "Connect" }))
       .toBeVisible({ timeout: 60_000 });
-    await page.getByRole("checkbox", { name: "Developer mode" }).uncheck();
+    await setDevMode(page, false);
     const addExamples = page.getByRole("button", { name: "Add examples" });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
@@ -187,7 +188,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
       shareDialog.getByRole("radio", { name: /all energy readings/i }),
     );
     await demoA.pause(1_200);
-    await demoA.click(shareDialog.getByRole("button", { name: /review & share/i }));
+    await demoA.click(shareDialog.getByRole("button", { name: /review and share/i }));
     const confirmA = shareDialog.getByRole("button", { name: /confirm share/i });
     await expect(confirmA).toBeVisible({ timeout: 30_000 });
     await demoA.click(confirmA);
@@ -296,7 +297,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await demoC.pause(1_200);
     const confirmC = shareDlg.getByRole("button", { name: /confirm share/i });
     await expect(async () => {
-      await shareDlg.getByRole("button", { name: /review & share/i }).click();
+      await shareDlg.getByRole("button", { name: /review and share/i }).click();
       await expect(confirmC).toBeVisible({ timeout: 10_000 });
     }).toPass({ timeout: 60_000 });
     await demoC.click(confirmC);

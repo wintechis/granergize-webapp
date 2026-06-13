@@ -5,9 +5,12 @@ varies by producer, and how the app dispatches on the data's own shape — never
 "role". A role never attaches to a building or its energy data; it exists only as
 data-room membership. The imperative parsers (`buildingParser.ts`, `energyDataset.ts`,
 `userEnergyParser.ts`) are the source of truth for those shapes. Membership roles are a
-separate concept — see [`room.md`](./room.md). Companion to
-[`data-layout.md`](./data-layout.md) (where these files live) and
-[`energy-model.md`](./energy-model.md) (the energy graph).
+separate concept — see [`room.md`](./room.md). These graph shapes are the
+**schema** — what an entity *is* — which the app's **profiles** (resource,
+presentation, action) then apply; the schema sits at the centre and the profiles
+dance around it (framed in [`storage-layout.md`](./storage-layout.md)). Where
+these files live is the resource profile ([`storage-layout.md`](./storage-layout.md));
+the energy graph is [`energy-model.md`](./energy-model.md).
 
 ## `UserRole` is data-room membership only
 
@@ -240,4 +243,4 @@ data via a banner (`useDemoSeedPrompt`); on accept, `seedDemoBuildings`
 Gasse 20, Nürnberg) carrying energy at *different granularities* (one annual aggregate,
 one PT15M series) so a new user immediately sees both shapes the app dispatches on. Pod
 layout, own-building discovery, and the banner mechanics are owned by
-[`data-layout.md`](./data-layout.md).
+[`storage-layout.md`](./storage-layout.md).

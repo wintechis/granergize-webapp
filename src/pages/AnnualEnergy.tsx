@@ -200,7 +200,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
     <ChartErrorBoundary>
       <DetailCard
         icon={<ElectricBoltIcon />}
-        title={`Annual Energy & Water — ${buildingDisplayName(building)}`}
+        title={`Annual Energy and Water — ${buildingDisplayName(building)}`}
         subheader={[companyName, logisticsFunction].filter(Boolean).join(" · ") ||
           undefined}
         spacing={2}

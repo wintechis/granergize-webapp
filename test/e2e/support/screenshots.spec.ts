@@ -9,6 +9,7 @@ import {
 } from "../helpers/login.ts";
 import { freshPage } from "../helpers/twoPod.ts";
 import { buildingRoute, exploreRoute } from "../helpers/manage.ts";
+import { setDevMode } from "../helpers/accountMenu.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 
 /**
@@ -152,7 +153,24 @@ test.describe("handbuch screenshots", () => {
     // debug affordances (the dev-only header building-URI line, inline request
     // URIs, the request log) should appear in the screenshots. uncheck() is a
     // no-op when it's already off (the default), so this just pins the invariant.
-    await page.getByRole("checkbox", { name: "Developer mode" }).uncheck();
+    await setDevMode(page, false);
+
+    // --- Post-login first start (erster-start.png — handbuch figure): after
+    //     login the app lands on the Explore map, and on a fresh Pod the
+    //     onboarding banner offers the demo buildings ("No buildings yet — add a
+    //     couple of example buildings to explore?"). Captured BEFORE that banner's
+    //     "Add examples" is accepted further down, so the figure shows the empty
+    //     starting state a first-time user actually sees — the app opens on
+    //     adding buildings. On the local tier the header already carries the
+    //     seeded org logo + avatar (from /seed-profiles). Best-effort: on an
+    //     idempotent re-run against a non-fresh Pod the banner is absent and the
+    //     map already has markers, so the committed figure is kept. ---
+    await page.getByRole("tab", { name: "Explore" }).click();
+    await page.getByRole("button", { name: "Add examples" })
+      .waitFor({ timeout: 15_000 }).catch(() => {});
+    await waitForMapTiles(page);
+    await page.waitForTimeout(800);
+    await shot(page, "erster-start.png");
 
     // --- Account A's organisation (name + logo), so a building marker's hover
     //     card identifies the producer (org name + logo; the marker itself is a
@@ -253,7 +271,7 @@ test.describe("handbuch screenshots", () => {
         await addAll.click();
         await c.page.waitForTimeout(500);
         await shot(c.page, "benchmark-share-back.png");
-        await shareDialog.getByRole("button", { name: "Review & Share" }).click();
+        await shareDialog.getByRole("button", { name: "Review and Share" }).click();
         await shareDialog.getByRole("button", { name: "Confirm Share" })
           .click({ timeout: 10_000 });
         await expect(shareDialog.getByText(/shared successfully/i))
@@ -541,7 +559,7 @@ test.describe("handbuch screenshots", () => {
       await recipientInput.press("Enter");
       const confirm = shareDialog.getByRole("button", { name: /confirm share/i });
       await expect(async () => {
-        await shareDialog.getByRole("button", { name: /review & share/i }).click();
+        await shareDialog.getByRole("button", { name: /review and share/i }).click();
         await expect(confirm).toBeVisible({ timeout: 10_000 });
       }).toPass({ timeout: 90_000 });
       await confirm.click();

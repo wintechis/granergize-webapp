@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { buildingRows } from "./manage.ts";
 import { confirmDialog } from "./confirm.ts";
 import { logRun } from "./consoleLog.ts";
+import { menuAction, setDevMode } from "./accountMenu.ts";
 import { T } from "./timeouts.ts";
 
 /**
@@ -88,10 +89,9 @@ export async function wipeCollection(
     return;
   }
   try {
-    // "Remove all app data" lives behind the footer Developer-mode toggle.
-    await page.getByLabel("Developer mode").check();
-    await page.getByRole("button", { name: /Account menu/ }).click();
-    await page.getByRole("menuitem", { name: /Remove all app data/i }).click();
+    // "Remove all app data" lives behind Developer mode, in the Account menu.
+    await setDevMode(page, true);
+    await menuAction(page, /Remove all app data/i);
     // Confirm via the in-app confirm dialog (replaced the native window.confirm).
     await confirmDialog(page, "Remove all");
     await expect(page.getByText("All app data removed", { exact: false }))

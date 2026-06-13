@@ -476,6 +476,8 @@ legt die Anwendung automatisch an, sobald Sie Ihr erstes Gebäude speichern – 
 müssen sich darum nicht kümmern. Anschließend können Sie eigene Gebäudedaten
 hinzufügen und mit der eigentlichen Arbeit beginnen.
 
+![Nach der Anmeldung: Die App öffnet sich auf der Karte (Tab „Explore"); auf einem leeren Pod bietet ein Hinweisbalken an, beispielhafte Gebäude hinzuzufügen – der Einstieg beginnt mit dem Anlegen von Gebäuden.](figures/erster-start.png){width=100%}
+
 ## Ihre Organisation festlegen
 
 Bevor Sie Gebäude anlegen, hinterlegen Sie einmalig Ihre **Organisation** – Ihr

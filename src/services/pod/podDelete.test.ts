@@ -100,64 +100,43 @@ Deno.test("deleteContainerRecursive descends and deletes the whole subtree", asy
   assert.ok(at(`${GRAN}buildings/`) < at(GRAN));
 });
 
-Deno.test("deleteContainerRecursive deletes each resource before its .acl (no exposure window)", async () => {
-  const { session, deletes } = makeSession();
-  await deleteContainerRecursive(GRAN, session);
-
-  // The resource DELETE must precede its .acl DELETE — deleting the .acl first
-  // would briefly fall the resource back to the container's (possibly more
-  // permissive) inherited ACL, a TOCTOU exposure.
-  const file = `${GRAN}buildings/b1.ttl`;
-  const fileIdx = deletes.indexOf(file);
-  const aclIdx = deletes.indexOf(`${file}.acl`);
-  assert.ok(fileIdx !== -1 && aclIdx !== -1, "both the file and its .acl deleted");
-  assert.ok(fileIdx < aclIdx, "resource is deleted before its .acl");
-});
-
-Deno.test("deleteContainerRecursive recovers a 403 (locked) resource: drop .acl, then retry", async () => {
-  // A leaf whose own .acl locked even the owner out: the first DELETE 403s; after
-  // the .acl is removed (recovery) the retry succeeds. The .acl-first widening is
-  // a last resort confined to an already-broken resource being destroyed anyway.
-  const LOCKED = `${GRAN}locked.ttl`;
-  const order: string[] = [];
-  let aclGone = false;
+Deno.test("deleteContainerRecursive deletes a listed .acl child without deriving .acl.acl", async () => {
+  // JSS lists `.acl` as an ldp:contains child (CSS does not). The walk must delete it
+  // like any other child and NEVER derive `<child>.acl` — here that would be a wasted
+  // `.acl.acl` request, which loaded JSS teardowns. The server cleans up auxiliaries.
+  const C = `${GRAN}j/`;
+  const acl = `${C}.acl`;
+  const file = `${C}data.ttl`;
+  const deletes: string[] = [];
   const session = {
     info: { webId: WEBID, isLoggedIn: true },
     fetch: (input: string | URL, init?: RequestInit) => {
-      const url = (typeof input === "string" ? input : input.toString())
-        .split("?")[0];
+      const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
       const method = (init?.method ?? "GET").toUpperCase();
-      if (method !== "DELETE") {
-        return Promise.resolve(
-          url === GRAN
-            ? new Response(listing(GRAN, [LOCKED]), {
-              status: 200,
-              headers: { "Content-Type": "text/turtle" },
-            })
-            : new Response("Not found", { status: 404 }),
-        );
-      }
-      order.push(`DELETE ${url}`);
-      if (url === `${LOCKED}.acl`) {
-        aclGone = true;
+      if (method === "DELETE") {
+        deletes.push(url);
         return Promise.resolve(new Response(null, { status: 205 }));
       }
-      if (url === LOCKED) {
-        return Promise.resolve(new Response(null, { status: aclGone ? 205 : 403 }));
+      if (url === C) {
+        return Promise.resolve(
+          new Response(listing(C, [file, acl]), {
+            status: 200,
+            headers: { "Content-Type": "text/turtle" },
+          }),
+        );
       }
-      // The container itself and its (absent) .acl.
-      return Promise.resolve(
-        new Response(null, { status: url.endsWith(".acl") ? 404 : 205 }),
-      );
+      return Promise.resolve(new Response("Not found", { status: 404 }));
     },
   } as unknown as Session;
 
-  await deleteContainerRecursive(GRAN, session);
+  await deleteContainerRecursive(C, session);
 
-  assert.deepEqual(
-    order.slice(0, 3),
-    [`DELETE ${LOCKED}`, `DELETE ${LOCKED}.acl`, `DELETE ${LOCKED}`],
-    "403 → drop .acl → retry the resource delete",
+  assert.ok(deletes.includes(file), "the data file was deleted");
+  assert.ok(deletes.includes(acl), "the listed .acl child was deleted as a child");
+  assert.ok(deletes.includes(C), "the container was deleted");
+  assert.ok(
+    !deletes.some((u) => u.endsWith(".acl.acl")),
+    "no .acl.acl was ever derived",
   );
 });
 
@@ -245,43 +224,6 @@ Deno.test("deleteContainerRecursive throws (no false success) when a container c
   } as unknown as Session;
 
   await assert.rejects(() => deleteContainerRecursive(C, session));
-});
-
-Deno.test("deleteContainerRecursive never derives a .acl.acl (an .acl has no own ACL)", async () => {
-  // Some servers (JSS) list `.acl` as an `ldp:contains` member, so the walk can be
-  // handed an `.acl` to delete. It must NOT then issue `DELETE <uri>.acl.acl` — an
-  // `.acl` has no ACL of its own; that nonexistent request is wasted and has stalled a
-  // server's teardown. Container lists its own `.acl` as a child (JSS-style).
-  const C = `${GRAN}j/`;
-  const deletes: string[] = [];
-  const session = {
-    info: { webId: WEBID, isLoggedIn: true },
-    fetch: (input: string | URL, init?: RequestInit) => {
-      const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
-      const method = (init?.method ?? "GET").toUpperCase();
-      if (method === "DELETE") {
-        deletes.push(url);
-        return Promise.resolve(new Response(null, { status: 205 }));
-      }
-      if (url === C) {
-        return Promise.resolve(
-          new Response(listing(C, [`${C}.acl`]), {
-            status: 200,
-            headers: { "Content-Type": "text/turtle" },
-          }),
-        );
-      }
-      return Promise.resolve(new Response("Not found", { status: 404 }));
-    },
-  } as unknown as Session;
-
-  await deleteContainerRecursive(C, session);
-
-  assert.ok(deletes.includes(`${C}.acl`), "the listed .acl child was deleted");
-  assert.ok(
-    !deletes.some((u) => u.endsWith(".acl.acl")),
-    "no .acl.acl was ever requested",
-  );
 });
 
 Deno.test("deleteContainerRecursive tolerates a missing container", async () => {
