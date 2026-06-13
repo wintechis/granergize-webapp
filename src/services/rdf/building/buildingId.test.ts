@@ -2,8 +2,8 @@
 import assert from "node:assert";
 import {
   BUILDING_FRAGMENT,
-  buildingFileUrl,
-  buildingFileUrlFor,
+  buildingFileUri,
+  buildingFileUriFor,
   buildingIdFor,
   buildingIdStem,
   buildingSubjectFor,
@@ -50,12 +50,12 @@ Deno.test("buildingSubjectFor inverts buildingIdFor for both shapes", () => {
   assert.equal(buildingIdFor(buildingSubjectFor(RELATIVE_ID, ROOT), ROOT), RELATIVE_ID);
 });
 
-Deno.test("buildingFileUrl strips the fragment (only)", () => {
-  assert.equal(buildingFileUrl(SUBJECT), FILE);
-  assert.equal(buildingFileUrl(FILE), FILE); // already fragment-free
-  assert.equal(buildingFileUrlFor(RELATIVE_ID, ROOT), FILE);
+Deno.test("buildingFileUri strips the fragment (only)", () => {
+  assert.equal(buildingFileUri(SUBJECT), FILE);
+  assert.equal(buildingFileUri(FILE), FILE); // already fragment-free
+  assert.equal(buildingFileUriFor(RELATIVE_ID, ROOT), FILE);
   assert.equal(
-    buildingFileUrlFor("https://bob.pod.example/b.ttl#building-2", ROOT),
+    buildingFileUriFor("https://bob.pod.example/b.ttl#building-2", ROOT),
     "https://bob.pod.example/b.ttl",
   );
 });

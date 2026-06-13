@@ -9,20 +9,20 @@ separate concept — see [`room.md`](./room.md). Companion to
 [`data-layout.md`](./data-layout.md) (where these files live) and
 [`energy-model.md`](./energy-model.md) (the energy graph).
 
-## Two things `UserRole` is reused for
+## `UserRole` is data-room membership only
 
-`UserRole = "dummy" | "investor" | "user" | "benchmark_service_provider" |
-"facility_manager" | …` (`src/types.ts`) labels two *independent* concerns; **neither
-gates parsing / loading / rendering** — that dispatches on the data's own shape:
+`UserRole` (`src/types.ts`) names a member's role in a data room and nothing else; it
+**never** gates parsing, loading, or rendering — those dispatch on the data's own shape.
+The role sits on an *agent* (WebID) in a room log (`as:Update` + `sioc:has_function`),
+is read by `dataRoom.ts` (`getMyRole`, `getMembersByRole`), and serves as a sharing
+target — it means "this person acts as an investor here". Role↔IRI maps live in
+`constants/roles.ts` (`MEMBERSHIP_ROLE_TO_IRI`/`IRI_TO_MEMBERSHIP_ROLE`; `dataRoom.ts`
+is their only consumer).
 
-- **Membership role** — on an *agent* (WebID), in a room log (`as:Update` +
-  `sioc:has_function`). Read by `dataRoom.ts` (`getMyRole`, `getMembersByRole`); means
-  "this person acts as an investor here". A sharing target. Role↔IRI maps live in
-  `constants/roles.ts` (`MEMBERSHIP_ROLE_TO_IRI`/`IRI_TO_MEMBERSHIP_ROLE`; `dataRoom.ts`
-  is their only consumer).
-- **Import file-format / export style** — a *spreadsheet layout*, not a role:
-  `parseCsvToFields` auto-detects it on upload (`detectSpreadsheetFormat`: row-label /
-  table / generic), and `buildingToXlsx(b, style)` takes a user-chosen layout at download.
+Spreadsheet import/export layout is a *separate* concern with its own type —
+`SpreadsheetFormat = "investor" | "benchmark" | "generic"` — not a `UserRole`:
+`parseCsvToFields` auto-detects it on upload (`detectSpreadsheetFormat`), and
+`buildingToXlsx(b, style)` takes a user-chosen layout at download. A layout, not a role.
 
 ## Provenance is the producing agent only
 
@@ -59,12 +59,12 @@ from the shared file.
   never on a role. The dataset model is owned by [`energy-model.md`](./energy-model.md).
 
 Code: `TurtleParsingService.ts` (granularity skip-prefetch), `durationUtils.ts`,
-`energyDataParser.ts`; `ExplorePage.tsx` / `Building.tsx` rendering.
+`energyDataset.ts`; `ExplorePage.tsx` / `Building.tsx` rendering.
 
 ## Graph shapes (by producer's vocabulary, not a stored role)
 
 The shapes aren't formally specified — they're whatever the imperative parsers
-read/write (`buildingConfig.ts`, `buildingParser.ts`, `energyDataParser.ts`,
+read/write (`buildingConfig.ts`, `buildingParser.ts`, `energyDataset.ts`,
 `userEnergyParser.ts`); there's no separate shape/validator layer. Conceptually there's
 a shared building core plus optional detail predicates (`bldg:*`) carried by whatever
 a producer authored — read whenever present, with no role gate — and energy is either
@@ -89,7 +89,7 @@ The building schema therefore lives across four artifacts that must agree:
 - **RDF vocabulary** — predicate IRIs in
   [`vocabularies.ts`](../src/services/rdf/vocabularies.ts).
 - **App object type** — `BuildingType` (also `AgentType`, `EnergyType`) in
-  `types/types.ts`.
+  `src/types.ts`.
 - **Predicate ⇄ field mapping** — `predicateMap` / `objectPropertyMap` in
   [`buildingConfig.ts`](../src/services/rdf/building/buildingConfig.ts).
 - **Datatype/coercion** — `parsingFunctions` (read: literal → JS) in
@@ -130,9 +130,9 @@ Consequences:
   back. The RDF may legitimately carry more than the app model knows about.
 - Drift between the four is otherwise silent.
 
-**Done (descriptor table).** `BUILDING_FIELDS` in
-[`buildingConfig.ts`](../src/services/rdf/building/buildingConfig.ts) is now the
-single source: one row per field (`{ field, iri, kind, type }`), from which
+A single descriptor table closes the datatype gap: `BUILDING_FIELDS` in
+[`buildingConfig.ts`](../src/services/rdf/building/buildingConfig.ts) is the
+source — one row per field (`{ field, iri, kind, type }`), from which
 `predicateMap`, `objectPropertyMap`, `parsingFunctions`, and the serializer's
 `INTEGER_FIELDS`/`DECIMAL_FIELDS`/`BOOLEAN_FIELDS` are all derived. `field` is
 `keyof BuildingType` (compile-checked). Heavier consolidations (generate
@@ -181,11 +181,12 @@ period. That dataset model is owned by [`energy-model.md`](./energy-model.md).
 ## Import / export formats (XLSX)
 
 A spreadsheet *layout*, not a role — purely a serialization concern, independent of data
-and of data-shape dispatch. Three committed templates (partner-derived spreadsheets,
-anonymized but keeping the column structure) plus a generic fallback: a **row-label**
-layout (field labels down one column, a building per column — the former "investor"
-shape), a **table** column-header layout (German headers — the former "BSP" shape), a
-**15-minute load-profile** series, and a generic one keyed by `BuildingType` field names.
+and of data-shape dispatch. `SpreadsheetFormat` is `"investor" | "benchmark" |
+"generic"`: a **row-label** layout (field labels down one column, a building per column —
+the "investor" shape), a **table** column-header layout (German headers — the "benchmark"
+shape), and a **generic** one keyed by `BuildingType` field names (which also carries the
+**15-minute load-profile** series). There are no downloadable templates — an exported
+building re-imports through the same path, so an export doubles as the template.
 
 **Import** auto-detects the layout on upload — `detectSpreadsheetFormat` sniffs the
 distinctive signatures (a column-B label like `Gebäude-Code` → row-label; the German
@@ -214,16 +215,16 @@ SheetJS-CDN upgrade was declined for licensing — see CLAUDE.md / project notes
 [REC](https://w3id.org/rec#) is a published industry ontology for buildings/real
 estate. Here it's used **thinly** — a veneer over the project's own `gran:` vocab:
 
-- `rec:Building` — the building `rdf:type` (written `buildingSerializer.ts:314`,
-  expected on read; both sides use the `REC_BUILDING` constant).
-- `rec:operatedBy`, `rec:nace-code` — two core predicates (`buildingConfig.ts:48-49`).
+- `rec:Building` — the building `rdf:type` (both serializer and parser use the
+  `REC_BUILDING` constant).
+- `rec:operatedBy`, `rec:nace-code` — two core predicates (`buildingConfig.ts`).
   Caveats: `rec:operatedBy` *is* a real REC term (a property on `rec:Architecture`,
   range an `Agent` — a WebID IRI), but we currently store it as an `xsd:string`
   **literal** (`kind: "literal"`), not as an IRI-valued object, so it doesn't match
   REC's range. `rec:nace-code` is **not confirmed** as a published REC term (REC 4.0
   uses camelCase, not `nace-code`); treat that IRI as likely non-standard /
   non-dereferenceable rather than canonical REC.
-- `rec#agent` — the agent type string (`agentParser.ts:12`).
+- `rec#agent` — the agent type string (`agentParser.ts`).
 - Everything else — areas, investor/benchmark fields, the whole energy model — is
   `gran:`/`bldg:`/`cons:`/SOSA, **not** REC.
 
@@ -231,12 +232,10 @@ So REC supplies the top-level building/agent **type + two identifiers**; `gran:`
 carries the actual domain data. REC is barely load-bearing, and not dereferenced
 (same as `gran:`).
 
-**Resolved:** an earlier casing inconsistency in the type IRI (`rec:Building` vs. a
-lowercase `rec#building`) is fixed — serializer (`:314`) and parser (`:115`) now both
-use the `REC_BUILDING` constant (`…#Building`, capital), so they agree on REC's real
-class name.
+Serializer and parser both use the `REC_BUILDING` constant (`…#Building`, capital), so
+they agree on REC's real class name.
 
-**Bearing on the role/schema redesign above:** REC is the natural home for the
+REC bears on the role/schema design above: it is the natural home for the
 "self-describing master data, parse on predicate presence" direction — but only for
 what REC actually models. REC is a *topology* ontology: building → storey → space,
 plus `Agent`, `Address`, and GeoSPARQL `Geometry`. It deliberately does **not** define

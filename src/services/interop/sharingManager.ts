@@ -5,8 +5,8 @@ import {
   type ActiveGrant,
   appendSharingEvent,
   foldSharingLog,
-  sharedInUrl,
-  sharedOutUrl,
+  sharedInUri,
+  sharedOutUri,
 } from "./sharingLog.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import { readModifyWrite } from "../pod/podWrite.ts";
@@ -85,7 +85,7 @@ export function receivedViewsFromGrants(grants: ActiveGrant[]): ReceivedView[] {
   return grants
     .filter((g) => g.kind === "View")
     .map((g) => ({
-      snapshotUrl: g.resource,
+      snapshotUri: g.resource,
       viewId: buildingIdFromUri(g.resource), // basename without ".ttl"
       sharedBy: g.owner || "Unknown",
     }));
@@ -99,9 +99,9 @@ export function sharedViewsFromGrants(grants: ActiveGrant[]): SharedView[] {
     if (!viewsMap.has(g.resource)) viewsMap.set(g.resource, new Set());
     viewsMap.get(g.resource)!.add(g.grantee);
   }
-  return [...viewsMap.entries()].map(([snapshotUrl, webIds]) => ({
-    snapshotUrl,
-    viewId: buildingIdFromUri(snapshotUrl), // basename without ".ttl"
+  return [...viewsMap.entries()].map(([snapshotUri, webIds]) => ({
+    snapshotUri,
+    viewId: buildingIdFromUri(snapshotUri), // basename without ".ttl"
     sharedWith: [...webIds],
   }));
 }
@@ -127,7 +127,7 @@ export async function getSharedBuildings(
   // No try/catch: a network/parse failure propagates to React Query (which keeps
   // the last good list via keepPreviousData) rather than being masked as
   // "nothing shared".
-  const grants = await foldSharingLog(sharedOutUrl(session.info.webId), session);
+  const grants = await foldSharingLog(sharedOutUri(session.info.webId), session);
   return sharedBuildingsFromGrants(grants);
 }
 
@@ -151,7 +151,7 @@ export async function getSharedWithMe(
   // good list) instead of being masked as "nothing shared".
   const [{ hiddenBuildings }, grants] = await Promise.all([
     readPrefs(session),
-    foldSharingLog(sharedInUrl(session.info.webId), session),
+    foldSharingLog(sharedInUri(session.info.webId), session),
   ]);
   return sharedWithMeFromGrants(grants, hiddenBuildings);
 }
@@ -171,7 +171,7 @@ export async function revokeAccess(
   }
 
   // Record the revocation in the outgoing log (audit), then withdraw enforcement.
-  await appendSharingEvent(sharedOutUrl(userWebId), session, {
+  await appendSharingEvent(sharedOutUri(userWebId), session, {
     type: "revocation",
     owner: userWebId,
     grantee: webId,
@@ -238,12 +238,12 @@ export async function removeFromACL(
 ): Promise<void> {
   // Revoking your own access is meaningless and dangerous — see note above.
   if (webId === session.info.webId) return;
-  const aclUrl = `${resourceUri}.acl`;
+  const aclUri = `${resourceUri}.acl`;
   const agentPredicate = DataFactory.namedNode(`${ACL_NS}agent`);
   const modePredicate = DataFactory.namedNode(`${ACL_NS}mode`);
   const controlNode = DataFactory.namedNode(`${ACL_NS}Control`);
   const agentNode = DataFactory.namedNode(webId);
-  await readModifyWrite(aclUrl, session, (store, { created }) => {
+  await readModifyWrite(aclUri, session, (store, { created }) => {
     if (created) return false; // no ACL → nothing to revoke
     const subjects = store
       .getQuads(null, agentPredicate, agentNode, null)
@@ -371,7 +371,7 @@ export async function recordSharing(
   if (!session.info.isLoggedIn || !userWebId) {
     throw new Error("User is not logged in");
   }
-  await appendSharingEvent(sharedOutUrl(userWebId), session, {
+  await appendSharingEvent(sharedOutUri(userWebId), session, {
     type: "grant",
     owner: userWebId,
     grantee: webId,
@@ -410,7 +410,7 @@ async function notifyAccessRevoked(
  * @operation mutation
  */
 export async function recordViewSharing(
-  snapshotUrl: string,
+  snapshotUri: string,
   webId: string,
   session: Session,
 ): Promise<void> {
@@ -418,25 +418,25 @@ export async function recordViewSharing(
   if (!session.info.isLoggedIn || !userWebId) {
     throw new Error("User is not logged in");
   }
-  await appendSharingEvent(sharedOutUrl(userWebId), session, {
+  await appendSharingEvent(sharedOutUri(userWebId), session, {
     type: "grant",
     owner: userWebId,
     grantee: webId,
-    resource: snapshotUrl,
+    resource: snapshotUri,
     kind: "View",
     at: new Date().toISOString(),
   });
 }
 
 interface SharedView {
-  snapshotUrl: string;
+  snapshotUri: string;
   viewId: string;
   sharedWith: string[];
 }
 
 export interface ReceivedView {
   /** The sharer's snapshot URL (`…/views/snapshots/<viewId>.ttl`); we have Read on it. */
-  snapshotUrl: string;
+  snapshotUri: string;
   viewId: string;
   sharedBy: string;
 }
@@ -460,7 +460,7 @@ export async function getReceivedViews(
   }
 
   // Errors propagate to React Query (keepPreviousData keeps the last good list).
-  const grants = await foldSharingLog(sharedInUrl(session.info.webId), session);
+  const grants = await foldSharingLog(sharedInUri(session.info.webId), session);
   return receivedViewsFromGrants(grants);
 }
 
@@ -479,7 +479,7 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
   }
 
   // Errors propagate to React Query / the dialog's own catch (not masked as empty).
-  const grants = await foldSharingLog(sharedOutUrl(session.info.webId), session);
+  const grants = await foldSharingLog(sharedOutUri(session.info.webId), session);
   return sharedViewsFromGrants(grants);
 }
 
@@ -490,7 +490,7 @@ export async function getSharedViews(session: Session): Promise<SharedView[]> {
  * @operation mutation
  */
 export async function revokeViewAccess(
-  snapshotUrl: string,
+  snapshotUri: string,
   webId: string,
   session: Session,
 ): Promise<void> {
@@ -499,18 +499,18 @@ export async function revokeViewAccess(
     throw new Error("User is not logged in");
   }
 
-  await appendSharingEvent(sharedOutUrl(userWebId), session, {
+  await appendSharingEvent(sharedOutUri(userWebId), session, {
     type: "revocation",
     owner: userWebId,
     grantee: webId,
-    resource: snapshotUrl,
+    resource: snapshotUri,
     at: new Date().toISOString(),
   });
-  await removeFromACL(snapshotUrl, webId, session);
+  await removeFromACL(snapshotUri, webId, session);
   // Best-effort: the ACL withdrawal is the source of truth; the inbox notice is a
   // courtesy that lets the recipient's shared-in/ fold the grant out (same as
   // building revocation). Never let a notify failure fail the revocation.
-  await notifyAccessRevoked(snapshotUrl, webId, session).catch((err) =>
+  await notifyAccessRevoked(snapshotUri, webId, session).catch((err) =>
     logError("notify recipient of view-access revocation", err)
   );
 }
@@ -524,18 +524,18 @@ export async function revokeViewAccess(
  * @operation mutation
  */
 export async function revokeAllViewRecipients(
-  snapshotUrl: string,
+  snapshotUri: string,
   session: Session,
 ): Promise<void> {
   const shared = await getSharedViews(session);
-  const recipients = shared.find((v) => v.snapshotUrl === snapshotUrl)
+  const recipients = shared.find((v) => v.snapshotUri === snapshotUri)
     ?.sharedWith ?? [];
   // Deliberately SERIAL: every recipient's revokeViewAccess read-modify-writes
   // the SAME snapshot .acl, just for a different grantee — see the matching
   // note in revokeAllBuildingRecipients (no-ETag servers degrade to a plain
   // PUT, so parallel revokes could clobber each other's removals).
   for (const webId of recipients) {
-    await revokeViewAccess(snapshotUrl, webId, session).catch((err) =>
+    await revokeViewAccess(snapshotUri, webId, session).catch((err) =>
       logError("revoke view access for recipient", err)
     );
   }

@@ -81,7 +81,7 @@ function rewriteIri(value: string, m: RebaseMap): string {
  * round-trip is lossy on formatting/comments but semantically identical; the app
  * re-parses on read.
  */
-function rebaseTurtle(text: string, sourceUrl: string, m: RebaseMap): string {
+function rebaseTurtle(text: string, sourceUri: string, m: RebaseMap): string {
   const fixTerm = <T extends Term>(t: T): T => {
     if (t.termType === "NamedNode") {
       return DataFactory.namedNode(rewriteIri(t.value, m)) as unknown as T;
@@ -97,7 +97,7 @@ function rebaseTurtle(text: string, sourceUrl: string, m: RebaseMap): string {
     }
     return t;
   };
-  const quads = new Parser({ baseIRI: sourceUrl }).parse(text).map((q) =>
+  const quads = new Parser({ baseIRI: sourceUri }).parse(text).map((q) =>
     DataFactory.quad(
       fixTerm(q.subject),
       fixTerm(q.predicate),
@@ -265,8 +265,8 @@ export async function importArchive(
     // are rebased term-precisely; everything else is copied verbatim.
     let body: Uint8Array = data.slice();
     if (doRebase && isTurtle(contentType)) {
-      const sourceUrl = (sourceBase ?? root) + path;
-      const text = rebaseTurtle(new TextDecoder().decode(data), sourceUrl, m);
+      const sourceUri = (sourceBase ?? root) + path;
+      const text = rebaseTurtle(new TextDecoder().decode(data), sourceUri, m);
       body = new TextEncoder().encode(text);
     }
     const put = await session.fetch(root + path, {

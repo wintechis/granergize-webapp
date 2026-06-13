@@ -2,7 +2,7 @@
 import { strict as assert } from "node:assert";
 import {
   addContact,
-  contactsUrl,
+  contactsUri,
   readContacts,
   removeContact,
 } from "./contacts.ts";
@@ -57,5 +57,5 @@ Deno.test("removeContact drops the member and its cached fields", async () => {
   const contacts = await readContacts(session);
   assert.deepEqual(contacts.map((c) => c.webId), [CARL]);
   // Bob's vCard fields are gone from the document, not just the membership.
-  assert.ok(!store[contactsUrl(ALICE)].includes("Bob"));
+  assert.ok(!store[contactsUri(ALICE)].includes("Bob"));
 });

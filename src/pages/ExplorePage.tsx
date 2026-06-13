@@ -298,7 +298,7 @@ interface ExplorePageProps {
 export default function ExplorePage(
   { active = true }: ExplorePageProps,
 ) {
-  const { buildings, energyNeed, error } = useSolidData();
+  const { buildings, energyNeed, error, isLoading } = useSolidData();
   const dev = useDevMode();
   // One activity token per tile-loading burst (the layer fires `loading` when it
   // starts fetching tiles and `load` once the visible set is in), so panning/
@@ -541,7 +541,9 @@ export default function ExplorePage(
           {!selectedId
             ? (
               <Typography variant="body1">
-                {buildings.length === 0
+                {isLoading
+                  ? "Loading…"
+                  : buildings.length === 0
                   ? "No buildings yet — add one to see it on the map"
                   : hasMarkers
                   ? "Select a marker to show details"

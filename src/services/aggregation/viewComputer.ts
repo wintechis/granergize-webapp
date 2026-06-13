@@ -17,7 +17,7 @@ import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { parseTtlReadings } from "../rdf/userEnergyParser.ts";
 import { getSharedWithMe } from "../interop/sharingManager.ts";
 import {
-  buildingFileUrl,
+  buildingFileUri,
   buildingIdFor,
 } from "../rdf/building/buildingId.ts";
 import { getStorageRoot } from "../pod/solidUtils.ts";
@@ -35,11 +35,11 @@ async function loadBuildingEnergyData(
   // The view definition records the SUBJECT IRI; the document is its
   // fragment-free form. Carry the subject through verbatim — identity is the
   // IRI, never reconstructed from the file name.
-  const fileUrl = buildingFileUrl(buildingUri);
+  const fileUri = buildingFileUri(buildingUri);
   try {
     // Fetch building data to get energy data location (an unreadable building
     // degrades to an empty store, i.e. no datasets).
-    const buildingStore = await readStoreOrEmpty(fileUrl, session);
+    const buildingStore = await readStoreOrEmpty(fileUri, session);
 
     // Discover the building's annual datasets from its cons:hasEnergyDataset
     // links and load the latest actual year; its metrics become the energyNeed
@@ -49,7 +49,7 @@ async function loadBuildingEnergyData(
         r.scenario === "actual" && !isSeriesGranularity(r.granularity)
       );
     if (annual.length === 0) {
-      console.warn(`No annual energy datasets for building ${fileUrl}`);
+      console.warn(`No annual energy datasets for building ${fileUri}`);
       return null;
     }
     const latest = annual.reduce((a, b) => (a.year >= b.year ? a : b));
@@ -151,7 +151,7 @@ async function loadUserBuildingMonthlyTotal(
   period: string,
   session: Session,
 ): Promise<number | null> {
-  const cleanUri = buildingFileUrl(buildingUri);
+  const cleanUri = buildingFileUri(buildingUri);
   try {
     // An unreadable building degrades to an empty store, i.e. no datasets.
     const buildingStore = await readStoreOrEmpty(cleanUri, session);
@@ -165,21 +165,21 @@ async function loadUserBuildingMonthlyTotal(
       return null;
     }
 
-    const dailyUrls: string[] = [];
+    const dailyUris: string[] = [];
     for (const ref of seriesRefs) {
-      const container = buildingFileUrl(ref.url).replace(/\.ttl$/, "/");
+      const container = buildingFileUri(ref.url).replace(/\.ttl$/, "/");
       const children = (await listDirectChildren(container, session)) ?? [];
       for (const url of children) {
-        if (url.endsWith(".ttl") && url.includes(period)) dailyUrls.push(url);
+        if (url.endsWith(".ttl") && url.includes(period)) dailyUris.push(url);
       }
     }
-    if (dailyUrls.length === 0) {
+    if (dailyUris.length === 0) {
       console.warn(`No data for period ${period} in building ${cleanUri}`);
       return null;
     }
 
     const settled = await Promise.allSettled(
-      dailyUrls.map((url) => parseTtlReadings(url, session.fetch.bind(session))),
+      dailyUris.map((url) => parseTtlReadings(url, session.fetch.bind(session))),
     );
 
     let total = 0;
@@ -309,7 +309,7 @@ export async function computeAggregation(
 export async function computeAndStoreSnapshot(
   session: Session,
   viewId: string,
-): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUrl: string }> {
+): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUri: string }> {
   const viewDefinition = await getViewDefinition(session, viewId);
 
   if (!viewDefinition) {
@@ -317,9 +317,9 @@ export async function computeAndStoreSnapshot(
   }
 
   const snapshot = await computeAggregation(session, viewDefinition);
-  const snapshotUrl = await storeComputedSnapshot(session, snapshot);
+  const snapshotUri = await storeComputedSnapshot(session, snapshot);
 
-  return { snapshot, snapshotUrl };
+  return { snapshot, snapshotUri };
 }
 
 /**
@@ -329,7 +329,7 @@ export async function computeAndStoreSnapshot(
 export async function refreshSnapshot(
   session: Session,
   viewId: string,
-): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUrl: string }> {
+): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUri: string }> {
   return computeAndStoreSnapshot(session, viewId);
 }
 

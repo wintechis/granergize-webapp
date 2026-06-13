@@ -18,45 +18,45 @@ export const name = "share-view";
 export async function run(ctx: TaskContext): Promise<void> {
   const { a, b, check } = ctx;
   const viewId = `view-${Date.now()}`;
-  const snapshotUrl = `${podResources(a.webId).viewSnapshots}${viewId}.ttl`;
+  const snapshotUri = `${podResources(a.webId).viewSnapshots}${viewId}.ttl`;
   const bSharedIn = podResources(b.webId).sharedIn;
   const bSharedInSnap = await snapshot(b.raw, bSharedIn);
 
   try {
     // A PUTs a minimal snapshot resource (CSS auto-creates the container chain).
-    await a.raw.fetch(snapshotUrl, {
+    await a.raw.fetch(snapshotUri, {
       method: "PUT",
       headers: { "Content-Type": "text/turtle" },
       body: `<#view> <http://www.w3.org/2000/01/rdf-schema#label> "E2E View" .\n`,
     });
 
-    await shareAggregatedView(snapshotUrl, b.webId, a.session);
+    await shareAggregatedView(snapshotUri, b.webId, a.session);
     await drainInbox(b.session);
     let received = await getReceivedViews(b.session);
     check(
       "B sees the shared view",
-      received.some((v) => v.snapshotUrl === snapshotUrl),
-      `[${received.map((v) => v.snapshotUrl).join(", ")}]`,
+      received.some((v) => v.snapshotUri === snapshotUri),
+      `[${received.map((v) => v.snapshotUri).join(", ")}]`,
     );
-    const bRead = await b.raw.fetch(`${snapshotUrl}?t=${Date.now()}`);
+    const bRead = await b.raw.fetch(`${snapshotUri}?t=${Date.now()}`);
     check("B can READ the snapshot (ACL granted)", bRead.ok, `HTTP ${bRead.status}`);
 
-    await revokeViewAccess(snapshotUrl, b.webId, a.session);
+    await revokeViewAccess(snapshotUri, b.webId, a.session);
     await drainInbox(b.session); // drain the revocation notice
     received = await getReceivedViews(b.session);
     check(
       "B no longer sees the view after revoke",
-      !received.some((v) => v.snapshotUrl === snapshotUrl),
+      !received.some((v) => v.snapshotUri === snapshotUri),
     );
-    const bRead2 = await b.raw.fetch(`${snapshotUrl}?t=${Date.now()}`);
+    const bRead2 = await b.raw.fetch(`${snapshotUri}?t=${Date.now()}`);
     check(
       "B can no longer READ the snapshot (ACL withdrawn)",
       bRead2.status === 403 || bRead2.status === 404,
       `HTTP ${bRead2.status}`,
     );
   } finally {
-    await a.raw.fetch(snapshotUrl, { method: "DELETE" }).catch(() => {});
-    await a.raw.fetch(`${snapshotUrl}.acl`, { method: "DELETE" }).catch(() => {});
+    await a.raw.fetch(snapshotUri, { method: "DELETE" }).catch(() => {});
+    await a.raw.fetch(`${snapshotUri}.acl`, { method: "DELETE" }).catch(() => {});
     await restore(b.raw, bSharedIn, bSharedInSnap);
   }
 }

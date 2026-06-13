@@ -4,7 +4,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   ensureOwnInbox,
   drainInbox,
-  getRecipientInboxUrl,
+  getRecipientInboxUri,
   inboxFromLinkHeader,
   isMessageResource,
 } from "./inbox.ts";
@@ -58,7 +58,7 @@ function session(map: Record<string, string>): Session {
   } as unknown as Session;
 }
 
-Deno.test("getRecipientInboxUrl: convention path when granergize root has no ldp:inbox", async () => {
+Deno.test("getRecipientInboxUri: convention path when granergize root has no ldp:inbox", async () => {
   const s = session({
     "https://b.example/profile/card":
       `<${WEBID}> <http://www.w3.org/ns/pim/space#storage> <https://b.example/> .`,
@@ -66,12 +66,12 @@ Deno.test("getRecipientInboxUrl: convention path when granergize root has no ldp
       `<https://b.example/granergize/> a <http://www.w3.org/ns/ldp#Container> .`,
   });
   assert.equal(
-    await getRecipientInboxUrl(WEBID, s),
+    await getRecipientInboxUri(WEBID, s),
     "https://b.example/granergize/inbox/",
   );
 });
 
-Deno.test("getRecipientInboxUrl: discovers a relocated inbox via ldp:inbox on the granergize root", async () => {
+Deno.test("getRecipientInboxUri: discovers a relocated inbox via ldp:inbox on the granergize root", async () => {
   const s = session({
     "https://b.example/profile/card":
       `<${WEBID}> <http://www.w3.org/ns/pim/space#storage> <https://b.example/> .`,
@@ -79,7 +79,7 @@ Deno.test("getRecipientInboxUrl: discovers a relocated inbox via ldp:inbox on th
       `<https://b.example/granergize/> <http://www.w3.org/ns/ldp#inbox> <https://b.example/granergize/box/> .`,
   });
   assert.equal(
-    await getRecipientInboxUrl(WEBID, s),
+    await getRecipientInboxUri(WEBID, s),
     "https://b.example/granergize/box/",
   );
 });
@@ -189,7 +189,7 @@ Deno.test("ensureOwnInbox: provisions inbox + ACL on a bare Pod and reports crea
   const created = await ensureOwnInbox(session);
   assert.equal(created, true);
   // No `.meta` advertisement PUT: it 409s on CSS and the convention path makes
-  // it redundant — see ensureOwnInbox / granergizeInboxUrl.
+  // it redundant — see ensureOwnInbox / granergizeInboxUri.
   assert.deepEqual(
     writes.filter((w) => w.method === "PUT").map((w) => w.url),
     [

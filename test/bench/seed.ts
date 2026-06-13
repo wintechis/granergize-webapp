@@ -15,9 +15,9 @@ import {
 } from "../../src/services/rdf/building/buildingSerializer.ts";
 import { mintBuildingSubject } from "../../src/services/rdf/building/buildingId.ts";
 import { synthDayReadings } from "../../src/services/rdf/energySeriesXlsx.ts";
-import { seriesContainerUrl } from "../../src/services/rdf/energyDataset.ts";
+import { seriesContainerUri } from "../../src/services/rdf/energyDataset.ts";
 import { shareBuildingData, type ShareOptions } from "../../src/services/interop/share.ts";
-import { appRoot, getPodBaseUrl } from "../../src/services/pod/solidUtils.ts";
+import { appRoot, getPodBaseUri } from "../../src/services/pod/solidUtils.ts";
 import { deleteContainerRecursive } from "../../src/services/pod/podDelete.ts";
 import { ensureContainer, readModifyWrite } from "../../src/services/pod/podWrite.ts";
 import { DataFactory } from "n3";
@@ -34,7 +34,7 @@ import {
   createRoom,
   getMembersByRole,
   joinRoom,
-  normalizeRoomUrl,
+  normalizeRoomUri,
   setMyRole,
 } from "../../src/services/interop/dataRoom.ts";
 import {
@@ -184,7 +184,7 @@ export async function seedSeriesBuilding(
   await uploadBuilding(session, uri, ttl, webId);
   return {
     building: { uri, subjectUri, fileStem: id },
-    seriesContainer: seriesContainerUrl(uri, year),
+    seriesContainer: seriesContainerUri(uri, year),
   };
 }
 
@@ -248,7 +248,7 @@ export async function seedProfile(
   const { namedNode, literal } = DataFactory;
   let avatarUrl: string | undefined;
   if (avatar) {
-    avatarUrl = `${getPodBaseUrl(x.webId)}avatar.png`;
+    avatarUrl = `${getPodBaseUri(x.webId)}avatar.png`;
     const put = await x.session.fetch(avatarUrl, {
       method: "PUT",
       headers: { "Content-Type": avatar.mime },
@@ -259,11 +259,11 @@ export async function seedProfile(
     }
     await putPublicReadAcl(avatarUrl, x);
   }
-  const docUrl = x.webId.split("#")[0];
-  await readModifyWrite(docUrl, x.session, (store, { created }) => {
+  const docUri = x.webId.split("#")[0];
+  await readModifyWrite(docUri, x.session, (store, { created }) => {
     if (created) {
       // A WebID profile is provisioned by the identity provider, never by us.
-      throw new Error(`seed profile: no profile document at ${docUrl}`);
+      throw new Error(`seed profile: no profile document at ${docUri}`);
     }
     store.addQuad(namedNode(x.webId), namedNode(FOAF_NAME), literal(name));
     if (avatarUrl) {
@@ -345,10 +345,10 @@ export async function wipeBuildings(session: Session, webId: string): Promise<vo
  */
 export async function seedRoomMembers(
   session: Session,
-  roomUrl: string,
+  roomUri: string,
   n: number,
 ): Promise<void> {
-  const container = normalizeRoomUrl(roomUrl);
+  const container = normalizeRoomUri(roomUri);
   if (n > 0) await ensureContainer(container, session);
   const webIds = Array.from(
     { length: n },
@@ -386,12 +386,12 @@ const CHURN_ROLE_IRIS = [`${GRAN_NS}InvestorRole`, `${GRAN_NS}UserRoleInstance`]
  */
 export async function seedRoomRoleChurn(
   session: Session,
-  roomUrl: string,
+  roomUri: string,
   members: number,
   roleEvents: number,
 ): Promise<void> {
   if (members <= 0 || roleEvents <= 0) return;
-  const container = normalizeRoomUrl(roomUrl);
+  const container = normalizeRoomUri(roomUri);
   await ensureContainer(container, session);
   const base = new Date("2025-01-01T00:00:00Z").getTime();
   const events = Array.from({ length: roleEvents }, (_, i) => ({

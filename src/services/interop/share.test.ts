@@ -3,7 +3,7 @@ import assert from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   applyBuildingGrant,
-  getEnergyDataUrls,
+  getEnergyDataUris,
   shareBuildingData,
 } from "./share.ts";
 import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
@@ -42,8 +42,8 @@ function session(): Session {
   } as unknown as Session;
 }
 
-Deno.test("getEnergyDataUrls: no years filter grants every dataset (+ series container)", async () => {
-  const urls = await getEnergyDataUrls(BUILDING, session());
+Deno.test("getEnergyDataUris: no years filter grants every dataset (+ series container)", async () => {
+  const urls = await getEnergyDataUris(BUILDING, session());
   const set = new Set(urls.map((t) => t.url));
 
   // All four dataset files are granted.
@@ -59,8 +59,8 @@ Deno.test("getEnergyDataUrls: no years filter grants every dataset (+ series con
   assert.strictEqual(urls.length, 5);
 });
 
-Deno.test("getEnergyDataUrls: years:[2024] excludes 2023, keeps the 2024 series container", async () => {
-  const urls = await getEnergyDataUrls(BUILDING, session(), [2024]);
+Deno.test("getEnergyDataUris: years:[2024] excludes 2023, keeps the 2024 series container", async () => {
+  const urls = await getEnergyDataUris(BUILDING, session(), [2024]);
   const set = new Set(urls.map((t) => t.url));
 
   // 2023 is excluded.
@@ -77,8 +77,8 @@ Deno.test("getEnergyDataUrls: years:[2024] excludes 2023, keeps the 2024 series 
   assert.strictEqual(urls.length, 4);
 });
 
-Deno.test("getEnergyDataUrls: an unmatched year grants no energy", async () => {
-  const urls = await getEnergyDataUrls(BUILDING, session(), [1999]);
+Deno.test("getEnergyDataUris: an unmatched year grants no energy", async () => {
+  const urls = await getEnergyDataUris(BUILDING, session(), [1999]);
   assert.strictEqual(urls.length, 0);
 });
 

@@ -31,7 +31,7 @@ export interface Preferences {
 }
 
 /** `<storageRoot><APP_DIR>/prefs.ttl` — your personal preferences resource. */
-export function prefsUrl(webId: string): string {
+export function prefsUri(webId: string): string {
   return `${appRoot(webId)}prefs.ttl`;
 }
 
@@ -47,8 +47,8 @@ export async function readPrefs(session: Session): Promise<Preferences> {
     demoSeedDeclined: false,
   };
   if (!webId) return empty;
-  const store = await readStoreOrEmpty(prefsUrl(webId), session);
-  const self = namedNode(prefsUrl(webId));
+  const store = await readStoreOrEmpty(prefsUri(webId), session);
+  const self = namedNode(prefsUri(webId));
   return {
     currentRoom:
       store.getObjects(self, GRAN_CURRENT_ROOM, null)[0]?.value ?? null,
@@ -71,7 +71,7 @@ function mutatePrefs(
   session: Session,
   mutate: (store: Store, self: ReturnType<typeof namedNode>) => void,
 ): Promise<void> {
-  const url = prefsUrl(session.info.webId!);
+  const url = prefsUri(session.info.webId!);
   const self = namedNode(url);
   return readModifyWrite(url, session, (store) => {
     store.addQuad(self, RDF_TYPE_NODE, GRAN_PREFERENCES);

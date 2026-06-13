@@ -2,7 +2,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser } from "n3";
 import { fetchFresh } from "../pod/podFetch.ts";
 import { parseBuildings } from "../rdf/building/buildingParser.ts";
-import { buildingFileUrl } from "../rdf/building/buildingId.ts";
+import { buildingFileUri } from "../rdf/building/buildingId.ts";
 import { getStorageRoot } from "../pod/solidUtils.ts";
 import type { BuildingType } from "../../types.ts";
 
@@ -46,9 +46,9 @@ export async function loadSharedBuilding(
   );
   // The log records the shared RESOURCE (file) IRI; match on the document,
   // not text-equality with a `#it` subject.
-  const fileUrl = buildingFileUrl(entry.buildingUri);
+  const fileUri = buildingFileUri(entry.buildingUri);
   const found = [...parsed.values()]
-    .find((b) => buildingFileUrl(b.uri) === fileUrl) ?? [...parsed.values()][0];
+    .find((b) => buildingFileUri(b.uri) === fileUri) ?? [...parsed.values()][0];
   if (!found) return null;
   return found;
 }

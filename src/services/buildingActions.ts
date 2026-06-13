@@ -5,14 +5,14 @@ import { formatResourceList, listContainedResources } from "./pod/podDelete.ts";
 import { getStorageRoot } from "./pod/solidUtils.ts";
 import { revokeAllBuildingRecipients } from "./interop/sharingManager.ts";
 import {
-  buildingFileUrl,
+  buildingFileUri,
   buildingIdStem,
 } from "./rdf/building/buildingId.ts";
 import { logError } from "../lib/logError.ts";
 
 /** The building file URI (fragment stripped) for an owned building. */
-function buildingFileUri(building: BuildingType): string {
-  return buildingFileUrl((building.sourceUri ?? building.uri) as string);
+function buildingFileUriOf(building: BuildingType): string {
+  return buildingFileUri((building.sourceUri ?? building.uri) as string);
 }
 
 /**
@@ -29,7 +29,7 @@ export async function buildBuildingDeletionPreview(
   session: Session,
   building: BuildingType,
 ): Promise<{ fileUri: string; message: string }> {
-  const fileUri = buildingFileUri(building);
+  const fileUri = buildingFileUriOf(building);
 
   let root = "";
   try {
@@ -77,7 +77,7 @@ export async function deleteBuildingResource(
   session: Session,
   building: BuildingType,
 ): Promise<void> {
-  const fileUri = buildingFileUri(building);
+  const fileUri = buildingFileUriOf(building);
   await revokeAllBuildingRecipients(fileUri, session).catch((err) =>
     logError("revoke recipients before building delete", err)
   );

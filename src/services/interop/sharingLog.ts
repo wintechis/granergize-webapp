@@ -64,12 +64,12 @@ export interface SharingEvent {
 export type ActiveGrant = Omit<SharingEvent, "type">;
 
 /** `granergize/shared-in/` — sharing received (folded for "shared with me"). */
-export function sharedInUrl(webId: string): string {
+export function sharedInUri(webId: string): string {
   return podResources(webId).sharedIn;
 }
 
 /** `granergize/shared-out/` — sharing performed (history + "shared with" badge). */
-export function sharedOutUrl(webId: string): string {
+export function sharedOutUri(webId: string): string {
   return podResources(webId).sharedOut;
 }
 
@@ -128,14 +128,14 @@ export function buildSharingEventTurtle(e: SharingEvent): string {
  * @operation mutation
  */
 export async function appendSharingEvent(
-  containerUrl: string,
+  containerUri: string,
   session: Session,
   event: SharingEvent,
 ): Promise<void> {
   // Announce: a first event lazily provisions shared-out//shared-in/, a creation
   // the user wouldn't otherwise see.
-  await ensureContainer(containerUrl, session, { announce: true });
-  await appendToContainer(containerUrl, buildSharingEventTurtle(event), session, {
+  await ensureContainer(containerUri, session, { announce: true });
+  await appendToContainer(containerUri, buildSharingEventTurtle(event), session, {
     describeError: (res) => `Failed to append sharing event (HTTP ${res.status})`,
   });
 }
@@ -197,16 +197,16 @@ const eventCacheBySession = new WeakMap<Session, Map<string, SharingEvent[]>>();
 
 /** Read every event resource in a log container (bounded concurrency). */
 async function readAllEvents(
-  containerUrl: string,
+  containerUri: string,
   session: Session,
 ): Promise<SharingEvent[]> {
-  const children = await listDirectChildren(containerUrl, session);
+  const children = await listDirectChildren(containerUri, session);
   if (!children) return []; // container doesn't exist yet
-  const eventUrls = children.filter((u) => !u.endsWith("/"));
+  const eventUris = children.filter((u) => !u.endsWith("/"));
   const cache = eventCacheBySession.get(session) ??
     new Map<string, SharingEvent[]>();
   eventCacheBySession.set(session, cache);
-  const parsed = await mapPooled(eventUrls, 4, async (url) => {
+  const parsed = await mapPooled(eventUris, 4, async (url) => {
     const cached = cache.get(url);
     if (cached) return cached;
     const events = parseSharingEvents(await readStoreOrEmpty(url, session));
@@ -226,10 +226,10 @@ async function readAllEvents(
  * @operation query
  */
 export async function foldSharingLogEvents(
-  containerUrl: string,
+  containerUri: string,
   session: Session,
 ): Promise<SharingEvent[]> {
-  const events = await readAllEvents(containerUrl, session);
+  const events = await readAllEvents(containerUri, session);
   const latest = new Map<string, SharingEvent>();
   for (const e of events) {
     const key = `${e.grantee}\n${e.resource}`;
@@ -248,10 +248,10 @@ export async function foldSharingLogEvents(
  * @operation query
  */
 export async function foldSharingLog(
-  containerUrl: string,
+  containerUri: string,
   session: Session,
 ): Promise<ActiveGrant[]> {
-  return (await foldSharingLogEvents(containerUrl, session))
+  return (await foldSharingLogEvents(containerUri, session))
     .filter((e) => e.type === "grant")
     .map((e): ActiveGrant => {
       const grant: ActiveGrant = {

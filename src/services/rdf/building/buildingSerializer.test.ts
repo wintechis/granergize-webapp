@@ -18,8 +18,8 @@ import {
 import { buildingsToXlsx, buildingToXlsx } from "../buildingWorkbook.ts";
 import { synthDayReadings } from "../energySeriesXlsx.ts";
 import {
-  datasetFileUrl,
-  datasetNodeUrl,
+  datasetFileUri,
+  datasetNodeUri,
 } from "../energyDataset.ts";
 import { toggleBuildingVisibility } from "../../interop/sharingManager.ts";
 import { parseBuildings } from "./buildingParser.ts";
@@ -992,8 +992,8 @@ Deno.test("writeEnergyYear writes the dataset and links it; deleteEnergyYear und
     metrics: { electricityConsumption: 88888 },
   });
 
-  const dsFile = datasetFileUrl(fileUri, 2099, "P1Y", "actual");
-  const dsNode = datasetNodeUrl(dsFile);
+  const dsFile = datasetFileUri(fileUri, 2099, "P1Y", "actual");
+  const dsNode = datasetNodeUri(dsFile);
   assert.ok(dsFile in store, "the dataset resource was written");
   // The building file now links the dataset.
   const linkedAfterWrite = parse(store[fileUri]).getQuads(

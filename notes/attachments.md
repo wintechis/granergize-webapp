@@ -34,10 +34,10 @@ affected by `TurtleParsingService`'s per-source blank-node scoping, and a file i
 removed by dropping all triples with that subject. Constants in `vocabularies.ts`
 (`GRAN_HAS_ATTACHMENT`, `SCHEMA_*`, `DCTERMS_CREATED`).
 
-## Write path — `services/attachments/attachmentManager.ts`
+## Write path — `services/attachmentManager.ts`
 
-Binaries can't go through the string-field building serializer, so this mirrors the
-old `certificateUploader` but on the race-safe `readModifyWrite` (`podWrite.ts`):
+Binaries can't go through the string-field building serializer, so this PUTs them
+directly on the race-safe `readModifyWrite` (`podWrite.ts`):
 
 - `uploadAttachment` — `ensureContainer` the `<id>/` then `files/` container; PUT the
   binary (de-duped filename) with its `file.type`; add the link + metadata.

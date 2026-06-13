@@ -9,7 +9,7 @@ import {
   deleteView,
   getViewDefinition,
   getViewDefinitions,
-  getSnapshotUrl,
+  getSnapshotUri,
   loadComputedSnapshot,
   storeComputedSnapshot,
 } from "./viewManager.ts";
@@ -43,9 +43,9 @@ Deno.test("createViewDefinition writes one views/<id>.ttl resource", async () =>
     ["electricity"],
   );
 
-  const defUrl = `${VIEWS}${view.id}.ttl`;
-  assert.ok(store[defUrl], "the definition resource was PUT under views/");
-  const s = parse(store[defUrl]);
+  const defUri = `${VIEWS}${view.id}.ttl`;
+  assert.ok(store[defUri], "the definition resource was PUT under views/");
+  const s = parse(store[defUri]);
   assert.equal(
     s.getQuads(null, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", `${CONS}AggregatedViewDefinition`, null).length,
     1,
@@ -102,9 +102,9 @@ Deno.test("storeComputedSnapshot writes the shareable snapshot under snapshots/"
     values: { heat: 1234.5 },
   });
 
-  const snapUrl = getSnapshotUrl(WEBID, v.id);
-  assert.equal(snapUrl, `${SNAPSHOTS}${v.id}.ttl`);
-  const s = parse(store[snapUrl]);
+  const snapUri = getSnapshotUri(WEBID, v.id);
+  assert.equal(snapUri, `${SNAPSHOTS}${v.id}.ttl`);
+  const s = parse(store[snapUri]);
   assert.equal(s.getObjects(null, `${CONS}buildingCount`, null)[0]?.value, "3");
   // Full precision — the ground value is no longer rounded to two decimals
   // (display formatting is the UI's job).
@@ -130,8 +130,8 @@ Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot
   });
 
   // The Turtle carries both rdf:types and the two benchmark predicates.
-  const snapUrl = getSnapshotUrl(WEBID, v.id);
-  const s = parse(store[snapUrl]);
+  const snapUri = getSnapshotUri(WEBID, v.id);
+  const s = parse(store[snapUri]);
   const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
   assert.equal(
     s.getQuads(null, RDF_TYPE, `${CONS}AggregatedViewSnapshot`, null).length,
@@ -152,7 +152,7 @@ Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot
   );
 
   // And loadComputedSnapshot reads them back.
-  const loaded = await loadComputedSnapshot(session, snapUrl);
+  const loaded = await loadComputedSnapshot(session, snapUri);
   assert.equal(loaded?.isBenchmark, true);
   assert.equal(loaded?.computedBy, "https://bsp.pod/profile/card#me");
   assert.equal(loaded?.metricPeriod, "2024");
@@ -171,7 +171,7 @@ Deno.test("a plain (non-benchmark) snapshot has no benchmark fields", async () =
     metrics: ["heat"],
     values: { heat: 5 },
   });
-  const loaded = await loadComputedSnapshot(session, getSnapshotUrl(WEBID, v.id));
+  const loaded = await loadComputedSnapshot(session, getSnapshotUri(WEBID, v.id));
   assert.equal(loaded?.isBenchmark, undefined);
   assert.equal(loaded?.computedBy, undefined);
   assert.equal(loaded?.metricPeriod, undefined);

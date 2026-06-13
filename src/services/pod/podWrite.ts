@@ -10,8 +10,8 @@ import { APP_DIR } from "./solidUtils.ts";
  * (`<APP_DIR>/`) like `shared-out`, `shared-in` — are announceable; deeper
  * per-content containers (a building's time-series, a data-room id) are created
  * silently so the notice stays meaningful and not noisy. */
-function announceableContainer(containerUrl: string): string | null {
-  const path = containerUrl.replace(/\/+$/, "");
+function announceableContainer(containerUri: string): string | null {
+  const path = containerUri.replace(/\/+$/, "");
   const marker = `/${APP_DIR}/`;
   const at = path.indexOf(marker);
   if (at < 0) return null;
@@ -65,23 +65,23 @@ export interface RmwContext {
  * @operation mutation
  */
 export async function ensureContainer(
-  containerUrl: string,
+  containerUri: string,
   session: Session,
   opts: { announce?: boolean } = {},
 ): Promise<boolean> {
   // HEAD, not GET: only existence matters, so don't transfer the container body.
-  const head = await session.fetch(containerUrl, { method: "HEAD" });
+  const head = await session.fetch(containerUri, { method: "HEAD" });
   if (head.ok || head.status !== 404) return false;
-  const put = await session.fetch(containerUrl, {
+  const put = await session.fetch(containerUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: "",
   });
   if (!put.ok) {
-    throw new Error(`Failed to create container ${containerUrl} (HTTP ${put.status})`);
+    throw new Error(`Failed to create container ${containerUri} (HTTP ${put.status})`);
   }
   if (opts.announce) {
-    const label = announceableContainer(containerUrl);
+    const label = announceableContainer(containerUri);
     if (label) emitNotification(`Set up the "${label}" folder on this Pod`, "info");
   }
   return true;
@@ -98,12 +98,12 @@ export async function ensureContainer(
  * @operation mutation
  */
 export async function appendToContainer(
-  containerUrl: string,
+  containerUri: string,
   turtle: string,
   session: Session,
   opts: { describeError?: (res: Response) => string } = {},
 ): Promise<void> {
-  const res = await session.fetch(containerUrl, {
+  const res = await session.fetch(containerUri, {
     method: "POST",
     headers: { "Content-Type": "text/turtle" },
     body: turtle,
@@ -111,7 +111,7 @@ export async function appendToContainer(
   if (!res.ok) {
     throw new Error(
       opts.describeError?.(res) ??
-        `Failed to append to ${containerUrl} (HTTP ${res.status})`,
+        `Failed to append to ${containerUri} (HTTP ${res.status})`,
     );
   }
 }
@@ -124,18 +124,18 @@ export async function appendToContainer(
  * @operation mutation
  */
 export async function putAcl(
-  aclUrl: string,
+  aclUri: string,
   turtleBody: string,
   session: Session,
 ): Promise<Response> {
-  const res = await session.fetch(aclUrl, {
+  const res = await session.fetch(aclUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: turtleBody,
   });
   if (res.ok || res.status !== 415) return res;
-  const store = new Store(new Parser({ baseIRI: aclUrl }).parse(turtleBody));
-  return await session.fetch(aclUrl, {
+  const store = new Store(new Parser({ baseIRI: aclUri }).parse(turtleBody));
+  return await session.fetch(aclUri, {
     method: "PUT",
     headers: { "Content-Type": "application/ld+json" },
     body: quadsToJsonLd(store.getQuads(null, null, null, null)),

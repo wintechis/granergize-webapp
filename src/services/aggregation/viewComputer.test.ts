@@ -11,8 +11,8 @@ import {
 } from "./viewComputer.ts";
 import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 import {
-  datasetFileUrl,
-  datasetNodeUrl,
+  datasetFileUri,
+  datasetNodeUri,
   serializeEnergyDataset,
 } from "../rdf/energyDataset.ts";
 
@@ -22,7 +22,7 @@ const METRIC = "electricityConsumption";
 /** A building file at `<uri>` linking one annual `actual` dataset per given year. */
 function buildingDoc(uri: string, years: number[]): string {
   const links = years
-    .map((y) => `<${datasetNodeUrl(datasetFileUrl(uri, y, "P1Y", "actual"))}>`)
+    .map((y) => `<${datasetNodeUri(datasetFileUri(uri, y, "P1Y", "actual"))}>`)
     .join(" ,\n    ");
   return `@prefix cons: <${CONSUMPTION_NS}> .\n<${uri}#b>\n  cons:hasEnergyDataset ${links} .\n`;
 }
@@ -38,7 +38,7 @@ function pod(
   for (const [uri, datasets] of Object.entries(buildings)) {
     docs.set(uri, buildingDoc(uri, datasets.map((d) => d.year)));
     for (const d of datasets) {
-      const file = datasetFileUrl(uri, d.year, "P1Y", "actual");
+      const file = datasetFileUri(uri, d.year, "P1Y", "actual");
       docs.set(
         file,
         serializeEnergyDataset({

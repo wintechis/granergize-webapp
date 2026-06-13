@@ -1,8 +1,5 @@
 # Data layout — on the Pod (LDP)
 
-> **Current layout below.** The single-root move and `pim:storage` discovery are
-> shipped; see *History* at the end for their rationale.
-
 On-Pod file layout, rooted at the storage location discovered via `pim:storage`.
 Companion to
 [`building-pane.md`](./building-pane.md) (the building pane) and
@@ -49,7 +46,7 @@ buildings, and demo-offer state from **`prefs.ttl`**; external room bookmarks fr
 logs (`shared-in/`, `shared-out/`). The old `dataSources.ttl` /
 `sharingRegistry.ttl` / `views/viewSharingRegistry.ttl` /
 `views/viewDefinitions.ttl` / `views/computed/` / `hiddenBuildings.ttl` /
-`rooms.ttl` registries are gone (see *History* below).
+`rooms.ttl` registries are gone (see *Rationale* below).
 
 **Energy file layout.** Each building links its datasets with
 `cons:hasEnergyDataset`; the link slug `<year>-<granularity>[-planned]` is
@@ -163,28 +160,25 @@ migrates the flat form to the point on edit).
 - **Agents minimal**: only `schema:name` is parsed. The user's `#org` is the first
   real org node; building agents need the same treatment to drive marker logos.
 
----
+## Rationale
 
-## History (rationale)
+**One root.** All app data hangs off a single `<storageRoot>granergize/` tree via
+`podResources(webId)`, the one source of truth for paths. Spanning several bases —
+`getStorageRoot + granergize/`, `getPodBaseUrl + granergize/`,
+`getStorageRoot + profile/granergize/` — desyncs for any WebID not shaped
+`<pod>/profile/card`, surfacing as a silently "empty" Pod. `profile/` keeps only
+identity (the WebID `card` and the org `logo.<ext>`). There is no migration: older
+`profile/granergize/…` data is orphaned and Pods re-bootstrap.
 
-Two consolidations produced the layout above.
+**No registries.** Every list derives from the Pod's own structure — container
+listings and folded event logs — rather than separate index files. An index that can
+desync from the resources it names is one more thing to keep consistent, and a single
+PUT adds a building, so a listing can't lag. See the *Tree* above and
+[`storage-model.md`](./storage-model.md).
 
-**One root.** App data used to span three bases (`getStorageRoot + granergize/`,
-`getPodBaseUrl + granergize/`, `getStorageRoot + profile/granergize/`), which
-desynced for any WebID not shaped `<pod>/profile/card` → silent "empty" pod. Fixed
-by making `podResources(webId)` the single source of truth, every path under one
-`<storageRoot>granergize/` tree. `profile/` keeps only identity (the WebID `card`
-and the org `logo.<ext>`). Clean break — no migration; old `profile/granergize/…`
-files are orphaned and pods re-bootstrap. (This move targeted an *interim* layout
-with flat registries; the later storage redesign then dropped the registries
-entirely for listing / log-folding — see the *Tree* above and
-[`storage-model.md`](./storage-model.md).)
-
-**Storage root the Solid way.** The old `getStorageRoot` string-munged the WebID
-(`origin` up to `/profile/`), which breaks for off-`/profile/` or separately-hosted
-WebIDs. Replaced by `resolveStorageRoot(session)` (`solidUtils.ts`): reads
-`<webId> pim:storage <root>` from the WebID doc, resolved once at login (`App.tsx`)
-and cached; `getStorageRoot(webId)` is now cache-or-throw, the string-munge deleted.
-Throws if the profile declares no `pim:storage` (no fallback). Scope is the storage
-*root* only — within-pod paths stay hardcoded; a `solid:TypeIndex` for full
-cross-app discovery remains out of scope.
+**Storage root the Solid way.** The root is resolved from `<webId> pim:storage <root>`
+in the WebID doc (`resolveStorageRoot(session)`, once at login, cached), not by
+string-munging the WebID origin up to `/profile/` — that munge breaks for
+off-`/profile/` or separately-hosted WebIDs. It throws if the profile declares no
+`pim:storage` (no fallback). Scope is the storage *root* only — within-Pod paths stay
+hardcoded; a `solid:TypeIndex` for full cross-app discovery remains out of scope.

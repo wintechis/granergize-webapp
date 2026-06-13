@@ -17,7 +17,7 @@ const GRAN_KNOWN_ROOM = namedNode(`${GRAN_NS}knownRoom`);
  * Split out of the old `rooms.ttl`; the active-room pointer lives in `prefs.ts`,
  * and rooms you *host* are discovered by listing `rooms/` (not duplicated here).
  */
-export function bookmarksUrl(webId: string): string {
+export function bookmarksUri(webId: string): string {
   return `${appRoot(webId)}bookmarks.ttl`;
 }
 
@@ -28,7 +28,7 @@ export function bookmarksUrl(webId: string): string {
 export async function readBookmarks(session: Session): Promise<string[]> {
   const webId = session.info.webId;
   if (!webId) return [];
-  const url = bookmarksUrl(webId);
+  const url = bookmarksUri(webId);
   const store = await readStoreOrEmpty(url, session);
   return store.getObjects(namedNode(url), GRAN_KNOWN_ROOM, null).map((o) =>
     o.value
@@ -40,7 +40,7 @@ export async function readBookmarks(session: Session): Promise<string[]> {
  * @operation mutation
  */
 export function addBookmark(session: Session, room: string): Promise<void> {
-  const url = bookmarksUrl(session.info.webId!);
+  const url = bookmarksUri(session.info.webId!);
   const self = namedNode(url);
   const node = namedNode(room);
   return readModifyWrite(url, session, (store) => {
@@ -57,7 +57,7 @@ export function addBookmark(session: Session, room: string): Promise<void> {
  * @operation mutation
  */
 export function removeBookmark(session: Session, room: string): Promise<void> {
-  const url = bookmarksUrl(session.info.webId!);
+  const url = bookmarksUri(session.info.webId!);
   const self = namedNode(url);
   const node = namedNode(room);
   return readModifyWrite(url, session, (store) => {

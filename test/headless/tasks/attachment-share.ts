@@ -24,7 +24,7 @@ import {
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 import {
-  buildingFileUrl,
+  buildingFileUri,
 } from "../../../src/services/rdf/building/buildingId.ts";
 
 export const name = "attachment-share";
@@ -33,11 +33,11 @@ export async function run(ctx: TaskContext): Promise<void> {
   const { a, b, check } = ctx;
   const id = `at-${Date.now()}`;
   const uri = newBuildingUri(a.webId, id);
-  const fileUri = buildingFileUrl(uri);
+  const fileUri = buildingFileUri(uri);
   const bSharedIn = podResources(b.webId).sharedIn;
   const bSharedInSnap = await snapshot(b.raw, bSharedIn);
 
-  let attachmentUrl = "";
+  let attachmentUri = "";
   try {
     // A creates a building, then attaches a file to it.
     const ttl = serializeBuildingToTurtle(
@@ -56,7 +56,7 @@ export async function run(ctx: TaskContext): Promise<void> {
       new File(["hello attachment"], "report.pdf", { type: "application/pdf" }),
       a.session,
     );
-    attachmentUrl = ref.url;
+    attachmentUri = ref.url;
 
     // A shares the building directly with B (no room needed for a known WebID).
     await shareBuildingData(fileUri, b.webId, a.session, {
@@ -67,7 +67,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     const shared = await getSharedWithMe(b.session);
     check(
       "B sees the shared building",
-      shared.some((s) => buildingFileUrl(s.buildingUri) === fileUri),
+      shared.some((s) => buildingFileUri(s.buildingUri) === fileUri),
       `shared=[${shared.map((s) => s.buildingUri).join(", ")}]`,
     );
 
@@ -90,8 +90,8 @@ export async function run(ctx: TaskContext): Promise<void> {
       `HTTP ${bRead2.status}`,
     );
   } finally {
-    if (attachmentUrl) {
-      await a.session.fetch(attachmentUrl, { method: "DELETE" }).catch(() => {});
+    if (attachmentUri) {
+      await a.session.fetch(attachmentUri, { method: "DELETE" }).catch(() => {});
     }
     await deleteBuilding(a.session, a.webId, uri).catch(() => {});
     await restore(b.raw, bSharedIn, bSharedInSnap);

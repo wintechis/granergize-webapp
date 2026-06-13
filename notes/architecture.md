@@ -25,10 +25,8 @@ constants and types.
   data-access            src/hooks/ + src/context/   React Query
         │
   services               src/services/   domain logic
-                         folders (multi-file domains): interop/, aggregation/,
-                          organization/, agents/
-                         flat modules: TurtleParsingService, buildingActions,
-                          contacts, bookmarks, prefs, attachmentManager, geocode
+                         (folders for multi-file domains; flat modules for
+                          single-resource units — both enumerated below)
         │
   pod I/O  +  rdf        src/services/pod/, src/services/rdf/ (+ rdf/building/)
         │
@@ -45,7 +43,7 @@ MUI theme. The auth/login flow these set up is described in CLAUDE.md (Data flow
 **Pages** (`src/pages/`). One route-driven screen each — the tab shell (`index.tsx`),
 the map (`ExplorePage`), the energy and building detail routes (`Energy`, `Building`),
 sharing/manage/connect. Pages compose hooks and components; they never import each other.
-Navigational state (which tab, which building) is URL-encoded — see
+Navigational state (which tab, which building) is URI-encoded — see
 [`ui-state.md`](./ui-state.md).
 
 **Components** (`src/components/`, `src/components/detail/`). Reusable, mostly stateless
@@ -118,13 +116,22 @@ change is what re-runs the affected components. This is the same query/mutation 
 the data-access layer is named for ([`queries-mutations.md`](./queries-mutations.md)): safe reads are
 queries, state-changing writes are mutations.
 
-State itself lives in three places, by lifetime and ownership. Server state — every
+State itself lives in five places, by lifetime and ownership. Server state — every
 fetched Pod resource — lives in the **React-Query cache**, owned by the data-access
-layer; mutations invalidate its keys and the dependent components re-render. Durable
-*navigational* state (which tab, which building) is encoded in the **URI hash** so it
-survives a reload and is shareable. Everything else — form drafts, busy flags, menu
-anchors, in-flight interaction — is **ephemeral React component state** that may vanish
-on unmount. The navigational/ephemeral split and the full inventory are
+layer; mutations invalidate its keys and the dependent components re-render. A small
+subset of that server state is really *application* state that is stored **on the
+Pod** because it is a property of the account, not of any page or device: `prefs.ttl`
+(active room, hidden buildings, banner dismissal) and `bookmarks.ttl`. It flows
+through the same cache and mutation hooks as any other Pod resource, but it outlives
+the tab, the browser and the machine. Durable *navigational* state (which tab, which
+building) is encoded in the **URI hash** so it survives a reload and is shareable.
+**Module-level client stores** sit outside React entirely and live for the tab:
+the session singleton (`getSession()`), the active-room mirror (`dataRoom.ts`), the
+per-WebID storage-root and profile caches, and the network-activity store; the
+Developer-mode flag (`devMode.ts`) persists one step further, in `localStorage`.
+Everything else — form drafts, busy flags, menu anchors, in-flight interaction — is
+**ephemeral React component state** that may vanish on unmount. The
+navigational/ephemeral split and the full inventory are
 [`ui-state.md`](./ui-state.md).
 
 ## The dependency rule
@@ -157,7 +164,7 @@ map live in `deno.json`. The external packages, by the role they play:
 - **MUI v6 + Emotion** — the component layer's widget kit and theming.
 - **Recharts** — charts (bundled into a `vendor-charts` chunk by Vite).
 - **Leaflet / react-leaflet** — the map.
-- **`xlsx`** — XLSX import/export of building templates.
+- **`xlsx`** — XLSX import/export of building data.
 
 The build is **Vite**; because the app is served from a host subpath, `vite.config.ts`
 sets `base: "./"` and routing uses `HashRouter` (CLAUDE.md, Deployment). Versions are

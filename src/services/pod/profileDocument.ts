@@ -19,7 +19,7 @@ import { fetchFresh } from "./podFetch.ts";
  * re-fetches. Pass `{ fresh: true }` to force a re-fetch regardless.
  */
 
-const profileDocUrl = (webId: string): string => webId.split("#")[0];
+const profileDocUri = (webId: string): string => webId.split("#")[0];
 
 /** Parsed profile Stores by document URL. Only successful reads are cached. */
 const cache = new Map<string, Store>();
@@ -52,12 +52,12 @@ export function loadProfileStoreFor(
   session: Session,
   opts: { fresh?: boolean } = {},
 ): Promise<Store | null> {
-  const docUrl = profileDocUrl(webId);
+  const docUri = profileDocUri(webId);
 
   if (!opts.fresh) {
-    const cached = cache.get(docUrl);
+    const cached = cache.get(docUri);
     if (cached) return Promise.resolve(cached);
-    const pending = inflight.get(docUrl);
+    const pending = inflight.get(docUri);
     if (pending) return pending;
   }
 
@@ -70,27 +70,27 @@ export function loadProfileStoreFor(
     // graceful null + fragment-name fallback instead.
     let res: Response;
     try {
-      res = await fetchFresh(docUrl, session);
+      res = await fetchFresh(docUri, session);
     } catch {
       return null;
     }
     if (!res.ok) return null; // don't cache failures — let the next read retry
     const store = new Store(
-      new Parser({ format: "text/turtle", baseIRI: docUrl }).parse(
+      new Parser({ format: "text/turtle", baseIRI: docUri }).parse(
         await res.text(),
       ),
     );
-    cache.set(docUrl, store);
+    cache.set(docUri, store);
     return store;
   })();
-  inflight.set(docUrl, promise);
+  inflight.set(docUri, promise);
   try {
     return promise;
   } finally {
     // Clear the in-flight slot once it settles (success already populated the
     // result cache; failure left it empty so the next call retries).
     promise.finally(() => {
-      if (inflight.get(docUrl) === promise) inflight.delete(docUrl);
+      if (inflight.get(docUri) === promise) inflight.delete(docUri);
     });
   }
 }
@@ -101,7 +101,7 @@ export function loadProfileStoreFor(
  * (e.g. on logout).
  */
 export function invalidateProfile(webId?: string): void {
-  if (webId) cache.delete(profileDocUrl(webId));
+  if (webId) cache.delete(profileDocUri(webId));
   else cache.clear();
 }
 

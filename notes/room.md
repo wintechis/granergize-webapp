@@ -41,10 +41,10 @@ Your **own** Pod is the source of truth for both the list and the current room (
 they survive reloads and work across devices), split across two single-writer flat
 files (you alone write each, so read-modify-write is safe):
 
-- `…/granergize/prefs.ttl` (`prefs.ts`) — `<prefs> gran:currentRoom <url>` is the
+- `…/granergize/prefs.ttl` (`prefs.ts`) — `<prefs> gran:currentRoom <iri>` is the
   **one room you're in** (0 or 1). Written by `setCurrentRoom`, read by `readPrefs`.
   (Also holds other personal UI prefs — hidden buildings, demo-seed dismissal.)
-- `…/granergize/bookmarks.ttl` (`bookmarks.ts`) — `<bookmarks> gran:knownRoom <url> …`
+- `…/granergize/bookmarks.ttl` (`bookmarks.ts`) — `<bookmarks> gran:knownRoom <iri> …`
   is your **bookmarks** ("Your rooms"). Added by create / add-URI / scan via
   `addKnownRoom`; removed by `removeKnownRoom`; read by `readBookmarks`. They
   **survive leaving**.
@@ -82,8 +82,9 @@ state-centric (`sioc:has_member` is a fact, not an event), so AS2 supplies the v
 ```
 
 Role IRIs (`MEMBERSHIP_ROLE_TO_IRI`): `investor`→`gran:InvestorRole`, `user`→
-`gran:UserRoleInstance`, `benchmark_service_provider`→`gran:BenchmarkRole`,
-`dummy`→`gran:DummyRole`.
+`gran:UserRoleInstance`, `benchmark_service_provider`→`gran:BenchmarkRole`, and so on
+for the remaining self-assignable roles. (`dummy`→`gran:DummyRole` is an internal
+placeholder, not user-selectable.)
 
 ## Operations & fold
 

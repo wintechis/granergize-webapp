@@ -48,12 +48,12 @@ import QrScanner from "../components/QrScanner.tsx";
 import { logError } from "../lib/logError.ts";
 
 /** Host of a room URI, for "Hosted by …" labels (the Pod that owns the room). */
-function roomHost(roomUrl: string): string {
+function roomHost(roomUri: string): string {
   try {
-    return new URL(roomUrl).host;
+    return new URL(roomUri).host;
   } catch (err) {
     logError("parse room URI for host label", err);
-    return roomUrl;
+    return roomUri;
   }
 }
 

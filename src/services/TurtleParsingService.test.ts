@@ -11,7 +11,7 @@ import { makeFakeSession } from "./testing/fakeSession.ts";
 // Offline fixtures for a single Pod. The fake Session below serves these by URL
 // so fetchAndParseData runs end-to-end with no network. WebID resolves to:
 //   storageRoot       = https://pod.example/
-//   podBaseUrl        = https://pod.example/profile/
+//   podBaseUri        = https://pod.example/profile/
 //   buildings/ (own)  = https://pod.example/granergize/buildings/
 // Own buildings are discovered by LISTING the buildings/ container (ldp:contains).
 const WEBID = "https://pod.example/profile/card#me";

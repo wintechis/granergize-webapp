@@ -3,8 +3,8 @@ import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
-  datasetFileUrl,
-  datasetNodeUrl,
+  datasetFileUri,
+  datasetNodeUri,
   datasetSlug,
   type EnergyDataset,
   type EnergyDatasetRef,
@@ -23,18 +23,18 @@ function parse(ttl: string): Store {
   return new Store(new Parser().parse(ttl));
 }
 
-Deno.test("datasetSlug / datasetFileUrl encode (year, granularity, scenario)", () => {
+Deno.test("datasetSlug / datasetFileUri encode (year, granularity, scenario)", () => {
   assert.equal(datasetSlug(2024, "P1Y", "actual"), "2024-P1Y");
   assert.equal(datasetSlug(2024, "P1Y", "planned"), "2024-P1Y-planned");
   assert.equal(datasetSlug(2024, "PT15M", "actual"), "2024-PT15M");
   assert.equal(
-    datasetFileUrl(B, 2024, "P1Y", "actual"),
+    datasetFileUri(B, 2024, "P1Y", "actual"),
     "https://pod.example/granergize/buildings/b-1/energy/2024-P1Y.ttl",
   );
 });
 
 Deno.test("parseDatasetSlug round-trips the slug from a link URL", () => {
-  const url = datasetNodeUrl(datasetFileUrl(B, 2023, "P1Y", "planned"));
+  const url = datasetNodeUri(datasetFileUri(B, 2023, "P1Y", "planned"));
   const ref = parseDatasetSlug(url);
   assert.ok(ref);
   assert.equal(ref!.year, 2023);
@@ -65,8 +65,8 @@ Deno.test("annual dataset round-trips through serialize → parse", () => {
     },
   };
   const ttl = serializeEnergyDataset(ds);
-  const store = parse(ttl.replace(/<#ds>/g, `<${datasetNodeUrl(datasetFileUrl(B, 2024, "P1Y", "actual"))}>`));
-  const node = datasetNodeUrl(datasetFileUrl(B, 2024, "P1Y", "actual"));
+  const store = parse(ttl.replace(/<#ds>/g, `<${datasetNodeUri(datasetFileUri(B, 2024, "P1Y", "actual"))}>`));
+  const node = datasetNodeUri(datasetFileUri(B, 2024, "P1Y", "actual"));
   const back = parseEnergyDataset(store, node);
   assert.ok(back);
   assert.equal(back!.building, B);
@@ -128,9 +128,9 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
   // This is the read path the energy-year edit form relies on: re-opening a
   // stored year must surface its full figures so an edit doesn't drop the
   // untouched ones (#5 data loss).
-  const fileUrl = datasetFileUrl(B, 2024, "P1Y", "actual");
+  const fileUri = datasetFileUri(B, 2024, "P1Y", "actual");
   const ref: EnergyDatasetRef = {
-    url: datasetNodeUrl(fileUrl),
+    url: datasetNodeUri(fileUri),
     year: 2024,
     granularity: "P1Y",
     scenario: "actual",
@@ -144,7 +144,7 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
   };
   const ttl = serializeEnergyDataset(ds); // emits a relative <#ds> node
   const fetchFn = (url: string): Promise<Response> => {
-    assert.equal(url, fileUrl); // ref's #fragment stripped before the GET
+    assert.equal(url, fileUri); // ref's #fragment stripped before the GET
     return Promise.resolve(
       new Response(ttl, { headers: { "Content-Type": "text/turtle" } }),
     );
@@ -159,7 +159,7 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
 
 Deno.test("loadEnergyDatasets skips an unreadable ref without throwing", async () => {
   const ref: EnergyDatasetRef = {
-    url: datasetNodeUrl(datasetFileUrl(B, 2024, "P1Y", "actual")),
+    url: datasetNodeUri(datasetFileUri(B, 2024, "P1Y", "actual")),
     year: 2024,
     granularity: "P1Y",
     scenario: "actual",
@@ -170,8 +170,8 @@ Deno.test("loadEnergyDatasets skips an unreadable ref without throwing", async (
 });
 
 Deno.test("parseEnergyDatasetRefs reads the building's hasEnergyDataset links", () => {
-  const a = datasetNodeUrl(datasetFileUrl(B, 2024, "P1Y", "actual"));
-  const b = datasetNodeUrl(datasetFileUrl(B, 2024, "PT15M", "actual"));
+  const a = datasetNodeUri(datasetFileUri(B, 2024, "P1Y", "actual"));
+  const b = datasetNodeUri(datasetFileUri(B, 2024, "PT15M", "actual"));
   const store = parse(
     `@prefix cons: <${CONSUMPTION_NS}> .\n<${B}> cons:hasEnergyDataset <${a}>, <${b}> .\n`,
   );
@@ -182,7 +182,7 @@ Deno.test("parseEnergyDatasetRefs reads the building's hasEnergyDataset links", 
 
 Deno.test("listSeriesDays lists the descriptor's day files, sorted, .ttl only", async () => {
   const ref: EnergyDatasetRef = {
-    url: datasetNodeUrl(datasetFileUrl(B, 2024, "PT15M", "actual")),
+    url: datasetNodeUri(datasetFileUri(B, 2024, "PT15M", "actual")),
     year: 2024,
     granularity: "PT15M",
     scenario: "actual",

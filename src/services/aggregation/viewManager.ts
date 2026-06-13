@@ -52,28 +52,28 @@ function serializeWithPrefixes(store: Store): string {
 }
 
 /** The `views/` container — one definition resource per view (discover by listing). */
-function viewsContainerUrl(webId: string): string {
+function viewsContainerUri(webId: string): string {
   return podResources(webId).views;
 }
 
 /** The `views/snapshots/` container — one shareable computed copy per view. */
-function snapshotsContainerUrl(webId: string): string {
+function snapshotsContainerUri(webId: string): string {
   return podResources(webId).viewSnapshots;
 }
 
 /** A single view definition resource: `views/<viewId>.ttl`. */
-function getViewDefinitionUrl(webId: string, viewId: string): string {
-  return `${viewsContainerUrl(webId)}${viewId}.ttl`;
+function getViewDefinitionUri(webId: string, viewId: string): string {
+  return `${viewsContainerUri(webId)}${viewId}.ttl`;
 }
 
 /** A single computed snapshot resource: `views/snapshots/<viewId>.ttl`. */
-function getComputedViewUrl(webId: string, viewId: string): string {
-  return `${snapshotsContainerUrl(webId)}${viewId}.ttl`;
+function getComputedViewUri(webId: string, viewId: string): string {
+  return `${snapshotsContainerUri(webId)}${viewId}.ttl`;
 }
 
 /** The definition's subject node (a fragment of its own resource). */
 function viewNodeFor(webId: string, viewId: string) {
-  return namedNode(`${getViewDefinitionUrl(webId, viewId)}#view`);
+  return namedNode(`${getViewDefinitionUri(webId, viewId)}#view`);
 }
 
 /** Ensure the `views/` and `views/snapshots/` containers exist (parent first).
@@ -85,8 +85,8 @@ async function ensureViewsDirectoryExists(session: Session): Promise<void> {
     throw new Error("User is not logged in");
   }
 
-  await ensureContainer(viewsContainerUrl(webId), session);
-  await ensureContainer(snapshotsContainerUrl(webId), session);
+  await ensureContainer(viewsContainerUri(webId), session);
+  await ensureContainer(snapshotsContainerUri(webId), session);
 }
 
 /**
@@ -120,7 +120,7 @@ export async function createViewDefinition(
   const viewId = generateViewId();
   const now = new Date().toISOString();
   const webId = session.info.webId;
-  const definitionUrl = getViewDefinitionUrl(webId, viewId);
+  const definitionUri = getViewDefinitionUri(webId, viewId);
 
   const newView: AggregatedViewDefinition = {
     id: viewId,
@@ -189,7 +189,7 @@ export async function createViewDefinition(
     ));
   }
 
-  const res = await session.fetch(definitionUrl, {
+  const res = await session.fetch(definitionUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: serializeWithPrefixes(store),
@@ -259,13 +259,13 @@ export async function getViewDefinitions(
   // keeps the last good views via keepPreviousData). The legitimate empty — the
   // container doesn't exist yet — is the explicit `if (!children) return []` below,
   // so it stays distinct from "the read failed".
-  const children = await listDirectChildren(viewsContainerUrl(webId), session);
+  const children = await listDirectChildren(viewsContainerUri(webId), session);
   if (!children) return []; // container doesn't exist yet
-  const defUrls = children.filter((u) => u.endsWith(".ttl"));
+  const defUris = children.filter((u) => u.endsWith(".ttl"));
 
   // Bounded concurrency: a burst of GETs trips Cloudflare's rate limiter.
   const views = await mapPooled(
-    defUrls,
+    defUris,
     4,
     async (url) => parseViewDefinition(await readStoreOrEmpty(url, session)),
   );
@@ -285,7 +285,7 @@ export async function getViewDefinition(
   if (!webId) return null;
   try {
     const store = await readStoreOrEmpty(
-      getViewDefinitionUrl(webId, viewId),
+      getViewDefinitionUri(webId, viewId),
       session,
     );
     return parseViewDefinition(store);
@@ -309,8 +309,8 @@ export async function storeComputedSnapshot(
 
   await ensureViewsDirectoryExists(session);
 
-  const snapshotUrl = getComputedViewUrl(session.info.webId, snapshot.id);
-  const snapshotNode = namedNode(`${snapshotUrl}#snapshot`);
+  const snapshotUri = getComputedViewUri(session.info.webId, snapshot.id);
+  const snapshotNode = namedNode(`${snapshotUri}#snapshot`);
 
   const store = new Store();
 
@@ -406,7 +406,7 @@ export async function storeComputedSnapshot(
   // Serialize and save
   const ttl = serializeWithPrefixes(store);
 
-  const putResponse = await session.fetch(snapshotUrl, {
+  const putResponse = await session.fetch(snapshotUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: ttl,
@@ -421,7 +421,7 @@ export async function storeComputedSnapshot(
   // Update lastComputedAt in the definition
   await updateViewLastComputed(session, snapshot.id, snapshot.computedAt);
 
-  return snapshotUrl;
+  return snapshotUri;
 }
 
 /**
@@ -435,11 +435,11 @@ async function updateViewLastComputed(
   const webId = session.info.webId;
   if (!webId) return;
 
-  const definitionUrl = getViewDefinitionUrl(webId, viewId);
+  const definitionUri = getViewDefinitionUri(webId, viewId);
   const viewNode = viewNodeFor(webId, viewId);
   const lastComputedPred = namedNode(`${VOCAB_PREFIX}lastComputedAt`);
 
-  await readModifyWrite(definitionUrl, session, (store, { created }) => {
+  await readModifyWrite(definitionUri, session, (store, { created }) => {
     if (created) return false; // no definition file → nothing to update
     store.getQuads(viewNode, lastComputedPred, null, null)
       .forEach((q) => store.removeQuad(q));
@@ -465,20 +465,20 @@ async function updateViewLastComputed(
  */
 export async function loadComputedSnapshot(
   session: Session,
-  snapshotUrl: string,
+  snapshotUri: string,
 ): Promise<AggregatedViewSnapshot | null> {
-  const response = await fetchFresh(snapshotUrl, session);
+  const response = await fetchFresh(snapshotUri, session);
   if (response.status === 404 || response.status === 410) {
     return null;
   }
   if (!response.ok) {
     throw new Error(
-      `Failed to load snapshot (HTTP ${response.status}): ${snapshotUrl}`,
+      `Failed to load snapshot (HTTP ${response.status}): ${snapshotUri}`,
     );
   }
 
   const text = await response.text();
-  const parser = new Parser({ format: "text/turtle", baseIRI: snapshotUrl });
+  const parser = new Parser({ format: "text/turtle", baseIRI: snapshotUri });
   const quads = parser.parse(text);
   const store = new Store(quads);
 
@@ -581,8 +581,8 @@ export async function getReceivedBenchmarksFor(
     // must not fail the whole fold — loadComputedSnapshot throws on transient
     // failures by design (so the view page can tell absence from failure).
     (rv) =>
-      loadComputedSnapshot(session, rv.snapshotUrl).catch((err) => {
-        logError(`load received benchmark ${rv.snapshotUrl}`, err);
+      loadComputedSnapshot(session, rv.snapshotUri).catch((err) => {
+        logError(`load received benchmark ${rv.snapshotUri}`, err);
         return null;
       }),
   );
@@ -612,8 +612,8 @@ export async function getComputedSnapshotByViewId(
   viewId: string,
 ): Promise<AggregatedViewSnapshot | null> {
   if (!session.info.webId) return null;
-  const snapshotUrl = getComputedViewUrl(session.info.webId, viewId);
-  return loadComputedSnapshot(session, snapshotUrl);
+  const snapshotUri = getComputedViewUri(session.info.webId, viewId);
+  return loadComputedSnapshot(session, snapshotUri);
 }
 
 /**
@@ -631,9 +631,9 @@ export async function deleteView(
 
   // Container-native: deleting the definition resource de-registers the view
   // (it's discovered by listing); also drop its snapshot and any ACLs.
-  const definitionUrl = getViewDefinitionUrl(webId, viewId);
-  const snapshotUrl = getComputedViewUrl(webId, viewId);
-  for (const url of [definitionUrl, snapshotUrl]) {
+  const definitionUri = getViewDefinitionUri(webId, viewId);
+  const snapshotUri = getComputedViewUri(webId, viewId);
+  for (const url of [definitionUri, snapshotUri]) {
     await session.fetch(`${url}.acl`, { method: "DELETE" }).catch((err) =>
       logError("delete view ACL", err)
     );
@@ -646,6 +646,6 @@ export async function deleteView(
 /**
  * Get the snapshot URL for a view
  */
-export function getSnapshotUrl(webId: string, viewId: string): string {
-  return getComputedViewUrl(webId, viewId);
+export function getSnapshotUri(webId: string, viewId: string): string {
+  return getComputedViewUri(webId, viewId);
 }

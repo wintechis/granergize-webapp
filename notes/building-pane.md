@@ -116,8 +116,10 @@ actions live on the **Manage** tab (`ManagePage.tsx`).
 Almost everything in the card is one file: every core/investor/benchmark property
 is a triple on `<…/buildings/<id>.ttl#<id>>` (surfaced as the "Source:" row). The
 exceptions are the energy datasets (separate per-(year,granularity,scenario) files,
-linked by `cons:hasEnergyDataset`) and the certificate PDF (sibling `certificates/`
-resource; only the link is in the building file). Per-row file map below.
+linked by `cons:hasEnergyDataset`) and attached files including the certificate PDF
+(bytes in the per-building `files/` container, linked by
+`bldg:hasAttachment`/`bldg:hasEnergyCertificate`; only the link is in the building
+file — see [`attachments.md`](./attachments.md)). Per-row file map below.
 
 ### 3a. Where each row lives
 
@@ -125,7 +127,7 @@ resource; only the link is in the building file). Per-row file map below.
 <building URI>, Source            granergize/buildings/<id>.ttl  (subject / graph IRI)
 Customer/Operated By/Investor      agent IRI (no separate agents source any more)
 core datatypes, investor/benchmark blocks   same building file
-Energy Certificate                 link in building file; PDF in <dir>/certificates/<id>_energy_certificate.pdf
+Energy Certificate / Files         link in building file; bytes in <dir>/files/ container
 §Certifications / §Operating Costs blank nodes in the building file
 energy charts (energyDatasets)     one cons:EnergyDataset file per (building, year,
                                    granularity, scenario) under buildings/<id>/energy/
@@ -146,12 +148,13 @@ longer load (the field is kept empty for the back-compat return shape).
   `SKIP_FIELDS` (shown but
   not editable): `customer`, `investor`, `type`, `naceCode`, `energyCertificate`,
   and the array/object fields.
-- **Energy certificate** (`EnergyCertificateDialog` → `uploadEnergyCertificate`,
-  `certificateUploader.ts`): PUTs the PDF to `certificates/<id>_energy_certificate.pdf`,
-  then PUTs the building file with a refreshed `bldg:hasEnergyCertificate`. This and
-  the per-year **Add / edit energy year** action (`EnergyYearDialog`) are per-building
-  row actions on the **Manage** tab (`ManagePage.tsx`) — the map's detail pane is
-  view-only.
+- **Files / energy certificate** (`FilesDialog` → `uploadAttachment` /
+  `setEnergyCertificate`, `attachmentManager.ts`): PUTs each file to the per-building
+  `files/` container, then PUTs the building file with the refreshed
+  `bldg:hasAttachment` / `bldg:hasEnergyCertificate` link (see `attachments.md`). This
+  and the per-year **Add / edit energy year** action (`EnergyYearDialog`) are
+  per-building row actions on the **Manage** tab (`ManagePage.tsx`) — the map's detail
+  pane is view-only.
 - **Share** (`ShareBuildingDialog`): doesn't change building data — grants ACL read
   (`.acl`) and writes append-only `shared-out/`/`shared-in/` event logs
   (`interop/sharingLog.ts`). Event-log model (fold, revocation): see `sharing.md`.

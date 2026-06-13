@@ -83,7 +83,7 @@ export function parseBuildings(
   /** building ID → its bldg:hasAttachment file URLs */
   const attachmentLinks = new Map<string, string[]>();
   /** attachment file URL → building ID (the file IRI is the metadata subject) */
-  const attachmentUrlBuilding = new Map<string, string>();
+  const attachmentUriBuilding = new Map<string, string>();
 
   // ── Pass 1: Create buildings from the typed roster ────────────────────────
   quads.forEach((quad: Quad) => {
@@ -130,7 +130,7 @@ export function parseBuildings(
         const links = attachmentLinks.get(buildingId) ?? [];
         links.push(obj.value);
         attachmentLinks.set(buildingId, links);
-        attachmentUrlBuilding.set(obj.value, buildingId);
+        attachmentUriBuilding.set(obj.value, buildingId);
       }
       return;
     }
@@ -304,11 +304,11 @@ export function parseBuildings(
     string,
     { filename?: string; mediaType?: string; size?: number; uploadDate?: string }
   >();
-  if (attachmentUrlBuilding.size > 0) {
+  if (attachmentUriBuilding.size > 0) {
     quads.forEach((quad: Quad) => {
       if (quad.subject.termType !== "NamedNode") return;
       const url = quad.subject.value;
-      if (!attachmentUrlBuilding.has(url)) return;
+      if (!attachmentUriBuilding.has(url)) return;
       if (!attachmentData.has(url)) attachmentData.set(url, {});
       const ad = attachmentData.get(url)!;
       const pred = quad.predicate.value;
@@ -359,7 +359,7 @@ export function parseBuildings(
   // certificate is flagged. A legacy cert linked only via bldg:hasEnergyCertificate
   // (no bldg:hasAttachment — e.g. still in the old shared certificates/ folder) is
   // synthesized below so it still lists.
-  const certUrlOf = (b: BuildingType): string | undefined =>
+  const certUriOf = (b: BuildingType): string | undefined =>
     typeof b.energyCertificate === "string" && b.energyCertificate
       ? b.energyCertificate
       : undefined;
@@ -367,7 +367,7 @@ export function parseBuildings(
     const building = buildings.get(buildingId);
     if (!building) continue;
     const list = (building.attachments as AttachmentRef[] | undefined) ?? [];
-    const certUrl = certUrlOf(building);
+    const certUri = certUriOf(building);
     for (const url of urls) {
       const ad = attachmentData.get(url) ?? {};
       list.push({
@@ -376,19 +376,19 @@ export function parseBuildings(
         mediaType: ad.mediaType ?? "application/octet-stream",
         size: ad.size ?? 0,
         uploadDate: ad.uploadDate ?? "",
-        ...(certUrl === url ? { isEnergyCertificate: true } : {}),
+        ...(certUri === url ? { isEnergyCertificate: true } : {}),
       });
     }
     building.attachments = list;
   }
   for (const building of buildings.values()) {
-    const certUrl = certUrlOf(building);
-    if (!certUrl) continue;
+    const certUri = certUriOf(building);
+    if (!certUri) continue;
     const list = (building.attachments as AttachmentRef[] | undefined) ?? [];
-    if (!list.some((a) => a.url === certUrl)) {
+    if (!list.some((a) => a.url === certUri)) {
       list.push({
-        url: certUrl,
-        filename: decodeURIComponent(certUrl.split("/").pop() ?? certUrl),
+        url: certUri,
+        filename: decodeURIComponent(certUri.split("/").pop() ?? certUri),
         mediaType: "application/pdf",
         size: 0,
         uploadDate: "",

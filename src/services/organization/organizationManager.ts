@@ -2,7 +2,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Store } from "n3";
 import { putAcl, readModifyWrite } from "../pod/podWrite.ts";
 import { invalidateProfile, loadProfileStore } from "../pod/profileDocument.ts";
-import { getPodBaseUrl } from "../pod/solidUtils.ts";
+import { getPodBaseUri } from "../pod/solidUtils.ts";
 import { logError } from "../../lib/logError.ts";
 import {
   FOAF_LOGO,
@@ -77,18 +77,18 @@ export function isSupportedLogoType(file: File): boolean {
 }
 
 /** The WebID document URL (the WebID without its `#me` fragment). */
-function profileDocUrl(webId: string): string {
+function profileDocUri(webId: string): string {
   return webId.split("#")[0];
 }
 
 /** The inline org node IRI for this profile (`<…/card#org>`). */
 function orgNodeIri(webId: string): string {
-  return `${profileDocUrl(webId)}#org`;
+  return `${profileDocUri(webId)}#org`;
 }
 
 /** The inline org-membership node IRI for this profile (`<…/card#membership>`). */
 function membershipNodeIri(webId: string): string {
-  return `${profileDocUrl(webId)}#membership`;
+  return `${profileDocUri(webId)}#membership`;
 }
 
 /**
@@ -250,14 +250,14 @@ function ensureOrgMembership(store: Store, webId: string): void {
  * avatar) sees the new state instead of the stale Store.
  */
 async function mutateProfile(
-  docUrl: string,
+  docUri: string,
   session: Session,
   edit: (store: Store) => void,
 ): Promise<void> {
-  await readModifyWrite(docUrl, session, (store, { created }) => {
+  await readModifyWrite(docUri, session, (store, { created }) => {
     if (created) {
       // A WebID profile is provisioned by the identity provider, never by us.
-      throw new Error(`Failed to fetch WebID profile at ${docUrl}: Not Found`);
+      throw new Error(`Failed to fetch WebID profile at ${docUri}: Not Found`);
     }
     edit(store);
   });
@@ -279,13 +279,13 @@ export async function saveOrganization(
   if (!session.info.isLoggedIn || !webId) {
     throw new Error("User is not logged in");
   }
-  const docUrl = profileDocUrl(webId);
+  const docUri = profileDocUri(webId);
   const org = orgNodeIri(webId);
   const name = fields.name?.trim();
   const homepage = fields.homepage?.trim();
   const sameAs = fields.sameAs?.trim();
 
-  await mutateProfile(docUrl, session, (store) => {
+  await mutateProfile(docUri, session, (store) => {
     ensureOrgMembership(store, webId);
     if (name) setLiteral(store, org, FOAF_NAME, name);
     else clearPredicate(store, org, FOAF_NAME);
@@ -317,7 +317,7 @@ export async function uploadOrgLogo(
   // 1. Store the image in the profile folder, alongside the WebID document — the
   //    org is part of the profile (the inline <#org> node in card), so its logo
   //    lives in profile/, not under the app's granergize/ tree.
-  const logoUrl = `${getPodBaseUrl(webId)}logo.${ext}`;
+  const logoUrl = `${getPodBaseUri(webId)}logo.${ext}`;
   const put = await session.fetch(logoUrl, {
     method: "PUT",
     headers: { "Content-Type": file.type },
@@ -346,9 +346,9 @@ export async function uploadOrgLogo(
     .catch((err) => logError("publish org logo ACL", err));
 
   // 3. Link it as foaf:logo on the org node (conditional GET → rewrite → PUT).
-  const docUrl = profileDocUrl(webId);
+  const docUri = profileDocUri(webId);
   const org = orgNodeIri(webId);
-  await mutateProfile(docUrl, session, (store) => {
+  await mutateProfile(docUri, session, (store) => {
     ensureOrgMembership(store, webId);
     setNamedNode(store, org, FOAF_LOGO, logoUrl);
   });

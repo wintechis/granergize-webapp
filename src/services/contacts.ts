@@ -35,7 +35,7 @@ export interface Contact {
 }
 
 /** `<storageRoot><APP_DIR>/contacts.ttl` — the personal vCard address book. */
-export function contactsUrl(webId: string): string {
+export function contactsUri(webId: string): string {
   return podResources(webId).contacts;
 }
 
@@ -51,7 +51,7 @@ const bookNode = (url: string) => namedNode(`${url}#book`);
 export async function readContacts(session: Session): Promise<Contact[]> {
   const webId = session.info.webId;
   if (!webId) return [];
-  const url = contactsUrl(webId);
+  const url = contactsUri(webId);
   const store = await readStoreOrEmpty(url, session);
   return store.getObjects(bookNode(url), HAS_MEMBER, null)
     .filter((m) => m.termType === "NamedNode")
@@ -75,7 +75,7 @@ function mutateContacts(
   session: Session,
   mutate: (store: Store, book: ReturnType<typeof namedNode>) => void,
 ): Promise<void> {
-  const url = contactsUrl(session.info.webId!);
+  const url = contactsUri(session.info.webId!);
   const book = bookNode(url);
   return readModifyWrite(url, session, (store) => {
     store.addQuad(book, RDF_TYPE_NODE, ADDRESS_BOOK);
