@@ -47,10 +47,10 @@ const IRI_TO_ROLE = IRI_TO_MEMBERSHIP_ROLE;
 // create on their OWN Pod (where they have full control). The creator writes an
 // ACL granting themselves control and acl:Append to acl:AuthenticatedAgent, so
 // anyone can self-join — no central/provider Pod required. The room's container
-// URL is its identity; share it (e.g. as a QR code) so others can join.
+// IRI is its identity; share it (e.g. as a QR code) so others can join.
 //
 // Every change POSTs one immutable event resource into the container; the server
-// mints a fresh child URL. Current state is the fold of the container — the
+// mints a fresh child IRI. Current state is the fold of the container — the
 // latest event per WebID wins. Because appends never rewrite a shared resource,
 // concurrent saves by different members can't clobber each other. Mirrors the
 // inbox pattern (see inbox.ts).
@@ -64,7 +64,7 @@ const IRI_TO_ROLE = IRI_TO_MEMBERSHIP_ROLE;
 //     (a full snapshot; may be empty, and may exist without membership).
 // A role event therefore does NOT make you a member: you must post an as:Join.
 
-/** Normalise a room URL to its canonical LDP-container form (trailing "/"). */
+/** Normalise a room IRI to its canonical LDP-container form (trailing "/"). */
 export function normalizeRoomUri(url: string): string {
   return url.endsWith("/") ? url : `${url}/`;
 }
@@ -116,7 +116,7 @@ function toTurtle(
 }
 
 /**
- * Bookmarked room URLs (the "Your rooms" list).
+ * Bookmarked room IRIs (the "Your rooms" list).
  * @operation query
  */
 export function getKnownRooms(session: Session): Promise<string[]> {
@@ -250,9 +250,9 @@ export async function roomExists(
 }
 
 /**
- * Extract a room container URL from either a raw room URI or an app invite link
+ * Extract a room container IRI from either a raw room URI or an app invite link
  * of the form `…#/room/<url-encoded-room-uri>` (what the room QR encodes). Returns
- * the normalized container URL.
+ * the normalized container IRI.
  */
 export function extractRoomUri(input: string): string {
   const trimmed = input.trim();
@@ -520,7 +520,7 @@ export async function setMyRole(
 ): Promise<void> {
   const webId = session.info.webId;
   if (!webId) throw new Error("Not logged in");
-  // Blank-node event subject: the resource URL is assigned by the server on POST,
+  // Blank-node event subject: the resource IRI is assigned by the server on POST,
   // and the fold matches events by rdf:type, not by subject IRI.
   const event = blankNode();
   const store = new Store();
@@ -582,8 +582,8 @@ export function leaveRoom(roomUri: string, session: Session): Promise<void> {
  * Create a new data room on the logged-in user's own Pod and make it the active
  * room. Writes the container plus an ACL granting the creator full control and
  * any authenticated agent read+append, so anyone can self-join. The creator is
- * auto-joined as a member. The room's identity is its (UUID) container URL.
- * Returns the new room URL.
+ * auto-joined as a member. The room's identity is its (UUID) container IRI.
+ * Returns the new room IRI.
  * @operation mutation
  */
 export async function createRoom(session: Session): Promise<string> {

@@ -70,7 +70,7 @@ export function parseBuildings(
       buildingSubjects.add(quad.subject.value);
     }
   }
-  /** building ID → its `cons:hasEnergyDataset` link URLs (unified energy model). */
+  /** building ID → its `cons:hasEnergyDataset` link IRIs (unified energy model). */
   const energyDatasetLinks = new Map<string, string[]>();
   /** blank node ID - building ID for operating costs */
   const opCostBuildingMap = new Map<string, string>();
@@ -80,9 +80,9 @@ export function parseBuildings(
   const provBuildingMap = new Map<string, string>();
   /** blank node ID - building ID for the geo:Point (coordinates + precision) */
   const geoPointBuildingMap = new Map<string, string>();
-  /** building ID → its bldg:hasAttachment file URLs */
+  /** building ID → its bldg:hasAttachment file IRIs */
   const attachmentLinks = new Map<string, string[]>();
-  /** attachment file URL → building ID (the file IRI is the metadata subject) */
+  /** attachment file IRI → building ID (the file IRI is the metadata subject) */
   const attachmentUriBuilding = new Map<string, string>();
 
   // ── Pass 1: Create buildings from the typed roster ────────────────────────
@@ -99,7 +99,7 @@ export function parseBuildings(
       buildings.set(buildingId, {
         id: buildingId,
         // Use the RDF subject as the building URI so it links correctly with observations.
-        // Store the source file URL separately for ownership checks.
+        // Store the source file IRI separately for ownership checks.
         uri: quad.subject.value,
         sourceUri: quad.graph.value,
         type: REC_BUILDING,
@@ -299,7 +299,7 @@ export function parseBuildings(
 
   // ── Attachment metadata: the file IRI is the subject (a NamedNode), so the two
   // passes above (named-building subjects / blank nodes) skip it. Gather the
-  // schema.org / dcterms metadata for each known attachment URL here. ──
+  // schema.org / dcterms metadata for each known attachment IRI here. ──
   const attachmentData = new Map<
     string,
     { filename?: string; mediaType?: string; size?: number; uploadDate?: string }

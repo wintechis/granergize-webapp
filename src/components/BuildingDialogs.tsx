@@ -560,15 +560,12 @@ export function FilesDialog(
       title="Files"
       actions={<Button onClick={onClose}>Close</Button>}
     >
-      <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-        Attach files (PDF, images, documents — anything) to this building. They're
-        stored on your Pod and shared automatically with anyone you share the
-        building with.
-      </Typography>
       {items.length === 0
         ? (
           <Typography variant="body2" sx={{ mb: 2 }}>
-            No files yet.
+            No files yet. Attach a PDF, image, or document below — it's stored on
+            your Pod and shared automatically with anyone you share the building
+            with.
           </Typography>
         )
         : (

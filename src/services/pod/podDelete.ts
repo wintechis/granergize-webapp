@@ -123,7 +123,7 @@ export async function listContainedResources(
 }
 
 /**
- * The direct `ldp:contains` children of a container (NON-recursive) — file URLs
+ * The direct `ldp:contains` children of a container (NON-recursive) — file IRIs
  * and immediate sub-container URLs (the latter end in `/`). Returns `null` when
  * the container itself doesn't exist (HTTP 404), so a caller can tell a *fresh*
  * Pod (no container) from an *empty* one (container present, no children) — e.g.

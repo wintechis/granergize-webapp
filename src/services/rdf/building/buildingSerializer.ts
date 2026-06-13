@@ -572,7 +572,7 @@ export function annualDatasetsFromFields(
 
 /**
  * Write a building's energy dataset resources and return their
- * `cons:hasEnergyDataset` link URLs (to pass to {@link serializeBuildingToTurtle}):
+ * `cons:hasEnergyDataset` link IRIs (to pass to {@link serializeBuildingToTurtle}):
  *  - annual aggregates from the field map (one `<year>-P1Y.ttl` each), and
  *  - an optional 15-minute series (daily files under `<year>-PT15M/` + the
  *    located descriptor `<year>-PT15M.ttl`).

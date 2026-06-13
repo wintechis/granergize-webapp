@@ -2,7 +2,8 @@
  * Utility functions for working with Solid POD URLs and WebIDs
  */
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Parser, Store } from "n3";
+import { DataFactory } from "n3";
+import { fetchStoreWithHeaders } from "./podFetch.ts";
 import { loadProfileStore } from "./profileDocument.ts";
 import { RDF_TYPE } from "../rdf/vocabularies.ts";
 import { logError } from "../../lib/logError.ts";
@@ -24,13 +25,12 @@ async function discoverStorageRoot(
   // Start at the WebID document's container.
   let url = docUri.replace(/[^/]*$/, "");
   for (let i = 0; i < 8; i++) {
-    const res = await session.fetch(url, { headers: { Accept: "text/turtle" } })
-      .catch((err) => {
-        logError("fetch container while walking to storage root", err);
-        return null;
-      });
-    if (res && res.ok) {
-      const store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
+    const { store } = await fetchStoreWithHeaders(
+      url,
+      session,
+      "fetch container while walking to storage root",
+    );
+    if (store) {
       const isStorage = store.getQuads(
         DataFactory.namedNode(url),
         DataFactory.namedNode(RDF_TYPE),
@@ -38,8 +38,6 @@ async function discoverStorageRoot(
         null,
       ).length > 0;
       if (isStorage) return url;
-    } else {
-      await res?.body?.cancel();
     }
     if (url === origin) break;
     const parent = url.replace(/[^/]+\/$/, "");
@@ -221,21 +219,18 @@ export async function resolveStorageRootForWebId(
   session: Session,
 ): Promise<string> {
   const docUri = webId.split("#")[0];
-  const res = await session.fetch(docUri, { headers: { Accept: "text/turtle" } })
-    .catch((err) => {
-      logError("fetch WebID profile for storage-root resolution", err);
-      return null;
-    });
-  if (res?.ok) {
-    const store = new Store(new Parser({ baseIRI: docUri }).parse(await res.text()));
+  const { store } = await fetchStoreWithHeaders(
+    docUri,
+    session,
+    "fetch WebID profile for storage-root resolution",
+  );
+  if (store) {
     const triple = store.getObjects(
       DataFactory.namedNode(webId),
       DataFactory.namedNode(`${PIM_NS}storage`),
       null,
     )[0]?.value;
     if (triple) return triple.endsWith("/") ? triple : `${triple}/`;
-  } else {
-    await res?.body?.cancel();
   }
   const walked = await discoverStorageRoot(session, docUri);
   if (!walked) {

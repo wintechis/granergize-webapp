@@ -103,7 +103,7 @@ export interface EnergyDataset {
   scenario: Scenario;
   /** Annual aggregate: the inline observations. */
   metrics?: AnnualMetrics;
-  /** Series: the container URL of the daily reading files. */
+  /** Series: the container IRI of the daily reading files. */
   datasetLocation?: string;
 }
 
@@ -116,7 +116,7 @@ export function datasetSlug(
   return `${year}-${granularity}${scenario === "planned" ? "-planned" : ""}`;
 }
 
-/** `…/buildings/<id>/energy/<slug>.ttl` — the dataset resource URL. */
+/** `…/buildings/<id>/energy/<slug>.ttl` — the dataset resource IRI. */
 export function datasetFileUri(
   buildingUri: string,
   year: number,
@@ -127,7 +127,7 @@ export function datasetFileUri(
   return `${base}/energy/${datasetSlug(year, granularity, scenario)}.ttl`;
 }
 
-/** The dataset's subject node URL (`<file>#ds`). */
+/** The dataset's subject node IRI (`<file>#ds`). */
 export function datasetNodeUri(fileUri: string): string {
   return `${fileUri}#ds`;
 }
@@ -176,7 +176,7 @@ export async function listSeriesDays(
 }
 
 /**
- * Derive `{year, granularity, scenario}` from a `cons:hasEnergyDataset` link URL
+ * Derive `{year, granularity, scenario}` from a `cons:hasEnergyDataset` link IRI
  * by parsing its slug — so phase-1 needn't fetch each dataset. Returns null if
  * the slug isn't the expected `<year>-<granularity>[-planned]` shape.
  */

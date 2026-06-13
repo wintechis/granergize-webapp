@@ -489,17 +489,13 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                         </Typography>
                       </Box>
 
-                      <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
-                        My role(s)
-                      </Typography>
                       <Typography
                         variant="body2"
                         color="text.secondary"
-                        sx={{ mb: 1 }}
+                        sx={{ mt: 3, mb: 1 }}
                       >
-                        Independent of membership — assign or change your
-                        role(s) anytime. This is how others share data with you
-                        by role.
+                        Assign or change your role(s) anytime — this is how
+                        others share data with you by role.
                       </Typography>
                       <div style={buttonRowStyle}>
                         <FormControl size="small" sx={{ minWidth: 280 }}>

@@ -30,7 +30,7 @@ interface SharedWithMeBuilding {
   isVisible: boolean;
 }
 
-/** Building id from a building-file URL (`…/buildings/<id>.ttl` → `<id>`). */
+/** Building id from a building-file IRI (`…/buildings/<id>.ttl` → `<id>`). */
 function buildingIdFromUri(uri: string): string {
   return uri.split("/").pop()?.replace(".ttl", "") || "";
 }

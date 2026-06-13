@@ -1,5 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { Parser, Store } from "n3";
+import { logError } from "../../lib/logError.ts";
 
 /**
  * GET a mutable Pod resource with forced revalidation, so reload-after-action
@@ -36,7 +37,7 @@ export async function fetchFresh(
 
 /**
  * GET a Pod resource and parse it (Turtle) into an n3 `Store`, with `baseIRI`
- * set to the resource URL. The one chokepoint for "read a resource I'm about to
+ * set to the resource IRI. The one chokepoint for "read a resource I'm about to
  * n3-parse": it always goes through {@link fetchFresh}, so the read is fresh AND
  * carries `Accept: text/turtle`. (Raw `session.fetch()` reads silently relied on
  * the server's *default* serialization; a JSON-LD-native server like JSS then
@@ -57,4 +58,35 @@ export async function readStoreOrEmpty(
   const res = await fetchFresh(url, session);
   if (!res.ok) return new Store();
   return new Store(new Parser({ baseIRI: url }).parse(await res.text()));
+}
+
+/**
+ * Like {@link readStoreOrEmpty}, but TOLERANT and header-aware — for the discovery
+ * reads ({@link resolveStorageRootForWebId}, the storage-root walk-up, the inbox
+ * `ldp:inbox` lookup) that must (a) survive a thrown fetch / non-ok by falling
+ * back rather than throwing, and (b) inspect response headers (e.g. the `Link`
+ * header) alongside the body. Returns `store: null` on any failure (logged under
+ * `errorLabel`), and always the `response` when one came back so the caller can
+ * read its headers. Routes through {@link fetchFresh} like every other read, so
+ * the revalidation + `Accept: text/turtle` discipline isn't re-rolled per call.
+ * @operation query
+ */
+export async function fetchStoreWithHeaders(
+  url: string,
+  session: Session,
+  errorLabel: string,
+): Promise<{ store: Store | null; response: Response | null }> {
+  let response: Response;
+  try {
+    response = await fetchFresh(url, session);
+  } catch (err) {
+    logError(errorLabel, err);
+    return { store: null, response: null };
+  }
+  if (!response.ok) {
+    await response.body?.cancel();
+    return { store: null, response };
+  }
+  const store = new Store(new Parser({ baseIRI: url }).parse(await response.text()));
+  return { store, response };
 }

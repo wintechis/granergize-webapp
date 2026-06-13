@@ -35,7 +35,7 @@ export function filesContainerFor(buildingFileUri: string): string {
   return `${file.replace(/\.ttl$/, "/")}files/`;
 }
 
-/** A safe, collision-free file URL in `container` for `filename` (suffixes on clash). */
+/** A safe, collision-free file IRI in `container` for `filename` (suffixes on clash). */
 async function uniqueFileUri(
   container: string,
   filename: string,
