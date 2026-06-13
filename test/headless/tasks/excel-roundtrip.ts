@@ -12,13 +12,15 @@ import { type TaskContext } from "../taskContext.ts";
 import {
   attachAnnualData,
   deleteBuilding,
-  detectSpreadsheetFormat,
   newBuildingUri,
-  parseCsvToFields,
   serializeBuildingToTurtle,
   uploadBuilding,
   writeBuildingEnergy,
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
+import {
+  detectSpreadsheetFormat,
+  parseCsvToFields,
+} from "../../../src/services/rdf/building/buildingImport.ts";
 import { buildingsToXlsx } from "../../../src/services/rdf/buildingWorkbook.ts";
 import { fetchAndParseData } from "../../../src/services/TurtleParsingService.ts";
 

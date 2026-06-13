@@ -2,11 +2,11 @@
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
 import type { BuildingType } from "../../types.ts";
+import { serializeBuildingToTurtle } from "./building/buildingSerializer.ts";
 import {
   detectSpreadsheetFormat,
   parseCsvToFields,
-  serializeBuildingToTurtle,
-} from "./building/buildingSerializer.ts";
+} from "./building/buildingImport.ts";
 import { buildingsToXlsx, buildingToXlsx } from "./buildingWorkbook.ts";
 import { BUILDING_NS } from "./vocabularies.ts";
 
