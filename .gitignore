@@ -54,3 +54,6 @@ test/tmp/
 
 # The generator excel/gen-templates.ts is tracked; only the .xlsx are ignored.
 excel/*.xlsx
+# Design plans (done/old or future-possible) — kept local, separate from
+# CLAUDE.md and the matter-of-fact notes/ (which describe the current code).
+plans/

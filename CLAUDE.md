@@ -228,7 +228,6 @@ energy shape present, not a role. The map marker distinguishes only owned vs sha
   terms are minted in `BUILDING_NS` and aligned to REC 4 / Brick via `rdfs:seeAlso`
   (subsumption only where shapes match); the spine (`rec:Building`, `rec:ownedBy`,
   `rec:operatedBy`, geo, vCard, SOSA, PROV, FOAF, schema.org) is reused directly.
-  See `notes/plan-vocab-consolidation.md` for the partition rationale.
 - Predicate→`BuildingType` field mappings live in
   `src/services/rdf/building/buildingConfig.ts`. Each field carries its `rdfs:range`
   (an XSD datatype → typed literal; `foaf:Agent` → IRI reference; another class IRI →
