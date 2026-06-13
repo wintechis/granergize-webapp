@@ -1,12 +1,15 @@
-# App intents: entities and actions
+# Exploration — an app-intent registry
+
+A design sketch (not present-state, not adopted). The reality this proposes to reify
+already exists and is documented in [`queries-mutations.md`](./queries-mutations.md).
+This note explores what an *explicit, enumerable* intents surface would add on top of it.
 
 The Apple App Intents model describes an app as a catalog of **entities** (the
 nouns a user works with, each with a stable identity) and **actions** (the
 verbs, each a named, parameterized, independently invokable operation with
 declared effects). This note maps the Granergize-App onto that frame: what the
 entities and actions already are, where the app already matches the model, and
-what an explicit intents surface would add. It anchors the discussion; it is
-not yet a plan.
+what an explicit intents surface would add.
 
 The app is closer to this model than most: every entity is an RDF resource
 with an IRI (identity is solved by construction), and the data layer already
@@ -162,8 +165,8 @@ memory; there is no named "resolve building by IRI" read. So the mapping is:
 hooks ≈ subscription+cache machinery Apple doesn't have; EntityQuery ≈ a
 per-entity resolution seam the app hasn't reified. An external intents
 surface would need that seam as a second below-React artifact beside the
-intent cores (§ Current state): parameter binding needs IRI → typed
-instance without a component tree.
+intent cores (§ Half the abstraction, React-bound): parameter binding needs
+IRI → typed instance without a component tree.
 
 Find/list verbs follow from the same design. In the Apple model "list
 buildings" is not an authored intent: the entity's query is declared once
@@ -185,17 +188,16 @@ The user-intent catalog: a flat enumeration of named verbs, each as much an
 identity as the entity classes above (the IRI is `int:` + the name, per
 § A drafted registry entry). The top-level discriminator is the intent's
 **effect kind** — which of the app's state spaces the verb acts on — the
-catalog-level face of the `effect` discriminator in the in-code table
-(§ The declarative intents table, which sketches the read and write kinds).
-Signatures are abbreviated: entity parameters by role name, payloads by a
-collective name, `?` optional, `*` zero-or-more; exact ranges and
-cardinalities belong to the shape declarations (§ A drafted registry
+catalog-level face of the split between read and write entries
+(§ The in-code catalog). Signatures are abbreviated: entity parameters by role
+name, payloads by a collective name, `?` optional, `*` zero-or-more; exact
+ranges and cardinalities belong to the shape declarations (§ A drafted registry
 entry).
 
 Each effect kind has its own result channel. A write's result is the Pod
-effect plus the invalidations — callers get an outcome shape
-(`binary`/`tally`), never a value. A read's result is the returned value,
-so its result type is declared (`returns`, mandatory). A navigation's
+effect plus the invalidations — a settled-or-failed or per-item-tally outcome,
+never a value. A read's result is the returned value, so its result type is
+declared. A navigation's
 result is the entered UI state itself, consumed by the user rather than
 returned to a caller — and anything it could return would be redundant,
 since the state identifier is the invocation's own parameter bindings (the
@@ -229,14 +231,12 @@ invalidation; the entered state's declared data needs do the reading
 
 ### Read
 
-User-invoked one-shot reads with their own feedback surface. Each declares
-its result type (`int:returns` / `ReadIntentDef.returns`): the returned
-value is a read-intent's entire point, and an undeclared result is a dead
-end in any composition — Apple makes the same move with `ReturnsValue<T>`,
-the basis of Shortcuts pipelines. The embedded confirmation previews
-(wipe, restore) stay entry-less (§ Open questions). No list/find verbs
-appear here: those derive from per-entity query declarations, not authored
-intents (§ Entity queries).
+User-invoked one-shot reads, each with its own feedback surface and a declared
+result type — the returned value is a read-intent's whole point and, left
+undeclared, a dead end in any composition (§ Actions). The embedded
+confirmation previews (wipe, restore) stay entry-less (§ Open questions); no
+list/find verbs appear here either, since those derive from per-entity query
+declarations rather than being authored (§ Entity queries).
 
 - `DownloadArchive` — returns the archive file; developer-exposed.
 - `CheckSharingConsistency` — returns the dry-run log↔ACL drift report;
@@ -308,26 +308,46 @@ wrapping the same repair.
 
 ## What the intents lens adds
 
-The catalog above exists, but only implicitly. An explicit intents surface
-would mean some subset of:
+The catalog above exists, but only implicitly. Reifying it would add some
+subset of:
 
 - **A registry.** The catalog as data rather than convention — each intent's
   name, label, parameter shape, target entity, and effect class in one
-  declared place, so a command palette, deep links, or automation could
-  enumerate it. Today the nearest thing is the union of the mutation hooks.
-- **Invocability outside the owning dialog.** Entities are already
-  deep-linkable (hash routes exist for building, energy, view), and so are
-  the navigation intents — a deep link is a serialized Show invocation. The
-  read and write verbs are not: each is reachable only through the one
-  dialog built for it. An intent-with-parameters route (or palette) would
-  decouple verb from dialog.
+  declared place. Today the nearest thing is the union of the mutation hooks.
+- **Invocability outside the owning dialog.** Each read or write verb is
+  reachable only through the one dialog built for it; the navigation verbs are
+  the exception (already deep-linkable, § Navigate). An intent-with-parameters
+  route or palette would decouple verb from dialog.
 - **Parameter schemas.** Mutation variables define each intent's parameters,
-  but only in TypeScript. Exposing intents to anything non-TS (URL, palette
-  with prompts, an LLM tool surface) needs them declared.
-- **Entity references in parameters.** Solved for free: every entity
-  parameter is an IRI.
+  but only in TypeScript; any non-TS caller (URL, palette prompt, LLM tool)
+  needs them declared. Entity references come free — every parameter is an IRI.
 - **Donation/discoverability** (the Apple sense — surfacing likely next
   actions) — purely speculative here; noted for completeness.
+
+None of those is a surface in itself — they are what a surface needs. The
+**registry is the spine**, and its worth is that one declared catalog serves
+several consumers at once, no single one of which has to justify it:
+
+- **A command palette** — type-to-search every verb and invoke it from
+  anywhere; the most concrete consumer, worked through below
+  (§ The command palette).
+- **Deep links** — already a real consumer for the navigation verbs (a deep
+  link is a serialized `Show…` invocation); the read and write verbs would
+  join once they have parameter routes.
+- **An LLM / agent tool surface** — the declared parameter shapes become tool
+  schemas (§ Schemas).
+- **Another Solid app** — conforming to shared intent shapes rather than
+  minting its own signatures (§ Schemas, the authority question).
+- **A headless runner** — the benchmark seeder and the Tier-2 runner, today
+  forced below the layer to recompose service functions by hand
+  (§ Half the abstraction, React-bound).
+
+The internal payoff stands without any of them: even with no external surface,
+the registry is the single declared place the hooks derive their label and
+invalidations from, linked to the query keys at compile time and drift-checked
+against the published vocab (§ Registry drift). That is the first open question —
+internal tightening *or* external surface — and the registry is the prerequisite
+to both.
 
 ## Schemas: shared intent shapes
 
@@ -479,301 +499,119 @@ notifications) stays assertable only if it, too, becomes declared metadata
 in the table rather than prose; otherwise it remains documentation, checked
 by review like the rest of `notes/`.
 
-## The declarative intents table
+## The in-code catalog
 
-A sketch of the table itself — the in-code half of the registry pair. It
-lives in the data-access layer (it references query-key families), holds
-pure data, and is the one structure the mutation hooks derive their
-`meta`/invalidations from and the drift test walks. Shown with the same
-share-building entry as the Turtle/ShEx draft, so the three artifacts can be
-compared. Each entry shown is backed by an implemented hook
-(`useShareBuilding`, `useSeedDemoBuildings`, `useRemoveAppData`, and the
-read-intents `useExportArchive`, `useAuditGrants` in `mutations.ts`) whose
-declared facts the entries mirror one-to-one — the action phrase,
-invalidation set, outcome shape, and abort-as-outcome execution are the
-hooks' actual behaviour. The table itself is unbuilt: each hook hand-declares
-those facts, and the derive step below is the missing move.
+The registry has an in-code half beside the published RDF pair: a single
+declarative structure, pure data, in the data-access layer (it references
+query-key families). It is the one place the mutation hooks would draw their
+action label and invalidation set from — *deriving* rather than each
+hand-declaring — and the structure the drift guard walks. Today it is
+unbuilt: every hook hand-declares those facts. The entries are not invented,
+though; each mirrors an implemented hook one-to-one (`useShareBuilding`,
+`useSeedDemoBuildings`, `useRemoveAppData`, and the read-intents
+`useExportArchive`, `useAuditGrants`), so building it only relocates facts the
+code already states — the action phrase, invalidation set, outcome shape, and
+abort-as-outcome execution are the hooks' actual behaviour. It carries the same
+share-building entry as the Turtle/ShEx draft, in the in-code idiom.
 
-    // src/hooks/intentTable.ts
-    export const INT_NS = "https://solid.ti.rw.fau.de/gra/intent.ttl#";
+An entry has a **shared base** and an **effect-specific** half, the split
+mirroring CQS:
 
-    /** The mutation mechanisms — storage model or projection write
-        (queries-mutations.md). */
-    export type Mechanism =
-      | "event-sourced-append"
-      | "in-place-write"
-      | "acl-projection";
+- The **base** every intent carries: a local name (also its `int:` IRI), a
+  label, the `meta.action` phrase, an optional target entity (absent for
+  collection-wide verbs like remove-all), its parameters, and — where they
+  apply — an execution descriptor (long-running, cancellable) and an exposure
+  level (standard or developer-gated). A parameter in turn names its node kind
+  (IRI-valued or literal), its range (a class IRI, or an XSD datatype for a
+  literal) and its cardinality (one / optional / zero-or-more) — the same facts
+  the ShEx shape carries.
+- A **write** entry adds the request-side effect: its mechanism(s) (the storage
+  models of [`queries-mutations.md`](./queries-mutations.md)), the Pod-resource
+  roles it touches (appends-to / projects-to / notifies / writes-to / deletes),
+  the query-key families it invalidates, its feedback surface (inline vs.
+  toast), and — for the boundary cases — a confirmation step and an outcome
+  shape (settled-or-failed vs. a per-item tally).
+- A **read** entry adds only what it reads and the result type it returns. It
+  *cannot* name a mechanism or an invalidation: making the entry a union
+  discriminated on effect is what holds the query side pure — the same line the
+  service layer's `@operation` tags draw. The declared result is read-only for
+  the symmetric reason: a write declares an outcome *shape*, never a result
+  type, because no caller consumes a mutation's return value. The split is
+  load-bearing, not cosmetic.
 
-    export interface IntentParameter {
-      /** Local name; the RDF property is `${INT_NS}${name}`. */
-      name: string;
-      nodeKind: "iri" | "literal";
-      /** Class IRI for IRI-valued, XSD datatype IRI for literal-valued. */
-      range: string;
-      cardinality: "one" | "optional" | "zero-or-more";
-      comment?: string;
-    }
+Two properties of the in-code form matter beyond documentation. The invalidation
+set is tied to the live query-key registry, so renaming a query-key family
+breaks the build at the catalog — it cannot silently drift from the queries it
+points at (the published-files half is the drift guard's job, § Registry drift).
+And one seam stays open: nothing forces an entry's declared parameters to match
+the mutation's actual argument type; closing it is possible with type-level
+machinery, but whether the rigor pays is an implementation-time call. With the
+catalog in place a hook *derives* — reading its label, feedback flag and
+invalidation set from its entry rather than restating them — so the entry is the
+single source and the hook a thin adapter (the below-the-hook split
+§ Half the abstraction returns to).
 
-    /** Fields every intent carries, read or write. */
-    export interface IntentBase {
-      /** Local name; the intent IRI is `${INT_NS}${localName}`. */
-      localName: string;
-      label: string;
-      /** The meta.action phrase ("Failed to {action}: …"). */
-      action: string;
-      /** Class IRI of the primary entity acted on; absent for
-          collection-wide intents (remove-all acts on everything). */
-      targetEntity?: string;
-      parameters: IntentParameter[];
-      /** Long-running intents own a progress surface; cancellable ones
-          accept an abort signal. Cancelling a destructive intent leaves
-          partial state — the outcome wording must admit that. */
-      execution?: { longRunning: true; cancellable?: boolean };
-      /** Laxest affordance visibility; "developer" means every affordance
-          is dev-mode-gated. Default "standard". */
-      exposure?: "standard" | "developer";
-    }
-
-    /** A write-intent — the command side of CQS (a mutation hook). */
-    export interface WriteIntentDef extends IntentBase {
-      effect: "write";
-      mechanisms: Mechanism[];
-      /** Pod-resource roles, mirroring int:appendsTo / projectsTo /
-          notifies; writesTo / deletes are the in-place counterparts. */
-      appendsTo?: string[];
-      projectsTo?: string[];
-      notifies?: string[];
-      writesTo?: string[];
-      deletes?: string[];
-      /** Query-key families to invalidate, tied to queries.ts at compile
-          time; "entire-cache" resets the world (queryClient.clear()) —
-          expressible, but as a loud special value, not a fake enumeration. */
-      invalidates: ReadonlyArray<keyof typeof queryKeys> | "entire-cache";
-      /** Canonical feedback surface is inline (meta.silent — no toast). */
-      silent?: boolean;
-      /** Destructive intents confirm before dispatch; `preview` names the
-          query whose result the confirmation embeds (what will be lost). */
-      confirmation?: { preview?: string };
-      /** "binary" (default): settled or failed. "tally": per-item
-          best-effort with a {done, total} result ("Added N of M"). */
-      outcome?: "binary" | "tally";
-    }
-
-    /** A read-intent — a user-invoked one-shot query (`@operation query`
-        on the useMutation trigger primitive): no mechanism, nothing to
-        invalidate, never cached — every invocation re-reads the Pod. */
-    export interface ReadIntentDef extends IntentBase {
-      effect: "read";
-      /** Pod-resource roles read, mirroring int:readsFrom. */
-      readsFrom?: string[];
-      /** The declared result type (a class IRI or a result-shape name,
-          mirroring int:returns). To an external caller the returned value
-          is a read-intent's entire point — an undeclared result is a dead
-          end in any composition (Apple: ReturnsValue<T>). */
-      returns: string;
-    }
-
-    /** A catalog entry, discriminated on `effect` — the table-level
-        mirror of the query/mutation split. */
-    export type IntentDef = WriteIntentDef | ReadIntentDef;
-
-    export const INTENTS = {
-      // implemented: useShareBuilding
-      shareBuilding: {
-        localName: "ShareBuilding",
-        label: "Share building",
-        action: "share the building",
-        effect: "write",
-        targetEntity: `${BUILDING_NS}Building`,
-        parameters: [
-          { name: "building", nodeKind: "iri",
-            range: `${BUILDING_NS}Building`, cardinality: "one" },
-          { name: "recipient", nodeKind: "iri",
-            range: "http://xmlns.com/foaf/0.1/Agent", cardinality: "one" },
-          { name: "energyYear", nodeKind: "literal",
-            range: XSD_GYEAR, cardinality: "zero-or-more",
-            comment: "Absent means all years." },
-        ],
-        mechanisms: ["event-sourced-append", "acl-projection"],
-        appendsTo: ["sharedOutLog"],
-        projectsTo: ["buildingAcl"],
-        notifies: ["recipientInbox"],
-        invalidates: ["sharedOutLog"],
-        silent: true,
-      },
-      // implemented: useSeedDemoBuildings
-      addDemoBuildings: {
-        localName: "AddDemoBuildings",
-        label: "Add demo buildings",
-        action: "add demo buildings",
-        effect: "write",
-        targetEntity: `${BUILDING_NS}Building`,
-        parameters: [],
-        mechanisms: ["in-place-write"],
-        writesTo: ["buildingsContainer"],
-        invalidates: ["buildings"],
-        // Per-building best-effort: the result is {seeded, total}.
-        outcome: "tally",
-        // Affordances: the empty-Pod offer banner (ungated) and the account
-        // menu (developer-gated) — "standard" because the laxest one is.
-        exposure: "standard",
-      },
-      // implemented: useRemoveAppData (abort signal in variables; a cancel
-      // resolves {aborted: true}; settle = queryClient.clear())
-      removeAllAppData: {
-        localName: "RemoveAllAppData",
-        label: "Remove all app data",
-        action: "remove app data",
-        effect: "write",
-        // No targetEntity: acts on the whole app collection.
-        parameters: [],
-        // The wipe is the degenerate in-place mutation — every resource
-        // (event logs, in-place state, ACL projections) is uniformly state
-        // to destroy; nothing is appended, folded, or projected.
-        mechanisms: ["in-place-write"],
-        deletes: ["appCollection"],
-        invalidates: "entire-cache",
-        // The preview names the implemented query the confirm embeds.
-        confirmation: { preview: "listContainedResources" },
-        execution: { longRunning: true, cancellable: true },
-        exposure: "developer",
-      },
-      // implemented: useExportArchive — central busy/error handling on
-      // the trigger primitive, zero Pod writes (test-pinned); the caller
-      // saves the blob and toasts the count.
-      downloadArchive: {
-        localName: "DownloadArchive",
-        label: "Download archive",
-        action: "download the archive",
-        effect: "read",
-        parameters: [],
-        readsFrom: ["appCollection"],
-        returns: "http://schema.org/MediaObject", // the archive file
-        exposure: "developer",
-      },
-      // implemented: useAuditGrants — the dry-run diffing twin of
-      // rebuild-sharing; fresh per invocation (a cached audit would
-      // report stale consistency), the verdict rendered by the caller.
-      checkSharingConsistency: {
-        localName: "CheckSharingConsistency",
-        label: "Check sharing consistency",
-        action: "check sharing consistency",
-        effect: "read",
-        parameters: [],
-        readsFrom: ["sharedOutLog", "buildingAcl"],
-        // A result shape minted in the intent vocabulary, not a reused class.
-        returns: `${INT_NS}SharingAuditReport`,
-        exposure: "developer",
-      },
-      // … one entry per user intent
-    } as const satisfies Record<string, IntentDef>;
-
-A hook then derives rather than declares:
-
-    export function useShareBuilding() {
-      const def = INTENTS.shareBuilding;
-      // …
-      return useMutation({
-        mutationFn: /* unchanged service call */,
-        meta: { action: def.action, silent: def.silent },
-        onSettled: () => invalidateFamilies(def.invalidates),
-      });
-    }
-
-Notes on the sketch:
-
-- `as const satisfies Record<string, IntentDef>` means: check every entry
-  against the `IntentDef` contract at compile time, but keep each entry's
-  *exact* values as its type (not widened to generic strings) — so
-  `INTENTS.shareBuilding.action` is known to the compiler as the literal
-  phrase, and downstream code can be typed against specific entries.
-- `invalidates: keyof typeof queryKeys` links the table to the query layer
-  at compile time: renaming a query-key family in `queries.ts` breaks the
-  build here, while the drift test covers the published-files half.
-- The one seam TypeScript does not close in this sketch: nothing forces
-  `parameters` to match the mutation's actual variables type. A mapped type
-  over the variables could enforce it (every variable key must have a
-  parameter entry); whether that rigor is worth the type-level machinery is
-  an implementation-time call.
-- Reconciliation actions stay out of the table. The two boundary-case
-  account actions are *in* it — the entries above; the next section walks
-  through which field answers which of their needs.
-- Read-intents are entries of their own kind: `IntentDef` is a union
-  discriminated on `effect`, the table-level mirror of CQS.
-  `WriteIntentDef` carries mechanism / effect roles / invalidation /
-  outcome; `ReadIntentDef` carries only what it reads (`readsFrom`);
-  the shared signature (name, label, action, parameters, execution,
-  exposure) lives in the base. The split is load-bearing, not cosmetic:
-  a read entry *cannot* claim a mechanism or an invalidation — the
-  compiler holds the query side pure, the same line the `@operation`
-  tags draw at the service layer. `returns` is read-side only by the
-  same logic: a write intent declares its outcome *shape*
-  (`binary`/`tally`), never a result type — its real result is the Pod
-  effect plus the invalidations, and no caller consumes a mutation's
-  return value.
-- `removeAllAppData`'s `confirmation.preview` names a query
-  (`listContainedResources`) that has no entry of its own: it is invoked
-  only from inside the confirmation flow, never as a standalone user
-  verb — no affordance, no entry. Whether embedded previews should
-  nevertheless be registered read-intents is in the open questions.
+Two entries foreshadow the next section. Reconciliation actions stay out of the
+catalog, but the two boundary-case account actions — demo seeding and remove-all
+— are *in* it, and they are exactly the ones whose fields (confirmation,
+cancellable execution, tally outcome, whole-cache invalidation) the
+dialog-shaped intents never needed. A smaller open point: remove-all's
+confirmation embeds the result of a query that has no entry of its own (it is
+reachable only from inside the confirmation flow); whether such embedded
+previews should nonetheless be registered read-intents is left to
+§ Open questions.
 
 ## The boundary cases: demo seeding and remove-all
 
 Demo seeding and remove-all-app-data are the most instructive entries in the
-table: each forces a dimension onto `IntentDef` that the dialog-shaped intents
-never needed. Both qualify as intents outright: nameable, user-decided,
+catalog: each forces a dimension onto an intent's shape that the dialog-shaped
+intents never needed. Both qualify as intents outright: nameable, user-decided,
 parameter-free verbs an Apple-style registry would list without hesitation
 (and whose quirks Apple's framework models first-class: destructive intents
 declare a confirmation step, long-running intents report progress and
 support cancellation). Field by field:
 
-- **`confirmation` — consent with a computed preview.** Remove-all's
-  confirm is not a static "are you sure?": it embeds the result of a *query*
-  (the read-only recursive listing) enumerating the resources that will be
-  destroyed. `preview` names that query — a destructive intent whose
-  confirmation summary is produced by a query-shaped operation, which is
-  the strongest internal pull yet toward read-intents being first-class
-  (the same pull `int:invalidates` already exerts).
-- **`execution` — long-running with progress and abort.** Remove-all
-  threads an abort signal through the recursive delete and replaces the app
-  shell with a progress surface while running. Cancelling a destructive
-  intent inherently leaves partial state ("some data may already be
-  deleted") — admitting that is part of the intent's outcome wording, not
-  an error path. (The spreadsheet import's abortable upload is the same
-  dimension, hidden inside an intent the table already covered; its entry
-  would carry the same field.)
-- **`outcome: "tally"` — partial success as a result, not an error.**
-  Seeding is per-item best-effort and reports `{seeded, total}` ("Added N
-  of M") — neither success nor the central `"Failed to {action}"` shape.
-- **`invalidates: "entire-cache"`.** Seeding invalidates `buildings`;
-  remove-all resets the world. A key-family list cannot say "everything",
-  so the type admits it as a loud special value — better the schema
-  surfaces an intent that resets the world than papers over it with a fake
-  enumeration.
-- **`exposure` — gated discoverability.** Remove-all is developer-gated
-  throughout. Seeding shows the attribute really belongs to *affordances*,
-  not the intent: its account-menu entry is gated, its empty-Pod offer
-  banner is not — so the table records the laxest exposure and leaves
-  per-affordance gating to the UI (resolved properly by the state-machine
-  reading below: exposure is a guard on affordance edges).
-- **`mechanisms` under deletion.** The wipe needs no third storage model:
-  it is the degenerate in-place mutation, treating every resource — event
-  logs, in-place state, ACL projections alike — uniformly as state to
-  destroy; nothing is appended, folded, or projected. The effect is carried
-  by `deletes` (a resource role, like `appendsTo`), keeping the
-  storage-model taxonomy intact.
+- **A confirmation step with a computed preview.** Remove-all's confirm is
+  not a static "are you sure?": it embeds the result of a *query* (the
+  read-only recursive listing) enumerating the resources that will be
+  destroyed. A destructive intent whose confirmation summary is produced by a
+  query-shaped operation is the strongest internal pull yet toward read-intents
+  being first-class — the same pull the invalidation reference already exerts.
+- **Long-running execution with progress and abort.** Remove-all threads an
+  abort signal through the recursive delete and replaces the app shell with a
+  progress surface while running. Cancelling a destructive intent inherently
+  leaves partial state ("some data may already be deleted") — admitting that is
+  part of the intent's outcome wording, not an error path. (The spreadsheet
+  import's abortable upload is the same dimension, hidden inside an intent the
+  catalog already covered.)
+- **A tally outcome — partial success as a result, not an error.** Seeding is
+  per-item best-effort and reports an "Added N of M" count — neither plain
+  success nor the central "Failed to …" shape.
+- **Whole-cache invalidation.** Seeding invalidates one query family;
+  remove-all resets the world. A key-family list cannot say "everything", so
+  the model admits it as a loud special value — better the catalog surface an
+  intent that resets the world than paper over it with a fake enumeration.
+- **Gated exposure.** Remove-all is developer-gated throughout. Seeding shows
+  the attribute really belongs to *affordances*, not the intent: its
+  account-menu entry is gated, its empty-Pod offer banner is not — so the
+  catalog records the laxest exposure and leaves per-affordance gating to the
+  UI (resolved properly by the state-machine reading below: exposure is a guard
+  on affordance edges).
+- **Deletion as a mechanism.** The wipe needs no third storage model: it is the
+  degenerate in-place mutation, treating every resource — event logs, in-place
+  state, ACL projections alike — uniformly as state to destroy; nothing is
+  appended, folded, or projected. The effect is carried by a delete role,
+  keeping the storage-model taxonomy intact.
 
 These two carry extra fields precisely because confirmation, progress, and
-tally outcomes don't fit the plain hook shape. Both go through hooks
-(`useSeedDemoBuildings`, `useRemoveAppData` — the wipe on the established
-abort-as-outcome pattern, its settle clearing the entire cache), and the
-split is the one the fields above describe: the hook owns execution,
-busy state, the central error toast, and the invalidation; the call site
-keeps exactly the confirmation (with its computed preview) and the
-progress surface. The remaining implementation question is whether the
-entry's confirmation/execution metadata can *drive* those surfaces — a
-generic confirm-with-preview and progress takeover rendered from the
-table — instead of each call site hard-coding them.
+tally outcomes don't fit the plain hook shape. Both still go through hooks
+(`useSeedDemoBuildings`, `useRemoveAppData`), and the split is the one the
+fields above describe: the hook owns execution, busy state, the central error
+toast, and the invalidation; the call site keeps exactly the confirmation
+(with its computed preview) and the progress surface. The remaining question is
+whether the entry's confirmation/execution metadata can *drive* those surfaces
+— a generic confirm-with-preview and progress takeover rendered from the
+catalog — instead of each call site hard-coding them.
 
 ## The UI as a state machine: affordances as edges
 
@@ -851,6 +689,52 @@ sit on edges at all: queries hang off *states* as their declared data
 needs — a state subscribes, the data layer decides when HTTP happens —
 which is the same write/read asymmetry recorded in § Where intents sit:
 intents on edges, queries on nodes.
+
+## The command palette
+
+A command palette is the plainest external surface: a single type-to-search
+box that lists every verb by its label and invokes it from anywhere — the
+⌘K pattern of editors and modern apps — without first navigating to the screen
+that happens to host it. It is the lead consumer because it is the most
+concrete: it answers "why reify the catalog" with something a user sees and
+wants, and building it would drag every missing piece of the registry into
+existence at once. The other consumers (deep links, tool surfaces, cross-app
+conformance, the headless runner — § What the intents lens adds) follow the
+same path the palette clears; it is the example, not the concept.
+
+What the palette needs *is* the registry, item by item:
+
+- **Enumeration** — the catalog as data, so the box can list and filter it;
+  today the nearest thing is reading `mutations.ts` by eye
+  (§ The in-code catalog).
+- **A label per verb** — the `action` phrase / `rdfs:label`, already carried by
+  the migrated hooks, missing on the older ones (§ Half the abstraction).
+- **Parameter shapes** — to prompt for the unbound arguments; the ShEx
+  signature (§ A drafted registry entry) is exactly the form a generic
+  prompt-builder reads.
+- **An entity resolver** — once a verb wants a building or a recipient, the
+  palette must turn a typed lookup into an IRI without a component tree: the
+  EntityQuery seam the app has not reified (§ Entity queries). This is the one
+  piece the palette forces that the dialogs never needed, because a dialog is
+  always already bound to its entity.
+- **Exposure guards** — developer-only verbs stay hidden unless dev mode is on;
+  `exposure` is that filter (§ The boundary cases).
+
+The palette also *sharpens* the affordance model rather than ignoring it. The
+naive palette is the degenerate state machine — "offer every edge from every
+state" — and the affordance reading (§ The UI as a state machine) is what keeps
+it honest: a verb is offered only where its non-context parameters can be bound
+and its guards still hold, and invoking it from the palette is the same
+partially-applied-intent dispatch as clicking its button, minus the home
+state's pre-binding. Surfacing an intent from a state that does not normally
+carry it is by definition an edit to the affordance map — which is why
+donation/discoverability presupposes that map.
+
+And the palette is where the React-bound limit (§ next) bites first: a palette
+entry cannot just "call the dialog's hook" — there is no dialog, and the palette
+is not that component — so it forces the intent's core below the hook, the same
+restructuring every non-React consumer needs. Build the palette and the registry
+stops being optional.
 
 ## Half the abstraction, React-bound
 

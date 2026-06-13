@@ -173,22 +173,14 @@ data, re-running the load flow (`data-layout.md`).
 
 ## Relation to the role/shape model
 
-How this pane relates to the data-driven model in
-[`data-schema.md`](./data-schema.md). The card and energy tab dispatch on the data, not
-a role:
-
-- **Predicate-driven render.** There is no role gate — `Building.tsx` renders whatever
-  predicates are present (REC/core + any `bldg:*` actually on the subject)
-  via `hasInvestorDetails`. The card shows "the fields this building has," not "the block
-  for its role."
-- **Granularity-driven energy tab.** The energy tab dispatches by the dataset's declared
-  shape (`annualData` presence / `cons:granularity`): a series (PT15M) renders the
-  time-series chart, an aggregate (P1Y) the annual chart — and **one building can show
-  both**, regardless of role.
-
-Provenance (`building.provenance` / `attributedTo`; model in `data-schema.md`) is
-deliberately **not** shown as a UI badge, and the map marker no longer varies by it —
-it lives in the data, not the chrome.
+The card and energy tab dispatch on the data, not a role (the model is owned by
+[`data-schema.md`](./data-schema.md)): `Building.tsx` renders whatever predicates are
+present (`hasInvestorDetails`) — "the fields this building has," not a per-role block —
+and the energy tab dispatches on the dataset's declared shape (`annualData` /
+`cons:granularity`), so one building can show both a PT15M time-series and a P1Y annual
+chart. Provenance (`building.provenance` / `attributedTo`) is deliberately **not** shown
+as a UI badge and the map marker no longer varies by it — it lives in the data, not the
+chrome.
 
 Still open:
 

@@ -1,8 +1,8 @@
 # Architecture — source layers & packages
 
 How the front-end source tree is sliced into layers and which way dependencies flow.
-Companion to [`queries-mutations.md`](./queries-mutations.md) (the query/mutation taxonomy that the
-data-access and service layers implement), [`storage-model.md`](./storage-model.md) and
+Companion to [`queries-mutations.md`](./queries-mutations.md) (the query/mutation taxonomy
+the data-access and service layers implement, and the storage-model rationale) and
 [`data-layout.md`](./data-layout.md) (the on-Pod side those layers read and write), and
 [`data-deref.md`](./data-deref.md) (the fetch/parse path through them). Where those notes
 describe *what lives on the Pod*, this one describes *what lives in `src/`*.
@@ -150,6 +150,10 @@ easy to violate:
 The single structural exception is the pair of queries that hide a mutation
 (`loadBuildings`, `drainInbox`) — documented as seams in
 [`queries-mutations.md`](./queries-mutations.md) (§Seams), not repeated here.
+
+Where this boundary could be drawn differently — pushing the services and RDF layers
+behind a JSON-RPC server, or shedding the single-page shell altogether — is explored
+(and not adopted) in [`explore-client-boundary.md`](./explore-client-boundary.md).
 
 ## Packages & runtime
 

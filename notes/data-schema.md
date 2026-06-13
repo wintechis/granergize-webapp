@@ -36,45 +36,36 @@ source" row); a legacy `prov:hadRole` on an older Pod is read and ignored. There
 never gated on one. The attribution travels with the data, so a sharing recipient reads
 the producing agent straight from the shared file.
 
-## Graph shape varies by producer, but dispatch is data-driven
+## Graph shape varies by producer; dispatch is data-driven
 
 One session loads building files authored by different actors in different
 vocabularies (the user's own files under `buildings/`, an investor's shared file, a
-tenant's readings, a benchmark file) — structurally different graphs. The parser keys
-on **predicate presence** (core + optional `bldg:*`), and energy
-loading/rendering keys on the dataset's declared **granularity**, so the producer
-category is never needed to read the data correctly.
-
-Provenance travels with the data: `serializeBuildingToTurtle` writes the PROV
-attribution into the building file on create, and a sharing recipient reads it straight
-from the shared file.
-
-## What dispatches on data shape (not role)
+tenant's readings, a benchmark file) — structurally different graphs, none carrying a
+stored role. The app reads them all without ever asking "what role produced this":
 
 - **Building predicates** — rendered whenever present (`hasInvestorDetails` in
-  `Building.tsx`): core always, `bldg:*` when the subject carries
-  them. No role gate.
+  `Building.tsx`): core always, `bldg:*` when the subject carries them. No role gate.
 - **Energy load + render** — keyed on the dataset's declared `cons:granularity`
-  (`isSeriesGranularity()`, `durationUtils.ts`) and on the presence of `annualData`,
-  never on a role. The dataset model is owned by [`energy-model.md`](./energy-model.md).
-
-Code: `TurtleParsingService.ts` (granularity skip-prefetch), `durationUtils.ts`,
-`energyDataset.ts`; `ExplorePage.tsx` / `Building.tsx` rendering.
-
-## Graph shapes (by producer's vocabulary, not a stored role)
+  (`isSeriesGranularity()`, `durationUtils.ts`) and the presence of `annualData`,
+  never on a role: the prefetch-skip in `TurtleParsingService.ts` keys purely on the
+  declared period (series ⇒ lazy), and `ExplorePage.tsx` / `Energy.tsx` pick the
+  time-series vs. annual chart the same way.
 
 The shapes aren't formally specified — they're whatever the imperative parsers
 read/write (`buildingConfig.ts`, `buildingParser.ts`, `energyDataset.ts`,
-`userEnergyParser.ts`); there's no separate shape/validator layer. Conceptually there's
-a shared building core plus optional detail predicates (`bldg:*`) carried by whatever
-a producer authored — read whenever present, with no role gate — and energy is either
-annual SOSA observations or a `cons:EnergyConsumptionReading` time series.
+`userEnergyParser.ts`); there's no separate shape/validator layer. Conceptually a
+shared building core plus optional detail predicates (`bldg:*`) carried by whatever a
+producer authored, and energy as either annual SOSA observations or a `PT15M` time series.
 
-> An earlier draft formalised these (and the on-Pod registry/view/sharing files) as
-> ShEx in `roles.shex`, with n3 mirrors in `roleDetection.ts` / `shapeValidators.ts`.
-> Removed: ShEx engines don't run under Deno, role is now provenance (a PROV
-> attribution, not sniffed from shape), and the validators had no callers. The only
-> survivor is `isSeriesGranularity` (`durationUtils.ts`).
+This decoupling is load-bearing because one "role" used to overload three independent
+things — building predicate set, energy graph shape + load strategy, and provenance —
+which breaks on real data where two actors in the *same* role carry *different* shapes
+(both BLG and Zufall are "user", but Zufall supplies quarter-hourly load profiles where
+we otherwise model annual consumption; even one actor has buildings at different
+granularities). Energy is therefore unified onto one self-describing `cons:EnergyDataset`
+that declares its own period (`cons:granularity`, an `xsd:duration`), so a building
+carries annual *and* 15-min datasets regardless of producer and the loader switches on
+the period — model owned by [`energy-model.md`](./energy-model.md).
 
 ## Two schemas: RDF graph ⇄ app objects
 
@@ -144,39 +135,13 @@ scope.
 ShEx/role-inference was considered and dropped. Shapes overlap on `<BuildingCore>`
 (user and dummy are indistinguishable at the building-file level — both core +
 `gran:hasEnergyConsumptionDataset`), so a match would be a structural *guess* that
-flips behaviour silently on sparse/malformed data. Behaviour instead dispatches on
-the dataset's **declared** `cons:granularity` (`isSeriesGranularity`), an explicit
-assertion that's in hand from the building file. The earlier `roleDetection.ts` n3
-detector (`detectBuildingRole`/`detectEnergyShape`/`resolveRole`) was never wired in
-and is removed; shapes are now needed at most to *validate* declared data.
-
-## Role is decoupled from shape
-
-Energy load, synthesis, and render dispatch on the **data's declared
-shape/granularity**, never on a role — and a building no longer carries a producing-role
-category at all (provenance is the agent only, `attributedTo`). Concretely:
-
-- Datasets declare `cons:granularity` on write (`buildingSerializer.ts`; user series →
-  `"PT15M"`).
-- Load strategy follows granularity via `isSeriesGranularity()` (`durationUtils.ts`):
-  the prefetch-skip in `TurtleParsingService.ts` keys purely on the declared period
-  (series ⇒ lazy; no granularity ⇒ non-series).
-- Inline-aggregate energy synthesis keys on **presence of `annualData`**, not
-  `role === "investor"` (so benchmark inline data is covered too).
-- `Building.tsx` renders investor/bench predicates whenever present
-  (`hasInvestorDetails`), with no role gate.
-- `ExplorePage.tsx` / `Energy.tsx` dispatch on `annualData` (annual chart) vs. a
-  declared series granularity (time-series `Energy`).
-
-The reason for the split: one "role" used to overload three independent things —
-building predicate set, energy graph shape + load strategy, and provenance — which
-breaks on real data where two actors in the *same* role carry *different* shapes (both
-BLG and Zufall are "user", but Zufall supplies quarter-hourly load profiles where we
-otherwise model annual consumption; even one actor has buildings at different
-granularities). Energy is therefore unified onto one self-describing `cons:EnergyDataset`
-node that declares its own period (`cons:granularity`, an `xsd:duration`), so a building
-carries annual *and* 15-min datasets regardless of role and the loader switches on the
-period. That dataset model is owned by [`energy-model.md`](./energy-model.md).
+flips behaviour silently on sparse/malformed data. Behaviour instead dispatches on the
+dataset's **declared** `cons:granularity` (`isSeriesGranularity`), an explicit assertion
+already in hand from the building file. The earlier ShEx draft (`roles.shex` with n3
+mirrors `roleDetection.ts` / `shapeValidators.ts`) is removed — ShEx engines don't run
+under Deno, role is now provenance rather than sniffed from shape, and the validators
+had no callers; the only survivor is `isSeriesGranularity`. Shapes are now needed at
+most to *validate* declared data.
 
 ## Import / export formats (XLSX)
 
@@ -232,22 +197,12 @@ So REC supplies the top-level building/agent **type + two identifiers**; `gran:`
 carries the actual domain data. REC is barely load-bearing, and not dereferenced
 (same as `gran:`).
 
-Serializer and parser both use the `REC_BUILDING` constant (`…#Building`, capital), so
-they agree on REC's real class name.
-
 REC bears on the role/schema design above: it is the natural home for the
-"self-describing master data, parse on predicate presence" direction — but only for
-what REC actually models. REC is a *topology* ontology: building → storey → space,
-plus `Agent`, `Address`, and GeoSPARQL `Geometry`. It deliberately does **not** define
-quantitative master-data predicates (no building/land area, height, year-of-construction,
-and no NACE predicate), so most of our numeric `bldg:` fields have no REC
-equivalent and must stay bespoke. Aligning the predicates REC *does* cover (the building
-type, agent/`operatedBy`, address, spaces) makes the "superset template" interoperable
-where it can be, while the genuinely project-specific parts stay in own terms: **energy
-(cons:/SOSA/QUDT — REC has no strong time-series model), roles, and all the quantitative
-attributes REC omits**. So "publish a real vocab" is only partly reframed — for building
-*topology/agent/address* you map to REC; for areas, energy, and roles you still mint
-your own.
+"self-describing master data, parse on predicate presence" direction, but only for what
+it models — a *topology* ontology (building → storey → space, plus `Agent`, `Address`,
+`Geometry`). It defines no quantitative master-data predicates (area, height, year,
+NACE), so those `bldg:` fields — and the whole energy model — stay bespoke; only the
+building type, agent/`operatedBy`, and address map to REC.
 
 ## Static FAU-hosted resources (`solid.ti.rw.fau.de/gra/…`)
 

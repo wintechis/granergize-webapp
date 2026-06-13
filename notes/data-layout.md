@@ -173,8 +173,8 @@ identity (the WebID `card` and the org `logo.<ext>`). There is no migration: old
 **No registries.** Every list derives from the Pod's own structure — container
 listings and folded event logs — rather than separate index files. An index that can
 desync from the resources it names is one more thing to keep consistent, and a single
-PUT adds a building, so a listing can't lag. See the *Tree* above and
-[`storage-model.md`](./storage-model.md).
+PUT adds a building, so a listing can't lag. See the *Tree* above and the storage-model
+rationale in [`queries-mutations.md`](./queries-mutations.md).
 
 **Storage root the Solid way.** The root is resolved from `<webId> pim:storage <root>`
 in the WebID doc (`resolveStorageRoot(session)`, once at login, cached), not by
