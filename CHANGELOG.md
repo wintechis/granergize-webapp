@@ -3,6 +3,17 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-13]
+- Code-review pass: fixes + cleanups across the app.
+- Fix: ConnectPage refreshes data-room membership on a cross-agent join (look-invalidates `roomLog`).
+- Shared `ConfirmDialog` (`useConfirm`) replaces all native `window.confirm`.
+- `webIdQuery`/`deriveFromQuery` factories — WebID namespacing now structural; ~15 hooks collapsed.
+- Unified building grant/revoke enumeration into `grantTargets.ts`.
+- `fetchStoreWithHeaders` for the discovery reads.
+- Removed `aggregation`→`interop` import (composition lifted to callers).
+- Split CSV/XLSX import out of `buildingSerializer` → `buildingImport.ts`.
+- Render-driven shared-view/-building reads go through query hooks (`useComputedSnapshot`/`useSharedBuildingDetail`).
+- Shared `NestedAgentList`; empty-state/loading voice normalized; standing prose removed; `loadEnergy` mean-reduce deduped.
+- Plans moved to a git-ignored `plans/` dir (separate from `notes/`/CLAUDE.md).
 - **Terminology: `…Url` → `…Uri` across the codebase.** Renamed every Pod/RDF-resource-locator identifier (`snapshotUrl`, `buildingFileUrl`, `aclUrl`, `definitionUrl`, room/inbox/dataset/share locators, …) to `Uri` per the URI/IRI convention; genuine browser URLs (blob object URLs, OIDC, MIME type, the bare `url` variable) and the avatar/logo identifiers stay `Url`. Fixed two name collisions the rename exposed. Unit 494/0, lint + tsc clean.
 - **Explore empty state no longer flashes "No buildings yet" while loading.** `ExplorePage` dropped `useSolidData`'s `isLoading`, so its empty-state text showed during the first fetch; now gated like `ManagePage`. Codebase swept for the same bug class — no other occurrences.
 - **Notes:** `app-pod-state-sync.md` updated for the now-derived-keyed `useReceivedBenchmarks`; `architecture.md`/`ui-state.md` state taxonomy expanded (five tiers; full-page routes listed).
