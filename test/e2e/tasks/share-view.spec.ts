@@ -1,8 +1,12 @@
 import { expect, test } from "@playwright/test";
 import { account } from "../helpers/login.ts";
+import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
-import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
+import {
+  deleteAllOwnedRooms,
+  removeAllBookmarkedRooms,
+} from "../helpers/rooms.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { freshPagesParallel } from "../helpers/twoPod.ts";
 import {
@@ -20,9 +24,10 @@ import { T } from "../helpers/timeouts.ts";
  *
  *   • A hosts a room + role; B joins + role; A creates a view and shares it with B
  *     via the dialog's room-members "Add" (ShareViewDialog has no "by role");
- *   • 2 s cooldown → B sees it under "Views shared with you" and the values render;
+ *   • B reloads (re-draining the inbox) until it appears under "Views shared with
+ *     you" and the values render;
  *   • A deletes the view (revokes + notifies B via `revokeAllViewRecipients`);
- *   • 2 s cooldown → B no longer sees it (the revocation folded it out).
+ *   • B reloads until it no longer sees it (the revocation folded it out).
  *
  * Was 6 single-account parts to stay under solidcommunity.net's Cloudflare burst
  * limit; on reliable Pods it runs as one test driving two contexts, self-cleaning
@@ -67,7 +72,8 @@ test.describe("view sharing across two pods", () => {
       // ensureView's role selection would hang.
       await ensureDemoBuildings(a.page);
       await ensureView(a.page);
-      const viewRow = a.page.locator("li").filter({ hasText: VIEW_NAME }).first();
+      const viewRow = a.page.locator("li").filter({ hasText: VIEW_NAME })
+        .first();
       // Scope to the SHARE dialog by its title: a generic role=dialog locator
       // once bound to the CreateViewDialog mid close-transition, so the poll
       // below skipped its "Share view" click and waited its whole budget on a
@@ -96,14 +102,17 @@ test.describe("view sharing across two pods", () => {
           // every remaining poll iteration (it did — see the trace notes).
           await shareDlg.getByRole("button", { name: /close/i })
             .click({ timeout: T.quick }).catch(() => {});
-          await expect(shareDlg).toBeHidden({ timeout: T.quick }).catch(() => {});
+          await expect(shareDlg).toBeHidden({ timeout: T.quick }).catch(
+            () => {},
+          );
           throw new Error("B not yet listed as a room member");
         }
       }).toPass({ timeout: T.poll });
       await add.first().click();
       const confirm = shareDlg.getByRole("button", { name: /confirm share/i });
       await expect(async () => {
-        await shareDlg.getByRole("button", { name: /review and share/i }).click();
+        await shareDlg.getByRole("button", { name: /review and share/i })
+          .click();
         await expect(confirm).toBeVisible({ timeout: T.quick });
       }).toPass({ timeout: T.poll });
       await confirm.click();
@@ -114,12 +123,11 @@ test.describe("view sharing across two pods", () => {
       // ── B reloads (cold re-fetch, re-draining the inbox) until the shared view
       //    propagates and folds in, then reads its values — no blind cooldown ──
       try {
-        await expect(async () => {
-          await b.page.reload();
+        await reloadUntil(b.page, async () => {
           await b.page.getByRole("tab", { name: "Share" }).click();
           await expect(receivedViews(b.page).getByText(VIEW_NAME))
             .toBeVisible({ timeout: T.action });
-        }).toPass({ timeout: T.poll });
+        });
         await b.page.getByRole("button", { name: /show values/i }).first()
           .click();
         await expect(b.page.locator("svg.recharts-surface").first())
@@ -147,14 +155,15 @@ test.describe("view sharing across two pods", () => {
       try {
         // Positive empty-state assertion: the section's empty notice is shown
         // (the list is absent when empty) AND the view is gone.
-        await expect(async () => {
-          await b.page.reload();
+        await reloadUntil(b.page, async () => {
           await b.page.getByRole("tab", { name: "Share" }).click();
           await expect(
             b.page.getByText(/no views shared with you yet/i),
           ).toBeVisible({ timeout: T.action });
-          await expect(receivedViews(b.page).getByText(VIEW_NAME)).toHaveCount(0);
-        }).toPass({ timeout: T.poll });
+          await expect(receivedViews(b.page).getByText(VIEW_NAME)).toHaveCount(
+            0,
+          );
+        });
       } catch (timeout) {
         b.guard.assertNoAppErrors();
         throw timeout;

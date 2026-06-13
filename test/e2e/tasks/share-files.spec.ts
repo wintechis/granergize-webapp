@@ -1,8 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, webIdOf } from "../helpers/login.ts";
+import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
-import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
+import {
+  deleteAllOwnedRooms,
+  removeAllBookmarkedRooms,
+} from "../helpers/rooms.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
 import {
   assignUserRole,
@@ -43,11 +47,12 @@ async function downloadSharedFile(page: Page): Promise<void> {
   // Poll, reloading to re-drain B's inbox each attempt, until the shared file
   // surfaces — replaces a blind write→read cooldown at the call sites. The download
   // itself fires once, after the file is confirmed present.
-  await expect(async () => {
-    await page.reload();
+  await reloadUntil(page, async () => {
     await page.getByRole("tab", { name: "Share" }).click();
-    await expect(page.getByText("sample.pdf")).toBeVisible({ timeout: T.action });
-  }).toPass({ timeout: T.poll });
+    await expect(page.getByText("sample.pdf")).toBeVisible({
+      timeout: T.action,
+    });
+  });
   const dl = page.waitForEvent("download");
   await page.getByRole("button", { name: "Download", exact: true }).first()
     .click();
@@ -154,7 +159,9 @@ async function deleteOwnBuilding(page: Page, street: string): Promise<void> {
     // A failed step may have left a modal open; dismiss it (Escape) so the clicks
     // below aren't blocked by its backdrop and hang (default action timeout is 0).
     await page.keyboard.press("Escape").catch(() => {});
-    await page.getByRole("tab", { name: "Manage" }).click({ timeout: T.visible });
+    await page.getByRole("tab", { name: "Manage" }).click({
+      timeout: T.visible,
+    });
     const row = page.locator("li", { hasText: street }).first();
     if (await row.count()) {
       await row.getByRole("button", { name: "Delete building" })
