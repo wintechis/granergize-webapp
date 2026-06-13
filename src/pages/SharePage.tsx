@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import {
   Box,
   Button,
@@ -15,15 +15,17 @@ import DownloadIcon from "@mui/icons-material/Download";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type {
-  AggregatedViewSnapshot,
-  BuildingType,
-} from "../types.ts";
+import type { BuildingType } from "../types.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
-import { useReceivedViews, useSharedWithMe } from "../hooks/queries.ts";
+import {
+  useComputedSnapshot,
+  useReceivedViews,
+  useSharedBuildingDetail,
+  useSharedWithMe,
+} from "../hooks/queries.ts";
 import { useCheckInbox, useToggleVisibility } from "../hooks/mutations.ts";
 import { loadSharedBuilding } from "../services/interop/sharedBuilding.ts";
 import { attachAnnualData } from "../services/rdf/building/buildingSerializer.ts";
@@ -32,7 +34,6 @@ import {
   buildingToXlsx,
 } from "../services/rdf/buildingWorkbook.ts";
 import { formatNumber } from "../lib/formatNumber.ts";
-import { loadComputedSnapshot } from "../services/aggregation/viewManager.ts";
 import { downloadXlsx } from "../lib/download.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
@@ -55,44 +56,27 @@ interface SharePageProps {
  * SVG bar chart the owner sees.
  */
 function ReceivedViewRow(
-  { view, session }: {
+  { view }: {
     view: { snapshotUri: string; viewId: string; sharedBy: string };
-    session: Session;
   },
 ) {
   const [open, setOpen] = useState(false);
-  const [snapshot, setSnapshot] = useState<AggregatedViewSnapshot | null>(null);
-  const [loading, setLoading] = useState(false);
-  const [error, setError] = useState<string | null>(null);
 
   // Recipients hold Read on the snapshot (which carries the view's name) but not
-  // the definition. Load it once so the row shows the view's NAME up front instead
-  // of the opaque snapshot id — a bare `view-<ts>-<rand>` is useless in a "shared
-  // with you" list. Expanding then reuses the already-loaded snapshot (no refetch).
-  const ensureSnapshot = async () => {
-    if (snapshot || loading) return;
-    setLoading(true);
-    setError(null);
-    try {
-      const snap = await loadComputedSnapshot(session, view.snapshotUri);
-      if (!snap) throw new Error("snapshot not found or empty");
-      setSnapshot(snap);
-    } catch (err) {
-      setError(err instanceof Error ? err.message : String(err));
-    } finally {
-      setLoading(false);
-    }
-  };
+  // the definition. The query loads it on mount so the row shows the view's NAME
+  // up front instead of the opaque snapshot id; expanding reuses the cached data.
+  const snapQuery = useComputedSnapshot(view.snapshotUri);
+  const snapshot = snapQuery.data ?? null;
+  const loading = snapQuery.isLoading;
+  const error = snapQuery.error
+    ? (snapQuery.error instanceof Error
+      ? snapQuery.error.message
+      : String(snapQuery.error))
+    : snapQuery.isSuccess && snapQuery.data === null
+    ? "snapshot not found or empty"
+    : null;
 
-  useEffect(() => {
-    ensureSnapshot();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view.snapshotUri]);
-
-  const toggle = () => {
-    setOpen((prev) => !prev);
-    ensureSnapshot();
-  };
+  const toggle = () => setOpen((prev) => !prev);
 
   const label = (snapshot?.name && snapshot.name.trim()) || view.viewId ||
     "Shared view";
@@ -173,25 +157,9 @@ function ReceivedViewRow(
  * session. Renders nothing while loading or when the building has no files.
  */
 function SharedBuildingFiles(
-  { entry, session }: {
-    entry: { buildingUri: string; buildingId: string };
-    session: Session;
-  },
+  { entry }: { entry: { buildingUri: string; buildingId: string } },
 ) {
-  const [building, setBuilding] = useState<BuildingType | null>(null);
-  useEffect(() => {
-    let cancelled = false;
-    loadSharedBuilding(entry, session)
-      .then((b) => {
-        if (!cancelled) setBuilding(b);
-      })
-      .catch((err) => logError("load shared building preview", err));
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [entry.buildingUri]);
-
+  const building = useSharedBuildingDetail(entry).data ?? null;
   return building ? <FilesSection building={building} /> : null;
 }
 
@@ -386,7 +354,7 @@ export default function SharePage({ session }: SharePageProps) {
                   </Tooltip>
                 </div>
                 </div>
-                <SharedBuildingFiles entry={building} session={session} />
+                <SharedBuildingFiles entry={building} />
               </li>
             ))}
           </ul>
@@ -403,11 +371,7 @@ export default function SharePage({ session }: SharePageProps) {
         : (
           <ul style={listStyle} aria-label="Views shared with you">
             {receivedViewsPaging.pageItems.map((view) => (
-              <ReceivedViewRow
-                key={view.snapshotUri}
-                view={view}
-                session={session}
-              />
+              <ReceivedViewRow key={view.snapshotUri} view={view} />
             ))}
           </ul>
         )}

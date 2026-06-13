@@ -56,15 +56,10 @@ import { formatError } from "../lib/formatError.ts";
 import { formatDate } from "../lib/formatDate.ts";
 import { downloadXlsx } from "../lib/download.ts";
 import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
-import { AgentLabel } from "../components/AgentLabel.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
-import {
-  ellipsis,
-  listStyle,
-  nestedListStyle,
-  rowStyle,
-} from "../constants/listStyles.ts";
+import { listStyle, rowStyle } from "../constants/listStyles.ts";
 import Pager from "../components/Pager.tsx";
+import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import {
   FilesDialog,
@@ -334,33 +329,17 @@ export default function ManagePage({ session }: ManagePageProps) {
                               <small>Shared with: Loading…</small>
                             </>
                           )
-                          : sharedWith.length > 0 && (
-                          <>
-                            <br />
-                            <small>Shared with:</small>
-                            <ul style={nestedListStyle}>
-                              {sharedWith.map((webId) => (
-                                <li key={webId} style={rowStyle}>
-                                  <span title={webId} style={ellipsis}>
-                                    <AgentLabel value={webId} />
-                                  </span>
-                                  <IconButton
-                                    size="small"
-                                    title="Revoke access"
-                                    aria-label="Revoke access"
-                                    onClick={() => handleRevoke(fileUri, webId)}
-                                    disabled={revoke.isPending &&
-                                      revoke.variables?.buildingUri ===
-                                        fileUri &&
-                                      revoke.variables?.webId === webId}
-                                  >
-                                    <DeleteIcon fontSize="small" />
-                                  </IconButton>
-                                </li>
-                              ))}
-                            </ul>
-                          </>
-                        )}
+                          : (
+                            <NestedAgentList
+                              agents={sharedWith}
+                              label="Shared with:"
+                              onRevoke={(webId) => handleRevoke(fileUri, webId)}
+                              isRevoking={(webId) =>
+                                revoke.isPending &&
+                                revoke.variables?.buildingUri === fileUri &&
+                                revoke.variables?.webId === webId}
+                            />
+                          )}
                       </div>
                       <div style={{ display: "flex", gap: "0.25rem" }}>
                         <Tooltip title="Edit building">
@@ -509,44 +488,22 @@ export default function ManagePage({ session }: ManagePageProps) {
                               <small>Shared with: Loading…</small>
                             </>
                           )
-                          : sharedWith.length > 0 && (
-                          <ul style={nestedListStyle}>
-                            {sharedWith.map((webId) => (
-                              <li key={webId} style={rowStyle}>
-                                <Typography
-                                  component="span"
-                                  variant="caption"
-                                  title={webId}
-                                  sx={ellipsis}
-                                >
-                                  <AgentLabel value={webId} />
-                                </Typography>
-                                <IconButton
-                                  size="small"
-                                  onClick={() =>
-                                    handleRevokeViewAccess(
-                                      getSnapshotUri(
-                                        session.info.webId!,
-                                        view.id,
-                                      ),
-                                      webId,
-                                    )}
-                                  title="Revoke access"
-                                  aria-label="Revoke access"
-                                  disabled={revokeView.isPending &&
-                                    revokeView.variables?.snapshotUri ===
-                                      getSnapshotUri(
-                                        session.info.webId!,
-                                        view.id,
-                                      ) &&
-                                    revokeView.variables?.webId === webId}
-                                >
-                                  <DeleteIcon fontSize="small" />
-                                </IconButton>
-                              </li>
-                            ))}
-                          </ul>
-                        )}
+                          : (
+                            <NestedAgentList
+                              agents={sharedWith}
+                              label="Shared with:"
+                              onRevoke={(webId) =>
+                                handleRevokeViewAccess(
+                                  getSnapshotUri(session.info.webId!, view.id),
+                                  webId,
+                                )}
+                              isRevoking={(webId) =>
+                                revokeView.isPending &&
+                                revokeView.variables?.snapshotUri ===
+                                  getSnapshotUri(session.info.webId!, view.id) &&
+                                revokeView.variables?.webId === webId}
+                            />
+                          )}
                       </div>
                       <div style={{ display: "flex", gap: "0.25rem" }}>
                         <Tooltip title="View details">

@@ -25,7 +25,12 @@ import {
   getReceivedBenchmarksFor,
   getViewDefinition,
   getViewDefinitions,
+  loadComputedSnapshot,
 } from "../services/aggregation/viewManager.ts";
+import {
+  loadSharedBuilding,
+  type SharedBuildingEntry,
+} from "../services/interop/sharedBuilding.ts";
 import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
 import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
 import { readContacts } from "../services/contacts.ts";
@@ -335,6 +340,34 @@ export function useReceivedViews() {
 }
 
 /**
+ * A received view's computed snapshot, loaded by IRI (the recipient holds Read on
+ * the snapshot, not the definition). Render-driven — a row mounts and needs the
+ * snapshot to show its name + values — so it's a query, not a hand-rolled effect.
+ * `null` data means a genuinely absent/empty snapshot (404); a transient failure
+ * surfaces as `error`.
+ */
+export function useComputedSnapshot(snapshotUri: string | undefined) {
+  return useWebIdQuery(
+    queryKeys.computedSnapshot,
+    (session) => loadComputedSnapshot(session, snapshotUri as string),
+    { extraKey: [snapshotUri], enabled: Boolean(snapshotUri) },
+  );
+}
+
+/**
+ * One building shared *with* the user, loaded in full by IRI (its attachments
+ * aren't in the lightweight shared-list entry). Render-driven (the shared-files
+ * preview mounts and needs it), so a query rather than an effect.
+ */
+export function useSharedBuildingDetail(entry: SharedBuildingEntry | undefined) {
+  return useWebIdQuery(
+    queryKeys.sharedBuildingDetail,
+    (session) => loadSharedBuilding(entry as SharedBuildingEntry, session),
+    { extraKey: [entry?.buildingUri], enabled: Boolean(entry) },
+  );
+}
+
+/**
  * The benchmark snapshots received from a BSP (the subset of received views
  * marked as a benchmark result). The energy view compares the owner's own
  * figures against these. Loads each received snapshot, so it stays a real
@@ -561,6 +594,10 @@ export const queryKeys = {
   viewDefinitions: ["viewDefinitions"] as const,
   /** One view's definition + computed snapshot (the standalone /view page), keyed by view id. */
   viewDetail: ["viewDetail"] as const,
+  /** A received view's computed snapshot, keyed by snapshot IRI. */
+  computedSnapshot: ["computedSnapshot"] as const,
+  /** A building shared with the user, loaded in full, keyed by building IRI. */
+  sharedBuildingDetail: ["sharedBuildingDetail"] as const,
   /** Benchmark snapshots received from a BSP (subset of received views). */
   receivedBenchmarks: ["receivedBenchmarks"] as const,
   /** The room registry (current + known). Set via setQueryData, not invalidated. */
