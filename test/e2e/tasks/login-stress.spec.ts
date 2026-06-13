@@ -15,11 +15,11 @@ import { T } from "../helpers/timeouts.ts";
  * (`freshPagesParallel([A, B])`) many times to raise the odds of catching it, with
  * the JSS log captured so the thrown error + stack is recoverable.
  *
- * It runs via its own gated `stress` Playwright project (the bench/deployed
- * pattern: the project only exists when LOGIN_STRESS is set, so the normal
- * suite never even collects it — no skipped-spec noise; it's a diagnostic, not
- * a regression gate). The `e2e:stress` task bakes the gate + project selection
- * in, like `e2e:deployed` does. Run on JSS with the server log on:
+ * It runs via its own gated `stress` Playwright project (the bench pattern: the
+ * project only exists when LOGIN_STRESS is set, so the normal suite never even
+ * collects it — no skipped-spec noise; it's a diagnostic, not a regression gate).
+ * The `e2e:stress` task bakes the gate + project selection in, like `bench:ui`
+ * does. Run on JSS with the server log on:
  *
  *   LOGIN_STRESS_N=20 \
  *   LOCAL_POD_LOG="$PWD/test-results/jss-login-stress.log" \

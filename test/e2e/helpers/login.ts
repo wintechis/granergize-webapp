@@ -3,6 +3,7 @@ import { account as resolveAccount, type TestAccount } from "../../config/accoun
 import { localProvider } from "../../config/providers.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { watchCloudflareRateLimit } from "./cloudflareGuard.ts";
+import { isReuseContext } from "./loginReuse.ts";
 import { T } from "./timeouts.ts";
 
 const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
@@ -77,18 +78,50 @@ export function hasAccount(a: SolidAccount): boolean {
 }
 
 /**
- * Log the page into the app via the given Solid account: pick/enter the issuer,
- * fill the identity-provider form, click through consent, dismiss the
- * remember-provider prompt, and wait until the app tabs are present.
+ * Get the page to a logged-in app shell for `acc`, then reset the pod to pristine.
+ * Dispatches by mode: with login REUSE on (the context was seeded with saved
+ * `storageState`, see loginReuse.ts) the app silently restores the session — no UI;
+ * otherwise the full interactive OIDC flow ({@link loginInteractive}). The per-spec
+ * `/wipe` reset runs in both paths.
+ */
+export async function login(page: Page, acc: SolidAccount): Promise<void> {
+  if (isReuseContext(acc)) {
+    watchCloudflareRateLimit(page);
+    await resetLocalPodsOnce();
+    await restoreSession(page);
+    return;
+  }
+  await loginInteractive(page, acc);
+}
+
+/**
+ * REUSE path: the context already carries a saved session (cookies + localStorage),
+ * so loading the app triggers inrupt's `restorePreviousSession` — no IdP redirect,
+ * form or consent. Just land on the shell; retry once or twice in case the silent
+ * token-refresh redirect is mid-flight on first paint.
+ */
+async function restoreSession(page: Page): Promise<void> {
+  await expect(async () => {
+    await page.goto("./");
+    await expect(page.getByRole("tab", { name: "Connect" }))
+      .toBeVisible({ timeout: T.action });
+  }).toPass({ timeout: T.login });
+}
+
+/**
+ * Interactive OIDC login — the fallback path, and what the `setup` project uses to
+ * MINT the saved sessions: pick/enter the issuer, fill the identity-provider form,
+ * click through consent, dismiss the remember-provider prompt, and wait until the
+ * app tabs are present.
  *
  * Identity-provider login + consent pages are provider-specific and change over
  * time; selectors are best-effort for solidcommunity.net. Run headed to debug.
  */
-export async function login(page: Page, acc: SolidAccount): Promise<void> {
+export async function loginInteractive(page: Page, acc: SolidAccount): Promise<void> {
   // Bail the whole run fast if the Pod host trips Cloudflare's Error 1015 (rate
   // limited) — attach before any navigation so login traffic is watched too.
   watchCloudflareRateLimit(page);
-  // Tier 3: give this spec a pristine CSS (restarts once per spec file).
+  // Tier 3: give this spec a pristine pod (resets once per spec file).
   await resetLocalPodsOnce();
   // Pace logins on Cloudflare-fronted (throttled) providers so consecutive OIDC
   // flows don't burst past the edge rate limit (Error 1015). No-op otherwise.
