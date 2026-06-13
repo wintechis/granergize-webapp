@@ -24,10 +24,18 @@ export function loginReuseEnabled(): boolean {
   return !!ENV?.E2E_LOCAL && !!ENV?.E2E_LOGIN_REUSE;
 }
 
-/** Where the setup project writes / specs read each account's saved auth state. A
- *  fixed (not per-run) path so the setup→spec dependency hands it over within a run. */
+/** Dir for saved auth states, scoped by LOCAL_PORT_OFFSET so two parallel lanes (a
+ *  CSS lane at +0 and a JSS lane at +10, `e2e:local:matrix`) keep SEPARATE sessions —
+ *  each lane's setup logs into its OWN pod server, and a shared path would let one
+ *  lane's session clobber the other's. Fixed (not per-run) so the setup→spec
+ *  dependency hands it over within a run. */
+export function authStateDir(): string {
+  return `test-results/.auth/${ENV?.LOCAL_PORT_OFFSET ?? "0"}`;
+}
+
+/** Where the setup project writes / specs read one account's saved auth state. */
 export function authStatePath(slot: string): string {
-  return `test-results/.auth/${slot.toLowerCase()}.json`;
+  return `${authStateDir()}/${slot.toLowerCase()}.json`;
 }
 
 /**

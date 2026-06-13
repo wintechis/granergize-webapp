@@ -1,7 +1,7 @@
 import { test as setup } from "@playwright/test";
 import { mkdirSync } from "node:fs";
 import { account, loginInteractive } from "../helpers/login.ts";
-import { authStatePath } from "../helpers/loginReuse.ts";
+import { authStateDir, authStatePath } from "../helpers/loginReuse.ts";
 
 /**
  * Login-REUSE setup (runs as a project DEPENDENCY of the catalog when
@@ -15,7 +15,7 @@ import { authStatePath } from "../helpers/loginReuse.ts";
  * cookie is only valid while this same pod server keeps running, which `/wipe`
  * guarantees (no restart) — see loginReuse.ts.
  */
-mkdirSync("test-results/.auth", { recursive: true });
+mkdirSync(authStateDir(), { recursive: true });
 
 for (const slot of ["A", "B", "C"] as const) {
   setup(`authenticate ${slot}`, async ({ browser }) => {
