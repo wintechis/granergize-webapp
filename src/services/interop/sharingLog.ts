@@ -21,7 +21,7 @@ const { namedNode } = DataFactory;
 
 /**
  * The sharing event logs. Two symmetric, append-only LDP containers under
- * `granergize/`, one event resource each (POST → the server mints the child URL,
+ * `granergize/`, one event resource each (POST → the server mints the child IRI,
  * so concurrent appends never clobber). One Turtle shape serves all three places
  * a sharing event appears — the recipient's inbox message, the sharer's
  * `shared-out/`, and the recipient's `shared-in/`:

@@ -488,7 +488,7 @@ export async function getEnergyDataUris(
 }
 
 /**
- * The building's energy-certificate file URL (`bldg:hasEnergyCertificate`), or null.
+ * The building's energy-certificate file IRI (`bldg:hasEnergyCertificate`), or null.
  * @operation query
  */
 export async function getEnergyCertificateUri(

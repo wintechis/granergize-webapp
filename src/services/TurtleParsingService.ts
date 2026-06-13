@@ -189,7 +189,7 @@ async function discoverOwnBuildings(
 }
 
 /**
- * Building URLs shared *with* the user, derived from the already-folded
+ * Building IRIs shared *with* the user, derived from the already-folded
  * `shared-in/` grants (`gran:kind rec:Building`).
  */
 export function sharedBuildingSourcesFromGrants(grants: ActiveGrant[]): string[] {
@@ -435,7 +435,7 @@ export async function loadEnergy(
 }
 
 /**
- * Building URLs shared *with* the user, by folding the `shared-in/` log once.
+ * Building IRIs shared *with* the user, by folding the `shared-in/` log once.
  * An empty/missing log (no shares received) yields `[]`; other failures are
  * logged and tolerated (own buildings must still load).
  * @operation query

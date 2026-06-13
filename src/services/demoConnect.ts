@@ -89,7 +89,7 @@ export async function seedDemoContacts(
  * `createRoom` enters the new room (so the last one created ends up current,
  * all of them bookmarked). NOT idempotent — rooms are identified by fresh
  * UUIDs, so re-running adds another batch. Best-effort per room; only a total
- * failure throws. Returns the created room URLs so the caller can patch the
+ * failure throws. Returns the created room IRIs so the caller can patch the
  * room-registry cache (which is owned by mutations, never invalidated).
  * @operation mutation
  */

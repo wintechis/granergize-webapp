@@ -22,7 +22,7 @@ export function bookmarksUri(webId: string): string {
 }
 
 /**
- * Bookmarked room URLs (the "Your rooms" list). Missing file ⇒ `[]`.
+ * Bookmarked room IRIs (the "Your rooms" list). Missing file ⇒ `[]`.
  * @operation query
  */
 export async function readBookmarks(session: Session): Promise<string[]> {

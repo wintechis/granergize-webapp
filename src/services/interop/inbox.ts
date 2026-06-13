@@ -1,6 +1,10 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store } from "n3";
-import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
+import {
+  fetchFresh,
+  fetchStoreWithHeaders,
+  readStoreOrEmpty,
+} from "../pod/podFetch.ts";
 import { appendToContainer, ensureContainer, putAcl } from "../pod/podWrite.ts";
 import { LDP_CONTAINS, LDP_INBOX } from "../rdf/vocabularies.ts";
 import {
@@ -155,24 +159,23 @@ async function granergizeInboxUri(
   appRoot: string,
   session: Session,
 ): Promise<string> {
-  const res = await session.fetch(appRoot, { headers: { Accept: "text/turtle" } })
-    .catch((err) => {
-      logError("fetch app root for inbox discovery", err);
-      return null;
-    });
-  if (res?.ok) {
-    const linkHeader = res.headers.get("Link");
-    const store = new Store(new Parser({ baseIRI: appRoot }).parse(await res.text()));
+  const { store, response } = await fetchStoreWithHeaders(
+    appRoot,
+    session,
+    "fetch app root for inbox discovery",
+  );
+  if (store) {
     const triple = store.getObjects(
       DataFactory.namedNode(appRoot),
       DataFactory.namedNode(LDP_INBOX),
       null,
     )[0]?.value;
     if (triple) return triple;
-    const fromHeader = inboxFromLinkHeader(linkHeader, appRoot);
+    const fromHeader = inboxFromLinkHeader(
+      response?.headers.get("Link") ?? null,
+      appRoot,
+    );
     if (fromHeader) return fromHeader;
-  } else {
-    await res?.body?.cancel();
   }
   return `${appRoot}inbox/`; // convention default
 }
