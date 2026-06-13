@@ -263,7 +263,6 @@ export default function SharePage({ session }: SharePageProps) {
       >
         {dev && (
           <Button
-            size="small"
             variant="outlined"
             onClick={handleCheckInbox}
             disabled={checkInbox.isPending}
