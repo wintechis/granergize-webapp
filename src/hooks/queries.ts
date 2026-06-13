@@ -1,5 +1,6 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
+import type { Session } from "@inrupt/solid-client-authn-browser";
 import { getSession } from "./session.ts";
 import {
   loadBuildings,
@@ -61,6 +62,71 @@ function webIdOf(): string | undefined {
 }
 
 /**
+ * The shape every session-scoped read shares: a query keyed `[...prefix, webId,
+ * ...extra]`, gated on a resolved WebID, fed the authed `getSession()` transport.
+ * Folding it into one helper makes the **WebID namespacing structural** — a new
+ * read can't forget to put the WebID in its key (the contract a re-login relies
+ * on) — and collapses ~15 hooks to one line each. `opts.enabled` is ANDed with
+ * `Boolean(webId)`; `opts.extraKey` appends content/identity fingerprints after
+ * the WebID; `opts.staleTime` is passed through only when set (so the default
+ * `staleTime: 0` from QueryProvider still governs unless a hook opts out).
+ *
+ * Not for reads keyed on some OTHER agent's WebID (`useResolveAgent`/`Org`, which
+ * key on the *target*, not the session) — those stay bespoke by design.
+ */
+function useWebIdQuery<T>(
+  keyPrefix: readonly unknown[],
+  queryFn: (session: Session, webId: string) => Promise<T>,
+  opts: {
+    extraKey?: readonly unknown[];
+    enabled?: boolean;
+    staleTime?: number;
+  } = {},
+) {
+  const webId = webIdOf();
+  return useQuery({
+    queryKey: [...keyPrefix, webId, ...(opts.extraKey ?? [])],
+    enabled: Boolean(webId) && (opts.enabled ?? true),
+    queryFn: () => queryFn(getSession(), webId as string),
+    ...(opts.staleTime !== undefined ? { staleTime: opts.staleTime } : {}),
+  });
+}
+
+/**
+ * The shape every "shared-with/by-me" list shares: a pure in-memory derivation of
+ * one folded log query (never a second fold), passing the log's loading/error
+ * flags straight through. Keeps the fold-once discipline and the uniform
+ * `{ data, isLoading, isFetching, error }` result. (`useSharedWithMe` folds TWO
+ * upstreams — log + prefs — so it stays explicit.)
+ */
+function useDeriveFromQuery<TData, TOut>(
+  query: {
+    data: TData | undefined;
+    isLoading: boolean;
+    isFetching: boolean;
+    error: unknown;
+  },
+  selector: (data: TData) => TOut,
+): {
+  data: TOut | undefined;
+  isLoading: boolean;
+  isFetching: boolean;
+  error: unknown;
+} {
+  const { data: raw } = query;
+  const data = useMemo(
+    () => (raw !== undefined ? selector(raw) : undefined),
+    [raw, selector],
+  );
+  return {
+    data,
+    isLoading: query.isLoading,
+    isFetching: query.isFetching,
+    error: query.error,
+  };
+}
+
+/**
  * The folded `shared-in/` log — THE one fold per load. Everything "shared with
  * me" (shared building sources, the Share-tab list, received views, received
  * benchmarks) derives from this query's data instead of folding the log again;
@@ -68,33 +134,24 @@ function webIdOf(): string | undefined {
  * difference between 1× and 4× that per load.
  */
 export function useSharedInGrants() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.sharedInLog, webId],
-    enabled: Boolean(webId),
-    queryFn: () => foldSharingLog(sharedInUri(webId as string), getSession()),
-  });
+  return useWebIdQuery(
+    queryKeys.sharedInLog,
+    (session, webId) => foldSharingLog(sharedInUri(webId), session),
+  );
 }
 
 /** The folded `shared-out/` log — see {@link useSharedInGrants}; the
  * shared-buildings and shared-views lists derive from it. */
 export function useSharedOutGrants() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.sharedOutLog, webId],
-    enabled: Boolean(webId),
-    queryFn: () => foldSharingLog(sharedOutUri(webId as string), getSession()),
-  });
+  return useWebIdQuery(
+    queryKeys.sharedOutLog,
+    (session, webId) => foldSharingLog(sharedOutUri(webId), session),
+  );
 }
 
 /** `prefs.ttl` (hidden buildings, …). Invalidated by the visibility toggle. */
 export function usePrefs() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.prefs, webId],
-    enabled: Boolean(webId),
-    queryFn: () => readPrefs(getSession()),
-  });
+  return useWebIdQuery(queryKeys.prefs, (session) => readPrefs(session));
 }
 
 /**
@@ -107,7 +164,6 @@ export function usePrefs() {
  * sources / nothing hidden) rather than blocking own buildings.
  */
 export function useBuildings() {
-  const webId = webIdOf();
   const qc = useQueryClient();
   const log = useSharedInGrants();
   const prefs = usePrefs();
@@ -121,17 +177,9 @@ export function useBuildings() {
     : prefs.isError
     ? new Set<string>()
     : undefined;
-  return useQuery({
-    queryKey: [
-      ...queryKeys.buildings,
-      webId,
-      (sharedSources ?? []).join(";"),
-      [...(hidden ?? [])].sort().join(";"),
-    ],
-    enabled: Boolean(webId) && sharedSources !== undefined &&
-      hidden !== undefined,
-    queryFn: async () => {
-      const session = getSession();
+  return useWebIdQuery(
+    queryKeys.buildings,
+    async (session) => {
       // Resolve the Pod storage root from pim:storage before any path is built.
       await resolveStorageRoot(session);
       const { buildings, prunedSources } = await loadBuildings(
@@ -147,7 +195,14 @@ export function useBuildings() {
       }
       return { buildings };
     },
-  });
+    {
+      extraKey: [
+        (sharedSources ?? []).join(";"),
+        [...(hidden ?? [])].sort().join(";"),
+      ],
+      enabled: sharedSources !== undefined && hidden !== undefined,
+    },
+  );
 }
 
 /** Phase 2: energy for the given buildings (dependent on phase 1).
@@ -184,13 +239,11 @@ export function energyKeyFor(buildings: BuildingType[] | undefined): string {
 }
 
 export function useEnergy(buildings: BuildingType[] | undefined) {
-  const webId = webIdOf();
-  const energyKey = energyKeyFor(buildings);
-  return useQuery({
-    queryKey: [...queryKeys.energy, webId, energyKey],
-    enabled: Boolean(webId) && Boolean(buildings),
-    queryFn: () => loadEnergy(getSession(), buildings ?? []),
-  });
+  return useWebIdQuery(
+    queryKeys.energy,
+    (session) => loadEnergy(session, buildings ?? []),
+    { extraKey: [energyKeyFor(buildings)], enabled: Boolean(buildings) },
+  );
 }
 
 // The sharing lists below are pure in-memory derivations of the two folded
@@ -218,26 +271,14 @@ export function useSharedWithMe() {
 
 /** Buildings the user has shared with others, from shared-out grants. */
 export function useSharedBuildings() {
-  const log = useSharedOutGrants();
-  const data = useMemo(
-    () => (log.data ? sharedBuildingsFromGrants(log.data) : undefined),
-    [log.data],
-  );
-  return {
-    data,
-    isLoading: log.isLoading,
-    isFetching: log.isFetching,
-    error: log.error,
-  };
+  return useDeriveFromQuery(useSharedOutGrants(), sharedBuildingsFromGrants);
 }
 
 export function useViewDefinitions() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.viewDefinitions, webId],
-    enabled: Boolean(webId),
-    queryFn: () => getViewDefinitions(getSession()),
-  });
+  return useWebIdQuery(
+    queryKeys.viewDefinitions,
+    (session) => getViewDefinitions(session),
+  );
 }
 
 export interface ViewDetail {
@@ -261,12 +302,9 @@ export interface ViewDetail {
  * delete-view mutations.
  */
 export function useViewDetail(viewId: string | undefined) {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.viewDetail, webId, viewId],
-    enabled: Boolean(webId && viewId),
-    queryFn: async (): Promise<ViewDetail> => {
-      const session = getSession();
+  return useWebIdQuery(
+    queryKeys.viewDetail,
+    async (session): Promise<ViewDetail> => {
       const id = viewId as string;
       const [definition, snapshot] = await Promise.all([
         getViewDefinition(session, id),
@@ -282,37 +320,18 @@ export function useViewDetail(viewId: string | undefined) {
         return { definition, snapshot: null, computeError };
       }
     },
-  });
+    { extraKey: [viewId], enabled: Boolean(viewId) },
+  );
 }
 
 /** Views the user has shared with others, from shared-out grants. */
 export function useSharedViews() {
-  const log = useSharedOutGrants();
-  const data = useMemo(
-    () => (log.data ? sharedViewsFromGrants(log.data) : undefined),
-    [log.data],
-  );
-  return {
-    data,
-    isLoading: log.isLoading,
-    isFetching: log.isFetching,
-    error: log.error,
-  };
+  return useDeriveFromQuery(useSharedOutGrants(), sharedViewsFromGrants);
 }
 
 /** Aggregated views shared *with* the current user, from shared-in grants. */
 export function useReceivedViews() {
-  const log = useSharedInGrants();
-  const data = useMemo(
-    () => (log.data ? receivedViewsFromGrants(log.data) : undefined),
-    [log.data],
-  );
-  return {
-    data,
-    isLoading: log.isLoading,
-    isFetching: log.isFetching,
-    error: log.error,
-  };
+  return useDeriveFromQuery(useSharedInGrants(), receivedViewsFromGrants);
 }
 
 /**
@@ -326,18 +345,17 @@ export function useReceivedViews() {
  * unchanged.
  */
 export function useReceivedBenchmarks() {
-  const webId = webIdOf();
   const log = useSharedInGrants();
   const received = useMemo(
     () => (log.data ? receivedViewsFromGrants(log.data) : undefined),
     [log.data],
   );
   const fingerprint = (received ?? []).map((r) => r.snapshotUri).sort().join(";");
-  return useQuery({
-    queryKey: [...queryKeys.receivedBenchmarks, webId, fingerprint],
-    enabled: Boolean(webId) && received !== undefined,
-    queryFn: () => getReceivedBenchmarksFor(getSession(), received ?? []),
-  });
+  return useWebIdQuery(
+    queryKeys.receivedBenchmarks,
+    (session) => getReceivedBenchmarksFor(session, received ?? []),
+    { extraKey: [fingerprint], enabled: received !== undefined },
+  );
 }
 
 /**
@@ -348,28 +366,23 @@ export function useReceivedBenchmarks() {
  * conditional read right after the write — see project memory.)
  */
 export function useRooms() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.rooms, webId],
-    enabled: Boolean(webId),
-    queryFn: () => readRooms(getSession()),
-    // The room registry is managed optimistically (mutations patch the cache);
-    // unlike the rest of the app's staleTime:0 + conditional-GET freshness, it
-    // must NOT auto-refetch — a background refetch could revert an in-flight
-    // optimistic room switch. Encode that invariant rather than relying on the
-    // absence of an invalidation.
+  // The room registry is managed optimistically (mutations patch the cache);
+  // unlike the rest of the app's staleTime:0 + conditional-GET freshness, it
+  // must NOT auto-refetch — a background refetch could revert an in-flight
+  // optimistic room switch. Encode that invariant (staleTime: Infinity) rather
+  // than relying on the absence of an invalidation.
+  return useWebIdQuery(queryKeys.rooms, (session) => readRooms(session), {
     staleTime: Infinity,
   });
 }
 
 /** Members / my-roles / my-membership for one room, keyed on the current room. */
 function useRoomLog(current: string | null) {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.roomLog, webId, current],
-    enabled: Boolean(webId && current),
-    queryFn: () => getRoomLogState(getSession(), current as string),
-  });
+  return useWebIdQuery(
+    queryKeys.roomLog,
+    (session) => getRoomLogState(session, current as string),
+    { extraKey: [current], enabled: Boolean(current) },
+  );
 }
 
 // One stable empty array for the `?? []` fallbacks below. A fresh `[]` per render
@@ -419,16 +432,9 @@ function freshFetchFn(): (url: string) => Promise<Response> {
  * `useInvalidateBuildingData`.
  */
 export function useAnnualEnergy(building: BuildingType) {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [
-      ...queryKeys.annualEnergy,
-      webId,
-      building.id,
-      energyKeyFor([building]),
-    ],
-    enabled: Boolean(webId),
-    queryFn: async () => {
+  return useWebIdQuery(
+    queryKeys.annualEnergy,
+    async () => {
       const refs = (building.energyDatasets ?? []).filter(
         (r) => !isSeriesGranularity(r.granularity),
       );
@@ -440,7 +446,8 @@ export function useAnnualEnergy(building: BuildingType) {
           .sort((a, b) => a.year - b.year);
       return { actual: rows("actual"), planned: rows("planned") };
     },
-  });
+    { extraKey: [building.id, energyKeyFor([building])] },
+  );
 }
 
 /**
@@ -450,29 +457,26 @@ export function useAnnualEnergy(building: BuildingType) {
  * cheap `day.substring(0, 7)` derivation at the call site).
  */
 export function useSeriesDays(refs: EnergyDatasetRef[]) {
-  const webId = webIdOf();
   const refKey = refs.map((r) => r.url).sort().join(";");
-  return useQuery({
-    queryKey: [...queryKeys.seriesDays, webId, refKey],
-    enabled: Boolean(webId) && refs.length > 0,
-    queryFn: async () => {
-      const session = getSession();
+  return useWebIdQuery(
+    queryKeys.seriesDays,
+    async (session) => {
       const perRef = await Promise.all(
         refs.map((ref) => listSeriesDays(session, ref)),
       );
       return perRef.flat().sort((a, b) => a.day.localeCompare(b.day));
     },
-  });
+    { extraKey: [refKey], enabled: refs.length > 0 },
+  );
 }
 
 /** One day file's 15-minute readings; disabled until a date is picked. */
 export function useDayReadings(url: string | undefined) {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.dayReadings, webId, url],
-    enabled: Boolean(webId && url),
-    queryFn: () => parseTtlReadings(url as string, freshFetchFn()),
-  });
+  return useWebIdQuery(
+    queryKeys.dayReadings,
+    () => parseTtlReadings(url as string, freshFetchFn()),
+    { extraKey: [url], enabled: Boolean(url) },
+  );
 }
 
 /**
@@ -484,12 +488,10 @@ export function useMonthReadings(
   entries: { day: string; url: string }[],
   enabled: boolean,
 ) {
-  const webId = webIdOf();
   const entryKey = entries.map((e) => e.url).join(";");
-  return useQuery({
-    queryKey: [...queryKeys.monthReadings, webId, entryKey],
-    enabled: Boolean(webId) && enabled && entries.length > 0,
-    queryFn: async () => {
+  return useWebIdQuery(
+    queryKeys.monthReadings,
+    async () => {
       const fetchFn = freshFetchFn();
       const result = new Map<string, Array<{ begin: string; value: number }>>();
       const settled = await Promise.allSettled(
@@ -505,17 +507,13 @@ export function useMonthReadings(
       }
       return result;
     },
-  });
+    { extraKey: [entryKey], enabled: enabled && entries.length > 0 },
+  );
 }
 
 /** The personal contacts address book (folds contacts.ttl). */
 export function useContacts() {
-  const webId = webIdOf();
-  return useQuery({
-    queryKey: [...queryKeys.contacts, webId],
-    enabled: Boolean(webId),
-    queryFn: () => readContacts(getSession()),
-  });
+  return useWebIdQuery(queryKeys.contacts, (session) => readContacts(session));
 }
 
 /**
