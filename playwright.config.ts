@@ -14,9 +14,10 @@ import { providerIdForIssuer } from "./test/config/providers.ts";
 // Tier 3 (browser × local CSS): boot a throwaway CSS and run the specs against it,
 // credential-free (E2E_LOCAL=1, via `deno task e2e:local`). Off for real-Pod runs.
 const LOCAL = !!process.env.E2E_LOCAL;
-// Tier 5 (deployed smoke): drive the PUBLISHED app at this URL instead of a
-// locally served build — no app webServer is started. `deno task e2e:deployed`.
-const DEPLOYED = process.env.E2E_DEPLOYED_URL;
+// Login REUSE (local tier, opt-in): a `setup` project mints A/B/C sessions once and
+// every spec restores from the saved storageState instead of re-running the OIDC UI
+// (see test/e2e/helpers/loginReuse.ts). Requires `/wipe` resets. `e2e:local:reuse`.
+const REUSE = LOCAL && !!process.env.E2E_LOGIN_REUSE;
 // Tier 3 serves the app on LOCAL_APP_PORT; Tier 4 (real Pods) on 4173.
 const PORT = LOCAL ? LOCAL_APP_PORT : 4173;
 
@@ -54,8 +55,6 @@ const TIER4_POD = process.env.E2E_POD_LABEL ||
   providerIdForIssuer(process.env.E2E_ISSUER_A);
 const SCOPE = process.env.E2E_BENCH
   ? `bench-${BACKEND}`
-  : DEPLOYED
-  ? "deployed"
   : LOCAL
   ? `tier-3-${BACKEND}`
   : TIER4_POD
@@ -96,10 +95,14 @@ const SOLO_SPECS = [
   "**/uri-state.spec.ts",
   "**/building-form-and-energy.spec.ts",
 ];
-const SHARING_SPECS = [
+// DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
+const DUO_SPECS = [
   "**/share-building.spec.ts",
   "**/share-view.spec.ts",
   "**/share-files.spec.ts",
+];
+// TRIO — three pods (A + B + C = Charlie): the benchmark-service round-trip.
+const TRIO_SPECS = [
   "**/peer-benchmark.spec.ts",
 ];
 
@@ -135,32 +138,47 @@ export default defineConfig({
     ["./test/e2e/cf1015Reporter.ts"],
   ],
   use: {
-    baseURL: DEPLOYED ?? `http://localhost:${PORT}`,
+    baseURL: `http://localhost:${PORT}`,
     // Capture a trace for every test and keep it on failure — so the FIRST failure
     // always yields a trace, no retry needed (unlike `on-first-retry`, which writes
     // nothing on a retries=0 run).
     trace: "retain-on-failure",
   },
   /**
-   * Specs split into functional projects. The two roles are A = Alice and B = Bob;
-   * configure their Pods/WebIDs per run by `source`-ing an env file (see test/README.md):
-   *  - `solo`    — single-account specs; run against Alice (account A).
-   *  - `sharing` — cross-Pod specs; use the A+B pair (Alice + Bob).
+   * Catalog specs split by POD COUNT (the roles are A = Alice, B = Bob, C = Charlie);
+   * configure each role's Pod/WebID per run by `source`-ing an env file (see
+   * test/README.md):
+   *  - `solo`    — one pod: single-account specs (Alice).
+   *  - `duo`     — two pods: the cross-Pod sharing handshakes (Alice + Bob).
+   *  - `trio`    — three pods: the benchmark-service round-trip (Alice + Bob + Charlie).
    *  - `support` — handbuch screenshots (account A / Alice).
-   *  - `local`   — TIER 3: solo + sharing specs against a throwaway local CSS, no
-   *                creds (only present when E2E_LOCAL=1; the seeded A/B pods
-   *                interoperate, so sharing runs in-browser too). `deno task e2e:local`.
-   * `deno task e2e:remote` runs solo + sharing; `e2e:remote:spec --project=<name>`
+   *  - `local`   — TIER 3: solo + duo + trio against a throwaway local CSS, no creds
+   *                (only present when E2E_LOCAL=1; the seeded A/B/C pods interoperate,
+   *                so duo/trio run in-browser too). `deno task e2e:local`.
+   * `deno task e2e:remote` runs solo + duo + trio; `e2e:remote:spec --project=<name>`
    * (or a spec path) selects one. `support` is excluded from the full run.
    */
   projects: [
+    // Login-REUSE only: mints A/B/C sessions once, before the `local` project (its
+    // dependency). Present only when E2E_LOGIN_REUSE is set.
+    ...(REUSE
+      ? [{ name: "setup", use: CHROME, testMatch: ["**/setup/**/*.setup.ts"] }]
+      : []),
     { name: "solo", use: CHROME, testMatch: SOLO_SPECS },
-    { name: "sharing", use: CHROME, testMatch: SHARING_SPECS },
+    { name: "duo", use: CHROME, testMatch: DUO_SPECS },
+    { name: "trio", use: CHROME, testMatch: TRIO_SPECS },
     { name: "support", use: CHROME, testMatch: ["**/support/**/*.spec.ts"] },
     // Gated on E2E_LOCAL so the default/real-Pod runs don't re-run these specs
-    // (they'd duplicate solo+sharing). Selected via `--project=local`.
+    // (they'd duplicate solo+duo+trio). Selected via `--project=local`. In reuse
+    // mode it depends on `setup` (the saved sessions must exist before specs load
+    // them).
     ...(LOCAL
-      ? [{ name: "local", use: CHROME, testMatch: [...SOLO_SPECS, ...SHARING_SPECS] }]
+      ? [{
+        name: "local",
+        use: CHROME,
+        testMatch: [...SOLO_SPECS, ...DUO_SPECS, ...TRIO_SPECS],
+        ...(REUSE ? { dependencies: ["setup"] } : {}),
+      }]
       : []),
     // Handbuch VIDEO recording (notes/plan-handbuch-videos.md): the walkthrough
     // specs under test/e2e/videos/ drive the app with the demo polish and record
@@ -202,28 +220,10 @@ export default defineConfig({
         testMatch: ["**/login-stress.spec.ts"],
       }]
       : []),
-    // SPIKE (throwaway, gated on SPIKE): does inrupt's session survive a
-    // storageState round-trip? Needs E2E_LOCAL (its CSS webServer) and reuses the
-    // current dist/ — run on its own ports (LOCAL_PORT_OFFSET) so it can't collide
-    // with another local run. `E2E_LOCAL=1 SPIKE=1 LOCAL_PORT_OFFSET=10 npx
-    // playwright test --project=spike`.
-    ...(process.env.SPIKE
-      ? [{ name: "spike", use: CHROME, testMatch: ["**/spike/**/*.spec.ts"] }]
-      : []),
-    // Tier 5: smoke against the PUBLISHED app (E2E_DEPLOYED_URL is the baseURL;
-    // no webServer). `deno task e2e:deployed`. `--project=deployed`.
-    ...(DEPLOYED
-      ? [{
-        name: "deployed",
-        use: CHROME,
-        testMatch: ["**/deployed-smoke.spec.ts"],
-      }]
-      : []),
   ],
-  // The Vite app (except for the deployed smoke, which targets the published
-  // URL); plus the throwaway CSS when running the local tier.
+  // The Vite app, plus the throwaway CSS when running the local tier.
   webServer: [
-    ...(DEPLOYED ? [] : [{
+    {
       // Tier 3 (local) serves the production build (`deno task build` runs first in
       // the task) to rule out Vite-dev/HMR artifacts; Tier 4 (remote) uses the dev
       // server. Keyed off LOCAL — no separate E2E_PREVIEW knob.
@@ -243,7 +243,7 @@ export default defineConfig({
       // the fresh build is the only way the served app is the one just built.
       reuseExistingServer: false,
       timeout: 120_000,
-    }]),
+    },
     ...(LOCAL
       ? [{
         command: "deno run -A test/e2e-local/css.ts",

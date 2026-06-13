@@ -4,17 +4,21 @@ import { fetchFresh, fetchUncached, readStoreOrEmpty } from "./podFetch.ts";
 import { appRoot } from "./solidUtils.ts";
 import { LDP_CONTAINS as LDP_CONTAINS_IRI } from "../rdf/vocabularies.ts";
 import { logError } from "../../lib/logError.ts";
-import { mapPooled } from "../../lib/pool.ts";
+import { createLimiter, type Limiter } from "../../lib/pool.ts";
 
 const LDP_CONTAINS = DataFactory.namedNode(LDP_CONTAINS_IRI);
 
 /**
- * How many children to delete at once within a container. Mirrors the write-side
- * bound used to seed a 15-min series' daily files (`mapPooled(…, 8, …)` in
- * `buildingSerializer.ts`): a heavy subtree (a sub-hourly series is dozens of
- * daily files, each two sequential round-trips — resource then `.acl`) was
- * deleted serially, which overran on a slower server (the JSS bulk-delete
- * timeout). Bounded so a deep tree can't open hundreds of sockets at once.
+ * Max network requests in flight at once across an ENTIRE recursive delete walk
+ * — a single {@link Limiter} shared through the recursion, NOT a per-container
+ * cap. A per-container `mapPooled(…, 8)` looks bounded but multiplies: the walk
+ * recurses inside its own pool, so 8 per level × a tree several containers deep
+ * = hundreds in flight (measured 256 on a 3-deep × 4-wide tree). In a browser,
+ * ~6 connections/host means that flood queues, and an unlucky request can sit
+ * `pending` past the test budget — the "Remove all app data" stall tracked in
+ * the JSS issue delete-acl-of-acl-hangs-tier3. A global ceiling keeps a heavy
+ * subtree (a sub-hourly series is dozens of daily files, each two sequential
+ * round-trips — resource then `.acl`) from ever opening more sockets than this.
  */
 const DELETE_CONCURRENCY = 8;
 
@@ -55,10 +59,22 @@ export async function deleteContainerRecursive(
   container: string,
   session: Session,
   signal?: AbortSignal,
+  // One shared gate for the whole walk. Created on the top-level call and passed
+  // down every recursion so the GLOBAL in-flight count — not a per-container one
+  // — stays bounded (see DELETE_CONCURRENCY). A slot is taken only around each
+  // leaf request, never held across a recursive descent, so a tree deeper than
+  // the limit cannot deadlock waiting on its own slots.
+  limit: Limiter = createLimiter(DELETE_CONCURRENCY),
 ): Promise<void> {
+  // Route every request through the shared `limit` so the GLOBAL in-flight count
+  // stays bounded; a slot is held only around the request itself, never across a
+  // recursive descent (which would deadlock a tree deeper than the limit).
+  const getListing = () => limit(() => fetchUncached(container, session));
+  const del = (uri: string) => limit(() => deleteResourceThenAcl(uri, session));
+
   for (let round = 1; round <= MAX_DELETE_ROUNDS; round++) {
     signal?.throwIfAborted();
-    const listing = await fetchUncached(container, session);
+    const listing = await getListing();
     if (listing.status === 404) return; // already gone
     if (listing.ok) {
       const store = new Store(
@@ -68,24 +84,24 @@ export async function deleteContainerRecursive(
         .getObjects(DataFactory.namedNode(container), LDP_CONTAINS, null)
         .map((o) => o.value);
       // Children are independent and the container can only be removed once they're
-      // ALL gone, so delete them with bounded concurrency (then the container, below)
-      // rather than one-at-a-time. A sub-container recurses (and fully empties)
-      // before its own delete; the per-resource resource-then-`.acl` ordering stays
-      // intact inside deleteResourceThenAcl.
-      await mapPooled(children, DELETE_CONCURRENCY, async (child) => {
+      // ALL gone, so kick them all off and let the shared `limit` meter the actual
+      // requests; the container is deleted below, after they settle. A sub-container
+      // recurses (and fully empties) before its own delete; the per-resource
+      // resource-then-`.acl` ordering stays intact inside deleteResourceThenAcl.
+      await Promise.all(children.map(async (child) => {
         signal?.throwIfAborted();
         if (child.endsWith("/")) {
-          await deleteContainerRecursive(child, session, signal);
+          await deleteContainerRecursive(child, session, signal, limit);
         } else {
-          const status = await deleteResourceThenAcl(child, session);
+          const status = await del(child);
           if (!isGone(status)) {
             throw new Error(`Failed to delete ${child} (HTTP ${status})`);
           }
         }
-      });
+      }));
     }
     signal?.throwIfAborted();
-    const status = await deleteResourceThenAcl(container, session);
+    const status = await del(container);
     if (isGone(status)) return; // emptied and removed
     if (status !== 409) {
       throw new Error(`Failed to delete ${container} (HTTP ${status})`);

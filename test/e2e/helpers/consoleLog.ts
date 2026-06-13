@@ -1,5 +1,7 @@
 import { type Browser, type Page } from "@playwright/test";
 import { appendFileSync } from "node:fs";
+import { account, type SolidAccount } from "./login.ts";
+import { reuseContextOptions } from "./loginReuse.ts";
 
 /**
  * Append a page's console errors/warnings + uncaught page errors to a per-run log
@@ -48,16 +50,31 @@ export function logRun(line: string): void {
 }
 
 /**
- * `browser.newPage()` + console capture in one call — the solo specs' page factory
- * (they create one page per file in `beforeAll`), mirroring how the sharing specs
- * get capture through `twoPod`'s `newSession`. `tag` is the spec name so its console
- * lines are attributable in the shared per-run log.
+ * A page + console capture in one call — the solo specs' page factory (they create
+ * one page per file in `beforeAll`), mirroring how the duo/trio specs get capture
+ * through `twoPod`'s `newSession`. `tag` is the spec name so its console lines are
+ * attributable in the shared per-run log.
+ *
+ * In login-REUSE mode the context is seeded with `acc`'s saved session (default
+ * Alice, since solo specs are single-account) so `login()` silently restores instead
+ * of driving the OIDC UI. Off mode → a plain `browser.newPage()` (whose context
+ * auto-closes with the page). When seeded we own the context, so close it with the
+ * page to avoid leaking one per spec file.
  */
 export async function newCapturedPage(
   browser: Browser,
   tag = "",
+  acc: SolidAccount = account("A"),
 ): Promise<Page> {
-  const page = await browser.newPage();
+  const opts = reuseContextOptions(acc);
+  if (Object.keys(opts).length === 0) {
+    const page = await browser.newPage();
+    captureConsole(page, tag);
+    return page;
+  }
+  const ctx = await browser.newContext(opts);
+  const page = await ctx.newPage();
+  page.on("close", () => void ctx.close().catch(() => {}));
   captureConsole(page, tag);
   return page;
 }

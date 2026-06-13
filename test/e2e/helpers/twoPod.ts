@@ -2,6 +2,7 @@ import { type Browser, type Page } from "@playwright/test";
 import { login, type SolidAccount } from "./login.ts";
 import { watchAppErrors } from "./errorGuard.ts";
 import { captureConsole } from "./consoleLog.ts";
+import { reuseContextOptions } from "./loginReuse.ts";
 
 /** A fresh isolated browser context logged into one account. */
 export interface PodSession {
@@ -10,14 +11,20 @@ export interface PodSession {
   guard: ReturnType<typeof watchAppErrors>;
 }
 
-/** Create a fresh context + page (no login yet) with the error guard attached. */
-async function newSession(browser: Browser, tag = ""): Promise<PodSession> {
+/** Create a fresh context + page (no login yet) with the error guard attached. In
+ *  login-REUSE mode the context is seeded with `acc`'s saved session so the
+ *  following `login()` silently restores instead of driving the OIDC UI. */
+async function newSession(
+  browser: Browser,
+  acc?: SolidAccount,
+): Promise<PodSession> {
   const ctx = await browser.newContext({
     viewport: { width: 1200, height: 900 },
+    ...reuseContextOptions(acc),
   });
   const page = await ctx.newPage();
   const guard = watchAppErrors(page); // attach before login to catch login errors
-  captureConsole(page, tag); // mirror the console stream to the per-run log file
+  captureConsole(page, acc?.slot ?? ""); // mirror the console stream to the per-run log file
   return { ctx, page, guard };
 }
 
@@ -26,7 +33,7 @@ export async function freshPage(
   browser: Browser,
   acc: SolidAccount,
 ): Promise<PodSession> {
-  const session = await newSession(browser, acc.slot);
+  const session = await newSession(browser, acc);
   await login(session.page, acc);
   return session;
 }
@@ -46,7 +53,7 @@ export async function freshPagesParallel(
   accounts: SolidAccount[],
 ): Promise<PodSession[]> {
   const sessions = await Promise.all(
-    accounts.map((a) => newSession(browser, a.slot)),
+    accounts.map((a) => newSession(browser, a)),
   );
   // On a Cloudflare-fronted (throttled) provider, log in SEQUENTIALLY: concurrent
   // A+B logins double the instantaneous request rate to the same host and trip the
