@@ -323,8 +323,8 @@ export default function SharePage({ session }: SharePageProps) {
         : sharedWithMe.length === 0
         ? (
           <p>
-            No buildings have been shared with you yet. Join a data room so
-            owners can find you, or ask an owner to share with your WebID.
+            No buildings shared with you yet. Join a data room so owners can
+            find you, or ask an owner to share with your WebID.
           </p>
         )
         : (
@@ -399,7 +399,7 @@ export default function SharePage({ session }: SharePageProps) {
       {receivedViewsQuery.isLoading
         ? <p>Loading…</p>
         : receivedViews.length === 0
-        ? <p>No aggregated views have been shared with you yet.</p>
+        ? <p>No views shared with you yet. A view a partner shares appears here.</p>
         : (
           <ul style={listStyle} aria-label="Views shared with you">
             {receivedViewsPaging.pageItems.map((view) => (

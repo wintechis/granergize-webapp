@@ -1,8 +1,11 @@
 # notes/
 
-Design notes for the Granergize-App. The unprefixed files describe **present state**
-(matter-of-fact current behaviour + rationale); `plan-*` and `spec-*` files are
-forward-looking design.
+Design notes for the Granergize-App — **matter-of-fact about the current code**
+(present behaviour + rationale). Speculative, not-adopted thought experiments are
+the `explore-*` files. Forward-looking *plans* (how the code might change) are
+deliberately **not** here: they live in the separate, git-ignored `plans/`
+directory, so the notes and CLAUDE.md stay about what the code does now, not what
+it might do. Nothing here links into `plans/`.
 
 ## Present-state notes
 
@@ -25,15 +28,3 @@ forward-looking design.
 
 - [explore-client-boundary.md](./explore-client-boundary.md) — two not-adopted thought experiments (server-side intent layer; getting away from the SPA) and the shared credentials-in-the-browser constraint.
 - [explore-intent-registry.md](./explore-intent-registry.md) — an explicit, enumerable app-intent catalog on top of the mutation hooks.
-
-## Plans & specs
-
-- [plan-iri-identifiers.md](./plan-iri-identifiers.md) — using resource IRIs as building identity (since merged).
-- [plan-room-rules.md](./plan-room-rules.md) — replacing data-room roles with rules.
-- [plan-mastr-import.md](./plan-mastr-import.md) — importing logistics buildings from open MaStR/OSM/INSPIRE sources.
-- [plan-annual-energy-unification.md](./plan-annual-energy-unification.md) — one annual-energy view and energy reads through the data layer.
-- [plan-dialog-write-unification.md](./plan-dialog-write-unification.md) — routing every dialog write through a mutation hook.
-- [plan-sharing-fold-dedup.md](./plan-sharing-fold-dedup.md) — folding each sharing log once per load.
-- [plan-bench-pair-trio.md](./plan-bench-pair-trio.md) — pair & trio benchmark UI.
-- [plan-handbuch-videos.md](./plan-handbuch-videos.md) — videos for the three Praxishandbuch use cases.
-- [spec-logistik-dataset-nuernberg.md](./spec-logistik-dataset-nuernberg.md) — the Nuremberg logistics-building dataset spec.

@@ -544,7 +544,7 @@ export default function ExplorePage(
                 {isLoading
                   ? "Loading…"
                   : buildings.length === 0
-                  ? "No buildings yet — add one to see it on the map"
+                  ? "No buildings yet. Add one to see it on the map."
                   : hasMarkers
                   ? "Select a marker to show details"
                   : "No buildings have a location yet — add coordinates to place them on the map"}

@@ -1,6 +1,6 @@
 /**
  * Building identity — the single chokepoint for minting and interpreting
- * building subject IRIs (see notes/plan-iri-identifiers.md).
+ * building subject IRIs.
  *
  * A building's identity IS its subject IRI; nothing rests on UUID uniqueness.
  * Own buildings are minted `<file>.ttl#it` — the file name carries a UUID
