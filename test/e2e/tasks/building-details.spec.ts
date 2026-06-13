@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { buildingRoute } from "../helpers/manage.ts";
@@ -103,6 +104,7 @@ test.describe("building details", () => {
     const back = page.locator("li", { hasText: OP_STREET }).first();
     await expect(back).toBeVisible({ timeout: T.action });
     await back.getByRole("button", { name: "Delete building" }).click();
+    await confirmDialog(page, "Delete");
     await expect(page.getByText("Building deleted").first()).toBeVisible({
       timeout: T.action,
     });

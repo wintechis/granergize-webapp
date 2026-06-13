@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { buildingIds, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -78,8 +79,9 @@ test.describe("archive backup/restore", () => {
       timeout: T.action,
     });
 
-    // Wipe the Pod (confirm auto-accepted).
+    // Wipe the Pod (the in-app confirm dialog asks first).
     await menuAction(page, /Remove all app data/);
+    await confirmDialog(page, "Remove all");
     await expect(page.getByText("All app data removed")).toBeVisible({
       timeout: T.action,
     });
@@ -89,8 +91,10 @@ test.describe("archive backup/restore", () => {
       timeout: T.action,
     });
 
-    // Upload archive → the hidden picker drives importArchive (confirm accepted).
+    // Upload archive → the hidden picker drives importArchive; the in-app confirm
+    // dialog asks before overwriting.
     await page.locator('input[type="file"][accept*="zip"]').setInputFiles(ARCHIVE_PATH);
+    await confirmDialog(page, "Restore");
     await expect(page.getByText(/Restored \d+ resource\(s\)/)).toBeVisible({
       timeout: T.action,
     });

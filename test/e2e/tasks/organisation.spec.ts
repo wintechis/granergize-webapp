@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -157,6 +158,7 @@ test.describe("organisation logo", () => {
     const row = page.locator("li", { hasText: LOGO_ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
     await row.getByRole("button", { name: "Delete building" }).click();
+    await confirmDialog(page, "Delete");
     await expect(page.getByText("Building deleted").first())
       .toBeVisible({ timeout: T.action });
   });

@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { addBuilding, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -62,6 +63,7 @@ test.describe("contacts address book + auto-remember", () => {
       if (await row.count()) {
         await row.getByRole("button", { name: "Delete building" })
           .click({ timeout: T.quick });
+        await confirmDialog(page, "Delete");
         await expect(row).toHaveCount(0, { timeout: T.quick });
       }
     } catch { /* leave it — throwaway collection */ }

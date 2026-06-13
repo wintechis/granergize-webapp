@@ -73,7 +73,7 @@ test.describe("map energy lens (Vertriebsoptimierung)", () => {
       await page.goto("/#/");
       await page.getByRole("tab", { name: "Explore" }).click();
       // Markers paint under the default (ownership) lens — the standard pins.
-      await expect(page.locator("img.leaflet-marker-icon").first())
+      await expect(page.locator(".leaflet-marker-icon").first())
         .toBeVisible({ timeout: T.action });
       // Switch the colour lens to Energy. (The "Energy data" detail tab only
       // exists once a building is selected, so "Energy" exact is unambiguous.)

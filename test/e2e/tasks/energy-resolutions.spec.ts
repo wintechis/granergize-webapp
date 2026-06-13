@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { addEnergyYear, buildingRoute } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -109,6 +110,7 @@ test.describe("energy resolution toggle", () => {
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
           await row.getByRole("button", { name: "Delete building" }).click();
+          await confirmDialog(page, "Delete");
           await expect(page.getByText("Building deleted").first())
             .toBeVisible({ timeout: T.action });
         }
@@ -149,7 +151,7 @@ test.describe("energy resolution toggle", () => {
     // granergize-e2e-<uuid> collection (Tier 4).
     await page.goto("/#/");
     await page.getByRole("tab", { name: "Explore" }).click();
-    const marker = page.locator("img.leaflet-marker-icon").first();
+    const marker = page.locator(".leaflet-marker-icon").first();
     await expect(marker).toBeVisible({ timeout: T.action });
     await marker.click({ force: true });
     await page.getByRole("tab", { name: "Energy data" }).click();

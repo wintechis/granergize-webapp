@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { T } from "./timeouts.ts";
+import { confirmDialog } from "./confirm.ts";
 
 /**
  * Manage-tab building/view helpers shared across the building/excel/sharing specs
@@ -45,6 +46,7 @@ export function exploreRoute(id: string | null, dt?: string): string {
 export async function deleteBuildingRow(page: Page, id: string): Promise<void> {
   const row = page.locator(`li[data-building-id="${id}"]`).first();
   await row.getByRole("button", { name: "Delete building" }).click();
+  await confirmDialog(page, "Delete");
   await expect(row).toHaveCount(0, { timeout: T.action });
 }
 

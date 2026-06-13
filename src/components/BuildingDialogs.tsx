@@ -36,6 +36,7 @@ import { downloadBlob, formatBytes } from "../lib/download.ts";
 import { listStyle, rowStyle } from "../constants/listStyles.ts";
 import type { AttachmentRef, BuildingType, UserRole } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { useConfirm } from "../context/ConfirmContext.tsx";
 import { formatError } from "../lib/formatError.ts";
 import { useAgentOptions } from "../hooks/useAgentOptions.ts";
 import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
@@ -460,6 +461,7 @@ export function FilesDialog(
   { open, building, session, onClose }: FilesDialogProps,
 ) {
   const { showNotification } = useNotification();
+  const { confirm } = useConfirm();
   // The building file URI (RMW target) and its RDF subject. attachmentManager
   // strips the fragment for the file URI, so passing the subject is safe too.
   const fileUri = (building.sourceUri as string) ?? building.uri;
@@ -520,8 +522,14 @@ export function FilesDialog(
     }
   };
 
-  const handleDelete = (a: AttachmentRef) => {
-    if (!globalThis.confirm(`Delete "${a.filename}"? This cannot be undone.`)) {
+  const handleDelete = async (a: AttachmentRef) => {
+    if (
+      !await confirm({
+        title: "Delete file",
+        message: `Delete "${a.filename}"? This cannot be undone.`,
+        confirmLabel: "Delete",
+      })
+    ) {
       return;
     }
     del.mutate({ fileUri, subjectUri, url: a.url }, {
@@ -604,6 +612,7 @@ export function FilesDialog(
                   <Button
                     size="small"
                     color="error"
+                    aria-label={`Delete ${a.filename}`}
                     onClick={() => handleDelete(a)}
                     disabled={busy}
                   >

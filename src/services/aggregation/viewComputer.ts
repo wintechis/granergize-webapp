@@ -15,7 +15,6 @@ import {
 } from "../rdf/energyDataset.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { parseTtlReadings } from "../rdf/userEnergyParser.ts";
-import { getSharedWithMe } from "../interop/sharingManager.ts";
 import {
   buildingFileUri,
   buildingIdFor,
@@ -358,19 +357,4 @@ export function summarizeContributors(
     ),
   ];
   return { buildingUris, contributors };
-}
-
-/**
- * Populate the benchmark's building list from the roster of buildings shared *to*
- * the current user. The aggregation engine works over an explicit
- * building list; this folds the existing shared-with-me roster into that list and
- * collects the distinct sharer WebIDs as the share-back targets. These are buildings
- * owned by OTHERS (shared to this user), so the benchmark create-view flow sources its
- * candidates here rather than from the user's own buildings.
- * @operation query
- */
-export async function sharedContributorBuildings(
-  session: Session,
-): Promise<Contributors> {
-  return summarizeContributors(await getSharedWithMe(session));
 }

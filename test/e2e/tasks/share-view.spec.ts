@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { account } from "../helpers/login.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -134,6 +135,7 @@ test.describe("view sharing across two pods", () => {
       for (let i = 0; i < 10; i++) {
         if (!(await del.count())) break;
         await del.first().click();
+        await confirmDialog(a.page, "Delete");
         await expect(a.page.getByText("View deleted").first())
           .toBeVisible({ timeout: T.action }).catch(() => {});
       }

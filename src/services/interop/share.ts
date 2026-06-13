@@ -14,12 +14,14 @@ import {
 import {
   ACL_NS,
   GRAN_HAS_ENERGY_CERTIFICATE,
-  CONSUMPTION_NS,
   RDF_TYPE,
 } from "../rdf/vocabularies.ts";
-import { parseDatasetSlug } from "../rdf/energyDataset.ts";
+import {
+  buildingTargetsFromStore,
+  energyTargetsFromStore,
+  type GrantTarget,
+} from "./grantTargets.ts";
 import { mintLocalIri } from "../rdf/rdfHelpers.ts";
-import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
 import { filesContainerFor } from "../attachmentManager.ts";
@@ -115,22 +117,16 @@ export async function applyBuildingGrant(
 }
 
 /** One resource a grant's ACL projection covers. */
-export interface GrantTarget {
-  url: string;
-  /** Granted with `acl:default` (a container whose members inherit). */
-  isContainer: boolean;
-}
-
 /**
  * Every resource a building grant covers — the *expected* ACL projection of one
- * folded `shared-out/` grant event: the building file, its `files/` container
- * (acl:default), a legacy certificate outside `files/`, and — when energy is
- * included — each `cons:EnergyDataset` (restricted to `options.years` if given)
- * plus a series' daily-files container. Deduped by URL.
+ * folded `shared-out/` grant event. The enumeration itself lives in the pure
+ * {@link buildingTargetsFromStore} (shared with the revoke side so they cannot
+ * drift); this just fetches the building file ONCE and hands the parsed store to
+ * it (the legacy cert + every dataset come from that one store — no second GET).
  *
- * This is the single source of "what a grant covers": {@link applyBuildingGrant}
- * writes exactly this set and {@link auditGrants} diffs against exactly this
- * set, so apply and audit cannot drift apart. Pure read — no provisioning.
+ * It is the single source of "what a grant covers": {@link applyBuildingGrant}
+ * writes exactly this set and {@link auditGrants} diffs against exactly this set,
+ * so apply and audit cannot drift apart. Pure read — no provisioning.
  * @operation query
  */
 export async function buildingGrantTargets(
@@ -138,28 +134,19 @@ export async function buildingGrantTargets(
   session: Session,
   options: ShareOptions = { includeEnergyData: true },
 ): Promise<GrantTarget[]> {
-  const filesContainer = filesContainerFor(buildingFile);
-  const targets: GrantTarget[] = [
-    { url: buildingFile, isContainer: false },
-    { url: filesContainer, isContainer: true },
-  ];
-
-  // A legacy energy certificate stored OUTSIDE files/ (the old shared
-  // certificates/ folder) isn't covered by the container grant — the file
-  // itself is a target so existing shares keep working without a re-upload.
-  const certUri = await getEnergyCertificateUri(buildingFile, session);
-  if (certUri && !certUri.startsWith(filesContainer)) {
-    targets.push({ url: certUri, isContainer: false });
+  const response = await fetchFresh(buildingFile, session);
+  if (!response.ok) {
+    throw new Error(
+      `Failed to fetch building data at ${buildingFile}: ${response.statusText}`,
+    );
   }
-
-  if (options.includeEnergyData) {
-    targets.push(...await getEnergyDataUris(buildingFile, session, options.years));
-  }
-
-  // Dedup: two dataset links into the same file must not yield one target twice
-  // (a doubled grant would race one read-modify-write against itself).
-  const seen = new Set<string>();
-  return targets.filter((t) => !seen.has(t.url) && !!seen.add(t.url));
+  const store = new Store(
+    new Parser({ baseIRI: buildingFile }).parse(await response.text()),
+  );
+  return buildingTargetsFromStore(store, buildingFile, {
+    includeEnergyData: options.includeEnergyData,
+    years: options.years,
+  });
 }
 
 export interface ReissueResult {
@@ -487,7 +474,7 @@ export async function getEnergyDataUris(
   buildingUri: string,
   session: Session,
   years?: number[],
-): Promise<Array<{ url: string; isContainer: boolean }>> {
+): Promise<GrantTarget[]> {
   const buildingResponse = await fetchFresh(buildingUri, session);
   if (!buildingResponse.ok) {
     throw new Error(
@@ -497,25 +484,7 @@ export async function getEnergyDataUris(
   const store = new Store(
     new Parser({ baseIRI: buildingUri }).parse(await buildingResponse.text()),
   );
-
-  const targets: Array<{ url: string; isContainer: boolean }> = [];
-  for (
-    const link of store.getObjects(
-      null,
-      DataFactory.namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
-      null,
-    )
-  ) {
-    const ref = parseDatasetSlug(link.value);
-    if (!ref) continue;
-    if (years && !years.includes(ref.year)) continue;
-    const file = link.value.split("#")[0];
-    targets.push({ url: file, isContainer: false });
-    if (isSeriesGranularity(ref.granularity)) {
-      targets.push({ url: file.replace(/\.ttl$/, "/"), isContainer: true });
-    }
-  }
-  return targets;
+  return energyTargetsFromStore(store, years);
 }
 
 /**

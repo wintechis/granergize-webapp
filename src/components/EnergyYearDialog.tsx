@@ -32,6 +32,7 @@ import {
 } from "../hooks/mutations.ts";
 import { energyKeyFor } from "../hooks/queries.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { useConfirm } from "../context/ConfirmContext.tsx";
 import { logError } from "../lib/logError.ts";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
@@ -80,6 +81,7 @@ export default function EnergyYearDialog(
   { open, building, session, onClose }: EnergyYearDialogProps,
 ) {
   const { showNotification } = useNotification();
+  const { confirm } = useConfirm();
   // Busy state, error toasts (central, classified) and the building-data
   // invalidations come from the hooks; the dialog owns the form + read-back UI.
   const write = useWriteEnergyYear();
@@ -265,11 +267,13 @@ export default function EnergyYearDialog(
     );
   };
 
-  const handleDelete = (d: EnergyDataset) => {
+  const handleDelete = async (d: EnergyDataset) => {
     if (
-      !globalThis.confirm(
-        `Delete the ${scenarioLabel(d.scenario)} figures for ${d.year}?`,
-      )
+      !await confirm({
+        title: "Delete energy data",
+        message: `Delete the ${scenarioLabel(d.scenario)} figures for ${d.year}?`,
+        confirmLabel: "Delete",
+      })
     ) return;
     const subjectUri = building.uri as string;
     del.mutate(

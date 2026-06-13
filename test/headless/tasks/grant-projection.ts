@@ -16,6 +16,9 @@
  *    best-effort (a saved year must not fail on a throttled ACL write), so a
  *    bare `writeEnergyYear` — simulating a failed reconcile — drifts, and
  *    `reissueGrants` re-enumerates the CURRENT datasets and closes it.
+ * 4. Revoke symmetry: grant and revoke now enumerate through the SAME pure
+ *    `buildingTargetsFromStore`, so revoking a recipient withdraws exactly what
+ *    the grant applied — the building file AND every dataset, not just the file.
  *
  * Each leg is double-checked owner-side by `auditGrants`, the dry-run diffing
  * twin of the repair (full pair coverage, where the GETs sample): clean after
@@ -29,6 +32,7 @@ import {
   reissueGrants,
   shareBuildingData,
 } from "../../../src/services/interop/share.ts";
+import { revokeAccess } from "../../../src/services/interop/sharingManager.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
   deleteBuilding,
@@ -148,6 +152,32 @@ export async function run(ctx: TaskContext): Promise<void> {
       "auditGrants verifies the repair (diff empty)",
       healed.drift.length === 0,
       JSON.stringify(healed.drift),
+    );
+
+    // 4. Revoke symmetry: revoke withdraws EXACTLY the set the grant applied —
+    //    both sides now enumerate through the one `buildingTargetsFromStore`, so
+    //    revoking B must drop B's access to the building file AND every dataset
+    //    (2023 at-share, 2024/2025 added later), not just the building file.
+    await revokeAccess(uri, b.webId, a.session);
+    for (const [label, ds] of [["2023", ds2023], ["2024", ds2024], ["2025", ds2025]] as const) {
+      const r = await b.raw.fetch(`${ds}?t=${Date.now()}`);
+      check(
+        `after revoke B is denied the ${label} dataset (revoke set === grant set)`,
+        r.status === 403 || r.status === 404,
+        `HTTP ${r.status}`,
+      );
+    }
+    const bBuildingRevoked = await b.raw.fetch(`${fileUri}?t=${Date.now()}`);
+    check(
+      "after revoke B is denied the building file",
+      bBuildingRevoked.status === 403 || bBuildingRevoked.status === 404,
+      `HTTP ${bBuildingRevoked.status}`,
+    );
+    const afterRevoke = await auditGrants(a.session);
+    check(
+      "auditGrants finds no lingering grant after revoke",
+      afterRevoke.drift.length === 0,
+      JSON.stringify(afterRevoke.drift),
     );
   } finally {
     // deleteBuilding revokes recipients first, so B's side is withdrawn too.

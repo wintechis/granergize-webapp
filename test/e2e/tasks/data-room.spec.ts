@@ -2,6 +2,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -120,6 +121,7 @@ test.describe("data rooms", () => {
 
     // Clean up: delete the room we created (confirm auto-accepted above).
     await row.getByRole("button", { name: "Delete data room" }).click();
+    await confirmDialog(page, "Delete");
     await expect(page.locator("li").filter({ hasText: uri }))
       .toHaveCount(0, { timeout: SETTLE });
   });
@@ -150,6 +152,7 @@ test.describe("data rooms", () => {
     await page.keyboard.press("Escape");
 
     await row.getByRole("button", { name: "Delete data room" }).click();
+    await confirmDialog(page, "Delete");
     await expect(page.locator("li").filter({ hasText: uri }))
       .toHaveCount(0, { timeout: SETTLE });
   });
@@ -187,9 +190,11 @@ test.describe("data rooms", () => {
     // above) backs up and a later toast can be delayed past SETTLE even though its
     // action succeeded immediately. The row-gone assertion is the real check.
     await a.row.getByRole("button", { name: "Delete data room" }).click();
+    await confirmDialog(page, "Delete");
     await expect(page.locator("li").filter({ hasText: a.uri }))
       .toHaveCount(0, { timeout: SETTLE });
     await b.row.getByRole("button", { name: "Delete data room" }).click();
+    await confirmDialog(page, "Delete");
     await expect(page.locator("li").filter({ hasText: b.uri }))
       .toHaveCount(0, { timeout: SETTLE });
   });
@@ -202,6 +207,7 @@ test.describe("data rooms", () => {
     await enterRoom(row);
 
     await row.getByRole("button", { name: "Delete data room" }).click();
+    await confirmDialog(page, "Delete");
     await expect(page.locator("li").filter({ hasText: uri }))
       .toHaveCount(0, { timeout: SETTLE });
   });

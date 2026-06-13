@@ -12,13 +12,8 @@ import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import { readModifyWrite } from "../pod/podWrite.ts";
 import { filesContainerFor } from "../attachmentManager.ts";
 import { readPrefs, toggleHiddenBuilding } from "../prefs.ts";
-import {
-  ACL_NS,
-  GRAN_HAS_ENERGY_CERTIFICATE,
-  CONSUMPTION_NS,
-} from "../rdf/vocabularies.ts";
-import { parseDatasetSlug } from "../rdf/energyDataset.ts";
-import { isSeriesGranularity } from "../rdf/durationUtils.ts";
+import { ACL_NS } from "../rdf/vocabularies.ts";
+import { buildingTargetsFromStore } from "./grantTargets.ts";
 import { logError } from "../../lib/logError.ts";
 import { mapPooled } from "../../lib/pool.ts";
 
@@ -274,37 +269,19 @@ export async function getSubresourceAclTargets(
   buildingUri: string,
   session: Session,
 ): Promise<string[]> {
-  const filesContainer = filesContainerFor(buildingUri);
-  const targets: string[] = [filesContainer];
   try {
     const store = await readStoreOrEmpty(buildingUri, session);
-
-    for (
-      const link of store.getObjects(
-        null,
-        DataFactory.namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
-        null,
-      )
-    ) {
-      const ref = parseDatasetSlug(link.value);
-      if (!ref) continue;
-      const file = link.value.split("#")[0];
-      targets.push(file);
-      if (isSeriesGranularity(ref.granularity)) {
-        targets.push(file.replace(/\.ttl$/, "/"));
-      }
-    }
-    const cert = store.getObjects(
-      null,
-      DataFactory.namedNode(GRAN_HAS_ENERGY_CERTIFICATE),
-      null,
-    )[0];
-    if (cert && !cert.value.startsWith(filesContainer)) targets.push(cert.value);
+    // Exactly the set the grant side applies ({@link buildingTargetsFromStore}),
+    // minus the building file itself — revoke withdraws that separately. No year
+    // filter: a full revoke withdraws every sub-resource the recipient may hold.
+    return buildingTargetsFromStore(store, buildingUri, {
+      includeBuildingFile: false,
+    }).map((t) => t.url);
   } catch (err) {
     logError("collect extra revoke targets for building", err);
-    // best-effort — the files container is still revoked above
+    // best-effort — still revoke at least the files container.
+    return [filesContainerFor(buildingUri)];
   }
-  return targets;
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   useNotification,
 } from "./context/NotificationContext.tsx";
 import { useQueryClient } from "@tanstack/react-query";
+import { ConfirmProvider } from "./context/ConfirmContext.tsx";
 import { QueryProvider } from "./context/QueryProvider.tsx";
 import { queryKeys } from "./hooks/queries.ts";
 import { drainInbox, ensureOwnInbox } from "./services/interop/inbox.ts";
@@ -238,9 +239,11 @@ function Root() {
       <ThemeProvider theme={theme}>
         <CssBaseline enableColorScheme />
         <NotificationProvider>
-          <QueryProvider>
-            <AppContent />
-          </QueryProvider>
+          <ConfirmProvider>
+            <QueryProvider>
+              <AppContent />
+            </QueryProvider>
+          </ConfirmProvider>
         </NotificationProvider>
       </ThemeProvider>
     </React.Fragment>

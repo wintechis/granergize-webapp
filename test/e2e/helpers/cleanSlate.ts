@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { buildingRows } from "./manage.ts";
+import { confirmDialog } from "./confirm.ts";
 import { logRun } from "./consoleLog.ts";
 import { T } from "./timeouts.ts";
 
@@ -87,14 +88,12 @@ export async function wipeCollection(
     return;
   }
   try {
-    // Accept the wipe's window.confirm. `once` + a swallowed accept is safe even if
-    // the spec already registered a persistent dialog handler (the second accept of
-    // the same dialog rejects, which we ignore).
-    page.once("dialog", (d) => d.accept().catch(() => {}));
     // "Remove all app data" lives behind the footer Developer-mode toggle.
     await page.getByLabel("Developer mode").check();
     await page.getByRole("button", { name: /Account menu/ }).click();
     await page.getByRole("menuitem", { name: /Remove all app data/i }).click();
+    // Confirm via the in-app confirm dialog (replaced the native window.confirm).
+    await confirmDialog(page, "Remove all");
     await expect(page.getByText("All app data removed", { exact: false }))
       .toBeVisible({ timeout: T.action });
     logRun(`clean-slate wipe [${tag}]: collection removed`);

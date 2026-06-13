@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Button,
@@ -23,7 +24,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { ownsRoom } from "../services/interop/dataRoom.ts";
 import type { UserRole } from "../types.ts";
 import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
-import { useContacts, useRoomState } from "../hooks/queries.ts";
+import { queryKeys, useContacts, useRoomState } from "../hooks/queries.ts";
 import {
   useAddRoom,
   useCreateRoom,
@@ -36,6 +37,7 @@ import {
   useSaveRoles,
 } from "../hooks/mutations.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { useConfirm } from "../context/ConfirmContext.tsx";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { resolveAgent } from "../services/agents/agentResolver.ts";
 import { formatError } from "../lib/formatError.ts";
@@ -63,10 +65,23 @@ interface ConnectPageProps {
 
 export default function ConnectPage({ session }: ConnectPageProps) {
   const { showNotification } = useNotification();
+  const { confirm } = useConfirm();
 
   // All room state comes from ONE React Query (`useRoomState`) — one log read,
   // cached and deduped, refreshed only when a room mutation invalidates it.
   const roomQuery = useRoomState();
+  // The room log is CROSS-AGENT state: another member's join is appended by THEM
+  // into the room container, so no local write ever invalidates it, and the
+  // global policy is refetch-on-invalidation only (refetchOnMount: false).
+  // Switching to the Connect tab remounts this page (it renders under
+  // `tabValue === 3` in index.tsx), so opening it is the user's "look" at the
+  // membership and triggers the one refetch — the same discipline ShareViewDialog
+  // applies on open. Without this a peer who joined your active room never shows
+  // up here until some unrelated room mutation happens to invalidate the log.
+  const qc = useQueryClient();
+  useEffect(() => {
+    qc.invalidateQueries({ queryKey: queryKeys.roomLog });
+  }, [qc]);
   const activeRoom = roomQuery.data?.current ?? null;
   const knownRooms = roomQuery.data?.known ?? [];
   const members = roomQuery.data?.members ?? [];
@@ -143,12 +158,15 @@ export default function ConnectPage({ session }: ConnectPageProps) {
   };
 
   /** Delete a room you own (destroys it for everyone), then drop the bookmark. */
-  const handleDeleteRoom = (room: string) => {
+  const handleDeleteRoom = async (room: string) => {
     if (
-      !confirm(
-        "Delete this data room for everyone? This removes the data room and its " +
+      !await confirm({
+        title: "Delete data room",
+        message:
+          "Delete this data room for everyone? This removes the data room and its " +
           "entire membership and role history. This cannot be undone.",
-      )
+        confirmLabel: "Delete",
+      })
     ) {
       return;
     }

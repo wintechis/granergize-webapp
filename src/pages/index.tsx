@@ -14,6 +14,7 @@ import {
   tabIndexFromSlug,
 } from "./uriState.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
   formatResourceList,
   listContainedResources,
@@ -114,6 +115,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   const removeMut = useRemoveAppData();
   const removeAbort = useRef<AbortController | null>(null);
   const { showNotification } = useNotification();
+  const { confirm } = useConfirm();
 
   // Header images, top-right: the organisation logo (foaf:logo on the <#org>
   // node) when one is set, then the person's own avatar (foaf:img /
@@ -298,12 +300,15 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       return;
     }
     if (
-      !globalThis.confirm(
-        `Restore ${count} resource(s) from "${file.name}" into this Pod?\n\n` +
+      !await confirm({
+        title: "Restore archive",
+        message:
+          `Restore ${count} resource(s) from "${file.name}" into this Pod?\n\n` +
           "This overwrites any existing resource at a matching path under " +
           "granergize/. This cannot be undone — intended for a wiped Pod." +
           rebaseNote,
-      )
+        confirmLabel: "Restore",
+      })
     ) {
       return;
     }
@@ -447,10 +452,12 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       : "";
 
     if (
-      !globalThis.confirm(
-        "Remove ALL Granergize data from your Pod?" + list +
+      !await confirm({
+        title: "Remove all app data",
+        message: "Remove ALL Granergize data from your Pod?" + list +
           "\n\nYour profile and organisation logo are kept. This cannot be undone.",
-      )
+        confirmLabel: "Remove all",
+      })
     ) {
       return;
     }

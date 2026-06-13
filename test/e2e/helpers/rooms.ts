@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { T } from "./timeouts.ts";
+import { confirmDialog } from "./confirm.ts";
 
 /**
  * Best-effort: delete every data room this account OWNS, leaving the Pod's room
@@ -7,9 +8,8 @@ import { T } from "./timeouts.ts";
  * button (joined/external rooms don't), so this never touches another Pod's
  * rooms. Used by specs' afterAll so a created room doesn't outlive the test —
  * rooms persist in the Pod, and otherwise leak on every run (e.g. a failed room
- * test, or sharing's room that must survive its own parts). Hosting/deleting
- * confirms via window.confirm, so the caller must auto-accept dialogs
- * (`page.on("dialog", (d) => d.accept())`).
+ * test, or sharing's room that must survive its own parts). Deleting confirms
+ * via the in-app confirm dialog, so this clicks its "Delete" button.
  *
  * Swallows errors — cleanup must never fail the suite — but caps the loop so a
  * never-shrinking list can't spin forever.
@@ -24,6 +24,7 @@ export async function deleteAllOwnedRooms(page: Page): Promise<void> {
       const remaining = await deleteButtons.count();
       if (remaining === 0) return;
       await deleteButtons.first().click();
+      await confirmDialog(page, "Delete");
       // Wait for this delete to take effect (one fewer button) before the next.
       await expect(deleteButtons).toHaveCount(remaining - 1, { timeout: T.action });
     }

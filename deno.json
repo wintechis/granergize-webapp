@@ -3,6 +3,7 @@
     "dev": "deno run -A npm:vite dev",
     "build": "deno run -A npm:vite build",
     "test": "deno test -A",
+    "loc": "deno run --allow-read --allow-run=git scripts/loc.ts",
     "lint": "deno run -A npm:eslint .",
     "check": "deno run -A npm:typescript/tsc --noEmit -p tsconfig.check.json",
     "e2e:local": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 npx playwright test --project=local",

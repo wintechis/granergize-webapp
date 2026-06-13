@@ -44,8 +44,9 @@ import { shareBuildingData } from "../../src/services/interop/share.ts";
 import { createViewDefinition } from "../../src/services/aggregation/viewManager.ts";
 import {
   computeAndStoreSnapshot,
-  sharedContributorBuildings,
+  summarizeContributors,
 } from "../../src/services/aggregation/viewComputer.ts";
+import { getSharedWithMe } from "../../src/services/interop/sharingManager.ts";
 import { CONSUMPTION_METRIC_KEYS } from "../../src/constants/annualMetrics.ts";
 
 /**
@@ -406,7 +407,9 @@ async function seedBenchmark(viewName: string): Promise<void> {
       });
     }
     await drainInbox(c.actor.session);
-    const { buildingUris } = await sharedContributorBuildings(c.actor.session);
+    const { buildingUris } = summarizeContributors(
+      await getSharedWithMe(c.actor.session),
+    );
     if (buildingUris.length === 0) {
       throw new Error("seed-benchmark: C's contributor roster is empty");
     }

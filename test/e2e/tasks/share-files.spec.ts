@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, webIdOf } from "../helpers/login.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
@@ -154,6 +155,7 @@ async function deleteOwnBuilding(page: Page, street: string): Promise<void> {
     if (await row.count()) {
       await row.getByRole("button", { name: "Delete building" })
         .click({ timeout: T.visible });
+      await confirmDialog(page, "Delete");
       await expect(page.getByText("Building deleted").first())
         .toBeVisible({ timeout: T.action });
     }

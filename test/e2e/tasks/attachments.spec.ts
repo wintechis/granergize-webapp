@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { addBuilding } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -76,15 +77,17 @@ test.describe("building file attachments", () => {
     await expect(dialog.getByText("Energy certificate"))
       .toBeVisible({ timeout: T.action });
 
-    // Delete it → it drops off the list.
-    await dialog.getByRole("button", { name: "Delete", exact: true }).first()
+    // Delete it (the in-app confirm dialog asks first) → it drops off the list.
+    await dialog.getByRole("button", { name: "Delete sample.pdf" }).first()
       .click();
+    await confirmDialog(page, "Delete");
     await expect(dialog.getByText("sample.pdf"))
       .toHaveCount(0, { timeout: T.action });
     await dialog.getByRole("button", { name: /close/i }).click();
 
     // Cleanup: delete the throwaway building.
     await row.getByRole("button", { name: "Delete building" }).click();
+    await confirmDialog(page, "Delete");
     await expect(page.getByText("Building deleted").first())
       .toBeVisible({ timeout: T.action });
     await expect(row).toHaveCount(0, { timeout: T.action });
