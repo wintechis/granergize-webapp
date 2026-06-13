@@ -8,13 +8,13 @@ import {
   deleteBuilding,
   deleteEnergyYear,
   newBuildingUri,
-  parseCsvToFields,
   seedDemoBuildings,
   serializeBuildingToTurtle,
   uploadBuilding,
   writeBuildingEnergy,
   writeEnergyYear,
 } from "./buildingSerializer.ts";
+import { parseCsvToFields } from "./buildingImport.ts";
 import { buildingsToXlsx, buildingToXlsx } from "../buildingWorkbook.ts";
 import { synthDayReadings } from "../energySeriesXlsx.ts";
 import {

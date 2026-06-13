@@ -30,7 +30,7 @@ import { useUploadBuildings } from "../hooks/mutations.ts";
 import {
   detectSpreadsheetFormat,
   parseCsvToFields,
-} from "../services/rdf/building/buildingSerializer.ts";
+} from "../services/rdf/building/buildingImport.ts";
 import { geocodeFields } from "../services/geocode.ts";
 import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
 import {

@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import * as XLSX from "xlsx";
-import { parseCsvToFields } from "./building/buildingSerializer.ts";
+import { parseCsvToFields } from "./building/buildingImport.ts";
 
 // The XLSX import fixtures in test/e2e/fixtures/ are synthetic stand-ins for
 // the partner spreadsheets the import flow accepts (the e2e specs upload them

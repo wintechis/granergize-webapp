@@ -121,6 +121,18 @@ async function bootCss(): Promise<LocalPod> {
   throw lastErr;
 }
 
+// Boot-time snapshot of each account's PRISTINE WebID profile document, keyed by
+// slot. A per-spec `/reset` restores these after wiping the pod: the app mutates
+// the profile OUTSIDE the granergize/ tree (`saveOrganization` writes org fields
+// into the WebID card), so a data-only wipe would leak an org edit into the next
+// spec — a full CSS restart reset the profile for free, so the in-place wipe must
+// too. Captured once after boot; the accounts and their data dir live for the
+// whole run (and are re-snapshotted if the restart fallback ever fires).
+const pristineProfiles = new Map<
+  "A" | "B" | "C",
+  { cardDoc: string; body: string; contentType: string }
+>();
+
 let css = await bootCss();
 console.log(`local CSS up at ${css.baseUrl} (A=${css.A.webId}, B=${css.B.webId})`);
 
@@ -138,6 +150,59 @@ function watchExit(c: LocalPod) {
   });
 }
 watchExit(css);
+
+// Capture each account's pristine WebID profile so a per-spec `/reset` can restore
+// it in place after the pod wipe (see `pristineProfiles`/`resetToPristine`). Done
+// once at boot, before any spec runs.
+await snapshotProfiles();
+
+// GET each account's WebID card document and stash its body + content-type, so
+// `resetToPristine` can PUT it back verbatim. The card doc is the WebID minus its
+// fragment. Throws on a non-OK read — a missing pristine profile would silently
+// turn `/reset` into a data-only wipe.
+async function snapshotProfiles(): Promise<void> {
+  for (const slot of ["A", "B", "C"] as const) {
+    const { live, actor } = await actorSession(slot);
+    try {
+      const cardDoc = actor.webId.split("#")[0];
+      const r = await actor.session.fetch(cardDoc);
+      if (!r.ok) throw new Error(`profile snapshot ${cardDoc} → HTTP ${r.status}`);
+      pristineProfiles.set(slot, {
+        cardDoc,
+        body: await r.text(),
+        contentType: r.headers.get("content-type") ?? "text/turtle",
+      });
+    } finally {
+      await live.dispose().catch(() => {});
+    }
+  }
+}
+
+// Per-spec clean slate WITHOUT a CSS restart: for each of A/B/C wipe the whole
+// granergize/ app collection — returning the pod to its freshly-booted state,
+// which the app re-provisions (inbox, ACLs, prefs) at login — then restore the
+// WebID profile to its boot snapshot (undoing any org edit). All three run in
+// parallel. Throws if any account can't reach a clean slate (wipeAppData verifies
+// emptiness and retries); the caller falls back to a full restart on throw.
+async function resetToPristine(): Promise<void> {
+  await Promise.all((["A", "B", "C"] as const).map(async (slot) => {
+    const { live, actor } = await actorSession(slot);
+    try {
+      await wipeAppData(actor);
+      const snap = pristineProfiles.get(slot);
+      if (snap) {
+        const r = await actor.session.fetch(snap.cardDoc, {
+          method: "PUT",
+          headers: { "content-type": snap.contentType },
+          body: snap.body,
+        });
+        if (!r.ok) throw new Error(`profile restore ${snap.cardDoc} → HTTP ${r.status}`);
+      }
+    } finally {
+      await live.dispose().catch(() => {});
+    }
+  }));
+}
 
 // Seed N buildings into account A's pod for the Tier-3 render BENCHMARK
 // (manage-render.spec.ts). Done here, in Deno, because the data layer pulls in
@@ -532,6 +597,19 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
     }
   }
   if (req.method === "POST" && pathname === "/reset") {
+    // Fast path: wipe each pod's granergize/ tree + restore the WebID profile in
+    // place, against the still-running CSS — no process bounce, no port-release
+    // wait, no re-seed (see `resetToPristine`). This is the dominant per-spec
+    // setup cost removed.
+    try {
+      await resetToPristine();
+      return new Response("ok\n");
+    } catch (e) {
+      // Fall back to the full restart if the in-place wipe can't reach a clean
+      // slate (a wedged account, JSS listing residue) — preserving the old hard
+      // guarantee. The worst case is the prior behaviour, not a dirty pod.
+      console.error(`/reset in-place wipe failed, falling back to CSS restart: ${e}`);
+    }
     restarting = true;
     await css.stop();
     try {
@@ -543,6 +621,11 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
     }
     restarting = false;
     watchExit(css);
+    // The restart minted a fresh data dir + re-seeded accounts; re-capture the
+    // pristine profiles so the next in-place wipe restores the right baseline.
+    await snapshotProfiles().catch((e) =>
+      console.error(`/reset re-snapshot after restart failed: ${e}`)
+    );
     return new Response("ok\n");
   }
   if (req.method === "POST" && pathname === "/stop") {
