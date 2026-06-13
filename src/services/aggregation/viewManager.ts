@@ -18,10 +18,6 @@ import {
   XSD_INTEGER,
 } from "../rdf/vocabularies.ts";
 import { getQuadValue, getQuadValues } from "../rdf/rdfHelpers.ts";
-import {
-  getReceivedViews,
-  type ReceivedView,
-} from "../interop/sharingManager.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
 import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
@@ -572,7 +568,10 @@ export async function loadComputedSnapshot(
  */
 export async function getReceivedBenchmarksFor(
   session: Session,
-  received: ReceivedView[],
+  // Structural shape (only the snapshot IRI is read), so this stays decoupled
+  // from interop's `ReceivedView` — a `ReceivedView[]` from the folded log is
+  // assignable. Cross-domain composition happens at the caller (hook/test).
+  received: { snapshotUri: string }[],
 ): Promise<AggregatedViewSnapshot[]> {
   const snapshots = await mapPooled(
     received,
@@ -589,18 +588,6 @@ export async function getReceivedBenchmarksFor(
   return snapshots.filter(
     (s): s is AggregatedViewSnapshot => s !== null && Boolean(s.isBenchmark),
   );
-}
-
-/**
- * {@link getReceivedBenchmarksFor} over a fresh fold of the received views.
- * NON-HOOK callers only (headless tasks); hook code passes the views derived
- * from the `sharedInLog` query so the log is folded once per load.
- * @operation query
- */
-export async function getReceivedBenchmarks(
-  session: Session,
-): Promise<AggregatedViewSnapshot[]> {
-  return getReceivedBenchmarksFor(session, await getReceivedViews(session));
 }
 
 /**

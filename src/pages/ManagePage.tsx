@@ -29,6 +29,7 @@ import type {
   BuildingType,
 } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
   useSharedBuildings,
   useSharedViews,
@@ -92,6 +93,7 @@ const attachmentCount = (b: BuildingType): number =>
  */
 export default function ManagePage({ session }: ManagePageProps) {
   const { showNotification } = useNotification();
+  const { confirm } = useConfirm();
   const { buildings, isLoading: buildingsLoading } = useSolidData();
   const navigate = useNavigate();
   const ownedBuildings = buildings.filter((b) => !b.isShared);
@@ -145,14 +147,22 @@ export default function ManagePage({ session }: ManagePageProps) {
     // Build the "what will be removed" preview, confirm, then delete (the
     // confirm lives here, not in the service — same pattern as handleRevoke).
     const { message } = await buildBuildingDeletionPreview(session, building);
-    if (!globalThis.confirm(message)) return;
+    if (!await confirm({ title: "Delete building", message, confirmLabel: "Delete" })) {
+      return;
+    }
     deleteBuilding.mutate(building, {
       onSuccess: () => showNotification("Building deleted", "success"),
     });
   };
 
-  const handleRevoke = (buildingUri: string, webId: string) => {
-    if (!globalThis.confirm(`Revoke access for ${webId}?`)) return;
+  const handleRevoke = async (buildingUri: string, webId: string) => {
+    if (
+      !await confirm({
+        title: "Revoke access",
+        message: `Revoke access for ${webId}?`,
+        confirmLabel: "Revoke",
+      })
+    ) return;
     revoke.mutate({ buildingUri, webId }, {
       onSuccess: () => showNotification("Access revoked", "success"),
     });
@@ -202,11 +212,14 @@ export default function ManagePage({ session }: ManagePageProps) {
       onSuccess: () => showNotification("View snapshot refreshed", "success"),
     });
 
-  const handleDeleteView = (viewId: string) => {
+  const handleDeleteView = async (viewId: string) => {
     if (
-      !confirm(
-        "Are you sure you want to delete this view? This will also revoke access for all shared users.",
-      )
+      !await confirm({
+        title: "Delete view",
+        message:
+          "Delete this view? This also revokes access for everyone it is shared with.",
+        confirmLabel: "Delete",
+      })
     ) {
       return;
     }
@@ -215,8 +228,14 @@ export default function ManagePage({ session }: ManagePageProps) {
     });
   };
 
-  const handleRevokeViewAccess = (snapshotUri: string, webId: string) => {
-    if (!confirm(`Revoke view access for ${webId}?`)) return;
+  const handleRevokeViewAccess = async (snapshotUri: string, webId: string) => {
+    if (
+      !await confirm({
+        title: "Revoke view access",
+        message: `Revoke view access for ${webId}?`,
+        confirmLabel: "Revoke",
+      })
+    ) return;
     revokeView.mutate({ snapshotUri, webId }, {
       onSuccess: () => showNotification("View access revoked", "success"),
     });

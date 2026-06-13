@@ -19,12 +19,16 @@ import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
   createViewDefinition,
   deleteView,
-  getReceivedBenchmarks,
+  getReceivedBenchmarksFor,
 } from "../../../src/services/aggregation/viewManager.ts";
 import {
   computeAndStoreSnapshot,
-  sharedContributorBuildings,
+  summarizeContributors,
 } from "../../../src/services/aggregation/viewComputer.ts";
+import {
+  getReceivedViews,
+  getSharedWithMe,
+} from "../../../src/services/interop/sharingManager.ts";
 import { CONSUMPTION_METRIC_KEYS } from "../../../src/constants/annualMetrics.ts";
 import {
   deleteBuilding,
@@ -95,7 +99,9 @@ export async function run(ctx: TaskContext): Promise<void> {
     await drainInbox(c.session); // archive both grants into C's shared-in/
 
     // 3. C folds the shared-with-me roster into the benchmark's building list.
-    const { buildingUris, contributors } = await sharedContributorBuildings(c.session);
+    const { buildingUris, contributors } = summarizeContributors(
+      await getSharedWithMe(c.session),
+    );
     check(
       "C's contributor roster holds both shared buildings",
       [aUri, bUri].every((u) =>
@@ -141,7 +147,10 @@ export async function run(ctx: TaskContext): Promise<void> {
     await drainInbox(a.session); // archive the grant into A's shared-in/
 
     // 6. A reads the returned benchmark.
-    const received = await getReceivedBenchmarks(a.session);
+    const received = await getReceivedBenchmarksFor(
+      a.session,
+      await getReceivedViews(a.session),
+    );
     const mine = received.find((s) => s.values.electricityConsumption === 1500);
     check("A receives the benchmark snapshot", Boolean(mine), `received=${received.length}`);
     check("the received snapshot is marked a benchmark", mine?.isBenchmark === true);

@@ -34,6 +34,7 @@ import { classifyQueryError } from "../hooks/queryErrors.ts";
 import { getSnapshotUri } from "../services/aggregation/viewManager.ts";
 import { summarizeContributors } from "../services/aggregation/viewComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { useConfirm } from "../context/ConfirmContext.tsx";
 import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
 import { useAgentOptions } from "../hooks/useAgentOptions.ts";
 
@@ -50,6 +51,7 @@ export default function ShareViewDialog(
   { open, onClose, view, session }: ShareViewDialogProps,
 ) {
   const { showNotification } = useNotification();
+  const { confirm } = useConfirm();
   const agentOptions = useAgentOptions();
   const [recipients, setRecipients] = useState<string[]>([]);
   const [webIdError, setWebIdError] = useState<string | null>(null);
@@ -165,9 +167,15 @@ export default function ShareViewDialog(
     });
   };
 
-  const handleRevoke = (webId: string) => {
+  const handleRevoke = async (webId: string) => {
     if (!session.info.webId) return;
-    if (!globalThis.confirm(`Revoke access for ${webId}?`)) return;
+    if (
+      !await confirm({
+        title: "Revoke access",
+        message: `Revoke access for ${webId}?`,
+        confirmLabel: "Revoke",
+      })
+    ) return;
     revoke.mutate(
       { snapshotUri: getSnapshotUri(session.info.webId, view.id), webId },
       { onSuccess: () => showNotification("View access revoked", "success") },

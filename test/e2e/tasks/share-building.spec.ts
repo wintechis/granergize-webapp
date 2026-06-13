@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { account } from "../helpers/login.ts";
+import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { deleteAllOwnedRooms, removeAllBookmarkedRooms } from "../helpers/rooms.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
@@ -139,6 +140,7 @@ test.describe("sharing across two pods", () => {
           const row = a.page.locator("li", { hasText: STREET }).first();
           if (await row.count()) {
             await row.getByRole("button", { name: "Delete building" }).click();
+            await confirmDialog(a.page, "Delete");
             await expect(a.page.getByText("Building deleted").first())
               .toBeVisible({ timeout: T.action });
           }
@@ -245,6 +247,7 @@ test.describe("sharing across two pods", () => {
           const row = a.page.locator("li", { hasText: STREET_Y }).first();
           if (await row.count()) {
             await row.getByRole("button", { name: "Delete building" }).click();
+            await confirmDialog(a.page, "Delete");
             await expect(a.page.getByText("Building deleted").first())
               .toBeVisible({ timeout: T.action });
           }
@@ -313,6 +316,7 @@ test.describe("sharing across two pods", () => {
         await a.page.getByRole("tab", { name: "Manage" }).click();
         const row = a.page.locator("li", { hasText: STREET_D }).first();
         await row.getByRole("button", { name: "Delete building" }).click();
+        await confirmDialog(a.page, "Delete");
         await expect(a.page.getByText("Building deleted").first())
           .toBeVisible({ timeout: T.action });
         await a.page.waitForTimeout(2000); // let the revocation settle

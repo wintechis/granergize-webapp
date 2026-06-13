@@ -276,6 +276,28 @@ export async function loadBuildings(
  * averages. A pure function of the buildings it's given — no registry re-read.
  * @operation query
  */
+/** Arithmetic mean of a non-empty list. */
+function meanOf(values: number[]): number {
+  return values.reduce((acc, v) => acc + v, 0) / values.length;
+}
+
+/**
+ * Mean each metric bucket of a `metric → samples` map, dropping any bucket with
+ * fewer than `minCount` samples (the operator averages need ≥2 so a lone
+ * building isn't published as its own benchmark — see the call site).
+ */
+function meanByMetric(
+  buckets: Record<string, number[]>,
+  minCount = 1,
+): Record<string, number> {
+  const out: Record<string, number> = {};
+  for (const metric in buckets) {
+    if (buckets[metric].length < minCount) continue;
+    out[metric] = meanOf(buckets[metric]);
+  }
+  return out;
+}
+
 export async function loadEnergy(
   session: Session,
   buildings: BuildingType[],
@@ -389,22 +411,9 @@ export async function loadEnergy(
     }
   }
 
-  // Calculate averages
-
-  const averages: Record<string, number> = {};
-  for (const property in aggregatedValues) {
-    const values = aggregatedValues[property];
-    const sum = values.reduce((acc, val) => acc + val, 0);
-    averages[property] = sum / values.length;
-  }
-
-  // Portfolio average: the mean over the user's OWN buildings only.
-  const portfolioAverages: Record<string, number> = {};
-  for (const property in portfolioAggregatedValues) {
-    const values = portfolioAggregatedValues[property];
-    const sum = values.reduce((acc, val) => acc + val, 0);
-    portfolioAverages[property] = sum / values.length;
-  }
+  // Calculate averages (cross-building, and the user's OWN buildings only).
+  const averages = meanByMetric(aggregatedValues);
+  const portfolioAverages = meanByMetric(portfolioAggregatedValues);
 
   // Operator (Betreiber) averages — published per metric only when ≥2 buildings
   // contribute: a single-building "mean" IS that building's own value, which
@@ -413,13 +422,7 @@ export async function loadEnergy(
   // the deviation tint (own vs itself is always neutral).
   const operatorAverages: Record<string, Record<string, number>> = {};
   for (const operator in operatorAggregatedValues) {
-    const perMetric: Record<string, number> = {};
-    for (const property in operatorAggregatedValues[operator]) {
-      const values = operatorAggregatedValues[operator][property];
-      if (values.length < 2) continue;
-      const sum = values.reduce((acc, val) => acc + val, 0);
-      perMetric[property] = sum / values.length;
-    }
+    const perMetric = meanByMetric(operatorAggregatedValues[operator], 2);
     if (Object.keys(perMetric).length > 0) operatorAverages[operator] = perMetric;
   }
 
