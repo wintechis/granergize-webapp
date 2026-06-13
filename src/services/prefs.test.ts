@@ -3,7 +3,7 @@ import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
 import {
-  prefsUrl,
+  prefsUri,
   readPrefs,
   setCurrentRoom,
   setDemoSeedDeclined,
@@ -14,7 +14,7 @@ import { makeFakeSession } from "./testing/fakeSession.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");
-const PREFS = prefsUrl(WEBID);
+const PREFS = prefsUri(WEBID);
 const ROOM = "https://pod.example/granergize/rooms/aaaa/";
 const B1 = "https://other.example/granergize/buildings/x.ttl#x";
 const B2 = "https://other.example/granergize/buildings/y.ttl#y";

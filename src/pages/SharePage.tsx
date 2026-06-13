@@ -56,7 +56,7 @@ interface SharePageProps {
  */
 function ReceivedViewRow(
   { view, session }: {
-    view: { snapshotUrl: string; viewId: string; sharedBy: string };
+    view: { snapshotUri: string; viewId: string; sharedBy: string };
     session: Session;
   },
 ) {
@@ -74,7 +74,7 @@ function ReceivedViewRow(
     setLoading(true);
     setError(null);
     try {
-      const snap = await loadComputedSnapshot(session, view.snapshotUrl);
+      const snap = await loadComputedSnapshot(session, view.snapshotUri);
       if (!snap) throw new Error("snapshot not found or empty");
       setSnapshot(snap);
     } catch (err) {
@@ -87,7 +87,7 @@ function ReceivedViewRow(
   useEffect(() => {
     ensureSnapshot();
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [view.snapshotUrl]);
+  }, [view.snapshotUri]);
 
   const toggle = () => {
     setOpen((prev) => !prev);
@@ -404,7 +404,7 @@ export default function SharePage({ session }: SharePageProps) {
           <ul style={listStyle} aria-label="Views shared with you">
             {receivedViewsPaging.pageItems.map((view) => (
               <ReceivedViewRow
-                key={view.snapshotUrl}
+                key={view.snapshotUri}
                 view={view}
                 session={session}
               />

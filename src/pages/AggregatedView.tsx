@@ -26,7 +26,7 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import ShareIcon from "@mui/icons-material/Share";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import { getSnapshotUri } from "../services/aggregation/viewManager.ts";
 import { useViewDetail } from "../hooks/queries.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
 import {
@@ -77,8 +77,8 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
 
   const handleShare = () => {
     if (!viewId || !shareWebId.trim() || !session.info.webId) return;
-    const snapshotUrl = getSnapshotUrl(session.info.webId, viewId);
-    shareMut.mutate({ snapshotUrl, recipients: [shareWebId.trim()] }, {
+    const snapshotUri = getSnapshotUri(session.info.webId, viewId);
+    shareMut.mutate({ snapshotUri, recipients: [shareWebId.trim()] }, {
       onSuccess: () => {
         setShareDialogOpen(false);
         setShareWebId("");

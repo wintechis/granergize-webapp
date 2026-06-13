@@ -78,7 +78,10 @@ projection can drift out of sync. Applying it to the query hooks (`queries.ts`):
 
 - **`useEnergy`** was the one query whose key was *derived from another query's
   output* (the building set) yet under-covered the content it folds (ids, not
-  dataset links). Fixed (above). It is the only derived-key read that under-covered.
+  dataset links). Fixed (above). Several reads are now derived-keyed — `annualEnergy`
+  (id + dataset-link fingerprint), `useReceivedBenchmarks` (snapshot-IRI fingerprint,
+  below) — but `useEnergy` was the only one that ever *under-covered*; the rest fold
+  their inputs into the key by construction.
 - **`useRoomLog`** is also derived-keyed (`["roomLog", webId, current-room-IRI]`),
   but the room IRI is the right *identity* and the log's event content changes are
   covered by direct invalidation — every room mutation invalidates `queryKeys.roomLog`
@@ -92,16 +95,21 @@ projection can drift out of sync. Applying it to the query hooks (`queries.ts`):
   the room mutations (a background refetch could revert an in-flight room switch).
   Intentionally outside the auto-refetch model.
 
-The audit also surfaced one **distinct gap** of the same *family* but a different
-mechanism, now fixed: **`useReceivedBenchmarks`** folds `getReceivedViews` (it loads
-each received snapshot and keeps the benchmark ones), with a constant key. The inbox
-drain (`useCheckInbox`) invalidated `sharedWithMe`, `receivedViews` and `buildings`
-but **not** `receivedBenchmarks`, so a benchmark snapshot newly archived into
-`shared-in/` could be missing from the energy view's Benchmark column until that
-query was otherwise remounted. This was an *invalidation-coverage* gap (constant key,
-a missing `invalidateQueries`), not a *key-coverage* one — `useCheckInbox`'s
-`onSettled` now invalidates `queryKeys.receivedBenchmarks` alongside `receivedViews`
-(covered by a `queries.test.ts` case).
+The audit also surfaced **`useReceivedBenchmarks`** — a gap of the same *family* that
+started in a different mechanism and was ultimately closed by the same construction as
+energy. It folds the received snapshots (loads each one off the shared-in log and keeps
+the benchmark ones), and first showed an *invalidation-coverage* gap: it was
+constant-keyed, and the inbox drain (`useCheckInbox`) invalidated `sharedWithMe`,
+`receivedViews` and `buildings` but **not** `receivedBenchmarks`, so a benchmark snapshot
+newly archived into `shared-in/` could be missing from the energy view's Benchmark column
+until that query was otherwise remounted. It is now **derived-keyed** like energy: the key
+is `[receivedBenchmarks, webId, fingerprint]` where the fingerprint is the sorted set of
+received snapshot IRIs (`queries.ts`), so a grant arriving or leaving changes the key and
+refetches by construction. The prefix invalidation is *kept* alongside (the inbox drain's
+`onSettled` invalidates `queryKeys.receivedBenchmarks`) for the orthogonal case the key
+can't see — a snapshot's *contents* changing while the received-set is unchanged (covered
+by a `queries.test.ts` case). Key-coverage for set membership, invalidation for content:
+the two mechanisms composed, not one standing in for the other.
 
 ## The write-side twin — projections stored on the Pod
 

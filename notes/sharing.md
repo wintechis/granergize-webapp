@@ -18,7 +18,8 @@ per Pod, each an LDP container under `granergize/`:
 
 Every event is its own resource (POST → the server mints the child URI, so concurrent
 appends never clobber). One Turtle shape serves all three places an event appears — the
-recipient's inbox message, the sharer's `shared-out/`, and the recipient's `shared-in/`.
+sharer's `shared-out/`, the recipient's `shared-in/`, and the recipient's inbox message
+that carries it between them (the inbox is transient transport, not a third log).
 Current state = **fold** the log (`foldSharingLog`): group by `(grantee, resource)`,
 keep the latest by `prov:generatedAtTime`, and emit the pair only if that latest event
 is a grant (a later revocation drops it; on an exact-timestamp tie the revocation wins,
@@ -32,9 +33,9 @@ is folded once per load (the `sharedInLog`/`sharedOutLog` queries in the data la
 and every sharing list derives from that one result in memory. Because an event is
 immutable once POSTed, its parse is also cached per session: a re-fold pays only the
 container listing plus GETs for events it hasn't seen before. The WAC `.acl` stays
-the enforcement truth — the logs are the app's **record**, and the only way a
-recipient learns of an inbound grant (it lives in the sharer's `.acl`, reachable only
-via the inbox).
+the enforcement truth — the logs are the app's **record**. A recipient learns of an
+inbound grant only through the inbox notification: the grant itself lives in the
+sharer's `.acl`, which the recipient cannot read.
 
 ## Flow
 
@@ -100,7 +101,7 @@ targets), then `notifyAccessRevoked` POSTs a revocation event to the recipient's
 their next `drainInbox` folds it out of `shared-in/`. Notification is best-effort — the
 revocation succeeds even if it fails.
 
-## Aggregated views — `shareAggregatedView(snapshotUrl, viewId, webId, session)`
+## Aggregated views — `shareAggregatedView(snapshotUri, webId, session)`
 
 Same flow on the computed **snapshot only** (recipient sees aggregate values, not the
 source buildings); the grant event carries `gran:kind cons:View`. Recorded in
@@ -158,7 +159,7 @@ escalation:
 Sharing stays **independent of rooms** — a room grants no access on its own; it is
 only a recipient directory, and "share by role" loops the resolved WebIDs through
 the bilateral grant. Two structural notes. The escalation reuses the event-sourced
-storage model ([queries-mutations.md](queries-mutations.md)) — multi-agent
+storage model ([storage-model.md](storage-model.md)) — multi-agent
 discovery is inherently cross-agent state, so the room *is* an append-only log with
 fold-on-read. And resolution is **at share time**: the grant events record the
 resolved users, so a member who joins later does not retroactively receive earlier
@@ -167,7 +168,8 @@ role-targeted shares — the role is an addressing device, not a standing group 
 ## Vocabularies
 
 - **interop** (`http://www.w3.org/ns/solid/interop#`) — `AccessGrant`,
-  `AccessRevocation`, `grantee`, `forResource`, `accessMode`, `includesEnergyData`.
+  `AccessRevocation`, `grantee`, `forResource`, `accessMode`, `includesEnergyData`,
+  `includesEnergyYear`.
 - **prov** — `prov:wasAssociatedWith` (the sharer) and `prov:generatedAtTime` (event
   time) on each event; `prov:qualifiedAttribution` / `prov:agent` carry a building's
   provenance — the producing agent only, no `prov:hadRole` — in the building file.

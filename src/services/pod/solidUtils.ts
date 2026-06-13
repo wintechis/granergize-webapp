@@ -18,11 +18,11 @@ const PIM_NS = "http://www.w3.org/ns/pim/space#";
  */
 async function discoverStorageRoot(
   session: Session,
-  docUrl: string,
+  docUri: string,
 ): Promise<string | null> {
-  const origin = `${new URL(docUrl).origin}/`;
+  const origin = `${new URL(docUri).origin}/`;
   // Start at the WebID document's container.
-  let url = docUrl.replace(/[^/]*$/, "");
+  let url = docUri.replace(/[^/]*$/, "");
   for (let i = 0; i < 8; i++) {
     const res = await session.fetch(url, { headers: { Accept: "text/turtle" } })
       .catch((err) => {
@@ -78,12 +78,12 @@ export async function resolveStorageRoot(session: Session): Promise<string> {
   const cached = storageRootCache.get(webId);
   if (cached) return cached;
 
-  const docUrl = webId.split("#")[0];
+  const docUri = webId.split("#")[0];
   // Read the profile via the shared cache so this first read is reused by the
   // org/avatar lookups that follow at login (one fetch instead of several).
   const store = await loadProfileStore(session);
   if (!store) {
-    throw new Error(`Cannot read WebID profile at ${docUrl}`);
+    throw new Error(`Cannot read WebID profile at ${docUri}`);
   }
   const roots = store.getObjects(
     DataFactory.namedNode(webId),
@@ -91,10 +91,10 @@ export async function resolveStorageRoot(session: Session): Promise<string> {
     null,
   );
   const fromTriple = roots[0]?.value;
-  const root = fromTriple ?? await discoverStorageRoot(session, docUrl);
+  const root = fromTriple ?? await discoverStorageRoot(session, docUri);
   if (!root) {
     throw new Error(
-      `Cannot locate the Pod storage root for ${docUrl}: no pim:storage on the ` +
+      `Cannot locate the Pod storage root for ${docUri}: no pim:storage on the ` +
         `profile and no pim:Storage-typed container found above the WebID.`,
     );
   }
@@ -170,14 +170,14 @@ export function appRoot(webId: string): string {
  * @param webId - The WebID URL (with or without fragment)
  * @returns The base URL with trailing slash
  */
-export function getPodBaseUrl(webId: string): string {
+export function getPodBaseUri(webId: string): string {
   return webId.substring(0, webId.lastIndexOf("/") + 1);
 }
 
 /**
  * Canonical URLs of the app's on-Pod RDF resources for a WebID. Single source of
  * truth — every app resource lives under one root, `getStorageRoot + "granergize/"`,
- * so callers never re-derive paths (which previously mixed `getPodBaseUrl` and
+ * so callers never re-derive paths (which previously mixed `getPodBaseUri` and
  * `getStorageRoot`, desyncing for non-`/profile/card` WebIDs). The org logo is the
  * one exception: it's profile data, stored at `profile/logo.<ext>` (see
  * organizationManager), not here.
@@ -220,14 +220,14 @@ export async function resolveStorageRootForWebId(
   webId: string,
   session: Session,
 ): Promise<string> {
-  const docUrl = webId.split("#")[0];
-  const res = await session.fetch(docUrl, { headers: { Accept: "text/turtle" } })
+  const docUri = webId.split("#")[0];
+  const res = await session.fetch(docUri, { headers: { Accept: "text/turtle" } })
     .catch((err) => {
       logError("fetch WebID profile for storage-root resolution", err);
       return null;
     });
   if (res?.ok) {
-    const store = new Store(new Parser({ baseIRI: docUrl }).parse(await res.text()));
+    const store = new Store(new Parser({ baseIRI: docUri }).parse(await res.text()));
     const triple = store.getObjects(
       DataFactory.namedNode(webId),
       DataFactory.namedNode(`${PIM_NS}storage`),
@@ -237,7 +237,7 @@ export async function resolveStorageRootForWebId(
   } else {
     await res?.body?.cancel();
   }
-  const walked = await discoverStorageRoot(session, docUrl);
+  const walked = await discoverStorageRoot(session, docUri);
   if (!walked) {
     throw new Error(`Cannot locate the storage root for ${webId}`);
   }

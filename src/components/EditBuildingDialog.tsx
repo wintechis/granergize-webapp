@@ -19,7 +19,7 @@ import {
   BuildingDetailFields,
 } from "./BuildingDetailFields.tsx";
 import { ADDRESS_FIELDS } from "../constants/addressFields.ts";
-import { buildingFileUrl } from "../services/rdf/building/buildingId.ts";
+import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 
 interface EditBuildingDialogProps {
   open: boolean;
@@ -115,7 +115,7 @@ export default function EditBuildingDialog(
   const [geocoding, setGeocoding] = useState(false);
   const dirty = JSON.stringify(fields) !== JSON.stringify(initialFields);
 
-  const fileUri = building.sourceUri ?? buildingFileUrl(building.uri);
+  const fileUri = building.sourceUri ?? buildingFileUri(building.uri);
   // One row per existing certification, plus a blank row to add another.
   const certCount = (building.certifications?.length ?? 0) + 1;
 

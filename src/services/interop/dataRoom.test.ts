@@ -8,7 +8,7 @@ import {
   deleteRoom,
   enterRoom,
   exitRoom,
-  extractRoomUrl,
+  extractRoomUri,
   getCurrentRoom,
   getKnownRooms,
   getMembers,
@@ -17,7 +17,7 @@ import {
   getMyRole,
   joinRoom,
   leaveRoom,
-  normalizeRoomUrl,
+  normalizeRoomUri,
   openRoom,
   ownsRoom,
   removeKnownRoom,
@@ -300,68 +300,68 @@ Deno.test("empty / missing container yields no members", async () => {
   assertEquals(await getMyRole(ROOM, session), []);
 });
 
-Deno.test("normalizeRoomUrl guarantees a trailing slash", () => {
-  assertEquals(normalizeRoomUrl("https://x.example/room"), "https://x.example/room/");
-  assertEquals(normalizeRoomUrl("https://x.example/room/"), "https://x.example/room/");
+Deno.test("normalizeRoomUri guarantees a trailing slash", () => {
+  assertEquals(normalizeRoomUri("https://x.example/room"), "https://x.example/room/");
+  assertEquals(normalizeRoomUri("https://x.example/room/"), "https://x.example/room/");
 });
 
 Deno.test("createRoom creates a container on the user's Pod and grants append", async () => {
   const pod = new FakePod();
   const session = sessionFor(pod, ALICE);
 
-  const roomUrl = await createRoom(session);
+  const roomUri = await createRoom(session);
 
   // Lives on the creator's own Pod, as an LDP container.
-  assertEquals(roomUrl.startsWith("https://alice.example/granergize/rooms/"), true);
-  assertEquals(roomUrl.endsWith("/"), true);
-  assertEquals(pod.containers.has(roomUrl), true);
+  assertEquals(roomUri.startsWith("https://alice.example/granergize/rooms/"), true);
+  assertEquals(roomUri.endsWith("/"), true);
+  assertEquals(pod.containers.has(roomUri), true);
 
   // An ACL was written granting authenticated agents append access (full-IRI
   // triples, matching the app's other ACL writers).
-  const acl = pod.resources.get(`${roomUrl}.acl`);
+  const acl = pod.resources.get(`${roomUri}.acl`);
   assertEquals(typeof acl, "string");
   assertEquals(acl!.includes("auth/acl#Append"), true);
   assertEquals(acl!.includes("auth/acl#AuthenticatedAgent"), true);
   assertEquals(acl!.includes(ALICE), true); // owner authorization
 
   // The creator is auto-joined as a member.
-  assertEquals(await getMyMembership(roomUrl, session), true);
+  assertEquals(await getMyMembership(roomUri, session), true);
 });
 
 Deno.test("roomExists reports whether a room URL is reachable", async () => {
   const pod = new FakePod();
   const session = sessionFor(pod, ALICE);
 
-  const roomUrl = await createRoom(session);
-  assertEquals(await roomExists(roomUrl, session), true);
+  const roomUri = await createRoom(session);
+  assertEquals(await roomExists(roomUri, session), true);
   assertEquals(
     await roomExists("https://alice.example/granergize/rooms/nope/", session),
     false,
   );
 });
 
-Deno.test("extractRoomUrl parses raw URIs and app invite links", () => {
+Deno.test("extractRoomUri parses raw URIs and app invite links", () => {
   const room = "https://alice.example/granergize/rooms/r1/";
   // Raw URI without trailing slash is normalized.
   assertEquals(
-    extractRoomUrl("https://alice.example/granergize/rooms/r1"),
+    extractRoomUri("https://alice.example/granergize/rooms/r1"),
     room,
   );
   // An invite link (#/room/<encoded>) yields the decoded container URL.
   const link = `https://app.example/granergize/#/room/${
     encodeURIComponent(room)
   }`;
-  assertEquals(extractRoomUrl(link), room);
+  assertEquals(extractRoomUri(link), room);
 });
 
 Deno.test("openRoom validates, joins, and reports reachability", async () => {
   const pod = new FakePod();
-  const roomUrl = await createRoom(sessionFor(pod, ALICE)); // ALICE auto-joins
+  const roomUri = await createRoom(sessionFor(pod, ALICE)); // ALICE auto-joins
 
   const bob = sessionFor(pod, BOB);
-  assertEquals(await getMyMembership(roomUrl, bob), false);
-  assertEquals(await openRoom(roomUrl, bob), true); // opening joins
-  assertEquals(await getMyMembership(roomUrl, bob), true);
+  assertEquals(await getMyMembership(roomUri, bob), false);
+  assertEquals(await openRoom(roomUri, bob), true); // opening joins
+  assertEquals(await getMyMembership(roomUri, bob), true);
 
   // Unreachable room → false.
   assertEquals(
@@ -380,16 +380,16 @@ Deno.test("ownsRoom is true only for rooms under the user's own storage", () => 
 Deno.test("deleteRoom removes the room's events and container", async () => {
   const pod = new FakePod();
   const session = sessionFor(pod, ALICE);
-  const roomUrl = await createRoom(session); // creates container + ACL + a join event
+  const roomUri = await createRoom(session); // creates container + ACL + a join event
 
-  assertEquals(await roomExists(roomUrl, session), true);
-  await deleteRoom(roomUrl, session);
+  assertEquals(await roomExists(roomUri, session), true);
+  await deleteRoom(roomUri, session);
 
-  assertEquals(await roomExists(roomUrl, session), false); // container gone
-  assertEquals(pod.containers.has(roomUrl), false);
+  assertEquals(await roomExists(roomUri, session), false); // container gone
+  assertEquals(pod.containers.has(roomUri), false);
   // No event children of the room remain.
   assertEquals(
-    [...pod.resources.keys()].some((k) => k.startsWith(roomUrl)),
+    [...pod.resources.keys()].some((k) => k.startsWith(roomUri)),
     false,
   );
 });

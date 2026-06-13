@@ -8,8 +8,8 @@ import {
   buildSharingEventTurtle,
   foldSharingLog,
   parseSharingEvents,
-  sharedInUrl,
-  sharedOutUrl,
+  sharedInUri,
+  sharedOutUri,
   type SharingEvent,
 } from "./sharingLog.ts";
 
@@ -144,7 +144,7 @@ Deno.test("buildSharingEventTurtle round-trips a revocation (no kind/energy)", (
 
 Deno.test("foldSharingLog: a lone grant is active", async () => {
   const { session } = makePod();
-  const log = sharedInUrl(WEBID);
+  const log = sharedInUri(WEBID);
   await appendSharingEvent(log, session, {
     type: "grant", owner: OWNER, grantee: WEBID, resource: B1, kind: "Building",
     at: "2026-06-04T10:00:00Z",
@@ -157,7 +157,7 @@ Deno.test("foldSharingLog: a lone grant is active", async () => {
 
 Deno.test("foldSharingLog: a later revocation drops the pair", async () => {
   const { session } = makePod();
-  const log = sharedInUrl(WEBID);
+  const log = sharedInUri(WEBID);
   await appendSharingEvent(log, session, {
     type: "grant", owner: OWNER, grantee: WEBID, resource: B1, kind: "Building",
     at: "2026-06-04T10:00:00Z",
@@ -171,7 +171,7 @@ Deno.test("foldSharingLog: a later revocation drops the pair", async () => {
 
 Deno.test("foldSharingLog: a re-grant after a revocation is active again", async () => {
   const { session } = makePod();
-  const log = sharedOutUrl(WEBID);
+  const log = sharedOutUri(WEBID);
   await appendSharingEvent(log, session, {
     type: "grant", owner: WEBID, grantee: BOB, resource: B1, kind: "Building",
     at: "2026-06-04T10:00:00Z",
@@ -191,7 +191,7 @@ Deno.test("foldSharingLog: a re-grant after a revocation is active again", async
 
 Deno.test("foldSharingLog: (grantee, resource) pairs fold independently", async () => {
   const { session } = makePod();
-  const log = sharedOutUrl(WEBID);
+  const log = sharedOutUri(WEBID);
   // B1 → Bob active; B2 → Bob granted then revoked.
   await appendSharingEvent(log, session, {
     type: "grant", owner: WEBID, grantee: BOB, resource: B1, kind: "Building",
@@ -211,12 +211,12 @@ Deno.test("foldSharingLog: (grantee, resource) pairs fold independently", async 
 
 Deno.test("foldSharingLog on a missing container is empty", async () => {
   const { session } = makePod();
-  assert.deepEqual(await foldSharingLog(sharedInUrl(WEBID), session), []);
+  assert.deepEqual(await foldSharingLog(sharedInUri(WEBID), session), []);
 });
 
 Deno.test("foldSharingLog: a re-fold re-reads only the listing, not the immutable events", async () => {
   const { session, gets } = makePod();
-  const log = sharedInUrl(WEBID);
+  const log = sharedInUri(WEBID);
   await appendSharingEvent(log, session, {
     type: "grant", owner: OWNER, grantee: WEBID, resource: B1, kind: "Building",
     at: "2026-06-04T10:00:00Z",

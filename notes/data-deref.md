@@ -9,10 +9,11 @@ Line references drift — treat them as signposts, not coordinates.
 
 ## The model in one line
 
-**Registry-indexed bulk fetch + in-memory join** — not Linked Data
+**Discover-then-bulk-fetch + in-memory join** — not Linked Data
 *follow-your-nose* (dereference each IRI as you meet it) and not a SPARQL
-endpoint. A per-user registry says *which* documents to fetch; the app fetches
-them concurrently, parses each into a provenance-tagged graph, and resolves the
+endpoint. Discovery — a container listing plus the folded `shared-in/` log, not a
+registry document — says *which* documents to fetch; the app fetches them
+concurrently, parses each into a provenance-tagged graph, and resolves the
 references between them in memory.
 
 ## The dereferencing primitive: `session.fetch`
@@ -130,8 +131,8 @@ LDP `POST` to a container (race-free by construction) instead of rewriting a fil
 ## What this is NOT (and the alternatives)
 
 - **Not follow-your-nose.** A Comunica/LDflex-style engine would dereference linked
-  IRIs on demand and could run SPARQL across the web of documents. Here the registry
-  is the explicit document set and joins happen in JS.
+  IRIs on demand and could run SPARQL across the web of documents. Here the document
+  set is discovered up front (container listing + folded log) and joins happen in JS.
 - **Not a SPARQL endpoint.** Reads are whole-document GETs of Turtle files, parsed
   client-side.
 - **HTTP cache is revalidated, and there is a client query cache.** The read path

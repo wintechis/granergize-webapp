@@ -61,13 +61,13 @@ export function buildingSubjectFor(id: string, ownStorageRoot: string): string {
 }
 
 /** Subject IRI (or any ref) → its document URL: the fragment stripped. */
-export function buildingFileUrl(subjectIri: string): string {
+export function buildingFileUri(subjectIri: string): string {
   return subjectIri.split("#")[0];
 }
 
 /** App-level id → absolute document URL. */
-export function buildingFileUrlFor(id: string, ownStorageRoot: string): string {
-  return buildingFileUrl(buildingSubjectFor(id, ownStorageRoot));
+export function buildingFileUriFor(id: string, ownStorageRoot: string): string {
+  return buildingFileUri(buildingSubjectFor(id, ownStorageRoot));
 }
 
 /**

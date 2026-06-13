@@ -90,9 +90,9 @@ no call-site benchmark options. See [`peer-benchmark.md`](./peer-benchmark.md).
 View sharing is the building-sharing flow applied to the **snapshot only** (see
 [`sharing.md`](./sharing.md) for the event-log mechanics):
 
-- **Share** — `shareAggregatedView(snapshotUrl, webId, session)` grants `acl:Read` on
+- **Share** — `shareAggregatedView(snapshotUri, webId, session)` grants `acl:Read` on
   the snapshot resource, POSTs a grant event to the recipient's inbox, and records it in
-  `shared-out/`. The event carries `cons:kind cons:View` (the routing hint that tells the
+  `shared-out/`. The event carries `gran:kind cons:View` (the routing hint that tells the
   recipient to load it as a view, not a building). The `view-id` is recoverable from the
   snapshot URI, so it isn't stored on the event.
 - **Receive** — `getReceivedViews` folds `shared-in/` for `cons:View` grants; the
@@ -105,8 +105,8 @@ View sharing is the building-sharing flow applied to the **snapshot only** (see
 
 ## UI
 
-- **Create** — `CreateViewDialog`: pick buildings (filtered by the producing category
-  derived from their provenance), the metrics for that category, the aggregation type,
+- **Create** — `CreateViewDialog`: pick buildings (filtered by the energy shape
+  present), the metrics for that shape, the aggregation type,
   and — for the user/monthly case — a month (its picker lists each building's series
   container to find available months). Create then computes the first snapshot.
 - **Manage** — `ManagePage` lists the definitions (`useViewDefinitions`) with

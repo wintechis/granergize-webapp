@@ -9,7 +9,7 @@ import {
 import { postSharingEventToInbox } from "./inbox.ts";
 import {
   foldSharingLogEvents,
-  sharedOutUrl,
+  sharedOutUri,
 } from "./sharingLog.ts";
 import {
   ACL_NS,
@@ -147,13 +147,13 @@ export async function buildingGrantTargets(
   // A legacy energy certificate stored OUTSIDE files/ (the old shared
   // certificates/ folder) isn't covered by the container grant — the file
   // itself is a target so existing shares keep working without a re-upload.
-  const certUrl = await getEnergyCertificateUrl(buildingFile, session);
-  if (certUrl && !certUrl.startsWith(filesContainer)) {
-    targets.push({ url: certUrl, isContainer: false });
+  const certUri = await getEnergyCertificateUri(buildingFile, session);
+  if (certUri && !certUri.startsWith(filesContainer)) {
+    targets.push({ url: certUri, isContainer: false });
   }
 
   if (options.includeEnergyData) {
-    targets.push(...await getEnergyDataUrls(buildingFile, session, options.years));
+    targets.push(...await getEnergyDataUris(buildingFile, session, options.years));
   }
 
   // Dedup: two dataset links into the same file must not yield one target twice
@@ -204,7 +204,7 @@ export async function reissueGrants(session: Session): Promise<ReissueResult> {
     throw new Error("User is not logged in");
   }
   const root = getStorageRoot(webId);
-  const events = await foldSharingLogEvents(sharedOutUrl(webId), session);
+  const events = await foldSharingLogEvents(sharedOutUri(webId), session);
 
   const result: ReissueResult = {
     buildings: 0,
@@ -289,7 +289,7 @@ export async function reconcileBuildingGrants(
   if (!session.info.isLoggedIn || !webId) {
     throw new Error("User is not logged in");
   }
-  const events = await foldSharingLogEvents(sharedOutUrl(webId), session);
+  const events = await foldSharingLogEvents(sharedOutUri(webId), session);
   const active = events.filter((e) =>
     e.type !== "revocation" &&
     e.kind !== "View" &&
@@ -354,7 +354,7 @@ export async function auditGrants(session: Session): Promise<GrantAuditResult> {
     throw new Error("User is not logged in");
   }
   const root = getStorageRoot(webId);
-  const events = await foldSharingLogEvents(sharedOutUrl(webId), session);
+  const events = await foldSharingLogEvents(sharedOutUri(webId), session);
 
   const result: GrantAuditResult = {
     checked: 0,
@@ -483,7 +483,7 @@ async function postToInbox(
  * sharing); absent ⇒ all years.
  * @operation query
  */
-export async function getEnergyDataUrls(
+export async function getEnergyDataUris(
   buildingUri: string,
   session: Session,
   years?: number[],
@@ -522,7 +522,7 @@ export async function getEnergyDataUrls(
  * The building's energy-certificate file URL (`bldg:hasEnergyCertificate`), or null.
  * @operation query
  */
-export async function getEnergyCertificateUrl(
+export async function getEnergyCertificateUri(
   buildingFileUri: string,
   session: Session,
 ): Promise<string | null> {
@@ -562,19 +562,19 @@ export async function grantReadAccess(
   if (!session.info.isLoggedIn) {
     throw new Error("User is not logged in");
   }
-  const aclUrl = `${resourceUri}.acl`;
+  const aclUri = `${resourceUri}.acl`;
   const ownerWebId = session.info.webId as string;
   const authLabel = `Read_${webId.replace(/[^a-zA-Z0-9]/g, "_")}`;
   try {
-    await readModifyWrite(aclUrl, session, (store, { created }) => {
+    await readModifyWrite(aclUri, session, (store, { created }) => {
       if (created) {
-        writeAuthorization(store, aclUrl, "ControlReadWrite", ownerWebId, {
+        writeAuthorization(store, aclUri, "ControlReadWrite", ownerWebId, {
           resourceUri,
           isContainer,
           modes: ["Read", "Write", "Control"],
         });
       }
-      writeAuthorization(store, aclUrl, authLabel, webId, {
+      writeAuthorization(store, aclUri, authLabel, webId, {
         resourceUri,
         isContainer,
         modes: ["Read"],
@@ -590,19 +590,19 @@ export async function grantReadAccess(
 }
 
 /**
- * Write a single WAC authorization (subject `<aclUrl>#<label>`) into the store,
+ * Write a single WAC authorization (subject `<aclUri>#<label>`) into the store,
  * first removing any prior triples for that subject so repeated writes are
  * idempotent (no duplicate or stale modes). `modes` are local ACL mode names
  * (`Read`/`Write`/`Control`), expanded against `ACL_NS`.
  */
 function writeAuthorization(
   store: Store,
-  aclUrl: string,
+  aclUri: string,
   label: string,
   agentWebId: string,
   opts: { resourceUri: string; isContainer: boolean; modes: string[] },
 ): void {
-  const subject = DataFactory.namedNode(`${aclUrl}#${label}`);
+  const subject = DataFactory.namedNode(`${aclUri}#${label}`);
   for (const q of store.getQuads(subject, null, null, null)) store.removeQuad(q);
   const add = (p: string, o: string) =>
     store.addQuad(subject, DataFactory.namedNode(p), DataFactory.namedNode(o));
@@ -621,7 +621,7 @@ function writeAuthorization(
  * @operation mutation
  */
 export async function shareAggregatedView(
-  snapshotUrl: string,
+  snapshotUri: string,
   webId: string,
   session: Session,
 ): Promise<void> {
@@ -632,14 +632,14 @@ export async function shareAggregatedView(
   // Log first (ground truth), then enforcement, then notify — the same ordering
   // rationale as shareBuildingData. The viewId is recoverable from the snapshot
   // URL (`views/snapshots/<viewId>.ttl`), so it isn't carried separately.
-  await recordViewSharing(snapshotUrl, webId, session);
-  await grantReadAccess(snapshotUrl, webId, session);
-  await postViewGrantToInbox(snapshotUrl, webId, session);
+  await recordViewSharing(snapshotUri, webId, session);
+  await grantReadAccess(snapshotUri, webId, session);
+  await postViewGrantToInbox(snapshotUri, webId, session);
 }
 
 /** Post an aggregated-view access grant (the shared-event shape) to the inbox. */
 async function postViewGrantToInbox(
-  snapshotUrl: string,
+  snapshotUri: string,
   webId: string,
   session: Session,
 ): Promise<void> {
@@ -647,7 +647,7 @@ async function postViewGrantToInbox(
     type: "grant",
     owner: session.info.webId!,
     grantee: webId,
-    resource: snapshotUrl,
+    resource: snapshotUri,
     kind: "View",
     at: new Date().toISOString(),
   });

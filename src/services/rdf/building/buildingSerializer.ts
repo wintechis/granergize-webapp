@@ -31,13 +31,13 @@ import {
 } from "../vocabularies.ts";
 import {
   type AnnualMetrics,
-  datasetFileUrl,
-  datasetNodeUrl,
+  datasetFileUri,
+  datasetNodeUri,
   type EnergyDataset,
   loadEnergyDatasets,
   serializeEnergyDataset,
-  seriesContainerUrl,
-  seriesDailyFileUrl,
+  seriesContainerUri,
+  seriesDailyFileUri,
 } from "../energyDataset.ts";
 import { isSeriesGranularity } from "../durationUtils.ts";
 import { getStorageRoot, podResources } from "../../pod/solidUtils.ts";
@@ -47,7 +47,7 @@ import { mapPooled } from "../../../lib/pool.ts";
 import { deleteContainerRecursive, listDirectChildren } from "../../pod/podDelete.ts";
 import { geocodeFields } from "../../geocode.ts";
 import { mintLocalIri } from "../rdfHelpers.ts";
-import { buildingFileUrl, mintBuildingSubject } from "./buildingId.ts";
+import { buildingFileUri, mintBuildingSubject } from "./buildingId.ts";
 import {
   generateEnergyDayTtl,
   type LastgangReading,
@@ -364,7 +364,7 @@ function addProvenance(
 export function serializeBuildingToTurtle(
   fields: Record<string, string>,
   buildingUri: string,
-  energyDatasetUrls?: string[],
+  energyDatasetUris?: string[],
   provenance?: { agent: string },
 ): string {
   const store = new Store();
@@ -397,7 +397,7 @@ export function serializeBuildingToTurtle(
 
   // Unified energy model: link each cons:EnergyDataset resource (written
   // separately by writeBuildingEnergy). One predicate, no inline observations.
-  for (const url of energyDatasetUrls ?? []) {
+  for (const url of energyDatasetUris ?? []) {
     store.addQuad(subject, namedNode(`${CONSUMPTION_NS}hasEnergyDataset`), namedNode(url));
   }
 
@@ -419,13 +419,13 @@ export async function writeEnergyYear(
   buildingSubjectUri: string,
   ds: EnergyDataset,
 ): Promise<void> {
-  const fileUrl = datasetFileUrl(
+  const fileUri = datasetFileUri(
     buildingFileUri,
     ds.year,
     ds.granularity,
     ds.scenario,
   );
-  const put = await session.fetch(fileUrl, {
+  const put = await session.fetch(fileUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: serializeEnergyDataset({ ...ds, building: buildingSubjectUri }),
@@ -434,7 +434,7 @@ export async function writeEnergyYear(
     throw new Error(`Failed to write energy dataset: ${put.status} ${put.statusText}`);
   }
 
-  const link = namedNode(datasetNodeUrl(fileUrl));
+  const link = namedNode(datasetNodeUri(fileUri));
   const subject = namedNode(buildingSubjectUri);
   const pred = namedNode(`${CONSUMPTION_NS}hasEnergyDataset`);
   await readModifyWrite(buildingFileUri, session, (store, { created }) => {
@@ -459,25 +459,25 @@ export async function deleteEnergyYear(
   buildingSubjectUri: string,
   ds: Pick<EnergyDataset, "year" | "granularity" | "scenario">,
 ): Promise<void> {
-  const fileUrl = datasetFileUrl(
+  const fileUri = datasetFileUri(
     buildingFileUri,
     ds.year,
     ds.granularity,
     ds.scenario,
   );
-  const del = await session.fetch(fileUrl, { method: "DELETE" });
+  const del = await session.fetch(fileUri, { method: "DELETE" });
   if (!del.ok && del.status !== 404) {
     throw new Error(
       `Failed to delete energy dataset: ${del.status} ${del.statusText}`,
     );
   }
   // Drop the now-orphaned per-resource ACL if it had one (best-effort).
-  await session.fetch(`${fileUrl}.acl`, { method: "DELETE" }).catch((err) =>
+  await session.fetch(`${fileUri}.acl`, { method: "DELETE" }).catch((err) =>
     logError("delete energy dataset ACL", err)
   );
 
   // Unlink it from the building file (skip the PUT when there's nothing to remove).
-  const link = namedNode(datasetNodeUrl(fileUrl));
+  const link = namedNode(datasetNodeUri(fileUri));
   const subject = namedNode(buildingSubjectUri);
   const pred = namedNode(`${CONSUMPTION_NS}hasEnergyDataset`);
   await readModifyWrite(buildingFileUri, session, (store, { created }) => {
@@ -607,13 +607,13 @@ export async function writeBuildingEnergy(
   };
 
   for (const ds of annualDatasetsFromFields(buildingSubjectUri, fields)) {
-    const fileUrl = datasetFileUrl(buildingUri, ds.year, ds.granularity, ds.scenario);
-    await putTtl(fileUrl, serializeEnergyDataset(ds));
-    links.push(datasetNodeUrl(fileUrl));
+    const fileUri = datasetFileUri(buildingUri, ds.year, ds.granularity, ds.scenario);
+    await putTtl(fileUri, serializeEnergyDataset(ds));
+    links.push(datasetNodeUri(fileUri));
   }
 
   if (series && series.days.length > 0) {
-    const container = seriesContainerUrl(buildingUri, series.year);
+    const container = seriesContainerUri(buildingUri, series.year);
     await ensureContainer(container, session);
     // A full year is ~365 daily files; write them with bounded concurrency.
     const total = series.days.length;
@@ -621,16 +621,16 @@ export async function writeBuildingEnergy(
     onProgress?.(0, total);
     await mapPooled(series.days, 8, async (day) => {
       signal?.throwIfAborted();
-      const dailyUrl = seriesDailyFileUrl(buildingUri, series.year, day.date);
+      const dailyUri = seriesDailyFileUri(buildingUri, series.year, day.date);
       await putTtl(
-        dailyUrl,
+        dailyUri,
         generateEnergyDayTtl(day.date, day.readings, buildingSubjectUri, series.label),
       );
       onProgress?.(++done, total);
     });
-    const descUrl = datasetFileUrl(buildingUri, series.year, "PT15M", "actual");
+    const descUri = datasetFileUri(buildingUri, series.year, "PT15M", "actual");
     await putTtl(
-      descUrl,
+      descUri,
       serializeEnergyDataset({
         building: buildingSubjectUri,
         year: series.year,
@@ -639,7 +639,7 @@ export async function writeBuildingEnergy(
         datasetLocation: container,
       }),
     );
-    links.push(datasetNodeUrl(descUrl));
+    links.push(datasetNodeUri(descUri));
   }
 
   return links;
@@ -735,9 +735,9 @@ export function newBuildingUri(webId: string, id: string): string {
 export async function deleteBuilding(
   session: Session,
   webId: string,
-  buildingFileUri: string,
+  buildingUri: string,
 ): Promise<void> {
-  const fileUri = buildingFileUrl(buildingFileUri);
+  const fileUri = buildingFileUri(buildingUri);
   if (!fileUri.startsWith(getStorageRoot(webId))) {
     throw new Error("Refusing to delete a building outside your own Pod");
   }
@@ -1076,8 +1076,8 @@ export async function seedDemoBuildings(
       );
       if (demo.planned) {
         // The extra planned (Soll) dataset — its own resource, like the actuals.
-        const fileUrl = datasetFileUrl(uri, demo.planned.year, "P1Y", "planned");
-        const put = await session.fetch(fileUrl, {
+        const fileUri = datasetFileUri(uri, demo.planned.year, "P1Y", "planned");
+        const put = await session.fetch(fileUri, {
           method: "PUT",
           headers: { "Content-Type": "text/turtle" },
           body: serializeEnergyDataset({
@@ -1090,10 +1090,10 @@ export async function seedDemoBuildings(
         });
         if (!put.ok) {
           throw new Error(
-            `Energy upload failed (${fileUrl}): ${put.status} ${put.statusText}`,
+            `Energy upload failed (${fileUri}): ${put.status} ${put.statusText}`,
           );
         }
-        energyLinks.push(datasetNodeUrl(fileUrl));
+        energyLinks.push(datasetNodeUri(fileUri));
       }
       const ttl = serializeBuildingToTurtle(fields, uri, energyLinks, {
         agent: webId,

@@ -88,7 +88,7 @@ export function ShareBuildingDialog({
   const shareError = share.error ? classifyQueryError(share.error).message : "";
 
   // Years the building has energy for (annual + series, both scenarios), so a
-  // single year-share grants every dataset for that year. getEnergyDataUrls then
+  // single year-share grants every dataset for that year. getEnergyDataUris then
   // filters the building's cons:hasEnergyDataset links by this selection.
   const availableYears = useMemo(
     () =>

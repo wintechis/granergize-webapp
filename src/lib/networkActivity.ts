@@ -188,7 +188,7 @@ const EXPIRY_CONFIRM_DELAY_MS = 1000;
  * from someone ELSE's Pod is an ordinary outcome (e.g. a share was revoked) and
  * must not count as session expiry. `false` until the storage root resolves.
  */
-function isOwnPodUrl(url: string | undefined, webId: string | undefined): boolean {
+function isOwnPodUri(url: string | undefined, webId: string | undefined): boolean {
   if (!url || !webId) return false;
   try {
     return url.startsWith(getStorageRoot(webId));
@@ -233,7 +233,7 @@ export function instrumentSessionFetch(
     let outcome: RequestOutcome | undefined;
     try {
       let res = await retrying(input, init);
-      if (res.status === 401 && isOwnPodUrl(inputUrl(input), session.info?.webId)) {
+      if (res.status === 401 && isOwnPodUri(inputUrl(input), session.info?.webId)) {
         // Confirm before declaring the session dead: wait out a possible
         // in-flight token refresh, then retry once (session.fetch signs with
         // the CURRENT token). A transient race recovers invisibly here.

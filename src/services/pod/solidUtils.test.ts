@@ -4,7 +4,7 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   APP_DIR,
   appRoot,
-  getPodBaseUrl,
+  getPodBaseUri,
   podResources,
   resolveStorageRoot,
   _setStorageRootForTesting,
@@ -84,8 +84,8 @@ Deno.test("resolveStorageRoot throws when the profile is unreachable", async () 
   await assert.rejects(() => resolveStorageRoot(session), /Cannot read WebID profile/);
 });
 
-Deno.test("getPodBaseUrl returns the WebID document's directory", () => {
-  assert.deepEqual(getPodBaseUrl(WEBID), "https://pod.example/profile/");
+Deno.test("getPodBaseUri returns the WebID document's directory", () => {
+  assert.deepEqual(getPodBaseUri(WEBID), "https://pod.example/profile/");
 });
 
 Deno.test("APP_DIR defaults to 'granergize' (no VITE override under deno test)", () => {

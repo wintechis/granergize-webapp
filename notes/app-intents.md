@@ -486,14 +486,13 @@ lives in the data-access layer (it references query-key families), holds
 pure data, and is the one structure the mutation hooks derive their
 `meta`/invalidations from and the drift test walks. Shown with the same
 share-building entry as the Turtle/ShEx draft, so the three artifacts can be
-compared. Every entry shown is now backed by an implemented hook
+compared. Each entry shown is backed by an implemented hook
 (`useShareBuilding`, `useSeedDemoBuildings`, `useRemoveAppData`, and the
 read-intents `useExportArchive`, `useAuditGrants` in `mutations.ts`) whose
 declared facts the entries mirror one-to-one — the action phrase,
 invalidation set, outcome shape, and abort-as-outcome execution are the
-hooks' actual behaviour, not speculation. What remains unbuilt is the table
-itself: today each hook hand-declares those facts, and the derive step
-below is the missing move.
+hooks' actual behaviour. The table itself is unbuilt: each hook hand-declares
+those facts, and the derive step below is the missing move.
 
     // src/hooks/intentTable.ts
     export const INT_NS = "https://solid.ti.rw.fau.de/gra/intent.ttl#";
@@ -720,10 +719,8 @@ Notes on the sketch:
 
 ## The boundary cases: demo seeding and remove-all
 
-The two account actions that long bypassed the mutation-hook layer — demo
-seeding and remove-all-app-data — are the most instructive entries in the
-table:
-each forced a dimension onto `IntentDef` that the dialog-shaped intents
+Demo seeding and remove-all-app-data are the most instructive entries in the
+table: each forces a dimension onto `IntentDef` that the dialog-shaped intents
 never needed. Both qualify as intents outright: nameable, user-decided,
 parameter-free verbs an Apple-style registry would list without hesitation
 (and whose quirks Apple's framework models first-class: destructive intents
@@ -766,12 +763,11 @@ support cancellation). Field by field:
   by `deletes` (a resource role, like `appendsTo`), keeping the
   storage-model taxonomy intact.
 
-That these two were long the two hand-rolled handlers was not a
-coincidence: they bypassed the hook layer because confirmation, progress,
-and tally outcomes don't fit the hook shape. They are folded in now
+These two carry extra fields precisely because confirmation, progress, and
+tally outcomes don't fit the plain hook shape. Both go through hooks
 (`useSeedDemoBuildings`, `useRemoveAppData` — the wipe on the established
 abort-as-outcome pattern, its settle clearing the entire cache), and the
-fold drew the line the fields above describe: the hook owns execution,
+split is the one the fields above describe: the hook owns execution,
 busy state, the central error toast, and the invalidation; the call site
 keeps exactly the confirmation (with its computed preview) and the
 progress surface. The remaining implementation question is whether the
@@ -856,13 +852,13 @@ needs — a state subscribes, the data layer decides when HTTP happens —
 which is the same write/read asymmetry recorded in § Where intents sit:
 intents on edges, queries on nodes.
 
-## Current state: half the abstraction, React-bound
+## Half the abstraction, React-bound
 
-How much of this exists today splits cleanly in two.
+How much of this exists splits cleanly in two.
 
-The **invariant half now holds in total**: every user-intent Pod write in
+The **invariant half holds in total**: every user-intent Pod write in
 the UI goes through a named mutation hook — including the account actions
-that were long the exceptions (§ The boundary cases). Beyond the writes,
+covered in § The boundary cases. Beyond the writes,
 the two user-invoked Pod *reads* (sharing audit, archive export) are
 reified the same way — **imperative read-intents** on the `useMutation`
 trigger primitive (`@operation query`, no invalidations): a category that

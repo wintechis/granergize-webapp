@@ -36,7 +36,7 @@ export function filesContainerFor(buildingFileUri: string): string {
 }
 
 /** A safe, collision-free file URL in `container` for `filename` (suffixes on clash). */
-async function uniqueFileUrl(
+async function uniqueFileUri(
   container: string,
   filename: string,
   session: Session,
@@ -76,7 +76,7 @@ export async function uploadAttachment(
   await ensureContainer(container.replace(/files\/$/, ""), session);
   await ensureContainer(container, session);
 
-  const { url, name } = await uniqueFileUrl(container, file.name, session);
+  const { url, name } = await uniqueFileUri(container, file.name, session);
   const mediaType = file.type || "application/octet-stream";
 
   const put = await session.fetch(url, {
@@ -121,18 +121,18 @@ export async function uploadAttachment(
 export async function deleteAttachment(
   buildingFileUri: string,
   subjectUri: string,
-  attachmentUrl: string,
+  attachmentUri: string,
   session: Session,
 ): Promise<void> {
   if (!session.info.isLoggedIn) throw new Error("User is not logged in");
 
-  const del = await session.fetch(attachmentUrl, { method: "DELETE" });
+  const del = await session.fetch(attachmentUri, { method: "DELETE" });
   if (!del.ok && del.status !== 404) {
-    throw new Error(`Failed to delete ${attachmentUrl}: HTTP ${del.status}`);
+    throw new Error(`Failed to delete ${attachmentUri}: HTTP ${del.status}`);
   }
 
   const subject = namedNode(subjectUri);
-  const fileNode = namedNode(attachmentUrl);
+  const fileNode = namedNode(attachmentUri);
   await readModifyWrite(buildingFileUri.split("#")[0], session, (store, { created }) => {
     if (created) return false; // nothing to clean
     store.removeQuads(
@@ -146,14 +146,14 @@ export async function deleteAttachment(
 }
 
 /**
- * Mark `attachmentUrl` as the building's energy certificate (or clear it when
- * `attachmentUrl` is null). Replaces any existing `bldg:hasEnergyCertificate`.
+ * Mark `attachmentUri` as the building's energy certificate (or clear it when
+ * `attachmentUri` is null). Replaces any existing `bldg:hasEnergyCertificate`.
  * @operation mutation
  */
 export async function setEnergyCertificate(
   buildingFileUri: string,
   subjectUri: string,
-  attachmentUrl: string | null,
+  attachmentUri: string | null,
   session: Session,
 ): Promise<void> {
   if (!session.info.isLoggedIn) throw new Error("User is not logged in");
@@ -162,7 +162,7 @@ export async function setEnergyCertificate(
   await readModifyWrite(buildingFileUri.split("#")[0], session, (store, { created }) => {
     if (created) throw new Error(`Building not found: ${buildingFileUri}`);
     store.removeQuads(store.getQuads(subject, pred, null, null));
-    if (attachmentUrl) store.addQuad(subject, pred, namedNode(attachmentUrl));
+    if (attachmentUri) store.addQuad(subject, pred, namedNode(attachmentUri));
   });
 }
 

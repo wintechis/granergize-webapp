@@ -11,8 +11,8 @@ The unified shape replaces what used to be three linking predicates
 `cons:hasEnergyMeasurementData`), two layouts (inline vs located), and two metric
 vocabularies (`investor:Annual…` vs `cons:…`). With one abstraction —
 "a building has an energy dataset for year Y at granularity G" — adding, editing, and
-sharing a single year all fall out uniformly, and there is one entry form for every
-role.
+sharing a single year all fall out uniformly, and there is one entry form regardless of
+who produced the data.
 
 ## Principles
 
@@ -115,8 +115,8 @@ container), so sharing exactly one year is granting its `.acl`, exactly like a b
 ## Entry / update / share in the UI
 
 - **One "Energy for year Y" form per building** (`EnergyYearDialog`); chosen granularity
-  drives the inputs (annual → metric figures; series → the Lastgang upload). Same for
-  every role, and available on edit since it's decoupled from building-create.
+  drives the inputs (annual → metric figures; series → the Lastgang upload). Same
+  regardless of producer, and available on edit since it's decoupled from building-create.
 - **Add / update a year** = create or replace one `…/energy/<year>-<g>.ttl`; the building
   file changes only in its `cons:hasEnergyDataset` link.
 - **Share a single year** = the share dialog lists the building's datasets; granting one

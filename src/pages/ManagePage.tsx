@@ -1,6 +1,6 @@
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import {
-  buildingFileUrl,
+  buildingFileUri,
   buildingIdStem,
 } from "../services/rdf/building/buildingId.ts";
 import { useMemo, useState } from "react";
@@ -42,7 +42,7 @@ import {
   useRevokeBuildingAccess,
   useRevokeViewAccess,
 } from "../hooks/mutations.ts";
-import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import { getSnapshotUri } from "../services/aggregation/viewManager.ts";
 import { attachAnnualData } from "../services/rdf/building/buildingSerializer.ts";
 import {
   buildingsToXlsx,
@@ -215,9 +215,9 @@ export default function ManagePage({ session }: ManagePageProps) {
     });
   };
 
-  const handleRevokeViewAccess = (snapshotUrl: string, webId: string) => {
+  const handleRevokeViewAccess = (snapshotUri: string, webId: string) => {
     if (!confirm(`Revoke view access for ${webId}?`)) return;
-    revokeView.mutate({ snapshotUrl, webId }, {
+    revokeView.mutate({ snapshotUri, webId }, {
       onSuccess: () => showNotification("View access revoked", "success"),
     });
   };
@@ -225,8 +225,8 @@ export default function ManagePage({ session }: ManagePageProps) {
   const getViewSharedWith = (viewId: string): string[] => {
     const webId = session.info.webId;
     if (!webId) return [];
-    const snapshotUrl = getSnapshotUrl(webId, viewId);
-    const shared = sharedViews.find((sv) => sv.snapshotUrl === snapshotUrl);
+    const snapshotUri = getSnapshotUri(webId, viewId);
+    const shared = sharedViews.find((sv) => sv.snapshotUri === snapshotUri);
     return shared?.sharedWith || [];
   };
 
@@ -281,7 +281,7 @@ export default function ManagePage({ session }: ManagePageProps) {
           : (
             <ul style={listStyle}>
               {buildingPaging.pageItems.map((b) => {
-                const fileUri = buildingFileUrl(b.sourceUri ?? b.uri);
+                const fileUri = buildingFileUri(b.sourceUri ?? b.uri);
                 const sharedWith = recipients[fileUri] ?? recipients[b.uri] ??
                   [];
                 const name = buildingDisplayName(b);
@@ -506,7 +506,7 @@ export default function ManagePage({ session }: ManagePageProps) {
                                   size="small"
                                   onClick={() =>
                                     handleRevokeViewAccess(
-                                      getSnapshotUrl(
+                                      getSnapshotUri(
                                         session.info.webId!,
                                         view.id,
                                       ),
@@ -515,8 +515,8 @@ export default function ManagePage({ session }: ManagePageProps) {
                                   title="Revoke access"
                                   aria-label="Revoke access"
                                   disabled={revokeView.isPending &&
-                                    revokeView.variables?.snapshotUrl ===
-                                      getSnapshotUrl(
+                                    revokeView.variables?.snapshotUri ===
+                                      getSnapshotUri(
                                         session.info.webId!,
                                         view.id,
                                       ) &&

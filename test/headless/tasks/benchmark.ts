@@ -36,7 +36,7 @@ import {
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
 import {
-  buildingFileUrl,
+  buildingFileUri,
   mintBuildingSubject,
 } from "../../../src/services/rdf/building/buildingId.ts";
 
@@ -99,7 +99,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     check(
       "C's contributor roster holds both shared buildings",
       [aUri, bUri].every((u) =>
-        buildingUris.some((x) => buildingFileUrl(x) === buildingFileUrl(u))
+        buildingUris.some((x) => buildingFileUri(x) === buildingFileUri(u))
       ),
       `roster=[${buildingUris.join(", ")}]`,
     );
@@ -121,7 +121,7 @@ export async function run(ctx: TaskContext): Promise<void> {
       { benchmark: true },
     );
     viewId = view.id;
-    const { snapshot: snap, snapshotUrl } = await computeAndStoreSnapshot(
+    const { snapshot: snap, snapshotUri } = await computeAndStoreSnapshot(
       c.session,
       view.id,
     );
@@ -137,7 +137,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     );
 
     // 5. C shares the benchmark snapshot back to contributor A.
-    await shareAggregatedView(snapshotUrl, a.webId, c.session);
+    await shareAggregatedView(snapshotUri, a.webId, c.session);
     await drainInbox(a.session); // archive the grant into A's shared-in/
 
     // 6. A reads the returned benchmark.

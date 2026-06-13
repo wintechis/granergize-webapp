@@ -25,7 +25,7 @@ import { drainInbox } from "../services/interop/inbox.ts";
 import {
   createViewDefinition,
   deleteView,
-  getSnapshotUrl,
+  getSnapshotUri,
 } from "../services/aggregation/viewManager.ts";
 import {
   computeAndStoreSnapshot,
@@ -61,8 +61,8 @@ import {
   createRoom,
   deleteRoom,
   exitRoom,
-  extractRoomUrl,
-  normalizeRoomUrl,
+  extractRoomUri,
+  normalizeRoomUri,
   openRoom,
   removeKnownRoom,
   roomExists,
@@ -219,7 +219,7 @@ export function useDeleteView() {
       const session = getSession();
       const webId = session.info.webId;
       if (webId) {
-        await revokeAllViewRecipients(getSnapshotUrl(webId, viewId), session);
+        await revokeAllViewRecipients(getSnapshotUri(webId, viewId), session);
       }
       await deleteView(session, viewId);
     },
@@ -247,8 +247,8 @@ export function useRefreshView() {
 export function useRevokeViewAccess() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ snapshotUrl, webId }: { snapshotUrl: string; webId: string }) =>
-      revokeViewAccess(snapshotUrl, webId, getSession()),
+    mutationFn: ({ snapshotUri, webId }: { snapshotUri: string; webId: string }) =>
+      revokeViewAccess(snapshotUri, webId, getSession()),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
@@ -498,10 +498,10 @@ export function useShareViewSnapshot(opts: { silent?: boolean } = {}) {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "share the view", silent: opts.silent },
-    mutationFn: async (vars: { snapshotUrl: string; recipients: string[] }) => {
+    mutationFn: async (vars: { snapshotUri: string; recipients: string[] }) => {
       const session = getSession();
       for (const recipient of vars.recipients) {
-        await shareAggregatedView(vars.snapshotUrl, recipient, session);
+        await shareAggregatedView(vars.snapshotUri, recipient, session);
       }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog }),
@@ -645,11 +645,11 @@ export function useSeedDemoRooms() {
 export function useEnterRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (roomUrl: string) => {
-      if (!(await openRoom(roomUrl, getSession()))) {
+    mutationFn: async (roomUri: string) => {
+      if (!(await openRoom(roomUri, getSession()))) {
         throw new Error("Data room is not reachable");
       }
-      return normalizeRoomUrl(extractRoomUrl(roomUrl));
+      return normalizeRoomUri(extractRoomUri(roomUri));
     },
     onSuccess: (room) =>
       patchRooms(qc, (reg) => ({ known: withRoom(reg.known, room), current: room })),
@@ -659,9 +659,9 @@ export function useEnterRoom() {
 export function useExitRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (roomUrl: string) => {
-      await exitRoom(roomUrl, getSession());
-      return normalizeRoomUrl(roomUrl);
+    mutationFn: async (roomUri: string) => {
+      await exitRoom(roomUri, getSession());
+      return normalizeRoomUri(roomUri);
     },
     onSuccess: (room) =>
       patchRooms(qc, (reg) => ({
@@ -675,11 +675,11 @@ export function useExitRoom() {
 export function useDeleteRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (roomUrl: string) => {
+    mutationFn: async (roomUri: string) => {
       const session = getSession();
-      await deleteRoom(roomUrl, session);
-      await removeKnownRoom(roomUrl, session);
-      return normalizeRoomUrl(roomUrl);
+      await deleteRoom(roomUri, session);
+      await removeKnownRoom(roomUri, session);
+      return normalizeRoomUri(roomUri);
     },
     onSuccess: (room) =>
       patchRooms(qc, (reg) => ({
@@ -695,12 +695,12 @@ export function useAddRoom() {
   return useMutation({
     mutationFn: async (input: string) => {
       const session = getSession();
-      const room = extractRoomUrl(input);
+      const room = extractRoomUri(input);
       if (!(await roomExists(room, session))) {
         throw new Error("Data room is not reachable");
       }
       await addKnownRoom(room, session);
-      return normalizeRoomUrl(room);
+      return normalizeRoomUri(room);
     },
     onSuccess: (room) =>
       patchRooms(qc, (reg) => ({ ...reg, known: withRoom(reg.known, room) })),
@@ -711,9 +711,9 @@ export function useAddRoom() {
 export function useRemoveBookmark() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (roomUrl: string) => {
-      await removeKnownRoom(roomUrl, getSession());
-      return normalizeRoomUrl(roomUrl);
+    mutationFn: async (roomUri: string) => {
+      await removeKnownRoom(roomUri, getSession());
+      return normalizeRoomUri(roomUri);
     },
     onSuccess: (room) =>
       patchRooms(qc, (reg) => ({

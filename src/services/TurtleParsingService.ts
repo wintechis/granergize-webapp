@@ -1,6 +1,6 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { parseBuildings } from "./rdf/building/buildingParser.ts";
-import { buildingFileUrl } from "./rdf/building/buildingId.ts";
+import { buildingFileUri } from "./rdf/building/buildingId.ts";
 import type {
   BuildingType,
   EnergyDatasetRef,
@@ -18,7 +18,7 @@ import {
   type ActiveGrant,
   appendSharingEvent,
   foldSharingLog,
-  sharedInUrl,
+  sharedInUri,
 } from "./interop/sharingLog.ts";
 import { isSeriesGranularity } from "./rdf/durationUtils.ts";
 
@@ -152,7 +152,7 @@ async function removeInaccessibleBuildingSources(
 ): Promise<void> {
   const webId = session.info.webId;
   if (!webId) return;
-  const sharedIn = sharedInUrl(webId);
+  const sharedIn = sharedInUri(webId);
   const at = new Date().toISOString();
   for (const failed of failedSources) {
     try {
@@ -253,7 +253,7 @@ export async function loadBuildings(
   // Filter out hidden buildings and mark shared buildings.
   const visibleBuildings = new Map<string, BuildingType>();
   for (const [buildingId, building] of buildings) {
-    if (!hiddenBuildingUris.has(buildingFileUrl(building.uri))) {
+    if (!hiddenBuildingUris.has(buildingFileUri(building.uri))) {
       // Ownership = whether the source file lives under the user's storage root.
       const sourceForOwnershipCheck = building.sourceUri || building.uri;
       building.isShared = !sourceForOwnershipCheck.startsWith(storageRoot);
@@ -320,11 +320,11 @@ export async function loadEnergy(
       // showing "no energy data" (and dropping out of the map's peer terciles).
       for (const ref of refs) {
         try {
-          const fileUrl = buildingFileUrl(ref.url);
-          const res = await fetchFresh(fileUrl, session);
+          const fileUri = buildingFileUri(ref.url);
+          const res = await fetchFresh(fileUri, session);
           if (!res.ok) continue;
           const store = new Store(
-            new Parser({ baseIRI: fileUrl }).parse(await res.text()),
+            new Parser({ baseIRI: fileUri }).parse(await res.text()),
           );
           const ds = parseEnergyDataset(store, ref.url);
           if (ds?.metrics) return { building, metrics: ds.metrics, year: ref.year };
@@ -442,7 +442,7 @@ export async function listSharedBuildingSources(
   webId: string,
 ): Promise<string[]> {
   try {
-    const grants = await foldSharingLog(sharedInUrl(webId), session);
+    const grants = await foldSharingLog(sharedInUri(webId), session);
     return sharedBuildingSourcesFromGrants(grants);
   } catch (error) {
     console.error("Error loading shared building sources:", error);

@@ -82,25 +82,25 @@ Deno.test("uploadAttachment stores the binary and links it with metadata", async
   const ref = await uploadAttachment(FILE, SUBJECT, newFile("report.pdf"), session);
 
   const container = filesContainerFor(FILE);
-  const expectedUrl = `${container}report.pdf`;
-  assert.equal(ref.url, expectedUrl);
+  const expectedUri = `${container}report.pdf`;
+  assert.equal(ref.url, expectedUri);
   assert.equal(ref.filename, "report.pdf");
   assert.equal(ref.mediaType, "application/pdf");
   assert.equal(ref.size, 5);
   // Binary stored, and the container was provisioned.
-  assert.ok(store.has(expectedUrl), "binary PUT to files/");
+  assert.ok(store.has(expectedUri), "binary PUT to files/");
   assert.ok(store.has(container), "files/ container provisioned");
 
   const g = parse(store.get(FILE)!);
   assert.equal(
     g.getObjects(SUBJECT, GRAN_HAS_ATTACHMENT, null)[0]?.value,
-    expectedUrl,
+    expectedUri,
     "bldg:hasAttachment link",
   );
-  assert.equal(g.getObjects(expectedUrl, SCHEMA_NAME, null)[0]?.value, "report.pdf");
-  assert.equal(g.getObjects(expectedUrl, SCHEMA_CONTENT_SIZE, null)[0]?.value, "5");
+  assert.equal(g.getObjects(expectedUri, SCHEMA_NAME, null)[0]?.value, "report.pdf");
+  assert.equal(g.getObjects(expectedUri, SCHEMA_CONTENT_SIZE, null)[0]?.value, "5");
   assert.ok(
-    g.getObjects(expectedUrl, DCTERMS_CREATED, null)[0]?.value,
+    g.getObjects(expectedUri, DCTERMS_CREATED, null)[0]?.value,
     "dcterms:created set",
   );
 });

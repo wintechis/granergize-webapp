@@ -9,8 +9,8 @@ import {
 import { resolveStorageRoot } from "../services/pod/solidUtils.ts";
 import {
   foldSharingLog,
-  sharedInUrl,
-  sharedOutUrl,
+  sharedInUri,
+  sharedOutUri,
 } from "../services/interop/sharingLog.ts";
 import {
   receivedViewsFromGrants,
@@ -72,7 +72,7 @@ export function useSharedInGrants() {
   return useQuery({
     queryKey: [...queryKeys.sharedInLog, webId],
     enabled: Boolean(webId),
-    queryFn: () => foldSharingLog(sharedInUrl(webId as string), getSession()),
+    queryFn: () => foldSharingLog(sharedInUri(webId as string), getSession()),
   });
 }
 
@@ -83,7 +83,7 @@ export function useSharedOutGrants() {
   return useQuery({
     queryKey: [...queryKeys.sharedOutLog, webId],
     enabled: Boolean(webId),
-    queryFn: () => foldSharingLog(sharedOutUrl(webId as string), getSession()),
+    queryFn: () => foldSharingLog(sharedOutUri(webId as string), getSession()),
   });
 }
 
@@ -332,7 +332,7 @@ export function useReceivedBenchmarks() {
     () => (log.data ? receivedViewsFromGrants(log.data) : undefined),
     [log.data],
   );
-  const fingerprint = (received ?? []).map((r) => r.snapshotUrl).sort().join(";");
+  const fingerprint = (received ?? []).map((r) => r.snapshotUri).sort().join(";");
   return useQuery({
     queryKey: [...queryKeys.receivedBenchmarks, webId, fingerprint],
     enabled: Boolean(webId) && received !== undefined,

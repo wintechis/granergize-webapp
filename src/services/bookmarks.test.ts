@@ -3,7 +3,7 @@ import { strict as assert } from "node:assert";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
 import {
   addBookmark,
-  bookmarksUrl,
+  bookmarksUri,
   readBookmarks,
   removeBookmark,
 } from "./bookmarks.ts";
@@ -11,7 +11,7 @@ import { makeFakeSession } from "./testing/fakeSession.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");
-const BOOKMARKS = bookmarksUrl(WEBID);
+const BOOKMARKS = bookmarksUri(WEBID);
 const A = "https://pod.example/granergize/rooms/aaaa/";
 const B = "https://carol.example/granergize/rooms/bbbb/";
 

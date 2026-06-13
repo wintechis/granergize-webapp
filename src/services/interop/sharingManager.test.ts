@@ -4,8 +4,8 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 import {
   appendSharingEvent,
-  sharedInUrl,
-  sharedOutUrl,
+  sharedInUri,
+  sharedOutUri,
 } from "./sharingLog.ts";
 import {
   getReceivedViews,
@@ -95,7 +95,7 @@ function makePod(): { session: Session; store: Record<string, string> } {
 
 Deno.test("getSharedWithMe folds shared-in/ Building grants (sharer + visible)", async () => {
   const { session } = makePod();
-  await appendSharingEvent(sharedInUrl(WEBID), session, {
+  await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "grant", owner: ALICE, grantee: WEBID, resource: SHARED_B,
     kind: "Building", at: "2026-06-04T10:00:00Z",
   });
@@ -110,7 +110,7 @@ Deno.test("getSharedWithMe folds shared-in/ Building grants (sharer + visible)",
 
 Deno.test("getSharedWithMe ignores View grants in shared-in/", async () => {
   const { session } = makePod();
-  await appendSharingEvent(sharedInUrl(WEBID), session, {
+  await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "grant", owner: ALICE, grantee: WEBID, resource: SNAP,
     kind: "View", at: "2026-06-04T10:00:00Z",
   });
@@ -158,14 +158,14 @@ Deno.test("revokeAllBuildingRecipients revokes + notifies every grantee (for bui
 
 Deno.test("getSharedViews folds shared-out/ View grants and recovers the viewId", async () => {
   const { session } = makePod();
-  await appendSharingEvent(sharedOutUrl(WEBID), session, {
+  await appendSharingEvent(sharedOutUri(WEBID), session, {
     type: "grant", owner: WEBID, grantee: BOB, resource: SNAP,
     kind: "View", at: "2026-06-04T10:00:00Z",
   });
 
   const views = await getSharedViews(session);
   assert.equal(views.length, 1);
-  assert.equal(views[0].snapshotUrl, SNAP);
+  assert.equal(views[0].snapshotUri, SNAP);
   assert.equal(views[0].viewId, "view-1-abc");
   assert.deepEqual(views[0].sharedWith, [BOB]);
 });
@@ -176,30 +176,30 @@ const ALICE_SNAP =
 Deno.test("getReceivedViews folds shared-in/ View grants (snapshot + sharer)", async () => {
   const { session } = makePod();
   // A View grant received from Alice…
-  await appendSharingEvent(sharedInUrl(WEBID), session, {
+  await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "grant", owner: ALICE, grantee: WEBID, resource: ALICE_SNAP,
     kind: "View", at: "2026-06-04T10:00:00Z",
   });
   // …and a Building grant that must NOT show up among received views.
-  await appendSharingEvent(sharedInUrl(WEBID), session, {
+  await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "grant", owner: ALICE, grantee: WEBID, resource: SHARED_B,
     kind: "Building", at: "2026-06-04T10:01:00Z",
   });
 
   const views = await getReceivedViews(session);
   assert.equal(views.length, 1);
-  assert.equal(views[0].snapshotUrl, ALICE_SNAP);
+  assert.equal(views[0].snapshotUri, ALICE_SNAP);
   assert.equal(views[0].viewId, "view-7-xyz");
   assert.equal(views[0].sharedBy, ALICE);
 });
 
 Deno.test("getReceivedViews drops a view once its grant is revoked", async () => {
   const { session } = makePod();
-  await appendSharingEvent(sharedInUrl(WEBID), session, {
+  await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "grant", owner: ALICE, grantee: WEBID, resource: ALICE_SNAP,
     kind: "View", at: "2026-06-04T10:00:00Z",
   });
-  await appendSharingEvent(sharedInUrl(WEBID), session, {
+  await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "revocation", owner: ALICE, grantee: WEBID, resource: ALICE_SNAP,
     at: "2026-06-04T11:00:00Z",
   });
@@ -209,7 +209,7 @@ Deno.test("getReceivedViews drops a view once its grant is revoked", async () =>
 Deno.test("revokeViewAccess posts an AccessRevocation to the recipient's inbox", async () => {
   const { session, store } = makePod();
   const BOB_INBOX = "https://bob.example/granergize/inbox/";
-  // Seed BOB's WebID profile with pim:storage so getRecipientInboxUrl resolves
+  // Seed BOB's WebID profile with pim:storage so getRecipientInboxUri resolves
   // BOB's storage root → granergize/ inbox (by convention; the fake granergize
   // container carries no ldp:inbox).
   store["https://bob.example/profile/card"] =

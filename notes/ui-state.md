@@ -6,15 +6,25 @@ shareable as a link. The rest is *ephemeral* — transient interaction state (bu
 flags, menu anchors, form drafts, in-flight data) with no value beyond the moment.
 
 Navigational state is encoded in the home route's hash query params; ephemeral
-state stays in React component state. This note is the inventory the encoding works
-from, and the one place the scheme is written down so increments stay consistent.
+state stays in React component state. These are the two UI-owned tiers of the
+app's wider state taxonomy (cache, Pod-persistent prefs, module stores — see
+[`architecture.md`](./architecture.md) §The render cycle). This note is the
+inventory the encoding works from, and the one place the scheme is written down so
+increments stay consistent.
 
 ## Routing today
 
 Routing is a `HashRouter` (`src/App.tsx`). The home screen is `#/`; the standalone
-full-page routes — `#/building/:id`, `#/energy/:id`, `#/view/:id`, `#/room/:uri`,
-`#/contact/:webId` — live in the hash. The home tabs and everything inside them are
-not in the address, so without the encoding below a reload resets them.
+full-page routes live in the hash:
+
+- `#/building/:id` — a building's master data
+- `#/energy/:id` — a building's energy data
+- `#/view/:id` — an aggregated view
+- `#/room/:uri` — a data-room deep link (records the room as active, lands on Connect)
+- `#/contact/:webId` — a contact
+
+The home tabs and everything inside them are not in the address, so without the
+encoding below a reload resets them.
 
 A reload does **not** trivially preserve the hash: the Solid auth library restores
 the session via a *silent redirect* through the identity provider, which drops the

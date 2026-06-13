@@ -65,7 +65,7 @@ const IRI_TO_ROLE = IRI_TO_MEMBERSHIP_ROLE;
 // A role event therefore does NOT make you a member: you must post an as:Join.
 
 /** Normalise a room URL to its canonical LDP-container form (trailing "/"). */
-export function normalizeRoomUrl(url: string): string {
+export function normalizeRoomUri(url: string): string {
   return url.endsWith("/") ? url : `${url}/`;
 }
 
@@ -161,10 +161,10 @@ export async function hydrateActiveRoom(
  * @operation mutation
  */
 export async function addKnownRoom(
-  roomUrl: string,
+  roomUri: string,
   session: Session,
 ): Promise<void> {
-  await addBookmark(session, normalizeRoomUrl(roomUrl));
+  await addBookmark(session, normalizeRoomUri(roomUri));
 }
 
 /**
@@ -172,10 +172,10 @@ export async function addKnownRoom(
  * @operation mutation
  */
 export async function removeKnownRoom(
-  roomUrl: string,
+  roomUri: string,
   session: Session,
 ): Promise<void> {
-  const room = normalizeRoomUrl(roomUrl);
+  const room = normalizeRoomUri(roomUri);
   await removeBookmark(session, room);
   if ((await getCurrentRoom(session)) === room) {
     await setCurrentRoom(session, null);
@@ -189,10 +189,10 @@ export async function removeKnownRoom(
  * @operation mutation
  */
 export async function enterRoom(
-  roomUrl: string,
+  roomUri: string,
   session: Session,
 ): Promise<void> {
-  const room = normalizeRoomUrl(roomUrl);
+  const room = normalizeRoomUri(roomUri);
   const previous = await getCurrentRoom(session);
   if (previous && previous !== room) {
     // Best-effort: leaving the previous room must not block joining the new one.
@@ -218,10 +218,10 @@ export async function enterRoom(
  * @operation mutation
  */
 export async function exitRoom(
-  roomUrl: string,
+  roomUri: string,
   session: Session,
 ): Promise<void> {
-  const room = normalizeRoomUrl(roomUrl);
+  const room = normalizeRoomUri(roomUri);
   await setMembership(room, false, session);
   if ((await getCurrentRoom(session)) === room) {
     await setCurrentRoom(session, null);
@@ -230,15 +230,15 @@ export async function exitRoom(
 }
 
 /**
- * Whether `roomUrl` resolves to a reachable resource (used to validate input).
+ * Whether `roomUri` resolves to a reachable resource (used to validate input).
  * @operation query
  */
 export async function roomExists(
-  roomUrl: string,
+  roomUri: string,
   session: Session,
 ): Promise<boolean> {
   try {
-    const res = await session.fetch(normalizeRoomUrl(roomUrl), {
+    const res = await session.fetch(normalizeRoomUri(roomUri), {
       method: "GET",
       headers: { Accept: "text/turtle" },
     });
@@ -254,10 +254,10 @@ export async function roomExists(
  * of the form `…#/room/<url-encoded-room-uri>` (what the room QR encodes). Returns
  * the normalized container URL.
  */
-export function extractRoomUrl(input: string): string {
+export function extractRoomUri(input: string): string {
   const trimmed = input.trim();
   const match = trimmed.match(/#\/room\/([^?&#]+)/);
-  return normalizeRoomUrl(match ? decodeURIComponent(match[1]) : trimmed);
+  return normalizeRoomUri(match ? decodeURIComponent(match[1]) : trimmed);
 }
 
 /**
@@ -270,7 +270,7 @@ export async function openRoom(
   input: string,
   session: Session,
 ): Promise<boolean> {
-  const room = extractRoomUrl(input);
+  const room = extractRoomUri(input);
   if (!(await roomExists(room, session))) return false;
   await enterRoom(room, session);
   return true;
@@ -299,23 +299,23 @@ interface MembershipEvent {
  * independent streams (membership and role assignment) in a single pass.
  */
 async function readLog(
-  roomUrl: string,
+  roomUri: string,
   session: Session,
 ): Promise<{ roleEvents: RoleEvent[]; membershipEvents: MembershipEvent[] }> {
-  const containerUrl = normalizeRoomUrl(roomUrl);
+  const containerUri = normalizeRoomUri(roomUri);
   // fetchFresh bypasses caches so we always read the current container listing;
   // baseIRI below stays canonical (the cache-buster is only on the request URL).
-  const response = await fetchFresh(containerUrl, session);
+  const response = await fetchFresh(containerUri, session);
   if (!response.ok) {
     if (response.status === 404) return { roleEvents: [], membershipEvents: [] };
     throw new Error(`Failed to load data room log (HTTP ${response.status})`);
   }
 
   const listing = new Store(
-    new Parser({ baseIRI: containerUrl }).parse(await response.text()),
+    new Parser({ baseIRI: containerUri }).parse(await response.text()),
   );
-  const eventUrls = listing.getObjects(
-    namedNode(containerUrl),
+  const eventUris = listing.getObjects(
+    namedNode(containerUri),
     LDP_CONTAINS,
     null,
   ).map((o) => o.value);
@@ -323,7 +323,7 @@ async function readLog(
   // Bounded concurrency, not Promise.all: reading every event at once is a burst
   // that Cloudflare answers with 429s (opaque CORS errors in the browser). A small
   // pool keeps each wave under the rate limit. See utils/pool.ts.
-  const parsed = await mapPooled(eventUrls, 4, async (url) => {
+  const parsed = await mapPooled(eventUris, 4, async (url) => {
     const store = await readStoreOrEmpty(url, session);
 
     // Membership: as:Join / as:Leave.
@@ -411,7 +411,7 @@ export async function getRoomLogState(
   room: string,
 ): Promise<{ members: DataRoomMember[]; myRoles: UserRole[]; myMembership: boolean }> {
   const webId = session.info.webId ?? null;
-  const log = await readLog(normalizeRoomUrl(room), session);
+  const log = await readLog(normalizeRoomUri(room), session);
   return deriveState(log, webId);
 }
 
@@ -422,15 +422,15 @@ export async function getRoomLogState(
  * @operation query
  */
 export async function getMembers(
-  roomUrl: string | null,
+  roomUri: string | null,
   session: Session,
 ): Promise<DataRoomMember[]> {
-  if (!roomUrl) return [];
-  return deriveState(await readLog(roomUrl, session), null).members;
+  if (!roomUri) return [];
+  return deriveState(await readLog(roomUri, session), null).members;
 }
 
 /**
- * Resolve a role to the WebIDs of all members of `roomUrl` holding that role,
+ * Resolve a role to the WebIDs of all members of `roomUri` holding that role,
  * EXCLUDING the logged-in user. Used to pick share recipients, and sharing a
  * resource to yourself is meaningless — and harmful: a self-grant writes a
  * recipient authorization carrying the owner's own `acl:agent`, which a later
@@ -439,11 +439,11 @@ export async function getMembers(
  * @operation query
  */
 export async function getMembersByRole(
-  roomUrl: string | null,
+  roomUri: string | null,
   role: UserRole,
   session: Session,
 ): Promise<string[]> {
-  const members = await getMembers(roomUrl, session);
+  const members = await getMembers(roomUri, session);
   const me = session.info.webId;
   return members
     .filter((m) => m.roles.includes(role) && m.webId !== me)
@@ -451,31 +451,31 @@ export async function getMembersByRole(
 }
 
 /**
- * The roles the logged-in user has self-assigned in `roomUrl`. Independent of
+ * The roles the logged-in user has self-assigned in `roomUri`. Independent of
  * membership — reflects the role stream only, so it can be non-empty for someone
  * who has left, or empty for a current member.
  * @operation query
  */
 export async function getMyRole(
-  roomUrl: string | null,
+  roomUri: string | null,
   session: Session,
 ): Promise<UserRole[]> {
   const webId = session.info.webId;
-  if (!roomUrl || !webId) return [];
-  return deriveState(await readLog(roomUrl, session), webId).myRoles;
+  if (!roomUri || !webId) return [];
+  return deriveState(await readLog(roomUri, session), webId).myRoles;
 }
 
 /**
- * Whether the logged-in user is currently a member of `roomUrl`.
+ * Whether the logged-in user is currently a member of `roomUri`.
  * @operation query
  */
 export async function getMyMembership(
-  roomUrl: string | null,
+  roomUri: string | null,
   session: Session,
 ): Promise<boolean> {
   const webId = session.info.webId;
-  if (!roomUrl || !webId) return false;
-  return deriveState(await readLog(roomUrl, session), webId).myMembership;
+  if (!roomUri || !webId) return false;
+  return deriveState(await readLog(roomUri, session), webId).myMembership;
 }
 
 /**
@@ -484,11 +484,11 @@ export async function getMyMembership(
  * log container, so it's safe under concurrent saves by other members.
  */
 async function postEvent(
-  roomUrl: string,
+  roomUri: string,
   store: Store,
   session: Session,
 ): Promise<void> {
-  const containerUrl = normalizeRoomUrl(roomUrl);
+  const containerUri = normalizeRoomUri(roomUri);
   const body = await toTurtle(store, {
     as: AS_NS,
     sioc: SIOC_NS,
@@ -496,13 +496,13 @@ async function postEvent(
     xsd: "http://www.w3.org/2001/XMLSchema#",
   });
 
-  await ensureContainer(containerUrl, session);
+  await ensureContainer(containerUri, session);
 
-  await appendToContainer(containerUrl, body, session, {
+  await appendToContainer(containerUri, body, session, {
     describeError: (res) =>
       res.status === 401 || res.status === 403
         ? `You don't have permission to write to the data room (HTTP ${res.status}). ` +
-          `Its owner must grant append access to ${containerUrl}.`
+          `Its owner must grant append access to ${containerUri}.`
         : `Failed to append to data room log (HTTP ${res.status})`,
   });
 }
@@ -514,7 +514,7 @@ async function postEvent(
  * @operation mutation
  */
 export async function setMyRole(
-  roomUrl: string,
+  roomUri: string,
   roles: UserRole[],
   session: Session,
 ): Promise<void> {
@@ -526,7 +526,7 @@ export async function setMyRole(
   const store = new Store();
   store.addQuad(event, RDF_TYPE_NODE, AS_UPDATE);
   store.addQuad(event, AS_ACTOR, namedNode(webId));
-  store.addQuad(event, AS_OBJECT, namedNode(normalizeRoomUrl(roomUrl)));
+  store.addQuad(event, AS_OBJECT, namedNode(normalizeRoomUri(roomUri)));
   store.addQuad(
     event,
     AS_PUBLISHED,
@@ -535,15 +535,15 @@ export async function setMyRole(
   for (const role of roles) {
     store.addQuad(event, SIOC_HAS_FUNCTION, namedNode(MEMBERSHIP_ROLE_TO_IRI[role]));
   }
-  await postEvent(roomUrl, store, session);
+  await postEvent(roomUri, store, session);
 }
 
 /**
- * Append a membership event (joined/left) to `roomUrl`.
+ * Append a membership event (joined/left) to `roomUri`.
  * @operation mutation
  */
 async function setMembership(
-  roomUrl: string,
+  roomUri: string,
   joined: boolean,
   session: Session,
 ): Promise<void> {
@@ -553,29 +553,29 @@ async function setMembership(
   const store = new Store();
   store.addQuad(event, RDF_TYPE_NODE, joined ? AS_JOIN : AS_LEAVE);
   store.addQuad(event, AS_ACTOR, namedNode(webId));
-  store.addQuad(event, AS_OBJECT, namedNode(normalizeRoomUrl(roomUrl)));
+  store.addQuad(event, AS_OBJECT, namedNode(normalizeRoomUri(roomUri)));
   store.addQuad(
     event,
     AS_PUBLISHED,
     literal(new Date().toISOString(), namedNode(XSD_DATETIME)),
   );
-  await postEvent(roomUrl, store, session);
+  await postEvent(roomUri, store, session);
 }
 
 /**
- * Add the logged-in user to `roomUrl` (no role required).
+ * Add the logged-in user to `roomUri` (no role required).
  * @operation mutation
  */
-export function joinRoom(roomUrl: string, session: Session): Promise<void> {
-  return setMembership(roomUrl, true, session);
+export function joinRoom(roomUri: string, session: Session): Promise<void> {
+  return setMembership(roomUri, true, session);
 }
 
 /**
- * Remove the logged-in user from `roomUrl` (leaves role history intact).
+ * Remove the logged-in user from `roomUri` (leaves role history intact).
  * @operation mutation
  */
-export function leaveRoom(roomUrl: string, session: Session): Promise<void> {
-  return setMembership(roomUrl, false, session);
+export function leaveRoom(roomUri: string, session: Session): Promise<void> {
+  return setMembership(roomUri, false, session);
 }
 
 /**
@@ -594,51 +594,51 @@ export async function createRoom(session: Session): Promise<string> {
   // is then created quietly (it's nested, not a top-level granergize folder).
   await ensureContainer(`${appRoot(webId)}rooms/`, session, { announce: true });
 
-  const roomUrl = normalizeRoomUrl(
+  const roomUri = normalizeRoomUri(
     `${appRoot(webId)}rooms/${crypto.randomUUID()}`,
   );
 
-  await ensureContainer(roomUrl, session);
+  await ensureContainer(roomUri, session);
 
   // Write the room ACL the same way the rest of the app does (a direct
   // <container>.acl PUT with full-IRI triples — see share.ts grantReadAccess):
   // owner gets control; any authenticated agent may read the log and append
   // events, so anyone can self-join. acl:default propagates to the child events.
-  const aclUrl = `${roomUrl}.acl`;
+  const aclUri = `${roomUri}.acl`;
   const aclBody = [
-    `<${aclUrl}#owner> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
-    `<${aclUrl}#owner> <${ACL_NS}agent> <${webId}> .`,
-    `<${aclUrl}#owner> <${ACL_NS}accessTo> <${roomUrl}> .`,
-    `<${aclUrl}#owner> <${ACL_NS}default> <${roomUrl}> .`,
-    `<${aclUrl}#owner> <${ACL_NS}mode> <${ACL_NS}Read> .`,
-    `<${aclUrl}#owner> <${ACL_NS}mode> <${ACL_NS}Write> .`,
-    `<${aclUrl}#owner> <${ACL_NS}mode> <${ACL_NS}Control> .`,
-    `<${aclUrl}#members> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
-    `<${aclUrl}#members> <${ACL_NS}agentClass> <${ACL_NS}AuthenticatedAgent> .`,
-    `<${aclUrl}#members> <${ACL_NS}accessTo> <${roomUrl}> .`,
-    `<${aclUrl}#members> <${ACL_NS}default> <${roomUrl}> .`,
-    `<${aclUrl}#members> <${ACL_NS}mode> <${ACL_NS}Read> .`,
-    `<${aclUrl}#members> <${ACL_NS}mode> <${ACL_NS}Append> .`,
+    `<${aclUri}#owner> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
+    `<${aclUri}#owner> <${ACL_NS}agent> <${webId}> .`,
+    `<${aclUri}#owner> <${ACL_NS}accessTo> <${roomUri}> .`,
+    `<${aclUri}#owner> <${ACL_NS}default> <${roomUri}> .`,
+    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Read> .`,
+    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Write> .`,
+    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Control> .`,
+    `<${aclUri}#members> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
+    `<${aclUri}#members> <${ACL_NS}agentClass> <${ACL_NS}AuthenticatedAgent> .`,
+    `<${aclUri}#members> <${ACL_NS}accessTo> <${roomUri}> .`,
+    `<${aclUri}#members> <${ACL_NS}default> <${roomUri}> .`,
+    `<${aclUri}#members> <${ACL_NS}mode> <${ACL_NS}Read> .`,
+    `<${aclUri}#members> <${ACL_NS}mode> <${ACL_NS}Append> .`,
   ].join("\n") + "\n";
 
-  const res = await putAcl(aclUrl, aclBody, session);
+  const res = await putAcl(aclUri, aclBody, session);
   if (!res.ok) {
     throw new Error(
       `Created the room but failed to set its permissions (HTTP ${res.status}). ` +
-        `Others may be unable to join until ${aclUrl} grants append access.`,
+        `Others may be unable to join until ${aclUri} grants append access.`,
     );
   }
 
   // The creator owns the room — enter it (join, bookmark, make current).
-  await enterRoom(roomUrl, session);
-  return roomUrl;
+  await enterRoom(roomUri, session);
+  return roomUri;
 }
 
-/** Whether the logged-in user owns `roomUrl` (it lives under their own storage). */
-export function ownsRoom(roomUrl: string, session: Session): boolean {
+/** Whether the logged-in user owns `roomUri` (it lives under their own storage). */
+export function ownsRoom(roomUri: string, session: Session): boolean {
   const webId = session.info.webId;
   return Boolean(webId) &&
-    normalizeRoomUrl(roomUrl).startsWith(getStorageRoot(webId!));
+    normalizeRoomUri(roomUri).startsWith(getStorageRoot(webId!));
 }
 
 /**
@@ -647,10 +647,10 @@ export function ownsRoom(roomUrl: string, session: Session): boolean {
  * @operation mutation
  */
 export async function deleteRoom(
-  roomUrl: string,
+  roomUri: string,
   session: Session,
 ): Promise<void> {
-  const container = normalizeRoomUrl(roomUrl);
+  const container = normalizeRoomUri(roomUri);
   const store = await readStoreOrEmpty(container, session);
   const children = store.getObjects(namedNode(container), LDP_CONTAINS, null)
     .map((o) => o.value);

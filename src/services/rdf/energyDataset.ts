@@ -9,7 +9,7 @@ import {
   UNIT_NS,
 } from "./vocabularies.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
-import { buildingFileUrl } from "./building/buildingId.ts";
+import { buildingFileUri } from "./building/buildingId.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import { logError } from "../../lib/logError.ts";
 
@@ -117,41 +117,41 @@ export function datasetSlug(
 }
 
 /** `…/buildings/<id>/energy/<slug>.ttl` — the dataset resource URL. */
-export function datasetFileUrl(
+export function datasetFileUri(
   buildingUri: string,
   year: number,
   granularity: string,
   scenario: Scenario,
 ): string {
-  const base = buildingFileUrl(buildingUri).replace(/\.ttl$/, "");
+  const base = buildingFileUri(buildingUri).replace(/\.ttl$/, "");
   return `${base}/energy/${datasetSlug(year, granularity, scenario)}.ttl`;
 }
 
 /** The dataset's subject node URL (`<file>#ds`). */
-export function datasetNodeUrl(fileUrl: string): string {
-  return `${fileUrl}#ds`;
+export function datasetNodeUri(fileUri: string): string {
+  return `${fileUri}#ds`;
 }
 
 /** A series dataset's daily-files container (`…/energy/<year>-PT15M/`). */
-export function seriesContainerUrl(
+export function seriesContainerUri(
   buildingUri: string,
   year: number,
   scenario: Scenario = "actual",
 ): string {
-  return datasetFileUrl(buildingUri, year, "PT15M", scenario).replace(
+  return datasetFileUri(buildingUri, year, "PT15M", scenario).replace(
     /\.ttl$/,
     "/",
   );
 }
 
 /** One daily reading file inside a series container (`…/<year>-PT15M/<date>.ttl`). */
-export function seriesDailyFileUrl(
+export function seriesDailyFileUri(
   buildingUri: string,
   year: number,
   date: string,
   scenario: Scenario = "actual",
 ): string {
-  return `${seriesContainerUrl(buildingUri, year, scenario)}${date}.ttl`;
+  return `${seriesContainerUri(buildingUri, year, scenario)}${date}.ttl`;
 }
 
 /**
@@ -180,8 +180,8 @@ export async function listSeriesDays(
  * by parsing its slug — so phase-1 needn't fetch each dataset. Returns null if
  * the slug isn't the expected `<year>-<granularity>[-planned]` shape.
  */
-export function parseDatasetSlug(linkUrl: string): EnergyDatasetRef | null {
-  const file = linkUrl.split("#")[0];
+export function parseDatasetSlug(linkUri: string): EnergyDatasetRef | null {
+  const file = linkUri.split("#")[0];
   let slug = file.split("/").pop()?.replace(/\.ttl$/, "") ?? "";
   let scenario: Scenario = "actual";
   if (slug.endsWith("-planned")) {
@@ -193,7 +193,7 @@ export function parseDatasetSlug(linkUrl: string): EnergyDatasetRef | null {
   const year = Number(slug.slice(0, dash));
   const granularity = slug.slice(dash + 1);
   if (!Number.isInteger(year) || !granularity) return null;
-  return { url: linkUrl, year, granularity, scenario };
+  return { url: linkUri, year, granularity, scenario };
 }
 
 /**
@@ -278,11 +278,11 @@ export async function loadEnergyDatasets(
   const out: EnergyDataset[] = [];
   await Promise.all(refs.map(async (ref) => {
     try {
-      const fileUrl = ref.url.split("#")[0];
-      const res = await fetchFn(fileUrl);
+      const fileUri = ref.url.split("#")[0];
+      const res = await fetchFn(fileUri);
       if (!res.ok) return;
       const store = new Store(
-        new Parser({ baseIRI: fileUrl }).parse(await res.text()),
+        new Parser({ baseIRI: fileUri }).parse(await res.text()),
       );
       const ds = parseEnergyDataset(store, ref.url);
       if (ds) out.push(ds);

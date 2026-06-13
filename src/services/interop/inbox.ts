@@ -13,7 +13,7 @@ import {
   buildSharingEventTurtle,
   parseSharingEvents,
   type SharingEvent,
-  sharedInUrl,
+  sharedInUri,
 } from "./sharingLog.ts";
 import { logError } from "../../lib/logError.ts";
 
@@ -47,11 +47,11 @@ export async function drainInbox(session: Session) {
     throw new Error("User is not logged in");
   }
   const myWebId = session.info.webId;
-  const sharedIn = sharedInUrl(myWebId);
+  const sharedIn = sharedInUri(myWebId);
 
-  const podInbox = await getInboxUrl(session);
+  const podInbox = await getInboxUri(session);
   const store = await readStoreOrEmpty(podInbox, session);
-  const messageUrls = store.getQuads(
+  const messageUris = store.getQuads(
     null,
     DataFactory.namedNode(LDP_CONTAINS),
     null,
@@ -71,31 +71,31 @@ export async function drainInbox(session: Session) {
   // Process each message fully (fetch → record in shared-in/ → delete) so a
   // re-read doesn't reprocess it. Distinct event resources, so the appends below
   // are safe to do concurrently.
-  await Promise.all(messageUrls.map(async (messageUrl) => {
-    const msgResponse = await fetchFresh(messageUrl, session);
+  await Promise.all(messageUris.map(async (messageUri) => {
+    const msgResponse = await fetchFresh(messageUri, session);
     if (msgResponse.status !== 200) {
       console.error(
-        `Failed to fetch message at ${messageUrl}: ${msgResponse.statusText}`,
+        `Failed to fetch message at ${messageUri}: ${msgResponse.statusText}`,
       );
       return;
     }
     const msgStore = new Store(
-      new Parser({ baseIRI: messageUrl }).parse(await msgResponse.text()),
+      new Parser({ baseIRI: messageUri }).parse(await msgResponse.text()),
     );
     for (const event of parseSharingEvents(msgStore)) {
       await appendSharingEvent(sharedIn, session, event);
     }
-    await removeMessageFromInbox(session, messageUrl, podInbox);
+    await removeMessageFromInbox(session, messageUri, podInbox);
   }));
 }
 
 async function removeMessageFromInbox(
   session: Session,
-  messageUrl: string,
-  inboxUrl: string,
+  messageUri: string,
+  inboxUri: string,
 ) {
-  console.log(`Removing message ${messageUrl} from inbox ${inboxUrl}`);
-  const response = await session.fetch(messageUrl, {
+  console.log(`Removing message ${messageUri} from inbox ${inboxUri}`);
+  const response = await session.fetch(messageUri, {
     method: "DELETE",
   });
 
@@ -106,19 +106,19 @@ async function removeMessageFromInbox(
 
   if (!response.ok) {
     console.error(
-      `Failed to delete message at ${messageUrl}: ${response.statusText}`,
+      `Failed to delete message at ${messageUri}: ${response.statusText}`,
     );
     throw new Error(
-      `Failed to delete message at ${messageUrl}: ${response.statusText}`,
+      `Failed to delete message at ${messageUri}: ${response.statusText}`,
     );
   }
 
-  console.log(`Successfully deleted message at ${messageUrl}`);
+  console.log(`Successfully deleted message at ${messageUri}`);
 }
 
 /**
  * Resolve a *recipient's* LDP inbox from their WebID profile (for posting a
- * sharing notification to someone else). Unlike {@link getInboxUrl} for the
+ * sharing notification to someone else). Unlike {@link getInboxUri} for the
  * logged-in user, this fetches an arbitrary WebID document, so it can't use the
  * session-cached profile store. Shared by the share / revoke flows.
  */
@@ -151,7 +151,7 @@ export function inboxFromLinkHeader(
  * sharing), NOT the agent-global WebID inbox, so it doesn't mix with other apps.
  * @operation query
  */
-async function granergizeInboxUrl(
+async function granergizeInboxUri(
   appRoot: string,
   session: Session,
 ): Promise<string> {
@@ -182,12 +182,12 @@ async function granergizeInboxUrl(
  * discovery in solidUtils), then discover the inbox under their granergize space.
  * @operation query
  */
-export async function getRecipientInboxUrl(
+export async function getRecipientInboxUri(
   webId: string,
   session: Session,
 ): Promise<string> {
   const root = await resolveStorageRootForWebId(webId, session);
-  return granergizeInboxUrl(`${root}${APP_DIR}/`, session);
+  return granergizeInboxUri(`${root}${APP_DIR}/`, session);
 }
 
 /**
@@ -203,10 +203,10 @@ export async function postSharingEventToInbox(
   session: Session,
   event: SharingEvent,
 ): Promise<void> {
-  const inboxUrl = await getRecipientInboxUrl(webId, session);
-  await appendToContainer(inboxUrl, buildSharingEventTurtle(event), session, {
+  const inboxUri = await getRecipientInboxUri(webId, session);
+  await appendToContainer(inboxUri, buildSharingEventTurtle(event), session, {
     describeError: (res) =>
-      `Failed to post sharing message to inbox at ${inboxUrl}: ${res.statusText}`,
+      `Failed to post sharing message to inbox at ${inboxUri}: ${res.statusText}`,
   });
 }
 
@@ -218,7 +218,7 @@ export async function postSharingEventToInbox(
  * We deliberately do NOT advertise the inbox via an `ldp:inbox` pointer on the
  * granergize root: a blind PUT to the container's `.meta` description resource
  * 409s on CSS (its metadata can't be wholesale-replaced that way), and the
- * pointer would be redundant anyway — {@link granergizeInboxUrl} falls back to
+ * pointer would be redundant anyway — {@link granergizeInboxUri} falls back to
  * the `inbox/` convention path, which is exactly where we provision. The app
  * never relocates the inbox, so the convention path always resolves it.
  *
@@ -262,8 +262,8 @@ export async function ensureOwnInbox(session: Session): Promise<boolean> {
  * The logged-in user's own granergize inbox (same app-scoped discovery).
  * @operation query
  */
-async function getInboxUrl(session: Session): Promise<string> {
+async function getInboxUri(session: Session): Promise<string> {
   const webId = session.info.webId;
   if (!webId) throw new Error("Session has no WebID");
-  return granergizeInboxUrl(podResources(webId).appRoot, session);
+  return granergizeInboxUri(podResources(webId).appRoot, session);
 }

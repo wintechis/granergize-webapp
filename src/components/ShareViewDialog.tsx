@@ -31,7 +31,7 @@ import {
   useSharedWithMe,
 } from "../hooks/queries.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
-import { getSnapshotUrl } from "../services/aggregation/viewManager.ts";
+import { getSnapshotUri } from "../services/aggregation/viewManager.ts";
 import { summarizeContributors } from "../services/aggregation/viewComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
@@ -148,8 +148,8 @@ export default function ShareViewDialog(
 
   const handleConfirmShare = () => {
     if (!session.info.webId) return;
-    const snapshotUrl = getSnapshotUrl(session.info.webId, view.id);
-    share.mutate({ snapshotUrl, recipients }, {
+    const snapshotUri = getSnapshotUri(session.info.webId, view.id);
+    share.mutate({ snapshotUri, recipients }, {
       onSuccess: () => {
         setConfirmStep(false);
         showNotification(
@@ -169,7 +169,7 @@ export default function ShareViewDialog(
     if (!session.info.webId) return;
     if (!globalThis.confirm(`Revoke access for ${webId}?`)) return;
     revoke.mutate(
-      { snapshotUrl: getSnapshotUrl(session.info.webId, view.id), webId },
+      { snapshotUri: getSnapshotUri(session.info.webId, view.id), webId },
       { onSuccess: () => showNotification("View access revoked", "success") },
     );
   };
