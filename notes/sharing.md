@@ -4,8 +4,9 @@ Direct WebID-to-WebID sharing of a **building** or **aggregated view**, Pod-to-P
 share grants the recipient read access and notifies them; the data stays in the owner's
 Pod (no copy).
 
-Companion to [`storage-model.md`](./storage-model.md) (the event-log design),
-[`room.md`](./room.md) (rooms as a share-by-role directory), and
+Companion to [`queries-mutations.md`](./queries-mutations.md) (the event-log storage
+model and PUT/POST rationale), [`room.md`](./room.md) (rooms as a share-by-role
+directory), and
 [`aggregated-views.md`](./aggregated-views.md) (the view snapshots that get shared).
 
 ## Model — two append-only event logs
@@ -159,7 +160,7 @@ escalation:
 Sharing stays **independent of rooms** — a room grants no access on its own; it is
 only a recipient directory, and "share by role" loops the resolved WebIDs through
 the bilateral grant. Two structural notes. The escalation reuses the event-sourced
-storage model ([storage-model.md](storage-model.md)) — multi-agent
+storage model ([queries-mutations.md](queries-mutations.md)) — multi-agent
 discovery is inherently cross-agent state, so the room *is* an append-only log with
 fold-on-read. And resolution is **at share time**: the grant events record the
 resolved users, so a member who joins later does not retroactively receive earlier

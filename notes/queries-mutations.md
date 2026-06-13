@@ -7,12 +7,12 @@ Separation**, every operation is one of two kinds:
 - a **mutation** — changes Pod state (the *command* side of CQS).
 
 Companion to [`architecture.md`](./architecture.md) (the source layers these operations
-live in), [`storage-model.md`](./storage-model.md) (the registry-free / log-folding
-design), [`sharing.md`](./sharing.md) (the sharing event logs),
+live in), [`sharing.md`](./sharing.md) (the sharing event logs),
 [`data-layout.md`](./data-layout.md) (the on-Pod tree) and
-[`data-deref.md`](./data-deref.md) (fetch/load mechanics);
-[`app-intents.md`](./app-intents.md) is the layer above — the named user-intent
-catalog whose verbs commit through the operations classified here.
+[`data-deref.md`](./data-deref.md) (fetch/load mechanics). The named user-intent
+catalog whose verbs commit through these operations — and a proposed registry that
+would reify it — is the design sketch
+[`explore-intent-registry.md`](./explore-intent-registry.md).
 
 The terminology is already the codebase's: queries live behind React Query hooks in
 `src/hooks/queries.ts`; mutations behind `src/hooks/mutations.ts`, a thin invalidation
@@ -23,7 +23,7 @@ below.
 Each Pod-touching service-layer function carries an `@operation query` / `@operation
 mutation` JSDoc tag marking which kind it is. That discriminator is the only tag today;
 the richer classification (storage model, trigger, resource) and a generated inventory
-are still to come — see [`plan-operation-annotations.md`](./plan-operation-annotations.md).
+are still to come — see [`explore-intent-registry.md`](./explore-intent-registry.md).
 
 ## Two storage models
 
@@ -80,6 +80,36 @@ affected party can read where the fact lives:
 So: append in place and fold when the audience can already reach the container; push
 a copy when the authoritative record sits behind someone else's access control.
 
+## Why client-chosen URIs + PUT (not POST/`Location`)
+
+Addressable resources and containers are created by **PUT to a URI the client picks**,
+not by POST-to-a-container letting the server mint a slug:
+
+- **Named structural folders must be PUT.** "Create this folder if absent" is only
+  expressible as PUT to that exact URI (GET → if 404, PUT); POST always makes a *new*
+  child and can't target a fixed path.
+- **Leaf items (buildings, rooms) are PUT for idempotency under the retry layer — the
+  load-bearing reason.** Every Pod write goes through `retryFetch`, which replays on
+  Cloudflare 429/503 and dropped connections. A PUT to a fixed URI is replay-safe (a
+  retry hits the same URI; `If-None-Match: *` turns the duplicate into a clean 412); a
+  POST is not — the server mints a fresh slug per call, so a lost-201 retry silently
+  creates a second resource. LDP's idempotent-create primitive *is*
+  `PUT … If-None-Match: *`.
+- **Derived paths up front.** Knowing the id before writing lets one flow compute
+  everything keyed off it (a building's energy datasets, a room's `.acl` + first join
+  event) with no "POST, await, parse `Location`, derive" round-trip.
+- **Cross-server uniformity.** PUT-to-URI behaves identically across NSS / CSS v5–v7;
+  POST `Slug`/`Location` semantics vary.
+
+**POST is used only for the append-only event logs** (`shared-out/`, `shared-in/`, a
+room's `as:Join`/`as:Update`), where a unique server-minted child per append is exactly
+what's wanted and a retry duplicate folds away harmlessly. Rule of thumb: resources you
+must *address later* get client URIs; resources you only *accumulate* get POST.
+
+Resource **paths** are lowercase / kebab-case (`shared-in/`, `views/snapshots/`,
+`prefs.ttl`); camelCase appears only in `gran:` vocab local-names
+(`gran:hiddenBuilding`, `gran:currentRoom`), which is RDF-conventional.
+
 ## Two projection disciplines
 
 A log's derived state reaches its consumer through one of two disciplines, chosen by
@@ -104,6 +134,14 @@ truth; they are an enforcement cache rebuilt from `shared-out/` by `reissueGrant
 is the event in the log, and the ACL can be rebuilt from the log after an archive
 restore. This split is deliberate and must stay replayable — see
 [`sharing.md`](./sharing.md).
+
+**Read authority differs by direction.** Outgoing "shared with whom" reads the `.acl`
+directly (you can read your own ACLs; the Manage "Shared with" badge is N parallel
+acl-GETs), with `shared-out/` as the history. Incoming "shared with me" has no cheaper
+authority than your own record, so it folds `shared-in/`; a missed revocation self-heals
+because the building `403`s on load and is pruned. Discovery is N+1 reads (list, then GET
+each member) rather than one registry read — fine for realistic counts; cache only if a
+collection grows large.
 
 ## A second axis — trigger
 
@@ -240,5 +278,4 @@ step:
 
 These are the exceptions to "a query is pure"; the rest of the read surface holds the
 line. That the reconciliation mutations exist is fine — they belong in query/restore
-paths. The seam is only that these three carry query-shaped names; see
-[`plan-operation-seams.md`](./plan-operation-seams.md).
+paths. The seam is only that these three carry query-shaped names.
