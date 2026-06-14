@@ -3,6 +3,10 @@ import { strict as assert } from "node:assert";
 import { classifyMutationError, classifyQueryError } from "./queryErrors.ts";
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
+import {
+  markSessionExpired,
+  resetSessionGate,
+} from "../services/pod/sessionGate.ts";
 
 Deno.test("classifyQueryError: SessionExpiredError → warning with the fixed re-login sentence", () => {
   // NOT error.message (which carries HTTP detail like "… (HTTP 401)" for the
@@ -53,6 +57,50 @@ Deno.test("classifyQueryError: the classified warnings ignore the action", () =>
   );
   assert.match(conflict.message, /reload/i);
   assert.equal(conflict.severity, "warning");
+});
+
+Deno.test("classifyQueryError: a generic error while the session-expiry gate is tripped → expiry warning, not 'Failed to …'", () => {
+  // When a query/mutation is in flight and the session expires, its 401 surfaces
+  // as a generic "… HTTP 401" (only the buildings loader makes a
+  // SessionExpiredError). The gate being tripped means it's really an expiry, so
+  // it must collapse into the same warning instead of stacking a "Failed to …"
+  // error on the gate's logout toast.
+  markSessionExpired();
+  try {
+    const generic = classifyQueryError(new Error("Failed to read x.ttl: HTTP 401"));
+    assert.equal(generic.severity, "warning");
+    assert.equal(generic.message, "Session expired — please log in again");
+    // An action does not re-wrap it (same rule as the other classified warnings).
+    const withAction = classifyQueryError(new Error("boom"), "update the building");
+    assert.equal(withAction.severity, "warning");
+    assert.equal(withAction.message, "Session expired — please log in again");
+    // A ConflictError racing the expiry is moot too — expiry wins.
+    const conflict = classifyQueryError(new ConflictError("https://pod.example/x.ttl"));
+    assert.equal(conflict.severity, "warning");
+    assert.equal(conflict.message, "Session expired — please log in again");
+  } finally {
+    resetSessionGate();
+  }
+  // Gate reset: classification is back to normal for subsequent loads.
+  assert.equal(classifyQueryError(new Error("boom")).severity, "error");
+});
+
+Deno.test("classifyMutationError: a non-silent mutation error while expired → expiry warning (silent still wins)", () => {
+  markSessionExpired();
+  try {
+    const note = classifyMutationError(new Error("HTTP 401"), {
+      action: "share the view",
+    });
+    assert.equal(note?.severity, "warning");
+    assert.equal(note?.message, "Session expired — please log in again");
+    // silent mutations still suppress entirely — the dialog owns presentation.
+    assert.equal(
+      classifyMutationError(new Error("HTTP 401"), { silent: true }),
+      null,
+    );
+  } finally {
+    resetSessionGate();
+  }
 });
 
 Deno.test("classifyMutationError: honours meta (action phrasing, silent → null)", () => {

@@ -232,7 +232,9 @@ export default function ConnectPage({ session }: ConnectPageProps) {
     setScanning(null);
     const webId = text.trim();
     setContactInput(webId);
-    addContact(webId);
+    // addContact catches its own errors (notifies on failure), so its promise
+    // never rejects — float it intentionally.
+    void addContact(webId);
   };
 
   const handleRemoveContact = (webId: string) =>

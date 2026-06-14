@@ -22,12 +22,14 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ConfirmProvider } from "./context/ConfirmContext.tsx";
 import { QueryProvider } from "./context/QueryProvider.tsx";
 import { queryKeys } from "./hooks/queries.ts";
+import { SESSION_EXPIRED_MESSAGE } from "./hooks/queryErrors.ts";
 import { drainInbox, ensureOwnInbox } from "./services/interop/inbox.ts";
 import {
   clearRequestLog,
   instrumentSessionFetch,
 } from "./lib/networkActivity.ts";
 import { formatError } from "./lib/formatError.ts";
+import { logError } from "./lib/logError.ts";
 import {
   clearStorageRootCache,
   resolveStorageRoot,
@@ -35,6 +37,7 @@ import {
 import { resetActiveRoom } from "./services/interop/dataRoom.ts";
 import {
   getSessionExpiredSnapshot,
+  isSessionExpired,
   markSessionExpired,
   resetSessionGate,
   subscribeSessionGate,
@@ -82,7 +85,7 @@ function AppContent() {
   );
   useEffect(() => {
     if (expired && session) {
-      showNotification("Session expired — please log in again", "warning");
+      showNotification(SESSION_EXPIRED_MESSAGE, "warning");
       // Suppress the silent restore: the token is already dead, but set the
       // one-shot flag too so the Login screen can't attempt a doomed restore
       // (keeps every logout path consistent — see handleLogout).
@@ -93,7 +96,15 @@ function AppContent() {
       setSuppressRestore(true);
       clearRequestLog();
       resetActiveRoom();
-      session.logout().then(() => setSession(null));
+      session.logout()
+        .then(() => setSession(null))
+        .catch((err) => {
+          // Logout can reject (e.g. network), but the token is already dead —
+          // log it and clear local session state regardless so we still reach
+          // the login screen rather than getting stuck on a doomed session.
+          logError("log out the expired session", err);
+          setSession(null);
+        });
     }
   }, [expired, session, showNotification]);
 
@@ -147,6 +158,11 @@ function AppContent() {
       queryClient.invalidateQueries({ queryKey: queryKeys.receivedBenchmarks });
       queryClient.invalidateQueries({ queryKey: queryKeys.buildings });
     } catch (error) {
+      // If the session expired while this inbox work was in flight, the service
+      // calls throw "User is not logged in" — but the expiry gate has already
+      // shown the "Session expired" warning and is logging out. Swallow the
+      // redundant (and alarming) inbox error rather than stacking a second toast.
+      if (isSessionExpired()) return;
       showNotification(formatError("read your inbox", error), "error");
     }
   }, [showNotification, queryClient]);
@@ -177,13 +193,20 @@ function AppContent() {
       // registration there's no registered `postLogoutUrl`, so the provider may
       // not redirect back — the user reopens the app, where the `noRestore`
       // flag (set above) keeps them on the login form to choose an account.
-      session.logout({ logoutType: "idp" });
+      session.logout({ logoutType: "idp" }).catch((err) =>
+        logError("log out at the identity provider", err)
+      );
       return;
     }
-    session.logout().then(() => {
-      setSession(null);
-      showNotification("User logged out successfully", "info");
-    });
+    session.logout()
+      .then(() => {
+        setSession(null);
+        showNotification("User logged out successfully", "info");
+      })
+      .catch((err) => {
+        logError("log out", err);
+        setSession(null);
+      });
   };
 
   return (

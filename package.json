@@ -28,6 +28,7 @@
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
+    "@tanstack/eslint-plugin-query": "^5.0.0",
     "@happy-dom/global-registrator": "^15.11.7",
     "@playwright/test": "^1.60.0",
     "@testing-library/dom": "^10.4.1",
@@ -37,6 +38,7 @@
     "@types/react-dom": "^19.2.3",
     "@vitejs/plugin-react": "^6.0.2",
     "eslint": "^10.5.0",
+    "eslint-plugin-no-only-tests": "^3.3.0",
     "eslint-plugin-react-hooks": "^7.1.1",
     "eslint-plugin-react-refresh": "^0.5.2",
     "globals": "^17.6.0",

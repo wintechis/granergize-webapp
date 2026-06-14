@@ -136,15 +136,18 @@ function RoomDeepLink({ session }: { session: Session }) {
 
   useEffect(() => {
     let active = true;
-    (async () => {
+    // The IIFE catches openRoom internally and floats navigate (below), so it
+    // never rejects — float it explicitly.
+    void (async () => {
       if (roomUri) {
         await openRoom(roomUri, session).catch((err) =>
           logError("open data room from route", err)
         );
       }
       // Land on Connect via the `?tab=` param (not router state) so the tab
-      // survives a subsequent reload — see notes/ui-state.md.
-      if (active) navigate("/?tab=connect", { replace: true });
+      // survives a subsequent reload — see notes/ui-state.md. (v7 navigate
+      // returns a promise; fire-and-forget.)
+      if (active) void navigate("/?tab=connect", { replace: true });
     })();
     return () => {
       active = false;

@@ -91,6 +91,11 @@ function useWebIdQuery<T>(
   } = {},
 ) {
   const webId = webIdOf();
+  // exhaustive-deps can't see through this generic wrapper: `queryFn` is INJECTED
+  // by each caller, which is also responsible for fingerprinting its inputs into
+  // the key via `opts.extraKey` (e.g. energyKeyFor). The rule still guards every
+  // direct useQuery site (useResolveAgent/Org, the weather hooks).
+  // eslint-disable-next-line @tanstack/query/exhaustive-deps
   return useQuery({
     queryKey: [...keyPrefix, webId, ...(opts.extraKey ?? [])],
     enabled: Boolean(webId) && (opts.enabled ?? true),

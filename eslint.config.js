@@ -1,5 +1,7 @@
 import js from "@eslint/js";
 import globals from "globals";
+import pluginQuery from "@tanstack/eslint-plugin-query";
+import noOnlyTests from "eslint-plugin-no-only-tests";
 import reactHooks from "eslint-plugin-react-hooks";
 import reactRefresh from "eslint-plugin-react-refresh";
 import tseslint from "typescript-eslint";
@@ -8,6 +10,10 @@ export default tseslint.config(
   // e2e/ and the Playwright config run under Node (Playwright), not the browser
   // app — exclude them from this browser-globals lint config.
   { ignores: ["dist", "e2e", "playwright.config.ts"] },
+  // React Query discipline: query-key exhaustiveness (a key omitting a value the
+  // queryFn closes over → stale reads), stable QueryClient, no rest-destructuring
+  // of query results. The data layer is entirely React Query, so this is on-domain.
+  ...pluginQuery.configs["flat/recommended"],
   {
     extends: [js.configs.recommended, ...tseslint.configs.recommended],
     files: ["**/*.{ts,tsx}"],
@@ -116,6 +122,59 @@ export default tseslint.config(
             "Avoid inline fontWeight — use a Typography `variant` (headings in the scale are already weight 600). See src/theme.ts.",
         },
       ],
+    },
+  },
+  {
+    // Type-aware linting for the app sources: `no-floating-promises` needs type
+    // information, so this block points the parser at the TS project (the whole
+    // data layer is async Pod I/O — an unhandled promise is a real bug class).
+    // Scoped to src/ NON-test: the Deno-runtime `*.test.ts` files use the
+    // `deno.ns` lib and are type-checked by `deno test`, not here (mirrors
+    // tsconfig.check.json). `projectService` auto-resolves each file's tsconfig.
+    files: ["src/**/*.{ts,tsx}"],
+    ignores: ["src/**/*.test.{ts,tsx}", "src/**/test-dom-setup.ts"],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    rules: {
+      "@typescript-eslint/no-floating-promises": ["error", {
+        // React Query's invalidateQueries returns a promise that RESOLVES when the
+        // triggered refetches settle and never rejects for query errors (those
+        // route through QueryProvider's QueryCache.onError) — so floating it in a
+        // mutation callback is safe by design. Declared once here rather than
+        // voiding every call site.
+        allowForKnownSafeCalls: [
+          {
+            from: "package",
+            package: "@tanstack/query-core",
+            name: "invalidateQueries",
+          },
+        ],
+      }],
+      // Completes the async-safety story: a promise used in a condition, or an
+      // async fn passed where a void callback is expected (`setTimeout`/`forEach`
+      // floats each promise). `checksVoidReturn.attributes` is OFF: an async JSX
+      // event handler is idiomatic React (it self-handles or routes errors via the
+      // mutation layer), and the rule's "fix" — `() => void fn()` — leaves the
+      // rejection just as unhandled, so it's ceremony, not safety.
+      "@typescript-eslint/no-misused-promises": ["error", {
+        checksVoidReturn: { attributes: false },
+      }],
+      // `await` on a non-thenable (a typo/logic bug).
+      "@typescript-eslint/await-thenable": "error",
+    },
+  },
+  {
+    // A committed `.only` silently skips the rest of a suite (Playwright
+    // `test.only` / `test.describe.only`, and unit blocks) — and still goes
+    // green. Ban it across every test file (Deno unit + headless + e2e).
+    files: ["**/*.test.{ts,tsx}", "test/**/*.{ts,tsx}"],
+    plugins: { "no-only-tests": noOnlyTests },
+    rules: {
+      "no-only-tests/no-only-tests": "error",
     },
   },
 );
