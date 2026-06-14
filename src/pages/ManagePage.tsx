@@ -254,9 +254,7 @@ export default function ManagePage({ session }: ManagePageProps) {
         <Stack
           direction="row"
           spacing={1.5}
-          flexWrap="wrap"
-          useFlexGap
-          sx={{ alignItems: "center", mb: 1 }}
+          sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
         >
           <Button
             variant="outlined"
@@ -439,9 +437,7 @@ export default function ManagePage({ session }: ManagePageProps) {
         <Stack
           direction="row"
           spacing={1.5}
-          flexWrap="wrap"
-          useFlexGap
-          sx={{ alignItems: "center", mb: 1 }}
+          sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
         >
           <Button
             variant="outlined"

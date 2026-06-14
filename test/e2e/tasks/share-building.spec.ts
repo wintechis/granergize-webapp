@@ -115,7 +115,7 @@ test.describe("sharing across two pods", () => {
         // signal that hiding removes it from the map and showing brings it back.
         const sharedRow = received.locator("li")
           .filter({ has: b2.page.getByText(/^Building /) }).first();
-        const visToggle = sharedRow.getByRole("checkbox"); // the Shown/Hidden Switch
+        const visToggle = sharedRow.getByRole("switch"); // the Shown/Hidden Switch (MUI v9 Switch → role="switch")
         await expect(sharedRow.getByText("Shown")).toBeVisible({
           timeout: T.action,
         });

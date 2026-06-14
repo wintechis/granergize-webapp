@@ -258,7 +258,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
               <DetailRow
                 label="Certifications"
                 value={
-                  <Stack direction="row" spacing={0.5} flexWrap="wrap">
+                  <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap" }}>
                     {certifications.map((cert, i) => (
                       <Chip
                         key={i}

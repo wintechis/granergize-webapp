@@ -429,7 +429,7 @@ export default function AddBuildingDialog(
               ))}
             </Select>
           </FormControl>
-          <Typography variant="caption" display="block" color="text.secondary">
+          <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">
             {CSV_HINT[format]}
           </Typography>
         </Box>
@@ -440,8 +440,7 @@ export default function AddBuildingDialog(
         {lastgangReadings && (
           <Typography
             variant="caption"
-            display="block"
-            sx={{ mb: 2 }}
+            sx={{ display: "block", mb: 2 }}
             color="success.main"
           >
             {lastgangReadings.length} readings ({new Set(lastgangReadings.map((r) => r.date)).size} days) ready to upload
@@ -450,8 +449,7 @@ export default function AddBuildingDialog(
         {importedAnnualYears.length > 0 && (
           <Typography
             variant="caption"
-            display="block"
-            sx={{ mb: 2 }}
+            sx={{ display: "block", mb: 2 }}
             color="success.main"
           >
             Annual energy detected for {importedAnnualYears.join(", ")} — saved with

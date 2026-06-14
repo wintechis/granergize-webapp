@@ -257,9 +257,7 @@ export default function SharePage({ session }: SharePageProps) {
       <Stack
         direction="row"
         spacing={1.5}
-        flexWrap="wrap"
-        useFlexGap
-        sx={{ alignItems: "center", mb: 1 }}
+        sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
       >
         {dev && (
           <Button

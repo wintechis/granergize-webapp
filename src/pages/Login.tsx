@@ -18,7 +18,7 @@ import { logError } from "../lib/logError.ts";
 import { normalizeIssuer } from "../lib/normalizeIssuer.ts";
 
 interface LoginProps {
-  children: JSX.Element;
+  children: React.JSX.Element;
   auto?: boolean;
   /**
    * When true, do NOT silently restore a previous session on mount (the user must
@@ -27,11 +27,11 @@ interface LoginProps {
    */
   suppressRestore?: boolean;
   name?: string;
-  logo?: JSX.Element;
-  lead?: JSX.Element;
+  logo?: React.JSX.Element;
+  lead?: React.JSX.Element;
   /** Rendered centered at the bottom of the login screen (e.g. project links). */
-  footer?: JSX.Element;
-  loadingIndicator?: JSX.Element;
+  footer?: React.JSX.Element;
+  loadingIndicator?: React.JSX.Element;
   recommendedLogins?: string[];
   loginOptions?: Omit<ILoginInputOptions, "oidcIssuer">;
   onLogin?: (session: Session) => void;

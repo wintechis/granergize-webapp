@@ -550,7 +550,7 @@ export function FilesDialog(
             ))}
           </ul>
         )}
-      <Box mt={1}>
+      <Box sx={{ mt: 1 }}>
         <input
           type="file"
           multiple
