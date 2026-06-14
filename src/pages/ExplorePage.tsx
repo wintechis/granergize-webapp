@@ -7,8 +7,7 @@ import {
   mergeParams,
   slugFromDetailIndex,
 } from "./uriState.ts";
-import Building from "./Building.tsx";
-import { UriLink } from "../components/detail/DetailView.tsx";
+import { RefLink, UriLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import {
   MapContainer,
@@ -664,16 +663,38 @@ export default function ExplorePage(
                     </Tabs>
 
                     {detailTab === 0 && (
-                      <Building
-                        building={selectedBuilding}
-                        onHide={() =>
-                          setSearchParams(
-                            (p) => mergeParams(p, { b: null, dt: null }),
-                            { replace: true },
-                          )}
-                        embedded
-                        hideHeader
-                      />
+                      // A LIGHT summary — a couple of already-loaded master-data
+                      // facts — plus a prominent link into the full building page
+                      // page. The map pane is a finder, not the building page: the detailed
+                      // master data, files, energy years and sharing live on
+                      // /building/:id.
+                      <Stack spacing={2}>
+                        {selectedBuilding.usedAs && (
+                          <Typography variant="body2">
+                            Use: {selectedBuilding.usedAs}
+                          </Typography>
+                        )}
+                        {selectedBuilding.yearOfConstruction != null && (
+                          <Typography variant="body2">
+                            Year of construction:{" "}
+                            {selectedBuilding.yearOfConstruction}
+                          </Typography>
+                        )}
+                        {selectedBuilding.buildingArea != null && (
+                          <Typography variant="body2">
+                            Building area: {selectedBuilding.buildingArea} m²
+                          </Typography>
+                        )}
+                        <Box>
+                          <RefLink
+                            to={`/building/${
+                              encodeURIComponent(selectedBuilding.id)
+                            }`}
+                          >
+                            Open building
+                          </RefLink>
+                        </Box>
+                      </Stack>
                     )}
 
                     {detailTab === 1 && (() => {

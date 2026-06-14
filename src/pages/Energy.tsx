@@ -36,6 +36,7 @@ import { splitEnergyDatasets } from "../lib/energyResolution.ts";
 import EnergyResolutionSwitch from "../components/EnergyResolutionSwitch.tsx";
 import SeriesEnergy from "./SeriesEnergy.tsx";
 import { formatNumber } from "../lib/formatNumber.ts";
+import EnergyEntryButton from "../components/observation/EnergyEntryButton.tsx";
 
 type EnergyProps = {
   selectedBuilding: string;
@@ -320,9 +321,19 @@ export default function Energy(
   );
 
   return (
-    <EnergyResolutionSwitch
-      annual={annualView || undefined}
-      series={series.length > 0 ? <SeriesEnergy building={building} /> : undefined}
-    />
+    <Stack spacing={2}>
+      {/* The energy-year data-entry lives only on this full detail page (the
+          building page keeps energy minimal and links here). Self-hides for a
+          building shared with the user — read-only, not theirs to write. */}
+      <Box sx={{ alignSelf: "flex-start" }}>
+        <EnergyEntryButton building={building} />
+      </Box>
+      <EnergyResolutionSwitch
+        annual={annualView || undefined}
+        series={series.length > 0
+          ? <SeriesEnergy building={building} />
+          : undefined}
+      />
+    </Stack>
   );
 }

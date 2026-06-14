@@ -9,7 +9,10 @@ Deno.test("intent names are unique", () => {
 
 Deno.test("every entry carries the load-bearing fields", () => {
   for (const i of INTENTS) {
-    assert.ok(i.name && i.action && i.hook, `incomplete entry: ${i.name}`);
+    // `action` is "" for hooks that declare no meta.action (their errors are
+    // handled outside the central toast); identity (name + hook) is required.
+    assert.ok(i.name && i.hook, `incomplete entry: ${i.name}`);
+    assert.equal(typeof i.action, "string", `missing action: ${i.name}`);
     assert.ok(["write", "read", "navigate"].includes(i.effect));
   }
 });

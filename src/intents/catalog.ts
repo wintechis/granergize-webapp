@@ -53,11 +53,19 @@ export interface IntentEntry {
 }
 
 /**
- * Seed entries — faithful, not yet exhaustive (L-intent-registry completes the set
- * and wires the hooks to derive from it). Chosen to exercise every field:
- * write/read effects, silent vs. toasted, standard vs. developer.
+ * The exhaustive catalog — one entry per user-intent hook exported from
+ * `src/hooks/mutations.ts`. The {@link catalog.drift.test.ts} drift guard keeps
+ * this in lockstep with `mutations.ts`: every `hook` must exist there, and where
+ * a hook declares `meta.action` the entry's `action` must match it verbatim.
+ *
+ * Hooks that declare NO `meta.action` carry `action: ""` here (their error
+ * surfaces are handled outside the central `"Failed to {action}"` toast — most
+ * patch the cache authoritatively or render inline). Entity names use the locked
+ * target grammar (`observation`/`aggregation`); the code hooks still say
+ * `energy`/`view` until the L-observations rename.
  */
 export const INTENTS: readonly IntentEntry[] = [
+  // ── Buildings ──────────────────────────────────────────────────────────────
   {
     name: "AddBuilding",
     action: "add the building",
@@ -73,13 +81,20 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useUpdateBuilding",
   },
   {
-    name: "ShareBuilding",
-    action: "share the building",
+    name: "DeleteBuilding",
+    action: "", // hook declares no meta.action (caller confirms; cache patched)
     effect: "write",
     entity: "building",
-    silentError: true,
-    hook: "useShareBuilding",
+    hook: "useDeleteBuilding",
   },
+  {
+    name: "ToggleVisibility",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "building",
+    hook: "useToggleVisibility",
+  },
+  // ── Energy (observations) ────────────────────────────────────────────────────
   {
     name: "SaveObservation", // hook: energy year (rename lands in L-observations)
     action: "save energy data",
@@ -88,6 +103,36 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useWriteEnergyYear",
   },
   {
+    name: "DeleteObservation", // hook: energy year (rename lands in L-observations)
+    action: "delete energy data",
+    effect: "write",
+    entity: "observation",
+    hook: "useDeleteEnergyYear",
+  },
+  // ── Attachments ──────────────────────────────────────────────────────────────
+  {
+    name: "UploadAttachments",
+    action: "upload the file",
+    effect: "write",
+    entity: "attachment",
+    hook: "useUploadAttachments",
+  },
+  {
+    name: "DeleteAttachment",
+    action: "delete the file",
+    effect: "write",
+    entity: "attachment",
+    hook: "useDeleteAttachment",
+  },
+  {
+    name: "SetEnergyCertificate",
+    action: "update the energy certificate",
+    effect: "write",
+    entity: "attachment",
+    hook: "useSetEnergyCertificate",
+  },
+  // ── Aggregations (views) ─────────────────────────────────────────────────────
+  {
     name: "CreateAggregation", // hook: view (rename lands in L-observations)
     action: "create the view",
     effect: "write",
@@ -95,12 +140,65 @@ export const INTENTS: readonly IntentEntry[] = [
     hook: "useCreateView",
   },
   {
-    name: "ExportArchive",
-    action: "download the archive",
-    effect: "read",
-    entity: "appData",
+    name: "DeleteAggregation",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "aggregation",
+    hook: "useDeleteView",
+  },
+  {
+    name: "RefreshAggregation",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "aggregation",
+    hook: "useRefreshView",
+  },
+  {
+    name: "ShareAggregation",
+    action: "share the view",
+    effect: "write",
+    entity: "aggregation",
+    silentError: true, // share-view dialog renders inline (silent: opts.silent)
+    hook: "useShareViewSnapshot",
+  },
+  {
+    name: "RevokeAggregationAccess",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "sharing",
+    hook: "useRevokeViewAccess",
+  },
+  // ── Sharing ──────────────────────────────────────────────────────────────────
+  {
+    name: "ShareBuilding",
+    action: "share the building",
+    effect: "write",
+    entity: "building",
+    silentError: true,
+    hook: "useShareBuilding",
+  },
+  {
+    name: "RevokeBuildingAccess",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "sharing",
+    hook: "useRevokeBuildingAccess",
+  },
+  {
+    name: "CheckInbox",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "sharing",
     exposure: "developer",
-    hook: "useExportArchive",
+    hook: "useCheckInbox",
+  },
+  {
+    name: "ReissueGrants",
+    action: "rebuild sharing",
+    effect: "write",
+    entity: "sharing",
+    exposure: "developer",
+    hook: "useReissueGrants",
   },
   {
     name: "AuditGrants",
@@ -110,6 +208,104 @@ export const INTENTS: readonly IntentEntry[] = [
     exposure: "developer",
     hook: "useAuditGrants",
   },
+  // ── Organisation ─────────────────────────────────────────────────────────────
+  {
+    name: "SaveOrganisation",
+    action: "save your organisation",
+    effect: "write",
+    entity: "organisation",
+    hook: "useSaveOrganization",
+  },
+  // ── Contacts ─────────────────────────────────────────────────────────────────
+  {
+    name: "SaveContact",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "contact",
+    hook: "useSaveContact",
+  },
+  {
+    name: "RemoveContact",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "contact",
+    hook: "useRemoveContact",
+  },
+  {
+    name: "SeedDemoContacts",
+    action: "add demo contacts",
+    effect: "write",
+    entity: "contact",
+    exposure: "developer",
+    hook: "useSeedDemoContacts",
+  },
+  // ── Data rooms ───────────────────────────────────────────────────────────────
+  {
+    name: "CreateRoom",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "room",
+    hook: "useCreateRoom",
+  },
+  {
+    name: "EnterRoom",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "room",
+    hook: "useEnterRoom",
+  },
+  {
+    name: "ExitRoom",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "room",
+    hook: "useExitRoom",
+  },
+  {
+    name: "DeleteRoom",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "room",
+    hook: "useDeleteRoom",
+  },
+  {
+    name: "AddRoom",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "room",
+    hook: "useAddRoom",
+  },
+  {
+    name: "RemoveBookmark",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "room",
+    hook: "useRemoveBookmark",
+  },
+  {
+    name: "SaveRoles",
+    action: "", // hook declares no meta.action
+    effect: "write",
+    entity: "room",
+    hook: "useSaveRoles",
+  },
+  {
+    name: "SeedDemoRooms",
+    action: "add demo data rooms",
+    effect: "write",
+    entity: "room",
+    exposure: "developer",
+    hook: "useSeedDemoRooms",
+  },
+  // ── Account-scope ────────────────────────────────────────────────────────────
+  {
+    name: "SeedDemoBuildings",
+    action: "add demo buildings and energy data",
+    effect: "write",
+    entity: "building",
+    exposure: "developer",
+    hook: "useSeedDemoBuildings",
+  },
   {
     name: "RemoveAppData",
     action: "remove app data",
@@ -117,6 +313,22 @@ export const INTENTS: readonly IntentEntry[] = [
     entity: "appData",
     exposure: "developer",
     hook: "useRemoveAppData",
+  },
+  {
+    name: "RestoreArchive",
+    action: "restore the archive",
+    effect: "write",
+    entity: "appData",
+    exposure: "developer",
+    hook: "useRestoreArchive",
+  },
+  {
+    name: "ExportArchive",
+    action: "download the archive",
+    effect: "read",
+    entity: "appData",
+    exposure: "developer",
+    hook: "useExportArchive",
   },
 ] as const;
 

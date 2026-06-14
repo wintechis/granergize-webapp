@@ -6,6 +6,7 @@ import {
   getStorageRoot,
   resolveStorageRoot,
 } from "./services/pod/solidUtils.ts";
+import { HOME } from "./routes.ts";
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Energy from "./pages/Energy.tsx";
@@ -236,33 +237,24 @@ function App({ onLogout, session }: AppProps) {
     return <ActivityScreen title="Loading…" />;
   }
 
+  // Routes expressed as a data table, then rendered by mapping to <Route>. Paths
+  // and param names are the *current* grammar (kept exactly); the routes.ts
+  // DETAIL_PATTERNS / collection renames belong to a later lane.
+  const routeTable: { path: string; element: ReactNode }[] = [
+    { path: HOME, element: <Index onLogout={onLogout} session={session} /> },
+    { path: "/building/:selectedBuilding", element: <BuildingWrapper /> },
+    { path: "/energy/:selectedBuilding", element: <EnergyWrapper /> },
+    { path: "/view/:viewId", element: <AggregatedViewWrapper session={session} /> },
+    { path: "/contact/:webId", element: <ContactWrapper /> },
+    { path: "/room/:roomUri", element: <RoomDeepLink session={session} /> },
+  ];
+
   return (
     <HashRouter>
       <Routes>
-        <Route
-          path="/"
-          element={<Index onLogout={onLogout} session={session} />}
-        />
-        <Route
-          path="/building/:selectedBuilding"
-          element={<BuildingWrapper />}
-        />
-        <Route
-          path="/energy/:selectedBuilding"
-          element={<EnergyWrapper />}
-        />
-        <Route
-          path="/view/:viewId"
-          element={<AggregatedViewWrapper session={session} />}
-        />
-        <Route
-          path="/contact/:webId"
-          element={<ContactWrapper />}
-        />
-        <Route
-          path="/room/:roomUri"
-          element={<RoomDeepLink session={session} />}
-        />
+        {routeTable.map((r) => (
+          <Route key={r.path} path={r.path} element={r.element} />
+        ))}
       </Routes>
     </HashRouter>
   );

@@ -6,6 +6,7 @@
     "dev:local:jss": "LOCAL_POD_SERVER=jss deno task dev:local",
     "build": "deno run -A npm:vite build",
     "test": "deno test -A",
+    "gen:labels": "deno run --allow-env --allow-read --allow-write scripts/genVocabLabels.ts",
     "loc": "deno run --allow-read --allow-run=git test/loc.ts",
     "lint": "deno run -A npm:eslint .",
     "check": "deno run -A npm:typescript/tsc --noEmit -p tsconfig.check.json",

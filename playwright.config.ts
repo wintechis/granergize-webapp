@@ -100,6 +100,7 @@ const SOLO_SPECS = [
   "**/archive-restore.spec.ts",
   "**/uri-state.spec.ts",
   "**/building-form-and-energy.spec.ts",
+  "**/building-page.spec.ts",
 ];
 // DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
 const DUO_SPECS = [

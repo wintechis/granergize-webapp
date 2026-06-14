@@ -57,7 +57,11 @@ import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { formatError } from "../lib/formatError.ts";
 import { formatDate } from "../lib/formatDate.ts";
 import { downloadXlsx } from "../lib/download.ts";
-import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
+import {
+  RdfSourceLink,
+  RefLink,
+  UriLink,
+} from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
@@ -310,7 +314,11 @@ export default function ManagePage({ session }: ManagePageProps) {
                     buildingId={b.id}
                     title={
                       <>
-                        <strong>{name}</strong>
+                        <RefLink
+                          to={`/building/${encodeURIComponent(b.id)}`}
+                        >
+                          <strong>{name}</strong>
+                        </RefLink>
                         {b.streetAddress && b.streetAddress !== name
                           ? ` — ${b.streetAddress}`
                           : ""}
