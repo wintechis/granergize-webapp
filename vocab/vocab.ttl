@@ -16,7 +16,11 @@
 
 <#> rdf:type owl:Ontology ;
     rdfs:label "Granergize core vocabulary"@en ;
-    rdfs:comment "App and interop plumbing: sharing-log routing, data-room membership roles, personal preferences and bookmarks."@en .
+    rdfs:label "Granergize-Kernvokabular"@de ;
+    rdfs:label "Vocabulaire central Granergize"@fr ;
+    rdfs:comment "App and interop plumbing: sharing-log routing, data-room membership roles, personal preferences and bookmarks."@en ;
+    rdfs:comment "Anwendungs- und Interop-Infrastruktur: Routing des Freigabeprotokolls, Mitgliedsrollen in Datenräumen, persönliche Einstellungen und Lesezeichen."@de ;
+    rdfs:comment "Tuyauterie applicative et d'interopérabilité : routage du journal de partage, rôles d'appartenance aux salles de données, préférences personnelles et signets."@fr .
 
 ############################
 ###   Sharing log        ###
@@ -25,8 +29,10 @@
 # The kind of a shared resource in a sharing-log event — a routing hint whose
 # value is the shared resource's class: rec:Building or cons:View.
 :kind rdf:type owl:ObjectProperty ;
-    rdfs:label "kind"@en ;
+    rdfs:label "kind"@en ; rdfs:label "Art"@de ; rdfs:label "type"@fr ;
     rdfs:comment "The class of the shared resource in a sharing-log event (rec:Building or cons:View)."@en ;
+    rdfs:comment "Die Klasse der geteilten Ressource in einem Freigabeprotokoll-Ereignis (rec:Building oder cons:View)."@de ;
+    rdfs:comment "La classe de la ressource partagée dans un événement du journal de partage (rec:Building ou cons:View)."@fr ;
     rdfs:seeAlso rec:Building , cons:View .
 
 ############################
@@ -38,27 +44,29 @@
 # authenticating user, and the role is recorded on the membership event as
 # sioc:has_function.
 :UserRole rdf:type rdfs:Class ;
-    rdfs:label "User Role"@en ;
-    rdfs:comment "A data-room membership role: the role of the organisation a member represents, held via the member's WebID."@en .
+    rdfs:label "User Role"@en ; rdfs:label "Benutzerrolle"@de ; rdfs:label "Rôle d'utilisateur"@fr ;
+    rdfs:comment "A data-room membership role: the role of the organisation a member represents, held via the member's WebID."@en ;
+    rdfs:comment "Eine Mitgliedsrolle in einem Datenraum: die Rolle der Organisation, die ein Mitglied vertritt, gehalten über die WebID des Mitglieds."@de ;
+    rdfs:comment "Un rôle d'appartenance à une salle de données : le rôle de l'organisation qu'un membre représente, détenu via le WebID du membre."@fr .
 
 :DummyRole rdf:type :UserRole ;
-    rdfs:label "Dummy"@en .
+    rdfs:label "Dummy"@en ; rdfs:label "Platzhalter"@de ; rdfs:label "Fictif"@fr .
 :InvestorRole rdf:type :UserRole ;
-    rdfs:label "Investor"@en .
+    rdfs:label "Investor"@en ; rdfs:label "Investor"@de ; rdfs:label "Investisseur"@fr .
 :UserRoleInstance rdf:type :UserRole ;
-    rdfs:label "User"@en .
+    rdfs:label "User"@en ; rdfs:label "Benutzer"@de ; rdfs:label "Utilisateur"@fr .
 :BenchmarkRole rdf:type :UserRole ;
-    rdfs:label "Benchmark Service Provider"@en .
+    rdfs:label "Benchmark Service Provider"@en ; rdfs:label "Benchmark-Dienstleister"@de ; rdfs:label "Fournisseur de service de benchmark"@fr .
 :FacilityManagerRole rdf:type :UserRole ;
-    rdfs:label "Facility Manager"@en .
+    rdfs:label "Facility Manager"@en ; rdfs:label "Facility Manager"@de ; rdfs:label "Gestionnaire d'installations"@fr .
 :DeveloperRole rdf:type :UserRole ;
-    rdfs:label "Developer"@en .
+    rdfs:label "Developer"@en ; rdfs:label "Projektentwickler"@de ; rdfs:label "Promoteur"@fr .
 :ConsultantBrokerRole rdf:type :UserRole ;
-    rdfs:label "Consultant / Broker"@en .
+    rdfs:label "Consultant / Broker"@en ; rdfs:label "Berater / Makler"@de ; rdfs:label "Conseiller / Courtier"@fr .
 :SoftwareProviderRole rdf:type :UserRole ;
-    rdfs:label "Software Provider"@en .
+    rdfs:label "Software Provider"@en ; rdfs:label "Softwareanbieter"@de ; rdfs:label "Fournisseur de logiciel"@fr .
 :EnergyProviderRole rdf:type :UserRole ;
-    rdfs:label "Energy Provider"@en .
+    rdfs:label "Energy Provider"@en ; rdfs:label "Energieversorger"@de ; rdfs:label "Fournisseur d'énergie"@fr .
 
 ############################
 ###   Preferences        ###
@@ -66,19 +74,21 @@
 
 # Personal preferences (prefs.ttl).
 :Preferences rdf:type rdfs:Class ;
-    rdfs:label "Preferences"@en .
+    rdfs:label "Preferences"@en ; rdfs:label "Einstellungen"@de ; rdfs:label "Préférences"@fr .
 
 :currentRoom rdf:type owl:ObjectProperty ;
-    rdfs:label "current room"@en ;
+    rdfs:label "current room"@en ; rdfs:label "aktueller Raum"@de ; rdfs:label "salle actuelle"@fr ;
     rdfs:domain :Preferences .
 
 :hiddenBuilding rdf:type owl:ObjectProperty ;
-    rdfs:label "hidden building"@en ;
+    rdfs:label "hidden building"@en ; rdfs:label "ausgeblendetes Gebäude"@de ; rdfs:label "bâtiment masqué"@fr ;
     rdfs:comment "A building shared with you that you've hidden from the dashboard."@en ;
+    rdfs:comment "Ein mit Ihnen geteiltes Gebäude, das Sie aus dem Dashboard ausgeblendet haben."@de ;
+    rdfs:comment "Un bâtiment partagé avec vous que vous avez masqué du tableau de bord."@fr ;
     rdfs:domain :Preferences ; rdfs:range rec:Building .
 
 :demoSeedDeclined rdf:type owl:DatatypeProperty ;
-    rdfs:label "demo seed declined"@en ;
+    rdfs:label "demo seed declined"@en ; rdfs:label "Demodaten abgelehnt"@de ; rdfs:label "données de démonstration refusées"@fr ;
     rdfs:domain :Preferences ; rdfs:range xsd:boolean .
 
 ############################
@@ -87,8 +97,8 @@
 
 # Room bookmarks (bookmarks.ttl).
 :Bookmarks rdf:type rdfs:Class ;
-    rdfs:label "Bookmarks"@en .
+    rdfs:label "Bookmarks"@en ; rdfs:label "Lesezeichen"@de ; rdfs:label "Signets"@fr .
 
 :knownRoom rdf:type owl:ObjectProperty ;
-    rdfs:label "known room"@en ;
+    rdfs:label "known room"@en ; rdfs:label "bekannter Raum"@de ; rdfs:label "salle connue"@fr ;
     rdfs:domain :Bookmarks .

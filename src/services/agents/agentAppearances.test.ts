@@ -24,8 +24,20 @@ Deno.test("appearancesOf finds buildings by each agent role and tags the roles",
   assert.deepEqual(b1?.roles, ["Operated by"]);
 
   const b2 = found.find((a) => a.building.id === "2");
-  // customer and investor both point at Alice → both roles listed (config order).
-  assert.deepEqual(b2?.roles, ["Customer", "Investor"]);
+  // customer and investor both point at Alice → both roles listed (config order:
+  // investor precedes customer in AGENT_ROLES).
+  assert.deepEqual(b2?.roles, ["Investor", "Customer"]);
+});
+
+Deno.test("appearancesOf covers the full agent-role set (ownedBy/managed/developed/consulted)", () => {
+  const buildings = [
+    building("1", { ownedBy: ALICE }),
+    building("2", { facilityManagedBy: ALICE }),
+    building("3", { developedBy: ALICE }),
+    building("4", { consultedBy: ALICE }),
+  ];
+  const roles = appearancesOf(ALICE, buildings).flatMap((a) => a.roles);
+  assert.deepEqual(roles.sort(), ["Consulted by", "Developed by", "Facility management", "Owned by"]);
 });
 
 Deno.test("appearancesOf matches attributedTo (provenance) and returns [] when unseen", () => {

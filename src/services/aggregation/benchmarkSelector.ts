@@ -1,19 +1,5 @@
 import type { AggregatedViewSnapshot } from "../../types.ts";
 
-/**
- * The single place the energy-view's row-key space meets the benchmark snapshot's
- * metric-key space. The annual energy table (`loadEnergy` in TurtleParsingService)
- * keys its rows "Electricity" / "Heat" / "Water" / "Wastewater"; a BSP benchmark
- * snapshot keys its values "electricityConsumption" / … (the BSP metrics). Only
- * these four rows can carry a benchmark; every other energy row has none.
- */
-export const ENERGY_KEY_TO_BENCHMARK_METRIC: Record<string, string> = {
-  Electricity: "electricityConsumption",
-  Heat: "heatConsumption",
-  Water: "waterConsumption",
-  Wastewater: "wastewaterConsumption",
-};
-
 /** A benchmark figure for one energy row, resolved from a received snapshot. */
 export interface PickedBenchmark {
   value: number;
@@ -24,17 +10,16 @@ export interface PickedBenchmark {
 
 /**
  * Resolve the benchmark figure to show for one energy row from the received
- * benchmark snapshots. Prefers the **newest** snapshot (by `computedAt`) that
- * carries the row's metric; returns null when no received benchmark covers it
- * (so the Benchmark cell stays blank). Pure — the hook supplies the snapshots.
+ * benchmark snapshots. The energy table now keys its rows by the canonical metric
+ * key (`electricityConsumption`, …) — the SAME key space a benchmark snapshot
+ * stores its values under — so no translation is needed; a non-consumption metric
+ * simply has no benchmark value and returns null. Prefers the **newest** snapshot
+ * (by `computedAt`) that carries the metric. Pure — the hook supplies the snapshots.
  */
 export function pickBenchmark(
   snapshots: AggregatedViewSnapshot[],
-  energyKey: string,
+  metric: string,
 ): PickedBenchmark | null {
-  const metric = ENERGY_KEY_TO_BENCHMARK_METRIC[energyKey];
-  if (!metric) return null;
-
   const candidates = snapshots.filter(
     (s) => s.isBenchmark && typeof s.values[metric] === "number",
   );

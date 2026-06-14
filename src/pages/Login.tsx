@@ -12,9 +12,11 @@ import Box from "@mui/material/Box";
 import Card from "@mui/material/Card";
 import Typography from "@mui/material/Typography";
 import { styled } from "@mui/material/styles";
+import Alert from "@mui/material/Alert";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { shouldRestoreSession } from "../services/pod/sessionRestore.ts";
 import { logError } from "../lib/logError.ts";
+import { clearLocalData } from "../lib/clearLocalData.ts";
 import { normalizeIssuer } from "../lib/normalizeIssuer.ts";
 
 interface LoginProps {
@@ -36,6 +38,19 @@ interface LoginProps {
   loginOptions?: Omit<ILoginInputOptions, "oidcIssuer">;
   onLogin?: (session: Session) => void;
 }
+
+/**
+ * OIDC error codes a silent (`prompt=none`) restore returns when there is simply
+ * no active IdP session — the ordinary logged-out case. These must stay silent
+ * (fall through to the login form); any OTHER error (e.g. `invalid_client`, the
+ * "Unknown client" stale-registration case) surfaces the clear-local-data remedy.
+ */
+const BENIGN_OIDC_ERRORS = new Set([
+  "login_required",
+  "interaction_required",
+  "consent_required",
+  "account_selection_required",
+]);
 
 const IdpInputWrapper = styled(Box)(({ theme }) => ({
   display: "flex",
@@ -75,6 +90,12 @@ export const Login: React.FC<LoginProps> = ({
 
   const [invalidIDP, setInvalidIDP] = useState(false);
   const [loading, setLoading] = useState(true);
+  // Holds the IdP's error message when a silent session restore fails
+  // (typically a stale OIDC client registration → "Unknown client"). Surfaces
+  // that literal message plus an inline "Clear local data & retry" remedy on
+  // the login form.
+  const [restoreError, setRestoreError] = useState<string | null>(null);
+  const [clearing, setClearing] = useState(false);
   // The provider the user just picked: `session.login` does OIDC discovery +
   // client registration (a couple of network round-trips) before it navigates
   // away, so without this the button would sit dead for a second or two. Set on
@@ -115,6 +136,23 @@ export const Login: React.FC<LoginProps> = ({
   };
 
   useEffect(() => {
+    // A failed silent restore (stale OIDC client registration → "Unknown
+    // client") comes back as a TOP-LEVEL redirect to `?error=…&error_description=…`
+    // — a full page reload, so the deferred-restore `.catch` below never sees it.
+    // Read the OIDC error straight from the URL here, before
+    // `handleIncomingRedirect` strips it, and surface its literal message. Skip
+    // the benign "no active session" codes (the normal logged-out reload).
+    const oidcParams = new URLSearchParams(window.location.search);
+    const oidcError = oidcParams.get("error");
+    if (oidcError && !BENIGN_OIDC_ERRORS.has(oidcError)) {
+      // Surfacing an external-system read (the redirect URL) — the sanctioned
+      // set-state-in-effect case, like the prevIdps sync below.
+      /* eslint-disable react-hooks/set-state-in-effect */
+      setRestoreError(oidcParams.get("error_description") || oidcError);
+      setLoading(false);
+      /* eslint-enable react-hooks/set-state-in-effect */
+    }
+
     // Watchdog: never trap the user on the "Loading…" screen if a redirect or
     // restore hangs (e.g. the IdP never resolves `handleIncomingRedirect`).
     // After this fires we fall through to the login form; a late restore that
@@ -215,9 +253,16 @@ export const Login: React.FC<LoginProps> = ({
                   );
                 }
               })
-              .catch((err) =>
-                logError("restore the previous auth session", err)
-              );
+              .catch((err) => {
+                logError("restore the previous auth session", err);
+                // A rejected restore is the "Unknown client" / stale-registration
+                // case — show the IdP's literal message and offer the local-data
+                // wipe instead of failing silently.
+                setRestoreError(
+                  err instanceof Error ? err.message : String(err),
+                );
+                setLoading(false);
+              });
           } else {
             setLoading(false);
           }
@@ -280,6 +325,18 @@ export const Login: React.FC<LoginProps> = ({
       setRedirectingTo(null);
       setInvalidIDP(true);
     });
+  }
+
+  async function handleClearLocalData() {
+    setClearing(true);
+    await clearLocalData();
+    // Reload to a clean URL: drop the `?error=…` OIDC query so the remedy
+    // doesn't re-appear after the wipe (keep the in-app hash route). This also
+    // restarts the auth flow so the library re-registers the OIDC client.
+    // (clearLocalData already dropped prevIdps.)
+    window.location.replace(
+      window.location.origin + window.location.pathname + window.location.hash,
+    );
   }
 
   function handleNewIdpSubmit(e: React.FormEvent) {
@@ -387,6 +444,27 @@ export const Login: React.FC<LoginProps> = ({
                   Choose an Identity Provider for this{" "}
                   <a href="https://solidproject.org/">Solid Application</a>
                 </Typography>
+              )}
+
+              {/* Stale-registration remedy: shown only after a silent restore
+                  failed (the IdP's "Unknown client" error). Echoes the IdP's
+                  literal message so the cause is visible. */}
+              {restoreError && (
+                <Alert
+                  severity="warning"
+                  action={
+                    <Button
+                      color="inherit"
+                      size="small"
+                      disabled={clearing}
+                      onClick={handleClearLocalData}
+                    >
+                      {clearing ? "Clearing…" : "Clear local data & retry"}
+                    </Button>
+                  }
+                >
+                  Couldn’t restore your previous session: {restoreError}
+                </Alert>
               )}
 
               {/* Recommended IDPs — only until a provider is remembered */}

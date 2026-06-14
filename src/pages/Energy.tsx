@@ -21,6 +21,7 @@ import { alpha } from "@mui/material/styles";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import { useReceivedBenchmarks, useSolidData } from "../hooks/queries.ts";
 import { pickBenchmark } from "../services/aggregation/benchmarkSelector.ts";
+import { annualMetricDesc } from "../constants/annualMetrics.ts";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import { BackLink, RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
@@ -172,7 +173,7 @@ export default function Energy(
                     return (
                       <TableRow hover key={key}>
                         <TableCell component="th" scope="row">
-                          {key}
+                          {annualMetricDesc(key)?.label ?? key}
                         </TableCell>
                         <TableCell
                           align="right"

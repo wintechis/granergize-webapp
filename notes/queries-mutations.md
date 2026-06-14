@@ -9,10 +9,7 @@ Separation**, every operation is one of two kinds:
 Companion to [`architecture.md`](./architecture.md) (the source layers these operations
 live in), [`sharing.md`](./sharing.md) (the sharing event logs),
 [`storage-layout.md`](./storage-layout.md) (the on-Pod tree) and
-[`data-deref.md`](./data-deref.md) (fetch/load mechanics). The named user-intent
-catalog whose verbs commit through these operations — and a proposed registry that
-would reify it — is the design sketch
-[`explore-intent-registry.md`](./explore-intent-registry.md).
+[`data-deref.md`](./data-deref.md) (fetch/load mechanics).
 
 The terminology is already the codebase's: queries live behind React Query hooks in
 `src/hooks/queries.ts`; mutations behind `src/hooks/mutations.ts`, a thin invalidation
@@ -22,8 +19,8 @@ below.
 
 Each Pod-touching service-layer function carries an `@operation query` / `@operation
 mutation` JSDoc tag marking which kind it is. That discriminator is the only tag today;
-the richer classification (storage model, trigger, resource) and a generated inventory
-are still to come — see [`explore-intent-registry.md`](./explore-intent-registry.md).
+a richer classification (storage model, trigger, resource) and a generated inventory
+are not implemented.
 
 ## Two storage models
 

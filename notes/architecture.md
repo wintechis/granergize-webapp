@@ -134,6 +134,38 @@ Everything else — form drafts, busy flags, menu anchors, in-flight interaction
 navigational/ephemeral split and the full inventory are
 [`ui-state.md`](./ui-state.md).
 
+## The data-shape pipeline
+
+Orthogonal to the import-direction layering above runs the **data-shape** pipeline —
+the same data in three forms, each translating to its neighbour in **both
+directions**:
+
+```
+  RDF on the Pod   ⇄   typed app objects   ⇄   rendered UI
+  (read / write)       (BuildingType, …)       (display / edit)
+```
+
+- **RDF / storage.** Turtle documents in the `granergize/` tree — the ground
+  truth, modelled in the shared vocabulary ([`storage-layout.md`](./storage-layout.md));
+  read on load, written back on save.
+- **Typed objects.** The parsers in `src/services/rdf/` project the merged graph
+  into plain typed structures (`BuildingType`, `EnergyType`, …) via the
+  predicate→field maps in `buildingConfig.ts` — **after which components see no RDF**.
+  The read translation is one-way and load-time (RDF → object → props); the reverse
+  (serialize → PUT) runs only on a write ([`data-deref.md`](./data-deref.md) §Parsing;
+  the RDF⇄object shapes are [`data-schema.md`](./data-schema.md); the object
+  inventory is [`object-model.md`](./object-model.md)).
+- **Rendered UI.** Components render those objects into widgets for display, and an
+  edit invokes a mutation that serializes back down the chain — today mostly
+  hand-wired per type, already partly config-driven for buildings
+  ([`building-pane.md`](./building-pane.md)).
+
+Reads flow toward the UI, writes flow back to storage; the verbs that drive the
+write path are the query/mutation layer ([`queries-mutations.md`](./queries-mutations.md)).
+The two boundaries — storage→object and object→UI — are the seams the *resource
+profile* (storage layout · addressing, [`storage-layout.md`](./storage-layout.md))
+and the typed object layer ([`object-model.md`](./object-model.md)) describe.
+
 ## The dependency rule
 
 Imports flow strictly downward, and two consequences are worth stating because they are
@@ -150,10 +182,6 @@ easy to violate:
 The single structural exception is the pair of queries that hide a mutation
 (`loadBuildings`, `drainInbox`) — documented as seams in
 [`queries-mutations.md`](./queries-mutations.md) (§Seams), not repeated here.
-
-Where this boundary could be drawn differently — pushing the services and RDF layers
-behind a JSON-RPC server, or shedding the single-page shell altogether — is explored
-(and not adopted) in [`explore-client-boundary.md`](./explore-client-boundary.md).
 
 ## Packages & runtime
 

@@ -1,14 +1,21 @@
 import type { BuildingType } from "../../types.ts";
 
 /**
- * The building fields that reference a party (a WebID or a free-text name):
- * customer / operatedBy / investor, plus the provenance `attributedTo`. These are
- * the surfaces an agent appears on, and what the contact detail view lists.
+ * The building fields that reference a party (a WebID or a free-text name): the
+ * full set of `foaf:Agent`-valued roles from `buildingConfig` (ownedBy /
+ * operatedBy / facilityManagedBy / developedBy / consultedBy / investor /
+ * customer), plus the provenance `attributedTo`. These are the surfaces an agent
+ * appears on, and what the contact detail view lists — kept in step with the
+ * agent-valued fields so a party referenced in any role is found here.
  */
 export const AGENT_ROLES: Array<{ field: keyof BuildingType; label: string }> = [
-  { field: "customer", label: "Customer" },
+  { field: "ownedBy", label: "Owned by" },
   { field: "operatedBy", label: "Operated by" },
+  { field: "facilityManagedBy", label: "Facility management" },
+  { field: "developedBy", label: "Developed by" },
+  { field: "consultedBy", label: "Consulted by" },
   { field: "investor", label: "Investor" },
+  { field: "customer", label: "Customer" },
   { field: "attributedTo", label: "Data source" },
 ];
 

@@ -110,12 +110,11 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const annual = useAnnualEnergy(building);
   const actual = annual.data?.actual ?? [];
   const planned = annual.data?.planned ?? [];
-  // The Betreiber-Durchschnitt (heike-4): per-carrier mean across all buildings
+  // The Betreiber-Durchschnitt (heike-4): per-metric mean across all buildings
   // sharing this building's operator (`operatedBy`), each contributing its
-  // latest actual year (computed in loadEnergy; keys are the carrier labels
-  // "Electricity"/"Heat"/"Water"/"Wastewater" — exactly the consumption
-  // metrics' schema labels). Empty when no operator is set or no peer carries
-  // annual figures.
+  // latest actual year (computed in loadEnergy; keyed by the canonical metric
+  // keys `electricityConsumption`/… — same as the per-year data and the metric
+  // schema). Empty when no operator is set or no peer carries annual figures.
   const { operatorAverages } = useSolidData();
   const operatorAvg =
     (typeof building.operatedBy === "string" &&
@@ -163,7 +162,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   // electricity first); columns, cells and charts all derive from this.
   const visibleMetrics = ANNUAL_METRICS.filter((m) =>
     [...actual, ...planned].some((d) => d[m.key] != null) ||
-    operatorAvg[m.label] != null
+    operatorAvg[m.key] != null
   );
 
   /** One metric → a row-per-year `[{ year, actual?, planned? }]` for Recharts.
@@ -336,8 +335,8 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                             of the operator aggregation. */}
                         {visibleMetrics.map((m) => (
                           <TableCell key={m.key} align="right">
-                            {operatorAvg[m.label] != null
-                              ? formatNumber(operatorAvg[m.label], m.decimals)
+                            {operatorAvg[m.key] != null
+                              ? formatNumber(operatorAvg[m.key], m.decimals)
                               : "—"}
                           </TableCell>
                         ))}

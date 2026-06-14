@@ -3,6 +3,7 @@ import type {
   AggregatedViewDefinition,
   AggregatedViewSnapshot,
   AggregationType,
+  BuildingType,
   EnergyCategoryKey,
   EnergyType,
 } from "../../types.ts";
@@ -10,9 +11,11 @@ import { getViewDefinition, storeComputedSnapshot } from "./viewManager.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import {
+  type EnergyDatasetRef,
   loadEnergyDatasets,
   parseEnergyDatasetRefs,
 } from "../rdf/energyDataset.ts";
+import { getAppQueryClient } from "../../lib/appQueryClient.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { parseTtlReadings } from "../rdf/userEnergyParser.ts";
 import {
@@ -21,6 +24,53 @@ import {
 } from "../rdf/building/buildingId.ts";
 import { getStorageRoot } from "../pod/solidUtils.ts";
 import { mapPooled } from "../../lib/pool.ts";
+
+/**
+ * The building's `cons:hasEnergyDataset` refs from the WARM `useBuildings` cache,
+ * or null when there's no client / the building isn't cached. The map parses these
+ * refs reliably; re-reading the building file to re-derive them is the slow-Pod
+ * flake that left fresh snapshots empty — so prefer the cache and only fall back to
+ * a file read. Identity is the subject IRI (`building.uri`).
+ */
+function cachedBuildingRefs(buildingUri: string): EnergyDatasetRef[] | null {
+  const qc = getAppQueryClient();
+  if (!qc) return null;
+  // Prefix-match the "buildings" query root (the WebID/fingerprint tail varies),
+  // matching `queryKeys.buildings[0]` without importing the hooks layer.
+  const entries = qc.getQueriesData<{ buildings: BuildingType[] }>({
+    predicate: (q) => q.queryKey[0] === "buildings",
+  });
+  for (const [, data] of entries) {
+    const b = data?.buildings.find((x) => x.uri === buildingUri);
+    if (b) return b.energyDatasets ?? [];
+  }
+  return null;
+}
+
+/**
+ * The building's energy-dataset refs: the warm-cache fast path, else a re-read of
+ * the building file with a bounded retry. The view's buildings exist (seeded well
+ * before), so a transient empty read on a slow Pod is the flake to ride out —
+ * `readStoreOrEmpty` swallows the distinction, so retry until refs appear or the
+ * cap; a genuinely energy-less building just retries cheaply and returns nothing.
+ */
+async function resolveBuildingRefs(
+  buildingUri: string,
+  fileUri: string,
+  session: Session,
+): Promise<EnergyDatasetRef[]> {
+  const cached = cachedBuildingRefs(buildingUri);
+  if (cached) return cached;
+  for (let attempt = 0; attempt < 4; attempt++) {
+    const refs = parseEnergyDatasetRefs(
+      await readStoreOrEmpty(fileUri, session),
+      null,
+    );
+    if (refs.length > 0 || attempt === 3) return refs;
+    await new Promise((r) => setTimeout(r, 300));
+  }
+  return [];
+}
 
 /**
  * Load energy data for a single building. Returns the metrics of the latest
@@ -36,14 +86,11 @@ async function loadBuildingEnergyData(
   // IRI, never reconstructed from the file name.
   const fileUri = buildingFileUri(buildingUri);
   try {
-    // Fetch building data to get energy data location (an unreadable building
-    // degrades to an empty store, i.e. no datasets).
-    const buildingStore = await readStoreOrEmpty(fileUri, session);
-
     // Discover the building's annual datasets from its cons:hasEnergyDataset
-    // links and load the latest actual year; its metrics become the energyNeed
-    // (keyed by the AnnualMetrics names the view metrics use).
-    const annual = parseEnergyDatasetRefs(buildingStore, null)
+    // links (warm cache, else a retrying file read) and load the latest actual
+    // year; its metrics become the energyNeed (keyed by the AnnualMetrics names
+    // the view metrics use).
+    const annual = (await resolveBuildingRefs(buildingUri, fileUri, session))
       .filter((r) =>
         r.scenario === "actual" && !isSeriesGranularity(r.granularity)
       );

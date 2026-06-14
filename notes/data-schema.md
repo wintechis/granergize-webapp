@@ -82,8 +82,10 @@ The building schema therefore lives across four artifacts that must agree:
 
 - **RDF vocabulary** — predicate IRIs in
   [`vocabularies.ts`](../src/services/rdf/vocabularies.ts).
-- **App object type** — `BuildingType` (also `AgentType`, `EnergyType`) in
-  `src/types.ts`.
+- **App object type** — `BuildingType` (and `EnergyType`, the view types) in
+  `src/types.ts`; the agent shape is now `ResolvedAgent`/`ResolvedOrg`
+  (`services/agents/agentResolver.ts`), resolved on demand. The whole object layer
+  is inventoried in [`object-model.md`](./object-model.md).
 - **Predicate ⇄ field mapping** — `predicateMap` / `objectPropertyMap` in
   [`buildingConfig.ts`](../src/services/rdf/building/buildingConfig.ts).
 - **Datatype/coercion** — `parsingFunctions` (read: literal → JS) in

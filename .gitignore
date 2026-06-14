@@ -57,3 +57,6 @@ excel/*.xlsx
 # Design plans (done/old or future-possible) — kept local, separate from
 # CLAUDE.md and the matter-of-fact notes/ (which describe the current code).
 plans/
+# Speculative design sketches — kept local, like plans/; the matter-of-fact
+# notes/ describe the current code, these explore where it might go.
+explore/

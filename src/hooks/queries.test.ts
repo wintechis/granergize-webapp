@@ -166,7 +166,10 @@ Deno.test("useSolidData merges phase-1 buildings + phase-2 energy", async () => 
     const { result } = renderHook(() => useSolidData(), { wrapper });
     await waitFor(() => assert.equal(result.current.buildings.length, 1));
     await waitFor(() => assert.equal(result.current.energyNeed.length, 1));
-    assert.equal(result.current.energyNeed[0].energyNeed.Electricity, 1000);
+    assert.equal(
+      result.current.energyNeed[0].energyNeed.electricityConsumption,
+      1000,
+    );
   } finally {
     _setSessionForTesting(null);
   }

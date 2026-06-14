@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import {
   keepPreviousData,
   MutationCache,
@@ -11,6 +11,7 @@ import {
   classifyMutationError,
   classifyQueryError,
 } from "../hooks/queryErrors.ts";
+import { _setAppQueryClient } from "../lib/appQueryClient.ts";
 import { useNotification } from "./NotificationContext.tsx";
 
 /**
@@ -69,6 +70,13 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
       },
     });
   });
+
+  // Publish the client so non-hook service code (the view compute) can read the
+  // warm cache; clear it on unmount so a torn-down app leaves no dangling ref.
+  useEffect(() => {
+    _setAppQueryClient(client);
+    return () => _setAppQueryClient(null);
+  }, [client]);
 
   return <QueryClientProvider client={client}>{children}</QueryClientProvider>;
 }

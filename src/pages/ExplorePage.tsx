@@ -31,7 +31,11 @@ import SeriesEnergy from "./SeriesEnergy.tsx";
 import IconButton from "@mui/material/IconButton";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import { useResolveOrg, useSolidData } from "../hooks/queries.ts";
+import {
+  useResolveAgent,
+  useResolveOrg,
+  useSolidData,
+} from "../hooks/queries.ts";
 import WeatherData from "./WeatherData.tsx";
 import AnnualEnergy from "./AnnualEnergy.tsx";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
@@ -153,7 +157,8 @@ function createCategoryIcon(
  * (`useResolveOrg`) is a single hook call per marker rather than inside the
  * buildings `.map()`. The marker itself is an owned/shared-coloured pin; the
  * producer's (`attributedTo`) organisation — name and logo, when they resolve —
- * shows in the hover card.
+ * shows in the hover card, as does the operator (`operatedBy`) agent's name and
+ * logo when present.
  */
 function BuildingMarker(
   { building, position, selected, onClick, lens, category }: {
@@ -169,6 +174,14 @@ function BuildingMarker(
   // The logo URL is the raw `foaf:logo` value from a THIRD PARTY's profile
   // (shared-in buildings resolve foreign producers) — sanitize before rendering.
   const logoSrc = org?.logoUrl ? safeImageSrc(org.logoUrl) : null;
+  // The operator (`operatedBy`) is resolved against the agent's OWN document
+  // (`foaf:name` + `foaf:img`/logo), which is where these operator-org nodes
+  // state their name and logo — they carry no `org:memberOf` for resolveAgentOrg.
+  const { data: operator } = useResolveAgent(building.operatedBy);
+  const operatorName = operator?.name && building.operatedBy ? operator.name : null;
+  const operatorLogoSrc = operator?.avatarUrl
+    ? safeImageSrc(operator.avatarUrl)
+    : null;
   const icon = lens === "energy"
     ? createCategoryIcon(category, selected)
     : createPinIcon(building.isShared ?? false, selected);
@@ -216,6 +229,30 @@ function BuildingMarker(
                 }}
                 // A foreign producer's logo may not be publicly readable —
                 // hide the broken image, the org name line still identifies.
+                onError={(e) => {
+                  e.currentTarget.style.display = "none";
+                }}
+              />
+            )}
+            {operatorName && (
+              <>
+                <br />
+                Operated by <em>{operatorName}</em>
+              </>
+            )}
+            {operatorLogoSrc && (
+              <img
+                src={operatorLogoSrc}
+                alt="Building operator logo"
+                style={{
+                  display: "block",
+                  height: 20,
+                  maxWidth: 140,
+                  objectFit: "contain",
+                  marginTop: 4,
+                }}
+                // The operator's logo may not be publicly readable — hide the
+                // broken image, the operator name line still identifies.
                 onError={(e) => {
                   e.currentTarget.style.display = "none";
                 }}

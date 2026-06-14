@@ -18,26 +18,26 @@ function snap(
   };
 }
 
-Deno.test("pickBenchmark maps the energy row key to the benchmark metric", () => {
+Deno.test("pickBenchmark resolves the benchmark for a metric (canonical key, no translation)", () => {
   const b = pickBenchmark(
     [snap({ values: { electricityConsumption: 1410 }, computedBy: "https://bsp/#me" })],
-    "Electricity",
+    "electricityConsumption",
   );
   assert.equal(b?.value, 1410);
   assert.equal(b?.computedBy, "https://bsp/#me");
 });
 
-Deno.test("pickBenchmark returns null for a row with no benchmark metric", () => {
+Deno.test("pickBenchmark returns null for a metric no snapshot carries", () => {
   const snaps = [snap({ values: { electricityConsumption: 1410 } })];
-  assert.equal(pickBenchmark(snaps, "Gas"), null); // Gas has no benchmark metric
-  assert.equal(pickBenchmark(snaps, "Heat"), null); // not present in this snapshot
+  assert.equal(pickBenchmark(snaps, "gasConsumption"), null); // not a benchmark metric
+  assert.equal(pickBenchmark(snaps, "heatConsumption"), null); // not present in this snapshot
 });
 
 Deno.test("pickBenchmark prefers the newest snapshot carrying the metric", () => {
   const b = pickBenchmark([
     snap({ values: { heatConsumption: 800 }, computedAt: "2025-06-01T00:00:00Z", metricPeriod: "2023" }),
     snap({ values: { heatConsumption: 900 }, computedAt: "2026-06-01T00:00:00Z", metricPeriod: "2024" }),
-  ], "Heat");
+  ], "heatConsumption");
   assert.equal(b?.value, 900);
   assert.equal(b?.metricPeriod, "2024");
 });
@@ -45,7 +45,7 @@ Deno.test("pickBenchmark prefers the newest snapshot carrying the metric", () =>
 Deno.test("pickBenchmark ignores non-benchmark snapshots", () => {
   const b = pickBenchmark(
     [snap({ values: { waterConsumption: 50 }, isBenchmark: false })],
-    "Water",
+    "waterConsumption",
   );
   assert.equal(b, null);
 });
@@ -55,6 +55,6 @@ Deno.test("pickBenchmark skips a newer snapshot that lacks the metric", () => {
   const b = pickBenchmark([
     snap({ values: { waterConsumption: 50 }, computedAt: "2025-01-01T00:00:00Z" }),
     snap({ values: { electricityConsumption: 1000 }, computedAt: "2026-01-01T00:00:00Z" }),
-  ], "Water");
+  ], "waterConsumption");
   assert.equal(b?.value, 50);
 });
