@@ -128,10 +128,18 @@ test.describe("view sharing across two pods", () => {
           await expect(receivedViews(b.page).getByText(VIEW_NAME))
             .toBeVisible({ timeout: T.action });
         });
-        await b.page.getByRole("button", { name: /show values/i }).first()
-          .click();
-        await expect(b.page.locator("svg.recharts-surface").first())
-          .toBeVisible({ timeout: T.action });
+        // The snapshot is a SEPARATE cross-pod read from the grant fold that
+        // surfaced the row; expanding re-reads it (the app refetches on the
+        // "look"), and a reload retries if its Read ACL was still propagating — so
+        // a raced read recovers instead of hanging the single chart wait. Short
+        // inner timeout so the outer poll gets a couple of reload attempts.
+        await reloadUntil(b.page, async () => {
+          await b.page.getByRole("tab", { name: "Share" }).click();
+          await b.page.getByRole("button", { name: /show values/i }).first()
+            .click();
+          await expect(b.page.locator("svg.recharts-surface").first())
+            .toBeVisible({ timeout: T.visible });
+        });
       } catch (timeout) {
         b.guard.assertNoAppErrors();
         throw timeout;

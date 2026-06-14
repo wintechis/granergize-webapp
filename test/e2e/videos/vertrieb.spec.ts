@@ -79,7 +79,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     const addExamples = page.getByRole("button", { name: "Add examples" });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
-    await expect(page.getByText("Demo buildings added").first())
+    await expect(page.getByText("Demo buildings and energy data added").first())
       .toBeVisible({ timeout: 300_000 });
 
     // --- Setup B: own surroundings (seeded out-of-band, before B's first

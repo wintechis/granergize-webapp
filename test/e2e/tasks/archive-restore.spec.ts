@@ -61,8 +61,19 @@ test.describe("archive backup/restore", () => {
     test.setTimeout(T.testSolo);
     await openManage(page);
     await expect(buildingRows(page).first()).toBeVisible({ timeout: T.action });
-    const before = new Set(await buildingIds(page));
-    expect(before.size, "seeded buildings to back up").toBeGreaterThan(0);
+    // Capture the seeded set only once it has CONVERGED (stable across a short
+    // interval). A single read the instant the first row appears can grab a
+    // partial or residual listing on a slow Pod — and since the post-restore
+    // compare below IS poll-stabilized, an unstable baseline is what makes the two
+    // disagree (disjoint id sets), not the restore itself.
+    let before = new Set<string>();
+    await expect(async () => {
+      const ids = new Set(await buildingIds(page));
+      expect(ids.size, "seeded buildings to back up").toBeGreaterThan(0);
+      await page.waitForTimeout(400);
+      expect(new Set(await buildingIds(page))).toEqual(ids);
+      before = ids;
+    }).toPass({ timeout: T.poll });
 
     // Developer mode gates the archive menu items (off by default).
     await setDevMode(page, true);

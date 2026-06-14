@@ -41,14 +41,17 @@ Every Tier-2/3 Pod port derives from a single `LOCAL_PORT_OFFSET` (added to the
 base ports in `test/config/localSeed.ts`: CSS `3456`, CSS control `3457`, preview
 app `4183`). Distinct offsets give concurrent runs disjoint port lanes:
 
-- **`0`** (default) — `deno task it`, `deno task e2e:local`.
+- **`0`** (the base lane) — `deno task dev:local`, the by-hand interactive stack,
+  which claims the memorable base ports (pod `3456`/`3457`; its Vite **dev** server
+  is fixed at `5173`, not offset, and never clashes with the `4183`-based preview
+  ports). The heavier/occasional automated lanes (`e2e:local:matrix`'s CSS lane,
+  `e2e:stress`, `bench*`) also default to `0` — they run in isolation, not
+  alongside `dev:local`.
 - **`40`** — `deno task handbuch`.
 - **`60`** — `deno task videos`.
-- **`80`** — `deno task dev:local` (the by-hand interactive stack), set as its
-  default in `test/e2e-local/dev.ts` so it can run alongside any automated lane;
-  an explicit `LOCAL_PORT_OFFSET` overrides. Its Vite **dev** server is fixed at
-  `5173` (not offset, and never clashes with the `4183`-based preview ports), so
-  only the Pod ports shift.
+- **`80`** — the everyday automated lanes `deno task it` and `deno task e2e:local`
+  (and `e2e:local:reuse`; the `:jss` variants inherit it by chaining), set in their
+  deno tasks so they can run while `dev:local` holds the base ports.
 
 To run a second concurrent lane of the same task, give it an unused offset.
 

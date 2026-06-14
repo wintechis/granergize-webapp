@@ -20,17 +20,15 @@
  * handler runs `css.stop()` on the detached group); killing this process tree
  * alone would orphan the pod.
  */
-// Default to a dedicated port lane so a hand-driven dev:local can coexist with the
-// automated Tier-3 lanes that share these Pod ports — e2e:local (offset 0),
-// handbuch (offset 40), videos (offset 60). Set BEFORE importing localSeed, which
-// reads LOCAL_PORT_OFFSET at module-eval time; an explicit value still wins. The
-// dev app port (5173) is unaffected by the offset and never clashes with the
-// Playwright preview ports, so only the Pod ports need shifting.
-if (!Deno.env.get("LOCAL_PORT_OFFSET")) Deno.env.set("LOCAL_PORT_OFFSET", "80");
-
-const { LOCAL_CSS_BASE, LOCAL_CSS_CONTROL_PORT, LOCAL_SEED } = await import(
-  "../config/localSeed.ts"
-);
+// The hand-driven dev stack claims the base port lane (offset 0: pod 3456/3457,
+// app 5173). The everyday automated lanes (`it`, `e2e:local`) set LOCAL_PORT_OFFSET=80
+// in their deno tasks so they can run while this stack is up. An explicit
+// LOCAL_PORT_OFFSET here still wins (e.g. to dodge a heavy bench/stress run).
+import {
+  LOCAL_CSS_BASE,
+  LOCAL_CSS_CONTROL_PORT,
+  LOCAL_SEED,
+} from "../config/localSeed.ts";
 
 const APP_PORT = Number(Deno.env.get("DEV_LOCAL_APP_PORT") ?? "5173") || 5173;
 const APP_DIR = Deno.env.get("VITE_POD_APP_DIR") ?? "granergize-dev";
