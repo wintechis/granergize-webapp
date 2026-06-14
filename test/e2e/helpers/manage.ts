@@ -109,10 +109,11 @@ export async function addBuilding(
 }
 
 /**
- * Add (or overwrite) an annual energy figure for `street` via the per-building
- * "Add or edit energy year" row action. `scenario` matches the Scenario option
- * (e.g. /^Actual$/, /^Planned/). Lifted from energy-entry.spec.ts so the sharing
- * specs can seed energy too.
+ * Add (or overwrite) an annual energy figure for `street`. The redesign moved
+ * energy entry off the finder row onto the building's observation page
+ * (`/observation/:id`), so this opens that page and uses its "Edit energy years"
+ * button. `scenario` matches the Scenario option (e.g. /^Actual$/, /^Planned/).
+ * Returns to the shell afterwards so a caller's next `openBuildingsList` works.
  */
 export async function addEnergyYear(
   page: Page,
@@ -122,9 +123,12 @@ export async function addEnergyYear(
   scenario: RegExp = /^Actual$/,
 ): Promise<void> {
   await openBuildingsList(page);
-  const row = page.locator("li", { hasText: street }).first();
+  const row = page.locator("li[data-building-id]", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
-  await row.getByRole("button", { name: "Add or edit energy year" }).click();
+  const id = await buildingIdOf(row);
+  if (!id) throw new Error(`addEnergyYear: no id for building "${street}"`);
+  await page.goto(buildingRoute("observation", id));
+  await page.getByRole("button", { name: "Edit energy years" }).click();
   // The dialog's accessible name contains "year", so target inputs by exact
   // label / role to avoid matching the dialog itself.
   await page.getByRole("spinbutton", { name: "Year", exact: true }).fill(year);
@@ -139,6 +143,8 @@ export async function addEnergyYear(
   // so each call is self-contained and the next action isn't blocked by the modal.
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
+  // /observation/:id is a standalone route (no app shell) — return to the shell.
+  await page.goto("/#/");
 }
 
 /**

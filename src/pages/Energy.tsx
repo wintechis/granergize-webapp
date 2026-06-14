@@ -77,12 +77,27 @@ export default function Energy(
   const { series } = splitEnergyDatasets(building.energyDatasets);
 
   if (!energy && series.length === 0) {
-    return (
-      <Typography>
-        No energy data available for this building. You may not have access to
-        this data.
-      </Typography>
-    );
+    // No energy yet. The entry point moved off the finder row to this page, so
+    // the owner must still be able to add the first year here (the building page
+    // links here for exactly that). A building shared with the user is read-only
+    // — it only gets the no-access note.
+    return building.isShared
+      ? (
+        <Typography>
+          No energy data available for this building. You may not have access to
+          this data.
+        </Typography>
+      )
+      : (
+        <Stack spacing={2}>
+          <Box sx={{ alignSelf: "flex-start" }}>
+            <EnergyEntryButton building={building} />
+          </Box>
+          <Typography color="text.secondary">
+            No energy data yet. Use the “Edit energy years” button to add a year.
+          </Typography>
+        </Stack>
+      );
   }
 
   function sumUpPropValues(obj: Record<string, unknown>): number {

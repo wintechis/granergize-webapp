@@ -89,8 +89,8 @@ const CHROME = { ...devices["Desktop Chrome"] };
 // (helper `openBuildingsList` in test/e2e/helpers/manage.ts is the seam).
 //
 // QUARANTINED (re-add to the lists below when rewritten): login, logout,
-// session-restore, organisation, add-building, attachments, edit-building-fields,
-// excel-import, excel-export, energy-entry, energy-resolutions, materialised-views,
+// session-restore, organisation, attachments, edit-building-fields,
+// excel-import, excel-export, energy-entry, energy-resolutions,
 // map-energy-lens, data-room, building-details, contacts, archive-restore,
 // building-form-and-energy; share-building, share-view, share-files; peer-benchmark.
 
@@ -99,6 +99,7 @@ const SOLO_SPECS = [
   "**/building-page.spec.ts",
   "**/uri-state.spec.ts",
   "**/add-building.spec.ts",
+  "**/materialised-views.spec.ts",
 ];
 // DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
 const DUO_SPECS: string[] = [];
