@@ -61,7 +61,7 @@ export async function resolveAgent(
   session: Session,
 ): Promise<ResolvedAgent> {
   const fallbackName = webIdFragment(webId);
-  let store: Store | null = null;
+  let store: Store | null;
   try {
     store = await loadProfileStoreFor(webId, session);
   } catch (err) {
@@ -100,7 +100,7 @@ export async function resolveAgentOrg(
   webId: string,
   session: Session,
 ): Promise<ResolvedOrg | null> {
-  let store: Store | null = null;
+  let store: Store | null;
   try {
     store = await loadProfileStoreFor(webId, session);
   } catch (err) {

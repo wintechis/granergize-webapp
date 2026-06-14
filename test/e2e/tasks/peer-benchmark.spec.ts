@@ -56,7 +56,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     // ── Learn C's WebID (the benchmark is now sharing-driven: C aggregates the
     // buildings A and B share to it, with no company-kind/role declaration) ──
     const c1 = await freshPage(browser, C);
-    let cWebId = "";
+    let cWebId!: string;
     try {
       cWebId = await webIdOf(c1.page);
       // Let C's login-time self-provisioning settle before closing the context:
