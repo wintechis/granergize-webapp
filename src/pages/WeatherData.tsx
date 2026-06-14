@@ -124,6 +124,9 @@ export default function WeatherData({ building }: WeatherDataProps) {
   // Fetch weather data when station or parameter changes
   useEffect(() => {
     if (!selectedStation) {
+      // Genuine async fetch effect (external weather API): clear stale data when
+      // no station is selected, otherwise fetch below and set the result async.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setWeatherData(null);
       return;
     }

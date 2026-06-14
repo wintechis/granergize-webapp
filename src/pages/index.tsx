@@ -188,6 +188,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
   }, [session]);
 
   useEffect(() => {
+    // Best-effort async probe (lists the buildings container + reads prefs) that
+    // sets the demo-offer flag only after its awaits — a genuine fetch effect.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     refreshDemoOffer();
   }, [refreshDemoOffer]);
 

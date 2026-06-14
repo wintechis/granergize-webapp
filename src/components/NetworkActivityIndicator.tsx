@@ -38,6 +38,10 @@ export default function NetworkActivityIndicator() {
   useEffect(() => {
     if (count > 0) {
       clearTimeout(hideTimer.current);
+      // Trailing-edge debounce: latch the spinner on now and clear it 350ms
+      // after the last request settles (the timer callback). This is a genuine
+      // time-based sync, not a render-derivable value.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSpinning(true);
     } else {
       hideTimer.current = setTimeout(() => setSpinning(false), 350);

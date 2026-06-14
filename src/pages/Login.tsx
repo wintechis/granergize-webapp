@@ -250,6 +250,9 @@ export const Login: React.FC<LoginProps> = ({
     // them) — no interstitial "save login info?" prompt.
     if (clientAuth?.issuer && !prevIdps.includes(clientAuth.issuer)) {
       const next = [...prevIdps, clientAuth.issuer];
+      // Sync from + back to localStorage when a freshly-used IdP appears in the
+      // stored auth session — a genuine external-store read/write effect.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setPrevIdps(next);
       localStorage.setItem("prevIdps", JSON.stringify(next));
     }
