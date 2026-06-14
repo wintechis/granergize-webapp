@@ -554,6 +554,7 @@ export async function grantReadAccess(
       `Failed to update ACL for ${resourceUri}: ${
         error instanceof Error ? error.message : String(error)
       }`,
+      { cause: error },
     );
   }
 }

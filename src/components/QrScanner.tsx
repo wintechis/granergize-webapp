@@ -18,9 +18,12 @@ const REGION_ID = "qr-scanner-region";
  */
 export default function QrScanner({ onResult, onCancel }: QrScannerProps) {
   const [error, setError] = useState<string | null>(null);
-  // Keep the latest onResult without re-running the start effect.
+  // Keep the latest onResult without re-running the start effect. Assign in an
+  // effect, not during render (render must stay pure — react-hooks/refs).
   const onResultRef = useRef(onResult);
-  onResultRef.current = onResult;
+  useEffect(() => {
+    onResultRef.current = onResult;
+  });
 
   useEffect(() => {
     let stopped = false;

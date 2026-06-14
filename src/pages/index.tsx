@@ -261,7 +261,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       onSuccess: ({ bytes, count }) => {
         const stamp = new Date().toISOString().slice(0, 10);
         downloadBlob(
-          new Blob([bytes], { type: "application/zip" }),
+          new Blob([bytes as BlobPart], { type: "application/zip" }),
           `granergize-archive-${stamp}.zip`,
         );
         showNotification(`Archived ${count} resource(s)`, "success");
