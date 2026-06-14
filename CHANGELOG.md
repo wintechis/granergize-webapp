@@ -3,6 +3,9 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-14]
+- **Dev: `dev:local` / `dev:local:jss` tasks** run a fully local stack interactively — a throwaway local Pod that doubles as the OIDC IdP (seeded A/B/C logins) plus the Vite dev server with dynamic OIDC registration against it, no remote Pod or credentials needed. A launcher (`test/e2e-local/dev.ts`) boots the existing Tier-3 pod control server, waits for it, then starts Vite; Ctrl+C (or either child dying) tears both down.
+- **Build: `handbuch`/`videos` tasks clean up their `dist-handbuch`/`dist-videos` outputs** on success (trailing `rm -rf`), so the temporary build dirs no longer linger.
+- **Fix: no spurious "Failed to …" toast on session expiry.** An in-flight inbox drain / mutation that 401s during expiry now collapses into the single "Session expired" warning instead of stacking a second error toast (central fix in `classifyQueryError`).
 - **Deps: n3 1→2, `@inrupt/solid-client-authn-browser` 3→5.** n3 2.0's only break (RDF-star removal) is unused here; no authn browser-API breaks (5.0 just drops Node 20).
 - **Deps: frontend stack — React 18→19, MUI 6→9, Vite 5→8, react-router 6→7, react-leaflet 4→5** (+ types/react 19, react-query, testing-library). MUI v9 codemod (system props → `sx`, `PaperProps`/`*TypographyProps` → `slotProps`, `Grid2`→`Grid`, Autocomplete `renderValue`); React 19 `JSX`→`React.JSX`; one e2e locator updated for MUI v9 Switch `role="switch"`.
 - **Deps: toolchain — TypeScript 5.6→6, ESLint 9→10** (+ typescript-eslint, eslint-plugin-react-hooks 5→7, react-refresh, globals). New rules fixed (`no-useless-assignment`, `preserve-caught-error`, `react-hooks/refs`); `react-hooks/set-state-in-effect` (10 sites) deferred to a separate refactor.

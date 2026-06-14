@@ -57,7 +57,9 @@ export default function QrScanner({ onResult, onCancel }: QrScannerProps) {
       }
     };
 
-    (async () => {
+    // The IIFE handles all its own errors internally (try/catch → logError +
+    // setError), so the promise it returns never rejects — float it explicitly.
+    void (async () => {
       try {
         const { Html5Qrcode } = await import("html5-qrcode");
         if (stopped) return;

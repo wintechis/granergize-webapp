@@ -18,7 +18,9 @@ export function BuildingAddressFields(
     isRequired: (field: string) => boolean;
     /** The geocode affordance — label and enablement differ per dialog. */
     geocode: {
-      onClick: () => void;
+      // Wired to a Button's onClick (an async handler is fine — it self-handles
+      // and its return is ignored), so the type admits a promise.
+      onClick: () => void | Promise<void>;
       busy: boolean;
       disabled?: boolean;
       label: string;

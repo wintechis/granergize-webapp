@@ -214,13 +214,17 @@ export const Login: React.FC<LoginProps> = ({
                     }, 1000),
                   );
                 }
-              });
+              })
+              .catch((err) =>
+                logError("restore the previous auth session", err)
+              );
           } else {
             setLoading(false);
           }
         }, 2000);
       }
-    });
+    })
+      .catch((err) => logError("handle the incoming auth redirect", err));
 
     return () => {
       clearTimeout(watchdog);

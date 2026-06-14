@@ -88,10 +88,15 @@ export function loadProfileStoreFor(
     return promise;
   } finally {
     // Clear the in-flight slot once it settles (success already populated the
-    // result cache; failure left it empty so the next call retries).
-    promise.finally(() => {
-      if (inflight.get(docUri) === promise) inflight.delete(docUri);
-    });
+    // result cache; failure left it empty so the next call retries). The returned
+    // `promise` delivers any rejection to the caller; this cleanup is a SEPARATE
+    // branch, so swallow its rejection — a bare `.finally` would surface the same
+    // failure a second time as an unhandled rejection (no-floating-promises caught it).
+    promise
+      .finally(() => {
+        if (inflight.get(docUri) === promise) inflight.delete(docUri);
+      })
+      .catch(() => {});
   }
 }
 

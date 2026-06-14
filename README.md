@@ -14,6 +14,8 @@ different buildings using the
 - Run `deno install` to install dependencies
 - Run `deno task dev` to start the development server
 - Open `http://localhost:5173` in your browser
+- Run `deno task dev:local` (or `dev:local:jss`) for a fully local stack — a
+  throwaway Pod + IdP with seeded logins, no remote Pod needed
 
 ## License
 

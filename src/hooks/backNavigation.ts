@@ -13,7 +13,9 @@ export function useBackNavigation(): () => void {
   return () => {
     const idx =
       (globalThis.history.state as { idx?: number } | null)?.idx ?? 0;
-    if (idx > 0) navigate(-1);
-    else navigate("/");
+    // react-router v7's navigate returns a promise; navigation is fire-and-forget
+    // here (nothing awaits it, and it doesn't meaningfully reject).
+    if (idx > 0) void navigate(-1);
+    else void navigate("/");
   };
 }

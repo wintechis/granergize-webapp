@@ -1,8 +1,16 @@
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
 import { formatError } from "../lib/formatError.ts";
+import { isSessionExpired } from "../services/pod/sessionGate.ts";
 
 export type ErrorSeverity = "error" | "warning";
+
+/**
+ * The single sentence shown when the Solid session has expired. Reused by the
+ * session gate's logout toast (main.tsx) and every error classified below as
+ * an expiry, so the notification queue collapses the duplicates into one.
+ */
+export const SESSION_EXPIRED_MESSAGE = "Session expired — please log in again";
 
 /**
  * Meta a mutation hook declares to steer the central error toast
@@ -39,12 +47,19 @@ export function classifyQueryError(
   error: unknown,
   action?: string,
 ): { message: string; severity: ErrorSeverity } {
-  if (error instanceof SessionExpiredError) {
+  // Once the session-expiry gate has tripped, EVERY in-flight query/mutation is
+  // doomed to a 401 — but only the buildings loader converts that into a
+  // SessionExpiredError; a mutation or other query throws a generic
+  // "… HTTP 401". Treating any error-while-expired as the expiry warning
+  // (rather than a "Failed to {action}" error) stops a redundant, alarming toast
+  // stacking on the gate's own logout warning. Checked before the type tests so a
+  // ConflictError racing the expiry is moot too.
+  if (error instanceof SessionExpiredError || isSessionExpired()) {
     // Fixed wording (not error.message, which carries HTTP detail for the log):
     // same sentence as the session-gate logout toast in main.tsx, so the
     // notification queue collapses the duplicates into one.
     return {
-      message: "Session expired — please log in again",
+      message: SESSION_EXPIRED_MESSAGE,
       severity: "warning",
     };
   }

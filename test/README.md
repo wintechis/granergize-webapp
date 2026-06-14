@@ -35,6 +35,23 @@ intermittent **local-CSS JWKS boot race** (a freshly-booted CSS transiently 401s
 DPoP token until its key set warms) — not an app bug; mitigated by a boot warmup and
 bounded retries.
 
+## Local ports & parallel lanes
+
+Every Tier-2/3 Pod port derives from a single `LOCAL_PORT_OFFSET` (added to the
+base ports in `test/config/localSeed.ts`: CSS `3456`, CSS control `3457`, preview
+app `4183`). Distinct offsets give concurrent runs disjoint port lanes:
+
+- **`0`** (default) — `deno task it`, `deno task e2e:local`.
+- **`40`** — `deno task handbuch`.
+- **`60`** — `deno task videos`.
+- **`80`** — `deno task dev:local` (the by-hand interactive stack), set as its
+  default in `test/e2e-local/dev.ts` so it can run alongside any automated lane;
+  an explicit `LOCAL_PORT_OFFSET` overrides. Its Vite **dev** server is fixed at
+  `5173` (not offset, and never clashes with the `4183`-based preview ports), so
+  only the Pod ports shift.
+
+To run a second concurrent lane of the same task, give it an unused offset.
+
 ## Spec invariants (these caused silent hangs)
 
 Coupling rules the specs and the app must respect — each one, when broken,
