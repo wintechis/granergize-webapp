@@ -7,7 +7,8 @@ import {
   loadEnergy,
   sharedBuildingSourcesFromGrants,
 } from "../services/TurtleParsingService.ts";
-import { resolveStorageRoot } from "../services/pod/solidUtils.ts";
+import { podResources, resolveStorageRoot } from "../services/pod/solidUtils.ts";
+import { listDirectChildren } from "../services/pod/podDelete.ts";
 import {
   foldSharingLog,
   sharedInUri,
@@ -499,6 +500,52 @@ export function useAnnualEnergy(building: BuildingType) {
 }
 
 /**
+ * One building's stored annual (P1Y) energy datasets as the raw
+ * `EnergyDataset[]` (year/scenario/metrics) — what the energy-year dialog lists
+ * and edits back. Keyed on the building's dataset-link fingerprint so adding or
+ * removing a year refetches once the building prop updates; the dialog also
+ * patches this cache optimistically on save/delete for instant read-back, so it
+ * is deliberately NOT in `invalidateBuildingData` (an immediate post-write
+ * refetch with the still-stale building prop would clobber the optimistic row).
+ * `enabled` gates it to the open dialog.
+ */
+export function useAnnualDatasets(building: BuildingType, enabled = true) {
+  return useWebIdQuery(
+    queryKeys.annualDatasets,
+    () => {
+      const refs = (building.energyDatasets ?? []).filter(
+        (r) => r.granularity === "P1Y",
+      );
+      return loadEnergyDatasets(refs, freshFetchFn());
+    },
+    { extraKey: [building.id, energyKeyFor([building])], enabled },
+  );
+}
+
+/**
+ * Whether to offer the fresh-Pod demo buildings: true when the user's OWN
+ * buildings container is absent or empty AND the demo hasn't been declined
+ * (`prefs.demoSeedDeclined`). A render-driven probe (lists the container + reads
+ * prefs) rather than a hand-rolled effect; the dashboard layers a session-local
+ * "dismissed" flag over it so seeding/declining hides the banner instantly. Read
+ * once per load (no invalidation): the dismissal covers the in-session hide, a
+ * reload re-probes.
+ */
+export function useDemoOffer() {
+  return useWebIdQuery(
+    queryKeys.demoOffer,
+    async (session, webId) => {
+      const [children, prefs] = await Promise.all([
+        listDirectChildren(podResources(webId).buildings, session),
+        readPrefs(session),
+      ]);
+      const empty = children === null || children.length === 0;
+      return empty && !prefs.demoSeedDeclined;
+    },
+  );
+}
+
+/**
  * The day files behind a set of 15-minute series descriptors (one listing per
  * ref, concurrent), merged and sorted by day. Feeds the user-energy chart's
  * date/month pickers and the create-view dialog's month list (months are a
@@ -627,6 +674,10 @@ export const queryKeys = {
   agentOrg: ["agentOrg"] as const,
   /** One building's annual datasets (detail pane), keyed by id + link fingerprint. */
   annualEnergy: ["annualEnergy"] as const,
+  /** One building's raw annual datasets (energy-year dialog), keyed by id + fingerprint. */
+  annualDatasets: ["annualDatasets"] as const,
+  /** The fresh-Pod demo-buildings offer (own container empty + not declined). */
+  demoOffer: ["demoOffer"] as const,
   /** Day files behind a set of 15-min series descriptors, keyed by ref URLs. */
   seriesDays: ["seriesDays"] as const,
   /** One day file's readings, keyed by URL. */

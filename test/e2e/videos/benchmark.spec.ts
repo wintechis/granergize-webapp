@@ -12,7 +12,7 @@ import { Demo, type SceneMark } from "./demoPolish.ts";
  * with a benchmark service provider) — the actor ladder's top rung, three
  * clips cut by perspective:
  *
- *   deno task handbuch:videos
+ *   deno task videos
  *   bash test/e2e/videos/postprocess.sh benchmark benchmark-a benchmark-c benchmark-payoff
  *
  * Clip A: Alice shares her hall — energy included — to C (Conrad Kennwert);
@@ -79,7 +79,7 @@ async function shareFirstBuildingTo(page: Page, webId: string) {
 }
 
 test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
-  test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task handbuch:videos)");
+  test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task videos)");
   test.skip(
     !hasAccount(A) || !hasAccount(B) || !hasAccount(C),
     "local seeded accounts A+B+C missing",

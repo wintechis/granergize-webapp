@@ -20,6 +20,10 @@ const LOCAL = !!process.env.E2E_LOCAL;
 const REUSE = LOCAL && !!process.env.E2E_LOGIN_REUSE;
 // Tier 3 serves the app on LOCAL_APP_PORT; Tier 4 (real Pods) on 4173.
 const PORT = LOCAL ? LOCAL_APP_PORT : 4173;
+// Which build the Tier-3 preview serves. Defaults to `dist`; the handbuch/videos
+// capture tasks build into their own dir (and set PREVIEW_OUTDIR to match) so they
+// never race a spec run's `dist/` build — see deno.json.
+const PREVIEW_OUTDIR = process.env.PREVIEW_OUTDIR ?? "dist";
 
 // Per-run id so successive runs of the SAME tier+backend don't overwrite each
 // other — Playwright wipes a test's output folder at the start of each run, so
@@ -184,7 +188,7 @@ export default defineConfig({
     // Handbuch VIDEO recording (notes/plan-handbuch-videos.md): the walkthrough
     // specs under test/e2e/videos/ drive the app with the demo polish and record
     // via Playwright's built-in video. Local tier only (`deno task
-    // handbuch:videos`) — like `support`, never part of the catalog runs.
+    // videos`) — like `support`, never part of the catalog runs.
     ...(LOCAL
       ? [{
         name: "video",
@@ -229,7 +233,7 @@ export default defineConfig({
       // the task) to rule out Vite-dev/HMR artifacts; Tier 4 (remote) uses the dev
       // server. Keyed off LOCAL — no separate E2E_PREVIEW knob.
       command: LOCAL
-        ? `deno run -A npm:vite preview --port ${PORT} --strictPort`
+        ? `deno run -A npm:vite preview --outDir ${PREVIEW_OUTDIR} --port ${PORT} --strictPort`
         : `deno run -A npm:vite dev --port ${PORT} --strictPort`,
       url: `http://localhost:${PORT}`,
       // NEVER reuse the app server, either tier. Tier 4: each run bakes its own

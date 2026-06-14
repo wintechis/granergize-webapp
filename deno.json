@@ -25,24 +25,8 @@
     "bench:ui:css": "VITE_OIDC_CLIENT_ID= deno task build && LOCAL_POD_SERVER=css E2E_LOCAL=1 E2E_BENCH=1 npx playwright test --project=bench && deno run -A --node-modules-dir=auto test/bench/plots.ts",
     "bench:plot": "deno run -A test/bench/plots.ts",
     "explore": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/explore.ts",
-    "handbuch": "bash docs/build-handbuch.sh",
-    "handbuch:capture:build": "VITE_OIDC_CLIENT_ID= deno task build",
-    "handbuch:figures": {
-      "command": "E2E_LOCAL=1 LOCAL_PORT_OFFSET=0 npx playwright test --project=support",
-      "dependencies": ["handbuch:capture:build"]
-    },
-    "handbuch:videos": {
-      "command": "E2E_LOCAL=1 LOCAL_PORT_OFFSET=20 npx playwright test --project=video",
-      "dependencies": ["handbuch:capture:build"]
-    },
-    "handbuch:capture": {
-      "command": "echo 'handbuch figures + videos captured'",
-      "dependencies": ["handbuch:figures", "handbuch:videos"]
-    },
-    "handbuch:full": {
-      "command": "deno task handbuch",
-      "dependencies": ["handbuch:figures"]
-    }
+    "handbuch": "VITE_OIDC_CLIENT_ID= deno run -A npm:vite build --outDir dist-handbuch && E2E_LOCAL=1 LOCAL_PORT_OFFSET=40 E2E_RUN_ID=handbuch PREVIEW_OUTDIR=dist-handbuch npx playwright test --project=support && bash docs/build-handbuch.sh",
+    "videos": "VITE_OIDC_CLIENT_ID= deno run -A npm:vite build --outDir dist-videos && E2E_LOCAL=1 LOCAL_PORT_OFFSET=60 E2E_RUN_ID=videos PREVIEW_OUTDIR=dist-videos npx playwright test --project=video && bash test/e2e/videos/postprocess.sh soll-ist && bash test/e2e/videos/postprocess.sh vertrieb vertrieb-a vertrieb-b && bash test/e2e/videos/postprocess.sh benchmark benchmark-a benchmark-c benchmark-payoff"
   },
   "imports": {
     "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@0.0.53"

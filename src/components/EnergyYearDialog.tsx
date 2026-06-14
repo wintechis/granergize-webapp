@@ -19,21 +19,20 @@ import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType, Scenario } from "../types.ts";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   type AnnualMetrics,
   type EnergyDataset,
   type EnergyMetricKey,
-  loadEnergyDatasets,
 } from "../services/rdf/energyDataset.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import {
   useDeleteEnergyYear,
   useWriteEnergyYear,
 } from "../hooks/mutations.ts";
-import { energyKeyFor } from "../hooks/queries.ts";
+import { queryKeys, useAnnualDatasets } from "../hooks/queries.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
-import { logError } from "../lib/logError.ts";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
 import { ANNUAL_METRICS } from "../constants/annualMetrics.ts";
@@ -82,6 +81,7 @@ export default function EnergyYearDialog(
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
+  const qc = useQueryClient();
   // Busy state, error toasts (central, classified) and the building-data
   // invalidations come from the hooks; the dialog owns the form + read-back UI.
   const write = useWriteEnergyYear();
@@ -93,12 +93,25 @@ export default function EnergyYearDialog(
   const [values, setValues] = useState<Record<string, string>>({});
   const [editingExisting, setEditingExisting] = useState(false);
 
-  // The annual (P1Y) datasets currently stored for this building, with their
-  // figures — the source of both the read-back table and the edit pre-fill. Seeded
-  // from the Pod when the dialog opens and kept in sync as the user saves/deletes,
-  // so the table updates without waiting for a buildings refetch.
-  const [datasets, setDatasets] = useState<EnergyDataset[]>([]);
-  const [listLoading, setListLoading] = useState(true);
+  // The annual (P1Y) datasets stored for this building, with their figures — the
+  // source of both the read-back table and the edit pre-fill. Loaded off the Pod
+  // by the query hook (keyed on the dataset-link fingerprint, so a year that
+  // landed via a buildings refetch shows up too); save/delete patch this cache
+  // optimistically below so the table updates without waiting for a round-trip.
+  const datasetsQuery = useAnnualDatasets(building, open);
+  const datasets = useMemo(
+    () => datasetsQuery.data ?? [],
+    [datasetsQuery.data],
+  );
+  const listLoading = datasetsQuery.isLoading;
+
+  // Patch the cached annual datasets in place (prefix-match across the
+  // link-fingerprint key variants for this building) — the optimistic read-back.
+  const patchDatasets = (fn: (prev: EnergyDataset[]) => EnergyDataset[]) =>
+    qc.setQueriesData<EnergyDataset[]>(
+      { queryKey: [...queryKeys.annualDatasets, session.info.webId, building.id] },
+      (prev) => fn(prev ?? []),
+    );
 
   const dirty = year.trim() !== "" ||
     Object.values(values).some((v) => v.trim() !== "");
@@ -108,37 +121,6 @@ export default function EnergyYearDialog(
     () => new Map(datasets.map((d) => [dsKey(d.year, d.scenario), d] as const)),
     [datasets],
   );
-
-  // Load the building's stored annual datasets per open — re-seeded when the
-  // building's dataset LINKS change (the `energyKeyFor` fingerprint): the parent
-  // passes the live building, so a year saved moments before opening can land
-  // via the buildings refetch while the dialog is already showing and still
-  // appear in the table (the click-time building object would miss it forever).
-  const refsKey = energyKeyFor([building]);
-  useEffect(() => {
-    if (!open) return;
-    let cancelled = false;
-    // Genuine async load (datasets fetched off the Pod per open): the loading
-    // flag must flip before the await, and the result lands in a .then — an
-    // Effect is the right tool here.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setListLoading(true);
-    const refs = (building.energyDatasets ?? []).filter(
-      (r) => r.granularity === "P1Y",
-    );
-    loadEnergyDatasets(refs, session.fetch.bind(session))
-      .then((loaded) => {
-        if (!cancelled) setDatasets(loaded);
-      })
-      .catch((err) => logError("load annual energy datasets", err))
-      .finally(() => {
-        if (!cancelled) setListLoading(false);
-      });
-    return () => {
-      cancelled = true;
-    };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [open, building.id, refsKey]);
 
   // The (year, scenario) currently reflected in the form from a load, so a
   // re-render doesn't clobber what the user has edited.
@@ -259,7 +241,7 @@ export default function EnergyYearDialog(
         onSuccess: () => {
           // Reflect the saved year in the table without a round-trip, then clear
           // the form so the user can see it land and add/edit another.
-          setDatasets((prev) => {
+          patchDatasets((prev) => {
             const rest = prev.filter(
               (d) => dsKey(d.year, d.scenario) !== dsKey(y, scenario),
             );
@@ -293,7 +275,7 @@ export default function EnergyYearDialog(
       },
       {
         onSuccess: () => {
-          setDatasets((prev) =>
+          patchDatasets((prev) =>
             prev.filter(
               (x) => dsKey(x.year, x.scenario) !== dsKey(d.year, d.scenario),
             )
