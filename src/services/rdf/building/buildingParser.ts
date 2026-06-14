@@ -31,7 +31,8 @@ import {
   SCHEMA_ENCODING_FORMAT,
   SCHEMA_NAME,
 } from "../vocabularies.ts";
-import { parseDatasetSlug } from "../energyDataset.ts";
+import { Store } from "n3";
+import { parseDatasetLink } from "../energyDataset.ts";
 import { buildingIdFor } from "./buildingId.ts";
 
 /** Get the local name (after # or last /) from an IRI */
@@ -323,12 +324,14 @@ export function parseBuildings(
   // ── Post-processing ────────────────────────────────────────────────────────
 
   // Unified energy model: derive dataset refs from the cons:hasEnergyDataset
-  // link slugs (no fetch — year/granularity/scenario come from the slug).
+  // links (no fetch — year comes from the time-first path; granularity/scenario
+  // from the triples the building re-states about each dataset node).
+  const linkStore = new Store(quads);
   for (const [buildingId, links] of energyDatasetLinks.entries()) {
     const building = buildings.get(buildingId);
     if (!building) continue;
     building.energyDatasets = links
-      .map((url) => parseDatasetSlug(url))
+      .map((url) => parseDatasetLink(url, linkStore))
       .filter((r): r is EnergyDatasetRef => r !== null);
   }
 

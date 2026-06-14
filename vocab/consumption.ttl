@@ -5,8 +5,8 @@
 # A SOSA profile: energy observations and everything derived from them. An
 # energy dataset is a sosa:ObservationCollection at a declared granularity
 # (annual aggregates or sub-hourly series); a reading is a sosa:Observation.
-# The derived layer — aggregated views and benchmark results — lives here too,
-# because a view or benchmark is aggregated consumption data. The linking
+# The derived layer — aggregations and benchmark results — lives here too,
+# because an aggregation or benchmark is aggregated consumption data. The linking
 # properties to buildings live here, not in the building vocabulary: energy
 # depends on buildings, never the reverse.
 
@@ -23,9 +23,9 @@
     rdfs:label "Granergize consumption vocabulary"@en ;
     rdfs:label "Granergize-Verbrauchsvokabular"@de ;
     rdfs:label "Vocabulaire de consommation Granergize"@fr ;
-    rdfs:comment "Energy observations of buildings (SOSA profile) and the aggregated views / benchmarks derived from them."@en ;
-    rdfs:comment "Energiebeobachtungen von Gebäuden (SOSA-Profil) und die daraus abgeleiteten aggregierten Sichten / Benchmarks."@de ;
-    rdfs:comment "Observations énergétiques des bâtiments (profil SOSA) et les vues agrégées / benchmarks qui en dérivent."@fr .
+    rdfs:comment "Energy observations of buildings (SOSA profile) and the aggregations / benchmarks derived from them."@en ;
+    rdfs:comment "Energiebeobachtungen von Gebäuden (SOSA-Profil) und die daraus abgeleiteten Aggregationen / Benchmarks."@de ;
+    rdfs:comment "Observations énergétiques des bâtiments (profil SOSA) et les agrégations / benchmarks qui en dérivent."@fr .
 
 ############################
 ###   Energy datasets    ###
@@ -87,67 +87,67 @@
     rdfs:label "Energy consumption reading"@en ; rdfs:label "Energieverbrauchsmesswert"@de ; rdfs:label "Relevé de consommation énergétique"@fr .
 
 ############################
-###   Aggregated views   ###
+###   Aggregations       ###
 ############################
 
-# A view's private definition (holds the contributing building IRIs and the
-# chosen metric/aggregation) vs. its shareable snapshot (only the computed
-# values + a building count — never the contributor list). :View is the
-# umbrella class used as the sharing-log kind marker for shared views.
-:View rdf:type rdfs:Class ;
-    rdfs:label "Aggregated view"@en ; rdfs:label "Aggregierte Sicht"@de ; rdfs:label "Vue agrégée"@fr .
+# An aggregation's private definition (holds the contributing building IRIs and
+# the chosen metric/aggregation) vs. its shareable snapshot (only the computed
+# values + a building count — never the contributor list). :Aggregation is the
+# umbrella class used as the sharing-log kind marker for shared aggregations.
+:Aggregation rdf:type rdfs:Class ;
+    rdfs:label "Aggregation"@en ; rdfs:label "Aggregation"@de ; rdfs:label "Agrégation"@fr .
 
-:AggregatedViewDefinition rdf:type rdfs:Class ;
-    rdfs:label "Aggregated view definition"@en ; rdfs:label "Definition der aggregierten Sicht"@de ; rdfs:label "Définition de vue agrégée"@fr ;
-    rdfs:comment "The private definition of an aggregated view: the contributing building IRIs, the chosen metrics and the aggregation method. Stays on the computing agent's Pod and is never shared."@en ;
-    rdfs:comment "Die private Definition einer aggregierten Sicht: die IRIs der beitragenden Gebäude, die gewählten Kennzahlen und die Aggregationsmethode. Verbleibt auf dem Pod des berechnenden Agenten und wird nie geteilt."@de ;
-    rdfs:comment "La définition privée d'une vue agrégée : les IRI des bâtiments contributeurs, les métriques choisies et la méthode d'agrégation. Reste sur le Pod de l'agent qui la calcule et n'est jamais partagée."@fr .
+:AggregationDefinition rdf:type rdfs:Class ;
+    rdfs:label "Aggregation definition"@en ; rdfs:label "Aggregationsdefinition"@de ; rdfs:label "Définition d'agrégation"@fr ;
+    rdfs:comment "The private definition of an aggregation: the contributing building IRIs, the chosen metrics and the aggregation method. Stays on the computing agent's Pod and is never shared."@en ;
+    rdfs:comment "Die private Definition einer Aggregation: die IRIs der beitragenden Gebäude, die gewählten Kennzahlen und die Aggregationsmethode. Verbleibt auf dem Pod des berechnenden Agenten und wird nie geteilt."@de ;
+    rdfs:comment "La définition privée d'une agrégation : les IRI des bâtiments contributeurs, les métriques choisies et la méthode d'agrégation. Reste sur le Pod de l'agent qui la calcule et n'est jamais partagée."@fr .
 
-:AggregatedViewSnapshot rdf:type rdfs:Class ;
-    rdfs:label "Aggregated view snapshot"@en ; rdfs:label "Momentaufnahme der aggregierten Sicht"@de ; rdfs:label "Instantané de vue agrégée"@fr ;
-    rdfs:comment "A computed, shareable copy of an aggregated view: only the per-metric values and a building count, never the contributing building IRIs."@en ;
-    rdfs:comment "Eine berechnete, teilbare Kopie einer aggregierten Sicht: nur die Werte je Kennzahl und eine Gebäudeanzahl, niemals die IRIs der beitragenden Gebäude."@de ;
-    rdfs:comment "Une copie calculée et partageable d'une vue agrégée : uniquement les valeurs par métrique et un nombre de bâtiments, jamais les IRI des bâtiments contributeurs."@fr .
+:AggregationSnapshot rdf:type rdfs:Class ;
+    rdfs:label "Aggregation snapshot"@en ; rdfs:label "Momentaufnahme der Aggregation"@de ; rdfs:label "Instantané d'agrégation"@fr ;
+    rdfs:comment "A computed, shareable copy of an aggregation: only the per-metric values and a building count, never the contributing building IRIs."@en ;
+    rdfs:comment "Eine berechnete, teilbare Kopie einer Aggregation: nur die Werte je Kennzahl und eine Gebäudeanzahl, niemals die IRIs der beitragenden Gebäude."@de ;
+    rdfs:comment "Une copie calculée et partageable d'une agrégation : uniquement les valeurs par métrique et un nombre de bâtiments, jamais les IRI des bâtiments contributeurs."@fr .
 
-:viewId rdf:type owl:DatatypeProperty ;
-    rdfs:label "view id"@en ; rdfs:label "Sicht-ID"@de ; rdfs:label "identifiant de vue"@fr ; rdfs:range xsd:string .
-:viewName rdf:type owl:DatatypeProperty ;
-    rdfs:label "view name"@en ; rdfs:label "Sichtname"@de ; rdfs:label "nom de la vue"@fr ; rdfs:range xsd:string .
+:aggregationId rdf:type owl:DatatypeProperty ;
+    rdfs:label "aggregation id"@en ; rdfs:label "Aggregations-ID"@de ; rdfs:label "identifiant d'agrégation"@fr ; rdfs:range xsd:string .
+:aggregationName rdf:type owl:DatatypeProperty ;
+    rdfs:label "aggregation name"@en ; rdfs:label "Aggregationsname"@de ; rdfs:label "nom de l'agrégation"@fr ; rdfs:range xsd:string .
 :aggregationType rdf:type owl:DatatypeProperty ;
     rdfs:label "aggregation type"@en ; rdfs:label "Aggregationsart"@de ; rdfs:label "type d'agrégation"@fr ;
     rdfs:comment "The aggregation method (e.g. average, sum)."@en ;
     rdfs:comment "Die Aggregationsmethode (z. B. Durchschnitt, Summe)."@de ;
     rdfs:comment "La méthode d'agrégation (p. ex. moyenne, somme)."@fr ;
     rdfs:range xsd:string .
-:viewPeriod rdf:type owl:DatatypeProperty ;
-    rdfs:label "view period"@en ; rdfs:label "Zeitraum der Sicht"@de ; rdfs:label "période de la vue"@fr ;
-    rdfs:comment "The year the view's metrics cover."@en ;
-    rdfs:comment "Das Jahr, das die Kennzahlen der Sicht abdecken."@de ;
-    rdfs:comment "L'année couverte par les métriques de la vue."@fr ;
+:aggregationPeriod rdf:type owl:DatatypeProperty ;
+    rdfs:label "aggregation period"@en ; rdfs:label "Zeitraum der Aggregation"@de ; rdfs:label "période de l'agrégation"@fr ;
+    rdfs:comment "The year the aggregation's metrics cover."@en ;
+    rdfs:comment "Das Jahr, das die Kennzahlen der Aggregation abdecken."@de ;
+    rdfs:comment "L'année couverte par les métriques de l'agrégation."@fr ;
     rdfs:range xsd:string .
 :benchmark rdf:type owl:DatatypeProperty ;
     rdfs:label "benchmark"@en ; rdfs:label "Benchmark"@de ; rdfs:label "benchmark"@fr ;
-    rdfs:comment "Marks an aggregated-view definition as a benchmark: every computed snapshot derives its :BenchmarkResult typing from this persisted flag, so a recompute cannot strip it."@en ;
-    rdfs:comment "Kennzeichnet eine Definition einer aggregierten Sicht als Benchmark: jede berechnete Momentaufnahme leitet ihre :BenchmarkResult-Typisierung aus diesem persistierten Kennzeichen ab, sodass eine Neuberechnung es nicht entfernen kann."@de ;
-    rdfs:comment "Marque une définition de vue agrégée comme benchmark : chaque instantané calculé hérite de son typage :BenchmarkResult de ce drapeau persistant, de sorte qu'un recalcul ne peut pas le retirer."@fr ;
-    rdfs:domain :AggregatedViewDefinition ; rdfs:range xsd:boolean .
+    rdfs:comment "Marks an aggregation definition as a benchmark: every computed snapshot derives its :BenchmarkResult typing from this persisted flag, so a recompute cannot strip it."@en ;
+    rdfs:comment "Kennzeichnet eine Aggregationsdefinition als Benchmark: jede berechnete Momentaufnahme leitet ihre :BenchmarkResult-Typisierung aus diesem persistierten Kennzeichen ab, sodass eine Neuberechnung es nicht entfernen kann."@de ;
+    rdfs:comment "Marque une définition d'agrégation comme benchmark : chaque instantané calculé hérite de son typage :BenchmarkResult de ce drapeau persistant, de sorte qu'un recalcul ne peut pas le retirer."@fr ;
+    rdfs:domain :AggregationDefinition ; rdfs:range xsd:boolean .
 :createdAt rdf:type owl:DatatypeProperty ;
     rdfs:label "created at"@en ; rdfs:label "erstellt am"@de ; rdfs:label "créé le"@fr ;
-    rdfs:domain :AggregatedViewDefinition ; rdfs:range xsd:dateTime .
+    rdfs:domain :AggregationDefinition ; rdfs:range xsd:dateTime .
 :lastComputedAt rdf:type owl:DatatypeProperty ;
     rdfs:label "last computed at"@en ; rdfs:label "zuletzt berechnet am"@de ; rdfs:label "dernier calcul le"@fr ;
-    rdfs:domain :AggregatedViewDefinition ; rdfs:range xsd:dateTime .
+    rdfs:domain :AggregationDefinition ; rdfs:range xsd:dateTime .
 :computedAt rdf:type owl:DatatypeProperty ;
     rdfs:label "computed at"@en ; rdfs:label "berechnet am"@de ; rdfs:label "calculé le"@fr ;
-    rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:dateTime .
+    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:dateTime .
 :includesBuilding rdf:type owl:ObjectProperty ;
     rdfs:label "includes building"@en ; rdfs:label "umfasst Gebäude"@de ; rdfs:label "inclut le bâtiment"@fr ;
-    rdfs:domain :AggregatedViewDefinition ; rdfs:range rec:Building .
+    rdfs:domain :AggregationDefinition ; rdfs:range rec:Building .
 :includesMetric rdf:type owl:DatatypeProperty ;
     rdfs:label "includes metric"@en ; rdfs:label "umfasst Kennzahl"@de ; rdfs:label "inclut la métrique"@fr ; rdfs:range xsd:string .
 :buildingCount rdf:type owl:DatatypeProperty ;
     rdfs:label "building count"@en ; rdfs:label "Gebäudeanzahl"@de ; rdfs:label "nombre de bâtiments"@fr ;
-    rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:integer .
+    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:integer .
 
 # Per-metric snapshot values (one property per metric key — the annual metric
 # keys, plus the bare `electricity` key the sub-hourly series path mints).
@@ -156,34 +156,34 @@
     rdfs:comment "Aggregated sub-hourly electricity consumption (series-path snapshots)."@en ;
     rdfs:comment "Aggregierter infra-stündlicher Stromverbrauch (Momentaufnahmen des Serienpfads)."@de ;
     rdfs:comment "Consommation d'électricité infra-horaire agrégée (instantanés du chemin série)."@fr ;
-    rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
+    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
 :electricityConsumptionValue rdf:type owl:DatatypeProperty ;
     rdfs:label "electricity consumption value"@en ; rdfs:label "Stromverbrauchswert"@de ; rdfs:label "valeur de consommation d'électricité"@fr ;
-    rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
+    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
 :heatConsumptionValue rdf:type owl:DatatypeProperty ;
     rdfs:label "heat consumption value"@en ; rdfs:label "Wärmeverbrauchswert"@de ; rdfs:label "valeur de consommation de chaleur"@fr ;
-    rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
+    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
 :waterConsumptionValue rdf:type owl:DatatypeProperty ;
     rdfs:label "water consumption value"@en ; rdfs:label "Wasserverbrauchswert"@de ; rdfs:label "valeur de consommation d'eau"@fr ;
-    rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
+    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
 :wastewaterConsumptionValue rdf:type owl:DatatypeProperty ;
     rdfs:label "wastewater consumption value"@en ; rdfs:label "Abwasserwert"@de ; rdfs:label "valeur de consommation d'eaux usées"@fr ;
-    rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
+    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
 :renewableSelfGeneratedShareValue rdf:type owl:DatatypeProperty ;
     rdfs:label "renewable self-generated share value"@en ; rdfs:label "Wert des Anteils selbst erzeugter erneuerbarer Energie"@de ; rdfs:label "valeur de part d'énergie renouvelable autoproduite"@fr ;
-    rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
+    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
 
 ############################
 ###   Benchmark results  ###
 ############################
 
-# A benchmark is an aggregated-view snapshot a benchmark service provider
+# A benchmark is an aggregation snapshot a benchmark service provider
 # computes over the buildings shared to it and shares back to the contributors.
-# As a specialisation of :AggregatedViewSnapshot it inherits the privacy
+# As a specialisation of :AggregationSnapshot it inherits the privacy
 # property (only aggregate values + a building count travel, never the
 # contributor list), and every snapshot reader keeps working.
 :BenchmarkResult rdf:type rdfs:Class ;
-    rdfs:subClassOf :AggregatedViewSnapshot ;
+    rdfs:subClassOf :AggregationSnapshot ;
     rdfs:label "Benchmark result"@en ; rdfs:label "Benchmark-Ergebnis"@de ; rdfs:label "Résultat de benchmark"@fr .
 
 :computedBy rdf:type owl:ObjectProperty ;

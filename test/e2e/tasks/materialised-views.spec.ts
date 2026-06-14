@@ -68,7 +68,7 @@ test.describe("energy view smoke", () => {
     // The /energy/:id deep link renders the building's energy detail — proving
     // loadEnergy + the chart run on the new model (annual aggregate fetched from
     // its own `<year>-P1Y.ttl`, or the series listed from its `<year>-PT15M/`).
-    await page.goto(buildingRoute("energy", id));
+    await page.goto(buildingRoute("observation", id));
     await expect(
       page.getByRole("heading", {
         name: /Energy Need for |Electricity Consumption for /,
@@ -87,7 +87,7 @@ test.describe("energy view smoke", () => {
 
   // Storage-redesign smokes (dissolved from the old storage-smoke spec): the
   // container-native Manage/Share panels render. Reuse the seeded, logged-in page.
-  test("Manage lists own buildings + the Aggregated views section renders", async () => {
+  test("Manage lists own buildings + the Aggregations section renders", async () => {
     // The previous test ended on the standalone /energy/:id route (no app shell, so
     // no tabs) — return to the shell before reaching for a tab.
     await page.goto("/#/");
@@ -96,7 +96,7 @@ test.describe("energy view smoke", () => {
       .toBeVisible({ timeout: T.action });
     await expect(page.locator("li[data-building-id]").first())
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByRole("heading", { name: "Aggregated views" }))
+    await expect(page.getByRole("heading", { name: "Aggregations" }))
       .toBeVisible({ timeout: T.action });
   });
 
@@ -147,7 +147,7 @@ test.describe("energy view smoke", () => {
 
     // The standalone /energy/:id view (latest annual year) carries the same
     // benchmark as its "Operator average" column.
-    await page.goto(buildingRoute("energy", id));
+    await page.goto(buildingRoute("observation", id));
     await expect(
       page.getByRole("heading", { name: /Energy Need for / }),
     ).toBeVisible({ timeout: T.action });
@@ -162,7 +162,7 @@ test.describe("energy view smoke", () => {
     await expect(elecRow.getByRole("cell").nth(2)).toHaveText("2.000,00");
   });
 
-  // Heike-4 (aggregated views), end-to-end repro of exactly what she did: enter an
+  // Heike-4 (aggregations), end-to-end repro of exactly what she did: enter an
   // electricity figure for a building via the form, then create an annual view that
   // selects ONLY electricity over that building, and open the summary. Heike saw an
   // EMPTY diagram; this asserts the summary actually plots her entered data — i.e.
@@ -178,10 +178,10 @@ test.describe("energy view smoke", () => {
     await addEnergyYear(page, ADDR, "2022", "12345"); // Actual electricity, kWh
 
     // 2) Create an annual view selecting ONLY electricity over THAT building.
-    await page.getByRole("button", { name: /create view/i }).click();
+    await page.getByRole("button", { name: /create aggregation/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
-    await dialog.getByLabel("View Name").fill(VIEW);
+    await dialog.getByLabel("Aggregation name").fill(VIEW);
     await dialog.getByLabel("Select Buildings").click();
     await page.getByRole("option").filter({ hasText: ADDR }).first().click();
     await page.keyboard.press("Escape");
@@ -196,21 +196,21 @@ test.describe("energy view smoke", () => {
       .uncheck();
     await dialog.getByRole("checkbox", { name: "Electricity (kWh)", exact: true })
       .check();
-    await dialog.getByRole("button", { name: /create view/i }).click();
+    await dialog.getByRole("button", { name: /create aggregation/i }).click();
     // Assert the durable outcome — the view row appears (step 3) — NOT the
-    // transient "view created successfully" toast. The single FIFO snackbar may
+    // transient "aggregation created successfully" toast. The single FIFO snackbar may
     // be mid-showing an earlier notice (here the first-time "Set up the views
     // folder" provisioning info), which delays/buries the success toast even
     // though the view itself was created.
 
-    // 3) Open the view (the "View details" action). The summary auto-computes its
+    // 3) Open the aggregation (the "Aggregation details" action). The summary auto-computes its
     // snapshot on first open, so the chart must plot a bar straight away — WITHOUT
     // a manual "Refresh Snapshot" (the empty diagram Heike saw). A drawn
     // .recharts-bar-rectangle proves the ticked metric resolved to her entered
     // figure end-to-end.
-    const viewRow = page.locator("li").filter({ hasText: VIEW }).first();
-    await expect(viewRow).toBeVisible({ timeout: T.action });
-    await viewRow.getByRole("button", { name: "View details" }).click();
+    const aggregationRow = page.locator("li").filter({ hasText: VIEW }).first();
+    await expect(aggregationRow).toBeVisible({ timeout: T.action });
+    await aggregationRow.getByRole("button", { name: "Aggregation details" }).click();
     const surface = page.locator("svg.recharts-surface").first();
     await expect(surface).toBeVisible({ timeout: T.action });
     await expect(surface.locator(".recharts-bar-rectangle").first())

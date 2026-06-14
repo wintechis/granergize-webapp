@@ -126,7 +126,7 @@ test.describe("building details", () => {
     const id = await annual.getAttribute("data-building-id");
     expect(id, "the annual demo building's id").toBeTruthy();
 
-    await page.goto(buildingRoute("energy", id));
+    await page.goto(buildingRoute("observation", id));
     await expect(
       page.getByRole("heading", { name: /Energy Need for / }),
     ).toBeVisible({ timeout: T.action });

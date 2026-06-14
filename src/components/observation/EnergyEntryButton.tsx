@@ -8,7 +8,7 @@ import EnergyYearDialog from "../EnergyYearDialog.tsx";
 /**
  * The data-entry affordance for the observation (energy) detail page: a button
  * that opens {@link EnergyYearDialog} to add / edit / delete a building's annual
- * energy years. This entry point lives ONLY on the full `/energy/:id` detail —
+ * energy years. This entry point lives ONLY on the full `/observation/:id` detail —
  * the building page keeps energy minimal and links here for it.
  *
  * Only the building's owner can write its energy data, so the button renders

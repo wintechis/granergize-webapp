@@ -71,10 +71,10 @@ test.describe("redesign: building page", () => {
 
   test("the building page links to the full observation (energy) page", async () => {
     await page.goto(buildingRoute("building", id));
-    // The Energy section is minimal here and links to /energy/:id for full charts.
+    // The Energy section is minimal here and links to /observation/:id for full charts.
     await page.getByRole("link", { name: /energy|observation|details?/i })
       .first().click();
-    await expect(page).toHaveURL(/#\/energy\//, { timeout: T.action });
+    await expect(page).toHaveURL(/#\/observation\//, { timeout: T.action });
     await expect(page.getByRole("button", { name: "Edit energy years" }))
       .toBeVisible();
   });

@@ -125,7 +125,7 @@ test.describe("energy resolution toggle", () => {
 
   test("/energy/:id offers the toggle and reaches the series chart", async () => {
     test.setTimeout(T.testSolo);
-    await page.goto(buildingRoute("energy", id));
+    await page.goto(buildingRoute("observation", id));
     // Annual is the default view — the entered figure shows (de-DE formatted).
     await expect(page.getByText("77.777,00").first())
       .toBeVisible({ timeout: T.action });

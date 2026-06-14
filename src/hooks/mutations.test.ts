@@ -8,9 +8,9 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   useCreateRoom,
   useDeleteBuilding,
-  useDeleteView,
+  useDeleteAggregation,
   useExitRoom,
-  useRefreshView,
+  useRefreshAggregation,
   useRemoveBookmark,
 } from "./mutations.ts";
 import { queryKeys } from "./queries.ts";
@@ -217,7 +217,7 @@ Deno.test("useRemoveBookmark drops the bookmark and clears current if it was cur
 
 import { MutationCache } from "@tanstack/react-query";
 import {
-  useCreateView,
+  useCreateAggregation,
   useSaveOrganization,
   useShareBuilding,
   useUpdateBuilding,
@@ -266,7 +266,7 @@ Deno.test("useWriteEnergyYear writes the dataset and invalidates the building-da
       },
     });
     const datasetPut = fake.calls.find(
-      (c) => c.method === "PUT" && c.url.includes("2024-P1Y"),
+      (c) => c.method === "PUT" && /\/observations\/2024\/[^/]+\.ttl$/.test(c.url),
     );
     assert.ok(datasetPut, "the dataset resource was PUT");
     for (
@@ -332,7 +332,12 @@ Deno.test("useWriteEnergyYear reconciles an active all-years grant onto the new 
         metrics: { electricityConsumption: 1000 },
       },
     });
-    const dsAcl = fake.store[`${B.replace(/\.ttl$/, "")}/energy/2024-P1Y.ttl.acl`];
+    // The dataset's time-first path carries a minted id; find it from the PUT.
+    const dsPut = fake.calls.find(
+      (c) => c.method === "PUT" && /\/observations\/2024\/[^/]+\.ttl$/.test(c.url),
+    );
+    assert.ok(dsPut, "the dataset resource was PUT");
+    const dsAcl = fake.store[`${dsPut!.url}.acl`];
     assert.ok(dsAcl?.includes(BOB), "the new dataset's .acl grants the recipient");
     assert.ok(
       !fake.calls.some((c) => c.method === "POST" && c.url === SHARED_OUT),
@@ -370,7 +375,7 @@ Deno.test("useShareBuilding invalidates ONLY the shared-out log (not buildings)"
   }
 });
 
-Deno.test("useRefreshView and useDeleteView invalidate viewDetail (the standalone page reads through it)", async () => {
+Deno.test("useRefreshAggregation and useDeleteAggregation invalidate aggregationDetail (the standalone page reads through it)", async () => {
   const fake = makeFakeSession({
     webId: WEBID,
     respond: () => new Response("boom", { status: 500 }),
@@ -380,44 +385,44 @@ Deno.test("useRefreshView and useDeleteView invalidate viewDetail (the standalon
   const refresh = makeSpyWrapper();
   const del = makeSpyWrapper();
   try {
-    const { result: refreshView } = renderHook(() => useRefreshView(), {
+    const { result: refreshAggregation } = renderHook(() => useRefreshAggregation(), {
       wrapper: refresh.wrapper,
     });
-    await refreshView.current.mutateAsync("v1").catch(() => {});
-    assert.ok(refresh.invalidated.includes("viewDefinitions"));
-    assert.ok(refresh.invalidated.includes("viewDetail"));
+    await refreshAggregation.current.mutateAsync("v1").catch(() => {});
+    assert.ok(refresh.invalidated.includes("aggregationDefinitions"));
+    assert.ok(refresh.invalidated.includes("aggregationDetail"));
 
-    const { result: deleteView } = renderHook(() => useDeleteView(), {
+    const { result: deleteAggregation } = renderHook(() => useDeleteAggregation(), {
       wrapper: del.wrapper,
     });
-    await deleteView.current.mutateAsync("v1").catch(() => {});
-    assert.ok(del.invalidated.includes("viewDetail"));
+    await deleteAggregation.current.mutateAsync("v1").catch(() => {});
+    assert.ok(del.invalidated.includes("aggregationDetail"));
     assert.ok(del.invalidated.includes("sharedOutLog"));
   } finally {
     _setSessionForTesting(null);
   }
 });
 
-Deno.test("useCreateView invalidates viewDefinitions; useSaveOrganization the resolved-agent caches", async () => {
+Deno.test("useCreateAggregation invalidates aggregationDefinitions; useSaveOrganization the resolved-agent caches", async () => {
   const fake = makeFakeSession({
     webId: WEBID,
     respond: () => new Response("boom", { status: 500 }),
   });
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fake.session);
-  const view = makeSpyWrapper();
+  const aggregation = makeSpyWrapper();
   const org = makeSpyWrapper();
   try {
-    const { result: createView } = renderHook(() => useCreateView(), {
-      wrapper: view.wrapper,
+    const { result: createAggregation } = renderHook(() => useCreateAggregation(), {
+      wrapper: aggregation.wrapper,
     });
-    await createView.current.mutateAsync({
+    await createAggregation.current.mutateAsync({
       name: "v",
       buildingUris: ["https://pod.example/granergize/buildings/b1.ttl#b1"],
       aggregationType: "average",
       metrics: ["electricityConsumption"],
     }).catch(() => {});
-    assert.ok(view.invalidated.includes("viewDefinitions"));
+    assert.ok(aggregation.invalidated.includes("aggregationDefinitions"));
 
     const { result: saveOrg } = renderHook(() => useSaveOrganization(), {
       wrapper: org.wrapper,
@@ -655,7 +660,7 @@ Deno.test("useReissueGrants replays an empty log to zero counts without invalida
   try {
     const { result } = renderHook(() => useReissueGrants(), { wrapper });
     const res = await result.current.mutateAsync();
-    assert.equal(res.buildings + res.views, 0);
+    assert.equal(res.buildings + res.aggregations, 0);
     assert.deepEqual(invalidated, [], "the ACL projection is not a query");
   } finally {
     _setSessionForTesting(null);

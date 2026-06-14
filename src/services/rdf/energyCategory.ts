@@ -26,7 +26,7 @@ function sumValues(section: Record<string, number | undefined>): number {
  * The building's annual energy figure used as the consumption proxy: the total
  * `energyNeed` (demand across all carriers), summed the same way the energy tab
  * sums a section. Latest-year data is what the parser surfaces, matching the
- * `/energy/:id` latest-year view; sub-hourly series are out of scope here.
+ * `/observation/:id` latest-year view; sub-hourly series are out of scope here.
  */
 export function annualEnergyKwh(energy: EnergyType): number {
   return sumValues(energy.energyNeed);

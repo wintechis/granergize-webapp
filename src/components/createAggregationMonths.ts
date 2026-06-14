@@ -3,7 +3,7 @@ import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 
 /**
  * The 15-minute series datasets behind the SELECTED buildings only. The month
- * dropdown must offer exactly the months the view will compute over — months
+ * dropdown must offer exactly the months the aggregation will compute over — months
  * discovered across unselected buildings let the user pick a month with no data
  * in their selection, yielding an empty snapshot (heike-5 #4, the same failure
  * heike-4's data-bearing-months dropdown was introduced to prevent).

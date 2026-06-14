@@ -26,12 +26,12 @@ import RefreshIcon from "@mui/icons-material/Refresh";
 import ShareIcon from "@mui/icons-material/Share";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { getSnapshotUri } from "../services/aggregation/viewManager.ts";
-import { useViewDetail } from "../hooks/queries.ts";
+import { getSnapshotUri } from "../services/aggregation/aggregationManager.ts";
+import { useAggregationDetail } from "../hooks/queries.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
 import {
-  useRefreshView,
-  useShareViewSnapshot,
+  useRefreshAggregation,
+  useShareAggregationSnapshot,
 } from "../hooks/mutations.ts";
 import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
@@ -40,12 +40,12 @@ import { formatNumber } from "../lib/formatNumber.ts";
 import { formatError } from "../lib/formatError.ts";
 import { annualMetricLabel } from "../constants/annualMetrics.ts";
 
-interface AggregatedViewProps {
+interface AggregationProps {
   session: Session;
 }
 
-export default function AggregatedView({ session }: AggregatedViewProps) {
-  const { viewId } = useParams<{ viewId: string }>();
+export default function Aggregation({ session }: AggregationProps) {
+  const { id: aggregationId } = useParams<{ id: string }>();
   // Back = the in-app location the user came from (Manage, Share, …), falling
   // back to the overview for a deep link — see useBackNavigation.
   const goBack = useBackNavigation();
@@ -53,36 +53,36 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
 
   const [shareDialogOpen, setShareDialogOpen] = useState(false);
   const [shareWebId, setShareWebId] = useState("");
-  // Reads go through the viewDetail query (definition + snapshot; a missing
-  // snapshot is auto-materialised in the queryFn — see useViewDetail), so the
-  // navigate-away race is the cache's problem, not this page's: a late /view/A
+  // Reads go through the aggregationDetail query (definition + snapshot; a missing
+  // snapshot is auto-materialised in the queryFn — see useAggregationDetail), so the
+  // navigate-away race is the cache's problem, not this page's: a late /aggregation/A
   // completion lands in A's cache entry, never on B's render. Writes go
   // through mutation hooks (busy = isPending, error toasts central); their
-  // viewDetail invalidation refetches the query, so no result lands in local
+  // aggregationDetail invalidation refetches the query, so no result lands in local
   // state.
-  const detail = useViewDetail(viewId);
-  const viewDefinition = detail.data?.definition ?? null;
+  const detail = useAggregationDetail(aggregationId);
+  const aggregationDefinition = detail.data?.definition ?? null;
   const snapshot = detail.data?.snapshot ?? null;
-  const refreshMut = useRefreshView();
+  const refreshMut = useRefreshAggregation();
   const refreshing = refreshMut.isPending;
-  const shareMut = useShareViewSnapshot();
+  const shareMut = useShareAggregationSnapshot();
   const sharing = shareMut.isPending;
 
   const handleRefresh = () => {
-    if (!viewId) return;
-    refreshMut.mutate(viewId, {
+    if (!aggregationId) return;
+    refreshMut.mutate(aggregationId, {
       onSuccess: () => showNotification("Snapshot refreshed", "success"),
     });
   };
 
   const handleShare = () => {
-    if (!viewId || !shareWebId.trim() || !session.info.webId) return;
-    const snapshotUri = getSnapshotUri(session.info.webId, viewId);
+    if (!aggregationId || !shareWebId.trim() || !session.info.webId) return;
+    const snapshotUri = getSnapshotUri(session.info.webId, aggregationId);
     shareMut.mutate({ snapshotUri, recipients: [shareWebId.trim()] }, {
       onSuccess: () => {
         setShareDialogOpen(false);
         setShareWebId("");
-        showNotification("View shared successfully", "success");
+        showNotification("Aggregation shared successfully", "success");
       },
     });
   };
@@ -119,7 +119,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     );
   }
 
-  if (!viewDefinition) {
+  if (!aggregationDefinition) {
     return (
       <Container maxWidth="lg" sx={{ py: 4 }}>
         <Button
@@ -129,7 +129,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         >
           Back
         </Button>
-        <Typography>View not found</Typography>
+        <Typography>Aggregation not found</Typography>
       </Container>
     );
   }
@@ -143,8 +143,8 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
     }))
     : [];
   const aggregationLabel = `${
-    viewDefinition.aggregationType.charAt(0).toUpperCase() +
-    viewDefinition.aggregationType.slice(1)
+    aggregationDefinition.aggregationType.charAt(0).toUpperCase() +
+    aggregationDefinition.aggregationType.slice(1)
   } Values`;
 
   return (
@@ -161,7 +161,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
           <IconButton onClick={goBack} aria-label="Back">
             <ArrowBackIcon />
           </IconButton>
-          <Typography variant="h5">{viewDefinition.name}</Typography>
+          <Typography variant="h5">{aggregationDefinition.name}</Typography>
         </Box>
         <Box sx={{ display: "flex", gap: 1 }}>
           {/* Buttons go disabled while in flight — no inline spinner (the
@@ -185,7 +185,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
       </Box>
 
       <Card sx={{ mb: 3 }}>
-        <CardHeader title="View Details" />
+        <CardHeader title="Aggregation details" />
         <CardContent>
           <Box
             component="dl"
@@ -201,22 +201,22 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
                 [
                   "Aggregation Type",
                   <Box component="span" sx={{ textTransform: "capitalize" }}>
-                    {viewDefinition.aggregationType}
+                    {aggregationDefinition.aggregationType}
                   </Box>,
                 ],
-                ["Buildings Included", viewDefinition.buildingUris.length],
-                ["Metrics", viewDefinition.metrics.length],
+                ["Buildings Included", aggregationDefinition.buildingUris.length],
+                ["Metrics", aggregationDefinition.metrics.length],
                 [
                   "Created",
-                  formatDate(viewDefinition.createdAt),
+                  formatDate(aggregationDefinition.createdAt),
                 ],
-                viewDefinition.lastComputedAt && [
+                aggregationDefinition.lastComputedAt && [
                   "Last Computed",
-                  formatDateTime(viewDefinition.lastComputedAt),
+                  formatDateTime(aggregationDefinition.lastComputedAt),
                 ],
-                viewDefinition.period && [
+                aggregationDefinition.period && [
                   "Period",
-                  new Date(`${viewDefinition.period}-01`).toLocaleString(
+                  new Date(`${aggregationDefinition.period}-01`).toLocaleString(
                     "default",
                     { month: "long", year: "numeric" },
                   ),
@@ -245,8 +245,8 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         <Alert severity="info">
           The computed summary contains no values: none of the included
           buildings carry data for the selected metrics
-          {viewDefinition.period ? " in the selected month" : ""}. Enter energy
-          data for them (or adjust the view), then refresh the snapshot.
+          {aggregationDefinition.period ? " in the selected month" : ""}. Enter energy
+          data for them (or adjust the aggregation), then refresh the snapshot.
         </Alert>
       )}
       {snapshot && chartRows.length > 0 && (
@@ -264,7 +264,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
                       palette: CHART_COLOR_PALETTE,
                     }]}
                     xKey="name"
-                    yUnit={viewDefinition.period ? "kWh/month" : "kWh"}
+                    yUnit={aggregationDefinition.period ? "kWh/month" : "kWh"}
                     height={400}
                     hideLegend
                   />
@@ -283,9 +283,9 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
                         <TableCell align="right">
                           {/* Units live in the per-metric row labels — a flat
                               "(kWh)" here lied for the m³ and % metrics. */}
-                          {viewDefinition.aggregationType.charAt(0)
+                          {aggregationDefinition.aggregationType.charAt(0)
                             .toUpperCase() +
-                            viewDefinition.aggregationType.slice(1)} Value
+                            aggregationDefinition.aggregationType.slice(1)} Value
                         </TableCell>
                       </TableRow>
                     </TableHead>
@@ -316,7 +316,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
             // succeeded) — persistent in-place state → Alert; "Refresh
             // Snapshot" is the retry affordance.
             <Alert severity="warning" sx={{ mb: 3 }}>
-              {formatError("compute the view summary", detail.data.computeError)}
+              {formatError("compute the aggregation summary", detail.data.computeError)}
             </Alert>
           )}
           <Card>
@@ -336,7 +336,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         onClose={() => setShareDialogOpen(false)}
         dirty={shareWebId.trim() !== ""}
         busy={sharing}
-        title="Share Aggregated View"
+        title="Share aggregation"
         actions={
           <>
             <Button
@@ -356,7 +356,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         }
       >
         <Typography variant="body2" sx={{ mb: 2 }}>
-          Share this view with another user. They will receive access to the
+          Share this aggregation with another user. They will receive access to the
           computed snapshot values only, without seeing which buildings were
           included.
         </Typography>

@@ -7,10 +7,12 @@ import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 const FILE = "https://alice.example/granergize/buildings/b1.ttl";
 
 /** A minimal shared building file (no PROV attribution). */
+const DS = "https://alice.example/granergize/observations/2024/d1.ttl#ds";
 const BUILDING_TTL = `@prefix rec: <https://w3id.org/rec#> .
 @prefix cons: <${CONSUMPTION_NS}> .
 <${FILE}#b1> a rec:Building ;
-  cons:hasEnergyDataset <${FILE.replace(/\.ttl$/, "")}/energy/2024-P1Y.ttl#ds> .
+  cons:hasEnergyDataset <${DS}> .
+<${DS}> cons:granularity "P1Y" ; cons:scenario cons:Actual .
 `;
 
 /** Fake session serving the building Turtle at FILE; 404 elsewhere. */

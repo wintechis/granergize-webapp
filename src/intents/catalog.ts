@@ -10,7 +10,7 @@
  * lane. Design + the full Actions list: `explore/explore-intent-registry.md`.
  *
  * Entity names use the locked target grammar (`observation`, `aggregation`); the
- * code hooks still say `energy`/`view` until the L-observations rename.
+ * code hooks still say `energy` until the L-observations rename.
  */
 
 /** Which state space a verb acts on (the top-level discriminator, CQS-aligned). */
@@ -62,7 +62,7 @@ export interface IntentEntry {
  * surfaces are handled outside the central `"Failed to {action}"` toast — most
  * patch the cache authoritatively or render inline). Entity names use the locked
  * target grammar (`observation`/`aggregation`); the code hooks still say
- * `energy`/`view` until the L-observations rename.
+ * `energy` until the L-observations rename.
  */
 export const INTENTS: readonly IntentEntry[] = [
   // ── Buildings ──────────────────────────────────────────────────────────────
@@ -131,42 +131,42 @@ export const INTENTS: readonly IntentEntry[] = [
     entity: "attachment",
     hook: "useSetEnergyCertificate",
   },
-  // ── Aggregations (views) ─────────────────────────────────────────────────────
+  // ── Aggregations ─────────────────────────────────────────────────────────────
   {
-    name: "CreateAggregation", // hook: view (rename lands in L-observations)
-    action: "create the view",
+    name: "CreateAggregation",
+    action: "create the aggregation",
     effect: "write",
     entity: "aggregation",
-    hook: "useCreateView",
+    hook: "useCreateAggregation",
   },
   {
     name: "DeleteAggregation",
     action: "", // hook declares no meta.action
     effect: "write",
     entity: "aggregation",
-    hook: "useDeleteView",
+    hook: "useDeleteAggregation",
   },
   {
     name: "RefreshAggregation",
     action: "", // hook declares no meta.action
     effect: "write",
     entity: "aggregation",
-    hook: "useRefreshView",
+    hook: "useRefreshAggregation",
   },
   {
     name: "ShareAggregation",
-    action: "share the view",
+    action: "share the aggregation",
     effect: "write",
     entity: "aggregation",
-    silentError: true, // share-view dialog renders inline (silent: opts.silent)
-    hook: "useShareViewSnapshot",
+    silentError: true, // share-aggregation dialog renders inline (silent: opts.silent)
+    hook: "useShareAggregationSnapshot",
   },
   {
     name: "RevokeAggregationAccess",
     action: "", // hook declares no meta.action
     effect: "write",
     entity: "sharing",
-    hook: "useRevokeViewAccess",
+    hook: "useRevokeAggregationAccess",
   },
   // ── Sharing ──────────────────────────────────────────────────────────────────
   {

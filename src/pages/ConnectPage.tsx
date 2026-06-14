@@ -76,7 +76,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
   // global policy is refetch-on-invalidation only (refetchOnMount: false).
   // Switching to the Connect tab remounts this page (it renders under
   // `tabValue === 3` in index.tsx), so opening it is the user's "look" at the
-  // membership and triggers the one refetch — the same discipline ShareViewDialog
+  // membership and triggers the one refetch — the same discipline ShareAggregationDialog
   // applies on open. Without this a peer who joined your active room never shows
   // up here until some unrelated room mutation happens to invalidate the log.
   const qc = useQueryClient();

@@ -27,13 +27,13 @@
 ############################
 
 # The kind of a shared resource in a sharing-log event — a routing hint whose
-# value is the shared resource's class: rec:Building or cons:View.
+# value is the shared resource's class: rec:Building or cons:Aggregation.
 :kind rdf:type owl:ObjectProperty ;
     rdfs:label "kind"@en ; rdfs:label "Art"@de ; rdfs:label "type"@fr ;
-    rdfs:comment "The class of the shared resource in a sharing-log event (rec:Building or cons:View)."@en ;
-    rdfs:comment "Die Klasse der geteilten Ressource in einem Freigabeprotokoll-Ereignis (rec:Building oder cons:View)."@de ;
-    rdfs:comment "La classe de la ressource partagée dans un événement du journal de partage (rec:Building ou cons:View)."@fr ;
-    rdfs:seeAlso rec:Building , cons:View .
+    rdfs:comment "The class of the shared resource in a sharing-log event (rec:Building or cons:Aggregation)."@en ;
+    rdfs:comment "Die Klasse der geteilten Ressource in einem Freigabeprotokoll-Ereignis (rec:Building oder cons:Aggregation)."@de ;
+    rdfs:comment "La classe de la ressource partagée dans un événement du journal de partage (rec:Building ou cons:Aggregation)."@fr ;
+    rdfs:seeAlso rec:Building , cons:Aggregation .
 
 ############################
 ###   Membership roles   ###

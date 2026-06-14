@@ -19,7 +19,7 @@ import { buildingsToXlsx, buildingToXlsx } from "../buildingWorkbook.ts";
 import { synthDayReadings } from "../energySeriesXlsx.ts";
 import {
   datasetFileUri,
-  datasetNodeUri,
+  observationsRootForBuilding,
 } from "../energyDataset.ts";
 import { toggleBuildingVisibility } from "../../interop/sharingManager.ts";
 import { parseBuildings } from "./buildingParser.ts";
@@ -280,10 +280,13 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
 
 Deno.test("serializeBuildingToTurtle links energy datasets via cons:hasEnergyDataset", () => {
   const uri = newBuildingUri(WEBID, "b-1");
-  const base = uri.replace(/\.ttl$/, "");
-  const dsA = `${base}/energy/2024-P1Y.ttl#ds`;
-  const dsB = `${base}/energy/2024-PT15M.ttl#ds`;
-  const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, [dsA, dsB]);
+  const root = observationsRootForBuilding(uri);
+  const dsA = `${datasetFileUri(root, 2024, "id-a")}#ds`;
+  const dsB = `${datasetFileUri(root, 2024, "id-b")}#ds`;
+  const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, [
+    { url: dsA, granularity: "P1Y", scenario: "actual" },
+    { url: dsB, granularity: "PT15M", scenario: "actual" },
+  ]);
 
   // Raw shape: one cons:hasEnergyDataset link per dataset (no inline energy).
   const store = parse(ttl);
@@ -627,6 +630,8 @@ Deno.test("writeBuildingEnergy stops writing daily files once aborted", async ()
   const controller = new AbortController();
   // Abort the moment the first 15-min daily file is dispatched, so the rest of
   // the year's files can't be written.
+  const isDailyFile = (url: string) =>
+    /\/observations\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.ttl$/.test(url);
   const inner = session.fetch.bind(session);
   (session as { fetch: typeof fetch }).fetch = ((
     input: string | URL | Request,
@@ -634,10 +639,7 @@ Deno.test("writeBuildingEnergy stops writing daily files once aborted", async ()
   ) => {
     const url = String(input);
     const p = inner(input as string, init);
-    if (
-      (init?.method ?? "GET").toUpperCase() === "PUT" &&
-      url.includes("PT15M") && url.endsWith(".ttl")
-    ) {
+    if ((init?.method ?? "GET").toUpperCase() === "PUT" && isDailyFile(url)) {
       controller.abort();
     }
     return p;
@@ -662,9 +664,7 @@ Deno.test("writeBuildingEnergy stops writing daily files once aborted", async ()
     )
   );
 
-  const dailyPuts = calls.filter((c) =>
-    c.method === "PUT" && c.url.includes("PT15M") && c.url.endsWith(".ttl")
-  );
+  const dailyPuts = calls.filter((c) => c.method === "PUT" && isDailyFile(c.url));
   assert.ok(dailyPuts.length >= 1, "at least one daily file was written");
   assert.ok(
     dailyPuts.length < days.length,
@@ -757,40 +757,51 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   // 2 investor + 2 user demo buildings.
   assert.equal(buildingPuts.length, 4, "four demo buildings uploaded");
 
-  // Daily 15-minute reading files, inside a series container (one file per series
-  // day; the two user demos carry multi-day series).
+  // Daily 15-minute reading files are time-first under each year's month/day
+  // sub-containers (one file per series day; the two user demos carry multi-day
+  // series): `observations/<year>/<mm>/<dd>/<id>.ttl`.
   const energyPuts = calls.filter((c) =>
-    c.method === "PUT" && /\/2024-PT15M\/\d{4}-\d{2}-\d{2}\.ttl$/.test(c.url)
+    c.method === "PUT" &&
+    /\/observations\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.ttl$/.test(c.url)
   );
   assert.ok(energyPuts.length >= 1, "15-min daily reading files uploaded");
 
-  // Energy is NOT inline: each building links its datasets via cons:hasEnergyDataset.
-  // The two user demos link PT15M series; the two investor demos link P1Y
-  // annual — and the first user demo (Lange Gasse) carries BOTH shapes, the
-  // constellation that surfaces the Annual | Time series toggle.
+  // Energy is NOT inline: each building links its datasets via cons:hasEnergyDataset
+  // and re-states the dataset's granularity/scenario. The two user demos link a
+  // PT15M series; the two investor demos link P1Y annual — and the first user demo
+  // (Lange Gasse) carries BOTH shapes, the constellation that surfaces the
+  // Annual | Time series toggle.
   const bodies = buildingPuts.map((c) => c.body ?? "");
+  // The granularity is re-stated on the building as a cons:granularity literal;
+  // parse so the assertion is robust to the writer's prefix choices.
+  const granularitiesOf = (body: string): string[] =>
+    parse(body)
+      .getObjects(null, namedNode(`${CONSUMPTION_NS}granularity`), null)
+      .map((o) => o.value);
+  const bodyGrans = bodies.map(granularitiesOf);
   assert.equal(
-    bodies.filter((b) => b.includes("hasEnergyDataset") && b.includes("PT15M"))
-      .length,
+    bodyGrans.filter((g) => g.includes("PT15M")).length,
     2,
-    "two buildings link a PT15M series dataset (the user demos)",
+    "two buildings link a PT15M series dataset",
   );
   assert.equal(
-    bodies.filter((b) => b.includes("hasEnergyDataset") && b.includes("-P1Y"))
-      .length,
+    bodyGrans.filter((g) => g.includes("P1Y")).length,
     3,
     "three buildings link P1Y annual datasets (the investors + the both-shapes user demo)",
   );
   assert.equal(
-    bodies.filter((b) => b.includes("PT15M") && b.includes("-P1Y")).length,
+    bodyGrans.filter((g) => g.includes("PT15M") && g.includes("P1Y")).length,
     1,
     "exactly one demo carries BOTH shapes (annual + series → the resolution toggle)",
   );
 
-  // The annual aggregate's figures live in their own cons:EnergyDataset resources
-  // (unified metric IRIs), not inline in the building file.
+  // The annual aggregate's figures live in their own (time-first) cons:EnergyDataset
+  // resources (unified metric IRIs), not inline in the building file.
   const annualFiles = calls
-    .filter((c) => c.method === "PUT" && /\/energy\/\d{4}-P1Y\.ttl$/.test(c.url))
+    .filter((c) =>
+      c.method === "PUT" && /\/observations\/\d{4}\/[^/]+\.ttl$/.test(c.url) &&
+      (c.body ?? "").includes(`cons:granularity "P1Y"`)
+    )
     .map((c) => c.body ?? "");
   assert.ok(annualFiles.length >= 1, "annual dataset resources written");
   assert.ok(
@@ -815,19 +826,25 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.equal(owned.length, 2, "the two series demos are self-owned");
 
   // Demo #1 carries an extra planned (Soll) 2024 dataset next to the actual
-  // 2024 figures — the out-of-the-box Soll-Ist pair.
+  // 2024 figures — the out-of-the-box Soll-Ist pair. Scenario is a dataset
+  // property (cons:Planned), not encoded in the (time-first) path.
   const plannedPuts = calls.filter((c) =>
-    c.method === "PUT" && /\/energy\/2024-P1Y-planned\.ttl$/.test(c.url)
+    c.method === "PUT" && /\/observations\/2024\/[^/]+\.ttl$/.test(c.url) &&
+    (c.body ?? "").includes("cons:scenario cons:Planned")
   );
   assert.equal(plannedPuts.length, 1, "one planned 2024 dataset written");
   assert.ok(
     (plannedPuts[0].body ?? "").includes("ElectricityConsumption"),
     "the planned dataset carries metric observations",
   );
+  const plannedScenario = `${CONSUMPTION_NS}Planned`;
   assert.equal(
-    bodies.filter((b) => b.includes("2024-P1Y-planned.ttl#ds")).length,
+    bodies.filter((b) =>
+      parse(b).getQuads(null, namedNode(`${CONSUMPTION_NS}scenario`), namedNode(plannedScenario), null)
+        .length > 0
+    ).length,
     1,
-    "exactly one building links the planned dataset",
+    "exactly one building re-states a planned dataset link",
   );
 
   // The building files carry a PROV qualified attribution to the producing agent,
@@ -842,7 +859,7 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   // master data, the investor block (incl. a controlled-vocab object property),
   // one certification, and operating costs. Round-trip through the parser so the
   // demo field NAMES stay in lockstep with buildingConfig (a rename breaks here).
-  const investorBody = bodies.find((b) => b.includes("-P1Y")) ?? "";
+  const investorBody = bodies.find((b) => b.includes("Muster Logistik GmbH")) ?? "";
   const inv = [...parseBuildings(new Parser().parse(investorBody)).values()][0];
   assert.ok(inv, "investor demo building parses");
   assert.equal(inv.customer, "Muster Logistik GmbH");
@@ -868,17 +885,17 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
 });
 
 Deno.test("seedDemoBuildings counts a failed building instead of throwing — and never writes its building file (commit-last)", async () => {
-  // Fail the planned (Soll) dataset PUT: it belongs to exactly one demo (demo #1),
-  // and it is the only deterministically-addressable URL in the seed (building ids
-  // are random UUIDs). The seed has no transactions; this asserts the substitute
-  // guarantees: the loop continues, the tally reports the shortfall, and the failed
-  // demo's discoverable building file is never written (its earlier dataset PUTs
-  // become inert orphans).
+  // Fail the planned (Soll) dataset PUT: it belongs to exactly one demo (demo #1).
+  // The time-first path carries a random id, so it's matched by its body (the
+  // only planned-scenario dataset in the seed). The seed has no transactions;
+  // this asserts the substitute guarantees: the loop continues, the tally reports
+  // the shortfall, and the failed demo's discoverable building file is never
+  // written (its earlier dataset PUTs become inert orphans).
   const { session, calls } = makeFakeSession({
     webId: WEBID,
-    respond: (url, init) =>
+    respond: (_url, init) =>
       (init?.method ?? "GET").toUpperCase() === "PUT" &&
-        url.endsWith("/energy/2024-P1Y-planned.ttl")
+        String(init?.body ?? "").includes("cons:scenario cons:Planned")
         ? new Response("boom", { status: 500 })
         : undefined,
   });
@@ -915,7 +932,14 @@ Deno.test("seedDemoBuildings counts a failed building instead of throwing — an
   );
   assert.equal(buildingPuts.length, 3, "failed demo's building file not written");
   assert.ok(
-    buildingPuts.every((c) => !(c.body ?? "").includes("2024-P1Y-planned.ttl")),
+    buildingPuts.every((c) =>
+      parse(c.body ?? "").getQuads(
+        null,
+        namedNode(`${CONSUMPTION_NS}scenario`),
+        namedNode(`${CONSUMPTION_NS}Planned`),
+        null,
+      ).length === 0
+    ),
     "no surviving building links the failed planned dataset",
   );
 });
@@ -978,17 +1002,18 @@ Deno.test("writeEnergyYear writes the dataset and links it; deleteEnergyYear und
     metrics: { electricityConsumption: 88888 },
   });
 
-  const dsFile = datasetFileUri(fileUri, 2099, "P1Y", "actual");
-  const dsNode = datasetNodeUri(dsFile);
-  assert.ok(dsFile in store, "the dataset resource was written");
-  // The building file now links the dataset.
-  const linkedAfterWrite = parse(store[fileUri]).getQuads(
+  // The minted dataset id isn't predictable, so read the link the write created
+  // (a time-first observation IRI) back out of the building file.
+  const linksAfterWrite = parse(store[fileUri]).getObjects(
     namedNode(subjectUri),
     namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
-    namedNode(dsNode),
     null,
   );
-  assert.equal(linkedAfterWrite.length, 1, "one hasEnergyDataset link after write");
+  assert.equal(linksAfterWrite.length, 1, "one hasEnergyDataset link after write");
+  const dsNode = linksAfterWrite[0].value;
+  const dsFile = dsNode.split("#")[0];
+  assert.match(dsFile, /\/observations\/2099\/[^/]+\.ttl$/);
+  assert.ok(dsFile in store, "the dataset resource was written");
 
   await deleteEnergyYear(session, fileUri, subjectUri, {
     year: 2099,

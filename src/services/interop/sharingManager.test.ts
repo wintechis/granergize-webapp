@@ -8,16 +8,16 @@ import {
   sharedOutUri,
 } from "./sharingLog.ts";
 import {
-  getReceivedViews,
+  getReceivedAggregations,
   getSharedBuildings,
-  getSharedViews,
+  getSharedAggregations,
   getSharedWithMe,
   recordSharing,
-  recordViewSharing,
+  recordAggregationSharing,
   revokeAccess,
   revokeAllBuildingRecipients,
-  revokeAllViewRecipients,
-  revokeViewAccess,
+  revokeAllAggregationRecipients,
+  revokeAggregationAccess,
 } from "./sharingManager.ts";
 
 const WEBID = "https://me.example/profile/card#me";
@@ -27,7 +27,7 @@ const BOB = "https://bob.example/profile/card#me";
 const SHARED_B = "https://alice.example/granergize/buildings/b9.ttl";
 const MY_B = "https://me.example/granergize/buildings/b1.ttl";
 const SNAP =
-  "https://me.example/granergize/views/snapshots/view-1-abc.ttl";
+  "https://me.example/granergize/aggregations/snapshots/aggregation-1-abc.ttl";
 
 /** Stateful fake Pod with POST-to-append + container-listing synthesis. */
 function makePod(): { session: Session; store: Record<string, string> } {
@@ -108,11 +108,11 @@ Deno.test("getSharedWithMe folds shared-in/ Building grants (sharer + visible)",
   assert.equal(shared[0].isVisible, true); // nothing hidden in prefs
 });
 
-Deno.test("getSharedWithMe ignores View grants in shared-in/", async () => {
+Deno.test("getSharedWithMe ignores Aggregation grants in shared-in/", async () => {
   const { session } = makePod();
   await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "grant", owner: ALICE, grantee: WEBID, resource: SNAP,
-    kind: "View", at: "2026-06-04T10:00:00Z",
+    kind: "Aggregation", at: "2026-06-04T10:00:00Z",
   });
   assert.deepEqual(await getSharedWithMe(session), []);
 });
@@ -156,57 +156,57 @@ Deno.test("revokeAllBuildingRecipients revokes + notifies every grantee (for bui
   assert.deepEqual(await getSharedBuildings(session), []);
 });
 
-Deno.test("getSharedViews folds shared-out/ View grants and recovers the viewId", async () => {
+Deno.test("getSharedAggregations folds shared-out/ Aggregation grants and recovers the aggregationId", async () => {
   const { session } = makePod();
   await appendSharingEvent(sharedOutUri(WEBID), session, {
     type: "grant", owner: WEBID, grantee: BOB, resource: SNAP,
-    kind: "View", at: "2026-06-04T10:00:00Z",
+    kind: "Aggregation", at: "2026-06-04T10:00:00Z",
   });
 
-  const views = await getSharedViews(session);
-  assert.equal(views.length, 1);
-  assert.equal(views[0].snapshotUri, SNAP);
-  assert.equal(views[0].viewId, "view-1-abc");
-  assert.deepEqual(views[0].sharedWith, [BOB]);
+  const aggregations = await getSharedAggregations(session);
+  assert.equal(aggregations.length, 1);
+  assert.equal(aggregations[0].snapshotUri, SNAP);
+  assert.equal(aggregations[0].aggregationId, "aggregation-1-abc");
+  assert.deepEqual(aggregations[0].sharedWith, [BOB]);
 });
 
 const ALICE_SNAP =
-  "https://alice.example/granergize/views/snapshots/view-7-xyz.ttl";
+  "https://alice.example/granergize/aggregations/snapshots/aggregation-7-xyz.ttl";
 
-Deno.test("getReceivedViews folds shared-in/ View grants (snapshot + sharer)", async () => {
+Deno.test("getReceivedAggregations folds shared-in/ Aggregation grants (snapshot + sharer)", async () => {
   const { session } = makePod();
-  // A View grant received from Alice…
+  // An Aggregation grant received from Alice…
   await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "grant", owner: ALICE, grantee: WEBID, resource: ALICE_SNAP,
-    kind: "View", at: "2026-06-04T10:00:00Z",
+    kind: "Aggregation", at: "2026-06-04T10:00:00Z",
   });
-  // …and a Building grant that must NOT show up among received views.
+  // …and a Building grant that must NOT show up among received aggregations.
   await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "grant", owner: ALICE, grantee: WEBID, resource: SHARED_B,
     kind: "Building", at: "2026-06-04T10:01:00Z",
   });
 
-  const views = await getReceivedViews(session);
-  assert.equal(views.length, 1);
-  assert.equal(views[0].snapshotUri, ALICE_SNAP);
-  assert.equal(views[0].viewId, "view-7-xyz");
-  assert.equal(views[0].sharedBy, ALICE);
+  const aggregations = await getReceivedAggregations(session);
+  assert.equal(aggregations.length, 1);
+  assert.equal(aggregations[0].snapshotUri, ALICE_SNAP);
+  assert.equal(aggregations[0].aggregationId, "aggregation-7-xyz");
+  assert.equal(aggregations[0].sharedBy, ALICE);
 });
 
-Deno.test("getReceivedViews drops a view once its grant is revoked", async () => {
+Deno.test("getReceivedAggregations drops an aggregation once its grant is revoked", async () => {
   const { session } = makePod();
   await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "grant", owner: ALICE, grantee: WEBID, resource: ALICE_SNAP,
-    kind: "View", at: "2026-06-04T10:00:00Z",
+    kind: "Aggregation", at: "2026-06-04T10:00:00Z",
   });
   await appendSharingEvent(sharedInUri(WEBID), session, {
     type: "revocation", owner: ALICE, grantee: WEBID, resource: ALICE_SNAP,
     at: "2026-06-04T11:00:00Z",
   });
-  assert.deepEqual(await getReceivedViews(session), []);
+  assert.deepEqual(await getReceivedAggregations(session), []);
 });
 
-Deno.test("revokeViewAccess posts an AccessRevocation to the recipient's inbox", async () => {
+Deno.test("revokeAggregationAccess posts an AccessRevocation to the recipient's inbox", async () => {
   const { session, store } = makePod();
   const BOB_INBOX = "https://bob.example/granergize/inbox/";
   // Seed BOB's WebID profile with pim:storage so getRecipientInboxUri resolves
@@ -215,10 +215,10 @@ Deno.test("revokeViewAccess posts an AccessRevocation to the recipient's inbox",
   store["https://bob.example/profile/card"] =
     `<${BOB}> <http://www.w3.org/ns/pim/space#storage> <https://bob.example/> .`;
 
-  await revokeViewAccess(SNAP, BOB, session);
+  await revokeAggregationAccess(SNAP, BOB, session);
 
   // A revocation message landed in BOB's inbox, naming the snapshot + grantee, so
-  // BOB's drainInbox archives it into shared-in/ and getReceivedViews folds it out.
+  // BOB's drainInbox archives it into shared-in/ and getReceivedAggregations folds it out.
   const posted = Object.entries(store).find(([url]) => url.startsWith(BOB_INBOX));
   assert.ok(posted, "a message was posted to BOB's inbox");
   const body = posted![1];
@@ -227,7 +227,7 @@ Deno.test("revokeViewAccess posts an AccessRevocation to the recipient's inbox",
   assert.ok(body.includes(BOB), "names the grantee");
 });
 
-Deno.test("revokeAllViewRecipients revokes + notifies every grantee (for view delete)", async () => {
+Deno.test("revokeAllAggregationRecipients revokes + notifies every grantee (for aggregation delete)", async () => {
   const { session, store } = makePod();
   const BOB_INBOX = "https://bob.example/granergize/inbox/";
   const ALICE_INBOX = "https://alice.example/granergize/inbox/";
@@ -236,10 +236,10 @@ Deno.test("revokeAllViewRecipients revokes + notifies every grantee (for view de
   store["https://alice.example/profile/card"] =
     `<${ALICE}> <http://www.w3.org/ns/pim/space#storage> <https://alice.example/> .`;
   // A shared SNAP with both BOB and ALICE (recorded in shared-out/).
-  await recordViewSharing(SNAP, BOB, session);
-  await recordViewSharing(SNAP, ALICE, session);
+  await recordAggregationSharing(SNAP, BOB, session);
+  await recordAggregationSharing(SNAP, ALICE, session);
 
-  await revokeAllViewRecipients(SNAP, session);
+  await revokeAllAggregationRecipients(SNAP, session);
 
   // Each recipient got an AccessRevocation in their inbox…
   for (const inbox of [BOB_INBOX, ALICE_INBOX]) {
@@ -248,5 +248,5 @@ Deno.test("revokeAllViewRecipients revokes + notifies every grantee (for view de
     assert.match(posted![1], /AccessRevocation/);
   }
   // …and the owner's shared-out/ no longer lists either (revocations folded out).
-  assert.deepEqual(await getSharedViews(session), []);
+  assert.deepEqual(await getSharedAggregations(session), []);
 });

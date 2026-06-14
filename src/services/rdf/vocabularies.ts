@@ -2,12 +2,12 @@
 
 // The three Granergize vocabularies, partitioned by subject (see vocab/README.md):
 // core (app/interop plumbing), building (rec:Building master data), consumption
-// (SOSA energy observations + the views/benchmarks derived from them).
+// (SOSA energy observations + the aggregations/benchmarks derived from them).
 export const GRAN_NS = "https://solid.ti.rw.fau.de/gra/vocab.ttl#";
 export const BUILDING_NS = "https://solid.ti.rw.fau.de/gra/building.ttl#";
 export const CONSUMPTION_NS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 /**
- * Benchmark result — a `cons:AggregatedViewSnapshot` a benchmark service provider
+ * Benchmark result — a `cons:AggregationSnapshot` a benchmark service provider
  * computes over the buildings shared to it and shares back. `BENCH_COMPUTED_BY`
  * names the computing agent (foaf:Agent); `BENCH_METRIC_PERIOD` the year covered.
  */

@@ -6,15 +6,21 @@ import { CONSUMPTION_NS } from "../vocabularies.ts";
 
 const ROOT = "https://pod.example/";
 const B = `${ROOT}granergize/buildings/b1.ttl#it`;
-const BASE = `${ROOT}granergize/buildings/b1`;
+const OBS = `${ROOT}granergize/observations`;
 
 Deno.test("parseBuildings derives energyDatasets from cons:hasEnergyDataset links", () => {
+  // Time-first datasets: year from the path; granularity/scenario from the
+  // triples the building re-states about each dataset node (no fetch).
+  const d1 = `${OBS}/2024/d1.ttl#ds`;
+  const d2 = `${OBS}/2023/d2.ttl#ds`;
+  const d3 = `${OBS}/2024/d3.ttl#ds`;
   const ttl = `@prefix rec: <https://w3id.org/rec#> .
 @prefix cons: <${CONSUMPTION_NS}> .
 <${B}> a rec:Building ;
-  cons:hasEnergyDataset <${BASE}/energy/2024-P1Y.ttl#ds> ,
-                        <${BASE}/energy/2023-P1Y-planned.ttl#ds> ,
-                        <${BASE}/energy/2024-PT15M.ttl#ds> .
+  cons:hasEnergyDataset <${d1}> , <${d2}> , <${d3}> .
+<${d1}> cons:granularity "P1Y" ; cons:scenario cons:Actual .
+<${d2}> cons:granularity "P1Y" ; cons:scenario cons:Planned .
+<${d3}> cons:granularity "PT15M" ; cons:scenario cons:Actual .
 `;
   const buildings = parseBuildings(new Parser().parse(ttl));
   const building = [...buildings.values()][0];
@@ -22,7 +28,6 @@ Deno.test("parseBuildings derives energyDatasets from cons:hasEnergyDataset link
 
   const ds = building.energyDatasets ?? [];
   assert.equal(ds.length, 3);
-  // Self-describing slugs → year/granularity/scenario without a fetch.
   const byGran = Object.fromEntries(ds.map((d) => [`${d.year}-${d.granularity}-${d.scenario}`, d]));
   assert.ok(byGran["2024-P1Y-actual"]);
   assert.ok(byGran["2023-P1Y-planned"]);
@@ -60,7 +65,7 @@ Deno.test("parseBuildings is type-driven: untyped named nodes are not buildings"
   // guard's job, now done by the explicit type assertion).
   const ttl = `@prefix rec: <https://w3id.org/rec#> .
 @prefix cons: <${CONSUMPTION_NS}> .
-<${BASE}/energy/2024-P1Y.ttl#ds> cons:year 2024 .
+<${OBS}/2024/d1.ttl#ds> cons:year 2024 .
 <${ROOT}granergize/buildings/b1/files/plan.pdf> a <https://schema.org/MediaObject> .
 <https://alice.example/profile/card#me> a <http://xmlns.com/foaf/0.1/Person> .
 `;

@@ -22,9 +22,11 @@ _setStorageRootForTesting(WEBID, "https://pod.example/");
 const BUILDINGS_CONTAINER = "https://pod.example/granergize/buildings/";
 const PREFS_URL = "https://pod.example/granergize/prefs.ttl";
 const BUILDINGS_URL = "https://pod.example/buildings.ttl";
-// Annual cons:EnergyDataset resources — the slug `<year>-P1Y` is self-describing.
-const ENERGY_B1_URL = "https://pod.example/energy/b1/2024-P1Y.ttl";
-const ENERGY_B2_URL = "https://pod.example/energy/b2/2024-P1Y.ttl";
+// Annual cons:EnergyDataset resources — time-first under observations/; the
+// building re-states granularity/scenario so phase-1 dispatches without a fetch.
+const OBS = "https://pod.example/granergize/observations";
+const ENERGY_B1_URL = `${OBS}/2024/b1.ttl`;
+const ENERGY_B2_URL = `${OBS}/2024/b2.ttl`;
 
 const CONS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 // The buildings file holds TWO buildings (a legacy multi-building document with
@@ -65,9 +67,11 @@ const FIXTURES: Record<string, string> = {
 <#building-1> a rec:Building ;
   geo:location [ a geo:Point ; geo:lat 49.0 ; geo:long 11.0 ] ;
   cons:hasEnergyDataset <${ENERGY_B1_URL}#ds> .
+<${ENERGY_B1_URL}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
 <#building-2> a rec:Building ;
   geo:location [ a geo:Point ; geo:lat 49.5 ; geo:long 11.5 ] ;
   cons:hasEnergyDataset <${ENERGY_B2_URL}#ds> .
+<${ENERGY_B2_URL}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
 `,
   [ENERGY_B1_URL]: annualDataset(1000),
   [ENERGY_B2_URL]: annualDataset(2000),
@@ -89,7 +93,7 @@ function makeSession(
     // Observe-and-fall-through: hold each energy fetch open so overlapping
     // (concurrent) fetches are visible in the log.
     respond: async (url) => {
-      if (url.startsWith("https://pod.example/energy/")) {
+      if (url.startsWith(`${OBS}/`)) {
         log.energyInFlight++;
         log.maxEnergyInFlight = Math.max(log.maxEnergyInFlight, log.energyInFlight);
         await new Promise((r) => setTimeout(r, delayMs));
@@ -236,10 +240,12 @@ const buildingsWithOperators = (op1: string, op2: string) => `
   geo:location [ a geo:Point ; geo:lat 49.0 ; geo:long 11.0 ] ;
   rec:operatedBy <${op1}> ;
   cons:hasEnergyDataset <${ENERGY_B1_URL}#ds> .
+<${ENERGY_B1_URL}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
 <#building-2> a rec:Building ;
   geo:location [ a geo:Point ; geo:lat 49.5 ; geo:long 11.5 ] ;
   rec:operatedBy <${op2}> ;
   cons:hasEnergyDataset <${ENERGY_B2_URL}#ds> .
+<${ENERGY_B2_URL}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
 `;
 
 Deno.test("loadEnergy averages same-operator buildings into one operator benchmark", async () => {
@@ -288,7 +294,7 @@ Deno.test("loadEnergy falls back to the next-newest accessible year when the lat
   // forbidden/missing for the recipient while an older granted year is fine.
   // Building 1 links 2024 (unreadable — not in the fixtures) and 2023 (500 kWh):
   // the fold must use 2023, not show "no energy data".
-  const b1y2023 = "https://pod.example/energy/b1/2023-P1Y.ttl";
+  const b1y2023 = `${OBS}/2023/b1.ttl`;
   const fixtures: Record<string, string> = {
     ...FIXTURES,
     [BUILDINGS_URL]: `
@@ -298,6 +304,8 @@ Deno.test("loadEnergy falls back to the next-newest accessible year when the lat
 <#building-1> a rec:Building ;
   geo:location [ a geo:Point ; geo:lat 49.0 ; geo:long 11.0 ] ;
   cons:hasEnergyDataset <${ENERGY_B1_URL}#ds> , <${b1y2023}#ds> .
+<${ENERGY_B1_URL}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
+<${b1y2023}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
 `,
     [b1y2023]: annualDataset(500),
   };

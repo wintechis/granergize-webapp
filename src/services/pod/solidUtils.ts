@@ -199,8 +199,6 @@ export function podResources(webId: string): {
   buildings: string;
   observations: string;
   aggregations: string;
-  views: string;
-  viewSnapshots: string;
   sharedIn: string;
   sharedOut: string;
   inbox: string;
@@ -213,14 +211,11 @@ export function podResources(webId: string): {
     appRoot: app,
     buildings: `${app}buildings/`,
     // Redesign (Phase-0 C2): observations are first-class + time-first, and
-    // `aggregations/` replaces `views/`+`views/snapshots/`. Added alongside the
-    // current `views*` entries; callers migrate in the L-observations lane (see
-    // plans/plan-redesign-parallel-execution.md). Time-first paths under the
+    // `aggregations/` (one definition resource per aggregation + a `snapshots/`
+    // subcontainer) is the aggregation store. Time-first paths under the
     // `observations/` container are built by `observationPath.ts`.
     observations: `${app}observations/`,
     aggregations: `${app}aggregations/`,
-    views: `${app}views/`,
-    viewSnapshots: `${app}views/snapshots/`,
     sharedIn: `${app}shared-in/`,
     sharedOut: `${app}shared-out/`,
     inbox: `${app}inbox/`, // default location; the actual one is discoverable (see inbox.ts)

@@ -5,26 +5,26 @@ import { Parser, Store } from "n3";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 import { makeFakeSession } from "../testing/fakeSession.ts";
 import {
-  createViewDefinition,
-  deleteView,
-  getViewDefinition,
-  getViewDefinitions,
+  createAggregationDefinition,
+  deleteAggregation,
+  getAggregationDefinition,
+  getAggregationDefinitions,
   getSnapshotUri,
   loadComputedSnapshot,
   storeComputedSnapshot,
-} from "./viewManager.ts";
+} from "./aggregationManager.ts";
 import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");
-const VIEWS = "https://pod.example/granergize/views/";
-const SNAPSHOTS = "https://pod.example/granergize/views/snapshots/";
+const AGGREGATIONS = "https://pod.example/granergize/aggregations/";
+const SNAPSHOTS = "https://pod.example/granergize/aggregations/snapshots/";
 const CONS = "https://solid.ti.rw.fau.de/gra/consumption.ttl#";
 
 /**
  * A stateful fake Pod: PUT/DELETE mutate an in-memory store; a GET of a container
  * (URL ending "/") synthesizes an `ldp:contains` listing of its direct children,
- * so the container-native discovery (list `views/`) runs offline (the helper's
+ * so the container-native discovery (list `aggregations/`) runs offline (the helper's
  * `listContainers` mode; containers also HEAD 200, so ensure-dirs is a no-op).
  */
 const makeSession = () => makeFakeSession({ webId: WEBID, listContainers: true });
@@ -33,46 +33,46 @@ function parse(ttl: string): Store {
   return new Store(new Parser().parse(ttl));
 }
 
-Deno.test("createViewDefinition writes one views/<id>.ttl resource", async () => {
+Deno.test("createAggregationDefinition writes one aggregations/<id>.ttl resource", async () => {
   const { session, store } = makeSession();
-  const view = await createViewDefinition(
+  const aggregation = await createAggregationDefinition(
     session,
-    "My view",
+    "My aggregation",
     ["https://pod.example/granergize/buildings/b1.ttl#b1"],
     "average",
     ["electricity"],
   );
 
-  const defUri = `${VIEWS}${view.id}.ttl`;
-  assert.ok(store[defUri], "the definition resource was PUT under views/");
+  const defUri = `${AGGREGATIONS}${aggregation.id}.ttl`;
+  assert.ok(store[defUri], "the definition resource was PUT under aggregations/");
   const s = parse(store[defUri]);
   assert.equal(
-    s.getQuads(null, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", `${CONS}AggregatedViewDefinition`, null).length,
+    s.getQuads(null, "http://www.w3.org/1999/02/22-rdf-syntax-ns#type", `${CONS}AggregationDefinition`, null).length,
     1,
   );
-  assert.equal(s.getObjects(null, `${CONS}viewName`, null)[0]?.value, "My view");
+  assert.equal(s.getObjects(null, `${CONS}aggregationName`, null)[0]?.value, "My aggregation");
   assert.equal(s.getObjects(null, `${CONS}includesMetric`, null)[0]?.value, "electricity");
 });
 
-Deno.test("getViewDefinitions lists the container and parses each view", async () => {
+Deno.test("getAggregationDefinitions lists the container and parses each aggregation", async () => {
   const { session } = makeSession();
-  const v1 = await createViewDefinition(session, "A", [], "average", ["heat"]);
-  const v2 = await createViewDefinition(session, "B", [], "sum", ["water"]);
+  const v1 = await createAggregationDefinition(session, "A", [], "average", ["heat"]);
+  const v2 = await createAggregationDefinition(session, "B", [], "sum", ["water"]);
 
-  const views = await getViewDefinitions(session);
-  assert.equal(views.length, 2);
-  const names = views.map((v) => v.name).sort();
+  const aggregations = await getAggregationDefinitions(session);
+  assert.equal(aggregations.length, 2);
+  const names = aggregations.map((v) => v.name).sort();
   assert.deepEqual(names, ["A", "B"]);
-  // Round-trips a single view by id, too.
-  const got = await getViewDefinition(session, v1.id);
+  // Round-trips a single aggregation by id, too.
+  const got = await getAggregationDefinition(session, v1.id);
   assert.equal(got?.name, "A");
   assert.equal(got?.id, v1.id);
   assert.ok(v2.id !== v1.id);
 });
 
-Deno.test("getViewDefinitions ignores the snapshots/ subfolder", async () => {
+Deno.test("getAggregationDefinitions ignores the snapshots/ subfolder", async () => {
   const { session } = makeSession();
-  const v = await createViewDefinition(session, "A", [], "average", ["heat"]);
+  const v = await createAggregationDefinition(session, "A", [], "average", ["heat"]);
   await storeComputedSnapshot(session, {
     id: v.id,
     name: "A",
@@ -84,14 +84,14 @@ Deno.test("getViewDefinitions ignores the snapshots/ subfolder", async () => {
   });
 
   // Snapshot landed under snapshots/, and the def now records lastComputedAt.
-  const views = await getViewDefinitions(session);
-  assert.equal(views.length, 1, "the snapshots/ subfolder is not a view");
-  assert.equal(views[0].lastComputedAt, "2026-06-04T10:00:00Z");
+  const aggregations = await getAggregationDefinitions(session);
+  assert.equal(aggregations.length, 1, "the snapshots/ subfolder is not an aggregation");
+  assert.equal(aggregations[0].lastComputedAt, "2026-06-04T10:00:00Z");
 });
 
 Deno.test("storeComputedSnapshot writes the shareable snapshot under snapshots/", async () => {
   const { session, store } = makeSession();
-  const v = await createViewDefinition(session, "A", [], "average", ["heat"]);
+  const v = await createAggregationDefinition(session, "A", [], "average", ["heat"]);
   await storeComputedSnapshot(session, {
     id: v.id,
     name: "A",
@@ -113,7 +113,7 @@ Deno.test("storeComputedSnapshot writes the shareable snapshot under snapshots/"
 
 Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot", async () => {
   const { session, store } = makeSession();
-  const v = await createViewDefinition(session, "Bench", [], "average", [
+  const v = await createAggregationDefinition(session, "Bench", [], "average", [
     "electricityConsumption",
   ]);
   await storeComputedSnapshot(session, {
@@ -134,9 +134,9 @@ Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot
   const s = parse(store[snapUri]);
   const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
   assert.equal(
-    s.getQuads(null, RDF_TYPE, `${CONS}AggregatedViewSnapshot`, null).length,
+    s.getQuads(null, RDF_TYPE, `${CONS}AggregationSnapshot`, null).length,
     1,
-    "still a gra:AggregatedViewSnapshot (existing readers keep working)",
+    "still a gra:AggregationSnapshot (existing readers keep working)",
   );
   assert.equal(
     s.getQuads(null, RDF_TYPE, `${CONSUMPTION_NS}BenchmarkResult`, null).length,
@@ -161,7 +161,7 @@ Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot
 
 Deno.test("a plain (non-benchmark) snapshot has no benchmark fields", async () => {
   const { session } = makeSession();
-  const v = await createViewDefinition(session, "Plain", [], "average", ["heat"]);
+  const v = await createAggregationDefinition(session, "Plain", [], "average", ["heat"]);
   await storeComputedSnapshot(session, {
     id: v.id,
     name: "Plain",
@@ -177,32 +177,32 @@ Deno.test("a plain (non-benchmark) snapshot has no benchmark fields", async () =
   assert.equal(loaded?.metricPeriod, undefined);
 });
 
-Deno.test("createViewDefinition persists the benchmark flag and round-trips it", async () => {
+Deno.test("createAggregationDefinition persists the benchmark flag and round-trips it", async () => {
   // The flag is ground truth for the snapshot's bench:BenchmarkResult typing —
   // every recompute derives from it, so a plain refresh can't strip it.
   const { session, store } = makeSession();
-  const v = await createViewDefinition(session, "Bench", [], "average", [
+  const v = await createAggregationDefinition(session, "Bench", [], "average", [
     "electricityConsumption",
   ], { benchmark: true });
   assert.equal(v.benchmark, true);
 
-  const s = parse(store[`${VIEWS}${v.id}.ttl`]);
+  const s = parse(store[`${AGGREGATIONS}${v.id}.ttl`]);
   assert.equal(s.getObjects(null, `${CONS}benchmark`, null)[0]?.value, "true");
 
-  const got = await getViewDefinition(session, v.id);
+  const got = await getAggregationDefinition(session, v.id);
   assert.equal(got?.benchmark, true);
   // And a plain definition stays unflagged.
-  const plain = await createViewDefinition(session, "P", [], "average", ["heat"]);
-  assert.equal((await getViewDefinition(session, plain.id))?.benchmark, undefined);
+  const plain = await createAggregationDefinition(session, "P", [], "average", ["heat"]);
+  assert.equal((await getAggregationDefinition(session, plain.id))?.benchmark, undefined);
 });
 
 Deno.test("loadComputedSnapshot: 404 means absence (null), a transient failure THROWS", async () => {
-  // Returning null on ANY failure once made the view page's auto-compute treat
+  // Returning null on ANY failure once made the aggregation page's auto-compute treat
   // a throttled read of an EXISTING snapshot as "no snapshot yet" and fire a
   // snapshot-overwriting recompute — a mutation triggered by a failed read.
   const { session } = makeSession(); // empty store → GET is a genuine 404
   assert.equal(
-    await loadComputedSnapshot(session, `${SNAPSHOTS}view-x.ttl`),
+    await loadComputedSnapshot(session, `${SNAPSHOTS}aggregation-x.ttl`),
     null,
   );
 
@@ -212,7 +212,7 @@ Deno.test("loadComputedSnapshot: 404 means absence (null), a transient failure T
     fetch: () => Promise.resolve(new Response("forbidden", { status: 403 })),
   } as unknown as Session;
   assert.equal(
-    await loadComputedSnapshot(forbidden, `${SNAPSHOTS}view-x.ttl`),
+    await loadComputedSnapshot(forbidden, `${SNAPSHOTS}aggregation-x.ttl`),
     null,
   );
 
@@ -221,14 +221,14 @@ Deno.test("loadComputedSnapshot: 404 means absence (null), a transient failure T
     fetch: () => Promise.resolve(new Response("slow down", { status: 503 })),
   } as unknown as Session;
   await assert.rejects(
-    () => loadComputedSnapshot(throttled, `${SNAPSHOTS}view-x.ttl`),
+    () => loadComputedSnapshot(throttled, `${SNAPSHOTS}aggregation-x.ttl`),
     /HTTP 503/,
   );
 });
 
-Deno.test("deleteView removes the definition and its snapshot", async () => {
+Deno.test("deleteAggregation removes the definition and its snapshot", async () => {
   const { session, store } = makeSession();
-  const v = await createViewDefinition(session, "A", [], "average", ["heat"]);
+  const v = await createAggregationDefinition(session, "A", [], "average", ["heat"]);
   await storeComputedSnapshot(session, {
     id: v.id,
     name: "A",
@@ -239,9 +239,9 @@ Deno.test("deleteView removes the definition and its snapshot", async () => {
     values: { heat: 1 },
   });
 
-  await deleteView(session, v.id);
+  await deleteAggregation(session, v.id);
 
-  assert.ok(!(`${VIEWS}${v.id}.ttl` in store), "definition deleted");
+  assert.ok(!(`${AGGREGATIONS}${v.id}.ttl` in store), "definition deleted");
   assert.ok(!(`${SNAPSHOTS}${v.id}.ttl` in store), "snapshot deleted");
-  assert.deepEqual(await getViewDefinitions(session), []);
+  assert.deepEqual(await getAggregationDefinitions(session), []);
 });

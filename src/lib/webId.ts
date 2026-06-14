@@ -16,7 +16,7 @@ export function invalidWebIds(webIds: string[]): string[] {
 /**
  * `null` when every entry is a syntactically valid WebID, else the
  * `"Invalid WebID(s): …"` message the share dialogs surface — the shared
- * recipient-WebID validation behind ShareBuildingDialog and ShareViewDialog.
+ * recipient-WebID validation behind ShareBuildingDialog and ShareAggregationDialog.
  */
 export function webIdsError(webIds: string[]): string | null {
   const invalid = invalidWebIds(webIds);

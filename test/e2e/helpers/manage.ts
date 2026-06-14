@@ -3,7 +3,7 @@ import { T } from "./timeouts.ts";
 import { confirmDialog } from "./confirm.ts";
 
 /**
- * Manage-tab building/view helpers shared across the building/excel/sharing specs
+ * Manage-tab building/aggregation helpers shared across the building/excel/sharing specs
  * (extracted from per-spec copies). Building rows show the building's DISPLAY
  * name (label / code / address — heike-5 #1), so the id is resolved from the
  * row's `data-building-id` attribute, never parsed from its text.
@@ -36,7 +36,7 @@ export async function openBuildingsList(page: Page): Promise<void> {
  * the literal string "null".
  */
 export function buildingRoute(
-  kind: "building" | "energy",
+  kind: "building" | "observation",
   id: string | null,
 ): string {
   if (!id) throw new Error(`buildingRoute(${kind}): missing building id`);
@@ -243,36 +243,36 @@ export async function shareByWebId(
   await dialog.getByRole("button", { name: /done/i }).click();
 }
 
-/** The aggregated view name the share-view spec creates and shares. */
-export const VIEW_NAME = "E2E Shared View";
+/** The aggregation name the share-view spec creates and shares. */
+export const AGGREGATION_NAME = "E2E Shared Aggregation";
 
-/** Create the shared view (idempotent: reuse an existing one with VIEW_NAME). */
-export async function ensureView(page: Page): Promise<void> {
+/** Create the shared aggregation (idempotent: reuse an existing one with AGGREGATION_NAME). */
+export async function ensureAggregation(page: Page): Promise<void> {
   await openBuildingsList(page);
   await page.waitForLoadState("networkidle").catch(() => {});
-  if (await page.locator("li").filter({ hasText: VIEW_NAME }).count()) return;
+  if (await page.locator("li").filter({ hasText: AGGREGATION_NAME }).count()) return;
 
-  await page.getByRole("button", { name: /create view/i }).click();
+  await page.getByRole("button", { name: /create aggregation/i }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible({ timeout: T.quick });
   // Default annual-portfolio mode (no role selection; for an annual-only building
-  // set the "View type" dropdown isn't even shown). Metrics are pre-selected.
-  await dialog.getByLabel("View Name").fill(VIEW_NAME);
+  // set the "Aggregation type" dropdown isn't even shown). Metrics are pre-selected.
+  await dialog.getByLabel("Aggregation name").fill(AGGREGATION_NAME);
   await dialog.getByLabel("Select Buildings").click();
-  // Fail fast with a clear message if the picker is empty (no buildings to view),
+  // Fail fast with a clear message if the picker is empty (no buildings to aggregate),
   // rather than hanging on a click that waits out the whole test timeout.
   const firstBuilding = page.getByRole("option").first();
-  await expect(firstBuilding, "a building to add to the view")
+  await expect(firstBuilding, "a building to add to the aggregation")
     .toBeVisible({ timeout: T.visible });
   await firstBuilding.click();
   await page.keyboard.press("Escape");
-  await dialog.getByRole("button", { name: /create view/i }).click();
-  // Wait on the durable outcome — the view appears in the Aggregated-views list
+  await dialog.getByRole("button", { name: /create aggregation/i }).click();
+  // Wait on the durable outcome — the aggregation appears in the Aggregations list
   // and the dialog closes — NOT the transient success toast. The single FIFO
   // snackbar can be mid-showing an earlier notice (e.g. first-time "Set up the
-  // views folder" provisioning), burying/delaying the success toast though the
-  // view itself was created.
-  await expect(page.locator("li").filter({ hasText: VIEW_NAME }).first())
+  // aggregations folder" provisioning), burying/delaying the success toast though the
+  // aggregation itself was created.
+  await expect(page.locator("li").filter({ hasText: AGGREGATION_NAME }).first())
     .toBeVisible({ timeout: T.action });
   // The row appears while the dialog is still fading out (MUI keeps it in the
   // DOM through the close transition). Don't return until it's gone, so a
@@ -281,9 +281,9 @@ export async function ensureView(page: Page): Promise<void> {
 }
 
 /**
- * The Share-tab "Views shared with you" list (named via the `<ul>`'s aria-label).
- * Present only when at least one view is shared; for the empty state assert the
- * section's "no views shared with you yet…" text on the page directly.
+ * The Share-tab "Aggregations shared with you" list (named via the `<ul>`'s aria-label).
+ * Present only when at least one aggregation is shared; for the empty state assert the
+ * section's "no aggregations shared with you yet…" text on the page directly.
  */
-export const receivedViews = (page: Page) =>
-  page.getByRole("list", { name: /views shared with you/i });
+export const receivedAggregations = (page: Page) =>
+  page.getByRole("list", { name: /aggregations shared with you/i });

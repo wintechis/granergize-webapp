@@ -75,7 +75,7 @@ test.describe("series-render benchmark", () => {
       // document, leaving the app on its stale in-memory (pre-seed) data.
       await page.goto("about:blank");
       let t0 = Date.now();
-      await page.goto(buildingRoute("energy", seriesSubject!));
+      await page.goto(buildingRoute("observation", seriesSubject!));
       await expect(page.locator(".recharts-wrapper").first())
         .toBeVisible({ timeout: 120_000 });
       const dayMs = Date.now() - t0;

@@ -75,28 +75,28 @@ export function sharedWithMeFromGrants(
     }));
 }
 
-/** {@link getReceivedViews}, derived from already-folded `shared-in/` grants. */
-export function receivedViewsFromGrants(grants: ActiveGrant[]): ReceivedView[] {
+/** {@link getReceivedAggregations}, derived from already-folded `shared-in/` grants. */
+export function receivedAggregationsFromGrants(grants: ActiveGrant[]): ReceivedAggregation[] {
   return grants
-    .filter((g) => g.kind === "View")
+    .filter((g) => g.kind === "Aggregation")
     .map((g) => ({
       snapshotUri: g.resource,
-      viewId: buildingIdFromUri(g.resource), // basename without ".ttl"
+      aggregationId: buildingIdFromUri(g.resource), // basename without ".ttl"
       sharedBy: g.owner || "Unknown",
     }));
 }
 
-/** {@link getSharedViews}, derived from already-folded `shared-out/` grants. */
-export function sharedViewsFromGrants(grants: ActiveGrant[]): SharedView[] {
-  const viewsMap = new Map<string, Set<string>>();
+/** {@link getSharedAggregations}, derived from already-folded `shared-out/` grants. */
+export function sharedAggregationsFromGrants(grants: ActiveGrant[]): SharedAggregation[] {
+  const aggregationsMap = new Map<string, Set<string>>();
   for (const g of grants) {
-    if (g.kind !== "View") continue;
-    if (!viewsMap.has(g.resource)) viewsMap.set(g.resource, new Set());
-    viewsMap.get(g.resource)!.add(g.grantee);
+    if (g.kind !== "Aggregation") continue;
+    if (!aggregationsMap.has(g.resource)) aggregationsMap.set(g.resource, new Set());
+    aggregationsMap.get(g.resource)!.add(g.grantee);
   }
-  return [...viewsMap.entries()].map(([snapshotUri, webIds]) => ({
+  return [...aggregationsMap.entries()].map(([snapshotUri, webIds]) => ({
     snapshotUri,
-    viewId: buildingIdFromUri(snapshotUri), // basename without ".ttl"
+    aggregationId: buildingIdFromUri(snapshotUri), // basename without ".ttl"
     sharedWith: [...webIds],
   }));
 }
@@ -361,7 +361,7 @@ export async function recordSharing(
 }
 
 /**
- * Notify the recipient that their access to a resource (a building file or a view
+ * Notify the recipient that their access to a resource (a building file or an aggregation
  * snapshot) was revoked — a revocation event (the shared-event shape) posted to
  * their inbox, which they archive into shared-in/. Resource-neutral: the message
  * is `interop:forResource <resource>` with no kind, so it folds out a grant of
@@ -382,11 +382,11 @@ async function notifyAccessRevoked(
 }
 
 /**
- * Record an outgoing view share (a grant on the snapshot) in `shared-out/`. The
- * viewId is recoverable from the snapshot URL, so it isn't stored separately.
+ * Record an outgoing aggregation share (a grant on the snapshot) in `shared-out/`. The
+ * aggregationId is recoverable from the snapshot URL, so it isn't stored separately.
  * @operation mutation
  */
-export async function recordViewSharing(
+export async function recordAggregationSharing(
   snapshotUri: string,
   webId: string,
   session: Session,
@@ -400,73 +400,73 @@ export async function recordViewSharing(
     owner: userWebId,
     grantee: webId,
     resource: snapshotUri,
-    kind: "View",
+    kind: "Aggregation",
     at: new Date().toISOString(),
   });
 }
 
-interface SharedView {
+interface SharedAggregation {
   snapshotUri: string;
-  viewId: string;
+  aggregationId: string;
   sharedWith: string[];
 }
 
-export interface ReceivedView {
-  /** The sharer's snapshot URL (`…/views/snapshots/<viewId>.ttl`); we have Read on it. */
+export interface ReceivedAggregation {
+  /** The sharer's snapshot URL (`…/aggregations/snapshots/<aggregationId>.ttl`); we have Read on it. */
   snapshotUri: string;
-  viewId: string;
+  aggregationId: string;
   sharedBy: string;
 }
 
 /**
- * Aggregated views shared *with* the user — the recipient counterpart of
- * {@link getSharedViews}. Folds the `shared-in/` log (where `drainInbox` archives
- * grants received in the inbox) for `gran:kind cons:View`. Only the computed
+ * Aggregations shared *with* the user — the recipient counterpart of
+ * {@link getSharedAggregations}. Folds the `shared-in/` log (where `drainInbox` archives
+ * grants received in the inbox) for `gran:kind cons:Aggregation`. Only the computed
  * snapshot is granted (not the definition), so each entry is just the snapshot
  * URL + who shared it; render it with {@link loadComputedSnapshot}.
  *
  * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via
- * {@link receivedViewsFromGrants} from the `sharedInLog` query.
+ * {@link receivedAggregationsFromGrants} from the `sharedInLog` query.
  * @operation query
  */
-export async function getReceivedViews(
+export async function getReceivedAggregations(
   session: Session,
-): Promise<ReceivedView[]> {
+): Promise<ReceivedAggregation[]> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
   }
 
   // Errors propagate to React Query (keepPreviousData keeps the last good list).
   const grants = await foldSharingLog(sharedInUri(session.info.webId), session);
-  return receivedViewsFromGrants(grants);
+  return receivedAggregationsFromGrants(grants);
 }
 
 /**
- * Views the user has shared with others, by folding the `shared-out/` log for
- * `gran:kind cons:View` grants. The viewId is recovered from the snapshot URL
- * (`views/snapshots/<viewId>.ttl`).
+ * Aggregations the user has shared with others, by folding the `shared-out/` log for
+ * `gran:kind cons:Aggregation` grants. The aggregationId is recovered from the snapshot URL
+ * (`aggregations/snapshots/<aggregationId>.ttl`).
  *
  * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via
- * {@link sharedViewsFromGrants} from the `sharedOutLog` query.
+ * {@link sharedAggregationsFromGrants} from the `sharedOutLog` query.
  * @operation query
  */
-export async function getSharedViews(session: Session): Promise<SharedView[]> {
+export async function getSharedAggregations(session: Session): Promise<SharedAggregation[]> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
   }
 
   // Errors propagate to React Query / the dialog's own catch (not masked as empty).
   const grants = await foldSharingLog(sharedOutUri(session.info.webId), session);
-  return sharedViewsFromGrants(grants);
+  return sharedAggregationsFromGrants(grants);
 }
 
 /**
- * Revoke a recipient's access to an aggregated view: log the revocation in
+ * Revoke a recipient's access to an aggregation: log the revocation in
  * `shared-out/`, withdraw it from the snapshot's `.acl`, and notify the recipient
- * so the view drops off their "Views shared with you" on their next inbox drain.
+ * so the aggregation drops off their "Aggregations shared with you" on their next inbox drain.
  * @operation mutation
  */
-export async function revokeViewAccess(
+export async function revokeAggregationAccess(
   snapshotUri: string,
   webId: string,
   session: Session,
@@ -488,32 +488,32 @@ export async function revokeViewAccess(
   // courtesy that lets the recipient's shared-in/ fold the grant out (same as
   // building revocation). Never let a notify failure fail the revocation.
   await notifyAccessRevoked(snapshotUri, webId, session).catch((err) =>
-    logError("notify recipient of view-access revocation", err)
+    logError("notify recipient of aggregation-access revocation", err)
   );
 }
 
 /**
- * Revoke every current recipient of a view (each gets the same inbox notice as an
- * explicit revoke). Used when DELETING a shared view: deleting the snapshot alone
- * wouldn't tell recipients, so the view would linger on their "Views shared with
+ * Revoke every current recipient of an aggregation (each gets the same inbox notice as an
+ * explicit revoke). Used when DELETING a shared aggregation: deleting the snapshot alone
+ * wouldn't tell recipients, so the aggregation would linger on their "Aggregations shared with
  * you" — this folds it out of each recipient's shared-in/ first. Best-effort per
  * recipient; the recipient set comes from the owner's `shared-out/` log.
  * @operation mutation
  */
-export async function revokeAllViewRecipients(
+export async function revokeAllAggregationRecipients(
   snapshotUri: string,
   session: Session,
 ): Promise<void> {
-  const shared = await getSharedViews(session);
+  const shared = await getSharedAggregations(session);
   const recipients = shared.find((v) => v.snapshotUri === snapshotUri)
     ?.sharedWith ?? [];
-  // Deliberately SERIAL: every recipient's revokeViewAccess read-modify-writes
+  // Deliberately SERIAL: every recipient's revokeAggregationAccess read-modify-writes
   // the SAME snapshot .acl, just for a different grantee — see the matching
   // note in revokeAllBuildingRecipients (no-ETag servers degrade to a plain
   // PUT, so parallel revokes could clobber each other's removals).
   for (const webId of recipients) {
-    await revokeViewAccess(snapshotUri, webId, session).catch((err) =>
-      logError("revoke view access for recipient", err)
+    await revokeAggregationAccess(snapshotUri, webId, session).catch((err) =>
+      logError("revoke aggregation access for recipient", err)
     );
   }
 }

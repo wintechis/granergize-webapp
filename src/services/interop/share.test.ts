@@ -10,16 +10,27 @@ import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 import { _setStorageRootForTesting } from "../pod/solidUtils.ts";
 
 const BUILDING = "https://a.example/granergize/buildings/b-1.ttl";
-const ENERGY = `${BUILDING.replace(/\.ttl$/, "")}/energy`;
+const OBS = "https://a.example/granergize/observations";
+
+// Time-first dataset descriptor IRIs (fixed stems for the test).
+const DS_2024_P1Y = `${OBS}/2024/d1.ttl`;
+const DS_2024_PT15M = `${OBS}/2024/d2.ttl`;
+const DS_2024_PLANNED = `${OBS}/2024/d3.ttl`;
+const DS_2023_P1Y = `${OBS}/2023/d4.ttl`;
+const YEAR_2024 = `${OBS}/2024/`;
 
 /** A building file linking four energy datasets across two years/scenarios. */
 const BUILDING_TTL = `
 @prefix cons: <${CONSUMPTION_NS}> .
 <${BUILDING}#b-1>
-  cons:hasEnergyDataset <${ENERGY}/2024-P1Y.ttl#ds> ,
-                        <${ENERGY}/2024-PT15M.ttl#ds> ,
-                        <${ENERGY}/2024-P1Y-planned.ttl#ds> ,
-                        <${ENERGY}/2023-P1Y.ttl#ds> .
+  cons:hasEnergyDataset <${DS_2024_P1Y}#ds> ,
+                        <${DS_2024_PT15M}#ds> ,
+                        <${DS_2024_PLANNED}#ds> ,
+                        <${DS_2023_P1Y}#ds> .
+<${DS_2024_P1Y}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
+<${DS_2024_PT15M}#ds> cons:granularity "PT15M" ; cons:scenario cons:Actual .
+<${DS_2024_PLANNED}#ds> cons:granularity "P1Y" ; cons:scenario cons:Planned .
+<${DS_2023_P1Y}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
 `;
 
 /** Fake session serving the building Turtle by URL (query stripped). */
@@ -47,13 +58,13 @@ Deno.test("getEnergyDataUris: no years filter grants every dataset (+ series con
   const set = new Set(urls.map((t) => t.url));
 
   // All four dataset files are granted.
-  assert.ok(set.has(`${ENERGY}/2024-P1Y.ttl`));
-  assert.ok(set.has(`${ENERGY}/2024-PT15M.ttl`));
-  assert.ok(set.has(`${ENERGY}/2024-P1Y-planned.ttl`));
-  assert.ok(set.has(`${ENERGY}/2023-P1Y.ttl`));
+  assert.ok(set.has(DS_2024_P1Y));
+  assert.ok(set.has(DS_2024_PT15M));
+  assert.ok(set.has(DS_2024_PLANNED));
+  assert.ok(set.has(DS_2023_P1Y));
 
-  // The PT15M series also grants its daily-files container (acl:default).
-  const container = urls.find((t) => t.url === `${ENERGY}/2024-PT15M/`);
+  // The PT15M series also grants its day-chunks' year container (acl:default).
+  const container = urls.find((t) => t.url === YEAR_2024);
   assert.ok(container, "series container is granted");
   assert.strictEqual(container!.isContainer, true);
   assert.strictEqual(urls.length, 5);
@@ -64,14 +75,14 @@ Deno.test("getEnergyDataUris: years:[2024] excludes 2023, keeps the 2024 series 
   const set = new Set(urls.map((t) => t.url));
 
   // 2023 is excluded.
-  assert.ok(!set.has(`${ENERGY}/2023-P1Y.ttl`));
+  assert.ok(!set.has(DS_2023_P1Y));
 
   // Both 2024 scenarios (actual + planned) and the series are kept...
-  assert.ok(set.has(`${ENERGY}/2024-P1Y.ttl`));
-  assert.ok(set.has(`${ENERGY}/2024-P1Y-planned.ttl`));
-  assert.ok(set.has(`${ENERGY}/2024-PT15M.ttl`));
+  assert.ok(set.has(DS_2024_P1Y));
+  assert.ok(set.has(DS_2024_PLANNED));
+  assert.ok(set.has(DS_2024_PT15M));
   // ...including the 2024 series container.
-  const container = urls.find((t) => t.url === `${ENERGY}/2024-PT15M/`);
+  const container = urls.find((t) => t.url === YEAR_2024);
   assert.ok(container, "2024 series container is granted");
   assert.strictEqual(container!.isContainer, true);
   assert.strictEqual(urls.length, 4);
@@ -175,7 +186,7 @@ Deno.test("applyBuildingGrant: a failed energy-dataset grant still rejects (pool
   // is unchanged — pin it. One dataset's .acl PUT 500s; applyBuildingGrant
   // must reject, even though the other (independent) grants may succeed.
   const { session: s } = sharePod();
-  const FAIL_ACL = `${ENERGY}/2023-P1Y.ttl.acl`;
+  const FAIL_ACL = `${DS_2023_P1Y}.acl`;
   const inner = s.fetch;
   const failing = {
     info: s.info,

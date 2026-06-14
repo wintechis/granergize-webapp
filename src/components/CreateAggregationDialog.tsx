@@ -28,13 +28,13 @@ import type {
   BuildingType,
 } from "../types.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
-import { monthsFromDays, selectedSeriesRefs } from "./createViewMonths.ts";
+import { monthsFromDays, selectedSeriesRefs } from "./createAggregationMonths.ts";
 import { useSeriesDays, useSharedWithMe } from "../hooks/queries.ts";
-import { useCreateView } from "../hooks/mutations.ts";
+import { useCreateAggregation } from "../hooks/mutations.ts";
 import {
   type Contributors,
   summarizeContributors,
-} from "../services/aggregation/viewComputer.ts";
+} from "../services/aggregation/aggregationComputer.ts";
 import {
   ANNUAL_METRICS as ANNUAL_METRIC_SCHEMA,
   annualMetricLabel,
@@ -43,7 +43,7 @@ import {
 import { useNotification } from "../context/NotificationContext.tsx";
 import Modal from "./Modal.tsx";
 
-interface CreateViewDialogProps {
+interface CreateAggregationDialogProps {
   open: boolean;
   buildings: BuildingType[];
   onClose: () => void;
@@ -63,20 +63,20 @@ const MenuProps = {
 };
 
 /**
- * A view's *mode* — derived from the data shape, not a role: an annual portfolio
- * over owned buildings, a monthly view over buildings with a 15-minute series, or a
+ * An aggregation's *mode* — derived from the data shape, not a role: an annual portfolio
+ * over owned buildings, a monthly aggregation over buildings with a 15-minute series, or a
  * benchmark over the buildings shared *to* this user. Replaces the old per-role
  * partition (roles live only in data rooms now).
  */
-type ViewMode = "annual" | "monthly" | "benchmark";
+type AggregationMode = "annual" | "monthly" | "benchmark";
 
-const MODE_LABEL: Record<ViewMode, string> = {
+const MODE_LABEL: Record<AggregationMode, string> = {
   annual: "Annual portfolio",
   monthly: "Monthly (15-minute series)",
   benchmark: "Compare shared buildings",
 };
 
-const MODE_DESCRIPTION: Record<ViewMode, string> = {
+const MODE_DESCRIPTION: Record<AggregationMode, string> = {
   annual:
     "Aggregate annual energy figures across your buildings. The computed values are " +
     "stored as a privacy-preserving snapshot that can be shared without revealing the " +
@@ -110,17 +110,17 @@ const DEFAULT_ANNUAL_METRICS = [
 ];
 const BENCHMARK_METRICS = CONSUMPTION_METRIC_KEYS as string[];
 
-function metricsForMode(mode: ViewMode) {
+function metricsForMode(mode: AggregationMode) {
   return mode === "benchmark"
     ? [{ category: "Annual Consumption", metrics: BENCHMARK_METRICS }]
     : ANNUAL_METRIC_GROUPS;
 }
 
-export default function CreateViewDialog({
+export default function CreateAggregationDialog({
   open,
   buildings,
   onClose,
-}: CreateViewDialogProps) {
+}: CreateAggregationDialogProps) {
   const { showNotification } = useNotification();
 
   // The buildings shared *to* this user (the benchmark aggregates these),
@@ -147,10 +147,10 @@ export default function CreateViewDialog({
   );
 
   // The modes the data supports — by shape, not role: an annual portfolio always; a
-  // monthly view when some owned building carries a 15-minute series; a benchmark
+  // monthly aggregation when some owned building carries a 15-minute series; a benchmark
   // when buildings have been shared to this user.
-  const availableModes = useMemo<ViewMode[]>(() => {
-    const modes: ViewMode[] = ["annual"];
+  const availableModes = useMemo<AggregationMode[]>(() => {
+    const modes: AggregationMode[] = ["annual"];
     const hasSeries = ownedBuildings.some((b) =>
       (b.energyDatasets ?? []).some((r) => isSeriesGranularity(r.granularity))
     );
@@ -159,12 +159,12 @@ export default function CreateViewDialog({
     return modes;
   }, [ownedBuildings, sharedUriSet]);
 
-  const [mode, setMode] = useState<ViewMode>("annual");
-  // Busy state, error toast (central, classified) and the view-definitions
+  const [mode, setMode] = useState<AggregationMode>("annual");
+  // Busy state, error toast (central, classified) and the aggregation-definitions
   // invalidation come from the hook.
-  const create = useCreateView();
+  const create = useCreateAggregation();
   const creating = create.isPending;
-  const [viewName, setViewName] = useState("");
+  const [aggregationName, setAggregationName] = useState("");
   const [selectedBuildings, setSelectedBuildings] = useState<string[]>([]);
   const [aggregationType, setAggregationType] = useState<AggregationType>(
     "average",
@@ -176,8 +176,8 @@ export default function CreateViewDialog({
 
   const availableMetrics = metricsForMode(mode);
 
-  const handleModeChange = (event: SelectChangeEvent<ViewMode>) => {
-    const next = event.target.value as ViewMode;
+  const handleModeChange = (event: SelectChangeEvent<AggregationMode>) => {
+    const next = event.target.value as AggregationMode;
     setMode(next);
     setSelectedBuildings([]);
     setSelectedMetrics(next === "benchmark" ? BENCHMARK_METRICS : DEFAULT_ANNUAL_METRICS);
@@ -185,7 +185,7 @@ export default function CreateViewDialog({
   };
 
   const handleClose = () => {
-    setViewName("");
+    setAggregationName("");
     setSelectedBuildings([]);
     setAggregationType("average");
     setSelectedMetrics(mode === "benchmark" ? BENCHMARK_METRICS : DEFAULT_ANNUAL_METRICS);
@@ -221,10 +221,10 @@ export default function CreateViewDialog({
     [mode, buildings, sharedUriSet, ownedBuildings],
   );
 
-  // Available months for monthly views: the day files behind the SELECTED
+  // Available months for monthly aggregations: the day files behind the SELECTED
   // buildings' 15-min series (read through the data layer; the files are
   // separate resources, not inline on the building), reduced to their months.
-  // Scoped to the selection so every offered month has data in the view
+  // Scoped to the selection so every offered month has data in the aggregation
   // (heike-5 #4). The hook disables itself with nothing selected (no refs →
   // no query).
   const seriesRefs = useMemo(
@@ -255,8 +255,8 @@ export default function CreateViewDialog({
     : "";
 
   const handleCreate = () => {
-    if (!viewName.trim()) {
-      showNotification("Please enter a view name", "warning");
+    if (!aggregationName.trim()) {
+      showNotification("Please enter an aggregation name", "warning");
       return;
     }
     if (selectedBuildings.length === 0) {
@@ -272,12 +272,12 @@ export default function CreateViewDialog({
       return;
     }
 
-    // A benchmark view records the flag ON the definition, so every later
+    // A benchmark aggregation records the flag ON the definition, so every later
     // recompute (incl. plain refresh) re-derives the bench:BenchmarkResult
     // typing + covered year from it — nothing to remember at call sites.
     create.mutate(
       {
-        name: viewName.trim(),
+        name: aggregationName.trim(),
         buildingUris: selectedBuildings,
         aggregationType,
         metrics: mode === "monthly" ? ["electricity"] : selectedMetrics,
@@ -286,7 +286,7 @@ export default function CreateViewDialog({
       },
       {
         onSuccess: () => {
-          showNotification("View created successfully", "success");
+          showNotification("Aggregation created successfully", "success");
           handleClose();
         },
       },
@@ -297,12 +297,12 @@ export default function CreateViewDialog({
   // single annual portfolio is implicit.
   const modeDropdown = availableModes.length > 1 && (
     <FormControl fullWidth sx={{ mb: 3 }}>
-      <InputLabel id="mode-label">View type</InputLabel>
-      <Select<ViewMode>
+      <InputLabel id="mode-label">Aggregation type</InputLabel>
+      <Select<AggregationMode>
         labelId="mode-label"
         value={mode}
         onChange={handleModeChange}
-        input={<OutlinedInput label="View type" />}
+        input={<OutlinedInput label="Aggregation type" />}
       >
         {availableModes.map((m) => (
           <MenuItem key={m} value={m}>
@@ -376,21 +376,21 @@ export default function CreateViewDialog({
     <Modal
       open={open}
       onClose={handleClose}
-      dirty={viewName.trim() !== "" || selectedBuildings.length > 0}
+      dirty={aggregationName.trim() !== "" || selectedBuildings.length > 0}
       busy={creating}
-      title="Create Aggregated View"
+      title="Create aggregation"
       actions={!creating && (
         <>
           <Button onClick={handleClose}>Cancel</Button>
           <Button
             onClick={handleCreate}
             variant="contained"
-            disabled={!viewName.trim() || selectedBuildings.length === 0 ||
+            disabled={!aggregationName.trim() || selectedBuildings.length === 0 ||
               (mode === "monthly"
                 ? !effectivePeriod
                 : selectedMetrics.length === 0)}
           >
-            Create View
+            Create aggregation
           </Button>
         </>
       )}
@@ -398,7 +398,7 @@ export default function CreateViewDialog({
       {creating
         ? (
           <Typography sx={{ my: 2 }}>
-            Creating view and computing snapshot…
+            Creating aggregation and computing snapshot…
           </Typography>
         )
         : mode === "monthly"
@@ -413,13 +413,13 @@ export default function CreateViewDialog({
               <TextField
                 autoFocus
                 margin="dense"
-                id="viewName"
-                label="View Name"
+                id="aggregationName"
+                label="Aggregation name"
                 type="text"
                 fullWidth
                 variant="outlined"
-                value={viewName}
-                onChange={(e) => setViewName(e.target.value)}
+                value={aggregationName}
+                onChange={(e) => setAggregationName(e.target.value)}
                 placeholder="e.g., Warehouse Portfolio March 2024"
                 sx={{ mb: 3 }}
               />
@@ -438,9 +438,9 @@ export default function CreateViewDialog({
                 sx={{ mb: 3, minWidth: 160 }}
                 disabled={selectedBuildings.length === 0 || monthsLoading}
               >
-                <InputLabel id="view-month-label">Month</InputLabel>
+                <InputLabel id="aggregation-month-label">Month</InputLabel>
                 <Select
-                  labelId="view-month-label"
+                  labelId="aggregation-month-label"
                   label="Month"
                   value={effectivePeriod}
                   onChange={(e) => setSelectedPeriod(e.target.value)}
@@ -508,13 +508,13 @@ export default function CreateViewDialog({
               <TextField
                 autoFocus
                 margin="dense"
-                id="viewName"
-                label="View Name"
+                id="aggregationName"
+                label="Aggregation name"
                 type="text"
                 fullWidth
                 variant="outlined"
-                value={viewName}
-                onChange={(e) => setViewName(e.target.value)}
+                value={aggregationName}
+                onChange={(e) => setAggregationName(e.target.value)}
                 placeholder="e.g., Portfolio Average 2024"
                 sx={{ mb: 3 }}
               />

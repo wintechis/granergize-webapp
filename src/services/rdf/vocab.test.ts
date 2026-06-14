@@ -16,7 +16,7 @@ import {
  * Drift guard: the repo's vocab/*.ttl files are the source of truth for the
  * Granergize vocabularies (see vocab/README.md). This asserts that every term the
  * app reads/writes — the building field-schema predicates, the controlled-vocab
- * object-property ranges and instances, the energy-dataset and view/benchmark
+ * object-property ranges and instances, the energy-dataset and aggregation/benchmark
  * terms, and the core plumbing terms — is actually defined in the matching file.
  * Add a term in the code and this fails until it's defined, so the published
  * vocab can't silently desync from what the app writes.
@@ -124,22 +124,22 @@ Deno.test("energy-dataset terms are defined in the consumption vocab", () => {
   }
 });
 
-Deno.test("benchmark + aggregated-view terms are defined in the consumption vocab", () => {
-  // The view round-trip writes these owned terms onto definitions/snapshots
-  // (BenchmarkResult is a cons:AggregatedViewSnapshot specialisation). Asserting
-  // them keeps the published vocab in step with what the view/BSP flows emit.
+Deno.test("benchmark + aggregation terms are defined in the consumption vocab", () => {
+  // The aggregation round-trip writes these owned terms onto definitions/snapshots
+  // (BenchmarkResult is a cons:AggregationSnapshot specialisation). Asserting
+  // them keeps the published vocab in step with what the aggregation/BSP flows emit.
   const owned = [
     BENCH_RESULT,
     BENCH_COMPUTED_BY,
     BENCH_METRIC_PERIOD,
     ...[
-      "View",
-      "AggregatedViewDefinition",
-      "AggregatedViewSnapshot",
-      "viewId",
-      "viewName",
+      "Aggregation",
+      "AggregationDefinition",
+      "AggregationSnapshot",
+      "aggregationId",
+      "aggregationName",
       "aggregationType",
-      "viewPeriod",
+      "aggregationPeriod",
       "createdAt",
       "lastComputedAt",
       "computedAt",
@@ -162,7 +162,7 @@ Deno.test("benchmark + aggregated-view terms are defined in the consumption voca
 /**
  * Every owned term the code references (so the UI can surface its label): the
  * building-field predicates and their controlled-vocab ranges + instances, the
- * membership-role IRIs, and the energy/view/core terms asserted above. The
+ * membership-role IRIs, and the energy/aggregation/core terms asserted above. The
  * label-completeness guard runs over THIS set — a code-referenced term that
  * carries no label at all (not just an incomplete translation) is a failure.
  */

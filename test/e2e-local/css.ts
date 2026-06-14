@@ -43,11 +43,11 @@ import {
   wipeRooms,
 } from "../bench/seed.ts";
 import { shareBuildingData } from "../../src/services/interop/share.ts";
-import { createViewDefinition } from "../../src/services/aggregation/viewManager.ts";
+import { createAggregationDefinition } from "../../src/services/aggregation/aggregationManager.ts";
 import {
   computeAndStoreSnapshot,
   summarizeContributors,
-} from "../../src/services/aggregation/viewComputer.ts";
+} from "../../src/services/aggregation/aggregationComputer.ts";
 import { getSharedWithMe } from "../../src/services/interop/sharingManager.ts";
 import { CONSUMPTION_METRIC_KEYS } from "../../src/constants/annualMetrics.ts";
 
@@ -479,7 +479,7 @@ async function seedBenchmark(viewName: string): Promise<void> {
     if (buildingUris.length === 0) {
       throw new Error("seed-benchmark: C's contributor roster is empty");
     }
-    const view = await createViewDefinition(
+    const view = await createAggregationDefinition(
       c.actor.session,
       viewName,
       buildingUris,

@@ -14,72 +14,72 @@ import {
   hostRoomAndGetUri,
   joinRoomAsUser,
 } from "../helpers/connect.ts";
-import { ensureView, receivedViews, VIEW_NAME } from "../helpers/manage.ts";
+import { AGGREGATION_NAME, ensureAggregation, receivedAggregations } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Aggregated-VIEW sharing across TWO throwaway Pods (PROBLEMS.md #17 + #21), in
+ * Aggregation sharing across TWO throwaway Pods (PROBLEMS.md #17 + #21), in
  * ONE test (the data room is the WebID directory, so no WebID is configured):
  *
- *   • A hosts a room + role; B joins + role; A creates a view and shares it with B
- *     via the dialog's room-members "Add" (ShareViewDialog has no "by role");
- *   • B reloads (re-draining the inbox) until it appears under "Views shared with
+ *   • A hosts a room + role; B joins + role; A creates an aggregation and shares it with B
+ *     via the dialog's room-members "Add" (ShareAggregationDialog has no "by role");
+ *   • B reloads (re-draining the inbox) until it appears under "Aggregations shared with
  *     you" and the values render;
- *   • A deletes the view (revokes + notifies B via `revokeAllViewRecipients`);
+ *   • A deletes the aggregation (revokes + notifies B via `revokeAllAggregationRecipients`);
  *   • B reloads until it no longer sees it (the revocation folded it out).
  *
  * Was 6 single-account parts to stay under solidcommunity.net's Cloudflare burst
  * limit; on reliable Pods it runs as one test driving two contexts, self-cleaning
- * (the view is deleted as part of the flow; A's room in `finally`). Needs
+ * (the aggregation is deleted as part of the flow; A's room in `finally`). Needs
  * E2E_{USERNAME,PASSWORD}_A and _B; skipped without them.
  */
 
 const A = account("A");
 const B = account("B");
 
-// Cross-Pod view sharing needs an INTEROPERATING provider pair (see share-building).
+// Cross-Pod aggregation sharing needs an INTEROPERATING provider pair (see share-building).
 // Skips on NSS↔CSS-v5; the logic is covered by the Tier-2 headless `share-view` task.
 const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 
-test.describe("view sharing across two pods", () => {
+test.describe("aggregation sharing across two pods", () => {
   test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
-  test("A shares a view; B sees it, then A deletes it and B no longer sees it", async ({ browser }) => {
+  test("A shares an aggregation; B sees it, then A deletes it and B no longer sees it", async ({ browser }) => {
     test.setTimeout(T.testSharing);
-    // Log A and B in ONCE each. B's three phases (join, see the shared view, see it
+    // Log A and B in ONCE each. B's three phases (join, see the shared aggregation, see it
     // gone) don't need fresh OIDC logins — each phase only needs B to RE-FETCH the
     // shared state from a cold cache, which `b.page.reload()` does: the silent session
     // restore re-fires `onLogin`, draining B's inbox and invalidating the
-    // receivedViews query, exactly like a login but without the ~login-long OIDC cost.
+    // receivedAggregations query, exactly like a login but without the ~login-long OIDC cost.
     // The only separation that's actually required is A vs B (distinct WebIDs), not
     // B-phase vs B-phase — so one reused B context replaces the old four B logins.
     const [a, b] = await freshPagesParallel(browser, [A, B]);
-    a.page.on("dialog", (d) => d.accept()); // Delete view / room confirms
+    a.page.on("dialog", (d) => d.accept()); // Delete aggregation / room confirms
     try {
       await assertCleanStart(a.page, "share-view:A");
       await assertCleanStart(b.page, "share-view:B");
-      // ── A hosts a room + role; B joins + role; A creates + shares the view ──
+      // ── A hosts a room + role; B joins + role; A creates + shares the aggregation ──
       const roomUri = await hostRoomAndGetUri(a.page);
       await assignUserRole(a.page);
       await joinRoomAsUser(b.page, roomUri);
 
-      // A needs buildings to build an aggregated view from — self-seed an empty
-      // (e.g. freshly-wiped) Pod so ensureView's building picker isn't empty.
-      // Must be INVESTOR: ensureView creates an Investor view, and CreateViewDialog
+      // A needs buildings to build an aggregation from — self-seed an empty
+      // (e.g. freshly-wiped) Pod so ensureAggregation's building picker isn't empty.
+      // Must be INVESTOR: ensureAggregation creates an Investor aggregation, and CreateAggregationDialog
       // only offers roles that exist among the buildings' provenance — a "user"
       // building would leave the Role dropdown without an "Investor" option, so
-      // ensureView's role selection would hang.
+      // ensureAggregation's role selection would hang.
       await ensureDemoBuildings(a.page);
-      await ensureView(a.page);
-      const viewRow = a.page.locator("li").filter({ hasText: VIEW_NAME })
+      await ensureAggregation(a.page);
+      const aggregationRow = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
         .first();
       // Scope to the SHARE dialog by its title: a generic role=dialog locator
-      // once bound to the CreateViewDialog mid close-transition, so the poll
-      // below skipped its "Share view" click and waited its whole budget on a
+      // once bound to the CreateAggregationDialog mid close-transition, so the poll
+      // below skipped its "Share aggregation" click and waited its whole budget on a
       // dialog that no longer existed.
       const shareDlg = a.page.getByRole("dialog")
-        .filter({ hasText: `Share "${VIEW_NAME}"` });
+        .filter({ hasText: `Share "${AGGREGATION_NAME}"` });
       const add = shareDlg.getByRole("button", { name: /^add$/i });
       // Add B from the room-members list (B joined + took a role above). The
       // dialog loads members ONCE on open, asynchronously, so the "Add" row only
@@ -89,7 +89,7 @@ test.describe("view sharing across two pods", () => {
       // so a member that's still propagating on a remote Pod (Tier 4) is re-read.
       await expect(async () => {
         if (!(await shareDlg.isVisible().catch(() => false))) {
-          await viewRow.getByRole("button", { name: "Share view" }).click();
+          await aggregationRow.getByRole("button", { name: "Share aggregation" }).click();
           await expect(shareDlg).toBeVisible({ timeout: T.quick });
         }
         try {
@@ -120,12 +120,12 @@ test.describe("view sharing across two pods", () => {
         .toBeVisible({ timeout: T.action });
       await shareDlg.getByRole("button", { name: /close/i }).click();
 
-      // ── B reloads (cold re-fetch, re-draining the inbox) until the shared view
+      // ── B reloads (cold re-fetch, re-draining the inbox) until the shared aggregation
       //    propagates and folds in, then reads its values — no blind cooldown ──
       try {
         await reloadUntil(b.page, async () => {
           await b.page.getByRole("tab", { name: "Share" }).click();
-          await expect(receivedViews(b.page).getByText(VIEW_NAME))
+          await expect(receivedAggregations(b.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.action });
         });
         await b.page.getByRole("button", { name: /show values/i }).first()
@@ -137,30 +137,30 @@ test.describe("view sharing across two pods", () => {
         throw timeout;
       }
 
-      // ── A deletes the view (revokes + notifies B) ──
+      // ── A deletes the aggregation (revokes + notifies B) ──
       await a.page.getByRole("tab", { name: "Manage" }).click();
       await a.page.waitForLoadState("networkidle").catch(() => {});
-      const del = a.page.locator("li").filter({ hasText: VIEW_NAME })
-        .getByRole("button", { name: "Delete view" });
+      const del = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
+        .getByRole("button", { name: "Delete aggregation" });
       for (let i = 0; i < 10; i++) {
         if (!(await del.count())) break;
         await del.first().click();
         await confirmDialog(a.page, "Delete");
-        await expect(a.page.getByText("View deleted").first())
+        await expect(a.page.getByText("Aggregation deleted").first())
           .toBeVisible({ timeout: T.action }).catch(() => {});
       }
 
-      // ── B reloads (cold re-fetch, re-draining the revocation) until the view
+      // ── B reloads (cold re-fetch, re-draining the revocation) until the aggregation
       //    folds out — no blind cooldown ──
       try {
         // Positive empty-state assertion: the section's empty notice is shown
-        // (the list is absent when empty) AND the view is gone.
+        // (the list is absent when empty) AND the aggregation is gone.
         await reloadUntil(b.page, async () => {
           await b.page.getByRole("tab", { name: "Share" }).click();
           await expect(
-            b.page.getByText(/no views shared with you yet/i),
+            b.page.getByText(/no aggregations shared with you yet/i),
           ).toBeVisible({ timeout: T.action });
-          await expect(receivedViews(b.page).getByText(VIEW_NAME)).toHaveCount(
+          await expect(receivedAggregations(b.page).getByText(AGGREGATION_NAME)).toHaveCount(
             0,
           );
         });
@@ -169,7 +169,7 @@ test.describe("view sharing across two pods", () => {
         throw timeout;
       }
     } finally {
-      // Self-cleaning: the view was deleted above; tear down A's room and drop B's
+      // Self-cleaning: the aggregation was deleted above; tear down A's room and drop B's
       // bookmark of it so neither leaks on its Pod.
       try {
         if (!a.page.isClosed()) await deleteAllOwnedRooms(a.page);

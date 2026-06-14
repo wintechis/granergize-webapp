@@ -13,12 +13,12 @@ import {
   useDemoOffer,
   useEnergy,
   useReceivedBenchmarks,
-  useReceivedViews,
+  useReceivedAggregations,
   useResolveOrg,
   useSeriesDays,
   useSharedWithMe,
   useSolidData,
-  useViewDetail,
+  useAggregationDetail,
 } from "./queries.ts";
 import type { BuildingType } from "../types.ts";
 import { useCheckInbox, useToggleVisibility } from "./mutations.ts";
@@ -35,7 +35,7 @@ const PREFS = "https://pod.example/granergize/prefs.ttl";
 const SHARING = "https://pod.example/granergize/sharingRegistry.ttl";
 const B1 = "https://pod.example/granergize/buildings/b1.ttl";
 const BUILDINGS_CONTAINER = "https://pod.example/granergize/buildings/";
-const ENERGY = "https://pod.example/granergize/buildings/b1/energy/2024-P1Y.ttl";
+const ENERGY = "https://pod.example/granergize/observations/2024/d1.ttl";
 
 const FIXTURES: Record<string, string> = {
   [PROFILE]: `@prefix space: <http://www.w3.org/ns/pim/space#> .
@@ -52,7 +52,8 @@ const FIXTURES: Record<string, string> = {
 @prefix rec: <https://w3id.org/rec#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 <#b1> a rec:Building ; geo:lat 49.0 ; geo:long 11.0 ;
-  cons:hasEnergyDataset <${ENERGY}#ds> .`,
+  cons:hasEnergyDataset <${ENERGY}#ds> .
+<${ENERGY}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .`,
   [ENERGY]: `@prefix cons: <${CONS}> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix ssn: <http://www.w3.org/ns/ssn/> .
@@ -95,7 +96,7 @@ Deno.test("useBuildings loads + parses from the session", async () => {
   }
 });
 
-Deno.test("one shared-in fold serves buildings + sharedWithMe + receivedViews + benchmarks", async () => {
+Deno.test("one shared-in fold serves buildings + sharedWithMe + receivedAggregations + benchmarks", async () => {
   const SHARED_IN = "https://pod.example/granergize/shared-in/";
   const EVT = `${SHARED_IN}evt-1`;
   const B2 = "https://other.example/granergize/buildings/b2.ttl";
@@ -129,7 +130,7 @@ Deno.test("one shared-in fold serves buildings + sharedWithMe + receivedViews + 
     const { result } = renderHook(() => ({
       buildings: useBuildings(),
       sharedWithMe: useSharedWithMe(),
-      receivedViews: useReceivedViews(),
+      receivedAggregations: useReceivedAggregations(),
       benchmarks: useReceivedBenchmarks(),
     }), { wrapper });
     await waitFor(() => {
@@ -141,7 +142,7 @@ Deno.test("one shared-in fold serves buildings + sharedWithMe + receivedViews + 
     assert.equal(result.current.buildings.data?.buildings.length, 2);
     assert.equal(result.current.sharedWithMe.data?.length, 1);
     assert.equal(result.current.sharedWithMe.data?.[0].buildingUri, `${B2}#b2`);
-    assert.deepEqual(result.current.receivedViews.data, []);
+    assert.deepEqual(result.current.receivedAggregations.data, []);
     // …from ONE fold: the shared-in/ container was listed exactly once.
     const folds = calls.filter(
       (c) => c.method === "GET" && c.url === SHARED_IN,
@@ -314,7 +315,7 @@ Deno.test("useToggleVisibility invalidates ONLY prefs (buildings re-keys off the
   }
 });
 
-Deno.test("useCheckInbox invalidates the received-benchmarks fold (not just received-views)", async () => {
+Deno.test("useCheckInbox invalidates the received-benchmarks fold (not just received-aggregations)", async () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession());
   const { client, wrapper } = makeWrapper();
@@ -343,8 +344,8 @@ Deno.test("useCheckInbox invalidates the received-benchmarks fold (not just rece
 });
 
 Deno.test("useAnnualEnergy splits actual vs planned, sorted by year", async () => {
-  const PLANNED = ENERGY.replace("2024-P1Y.ttl", "2024-P1Y-planned.ttl");
-  const EARLIER = ENERGY.replace("2024-P1Y.ttl", "2023-P1Y.ttl");
+  const PLANNED = ENERGY.replace("/2024/d1.ttl", "/2024/d1-planned.ttl");
+  const EARLIER = ENERGY.replace("/2024/d1.ttl", "/2023/d1.ttl");
   const ds = (year: number, value: number, scenario: string) =>
     `@prefix cons: <${CONS}> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
@@ -373,7 +374,7 @@ Deno.test("useAnnualEnergy splits actual vs planned, sorted by year", async () =
       { url: `${ENERGY}#ds`, year: 2024, granularity: "P1Y", scenario: "actual" },
       { url: `${EARLIER}#ds`, year: 2023, granularity: "P1Y", scenario: "actual" },
       { url: `${PLANNED}#ds`, year: 2024, granularity: "P1Y", scenario: "planned" },
-      // A 15-min series ref must be ignored (annual view only).
+      // A 15-min series ref must be ignored (annual aggregation only).
       { url: `${ENERGY}#s`, year: 2024, granularity: "PT15M", scenario: "actual" },
     ],
   } as unknown as BuildingType;
@@ -392,7 +393,7 @@ Deno.test("useAnnualEnergy splits actual vs planned, sorted by year", async () =
 });
 
 Deno.test("useAnnualDatasets returns the raw annual datasets, ignoring series refs", async () => {
-  const PLANNED = ENERGY.replace("2024-P1Y.ttl", "2024-P1Y-planned.ttl");
+  const PLANNED = ENERGY.replace("/2024/d1.ttl", "/2024/d1-planned.ttl");
   const planned = `@prefix cons: <${CONS}> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix ssn: <http://www.w3.org/ns/ssn/> .
@@ -501,14 +502,24 @@ Deno.test("useDemoOffer: false once the demo offer was declined (prefs)", async 
 });
 
 Deno.test("useSeriesDays lists the day files behind series refs, sorted", async () => {
-  const SERIES = "https://pod.example/granergize/buildings/b1/energy/2024-PT15M.ttl";
-  const CONTAINER = SERIES.replace(/\.ttl$/, "/");
+  // Day chunks are time-first: observations/2024/<mm>/<dd>/<id>.ttl (same id).
+  const ID = "d9";
+  const SERIES = `https://pod.example/granergize/observations/2024/${ID}.ttl`;
+  const YEAR = "https://pod.example/granergize/observations/2024/";
+  const MONTH = `${YEAR}01/`;
+  const D1 = `${MONTH}01/`;
+  const D2 = `${MONTH}02/`;
+  const ldp = (c: string, kids: string[]) =>
+    `@prefix ldp: <http://www.w3.org/ns/ldp#> .\n<${c}> ldp:contains ${
+      kids.map((k) => `<${k}>`).join(", ")
+    } .`;
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession({
     ...FIXTURES,
-    [CONTAINER]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
-<${CONTAINER}> ldp:contains <${CONTAINER}2024-01-02.ttl>,
-  <${CONTAINER}2024-01-01.ttl> .`,
+    [YEAR]: ldp(YEAR, [MONTH]),
+    [MONTH]: ldp(MONTH, [D1, D2]),
+    [D1]: ldp(D1, [`${D1}${ID}.ttl`, `${D1}other.ttl`]),
+    [D2]: ldp(D2, [`${D2}${ID}.ttl`]),
   }));
   const { wrapper } = makeWrapper();
   const refs = [
@@ -518,46 +529,46 @@ Deno.test("useSeriesDays lists the day files behind series refs, sorted", async 
     const { result } = renderHook(() => useSeriesDays(refs), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
     assert.deepEqual(result.current.data, [
-      { day: "2024-01-01", url: `${CONTAINER}2024-01-01.ttl` },
-      { day: "2024-01-02", url: `${CONTAINER}2024-01-02.ttl` },
+      { day: "2024-01-01", url: `${D1}${ID}.ttl` },
+      { day: "2024-01-02", url: `${D2}${ID}.ttl` },
     ]);
   } finally {
     _setSessionForTesting(null);
   }
 });
 
-// ── useViewDetail (the standalone /view page's query) ────────────────────────
+// ── useAggregationDetail (the standalone /aggregation page's query) ────────────────────────
 
-const VIEW_DEF = "https://pod.example/granergize/views/v1.ttl";
-const VIEW_SNAP = "https://pod.example/granergize/views/snapshots/v1.ttl";
-const VIEW_DEF_TTL = `@prefix cons: <${CONS}> .
-<#view> a cons:AggregatedViewDefinition ;
-  cons:viewId "v1" ; cons:viewName "My view" ;
+const AGG_DEF = "https://pod.example/granergize/aggregations/v1.ttl";
+const AGG_SNAP = "https://pod.example/granergize/aggregations/snapshots/v1.ttl";
+const AGG_DEF_TTL = `@prefix cons: <${CONS}> .
+<#aggregation> a cons:AggregationDefinition ;
+  cons:aggregationId "v1" ; cons:aggregationName "My aggregation" ;
   cons:aggregationType "average" ;
   cons:createdAt "2026-01-01T00:00:00Z" ;
   cons:includesBuilding <${B1}> ;
   cons:includesMetric "electricityConsumption" .`;
-const VIEW_SNAP_TTL = `@prefix cons: <${CONS}> .
-<#snapshot> a cons:AggregatedViewSnapshot ;
-  cons:viewId "v1" ; cons:viewName "My view" ;
+const AGG_SNAP_TTL = `@prefix cons: <${CONS}> .
+<#snapshot> a cons:AggregationSnapshot ;
+  cons:aggregationId "v1" ; cons:aggregationName "My aggregation" ;
   cons:aggregationType "average" ;
   cons:computedAt "2026-01-02T00:00:00Z" ;
   cons:buildingCount "1" ;
   cons:includesMetric "electricityConsumption" ;
   cons:electricityConsumptionValue "1000" .`;
 
-Deno.test("useViewDetail loads definition + snapshot, and an existing snapshot writes NOTHING", async () => {
+Deno.test("useAggregationDetail loads definition + snapshot, and an existing snapshot writes NOTHING", async () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   const fake = makeFakeSession({
     webId: WEBID,
-    resources: { ...FIXTURES, [VIEW_DEF]: VIEW_DEF_TTL, [VIEW_SNAP]: VIEW_SNAP_TTL },
+    resources: { ...FIXTURES, [AGG_DEF]: AGG_DEF_TTL, [AGG_SNAP]: AGG_SNAP_TTL },
   });
   _setSessionForTesting(fake.session);
   const { wrapper } = makeWrapper();
   try {
-    const { result } = renderHook(() => useViewDetail("v1"), { wrapper });
+    const { result } = renderHook(() => useAggregationDetail("v1"), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
-    assert.equal(result.current.data?.definition?.name, "My view");
+    assert.equal(result.current.data?.definition?.name, "My aggregation");
     assert.equal(result.current.data?.snapshot?.values.electricityConsumption, 1000);
     assert.equal(result.current.data?.computeError, undefined);
     // The seam's guard: with a snapshot present the read stays pure.
@@ -570,21 +581,21 @@ Deno.test("useViewDetail loads definition + snapshot, and an existing snapshot w
   }
 });
 
-Deno.test("useViewDetail auto-materialises a MISSING snapshot (the documented seam)", async () => {
+Deno.test("useAggregationDetail auto-materialises a MISSING snapshot (the documented seam)", async () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   const fake = makeFakeSession({
     webId: WEBID,
-    resources: { ...FIXTURES, [VIEW_DEF]: VIEW_DEF_TTL },
+    resources: { ...FIXTURES, [AGG_DEF]: AGG_DEF_TTL },
   });
   _setSessionForTesting(fake.session);
   const { wrapper } = makeWrapper();
   try {
-    const { result } = renderHook(() => useViewDetail("v1"), { wrapper });
+    const { result } = renderHook(() => useAggregationDetail("v1"), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
-    assert.equal(result.current.data?.definition?.name, "My view");
+    assert.equal(result.current.data?.definition?.name, "My aggregation");
     assert.ok(result.current.data?.snapshot, "snapshot computed on first open");
     assert.ok(
-      fake.calls.some((c) => c.method === "PUT" && c.url === VIEW_SNAP),
+      fake.calls.some((c) => c.method === "PUT" && c.url === AGG_SNAP),
       "computed snapshot stored on the Pod",
     );
   } finally {
@@ -592,22 +603,22 @@ Deno.test("useViewDetail auto-materialises a MISSING snapshot (the documented se
   }
 });
 
-Deno.test("useViewDetail degrades a failed auto-compute to definition-only + computeError", async () => {
+Deno.test("useAggregationDetail degrades a failed auto-compute to definition-only + computeError", async () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   const fake = makeFakeSession({
     webId: WEBID,
-    resources: { ...FIXTURES, [VIEW_DEF]: VIEW_DEF_TTL },
+    resources: { ...FIXTURES, [AGG_DEF]: AGG_DEF_TTL },
     respond: (url, init) =>
-      init?.method === "PUT" && url.startsWith(VIEW_SNAP)
+      init?.method === "PUT" && url.startsWith(AGG_SNAP)
         ? new Response("boom", { status: 500 })
         : undefined,
   });
   _setSessionForTesting(fake.session);
   const { wrapper } = makeWrapper();
   try {
-    const { result } = renderHook(() => useViewDetail("v1"), { wrapper });
+    const { result } = renderHook(() => useAggregationDetail("v1"), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
-    assert.equal(result.current.data?.definition?.name, "My view");
+    assert.equal(result.current.data?.definition?.name, "My aggregation");
     assert.equal(result.current.data?.snapshot, null);
     assert.ok(result.current.data?.computeError, "the failure travels in the data");
   } finally {

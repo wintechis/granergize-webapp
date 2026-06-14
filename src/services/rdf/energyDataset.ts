@@ -9,7 +9,12 @@ import {
   UNIT_NS,
 } from "./vocabularies.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
-import { buildingFileUri } from "./building/buildingId.ts";
+import {
+  observationContainer,
+  type ObservationRef,
+  observationUri,
+  parseObservationUri,
+} from "./observationPath.ts";
 import { listDirectChildren } from "../pod/podDelete.ts";
 import { logError } from "../../lib/logError.ts";
 
@@ -20,21 +25,33 @@ export type { EnergyDatasetRef, Scenario };
 /**
  * The unified energy model: ONE `cons:EnergyDataset` per (building, year,
  * granularity, scenario), linked from the building by a single
- * `cons:hasEnergyDataset` predicate — replacing the old three-way split
- * (`investor:hasAnnualData` inline annual / `cons:hasEnergyMeasurementData`
- * / `cons:hasEnergyConsumptionDataset`). Every dataset is its OWN resource
- * (annual included), so a year can be added, edited and shared independently.
+ * `cons:hasEnergyDataset` predicate.
  *
- *   <#b> cons:hasEnergyDataset <energy/2024-P1Y.ttl#ds> , <energy/2024-PT15M.ttl#ds> .
+ * Datasets are **time-first**, first-class observation collections — they live
+ * at top-level `observations/…` (see {@link observationUri} /
+ * `observationPath.ts`), NOT nested under the building. Each dataset is its own
+ * resource (annual included), so a year can be added, edited and shared
+ * independently. A UUID stem `{id}` is minted per dataset and sits at the leaf;
+ * depth follows resolution:
  *
- * The link's slug (`<year>-<granularity>[-planned].ttl`) is self-describing, so
- * the year/granularity/scenario are known WITHOUT fetching the dataset — phase-1
- * (map paint) reads the links; phase-2 fetches the annual datasets and lazy-loads
- * series on click, dispatching purely on the declared granularity.
+ *   annual  `observations/{year}/{id}.ttl`
+ *   series  `observations/{year}/{id}.ttl`   (descriptor; daily chunks at
+ *           `observations/{year}/{month}/{day}/{id}.ttl`, same `{id}`)
+ *
+ * Scenario (actual/planned) and granularity are **properties of the dataset**,
+ * not encoded in the path. So that phase-1 (map paint) can dispatch load
+ * (series lazy, annual prefetched) WITHOUT fetching each dataset, the building
+ * file re-states `cons:granularity` and `cons:scenario` about the linked
+ * dataset node next to the `cons:hasEnergyDataset` link:
+ *
+ *   <#b> cons:hasEnergyDataset <…/2024/abc.ttl#ds> .
+ *   <…/2024/abc.ttl#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
+ *
+ * The dataset resource itself remains the authoritative copy of those triples.
  *
  * Annual aggregate (small → inline `sosa:ObservationCollection`):
  *   <#ds> a cons:EnergyDataset , sosa:ObservationCollection ;
- *      cons:ofBuilding <…/b-1.ttl#b-1> ; cons:granularity "P1Y" ;
+ *      cons:ofBuilding <…/b-1.ttl#it> ; cons:granularity "P1Y" ;
  *      cons:scenario cons:Actual ;
  *      sosa:phenomenonTime [ a time:Interval ; time:hasBeginning "2024-01-01"^^xsd:date ;
  *                            time:hasEnd "2024-12-31"^^xsd:date ] ;
@@ -42,9 +59,10 @@ export type { EnergyDatasetRef, Scenario };
  *        sosa:observedProperty cons:ElectricityConsumption ;
  *        sosa:hasResult [ sosa:hasSimpleResult "121500"^^xsd:decimal ; ssn:hasUnit unit:KiloW-HR ] ] , … .
  *
- * Sub-hourly series (large → a located container of daily reading files):
+ * Sub-hourly series (large → daily chunk files spread across the year's
+ * time-first sub-containers, located by the year container):
  *   <#ds> a cons:EnergyDataset ; … cons:granularity "PT15M" ;
- *      cons:datasetLocation <2024-PT15M/> .
+ *      cons:datasetLocation <observations/2024/> .
  */
 
 export type EnergyMetricKey =
@@ -103,28 +121,39 @@ export interface EnergyDataset {
   scenario: Scenario;
   /** Annual aggregate: the inline observations. */
   metrics?: AnnualMetrics;
-  /** Series: the container IRI of the daily reading files. */
+  /** Series: the container IRI the daily chunk files are located under. */
   datasetLocation?: string;
 }
 
-/** `<year>-<granularity>[-planned]` — the self-describing resource slug. */
-export function datasetSlug(
-  year: number,
-  granularity: string,
-  scenario: Scenario,
-): string {
-  return `${year}-${granularity}${scenario === "planned" ? "-planned" : ""}`;
+/** Mint a fresh dataset id (UUID stem) for a new observation collection. */
+export function mintDatasetId(): string {
+  return crypto.randomUUID();
 }
 
-/** `…/buildings/<id>/energy/<slug>.ttl` — the dataset resource IRI. */
-export function datasetFileUri(
-  buildingUri: string,
-  year: number,
-  granularity: string,
-  scenario: Scenario,
-): string {
-  const base = buildingFileUri(buildingUri).replace(/\.ttl$/, "");
-  return `${base}/energy/${datasetSlug(year, granularity, scenario)}.ttl`;
+/** The `observations/` root for a building, from its file/subject IRI. */
+export function observationsRootForBuilding(buildingUri: string): string {
+  const file = buildingUri.split("#")[0];
+  const i = file.indexOf("/buildings/");
+  if (i === -1) {
+    throw new Error(`Not a building IRI under buildings/: ${buildingUri}`);
+  }
+  return `${file.slice(0, i)}/observations/`;
+}
+
+/** The `observations/` root for an observation IRI (the inverse direction). */
+export function observationsRootForObservation(uri: string): string {
+  const file = uri.split("#")[0];
+  const marker = "/observations/";
+  const i = file.indexOf(marker);
+  if (i === -1) {
+    throw new Error(`Not an observation IRI under observations/: ${uri}`);
+  }
+  return file.slice(0, i + marker.length);
+}
+
+/** `observations/{year}/{id}.ttl` — the dataset descriptor resource IRI. */
+export function datasetFileUri(observationsRoot: string, year: number, id: string): string {
+  return observationUri(observationsRoot, { year, id });
 }
 
 /** The dataset's subject node IRI (`<file>#ds`). */
@@ -132,74 +161,115 @@ export function datasetNodeUri(fileUri: string): string {
   return `${fileUri}#ds`;
 }
 
-/** A series dataset's daily-files container (`…/energy/<year>-PT15M/`). */
-export function seriesContainerUri(
-  buildingUri: string,
-  year: number,
-  scenario: Scenario = "actual",
-): string {
-  return datasetFileUri(buildingUri, year, "PT15M", scenario).replace(
-    /\.ttl$/,
-    "/",
-  );
-}
-
-/** One daily reading file inside a series container (`…/<year>-PT15M/<date>.ttl`). */
-export function seriesDailyFileUri(
-  buildingUri: string,
-  year: number,
-  date: string,
-  scenario: Scenario = "actual",
-): string {
-  return `${seriesContainerUri(buildingUri, year, scenario)}${date}.ttl`;
+/** A series dataset's locating container — the year period container. */
+export function seriesContainerUri(observationsRoot: string, year: number): string {
+  return observationContainer(observationsRoot, { year });
 }
 
 /**
- * List a series dataset's daily reading files. Owns the descriptor→container
- * convention: the ref's `…/<slug>.ttl` descriptor locates its sibling
- * `…/<slug>/` container, whose `<date>.ttl` children are the days. Each entry
- * is `{ day, url }` — `day` is the file's date label (e.g. `"2024-03-15"`),
- * `url` the reading file to fetch — sorted ascending by day. A missing or
- * inaccessible container yields `[]`.
+ * One daily chunk file of a series, time-first under its day:
+ * `observations/{year}/{month}/{day}/{id}.ttl`. `date` is `YYYY-MM-DD`.
+ */
+export function seriesDailyFileUri(
+  observationsRoot: string,
+  date: string,
+  id: string,
+): string {
+  const [y, m, d] = date.split("-").map(Number);
+  return observationUri(observationsRoot, { year: y, month: m, day: d, id });
+}
+
+/**
+ * List a series dataset's daily chunk files. The descriptor's `datasetLocation`
+ * is its year container; the day chunks are the same-`{id}` leaves under that
+ * year's time-first `{month}/{day}/` sub-containers. Walks the year → month →
+ * day containers, collecting `…/{id}.ttl` leaves. Each entry is `{ day, url }` —
+ * `day` the file's `YYYY-MM-DD` (recovered from its path), `url` the chunk to
+ * fetch — sorted ascending by day. A missing/inaccessible container yields `[]`.
  * @operation query
  */
 export async function listSeriesDays(
   session: Session,
   ref: EnergyDatasetRef,
 ): Promise<{ day: string; url: string }[]> {
-  const container = ref.url.split("#")[0].replace(/\.ttl$/, "/");
-  const children = (await listDirectChildren(container, session)) ?? [];
-  return children
-    .filter((url) => url.endsWith(".ttl"))
-    .map((url) => ({ day: url.split("/").pop()!.replace(/\.ttl$/, ""), url }))
-    .sort((a, b) => a.day.localeCompare(b.day));
+  const root = observationsRootForObservation(ref.url);
+  const parsed = parseObservationUri(root, ref.url);
+  if (!parsed) return [];
+  const { year, id } = parsed;
+  const out: { day: string; url: string }[] = [];
+
+  const months = (await listDirectChildren(
+    observationContainer(root, { year }),
+    session,
+  )) ?? [];
+  await Promise.all(
+    months
+      .filter((u) => u.endsWith("/"))
+      .map(async (monthUrl) => {
+        const month = Number(monthUrl.replace(/\/$/, "").split("/").pop());
+        if (!Number.isInteger(month)) return;
+        const days = (await listDirectChildren(monthUrl, session)) ?? [];
+        await Promise.all(
+          days
+            .filter((u) => u.endsWith("/"))
+            .map(async (dayUrl) => {
+              const day = Number(dayUrl.replace(/\/$/, "").split("/").pop());
+              if (!Number.isInteger(day)) return;
+              const files = (await listDirectChildren(dayUrl, session)) ?? [];
+              for (const f of files) {
+                if (f === `${dayUrl}${id}.ttl`) {
+                  const date = `${year}-${pad(month)}-${pad(day)}`;
+                  out.push({ day: date, url: f });
+                }
+              }
+            }),
+        );
+      }),
+  );
+  return out.sort((a, b) => a.day.localeCompare(b.day));
 }
 
+const pad = (n: number): string => String(n).padStart(2, "0");
+
 /**
- * Derive `{year, granularity, scenario}` from a `cons:hasEnergyDataset` link IRI
- * by parsing its slug — so phase-1 needn't fetch each dataset. Returns null if
- * the slug isn't the expected `<year>-<granularity>[-planned]` shape.
+ * Parse a `cons:hasEnergyDataset` link into an {@link EnergyDatasetRef}. The
+ * link IRI gives the dataset's file/node and (via its time-first path) the
+ * year; the granularity and scenario are read from the triples the building
+ * re-states about the dataset node (`store`, when given) — or default to
+ * `P1Y`/`actual` when no store is available. Returns null if the link isn't a
+ * time-first observation IRI.
  */
-export function parseDatasetSlug(linkUri: string): EnergyDatasetRef | null {
-  const file = linkUri.split("#")[0];
-  let slug = file.split("/").pop()?.replace(/\.ttl$/, "") ?? "";
-  let scenario: Scenario = "actual";
-  if (slug.endsWith("-planned")) {
-    scenario = "planned";
-    slug = slug.slice(0, -"-planned".length);
+export function parseDatasetLink(
+  linkUri: string,
+  store?: Store,
+): EnergyDatasetRef | null {
+  let root: string;
+  try {
+    root = observationsRootForObservation(linkUri);
+  } catch {
+    return null; // not a time-first observation IRI
   }
-  const dash = slug.indexOf("-");
-  if (dash === -1) return null;
-  const year = Number(slug.slice(0, dash));
-  const granularity = slug.slice(dash + 1);
-  if (!Number.isInteger(year) || !granularity) return null;
-  return { url: linkUri, year, granularity, scenario };
+  const parsed = parseObservationUri(root, linkUri);
+  if (!parsed) return null;
+  let granularity = "P1Y";
+  let scenario: Scenario = "actual";
+  if (store) {
+    const node = namedNode(linkUri);
+    granularity =
+      store.getObjects(node, namedNode(`${CONSUMPTION_NS}granularity`), null)[0]
+        ?.value ?? granularity;
+    const sc = store.getObjects(node, namedNode(`${CONSUMPTION_NS}scenario`), null)[0]
+      ?.value;
+    if (sc === `${CONSUMPTION_NS}Planned`) scenario = "planned";
+  }
+  return { url: linkUri, year: parsed.year, granularity, scenario };
 }
 
 /**
  * All dataset refs linked from a building node (`cons:hasEnergyDataset`).
  * `buildingNodeUri: null` matches ANY subject — for a fetched building file,
- * which holds only that one building's links.
+ * which holds only that one building's links. Granularity/scenario are read
+ * from the building-file triples re-stated about each dataset node.
  */
 export function parseEnergyDatasetRefs(
   store: Store,
@@ -211,8 +281,32 @@ export function parseEnergyDatasetRefs(
       namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
       null,
     )
-    .map((o) => parseDatasetSlug(o.value))
+    .map((o) => parseDatasetLink(o.value, store))
     .filter((r): r is EnergyDatasetRef => r !== null);
+}
+
+/**
+ * The existing `cons:hasEnergyDataset` node IRI on a building that matches
+ * `(year, granularity, scenario)`, or null when none — so a re-save of the same
+ * (year, granularity, scenario) overwrites in place instead of minting a second
+ * dataset (the path no longer encodes those, so the match comes from the refs).
+ */
+export function findDatasetLink(
+  store: Store,
+  buildingSubjectUri: string,
+  year: number,
+  granularity: string,
+  scenario: Scenario,
+): string | null {
+  for (const ref of parseEnergyDatasetRefs(store, buildingSubjectUri)) {
+    if (
+      ref.year === year && ref.granularity === granularity &&
+      ref.scenario === scenario
+    ) {
+      return ref.url;
+    }
+  }
+  return null;
 }
 
 /**
@@ -360,3 +454,5 @@ export function parseEnergyDataset(
   }
   return { building, year, granularity, scenario, metrics };
 }
+
+export type { ObservationRef };

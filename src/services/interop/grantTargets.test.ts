@@ -8,37 +8,48 @@ import {
 import { CONSUMPTION_NS, GRAN_HAS_ENERGY_CERTIFICATE } from "../rdf/vocabularies.ts";
 
 const BUILDING = "https://a.example/granergize/buildings/b-1.ttl";
-const ENERGY = `${BUILDING.replace(/\.ttl$/, "")}/energy`;
+const OBS = "https://a.example/granergize/observations";
 const FILES = `${BUILDING.replace(/\.ttl$/, "")}/files/`;
 const LEGACY_CERT = "https://a.example/granergize/certificates/b-1-cert.pdf";
+
+// Time-first dataset descriptor IRIs (random ids stand in as fixed test stems).
+const DS_2024_P1Y = `${OBS}/2024/a1.ttl`;
+const DS_2024_PT15M = `${OBS}/2024/a2.ttl`;
+const DS_2024_PLANNED = `${OBS}/2024/a3.ttl`;
+const DS_2023_P1Y = `${OBS}/2023/a4.ttl`;
+const YEAR_2024 = `${OBS}/2024/`;
 
 /** Building linking four datasets across two years/scenarios + a legacy cert. */
 const BUILDING_TTL = `
 @prefix cons: <${CONSUMPTION_NS}> .
 <${BUILDING}#b-1>
-  cons:hasEnergyDataset <${ENERGY}/2024-P1Y.ttl#ds> ,
-                        <${ENERGY}/2024-PT15M.ttl#ds> ,
-                        <${ENERGY}/2024-P1Y-planned.ttl#ds> ,
-                        <${ENERGY}/2023-P1Y.ttl#ds> ;
+  cons:hasEnergyDataset <${DS_2024_P1Y}#ds> ,
+                        <${DS_2024_PT15M}#ds> ,
+                        <${DS_2024_PLANNED}#ds> ,
+                        <${DS_2023_P1Y}#ds> ;
   <${GRAN_HAS_ENERGY_CERTIFICATE}> <${LEGACY_CERT}> .
+<${DS_2024_P1Y}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
+<${DS_2024_PT15M}#ds> cons:granularity "PT15M" ; cons:scenario cons:Actual .
+<${DS_2024_PLANNED}#ds> cons:granularity "P1Y" ; cons:scenario cons:Planned .
+<${DS_2023_P1Y}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
 `;
 
 const store = () => new Store(new Parser({ baseIRI: BUILDING }).parse(BUILDING_TTL));
 
-Deno.test("energyTargetsFromStore: every dataset + the series container, no filter", () => {
+Deno.test("energyTargetsFromStore: every dataset + the series' year container, no filter", () => {
   const set = new Set(energyTargetsFromStore(store()).map((t) => t.url));
-  assert.ok(set.has(`${ENERGY}/2024-P1Y.ttl`));
-  assert.ok(set.has(`${ENERGY}/2024-PT15M.ttl`));
-  assert.ok(set.has(`${ENERGY}/2024-P1Y-planned.ttl`));
-  assert.ok(set.has(`${ENERGY}/2023-P1Y.ttl`));
-  assert.ok(set.has(`${ENERGY}/2024-PT15M/`), "series daily-files container");
+  assert.ok(set.has(DS_2024_P1Y));
+  assert.ok(set.has(DS_2024_PT15M));
+  assert.ok(set.has(DS_2024_PLANNED));
+  assert.ok(set.has(DS_2023_P1Y));
+  assert.ok(set.has(YEAR_2024), "series day-chunks' year container");
   assert.strictEqual(set.size, 5);
 });
 
 Deno.test("energyTargetsFromStore: years:[2024] drops 2023, keeps the 2024 series container", () => {
   const set = new Set(energyTargetsFromStore(store(), [2024]).map((t) => t.url));
-  assert.ok(!set.has(`${ENERGY}/2023-P1Y.ttl`));
-  assert.ok(set.has(`${ENERGY}/2024-PT15M/`));
+  assert.ok(!set.has(DS_2023_P1Y));
+  assert.ok(set.has(YEAR_2024));
   assert.strictEqual(set.size, 4);
 });
 
@@ -47,7 +58,7 @@ Deno.test("buildingTargetsFromStore: full grant set = file + files/ + legacy cer
   assert.ok(set.has(BUILDING), "building file");
   assert.ok(set.has(FILES), "files/ container");
   assert.ok(set.has(LEGACY_CERT), "legacy certificate outside files/");
-  assert.ok(set.has(`${ENERGY}/2024-P1Y.ttl`), "energy datasets included");
+  assert.ok(set.has(DS_2024_P1Y), "energy datasets included");
   // files/ is a container (acl:default); the building file is not.
   const targets = buildingTargetsFromStore(store(), BUILDING);
   assert.strictEqual(targets.find((t) => t.url === FILES)!.isContainer, true);
@@ -89,5 +100,5 @@ Deno.test("buildingTargetsFromStore: includeEnergyData:false keeps only file + f
   assert.ok(set.has(BUILDING));
   assert.ok(set.has(FILES));
   // The legacy cert stays (it isn't energy data); no datasets.
-  assert.ok(!set.has(`${ENERGY}/2024-P1Y.ttl`));
+  assert.ok(!set.has(DS_2024_P1Y));
 });

@@ -2,12 +2,13 @@ import { Box, Stack, Typography } from "@mui/material";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import type { BuildingType } from "../../types.ts";
 import { RefLink } from "../detail/DetailView.tsx";
+import { observationRoute } from "../../routes.ts";
 
 /**
  * A compact energy summary on the building page — NOT the full charts. It reads the
  * building's `cons:hasEnergyDataset` links (already on the building, no extra
  * fetch) to report how many years are present and the latest one, then links to
- * the full energy page (`/energy/:id`) for the charts and per-year entry.
+ * the full observation page (`/observation/:id`) for the charts and per-year entry.
  */
 export default function EnergySummarySection(
   { building }: { building: BuildingType },
@@ -15,8 +16,8 @@ export default function EnergySummarySection(
   const datasets = building.energyDatasets ?? [];
   const years = [...new Set(datasets.map((d) => d.year))].sort((a, b) => a - b);
   const latestYear = years.length > 0 ? years[years.length - 1] : null;
-  // The energy page resolves the same :selectedBuilding param the routes encode.
-  const energyHref = `/energy/${encodeURIComponent(building.id)}`;
+  // The observation page resolves the same :selectedBuilding param the routes encode.
+  const energyHref = observationRoute(building.id);
 
   return (
     <Box>

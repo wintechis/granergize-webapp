@@ -6,12 +6,12 @@ import {
   getStorageRoot,
   resolveStorageRoot,
 } from "./services/pod/solidUtils.ts";
-import { HOME } from "./routes.ts";
+import { DETAIL_PATTERNS, HOME } from "./routes.ts";
 import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Energy from "./pages/Energy.tsx";
 import Contact from "./pages/Contact.tsx";
-import AggregatedView from "./pages/AggregatedView.tsx";
+import Aggregation from "./pages/Aggregation.tsx";
 import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -110,8 +110,8 @@ function EnergyWrapper() {
   );
 }
 
-function AggregatedViewWrapper({ session }: { session: Session }) {
-  return <AggregatedView session={session} />;
+function AggregationWrapper({ session }: { session: Session }) {
+  return <Aggregation session={session} />;
 }
 
 /** Resolve the `:webId` route param (URL-encoded) and render the agent detail view. */
@@ -237,14 +237,15 @@ function App({ onLogout, session }: AppProps) {
     return <ActivityScreen title="Loading…" />;
   }
 
-  // Routes expressed as a data table, then rendered by mapping to <Route>. Paths
-  // and param names are the *current* grammar (kept exactly); the routes.ts
-  // DETAIL_PATTERNS / collection renames belong to a later lane.
+  // Routes expressed as a data table, then rendered by mapping to <Route>. The
+  // observation + aggregation detail have adopted the routes.ts grammar
+  // (`/observation/:id`, `/aggregation/:id`); the remaining building/contact/room
+  // renames belong to later lanes.
   const routeTable: { path: string; element: ReactNode }[] = [
     { path: HOME, element: <Index onLogout={onLogout} session={session} /> },
     { path: "/building/:selectedBuilding", element: <BuildingWrapper /> },
-    { path: "/energy/:selectedBuilding", element: <EnergyWrapper /> },
-    { path: "/view/:viewId", element: <AggregatedViewWrapper session={session} /> },
+    { path: "/observation/:selectedBuilding", element: <EnergyWrapper /> },
+    { path: DETAIL_PATTERNS.aggregation, element: <AggregationWrapper session={session} /> },
     { path: "/contact/:webId", element: <ContactWrapper /> },
     { path: "/room/:roomUri", element: <RoomDeepLink session={session} /> },
   ];

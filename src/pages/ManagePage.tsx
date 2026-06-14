@@ -1,5 +1,6 @@
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
+import { aggregationRoute } from "../routes.ts";
 import { useMemo, useState } from "react";
 import {
   Box,
@@ -19,25 +20,25 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useNavigate } from "react-router-dom";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
-  AggregatedViewDefinition,
+  AggregationDefinition,
   BuildingType,
 } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
   useSharedBuildings,
-  useSharedViews,
+  useSharedAggregations,
   useSolidData,
-  useViewDefinitions,
+  useAggregationDefinitions,
 } from "../hooks/queries.ts";
 import {
   useDeleteBuilding,
-  useDeleteView,
-  useRefreshView,
+  useDeleteAggregation,
+  useRefreshAggregation,
   useRevokeBuildingAccess,
-  useRevokeViewAccess,
+  useRevokeAggregationAccess,
 } from "../hooks/mutations.ts";
-import { getSnapshotUri } from "../services/aggregation/viewManager.ts";
+import { getSnapshotUri } from "../services/aggregation/aggregationManager.ts";
 import { attachAnnualData } from "../services/rdf/building/buildingSerializer.ts";
 import { buildingsToXlsx } from "../services/rdf/buildingWorkbook.ts";
 import { buildBuildingDeletionPreview } from "../services/buildingActions.ts";
@@ -57,8 +58,8 @@ import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import AddBuildingDialog from "../components/AddBuildingDialog.tsx";
-import ShareViewDialog from "../components/ShareViewDialog.tsx";
-import CreateViewDialog from "../components/CreateViewDialog.tsx";
+import ShareAggregationDialog from "../components/ShareAggregationDialog.tsx";
+import CreateAggregationDialog from "../components/CreateAggregationDialog.tsx";
 
 interface ManagePageProps {
   session: Session;
@@ -69,7 +70,7 @@ interface ManagePageProps {
  * name navigates to the building page (/building/:id, where edit / files /
  * energy / share / download all live) and the row carries one destructive
  * action (delete); each row still shows who it's shared with (and revokes) — and
- * aggregated views you build from your (and shared-in) data: create / share /
+ * aggregations you build from your (and shared-in) data: create / share /
  * revoke / refresh / delete. This is the single home for outgoing data: the
  * map's detail pane is view-only, and SHARE shows only what others shared with you.
  */
@@ -85,9 +86,9 @@ export default function ManagePage({ session }: ManagePageProps) {
 
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
-  const [createViewOpen, setCreateViewOpen] = useState(false);
-  const [viewToShare, setViewToShare] = useState<
-    AggregatedViewDefinition | null
+  const [createAggregationOpen, setCreateAggregationOpen] = useState(false);
+  const [aggregationToShare, setAggregationToShare] = useState<
+    AggregationDefinition | null
   >(null);
 
   // buildingUri → WebIDs it is shared with.
@@ -98,17 +99,17 @@ export default function ManagePage({ session }: ManagePageProps) {
     return map;
   }, [sharedQuery.data]);
 
-  const viewDefsQuery = useViewDefinitions();
-  const viewDefinitions = viewDefsQuery.data ?? [];
-  const viewPaging = usePaging(viewDefinitions);
-  const sharedViewsQuery = useSharedViews();
-  const sharedViews = sharedViewsQuery.data ?? [];
+  const aggregationDefsQuery = useAggregationDefinitions();
+  const aggregationDefinitions = aggregationDefsQuery.data ?? [];
+  const aggregationPaging = usePaging(aggregationDefinitions);
+  const sharedAggregationsQuery = useSharedAggregations();
+  const sharedAggregations = sharedAggregationsQuery.data ?? [];
 
   const deleteBuilding = useDeleteBuilding();
   const revoke = useRevokeBuildingAccess();
-  const refreshView = useRefreshView();
-  const deleteViewMut = useDeleteView();
-  const revokeView = useRevokeViewAccess();
+  const refreshAggregation = useRefreshAggregation();
+  const deleteAggregationMut = useDeleteAggregation();
+  const revokeAggregation = useRevokeAggregationAccess();
 
   const handleDelete = async (building: BuildingType) => {
     // Build the "what will be removed" preview, confirm, then delete (the
@@ -145,45 +146,45 @@ export default function ManagePage({ session }: ManagePageProps) {
     }
   };
 
-  const handleRefreshView = (viewId: string) =>
-    refreshView.mutate(viewId, {
-      onSuccess: () => showNotification("View snapshot refreshed", "success"),
+  const handleRefreshAggregation = (aggregationId: string) =>
+    refreshAggregation.mutate(aggregationId, {
+      onSuccess: () => showNotification("Aggregation snapshot refreshed", "success"),
     });
 
-  const handleDeleteView = async (viewId: string) => {
+  const handleDeleteAggregation = async (aggregationId: string) => {
     if (
       !await confirm({
-        title: "Delete view",
+        title: "Delete aggregation",
         message:
-          "Delete this view? This also revokes access for everyone it is shared with.",
+          "Delete this aggregation? This also revokes access for everyone it is shared with.",
         confirmLabel: "Delete",
       })
     ) {
       return;
     }
-    deleteViewMut.mutate(viewId, {
-      onSuccess: () => showNotification("View deleted", "success"),
+    deleteAggregationMut.mutate(aggregationId, {
+      onSuccess: () => showNotification("Aggregation deleted", "success"),
     });
   };
 
-  const handleRevokeViewAccess = async (snapshotUri: string, webId: string) => {
+  const handleRevokeAggregationAccess = async (snapshotUri: string, webId: string) => {
     if (
       !await confirm({
-        title: "Revoke view access",
-        message: `Revoke view access for ${webId}?`,
+        title: "Revoke aggregation access",
+        message: `Revoke aggregation access for ${webId}?`,
         confirmLabel: "Revoke",
       })
     ) return;
-    revokeView.mutate({ snapshotUri, webId }, {
-      onSuccess: () => showNotification("View access revoked", "success"),
+    revokeAggregation.mutate({ snapshotUri, webId }, {
+      onSuccess: () => showNotification("Aggregation access revoked", "success"),
     });
   };
 
-  const getViewSharedWith = (viewId: string): string[] => {
+  const getAggregationSharedWith = (aggregationId: string): string[] => {
     const webId = session.info.webId;
     if (!webId) return [];
-    const snapshotUri = getSnapshotUri(webId, viewId);
-    const shared = sharedViews.find((sv) => sv.snapshotUri === snapshotUri);
+    const snapshotUri = getSnapshotUri(webId, aggregationId);
+    const shared = sharedAggregations.find((sv) => sv.snapshotUri === snapshotUri);
     return shared?.sharedWith || [];
   };
 
@@ -308,9 +309,9 @@ export default function ManagePage({ session }: ManagePageProps) {
 
       <section>
         <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
-          Aggregated views
+          Aggregations
         </Typography>
-        {rdf && <RdfSourceLink href={rdf.views} />}
+        {rdf && <RdfSourceLink href={rdf.aggregations} />}
         <Stack
           direction="row"
           spacing={1.5}
@@ -319,47 +320,47 @@ export default function ManagePage({ session }: ManagePageProps) {
           <Button
             variant="outlined"
             startIcon={<AddIcon />}
-            onClick={() => setCreateViewOpen(true)}
+            onClick={() => setCreateAggregationOpen(true)}
           >
-            Create View
+            Create aggregation
           </Button>
         </Stack>
-        {viewDefsQuery.isLoading
+        {aggregationDefsQuery.isLoading
           ? <Typography variant="body2">Loading…</Typography>
-          : viewDefinitions.length === 0
+          : aggregationDefinitions.length === 0
           ? (
             <Typography variant="body2">
-              No aggregated views yet. Create one to aggregate energy values
+              No aggregations yet. Create one to aggregate energy values
               across buildings.
             </Typography>
           )
           : (
             <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
-              {viewPaging.pageItems.map((view) => {
-                const sharedWith = getViewSharedWith(view.id);
+              {aggregationPaging.pageItems.map((aggregation) => {
+                const sharedWith = getAggregationSharedWith(aggregation.id);
                 return (
                   <ResourceRow
-                    key={view.id}
-                    title={<strong>{view.name}</strong>}
+                    key={aggregation.id}
+                    title={<strong>{aggregation.name}</strong>}
                     subtitle={
                       <>
-                        Type: {view.aggregationType} | Buildings:{" "}
-                        {view.buildingUris.length} | Metrics:{" "}
-                        {view.metrics.length}
+                        Type: {aggregation.aggregationType} | Buildings:{" "}
+                        {aggregation.buildingUris.length} | Metrics:{" "}
+                        {aggregation.metrics.length}
                         <br />
-                        Created: {formatDate(view.createdAt)}
-                        {view.lastComputedAt &&
-                          ` | Last computed: ${formatDate(view.lastComputedAt)}`}
+                        Created: {formatDate(aggregation.createdAt)}
+                        {aggregation.lastComputedAt &&
+                          ` | Last computed: ${formatDate(aggregation.lastComputedAt)}`}
                       </>
                     }
                     actions={
                       <>
-                        <Tooltip title="View details">
+                        <Tooltip title="Aggregation details">
                           <IconButton
                             size="small"
-                            aria-label="View details"
+                            aria-label="Aggregation details"
                             onClick={() =>
-                              navigate(`/view/${encodeURIComponent(view.id)}`)}
+                              navigate(aggregationRoute(aggregation.id))}
                           >
                             <VisibilityIcon fontSize="small" />
                           </IconButton>
@@ -369,31 +370,31 @@ export default function ManagePage({ session }: ManagePageProps) {
                             <IconButton
                               size="small"
                               aria-label="Refresh snapshot"
-                              onClick={() => handleRefreshView(view.id)}
-                              disabled={refreshView.isPending &&
-                                refreshView.variables === view.id}
+                              onClick={() => handleRefreshAggregation(aggregation.id)}
+                              disabled={refreshAggregation.isPending &&
+                                refreshAggregation.variables === aggregation.id}
                             >
                               <RefreshIcon />
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title="Share view">
+                        <Tooltip title="Share aggregation">
                           <IconButton
                             size="small"
-                            aria-label="Share view"
-                            onClick={() => setViewToShare(view)}
+                            aria-label="Share aggregation"
+                            onClick={() => setAggregationToShare(aggregation)}
                           >
                             <ShareIcon />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Delete view">
+                        <Tooltip title="Delete aggregation">
                           <span>
                             <IconButton
                               size="small"
-                              aria-label="Delete view"
-                              onClick={() => handleDeleteView(view.id)}
-                              disabled={deleteViewMut.isPending &&
-                                deleteViewMut.variables === view.id}
+                              aria-label="Delete aggregation"
+                              onClick={() => handleDeleteAggregation(aggregation.id)}
+                              disabled={deleteAggregationMut.isPending &&
+                                deleteAggregationMut.variables === aggregation.id}
                             >
                               <DeleteIcon />
                             </IconButton>
@@ -402,7 +403,7 @@ export default function ManagePage({ session }: ManagePageProps) {
                       </>
                     }
                   >
-                    {sharedViewsQuery.isLoading
+                    {sharedAggregationsQuery.isLoading
                       ? (
                         <Typography variant="caption" color="text.secondary">
                           Shared with: Loading…
@@ -413,15 +414,15 @@ export default function ManagePage({ session }: ManagePageProps) {
                           agents={sharedWith}
                           label="Shared with:"
                           onRevoke={(webId) =>
-                            handleRevokeViewAccess(
-                              getSnapshotUri(session.info.webId!, view.id),
+                            handleRevokeAggregationAccess(
+                              getSnapshotUri(session.info.webId!, aggregation.id),
                               webId,
                             )}
                           isRevoking={(webId) =>
-                            revokeView.isPending &&
-                            revokeView.variables?.snapshotUri ===
-                              getSnapshotUri(session.info.webId!, view.id) &&
-                            revokeView.variables?.webId === webId}
+                            revokeAggregation.isPending &&
+                            revokeAggregation.variables?.snapshotUri ===
+                              getSnapshotUri(session.info.webId!, aggregation.id) &&
+                            revokeAggregation.variables?.webId === webId}
                         />
                       )}
                   </ResourceRow>
@@ -429,10 +430,10 @@ export default function ManagePage({ session }: ManagePageProps) {
               })}
             </Box>
           )}
-        <Pager paging={viewPaging} />
+        <Pager paging={aggregationPaging} />
       </section>
 
-      {/* Outgoing-share log — the append-only record of buildings and views you've
+      {/* Outgoing-share log — the append-only record of buildings and aggregations you've
           shared out (and revoked). It backs the "Shared with" badges above; the
           symmetric incoming side (shared-in/ + inbox) lives on the Share tab.
           Developer-mode only: this exposes the raw log container. */}
@@ -450,18 +451,18 @@ export default function ManagePage({ session }: ManagePageProps) {
         autostartImport={importMode}
         onClose={() => setAddOpen(false)}
       />
-      {viewToShare && (
-        <ShareViewDialog
-          view={viewToShare}
+      {aggregationToShare && (
+        <ShareAggregationDialog
+          aggregation={aggregationToShare}
           open
-          onClose={() => setViewToShare(null)}
+          onClose={() => setAggregationToShare(null)}
           session={session}
         />
       )}
-      <CreateViewDialog
-        open={createViewOpen}
+      <CreateAggregationDialog
+        open={createAggregationOpen}
         buildings={buildings}
-        onClose={() => setCreateViewOpen(false)}
+        onClose={() => setCreateAggregationOpen(false)}
       />
     </Box>
   );

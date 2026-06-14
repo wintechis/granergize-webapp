@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
-import { buildingRows } from "../helpers/manage.ts";
+import { buildingRows, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -53,7 +53,7 @@ test.describe("building deletion", () => {
   test("a building can be added and then deleted from Manage", async () => {
     test.setTimeout(T.testSolo);
 
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     const addBtn = page.getByRole("button", {
       name: "Add Building",
       exact: true,

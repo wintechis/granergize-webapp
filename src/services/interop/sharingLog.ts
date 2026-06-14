@@ -32,7 +32,7 @@ const { namedNode } = DataFactory;
  *      interop:forResource    <resource-uri> ;
  *      interop:accessMode     acl:Read ;
  *      gran:kind              rec:Building ;      # the shared resource's class:
- *      prov:generatedAtTime   "…"^^xsd:dateTime . # rec:Building | cons:View
+ *      prov:generatedAtTime   "…"^^xsd:dateTime . # rec:Building | cons:Aggregation
  *
  * A revocation is `a interop:AccessRevocation` with the same (grantee, resource)
  * and a later time, and no accessMode/kind. Current state = fold the log: group
@@ -41,7 +41,7 @@ const { namedNode } = DataFactory;
  * logs are the app's *record* (history) and the only way a recipient learns of an
  * inbound grant (it lives in the sharer's `.acl`, reachable only via the inbox).
  */
-export type SharingKind = "Building" | "View";
+export type SharingKind = "Building" | "Aggregation";
 
 export interface SharingEvent {
   type: "grant" | "revocation";
@@ -87,7 +87,7 @@ const KIND = namedNode(`${GRAN_NS}kind`);
 /** Sharing kind ↔ the shared resource's class IRI (the `gran:kind` value). */
 const KIND_TO_IRI: Record<SharingKind, string> = {
   Building: REC_BUILDING,
-  View: `${CONSUMPTION_NS}View`,
+  Aggregation: `${CONSUMPTION_NS}Aggregation`,
 };
 
 /** Serialize one event resource (subject `<>` — the resource *is* the event). */
@@ -155,8 +155,8 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
       const owner = store.getObjects(subj, WAS_ASSOCIATED_WITH, null)[0]?.value ??
         "";
       const kindIri = store.getObjects(subj, KIND, null)[0]?.value;
-      const kind: SharingKind | undefined = kindIri === KIND_TO_IRI.View
-        ? "View"
+      const kind: SharingKind | undefined = kindIri === KIND_TO_IRI.Aggregation
+        ? "Aggregation"
         : kindIri === KIND_TO_IRI.Building
         ? "Building"
         : undefined;

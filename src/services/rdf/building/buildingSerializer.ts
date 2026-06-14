@@ -1,6 +1,6 @@
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { DataFactory, Store, Writer } from "n3";
-import type { BuildingType, AnnualData } from "../../../types.ts";
+import { DataFactory, Parser, Store, Writer } from "n3";
+import type { AnnualData, BuildingType, Scenario } from "../../../types.ts";
 import {
   BOOLEAN_FIELDS,
   DECIMAL_FIELDS,
@@ -34,7 +34,12 @@ import {
   datasetFileUri,
   datasetNodeUri,
   type EnergyDataset,
+  findDatasetLink,
+  listSeriesDays,
   loadEnergyDatasets,
+  mintDatasetId,
+  observationsRootForBuilding,
+  parseEnergyDatasetRefs,
   serializeEnergyDataset,
   seriesContainerUri,
   seriesDailyFileUri,
@@ -44,7 +49,7 @@ import { getStorageRoot, podResources } from "../../pod/solidUtils.ts";
 import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";
 import { logError } from "../../../lib/logError.ts";
 import { mapPooled } from "../../../lib/pool.ts";
-import { deleteContainerRecursive, listDirectChildren } from "../../pod/podDelete.ts";
+import { listDirectChildren } from "../../pod/podDelete.ts";
 import { geocodeFields } from "../../geocode.ts";
 import { mintLocalIri } from "../rdfHelpers.ts";
 import { buildingFileUri, mintBuildingSubject } from "./buildingId.ts";
@@ -343,15 +348,25 @@ function addProvenance(
  * All values are strings; numeric/boolean XSD types are applied by field name.
  * Object-property fields (shiftRegime, tenancyType, indoorTemperatureClass)
  * expect local names like "OneShift" and are expanded to full IRIs.
- * Energy is NOT inlined: each dataset is its own resource (see
- * {@link writeBuildingEnergy}); pass the dataset node URLs to emit as
- * `cons:hasEnergyDataset` links. `provenance`, when given, is recorded as a
- * PROV-O qualified attribution (the producing agent only).
+ * Energy is NOT inlined: each dataset is its own first-class observation
+ * resource (see {@link writeBuildingEnergy}); pass {@link EnergyDatasetLink}s to
+ * emit each as a `cons:hasEnergyDataset` link PLUS the `cons:granularity` /
+ * `cons:scenario` triples re-stated about the dataset node, so phase-1 can
+ * dispatch load (series lazy, annual prefetched) without fetching the dataset.
+ * `provenance`, when given, is recorded as a PROV-O qualified attribution (the
+ * producing agent only).
  */
+export interface EnergyDatasetLink {
+  /** The dataset node IRI (the time-first `observations/…/{id}.ttl#ds`). */
+  url: string;
+  granularity: string;
+  scenario: Scenario;
+}
+
 export function serializeBuildingToTurtle(
   fields: Record<string, string>,
   buildingUri: string,
-  energyDatasetUris?: string[],
+  energyDatasets?: EnergyDatasetLink[],
   provenance?: { agent: string },
 ): string {
   const store = new Store();
@@ -380,9 +395,25 @@ export function serializeBuildingToTurtle(
   if (provenance) addProvenance(store, subject, provenance);
 
   // Unified energy model: link each cons:EnergyDataset resource (written
-  // separately by writeBuildingEnergy). One predicate, no inline observations.
-  for (const url of energyDatasetUris ?? []) {
-    store.addQuad(subject, namedNode(`${CONSUMPTION_NS}hasEnergyDataset`), namedNode(url));
+  // separately by writeBuildingEnergy). One predicate, no inline observations —
+  // plus the dataset's granularity/scenario re-stated so phase-1 needn't fetch.
+  for (const ds of energyDatasets ?? []) {
+    const node = namedNode(ds.url);
+    store.addQuad(subject, namedNode(`${CONSUMPTION_NS}hasEnergyDataset`), node);
+    store.addQuad(
+      node,
+      namedNode(`${CONSUMPTION_NS}granularity`),
+      literal(ds.granularity),
+    );
+    store.addQuad(
+      node,
+      namedNode(`${CONSUMPTION_NS}scenario`),
+      namedNode(
+        ds.scenario === "planned"
+          ? `${CONSUMPTION_NS}Planned`
+          : `${CONSUMPTION_NS}Actual`,
+      ),
+    );
   }
 
   return new Writer({ format: "text/turtle" }).quadsToString(
@@ -391,10 +422,50 @@ export function serializeBuildingToTurtle(
 }
 
 /**
+ * Add (or overwrite) the building's `cons:hasEnergyDataset` link to a dataset
+ * node, re-stating its `cons:granularity`/`cons:scenario` so phase-1 can
+ * dispatch without fetching. Idempotent: clears any prior triples for that node
+ * before re-adding. Run inside a {@link readModifyWrite} of the building file.
+ */
+function linkEnergyDatasetInStore(
+  store: Store,
+  buildingSubjectUri: string,
+  link: EnergyDatasetLink,
+): void {
+  const subject = namedNode(buildingSubjectUri);
+  const node = namedNode(link.url);
+  const pred = namedNode(`${CONSUMPTION_NS}hasEnergyDataset`);
+  store.removeQuads(store.getQuads(subject, pred, node, null));
+  store.removeQuads(
+    store.getQuads(node, namedNode(`${CONSUMPTION_NS}granularity`), null, null),
+  );
+  store.removeQuads(
+    store.getQuads(node, namedNode(`${CONSUMPTION_NS}scenario`), null, null),
+  );
+  store.addQuad(subject, pred, node);
+  store.addQuad(
+    node,
+    namedNode(`${CONSUMPTION_NS}granularity`),
+    literal(link.granularity),
+  );
+  store.addQuad(
+    node,
+    namedNode(`${CONSUMPTION_NS}scenario`),
+    namedNode(
+      link.scenario === "planned"
+        ? `${CONSUMPTION_NS}Planned`
+        : `${CONSUMPTION_NS}Actual`,
+    ),
+  );
+}
+
+/**
  * Write (or overwrite) a single year's annual `cons:EnergyDataset` resource and
- * ensure the building links it via `cons:hasEnergyDataset`. The slug encodes the
- * (year, granularity, scenario), so re-saving the same one replaces it — used by
- * the per-year energy entry form (actual or planned/Soll figures).
+ * ensure the building links it via `cons:hasEnergyDataset`. Datasets are
+ * time-first under `observations/`; the building's existing links locate the one
+ * matching (year, granularity, scenario), so re-saving overwrites it in place —
+ * otherwise a fresh id is minted. Used by the per-year energy entry form (actual
+ * or planned/Soll figures).
  * @operation mutation
  */
 export async function writeEnergyYear(
@@ -403,12 +474,18 @@ export async function writeEnergyYear(
   buildingSubjectUri: string,
   ds: EnergyDataset,
 ): Promise<void> {
-  const fileUri = datasetFileUri(
-    buildingFileUri,
-    ds.year,
-    ds.granularity,
-    ds.scenario,
-  );
+  const root = observationsRootForBuilding(buildingFileUri);
+
+  // Reuse the existing dataset's id when this (year, granularity, scenario) is
+  // already linked, so a re-save overwrites it rather than orphaning a file.
+  const store = await readBuildingStore(session, buildingFileUri);
+  const reuse = store
+    ? findDatasetLink(store, buildingSubjectUri, ds.year, ds.granularity, ds.scenario)
+    : null;
+  const nodeUri = reuse ??
+    datasetNodeUri(datasetFileUri(root, ds.year, mintDatasetId()));
+  const fileUri = nodeUri.split("#")[0];
+
   const put = await session.fetch(fileUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
@@ -418,15 +495,28 @@ export async function writeEnergyYear(
     throw new Error(`Failed to write energy dataset: ${put.status} ${put.statusText}`);
   }
 
-  const link = namedNode(datasetNodeUri(fileUri));
-  const subject = namedNode(buildingSubjectUri);
-  const pred = namedNode(`${CONSUMPTION_NS}hasEnergyDataset`);
-  await readModifyWrite(buildingFileUri, session, (store, { created }) => {
+  await readModifyWrite(buildingFileUri, session, (s, { created }) => {
     if (created) return false; // the building file must already exist
-    if (store.getQuads(subject, pred, link, null).length === 0) {
-      store.addQuad(subject, pred, link);
-    }
+    linkEnergyDatasetInStore(s, buildingSubjectUri, {
+      url: nodeUri,
+      granularity: ds.granularity,
+      scenario: ds.scenario,
+    });
   });
+}
+
+/** Fetch + parse the building file into a store, or null if missing/unreadable. */
+async function readBuildingStore(
+  session: Session,
+  buildingFileUri: string,
+): Promise<Store | null> {
+  try {
+    const res = await session.fetch(buildingFileUri);
+    if (!res.ok) return null;
+    return new Store(new Parser({ baseIRI: buildingFileUri }).parse(await res.text()));
+  } catch {
+    return null;
+  }
 }
 
 /**
@@ -443,12 +533,15 @@ export async function deleteEnergyYear(
   buildingSubjectUri: string,
   ds: Pick<EnergyDataset, "year" | "granularity" | "scenario">,
 ): Promise<void> {
-  const fileUri = datasetFileUri(
-    buildingFileUri,
-    ds.year,
-    ds.granularity,
-    ds.scenario,
-  );
+  // Locate the linked dataset by (year, granularity, scenario) — the time-first
+  // path no longer encodes those, so the building's own links are the index.
+  const store = await readBuildingStore(session, buildingFileUri);
+  const nodeUri = store
+    ? findDatasetLink(store, buildingSubjectUri, ds.year, ds.granularity, ds.scenario)
+    : null;
+  if (!nodeUri) return; // nothing linked — already gone
+
+  const fileUri = nodeUri.split("#")[0];
   const del = await session.fetch(fileUri, { method: "DELETE" });
   if (!del.ok && del.status !== 404) {
     throw new Error(
@@ -461,14 +554,16 @@ export async function deleteEnergyYear(
   );
 
   // Unlink it from the building file (skip the PUT when there's nothing to remove).
-  const link = namedNode(datasetNodeUri(fileUri));
+  const link = namedNode(nodeUri);
   const subject = namedNode(buildingSubjectUri);
   const pred = namedNode(`${CONSUMPTION_NS}hasEnergyDataset`);
-  await readModifyWrite(buildingFileUri, session, (store, { created }) => {
+  await readModifyWrite(buildingFileUri, session, (s, { created }) => {
     if (created) return false; // building file gone — nothing to unlink
-    const quads = store.getQuads(subject, pred, link, null);
+    const quads = s.getQuads(subject, pred, link, null);
     if (quads.length === 0) return false;
-    for (const q of quads) store.removeQuad(q);
+    for (const q of quads) s.removeQuad(q);
+    s.removeQuads(s.getQuads(link, namedNode(`${CONSUMPTION_NS}granularity`), null, null));
+    s.removeQuads(s.getQuads(link, namedNode(`${CONSUMPTION_NS}scenario`), null, null));
   });
 }
 
@@ -555,11 +650,15 @@ export function annualDatasetsFromFields(
 }
 
 /**
- * Write a building's energy dataset resources and return their
- * `cons:hasEnergyDataset` link IRIs (to pass to {@link serializeBuildingToTurtle}):
- *  - annual aggregates from the field map (one `<year>-P1Y.ttl` each), and
- *  - an optional 15-minute series (daily files under `<year>-PT15M/` + the
- *    located descriptor `<year>-PT15M.ttl`).
+ * Write a building's energy dataset resources (time-first, under
+ * `observations/`) and return their {@link EnergyDatasetLink}s (to pass to
+ * {@link serializeBuildingToTurtle}):
+ *  - annual aggregates from the field map (one `observations/{year}/{id}.ttl`
+ *    each, a fresh `{id}` per dataset), and
+ *  - an optional 15-minute series: daily chunk files at
+ *    `observations/{year}/{month}/{day}/{id}.ttl` (all sharing one `{id}`) plus
+ *    the located descriptor `observations/{year}/{id}.ttl` pointing at the year
+ *    container.
  * @operation mutation
  */
 export async function writeBuildingEnergy(
@@ -574,8 +673,9 @@ export async function writeBuildingEnergy(
   },
   onProgress?: (done: number, total: number) => void,
   signal?: AbortSignal,
-): Promise<string[]> {
-  const links: string[] = [];
+): Promise<EnergyDatasetLink[]> {
+  const root = observationsRootForBuilding(buildingUri);
+  const links: EnergyDatasetLink[] = [];
 
   const putTtl = async (url: string, body: string): Promise<void> => {
     signal?.throwIfAborted();
@@ -591,28 +691,51 @@ export async function writeBuildingEnergy(
   };
 
   for (const ds of annualDatasetsFromFields(buildingSubjectUri, fields)) {
-    const fileUri = datasetFileUri(buildingUri, ds.year, ds.granularity, ds.scenario);
+    const fileUri = datasetFileUri(root, ds.year, mintDatasetId());
+    await ensureContainer(seriesContainerUri(root, ds.year), session);
     await putTtl(fileUri, serializeEnergyDataset(ds));
-    links.push(datasetNodeUri(fileUri));
+    links.push({
+      url: datasetNodeUri(fileUri),
+      granularity: ds.granularity,
+      scenario: ds.scenario,
+    });
   }
 
   if (series && series.days.length > 0) {
-    const container = seriesContainerUri(buildingUri, series.year);
-    await ensureContainer(container, session);
+    const seriesId = mintDatasetId();
+    const yearContainer = seriesContainerUri(root, series.year);
+    await ensureContainer(yearContainer, session);
     // A full year is ~365 daily files; write them with bounded concurrency.
+    // Day chunks are time-first (`{year}/{month}/{day}/{id}.ttl`), so each
+    // distinct day container is provisioned before its chunk lands.
+    const ensuredDirs = new Set<string>();
+    const ensureDayDir = async (date: string): Promise<void> => {
+      const [, mm, dd] = date.split("-");
+      const monthDir = `${yearContainer}${mm}/`;
+      const dayDir = `${monthDir}${dd}/`;
+      if (!ensuredDirs.has(monthDir)) {
+        await ensureContainer(monthDir, session);
+        ensuredDirs.add(monthDir);
+      }
+      if (!ensuredDirs.has(dayDir)) {
+        await ensureContainer(dayDir, session);
+        ensuredDirs.add(dayDir);
+      }
+    };
     const total = series.days.length;
     let done = 0;
     onProgress?.(0, total);
     await mapPooled(series.days, 8, async (day) => {
       signal?.throwIfAborted();
-      const dailyUri = seriesDailyFileUri(buildingUri, series.year, day.date);
+      await ensureDayDir(day.date);
+      const dailyUri = seriesDailyFileUri(root, day.date, seriesId);
       await putTtl(
         dailyUri,
         generateEnergyDayTtl(day.date, day.readings, buildingSubjectUri, series.label),
       );
       onProgress?.(++done, total);
     });
-    const descUri = datasetFileUri(buildingUri, series.year, "PT15M", "actual");
+    const descUri = datasetFileUri(root, series.year, seriesId);
     await putTtl(
       descUri,
       serializeEnergyDataset({
@@ -620,10 +743,14 @@ export async function writeBuildingEnergy(
         year: series.year,
         granularity: "PT15M",
         scenario: "actual",
-        datasetLocation: container,
+        datasetLocation: yearContainer,
       }),
     );
-    links.push(datasetNodeUri(descUri));
+    links.push({
+      url: datasetNodeUri(descUri),
+      granularity: "PT15M",
+      scenario: "actual",
+    });
   }
 
   return links;
@@ -708,9 +835,10 @@ export function newBuildingUri(webId: string, id: string): string {
 }
 
 /**
- * Permanently delete a building the user owns: delete its per-building energy
- * subtree (`buildings/<id>/…`, if any), then delete the building file itself.
- * Own buildings are now discovered by *listing* the `buildings/` container, so
+ * Permanently delete a building the user owns: delete its (time-first) energy
+ * datasets — each `cons:hasEnergyDataset` resource and, for a series, every
+ * day-chunk under its year container — then the building file itself. Own
+ * buildings are now discovered by *listing* the `buildings/` container, so
  * removing the file de-registers it — there's no registry to update. Refuses to
  * touch resources outside the user's own Pod (e.g. a building shared from
  * another Pod), which must only be *hidden*.
@@ -726,10 +854,22 @@ export async function deleteBuilding(
     throw new Error("Refusing to delete a building outside your own Pod");
   }
 
-  // Energy lives under a sibling container named after the building file
-  // (the ".ttl" suffix stripped); remove it best-effort.
-  await deleteContainerRecursive(`${fileUri.replace(/\.ttl$/, "")}/`, session)
-    .catch((err) => logError("delete building energy container", err));
+  // Energy datasets are first-class under observations/; delete each linked
+  // dataset (and a series' day-chunks) best-effort, from the building's links.
+  const store = await readBuildingStore(session, fileUri);
+  if (store) {
+    for (const ref of parseEnergyDatasetRefs(store, null)) {
+      const dsFile = ref.url.split("#")[0];
+      if (isSeriesGranularity(ref.granularity)) {
+        for (const { url } of await listSeriesDays(session, ref)) {
+          await session.fetch(url, { method: "DELETE" })
+            .catch((err) => logError("delete energy day chunk", err));
+        }
+      }
+      await session.fetch(dsFile, { method: "DELETE" })
+        .catch((err) => logError("delete energy dataset", err));
+    }
+  }
 
   // Delete the file directly — NOT its .acl first. Removing a resource's .acl
   // before the resource would briefly fall it back to the container's (possibly
@@ -1059,8 +1199,10 @@ export async function seedDemoBuildings(
         series,
       );
       if (demo.planned) {
-        // The extra planned (Soll) dataset — its own resource, like the actuals.
-        const fileUri = datasetFileUri(uri, demo.planned.year, "P1Y", "planned");
+        // The extra planned (Soll) dataset — its own time-first resource.
+        const root = observationsRootForBuilding(uri);
+        const fileUri = datasetFileUri(root, demo.planned.year, mintDatasetId());
+        await ensureContainer(seriesContainerUri(root, demo.planned.year), session);
         const put = await session.fetch(fileUri, {
           method: "PUT",
           headers: { "Content-Type": "text/turtle" },
@@ -1077,7 +1219,11 @@ export async function seedDemoBuildings(
             `Energy upload failed (${fileUri}): ${put.status} ${put.statusText}`,
           );
         }
-        energyLinks.push(datasetNodeUri(fileUri));
+        energyLinks.push({
+          url: datasetNodeUri(fileUri),
+          granularity: "P1Y",
+          scenario: "planned",
+        });
       }
       const ttl = serializeBuildingToTurtle(fields, uri, energyLinks, {
         agent: webId,

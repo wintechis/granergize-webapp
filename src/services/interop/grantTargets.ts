@@ -1,6 +1,10 @@
 import { DataFactory, type Store } from "n3";
 import { CONSUMPTION_NS, GRAN_HAS_ENERGY_CERTIFICATE } from "../rdf/vocabularies.ts";
-import { parseDatasetSlug } from "../rdf/energyDataset.ts";
+import {
+  observationsRootForObservation,
+  parseDatasetLink,
+  seriesContainerUri,
+} from "../rdf/energyDataset.ts";
 import { isSeriesGranularity } from "../rdf/durationUtils.ts";
 import { filesContainerFor } from "../attachmentManager.ts";
 
@@ -25,8 +29,9 @@ export interface BuildingTargetOptions {
 
 /**
  * The energy-dataset targets declared by a building's `cons:hasEnergyDataset`
- * links in an already-parsed store: each dataset file, plus a series' daily-files
- * container (`acl:default`). Year-filtered when `years` is given.
+ * links in an already-parsed store: each (time-first) dataset descriptor file,
+ * plus — for a series — its locating year container (`acl:default`, holding the
+ * scattered day-chunks). Year-filtered when `years` is given.
  */
 export function energyTargetsFromStore(
   store: Store,
@@ -40,13 +45,14 @@ export function energyTargetsFromStore(
       null,
     )
   ) {
-    const ref = parseDatasetSlug(link.value);
+    const ref = parseDatasetLink(link.value, store);
     if (!ref) continue;
     if (years && !years.includes(ref.year)) continue;
     const file = link.value.split("#")[0];
     targets.push({ url: file, isContainer: false });
     if (isSeriesGranularity(ref.granularity)) {
-      targets.push({ url: file.replace(/\.ttl$/, "/"), isContainer: true });
+      const root = observationsRootForObservation(link.value);
+      targets.push({ url: seriesContainerUri(root, ref.year), isContainer: true });
     }
   }
   return targets;

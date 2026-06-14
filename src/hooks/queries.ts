@@ -15,24 +15,24 @@ import {
   sharedOutUri,
 } from "../services/interop/sharingLog.ts";
 import {
-  receivedViewsFromGrants,
+  receivedAggregationsFromGrants,
   sharedBuildingsFromGrants,
-  sharedViewsFromGrants,
+  sharedAggregationsFromGrants,
   sharedWithMeFromGrants,
 } from "../services/interop/sharingManager.ts";
 import { readPrefs } from "../services/prefs.ts";
 import {
-  getComputedSnapshotByViewId,
+  getComputedSnapshotByAggregationId,
   getReceivedBenchmarksFor,
-  getViewDefinition,
-  getViewDefinitions,
+  getAggregationDefinition,
+  getAggregationDefinitions,
   loadComputedSnapshot,
-} from "../services/aggregation/viewManager.ts";
+} from "../services/aggregation/aggregationManager.ts";
 import {
   loadSharedBuilding,
   type SharedBuildingEntry,
 } from "../services/interop/sharedBuilding.ts";
-import { refreshSnapshot } from "../services/aggregation/viewComputer.ts";
+import { refreshSnapshot } from "../services/aggregation/aggregationComputer.ts";
 import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
 import { readContacts } from "../services/contacts.ts";
 import {
@@ -49,8 +49,8 @@ import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { fetchFresh } from "../services/pod/podFetch.ts";
 import { emitNotification } from "../lib/notificationSink.ts";
 import type {
-  AggregatedViewDefinition,
-  AggregatedViewSnapshot,
+  AggregationDefinition,
+  AggregationSnapshot,
   AnnualData,
   BuildingType,
   EnergyType,
@@ -140,7 +140,7 @@ function useDeriveFromQuery<TData, TOut>(
 
 /**
  * The folded `shared-in/` log — THE one fold per load. Everything "shared with
- * me" (shared building sources, the Share-tab list, received views, received
+ * me" (shared building sources, the Share-tab list, received aggregations, received
  * benchmarks) derives from this query's data instead of folding the log again;
  * with N events a fold costs a container listing + N GETs, so the dedup is the
  * difference between 1× and 4× that per load.
@@ -153,7 +153,7 @@ export function useSharedInGrants() {
 }
 
 /** The folded `shared-out/` log — see {@link useSharedInGrants}; the
- * shared-buildings and shared-views lists derive from it. */
+ * shared-buildings and shared-aggregations lists derive from it. */
 export function useSharedOutGrants() {
   return useWebIdQuery(
     queryKeys.sharedOutLog,
@@ -300,23 +300,23 @@ export function useSharedBuildings() {
   return useDeriveFromQuery(useSharedOutGrants(), sharedBuildingsFromGrants);
 }
 
-export function useViewDefinitions() {
+export function useAggregationDefinitions() {
   return useWebIdQuery(
-    queryKeys.viewDefinitions,
-    (session) => getViewDefinitions(session),
+    queryKeys.aggregationDefinitions,
+    (session) => getAggregationDefinitions(session),
   );
 }
 
-export interface ViewDetail {
-  definition: AggregatedViewDefinition | null;
-  snapshot: AggregatedViewSnapshot | null;
+export interface AggregationDetail {
+  definition: AggregationDefinition | null;
+  snapshot: AggregationSnapshot | null;
   /** Set when the snapshot auto-materialise failed; the page surfaces it inline. */
   computeError?: unknown;
 }
 
 /**
- * One view's standalone-page data (/view/:id): definition + computed snapshot,
- * keyed by view id. A definition without a snapshot — a freshly created view —
+ * One aggregation's standalone-page data (/aggregation/:id): definition + computed snapshot,
+ * keyed by aggregation id. A definition without a snapshot — a freshly created aggregation —
  * is auto-materialised here so the chart renders immediately instead of an
  * empty "Refresh Snapshot" prompt: a reconciliation write inside a read path
  * (a documented seam — notes/queries-mutations.md §Seams). Best-effort: a
@@ -324,44 +324,44 @@ export interface ViewDetail {
  * the definition (Refresh is the retry affordance). Safe to key the write on a
  * null snapshot: loadComputedSnapshot returns null ONLY for genuine absence
  * (404) and THROWS on transient failures, so a failed read of an EXISTING
- * snapshot can never trigger it. Invalidated by the refresh-view and
- * delete-view mutations.
+ * snapshot can never trigger it. Invalidated by the refresh-aggregation and
+ * delete-aggregation mutations.
  */
-export function useViewDetail(viewId: string | undefined) {
+export function useAggregationDetail(aggregationId: string | undefined) {
   return useWebIdQuery(
-    queryKeys.viewDetail,
-    async (session): Promise<ViewDetail> => {
-      const id = viewId as string;
+    queryKeys.aggregationDetail,
+    async (session): Promise<AggregationDetail> => {
+      const id = aggregationId as string;
       const [definition, snapshot] = await Promise.all([
-        getViewDefinition(session, id),
-        getComputedSnapshotByViewId(session, id),
+        getAggregationDefinition(session, id),
+        getComputedSnapshotByAggregationId(session, id),
       ]);
       if (!definition || snapshot) return { definition, snapshot };
       try {
         const { snapshot: computed } = await refreshSnapshot(session, id);
         // Re-read the definition so lastComputedAt reflects the compute.
-        const updated = await getViewDefinition(session, id);
+        const updated = await getAggregationDefinition(session, id);
         return { definition: updated ?? definition, snapshot: computed };
       } catch (computeError) {
         return { definition, snapshot: null, computeError };
       }
     },
-    { extraKey: [viewId], enabled: Boolean(viewId) },
+    { extraKey: [aggregationId], enabled: Boolean(aggregationId) },
   );
 }
 
-/** Views the user has shared with others, from shared-out grants. */
-export function useSharedViews() {
-  return useDeriveFromQuery(useSharedOutGrants(), sharedViewsFromGrants);
+/** Aggregations the user has shared with others, from shared-out grants. */
+export function useSharedAggregations() {
+  return useDeriveFromQuery(useSharedOutGrants(), sharedAggregationsFromGrants);
 }
 
-/** Aggregated views shared *with* the current user, from shared-in grants. */
-export function useReceivedViews() {
-  return useDeriveFromQuery(useSharedInGrants(), receivedViewsFromGrants);
+/** Aggregations shared *with* the current user, from shared-in grants. */
+export function useReceivedAggregations() {
+  return useDeriveFromQuery(useSharedInGrants(), receivedAggregationsFromGrants);
 }
 
 /**
- * A received view's computed snapshot, loaded by IRI (the recipient holds Read on
+ * A received aggregation's computed snapshot, loaded by IRI (the recipient holds Read on
  * the snapshot, not the definition). Render-driven — a row mounts and needs the
  * snapshot to show its name + values — so it's a query, not a hand-rolled effect.
  * `null` data means a genuinely absent/empty snapshot (404); a transient failure
@@ -389,8 +389,8 @@ export function useSharedBuildingDetail(entry: SharedBuildingEntry | undefined) 
 }
 
 /**
- * The benchmark snapshots received from a BSP (the subset of received views
- * marked as a benchmark result). The energy view compares the owner's own
+ * The benchmark snapshots received from a BSP (the subset of received aggregations
+ * marked as a benchmark result). The energy aggregation compares the owner's own
  * figures against these. Loads each received snapshot, so it stays a real
  * query — but DEPENDENT on the folded shared-in log (no second fold), keyed
  * on the received-snapshot URLs so a grant arriving/leaving refetches because
@@ -401,7 +401,7 @@ export function useSharedBuildingDetail(entry: SharedBuildingEntry | undefined) 
 export function useReceivedBenchmarks() {
   const log = useSharedInGrants();
   const received = useMemo(
-    () => (log.data ? receivedViewsFromGrants(log.data) : undefined),
+    () => (log.data ? receivedAggregationsFromGrants(log.data) : undefined),
     [log.data],
   );
   const fingerprint = (received ?? []).map((r) => r.snapshotUri).sort().join(";");
@@ -553,7 +553,7 @@ export function useDemoOffer() {
 /**
  * The day files behind a set of 15-minute series descriptors (one listing per
  * ref, concurrent), merged and sorted by day. Feeds the user-energy chart's
- * date/month pickers and the create-view dialog's month list (months are a
+ * date/month pickers and the create-aggregation dialog's month list (months are a
  * cheap `day.substring(0, 7)` derivation at the call site).
  */
 export function useSeriesDays(refs: EnergyDatasetRef[]) {
@@ -654,18 +654,18 @@ export const queryKeys = {
   energy: ["energy"] as const,
   /** The folded `shared-in/` log — everything "shared with me" derives from it. */
   sharedInLog: ["sharedInLog"] as const,
-  /** The folded `shared-out/` log — the shared-buildings/-views lists derive from it. */
+  /** The folded `shared-out/` log — the shared-buildings/-aggregations lists derive from it. */
   sharedOutLog: ["sharedOutLog"] as const,
   /** prefs.ttl (hidden buildings, …). Invalidated by the visibility toggle. */
   prefs: ["prefs"] as const,
-  viewDefinitions: ["viewDefinitions"] as const,
-  /** One view's definition + computed snapshot (the standalone /view page), keyed by view id. */
-  viewDetail: ["viewDetail"] as const,
-  /** A received view's computed snapshot, keyed by snapshot IRI. */
+  aggregationDefinitions: ["aggregationDefinitions"] as const,
+  /** One aggregation's definition + computed snapshot (the standalone /aggregation page), keyed by aggregation id. */
+  aggregationDetail: ["aggregationDetail"] as const,
+  /** A received aggregation's computed snapshot, keyed by snapshot IRI. */
   computedSnapshot: ["computedSnapshot"] as const,
   /** A building shared with the user, loaded in full, keyed by building IRI. */
   sharedBuildingDetail: ["sharedBuildingDetail"] as const,
-  /** Benchmark snapshots received from a BSP (subset of received views). */
+  /** Benchmark snapshots received from a BSP (subset of received aggregations). */
   receivedBenchmarks: ["receivedBenchmarks"] as const,
   /** The room registry (current + known). Set via setQueryData, not invalidated. */
   rooms: ["rooms"] as const,

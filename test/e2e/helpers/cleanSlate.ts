@@ -44,12 +44,12 @@ export async function assertCleanStart(page: Page, tag = ""): Promise<void> {
   await openBuildingsList(page);
   await page.waitForLoadState("networkidle").catch(() => {});
   const buildings = await buildingRows(page).count();
-  const views = await page.getByRole("button", { name: /open view/i }).count();
-  logRun(`clean-slate start [${tag}]: buildings=${buildings} views=${views}`);
+  const aggregations = await page.getByRole("button", { name: /aggregation details/i }).count();
+  logRun(`clean-slate start [${tag}]: buildings=${buildings} aggregations=${aggregations}`);
   expect(
-    buildings + views,
+    buildings + aggregations,
     `${tag}: expected an empty collection at start (the previous spec's teardown ` +
-      `should have wiped it); found ${buildings} building(s) + ${views} view(s)`,
+      `should have wiped it); found ${buildings} building(s) + ${aggregations} aggregation(s)`,
   ).toBe(0);
 }
 
@@ -66,13 +66,13 @@ export async function logCollectionState(
     await openBuildingsList(page);
     await page.waitForLoadState("networkidle").catch(() => {});
     const buildings = await buildingRows(page).count();
-    // Views render as list rows carrying a "View" / "Open view" affordance; count
+    // Aggregations render as list rows carrying an "Aggregation details" affordance; count
     // defensively (0 if the locator matches nothing).
-    const views = await page.getByRole("button", { name: /open view/i })
+    const aggregations = await page.getByRole("button", { name: /aggregation details/i })
       .count();
-    const marker = buildings + views > 0 ? " RESIDUE" : " clean";
+    const marker = buildings + aggregations > 0 ? " RESIDUE" : " clean";
     logRun(
-      `clean-slate check [${tag}]: buildings=${buildings} views=${views}${marker}`,
+      `clean-slate check [${tag}]: buildings=${buildings} aggregations=${aggregations}${marker}`,
     );
   } catch (err) {
     logRun(`clean-slate check [${tag}]: FAILED to read state: ${String(err)}`);
@@ -118,7 +118,7 @@ export async function wipeCollection(
 
 /**
  * Bring the page back to the app shell before a teardown reads/wipes. A spec can
- * leave the page on a STANDALONE full-page route (`/energy/:id`, `/view/:id`,
+ * leave the page on a STANDALONE full-page route (`/energy/:id`, `/aggregation/:id`,
  * `/building/:id` — no app-shell tabs) or mid-reload, where the "Manage" tab the
  * teardown clicks doesn't exist; without this, that click hangs the whole afterAll
  * budget (the 240s "wipe hang"). `goto("/")` re-enters the shell (the seeded session

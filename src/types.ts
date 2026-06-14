@@ -168,13 +168,15 @@ export type Scenario = "actual" | "planned";
 
 /**
  * A reference to one `cons:EnergyDataset`, derived from a building's
- * `cons:hasEnergyDataset` link. The link slug (`<year>-<granularity>[-planned]`)
- * is self-describing, so year/granularity/scenario are known without fetching the
- * dataset (used to dispatch load: series lazy, annual prefetched). See
+ * `cons:hasEnergyDataset` link. Datasets are time-first under `observations/`
+ * (`observations/{year}/{id}.ttl#ds`), so the link path yields the year; the
+ * granularity and scenario are read from the triples the building re-states
+ * about the dataset node (`cons:granularity`/`cons:scenario`) — so load can be
+ * dispatched (series lazy, annual prefetched) without fetching the dataset. See
  * `services/rdf/energyDataset.ts`.
  */
 export interface EnergyDatasetRef {
-  /** The dataset node URL (the linked `…/<slug>.ttl#ds`). */
+  /** The dataset node URL (the linked `observations/{year}/{id}.ttl#ds`). */
   url: string;
   year: number;
   granularity: string;
@@ -274,10 +276,10 @@ type EnvironmentalFactor = {
   cold?: number;
 };
 
-// Aggregated View types
+// Aggregation types
 export type AggregationType = "average" | "sum" | "min" | "max";
 
-export interface AggregatedViewDefinition {
+export interface AggregationDefinition {
   id: string;
   name: string;
   buildingUris: string[]; // Private - not included in shared snapshots
@@ -285,15 +287,15 @@ export interface AggregatedViewDefinition {
   metrics: string[]; // e.g., ["gas", "electricity", "solar"]
   createdAt: string; // ISO timestamp
   lastComputedAt?: string; // ISO timestamp of last snapshot computation
-  period?: string; // "YYYY-MM" — set for user-role electricity views
-  /** Marks the view as a benchmark: every (re)compute derives the snapshot's
+  period?: string; // "YYYY-MM" — set for user-role electricity aggregations
+  /** Marks the aggregation as a benchmark: every (re)compute derives the snapshot's
    * bench:BenchmarkResult typing from this persisted flag, so a refresh can't
    * strip it. The covered year (metricPeriod) is derived from the data at
    * compute time, not stored. */
   benchmark?: boolean;
 }
 
-export interface AggregatedViewSnapshot {
+export interface AggregationSnapshot {
   id: string;
   name: string;
   aggregationType: AggregationType;
@@ -309,8 +311,8 @@ export interface AggregatedViewSnapshot {
   metricPeriod?: string; // year the metrics cover (bench:metricPeriod), e.g. "2024"
 }
 
-export interface SharedAggregatedView {
-  viewUri: string;
-  viewId: string;
+export interface SharedAggregation {
+  aggregationUri: string;
+  aggregationId: string;
   sharedWith: string[]; // WebIDs
 }

@@ -3,17 +3,18 @@ import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import type {
   AggregationType,
-  AggregatedViewDefinition,
+  AggregationDefinition,
 } from "../../types.ts";
 import { QueryClient } from "@tanstack/react-query";
 import {
   computeAggregation,
   summarizeContributors,
-} from "./viewComputer.ts";
+} from "./aggregationComputer.ts";
 import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 import {
   datasetFileUri,
   datasetNodeUri,
+  observationsRootForBuilding,
   serializeEnergyDataset,
 } from "../rdf/energyDataset.ts";
 import { _setAppQueryClient } from "../../lib/appQueryClient.ts";
@@ -21,17 +22,27 @@ import { _setAppQueryClient } from "../../lib/appQueryClient.ts";
 const POD = "https://pod.example/granergize/buildings/";
 const METRIC = "electricityConsumption";
 
+/** Deterministic dataset id for a building × year (so tests can address it). */
+const dsId = (uri: string, year: number): string =>
+  `${uri.split("/").pop()!.replace(/\.ttl$/, "")}-${year}`;
+
+/** The (time-first) annual dataset file IRI for a building × year. */
+const annualFile = (uri: string, year: number): string =>
+  datasetFileUri(observationsRootForBuilding(uri), year, dsId(uri, year));
+
 /** A building file at `<uri>` linking one annual `actual` dataset per given year. */
 function buildingDoc(uri: string, years: number[]): string {
-  const links = years
-    .map((y) => `<${datasetNodeUri(datasetFileUri(uri, y, "P1Y", "actual"))}>`)
-    .join(" ,\n    ");
-  return `@prefix cons: <${CONSUMPTION_NS}> .\n<${uri}#b>\n  cons:hasEnergyDataset ${links} .\n`;
+  const lines = years.map((y) => {
+    const node = datasetNodeUri(annualFile(uri, y));
+    return `<${uri}#b> cons:hasEnergyDataset <${node}> .\n` +
+      `<${node}> cons:granularity "P1Y" ; cons:scenario cons:Actual .\n`;
+  });
+  return `@prefix cons: <${CONSUMPTION_NS}> .\n${lines.join("")}`;
 }
 
 /**
  * A throwaway pod = { building file → its years×value } served by a fake session.
- * A building referenced by a view but absent here simply 404s (the unreadable case).
+ * A building referenced by an aggregation but absent here simply 404s (the unreadable case).
  */
 function pod(
   buildings: Record<string, { year: number; value: number }[]>,
@@ -40,7 +51,7 @@ function pod(
   for (const [uri, datasets] of Object.entries(buildings)) {
     docs.set(uri, buildingDoc(uri, datasets.map((d) => d.year)));
     for (const d of datasets) {
-      const file = datasetFileUri(uri, d.year, "P1Y", "actual");
+      const file = annualFile(uri, d.year);
       docs.set(
         file,
         serializeEnergyDataset({
@@ -78,10 +89,10 @@ function def(
   aggregationType: AggregationType,
   metrics: string[] = [METRIC],
   benchmark?: boolean,
-): AggregatedViewDefinition {
+): AggregationDefinition {
   return {
     id: "v1",
-    name: "Test view",
+    name: "Test aggregation",
     buildingUris,
     aggregationType,
     metrics,
@@ -159,7 +170,7 @@ Deno.test("computeAggregation: takes the building's dataset refs from the warm c
   // the building file. Without the cache it returns null (the empty-snapshot bug).
   const WEBID = "https://me.example/profile/card#me";
   const subject = `${B1}#b`;
-  const dsFile = datasetFileUri(B1, 2024, "P1Y", "actual");
+  const dsFile = annualFile(B1, 2024);
   const session = {
     info: { isLoggedIn: true, webId: WEBID },
     fetch: (input: string | URL | Request) => {

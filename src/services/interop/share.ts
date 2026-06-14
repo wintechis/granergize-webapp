@@ -3,7 +3,7 @@ import { DataFactory, Parser, Store } from "n3";
 import {
   getSubresourceAclTargets,
   recordSharing,
-  recordViewSharing,
+  recordAggregationSharing,
   removeFromACL,
 } from "./sharingManager.ts";
 import { postSharingEventToInbox } from "./inbox.ts";
@@ -152,8 +152,8 @@ export async function buildingGrantTargets(
 export interface ReissueResult {
   /** Active building grants re-applied. */
   buildings: number;
-  /** Active view grants re-applied. */
-  views: number;
+  /** Active aggregation grants re-applied. */
+  aggregations: number;
   /** Active grants skipped because their resource isn't on this Pod. */
   skipped: number;
   /** Active grants skipped because their resource no longer exists (deleted). */
@@ -195,7 +195,7 @@ export async function reissueGrants(session: Session): Promise<ReissueResult> {
 
   const result: ReissueResult = {
     buildings: 0,
-    views: 0,
+    aggregations: 0,
     skipped: 0,
     missing: 0,
     revoked: 0,
@@ -232,9 +232,9 @@ export async function reissueGrants(session: Session): Promise<ReissueResult> {
       continue;
     }
 
-    if (e.kind === "View") {
+    if (e.kind === "Aggregation") {
       await grantReadAccess(resourceFile, e.grantee, session);
-      result.views++;
+      result.aggregations++;
     } else {
       // Default to Building (kind is a routing hint; a missing kind is legacy).
       await applyBuildingGrant(resourceFile, e.grantee, session, {
@@ -279,7 +279,7 @@ export async function reconcileBuildingGrants(
   const events = await foldSharingLogEvents(sharedOutUri(webId), session);
   const active = events.filter((e) =>
     e.type !== "revocation" &&
-    e.kind !== "View" &&
+    e.kind !== "Aggregation" &&
     e.resource.split("#")[0] === buildingFile
   );
   for (const e of active) {
@@ -391,7 +391,7 @@ export async function auditGrants(session: Session): Promise<GrantAuditResult> {
       continue;
     }
 
-    const targets: GrantTarget[] = e.kind === "View"
+    const targets: GrantTarget[] = e.kind === "Aggregation"
       ? [{ url: resourceFile, isContainer: false }]
       : await buildingGrantTargets(resourceFile, session, {
         includeEnergyData: e.includesEnergy ?? true,
@@ -586,11 +586,11 @@ function writeAuthorization(
 }
 
 /**
- * Share an aggregated view snapshot with another user
- * Only the computed snapshot is shared (not the view definition with building URIs)
+ * Share an aggregation snapshot with another user
+ * Only the computed snapshot is shared (not the aggregation definition with building URIs)
  * @operation mutation
  */
-export async function shareAggregatedView(
+export async function shareAggregation(
   snapshotUri: string,
   webId: string,
   session: Session,
@@ -600,15 +600,15 @@ export async function shareAggregatedView(
   }
 
   // Log first (ground truth), then enforcement, then notify — the same ordering
-  // rationale as shareBuildingData. The viewId is recoverable from the snapshot
-  // URL (`views/snapshots/<viewId>.ttl`), so it isn't carried separately.
-  await recordViewSharing(snapshotUri, webId, session);
+  // rationale as shareBuildingData. The aggregationId is recoverable from the snapshot
+  // URL (`aggregations/snapshots/<aggregationId>.ttl`), so it isn't carried separately.
+  await recordAggregationSharing(snapshotUri, webId, session);
   await grantReadAccess(snapshotUri, webId, session);
-  await postViewGrantToInbox(snapshotUri, webId, session);
+  await postAggregationGrantToInbox(snapshotUri, webId, session);
 }
 
-/** Post an aggregated-view access grant (the shared-event shape) to the inbox. */
-async function postViewGrantToInbox(
+/** Post an aggregation access grant (the shared-event shape) to the inbox. */
+async function postAggregationGrantToInbox(
   snapshotUri: string,
   webId: string,
   session: Session,
@@ -618,7 +618,7 @@ async function postViewGrantToInbox(
     owner: session.info.webId!,
     grantee: webId,
     resource: snapshotUri,
-    kind: "View",
+    kind: "Aggregation",
     at: new Date().toISOString(),
   });
 }

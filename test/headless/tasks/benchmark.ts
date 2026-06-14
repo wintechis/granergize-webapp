@@ -3,7 +3,7 @@
  * Catalog task `benchmark` (headless): the BSP round-trip over THREE actors.
  * A and B are contributing owners, C is the benchmark service provider. A and B
  * each share an annual `_bsp_*` building (with energy) to C; C folds the
- * shared-with-me roster into a benchmark view, computes it (the average across the
+ * shared-with-me roster into a benchmark aggregation, computes it (the average across the
  * contributors), and shares the snapshot back; A reads the returned benchmark.
  *
  * This proves the data-layer round-trip "in principle": the contributor fold, the
@@ -12,21 +12,21 @@
  */
 import { type Actor, restore, snapshot, type TaskContext } from "../taskContext.ts";
 import {
-  shareAggregatedView,
+  shareAggregation,
   shareBuildingData,
 } from "../../../src/services/interop/share.ts";
 import { drainInbox } from "../../../src/services/interop/inbox.ts";
 import {
-  createViewDefinition,
-  deleteView,
+  createAggregationDefinition,
+  deleteAggregation,
   getReceivedBenchmarksFor,
-} from "../../../src/services/aggregation/viewManager.ts";
+} from "../../../src/services/aggregation/aggregationManager.ts";
 import {
   computeAndStoreSnapshot,
   summarizeContributors,
-} from "../../../src/services/aggregation/viewComputer.ts";
+} from "../../../src/services/aggregation/aggregationComputer.ts";
 import {
-  getReceivedViews,
+  getReceivedAggregations,
   getSharedWithMe,
 } from "../../../src/services/interop/sharingManager.ts";
 import { CONSUMPTION_METRIC_KEYS } from "../../../src/constants/annualMetrics.ts";
@@ -86,7 +86,7 @@ export async function run(ctx: TaskContext): Promise<void> {
   const cSharedInSnap = await snapshot(c.raw, cSharedIn);
   const aSharedInSnap = await snapshot(a.raw, aSharedIn);
 
-  let viewId = "";
+  let aggregationId = "";
   try {
     // 1. A and B each contribute an annual _bsp_* building (electricity 1000 / 2000
     //    → the benchmark average is 1500).
@@ -115,10 +115,10 @@ export async function run(ctx: TaskContext): Promise<void> {
       `contributors=[${contributors.join(", ")}]`,
     );
 
-    // 4. C creates the benchmark view (the flag lives ON the definition, so
+    // 4. C creates the benchmark aggregation (the flag lives ON the definition, so
     // every recompute keeps the benchmark typing) and computes the snapshot;
     // the covered year is derived from the aggregated data (both seeds: 2024).
-    const view = await createViewDefinition(
+    const aggregation = await createAggregationDefinition(
       c.session,
       `Benchmark 2024 ${stamp}`,
       buildingUris,
@@ -126,10 +126,10 @@ export async function run(ctx: TaskContext): Promise<void> {
       BSP_METRICS,
       { benchmark: true },
     );
-    viewId = view.id;
+    aggregationId = aggregation.id;
     const { snapshot: snap, snapshotUri } = await computeAndStoreSnapshot(
       c.session,
-      view.id,
+      aggregation.id,
     );
     check(
       "benchmark averages electricity across both contributors (1500)",
@@ -143,13 +143,13 @@ export async function run(ctx: TaskContext): Promise<void> {
     );
 
     // 5. C shares the benchmark snapshot back to contributor A.
-    await shareAggregatedView(snapshotUri, a.webId, c.session);
+    await shareAggregation(snapshotUri, a.webId, c.session);
     await drainInbox(a.session); // archive the grant into A's shared-in/
 
     // 6. A reads the returned benchmark.
     const received = await getReceivedBenchmarksFor(
       a.session,
-      await getReceivedViews(a.session),
+      await getReceivedAggregations(a.session),
     );
     const mine = received.find((s) => s.values.electricityConsumption === 1500);
     check("A receives the benchmark snapshot", Boolean(mine), `received=${received.length}`);
@@ -165,7 +165,7 @@ export async function run(ctx: TaskContext): Promise<void> {
       `metricPeriod=${mine?.metricPeriod}`,
     );
   } finally {
-    if (viewId) await deleteView(c.session, viewId).catch(() => {});
+    if (aggregationId) await deleteAggregation(c.session, aggregationId).catch(() => {});
     await deleteBuilding(a.session, a.webId, aUri).catch(() => {});
     await deleteBuilding(b.session, b.webId, bUri).catch(() => {});
     await restore(c.raw, cSharedIn, cSharedInSnap);

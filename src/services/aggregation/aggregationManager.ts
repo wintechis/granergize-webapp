@@ -2,8 +2,8 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import { podResources } from "../pod/solidUtils.ts";
 import type {
-  AggregatedViewDefinition,
-  AggregatedViewSnapshot,
+  AggregationDefinition,
+  AggregationSnapshot,
 } from "../../types.ts";
 import {
   BENCH_COMPUTED_BY,
@@ -47,79 +47,79 @@ function serializeWithPrefixes(store: Store): string {
     writer.quadsToString(store.getQuads(null, null, null, null));
 }
 
-/** The `views/` container — one definition resource per view (discover by listing). */
-function viewsContainerUri(webId: string): string {
-  return podResources(webId).views;
+/** The `aggregations/` container — one definition resource per aggregation (discover by listing). */
+function aggregationsContainerUri(webId: string): string {
+  return podResources(webId).aggregations;
 }
 
-/** The `views/snapshots/` container — one shareable computed copy per view. */
+/** The `aggregations/snapshots/` container — one shareable computed copy per aggregation. */
 function snapshotsContainerUri(webId: string): string {
-  return podResources(webId).viewSnapshots;
+  return `${aggregationsContainerUri(webId)}snapshots/`;
 }
 
-/** A single view definition resource: `views/<viewId>.ttl`. */
-function getViewDefinitionUri(webId: string, viewId: string): string {
-  return `${viewsContainerUri(webId)}${viewId}.ttl`;
+/** A single aggregation definition resource: `aggregations/<aggregationId>.ttl`. */
+function getAggregationDefinitionUri(webId: string, aggregationId: string): string {
+  return `${aggregationsContainerUri(webId)}${aggregationId}.ttl`;
 }
 
-/** A single computed snapshot resource: `views/snapshots/<viewId>.ttl`. */
-function getComputedViewUri(webId: string, viewId: string): string {
-  return `${snapshotsContainerUri(webId)}${viewId}.ttl`;
+/** A single computed snapshot resource: `aggregations/snapshots/<aggregationId>.ttl`. */
+function getComputedSnapshotUri(webId: string, aggregationId: string): string {
+  return `${snapshotsContainerUri(webId)}${aggregationId}.ttl`;
 }
 
 /** The definition's subject node (a fragment of its own resource). */
-function viewNodeFor(webId: string, viewId: string) {
-  return namedNode(`${getViewDefinitionUri(webId, viewId)}#view`);
+function aggregationNodeFor(webId: string, aggregationId: string) {
+  return namedNode(`${getAggregationDefinitionUri(webId, aggregationId)}#aggregation`);
 }
 
-/** Ensure the `views/` and `views/snapshots/` containers exist (parent first).
+/** Ensure the `aggregations/` and `aggregations/snapshots/` containers exist (parent first).
  * A creation failure propagates here, instead of resurfacing later as a
- * confusing view-PUT failure. */
-async function ensureViewsDirectoryExists(session: Session): Promise<void> {
+ * confusing aggregation-PUT failure. */
+async function ensureAggregationsDirectoryExists(session: Session): Promise<void> {
   const webId = session.info.webId;
   if (!webId) {
     throw new Error("User is not logged in");
   }
 
-  await ensureContainer(viewsContainerUri(webId), session);
+  await ensureContainer(aggregationsContainerUri(webId), session);
   await ensureContainer(snapshotsContainerUri(webId), session);
 }
 
 /**
- * Generate a unique view ID — collision-free via crypto.randomUUID (the same
+ * Generate a unique aggregation ID — collision-free via crypto.randomUUID (the same
  * fix as building file ids; a timestamp+short-random id could collide in a
  * tight loop).
  */
-function generateViewId(): string {
-  return `view-${crypto.randomUUID()}`;
+function generateAggregationId(): string {
+  return `aggregation-${crypto.randomUUID()}`;
 }
 
 /**
- * Create a new aggregated view definition
+ * Create a new aggregation definition
  * @operation mutation
  */
-export async function createViewDefinition(
+export async function createAggregationDefinition(
   session: Session,
   name: string,
   buildingUris: string[],
-  aggregationType: AggregatedViewDefinition["aggregationType"],
+  aggregationType: AggregationDefinition["aggregationType"],
   metrics: string[],
   opts: { period?: string; benchmark?: boolean } = {},
-): Promise<AggregatedViewDefinition> {
+): Promise<AggregationDefinition> {
   const { period, benchmark } = opts;
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
   }
 
-  await ensureViewsDirectoryExists(session);
+  await ensureAggregationsDirectoryExists(session);
 
-  const viewId = generateViewId();
+  const aggregationId = generateAggregationId();
   const now = new Date().toISOString();
   const webId = session.info.webId;
-  const definitionUri = getViewDefinitionUri(webId, viewId);
+  const definitionUri = getAggregationDefinitionUri(webId, aggregationId);
 
-  const newView: AggregatedViewDefinition = {
-    id: viewId,
+  const newAggregation: AggregationDefinition = {
+    id: aggregationId,
     name,
     buildingUris,
     aggregationType,
@@ -129,32 +129,32 @@ export async function createViewDefinition(
     ...(benchmark ? { benchmark } : {}),
   };
 
-  const viewNode = viewNodeFor(webId, viewId);
+  const aggregationNode = aggregationNodeFor(webId, aggregationId);
 
-  // One resource per view (opaque id ⇒ collision-free), so a plain PUT suffices —
+  // One resource per aggregation (opaque id ⇒ collision-free), so a plain PUT suffices —
   // no shared mega-file to clobber.
   const store = new Store();
   store.addQuad(quad(
-    viewNode,
+    aggregationNode,
     namedNode(RDF_TYPE),
-    namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`),
+    namedNode(`${VOCAB_PREFIX}AggregationDefinition`),
   ));
-  store.addQuad(quad(viewNode, namedNode(`${VOCAB_PREFIX}viewId`), literal(viewId)));
-  store.addQuad(quad(viewNode, namedNode(`${VOCAB_PREFIX}viewName`), literal(name)));
+  store.addQuad(quad(aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationId`), literal(aggregationId)));
+  store.addQuad(quad(aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationName`), literal(name)));
   store.addQuad(quad(
-    viewNode,
+    aggregationNode,
     namedNode(`${VOCAB_PREFIX}aggregationType`),
     literal(aggregationType),
   ));
   store.addQuad(quad(
-    viewNode,
+    aggregationNode,
     namedNode(`${VOCAB_PREFIX}createdAt`),
     literal(now, namedNode(XSD_DATETIME)),
   ));
   if (period) {
     store.addQuad(quad(
-      viewNode,
-      namedNode(`${VOCAB_PREFIX}viewPeriod`),
+      aggregationNode,
+      namedNode(`${VOCAB_PREFIX}aggregationPeriod`),
       literal(period),
     ));
   }
@@ -164,7 +164,7 @@ export async function createViewDefinition(
   // call-site options that a refresh wouldn't know to pass.
   if (benchmark) {
     store.addQuad(quad(
-      viewNode,
+      aggregationNode,
       namedNode(`${VOCAB_PREFIX}benchmark`),
       literal("true", namedNode(XSD_BOOLEAN)),
     ));
@@ -172,14 +172,14 @@ export async function createViewDefinition(
   // Building URIs (private, only in the definition file).
   for (const buildingUri of buildingUris) {
     store.addQuad(quad(
-      viewNode,
+      aggregationNode,
       namedNode(`${VOCAB_PREFIX}includesBuilding`),
       namedNode(buildingUri),
     ));
   }
   for (const metric of metrics) {
     store.addQuad(quad(
-      viewNode,
+      aggregationNode,
       namedNode(`${VOCAB_PREFIX}includesMetric`),
       literal(metric),
     ));
@@ -191,46 +191,46 @@ export async function createViewDefinition(
     body: serializeWithPrefixes(store),
   });
   if (!res.ok) {
-    throw new Error(`Failed to create view definition: ${res.statusText}`);
+    throw new Error(`Failed to create aggregation definition: ${res.statusText}`);
   }
 
-  return newView;
+  return newAggregation;
 }
 
-/** Extract an {@link AggregatedViewDefinition} from a parsed definition store. */
-function parseViewDefinition(store: Store): AggregatedViewDefinition | null {
-  const viewType = namedNode(`${VOCAB_PREFIX}AggregatedViewDefinition`);
-  const viewNode = store.getQuads(null, namedNode(RDF_TYPE), viewType, null)[0]
+/** Extract an {@link AggregationDefinition} from a parsed definition store. */
+function parseAggregationDefinition(store: Store): AggregationDefinition | null {
+  const aggregationType_ = namedNode(`${VOCAB_PREFIX}AggregationDefinition`);
+  const aggregationNode = store.getQuads(null, namedNode(RDF_TYPE), aggregationType_, null)[0]
     ?.subject;
-  if (!viewNode) return null;
+  if (!aggregationNode) return null;
   return {
-    id: getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewId`)) ?? "",
-    name: getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewName`)) ??
+    id: getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationId`)) ?? "",
+    name: getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationName`)) ??
       "",
     aggregationType: (getQuadValue(
       store,
-      viewNode,
+      aggregationNode,
       namedNode(`${VOCAB_PREFIX}aggregationType`),
-    ) ?? "average") as AggregatedViewDefinition["aggregationType"],
+    ) ?? "average") as AggregationDefinition["aggregationType"],
     createdAt:
-      getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}createdAt`)) ?? "",
+      getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}createdAt`)) ?? "",
     lastComputedAt: getQuadValue(
       store,
-      viewNode,
+      aggregationNode,
       namedNode(`${VOCAB_PREFIX}lastComputedAt`),
     ),
     buildingUris: getQuadValues(
       store,
-      viewNode,
+      aggregationNode,
       namedNode(`${VOCAB_PREFIX}includesBuilding`),
     ),
     metrics: getQuadValues(
       store,
-      viewNode,
+      aggregationNode,
       namedNode(`${VOCAB_PREFIX}includesMetric`),
     ),
-    period: getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}viewPeriod`)),
-    ...(getQuadValue(store, viewNode, namedNode(`${VOCAB_PREFIX}benchmark`)) ===
+    period: getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}aggregationPeriod`)),
+    ...(getQuadValue(store, aggregationNode, namedNode(`${VOCAB_PREFIX}benchmark`)) ===
         "true"
       ? { benchmark: true }
       : {}),
@@ -238,74 +238,74 @@ function parseViewDefinition(store: Store): AggregatedViewDefinition | null {
 }
 
 /**
- * All view definitions for the current user, discovered by LISTING the `views/`
+ * All aggregation definitions for the current user, discovered by LISTING the `aggregations/`
  * container (the top-level `*.ttl` resources; the `snapshots/` subfolder is
  * skipped) and parsing each. A missing container (fresh Pod) yields `[]`.
  * @operation query
  */
-export async function getViewDefinitions(
+export async function getAggregationDefinitions(
   session: Session,
-): Promise<AggregatedViewDefinition[]> {
+): Promise<AggregationDefinition[]> {
   const webId = session.info.webId;
   if (!session.info.isLoggedIn || !webId) {
     throw new Error("User is not logged in");
   }
 
   // No try/catch: a real network/parse failure propagates to React Query (which
-  // keeps the last good views via keepPreviousData). The legitimate empty — the
+  // keeps the last good aggregations via keepPreviousData). The legitimate empty — the
   // container doesn't exist yet — is the explicit `if (!children) return []` below,
   // so it stays distinct from "the read failed".
-  const children = await listDirectChildren(viewsContainerUri(webId), session);
+  const children = await listDirectChildren(aggregationsContainerUri(webId), session);
   if (!children) return []; // container doesn't exist yet
   const defUris = children.filter((u) => u.endsWith(".ttl"));
 
   // Bounded concurrency: a burst of GETs trips Cloudflare's rate limiter.
-  const views = await mapPooled(
+  const aggregations = await mapPooled(
     defUris,
     4,
-    async (url) => parseViewDefinition(await readStoreOrEmpty(url, session)),
+    async (url) => parseAggregationDefinition(await readStoreOrEmpty(url, session)),
   );
-  return views.filter((v): v is AggregatedViewDefinition => v !== null);
+  return aggregations.filter((v): v is AggregationDefinition => v !== null);
 }
 
 /**
- * A single view definition by ID — a direct read of `views/<viewId>.ttl` (no
+ * A single aggregation definition by ID — a direct read of `aggregations/<aggregationId>.ttl` (no
  * need to list the whole container).
  * @operation query
  */
-export async function getViewDefinition(
+export async function getAggregationDefinition(
   session: Session,
-  viewId: string,
-): Promise<AggregatedViewDefinition | null> {
+  aggregationId: string,
+): Promise<AggregationDefinition | null> {
   const webId = session.info.webId;
   if (!webId) return null;
   try {
     const store = await readStoreOrEmpty(
-      getViewDefinitionUri(webId, viewId),
+      getAggregationDefinitionUri(webId, aggregationId),
       session,
     );
-    return parseViewDefinition(store);
+    return parseAggregationDefinition(store);
   } catch (error) {
-    console.error("Error getting view definition:", error);
+    console.error("Error getting aggregation definition:", error);
     return null;
   }
 }
 
 /**
- * Store a computed snapshot for a view
+ * Store a computed snapshot for an aggregation
  * @operation mutation
  */
 export async function storeComputedSnapshot(
   session: Session,
-  snapshot: AggregatedViewSnapshot,
+  snapshot: AggregationSnapshot,
 ): Promise<string> {
   if (!session.info.isLoggedIn || !session.info.webId) {
     throw new Error("User is not logged in");
   }
 
-  await ensureViewsDirectoryExists(session);
+  await ensureAggregationsDirectoryExists(session);
 
-  const snapshotUri = getComputedViewUri(session.info.webId, snapshot.id);
+  const snapshotUri = getComputedSnapshotUri(session.info.webId, snapshot.id);
   const snapshotNode = namedNode(`${snapshotUri}#snapshot`);
 
   const store = new Store();
@@ -314,18 +314,18 @@ export async function storeComputedSnapshot(
   store.addQuad(quad(
     snapshotNode,
     namedNode(RDF_TYPE),
-    namedNode(`${VOCAB_PREFIX}AggregatedViewSnapshot`),
+    namedNode(`${VOCAB_PREFIX}AggregationSnapshot`),
   ));
 
   store.addQuad(quad(
     snapshotNode,
-    namedNode(`${VOCAB_PREFIX}viewId`),
+    namedNode(`${VOCAB_PREFIX}aggregationId`),
     literal(snapshot.id),
   ));
 
   store.addQuad(quad(
     snapshotNode,
-    namedNode(`${VOCAB_PREFIX}viewName`),
+    namedNode(`${VOCAB_PREFIX}aggregationName`),
     literal(snapshot.name),
   ));
 
@@ -349,7 +349,7 @@ export async function storeComputedSnapshot(
 
   // Benchmark result: the snapshot is additionally a bench:BenchmarkResult and
   // records who computed it and which year it covers. It stays a
-  // gra:AggregatedViewSnapshot too, so every existing reader keeps working.
+  // gra:AggregationSnapshot too, so every existing reader keeps working.
   if (snapshot.isBenchmark) {
     store.addQuad(quad(
       snapshotNode,
@@ -415,32 +415,32 @@ export async function storeComputedSnapshot(
   }
 
   // Update lastComputedAt in the definition
-  await updateViewLastComputed(session, snapshot.id, snapshot.computedAt);
+  await updateAggregationLastComputed(session, snapshot.id, snapshot.computedAt);
 
   return snapshotUri;
 }
 
 /**
- * Update the lastComputedAt timestamp in a view definition
+ * Update the lastComputedAt timestamp in an aggregation definition
  */
-async function updateViewLastComputed(
+async function updateAggregationLastComputed(
   session: Session,
-  viewId: string,
+  aggregationId: string,
   timestamp: string,
 ): Promise<void> {
   const webId = session.info.webId;
   if (!webId) return;
 
-  const definitionUri = getViewDefinitionUri(webId, viewId);
-  const viewNode = viewNodeFor(webId, viewId);
+  const definitionUri = getAggregationDefinitionUri(webId, aggregationId);
+  const aggregationNode = aggregationNodeFor(webId, aggregationId);
   const lastComputedPred = namedNode(`${VOCAB_PREFIX}lastComputedAt`);
 
   await readModifyWrite(definitionUri, session, (store, { created }) => {
     if (created) return false; // no definition file → nothing to update
-    store.getQuads(viewNode, lastComputedPred, null, null)
+    store.getQuads(aggregationNode, lastComputedPred, null, null)
       .forEach((q) => store.removeQuad(q));
     store.addQuad(quad(
-      viewNode,
+      aggregationNode,
       lastComputedPred,
       literal(timestamp, namedNode(XSD_DATETIME)),
     ));
@@ -451,7 +451,7 @@ async function updateViewLastComputed(
  * Load a computed snapshot from URL.
  *
  * Distinguishes ABSENCE from FAILURE: `null` means the snapshot genuinely does
- * not exist (404/410, or the document isn't a snapshot) — the signal the view
+ * not exist (404/410, or the document isn't a snapshot) — the signal the aggregation
  * page's auto-compute keys on. Any transient failure (throttling, network,
  * unparseable response) THROWS instead: returning `null` there once made a
  * failed read of an EXISTING snapshot trigger a snapshot-overwriting recompute.
@@ -462,7 +462,7 @@ async function updateViewLastComputed(
 export async function loadComputedSnapshot(
   session: Session,
   snapshotUri: string,
-): Promise<AggregatedViewSnapshot | null> {
+): Promise<AggregationSnapshot | null> {
   const response = await fetchFresh(snapshotUri, session);
   // 404/410 = deleted, 403 = the owner revoked your access — all mean "gone",
   // a normal lifecycle event for a resource shared WITH you, not a failure.
@@ -483,7 +483,7 @@ export async function loadComputedSnapshot(
   const quads = parser.parse(text);
   const store = new Store(quads);
 
-  const snapshotType = namedNode(`${VOCAB_PREFIX}AggregatedViewSnapshot`);
+  const snapshotType = namedNode(`${VOCAB_PREFIX}AggregationSnapshot`);
   const snapshotQuads = store.getQuads(
     null,
     namedNode(RDF_TYPE),
@@ -530,18 +530,18 @@ export async function loadComputedSnapshot(
   }
 
   return {
-    id: getQuadValue(store, snapshotNode, namedNode(`${VOCAB_PREFIX}viewId`)) ??
+    id: getQuadValue(store, snapshotNode, namedNode(`${VOCAB_PREFIX}aggregationId`)) ??
       "",
     name: getQuadValue(
       store,
       snapshotNode,
-      namedNode(`${VOCAB_PREFIX}viewName`),
+      namedNode(`${VOCAB_PREFIX}aggregationName`),
     ) ?? "",
     aggregationType: (getQuadValue(
       store,
       snapshotNode,
       namedNode(`${VOCAB_PREFIX}aggregationType`),
-    ) ?? "average") as AggregatedViewSnapshot["aggregationType"],
+    ) ?? "average") as AggregationSnapshot["aggregationType"],
     computedAt: getQuadValue(
       store,
       snapshotNode,
@@ -564,9 +564,9 @@ export async function loadComputedSnapshot(
 }
 
 /**
- * Load the given received views' snapshots and keep the ones marked as a
- * benchmark result — what the energy view compares the owner's own figures
- * against. Takes the already-derived received views (from the folded
+ * Load the given received aggregations' snapshots and keep the ones marked as a
+ * benchmark result — what the energy aggregation compares the owner's own figures
+ * against. Takes the already-derived received aggregations (from the folded
  * `shared-in/` log) so it performs no fold of its own; unreadable or
  * non-benchmark snapshots are dropped.
  * @operation query
@@ -574,16 +574,16 @@ export async function loadComputedSnapshot(
 export async function getReceivedBenchmarksFor(
   session: Session,
   // Structural shape (only the snapshot IRI is read), so this stays decoupled
-  // from interop's `ReceivedView` — a `ReceivedView[]` from the folded log is
+  // from interop's `ReceivedAggregation` — a `ReceivedAggregation[]` from the folded log is
   // assignable. Cross-domain composition happens at the caller (hook/test).
   received: { snapshotUri: string }[],
-): Promise<AggregatedViewSnapshot[]> {
+): Promise<AggregationSnapshot[]> {
   const snapshots = await mapPooled(
     received,
     4,
     // Per-item tolerance: one unreadable foreign snapshot (revoked, throttled)
     // must not fail the whole fold — loadComputedSnapshot throws on transient
-    // failures by design (so the view page can tell absence from failure).
+    // failures by design (so the aggregation page can tell absence from failure).
     (rv) =>
       loadComputedSnapshot(session, rv.snapshotUri).catch((err) => {
         logError(`load received benchmark ${rv.snapshotUri}`, err);
@@ -591,53 +591,53 @@ export async function getReceivedBenchmarksFor(
       }),
   );
   return snapshots.filter(
-    (s): s is AggregatedViewSnapshot => s !== null && Boolean(s.isBenchmark),
+    (s): s is AggregationSnapshot => s !== null && Boolean(s.isBenchmark),
   );
 }
 
 /**
- * Get computed snapshot for a view by view ID
+ * Get computed snapshot for an aggregation by aggregation ID
  * @operation query
  */
-export async function getComputedSnapshotByViewId(
+export async function getComputedSnapshotByAggregationId(
   session: Session,
-  viewId: string,
-): Promise<AggregatedViewSnapshot | null> {
+  aggregationId: string,
+): Promise<AggregationSnapshot | null> {
   if (!session.info.webId) return null;
-  const snapshotUri = getComputedViewUri(session.info.webId, viewId);
+  const snapshotUri = getComputedSnapshotUri(session.info.webId, aggregationId);
   return loadComputedSnapshot(session, snapshotUri);
 }
 
 /**
- * Delete a view definition and its snapshot
+ * Delete an aggregation definition and its snapshot
  * @operation mutation
  */
-export async function deleteView(
+export async function deleteAggregation(
   session: Session,
-  viewId: string,
+  aggregationId: string,
 ): Promise<void> {
   const webId = session.info.webId;
   if (!session.info.isLoggedIn || !webId) {
     throw new Error("User is not logged in");
   }
 
-  // Container-native: deleting the definition resource de-registers the view
+  // Container-native: deleting the definition resource de-registers the aggregation
   // (it's discovered by listing); also drop its snapshot and any ACLs.
-  const definitionUri = getViewDefinitionUri(webId, viewId);
-  const snapshotUri = getComputedViewUri(webId, viewId);
+  const definitionUri = getAggregationDefinitionUri(webId, aggregationId);
+  const snapshotUri = getComputedSnapshotUri(webId, aggregationId);
   for (const url of [definitionUri, snapshotUri]) {
     await session.fetch(`${url}.acl`, { method: "DELETE" }).catch((err) =>
-      logError("delete view ACL", err)
+      logError("delete aggregation ACL", err)
     );
     await session.fetch(url, { method: "DELETE" }).catch((err) =>
-      logError("delete view resource", err)
+      logError("delete aggregation resource", err)
     );
   }
 }
 
 /**
- * Get the snapshot URL for a view
+ * Get the snapshot URL for an aggregation
  */
-export function getSnapshotUri(webId: string, viewId: string): string {
-  return getComputedViewUri(webId, viewId);
+export function getSnapshotUri(webId: string, aggregationId: string): string {
+  return getComputedSnapshotUri(webId, aggregationId);
 }

@@ -3,7 +3,7 @@ import { account, webIdOf } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { buildingRoute, shareByWebId } from "../helpers/manage.ts";
-import { receivedViews } from "../helpers/manage.ts";
+import { receivedAggregations } from "../helpers/manage.ts";
 import { freshPage } from "../helpers/twoPod.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -86,14 +86,14 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     const c2 = await freshPage(browser, C);
     try {
       await c2.page.getByRole("tab", { name: "Manage" }).click();
-      await c2.page.getByRole("button", { name: /create view/i }).click();
+      await c2.page.getByRole("button", { name: /create aggregation/i }).click();
       const dlg = c2.page.getByRole("dialog");
       await expect(dlg).toBeVisible({ timeout: T.action });
 
-      // The "Compare shared buildings" view type appears once the dialog has folded
-      // in the shared-with-me roster (an async effect); re-open the View type select
+      // The "Compare shared buildings" aggregation type appears once the dialog has folded
+      // in the shared-with-me roster (an async effect); re-open the Aggregation type select
       // until it's offered.
-      const modeSel = dlg.getByLabel("View type");
+      const modeSel = dlg.getByLabel("Aggregation type");
       await expect(async () => {
         await modeSel.click();
         const opt = c2.page.getByRole("option", {
@@ -108,7 +108,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
         }
       }).toPass({ timeout: T.poll });
 
-      await dlg.getByLabel("View Name").fill(BENCH_VIEW);
+      await dlg.getByLabel("Aggregation name").fill(BENCH_VIEW);
 
       // Both owners' buildings must be offered — one shared from A's Pod, one from
       // B's — proving two contributors reached the BSP. Select them all.
@@ -121,13 +121,13 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       for (let i = 0; i < n; i++) await options.nth(i).click();
       await c2.page.keyboard.press("Escape");
 
-      await dlg.getByRole("button", { name: /create view/i }).click();
-      await expect(c2.page.getByText(/view created successfully/i))
+      await dlg.getByRole("button", { name: /create aggregation/i }).click();
+      await expect(c2.page.getByText(/aggregation created successfully/i))
         .toBeVisible({ timeout: T.action });
 
       // Share the benchmark back to its contributors (A + B) via the dedicated button.
-      const viewRow = c2.page.locator("li").filter({ hasText: BENCH_VIEW }).first();
-      await viewRow.getByRole("button", { name: "Share view" }).click();
+      const aggregationRow = c2.page.locator("li").filter({ hasText: BENCH_VIEW }).first();
+      await aggregationRow.getByRole("button", { name: "Share aggregation" }).click();
       const shareDlg = c2.page.getByRole("dialog");
       const addAll = shareDlg.getByRole("button", { name: /add all .* contributors/i });
       await expect(addAll).toBeVisible({ timeout: T.action });
@@ -151,7 +151,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       // First confirm A actually RECEIVED the benchmark (Share tab) — separates a
       // receipt failure from an energy-render failure.
       await a2.page.getByRole("tab", { name: "Share" }).click();
-      await expect(receivedViews(a2.page).getByText(BENCH_VIEW))
+      await expect(receivedAggregations(a2.page).getByText(BENCH_VIEW))
         .toBeVisible({ timeout: T.action });
 
       await a2.page.getByRole("tab", { name: "Manage" }).click();
@@ -160,7 +160,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       const id = await row.getAttribute("data-building-id");
       expect(id, "the shared building's id on Manage").toBeTruthy();
 
-      await a2.page.goto(buildingRoute("energy", id));
+      await a2.page.goto(buildingRoute("observation", id));
       try {
         // The Benchmark column header is always present; the provenance caption
         // appears only once a benchmark has actually been received.

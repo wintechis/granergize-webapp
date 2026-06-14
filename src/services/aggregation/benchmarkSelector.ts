@@ -1,4 +1,4 @@
-import type { AggregatedViewSnapshot } from "../../types.ts";
+import type { AggregationSnapshot } from "../../types.ts";
 
 /** A benchmark figure for one energy row, resolved from a received snapshot. */
 export interface PickedBenchmark {
@@ -17,7 +17,7 @@ export interface PickedBenchmark {
  * (by `computedAt`) that carries the metric. Pure — the hook supplies the snapshots.
  */
 export function pickBenchmark(
-  snapshots: AggregatedViewSnapshot[],
+  snapshots: AggregationSnapshot[],
   metric: string,
 ): PickedBenchmark | null {
   const candidates = snapshots.filter(

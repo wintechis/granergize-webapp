@@ -18,23 +18,28 @@ const BOB = "https://bob.example/profile/card#me";
 const CAROL = "https://carol.example/profile/card#me";
 const SHARED_OUT = `${ROOT}granergize/shared-out/`;
 const BUILDING = `${ROOT}granergize/buildings/b-1.ttl`;
-const ENERGY = `${ROOT}granergize/buildings/b-1/energy`;
-const SNAPSHOT = `${ROOT}granergize/views/snapshots/v-1.ttl`;
+const OBS = `${ROOT}granergize/observations`;
+// Time-first dataset descriptors (fixed stems for the test).
+const DS_2024 = `${OBS}/2024/d1.ttl`;
+const DS_2023 = `${OBS}/2023/d2.ttl`;
+const SNAPSHOT = `${ROOT}granergize/aggregations/snapshots/v-1.ttl`;
 // A grant whose resource is on someone else's Pod — must be skipped on replay.
 const OFFPOD = "https://other.example/granergize/buildings/x.ttl";
 
 const BUILDING_TTL = `
 @prefix cons: <${CONSUMPTION_NS}> .
 <${BUILDING}#b-1>
-  cons:hasEnergyDataset <${ENERGY}/2024-P1Y.ttl#ds> ,
-                        <${ENERGY}/2023-P1Y.ttl#ds> .
+  cons:hasEnergyDataset <${DS_2024}#ds> ,
+                        <${DS_2023}#ds> .
+<${DS_2024}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
+<${DS_2023}#ds> cons:granularity "P1Y" ; cons:scenario cons:Actual .
 `;
 
 /** One shared-out event resource (subject `<>`), the grant shape we log. */
 function grantTtl(
   grantee: string,
   resource: string,
-  kind: "Building" | "View",
+  kind: "Building" | "Aggregation",
   at: string,
   years?: number[],
 ): string {
@@ -51,7 +56,7 @@ function grantTtl(
    interop:grantee <${grantee}> ;
    interop:forResource <${resource}> ;
    interop:accessMode acl:Read ;
-   gran:kind <${kind === "Building" ? REC_BUILDING : `${CONSUMPTION_NS}View`}> ;
+   gran:kind <${kind === "Building" ? REC_BUILDING : `${CONSUMPTION_NS}Aggregation`}> ;
 ${yearTriples}
    prov:generatedAtTime "${at}"^^xsd:dateTime .
 `;
@@ -74,12 +79,12 @@ function makePod(): { session: Session; store: Record<string, string>; calls: Ca
     [SHARED_OUT]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
 <${SHARED_OUT}> ldp:contains <${ev1}>, <${ev2}>, <${ev3}> .`,
     [ev1]: grantTtl(BOB, BUILDING, "Building", "2026-06-04T10:00:00Z", [2024]),
-    [ev2]: grantTtl(CAROL, SNAPSHOT, "View", "2026-06-04T11:00:00Z"),
+    [ev2]: grantTtl(CAROL, SNAPSHOT, "Aggregation", "2026-06-04T11:00:00Z"),
     [ev3]: grantTtl(BOB, OFFPOD, "Building", "2026-06-04T12:00:00Z"),
     [BUILDING]: BUILDING_TTL,
     // The granted resources exist on the Pod (reissue HEADs each before
     // re-applying, so a deleted resource isn't resurrected — tested below).
-    [SNAPSHOT]: `<${SNAPSHOT}#snapshot> a <${CONSUMPTION_NS}AggregatedViewSnapshot> .`,
+    [SNAPSHOT]: `<${SNAPSHOT}#snapshot> a <${CONSUMPTION_NS}AggregationSnapshot> .`,
   };
   const calls: Call[] = [];
   const fetch = (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -106,21 +111,21 @@ function makePod(): { session: Session; store: Record<string, string>; calls: Ca
   };
 }
 
-Deno.test("reissueGrants replays the folded log: building + view ACLs, skips off-Pod", async () => {
+Deno.test("reissueGrants replays the folded log: building + aggregation ACLs, skips off-Pod", async () => {
   const { session, store } = makePod();
   const result = await reissueGrants(session);
 
   assert.equal(result.buildings, 1, "one building grant replayed");
-  assert.equal(result.views, 1, "one view grant replayed");
+  assert.equal(result.aggregations, 1, "one aggregation grant replayed");
   assert.equal(result.skipped, 1, "off-Pod grant skipped");
 
-  // Building file + view snapshot ACLs were written with the recipient.
+  // Building file + aggregation snapshot ACLs were written with the recipient.
   assert.ok(store[`${BUILDING}.acl`]?.includes(BOB), "building .acl grants Bob");
   assert.ok(store[`${SNAPSHOT}.acl`]?.includes(CAROL), "snapshot .acl grants Carol");
 
   // Per-year scope honoured: 2024 dataset granted, 2023 NOT.
-  assert.ok(store[`${ENERGY}/2024-P1Y.ttl.acl`]?.includes(BOB), "2024 dataset granted");
-  assert.ok(!(`${ENERGY}/2023-P1Y.ttl.acl` in store), "2023 dataset not granted");
+  assert.ok(store[`${DS_2024}.acl`]?.includes(BOB), "2024 dataset granted");
+  assert.ok(!(`${DS_2023}.acl` in store), "2023 dataset not granted");
 
   // The off-Pod resource's ACL was never touched.
   assert.ok(!(`${OFFPOD}.acl` in store), "off-Pod ACL untouched");
@@ -246,7 +251,7 @@ Deno.test("reconcileBuildingGrants extends an all-years grant to a dataset writt
   const applied = await reconcileBuildingGrants(BUILDING, session);
 
   assert.equal(applied, 1, "one active grant re-applied");
-  assert.ok(store[`${ENERGY}/2024-P1Y.ttl.acl`]?.includes(BOB), "new dataset granted to Bob");
+  assert.ok(store[`${DS_2024}.acl`]?.includes(BOB), "new dataset granted to Bob");
   assert.ok(
     !calls.some((c) => c.method === "POST" && c.url === SHARED_OUT),
     "no new shared-out/ event appended",
@@ -269,23 +274,23 @@ Deno.test("reconcileBuildingGrants honours a per-year scope: the new year stays 
   const applied = await reconcileBuildingGrants(BUILDING, session);
 
   assert.equal(applied, 1, "the per-year grant is re-applied (its own years)");
-  assert.ok(store[`${ENERGY}/2023-P1Y.ttl.acl`]?.includes(BOB), "recorded year granted");
+  assert.ok(store[`${DS_2023}.acl`]?.includes(BOB), "recorded year granted");
   assert.ok(
-    !(`${ENERGY}/2024-P1Y.ttl.acl` in store),
+    !(`${DS_2024}.acl` in store),
     "the year outside the recorded scope is NOT granted",
   );
 });
 
-Deno.test("reconcileBuildingGrants ignores revoked pairs, other buildings and views", async () => {
+Deno.test("reconcileBuildingGrants ignores revoked pairs, other buildings and aggregations", async () => {
   const OTHER = `${ROOT}granergize/buildings/b-2.ttl`;
   const { session, calls } = makePodWith(
     {
       // Bob's grant on THIS building was revoked — nothing to extend.
       [`${SHARED_OUT}e1`]: grantTtl(BOB, BUILDING, "Building", "2026-06-04T10:00:00Z"),
       [`${SHARED_OUT}e2`]: revocationTtl(BOB, BUILDING, "2026-06-05T10:00:00Z"),
-      // Carol's grants target a different building / a view.
+      // Carol's grants target a different building / an aggregation.
       [`${SHARED_OUT}e3`]: grantTtl(CAROL, OTHER, "Building", "2026-06-04T11:00:00Z"),
-      [`${SHARED_OUT}e4`]: grantTtl(CAROL, SNAPSHOT, "View", "2026-06-04T12:00:00Z"),
+      [`${SHARED_OUT}e4`]: grantTtl(CAROL, SNAPSHOT, "Aggregation", "2026-06-04T12:00:00Z"),
     },
     { [BUILDING]: BUILDING_TTL, [OTHER]: BUILDING_TTL, [SNAPSHOT]: "<#s> a <x:S> ." },
   );
@@ -321,14 +326,14 @@ Deno.test("auditGrants reports missing grants for an event-without-ACL, and is c
   // is NOT drift.
   const bobResources = before.drift.filter((d) => d.grantee === BOB).map((d) => d.resource);
   assert.ok(bobResources.includes(BUILDING), "building file missing for Bob");
-  assert.ok(bobResources.includes(`${ENERGY}/2024-P1Y.ttl`), "2024 dataset missing for Bob");
+  assert.ok(bobResources.includes(`${DS_2024}`), "2024 dataset missing for Bob");
   assert.ok(
-    !bobResources.includes(`${ENERGY}/2023-P1Y.ttl`),
+    !bobResources.includes(`${DS_2023}`),
     "2023 is outside the per-year scope — not drift",
   );
   assert.ok(
     before.drift.some((d) => d.grantee === CAROL && d.resource === SNAPSHOT),
-    "Carol's view snapshot missing",
+    "Carol's aggregation snapshot missing",
   );
   // Dry run: the audit wrote nothing.
   assert.ok(

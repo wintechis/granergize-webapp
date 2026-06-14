@@ -16,21 +16,21 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { AggregatedViewDefinition } from "../types.ts";
+import { AggregationDefinition } from "../types.ts";
 import { webIdsError } from "../lib/webId.ts";
 import {
-  useRevokeViewAccess,
-  useShareViewSnapshot,
+  useRevokeAggregationAccess,
+  useShareAggregationSnapshot,
 } from "../hooks/mutations.ts";
 import {
   queryKeys,
   useRoomState,
-  useSharedViews,
+  useSharedAggregations,
   useSharedWithMe,
 } from "../hooks/queries.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
-import { getSnapshotUri } from "../services/aggregation/viewManager.ts";
-import { summarizeContributors } from "../services/aggregation/viewComputer.ts";
+import { getSnapshotUri } from "../services/aggregation/aggregationManager.ts";
+import { summarizeContributors } from "../services/aggregation/aggregationComputer.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
@@ -38,15 +38,15 @@ import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
 
 import { roleLabel } from "../constants/roles.ts";
 
-interface ShareViewDialogProps {
+interface ShareAggregationDialogProps {
   open: boolean;
   onClose: () => void;
-  view: AggregatedViewDefinition;
+  aggregation: AggregationDefinition;
   session: Session;
 }
 
-export default function ShareViewDialog(
-  { open, onClose, view, session }: ShareViewDialogProps,
+export default function ShareAggregationDialog(
+  { open, onClose, aggregation, session }: ShareAggregationDialogProps,
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
@@ -58,22 +58,22 @@ export default function ShareViewDialog(
   // classifier the central toast would use. The "currently shared with" list
   // derives from the folded shared-out log (no per-open re-fold); the hooks'
   // sharedOutLog invalidation refreshes it after a share/revoke.
-  const share = useShareViewSnapshot({ silent: true });
-  const revoke = useRevokeViewAccess();
+  const share = useShareAggregationSnapshot({ silent: true });
+  const revoke = useRevokeAggregationAccess();
   const loading = share.isPending || revoke.isPending;
   const shareError = share.error
     ? classifyQueryError(share.error).message
     : null;
   const shareSuccess = share.isSuccess;
   const successRecipients = share.variables?.recipients ?? [];
-  const sharedViewsQuery = useSharedViews();
+  const sharedAggregationsQuery = useSharedAggregations();
   const sharedWith = useMemo(() => {
-    const shares = (sharedViewsQuery.data ?? []).filter(
-      (s) => s.viewId === view.id,
+    const shares = (sharedAggregationsQuery.data ?? []).filter(
+      (s) => s.aggregationId === aggregation.id,
     );
     return [...new Set(shares.flatMap((s) => s.sharedWith))];
-  }, [sharedViewsQuery.data, view.id]);
-  const loadingShared = sharedViewsQuery.isLoading;
+  }, [sharedAggregationsQuery.data, aggregation.id]);
+  const loadingShared = sharedAggregationsQuery.isLoading;
   // The reads are queries too — the dialog mounts fresh per open (ManagePage
   // renders it conditionally), so subscribing here refetches on open like the
   // old per-open loads did, but through the shared caches: members from the
@@ -91,7 +91,7 @@ export default function ShareViewDialog(
     qc.invalidateQueries({ queryKey: queryKeys.roomLog });
   }, [qc]);
   const members = useMemo(
-    // Exclude yourself — you can't share a view with your own WebID.
+    // Exclude yourself — you can't share an aggregation with your own WebID.
     () =>
       (room.data?.members ?? []).filter((m) =>
         m.webId !== session.info.webId
@@ -99,19 +99,19 @@ export default function ShareViewDialog(
     [room.data?.members, session.info.webId],
   );
   const membersLoading = room.isLoading || room.isFetching;
-  // When this view is a benchmark, the WebIDs that contributed buildings to it —
+  // When this aggregation is a benchmark, the WebIDs that contributed buildings to it —
   // the natural share-back targets, offered as a one-click "add all" below.
   // The snapshot's isBenchmark flag is derived from the definition's benchmark
   // flag at compute time, so the definition prop already answers "is this a
   // benchmark?" — no per-open snapshot fetch.
-  const isBenchmarkView = Boolean(view.benchmark);
+  const isBenchmarkAggregation = Boolean(aggregation.benchmark);
   const sharedWithMe = useSharedWithMe();
   const contributors = useMemo(
     () =>
-      isBenchmarkView
+      isBenchmarkAggregation
         ? summarizeContributors(sharedWithMe.data ?? []).contributors
         : [],
-    [isBenchmarkView, sharedWithMe.data],
+    [isBenchmarkAggregation, sharedWithMe.data],
   );
 
   /** Append a member's WebID to the recipient tokens (deduped). */
@@ -137,12 +137,12 @@ export default function ShareViewDialog(
 
   const handleConfirmShare = () => {
     if (!session.info.webId) return;
-    const snapshotUri = getSnapshotUri(session.info.webId, view.id);
+    const snapshotUri = getSnapshotUri(session.info.webId, aggregation.id);
     share.mutate({ snapshotUri, recipients }, {
       onSuccess: () => {
         setConfirmStep(false);
         showNotification(
-          `View shared with ${recipients.length} recipient${
+          `Aggregation shared with ${recipients.length} recipient${
             recipients.length === 1 ? "" : "s"
           }`,
           "success",
@@ -164,8 +164,8 @@ export default function ShareViewDialog(
       })
     ) return;
     revoke.mutate(
-      { snapshotUri: getSnapshotUri(session.info.webId, view.id), webId },
-      { onSuccess: () => showNotification("View access revoked", "success") },
+      { snapshotUri: getSnapshotUri(session.info.webId, aggregation.id), webId },
+      { onSuccess: () => showNotification("Aggregation access revoked", "success") },
     );
   };
 
@@ -183,7 +183,7 @@ export default function ShareViewDialog(
       onClose={handleClose}
       dirty={recipients.length > 0}
       busy={loading}
-      title={`Share "${view.name}"`}
+      title={`Share "${aggregation.name}"`}
       actions={<Button onClick={handleClose}>Close</Button>}
     >
       {loading
@@ -193,7 +193,7 @@ export default function ShareViewDialog(
         : (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Share this aggregated view with another user by entering their
+            Share this aggregation with another user by entering their
             WebID. They will receive read access to the computed snapshot
             (values only, no building details).
           </Typography>
@@ -224,7 +224,7 @@ export default function ShareViewDialog(
 
           {!confirmStep && (
             <>
-              {isBenchmarkView && contributors.length > 0 && (
+              {isBenchmarkAggregation && contributors.length > 0 && (
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
                     This is a benchmark. Share it back to everyone who contributed

@@ -1,17 +1,17 @@
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type {
-  AggregatedViewDefinition,
-  AggregatedViewSnapshot,
+  AggregationDefinition,
+  AggregationSnapshot,
   AggregationType,
   BuildingType,
   EnergyCategoryKey,
   EnergyType,
 } from "../../types.ts";
-import { getViewDefinition, storeComputedSnapshot } from "./viewManager.ts";
+import { getAggregationDefinition, storeComputedSnapshot } from "./aggregationManager.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
-import { listDirectChildren } from "../pod/podDelete.ts";
 import {
   type EnergyDatasetRef,
+  listSeriesDays,
   loadEnergyDatasets,
   parseEnergyDatasetRefs,
 } from "../rdf/energyDataset.ts";
@@ -49,7 +49,7 @@ function cachedBuildingRefs(buildingUri: string): EnergyDatasetRef[] | null {
 
 /**
  * The building's energy-dataset refs: the warm-cache fast path, else a re-read of
- * the building file with a bounded retry. The view's buildings exist (seeded well
+ * the building file with a bounded retry. The aggregation's buildings exist (seeded well
  * before), so a transient empty read on a slow Pod is the flake to ride out —
  * `readStoreOrEmpty` swallows the distinction, so retry until refs appear or the
  * cap; a genuinely energy-less building just retries cheaply and returns nothing.
@@ -81,7 +81,7 @@ async function loadBuildingEnergyData(
   buildingUri: string,
   session: Session,
 ): Promise<{ energy: EnergyType; year: number } | null> {
-  // The view definition records the SUBJECT IRI; the document is its
+  // The aggregation definition records the SUBJECT IRI; the document is its
   // fragment-free form. Carry the subject through verbatim — identity is the
   // IRI, never reconstructed from the file name.
   const fileUri = buildingFileUri(buildingUri);
@@ -89,7 +89,7 @@ async function loadBuildingEnergyData(
     // Discover the building's annual datasets from its cons:hasEnergyDataset
     // links (warm cache, else a retrying file read) and load the latest actual
     // year; its metrics become the energyNeed (keyed by the AnnualMetrics names
-    // the view metrics use).
+    // the aggregation metrics use).
     const annual = (await resolveBuildingRefs(buildingUri, fileUri, session))
       .filter((r) =>
         r.scenario === "actual" && !isSeriesGranularity(r.granularity)
@@ -209,12 +209,14 @@ async function loadUserBuildingMonthlyTotal(
       return null;
     }
 
+    // Day chunks are time-first under each series' year container; list them
+    // and keep the days whose `YYYY-MM-DD` falls in the requested period
+    // (e.g. "2024-03" → days starting "2024-03").
     const dailyUris: string[] = [];
     for (const ref of seriesRefs) {
-      const container = buildingFileUri(ref.url).replace(/\.ttl$/, "/");
-      const children = (await listDirectChildren(container, session)) ?? [];
-      for (const url of children) {
-        if (url.endsWith(".ttl") && url.includes(period)) dailyUris.push(url);
+      const days = await listSeriesDays(session, ref);
+      for (const { day, url } of days) {
+        if (day.startsWith(period)) dailyUris.push(url);
       }
     }
     if (dailyUris.length === 0) {
@@ -246,7 +248,7 @@ async function loadUserBuildingMonthlyTotal(
 }
 
 /**
- * Compute aggregated values for a view definition.
+ * Compute aggregated values for an aggregation definition.
  *
  * A definition flagged `benchmark` yields a snapshot additionally typed
  * bench:BenchmarkResult, carrying the computing agent and the period covered.
@@ -257,10 +259,10 @@ async function loadUserBuildingMonthlyTotal(
  */
 export async function computeAggregation(
   session: Session,
-  viewDefinition: AggregatedViewDefinition,
-): Promise<AggregatedViewSnapshot> {
+  aggregationDefinition: AggregationDefinition,
+): Promise<AggregationSnapshot> {
   const { id, name, buildingUris, aggregationType, metrics, period, benchmark } =
-    viewDefinition;
+    aggregationDefinition;
   const benchmarkFields = (metricPeriod?: string) =>
     benchmark
       ? {
@@ -272,8 +274,8 @@ export async function computeAggregation(
 
   // Monthly path (data shape: a sub-hourly series): aggregate the period's
   // electricity totals per building. Bounded concurrency (mapPooled, the
-  // Cloudflare-safe pattern viewManager uses) instead of strictly serial
-  // round-trips — a 20-building view was 40+ sequential fetches.
+  // Cloudflare-safe pattern aggregationManager uses) instead of strictly serial
+  // round-trips — a 20-building aggregation was 40+ sequential fetches.
   if (period) {
     const monthlyTotals = (await mapPooled(
       buildingUris,
@@ -281,7 +283,7 @@ export async function computeAggregation(
       (buildingUri) => loadUserBuildingMonthlyTotal(buildingUri, period, session),
     )).filter((t): t is number => t !== null);
 
-    const snapshot: AggregatedViewSnapshot = {
+    const snapshot: AggregationSnapshot = {
       id,
       name,
       aggregationType,
@@ -328,7 +330,7 @@ export async function computeAggregation(
     }
   }
 
-  const snapshot: AggregatedViewSnapshot = {
+  const snapshot: AggregationSnapshot = {
     id,
     name,
     aggregationType,
@@ -346,35 +348,35 @@ export async function computeAggregation(
 }
 
 /**
- * Compute and store a snapshot for a view. Benchmark typing comes from the
+ * Compute and store a snapshot for an aggregation. Benchmark typing comes from the
  * persisted definition (`benchmark` flag) — there are no call-site options.
  * @operation mutation
  */
 export async function computeAndStoreSnapshot(
   session: Session,
-  viewId: string,
-): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUri: string }> {
-  const viewDefinition = await getViewDefinition(session, viewId);
+  aggregationId: string,
+): Promise<{ snapshot: AggregationSnapshot; snapshotUri: string }> {
+  const aggregationDefinition = await getAggregationDefinition(session, aggregationId);
 
-  if (!viewDefinition) {
-    throw new Error(`View definition not found: ${viewId}`);
+  if (!aggregationDefinition) {
+    throw new Error(`Aggregation definition not found: ${aggregationId}`);
   }
 
-  const snapshot = await computeAggregation(session, viewDefinition);
+  const snapshot = await computeAggregation(session, aggregationDefinition);
   const snapshotUri = await storeComputedSnapshot(session, snapshot);
 
   return { snapshot, snapshotUri };
 }
 
 /**
- * Refresh (recompute) an existing view snapshot
+ * Refresh (recompute) an existing aggregation snapshot
  * @operation mutation
  */
 export async function refreshSnapshot(
   session: Session,
-  viewId: string,
-): Promise<{ snapshot: AggregatedViewSnapshot; snapshotUri: string }> {
-  return computeAndStoreSnapshot(session, viewId);
+  aggregationId: string,
+): Promise<{ snapshot: AggregationSnapshot; snapshotUri: string }> {
+  return computeAndStoreSnapshot(session, aggregationId);
 }
 
 /** The roster a benchmark aggregates over: the buildings shared *to* this user. */

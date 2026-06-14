@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { BuildingType, EnergyDatasetRef } from "../types.ts";
-import { monthsFromDays, selectedSeriesRefs } from "./createViewMonths.ts";
+import { monthsFromDays, selectedSeriesRefs } from "./createAggregationMonths.ts";
 
 function ref(
   url: string,
@@ -30,7 +30,7 @@ const B = building("b", [ref("https://pod.example/b/2023-PT15M.ttl#ds", "PT15M")
 
 Deno.test("selectedSeriesRefs returns only the SELECTED buildings' series datasets", () => {
   // heike-5 #4: months from unselected buildings let the user pick a month the
-  // view's actual inputs don't carry → empty snapshot.
+  // aggregation's actual inputs don't carry → empty snapshot.
   const refs = selectedSeriesRefs([A, B], [A.uri]);
   assert.deepEqual(refs.map((r) => r.url), [
     "https://pod.example/a/2024-PT15M.ttl#ds",

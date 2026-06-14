@@ -98,6 +98,7 @@ const CHROME = { ...devices["Desktop Chrome"] };
 const SOLO_SPECS = [
   "**/building-page.spec.ts",
   "**/uri-state.spec.ts",
+  "**/add-building.spec.ts",
 ];
 // DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
 const DUO_SPECS: string[] = [];

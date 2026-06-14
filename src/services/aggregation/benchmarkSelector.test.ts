@@ -1,11 +1,11 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { AggregatedViewSnapshot } from "../../types.ts";
+import type { AggregationSnapshot } from "../../types.ts";
 import { pickBenchmark } from "./benchmarkSelector.ts";
 
 function snap(
-  over: Partial<AggregatedViewSnapshot> & { values: Record<string, number> },
-): AggregatedViewSnapshot {
+  over: Partial<AggregationSnapshot> & { values: Record<string, number> },
+): AggregationSnapshot {
   return {
     id: "v",
     name: "Bench",

@@ -56,7 +56,7 @@ const ACC = account("A");
 // tier replaces this with B's REAL WebID from /seed-profiles (never constructed).
 const CONTACT_WEBID = account("B").webId || ACC.webId ||
   "https://maxmustermann.solidcommunity.net/profile/card#me";
-/** The benchmark view name seeded by /seed-benchmark (shows on received rows). */
+/** The benchmark aggregation name seeded by /seed-benchmark (shows on received rows). */
 const BENCHMARK_NAME = "Energie-Benchmark";
 const OUT = "docs/figures";
 // Cooldown after every screenshot. Its only purpose is to let a Cloudflare-fronted
@@ -260,10 +260,10 @@ test.describe("handbuch screenshots", () => {
         await c.page.getByRole("button", { name: "No thanks" })
           .click({ timeout: 8_000 }).catch(() => {});
         await c.page.getByRole("tab", { name: "Manage" }).click();
-        const viewRow = c.page.locator("li").filter({ hasText: BENCHMARK_NAME })
+        const aggregationRow = c.page.locator("li").filter({ hasText: BENCHMARK_NAME })
           .first();
-        await expect(viewRow).toBeVisible({ timeout: 60_000 });
-        await viewRow.getByRole("button", { name: "Share view" }).click();
+        await expect(aggregationRow).toBeVisible({ timeout: 60_000 });
+        await aggregationRow.getByRole("button", { name: "Share aggregation" }).click();
         const shareDialog = c.page.getByRole("dialog");
         const addAll = shareDialog.getByRole("button", {
           name: /add all \d+ contributors/i,
@@ -367,12 +367,12 @@ test.describe("handbuch screenshots", () => {
     await page.getByRole("button", { name: "Close" }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: 10_000 });
 
-    // --- Manage: aggregated views (Create View lives here, with buildings) ---
+    // --- Manage: aggregations (Create aggregation lives here, with buildings) ---
     await page.getByRole("tab", { name: "Manage" }).click();
     await page.waitForTimeout(500);
 
-    // --- Create View dialog (buildings are now selectable) ---
-    await page.getByRole("button", { name: /create view/i }).click();
+    // --- Create aggregation dialog (buildings are now selectable) ---
+    await page.getByRole("button", { name: /create aggregation/i }).click();
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await page.waitForTimeout(500);
     await shot(page, "create-view.png");
@@ -384,24 +384,24 @@ test.describe("handbuch screenshots", () => {
     //     auto-computes its snapshot on first open, so the figure shows the
     //     chart + table without a manual refresh. ---
     const VIEW_NAME = "Portfolio Nürnberg";
-    const viewRow = page.locator("li").filter({ hasText: VIEW_NAME }).first();
-    if (await viewRow.count()) {
+    const aggregationRow = page.locator("li").filter({ hasText: VIEW_NAME }).first();
+    if (await aggregationRow.count()) {
       await page.keyboard.press("Escape"); // view exists from a prior run
     } else {
-      await dialog.getByLabel("View Name").fill(VIEW_NAME);
+      await dialog.getByLabel("Aggregation name").fill(VIEW_NAME);
       await dialog.getByLabel("Select Buildings").click();
       for (const street of ["Nordostpark", "Hafenstraße", "Lange Gasse"]) {
         await page.getByRole("option").filter({ hasText: street }).first()
           .click({ timeout: 10_000 }).catch(() => {});
       }
       await page.keyboard.press("Escape"); // close the building multi-select
-      await dialog.getByRole("button", { name: /create view/i }).click();
-      await expect(page.getByText(/view created successfully/i))
+      await dialog.getByRole("button", { name: /create aggregation/i }).click();
+      await expect(page.getByText(/aggregation created successfully/i))
         .toBeVisible({ timeout: 60_000 });
       await dismissToasts(page);
     }
-    await expect(viewRow).toBeVisible({ timeout: 30_000 });
-    await viewRow.getByRole("button", { name: "View details" }).click();
+    await expect(aggregationRow).toBeVisible({ timeout: 30_000 });
+    await aggregationRow.getByRole("button", { name: "Aggregation details" }).click();
     // The standalone view route: wait for the auto-computed chart to draw.
     await expect(
       page.locator("svg.recharts-surface .recharts-bar-rectangle").first(),
@@ -487,7 +487,7 @@ test.describe("handbuch screenshots", () => {
       // --- Energy detail page (energy-detail.png): the standalone /energy/:id
       //     route — latest year's figures with the Portfolio / Operator /
       //     Benchmark comparison columns side by side. ---
-      await page.goto(buildingRoute("energy", buildingId));
+      await page.goto(buildingRoute("observation", buildingId));
       await expect(
         page.getByRole("heading", { name: /Energy Need for / }),
       ).toBeVisible({ timeout: 60_000 });
@@ -578,7 +578,7 @@ test.describe("handbuch screenshots", () => {
           .getByText(/^Building /),
       ).toBeVisible({ timeout: 120_000 });
       // Local tier: B also contributed to the seeded benchmark, so the snapshot
-      // Charlie shared back must show under "Views shared with you" — and the
+      // Charlie shared back must show under "Aggregations shared with you" — and the
       // figure shows the received PEER NUMBERS: expand it and wait for the
       // snapshot's averages (count line, value table, chart) to render.
       if (E2E_LOCAL) {

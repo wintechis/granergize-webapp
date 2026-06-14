@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, login } from "../helpers/login.ts";
-import { receivedViews } from "../helpers/manage.ts";
+import { receivedAggregations } from "../helpers/manage.ts";
 import { freshPage } from "../helpers/twoPod.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { sweepSizes, writeBenchDat } from "./benchSpec.ts";
@@ -12,12 +12,12 @@ import { sweepSizes, writeBenchDat } from "./benchSpec.ts";
  * each (`POST /seed-contrib`, A's inbox pre-drained), and the browser times the
  * roundtrip A drives in the UI:
  *
- *   create_ms    — A: CreateViewDialog confirm ("Compare shared buildings" over
- *                  all 2N contributed buildings) → "view created successfully"
+ *   create_ms    — A: CreateAggregationDialog confirm ("Compare shared buildings" over
+ *                  all 2N contributed buildings) → "aggregation created successfully"
  *                  (compute + persist the snapshot). The roster selection
  *                  clicks happen BEFORE the timer — they're Playwright cost,
  *                  not app cost.
- *   share_ms     — A: ShareViewDialog "Add all contributors" (resolves B + C
+ *   share_ms     — A: ShareAggregationDialog "Add all contributors" (resolves B + C
  *                  from the snapshot) → review → confirm → success toast.
  *   recipient_ms — B: fresh login (drains the view grant), then Share tab →
  *                  the received view's row is visible (fold + snapshot load).
@@ -81,13 +81,13 @@ test.describe("view-roundtrip benchmark", () => {
       // ── A: build the benchmark view over the 2N contributed buildings ──
       await gotoLoggedIn(page); // cold load; seed wiped A's app data (views included)
       await page.getByRole("tab", { name: "Manage" }).click();
-      await page.getByRole("button", { name: /create view/i }).click();
+      await page.getByRole("button", { name: /create aggregation/i }).click();
       const dlg = page.getByRole("dialog");
       await expect(dlg).toBeVisible({ timeout: 30_000 });
 
       // The "Compare shared buildings" type appears once the dialog has folded
       // the shared-with-me roster (async); re-open the select until offered.
-      const modeSel = dlg.getByLabel("View type");
+      const modeSel = dlg.getByLabel("Aggregation type");
       await expect(async () => {
         await modeSel.click();
         const opt = page.getByRole("option", { name: /compare shared buildings/i });
@@ -100,7 +100,7 @@ test.describe("view-roundtrip benchmark", () => {
         }
       }).toPass({ timeout: 120_000 });
 
-      await dlg.getByLabel("View Name").fill(VIEW);
+      await dlg.getByLabel("Aggregation name").fill(VIEW);
 
       // Select ALL 2N contributed buildings. Untimed: per-option clicks are
       // Playwright interaction cost, not the app's compute path.
@@ -111,14 +111,14 @@ test.describe("view-roundtrip benchmark", () => {
       await page.keyboard.press("Escape");
 
       let t0 = Date.now();
-      await dlg.getByRole("button", { name: /create view/i }).click();
-      await expect(page.getByText(/view created successfully/i))
+      await dlg.getByRole("button", { name: /create aggregation/i }).click();
+      await expect(page.getByText(/aggregation created successfully/i))
         .toBeVisible({ timeout: 120_000 });
       const createMs = Date.now() - t0;
 
       // ── A: share the snapshot back to its contributors (B + C) ──
-      const viewRow = page.locator("li").filter({ hasText: VIEW }).first();
-      await viewRow.getByRole("button", { name: "Share view" }).click();
+      const aggregationRow = page.locator("li").filter({ hasText: VIEW }).first();
+      await aggregationRow.getByRole("button", { name: "Share aggregation" }).click();
       const shareDlg = page.getByRole("dialog");
       const addAll = shareDlg.getByRole("button", { name: /add all .* contributors/i });
       await expect(addAll).toBeVisible({ timeout: 30_000 });
@@ -140,7 +140,7 @@ test.describe("view-roundtrip benchmark", () => {
       try {
         const t1 = Date.now();
         await b.page.getByRole("tab", { name: "Share" }).click();
-        await expect(receivedViews(b.page).getByText(VIEW))
+        await expect(receivedAggregations(b.page).getByText(VIEW))
           .toBeVisible({ timeout: 120_000 });
         rows.push([n, createMs, shareMs, Date.now() - t1]);
       } finally {

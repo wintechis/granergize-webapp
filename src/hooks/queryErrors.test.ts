@@ -89,7 +89,7 @@ Deno.test("classifyMutationError: a non-silent mutation error while expired → 
   markSessionExpired();
   try {
     const note = classifyMutationError(new Error("HTTP 401"), {
-      action: "share the view",
+      action: "share the aggregation",
     });
     assert.equal(note?.severity, "warning");
     assert.equal(note?.message, "Session expired — please log in again");
@@ -105,9 +105,9 @@ Deno.test("classifyMutationError: a non-silent mutation error while expired → 
 
 Deno.test("classifyMutationError: honours meta (action phrasing, silent → null)", () => {
   const withAction = classifyMutationError(new Error("boom"), {
-    action: "share the view",
+    action: "share the aggregation",
   });
-  assert.equal(withAction?.message, "Failed to share the view: boom");
+  assert.equal(withAction?.message, "Failed to share the aggregation: boom");
   assert.equal(withAction?.severity, "error");
 
   assert.equal(

@@ -5,51 +5,82 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   datasetFileUri,
   datasetNodeUri,
-  datasetSlug,
   type EnergyDataset,
   type EnergyDatasetRef,
+  findDatasetLink,
   listSeriesDays,
   loadEnergyDatasets,
-  parseDatasetSlug,
+  observationsRootForBuilding,
+  parseDatasetLink,
   parseEnergyDataset,
   parseEnergyDatasetRefs,
+  seriesContainerUri,
+  seriesDailyFileUri,
   serializeEnergyDataset,
 } from "./energyDataset.ts";
 import { CONSUMPTION_NS } from "./vocabularies.ts";
 
-const B = "https://pod.example/granergize/buildings/b-1.ttl#b-1";
+const B = "https://pod.example/granergize/buildings/b-1.ttl#it";
+const ROOT = "https://pod.example/granergize/observations/";
+const ID = "abc";
 
 function parse(ttl: string): Store {
   return new Store(new Parser().parse(ttl));
 }
 
-Deno.test("datasetSlug / datasetFileUri encode (year, granularity, scenario)", () => {
-  assert.equal(datasetSlug(2024, "P1Y", "actual"), "2024-P1Y");
-  assert.equal(datasetSlug(2024, "P1Y", "planned"), "2024-P1Y-planned");
-  assert.equal(datasetSlug(2024, "PT15M", "actual"), "2024-PT15M");
+Deno.test("observationsRootForBuilding derives the sibling observations/ root", () => {
+  assert.equal(observationsRootForBuilding(B), ROOT);
   assert.equal(
-    datasetFileUri(B, 2024, "P1Y", "actual"),
-    "https://pod.example/granergize/buildings/b-1/energy/2024-P1Y.ttl",
+    observationsRootForBuilding("https://pod.example/granergize/buildings/x.ttl"),
+    ROOT,
   );
 });
 
-Deno.test("parseDatasetSlug round-trips the slug from a link URL", () => {
-  const url = datasetNodeUri(datasetFileUri(B, 2023, "P1Y", "planned"));
-  const ref = parseDatasetSlug(url);
+Deno.test("datasetFileUri / seriesDailyFileUri build time-first paths", () => {
+  assert.equal(datasetFileUri(ROOT, 2024, ID), `${ROOT}2024/${ID}.ttl`);
+  assert.equal(seriesContainerUri(ROOT, 2024), `${ROOT}2024/`);
+  assert.equal(
+    seriesDailyFileUri(ROOT, "2024-03-15", ID),
+    `${ROOT}2024/03/15/${ID}.ttl`,
+  );
+});
+
+Deno.test("parseDatasetLink reads year from the path, granularity/scenario from the store", () => {
+  const url = `${datasetFileUri(ROOT, 2023, ID)}#ds`;
+  const store = parse(
+    `@prefix cons: <${CONSUMPTION_NS}> .\n` +
+      `<${url}> cons:granularity "P1Y" ; cons:scenario cons:Planned .\n`,
+  );
+  const ref = parseDatasetLink(url, store);
   assert.ok(ref);
   assert.equal(ref!.year, 2023);
   assert.equal(ref!.granularity, "P1Y");
   assert.equal(ref!.scenario, "planned");
   assert.equal(ref!.url, url);
 
-  const series = parseDatasetSlug(
-    "https://pod.example/granergize/buildings/b-1/energy/2024-PT15M.ttl#ds",
-  );
-  assert.equal(series!.granularity, "PT15M");
-  assert.equal(series!.scenario, "actual");
+  // No store → year from path, granularity/scenario default to P1Y/actual.
+  const bare = parseDatasetLink(`${datasetFileUri(ROOT, 2024, ID)}#ds`);
+  assert.equal(bare!.year, 2024);
+  assert.equal(bare!.granularity, "P1Y");
+  assert.equal(bare!.scenario, "actual");
 
-  // Not a dataset slug.
-  assert.equal(parseDatasetSlug("https://pod.example/x/notes.ttl#x"), null);
+  // Not an observation IRI.
+  assert.equal(parseDatasetLink("https://pod.example/x/notes.ttl#x"), null);
+});
+
+Deno.test("findDatasetLink matches an existing link by (year, granularity, scenario)", () => {
+  const a = `${datasetFileUri(ROOT, 2024, "id-a")}#ds`;
+  const b = `${datasetFileUri(ROOT, 2024, "id-b")}#ds`;
+  const store = parse(
+    `@prefix cons: <${CONSUMPTION_NS}> .\n` +
+      `<${B}> cons:hasEnergyDataset <${a}>, <${b}> .\n` +
+      `<${a}> cons:granularity "P1Y" ; cons:scenario cons:Actual .\n` +
+      `<${b}> cons:granularity "PT15M" ; cons:scenario cons:Actual .\n`,
+  );
+  assert.equal(findDatasetLink(store, B, 2024, "P1Y", "actual"), a);
+  assert.equal(findDatasetLink(store, B, 2024, "PT15M", "actual"), b);
+  assert.equal(findDatasetLink(store, B, 2024, "P1Y", "planned"), null);
+  assert.equal(findDatasetLink(store, B, 2025, "P1Y", "actual"), null);
 });
 
 Deno.test("annual dataset round-trips through serialize → parse", () => {
@@ -64,9 +95,9 @@ Deno.test("annual dataset round-trips through serialize → parse", () => {
       waterConsumption: 1500,
     },
   };
+  const node = `${datasetFileUri(ROOT, 2024, ID)}#ds`;
   const ttl = serializeEnergyDataset(ds);
-  const store = parse(ttl.replace(/<#ds>/g, `<${datasetNodeUri(datasetFileUri(B, 2024, "P1Y", "actual"))}>`));
-  const node = datasetNodeUri(datasetFileUri(B, 2024, "P1Y", "actual"));
+  const store = parse(ttl.replace(/<#ds>/g, `<${node}>`));
   const back = parseEnergyDataset(store, node);
   assert.ok(back);
   assert.equal(back!.building, B);
@@ -106,7 +137,7 @@ Deno.test("planned scenario serializes cons:Planned and round-trips", () => {
 });
 
 Deno.test("series descriptor round-trips (located, no inline observations)", () => {
-  const loc = "https://pod.example/granergize/buildings/b-1/energy/2024-PT15M/";
+  const loc = seriesContainerUri(ROOT, 2024);
   const ds: EnergyDataset = {
     building: B,
     year: 2024,
@@ -128,7 +159,7 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
   // This is the read path the energy-year edit form relies on: re-opening a
   // stored year must surface its full figures so an edit doesn't drop the
   // untouched ones (#5 data loss).
-  const fileUri = datasetFileUri(B, 2024, "P1Y", "actual");
+  const fileUri = datasetFileUri(ROOT, 2024, ID);
   const ref: EnergyDatasetRef = {
     url: datasetNodeUri(fileUri),
     year: 2024,
@@ -159,7 +190,7 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
 
 Deno.test("loadEnergyDatasets skips an unreadable ref without throwing", async () => {
   const ref: EnergyDatasetRef = {
-    url: datasetNodeUri(datasetFileUri(B, 2024, "P1Y", "actual")),
+    url: datasetNodeUri(datasetFileUri(ROOT, 2024, ID)),
     year: 2024,
     granularity: "P1Y",
     scenario: "actual",
@@ -169,44 +200,55 @@ Deno.test("loadEnergyDatasets skips an unreadable ref without throwing", async (
   assert.deepEqual(await loadEnergyDatasets([ref], fetchFn), []);
 });
 
-Deno.test("parseEnergyDatasetRefs reads the building's hasEnergyDataset links", () => {
-  const a = datasetNodeUri(datasetFileUri(B, 2024, "P1Y", "actual"));
-  const b = datasetNodeUri(datasetFileUri(B, 2024, "PT15M", "actual"));
+Deno.test("parseEnergyDatasetRefs reads the building's hasEnergyDataset links + descriptors", () => {
+  const a = datasetNodeUri(datasetFileUri(ROOT, 2024, "id-a"));
+  const b = datasetNodeUri(datasetFileUri(ROOT, 2024, "id-b"));
   const store = parse(
-    `@prefix cons: <${CONSUMPTION_NS}> .\n<${B}> cons:hasEnergyDataset <${a}>, <${b}> .\n`,
+    `@prefix cons: <${CONSUMPTION_NS}> .\n` +
+      `<${B}> cons:hasEnergyDataset <${a}>, <${b}> .\n` +
+      `<${a}> cons:granularity "P1Y" ; cons:scenario cons:Actual .\n` +
+      `<${b}> cons:granularity "PT15M" ; cons:scenario cons:Actual .\n`,
   );
   const refs = parseEnergyDatasetRefs(store, B);
   assert.equal(refs.length, 2);
   assert.deepEqual(refs.map((r) => r.granularity).sort(), ["P1Y", "PT15M"]);
 });
 
-Deno.test("listSeriesDays lists the descriptor's day files, sorted, .ttl only", async () => {
+Deno.test("listSeriesDays walks the year's month/day containers for the dataset's id", async () => {
   const ref: EnergyDatasetRef = {
-    url: datasetNodeUri(datasetFileUri(B, 2024, "PT15M", "actual")),
+    url: datasetNodeUri(datasetFileUri(ROOT, 2024, ID)),
     year: 2024,
     granularity: "PT15M",
     scenario: "actual",
   };
-  const container =
-    "https://pod.example/granergize/buildings/b-1/energy/2024-PT15M/";
-  const listing = `@prefix ldp: <http://www.w3.org/ns/ldp#> .
-<${container}> ldp:contains <${container}2024-01-02.ttl>,
-  <${container}2024-01-01.ttl>, <${container}notes.txt> .
-`;
+  const yearC = `${ROOT}2024/`;
+  const monthC = `${yearC}01/`;
+  const day1 = `${monthC}01/`;
+  const day2 = `${monthC}02/`;
+  const ldp = (container: string, children: string[]): Response => {
+    const body = `@prefix ldp: <http://www.w3.org/ns/ldp#> .\n<${container}> ldp:contains ${
+      children.map((c) => `<${c}>`).join(", ")
+    } .\n`;
+    return new Response(body, {
+      status: 200,
+      headers: { "Content-Type": "text/turtle" },
+    });
+  };
   const fetch = (input: string | URL): Promise<Response> => {
-    assert.equal(String(input), container, "descriptor URL → sibling container");
-    return Promise.resolve(
-      new Response(listing, {
-        status: 200,
-        headers: { "Content-Type": "text/turtle" },
-      }),
-    );
+    const u = String(input);
+    if (u === yearC) return Promise.resolve(ldp(yearC, [monthC]));
+    if (u === monthC) return Promise.resolve(ldp(monthC, [day1, day2]));
+    if (u === day1) {
+      return Promise.resolve(ldp(day1, [`${day1}${ID}.ttl`, `${day1}other.ttl`]));
+    }
+    if (u === day2) return Promise.resolve(ldp(day2, [`${day2}${ID}.ttl`]));
+    return Promise.resolve(new Response("not found", { status: 404 }));
   };
   const session = { info: { webId: "x", isLoggedIn: true }, fetch } as unknown as
     Session;
   const days = await listSeriesDays(session, ref);
   assert.deepEqual(days, [
-    { day: "2024-01-01", url: `${container}2024-01-01.ttl` },
-    { day: "2024-01-02", url: `${container}2024-01-02.ttl` },
+    { day: "2024-01-01", url: `${day1}${ID}.ttl` },
+    { day: "2024-01-02", url: `${day2}${ID}.ttl` },
   ]);
 });

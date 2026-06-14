@@ -23,7 +23,7 @@ import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
 import {
   useComputedSnapshot,
-  useReceivedViews,
+  useReceivedAggregations,
   useSharedBuildingDetail,
   useSharedWithMe,
 } from "../hooks/queries.ts";
@@ -51,22 +51,22 @@ interface SharePageProps {
 }
 
 /**
- * One "view shared with you" row. Only the sharer's computed *snapshot* is
+ * One "aggregation shared with you" row. Only the sharer's computed *snapshot* is
  * granted (not the definition), so we fetch it on demand from its URL (we hold
  * Read access) and show the aggregated values — a small table plus the same
  * SVG bar chart the owner sees.
  */
-function ReceivedViewRow(
-  { view }: {
-    view: { snapshotUri: string; viewId: string; sharedBy: string };
+function ReceivedAggregationRow(
+  { aggregation }: {
+    aggregation: { snapshotUri: string; aggregationId: string; sharedBy: string };
   },
 ) {
   const [open, setOpen] = useState(false);
 
-  // Recipients hold Read on the snapshot (which carries the view's name) but not
-  // the definition. The query loads it on mount so the row shows the view's NAME
+  // Recipients hold Read on the snapshot (which carries the aggregation's name) but not
+  // the definition. The query loads it on mount so the row shows the aggregation's NAME
   // up front instead of the opaque snapshot id; expanding reuses the cached data.
-  const snapQuery = useComputedSnapshot(view.snapshotUri);
+  const snapQuery = useComputedSnapshot(aggregation.snapshotUri);
   const snapshot = snapQuery.data ?? null;
   const loading = snapQuery.isLoading;
   const error = snapQuery.error
@@ -79,14 +79,14 @@ function ReceivedViewRow(
 
   const toggle = () => setOpen((prev) => !prev);
 
-  const label = (snapshot?.name && snapshot.name.trim()) || view.viewId ||
-    "Shared view";
+  const label = (snapshot?.name && snapshot.name.trim()) || aggregation.aggregationId ||
+    "Shared aggregation";
   const entries = snapshot ? Object.entries(snapshot.values) : [];
 
   return (
     <ResourceRow
       title={label}
-      subtitle={<>Shared by: <AgentLabel value={view.sharedBy} /></>}
+      subtitle={<>Shared by: <AgentLabel value={aggregation.sharedBy} /></>}
       actions={
         <Button size="small" variant="text" onClick={toggle}>
           {open ? "Hide values" : "Show values"}
@@ -104,7 +104,7 @@ function ReceivedViewRow(
           )}
           {snapshot && entries.length === 0 && (
             <Typography variant="body2" color="text.secondary">
-              This view has no computed values.
+              This aggregation has no computed values.
             </Typography>
           )}
           {snapshot && entries.length > 0 && (
@@ -161,7 +161,7 @@ function SharedBuildingFiles(
 
 /**
  * The SHARE tab: a pure inbox of what others have shared with you. Outgoing
- * sharing (your buildings and aggregated views) lives on the MANAGE tab.
+ * sharing (your buildings and aggregations) lives on the MANAGE tab.
  */
 export default function SharePage({ session }: SharePageProps) {
   const { showNotification } = useNotification();
@@ -172,9 +172,9 @@ export default function SharePage({ session }: SharePageProps) {
   const loading = sharedWithMeQuery.isLoading;
   const sharedPaging = usePaging(sharedWithMe);
 
-  const receivedViewsQuery = useReceivedViews();
-  const receivedViews = receivedViewsQuery.data ?? [];
-  const receivedViewsPaging = usePaging(receivedViews);
+  const receivedAggregationsQuery = useReceivedAggregations();
+  const receivedAggregations = receivedAggregationsQuery.data ?? [];
+  const receivedAggregationsPaging = usePaging(receivedAggregations);
 
   const toggleVis = useToggleVisibility();
   const checkInbox = useCheckInbox();
@@ -349,28 +349,28 @@ export default function SharePage({ session }: SharePageProps) {
       <Pager paging={sharedPaging} />
 
       <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
-        Views shared with you
+        Aggregations shared with you
       </Typography>
-      {receivedViewsQuery.isLoading
+      {receivedAggregationsQuery.isLoading
         ? <Typography variant="body2">Loading…</Typography>
-        : receivedViews.length === 0
+        : receivedAggregations.length === 0
         ? (
           <Typography variant="body2">
-            No views shared with you yet. A view a partner shares appears here.
+            No aggregations shared with you yet. An aggregation a partner shares appears here.
           </Typography>
         )
         : (
           <Box
             component="ul"
-            aria-label="Views shared with you"
+            aria-label="Aggregations shared with you"
             sx={{ listStyle: "none", pl: 0, m: 0 }}
           >
-            {receivedViewsPaging.pageItems.map((view) => (
-              <ReceivedViewRow key={view.snapshotUri} view={view} />
+            {receivedAggregationsPaging.pageItems.map((aggregation) => (
+              <ReceivedAggregationRow key={aggregation.snapshotUri} aggregation={aggregation} />
             ))}
           </Box>
         )}
-      <Pager paging={receivedViewsPaging} />
+      <Pager paging={receivedAggregationsPaging} />
 
       {/* Your inbox — the receiving endpoint others post to when they share with
           you. Notices are drained into shared-in/ and surface in the lists above.

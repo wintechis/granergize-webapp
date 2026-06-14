@@ -9,28 +9,28 @@ import { rememberBuildingAgents } from "./rememberAgents.ts";
 import { deleteBuildingResource } from "../services/buildingActions.ts";
 import {
   revokeAccess,
-  revokeAllViewRecipients,
-  revokeViewAccess,
+  revokeAllAggregationRecipients,
+  revokeAggregationAccess,
   toggleBuildingVisibility,
 } from "../services/interop/sharingManager.ts";
 import {
   auditGrants,
   reconcileBuildingGrants,
   reissueGrants,
-  shareAggregatedView,
+  shareAggregation,
   shareBuildingData,
 } from "../services/interop/share.ts";
 import { logError } from "../lib/logError.ts";
 import { drainInbox } from "../services/interop/inbox.ts";
 import {
-  createViewDefinition,
-  deleteView,
+  createAggregationDefinition,
+  deleteAggregation,
   getSnapshotUri,
-} from "../services/aggregation/viewManager.ts";
+} from "../services/aggregation/aggregationManager.ts";
 import {
   computeAndStoreSnapshot,
   refreshSnapshot,
-} from "../services/aggregation/viewComputer.ts";
+} from "../services/aggregation/aggregationComputer.ts";
 import {
   deleteEnergyYear,
   newBuildingUri,
@@ -76,7 +76,7 @@ import {
 } from "../services/contacts.ts";
 import { seedDemoContacts, seedDemoRooms } from "../services/demoConnect.ts";
 import type {
-  AggregatedViewDefinition,
+  AggregationDefinition,
   AttachmentRef,
   BuildingType,
   UserRole,
@@ -203,46 +203,46 @@ export function useRevokeBuildingAccess() {
   });
 }
 
-export function useDeleteView() {
+export function useDeleteAggregation() {
   const qc = useQueryClient();
   return useMutation({
-    // Revoke every recipient first (notifying them, so the view drops off their
-    // "Views shared with you"), THEN delete the definition/snapshot — deleting the
+    // Revoke every recipient first (notifying them, so the aggregation drops off their
+    // "Aggregations shared with you"), THEN delete the definition/snapshot — deleting the
     // snapshot alone would leave a stale row on each recipient's list.
-    mutationFn: async (viewId: string) => {
+    mutationFn: async (aggregationId: string) => {
       const session = getSession();
       const webId = session.info.webId;
       if (webId) {
-        await revokeAllViewRecipients(getSnapshotUri(webId, viewId), session);
+        await revokeAllAggregationRecipients(getSnapshotUri(webId, aggregationId), session);
       }
-      await deleteView(session, viewId);
+      await deleteAggregation(session, aggregationId);
     },
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.viewDefinitions });
-      qc.invalidateQueries({ queryKey: queryKeys.viewDetail });
+      qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions });
+      qc.invalidateQueries({ queryKey: queryKeys.aggregationDetail });
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
   });
 }
 
-export function useRefreshView() {
+export function useRefreshAggregation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (viewId: string) => refreshSnapshot(getSession(), viewId),
+    mutationFn: (aggregationId: string) => refreshSnapshot(getSession(), aggregationId),
     onSettled: () => {
-      qc.invalidateQueries({ queryKey: queryKeys.viewDefinitions });
-      // The standalone /view page reads through viewDetail (definition +
+      qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions });
+      // The standalone /aggregation page reads through aggregationDetail (definition +
       // snapshot), so the recompute must refetch it.
-      qc.invalidateQueries({ queryKey: queryKeys.viewDetail });
+      qc.invalidateQueries({ queryKey: queryKeys.aggregationDetail });
     },
   });
 }
 
-export function useRevokeViewAccess() {
+export function useRevokeAggregationAccess() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ snapshotUri, webId }: { snapshotUri: string; webId: string }) =>
-      revokeViewAccess(snapshotUri, webId, getSession()),
+      revokeAggregationAccess(snapshotUri, webId, getSession()),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
@@ -452,7 +452,7 @@ export function useSetEnergyCertificate() {
   });
 }
 
-// ── Sharing & views (dialog side) ────────────────────────────────────────────
+// ── Sharing & aggregations (dialog side) ────────────────────────────────────────────
 
 /**
  * Share a building with a list of recipients (sequential; stops at the first
@@ -484,39 +484,39 @@ export function useShareBuilding() {
 }
 
 /**
- * Share a view snapshot with a list of recipients. The share-view dialog
- * renders errors inline (`silent: true`); the standalone view page toasts
+ * Share an aggregation snapshot with a list of recipients. The share-aggregation dialog
+ * renders errors inline (`silent: true`); the standalone aggregation page toasts
  * (no option).
  */
-export function useShareViewSnapshot(opts: { silent?: boolean } = {}) {
+export function useShareAggregationSnapshot(opts: { silent?: boolean } = {}) {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "share the view", silent: opts.silent },
+    meta: { action: "share the aggregation", silent: opts.silent },
     mutationFn: async (vars: { snapshotUri: string; recipients: string[] }) => {
       const session = getSession();
       for (const recipient of vars.recipients) {
-        await shareAggregatedView(vars.snapshotUri, recipient, session);
+        await shareAggregation(vars.snapshotUri, recipient, session);
       }
     },
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog }),
   });
 }
 
-/** Create a view definition and compute its first snapshot (one user intent). */
-export function useCreateView() {
+/** Create an aggregation definition and compute its first snapshot (one user intent). */
+export function useCreateAggregation() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "create the view" },
+    meta: { action: "create the aggregation" },
     mutationFn: async (vars: {
       name: string;
       buildingUris: string[];
-      aggregationType: AggregatedViewDefinition["aggregationType"];
+      aggregationType: AggregationDefinition["aggregationType"];
       metrics: string[];
       period?: string;
       benchmark?: boolean;
     }) => {
       const session = getSession();
-      const def = await createViewDefinition(
+      const def = await createAggregationDefinition(
         session,
         vars.name,
         vars.buildingUris,
@@ -527,7 +527,7 @@ export function useCreateView() {
       await computeAndStoreSnapshot(session, def.id);
       return def;
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.viewDefinitions }),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions }),
   });
 }
 
@@ -800,7 +800,7 @@ export function useRestoreArchive() {
       const session = getSession();
       const restore = await importArchive(session, vars.bytes);
       const reissue = await reissueGrants(session);
-      return { ...restore, reissued: reissue.buildings + reissue.views };
+      return { ...restore, reissued: reissue.buildings + reissue.aggregations };
     },
     // The restore may have replaced anything under the app collection.
     onSettled: () => qc.invalidateQueries(),
