@@ -27,7 +27,9 @@ const LOGO_ADDR = "Logo Marker E2E Strasse 2"; // building used for the logo-mar
 async function openOrgDialog(page: Page): Promise<Locator> {
   // Bounded clicks: Playwright's default action timeout is 0 (wait forever), so a
   // stuck click here would consume a whole hook budget uncatchably. 15 s is ample.
-  await page.getByRole("button", { name: "Account menu" }).click({ timeout: T.visible });
+  await page.getByRole("button", { name: "Account menu" }).click({
+    timeout: T.visible,
+  });
   await page.getByRole("menuitem", { name: /organisation/i })
     .click({ timeout: T.visible });
   const org = page.getByRole("dialog");
@@ -118,12 +120,17 @@ test.describe("organisation logo", () => {
 
     // Add an owned building via the single generic form (no role/template).
     await page.getByRole("tab", { name: "Manage" }).click();
-    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+    const addBtn = page.getByRole("button", {
+      name: "Add Building",
+      exact: true,
+    })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await expect(add.getByLabel(/street address/i)).toBeVisible({ timeout: T.visible });
+    await expect(add.getByLabel(/street address/i)).toBeVisible({
+      timeout: T.visible,
+    });
     await add.getByLabel(/street address/i).fill(LOGO_ADDR);
     await add.getByLabel(/locality/i).fill("Nürnberg");
     await add.getByLabel(/postal code/i).fill("90451");
@@ -146,7 +153,6 @@ test.describe("organisation logo", () => {
     // renders the producer's org logo image. (Several owned buildings would
     // all show Alice's logo, so hover the first owned pin.)
     await page.getByRole("tab", { name: "Explore" }).click();
-    await page.waitForLoadState("networkidle").catch(() => {});
     const ownedPin = page.locator(".leaflet-marker-icon.pin-owned").first();
     await expect(ownedPin).toBeVisible({ timeout: T.action });
     await ownedPin.hover();

@@ -54,7 +54,10 @@ export async function assertCleanStart(page: Page, tag = ""): Promise<void> {
 }
 
 /** Count what the logged-in account's collection currently surfaces, and log it. */
-export async function logCollectionState(page: Page, tag: string): Promise<void> {
+export async function logCollectionState(
+  page: Page,
+  tag: string,
+): Promise<void> {
   if (page.isClosed()) {
     logRun(`clean-slate check [${tag}]: page already closed, skipped`);
     return;
@@ -65,9 +68,12 @@ export async function logCollectionState(page: Page, tag: string): Promise<void>
     const buildings = await buildingRows(page).count();
     // Views render as list rows carrying a "View" / "Open view" affordance; count
     // defensively (0 if the locator matches nothing).
-    const views = await page.getByRole("button", { name: /open view/i }).count();
+    const views = await page.getByRole("button", { name: /open view/i })
+      .count();
     const marker = buildings + views > 0 ? " RESIDUE" : " clean";
-    logRun(`clean-slate check [${tag}]: buildings=${buildings} views=${views}${marker}`);
+    logRun(
+      `clean-slate check [${tag}]: buildings=${buildings} views=${views}${marker}`,
+    );
   } catch (err) {
     logRun(`clean-slate check [${tag}]: FAILED to read state: ${String(err)}`);
   }

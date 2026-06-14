@@ -33,18 +33,19 @@ export async function hostRoomAndGetUri(page: Page): Promise<string> {
  */
 export async function assignUserRole(page: Page): Promise<void> {
   await page.getByRole("tab", { name: "Connect" }).click();
-  await page.waitForLoadState("networkidle").catch(() => {});
   const select = page.getByRole("combobox", { name: "My role(s)" });
   await expect(select).toBeVisible({ timeout: T.visible });
   await select.click();
   const userOption = page.getByRole("option", { name: "User" });
   await expect(userOption).toBeVisible({ timeout: T.quick });
-  const alreadyUser = (await userOption.getAttribute("aria-selected")) === "true";
+  const alreadyUser =
+    (await userOption.getAttribute("aria-selected")) === "true";
   if (!alreadyUser) await userOption.click();
   await page.keyboard.press("Escape");
-  await expect(page.getByRole("listbox")).toBeHidden({ timeout: T.quick }).catch(
-    () => {},
-  );
+  await expect(page.getByRole("listbox")).toBeHidden({ timeout: T.quick })
+    .catch(
+      () => {},
+    );
   if (alreadyUser) return;
   await expect(async () => {
     await page.getByRole("button", { name: /save roles/i }).click();
@@ -55,7 +56,10 @@ export async function assignUserRole(page: Page): Promise<void> {
 }
 
 /** On the Connect tab, add+enter a room URI and assign the User role. */
-export async function joinRoomAsUser(page: Page, roomUri: string): Promise<void> {
+export async function joinRoomAsUser(
+  page: Page,
+  roomUri: string,
+): Promise<void> {
   await page.getByRole("tab", { name: "Connect" }).click();
   const row = page.locator("li").filter({ hasText: roomUri });
   if (!(await row.count())) {
