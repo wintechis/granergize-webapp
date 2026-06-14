@@ -37,7 +37,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { AgentChip } from "./AgentLabel.tsx";
 import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
-import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
+import { roleLabel, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 
 /**
  * Roles selectable as a sharing target (resolved to member WebIDs via the data
@@ -45,7 +45,7 @@ import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
  * automatically and can't drift.
  */
 const SHARE_ROLE_OPTIONS: { value: UserRole; label: string }[] = ROOM_ROLE_OPTIONS
-  .map((value) => ({ value, label: ROLE_LABELS[value] ?? value }));
+  .map((value) => ({ value, label: roleLabel(value) }));
 
 /** What energy a share grants alongside the always-shared static building data. */
 type ShareScope = "static" | "all" | "years";

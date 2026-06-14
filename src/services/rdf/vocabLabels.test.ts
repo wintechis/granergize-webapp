@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { comment, label } from "./vocabLabels.ts";
+import { comment, fieldLabel, label, optionLabel } from "./vocabLabels.ts";
 import {
   VOCAB_COMMENTS,
   VOCAB_LABELS,
@@ -27,6 +27,22 @@ Deno.test("label falls back chosen → en → local-name fragment", () => {
   // And that a present term with a missing chosen lang would fall back to en —
   // exercised here by asserting en is non-empty so the chain has a middle hop.
   assert.ok(label(enOnly, "en").length > 0);
+});
+
+Deno.test("fieldLabel resolves a building field via buildingConfig's field→IRI map", () => {
+  assert.equal(fieldLabel("yearOfConstruction", "en"), "year of construction");
+  assert.equal(fieldLabel("yearOfConstruction", "de"), "Baujahr");
+});
+
+Deno.test("optionLabel resolves a controlled-vocab instance IRI", () => {
+  const oneShift = `${BUILDING_NS}OneShift`;
+  assert.equal(optionLabel(oneShift, "en"), "1-Shift");
+  assert.equal(optionLabel(oneShift, "de"), "1-Schicht");
+});
+
+Deno.test("optionLabel falls back chosen → en → IRI fragment for an unknown IRI", () => {
+  const unknown = "https://example.org/vocab#somethingUnknown";
+  assert.equal(optionLabel(unknown, "de"), "somethingUnknown");
 });
 
 Deno.test("comment resolves and falls back, returns undefined for uncommented terms", () => {

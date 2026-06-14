@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { buildingIds, buildingRoute } from "../helpers/manage.ts";
+import { buildingIds, buildingRoute, openBuildingsList } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -88,5 +88,27 @@ test.describe("redesign: building page", () => {
     await row.getByRole("link").first().click();
     await expect(page).toHaveURL(/#\/building\//, { timeout: T.action });
     await expect(page.getByRole("heading", { name: "Files" })).toBeVisible();
+  });
+
+  test("the list row is a finder — navigate + Delete only (other actions on the page)", async () => {
+    // /building/:id is a standalone route (no app-shell tabs) — return to the shell.
+    await page.goto("/#/");
+    await openBuildingsList(page);
+    const row = page.locator(`li[data-building-id="${id}"]`);
+    await expect(row).toBeVisible({ timeout: T.action });
+    // The one residual per-row action is Delete; per-object actions moved to the page.
+    await expect(row.getByRole("button", { name: "Delete building" })).toBeVisible();
+    for (
+      const gone of ["Share building data", "Manage files", "Add or edit energy year"]
+    ) {
+      await expect(row.getByRole("button", { name: gone })).toHaveCount(0);
+    }
+  });
+
+  test("the building page header offers the workbook download", async () => {
+    await page.goto(buildingRoute("building", id));
+    await expect(
+      page.getByRole("button", { name: "Download building data (Excel)" }),
+    ).toBeVisible({ timeout: T.action });
   });
 });

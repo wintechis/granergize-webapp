@@ -23,8 +23,9 @@ import {
  *   - an **XSD datatype** IRI (or omitted ⇒ `xsd:string`) → a typed **literal**;
  *   - **`foaf:Agent`** → an **IRI reference** (a WebID NamedNode, written verbatim);
  *   - any other **class IRI** → a controlled-vocabulary **object** whose instance is
- *     read/written by local name via {@link investorLocalNameLabels} (e.g.
- *     `shiftRegime` ranges over `bldg:ShiftRegime`, value `OneShift`).
+ *     read/written by its local name (e.g. `shiftRegime` ranges over
+ *     `bldg:ShiftRegime`, value `OneShift`); its display label comes from the vocab
+ *     via `optionLabel(IRI)` (see plans/plan-vocab-driven-labels.md).
  *
  * See notes/data-schema.md → "Two schemas: RDF graph ⇄ app objects".
  */
@@ -148,7 +149,15 @@ export const BOOLEAN_FIELDS: Set<string> = new Set(
   literals.filter((f) => f.range === XSD_BOOLEAN).map((f) => f.field as string),
 );
 
-/** IRI local-name → human-readable label for investor controlled-vocabulary instances. */
+/**
+ * IRI local-name → display string for the operating-cost controlled-vocabulary
+ * instances the parser materialises into `BuildingType` (see `buildingParser.ts`
+ * pass 2). UI **option labels** no longer come from here — the building form and
+ * the master-data view source those from the vocab via `optionLabel(IRI)` (see
+ * plans/plan-vocab-driven-labels.md); this map remains only for the parser's
+ * local-name → label projection of the operating-cost blank-node values, which is
+ * not (yet) routed through the vocab catalog.
+ */
 export const investorLocalNameLabels: Record<string, string> = {
   OneShift: "1-Shift",
   TwoShift: "2-Shift",

@@ -24,7 +24,7 @@ import { QRCodeSVG } from "qrcode.react";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { ownsRoom } from "../services/interop/dataRoom.ts";
 import type { UserRole } from "../types.ts";
-import { ROLE_LABELS, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
+import { roleLabel, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
 import { queryKeys, useContacts, useRoomState } from "../hooks/queries.ts";
 import {
   useAddRoom,
@@ -528,7 +528,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                             input={<OutlinedInput label="My role(s)" />}
                             renderValue={(selected) =>
                               (selected as UserRole[]).map((role) =>
-                                ROLE_LABELS[role] ?? role
+                                roleLabel(role)
                               ).join(", ")}
                             onChange={(e) => {
                               const v = e.target.value;
@@ -542,7 +542,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                             {ROOM_ROLE_OPTIONS.map((role) => (
                               <MenuItem key={role} value={role}>
                                 <Checkbox checked={myRoles.includes(role)} />
-                                {ROLE_LABELS[role] ?? role}
+                                {roleLabel(role)}
                               </MenuItem>
                             ))}
                           </Select>
@@ -574,7 +574,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                                   variant="caption"
                                   color="text.secondary"
                                 >
-                                  {m.roles.map((role) => ROLE_LABELS[role] ?? role)
+                                  {m.roles.map((role) => roleLabel(role))
                                     .join(", ") || "no role"}
                                 </Typography>
                               </Box>

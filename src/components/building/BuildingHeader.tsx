@@ -3,6 +3,7 @@ import { MapContainer, Marker, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
+import DownloadIcon from "@mui/icons-material/Download";
 import type { BuildingType } from "../../types.ts";
 import {
   buildingAddressLine,
@@ -10,7 +11,15 @@ import {
 } from "../../lib/buildingDisplay.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { RefLink } from "../detail/DetailView.tsx";
+import RowAction from "../RowAction.tsx";
 import { MARKER_OWNED_COLOR, MARKER_SHARED_COLOR } from "../../constants/chartColors.ts";
+import { getSession } from "../../hooks/session.ts";
+import { useNotification } from "../../context/NotificationContext.tsx";
+import { attachAnnualData } from "../../services/rdf/building/buildingSerializer.ts";
+import { buildingToXlsx } from "../../services/rdf/buildingWorkbook.ts";
+import { buildingIdStem } from "../../services/rdf/building/buildingId.ts";
+import { downloadXlsx } from "../../lib/download.ts";
+import { formatError } from "../../lib/formatError.ts";
 
 // The same German basemap WMS the main map uses (see ExplorePage.tsx); reused so
 // the building page thumbnail matches the map the user just came from.
@@ -57,6 +66,23 @@ export default function BuildingHeader({ building }: { building: BuildingType })
   const address = buildingAddressLine(building);
   const shared = building.isShared ?? false;
   const hasCoords = building.lat != null && building.long != null;
+  const { showNotification } = useNotification();
+
+  // Export this building as an `.xlsx` workbook (moved here from the buildings
+  // list, where the row no longer carries per-object actions). Energy is not
+  // inline, so the annual datasets are attached before serialising; the stem is
+  // the filename-safe form of the id (an IRI reference browsers mangle in names).
+  const handleDownload = async () => {
+    try {
+      const [enriched] = await attachAnnualData([building], getSession());
+      downloadXlsx(
+        await buildingToXlsx(enriched),
+        `building-${buildingIdStem(building.id)}.xlsx`,
+      );
+    } catch (error) {
+      showNotification(formatError("export the building", error), "error");
+    }
+  };
 
   return (
     <Box>
@@ -78,6 +104,11 @@ export default function BuildingHeader({ building }: { building: BuildingType })
               label={shared ? "Shared with you" : "Owned"}
               color={shared ? "warning" : "primary"}
               variant="outlined"
+            />
+            <RowAction
+              label="Download building data (Excel)"
+              icon={<DownloadIcon fontSize="small" />}
+              onClick={handleDownload}
             />
           </Stack>
           {address && (

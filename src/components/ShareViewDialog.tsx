@@ -36,7 +36,7 @@ import { useConfirm } from "../context/ConfirmContext.tsx";
 import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
 import RecipientAutocomplete from "./RecipientAutocomplete.tsx";
 
-import { ROLE_LABELS } from "../constants/roles.ts";
+import { roleLabel } from "../constants/roles.ts";
 
 interface ShareViewDialogProps {
   open: boolean;
@@ -277,7 +277,7 @@ export default function ShareViewDialog(
                         <ListItem key={m.webId}>
                           <ListItemText
                             primary={<AgentLabel value={m.webId} />}
-                            secondary={m.roles.map((r) => ROLE_LABELS[r] ?? r)
+                            secondary={m.roles.map((r) => roleLabel(r))
                               .join(", ") || "no role"}
                             slotProps={{
                               primary: {

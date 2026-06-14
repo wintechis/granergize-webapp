@@ -1,18 +1,6 @@
 import type { UserRole } from "../types.ts";
 import { GRAN_NS } from "../services/rdf/vocabularies.ts";
-
-/** Human-readable labels for the data-room membership roles. */
-export const ROLE_LABELS: Record<string, string> = {
-  dummy: "Dummy",
-  investor: "Investor",
-  user: "User",
-  benchmark_service_provider: "Benchmark Service Provider",
-  facility_manager: "Facility Manager",
-  developer: "Developer",
-  consultant_broker: "Consultant / Broker",
-  software_provider: "Software Provider",
-  energy_provider: "Energy Provider",
-};
+import { optionLabel } from "../services/rdf/vocabLabels.ts";
 
 /** Roles a user can self-assign in a data room (excludes the internal "dummy"). */
 export const ROOM_ROLE_OPTIONS: UserRole[] = [
@@ -46,3 +34,15 @@ export const MEMBERSHIP_ROLE_TO_IRI: Record<UserRole, string> = {
 export const IRI_TO_MEMBERSHIP_ROLE: Record<string, UserRole> = Object.fromEntries(
   Object.entries(MEMBERSHIP_ROLE_TO_IRI).map(([role, iri]) => [iri, role as UserRole]),
 ) as Record<string, UserRole>;
+
+/**
+ * Human-readable label for a data-room membership role in the active language,
+ * sourced from the vocab via the role's `gran:…Role` IRI (the schema owns the
+ * label — see plans/plan-vocab-driven-labels.md). Replaces the former hardcoded
+ * `ROLE_LABELS` map. An unknown role string (not a `UserRole`) falls back to
+ * itself so call sites can pass raw strings safely.
+ */
+export function roleLabel(role: string): string {
+  const iri = MEMBERSHIP_ROLE_TO_IRI[role as UserRole];
+  return iri ? optionLabel(iri) : role;
+}

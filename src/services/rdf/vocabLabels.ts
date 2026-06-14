@@ -4,13 +4,14 @@
  * schema owns the intrinsic display metadata (label, comment); this resolves a
  * term IRI to its string in the active language.
  *
- * Kept deliberately dependency-light (only the generated maps + the locale store):
- * the field/option helpers that bridge `buildingConfig`/`roles` are added when the
- * UI sites migrate to read this — not here.
+ * Kept deliberately dependency-light (only the generated maps + the locale store,
+ * plus `buildingConfig` as the field→IRI source of truth for {@link fieldLabel}).
  */
 
 import { type Lang, VOCAB_COMMENTS, VOCAB_LABELS } from "./vocabLabels.generated.ts";
 import { getLanguage } from "../../lib/language.ts";
+import { BUILDING_FIELDS } from "./building/buildingConfig.ts";
+import type { BuildingType } from "../../types.ts";
 
 /** The local-name fragment of an IRI: after the last `#` or `/`. */
 function localName(iri: string): string {
@@ -38,4 +39,31 @@ export function label(iri: string, lang: Lang = getLanguage()): string {
 export function comment(iri: string, lang: Lang = getLanguage()): string | undefined {
   const byLang = VOCAB_COMMENTS[iri];
   return byLang?.[lang] ?? byLang?.en;
+}
+
+/** Building field key → its predicate IRI, derived from `buildingConfig`'s schema table. */
+const FIELD_IRI: Partial<Record<keyof BuildingType, string>> = Object.fromEntries(
+  BUILDING_FIELDS.map((f) => [f.field, f.iri]),
+);
+
+/**
+ * Label for a building field, resolved via its predicate IRI in `buildingConfig`
+ * (the field→IRI source of truth) and the vocab labels. Same fallback chain as
+ * {@link label}; a field with no schema IRI falls back to the bare field name.
+ */
+export function fieldLabel(
+  field: keyof BuildingType,
+  lang: Lang = getLanguage(),
+): string {
+  const iri = FIELD_IRI[field];
+  return iri ? label(iri, lang) : String(field);
+}
+
+/**
+ * Label for a controlled-vocabulary instance IRI (e.g. `…#OneShift`). A thin
+ * wrapper over {@link label}, present for call-site clarity/symmetry with
+ * {@link fieldLabel}.
+ */
+export function optionLabel(iri: string, lang: Lang = getLanguage()): string {
+  return label(iri, lang);
 }

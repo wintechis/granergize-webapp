@@ -2,6 +2,8 @@ import { Button } from "@mui/material";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import type { BuildingFieldHelpers } from "./buildingFields.tsx";
 import { AgentField } from "./AgentField.tsx";
+import { fieldLabel, optionLabel } from "../services/rdf/vocabLabels.ts";
+import { BUILDING_NS } from "../services/rdf/vocabularies.ts";
 
 /**
  * The Address / Location & Physical / agent-link block shared by the Add and
@@ -48,9 +50,9 @@ export function BuildingAddressFields(
       </Button>
       {tf("Latitude", "lat", { type: "number", required: isRequired("lat") })}
       {tf("Longitude", "long", { type: "number", required: isRequired("long") })}
-      {tf("Building area (m²)", "buildingArea", { type: "number" })}
-      {tf("Land area (m²)", "landArea", { type: "number" })}
-      {tf("Year of construction", "yearOfConstruction", { type: "number" })}
+      {tf(fieldLabel("buildingArea"), "buildingArea", { type: "number" })}
+      {tf(fieldLabel("landArea"), "landArea", { type: "number" })}
+      {tf(fieldLabel("yearOfConstruction"), "yearOfConstruction", { type: "number" })}
       <AgentField
         label="Operated by (WebID)"
         value={fields.operatedBy ?? ""}
@@ -81,7 +83,7 @@ export function BuildingAddressFields(
         value={fields.consultedBy ?? ""}
         onChange={(v) => setField("consultedBy", v)}
       />
-      {check("PV system installed", "hasPVSystem")}
+      {check(fieldLabel("hasPVSystem"), "hasPVSystem")}
     </>
   );
 }
@@ -105,40 +107,40 @@ export function BuildingDetailFields(
   return (
     <>
       {sectionHeader("Building details")}
-      {tf("Building code", "buildingCode", buildingCode)}
+      {tf(fieldLabel("buildingCode"), "buildingCode", buildingCode)}
       {tf("Label / name", "label")}
-      {tf("Company name", "companyName")}
-      {tf("Hall area (m²)", "hallArea", { type: "number" })}
-      {tf("Office and social area (m²)", "officeSocialArea", { type: "number" })}
-      {tf("Building height (m)", "buildingHeight", { type: "number" })}
-      {tf("Number of loading docks", "numberOfLoadingDocks", { type: "number" })}
-      {tf("Year of renovation", "yearOfRenovation", { type: "number" })}
-      {tf("Lease type", "leaseType")}
-      {tf("Tenant industry", "tenantIndustry")}
-      {tf("Logistics function", "logisticsFunction")}
-      {tf("Climate control type", "climateControlType")}
-      {tf("Green lease share (%)", "greenLeaseShare", { type: "number" })}
-      {tf("PV installation year", "pvInstallationYear", { type: "number" })}
-      {tf("PV capacity (kW)", "pvCapacityKW", { type: "number" })}
-      {enumSelect("Shift regime", "shiftRegime", [
-        { value: "OneShift", label: "1-Shift" },
-        { value: "TwoShift", label: "2-Shift" },
-        { value: "ThreeShift", label: "3-Shift" },
+      {tf(fieldLabel("companyName"), "companyName")}
+      {tf(fieldLabel("hallArea"), "hallArea", { type: "number" })}
+      {tf(fieldLabel("officeSocialArea"), "officeSocialArea", { type: "number" })}
+      {tf(fieldLabel("buildingHeight"), "buildingHeight", { type: "number" })}
+      {tf(fieldLabel("numberOfLoadingDocks"), "numberOfLoadingDocks", { type: "number" })}
+      {tf(fieldLabel("yearOfRenovation"), "yearOfRenovation", { type: "number" })}
+      {tf(fieldLabel("leaseType"), "leaseType")}
+      {tf(fieldLabel("tenantIndustry"), "tenantIndustry")}
+      {tf(fieldLabel("logisticsFunction"), "logisticsFunction")}
+      {tf(fieldLabel("climateControlType"), "climateControlType")}
+      {tf(fieldLabel("greenLeaseShare"), "greenLeaseShare", { type: "number" })}
+      {tf(fieldLabel("pvInstallationYear"), "pvInstallationYear", { type: "number" })}
+      {tf(fieldLabel("pvCapacityKW"), "pvCapacityKW", { type: "number" })}
+      {enumSelect(fieldLabel("shiftRegime"), "shiftRegime", [
+        { value: "OneShift", label: optionLabel(`${BUILDING_NS}OneShift`) },
+        { value: "TwoShift", label: optionLabel(`${BUILDING_NS}TwoShift`) },
+        { value: "ThreeShift", label: optionLabel(`${BUILDING_NS}ThreeShift`) },
       ])}
-      {enumSelect("Tenancy type", "tenancyType", [
-        { value: "SingleTenant", label: "Single Tenant" },
-        { value: "MultiTenant", label: "Multi Tenant" },
+      {enumSelect(fieldLabel("tenancyType"), "tenancyType", [
+        { value: "SingleTenant", label: optionLabel(`${BUILDING_NS}SingleTenant`) },
+        { value: "MultiTenant", label: optionLabel(`${BUILDING_NS}MultiTenant`) },
       ])}
-      {enumSelect("Indoor temperature class", "indoorTemperatureClass", [
-        { value: "MaxTwelveDegrees", label: "≤12 °C" },
-        { value: "MaxEighteenDegrees", label: "≤18 °C" },
+      {enumSelect(fieldLabel("indoorTemperatureClass"), "indoorTemperatureClass", [
+        { value: "MaxTwelveDegrees", label: optionLabel(`${BUILDING_NS}MaxTwelveDegrees`) },
+        { value: "MaxEighteenDegrees", label: optionLabel(`${BUILDING_NS}MaxEighteenDegrees`) },
       ])}
       {sectionHeader("Heating systems")}
-      {check("Oil boiler", "hasOilBoiler")}
-      {check("Gas boiler", "hasGasBoiler")}
-      {check("Electric boiler", "hasElectricBoiler")}
-      {check("Heat pump", "hasHeatPump")}
-      {check("District heating", "hasDistrictHeating")}
+      {check(fieldLabel("hasOilBoiler"), "hasOilBoiler")}
+      {check(fieldLabel("hasGasBoiler"), "hasGasBoiler")}
+      {check(fieldLabel("hasElectricBoiler"), "hasElectricBoiler")}
+      {check(fieldLabel("hasHeatPump"), "hasHeatPump")}
+      {check(fieldLabel("hasDistrictHeating"), "hasDistrictHeating")}
     </>
   );
 }

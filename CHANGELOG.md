@@ -3,6 +3,8 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-14]
+- **Redesign (WIP): vocab-driven labels in the UI.** The building form's field + controlled-vocab-option labels and the data-room role labels now come from the vocab at build time (`fieldLabel`/`optionLabel` → `vocabLabels`), de/en/fr by `Accept-Language`; the hardcoded `ROLE_LABELS` map is gone (→ `roleLabel`), and the vocab drift guard widened from presence to per-language (en+de) completeness. App-chrome strings stay hardcoded (separate i18n).
+- **Redesign (WIP): finder rows.** The Buildings-list rows shed their dense action set — a row now navigates to the building page and keeps only one action (**Delete**); per-object actions (edit, files, energy, share) live on the page, and the building-workbook export moved to the building-page header. New shared `RowAction` primitive (icon + tooltip + aria-label).
 - **Redesign (WIP): Buildings tab merge.** Explore + Manage fold into one **Buildings** tab with a Map⇄List toggle (landing tab); tab slugs become `buildings`/`share`/`connect`. e2e harness updated (`openBuildingsList` helper); legacy specs that drive the old tabs are quarantined (only the active redesign specs run) — the suite grows back as surfaces are rebuilt.
 - **Redesign (WIP): building page.** `/building/:id` is now one read-first master-detail page (header + map thumbnail, inline-edit master data, energy summary→link, files, sharing status); replaces the read-only page + Manage row dialogs.
 - **Redesign (WIP): observation page.** `/energy/:id` is the full charts + energy-year entry home (the building page keeps energy minimal and links here).

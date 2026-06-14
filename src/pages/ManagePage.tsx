@@ -1,26 +1,18 @@
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
-import {
-  buildingFileUri,
-  buildingIdStem,
-} from "../services/rdf/building/buildingId.ts";
+import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { useMemo, useState } from "react";
 import {
   Box,
   Button,
   IconButton,
-  Menu,
-  MenuItem,
   Stack,
   Tooltip,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import AddchartIcon from "@mui/icons-material/Addchart";
-import AttachFileIcon from "@mui/icons-material/AttachFile";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
 import DeleteIcon from "@mui/icons-material/Delete";
-import EditIcon from "@mui/icons-material/Edit";
 import ShareIcon from "@mui/icons-material/Share";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import VisibilityIcon from "@mui/icons-material/Visibility";
@@ -47,11 +39,7 @@ import {
 } from "../hooks/mutations.ts";
 import { getSnapshotUri } from "../services/aggregation/viewManager.ts";
 import { attachAnnualData } from "../services/rdf/building/buildingSerializer.ts";
-import {
-  buildingsToXlsx,
-  buildingToXlsx,
-} from "../services/rdf/buildingWorkbook.ts";
-import type { SpreadsheetFormat } from "../services/rdf/buildingTemplates.ts";
+import { buildingsToXlsx } from "../services/rdf/buildingWorkbook.ts";
 import { buildBuildingDeletionPreview } from "../services/buildingActions.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { formatError } from "../lib/formatError.ts";
@@ -64,15 +52,10 @@ import {
 } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
+import RowAction from "../components/RowAction.tsx";
 import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
-import {
-  FilesDialog,
-  ShareBuildingDialog,
-} from "../components/BuildingDialogs.tsx";
-import EnergyYearDialog from "../components/EnergyYearDialog.tsx";
-import EditBuildingDialog from "../components/EditBuildingDialog.tsx";
 import AddBuildingDialog from "../components/AddBuildingDialog.tsx";
 import ShareViewDialog from "../components/ShareViewDialog.tsx";
 import CreateViewDialog from "../components/CreateViewDialog.tsx";
@@ -81,16 +64,14 @@ interface ManagePageProps {
   session: Session;
 }
 
-/** Number of files attached to a building (drives the Files tooltip). */
-const attachmentCount = (b: BuildingType): number =>
-  Array.isArray(b.attachments) ? b.attachments.length : 0;
-
 /**
- * The MANAGE tab: manage everything you own. Buildings — view their RDF, see who
- * they're shared with (and revoke), edit / share / delete each — and aggregated
- * views you build from your (and shared-in) data: create / share / revoke /
- * refresh / delete. This is the single home for outgoing data: the map's detail
- * pane is view-only, and SHARE shows only what others shared with you.
+ * The MANAGE tab: manage everything you own. Buildings are finder rows — the
+ * name navigates to the building page (/building/:id, where edit / files /
+ * energy / share / download all live) and the row carries one destructive
+ * action (delete); each row still shows who it's shared with (and revokes) — and
+ * aggregated views you build from your (and shared-in) data: create / share /
+ * revoke / refresh / delete. This is the single home for outgoing data: the
+ * map's detail pane is view-only, and SHARE shows only what others shared with you.
  */
 export default function ManagePage({ session }: ManagePageProps) {
   const { showNotification } = useNotification();
@@ -104,21 +85,6 @@ export default function ManagePage({ session }: ManagePageProps) {
 
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
-  const [editBuilding, setEditBuilding] = useState<BuildingType | null>(null);
-  const [filesBuilding, setFilesBuilding] = useState<BuildingType | null>(null);
-  const [energyYearBuilding, setEnergyYearBuilding] = useState<
-    BuildingType | null
-  >(null);
-  const [shareBuilding, setShareBuilding] = useState<BuildingType | null>(null);
-  // Re-read a dialog's building from the LIVE query rather than the frozen
-  // object captured at click time: data added just before opening the dialog —
-  // notably a freshly-added energy year, which drives the per-year share picker
-  // and the energy dialog's stored-years table — lands via a buildings refetch,
-  // and the dialog must reflect it without a reopen.
-  const liveBuilding = (b: BuildingType | null) =>
-    b ? buildings.find((x) => x.uri === b.uri) ?? b : null;
-  const liveShareBuilding = liveBuilding(shareBuilding);
-  const liveEnergyYearBuilding = liveBuilding(energyYearBuilding);
   const [createViewOpen, setCreateViewOpen] = useState(false);
   const [viewToShare, setViewToShare] = useState<
     AggregatedViewDefinition | null
@@ -168,35 +134,6 @@ export default function ManagePage({ session }: ManagePageProps) {
       onSuccess: () => showNotification("Access revoked", "success"),
     });
   };
-
-  // Per-building Excel export, in a user-chosen layout (a building no longer carries
-  // a role, so the spreadsheet shape is picked here). Anchored to the row's button.
-  const [exportMenu, setExportMenu] = useState<
-    { anchor: HTMLElement; building: BuildingType } | null
-  >(null);
-
-  const handleDownload = async (building: BuildingType, style: SpreadsheetFormat) => {
-    setExportMenu(null);
-    try {
-      // Energy is no longer inline; fetch the annual datasets for the export.
-      const [enriched] = await attachAnnualData([building], session);
-      // The id is an IRI reference ("/" and "#" — browsers mangle both in
-      // filenames); the stem is the filename-safe display form.
-      downloadXlsx(
-        await buildingToXlsx(enriched, style),
-        `building-${buildingIdStem(building.id)}.xlsx`,
-      );
-    } catch (error) {
-      showNotification(formatError("export the building", error), "error");
-    }
-  };
-
-  // The export-layout options, labelled by spreadsheet shape (not a role).
-  const EXPORT_STYLES: { style: SpreadsheetFormat; label: string }[] = [
-    { style: "generic", label: "Generic (field-name columns)" },
-    { style: "investor", label: "Row-label sheet (one column per building)" },
-    { style: "benchmark", label: "Table (one row per building)" },
-  ];
 
   const handleDownloadAll = async () => {
     if (ownedBuildings.length === 0) return;
@@ -333,68 +270,15 @@ export default function ManagePage({ session }: ManagePageProps) {
                       </>
                     }
                     actions={
-                      <>
-                        <Tooltip title="Edit building">
-                          <IconButton
-                            size="small"
-                            aria-label="Edit building"
-                            onClick={() => setEditBuilding(b)}
-                          >
-                            <EditIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip
-                          title={attachmentCount(b) > 0
-                            ? `Files (${attachmentCount(b)})`
-                            : "Files"}
-                        >
-                          <IconButton
-                            size="small"
-                            aria-label="Manage files"
-                            onClick={() => setFilesBuilding(b)}
-                          >
-                            <AttachFileIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Add / edit energy year">
-                          <IconButton
-                            size="small"
-                            aria-label="Add or edit energy year"
-                            onClick={() => setEnergyYearBuilding(b)}
-                          >
-                            <AddchartIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Share building data">
-                          <IconButton
-                            size="small"
-                            aria-label="Share building data"
-                            onClick={() => setShareBuilding(b)}
-                          >
-                            <ShareIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Download this building's data (Excel)">
-                          <IconButton
-                            size="small"
-                            aria-label="Download building data"
-                            onClick={(e) =>
-                              setExportMenu({ anchor: e.currentTarget, building: b })}
-                          >
-                            <DownloadIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title="Delete building">
-                          <IconButton
-                            size="small"
-                            color="error"
-                            aria-label="Delete building"
-                            onClick={() => handleDelete(b)}
-                          >
-                            <DeleteIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      </>
+                      // A finder row carries at most one (destructive) action;
+                      // Edit / Files / energy / Share / Download all live on the
+                      // building page (/building/:id) now.
+                      <RowAction
+                        label="Delete building"
+                        color="error"
+                        icon={<DeleteIcon fontSize="small" />}
+                        onClick={() => handleDelete(b)}
+                      />
                     }
                   >
                     {sharedQuery.isLoading
@@ -420,21 +304,6 @@ export default function ManagePage({ session }: ManagePageProps) {
             </Box>
           )}
         <Pager paging={buildingPaging} />
-        <Menu
-          anchorEl={exportMenu?.anchor ?? null}
-          open={exportMenu != null}
-          onClose={() => setExportMenu(null)}
-        >
-          {EXPORT_STYLES.map(({ style, label }) => (
-            <MenuItem
-              key={style}
-              onClick={() =>
-                exportMenu && handleDownload(exportMenu.building, style)}
-            >
-              {label}
-            </MenuItem>
-          ))}
-        </Menu>
       </section>
 
       <section>
@@ -576,39 +445,6 @@ export default function ManagePage({ session }: ManagePageProps) {
         </section>
       )}
 
-      {editBuilding && (
-        <EditBuildingDialog
-          key={editBuilding.uri as string}
-          open
-          building={editBuilding}
-          onClose={() => setEditBuilding(null)}
-        />
-      )}
-      {filesBuilding && (
-        <FilesDialog
-          open
-          building={filesBuilding}
-          session={session}
-          onClose={() => setFilesBuilding(null)}
-        />
-      )}
-      {energyYearBuilding && (
-        <EnergyYearDialog
-          open
-          building={liveEnergyYearBuilding ?? energyYearBuilding}
-          session={session}
-          onClose={() => setEnergyYearBuilding(null)}
-        />
-      )}
-      {shareBuilding && (
-        <ShareBuildingDialog
-          open
-          buildingUri={(shareBuilding.sourceUri ?? shareBuilding.uri) as string}
-          building={liveShareBuilding ?? shareBuilding}
-          session={session}
-          onClose={() => setShareBuilding(null)}
-        />
-      )}
       <AddBuildingDialog
         open={addOpen}
         autostartImport={importMode}
