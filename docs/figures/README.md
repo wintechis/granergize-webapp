@@ -28,17 +28,22 @@ Two kinds of figures live here:
 To refresh the screenshots after UI changes, run the capture **credential-free
 against the throwaway local CSS** (Tier 3) and rebuild the handbuch:
 
-    deno task handbuch:full      # build once → capture figures → rebuild PDF/DOCX
+    deno task handbuch      # blank build → capture figures → rebuild PDF/DOCX
 
-`handbuch:full` chains the steps via task dependencies. The bundle build is the
-separate `handbuch:capture:build` task, so the screenshot capture
-(`handbuch:figures`, Playwright `--project=support`) and the video capture
-(`handbuch:videos`, `--project=video`) can **run in parallel** over one shared
-build — `deno task handbuch:capture` does both at once. Each capture lane carries
-a distinct `LOCAL_PORT_OFFSET` (figures 0, videos 20) so their Tier-3 pod /
-control / app servers bind disjoint ports and never collide. Run a single lane
-on its own (`deno task handbuch:figures`) and the build dependency still runs
-first automatically (deduped, so a combined run builds only once).
+`deno task handbuch` runs the whole pipeline: a hermetic bundle build (it blanks
+`VITE_OIDC_CLIENT_ID` so local logins don't dereference the deployed remote
+client-id document), the screenshot capture (Playwright `--project=support`), then
+the PDF/DOCX build. Its sibling `deno task videos` is the same shape for the demo
+clips (capture `--project=video`, then trim/convert/concat).
+
+The two tasks are **fully isolated** from each other and from a normal spec run, so
+any of them may run concurrently. Each carries its own `LOCAL_PORT_OFFSET` (handbuch
+40, videos 60; spec runs 0), which shifts its whole Tier-3 port set — pod, control
+server, app preview — off the others, and builds into its own `--outDir`
+(`dist-handbuch` / `dist-videos`, with `PREVIEW_OUTDIR` pointing the preview at it)
+so the bundle builds never race on the shared `dist/`. The pod's data dir is a fresh
+temp dir per boot, so that never collides either. To rebuild the document from the
+existing figures without recapturing, run `bash docs/build-handbuch.sh` directly.
 
 Recommended: ~1200px-wide light-theme PNGs; keep file sizes modest (they ship in
 the static build). The shown URLs are then `localhost` (the local CSS); to capture

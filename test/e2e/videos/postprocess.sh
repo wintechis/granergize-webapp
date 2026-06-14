@@ -21,7 +21,7 @@ dir="test-results/videos"
 trim_one() { # <clip> <target.mp4>
   local clip="$1" target="$2"
   local webm="$dir/$clip.webm" marks="$dir/$clip.marks.json"
-  [ -f "$webm" ] || { echo "missing $webm — run: deno task handbuch:videos"; exit 1; }
+  [ -f "$webm" ] || { echo "missing $webm — run: deno task videos"; exit 1; }
   # Cut 400 ms AFTER the first scene mark (the "Loading…" flash). The marks
   # are wall-clock but video time runs slightly compressed, so the flash's
   # video position lands AT or just under mark.t — any lead before the mark

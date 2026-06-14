@@ -12,7 +12,7 @@ import { Demo } from "./demoPolish.ts";
  * driving the logged-in app with the demo polish (fake cursor, German step
  * captions, actor badge; `demoPolish.ts`). LOCAL tier only:
  *
- *   deno task handbuch:videos
+ *   deno task videos
  *
  * Playwright records one video PER PAGE, and its video time compresses during
  * long idle stretches — wall-clock scene marks drift against it. So the noisy
@@ -50,7 +50,7 @@ async function dismissToasts(page: Page) {
 }
 
 test.describe("handbuch video: Soll-Ist-Vergleich", () => {
-  test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task handbuch:videos)");
+  test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task videos)");
   test.skip(!hasAccount(ACC), "local seeded account A missing");
 
   test("record", async ({ page }) => {

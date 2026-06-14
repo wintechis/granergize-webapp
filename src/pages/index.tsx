@@ -1,4 +1,4 @@
-import { lazy, Suspense, useCallback, useEffect, useRef, useState } from "react";
+import { lazy, Suspense, useEffect, useRef, useState } from "react";
 import Avatar from "@mui/material/Avatar";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
@@ -20,9 +20,8 @@ import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
   formatResourceList,
   listContainedResources,
-  listDirectChildren,
 } from "../services/pod/podDelete.ts";
-import { APP_DIR, getStorageRoot, podResources } from "../services/pod/solidUtils.ts";
+import { APP_DIR, getStorageRoot } from "../services/pod/solidUtils.ts";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
@@ -41,8 +40,8 @@ import OrganizationDialog from "../components/OrganizationDialog.tsx";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import Collapse from "@mui/material/Collapse";
-import { useSharedWithMe } from "../hooks/queries.ts";
-import { readPrefs, setDemoSeedDeclined } from "../services/prefs.ts";
+import { useDemoOffer, useSharedWithMe } from "../hooks/queries.ts";
+import { setDemoSeedDeclined } from "../services/prefs.ts";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
 import { inspectArchive } from "../services/pod/podArchive.ts";
@@ -140,10 +139,14 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     "load organisation logo",
   );
 
-  // Fresh-Pod demo-buildings offer (non-blocking banner): shown when the buildings
-  // container is absent (404) and the user hasn't declined. The choice persists in
-  // prefs.ttl, so it doesn't nag on every login.
-  const [demoShow, setDemoShow] = useState(false);
+  // Fresh-Pod demo-buildings offer (non-blocking banner): shown when the user's own
+  // buildings container is absent/empty and the demo hasn't been declined. The
+  // probe is a query (useDemoOffer); a session-local "dismissed" flag layers over
+  // it so seeding/declining hides the banner instantly without a re-probe. The
+  // declined choice persists in prefs.ttl, so it doesn't nag on every login.
+  const demoOffer = useDemoOffer();
+  const [demoDismissed, setDemoDismissed] = useState(false);
+  const demoShow = (demoOffer.data ?? false) && !demoDismissed;
   // "No buildings yet" would mislead someone who has buildings SHARED with them
   // (they do have buildings to explore — just none of their own), so the offer
   // also waits for the shared-in fold and stands down if any shares exist. The
@@ -165,35 +168,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     auditMut.isPending || reissueMut.isPending;
   const archiveInput = useRef<HTMLInputElement | null>(null);
 
-  // Re-evaluate the fresh-Pod demo offer from its actual inputs (buildings, prefs).
-  // Offer the demo when there are no buildings — whether the container is absent
-  // (null) or exists-but-empty (all buildings deleted), so the offer (the only in-app
-  // seed path) comes back, not only on a pristine Pod — and the demo hasn't been
-  // declined. The fixed demo set is role-independent (no company kind gating).
-  const refreshDemoOffer = useCallback(async () => {
-    try {
-      const webId = session.info.webId;
-      if (!webId) return;
-      const [children, prefs] = await Promise.all([
-        listDirectChildren(podResources(webId).buildings, session),
-        readPrefs(session),
-      ]);
-      const empty = children === null || children.length === 0;
-      setDemoShow(empty && !prefs.demoSeedDeclined);
-    } catch (err) {
-      // The offer is best-effort, but log so a probe that silently fails (e.g. an
-      // NSS Pod listing the buildings container differently) is diagnosable.
-      logError("check whether to offer demo buildings", err);
-    }
-  }, [session]);
-
-  useEffect(() => {
-    // Best-effort async probe (lists the buildings container + reads prefs) that
-    // sets the demo-offer flag only after its awaits — a genuine fetch effect.
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    refreshDemoOffer();
-  }, [refreshDemoOffer]);
-
   /**
    * Seed the fixed demo building(s) — banner & menu share this. The hook owns
    * execution + the buildings invalidation (energy follows: useEnergy is keyed
@@ -206,10 +180,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     seedBuildingsMut.mutate(undefined, {
       onSuccess: ({ seeded, total }) => {
         if (seeded === total) {
-          setDemoShow(false);
+          setDemoDismissed(true);
           showNotification("Demo buildings added", "success");
         } else if (seeded > 0) {
-          setDemoShow(false);
+          setDemoDismissed(true);
           showNotification(
             `Added ${seeded} of ${total} demo buildings`,
             "warning",
@@ -252,7 +226,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     });
 
   const declineDemos = () => {
-    setDemoShow(false);
+    setDemoDismissed(true);
     setDemoSeedDeclined(session, true).catch((err) =>
       logError("persist demo-seed declined", err)
     );
@@ -493,8 +467,10 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       hydrateActiveRoom(session).catch((err) =>
         logError("hydrate active data room", err)
       );
-      // Re-offer the demo buildings now the collection is empty again.
-      setDemoShow(true);
+      // Re-offer the demo buildings now the collection is empty again: the wipe
+      // cleared the query cache, so useDemoOffer re-probes the (now empty) Pod and
+      // returns true; just lift any in-session dismissal so the banner can show.
+      setDemoDismissed(false);
       setSearchParams((p) => mergeParams(p, { tab: "explore" }), { replace: true });
       showNotification("All app data removed", "success");
     } catch {
@@ -790,7 +766,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         onClose={() => setOrgOpen(false)}
         onSaved={() => {
           loadAvatar();
-          refreshDemoOffer();
         }}
       />
     </Box>

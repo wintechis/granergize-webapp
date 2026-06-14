@@ -12,7 +12,7 @@ import { Demo, type SceneMark } from "./demoPolish.ts";
  * recorded on its own staged page (per-page video, see soll-ist.spec.ts for
  * why) and concatenated in post:
  *
- *   deno task handbuch:videos
+ *   deno task videos
  *   bash test/e2e/videos/postprocess.sh vertrieb vertrieb-a vertrieb-b
  *
  * Clip A: Alice shares her hall with Bob by WebID (Share Building Data →
@@ -61,7 +61,7 @@ function saveMarks(name: string, marks: SceneMark[]) {
 }
 
 test.describe("handbuch video: Vertriebsoptimierung", () => {
-  test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task handbuch:videos)");
+  test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task videos)");
   test.skip(!hasAccount(A) || !hasAccount(B), "local seeded accounts A+B missing");
 
   test("record", async ({ page, browser }) => {

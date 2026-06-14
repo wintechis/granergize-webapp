@@ -1,8 +1,7 @@
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
-import { useEffect, useState } from "react";
+import { useState } from "react";
+import { useQuery } from "@tanstack/react-query";
 import {
-  Station,
-  ValuesResponse,
   WeatherParameters,
   WetterdienstClient,
 } from "@wintechis/wetterdienst-rdf-adapter";
@@ -69,96 +68,92 @@ const parameterUnits: Record<string, string> = {
   [WeatherParameters.PRECIPITATION_ANNUAL]: "mm",
 };
 
+/**
+ * Nearby DWD stations for a building's coordinates + parameter — a read from the
+ * external weather adapter (not the Pod), so a plain `useQuery`. The adapter
+ * isn't auto-instrumented like the Solid session, so the fetch opts into the
+ * global activity store (`beginActivity`/`endActivity`).
+ */
+function useWeatherStations(building: BuildingType, parameter: string) {
+  const lat = building?.lat;
+  const long = building?.long;
+  return useQuery({
+    queryKey: ["weatherStations", lat, long, parameter],
+    enabled: Boolean(lat) && Boolean(long),
+    queryFn: async () => {
+      const token = beginActivity("weather stations");
+      try {
+        const res = await wetterdienstClient.getStations({
+          provider: "dwd",
+          network: "observation",
+          parameters: parameter,
+          latitude: lat as number,
+          longitude: long as number,
+          rank: 5,
+        });
+        return res.stations;
+      } finally {
+        endActivity(token);
+      }
+    },
+  });
+}
+
+/** Recent values for one station + parameter; disabled until a station is picked. */
+function useWeatherValues(station: string | null, parameter: string) {
+  return useQuery({
+    queryKey: ["weatherValues", station, parameter],
+    enabled: Boolean(station),
+    queryFn: async () => {
+      const token = beginActivity("weather data");
+      try {
+        return await wetterdienstClient.getValues({
+          provider: "dwd",
+          network: "observation",
+          parameters: parameter,
+          periods: "recent",
+          station: station as string,
+        });
+      } finally {
+        endActivity(token);
+      }
+    },
+  });
+}
+
 export default function WeatherData({ building }: WeatherDataProps) {
-  const [isLoading, setIsLoading] = useState(false);
-  const [isLoadingStations, setIsLoadingStations] = useState(false);
-  const [error, setError] = useState<string | null>(null);
   const [selectedParameter, setSelectedParameter] = useState<string>(
     WeatherParameters.TEMPERATURE_MEAN_ANNUAL,
   );
-  const [stations, setStations] = useState<Station[]>([]);
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
-  const [weatherData, setWeatherData] = useState<ValuesResponse | null>(null);
 
-  // Fetch nearby weather stations when building changes
-  useEffect(() => {
-    if (!building || !building.lat || !building.long) return;
+  const stationsQuery = useWeatherStations(building, selectedParameter);
+  const stations = stationsQuery.data ?? [];
+  const isLoadingStations = stationsQuery.isFetching;
 
-    const fetchStations = async () => {
-      setIsLoadingStations(true);
-      setError(null);
-      const token = beginActivity("weather stations");
-      try {
-        const nearbyStations = (await wetterdienstClient.getStations({
-          provider: "dwd",
-          network: "observation",
-          parameters: selectedParameter,
-          latitude: building.lat as number,
-          longitude: building.long as number,
-          rank: 5,
-        })).stations;
+  // Default to the closest station (the adapter returns them rank-sorted) once a
+  // fresh station list arrives — a during-render reset keyed on the list identity
+  // (building/parameter change refetches → new list → re-default), not an effect.
+  const [seededStations, setSeededStations] = useState(stationsQuery.data);
+  if (stationsQuery.data !== seededStations) {
+    setSeededStations(stationsQuery.data);
+    setSelectedStation(
+      stationsQuery.data && stationsQuery.data.length > 0
+        ? stationsQuery.data[0].station_id
+        : null,
+    );
+  }
 
-        setStations(nearbyStations);
-        // Select the closest station by default
-        if (nearbyStations.length > 0) {
-          setSelectedStation(nearbyStations[0].station_id);
-        } else {
-          setSelectedStation(null);
-        }
-      } catch (err) {
-        console.error("Error fetching weather stations:", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "Failed to fetch weather stations",
-        );
-      } finally {
-        endActivity(token);
-        setIsLoadingStations(false);
-      }
-    };
+  const valuesQuery = useWeatherValues(selectedStation, selectedParameter);
+  const weatherData = valuesQuery.data ?? null;
+  const isLoading = valuesQuery.isFetching;
 
-    fetchStations();
-  }, [building, selectedParameter]);
-
-  // Fetch weather data when station or parameter changes
-  useEffect(() => {
-    if (!selectedStation) {
-      // Genuine async fetch effect (external weather API): clear stale data when
-      // no station is selected, otherwise fetch below and set the result async.
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setWeatherData(null);
-      return;
-    }
-
-    const fetchWeatherData = async () => {
-      setIsLoading(true);
-      setError(null);
-      const token = beginActivity("weather data");
-      try {
-        const values = await wetterdienstClient.getValues({
-          provider: "dwd",
-          network: "observation",
-          parameters: selectedParameter,
-          periods: "recent",
-          station: selectedStation,
-        });
-
-        setWeatherData(values);
-      } catch (err) {
-        console.error("Error fetching weather data:", err);
-        setError(
-          err instanceof Error ? err.message : "Failed to fetch weather data",
-        );
-        setWeatherData(null);
-      } finally {
-        endActivity(token);
-        setIsLoading(false);
-      }
-    };
-
-    fetchWeatherData();
-  }, [selectedStation, selectedParameter]);
+  const queryError = stationsQuery.error ?? valuesQuery.error;
+  const error = queryError
+    ? (queryError instanceof Error
+      ? queryError.message
+      : "Failed to fetch weather data")
+    : null;
 
   return (
     <Card variant="outlined">
@@ -215,7 +210,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
 
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
-        {!isLoading && !error && stations.length === 0 && (
+        {!isLoading && !isLoadingStations && !error && stations.length === 0 && (
           <Alert severity="info">
             No weather stations found near this location for the selected
             parameter.

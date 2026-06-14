@@ -7,8 +7,10 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   energyKeyFor,
+  useAnnualDatasets,
   useAnnualEnergy,
   useBuildings,
+  useDemoOffer,
   useEnergy,
   useReceivedBenchmarks,
   useReceivedViews,
@@ -381,6 +383,115 @@ Deno.test("useAnnualEnergy splits actual vs planned, sorted by year", async () =
     assert.equal(actual[1].electricityConsumption, 1000);
     assert.deepEqual(planned.map((d) => d.year), [2024]);
     assert.equal(planned[0].electricityConsumption, 900);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useAnnualDatasets returns the raw annual datasets, ignoring series refs", async () => {
+  const PLANNED = ENERGY.replace("2024-P1Y.ttl", "2024-P1Y-planned.ttl");
+  const planned = `@prefix cons: <${CONS}> .
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix ssn: <http://www.w3.org/ns/ssn/> .
+@prefix time: <http://www.w3.org/2006/time#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<#ds> a cons:EnergyDataset , sosa:ObservationCollection ;
+  cons:granularity "P1Y" ; cons:scenario cons:Planned ;
+  sosa:phenomenonTime [ a time:Interval ;
+    time:hasBeginning "2024-01-01"^^xsd:date ; time:hasEnd "2024-12-31"^^xsd:date ] ;
+  sosa:hasMember [ a sosa:Observation ;
+    sosa:observedProperty cons:ElectricityConsumption ;
+    sosa:hasResult [ sosa:hasSimpleResult "900"^^xsd:decimal ] ] .`;
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession({ ...FIXTURES, [PLANNED]: planned }));
+  const { wrapper } = makeWrapper();
+  const building = {
+    id: "b1",
+    uri: `${B1}#b1`,
+    energyDatasets: [
+      { url: `${ENERGY}#ds`, year: 2024, granularity: "P1Y", scenario: "actual" },
+      { url: `${PLANNED}#ds`, year: 2024, granularity: "P1Y", scenario: "planned" },
+      // A 15-min series ref must be ignored (annual datasets only).
+      { url: `${ENERGY}#s`, year: 2024, granularity: "PT15M", scenario: "actual" },
+    ],
+  } as unknown as BuildingType;
+  try {
+    const { result } = renderHook(() => useAnnualDatasets(building), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    const datasets = result.current.data!;
+    assert.equal(datasets.length, 2, "two P1Y datasets, the series ref excluded");
+    const byScenario = new Map(datasets.map((d) => [d.scenario, d]));
+    assert.equal(byScenario.get("actual")?.metrics?.electricityConsumption, 1000);
+    assert.equal(byScenario.get("planned")?.metrics?.electricityConsumption, 900);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useAnnualDatasets is disabled while the dialog is closed", () => {
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession());
+  const { wrapper } = makeWrapper();
+  const building = { id: "b1", uri: `${B1}#b1`, energyDatasets: [] } as unknown as BuildingType;
+  try {
+    const { result } = renderHook(() => useAnnualDatasets(building, false), {
+      wrapper,
+    });
+    assert.equal(result.current.fetchStatus, "idle"); // not fetching (disabled)
+    assert.equal(result.current.data, undefined);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useDemoOffer: true when own buildings container is empty and not declined", async () => {
+  const EMPTY = {
+    ...FIXTURES,
+    [BUILDINGS_CONTAINER]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${BUILDINGS_CONTAINER}> a ldp:Container .`,
+  };
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession(EMPTY));
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useDemoOffer(), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    assert.equal(result.current.data, true);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useDemoOffer: false when the user already has own buildings", async () => {
+  // The default FIXTURES container lists b1.ttl.
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession());
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useDemoOffer(), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    assert.equal(result.current.data, false);
+  } finally {
+    _setSessionForTesting(null);
+  }
+});
+
+Deno.test("useDemoOffer: false once the demo offer was declined (prefs)", async () => {
+  const DECLINED = {
+    ...FIXTURES,
+    // Empty own container, so the ONLY reason the offer is withheld is the decline.
+    [BUILDINGS_CONTAINER]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
+<${BUILDINGS_CONTAINER}> a ldp:Container .`,
+    [PREFS]: `@prefix gran: <https://solid.ti.rw.fau.de/gra/vocab.ttl#> .
+<${PREFS}> gran:demoSeedDeclined true .`,
+  };
+  _setStorageRootForTesting(WEBID, "https://pod.example/");
+  _setSessionForTesting(fakeSession(DECLINED));
+  const { wrapper } = makeWrapper();
+  try {
+    const { result } = renderHook(() => useDemoOffer(), { wrapper });
+    await waitFor(() => assert.ok(result.current.isSuccess));
+    assert.equal(result.current.data, false);
   } finally {
     _setSessionForTesting(null);
   }

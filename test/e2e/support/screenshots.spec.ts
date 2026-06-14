@@ -14,7 +14,7 @@ import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 
 /**
  * Captures the Praxishandbuch figures (docs/figures/*.png) by driving the
- * logged-in app. The usual run is the LOCAL tier (`deno task handbuch:figures`,
+ * logged-in app. The usual run is the LOCAL tier (`deno task handbuch`,
  * E2E_LOCAL=1): the control server seeds the three actors with human identities
  * (foaf:name + avatar — Alice/Bob/Charlie), company identities (an org node with
  * name + logo — Ahlmann Logistik / Bauer Grundbesitz / Conrad Kennwert) and the BSP
@@ -112,11 +112,12 @@ test.describe("handbuch screenshots", () => {
   test("capture", async ({ page, browser }) => {
     // Bounded by the cooldown cost: ~14 shots × COOLDOWN_MS plus two logins, the
     // demo-buildings seed (4 geocodes + a 21-day series) and the cross-pod share.
-    // On a throttled provider that's many minutes; on a plain CSS it's ~5 min.
-    // Every best-effort interaction is itself time-boxed (the default action
-    // timeout is 0 = wait forever), so a stuck locator fails in seconds rather
-    // than eating this cap.
-    test.setTimeout(ACC.provider.throttled ? 1_200_000 : 600_000);
+    // On a throttled provider that's many minutes; on a plain CSS it runs the
+    // full walkthrough to the last shot in ~10 min, so the cap carries headroom
+    // over that. Every best-effort interaction is itself time-boxed (the default
+    // action timeout is 0 = wait forever), so a stuck locator fails in seconds
+    // rather than eating this cap.
+    test.setTimeout(ACC.provider.throttled ? 1_800_000 : 900_000);
     await page.setViewportSize({ width: 1200, height: 900 });
 
     // --- Login screen (captured BEFORE logging in) (anmelden.png — handbuch figure).

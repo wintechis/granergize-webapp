@@ -9,7 +9,7 @@ lerna-debug.log*
 
 node_modules
 dist
-dist-ssr
+dist-*
 
 # Run artifacts: Playwright traces/reports + benchmark output (test-results/bench/)
 test-results
