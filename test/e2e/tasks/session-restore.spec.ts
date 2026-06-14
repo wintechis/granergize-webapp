@@ -187,12 +187,13 @@ test.describe("session restore", () => {
 });
 
 test.describe("login escape hatch (no creds)", () => {
-  test("the login chooser always offers a working Clear-local-data action", async ({ browser }) => {
+  // The default `page` fixture is logged-out in every mode (unlike
+  // `newCapturedPage`, which seeds a session in login-reuse mode) — exactly what
+  // the no-login smoke spec relies on, and what this needs to reach the chooser.
+  test("the login chooser always offers a working Clear-local-data action", async ({ page }) => {
     // No login: the chooser must expose the clear-storage remedy unconditionally
     // (not only after a caught restore error), so a user stranded by a stale OIDC
     // client can always recover without DevTools or Esc-timing.
-    const page = await newCapturedPage(browser, "login-escape-hatch");
-
     await page.goto("./");
     await expect(page.getByRole("heading", { name: LOGIN_HEADING })).toBeVisible({
       timeout: T.login,
