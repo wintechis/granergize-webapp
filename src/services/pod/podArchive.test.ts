@@ -110,20 +110,23 @@ Deno.test("exportArchive packs every non-container resource plus a manifest", as
 
   const entries = readZip(bytes);
   const paths = entries.map((e) => e.path).sort();
+  // Paths are app-collection-relative — the `granergize/` (APP_DIR) segment is
+  // NOT baked in, so the archive restores into any app-dir config.
   assert.deepEqual(paths, [
-    "granergize/buildings/b1.ttl",
-    "granergize/buildings/files/photo.bin",
-    "granergize/prefs.ttl",
+    "buildings/b1.ttl",
+    "buildings/files/photo.bin",
     "manifest.json",
+    "prefs.ttl",
   ]);
 
-  // Manifest records the content type per entry.
+  // Manifest records the content type per entry and the source app collection root.
   const manifest = JSON.parse(
     new TextDecoder().decode(entries.find((e) => e.path === "manifest.json")!.data),
   );
-  assert.equal(manifest.entries["granergize/prefs.ttl"], "text/turtle");
+  assert.equal(manifest.base, `${ROOT}granergize/`, "base is the app collection root");
+  assert.equal(manifest.entries["prefs.ttl"], "text/turtle");
   assert.equal(
-    manifest.entries["granergize/buildings/files/photo.bin"],
+    manifest.entries["buildings/files/photo.bin"],
     "application/octet-stream",
   );
 
@@ -156,16 +159,17 @@ Deno.test("importArchive restores files with their content types into a fresh Po
   assert.ok(!(`${G}manifest.json` in fresh.store));
 });
 
-Deno.test("importArchive rebases textual bodies onto a different target root", async () => {
+Deno.test("importArchive rebases textual bodies onto a different target collection", async () => {
   const { bytes } = await exportArchive(seedPod().session);
   const fresh = makePod();
-  const TARGET = "https://new.example/";
+  // targetBase is an app collection root (different host AND app dir).
+  const TARGET = "https://new.example/granergize-dev/";
 
   const res = await importArchive(fresh.session, bytes, { targetBase: TARGET });
-  assert.equal(res.rebasedFrom, ROOT);
+  assert.equal(res.rebasedFrom, `${ROOT}granergize/`);
   assert.equal(res.rebasedTo, TARGET);
 
-  const G = `${TARGET}granergize/`;
+  const G = TARGET;
   // The building TTL is written under the target root with its own IRIs rebased.
   const b1 = fresh.store[`${G}buildings/b1.ttl`];
   assert.ok(b1, "building written under target root");
@@ -223,12 +227,13 @@ Deno.test("importArchive rewrites the owner WebID onto the target identity", asy
   assert.ok(body.includes(`${ROOT}granergize/buildings/b1.ttl#b1`));
 });
 
-Deno.test("importArchive rewrites WebID before root so a root-prefixed WebID survives", async () => {
-  // WEBID starts with ROOT; rebasing both to a new Pod must keep the WebID intact
-  // (WebID rewrite runs first), not leave it half-rebased.
+Deno.test("importArchive rebases both the collection and the WebID onto a new Pod", async () => {
+  // Rebasing the app collection AND the owner WebID to a new Pod must leave no
+  // source-Pod reference behind: the WebID (exact match, rewritten first) and the
+  // collection-rooted IRIs are both re-anchored.
   const { bytes } = await exportArchive(seedPod().session);
   const fresh = makePod();
-  const TARGET = "https://new.example/";
+  const TARGET = "https://new.example/granergize/";
   const NEW_WEBID = "https://new.example/profile/card#me";
 
   await importArchive(fresh.session, bytes, {
@@ -236,7 +241,7 @@ Deno.test("importArchive rewrites WebID before root so a root-prefixed WebID sur
     targetWebId: NEW_WEBID,
   });
   const body = new TextDecoder().decode(
-    fresh.store[`${TARGET}granergize/buildings/b1.ttl`].bytes,
+    fresh.store[`${TARGET}buildings/b1.ttl`].bytes,
   );
   assert.ok(body.includes(`prov#agent> <${NEW_WEBID}>`), "WebID fully rewritten");
   assert.ok(!body.includes("pod.example"), "no source Pod reference remains");
@@ -267,14 +272,14 @@ Deno.test("importArchive resolves a relative <> subject against the source URL, 
   const { bytes } = await exportArchive(pod.session);
 
   const fresh = makePod();
-  const TARGET = "https://new.example/";
+  const TARGET = "https://new.example/granergize/";
   await importArchive(fresh.session, bytes, { targetBase: TARGET });
-  const body = new TextDecoder().decode(fresh.store[`${TARGET}granergize/shared-out/e1`].bytes);
+  const body = new TextDecoder().decode(fresh.store[`${TARGET}shared-out/e1`].bytes);
 
-  // The `<>` subject became the absolute event URL, rebased onto the new root...
-  assert.ok(body.includes(`${TARGET}granergize/shared-out/e1`), "subject rebased absolute");
+  // The `<>` subject became the absolute event URL, rebased onto the new collection...
+  assert.ok(body.includes(`${TARGET}shared-out/e1`), "subject rebased absolute");
   // ...and the forResource object rebased too.
-  assert.ok(body.includes(`${TARGET}granergize/buildings/b.ttl`), "object rebased");
+  assert.ok(body.includes(`${TARGET}buildings/b.ttl`), "object rebased");
   assert.ok(!body.includes("pod.example"), "no source-Pod reference remains");
 });
 

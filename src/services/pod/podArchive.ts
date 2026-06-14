@@ -3,22 +3,26 @@ import { DataFactory, Parser, Writer } from "n3";
 import type { Quad_Graph, Quad_Object, Term } from "@rdfjs/types";
 import { listContainedResources } from "./podDelete.ts";
 import { ensureContainer } from "./podWrite.ts";
-import { appRoot, getStorageRoot } from "./solidUtils.ts";
+import { appRoot } from "./solidUtils.ts";
 import { createZip, readZip, type ZipEntry } from "../../lib/zip.ts";
 
 /**
- * Dev-mode backup/restore of the whole `granergize/` Pod collection as a single
- * ZIP file. Every non-container resource (building TTLs, energy series, views,
- * data rooms, prefs, AND binary file attachments) is fetched verbatim and stored
- * under its storage-root-relative path (e.g. `granergize/buildings/x.ttl`); a
- * `manifest.json` at the archive root records each entry's content type plus the
- * source storage root (`base`) so the restore can PUT it back with the right
- * `Content-Type` and rebase absolute IRIs onto a different Pod.
+ * Dev-mode backup/restore of the whole app Pod collection as a single ZIP file.
+ * Every non-container resource (building TTLs, energy series, views, data rooms,
+ * prefs, AND binary file attachments) is fetched verbatim and stored under its
+ * **app-collection-relative** path (e.g. `buildings/x.ttl`) — the `{APP_DIR}/`
+ * segment is NOT baked in, so an archive taken from a `granergize/` collection
+ * restores cleanly into a `granergize-dev/` (or e2e) one. A `manifest.json` at
+ * the archive root records each entry's content type plus the source app
+ * collection root (`base`, the absolute `{storageRoot}{APP_DIR}/`) so the restore
+ * can PUT it back with the right `Content-Type` and rebase absolute IRIs onto a
+ * different Pod / app collection.
  *
- * Restore is storage-root-relative: the archive replays into the *current*
- * session's Pod. Resource *paths* are root-relative already, but the resource
- * *bodies* (Turtle) carry absolute IRIs anchored at the source Pod/identity — so
- * when restoring into a different Pod, each Turtle resource is rebased
+ * Restore is app-collection-relative: the archive replays into the *current*
+ * session's app collection. Resource *paths* are collection-relative already, but
+ * the resource *bodies* (Turtle) carry absolute IRIs anchored at the source
+ * Pod/identity — so when restoring into a different Pod or app dir, each Turtle
+ * resource is rebased
  * **term-precisely** (`rebaseTurtle`): parsed with n3, only `NamedNode` IRI terms
  * matching the source WebID / storage root are rewritten, then re-serialized.
  * Literals (even ones whose text contains the WebID) and blank nodes are left
@@ -31,19 +35,22 @@ import { createZip, readZip, type ZipEntry } from "../../lib/zip.ts";
  */
 
 const MANIFEST_PATH = "manifest.json";
-const ARCHIVE_VERSION = 2;
+const ARCHIVE_VERSION = 3;
 
 interface ArchiveManifest {
   version: number;
-  /** Absolute storage root the archive was taken from (for IRI rebasing). */
+  /**
+   * Absolute app collection root the archive was taken from (`{storageRoot}
+   * {APP_DIR}/`), used for IRI rebasing. Entry paths are relative to this.
+   */
   base?: string;
   /** The owner WebID the archive was taken from (rewritten on a cross-Pod restore). */
   webId?: string;
-  /** Storage-root-relative content type per entry path. */
+  /** App-collection-relative content type per entry path. */
   entries: Record<string, string>;
 }
 
-/** Rewrites applied when restoring onto a different Pod/identity. */
+/** Rewrites applied when restoring onto a different Pod/identity/app collection. */
 interface RebaseMap {
   oldWebId: string | null;
   newWebId: string;
@@ -125,7 +132,6 @@ export async function exportArchive(
 ): Promise<ExportResult> {
   const webId = session.info.webId;
   if (!webId) throw new Error("Not logged in");
-  const root = getStorageRoot(webId);
   const granDir = appRoot(webId);
 
   // Flat, recursive listing; drop containers (paths ending in "/") — they're
@@ -136,19 +142,21 @@ export async function exportArchive(
   const entries: ZipEntry[] = [];
   const manifest: ArchiveManifest = {
     version: ARCHIVE_VERSION,
-    base: root,
+    base: granDir,
     webId,
     entries: {},
   };
   for (const url of files) {
     signal?.throwIfAborted();
-    if (!url.startsWith(root)) continue; // defensive: only same-Pod resources
+    if (!url.startsWith(granDir)) continue; // defensive: only in-collection resources
     const res = await session.fetch(url);
     if (!res.ok) {
       throw new Error(`Failed to read ${url} (HTTP ${res.status})`);
     }
     const data = new Uint8Array(await res.arrayBuffer());
-    const path = url.slice(root.length);
+    // App-collection-relative path: the `{APP_DIR}/` segment is dropped so the
+    // archive isn't pinned to the source's app-dir config.
+    const path = url.slice(granDir.length);
     const contentType = res.headers.get("content-type")?.split(";")[0].trim() ||
       "application/octet-stream";
     entries.push({ path, data });
@@ -166,9 +174,9 @@ export async function exportArchive(
 export interface ImportOptions {
   signal?: AbortSignal;
   /**
-   * Storage root to restore into. Defaults to the current session's root. Resource
-   * paths are written under this root and textual bodies are rebased
-   * `manifest.base` → here.
+   * App collection root (`{storageRoot}{APP_DIR}/`) to restore into. Defaults to
+   * the current session's collection. Resource paths are written under this root
+   * and textual bodies are rebased `manifest.base` → here.
    */
   targetBase?: string;
   /**
@@ -221,7 +229,7 @@ export async function importArchive(
   const { signal, targetBase, targetWebId } = options;
   const webId = session.info.webId;
   if (!webId) throw new Error("Not logged in");
-  const root = targetBase ?? getStorageRoot(webId);
+  const root = targetBase ?? appRoot(webId);
   const ownWebId = targetWebId ?? webId;
 
   const all = readZip(zipBytes);
@@ -244,6 +252,10 @@ export async function importArchive(
 
   // Provision every container in the tree first, shallowest-first, so each PUT
   // lands in an existing parent (CSS won't auto-create intermediate containers).
+  // The app collection root itself is no longer a path segment (paths are
+  // collection-relative), so ensure it explicitly before the nested ones.
+  signal?.throwIfAborted();
+  await ensureContainer(root, session);
   const containers = new Set<string>();
   for (const { path } of files) {
     const parts = path.split("/");

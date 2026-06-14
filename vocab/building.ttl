@@ -25,24 +25,30 @@
 
 <#> rdf:type owl:Ontology ;
     rdfs:label "Granergize building vocabulary"@en ;
-    rdfs:comment "Logistics-real-estate master data for rec:Building resources."@en .
+    rdfs:label "Granergize-Gebäudevokabular"@de ;
+    rdfs:label "Vocabulaire des bâtiments Granergize"@fr ;
+    rdfs:comment "Logistics-real-estate master data for rec:Building resources."@en ;
+    rdfs:comment "Logistik-Immobilien-Stammdaten für rec:Building-Ressourcen."@de ;
+    rdfs:comment "Données de référence immobilières logistiques pour les ressources rec:Building."@fr .
 
 ############################
 ###   Master data        ###
 ############################
 
 :buildingCode rdf:type owl:DatatypeProperty ;
-    rdfs:label "building code"@en ;
+    rdfs:label "building code"@en ; rdfs:label "Gebäudecode"@de ; rdfs:label "code du bâtiment"@fr ;
     rdfs:comment "The owner's internal identifier for the building."@en ;
+    rdfs:comment "Die interne Kennung des Eigentümers für das Gebäude."@de ;
+    rdfs:comment "L'identifiant interne du propriétaire pour le bâtiment."@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :yearOfConstruction rdf:type owl:DatatypeProperty ;
-    rdfs:label "year of construction"@en ; rdfs:label "Baujahr"@de ;
+    rdfs:label "year of construction"@en ; rdfs:label "Baujahr"@de ; rdfs:label "année de construction"@fr ;
     rdfs:seeAlso brick:yearBuilt ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :yearOfRenovation rdf:type owl:DatatypeProperty ;
-    rdfs:label "year of renovation"@en ;
+    rdfs:label "year of renovation"@en ; rdfs:label "Sanierungsjahr"@de ; rdfs:label "année de rénovation"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 # Areas are flat literals (m²). REC models areas on a component node
@@ -50,66 +56,70 @@
 # Brick as structured entity properties, so the links are rdfs:seeAlso, not
 # subsumption.
 :hasBuildingArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "building area (m²)"@en ; rdfs:label "Gebäudefläche"@de ;
+    rdfs:label "building area (m²)"@en ; rdfs:label "Gebäudefläche"@de ; rdfs:label "surface du bâtiment (m²)"@fr ;
     rdfs:seeAlso rec:grossArea , brick:grossArea ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :hasLandArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "land area (m²)"@en ; rdfs:label "Grundstücksfläche"@de ;
+    rdfs:label "land area (m²)"@en ; rdfs:label "Grundstücksfläche"@de ; rdfs:label "surface du terrain (m²)"@fr ;
     rdfs:seeAlso rec:area ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :officeArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "office area (m²)"@en ; rdfs:label "Bürofläche"@de ;
+    rdfs:label "office area (m²)"@en ; rdfs:label "Bürofläche"@de ; rdfs:label "surface de bureaux (m²)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :hallArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "hall area (m²)"@en ;
+    rdfs:label "hall area (m²)"@en ; rdfs:label "Hallenfläche (m²)"@de ; rdfs:label "surface de hall (m²)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 :officeSocialArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "office & social area (m²)"@en ;
+    rdfs:label "office & social area (m²)"@en ; rdfs:label "Büro- und Sozialfläche (m²)"@de ; rdfs:label "surface de bureaux et locaux sociaux (m²)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 :buildingHeight rdf:type owl:DatatypeProperty ;
-    rdfs:label "building height (m)"@en ;
+    rdfs:label "building height (m)"@en ; rdfs:label "Gebäudehöhe (m)"@de ; rdfs:label "hauteur du bâtiment (m)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 :numberOfLoadingDocks rdf:type owl:DatatypeProperty ;
-    rdfs:label "number of loading docks"@en ;
+    rdfs:label "number of loading docks"@en ; rdfs:label "Anzahl der Ladetore"@de ; rdfs:label "nombre de quais de chargement"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :usedAs rdf:type owl:DatatypeProperty ;
-    rdfs:label "used as"@en ; rdfs:label "genutzt als"@de ;
+    rdfs:label "used as"@en ; rdfs:label "genutzt als"@de ; rdfs:label "utilisé comme"@fr ;
     rdfs:comment "Free-text usage of the building."@en ;
+    rdfs:comment "Freitext-Nutzung des Gebäudes."@de ;
+    rdfs:comment "Usage du bâtiment en texte libre."@fr ;
     rdfs:seeAlso brick:buildingPrimaryFunction ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :logisticsFunction rdf:type owl:DatatypeProperty ;
-    rdfs:label "logistics function"@en ;
+    rdfs:label "logistics function"@en ; rdfs:label "Logistikfunktion"@de ; rdfs:label "fonction logistique"@fr ;
     rdfs:seeAlso brick:buildingPrimaryFunction ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :climateControlType rdf:type owl:DatatypeProperty ;
-    rdfs:label "climate control type"@en ;
+    rdfs:label "climate control type"@en ; rdfs:label "Art der Klimatisierung"@de ; rdfs:label "type de régulation climatique"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :greenLeaseShare rdf:type owl:DatatypeProperty ;
-    rdfs:label "green lease share (%)"@en ;
+    rdfs:label "green lease share (%)"@en ; rdfs:label "Anteil Green Lease (%)"@de ; rdfs:label "part de bail vert (%)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 :leaseType rdf:type owl:DatatypeProperty ;
-    rdfs:label "lease type"@en ;
+    rdfs:label "lease type"@en ; rdfs:label "Mietvertragsart"@de ; rdfs:label "type de bail"@fr ;
     rdfs:seeAlso rec:Lease ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :tenantIndustry rdf:type owl:DatatypeProperty ;
-    rdfs:label "tenant industry"@en ;
+    rdfs:label "tenant industry"@en ; rdfs:label "Branche des Mieters"@de ; rdfs:label "secteur du locataire"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :companyName rdf:type owl:DatatypeProperty ;
-    rdfs:label "company name"@en ;
+    rdfs:label "company name"@en ; rdfs:label "Firmenname"@de ; rdfs:label "nom de l'entreprise"@fr ;
     rdfs:comment "Denormalised name of the company behind the building; candidate for retirement in favour of the agent's profile."@en ;
+    rdfs:comment "Denormalisierter Name des Unternehmens hinter dem Gebäude; Kandidat für die Abschaffung zugunsten des Agentenprofils."@de ;
+    rdfs:comment "Nom dénormalisé de l'entreprise derrière le bâtiment ; candidat à la suppression au profit du profil de l'agent."@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 # Agent links: building→agent relationship properties, each identifying the
@@ -117,23 +127,31 @@
 # which the app reuses directly. These are relationships of a building, NOT
 # roles of a person (roles exist only as data-room membership).
 :investor rdf:type owl:ObjectProperty ;
-    rdfs:label "investor"@en ; rdfs:label "Investor"@de ;
+    rdfs:label "investor"@en ; rdfs:label "Investor"@de ; rdfs:label "investisseur"@fr ;
     rdfs:comment "The building's investor, identified by WebID."@en ;
+    rdfs:comment "Der Investor des Gebäudes, identifiziert per WebID."@de ;
+    rdfs:comment "L'investisseur du bâtiment, identifié par WebID."@fr ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
 :facilityManagedBy rdf:type owl:ObjectProperty ;
-    rdfs:label "facility managed by"@en ; rdfs:label "Facility Manager"@de ;
+    rdfs:label "facility managed by"@en ; rdfs:label "Facility Manager"@de ; rdfs:label "géré par (facility management)"@fr ;
     rdfs:comment "The building's facility manager, identified by WebID. Distinct from rec:operatedBy (the operator running the building's use)."@en ;
+    rdfs:comment "Der Facility Manager des Gebäudes, identifiziert per WebID. Abzugrenzen von rec:operatedBy (der Betreiber, der die Nutzung des Gebäudes führt)."@de ;
+    rdfs:comment "Le gestionnaire d'installations du bâtiment, identifié par WebID. Distinct de rec:operatedBy (l'exploitant qui assure l'usage du bâtiment)."@fr ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
 :developedBy rdf:type owl:ObjectProperty ;
-    rdfs:label "developed by"@en ; rdfs:label "Projektentwickler"@de ;
+    rdfs:label "developed by"@en ; rdfs:label "Projektentwickler"@de ; rdfs:label "développé par"@fr ;
     rdfs:comment "The project developer that developed the building, identified by WebID."@en ;
+    rdfs:comment "Der Projektentwickler, der das Gebäude entwickelt hat, identifiziert per WebID."@de ;
+    rdfs:comment "Le promoteur qui a développé le bâtiment, identifié par WebID."@fr ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
 :consultedBy rdf:type owl:ObjectProperty ;
-    rdfs:label "consulted by"@en ; rdfs:label "Berater/Makler"@de ;
+    rdfs:label "consulted by"@en ; rdfs:label "Berater/Makler"@de ; rdfs:label "conseillé par"@fr ;
     rdfs:comment "A consultant or broker advising on / marketing the building, identified by WebID."@en ;
+    rdfs:comment "Ein Berater oder Makler, der das Gebäude berät / vermarktet, identifiziert per WebID."@de ;
+    rdfs:comment "Un conseiller ou courtier qui conseille sur / commercialise le bâtiment, identifié par WebID."@fr ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
 ############################
@@ -141,27 +159,27 @@
 ############################
 
 :hasPVSystem rdf:type owl:DatatypeProperty ;
-    rdfs:label "has PV system"@en ; rdfs:label "Hat Photovoltaik-Anlage"@de ;
+    rdfs:label "has PV system"@en ; rdfs:label "Hat Photovoltaik-Anlage"@de ; rdfs:label "possède une installation photovoltaïque"@fr ;
     rdfs:seeAlso brick:PV_Generation_System ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :pvInstallationYear rdf:type owl:DatatypeProperty ;
-    rdfs:label "PV installation year"@en ;
+    rdfs:label "PV installation year"@en ; rdfs:label "PV-Installationsjahr"@de ; rdfs:label "année d'installation photovoltaïque"@fr ;
     rdfs:seeAlso rec:installationDate ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :pvCapacityKW rdf:type owl:DatatypeProperty ;
-    rdfs:label "PV capacity (kW)"@en ;
+    rdfs:label "PV capacity (kW)"@en ; rdfs:label "PV-Leistung (kW)"@de ; rdfs:label "puissance photovoltaïque (kW)"@fr ;
     rdfs:seeAlso brick:ratedPowerOutput ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 :hasBatteryStorage rdf:type owl:DatatypeProperty ;
-    rdfs:label "has battery storage"@en ; rdfs:label "Hat Batteriespeicher"@de ;
+    rdfs:label "has battery storage"@en ; rdfs:label "Hat Batteriespeicher"@de ; rdfs:label "possède un stockage par batterie"@fr ;
     rdfs:seeAlso brick:Battery ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :storageCapacityKWh rdf:type owl:DatatypeProperty ;
-    rdfs:label "Usable storage capacity (kWh)"@en ;
+    rdfs:label "Usable storage capacity (kWh)"@en ; rdfs:label "Nutzbare Speicherkapazität (kWh)"@de ; rdfs:label "Capacité de stockage utile (kWh)"@fr ;
     rdfs:seeAlso brick:Battery ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
@@ -174,25 +192,25 @@
 # name the equipment class where Brick has one (it lacks oil boilers, a
 # standalone heat pump, and district heating).
 :hasOilBoiler rdf:type owl:DatatypeProperty ;
-    rdfs:label "has oil boiler"@en ;
+    rdfs:label "has oil boiler"@en ; rdfs:label "Hat Ölkessel"@de ; rdfs:label "possède une chaudière au fioul"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :hasGasBoiler rdf:type owl:DatatypeProperty ;
-    rdfs:label "has gas boiler"@en ;
+    rdfs:label "has gas boiler"@en ; rdfs:label "Hat Gaskessel"@de ; rdfs:label "possède une chaudière au gaz"@fr ;
     rdfs:seeAlso brick:Natural_Gas_Boiler ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :hasElectricBoiler rdf:type owl:DatatypeProperty ;
-    rdfs:label "has electric boiler"@en ;
+    rdfs:label "has electric boiler"@en ; rdfs:label "Hat Elektrokessel"@de ; rdfs:label "possède une chaudière électrique"@fr ;
     rdfs:seeAlso brick:Electric_Boiler ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :hasHeatPump rdf:type owl:DatatypeProperty ;
-    rdfs:label "has heat pump"@en ;
+    rdfs:label "has heat pump"@en ; rdfs:label "Hat Wärmepumpe"@de ; rdfs:label "possède une pompe à chaleur"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :hasDistrictHeating rdf:type owl:DatatypeProperty ;
-    rdfs:label "has district heating"@en ;
+    rdfs:label "has district heating"@en ; rdfs:label "Hat Fernwärme"@de ; rdfs:label "raccordé au chauffage urbain"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 ############################
@@ -200,77 +218,77 @@
 ############################
 
 :shiftRegime rdf:type owl:ObjectProperty ;
-    rdfs:label "shift regime"@en ; rdfs:domain rec:Building ; rdfs:range :ShiftRegime .
+    rdfs:label "shift regime"@en ; rdfs:label "Schichtbetrieb"@de ; rdfs:label "régime de postes"@fr ; rdfs:domain rec:Building ; rdfs:range :ShiftRegime .
 :tenancyType rdf:type owl:ObjectProperty ;
-    rdfs:label "tenancy type"@en ; rdfs:seeAlso rec:Lease ;
+    rdfs:label "tenancy type"@en ; rdfs:label "Mietverhältnisart"@de ; rdfs:label "type de location"@fr ; rdfs:seeAlso rec:Lease ;
     rdfs:domain rec:Building ; rdfs:range :TenancyType .
 :indoorTemperatureClass rdf:type owl:ObjectProperty ;
-    rdfs:label "indoor temperature class"@en ; rdfs:domain rec:Building ; rdfs:range :IndoorTemperatureClass .
+    rdfs:label "indoor temperature class"@en ; rdfs:label "Innentemperaturklasse"@de ; rdfs:label "classe de température intérieure"@fr ; rdfs:domain rec:Building ; rdfs:range :IndoorTemperatureClass .
 
-:ShiftRegime rdf:type rdfs:Class ; rdfs:label "Shift regime"@en .
-:OneShift   rdf:type :ShiftRegime ; rdfs:label "1-Shift"@en .
-:TwoShift   rdf:type :ShiftRegime ; rdfs:label "2-Shift"@en .
-:ThreeShift rdf:type :ShiftRegime ; rdfs:label "3-Shift"@en .
+:ShiftRegime rdf:type rdfs:Class ; rdfs:label "Shift regime"@en ; rdfs:label "Schichtbetrieb"@de ; rdfs:label "Régime de postes"@fr .
+:OneShift   rdf:type :ShiftRegime ; rdfs:label "1-Shift"@en ; rdfs:label "1-Schicht"@de ; rdfs:label "1 poste"@fr .
+:TwoShift   rdf:type :ShiftRegime ; rdfs:label "2-Shift"@en ; rdfs:label "2-Schicht"@de ; rdfs:label "2 postes"@fr .
+:ThreeShift rdf:type :ShiftRegime ; rdfs:label "3-Shift"@en ; rdfs:label "3-Schicht"@de ; rdfs:label "3 postes"@fr .
 
-:TenancyType rdf:type rdfs:Class ; rdfs:label "Tenancy type"@en .
-:SingleTenant rdf:type :TenancyType ; rdfs:label "Single Tenant"@en .
-:MultiTenant  rdf:type :TenancyType ; rdfs:label "Multi Tenant"@en .
+:TenancyType rdf:type rdfs:Class ; rdfs:label "Tenancy type"@en ; rdfs:label "Mietverhältnisart"@de ; rdfs:label "Type de location"@fr .
+:SingleTenant rdf:type :TenancyType ; rdfs:label "Single Tenant"@en ; rdfs:label "Einzelmieter"@de ; rdfs:label "Locataire unique"@fr .
+:MultiTenant  rdf:type :TenancyType ; rdfs:label "Multi Tenant"@en ; rdfs:label "Mehrere Mieter"@de ; rdfs:label "Multi-locataires"@fr .
 
-:IndoorTemperatureClass rdf:type rdfs:Class ; rdfs:label "Indoor temperature class"@en .
-:MaxTwelveDegrees   rdf:type :IndoorTemperatureClass ; rdfs:label "≤12 °C"@en .
-:MaxEighteenDegrees rdf:type :IndoorTemperatureClass ; rdfs:label "≤18 °C"@en .
+:IndoorTemperatureClass rdf:type rdfs:Class ; rdfs:label "Indoor temperature class"@en ; rdfs:label "Innentemperaturklasse"@de ; rdfs:label "Classe de température intérieure"@fr .
+:MaxTwelveDegrees   rdf:type :IndoorTemperatureClass ; rdfs:label "≤12 °C"@en ; rdfs:label "≤12 °C"@de ; rdfs:label "≤12 °C"@fr .
+:MaxEighteenDegrees rdf:type :IndoorTemperatureClass ; rdfs:label "≤18 °C"@en ; rdfs:label "≤18 °C"@de ; rdfs:label "≤18 °C"@fr .
 
 ############################
 ###   Operating costs    ###
 ############################
 
 :hasOperatingCosts rdf:type owl:ObjectProperty ;
-    rdfs:label "has operating costs"@en ; rdfs:domain rec:Building ; rdfs:range :OperatingCosts .
-:OperatingCosts rdf:type rdfs:Class ; rdfs:label "Operating costs"@en .
+    rdfs:label "has operating costs"@en ; rdfs:label "Hat Betriebskosten"@de ; rdfs:label "possède des coûts d'exploitation"@fr ; rdfs:domain rec:Building ; rdfs:range :OperatingCosts .
+:OperatingCosts rdf:type rdfs:Class ; rdfs:label "Operating costs"@en ; rdfs:label "Betriebskosten"@de ; rdfs:label "Coûts d'exploitation"@fr .
 
 # Service-level categories used by the operating-cost properties below.
-:ServiceLevel rdf:type rdfs:Class ; rdfs:label "Service level"@en .
-:Low                  rdf:type :ServiceLevel ; rdfs:label "Low"@en .
-:Simple               rdf:type :ServiceLevel ; rdfs:label "Simple"@en .
-:Medium               rdf:type :ServiceLevel ; rdfs:label "Medium"@en .
-:High                 rdf:type :ServiceLevel ; rdfs:label "High"@en .
-:AllRisk              rdf:type :ServiceLevel ; rdfs:label "All-Risk"@en .
-:FullServiceManagement rdf:type :ServiceLevel ; rdfs:label "Full Service"@en .
+:ServiceLevel rdf:type rdfs:Class ; rdfs:label "Service level"@en ; rdfs:label "Serviceniveau"@de ; rdfs:label "Niveau de service"@fr .
+:Low                  rdf:type :ServiceLevel ; rdfs:label "Low"@en ; rdfs:label "Niedrig"@de ; rdfs:label "Faible"@fr .
+:Simple               rdf:type :ServiceLevel ; rdfs:label "Simple"@en ; rdfs:label "Einfach"@de ; rdfs:label "Simple"@fr .
+:Medium               rdf:type :ServiceLevel ; rdfs:label "Medium"@en ; rdfs:label "Mittel"@de ; rdfs:label "Moyen"@fr .
+:High                 rdf:type :ServiceLevel ; rdfs:label "High"@en ; rdfs:label "Hoch"@de ; rdfs:label "Élevé"@fr .
+:AllRisk              rdf:type :ServiceLevel ; rdfs:label "All-Risk"@en ; rdfs:label "All-Risk"@de ; rdfs:label "Tous risques"@fr .
+:FullServiceManagement rdf:type :ServiceLevel ; rdfs:label "Full Service"@en ; rdfs:label "Komplettservice"@de ; rdfs:label "Service complet"@fr .
 
 :wasteDisposal rdf:type owl:ObjectProperty ;
-    rdfs:label "waste disposal"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "waste disposal"@en ; rdfs:label "Abfallentsorgung"@de ; rdfs:label "élimination des déchets"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :insurance rdf:type owl:ObjectProperty ;
-    rdfs:label "insurance"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "insurance"@en ; rdfs:label "Versicherung"@de ; rdfs:label "assurance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :operationInspectionAndMaintenance rdf:type owl:DatatypeProperty ;
-    rdfs:label "operation, inspection & maintenance"@en ; rdfs:domain :OperatingCosts ; rdfs:range xsd:boolean .
+    rdfs:label "operation, inspection & maintenance"@en ; rdfs:label "Betrieb, Inspektion und Wartung"@de ; rdfs:label "exploitation, inspection et maintenance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:boolean .
 :routineCleaningOffice rdf:type owl:ObjectProperty ;
-    rdfs:label "routine cleaning (office)"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "routine cleaning (office)"@en ; rdfs:label "Unterhaltsreinigung (Büro)"@de ; rdfs:label "nettoyage courant (bureaux)"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :routineCleaningWarehouse rdf:type owl:ObjectProperty ;
-    rdfs:label "routine cleaning (warehouse)"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "routine cleaning (warehouse)"@en ; rdfs:label "Unterhaltsreinigung (Lager)"@de ; rdfs:label "nettoyage courant (entrepôt)"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :glassCleaning rdf:type owl:ObjectProperty ;
-    rdfs:label "glass cleaning"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "glass cleaning"@en ; rdfs:label "Glasreinigung"@de ; rdfs:label "nettoyage des vitres"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :exteriorMaintenance rdf:type owl:ObjectProperty ;
-    rdfs:label "exterior maintenance"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "exterior maintenance"@en ; rdfs:label "Außenpflege"@de ; rdfs:label "entretien extérieur"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :security rdf:type owl:ObjectProperty ;
-    rdfs:label "security"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "security"@en ; rdfs:label "Sicherheit"@de ; rdfs:label "sécurité"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :propertyManagement rdf:type owl:ObjectProperty ;
-    rdfs:label "property management"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "property management"@en ; rdfs:label "Objektverwaltung"@de ; rdfs:label "gestion immobilière"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :caretaker rdf:type owl:ObjectProperty ;
-    rdfs:label "caretaker"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "caretaker"@en ; rdfs:label "Hausmeister"@de ; rdfs:label "concierge"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :repairAndMaintenance rdf:type owl:ObjectProperty ;
-    rdfs:label "repair & maintenance"@en ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
+    rdfs:label "repair & maintenance"@en ; rdfs:label "Reparatur und Wartung"@de ; rdfs:label "réparation et maintenance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 
 ############################
 ###   Certifications     ###
 ############################
 
 :hasBuildingCertification rdf:type owl:ObjectProperty ;
-    rdfs:label "has building certification"@en ; rdfs:domain rec:Building ; rdfs:range :BuildingCertification .
-:BuildingCertification rdf:type rdfs:Class ; rdfs:label "Building certification"@en .
+    rdfs:label "has building certification"@en ; rdfs:label "Hat Gebäudezertifizierung"@de ; rdfs:label "possède une certification de bâtiment"@fr ; rdfs:domain rec:Building ; rdfs:range :BuildingCertification .
+:BuildingCertification rdf:type rdfs:Class ; rdfs:label "Building certification"@en ; rdfs:label "Gebäudezertifizierung"@de ; rdfs:label "Certification de bâtiment"@fr .
 :certificationLevel rdf:type owl:DatatypeProperty ;
-    rdfs:label "certification level"@en ; rdfs:domain :BuildingCertification ; rdfs:range xsd:string .
+    rdfs:label "certification level"@en ; rdfs:label "Zertifizierungsstufe"@de ; rdfs:label "niveau de certification"@fr ; rdfs:domain :BuildingCertification ; rdfs:range xsd:string .
 :certificationScope rdf:type owl:DatatypeProperty ;
-    rdfs:label "certification scope"@en ; rdfs:domain :BuildingCertification ; rdfs:range xsd:string .
+    rdfs:label "certification scope"@en ; rdfs:label "Zertifizierungsumfang"@de ; rdfs:label "périmètre de certification"@fr ; rdfs:domain :BuildingCertification ; rdfs:range xsd:string .
 
 ############################
 ###   File attachments   ###
@@ -281,13 +299,15 @@
 # file, additionally flagged with :hasEnergyCertificate. REC's analogue is
 # rec:documentation → rec:Document.
 :hasAttachment rdf:type owl:ObjectProperty ;
-    rdfs:label "has attachment"@en ;
+    rdfs:label "has attachment"@en ; rdfs:label "Hat Anhang"@de ; rdfs:label "possède une pièce jointe"@fr ;
     rdfs:seeAlso rec:documentation ;
     rdfs:domain rec:Building ; rdfs:range schema:MediaObject .
 
 :hasEnergyCertificate rdf:type owl:ObjectProperty ;
-    rdfs:label "has energy certificate"@en ;
+    rdfs:label "has energy certificate"@en ; rdfs:label "Hat Energieausweis"@de ; rdfs:label "possède un certificat énergétique"@fr ;
     rdfs:comment "Flags one attachment (a schema:MediaObject) as the energy certificate."@en ;
+    rdfs:comment "Kennzeichnet einen Anhang (ein schema:MediaObject) als den Energieausweis."@de ;
+    rdfs:comment "Désigne une pièce jointe (un schema:MediaObject) comme le certificat énergétique."@fr ;
     rdfs:domain rec:Building .
 
 ############################
@@ -296,10 +316,10 @@
 
 # Attached to a building's geo:Point: how precisely the coordinate was geocoded.
 :geocodePrecision rdf:type owl:ObjectProperty ;
-    rdfs:label "geocode precision"@en ;
+    rdfs:label "geocode precision"@en ; rdfs:label "Geokodierungsgenauigkeit"@de ; rdfs:label "précision du géocodage"@fr ;
     rdfs:domain geo:Point ; rdfs:range :GeocodePrecision .
 
-:GeocodePrecision rdf:type rdfs:Class ; rdfs:label "Geocode precision"@en .
-:Address rdf:type :GeocodePrecision ; rdfs:label "Address"@en .
-:Postcode rdf:type :GeocodePrecision ; rdfs:label "Postcode"@en .
-:City rdf:type :GeocodePrecision ; rdfs:label "City"@en .
+:GeocodePrecision rdf:type rdfs:Class ; rdfs:label "Geocode precision"@en ; rdfs:label "Geokodierungsgenauigkeit"@de ; rdfs:label "Précision du géocodage"@fr .
+:Address rdf:type :GeocodePrecision ; rdfs:label "Address"@en ; rdfs:label "Adresse"@de ; rdfs:label "Adresse"@fr .
+:Postcode rdf:type :GeocodePrecision ; rdfs:label "Postcode"@en ; rdfs:label "Postleitzahl"@de ; rdfs:label "Code postal"@fr .
+:City rdf:type :GeocodePrecision ; rdfs:label "City"@en ; rdfs:label "Stadt"@de ; rdfs:label "Ville"@fr .

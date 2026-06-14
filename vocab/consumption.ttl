@@ -21,7 +21,11 @@
 
 <#> rdf:type owl:Ontology ;
     rdfs:label "Granergize consumption vocabulary"@en ;
-    rdfs:comment "Energy observations of buildings (SOSA profile) and the aggregated views / benchmarks derived from them."@en .
+    rdfs:label "Granergize-Verbrauchsvokabular"@de ;
+    rdfs:label "Vocabulaire de consommation Granergize"@fr ;
+    rdfs:comment "Energy observations of buildings (SOSA profile) and the aggregated views / benchmarks derived from them."@en ;
+    rdfs:comment "Energiebeobachtungen von Gebäuden (SOSA-Profil) und die daraus abgeleiteten aggregierten Sichten / Benchmarks."@de ;
+    rdfs:comment "Observations énergétiques des bâtiments (profil SOSA) et les vues agrégées / benchmarks qui en dérivent."@fr .
 
 ############################
 ###   Energy datasets    ###
@@ -29,54 +33,58 @@
 
 :EnergyDataset rdf:type rdfs:Class ;
     rdfs:subClassOf sosa:ObservationCollection ;
-    rdfs:label "Energy dataset"@en .
+    rdfs:label "Energy dataset"@en ; rdfs:label "Energiedatensatz"@de ; rdfs:label "Jeu de données énergétiques"@fr .
 
 :hasEnergyDataset rdf:type owl:ObjectProperty ;
-    rdfs:label "has energy dataset"@en ;
+    rdfs:label "has energy dataset"@en ; rdfs:label "hat Energiedatensatz"@de ; rdfs:label "possède un jeu de données énergétiques"@fr ;
     rdfs:domain rec:Building ; rdfs:range :EnergyDataset .
 
 :ofBuilding rdf:type owl:ObjectProperty ;
-    rdfs:label "of building"@en ;
+    rdfs:label "of building"@en ; rdfs:label "von Gebäude"@de ; rdfs:label "du bâtiment"@fr ;
     rdfs:domain :EnergyDataset ; rdfs:range rec:Building .
 
 :datasetLocation rdf:type owl:ObjectProperty ;
-    rdfs:label "dataset location"@en ;
+    rdfs:label "dataset location"@en ; rdfs:label "Speicherort des Datensatzes"@de ; rdfs:label "emplacement du jeu de données"@fr ;
     rdfs:comment "The stored Turtle resource holding this dataset's observations."@en ;
+    rdfs:comment "Die gespeicherte Turtle-Ressource mit den Beobachtungen dieses Datensatzes."@de ;
+    rdfs:comment "La ressource Turtle stockée contenant les observations de ce jeu de données."@fr ;
     rdfs:domain :EnergyDataset .
 
 :granularity rdf:type owl:DatatypeProperty ;
-    rdfs:label "granularity"@en ;
+    rdfs:label "granularity"@en ; rdfs:label "Granularität"@de ; rdfs:label "granularité"@fr ;
     rdfs:comment "ISO 8601 duration of one observation period (e.g. P1Y, PT15M)."@en ;
+    rdfs:comment "ISO-8601-Dauer eines Beobachtungszeitraums (z. B. P1Y, PT15M)."@de ;
+    rdfs:comment "Durée ISO 8601 d'une période d'observation (p. ex. P1Y, PT15M)."@fr ;
     rdfs:domain :EnergyDataset ; rdfs:range xsd:string .
 
 :scenario rdf:type owl:ObjectProperty ;
-    rdfs:label "scenario"@en ;
+    rdfs:label "scenario"@en ; rdfs:label "Szenario"@de ; rdfs:label "scénario"@fr ;
     rdfs:domain :EnergyDataset ; rdfs:range :Scenario .
 
-:Scenario rdf:type rdfs:Class ; rdfs:label "Scenario"@en .
-:Actual  rdf:type :Scenario ; rdfs:label "Actual"@en .
-:Planned rdf:type :Scenario ; rdfs:label "Planned"@en .
+:Scenario rdf:type rdfs:Class ; rdfs:label "Scenario"@en ; rdfs:label "Szenario"@de ; rdfs:label "Scénario"@fr .
+:Actual  rdf:type :Scenario ; rdfs:label "Actual"@en ; rdfs:label "Ist"@de ; rdfs:label "Réel"@fr .
+:Planned rdf:type :Scenario ; rdfs:label "Planned"@en ; rdfs:label "Plan"@de ; rdfs:label "Prévu"@fr .
 
 # Observable properties used as sosa:observedProperty on energy observations.
 :ElectricityConsumption rdf:type sosa:ObservableProperty ;
-    rdfs:label "Electricity consumption"@en .
+    rdfs:label "Electricity consumption"@en ; rdfs:label "Stromverbrauch"@de ; rdfs:label "Consommation d'électricité"@fr .
 :HeatConsumption rdf:type sosa:ObservableProperty ;
-    rdfs:label "Heat consumption"@en .
+    rdfs:label "Heat consumption"@en ; rdfs:label "Wärmeverbrauch"@de ; rdfs:label "Consommation de chaleur"@fr .
 :WaterConsumption rdf:type sosa:ObservableProperty ;
-    rdfs:label "Water consumption"@en .
+    rdfs:label "Water consumption"@en ; rdfs:label "Wasserverbrauch"@de ; rdfs:label "Consommation d'eau"@fr .
 :WastewaterConsumption rdf:type sosa:ObservableProperty ;
-    rdfs:label "Wastewater consumption"@en .
+    rdfs:label "Wastewater consumption"@en ; rdfs:label "Abwasseraufkommen"@de ; rdfs:label "Consommation d'eaux usées"@fr .
 :RenewableSelfGeneratedShare rdf:type sosa:ObservableProperty ;
-    rdfs:label "Renewable self-generated share"@en .
+    rdfs:label "Renewable self-generated share"@en ; rdfs:label "Anteil selbst erzeugter erneuerbarer Energie"@de ; rdfs:label "Part d'énergie renouvelable autoproduite"@fr .
 :ElectricityGeneration rdf:type sosa:ObservableProperty ;
-    rdfs:label "Electricity generation"@en .
+    rdfs:label "Electricity generation"@en ; rdfs:label "Stromerzeugung"@de ; rdfs:label "Production d'électricité"@fr .
 
 # A single sub-hourly energy-meter reading (observedProperty + featureOfInterest
 # + result + phenomenonTime). Many readings make up a daily series file in a
 # building's energy/ container.
 :EnergyConsumptionReading rdf:type rdfs:Class ;
     rdfs:subClassOf sosa:Observation ;
-    rdfs:label "Energy consumption reading"@en .
+    rdfs:label "Energy consumption reading"@en ; rdfs:label "Energieverbrauchsmesswert"@de ; rdfs:label "Relevé de consommation énergétique"@fr .
 
 ############################
 ###   Aggregated views   ###
@@ -87,70 +95,82 @@
 # values + a building count — never the contributor list). :View is the
 # umbrella class used as the sharing-log kind marker for shared views.
 :View rdf:type rdfs:Class ;
-    rdfs:label "Aggregated view"@en .
+    rdfs:label "Aggregated view"@en ; rdfs:label "Aggregierte Sicht"@de ; rdfs:label "Vue agrégée"@fr .
 
 :AggregatedViewDefinition rdf:type rdfs:Class ;
-    rdfs:label "Aggregated view definition"@en ;
-    rdfs:comment "The private definition of an aggregated view: the contributing building IRIs, the chosen metrics and the aggregation method. Stays on the computing agent's Pod and is never shared."@en .
+    rdfs:label "Aggregated view definition"@en ; rdfs:label "Definition der aggregierten Sicht"@de ; rdfs:label "Définition de vue agrégée"@fr ;
+    rdfs:comment "The private definition of an aggregated view: the contributing building IRIs, the chosen metrics and the aggregation method. Stays on the computing agent's Pod and is never shared."@en ;
+    rdfs:comment "Die private Definition einer aggregierten Sicht: die IRIs der beitragenden Gebäude, die gewählten Kennzahlen und die Aggregationsmethode. Verbleibt auf dem Pod des berechnenden Agenten und wird nie geteilt."@de ;
+    rdfs:comment "La définition privée d'une vue agrégée : les IRI des bâtiments contributeurs, les métriques choisies et la méthode d'agrégation. Reste sur le Pod de l'agent qui la calcule et n'est jamais partagée."@fr .
 
 :AggregatedViewSnapshot rdf:type rdfs:Class ;
-    rdfs:label "Aggregated view snapshot"@en ;
-    rdfs:comment "A computed, shareable copy of an aggregated view: only the per-metric values and a building count, never the contributing building IRIs."@en .
+    rdfs:label "Aggregated view snapshot"@en ; rdfs:label "Momentaufnahme der aggregierten Sicht"@de ; rdfs:label "Instantané de vue agrégée"@fr ;
+    rdfs:comment "A computed, shareable copy of an aggregated view: only the per-metric values and a building count, never the contributing building IRIs."@en ;
+    rdfs:comment "Eine berechnete, teilbare Kopie einer aggregierten Sicht: nur die Werte je Kennzahl und eine Gebäudeanzahl, niemals die IRIs der beitragenden Gebäude."@de ;
+    rdfs:comment "Une copie calculée et partageable d'une vue agrégée : uniquement les valeurs par métrique et un nombre de bâtiments, jamais les IRI des bâtiments contributeurs."@fr .
 
 :viewId rdf:type owl:DatatypeProperty ;
-    rdfs:label "view id"@en ; rdfs:range xsd:string .
+    rdfs:label "view id"@en ; rdfs:label "Sicht-ID"@de ; rdfs:label "identifiant de vue"@fr ; rdfs:range xsd:string .
 :viewName rdf:type owl:DatatypeProperty ;
-    rdfs:label "view name"@en ; rdfs:range xsd:string .
+    rdfs:label "view name"@en ; rdfs:label "Sichtname"@de ; rdfs:label "nom de la vue"@fr ; rdfs:range xsd:string .
 :aggregationType rdf:type owl:DatatypeProperty ;
-    rdfs:label "aggregation type"@en ;
+    rdfs:label "aggregation type"@en ; rdfs:label "Aggregationsart"@de ; rdfs:label "type d'agrégation"@fr ;
     rdfs:comment "The aggregation method (e.g. average, sum)."@en ;
+    rdfs:comment "Die Aggregationsmethode (z. B. Durchschnitt, Summe)."@de ;
+    rdfs:comment "La méthode d'agrégation (p. ex. moyenne, somme)."@fr ;
     rdfs:range xsd:string .
 :viewPeriod rdf:type owl:DatatypeProperty ;
-    rdfs:label "view period"@en ;
+    rdfs:label "view period"@en ; rdfs:label "Zeitraum der Sicht"@de ; rdfs:label "période de la vue"@fr ;
     rdfs:comment "The year the view's metrics cover."@en ;
+    rdfs:comment "Das Jahr, das die Kennzahlen der Sicht abdecken."@de ;
+    rdfs:comment "L'année couverte par les métriques de la vue."@fr ;
     rdfs:range xsd:string .
 :benchmark rdf:type owl:DatatypeProperty ;
-    rdfs:label "benchmark"@en ;
+    rdfs:label "benchmark"@en ; rdfs:label "Benchmark"@de ; rdfs:label "benchmark"@fr ;
     rdfs:comment "Marks an aggregated-view definition as a benchmark: every computed snapshot derives its :BenchmarkResult typing from this persisted flag, so a recompute cannot strip it."@en ;
+    rdfs:comment "Kennzeichnet eine Definition einer aggregierten Sicht als Benchmark: jede berechnete Momentaufnahme leitet ihre :BenchmarkResult-Typisierung aus diesem persistierten Kennzeichen ab, sodass eine Neuberechnung es nicht entfernen kann."@de ;
+    rdfs:comment "Marque une définition de vue agrégée comme benchmark : chaque instantané calculé hérite de son typage :BenchmarkResult de ce drapeau persistant, de sorte qu'un recalcul ne peut pas le retirer."@fr ;
     rdfs:domain :AggregatedViewDefinition ; rdfs:range xsd:boolean .
 :createdAt rdf:type owl:DatatypeProperty ;
-    rdfs:label "created at"@en ;
+    rdfs:label "created at"@en ; rdfs:label "erstellt am"@de ; rdfs:label "créé le"@fr ;
     rdfs:domain :AggregatedViewDefinition ; rdfs:range xsd:dateTime .
 :lastComputedAt rdf:type owl:DatatypeProperty ;
-    rdfs:label "last computed at"@en ;
+    rdfs:label "last computed at"@en ; rdfs:label "zuletzt berechnet am"@de ; rdfs:label "dernier calcul le"@fr ;
     rdfs:domain :AggregatedViewDefinition ; rdfs:range xsd:dateTime .
 :computedAt rdf:type owl:DatatypeProperty ;
-    rdfs:label "computed at"@en ;
+    rdfs:label "computed at"@en ; rdfs:label "berechnet am"@de ; rdfs:label "calculé le"@fr ;
     rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:dateTime .
 :includesBuilding rdf:type owl:ObjectProperty ;
-    rdfs:label "includes building"@en ;
+    rdfs:label "includes building"@en ; rdfs:label "umfasst Gebäude"@de ; rdfs:label "inclut le bâtiment"@fr ;
     rdfs:domain :AggregatedViewDefinition ; rdfs:range rec:Building .
 :includesMetric rdf:type owl:DatatypeProperty ;
-    rdfs:label "includes metric"@en ; rdfs:range xsd:string .
+    rdfs:label "includes metric"@en ; rdfs:label "umfasst Kennzahl"@de ; rdfs:label "inclut la métrique"@fr ; rdfs:range xsd:string .
 :buildingCount rdf:type owl:DatatypeProperty ;
-    rdfs:label "building count"@en ;
+    rdfs:label "building count"@en ; rdfs:label "Gebäudeanzahl"@de ; rdfs:label "nombre de bâtiments"@fr ;
     rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:integer .
 
 # Per-metric snapshot values (one property per metric key — the annual metric
 # keys, plus the bare `electricity` key the sub-hourly series path mints).
 :electricityValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "electricity value"@en ;
+    rdfs:label "electricity value"@en ; rdfs:label "Stromwert"@de ; rdfs:label "valeur d'électricité"@fr ;
     rdfs:comment "Aggregated sub-hourly electricity consumption (series-path snapshots)."@en ;
+    rdfs:comment "Aggregierter infra-stündlicher Stromverbrauch (Momentaufnahmen des Serienpfads)."@de ;
+    rdfs:comment "Consommation d'électricité infra-horaire agrégée (instantanés du chemin série)."@fr ;
     rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
 :electricityConsumptionValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "electricity consumption value"@en ;
+    rdfs:label "electricity consumption value"@en ; rdfs:label "Stromverbrauchswert"@de ; rdfs:label "valeur de consommation d'électricité"@fr ;
     rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
 :heatConsumptionValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "heat consumption value"@en ;
+    rdfs:label "heat consumption value"@en ; rdfs:label "Wärmeverbrauchswert"@de ; rdfs:label "valeur de consommation de chaleur"@fr ;
     rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
 :waterConsumptionValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "water consumption value"@en ;
+    rdfs:label "water consumption value"@en ; rdfs:label "Wasserverbrauchswert"@de ; rdfs:label "valeur de consommation d'eau"@fr ;
     rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
 :wastewaterConsumptionValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "wastewater consumption value"@en ;
+    rdfs:label "wastewater consumption value"@en ; rdfs:label "Abwasserwert"@de ; rdfs:label "valeur de consommation d'eaux usées"@fr ;
     rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
 :renewableSelfGeneratedShareValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "renewable self-generated share value"@en ;
+    rdfs:label "renewable self-generated share value"@en ; rdfs:label "Wert des Anteils selbst erzeugter erneuerbarer Energie"@de ; rdfs:label "valeur de part d'énergie renouvelable autoproduite"@fr ;
     rdfs:domain :AggregatedViewSnapshot ; rdfs:range xsd:decimal .
 
 ############################
@@ -164,14 +184,18 @@
 # contributor list), and every snapshot reader keeps working.
 :BenchmarkResult rdf:type rdfs:Class ;
     rdfs:subClassOf :AggregatedViewSnapshot ;
-    rdfs:label "Benchmark result"@en .
+    rdfs:label "Benchmark result"@en ; rdfs:label "Benchmark-Ergebnis"@de ; rdfs:label "Résultat de benchmark"@fr .
 
 :computedBy rdf:type owl:ObjectProperty ;
-    rdfs:label "computed by"@en ;
+    rdfs:label "computed by"@en ; rdfs:label "berechnet von"@de ; rdfs:label "calculé par"@fr ;
     rdfs:comment "The agent (benchmark service provider) that computed this benchmark result."@en ;
+    rdfs:comment "Der Agent (Benchmark-Dienstleister), der dieses Benchmark-Ergebnis berechnet hat."@de ;
+    rdfs:comment "L'agent (fournisseur de service de benchmark) qui a calculé ce résultat de benchmark."@fr ;
     rdfs:domain :BenchmarkResult ; rdfs:range foaf:Agent .
 
 :metricPeriod rdf:type owl:DatatypeProperty ;
-    rdfs:label "metric period"@en ;
+    rdfs:label "metric period"@en ; rdfs:label "Zeitraum der Kennzahl"@de ; rdfs:label "période de la métrique"@fr ;
     rdfs:comment "The year the benchmark's metrics cover."@en ;
+    rdfs:comment "Das Jahr, das die Kennzahlen des Benchmarks abdecken."@de ;
+    rdfs:comment "L'année couverte par les métriques du benchmark."@fr ;
     rdfs:domain :BenchmarkResult ; rdfs:range xsd:gYear .

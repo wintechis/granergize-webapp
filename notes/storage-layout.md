@@ -21,11 +21,9 @@ around it:
   addressing. **This document's concern** (with the storage model in
   [`queries-mutations.md`](./queries-mutations.md) and addressing in
   [`data-deref.md`](./data-deref.md)).
-- **Presentation profile** — how an instance renders. See
-  [`explore-presentation-profile.md`](./explore-presentation-profile.md).
+- **Presentation profile** — how an instance renders.
 - **Action profile** — what you can do to it; the intents. See
-  [`queries-mutations.md`](./queries-mutations.md) and
-  [`explore-intent-registry.md`](./explore-intent-registry.md).
+  [`queries-mutations.md`](./queries-mutations.md).
 
 ("Lens" is loose prose for one of these profiles — the artifact is the profile.)
 

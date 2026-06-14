@@ -117,11 +117,11 @@ Deno.test("fetchAndParseData parses own buildings (by listing) and energy end-to
 
   const e1 = result.energyNeed.find((e) => e.id === B1_ID);
   const e2 = result.energyNeed.find((e) => e.id === B2_ID);
-  assert.equal(e1?.energyNeed.Electricity, 1000);
-  assert.equal(e2?.energyNeed.Electricity, 2000);
+  assert.equal(e1?.energyNeed.electricityConsumption, 1000);
+  assert.equal(e2?.energyNeed.electricityConsumption, 2000);
 
   // Average across both buildings.
-  assert.equal(result.portfolioAverages.Electricity, 1500);
+  assert.equal(result.portfolioAverages.electricityConsumption, 1500);
 });
 
 Deno.test("fetchAndParseData fetches energy files concurrently, not serially", async () => {
@@ -164,9 +164,9 @@ Deno.test("fetchAndParseData tolerates an inaccessible energy source", async () 
   assert.equal(result.buildings.length, 2);
   const e1 = result.energyNeed.find((e) => e.id === B1_ID);
   const e2 = result.energyNeed.find((e) => e.id === B2_ID);
-  assert.equal(e1?.energyNeed.Electricity, 1000);
+  assert.equal(e1?.energyNeed.electricityConsumption, 1000);
   assert.equal(e2, undefined);
-  assert.equal(result.portfolioAverages.Electricity, 1000);
+  assert.equal(result.portfolioAverages.electricityConsumption, 1000);
 });
 
 Deno.test("fetchAndParseData throws SessionExpiredError when sources return 401", async () => {
@@ -250,9 +250,9 @@ Deno.test("loadEnergy averages same-operator buildings into one operator benchma
   const result = await fetchAndParseData(makeSession({ log: newLog(), fixtures }));
 
   // Both buildings share OP_A: its average is the mean of 1000 and 2000.
-  assert.equal(result.operatorAverages[OP_A]?.Electricity, 1500);
+  assert.equal(result.operatorAverages[OP_A]?.electricityConsumption, 1500);
   // A single owner's portfolio mean coincides with the operator mean here.
-  assert.equal(result.portfolioAverages.Electricity, 1500);
+  assert.equal(result.portfolioAverages.electricityConsumption, 1500);
 });
 
 Deno.test("loadEnergy publishes NO operator average for a single-building operator (no self-benchmark)", async () => {
@@ -307,6 +307,10 @@ Deno.test("loadEnergy falls back to the next-newest accessible year when the lat
   const result = await fetchAndParseData(makeSession({ log: newLog(), fixtures }));
   const b1 = result.energyNeed[0];
   assert.ok(b1, "building 1 still carries energy");
-  assert.equal(b1.energyNeed["Electricity"], 500, "older year's figure used");
+  assert.equal(
+    b1.energyNeed["electricityConsumption"],
+    500,
+    "older year's figure used",
+  );
   assert.equal(b1.year, 2023, "the year reflects the fallback");
 });

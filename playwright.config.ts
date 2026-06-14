@@ -83,6 +83,7 @@ const CHROME = { ...devices["Desktop Chrome"] };
 const SOLO_SPECS = [
   "**/login.spec.ts",
   "**/logout.spec.ts",
+  "**/session-restore.spec.ts",
   "**/organisation.spec.ts",
   "**/add-building.spec.ts",
   "**/attachments.spec.ts",

@@ -21,6 +21,7 @@ import {
   sharedInUri,
 } from "./interop/sharingLog.ts";
 import { isSeriesGranularity } from "./rdf/durationUtils.ts";
+import { CONSUMPTION_METRIC_KEYS } from "../constants/annualMetrics.ts";
 
 /**
  * Attempts to load Turtle data from multiple sources, continuing if some fail
@@ -379,18 +380,15 @@ export async function loadEnergy(
   for (const entry of parsedAnnual) {
     if (!entry) continue;
     const { building, metrics, year } = entry;
+    // Canonical, vocab-keyed energy: `energyNeed` mirrors the AnnualMetrics keys
+    // (`electricityConsumption`, …) 1:1 with the `cons:*` observed-property IRIs —
+    // the same shape the view compute and benchmark snapshots use. Display labels
+    // ("Electricity", …) are derived at render via `metricLabel`/`ANNUAL_METRICS`,
+    // so the cache stays close to the Turtle and reusable, not display-shaped.
     const energyNeed: Record<string, number> = {};
-    if (metrics.electricityConsumption !== undefined) {
-      energyNeed["Electricity"] = metrics.electricityConsumption;
-    }
-    if (metrics.heatConsumption !== undefined) {
-      energyNeed["Heat"] = metrics.heatConsumption;
-    }
-    if (metrics.waterConsumption !== undefined) {
-      energyNeed["Water"] = metrics.waterConsumption;
-    }
-    if (metrics.wastewaterConsumption !== undefined) {
-      energyNeed["Wastewater"] = metrics.wastewaterConsumption;
+    for (const key of CONSUMPTION_METRIC_KEYS) {
+      const v = metrics[key];
+      if (v !== undefined) energyNeed[key] = v;
     }
     if (Object.keys(energyNeed).length === 0) continue;
 

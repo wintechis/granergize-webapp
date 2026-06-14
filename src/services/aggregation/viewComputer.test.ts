@@ -5,6 +5,7 @@ import type {
   AggregationType,
   AggregatedViewDefinition,
 } from "../../types.ts";
+import { QueryClient } from "@tanstack/react-query";
 import {
   computeAggregation,
   summarizeContributors,
@@ -15,6 +16,7 @@ import {
   datasetNodeUri,
   serializeEnergyDataset,
 } from "../rdf/energyDataset.ts";
+import { _setAppQueryClient } from "../../lib/appQueryClient.ts";
 
 const POD = "https://pod.example/granergize/buildings/";
 const METRIC = "electricityConsumption";
@@ -148,6 +150,58 @@ Deno.test("computeAggregation: no readable buildings yields empty values", async
   const snap = await computeAggregation(session, def([B1], "average"));
   assert.deepEqual(snap.values, {});
   assert.equal(snap.buildingCount, 0);
+});
+
+Deno.test("computeAggregation: takes the building's dataset refs from the warm cache, not a file re-read", async () => {
+  // The building FILE 404s (the slow-Pod re-read flake), but its dataset file is
+  // served. With the building's refs in the warm `useBuildings` cache, the compute
+  // must still find them and aggregate — proving it no longer depends on re-reading
+  // the building file. Without the cache it returns null (the empty-snapshot bug).
+  const WEBID = "https://me.example/profile/card#me";
+  const subject = `${B1}#b`;
+  const dsFile = datasetFileUri(B1, 2024, "P1Y", "actual");
+  const session = {
+    info: { isLoggedIn: true, webId: WEBID },
+    fetch: (input: string | URL | Request) => {
+      const url = (typeof input === "string" ? input : input.toString())
+        .split("?")[0];
+      if (url === dsFile) {
+        return Promise.resolve(
+          new Response(
+            serializeEnergyDataset({
+              building: subject,
+              year: 2024,
+              granularity: "P1Y",
+              scenario: "actual",
+              metrics: { [METRIC]: 500 },
+            }),
+            { status: 200, headers: { "Content-Type": "text/turtle" } },
+          ),
+        );
+      }
+      return Promise.resolve(new Response("Not found", { status: 404 }));
+    },
+  } as unknown as Session;
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  qc.setQueryData(["buildings", WEBID], {
+    buildings: [{
+      uri: subject,
+      energyDatasets: [{
+        url: datasetNodeUri(dsFile),
+        year: 2024,
+        granularity: "P1Y",
+        scenario: "actual",
+      }],
+    }],
+  });
+  _setAppQueryClient(qc);
+  try {
+    const snap = await computeAggregation(session, def([subject], "average"));
+    assert.equal(snap.buildingCount, 1, "ref came from the cache, file 404 ignored");
+    assert.equal(snap.values[METRIC], 500);
+  } finally {
+    _setAppQueryClient(null);
+  }
 });
 
 Deno.test("computeAggregation: a metric absent from the data is omitted", async () => {

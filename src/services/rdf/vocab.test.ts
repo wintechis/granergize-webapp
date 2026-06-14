@@ -33,12 +33,23 @@ const NS_FILE: Record<string, string> = {
   [CONSUMPTION_NS]: "vocab/consumption.ttl",
 };
 
+const RDFS_LABEL = "http://www.w3.org/2000/01/rdf-schema#label";
+
 /** All subject IRIs defined across the owned vocab files. */
 const defined: Set<string> = new Set();
+/** Subject IRI → set of language tags it carries an rdfs:label in. */
+const labelLangs: Map<string, Set<string>> = new Map();
 for (const [ns, file] of Object.entries(NS_FILE)) {
   const ttl = Deno.readTextFileSync(new URL(`../../../${file}`, import.meta.url));
   const quads = new Parser({ baseIRI: ns.slice(0, -1) }).parse(ttl);
-  for (const q of quads) defined.add(q.subject.value);
+  for (const q of quads) {
+    defined.add(q.subject.value);
+    if (q.predicate.value === RDFS_LABEL && q.object.termType === "Literal") {
+      const langs = labelLangs.get(q.subject.value) ?? new Set();
+      langs.add(q.object.language);
+      labelLangs.set(q.subject.value, langs);
+    }
+  }
 }
 
 /** Is this IRI in one of the three namespaces the app owns? */
@@ -121,6 +132,19 @@ Deno.test("benchmark + aggregated-view terms are defined in the consumption voca
   ];
   for (const iri of owned) {
     assert.ok(defined.has(iri), `term not defined in vocab/: ${iri}`);
+  }
+});
+
+Deno.test("every English-labelled owned term carries de + fr labels", () => {
+  // The app is multilingual (de/en/fr — see notes/explore-presentation-profile.md
+  // § Multilingual rendering). English is the authoring baseline; this asserts
+  // German and French keep full parity, so a partly-translated vocab fails the
+  // build rather than silently falling back to English at render time.
+  for (const [iri, langs] of labelLangs) {
+    if (!isOwned(iri) || !langs.has("en")) continue;
+    for (const lang of ["de", "fr"]) {
+      assert.ok(langs.has(lang), `term missing @${lang} rdfs:label in vocab/: ${iri}`);
+    }
   }
 });
 
