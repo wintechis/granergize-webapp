@@ -54,7 +54,10 @@ test.describe("building deletion", () => {
     test.setTimeout(T.testSolo);
 
     await page.getByRole("tab", { name: "Manage" }).click();
-    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+    const addBtn = page.getByRole("button", {
+      name: "Add Building",
+      exact: true,
+    })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await page.waitForLoadState("networkidle").catch(() => {}); // list settles

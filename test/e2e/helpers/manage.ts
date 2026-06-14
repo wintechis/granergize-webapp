@@ -10,7 +10,8 @@ import { confirmDialog } from "./confirm.ts";
  */
 
 /** Locator for the building rows on Manage. */
-export const buildingRows = (page: Page) => page.locator("li[data-building-id]");
+export const buildingRows = (page: Page) =>
+  page.locator("li[data-building-id]");
 
 /** A row's building id (the building's IRI-based identifier, verbatim). */
 export const buildingIdOf = (row: Locator): Promise<string | null> =>
@@ -75,7 +76,9 @@ export async function addBuilding(
   await page.getByRole("tab", { name: "Manage" }).click();
   await page.getByRole("button", { name: /^add building$/i }).first().click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel(/street address/i)).toBeVisible({ timeout: T.visible });
+  await expect(dialog.getByLabel(/street address/i)).toBeVisible({
+    timeout: T.visible,
+  });
   await dialog.getByLabel(/street address/i).fill(street);
   await dialog.getByLabel(/locality/i).fill("Nürnberg");
   await dialog.getByLabel(/postal code/i).fill("90451");
@@ -138,7 +141,6 @@ export async function shareByRole(
   years?: number[],
 ): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
-  await page.waitForLoadState("networkidle").catch(() => {});
   const row = page.locator("li", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Share building data" }).click();
@@ -189,7 +191,9 @@ export async function uploadBuildingFile(
   });
   const name = fixturePath.split("/").pop()!;
   await expect(dialog.getByText(name)).toBeVisible({ timeout: T.action });
-  await dialog.getByRole("button", { name: /close/i }).click({ timeout: T.visible });
+  await dialog.getByRole("button", { name: /close/i }).click({
+    timeout: T.visible,
+  });
   await expect(dialog).toBeHidden({ timeout: T.visible });
 }
 
@@ -200,7 +204,6 @@ export async function shareByWebId(
   webId: string,
 ): Promise<void> {
   await page.getByRole("tab", { name: "Manage" }).click();
-  await page.waitForLoadState("networkidle").catch(() => {});
   const row = page.locator("li", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Share building data" }).click();

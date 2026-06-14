@@ -19,14 +19,18 @@ export async function deleteAllOwnedRooms(page: Page): Promise<void> {
     const connect = page.getByRole("tab", { name: "Connect" });
     if (await connect.count()) await connect.click();
 
-    const deleteButtons = page.getByRole("button", { name: "Delete data room" });
+    const deleteButtons = page.getByRole("button", {
+      name: "Delete data room",
+    });
     for (let i = 0; i < 50; i++) {
       const remaining = await deleteButtons.count();
       if (remaining === 0) return;
       await deleteButtons.first().click();
       await confirmDialog(page, "Delete");
       // Wait for this delete to take effect (one fewer button) before the next.
-      await expect(deleteButtons).toHaveCount(remaining - 1, { timeout: T.action });
+      await expect(deleteButtons).toHaveCount(remaining - 1, {
+        timeout: T.action,
+      });
     }
   } catch {
     // Cleanup is best-effort; never let it fail the run.
@@ -53,12 +57,16 @@ export async function removeAllBookmarkedRooms(page: Page): Promise<void> {
       await page.waitForLoadState("networkidle").catch(() => {});
     }
 
-    const removeButtons = page.getByRole("button", { name: "Remove data room" });
+    const removeButtons = page.getByRole("button", {
+      name: "Remove data room",
+    });
     for (let i = 0; i < 50; i++) {
       const remaining = await removeButtons.count();
       if (remaining === 0) return;
       await removeButtons.first().click();
-      await expect(removeButtons).toHaveCount(remaining - 1, { timeout: T.action });
+      await expect(removeButtons).toHaveCount(remaining - 1, {
+        timeout: T.action,
+      });
     }
   } catch {
     // Cleanup is best-effort; never let it fail the run.
