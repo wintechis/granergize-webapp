@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { buildingRows } from "./manage.ts";
+import { buildingRows, openBuildingsList } from "./manage.ts";
 import { confirmDialog } from "./confirm.ts";
 import { logRun } from "./consoleLog.ts";
 import { menuAction, setDevMode } from "./accountMenu.ts";
@@ -41,7 +41,7 @@ import { T } from "./timeouts.ts";
  * of confusing "already exists" / stale-data failures deeper in the spec).
  */
 export async function assertCleanStart(page: Page, tag = ""): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
   await page.waitForLoadState("networkidle").catch(() => {});
   const buildings = await buildingRows(page).count();
   const views = await page.getByRole("button", { name: /open view/i }).count();
@@ -63,7 +63,7 @@ export async function logCollectionState(
     return;
   }
   try {
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     await page.waitForLoadState("networkidle").catch(() => {});
     const buildings = await buildingRows(page).count();
     // Views render as list rows carrying a "View" / "Open view" affordance; count
@@ -129,7 +129,7 @@ export async function wipeCollection(
 async function returnToShell(page: Page): Promise<boolean> {
   if (page.isClosed()) return false;
   await page.goto("/").catch(() => {});
-  return await page.getByRole("tab", { name: "Manage" })
+  return await page.getByRole("tab", { name: "Buildings" })
     .waitFor({ state: "visible", timeout: T.action })
     .then(() => true)
     .catch(() => false);

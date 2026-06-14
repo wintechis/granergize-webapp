@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { T } from "./timeouts.ts";
+import { openBuildingsList } from "./manage.ts";
 
 /**
  * Ensure the logged-in account has the demo buildings on Manage, seeding an empty
@@ -22,7 +23,7 @@ import { T } from "./timeouts.ts";
  * building count (e.g. the excel-export round-trip) doesn't read a moving baseline.
  */
 export async function ensureDemoBuildings(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
   const rows = page.locator("li[data-building-id]");
 
   // Already populated (used Pod, or residue from an earlier spec) — nothing to do.
@@ -38,13 +39,13 @@ export async function ensureDemoBuildings(page: Page): Promise<void> {
   // misses, reload ONCE to force a fresh evaluation against the converged Pod, then
   // wait again. Do NOT loop reloads — each restarts the app bootstrap and resets the
   // settle clock. If it still never shows, the Pod has gran:demoSeedDeclined.
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
   const addExamples = page.getByRole("button", { name: "Add examples" });
   try {
     await expect(addExamples).toBeVisible({ timeout: T.action });
   } catch {
     await page.reload();
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     await expect(addExamples).toBeVisible({ timeout: T.action });
   }
   await addExamples.click();

@@ -8,8 +8,10 @@
  * built-in; the address we encode into is a hash URI per RFC 3986.)
  */
 
-/** The four home tabs, in render order. The `?tab=` slug is the index here. */
-export const HOME_TABS = ["explore", "manage", "share", "connect"] as const;
+/** The three home tabs, in render order. The `?tab=` slug is the index here.
+ * "Buildings" folds the former Explore (map) + Manage (list) into one tab with
+ * an in-tab Map ⇄ List toggle (see IndexPage). */
+export const HOME_TABS = ["buildings", "share", "connect"] as const;
 export type HomeTabSlug = (typeof HOME_TABS)[number];
 
 /** The Explore detail sub-tabs, in render order. The `?dt=` slug indexes here. */
@@ -28,12 +30,13 @@ function slugFromIndex<T extends string>(slugs: readonly T[], index: number): T 
   return slugs[index] ?? slugs[0];
 }
 
-/** `?tab=` slug → home tab index (Explore=0…Connect=3); unknown → 0 (Explore). */
+/** `?tab=` slug → home tab index (Buildings=0/Share=1/Connect=2); unknown → 0
+ * (Buildings). `?tab=connect` still resolves (App.tsx's RoomDeepLink uses it). */
 export function tabIndexFromSlug(slug: string | null | undefined): number {
   return indexFromSlug(HOME_TABS, slug);
 }
 
-/** Home tab index → `?tab=` slug; out-of-range → "explore". */
+/** Home tab index → `?tab=` slug; out-of-range → "buildings". */
 export function slugFromTabIndex(index: number): HomeTabSlug {
   return slugFromIndex(HOME_TABS, index);
 }

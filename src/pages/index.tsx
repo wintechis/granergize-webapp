@@ -8,6 +8,8 @@ import Divider from "@mui/material/Divider";
 import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
+import ToggleButton from "@mui/material/ToggleButton";
+import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 const ExplorePage = lazy(() => import("./ExplorePage.tsx"));
 import { useSearchParams } from "react-router-dom";
 import {
@@ -101,13 +103,17 @@ function useProfileImageUrl(
 }
 
 function IndexPage({ session, onLogout }: IndexPageProps) {
-  // Tabs: 0 = Explore (map), 1 = Manage (your buildings + views), 2 = Share
-  // (inbox), 3 = Connect (rooms). The active tab lives in the hash query param
-  // `?tab=` so a browser reload (or a bookmark/share) restores it — see
-  // notes/ui-state.md. Arriving from a room deep link (#/room/:uri) lands on the
-  // Connect tab via `?tab=connect` (set in App.tsx's RoomDeepLink).
+  // Tabs: 0 = Buildings (map ⇄ list finder), 1 = Share (inbox), 2 = Connect
+  // (rooms). The active tab lives in the hash query param `?tab=` so a browser
+  // reload (or a bookmark/share) restores it — see notes/ui-state.md. Arriving
+  // from a room deep link (#/room/:uri) lands on the Connect tab via
+  // `?tab=connect` (set in App.tsx's RoomDeepLink).
   const [searchParams, setSearchParams] = useSearchParams();
   const tabValue = tabIndexFromSlug(searchParams.get("tab"));
+  // Buildings tab: which finder is showing — Map (the default, matching the old
+  // landing) or List. Local state for now; a `?view=` param could persist it
+  // across reload later, like `?tab=`.
+  const [buildingsView, setBuildingsView] = useState<"map" | "list">("map");
   const devMode = useDevMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   // "Remove all app data" — while the mutation is pending the page renders a
@@ -471,7 +477,9 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       // cleared the query cache, so useDemoOffer re-probes the (now empty) Pod and
       // returns true; just lift any in-session dismissal so the banner can show.
       setDemoDismissed(false);
-      setSearchParams((p) => mergeParams(p, { tab: "explore" }), { replace: true });
+      setSearchParams((p) => mergeParams(p, { tab: "buildings" }), {
+        replace: true,
+      });
       showNotification("All app data removed", "success");
     } catch {
       // Already toasted centrally via the hook's meta.action.
@@ -518,8 +526,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
         }}
       >
         <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label="Explore" />
-          <Tab label="Manage" />
+          <Tab label="Buildings" />
           <Tab label="Share" />
           <Tab label="Connect" />
         </Tabs>
@@ -729,8 +736,11 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           explore?
         </Alert>
       </Collapse>
-      {/* Keep the map mounted so returning to Home is instant (no Leaflet re-init / tile re-fetch).
-          Content area fills the remaining column height; the footer below stays pinned. */}
+      {/* Buildings tab (0): one finder, a Map ⇄ List toggle picks the view.
+          The whole tab body hides (display:none) when another tab is active so
+          the map stays mounted underneath — returning to Buildings is instant
+          (no Leaflet re-init / tile re-fetch). Content fills the remaining
+          column height; the footer below stays pinned. */}
       <Box
         sx={{
           display: tabValue === 0 ? "flex" : "none",
@@ -739,21 +749,47 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           minHeight: 0,
         }}
       >
-        <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
-          <ExplorePage active={tabValue === 0} />
-        </Suspense>
+        <Box sx={{ display: "flex", justifyContent: "center", p: 1, flexShrink: 0 }}>
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={buildingsView}
+            onChange={(_e, next) => {
+              if (next) setBuildingsView(next); // ignore deselect of the active button
+            }}
+            aria-label="Buildings view"
+          >
+            <ToggleButton value="map">Map</ToggleButton>
+            <ToggleButton value="list">List</ToggleButton>
+          </ToggleButtonGroup>
+        </Box>
+        {/* Map: kept mounted whenever Buildings is the active tab (only hidden
+            when switched to List), preserving ExplorePage's Leaflet instance. */}
+        <Box
+          sx={{
+            display: buildingsView === "map" ? "flex" : "none",
+            flexDirection: "column",
+            flexGrow: 1,
+            minHeight: 0,
+          }}
+        >
+          <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
+            <ExplorePage active={tabValue === 0 && buildingsView === "map"} />
+          </Suspense>
+        </Box>
+        {/* List: mounted only while showing — no costly instance to preserve. */}
+        {buildingsView === "list" && (
+          <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
+            <ManagePage session={session} />
+          </Box>
+        )}
       </Box>
       {tabValue === 1 && (
-        <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-          <ManagePage session={session} />
-        </Box>
-      )}
-      {tabValue === 2 && (
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
           <SharePage session={session} />
         </Box>
       )}
-      {tabValue === 3 && (
+      {tabValue === 2 && (
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
           <ConnectPage session={session} />
         </Box>

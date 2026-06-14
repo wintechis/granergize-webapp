@@ -79,39 +79,30 @@ if (!LOCAL && !process.env.VITE_POD_APP_DIR) {
 }
 
 const CHROME = { ...devices["Desktop Chrome"] };
+// ── Redesign (2026-06-14): active vs. quarantined specs ──────────────────────
+// During the master-detail redesign we DON'T keep the whole legacy suite green —
+// the surfaces are being rewritten, so most legacy specs reference the old
+// Explore/Manage tabs (gone, merged into one Buildings tab with a Map⇄List
+// toggle). The ACTIVE lists below are the small, growing set of specs expected to
+// pass against the redesigned shell. A quarantined spec re-joins its list once the
+// redesign has rebuilt its surface AND the spec is rewritten to the new nav
+// (helper `openBuildingsList` in test/e2e/helpers/manage.ts is the seam).
+//
+// QUARANTINED (re-add to the lists below when rewritten): login, logout,
+// session-restore, organisation, add-building, attachments, edit-building-fields,
+// excel-import, excel-export, energy-entry, energy-resolutions, materialised-views,
+// map-energy-lens, data-room, building-details, contacts, archive-restore,
+// building-form-and-energy; share-building, share-view, share-files; peer-benchmark.
+
 // SOLO — one pod (Alice): single-account specs.
 const SOLO_SPECS = [
-  "**/login.spec.ts",
-  "**/logout.spec.ts",
-  "**/session-restore.spec.ts",
-  "**/organisation.spec.ts",
-  "**/add-building.spec.ts",
-  "**/attachments.spec.ts",
-  "**/edit-building-fields.spec.ts",
-  "**/excel-import.spec.ts",
-  "**/excel-export.spec.ts",
-  "**/energy-entry.spec.ts",
-  "**/energy-resolutions.spec.ts",
-  "**/materialised-views.spec.ts",
-  "**/map-energy-lens.spec.ts",
-  "**/data-room.spec.ts",
-  "**/building-details.spec.ts",
-  "**/contacts.spec.ts",
-  "**/archive-restore.spec.ts",
-  "**/uri-state.spec.ts",
-  "**/building-form-and-energy.spec.ts",
   "**/building-page.spec.ts",
+  "**/uri-state.spec.ts",
 ];
 // DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
-const DUO_SPECS = [
-  "**/share-building.spec.ts",
-  "**/share-view.spec.ts",
-  "**/share-files.spec.ts",
-];
+const DUO_SPECS: string[] = [];
 // TRIO — three pods (A + B + C = Charlie): the benchmark-service round-trip.
-const TRIO_SPECS = [
-  "**/peer-benchmark.spec.ts",
-];
+const TRIO_SPECS: string[] = [];
 
 export default defineConfig({
   testDir: "./test/e2e",

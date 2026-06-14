@@ -3,6 +3,7 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-14]
+- **Redesign (WIP): Buildings tab merge.** Explore + Manage fold into one **Buildings** tab with a Map⇄List toggle (landing tab); tab slugs become `buildings`/`share`/`connect`. e2e harness updated (`openBuildingsList` helper); legacy specs that drive the old tabs are quarantined (only the active redesign specs run) — the suite grows back as surfaces are rebuilt.
 - **Redesign (WIP): building page.** `/building/:id` is now one read-first master-detail page (header + map thumbnail, inline-edit master data, energy summary→link, files, sharing status); replaces the read-only page + Manage row dialogs.
 - **Redesign (WIP): observation page.** `/energy/:id` is the full charts + energy-year entry home (the building page keeps energy minimal and links here).
 - **Redesign (WIP): navigable.** Manage building name + Explore map pane open the building page.

@@ -18,6 +18,17 @@ export const buildingIdOf = (row: Locator): Promise<string | null> =>
   row.getAttribute("data-building-id");
 
 /**
+ * Open the Buildings tab's **List** view — the former "Manage" list (building
+ * rows, "Add Building", and the per-row actions). The redesign merged Explore +
+ * Manage into one Buildings tab with a Map⇄List toggle that lands on Map, so
+ * reaching the list is now: select the Buildings tab, then toggle to List.
+ */
+export async function openBuildingsList(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: "Buildings" }).click();
+  await page.getByRole("button", { name: "List" }).click();
+}
+
+/**
  * Hash route to a building's standalone page. The id is an IRI reference
  * (contains `/` and `#`), so it MUST be URL-encoded — a raw `#` truncates the
  * hash route. Every spec goto goes through this, never hand-built paths.
@@ -32,11 +43,11 @@ export function buildingRoute(
   return `/#/${kind}/${encodeURIComponent(id)}`;
 }
 
-/** Hash route to the Explore tab with a building selected (`?b=`), optionally
+/** Hash route to the Buildings tab (Map view) with a building selected (`?b=`), optionally
  * on a detail sub-tab (`?dt=`). Encodes + null-rejects like {@link buildingRoute}. */
 export function exploreRoute(id: string | null, dt?: string): string {
   if (!id) throw new Error("exploreRoute: missing building id");
-  return `/#/?tab=explore&b=${encodeURIComponent(id)}${dt ? `&dt=${dt}` : ""}`;
+  return `/#/?tab=buildings&b=${encodeURIComponent(id)}${dt ? `&dt=${dt}` : ""}`;
 }
 
 /**
@@ -73,7 +84,7 @@ export async function addBuilding(
   street: string,
   opts: { operatedBy?: string } = {},
 ): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
   await page.getByRole("button", { name: /^add building$/i }).first().click();
   const dialog = page.getByRole("dialog");
   await expect(dialog.getByLabel(/street address/i)).toBeVisible({
@@ -110,7 +121,7 @@ export async function addEnergyYear(
   electricity: string,
   scenario: RegExp = /^Actual$/,
 ): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
   const row = page.locator("li", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Add or edit energy year" }).click();
@@ -140,7 +151,7 @@ export async function shareByRole(
   street: string,
   years?: number[],
 ): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
   const row = page.locator("li", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Share building data" }).click();
@@ -179,7 +190,7 @@ export async function uploadBuildingFile(
   street: string,
   fixturePath: string,
 ): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
   const row = page.locator("li", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Manage files" }).click();
@@ -203,7 +214,7 @@ export async function shareByWebId(
   street: string,
   webId: string,
 ): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
   const row = page.locator("li", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Share building data" }).click();
@@ -237,7 +248,7 @@ export const VIEW_NAME = "E2E Shared View";
 
 /** Create the shared view (idempotent: reuse an existing one with VIEW_NAME). */
 export async function ensureView(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
   await page.waitForLoadState("networkidle").catch(() => {});
   if (await page.locator("li").filter({ hasText: VIEW_NAME }).count()) return;
 

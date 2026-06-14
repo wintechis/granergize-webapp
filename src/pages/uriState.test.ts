@@ -9,13 +9,13 @@ import {
 } from "./uriState.ts";
 
 Deno.test("tabIndexFromSlug maps each home slug to its index", () => {
-  assert.equal(tabIndexFromSlug("explore"), 0);
-  assert.equal(tabIndexFromSlug("manage"), 1);
-  assert.equal(tabIndexFromSlug("share"), 2);
-  assert.equal(tabIndexFromSlug("connect"), 3);
+  // Redesign: Explore+Manage merged into the Buildings tab (Map⇄List toggle).
+  assert.equal(tabIndexFromSlug("buildings"), 0);
+  assert.equal(tabIndexFromSlug("share"), 1);
+  assert.equal(tabIndexFromSlug("connect"), 2);
 });
 
-Deno.test("tabIndexFromSlug defaults unknown/missing to Explore (0)", () => {
+Deno.test("tabIndexFromSlug defaults unknown/missing to Buildings (0)", () => {
   assert.equal(tabIndexFromSlug("bogus"), 0);
   assert.equal(tabIndexFromSlug(""), 0);
   assert.equal(tabIndexFromSlug(null), 0);
@@ -23,10 +23,10 @@ Deno.test("tabIndexFromSlug defaults unknown/missing to Explore (0)", () => {
 });
 
 Deno.test("slugFromTabIndex round-trips and clamps out-of-range", () => {
-  assert.equal(slugFromTabIndex(0), "explore");
-  assert.equal(slugFromTabIndex(3), "connect");
-  assert.equal(slugFromTabIndex(99), "explore"); // out-of-range → first
-  assert.equal(slugFromTabIndex(-1), "explore");
+  assert.equal(slugFromTabIndex(0), "buildings");
+  assert.equal(slugFromTabIndex(2), "connect");
+  assert.equal(slugFromTabIndex(99), "buildings"); // out-of-range → first
+  assert.equal(slugFromTabIndex(-1), "buildings");
 });
 
 Deno.test("detail sub-tab slugs map to indices and back", () => {
@@ -39,17 +39,17 @@ Deno.test("detail sub-tab slugs map to indices and back", () => {
 });
 
 Deno.test("mergeParams sets, deletes on null, and leaves other keys untouched", () => {
-  const prev = new URLSearchParams("tab=manage&b=42&dt=energy");
+  const prev = new URLSearchParams("tab=buildings&b=42&dt=energy");
 
   // Set one key — the others survive (no clobber).
   const set = mergeParams(prev, { dt: "weather" });
-  assert.equal(set.get("tab"), "manage");
+  assert.equal(set.get("tab"), "buildings");
   assert.equal(set.get("b"), "42");
   assert.equal(set.get("dt"), "weather");
 
   // null deletes only that key.
   const del = mergeParams(prev, { b: null, dt: null });
-  assert.equal(del.get("tab"), "manage");
+  assert.equal(del.get("tab"), "buildings");
   assert.equal(del.has("b"), false);
   assert.equal(del.has("dt"), false);
 

@@ -3,7 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { exploreRoute } from "../helpers/manage.ts";
+import { exploreRoute, openBuildingsList } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -33,7 +33,7 @@ const ACC = account("A");
 /** Add one User-template building idempotently; retried against the CSS write race. */
 async function ensureBuilding(page: Page): Promise<string> {
   await expect(async () => {
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     if (await page.locator("li", { hasText: ADDR }).count()) return;
     // A leftover dialog from a failed attempt covers the page button — close it.
     if (await page.getByRole("dialog").count()) {
@@ -85,7 +85,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     try {
       if (!page.isClosed()) {
         await page.goto("/#/");
-        await page.getByRole("tab", { name: "Manage" }).click();
+        await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
           await row.getByRole("button", { name: "Delete building" }).click();
@@ -104,19 +104,21 @@ test.describe("URI-encoded navigational state survives reload", () => {
 
   test("the active tab is restored after a reload", async () => {
     test.setTimeout(T.testSolo);
-    const manageTab = page.getByRole("tab", { name: "Manage" });
-    await manageTab.click();
-    await expect(manageTab).toHaveAttribute("aria-selected", "true", {
+    // Pick a non-default tab (Connect) — the app lands on Buildings (tab 0),
+    // so restoring Connect proves the `?tab=` round-trip, not just the default.
+    const connectTab = page.getByRole("tab", { name: "Connect" });
+    await connectTab.click();
+    await expect(connectTab).toHaveAttribute("aria-selected", "true", {
       timeout: T.action,
     });
-    expect(page.url()).toContain("tab=manage");
+    expect(page.url()).toContain("tab=connect");
 
     await page.reload();
 
-    // Same tab after reload — not back on Explore.
-    await expect(page.getByRole("tab", { name: "Manage" }))
+    // Same tab after reload — not back on the default Buildings tab.
+    await expect(page.getByRole("tab", { name: "Connect" }))
       .toHaveAttribute("aria-selected", "true", { timeout: T.action });
-    expect(page.url()).toContain("tab=manage");
+    expect(page.url()).toContain("tab=connect");
   });
 
   test("the Explore selection + detail tab are restored after a reload", async () => {
@@ -124,7 +126,11 @@ test.describe("URI-encoded navigational state survives reload", () => {
     id = await ensureBuilding(page);
 
     await page.goto("/#/");
-    await page.getByRole("tab", { name: "Explore" }).click();
+    // Buildings tab lands on the Map view (the former Explore) — markers + the
+    // selection/detail pane live here. ensureBuilding left the view on List, and
+    // the Map/List toggle is local (non-URL) state, so select Map explicitly.
+    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("button", { name: "Map" }).click();
 
     // Select the (only) building marker, then open its Energy detail sub-tab.
     const marker = page.locator(".leaflet-marker-icon").first();
@@ -150,8 +156,11 @@ test.describe("URI-encoded navigational state survives reload", () => {
   test("a cold deep-link opens the named building + detail tab", async () => {
     test.setTimeout(T.testSolo);
     if (!id) id = await ensureBuilding(page);
-    // No clicking: drive the read path straight from the address.
+    // No clicking: drive the read path straight from the address. Reload so it's a
+    // genuinely COLD load — the Buildings tab then defaults to Map (the map/list
+    // toggle is local, non-URL state), and the URI's ?b=/?dt= drive the pane.
     await page.goto(exploreRoute(id, "weather"));
+    await page.reload();
     await expect(page.getByRole("tab", { name: "Weather data" }))
       .toHaveAttribute("aria-selected", "true", { timeout: T.action });
   });
