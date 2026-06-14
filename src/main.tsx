@@ -48,7 +48,14 @@ const NO_RESTORE_KEY = "granergize:noRestore";
 function AppContent() {
   const { showNotification } = useNotification();
   const queryClient = useQueryClient();
-  const [session, setSession] = useState<Session | null>(null);
+  // Seed from the library singleton at mount: reading `isLoggedIn` is pure, so a
+  // lazy initializer captures an already-restored session on the first render
+  // (no null→session flash, no setState-in-effect). The fetch instrumentation +
+  // expiry listener are side effects and stay in the effect below.
+  const [session, setSession] = useState<Session | null>(() => {
+    const solidSession = getDefaultSession();
+    return solidSession.info.isLoggedIn ? solidSession : null;
+  });
   const [suppressRestore, setSuppressRestore] = useState(
     () => sessionStorage.getItem(NO_RESTORE_KEY) === "1",
   );
@@ -62,7 +69,6 @@ function AppContent() {
     if (solidSession.info.isLoggedIn) {
       console.log("User already logged in", solidSession.info.webId);
       instrumentSessionFetch(solidSession);
-      setSession(solidSession);
     }
   }, []);
 
@@ -81,6 +87,9 @@ function AppContent() {
       // one-shot flag too so the Login screen can't attempt a doomed restore
       // (keeps every logout path consistent — see handleLogout).
       sessionStorage.setItem(NO_RESTORE_KEY, "1");
+      // Reacting to the external expiry gate flipping (useSyncExternalStore):
+      // notify, suppress restore, and log out — a genuine side-effect chain.
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setSuppressRestore(true);
       clearRequestLog();
       resetActiveRoom();

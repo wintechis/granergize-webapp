@@ -118,6 +118,10 @@ export default function EnergyYearDialog(
   useEffect(() => {
     if (!open) return;
     let cancelled = false;
+    // Genuine async load (datasets fetched off the Pod per open): the loading
+    // flag must flip before the await, and the result lands in a .then — an
+    // Effect is the right tool here.
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setListLoading(true);
     const refs = (building.energyDatasets ?? []).filter(
       (r) => r.granularity === "P1Y",
@@ -142,6 +146,10 @@ export default function EnergyYearDialog(
 
   // When the typed year+scenario matches a stored dataset, pre-fill its figures
   // (so editing one metric doesn't overwrite the untouched ones with nothing, #5).
+  // The form fields are reset/pre-filled in reaction to live typing AND the async
+  // dataset list arriving; the ref guards make it a no-op once settled. This is a
+  // genuine input↔store reconciliation effect, not a render-derivable value.
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     const y = parseInt(year);
     if (!Number.isInteger(y)) return;
@@ -182,6 +190,7 @@ export default function EnergyYearDialog(
     // `values` is a real dep (the live-typing guard reads it); re-fires per
     // keystroke but the loadedKey/early-return guards make that a no-op.
   }, [year, scenario, existingByKey, values]);
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   const reset = () => {
     setYear("");

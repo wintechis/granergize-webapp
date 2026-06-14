@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { Box, TextField, Typography } from "@mui/material";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -45,17 +45,21 @@ export default function UserEnergyChart(
   const [selectedMonth, setSelectedMonth] = useState<string>("");
 
   // Once the daily files are listed, default the pickers to the first day /
-  // latest month (the listing arrives async, after the initial render).
-  useEffect(() => {
-    if (dateEntries.length === 0) return;
-    if (!dateEntries.find((d) => d.day === selectedDay)) {
-      setSelectedDay(dateEntries[0].day);
+  // latest month (the listing arrives async, after the initial render). The
+  // during-render reset keyed on the list identity (vs an effect) reseeds only
+  // when the listing actually changes — no cascading second render.
+  const [seededFor, setSeededFor] = useState(dateEntries);
+  if (dateEntries !== seededFor) {
+    setSeededFor(dateEntries);
+    if (dateEntries.length > 0) {
+      if (!dateEntries.find((d) => d.day === selectedDay)) {
+        setSelectedDay(dateEntries[0].day);
+      }
+      if (!availableMonths.includes(selectedMonth)) {
+        setSelectedMonth(availableMonths[availableMonths.length - 1]);
+      }
     }
-    if (!availableMonths.includes(selectedMonth)) {
-      setSelectedMonth(availableMonths[availableMonths.length - 1]);
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [dateEntries]);
+  }
 
   const monthEntries = useMemo(
     () => dateEntries.filter((d) => d.day.startsWith(selectedMonth)),

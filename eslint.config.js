@@ -21,12 +21,11 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
-      // DEFERRED (react-hooks 7 / React-Compiler readiness): this rule flags ~10
-      // effects that synchronously setState (cascading-render hygiene). Adopting it
-      // is a per-site refactor (derive-in-render / lazy-init / useSyncExternalStore),
-      // behaviourally sensitive, so it's tracked separately rather than bundled into
-      // the toolchain bump. See plans/plan-react-mui-upgrade.md. Re-enable when done.
-      "react-hooks/set-state-in-effect": "off",
+      // react-hooks 7 / React-Compiler readiness: flags effects that synchronously
+      // setState (cascading-render hygiene). Cleared per-site — the render-derivable
+      // ones became lazy-init / during-render resets; genuine async-fetch, timer,
+      // and external-store effects carry a justified inline-disable with a reason.
+      "react-hooks/set-state-in-effect": "error",
       "react-refresh/only-export-components": [
         "warn",
         { allowConstantExport: true },

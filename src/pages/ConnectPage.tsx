@@ -90,11 +90,15 @@ export default function ConnectPage({ session }: ConnectPageProps) {
 
   // Local editable copy of the role multi-select, seeded from the server value.
   // Re-syncs whenever the query data changes (e.g. after a save invalidates it);
-  // React Query's structural sharing keeps the reference stable while editing.
-  const [myRoles, setMyRoles] = useState<UserRole[]>([]);
-  useEffect(() => {
+  // React Query's structural sharing keeps the reference stable while editing, so
+  // the during-render reset (vs an effect) fires only on a real change — no
+  // cascading second render.
+  const [myRoles, setMyRoles] = useState<UserRole[]>(serverRoles ?? []);
+  const [seededRoles, setSeededRoles] = useState(serverRoles);
+  if (serverRoles !== seededRoles) {
+    setSeededRoles(serverRoles);
     setMyRoles(serverRoles ?? []);
-  }, [serverRoles]);
+  }
 
   // Contacts (the personal address book).
   const contactsQuery = useContacts();
