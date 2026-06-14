@@ -1,0 +1,656 @@
+import { Session } from "@inrupt/solid-client-authn-browser";
+import { DataFactory, Parser, Store, Writer } from "n3";
+import type { UserRole } from "../../types.ts";
+import {
+  ACL_NS,
+  AS_NS,
+  GRAN_NS,
+  LDP_CONTAINS as LDP_CONTAINS_IRI,
+  RDF_TYPE,
+  SIOC_NS,
+  XSD_DATETIME,
+} from "../rdf/vocabularies.ts";
+import { appRoot, getStorageRoot } from "../pod/solidUtils.ts";
+import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
+import { appendToContainer, ensureContainer, putAcl } from "../pod/podWrite.ts";
+import { deleteContainerRecursive } from "../pod/podDelete.ts";
+import { mapPooled } from "../../lib/pool.ts";
+import { readPrefs, setCurrentRoom } from "../prefs.ts";
+import {
+  addBookmark,
+  readBookmarks,
+  removeBookmark,
+} from "../bookmarks.ts";
+import {
+  IRI_TO_MEMBERSHIP_ROLE,
+  MEMBERSHIP_ROLE_TO_IRI,
+} from "../../constants/roles.ts";
+import { logError } from "../../lib/logError.ts";
+
+const { blankNode, literal, namedNode } = DataFactory;
+
+const LDP_CONTAINS = namedNode(LDP_CONTAINS_IRI);
+const RDF_TYPE_NODE = namedNode(RDF_TYPE);
+// Membership events are Activity Streams 2.0 activities; role assignment is an
+// as:Update activity carrying the member's roles as SIOC functions.
+const AS_JOIN = namedNode(`${AS_NS}Join`);
+const AS_LEAVE = namedNode(`${AS_NS}Leave`);
+const AS_UPDATE = namedNode(`${AS_NS}Update`);
+const AS_ACTOR = namedNode(`${AS_NS}actor`);
+const AS_OBJECT = namedNode(`${AS_NS}object`);
+const AS_PUBLISHED = namedNode(`${AS_NS}published`);
+const SIOC_HAS_FUNCTION = namedNode(`${SIOC_NS}has_function`);
+
+// Membership role ↔ gran: IRI — the single source of truth in constants/roles.ts.
+const IRI_TO_ROLE = IRI_TO_MEMBERSHIP_ROLE;
+
+// A GRANERGIZE data room is an append-only LDP container that ANY user can
+// create on their OWN Pod (where they have full control). The creator writes an
+// ACL granting themselves control and acl:Append to acl:AuthenticatedAgent, so
+// anyone can self-join — no central/provider Pod required. The room's container
+// IRI is its identity; share it (e.g. as a QR code) so others can join.
+//
+// Every change POSTs one immutable event resource into the container; the server
+// mints a fresh child IRI. Current state is the fold of the container — the
+// latest event per WebID wins. Because appends never rewrite a shared resource,
+// concurrent saves by different members can't clobber each other. Mirrors the
+// inbox pattern (see inbox.ts).
+//
+// Membership and role assignment are two INDEPENDENT axes, each its own event
+// (Activity Streams 2.0 activities; the room is the as:object — conceptually a
+// sioc:Usergroup):
+//   - as:Join / as:Leave (as:actor, as:published) — whether you are in the room.
+//     Folded separately; this alone decides who getMembers returns.
+//   - as:Update with sioc:has_function → sioc:Role(s) — which role(s) you hold
+//     (a full snapshot; may be empty, and may exist without membership).
+// A role event therefore does NOT make you a member: you must post an as:Join.
+
+/** Normalise a room IRI to its canonical LDP-container form (trailing "/"). */
+export function normalizeRoomUri(url: string): string {
+  return url.endsWith("/") ? url : `${url}/`;
+}
+
+// In-memory mirror of the Pod's current-room pointer, so components can read the
+// current room synchronously (the sharing dialogs use getActiveRoom). Hydrated
+// from the Pod on load via hydrateActiveRoom; updated by enterRoom/leaveRoom.
+let activeRoom: string | null = null;
+
+/** The room the user is currently in, or null. Mirrors the Pod's pointer. */
+export function getActiveRoom(): string | null {
+  return activeRoom;
+}
+
+/**
+ * Clear the in-memory current-room pointer. Unlike the WebID-namespaced React
+ * Query cache, this bare module global would otherwise survive a
+ * logout→login-as-different-user in the same tab and briefly target the previous
+ * user's room. Call on every logout / session-expiry path (see main.tsx);
+ * re-login rehydrates it from the new user's Pod via hydrateActiveRoom.
+ */
+export function resetActiveRoom(): void {
+  activeRoom = null;
+}
+
+// The room state on the user's OWN Pod is the single source of truth — no
+// localStorage. It is split across two single-writer flat files (see prefs.ts /
+// bookmarks.ts):
+//   prefs.ttl     gran:currentRoom <url> .   (0 or 1 — the room you're in)
+//   bookmarks.ttl gran:knownRoom   <url> …   (the "Your rooms" list)
+// Membership is single: you are a member of the current room only. Rooms you
+// host are discovered by listing `rooms/`, not recorded here.
+
+interface RoomRegistry {
+  known: string[];
+  current: string | null;
+}
+
+/** Serialize a store to Turtle text (n3 Writer's callback wrapped as a promise). */
+function toTurtle(
+  store: Store,
+  prefixes: Record<string, string>,
+): Promise<string> {
+  const writer = new Writer({ format: "text/turtle", prefixes });
+  writer.addQuads(store.getQuads(null, null, null, null));
+  return new Promise<string>((resolve, reject) =>
+    writer.end((err, result) => (err ? reject(err) : resolve(result)))
+  );
+}
+
+/**
+ * Bookmarked room IRIs (the "Your rooms" list).
+ * @operation query
+ */
+export function getKnownRooms(session: Session): Promise<string[]> {
+  return readBookmarks(session);
+}
+
+/**
+ * The current room recorded on the Pod (source of truth for getActiveRoom).
+ * @operation query
+ */
+export async function getCurrentRoom(session: Session): Promise<string | null> {
+  return (await readPrefs(session)).currentRoom;
+}
+
+/**
+ * Read both files, hydrate the in-memory current-room mirror, and return the
+ * current room plus the bookmark list — the shape the room UI consumes.
+ * @operation query
+ */
+export async function readRooms(session: Session): Promise<RoomRegistry> {
+  const [prefs, known] = await Promise.all([
+    readPrefs(session),
+    readBookmarks(session),
+  ]);
+  activeRoom = prefs.currentRoom;
+  return { known, current: prefs.currentRoom };
+}
+
+/**
+ * Load the Pod's current-room pointer into memory so getActiveRoom works.
+ * @operation query
+ */
+export async function hydrateActiveRoom(
+  session: Session,
+): Promise<string | null> {
+  activeRoom = (await readPrefs(session)).currentRoom;
+  return activeRoom;
+}
+
+/**
+ * Add a room to the bookmarks list (deduped). Does NOT enter/join it.
+ * @operation mutation
+ */
+export async function addKnownRoom(
+  roomUri: string,
+  session: Session,
+): Promise<void> {
+  await addBookmark(session, normalizeRoomUri(roomUri));
+}
+
+/**
+ * Remove a room from bookmarks (and clear the current pointer if it was current).
+ * @operation mutation
+ */
+export async function removeKnownRoom(
+  roomUri: string,
+  session: Session,
+): Promise<void> {
+  const room = normalizeRoomUri(roomUri);
+  await removeBookmark(session, room);
+  if ((await getCurrentRoom(session)) === room) {
+    await setCurrentRoom(session, null);
+  }
+  if (activeRoom === room) activeRoom = null;
+}
+
+/**
+ * Enter a room (single membership): leave whatever room you're in, join this
+ * one, bookmark it, and make it the current room (persisted + in memory).
+ * @operation mutation
+ */
+export async function enterRoom(
+  roomUri: string,
+  session: Session,
+): Promise<void> {
+  const room = normalizeRoomUri(roomUri);
+  const previous = await getCurrentRoom(session);
+  if (previous && previous !== room) {
+    // Best-effort: leaving the previous room must not block joining the new one.
+    // The old room may be deleted or no longer writable (e.g. access revoked),
+    // which would 403/404 here and otherwise strand the user unable to switch.
+    await setMembership(previous, false, session).catch((err) =>
+      logError("leave previous data room", err)
+    );
+  }
+  if (!(await getMyMembership(room, session))) {
+    await setMembership(room, true, session);
+  }
+  // Ensure it's bookmarked and make it current. The current pointer is owned by
+  // the room mutations and set authoritatively in the React Query cache, so a
+  // slow/stale read-back can't revert a switch.
+  await addBookmark(session, room);
+  await setCurrentRoom(session, room);
+  activeRoom = room;
+}
+
+/**
+ * Leave the current room: stop membership, clear the pointer, keep the bookmark.
+ * @operation mutation
+ */
+export async function exitRoom(
+  roomUri: string,
+  session: Session,
+): Promise<void> {
+  const room = normalizeRoomUri(roomUri);
+  await setMembership(room, false, session);
+  if ((await getCurrentRoom(session)) === room) {
+    await setCurrentRoom(session, null);
+  }
+  if (activeRoom === room) activeRoom = null;
+}
+
+/**
+ * Whether `roomUri` resolves to a reachable resource (used to validate input).
+ * @operation query
+ */
+export async function roomExists(
+  roomUri: string,
+  session: Session,
+): Promise<boolean> {
+  try {
+    const res = await session.fetch(normalizeRoomUri(roomUri), {
+      method: "GET",
+      headers: { Accept: "text/turtle" },
+    });
+    return res.ok;
+  } catch (err) {
+    logError("check data-room reachability", err);
+    return false;
+  }
+}
+
+/**
+ * Extract a room container IRI from either a raw room URI or an app invite link
+ * of the form `…#/room/<url-encoded-room-uri>` (what the room QR encodes). Returns
+ * the normalized container IRI.
+ */
+export function extractRoomUri(input: string): string {
+  const trimmed = input.trim();
+  const match = trimmed.match(/#\/room\/([^?&#]+)/);
+  return normalizeRoomUri(match ? decodeURIComponent(match[1]) : trimmed);
+}
+
+/**
+ * Open a room: accept a raw URI or an invite link, validate it's reachable, then
+ * enter it (leave your previous room, join this one, bookmark it, make it
+ * current). Returns false if the room is not reachable.
+ * @operation mutation
+ */
+export async function openRoom(
+  input: string,
+  session: Session,
+): Promise<boolean> {
+  const room = extractRoomUri(input);
+  if (!(await roomExists(room, session))) return false;
+  await enterRoom(room, session);
+  return true;
+}
+
+export interface DataRoomMember {
+  webId: string;
+  roles: UserRole[];
+}
+
+interface RoleEvent {
+  agent: string;
+  /** ISO 8601 timestamp; lexical order matches chronological order. */
+  at: string;
+  roles: UserRole[];
+}
+
+interface MembershipEvent {
+  agent: string;
+  at: string;
+  joined: boolean;
+}
+
+/**
+ * Read and classify every event resource in the log container into the two
+ * independent streams (membership and role assignment) in a single pass.
+ */
+async function readLog(
+  roomUri: string,
+  session: Session,
+): Promise<{ roleEvents: RoleEvent[]; membershipEvents: MembershipEvent[] }> {
+  const containerUri = normalizeRoomUri(roomUri);
+  // fetchFresh bypasses caches so we always read the current container listing;
+  // baseIRI below stays canonical (the cache-buster is only on the request URL).
+  const response = await fetchFresh(containerUri, session);
+  if (!response.ok) {
+    if (response.status === 404) return { roleEvents: [], membershipEvents: [] };
+    throw new Error(`Failed to load data room log (HTTP ${response.status})`);
+  }
+
+  const listing = new Store(
+    new Parser({ baseIRI: containerUri }).parse(await response.text()),
+  );
+  const eventUris = listing.getObjects(
+    namedNode(containerUri),
+    LDP_CONTAINS,
+    null,
+  ).map((o) => o.value);
+
+  // Bounded concurrency, not Promise.all: reading every event at once is a burst
+  // that Cloudflare answers with 429s (opaque CORS errors in the browser). A small
+  // pool keeps each wave under the rate limit. See utils/pool.ts.
+  const parsed = await mapPooled(eventUris, 4, async (url) => {
+    const store = await readStoreOrEmpty(url, session);
+
+    // Membership: as:Join / as:Leave.
+    const joinSubj = store.getSubjects(RDF_TYPE_NODE, AS_JOIN, null)[0];
+    const memSubj = joinSubj ??
+      store.getSubjects(RDF_TYPE_NODE, AS_LEAVE, null)[0];
+    if (memSubj) {
+      const agent = store.getObjects(memSubj, AS_ACTOR, null)[0]?.value;
+      const at = store.getObjects(memSubj, AS_PUBLISHED, null)[0]?.value;
+      if (!agent || !at) return null;
+      return {
+        kind: "membership" as const,
+        event: { agent, at, joined: Boolean(joinSubj) },
+      };
+    }
+
+    // Role assignment: as:Update carrying sioc:has_function → role(s).
+    const roleSubj = store.getSubjects(RDF_TYPE_NODE, AS_UPDATE, null)[0];
+    if (roleSubj) {
+      const agent = store.getObjects(roleSubj, AS_ACTOR, null)[0]?.value;
+      const at = store.getObjects(roleSubj, AS_PUBLISHED, null)[0]?.value;
+      if (!agent || !at) return null;
+      const roles = store.getObjects(roleSubj, SIOC_HAS_FUNCTION, null)
+        .map((r) => IRI_TO_ROLE[r.value])
+        .filter((r): r is UserRole => Boolean(r));
+      return { kind: "role" as const, event: { agent, at, roles } };
+    }
+    return null;
+  });
+
+  const roleEvents: RoleEvent[] = [];
+  const membershipEvents: MembershipEvent[] = [];
+  for (const p of parsed) {
+    if (!p) continue;
+    if (p.kind === "role") roleEvents.push(p.event);
+    else membershipEvents.push(p.event);
+  }
+  return { roleEvents, membershipEvents };
+}
+
+/** Fold an event stream to the latest event per agent (lexical timestamp order). */
+function latestByAgent<T extends { agent: string; at: string }>(
+  events: T[],
+): Map<string, T> {
+  const latest = new Map<string, T>();
+  for (const event of events) {
+    const prev = latest.get(event.agent);
+    if (!prev || event.at > prev.at) latest.set(event.agent, event);
+  }
+  return latest;
+}
+
+/**
+ * Fold one parsed log into the member list, the caller's roles, and the caller's
+ * membership — so a single `readLog` answers all three (avoids reading the whole
+ * event log two or three times per room load).
+ */
+function deriveState(
+  log: { roleEvents: RoleEvent[]; membershipEvents: MembershipEvent[] },
+  webId: string | null,
+): { members: DataRoomMember[]; myRoles: UserRole[]; myMembership: boolean } {
+  const latestRole = latestByAgent(log.roleEvents);
+  const latestMem = latestByAgent(log.membershipEvents);
+  const members = [...latestMem.values()]
+    .filter((m) => m.joined)
+    .map((m) => ({ webId: m.agent, roles: latestRole.get(m.agent)?.roles ?? [] }));
+  return {
+    members,
+    myRoles: webId ? latestRole.get(webId)?.roles ?? [] : [],
+    myMembership: webId ? latestMem.get(webId)?.joined ?? false : false,
+  };
+}
+
+/**
+ * The members / my-roles / my-membership for a single room (one `readLog`).
+ * The UI reads the registry (`current`/`known`, via `readRooms`) and this log
+ * state as *separate* React Query keys: the registry is owned by the room
+ * mutations (set authoritatively, never refetched, so a slow/stale read-back
+ * can't revert a switch), while this log refetches — keyed on the current room —
+ * for members and roles.
+ * @operation query
+ */
+export async function getRoomLogState(
+  session: Session,
+  room: string,
+): Promise<{ members: DataRoomMember[]; myRoles: UserRole[]; myMembership: boolean }> {
+  const webId = session.info.webId ?? null;
+  const log = await readLog(normalizeRoomUri(room), session);
+  return deriveState(log, webId);
+}
+
+/**
+ * The current data room members: agents whose latest membership event is
+ * "joined". Roles are attached from the (independent) role stream and may be
+ * empty for a member who has not assigned a role.
+ * @operation query
+ */
+export async function getMembers(
+  roomUri: string | null,
+  session: Session,
+): Promise<DataRoomMember[]> {
+  if (!roomUri) return [];
+  return deriveState(await readLog(roomUri, session), null).members;
+}
+
+/**
+ * Resolve a role to the WebIDs of all members of `roomUri` holding that role,
+ * EXCLUDING the logged-in user. Used to pick share recipients, and sharing a
+ * resource to yourself is meaningless — and harmful: a self-grant writes a
+ * recipient authorization carrying the owner's own `acl:agent`, which a later
+ * revoke would then strip along with the owner's full-control block, locking the
+ * owner out of their own resource (Tier-4 meisdata run; see `removeFromACL`).
+ * @operation query
+ */
+export async function getMembersByRole(
+  roomUri: string | null,
+  role: UserRole,
+  session: Session,
+): Promise<string[]> {
+  const members = await getMembers(roomUri, session);
+  const me = session.info.webId;
+  return members
+    .filter((m) => m.roles.includes(role) && m.webId !== me)
+    .map((m) => m.webId);
+}
+
+/**
+ * The roles the logged-in user has self-assigned in `roomUri`. Independent of
+ * membership — reflects the role stream only, so it can be non-empty for someone
+ * who has left, or empty for a current member.
+ * @operation query
+ */
+export async function getMyRole(
+  roomUri: string | null,
+  session: Session,
+): Promise<UserRole[]> {
+  const webId = session.info.webId;
+  if (!roomUri || !webId) return [];
+  return deriveState(await readLog(roomUri, session), webId).myRoles;
+}
+
+/**
+ * Whether the logged-in user is currently a member of `roomUri`.
+ * @operation query
+ */
+export async function getMyMembership(
+  roomUri: string | null,
+  session: Session,
+): Promise<boolean> {
+  const webId = session.info.webId;
+  if (!roomUri || !webId) return false;
+  return deriveState(await readLog(roomUri, session), webId).myMembership;
+}
+
+/**
+ * Append one immutable event resource describing the user's new state. Never
+ * rewrites an existing resource — it POSTs a fresh child into the append-only
+ * log container, so it's safe under concurrent saves by other members.
+ */
+async function postEvent(
+  roomUri: string,
+  store: Store,
+  session: Session,
+): Promise<void> {
+  const containerUri = normalizeRoomUri(roomUri);
+  const body = await toTurtle(store, {
+    as: AS_NS,
+    sioc: SIOC_NS,
+    gran: GRAN_NS,
+    xsd: "http://www.w3.org/2001/XMLSchema#",
+  });
+
+  await ensureContainer(containerUri, session);
+
+  await appendToContainer(containerUri, body, session, {
+    describeError: (res) =>
+      res.status === 401 || res.status === 403
+        ? `You don't have permission to write to the data room (HTTP ${res.status}). ` +
+          `Its owner must grant append access to ${containerUri}.`
+        : `Failed to append to data room log (HTTP ${res.status})`,
+  });
+}
+
+/**
+ * Append a role-assignment event recording the user's complete current role set
+ * (the fold takes the latest). An empty `roles` clears the user's roles but does
+ * NOT remove them from the room — use {@link leaveRoom} for that.
+ * @operation mutation
+ */
+export async function setMyRole(
+  roomUri: string,
+  roles: UserRole[],
+  session: Session,
+): Promise<void> {
+  const webId = session.info.webId;
+  if (!webId) throw new Error("Not logged in");
+  // Blank-node event subject: the resource IRI is assigned by the server on POST,
+  // and the fold matches events by rdf:type, not by subject IRI.
+  const event = blankNode();
+  const store = new Store();
+  store.addQuad(event, RDF_TYPE_NODE, AS_UPDATE);
+  store.addQuad(event, AS_ACTOR, namedNode(webId));
+  store.addQuad(event, AS_OBJECT, namedNode(normalizeRoomUri(roomUri)));
+  store.addQuad(
+    event,
+    AS_PUBLISHED,
+    literal(new Date().toISOString(), namedNode(XSD_DATETIME)),
+  );
+  for (const role of roles) {
+    store.addQuad(event, SIOC_HAS_FUNCTION, namedNode(MEMBERSHIP_ROLE_TO_IRI[role]));
+  }
+  await postEvent(roomUri, store, session);
+}
+
+/**
+ * Append a membership event (joined/left) to `roomUri`.
+ * @operation mutation
+ */
+async function setMembership(
+  roomUri: string,
+  joined: boolean,
+  session: Session,
+): Promise<void> {
+  const webId = session.info.webId;
+  if (!webId) throw new Error("Not logged in");
+  const event = blankNode();
+  const store = new Store();
+  store.addQuad(event, RDF_TYPE_NODE, joined ? AS_JOIN : AS_LEAVE);
+  store.addQuad(event, AS_ACTOR, namedNode(webId));
+  store.addQuad(event, AS_OBJECT, namedNode(normalizeRoomUri(roomUri)));
+  store.addQuad(
+    event,
+    AS_PUBLISHED,
+    literal(new Date().toISOString(), namedNode(XSD_DATETIME)),
+  );
+  await postEvent(roomUri, store, session);
+}
+
+/**
+ * Add the logged-in user to `roomUri` (no role required).
+ * @operation mutation
+ */
+export function joinRoom(roomUri: string, session: Session): Promise<void> {
+  return setMembership(roomUri, true, session);
+}
+
+/**
+ * Remove the logged-in user from `roomUri` (leaves role history intact).
+ * @operation mutation
+ */
+export function leaveRoom(roomUri: string, session: Session): Promise<void> {
+  return setMembership(roomUri, false, session);
+}
+
+/**
+ * Create a new data room on the logged-in user's own Pod and make it the active
+ * room. Writes the container plus an ACL granting the creator full control and
+ * any authenticated agent read+append, so anyone can self-join. The creator is
+ * auto-joined as a member. The room's identity is its (UUID) container IRI.
+ * Returns the new room IRI.
+ * @operation mutation
+ */
+export async function createRoom(session: Session): Promise<string> {
+  const webId = session.info.webId;
+  if (!webId) throw new Error("Not logged in");
+  // Provision the rooms/ parent first (announced once, on the first room) so the
+  // structural folder isn't created silently; the per-room UUID container below
+  // is then created quietly (it's nested, not a top-level granergize folder).
+  await ensureContainer(`${appRoot(webId)}rooms/`, session, { announce: true });
+
+  const roomUri = normalizeRoomUri(
+    `${appRoot(webId)}rooms/${crypto.randomUUID()}`,
+  );
+
+  await ensureContainer(roomUri, session);
+
+  // Write the room ACL the same way the rest of the app does (a direct
+  // <container>.acl PUT with full-IRI triples — see share.ts grantReadAccess):
+  // owner gets control; any authenticated agent may read the log and append
+  // events, so anyone can self-join. acl:default propagates to the child events.
+  const aclUri = `${roomUri}.acl`;
+  const aclBody = [
+    `<${aclUri}#owner> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
+    `<${aclUri}#owner> <${ACL_NS}agent> <${webId}> .`,
+    `<${aclUri}#owner> <${ACL_NS}accessTo> <${roomUri}> .`,
+    `<${aclUri}#owner> <${ACL_NS}default> <${roomUri}> .`,
+    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Read> .`,
+    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Write> .`,
+    `<${aclUri}#owner> <${ACL_NS}mode> <${ACL_NS}Control> .`,
+    `<${aclUri}#members> <${RDF_TYPE}> <${ACL_NS}Authorization> .`,
+    `<${aclUri}#members> <${ACL_NS}agentClass> <${ACL_NS}AuthenticatedAgent> .`,
+    `<${aclUri}#members> <${ACL_NS}accessTo> <${roomUri}> .`,
+    `<${aclUri}#members> <${ACL_NS}default> <${roomUri}> .`,
+    `<${aclUri}#members> <${ACL_NS}mode> <${ACL_NS}Read> .`,
+    `<${aclUri}#members> <${ACL_NS}mode> <${ACL_NS}Append> .`,
+  ].join("\n") + "\n";
+
+  const res = await putAcl(aclUri, aclBody, session);
+  if (!res.ok) {
+    throw new Error(
+      `Created the room but failed to set its permissions (HTTP ${res.status}). ` +
+        `Others may be unable to join until ${aclUri} grants append access.`,
+    );
+  }
+
+  // The creator owns the room — enter it (join, bookmark, make current).
+  await enterRoom(roomUri, session);
+  return roomUri;
+}
+
+/** Whether the logged-in user owns `roomUri` (it lives under their own storage). */
+export function ownsRoom(roomUri: string, session: Session): boolean {
+  const webId = session.info.webId;
+  return Boolean(webId) &&
+    normalizeRoomUri(roomUri).startsWith(getStorageRoot(webId!));
+}
+
+/**
+ * Delete a room you own: it's just an LDP container under your own storage, so the
+ * shared recursive walk empties and removes it (and its `.acl`) — with the stale-
+ * listing / 409-self-correction guards the hand-rolled version lacked.
+ * @operation mutation
+ */
+export async function deleteRoom(
+  roomUri: string,
+  session: Session,
+): Promise<void> {
+  await deleteContainerRecursive(normalizeRoomUri(roomUri), session);
+}

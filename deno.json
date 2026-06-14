@@ -1,0 +1,42 @@
+{
+  "license": "AGPL-3.0-only",
+  "tasks": {
+    "dev": "deno run -A npm:vite dev",
+    "dev:local": "deno run -A test/e2e-local/dev.ts",
+    "dev:local:jss": "LOCAL_POD_SERVER=jss deno task dev:local",
+    "build": "deno run -A npm:vite build",
+    "test": "deno test -A",
+    "loc": "deno run --allow-read --allow-run=git test/loc.ts",
+    "lint": "deno run -A npm:eslint .",
+    "check": "deno run -A npm:typescript/tsc --noEmit -p tsconfig.check.json",
+    "e2e:local": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 LOCAL_PORT_OFFSET=80 VITE_POD_APP_DIR=granergize-e2e npx playwright test --project=local",
+    "e2e:local:jss": "LOCAL_POD_SERVER=jss deno task e2e:local",
+    "e2e:local:reuse": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 LOCAL_PORT_OFFSET=80 VITE_POD_APP_DIR=granergize-e2e E2E_RESET=wipe E2E_LOGIN_REUSE=1 npx playwright test --project=local",
+    "e2e:local:reuse:jss": "LOCAL_POD_SERVER=jss deno task e2e:local:reuse",
+    "e2e:local:matrix": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && deno run -A test/e2e-local/matrix.ts",
+    "e2e:stress": "VITE_OIDC_CLIENT_ID= VITE_POD_APP_DIR=granergize-e2e deno task build && E2E_LOCAL=1 LOGIN_STRESS=1 npx playwright test --project=stress",
+    "e2e:stress:jss": "LOCAL_POD_SERVER=jss deno task e2e:stress",
+    "e2e:remote": "npx playwright test --project=solo --project=duo --project=trio",
+    "e2e:remote:spec": "npx playwright test",
+    "e2e:install": "npx playwright install --with-deps chromium",
+    "it": "LOCAL_PORT_OFFSET=80 deno run -A --node-modules-dir=auto test/headless/runner.ts",
+    "it:jss": "LOCAL_POD_SERVER=jss deno task it",
+    "bench": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/runner.ts",
+    "bench:css": "LOCAL_POD_SERVER=css deno run -A --node-modules-dir=auto test/bench/runner.ts",
+    "bench:ui": "VITE_OIDC_CLIENT_ID= deno task build && LOCAL_POD_SERVER=jss E2E_LOCAL=1 E2E_BENCH=1 npx playwright test --project=bench && deno run -A --node-modules-dir=auto test/bench/plots.ts",
+    "bench:ui:css": "VITE_OIDC_CLIENT_ID= deno task build && LOCAL_POD_SERVER=css E2E_LOCAL=1 E2E_BENCH=1 npx playwright test --project=bench && deno run -A --node-modules-dir=auto test/bench/plots.ts",
+    "bench:plot": "deno run -A test/bench/plots.ts",
+    "explore": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/explore.ts",
+    "handbuch": "VITE_OIDC_CLIENT_ID= deno run -A npm:vite build --outDir dist-handbuch && E2E_LOCAL=1 LOCAL_PORT_OFFSET=40 E2E_RUN_ID=handbuch PREVIEW_OUTDIR=dist-handbuch npx playwright test --project=support && bash docs/build-handbuch.sh && rm -rf dist-handbuch",
+    "videos": "VITE_OIDC_CLIENT_ID= deno run -A npm:vite build --outDir dist-videos && E2E_LOCAL=1 LOCAL_PORT_OFFSET=60 E2E_RUN_ID=videos PREVIEW_OUTDIR=dist-videos npx playwright test --project=video && bash test/e2e/videos/postprocess.sh soll-ist && bash test/e2e/videos/postprocess.sh vertrieb vertrieb-a vertrieb-b && bash test/e2e/videos/postprocess.sh benchmark benchmark-a benchmark-c benchmark-payoff && rm -rf dist-videos"
+  },
+  "imports": {
+    "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@0.0.53"
+  },
+  "test": {
+    // Agent worktrees live INSIDE the repo dir; without this, `deno task test`
+    // walks into them and a side worktree's red tests fail the main tree's run.
+    "exclude": [".claude/"]
+  },
+  "allowScripts": ["npm:esbuild@0.21.5"]
+}

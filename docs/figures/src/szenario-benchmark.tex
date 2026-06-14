@@ -1,0 +1,79 @@
+% Szenario 2 (handbuch.md): Peer-Benchmarking über einen Benchmark-Dienstleister.
+% Build: see build.sh in this directory.
+\documentclass[border=12pt]{standalone}
+\usepackage[T1]{fontenc}
+\usepackage[ngerman]{babel}
+\usepackage{tikz}
+\usepackage{fontawesome5}
+\usepackage{pifont}% \ding{182..} = negative circled digits, used as step badges
+\usetikzlibrary{shadows,arrows.meta,positioning,calc}
+
+\newcommand{\stepnum}[1]{{\color{blue!70}\ding{#1}}}
+
+\begin{document}
+\begin{tikzpicture}[
+  font=\small,
+  owner/.style={draw=black!70, thick, rounded corners=6pt, fill=green!15,
+    drop shadow, inner sep=10pt, align=left, minimum width=5.6cm},
+  bsp/.style={draw=black!70, thick, rounded corners=6pt, fill=yellow!20,
+    drop shadow, inner sep=12pt, align=left},
+  share/.style={-{Stealth[length=3mm]}, blue!70, dashed, very thick},
+  back/.style={-{Stealth[length=3mm]}, black!50!green, very thick},
+  lab/.style={fill=white, inner sep=2pt, align=center},
+]
+
+% --- title ---
+\node[font=\Large\bfseries] at (6.6,2.4) {Peer-Benchmarking über einen Benchmark-Dienstleister};
+\node[font=\normalsize, text=black!60] at (6.6,1.75)
+  {Nur der berechnete Snapshot wandert zurück -- nie die Liste der Gebäude};
+
+% --- owners (top row) ---
+\node[owner] (A) at (0,-0.6) {%
+  \faBuilding~~{\large\bfseries Bestandshalter A}\\[4pt]
+  eigene Gebäude mit\\
+  erfassten Energiejahren\\[6pt]
+  \stepnum{185}~Energie-Detailseite:\\
+  Spalte \textbf{Benchmark} gefüllt,\\
+  eigener Wert dagegen eingefärbt};
+\node[owner] (B) at (13.2,-0.6) {%
+  \faBuilding~~{\large\bfseries Bestandshalter B}\\[4pt]
+  eigene Gebäude mit\\
+  erfassten Energiejahren\\[6pt]
+  \stepnum{185}~Energie-Detailseite:\\
+  Spalte \textbf{Benchmark} gefüllt,\\
+  eigener Wert dagegen eingefärbt};
+
+% --- BSP (bottom center) ---
+\node[bsp] (C) at (6.6,-7.0) {%
+  \faCalculator~~{\large\bfseries Benchmark-Dienstleister C}\\[5pt]
+  \stepnum{183}~Ansicht \textbf{Compare shared buildings} über alle an C\\
+  geteilten Gebäude: Durchschnitt von Strom-, Wärme-,\\
+  Wasser- und Abwasserverbrauch pro Jahr\\[5pt]
+  Ergebnis = \textbf{Snapshot}: nur Aggregatwerte und\\
+  Gebäude-Anzahl -- keine Gebäudeliste};
+
+% --- arrows: contribute (1, dashed blue) and share back (3, green) ---
+\draw[share] (1.8,-2.5) -- (4.8,-5.35);
+\draw[share] (11.4,-2.5) -- (8.4,-5.35);
+\draw[back]  (3.4,-5.35) -- (-0.6,-2.5);
+\draw[back]  (9.8,-5.35) -- (13.8,-2.5);
+\node[lab] at (6.6,-3.3)
+  {\stepnum{182}~A und B teilen Gebäude \textbf{inkl.\ Energiedaten}\\an die WebID von C};
+\node[lab] at (6.6,-4.6)
+  {\stepnum{184}~C teilt den Benchmark-Snapshot an alle\\Beitragenden zurück (\glqq Add all contributors\grqq)};
+
+% --- A and B never see each other ---
+\draw[red!70, thick, dashed] (A.east) -- (B.west)
+  node[lab, midway] {\faTimes~~A und B sehen einander \textbf{nicht}};
+
+% --- legend ---
+\node[draw=black!40, rounded corners=4pt, fill=white, inner sep=7pt, align=left,
+      font=\footnotesize, anchor=west] at (11.5,-7.0) {%
+  \textbf{Legende:}\\[2pt]
+  \tikz{\draw[share] (0,0.1) -- (0.55,0.1);}~ Gebäude-Freigabe (Schritt \ding{182})\\
+  \tikz{\draw[back] (0,0.1) -- (0.55,0.1);}~ Snapshot-Freigabe (Schritt \ding{184})\\
+  \tikz{\fill[green!15,draw=black!70] (0,0) rectangle (0.4,0.25);}~ Bestandshalter (eigener Pod)\\
+  \tikz{\fill[yellow!20,draw=black!70] (0,0) rectangle (0.4,0.25);}~ Benchmark-Dienstleister (eigener Pod)};
+
+\end{tikzpicture}
+\end{document}

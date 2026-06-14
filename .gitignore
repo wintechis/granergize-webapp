@@ -1,0 +1,62 @@
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-*
+
+# Run artifacts: Playwright traces/reports + benchmark output (test-results/bench/)
+test-results
+playwright-report
+.playwright
+exampleGraphs
+paper
+usability eval
+*.local
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+
+notes/*.html
+
+*~
+
+# Internal user-reported-problems tracker — kept local, not in the repo
+PROBLEMS.md
+
+# Local working notes / review material / drafts — kept local, like PROBLEMS.md
+QUESTIONS.md
+docs/heike-*.md
+docs/paper.pdf
+docs/GRANERGIZE_Handbuch-v*.pdf
+
+# Scratch output from test runs
+test/tmp/
+
+# The generator excel/gen-templates.ts is tracked; only the .xlsx are ignored.
+excel/*.xlsx
+# Design plans (done/old or future-possible) — kept local, separate from
+# CLAUDE.md and the matter-of-fact notes/ (which describe the current code).
+plans/
+# Speculative design sketches — kept local, like plans/; the matter-of-fact
+# notes/ describe the current code, these explore where it might go.
+explore/

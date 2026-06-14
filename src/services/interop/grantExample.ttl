@@ -1,0 +1,16 @@
+@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+@prefix acl: <http://www.w3.org/ns/auth/acl#> .
+@prefix interop: <http://www.w3.org/ns/solid/interop#> .
+
+<#grant1>
+  a interop:AccessGrant ;
+  interop:grantedBy <https://granergize-homer.solidcommunity.net/profile/card#me> ;
+  interop:grantedAt "2025-10-23T20:15:47.000Z"^^xsd:dateTime ;
+  interop:grantee <https://derwehr.solidcommunity.net/profile/card#me> ;
+  interop:hasDataGrant
+    [ a interop:DataGrant ;
+      interop:forResource <https://granergize-homer.solidcommunity.net/private/granergize/buildings/6.ttl> ;
+      interop:accessMode acl:Read
+    ] .

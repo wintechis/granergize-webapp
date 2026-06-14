@@ -1,0 +1,9 @@
+{
+  // CI typecheck config: the app sources from tsconfig.app.json MINUS the
+  // Deno-runtime test files. Those `*.test.ts` / test-dom-setup.ts files use the
+  // `Deno` global + `deno.ns` lib and are type-checked by `deno test`; under the
+  // browser/Node `tsc` they'd report false `Cannot find name 'Deno'` errors.
+  // Run via `deno task check` (tsc --noEmit), gated in CI.
+  "extends": "./tsconfig.app.json",
+  "exclude": ["src/**/*.test.ts", "src/**/*.test.tsx", "src/**/test-dom-setup.ts"]
+}

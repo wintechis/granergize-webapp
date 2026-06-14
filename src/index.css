@@ -1,0 +1,21 @@
+/* Fluid root font size: everything sized in rem (MUI's type scale AND, via the
+   theme's rem-based `spacing`, all padding/gaps/margins) scales from this single
+   knob. ~14px on a 320px phone → ~18px on a wide desktop, tracking the viewport. */
+html {
+  font-size: clamp(0.875rem, 0.8rem + 0.4vw, 1.125rem);
+}
+
+:root {
+  line-height: 1.5;
+  font-weight: 400;
+
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+}

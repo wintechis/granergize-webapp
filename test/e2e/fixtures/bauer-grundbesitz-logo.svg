@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 480 120">
+  <!-- Bauer Grundbesitz (actor B, Bob Bauer) — Bestandshalter / Berater.
+       Landscape lockup: mark left, wordmark dominant, so the type stays
+       legible in height-constrained UI slots. Mark: three stacked strata
+       bars widening toward the ground — abstract Grund + Besitz. Wordmark:
+       just "Bauer" in a classic serif; the full name lives in the org's
+       foaf:name (shown on hover). Palette sampled from Bob's medium-nougat
+       Lego head (#b98874/#9b6450, beard shadow #573c31). Transparent
+       background. -->
+  <g>
+    <rect x="32" y="18" width="44" height="20" rx="10" fill="#b98874"/>
+    <rect x="18" y="50" width="72" height="20" rx="10" fill="#9b6450"/>
+    <rect x="4" y="82" width="100" height="20" rx="10" fill="#573c31"/>
+  </g>
+  <text x="292" y="92" text-anchor="middle"
+        font-family="Georgia, 'Times New Roman', serif"
+        font-size="88" font-weight="bold" fill="#573c31">Bauer</text>
+</svg>
