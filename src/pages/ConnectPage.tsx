@@ -292,7 +292,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
           agent's own profile. */}
       <Typography variant="h6" sx={{ mb: 1 }}>Contacts</Typography>
       {rdf && <RdfSourceLink href={rdf.contacts} />}
-      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap sx={{ mb: 1 }}>
+      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 1 }}>
         <TextField
           size="small"
           label="WebID"
@@ -368,9 +368,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
       <Stack
         direction="row"
         spacing={1}
-        flexWrap="wrap"
-        useFlexGap
-        sx={{ alignItems: "center", mb: 1 }}
+        sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
       >
         <Button
           variant="outlined"
@@ -512,7 +510,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
                         Assign or change your role(s) anytime — this is how
                         others share data with you by role.
                       </Typography>
-                      <Stack direction="row" spacing={1} flexWrap="wrap" useFlexGap>
+                      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
                         <FormControl size="small" sx={{ minWidth: 280 }}>
                           <InputLabel id="my-roles-label">
                             My role(s)

@@ -155,7 +155,7 @@ export default function OrganizationDialog(
               <Button onClick={() => fileInputRef.current?.click()}>
                 Choose logo…
               </Button>
-              <Typography variant="caption" color="text.secondary" display="block">
+              <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
                 PNG, JPG, SVG, WEBP or GIF
               </Typography>
             </Box>

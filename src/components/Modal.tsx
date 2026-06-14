@@ -69,7 +69,7 @@ export default function Modal({
       }}
       fullWidth
       maxWidth={maxWidth}
-      PaperProps={{ sx: { position: "relative" } }}
+      slotProps={{ paper: { sx: { position: "relative" } } }}
     >
       {overlay}
       {title != null && <DialogTitle>{title}</DialogTitle>}

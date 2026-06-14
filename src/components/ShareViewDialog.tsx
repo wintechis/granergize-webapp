@@ -279,11 +279,13 @@ export default function ShareViewDialog(
                             primary={<AgentLabel value={m.webId} />}
                             secondary={m.roles.map((r) => ROLE_LABELS[r] ?? r)
                               .join(", ") || "no role"}
-                            primaryTypographyProps={{
-                              variant: "body2",
-                              sx: {
-                                overflow: "hidden",
-                                textOverflow: "ellipsis",
+                            slotProps={{
+                              primary: {
+                                variant: "body2",
+                                sx: {
+                                  overflow: "hidden",
+                                  textOverflow: "ellipsis",
+                                },
                               },
                             }}
                           />
@@ -377,11 +379,13 @@ export default function ShareViewDialog(
                   <ListItem key={webId}>
                     <ListItemText
                       primary={<AgentLabel value={webId} />}
-                      primaryTypographyProps={{
-                        variant: "body2",
-                        sx: {
-                          overflow: "hidden",
-                          textOverflow: "ellipsis",
+                      slotProps={{
+                        primary: {
+                          variant: "body2",
+                          sx: {
+                            overflow: "hidden",
+                            textOverflow: "ellipsis",
+                          },
                         },
                       }}
                     />

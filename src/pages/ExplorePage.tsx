@@ -26,7 +26,7 @@ import Paper from "@mui/material/Paper";
 import Stack from "@mui/material/Stack";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import Grid from "@mui/material/Grid2";
+import Grid from "@mui/material/Grid";
 import SeriesEnergy from "./SeriesEnergy.tsx";
 import IconButton from "@mui/material/IconButton";
 import ToggleButton from "@mui/material/ToggleButton";

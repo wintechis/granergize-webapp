@@ -166,7 +166,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
       />
       <CardContent>
         <Grid container spacing={2} sx={{ mb: 2 }}>
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth>
               <InputLabel>Weather Parameter</InputLabel>
               <Select
@@ -182,7 +182,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
             </FormControl>
           </Grid>
 
-          <Grid item xs={12} md={6}>
+          <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth disabled={stations.length === 0}>
               <InputLabel>Weather Station</InputLabel>
               <Select
@@ -267,8 +267,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
             <Typography
               variant="caption"
               color="text.secondary"
-              display="block"
-              sx={{ mt: 1 }}
+              sx={{ display: "block", mt: 1 }}
             >
               Station {selectedStation}:{" "}
               {stations.find((s) => s.station_id === selectedStation)?.name ||

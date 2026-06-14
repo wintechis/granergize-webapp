@@ -1,4 +1,11 @@
-import { Autocomplete, Box, TextField } from "@mui/material";
+import {
+  Autocomplete,
+  type AutocompleteRenderValue,
+  type AutocompleteRenderValueGetItemProps,
+  Box,
+  TextField,
+} from "@mui/material";
+import type { HTMLAttributes } from "react";
 import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
 import { useAgentOptions } from "../hooks/useAgentOptions.ts";
 
@@ -40,15 +47,24 @@ export default function RecipientAutocomplete({
       value={value}
       onChange={(_e, next) => onChange(next as string[])}
       disabled={disabled}
-      renderOption={(props, option) => (
-        <Box component="li" {...props} key={option}>
-          <AgentLabel value={option} />
-        </Box>
-      )}
-      renderTags={(tags, getTagProps) =>
+      renderOption={(
+        props: HTMLAttributes<HTMLLIElement> & { key?: unknown },
+        option: string,
+      ) => {
+        const { key, ...rest } = props;
+        return (
+          <Box component="li" {...rest} key={key as string}>
+            <AgentLabel value={option} />
+          </Box>
+        );
+      }}
+      renderValue={(
+        tags: AutocompleteRenderValue<string, true, true>,
+        getItemProps: AutocompleteRenderValueGetItemProps<true>,
+      ) =>
         tags.map((option, index) => (
           <AgentChip
-            {...getTagProps({ index })}
+            {...getItemProps({ index })}
             key={option}
             value={option}
             size="small"

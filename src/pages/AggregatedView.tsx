@@ -90,10 +90,12 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
   if (detail.isPending) {
     return (
       <Box
-        display="flex"
-        justifyContent="center"
-        alignItems="center"
-        height="100vh"
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          height: "100vh",
+        }}
       >
         <CircularProgress />
       </Box>
@@ -148,18 +150,20 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
   return (
     <Container maxWidth="lg" sx={{ py: 4 }}>
       <Box
-        display="flex"
-        alignItems="center"
-        justifyContent="space-between"
-        mb={3}
+        sx={{
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "space-between",
+          mb: 3,
+        }}
       >
-        <Box display="flex" alignItems="center" gap={2}>
+        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
           <IconButton onClick={goBack} aria-label="Back">
             <ArrowBackIcon />
           </IconButton>
           <Typography variant="h5">{viewDefinition.name}</Typography>
         </Box>
-        <Box display="flex" gap={1}>
+        <Box sx={{ display: "flex", gap: 1 }}>
           {/* Buttons go disabled while in flight — no inline spinner (the
               full-page-route spinner exemption covers the PAGE load only). */}
           <Button
@@ -185,10 +189,12 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
         <CardContent>
           <Box
             component="dl"
-            display="grid"
-            gridTemplateColumns="repeat(auto-fit, minmax(200px, 1fr))"
-            gap={2}
-            sx={{ m: 0 }}
+            sx={{
+              display: "grid",
+              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
+              gap: 2,
+              m: 0,
+            }}
           >
             {(
               [
@@ -248,7 +254,7 @@ export default function AggregatedView({ session }: AggregatedViewProps) {
             <Card sx={{ mb: 3 }}>
               <CardHeader title="Aggregated Values Chart" />
               <CardContent>
-                <Box height={400}>
+                <Box sx={{ height: 400 }}>
                   <MetricBarChart
                     data={chartRows}
                     bars={[{
