@@ -70,7 +70,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     const addExamples = page.getByRole("button", { name: "Add examples" });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
-    await expect(page.getByText("Demo buildings added").first())
+    await expect(page.getByText("Demo buildings and energy data added").first())
       .toBeVisible({ timeout: 300_000 });
     await page.getByRole("tab", { name: "Manage" }).click();
     const setupRow = page.locator("li", { hasText: BUILDING }).first();

@@ -744,7 +744,7 @@ export function useSaveRoles() {
 export function useSeedDemoBuildings() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "add demo buildings" },
+    meta: { action: "add demo buildings and energy data" },
     mutationFn: () => {
       const session = getSession();
       const webId = session.info.webId;

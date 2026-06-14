@@ -181,17 +181,17 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       onSuccess: ({ seeded, total }) => {
         if (seeded === total) {
           setDemoDismissed(true);
-          showNotification("Demo buildings added", "success");
+          showNotification("Demo buildings and energy data added", "success");
         } else if (seeded > 0) {
           setDemoDismissed(true);
           showNotification(
-            `Added ${seeded} of ${total} demo buildings`,
+            `Added ${seeded} of ${total} demo buildings (with energy data)`,
             "warning",
           );
         } else {
           showNotification(
             formatError(
-              "add demo buildings",
+              "add demo buildings and energy data",
               new Error("no building could be written"),
             ),
             "error",
@@ -609,7 +609,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
               <MenuItem onClick={seedDemos} disabled={seedBuildingsMut.isPending}>
                 {seedBuildingsMut.isPending
                   ? "Adding…"
-                  : "Add example buildings"}
+                  : "Add example buildings and energy data"}
               </MenuItem>
             )}
             {devMode && (
@@ -725,7 +725,8 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
             </Box>
           }
         >
-          No buildings yet — add a couple of example buildings to explore?
+          No buildings yet — add a couple of example buildings (with energy data) to
+          explore?
         </Alert>
       </Collapse>
       {/* Keep the map mounted so returning to Home is instant (no Leaflet re-init / tile re-fetch).

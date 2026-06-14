@@ -77,7 +77,16 @@ function ReceivedViewRow(
     ? "snapshot not found or empty"
     : null;
 
-  const toggle = () => setOpen((prev) => !prev);
+  const toggle = () => {
+    const next = !open;
+    setOpen(next);
+    // Expanding is the user's "look": the snapshot is a CROSS-AGENT resource whose
+    // Read ACL can land just after B folds the grant that surfaces this row, so the
+    // mount-time read may have raced to empty/failed — and with refetchOnMount off
+    // it would stick. Re-read on open so a value that became readable since mount
+    // actually shows (the cross-agent-freshness discipline; see notes).
+    if (next) void snapQuery.refetch();
+  };
 
   const label = (snapshot?.name && snapshot.name.trim()) || view.viewId ||
     "Shared view";

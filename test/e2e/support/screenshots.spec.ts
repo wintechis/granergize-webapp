@@ -235,7 +235,7 @@ test.describe("handbuch screenshots", () => {
     const addExamples = page.getByRole("button", { name: "Add examples" });
     if (await addExamples.count()) {
       await addExamples.click({ timeout: 8_000 }).catch(() => {});
-      await expect(page.getByText("Demo buildings added").first())
+      await expect(page.getByText("Demo buildings and energy data added").first())
         .toBeVisible({ timeout: 300_000 });
       await dismissToasts(page);
     }
