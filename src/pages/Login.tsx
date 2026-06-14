@@ -52,6 +52,36 @@ const BENIGN_OIDC_ERRORS = new Set([
   "account_selection_required",
 ]);
 
+// localStorage breadcrumb, set immediately before a silent restore navigates to
+// the IdP and cleared on success (or when the user starts a fresh login). A
+// stale OIDC client registration makes that restore land on a dead-end IdP error
+// page ("Unknown client") from which the app never regains control; when the
+// user navigates back, this flag is still set, so we DON'T auto-restore again
+// (which would just bounce there) — we show the login chooser + its
+// clear-local-data remedy instead. `clearLocalData` wipes it along with the rest.
+const RESTORE_ATTEMPT_KEY = "granergize:restoreAttempted";
+const markRestoreAttempted = () => {
+  try {
+    localStorage.setItem(RESTORE_ATTEMPT_KEY, "1");
+  } catch {
+    // private-mode / disabled storage — the loop guard simply won't engage.
+  }
+};
+const restoreAlreadyAttempted = () => {
+  try {
+    return localStorage.getItem(RESTORE_ATTEMPT_KEY) === "1";
+  } catch {
+    return false;
+  }
+};
+const clearRestoreAttempt = () => {
+  try {
+    localStorage.removeItem(RESTORE_ATTEMPT_KEY);
+  } catch {
+    // ignore — see markRestoreAttempted.
+  }
+};
+
 const IdpInputWrapper = styled(Box)(({ theme }) => ({
   display: "flex",
   // Stretch so the submit button matches the text field's height without a
@@ -197,6 +227,7 @@ export const Login: React.FC<LoginProps> = ({
     };
     const handleLoginEvent = () => {
       markResponded();
+      clearRestoreAttempt();
       // Set the WebID together with clearing `loading` so the screen goes
       // straight from "Loading…" to the app. The library fires this `login`
       // event while `handleIncomingRedirect()` is still in flight (its promise
@@ -209,6 +240,7 @@ export const Login: React.FC<LoginProps> = ({
     };
     const handleRestore = (currentUrl?: string) => {
       markResponded();
+      clearRestoreAttempt();
       // The event carries the page URL the user was on before the silent restore
       // redirect — replay its in-app route (deferred past the library's cleanup).
       restoreRouteFrom(currentUrl);
@@ -226,26 +258,39 @@ export const Login: React.FC<LoginProps> = ({
 
     session.handleIncomingRedirect().then((sessionInfo?: ISessionInfo) => {
       if (sessionInfo?.isLoggedIn) {
+        clearRestoreAttempt();
         setActiveWebId(sessionInfo.webId);
         fireLogin();
       } else {
         setTimeout(() => {
           // Decide against LIVE flags (via refs), not the values captured when
           // this effect ran — the session may have expired during the delay.
+          // `restoreAlreadyAttempted` is the loop guard: a prior silent restore
+          // that bounced to a dead-end "Unknown client" IdP page left this set,
+          // so we fall through to the chooser instead of bouncing again.
           const mayRestore = shouldRestoreSession({
             auto,
             suppressRestore,
             sessionExpired: sessionExpiredRef.current,
             sessionResponded: sessionRespondedRef.current,
+            restoreAttempted: restoreAlreadyAttempted(),
           });
           if (mayRestore) {
+            // Breadcrumb the attempt BEFORE it can navigate away to the IdP, so a
+            // failed silent restore can't trap the user in a reload→bounce loop.
+            markRestoreAttempted();
             session
               .handleIncomingRedirect({ restorePreviousSession: true })
               .then((sessionInfo?: ISessionInfo) => {
                 if (sessionInfo?.isLoggedIn) {
+                  clearRestoreAttempt();
                   setActiveWebId(sessionInfo.webId);
                   fireLogin();
                 } else {
+                  // Restore resolved logged-out WITHOUT navigating away (nothing
+                  // to restore) — clear the breadcrumb so it only ever persists
+                  // across an actual IdP redirect (the loop case).
+                  clearRestoreAttempt();
                   setClearInitialLoad(
                     setTimeout(() => {
                       setLoading(false);
@@ -310,6 +355,10 @@ export const Login: React.FC<LoginProps> = ({
   function submitCallback(idp?: string) {
     const targetIdp = idp || login;
     setInvalidIDP(false);
+    // A deliberate sign-in is a full (non-silent) login, not the auto-restore the
+    // loop guard protects against — clear the breadcrumb so the guard never
+    // blocks an explicit attempt.
+    clearRestoreAttempt();
     // Immediate feedback while `session.login` discovers/registers before it
     // redirects the browser away (the page navigation ends this component).
     let host = targetIdp;
@@ -578,6 +627,27 @@ export const Login: React.FC<LoginProps> = ({
                   </Typography>
                 )}
               </Box>
+
+              {/* Always-available escape hatch. The `restoreError` Alert above
+                  carries its own clear button, but it only appears when the IdP
+                  redirected back with an error — NOT when a login bounced to the
+                  IdP's own dead-end "Unknown client" page. Whenever the user gets
+                  back to the chooser, this lets them wipe the stale OIDC client
+                  registration without DevTools/Esc timing. Hidden while the Alert
+                  is shown so there is only one clear button at a time. */}
+              {!restoreError && (
+                <Typography variant="body2" color="text.secondary">
+                  Trouble signing in?{" "}
+                  <Button
+                    variant="text"
+                    size="small"
+                    disabled={clearing}
+                    onClick={handleClearLocalData}
+                  >
+                    {clearing ? "Clearing…" : "Clear local data"}
+                  </Button>
+                </Typography>
+              )}
             </Box>
           </Box>
         </Card>

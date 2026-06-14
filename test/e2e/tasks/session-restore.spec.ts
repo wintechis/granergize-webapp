@@ -115,4 +115,113 @@ test.describe("session restore", () => {
     );
     expect(authKeys).toEqual([]);
   });
+
+  test("a stale-client restore that bounces to a dead-end IdP page does not re-bounce on return", async ({ browser }) => {
+    test.setTimeout(T.setup);
+    const page = await newCapturedPage(browser, "session-restore-loop");
+
+    // Establish a real, restorable session first.
+    await login(page, ACC);
+    await expect(page.getByRole("tab", { name: "Connect" })).toBeVisible({
+      timeout: T.action,
+    });
+
+    // Count top-level silent-restore bounces to the IdP auth endpoint.
+    let authBounces = 0;
+    const breakOidc = /\/\.oidc\/(auth|token)\b/;
+    await page.route(breakOidc, async (route) => {
+      const url = new URL(route.request().url());
+      if (url.pathname.endsWith("/.oidc/auth")) {
+        // The real "Unknown client" failure is a DEAD END: the IdP renders its
+        // own error page and never redirects back, so the app can't catch a
+        // `?error=` (unlike the test above). Serve a standalone HTML page to
+        // mimic that — the app loses control here.
+        authBounces++;
+        await route.fulfill({
+          status: 400,
+          contentType: "text/html",
+          body: `<html><body><h1>${UNKNOWN_CLIENT}</h1></body></html>`,
+        });
+        return;
+      }
+      // Token refresh fails first → inrupt falls through to the /auth redirect.
+      await route.fulfill({
+        status: 400,
+        contentType: "application/json",
+        body: JSON.stringify({
+          error: "invalid_client",
+          error_description: UNKNOWN_CLIENT,
+        }),
+      });
+    });
+
+    // Reload → the app attempts the silent restore, which bounces once to the
+    // dead-end IdP page (the loop's first iteration).
+    await page.goto("./");
+    await expect.poll(() => authBounces, { timeout: T.login }).toBeGreaterThan(0);
+    const bouncesAfterFirst = authBounces;
+
+    // The user escapes the dead-end by navigating back to the app. WITHOUT the
+    // loop guard the app would silently re-restore and bounce again; WITH it the
+    // `granergize:restoreAttempted` breadcrumb (set before the first bounce)
+    // suppresses the second auto-restore and the login chooser appears instead.
+    await page.goto("./");
+    await expect(page.getByRole("heading", { name: LOGIN_HEADING })).toBeVisible({
+      timeout: T.login,
+    });
+
+    // The breadcrumb is why we stopped, and there was no second bounce.
+    const breadcrumb = await page.evaluate(() =>
+      localStorage.getItem("granergize:restoreAttempted")
+    );
+    expect(breadcrumb).toBe("1");
+    expect(authBounces).toBe(bouncesAfterFirst);
+
+    // The always-available escape hatch is right there to clear the stale client.
+    await expect(
+      page.getByRole("button", { name: /^clear local data$/i }),
+    ).toBeVisible();
+
+    await page.close();
+  });
+});
+
+test.describe("login escape hatch (no creds)", () => {
+  test("the login chooser always offers a working Clear-local-data action", async ({ browser }) => {
+    // No login: the chooser must expose the clear-storage remedy unconditionally
+    // (not only after a caught restore error), so a user stranded by a stale OIDC
+    // client can always recover without DevTools or Esc-timing.
+    const page = await newCapturedPage(browser, "login-escape-hatch");
+
+    await page.goto("./");
+    await expect(page.getByRole("heading", { name: LOGIN_HEADING })).toBeVisible({
+      timeout: T.login,
+    });
+
+    // Seed the kind of stale state a stranded browser carries (done after the
+    // chooser settles so inrupt doesn't act on the fake keys mid-restore).
+    await page.evaluate(() => {
+      localStorage.setItem("granergize:restoreAttempted", "1");
+      localStorage.setItem("solidClientAuthenticationUser:stale", "{}");
+    });
+
+    const clearBtn = page.getByRole("button", { name: /^clear local data$/i });
+    await expect(clearBtn).toBeVisible();
+
+    // Clicking wipes local storage and reloads to a clean chooser.
+    await clearBtn.click();
+    await expect(page.getByRole("heading", { name: LOGIN_HEADING })).toBeVisible({
+      timeout: T.action,
+    });
+    const leftovers = await page.evaluate(() => ({
+      breadcrumb: localStorage.getItem("granergize:restoreAttempted"),
+      authKeys: Object.keys(localStorage).filter((k) =>
+        k.startsWith("solidClientAuthenticationUser")
+      ),
+    }));
+    expect(leftovers.breadcrumb).toBeNull();
+    expect(leftovers.authKeys).toEqual([]);
+
+    await page.close();
+  });
 });

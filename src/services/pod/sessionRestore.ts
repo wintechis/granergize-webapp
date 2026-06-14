@@ -10,7 +10,12 @@
  *    `noRestore` one-shot flag), or
  *  - the session is already known expired (restoring a dead token just fails), or
  *  - a login/restore/logout event has already responded for this mount
- *    (`sessionResponded`) — restoring on top would be redundant.
+ *    (`sessionResponded`) — restoring on top would be redundant, or
+ *  - a silent restore was already attempted this session (`restoreAttempted`)
+ *    but we are back here logged out — a stale OIDC client registration makes
+ *    the restore navigate to a dead-end IdP error page ("Unknown client"); a
+ *    second auto-restore would just bounce there again, so we stop and let the
+ *    login chooser (with its clear-local-data remedy) take over instead.
  *
  * Kept pure (no React, no inrupt) so the guard is unit-testable; the component
  * reads the live `sessionExpired`/`sessionResponded` values via refs to avoid a
@@ -21,11 +26,13 @@ export function shouldRestoreSession(opts: {
   suppressRestore: boolean;
   sessionExpired: boolean;
   sessionResponded: boolean;
+  restoreAttempted: boolean;
 }): boolean {
   return (
     opts.auto &&
     !opts.suppressRestore &&
     !opts.sessionExpired &&
-    !opts.sessionResponded
+    !opts.sessionResponded &&
+    !opts.restoreAttempted
   );
 }
