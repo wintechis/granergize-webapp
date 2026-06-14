@@ -35,8 +35,8 @@
     "npm:html5-qrcode@^2.3.8": "2.3.8",
     "npm:jose@4": "4.15.9",
     "npm:leaflet@^1.9.4": "1.9.4",
-    "npm:n3@^1.23.0": "1.26.0",
     "npm:n3@^1.25.2": "1.26.0",
+    "npm:n3@^2.0.3": "2.0.3",
     "npm:qrcode.react@^4.2.0": "4.2.0_react@18.3.1",
     "npm:react-dom@^18.3.1": "18.3.1_react@18.3.1",
     "npm:react-leaflet@^4.2.1": "4.2.1_leaflet@1.9.4_react@18.3.1_react-dom@18.3.1__react@18.3.1",
@@ -606,7 +606,7 @@
     "@jsr/wintechis__wetterdienst-rdf-adapter@0.0.53": {
       "integrity": "sha512-sN5F6GednIFO0++YiOrxa3ujeSunfKn+LMDgREWq7nfm+MtvyBe+MiAurv0nwQjpCfYBp6hLrjZ+yq5N9idYbQ==",
       "dependencies": [
-        "n3"
+        "n3@1.26.0"
       ],
       "tarball": "https://npm.jsr.io/~/11/@jsr/wintechis__wetterdienst-rdf-adapter/0.0.53.tgz"
     },
@@ -2096,6 +2096,13 @@
         "readable-stream@4.7.0"
       ]
     },
+    "n3@2.0.3": {
+      "integrity": "sha512-um/toGVENTarHBYIK2TdH6ByBhW75WpdKpv8iTYt9wF2QfBk8s8a16iaWZFUAAC1BKfGdb99kfgx6pltdDwfKA==",
+      "dependencies": [
+        "buffer@6.0.3",
+        "readable-stream@4.7.0"
+      ]
+    },
     "nanoid@3.3.12": {
       "integrity": "sha512-ZB9RH/39qpq5Vu6Y+NmUaFhQR6pp+M2Xt76XBnEwDaGcVAqhlvxrl3B2bKS5D3NH3QR76v3aSrKaF/Kiy7lEtQ==",
       "bin": true
@@ -2731,7 +2738,7 @@
         "npm:globals@^15.11.0",
         "npm:html5-qrcode@^2.3.8",
         "npm:leaflet@^1.9.4",
-        "npm:n3@^1.23.0",
+        "npm:n3@^2.0.3",
         "npm:qrcode.react@^4.2.0",
         "npm:react-dom@^18.3.1",
         "npm:react-leaflet@^4.2.1",
