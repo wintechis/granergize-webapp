@@ -29,7 +29,7 @@ export function BuildingAddressFields(
     };
   },
 ) {
-  const { tf, check, sectionHeader } = f;
+  const { tf, sectionHeader } = f;
   return (
     <>
       {sectionHeader("Address")}
@@ -83,7 +83,6 @@ export function BuildingAddressFields(
         value={fields.consultedBy ?? ""}
         onChange={(v) => setField("consultedBy", v)}
       />
-      {check(fieldLabel("hasPVSystem"), "hasPVSystem")}
     </>
   );
 }
@@ -120,8 +119,12 @@ export function BuildingDetailFields(
       {tf(fieldLabel("logisticsFunction"), "logisticsFunction")}
       {tf(fieldLabel("climateControlType"), "climateControlType")}
       {tf(fieldLabel("greenLeaseShare"), "greenLeaseShare", { type: "number" })}
-      {tf(fieldLabel("pvInstallationYear"), "pvInstallationYear", { type: "number" })}
-      {tf(fieldLabel("pvCapacityKW"), "pvCapacityKW", { type: "number" })}
+      {/* PV plant (the <#pv> :PVSystem node) — presence of any value ⇒ has PV.
+          Keys are `_pv_*` so the serializer writes them onto the node, not the
+          building subject. */}
+      {tf("PV capacity (kW)", "_pv_capacityKW", { type: "number" })}
+      {tf("PV commissioning year", "_pv_commissioningYear", { type: "number" })}
+      {tf("PV operator (WebID)", "_pv_operatedBy")}
       {enumSelect(fieldLabel("shiftRegime"), "shiftRegime", [
         { value: "OneShift", label: optionLabel(`${BUILDING_NS}OneShift`) },
         { value: "TwoShift", label: optionLabel(`${BUILDING_NS}TwoShift`) },

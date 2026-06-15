@@ -116,6 +116,61 @@ Deno.test("serializeBuildingToTurtle writes operatedBy as a rec:operatedBy IRI r
   assert.equal(b!.operatedBy, operator);
 });
 
+Deno.test("serializeBuildingToTurtle round-trips the PV plant as a <#pv> :PVSystem node, distinct from the building operator", () => {
+  const uri = newBuildingUri(WEBID, "b-pv");
+  const buildingOperator = "https://uvex.example/profile#it"; // the building user
+  const plantOperator = "https://bettag.example/profile#it"; // the Anlagenbetreiber
+  const einheit = "https://wunderfacts.com/mastr/einheit/SEE123#it";
+  const ttl = serializeBuildingToTurtle({
+    operatedBy: buildingOperator,
+    _pv_capacityKW: "750",
+    _pv_commissioningYear: "2018",
+    _pv_operatedBy: plantOperator,
+    _pv_sameAs: einheit,
+  }, uri);
+  const store = parse(ttl);
+  const pvNode = namedNode(`${uri}#pv`);
+  // The plant is its own <#pv> :PVSystem node, linked by bldg:hasSystem.
+  assert.equal(
+    store.getQuads(namedNode(`${uri}#it`), namedNode(`${BUILDING_NS}hasSystem`), pvNode, null).length,
+    1,
+    "building links the <#pv> node via bldg:hasSystem",
+  );
+  assert.equal(
+    store.getQuads(pvNode, namedNode(RDF_TYPE), namedNode(`${BUILDING_NS}PVSystem`), null).length,
+    1,
+    "the node is typed :PVSystem",
+  );
+  // The PLANT operator is on the node (a NamedNode), distinct from the building's.
+  const opQuads = store.getQuads(pvNode, namedNode(`${REC_NS}operatedBy`), null, null);
+  assert.equal(opQuads.length, 1, "plant operator on the <#pv> node");
+  assert.equal(opQuads[0].object.value, plantOperator);
+
+  // Parse back: building.pvSystem carries all four; building.operatedBy stays the user.
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  assert.ok(b?.pvSystem, "pvSystem parsed back");
+  assert.equal(b!.pvSystem!.capacityKW, 750);
+  assert.equal(b!.pvSystem!.commissioningYear, 2018);
+  assert.equal(b!.pvSystem!.operatedBy, plantOperator);
+  assert.equal(b!.pvSystem!.sameAs, einheit);
+  assert.equal(b!.operatedBy, buildingOperator, "building operator is NOT the plant operator");
+});
+
+Deno.test("serializeBuildingToTurtle: a bare `_pv_present` writes a PV node with no details (presence ⇒ has PV)", () => {
+  const uri = newBuildingUri(WEBID, "b-pvbare");
+  const ttl = serializeBuildingToTurtle({ _pv_present: "true" }, uri);
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  assert.ok(b?.pvSystem, "pvSystem present even with no capacity/year");
+  assert.equal(b!.pvSystem!.capacityKW, undefined);
+});
+
+Deno.test("serializeBuildingToTurtle: no `_pv_*` fields → no PV node", () => {
+  const uri = newBuildingUri(WEBID, "b-nopv");
+  const ttl = serializeBuildingToTurtle({ streetAddress: "X", _pv_present: "false" }, uri);
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  assert.equal(b?.pvSystem, undefined, "no pvSystem when PV is absent / not installed");
+});
+
 Deno.test("parseBuildings tolerates a legacy xsd:string operatedBy literal", () => {
   const uri = newBuildingUri(WEBID, "b-legacy");
   // Old Pods stored operatedBy as a plain string literal.

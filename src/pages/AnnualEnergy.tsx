@@ -17,7 +17,12 @@ import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
-import { AnnualData, BuildingType, InvestorCertification } from "../types.ts";
+import {
+  AnnualData,
+  BuildingType,
+  InvestorCertification,
+  PvSystem,
+} from "../types.ts";
 import {
   ChartBox,
   DetailCard,
@@ -151,9 +156,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const numberOfLoadingDocks = building.numberOfLoadingDocks as
     | number
     | undefined;
-  const hasPVSystem = building.hasPVSystem as boolean | undefined;
-  const pvInstallationYear = building.pvInstallationYear as number | undefined;
-  const pvCapacityKW = building.pvCapacityKW as number | undefined;
+  const pvSystem = building.pvSystem as PvSystem | undefined;
   const certifications =
     (building.certifications ?? []) as InvestorCertification[];
   const leaseType = building.leaseType as string | undefined;
@@ -164,7 +167,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const hasMasterData = Boolean(
     climateControlType || tenancyType || leaseType || tenantIndustry ||
       indoorTemperatureClass || numberOfLoadingDocks != null ||
-      greenLeaseShare != null || hasPVSystem != null ||
+      greenLeaseShare != null || pvSystem != null ||
       certifications.length > 0,
   );
 
@@ -258,26 +261,26 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                 value={`${formatNumber(greenLeaseShare, 1)} %`}
               />
             )}
-            {hasPVSystem != null && (
+            {pvSystem && (
               <DetailRow
                 label="PV System"
-                value={hasPVSystem
-                  ? (
-                    <Chip
-                      icon={<SolarPowerIcon />}
-                      label={pvInstallationYear != null
-                        ? `Yes (since ${pvInstallationYear}${
-                          pvCapacityKW != null
-                            ? `, ${formatNumber(pvCapacityKW, 1)} kW`
-                            : ""
-                        })`
-                        : "Yes"}
-                      size="small"
-                      color="success"
-                      variant="outlined"
-                    />
-                  )
-                  : <Chip label="No" size="small" variant="outlined" />}
+                value={
+                  <Chip
+                    icon={<SolarPowerIcon />}
+                    label={pvSystem.commissioningYear != null
+                      ? `Yes (since ${pvSystem.commissioningYear}${
+                        pvSystem.capacityKW != null
+                          ? `, ${formatNumber(pvSystem.capacityKW, 1)} kW`
+                          : ""
+                      })`
+                      : pvSystem.capacityKW != null
+                      ? `Yes (${formatNumber(pvSystem.capacityKW, 1)} kW)`
+                      : "Yes"}
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                  />
+                }
               />
             )}
             {certifications.length > 0 && (

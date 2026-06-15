@@ -5,6 +5,7 @@ import type {
   EnergyDatasetRef,
   InvestorCertification,
   InvestorOperatingCosts,
+  PvSystem,
 } from "../../../types.ts";
 import {
   investorLocalNameLabels,
@@ -23,10 +24,12 @@ import {
   GRAN_GEOCODE_PRECISION,
   GRAN_HAS_ATTACHMENT,
   IRI_TO_GEOCODE_PRECISION,
+  OWL_SAME_AS,
   PROV_AGENT,
   PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE,
   REC_BUILDING,
+  REC_NS,
   SCHEMA_CONTENT_SIZE,
   SCHEMA_ENCODING_FORMAT,
   SCHEMA_NAME,
@@ -85,6 +88,9 @@ export function parseBuildings(
   const attachmentLinks = new Map<string, string[]>();
   /** attachment file IRI → building ID (the file IRI is the metadata subject) */
   const attachmentUriBuilding = new Map<string, string>();
+  /** PV-system node IRI (`<…#pv>`) → building ID. The node is a NamedNode subject
+   * (a hash fragment, not a blank node), so its props are collected separately. */
+  const pvNodeBuilding = new Map<string, string>();
 
   // ── Pass 1: Create buildings from the typed roster ────────────────────────
   quads.forEach((quad: Quad) => {
@@ -164,6 +170,15 @@ export function parseBuildings(
     if (pred === GEO_LOCATION) {
       if (obj.termType === "BlankNode") {
         geoPointBuildingMap.set(obj.value, buildingId);
+      }
+      return;
+    }
+
+    // Technical-system node (bldg:hasSystem → the `<#pv>` :PVSystem IRI). A
+    // NamedNode hash fragment, so its props are collected in a separate pass below.
+    if (pred === `${BUILDING_NS}hasSystem`) {
+      if (obj.termType === "NamedNode") {
+        pvNodeBuilding.set(obj.value, buildingId);
       }
       return;
     }
@@ -321,6 +336,26 @@ export function parseBuildings(
     });
   }
 
+  // ── PV-system node: its props (capacity/year/operatedBy/sameAs) hang off the
+  // `<#pv>` NamedNode subject, which the two passes above skip. Gather them here. ──
+  const pvData = new Map<string, PvSystem>();
+  if (pvNodeBuilding.size > 0) {
+    quads.forEach((quad: Quad) => {
+      if (quad.subject.termType !== "NamedNode") return;
+      const node = quad.subject.value;
+      if (!pvNodeBuilding.has(node)) return;
+      if (!pvData.has(node)) pvData.set(node, {});
+      const pv = pvData.get(node)!;
+      const pred = quad.predicate.value;
+      const v = quad.object.value;
+      if (pred === `${BUILDING_NS}capacityKW`) pv.capacityKW = parseFloat(v);
+      else if (pred === `${BUILDING_NS}commissioningYear`) {
+        pv.commissioningYear = parseInt(v, 10);
+      } else if (pred === `${REC_NS}operatedBy`) pv.operatedBy = v;
+      else if (pred === OWL_SAME_AS) pv.sameAs = v;
+    });
+  }
+
   // ── Post-processing ────────────────────────────────────────────────────────
 
   // Unified energy model: derive dataset refs from the cons:hasEnergyDataset
@@ -402,6 +437,13 @@ export function parseBuildings(
       if (gd.long !== undefined && !Number.isNaN(gd.long)) building.long = gd.long;
       if (gd.precision) building.geocodePrecision = gd.precision;
     }
+  }
+
+  // PV system: the `<#pv>` node's props become building.pvSystem (presence ⇒ has PV).
+  for (const [node, buildingId] of pvNodeBuilding.entries()) {
+    const building = buildings.get(buildingId);
+    const pv = pvData.get(node);
+    if (building) building.pvSystem = pv ?? {};
   }
 
   return buildings;

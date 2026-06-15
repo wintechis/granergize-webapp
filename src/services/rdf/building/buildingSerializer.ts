@@ -18,14 +18,17 @@ import {
   GEO_POINT,
   GEOCODE_PRECISION_IRI,
   GRAN_GEOCODE_PRECISION,
+  OWL_SAME_AS,
   PROV_AGENT,
   PROV_ATTRIBUTION,
   PROV_QUALIFIED_ATTRIBUTION,
   RDF_TYPE as RDF_TYPE_IRI,
   REC_BUILDING,
+  REC_NS,
   type GeocodePrecision,
   XSD_BOOLEAN,
   XSD_DECIMAL,
+  XSD_GYEAR,
   XSD_INTEGER,
   XSD_STRING,
 } from "../vocabularies.ts";
@@ -243,6 +246,64 @@ function replaceCertifications(
 }
 
 /**
+ * Serialize the PV plant as a `<…/{id}.ttl#pv>` `:PVSystem` node linked by
+ * `bldg:hasSystem`, from `_pv_<field>` keys (`capacityKW`/`commissioningYear`/
+ * `operatedBy`/`sameAs`). A hash-fragment NamedNode (not a blank node) so the plant
+ * has its own identity — its `rec:operatedBy` is the Anlagenbetreiber (distinct from
+ * the building's operator) and `owl:sameAs` the external MaStR Einheit. No-op when no
+ * `_pv_*` keys are present (⇒ no PV). Mirrors {@link buildingParser}'s read.
+ */
+function addPvSystem(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  const capacity = fields._pv_capacityKW?.trim();
+  const year = fields._pv_commissioningYear?.trim();
+  const operatedBy = fields._pv_operatedBy?.trim();
+  const sameAs = fields._pv_sameAs?.trim();
+  // `_pv_present` is the import's bare "PV installed" boolean — write the node even
+  // with no details (presence ⇒ has PV). A falsy/"false"/"nein" value doesn't.
+  const present = normalizeBoolean(fields._pv_present ?? "") === "true";
+  if (!capacity && !year && !operatedBy && !sameAs && !present) return;
+  // The node lives in the same document as the building subject (`<#it>` → `<#pv>`).
+  const pv = namedNode(`${buildingFileUri(subject.value)}#pv`);
+  store.addQuad(subject, namedNode(`${BUILDING_NS}hasSystem`), pv);
+  store.addQuad(pv, namedNode(RDF_TYPE_IRI), namedNode(`${BUILDING_NS}PVSystem`));
+  if (capacity) {
+    store.addQuad(
+      pv,
+      namedNode(`${BUILDING_NS}capacityKW`),
+      literal(capacity, namedNode(XSD_DECIMAL)),
+    );
+  }
+  if (year) {
+    store.addQuad(
+      pv,
+      namedNode(`${BUILDING_NS}commissioningYear`),
+      literal(year, namedNode(XSD_GYEAR)),
+    );
+  }
+  // operatedBy / sameAs are IRI references (the plant operator's WebID, the MaStR
+  // Einheit), so NamedNode — mirror operatedBy on the building.
+  if (operatedBy) store.addQuad(pv, namedNode(`${REC_NS}operatedBy`), namedNode(operatedBy));
+  if (sameAs) store.addQuad(pv, namedNode(OWL_SAME_AS), namedNode(sameAs));
+}
+
+/**
+ * Replace the building's PV-system node on an EXISTING store (the edit path): drop
+ * the current `<#pv>` node, then re-add from `fields`. Call only when the edit
+ * carries `_pv_*` keys. Mirrors {@link replaceOperatingCosts}.
+ */
+function replacePvSystem(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  replaceLinkedNodes(store, subject, `${BUILDING_NS}hasSystem`, fields, addPvSystem);
+}
+
+/**
  * Serialize investor operating costs as a single `investor:hasOperatingCosts`
  * blank node, from `_opcost_<field>` keys. The boolean category is typed
  * `xsd:boolean`; the rest are plain literals of the (already human-readable)
@@ -390,6 +451,9 @@ export function serializeBuildingToTurtle(
   // Investor master-data sub-structures (blank nodes), when present.
   addOperatingCosts(store, subject, fields);
   addCertifications(store, subject, fields);
+
+  // PV plant as a `<#pv>` :PVSystem node (bldg:hasSystem), when present.
+  addPvSystem(store, subject, fields);
 
   // Provenance (PROV-O qualified attribution), when provided.
   if (provenance) addProvenance(store, subject, provenance);
@@ -831,6 +895,9 @@ export async function updateBuilding(
     if (keys.some((k) => k.startsWith("_cert_"))) {
       replaceCertifications(store, subject, updatedFields);
     }
+    if (keys.some((k) => k.startsWith("_pv_"))) {
+      replacePvSystem(store, subject, updatedFields);
+    }
   });
 }
 
@@ -962,7 +1029,9 @@ const DEMO_INVESTOR: DemoSpec = {
     landArea: "20000",
     officeArea: "1800",
     yearOfConstruction: "2016",
-    hasPVSystem: "true",
+    // PV plant as a <#pv> :PVSystem node (presence ⇒ has PV).
+    _pv_capacityKW: "750",
+    _pv_commissioningYear: "2018",
     // Investor block (controlled-vocab fields use local names, not labels).
     buildingCode: "NOP-84",
     hallArea: "10200",
@@ -1022,7 +1091,8 @@ const DEMO_INVESTOR_2: DemoSpec = {
     landArea: "12000",
     officeArea: "600",
     yearOfConstruction: "2018",
-    hasPVSystem: "true",
+    _pv_capacityKW: "480",
+    _pv_commissioningYear: "2019",
     buildingCode: "HAF-12",
     hallArea: "6800",
     officeSocialArea: "550",
@@ -1069,7 +1139,6 @@ const DEMO_USER: DemoSpec = {
     usedAs: "Office",
     buildingArea: "1400",
     yearOfConstruction: "1998",
-    hasPVSystem: "false",
   },
   energy: "both",
   selfOperated: true,
@@ -1100,7 +1169,8 @@ const DEMO_USER_2: DemoSpec = {
     usedAs: "Workshop",
     buildingArea: "850",
     yearOfConstruction: "2005",
-    hasPVSystem: "true",
+    _pv_capacityKW: "120",
+    _pv_commissioningYear: "2021",
   },
   energy: "series",
   selfOperated: true,

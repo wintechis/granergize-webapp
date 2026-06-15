@@ -106,4 +106,41 @@ test.describe("edit building operating costs + certifications", () => {
     await openBuildingsList(page);
     await deleteBuildingRow(page, id);
   });
+
+  test("the PV plant persists through an edit and renders as a node summary", async () => {
+    test.setTimeout(T.testSolo);
+    const PV_ADDR = "Edit PV E2E Strasse 1";
+
+    await addBuilding(page, PV_ADDR);
+    const listRow = page.locator("li[data-building-id]", { hasText: PV_ADDR }).first();
+    await expect(listRow).toBeVisible({ timeout: T.action });
+    const id = await buildingIdOf(listRow);
+    if (!id) throw new Error("edit-building-fields: missing PV building id");
+
+    // Enter PV capacity + commissioning year in the inline editor (the `_pv_*`
+    // fields write the `<#pv>` :PVSystem node, not flat building fields).
+    await page.goto(buildingRoute("building", id));
+    await page.getByRole("button", { name: /^edit$/i }).first().click();
+    await page.getByLabel("PV capacity (kW)", { exact: true }).fill("500");
+    await page.getByLabel("PV commissioning year", { exact: true }).fill("2020");
+    await page.getByRole("button", { name: /^save$/i }).click();
+    await expect(page.getByText(/building updated/i))
+      .toBeVisible({ timeout: T.action });
+
+    // Read view: the PV plant renders as a single summary row (presence ⇒ has PV).
+    await expect(page.getByText(/500 kW, since 2020/))
+      .toBeVisible({ timeout: T.visible });
+
+    // Re-open the editor: the values round-tripped through the <#pv> node's Turtle.
+    await page.getByRole("button", { name: /^edit$/i }).first().click();
+    await expect(page.getByLabel("PV capacity (kW)", { exact: true }))
+      .toHaveValue("500", { timeout: T.visible });
+    await expect(page.getByLabel("PV commissioning year", { exact: true }))
+      .toHaveValue("2020");
+    await page.getByRole("button", { name: /^cancel$/i }).click();
+
+    await page.goto("/");
+    await openBuildingsList(page);
+    await deleteBuildingRow(page, id);
+  });
 });

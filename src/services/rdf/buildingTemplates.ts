@@ -58,9 +58,10 @@ export const BSP_COL_MAP: Record<string, string> = {
   "Baujahr": "yearOfConstruction",
   "Grundstücksfläche": "landArea",
   "Brutto-Grundfläche (BGF)": "buildingArea",
-  "PV-Anlage installiert": "hasPVSystem",
-  "Alter der PV-Anlage (Baujahr)": "pvInstallationYear",
-  "Leistung der PV-Anlage (kW)": "pvCapacityKW",
+  // PV plant → the <#pv> :PVSystem node (`_pv_*` keys; presence ⇒ has PV).
+  "PV-Anlage installiert": "_pv_present",
+  "Alter der PV-Anlage (Baujahr)": "_pv_commissioningYear",
+  "Leistung der PV-Anlage (kW)": "_pv_capacityKW",
   "Funktion der Logistikimmobilie": "logisticsFunction",
   "Innenraumtemperatur": "indoorTemperatureClass",
   "Klimatisierungstyp": "climateControlType",
@@ -98,7 +99,7 @@ export const INVESTOR_ROW_MAP: Record<string, string> = {
   "Anzahl Mieter": "tenancyType",
   "Mietvertragsart": "leaseType",
   "Innenraumtemperatur": "indoorTemperatureClass",
-  "PV-Anlage installiert": "hasPVSystem",
+  "PV-Anlage installiert": "_pv_present",
   "Ölkessel": "hasOilBoiler",
   "Gaskessel": "hasGasBoiler",
   "Stromkessel": "hasElectricBoiler",
@@ -247,6 +248,12 @@ export function applyNormalization(field: string, raw: string): string {
   // Energy observation fields — always numeric
   if (field.startsWith("_bsp_") && field !== "_bsp_year") return normalizeNumber(raw);
   if (field.startsWith("_inv_")) return normalizeNumber(raw);
+  // PV-system node fields (the <#pv> :PVSystem node): `_pv_present` is the bare
+  // "installed" boolean; capacity/year are numeric (German-formatted in the sheet).
+  if (field === "_pv_present") return normalizeBoolean(raw);
+  if (field === "_pv_capacityKW" || field === "_pv_commissioningYear") {
+    return normalizeNumber(raw);
+  }
   return raw.trim();
 }
 

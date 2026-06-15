@@ -9,6 +9,7 @@ import type {
   BuildingType,
   InvestorCertification,
   InvestorOperatingCosts,
+  PvSystem,
 } from "../../types.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { useSolidData } from "../../hooks/queries.ts";
@@ -100,6 +101,17 @@ function buildingToFields(b: BuildingType): Record<string, string> {
     if (c.level) fields[`_cert_${i}_level`] = c.level;
     if (c.scope) fields[`_cert_${i}_scope`] = c.scope;
   });
+  // PV plant → flat `_pv_*` keys (the inline editor's fields), so the <#pv> node
+  // round-trips through the form. Seed sameAs too (not shown) to preserve it.
+  const pv = b.pvSystem as PvSystem | undefined;
+  if (pv) {
+    if (pv.capacityKW != null) fields._pv_capacityKW = String(pv.capacityKW);
+    if (pv.commissioningYear != null) {
+      fields._pv_commissioningYear = String(pv.commissioningYear);
+    }
+    if (pv.operatedBy) fields._pv_operatedBy = pv.operatedBy;
+    if (pv.sameAs) fields._pv_sameAs = pv.sameAs;
+  }
   return fields;
 }
 
@@ -112,6 +124,15 @@ const hasValue = (value: unknown): boolean => {
 
 const boolIcon = (v: boolean) =>
   v ? <CheckIcon fontSize="small" /> : <ClearIcon fontSize="small" />;
+
+/** One-line summary of the PV plant ("750 kW, since 2018"), or "Yes" when present
+ * but undetailed. The operator is shown as its own resolved-agent row. */
+const pvSystemSummary = (pv: PvSystem): string => {
+  const parts: string[] = [];
+  if (pv.capacityKW != null) parts.push(`${pv.capacityKW} kW`);
+  if (pv.commissioningYear != null) parts.push(`since ${pv.commissioningYear}`);
+  return parts.length ? parts.join(", ") : "Yes";
+};
 
 /** The read-first master-data view: every populated master-data field as a row. */
 function ReadView({ building }: { building: BuildingType }) {
@@ -205,8 +226,14 @@ function ReadView({ building }: { building: BuildingType }) {
           value={building.indoorTemperatureClass}
         />
       )}
-      {building.hasPVSystem != null && (
-        <DetailRow label="PV system" value={boolIcon(building.hasPVSystem)} />
+      {building.pvSystem && (
+        <DetailRow label="PV system" value={pvSystemSummary(building.pvSystem)} />
+      )}
+      {building.pvSystem?.operatedBy && (
+        <DetailRow
+          label="PV operator"
+          value={<AgentLabel value={building.pvSystem.operatedBy} />}
+        />
       )}
 
       {(building.hasOilBoiler != null ||

@@ -20,15 +20,7 @@ import { buildingToXlsx } from "../../services/rdf/buildingWorkbook.ts";
 import { buildingIdStem } from "../../services/rdf/building/buildingId.ts";
 import { downloadXlsx } from "../../lib/download.ts";
 import { formatError } from "../../lib/formatError.ts";
-
-// The same German basemap WMS the main map uses (see ExplorePage.tsx); reused so
-// the building page thumbnail matches the map the user just came from.
-const BASEMAP_DE = {
-  url: "https://sgx.geodatenzentrum.de/wms_basemapde",
-  layers: "de_basemapde_web_raster_farbe",
-  attribution:
-    '&copy; <a href="https://basemap.de/">basemap.de</a> / &copy; <a href="https://www.bkg.bund.de/">BKG</a>',
-} as const;
+import { detailBaseLayer } from "../../lib/orthophoto.ts";
 
 /**
  * A plain owned/shared pin for the thumbnail, matching the main map's ownership
@@ -66,6 +58,9 @@ export default function BuildingHeader({ building }: { building: BuildingType })
   const address = buildingAddressLine(building);
   const shared = building.isShared ?? false;
   const hasCoords = building.lat != null && building.long != null;
+  // Pick the locator-thumbnail base layer from the coordinates (orthophoto where
+  // covered, basemap raster otherwise); only read inside the `hasCoords` guard.
+  const base = detailBaseLayer(building.lat ?? 0, building.long ?? 0);
   const { showNotification } = useNotification();
 
   // Export this building as an `.xlsx` workbook (moved here from the buildings
@@ -128,7 +123,9 @@ export default function BuildingHeader({ building }: { building: BuildingType })
         </Box>
 
         {/* Locator thumbnail — a non-interactive mini-map of the building's
-            location. Hidden when the building has no coordinates. */}
+            location: the Bavaria DOP20c orthophoto zoomed in where there's
+            coverage (the pilot is in Nürnberg), else the nationwide basemap
+            raster (see lib/orthophoto.ts). Hidden when there are no coordinates. */}
         {hasCoords && (
           <Box
             sx={{
@@ -143,7 +140,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
           >
             <MapContainer
               center={[building.lat as number, building.long as number]}
-              zoom={14}
+              zoom={base.zoom}
               zoomControl={false}
               dragging={false}
               scrollWheelZoom={false}
@@ -152,11 +149,12 @@ export default function BuildingHeader({ building }: { building: BuildingType })
               style={{ height: "100%", width: "100%" }}
             >
               <WMSTileLayer
-                url={BASEMAP_DE.url}
-                layers={BASEMAP_DE.layers}
-                format="image/png"
+                url={base.config.url}
+                layers={base.config.layers}
+                format={base.config.format}
+                maxZoom={base.config.maxZoom}
                 transparent={false}
-                attribution={BASEMAP_DE.attribution}
+                attribution={base.config.attribution}
               />
               <Marker
                 position={[building.lat as number, building.long as number]}

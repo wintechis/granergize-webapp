@@ -4,6 +4,7 @@ import type {
   BuildingType,
   InvestorCertification,
   InvestorOperatingCosts,
+  PvSystem,
 } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
@@ -99,6 +100,18 @@ function buildingToFields(b: BuildingType): Record<string, string> {
     if (c.level) fields[`_cert_${i}_level`] = c.level;
     if (c.scope) fields[`_cert_${i}_scope`] = c.scope;
   });
+  // PV plant as flat `_pv_*` keys (the shape updateBuilding's replacePvSystem
+  // expects). Seed ALL of them — incl. sameAs, which the form doesn't show — so a
+  // generator-written `owl:sameAs` survives an edit round-trip.
+  const pv = b.pvSystem as PvSystem | undefined;
+  if (pv) {
+    if (pv.capacityKW != null) fields._pv_capacityKW = String(pv.capacityKW);
+    if (pv.commissioningYear != null) {
+      fields._pv_commissioningYear = String(pv.commissioningYear);
+    }
+    if (pv.operatedBy) fields._pv_operatedBy = pv.operatedBy;
+    if (pv.sameAs) fields._pv_sameAs = pv.sameAs;
+  }
   return fields;
 }
 

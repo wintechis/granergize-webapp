@@ -113,6 +113,32 @@ test.describe("redesign: building page", () => {
     ).toBeVisible({ timeout: T.action });
   });
 
+  test("the locator map requests the Bavaria DOP20c orthophoto for a Nürnberg building", async () => {
+    // The demo buildings are in Nürnberg (Bavaria), so the building-page locator
+    // thumbnail uses the Bavaria DOP20c orthophoto layer. Assert the app REQUESTS
+    // it, kept HERMETIC by stubbing the external WMS with a 1×1 png (Tier-3 must
+    // not depend on geoservices.bayern.de). The base-layer choice itself is
+    // unit-tested in src/lib/orthophoto.test.ts.
+    const PNG_1x1 = Buffer.from(
+      "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
+      "base64",
+    );
+    const wms = /geoservices\.bayern\.de\/.*dop20/i;
+    let requestedDop20c = false;
+    await page.route(wms, async (route) => {
+      if (/by_dop20c/i.test(route.request().url())) requestedDop20c = true;
+      await route.fulfill({ status: 200, contentType: "image/png", body: PNG_1x1 });
+    });
+    try {
+      await page.goto(buildingRoute("building", id));
+      await expect(page.getByText("Owned")).toBeVisible({ timeout: T.action });
+      // Leaflet fires the thumbnail's tile requests asynchronously; poll for one.
+      await expect.poll(() => requestedDop20c, { timeout: T.action }).toBe(true);
+    } finally {
+      await page.unroute(wms);
+    }
+  });
+
   test("Developer mode reveals the row's backing-resource IRI (self-hidden otherwise)", async () => {
     // The Buildings list row's source IRI goes through the one `RdfSourceLink`
     // (muted, self-hiding) like every other backing-resource link — no bespoke

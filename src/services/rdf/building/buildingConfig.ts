@@ -52,7 +52,8 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   { field: "label", iri: "http://www.w3.org/2000/01/rdf-schema#label" },
   { field: "buildingArea", iri: `${BUILDING_NS}hasBuildingArea`, range: XSD_INTEGER },
   { field: "landArea", iri: `${BUILDING_NS}hasLandArea`, range: XSD_INTEGER },
-  { field: "hasPVSystem", iri: `${BUILDING_NS}hasPVSystem`, range: XSD_BOOLEAN },
+  // PV is no longer a flat field — it's the `<#pv>` :PVSystem node (bldg:hasSystem),
+  // parsed/serialized as a subordinate node (see buildingParser/buildingSerializer).
   // Agent (WebID) links — building→agent relationship properties (NOT roles;
   // roles live only in data rooms). All range over foaf:Agent, so they
   // round-trip as NamedNodes (a legacy xsd:string value is tolerated on read).
@@ -94,8 +95,6 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   { field: "logisticsFunction", iri: `${BUILDING_NS}logisticsFunction` },
   { field: "climateControlType", iri: `${BUILDING_NS}climateControlType` },
   { field: "greenLeaseShare", iri: `${BUILDING_NS}greenLeaseShare`, range: XSD_DECIMAL },
-  { field: "pvInstallationYear", iri: `${BUILDING_NS}pvInstallationYear`, range: XSD_INTEGER },
-  { field: "pvCapacityKW", iri: `${BUILDING_NS}pvCapacityKW`, range: XSD_DECIMAL },
   { field: "hasBatteryStorage", iri: `${BUILDING_NS}hasBatteryStorage`, range: XSD_BOOLEAN },
   { field: "storageCapacityKWh", iri: `${BUILDING_NS}storageCapacityKWh`, range: XSD_DECIMAL },
   { field: "companyName", iri: `${BUILDING_NS}companyName` },

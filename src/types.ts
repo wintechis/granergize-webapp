@@ -39,6 +39,22 @@ export interface InvestorCertification {
   scope?: string;
 }
 
+/**
+ * A PV plant as a technical-system component of the building — the typed mirror of
+ * the `<…/{id}.ttl#pv>` node (`:PVSystem ⊑ :TechnicalSystem`, linked by
+ * `bldg:hasSystem`). Its presence on a building means "has PV"; there is no separate
+ * boolean. The plant carries its OWN `rec:operatedBy` (the Anlagenbetreiber, distinct
+ * from the building's operator/user) and `owl:sameAs` the external MaStR Einheit.
+ */
+export interface PvSystem {
+  capacityKW?: number; // :capacityKW (xsd:decimal) — nameplate power
+  commissioningYear?: number; // :commissioningYear (xsd:gYear)
+  /** The PLANT operator's WebID/IRI (`rec:operatedBy`) — not the building's. */
+  operatedBy?: string;
+  /** `owl:sameAs` the external MaStR Einheit IRI. */
+  sameAs?: string;
+}
+
 export interface BuildingType {
   [key: string]:
     | string
@@ -49,6 +65,7 @@ export interface BuildingType {
     | AnnualData[]
     | InvestorCertification[]
     | InvestorOperatingCosts
+    | PvSystem
     | undefined;
   /** The building's identifier IS its subject IRI (see buildingId.ts):
    * storage-root-relative for the user's own buildings
@@ -83,7 +100,9 @@ export interface BuildingType {
   streetAddress?: string;
   buildingArea?: number;
   landArea?: number;
-  hasPVSystem?: boolean;
+  /** The PV plant as a technical-system node (presence ⇒ has PV). Replaces the
+   * former flat `hasPVSystem`/`pvCapacityKW`/`pvInstallationYear` fields. */
+  pvSystem?: PvSystem;
   hasBatteryStorage?: boolean;
   /** Investor WebID (`bldg:investor`, ranges over foaf:Agent — an agent link like
    * operatedBy, not a free-text label). Legacy literal values tolerated on read. */
@@ -115,8 +134,6 @@ export interface BuildingType {
   logisticsFunction?: string;
   climateControlType?: string;
   greenLeaseShare?: number; // %
-  pvInstallationYear?: number;
-  pvCapacityKW?: number;
   /** Usable battery storage capacity (kWh), Ist (operating units only). */
   storageCapacityKWh?: number;
   companyName?: string;
