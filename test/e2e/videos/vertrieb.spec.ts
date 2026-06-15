@@ -98,9 +98,10 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     const stageA = await page.context().newPage();
     const t0a = Date.now();
     await stageA.goto("/");
-    await expect(stageA.getByRole("tab", { name: "Manage" }))
+    await expect(stageA.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
-    await stageA.getByRole("tab", { name: "Manage" }).click();
+    await stageA.getByRole("tab", { name: "Buildings" }).click();
+    await stageA.getByRole("button", { name: "List" }).click();
     const row = stageA.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
@@ -144,10 +145,20 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
 
     await demoA.scene(
       "share-open",
-      "A teilt ihr Gebäude: das Teilen-Symbol im Manage-Tab",
+      "A öffnet ihr Gebäude und teilt es über „Share“ auf der Detailseite",
     );
-    await demoA.click(stageA.getByRole("tab", { name: "Manage" }));
-    await demoA.click(row.getByRole("button", { name: "Share building data" }));
+    // Sharing moved off the list row onto the building's detail page (master-detail
+    // redesign). Back to the Buildings list (the contact scene left us on
+    // Contacts), open the building via its name link, then its "Share" button.
+    await demoA.click(stageA.getByRole("tab", { name: "Buildings" }));
+    await demoA.click(stageA.getByRole("button", { name: "List" }));
+    await expect(row).toBeVisible({ timeout: 60_000 });
+    await demoA.click(row.locator('a[href*="/building/"]').first());
+    const shareButton = stageA.getByRole("button", { name: "Share", exact: true });
+    await expect(shareButton).toBeVisible({ timeout: 60_000 });
+    await stageA.waitForLoadState("networkidle").catch(() => {});
+    await demoA.pause(1_000);
+    await demoA.click(shareButton);
     const shareDialog = stageA.getByRole("dialog");
     await expect(shareDialog).toBeVisible({ timeout: 10_000 });
 
@@ -223,7 +234,8 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
       "map",
       "Auf der Karte: A's freigegebene Halle (orange markiert) neben B's eigenen Objekten",
     );
-    await demoB.click(stageB.getByRole("tab", { name: "Explore" }));
+    await demoB.click(stageB.getByRole("tab", { name: "Buildings" }));
+    await demoB.click(stageB.getByRole("button", { name: "Map", exact: true }));
     const sharedMarker = stageB
       .locator(".leaflet-marker-icon.pin-shared").first();
     await sharedMarker.waitFor({ timeout: 60_000 });

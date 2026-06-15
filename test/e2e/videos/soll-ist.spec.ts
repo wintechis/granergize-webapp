@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
-import { exploreRoute } from "../helpers/manage.ts";
+import { buildingRoute, exploreRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo } from "./demoPolish.ts";
 
@@ -72,7 +72,8 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await addExamples.click();
     await expect(page.getByText("Demo buildings and energy data added").first())
       .toBeVisible({ timeout: 300_000 });
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("button", { name: "List" }).click();
     const setupRow = page.locator("li", { hasText: BUILDING }).first();
     await expect(setupRow).toBeVisible({ timeout: 60_000 });
     const buildingId = await setupRow.getAttribute("data-building-id");
@@ -82,9 +83,10 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     const stage = await page.context().newPage();
     const t0 = Date.now();
     await stage.goto("/");
-    await expect(stage.getByRole("tab", { name: "Manage" }))
+    await expect(stage.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
-    await stage.getByRole("tab", { name: "Manage" }).click();
+    await stage.getByRole("tab", { name: "Buildings" }).click();
+    await stage.getByRole("button", { name: "List" }).click();
     const row = stage.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stage.waitForLoadState("networkidle").catch(() => {});
@@ -106,7 +108,15 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
       "ist",
       "A erfasst für ihr Gebäude die tatsächlichen Verbräuche eines Jahres",
     );
-    await demo.click(row.getByRole("button", { name: "Add or edit energy year" }));
+    // Energy entry now lives on the building's observation (energy) page — the
+    // master-detail redesign moved it off the list row. Land there, then open the
+    // year dialog via its "Edit energy years" button.
+    await stage.goto(buildingRoute("observation", buildingId));
+    const editYears = stage.getByRole("button", { name: "Edit energy years" });
+    await expect(editYears).toBeVisible({ timeout: 60_000 });
+    await stage.waitForLoadState("networkidle").catch(() => {});
+    await demo.pause(1_200);
+    await demo.click(editYears);
     const dialog = stage.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await demo.type(
@@ -129,7 +139,8 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
       "soll",
       "Für dasselbe Jahr legt A einen Plan-Eintrag an: Scenario „Planned (Soll)“",
     );
-    await demo.click(row.getByRole("button", { name: "Add or edit energy year" }));
+    // Still on the observation page from scene 1 — just reopen the year dialog.
+    await demo.click(editYears);
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await demo.type(
       stage.getByRole("spinbutton", { name: "Year", exact: true }),
@@ -153,7 +164,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     //     `?dt=energy` teleport was too fast to follow. ---
     await demo.scene(
       "payoff",
-      "Im Explore-Tab zeigt die Jahresübersicht Soll und Ist nebeneinander",
+      "Auf der Karte zeigt die Jahresübersicht Soll und Ist nebeneinander",
     );
     await stage.goto(exploreRoute(buildingId));
     await expect(stage.getByRole("tab", { name: "Building data" }))

@@ -59,7 +59,8 @@ test.describe("manage-render benchmark", () => {
       // the list reflecting all N buildings.
       const t0 = Date.now();
       await page.goto("/");
-      await page.getByRole("tab", { name: "Manage" }).click();
+      await page.getByRole("tab", { name: "Buildings" }).click();
+      await page.getByRole("button", { name: "List" }).click();
       await expect(
         page.getByRole("button", { name: "Add Building", exact: true }).first(),
       ).toBeVisible({ timeout: 120_000 });

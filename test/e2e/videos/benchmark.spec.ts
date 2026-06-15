@@ -57,10 +57,14 @@ function saveMarks(name: string, marks: SceneMark[]) {
 
 /** Share a building to `webId` without demo pacing (the off-camera B share). */
 async function shareFirstBuildingTo(page: Page, webId: string) {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await page.getByRole("tab", { name: "Buildings" }).click();
+  await page.getByRole("button", { name: "List" }).click();
   const row = page.locator("li[data-building-id]").first();
   await expect(row).toBeVisible({ timeout: 60_000 });
-  await row.getByRole("button", { name: "Share building data" }).click();
+  // Sharing moved onto the building's detail page (redesign): open it, then Share.
+  const id = await row.getAttribute("data-building-id");
+  await page.goto(buildingRoute("building", id));
+  await page.getByRole("button", { name: "Share", exact: true }).click();
   const dlg = page.getByRole("dialog");
   await dlg.getByRole("button", { name: /by webid/i }).click();
   const recipient = dlg.getByLabel(/Recipient WebID/i);
@@ -102,7 +106,8 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await addExamples.click();
     await expect(page.getByText("Demo buildings and energy data added").first())
       .toBeVisible({ timeout: 300_000 });
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("button", { name: "List" }).click();
     const aRow = page.locator("li", { hasText: BUILDING }).first();
     await expect(aRow).toBeVisible({ timeout: 60_000 });
     const buildingId = await aRow.getAttribute("data-building-id");
@@ -146,9 +151,10 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     const stageA = await page.context().newPage();
     const t0a = Date.now();
     await stageA.goto("/");
-    await expect(stageA.getByRole("tab", { name: "Manage" }))
+    await expect(stageA.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
-    await stageA.getByRole("tab", { name: "Manage" }).click();
+    await stageA.getByRole("tab", { name: "Buildings" }).click();
+    await stageA.getByRole("button", { name: "List" }).click();
     const row = stageA.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
@@ -177,7 +183,14 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
       "share-energy",
       "A teilt ihr Gebäude an C – einschließlich der Energiedaten. C's WebID liegt aus der Beauftragung im Adressbuch",
     );
-    await demoA.click(row.getByRole("button", { name: "Share building data" }));
+    // Sharing moved off the row onto the building page: open the building via its
+    // name link, then its "Share" button.
+    await demoA.click(row.locator('a[href*="/building/"]').first());
+    const shareButton = stageA.getByRole("button", { name: "Share", exact: true });
+    await expect(shareButton).toBeVisible({ timeout: 60_000 });
+    await stageA.waitForLoadState("networkidle").catch(() => {});
+    await demoA.pause(1_000);
+    await demoA.click(shareButton);
     const shareDialog = stageA.getByRole("dialog");
     await expect(shareDialog).toBeVisible({ timeout: 10_000 });
     await demoA.click(shareDialog.getByRole("button", { name: /by webid/i }));
@@ -250,7 +263,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
       "create-view",
       "C erstellt eine Ansicht der Art „Compare shared buildings“ über die geteilten Gebäude",
     );
-    await demoC.click(stageC.getByRole("tab", { name: "Manage" }));
+    await demoC.click(stageC.getByRole("tab", { name: "Aggregations" }));
     await demoC.click(stageC.getByRole("button", { name: /create aggregation/i }));
     const dlg = stageC.getByRole("dialog");
     await expect(dlg).toBeVisible({ timeout: 10_000 });

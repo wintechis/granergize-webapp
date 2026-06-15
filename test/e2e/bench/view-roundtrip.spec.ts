@@ -43,7 +43,7 @@ const B = account("B");
 async function gotoLoggedIn(page: Page): Promise<void> {
   await page.goto("/");
   try {
-    await expect(page.getByRole("tab", { name: "Manage" }))
+    await expect(page.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 15_000 });
   } catch {
     await login(page, A);
@@ -80,7 +80,7 @@ test.describe("view-roundtrip benchmark", () => {
 
       // ── A: build the benchmark view over the 2N contributed buildings ──
       await gotoLoggedIn(page); // cold load; seed wiped A's app data (views included)
-      await page.getByRole("tab", { name: "Manage" }).click();
+      await page.getByRole("tab", { name: "Aggregations" }).click();
       await page.getByRole("button", { name: /create aggregation/i }).click();
       const dlg = page.getByRole("dialog");
       await expect(dlg).toBeVisible({ timeout: 30_000 });

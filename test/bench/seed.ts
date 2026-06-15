@@ -107,10 +107,21 @@ export async function seedBuildings(
     return { i, id, uri, subjectUri: mintBuildingSubject(uri), fields: buildingFields(i) };
   });
   const seriesYear = annualYears[annualYears.length - 1] ?? 2025;
-  // Provision buildings/ ONCE up front: uploadBuilding ensures it per call, and a
-  // pool of concurrent first-writers would otherwise race to create it (all see
-  // 404, all PUT, the losers get a 409). After this the per-call ensure no-ops.
-  if (n > 0) await ensureContainer(`${appRoot(webId)}buildings/`, session);
+  // Provision the shared containers ONCE up front: the per-call ensure no-ops once
+  // they exist, and a pool of concurrent first-writers would otherwise race to
+  // create each (all see 404, all PUT, the losers get a 409). `buildings/` holds
+  // every building file; under time-first storage every building's annual energy
+  // also writes to the SHARED `observations/{year}/` container, so n>1 buildings
+  // race those too (the HTTP 409 that broke the seeded handbuch videos). Pre-create
+  // the observations root + each annual year container the writers will target.
+  if (n > 0) {
+    await ensureContainer(`${appRoot(webId)}buildings/`, session);
+    const obsRoot = `${appRoot(webId)}observations/`;
+    await ensureContainer(obsRoot, session);
+    for (const year of [...new Set([...annualYears, seriesYear])]) {
+      await ensureContainer(`${obsRoot}${year}/`, session);
+    }
+  }
   return mapPooled(specs, POOL, async (s) => {
     const series = s.i === 0 && seriesDaysOnFirst > 0
       ? {
