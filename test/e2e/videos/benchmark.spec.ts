@@ -185,7 +185,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     );
     // Sharing moved off the row onto the building page: open the building via its
     // name link, then its "Share" button.
-    await demoA.click(row.locator('a[href*="/building/"]').first());
+    await demoA.click(row.locator('a[href*="/building?"]').first());
     const shareButton = stageA.getByRole("button", { name: "Share", exact: true });
     await expect(shareButton).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});

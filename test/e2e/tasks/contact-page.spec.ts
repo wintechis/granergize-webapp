@@ -9,6 +9,7 @@ import {
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
+import { contactRoute } from "../../../src/routes.ts";
 
 /**
  * Redesign e2e — the contact (agent) detail page (`/contact/:webId`), rebuilt to
@@ -28,9 +29,6 @@ const ACC = account("A");
 const ADDR = "Contact Page E2E Strasse 1";
 const OP_WEBID = "https://contact-page-e2e.example/profile/card#OpAgent";
 const OP_FRAGMENT = "OpAgent"; // the contact page shows the IRI fragment as the name
-
-/** Hash route to an agent's contact detail page. */
-const contactRoute = (webId: string) => `/contact/${encodeURIComponent(webId)}`;
 
 test.describe.configure({ mode: "serial" });
 
@@ -78,7 +76,7 @@ test.describe("redesign: contact page", () => {
     const buildingLink = page.getByRole("link", { name: /Contact Page E2E/ });
     await expect(buildingLink).toBeVisible({ timeout: T.action });
     await buildingLink.click();
-    await expect(page).toHaveURL(/\/building\//, { timeout: T.action });
+    await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
 
     // Cleanup: delete the throwaway building from the Buildings list.
     await page.goto("/");

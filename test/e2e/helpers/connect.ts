@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { T } from "./timeouts.ts";
+import { roomRoute } from "../../../src/routes.ts";
 
 /**
  * Room/role helpers, shared by the cross-Pod specs (`share-building`,
@@ -8,21 +9,17 @@ import { T } from "./timeouts.ts";
  * Hosting and the room *list* are Rooms-finder actions (the redesign split the
  * old Connect tab into the Rooms and Contacts finders); per-room detail —
  * entering, roles, members, the invite QR — lives on the standalone room page
- * (`/room/<encoded room URI>`). So `hostRoomAndGetUri` stays on the Rooms finder,
+ * (`/room?uri=<room URI>`). So `hostRoomAndGetUri` stays on the Rooms finder,
  * while `assignUserRole` drives the room page; navigating to a room page enters
- * it (the page calls `openRoom` on mount).
+ * it (the page calls `openRoom` on mount). Room detail URLs come from the app's
+ * own `roomRoute` builder (`/room?uri=<encoded room URI>` — a room URI is absolute).
  */
-
-/** Real-path route to a room's detail page (mirrors manage.ts's `buildingRoute`). */
-function roomRoute(roomUri: string): string {
-  return `/room/${encodeURIComponent(roomUri)}`;
-}
 
 /** Open the Rooms finder (`/rooms`). The room detail page is a STANDALONE route
  * with no app-shell tabs, so first land on the shell when we're on a room page —
  * clicking the Rooms tab directly from there would never find the tab. */
 async function gotoRooms(page: Page): Promise<void> {
-  if (/\/room\//.test(page.url())) await page.goto("/rooms");
+  if (/\/room\?/.test(page.url())) await page.goto("/rooms");
   await page.getByRole("tab", { name: "Meet" }).click();
 }
 
@@ -46,7 +43,7 @@ export async function hostRoomAndGetUri(page: Page): Promise<string> {
   if (!(await roomLink.count())) {
     await page.getByRole("button", { name: /host a data room/i }).click();
     // Hosting navigates to the new room's page; go back to Connect to read it.
-    await expect(page).toHaveURL(/\/room\//, { timeout: T.action });
+    await expect(page).toHaveURL(/\/room\?/, { timeout: T.action });
     await gotoRooms(page);
     await expect(roomLink).toBeVisible({ timeout: T.action });
   }

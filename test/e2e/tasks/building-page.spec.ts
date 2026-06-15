@@ -74,7 +74,7 @@ test.describe("redesign: building page", () => {
     // The Energy section is minimal here and links to /observation/:id for full charts.
     await page.getByRole("link", { name: /energy|observation|details?/i })
       .first().click();
-    await expect(page).toHaveURL(/\/observation\//, { timeout: T.action });
+    await expect(page).toHaveURL(/\/observation\?/, { timeout: T.action });
     await expect(page.getByRole("button", { name: "Edit energy years" }))
       .toBeVisible();
   });
@@ -86,7 +86,7 @@ test.describe("redesign: building page", () => {
     const row = page.locator(`li[data-building-id="${id}"]`);
     await expect(row).toBeVisible({ timeout: T.action });
     await row.getByRole("link").first().click();
-    await expect(page).toHaveURL(/\/building\//, { timeout: T.action });
+    await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
     await expect(page.getByRole("heading", { name: "Files" })).toBeVisible();
   });
 

@@ -17,6 +17,7 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType } from "../types.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
+import { buildingRoute } from "../routes.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { useSharedBuildings, useSolidData } from "../hooks/queries.ts";
@@ -240,7 +241,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                         title={
                           <>
                             <RefLink
-                              to={`/building/${encodeURIComponent(b.id)}`}
+                              to={buildingRoute(b.id)}
                             >
                               <strong>{name}</strong>
                             </RefLink>

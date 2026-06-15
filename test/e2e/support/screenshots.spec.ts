@@ -218,7 +218,7 @@ test.describe("handbuch screenshots", () => {
     }
     // Landed on the standalone room page (no app-shell tabs): the roles section
     // appears once membership has folded.
-    await expect(page).toHaveURL(/\/room\//, { timeout: 30_000 });
+    await expect(page).toHaveURL(/\/room\?/, { timeout: 30_000 });
     // Assign the User role (MUI multi-select: open, tick, close, save).
     const roleSelect = page.getByRole("combobox", { name: "My role(s)" });
     await expect(roleSelect).toBeVisible({ timeout: 30_000 });
@@ -663,7 +663,7 @@ test.describe("handbuch screenshots", () => {
         await waitForMapTiles(b.page);
         await b.page.waitForTimeout(1500); // let markers/logos settle
         await sharedMarker.click();
-        await b.page.waitForURL(/\/building\//, { timeout: 60_000 });
+        await b.page.waitForURL(/\/building\?/, { timeout: 60_000 });
         await b.page.waitForLoadState("networkidle").catch(() => {});
         await b.page.waitForTimeout(800);
         await b.page.evaluate(() => globalThis.scrollTo(0, 0));

@@ -1,5 +1,6 @@
 import { Avatar, Box, Chip, type ChipProps } from "@mui/material";
 import { useResolveAgent } from "../hooks/queries.ts";
+import { contactRoute } from "../routes.ts";
 import { RefLink } from "./detail/DetailView.tsx";
 
 /**
@@ -35,7 +36,7 @@ export function AgentLabel({ value }: { value: string }) {
       >
         {avatarUrl ? null : initials(name)}
       </Avatar>
-      <RefLink to={`/contact/${encodeURIComponent(value)}`}>{name}</RefLink>
+      <RefLink to={contactRoute(value)}>{name}</RefLink>
     </Box>
   );
 }

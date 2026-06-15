@@ -135,18 +135,20 @@ test.describe("URI-encoded navigational state survives reload", () => {
     await page.getByRole("button", { name: "Map" }).click();
 
     // The map is a pure finder: clicking the (only) marker NAVIGATES to the
-    // building's standalone page — a real route (`/building/:id`).
+    // building's standalone page — a real route (`/building?ref=<id>`; an own
+    // building's id is storage-relative, so it rides in `?ref=`).
     const marker = page.locator(".leaflet-marker-icon").first();
     await expect(marker).toBeVisible({ timeout: T.action });
     await marker.click({ force: true });
-    await page.waitForURL(/\/building\//, { timeout: T.action });
-    expect(page.url()).toContain(`/building/${encodeURIComponent(id)}`);
+    await page.waitForURL(/\/building\?/, { timeout: T.action });
+    expect(page.url()).toContain(`/building?ref=${encodeURIComponent(id)}`);
 
-    // The route is a genuine path, so a reload restores it (the silent-redirect
-    // restore that the standalone routes depend on — see notes/ui-state.md).
+    // The route is a genuine path + query, so a reload restores it (the
+    // silent-redirect restore that the standalone routes depend on must preserve
+    // the query string — see notes/ui-state.md).
     await page.reload();
-    await expect(page).toHaveURL(/\/building\//, { timeout: T.action });
-    expect(page.url()).toContain(`/building/${encodeURIComponent(id)}`);
+    await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
+    expect(page.url()).toContain(`/building?ref=${encodeURIComponent(id)}`);
   });
 
   test("the Map ⇄ List view is restored from the URL after reload", async () => {

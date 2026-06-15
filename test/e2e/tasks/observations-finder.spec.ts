@@ -68,7 +68,7 @@ test.describe("redesign: observations finder", () => {
     // The row reads out the year(s) and opens the observation detail page.
     await expect(row.getByText(new RegExp(YEAR))).toBeVisible();
     await row.getByRole("link").first().click();
-    await expect(page).toHaveURL(/\/observation\//, { timeout: T.action });
+    await expect(page).toHaveURL(/\/observation\?/, { timeout: T.action });
 
     // Cleanup: delete the throwaway building from the Buildings list.
     await page.goto("/");

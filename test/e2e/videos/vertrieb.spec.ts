@@ -153,7 +153,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     await demoA.click(stageA.getByRole("tab", { name: "Buildings" }));
     await demoA.click(stageA.getByRole("button", { name: "List" }));
     await expect(row).toBeVisible({ timeout: 60_000 });
-    await demoA.click(row.locator('a[href*="/building/"]').first());
+    await demoA.click(row.locator('a[href*="/building?"]').first());
     const shareButton = stageA.getByRole("button", { name: "Share", exact: true });
     await expect(shareButton).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
@@ -249,7 +249,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
       "payoff",
       "B liest A's Gebäude- und Energiedaten live aus A's Pod",
     );
-    await stageB.waitForURL(/\/building\//, { timeout: 60_000 });
+    await stageB.waitForURL(/\/building\?/, { timeout: 60_000 });
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await demoB.pause(2_000);
     await demoB.caption(

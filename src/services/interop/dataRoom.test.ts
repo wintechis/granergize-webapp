@@ -351,11 +351,16 @@ Deno.test("extractRoomUri parses raw URIs and app invite links", () => {
     extractRoomUri("https://alice.example/granergize/rooms/r1"),
     room,
   );
-  // An invite link (<app root>/room/<encoded>) yields the decoded container URL.
-  const link = `https://app.example/granergize/room/${
+  // An invite link (<app root>/room?uri=<encoded>) yields the decoded container URL.
+  const link = `https://app.example/granergize/room?uri=${
     encodeURIComponent(room)
   }`;
   assertEquals(extractRoomUri(link), room);
+  // A `?ref=` variant is tolerated as a fallback.
+  const refLink = `https://app.example/granergize/room?ref=${
+    encodeURIComponent(room)
+  }`;
+  assertEquals(extractRoomUri(refLink), room);
 });
 
 Deno.test("openRoom validates, joins, and reports reachability", async () => {

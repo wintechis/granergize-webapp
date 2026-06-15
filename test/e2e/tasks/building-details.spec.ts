@@ -90,7 +90,7 @@ test.describe("building details", () => {
     expect(id, "the new building's id on Manage").toBeTruthy();
 
     // --- view the building: the operator renders as a link to its in-app contact
-    // detail view (/contact/:webId), labelled by the agent's name — the WebID's
+    // detail view (/contact?uri=<webid>), labelled by the agent's name — the WebID's
     // #fragment until a profile name resolves (AgentLabel → RefLink) ---
     await page.goto(buildingRoute("building", id));
     const opLink = page.locator(`a[href$="${encodeURIComponent(OP_WEBID)}"]`);
@@ -101,7 +101,7 @@ test.describe("building details", () => {
     // deploy base doesn't break it.
     await expect(opLink).toHaveAttribute(
       "href",
-      new RegExp(`/contact/${escapeRegExp(encodeURIComponent(OP_WEBID))}$`),
+      new RegExp(`/contact\\?uri=${escapeRegExp(encodeURIComponent(OP_WEBID))}$`),
     );
 
     // --- self-clean: delete the throwaway building ---

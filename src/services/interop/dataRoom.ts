@@ -252,14 +252,14 @@ export async function roomExists(
 
 /**
  * Extract a room container IRI from either a raw room URI or an app invite link
- * of the form `<app root>/room/<url-encoded-room-uri>` (what the room QR encodes
- * under BrowserRouter real-path routing). Returns the normalized container IRI.
- * The `#` before `/room/` is optional so the parse is robust regardless of the
- * routing mechanism.
+ * of the form `<app root>/room?uri=<url-encoded-room-uri>` (what the room QR
+ * encodes under BrowserRouter real-path routing; a room id is always absolute, so
+ * `?uri=` — `?ref=` is tolerated as a fallback). Returns the normalized container
+ * IRI. A bare room URI (no `/room?` prefix) is normalized as-is.
  */
 export function extractRoomUri(input: string): string {
   const trimmed = input.trim();
-  const match = trimmed.match(/\/room\/([^?&#]+)/);
+  const match = trimmed.match(/\/room\?(?:uri|ref)=([^&#]+)/);
   return normalizeRoomUri(match ? decodeURIComponent(match[1]) : trimmed);
 }
 

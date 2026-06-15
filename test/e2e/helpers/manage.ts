@@ -1,6 +1,10 @@
 import { expect, type Locator, type Page } from "@playwright/test";
 import { T } from "./timeouts.ts";
 import { confirmDialog } from "./confirm.ts";
+import {
+  buildingRoute as appBuildingRoute,
+  observationRoute as appObservationRoute,
+} from "../../../src/routes.ts";
 
 /**
  * Manage-tab building/aggregation helpers shared across the building/excel/sharing specs
@@ -49,18 +53,19 @@ export async function openAggregations(page: Page): Promise<void> {
 }
 
 /**
- * Real-path route to a building's standalone page (BrowserRouter). The id is an
- * IRI reference (contains `/` and `#`), so it MUST be URL-encoded — a raw `#`/`/`
- * would break the path segment. Every spec goto goes through this, never
- * hand-built paths. Accepts `null` (getAttribute's type) and fails LOUDLY instead
- * of routing to the literal string "null".
+ * Real-path route to a building's standalone page (BrowserRouter). The id rides in
+ * a query param — `?ref=` for a storage-relative (own) id, `?uri=` for an absolute
+ * (foreign/shared) IRI — via the app's own route builders, so a raw `#`/`/` in the
+ * id can't truncate the path and the harness can't drift from the app grammar.
+ * Every spec goto goes through this, never hand-built paths. Accepts `null`
+ * (getAttribute's type) and fails LOUDLY instead of routing to the literal "null".
  */
 export function buildingRoute(
   kind: "building" | "observation",
   id: string | null,
 ): string {
   if (!id) throw new Error(`buildingRoute(${kind}): missing building id`);
-  return `/${kind}/${encodeURIComponent(id)}`;
+  return kind === "observation" ? appObservationRoute(id) : appBuildingRoute(id);
 }
 
 /**

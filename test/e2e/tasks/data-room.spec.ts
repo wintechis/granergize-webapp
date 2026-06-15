@@ -4,6 +4,7 @@ import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { T } from "../helpers/timeouts.ts";
+import { roomRoute } from "../../../src/routes.ts";
 
 /**
  * Data-room lifecycle, single account (a THROWAWAY Solid Pod — never a real
@@ -28,9 +29,6 @@ const A = account("A"); // Alice — solo specs use one account
 // Each room mutation does a Pod write + a re-read of the room log; on the
 // throttled shared pod that can be slow, so allow a generous settle window.
 const SETTLE = T.action;
-
-/** Hash route to a room's detail page. */
-const roomRoute = (uri: string) => `/room/${encodeURIComponent(uri)}`;
 
 test.describe.configure({ mode: "serial" });
 
@@ -79,7 +77,7 @@ test.describe("data rooms", () => {
    * with no app-shell tabs, so first land on the shell — clicking the Rooms tab
    * directly from a room page would never find the tab. */
   async function openConnect() {
-    if (/\/room\//.test(page.url())) await page.goto("/rooms");
+    if (/\/room\?/.test(page.url())) await page.goto("/rooms");
     await page.getByRole("tab", { name: "Meet" }).click();
   }
 
@@ -94,7 +92,7 @@ test.describe("data rooms", () => {
     await page.getByRole("button", { name: /host a data room/i }).click();
     // Hosting lands on the new room's STANDALONE detail page (no app-shell tabs);
     // return to the shell before reading the Connect list.
-    await expect(page).toHaveURL(/\/room\//, { timeout: SETTLE });
+    await expect(page).toHaveURL(/\/room\?/, { timeout: SETTLE });
     await openConnect();
     let uri = "";
     await expect(async () => {
@@ -145,7 +143,7 @@ test.describe("data rooms", () => {
     // (the durable signal). The room itself persists (we still host it) — clean
     // it up by deleting from its Connect row.
     await page.getByRole("button", { name: /^leave$/i }).click();
-    await expect(page).not.toHaveURL(/\/room\//, { timeout: SETTLE });
+    await expect(page).not.toHaveURL(/\/room\?/, { timeout: SETTLE });
 
     await deleteRoom(uri);
   });

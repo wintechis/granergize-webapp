@@ -1,4 +1,4 @@
-import { useParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useBackNavigation } from "../hooks/backNavigation.ts";
 import {
   Box,
@@ -33,7 +33,11 @@ interface AggregationProps {
  * composition.
  */
 export default function Aggregation({ session }: AggregationProps) {
-  const { id: aggregationId } = useParams<{ id: string }>();
+  // The aggregation reference is a query param now (`?ref=` relative / `?uri=`
+  // absolute), not a path segment — matching the building/observation routes.
+  const [searchParams] = useSearchParams();
+  const aggregationId = searchParams.get("uri") ?? searchParams.get("ref") ??
+    undefined;
   // Back = the in-app location the user came from (Manage, Share, …), falling
   // back to the overview for a deep link — see useBackNavigation.
   const goBack = useBackNavigation();
@@ -71,7 +75,7 @@ export default function Aggregation({ session }: AggregationProps) {
 
   if (detail.isError) {
     return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
         <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
           Back
         </Button>
@@ -84,7 +88,7 @@ export default function Aggregation({ session }: AggregationProps) {
 
   if (!definition) {
     return (
-      <Container maxWidth="md" sx={{ py: 4 }}>
+      <Container maxWidth="lg" sx={{ py: 4 }}>
         <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
           Back
         </Button>
@@ -94,7 +98,7 @@ export default function Aggregation({ session }: AggregationProps) {
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 4 }}>
+    <Container maxWidth="lg" sx={{ py: 4 }}>
       <Stack spacing={3} divider={<Divider />}>
         <AggregationHeader definition={definition} />
         <AggregationDetailsSection definition={definition} snapshot={snapshot} />

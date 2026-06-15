@@ -83,7 +83,7 @@ test.describe("room-render benchmark", () => {
       const activeRow = page.locator("li", { hasText: /active/ }).first();
       await expect(activeRow).toBeVisible({ timeout: 120_000 });
       await activeRow.getByRole("link").first().click();
-      await expect(page).toHaveURL(/\/room\//, { timeout: 30_000 });
+      await expect(page).toHaveURL(/\/room\?/, { timeout: 30_000 });
       await expect(memberRows(page)).toHaveCount(n, { timeout: 120_000 });
       const ms = Date.now() - t0;
 

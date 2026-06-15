@@ -39,6 +39,7 @@ import { formatNumber } from "../lib/formatNumber.ts";
 import { downloadXlsx } from "../lib/download.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
+import { buildingRoute } from "../routes.ts";
 import {
   RdfSourceLink,
   RefLink,
@@ -320,7 +321,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
                     {resolvableId
                       ? (
                         <RefLink
-                          to={`/building/${encodeURIComponent(resolvableId)}`}
+                          to={buildingRoute(resolvableId)}
                         >
                           Building {building.buildingId}
                         </RefLink>

@@ -167,10 +167,11 @@ test.describe("peer benchmark round-trip (BSP)", () => {
 
       await a2.page.goto(buildingRoute("observation", id));
       try {
-        // The Benchmark column header is always present; the provenance caption
-        // appears only once a benchmark has actually been received.
+        // The consolidated annual table carries comparisons as ROWS now (not
+        // columns): the received service-provider benchmark shows as a "Benchmark"
+        // row, and the provenance caption names the provider once one is received.
         await expect(
-          a2.page.getByRole("columnheader", { name: /benchmark kwh/i }).first(),
+          a2.page.getByRole("row").filter({ hasText: "Benchmark" }).first(),
         ).toBeVisible({ timeout: T.action });
         await expect(a2.page.getByText(/benchmark provided by/i))
           .toBeVisible({ timeout: T.action });

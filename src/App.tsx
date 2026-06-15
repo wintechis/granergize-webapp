@@ -1,5 +1,5 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { Navigate, useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import {
   getStorageRoot,
@@ -52,7 +52,11 @@ function useBuildingParam(): {
   isLoading: boolean;
   error: string | null;
 } {
-  const { selectedBuilding = "" } = useParams();
+  // The id rides in a query param: `?ref=` (own, storage-relative) or `?uri=`
+  // (foreign/shared, absolute). It comes back in the SAME form the app stores
+  // building ids in, so the id-equality match below is unchanged.
+  const [sp] = useSearchParams();
+  const selectedBuilding = sp.get("uri") ?? sp.get("ref") ?? "";
   const { buildings, isLoading, error } = useSolidData();
   const building =
     buildings.find((b) => b.id === selectedBuilding) ?? null;
@@ -106,7 +110,7 @@ function BuildingWrapper() {
   return (
     <BuildingRouteGuard>
       {(building) => (
-        <Container maxWidth="md" sx={{ py: 3 }}>
+        <Container maxWidth="lg" sx={{ py: 3 }}>
           <Building
             building={building}
             onHide={() => navigate(-1)}
@@ -120,7 +124,14 @@ function BuildingWrapper() {
 function EnergyWrapper() {
   return (
     <BuildingRouteGuard>
-      {(building) => <Energy building={building} />}
+      {(building) => (
+        // Same md-width container as the other detail pages (building / contact /
+        // room wrappers, and Aggregation's own) so the observation page doesn't
+        // sprawl full-width.
+        <Container maxWidth="lg" sx={{ py: 3 }}>
+          <Energy building={building} />
+        </Container>
+      )}
     </BuildingRouteGuard>
   );
 }
@@ -129,32 +140,40 @@ function AggregationWrapper({ session }: { session: Session }) {
   return <Aggregation session={session} />;
 }
 
-/** Resolve the `:webId` route param (URL-encoded) and render the agent detail view. */
+/** Resolve the `?uri=` WebID query param and render the agent detail view. */
 function ContactWrapper() {
-  const { webId = "" } = useParams();
+  const [sp] = useSearchParams();
+  const webId = sp.get("uri") ?? "";
   if (!webId) {
     return <Typography>No agent specified.</Typography>;
   }
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
-      <Contact webId={decodeURIComponent(webId)} />
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      <Contact webId={webId} />
     </Container>
   );
 }
 
 /**
- * Resolve the `:roomUri` route param (URL-encoded) and render the standalone
- * room detail page. The room page opens (joins + enters) the linked room on
- * mount — this is what the room QR code / invite link points at.
+ * Resolve the room query param and render the standalone room detail page. The
+ * room page opens (joins + enters) the linked room on mount — this is what the
+ * room QR code / invite link points at.
+ *
+ * Room ids are always stored/handled as ABSOLUTE container IRIs (they're
+ * `normalizeRoomUri`-d everywhere; bookmarks hold the absolute URI; `ownsRoom`
+ * tests `startsWith(storageRoot)`), so an invite link carries the room in
+ * `?uri=`. `?ref=` is accepted as a fallback and passed through — `Room` /
+ * `useEnterRoom` apply `extractRoomUri`/`normalizeRoomUri` to whatever arrives.
  */
 function RoomWrapper({ session }: { session: Session }) {
-  const { roomUri = "" } = useParams();
+  const [sp] = useSearchParams();
+  const roomUri = sp.get("uri") ?? sp.get("ref") ?? "";
   if (!roomUri) {
     return <Typography>No data room specified.</Typography>;
   }
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
-      <Room roomUri={decodeURIComponent(roomUri)} session={session} />
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      <Room roomUri={roomUri} session={session} />
     </Container>
   );
 }
@@ -239,15 +258,14 @@ function App({ onLogout, session }: AppProps) {
   }
 
   // Standalone DETAIL routes — rendered shell-less (no top-nav), as siblings of
-  // the finder shell. The observation + aggregation detail have adopted the
-  // routes.ts grammar (`/observation/:id`, `/aggregation/:id`); the remaining
-  // building/contact/room renames belong to later lanes.
+  // the finder shell. Each is a bare path (`/building`, `/observation`, …); the
+  // resource id rides in a `?ref=`/`?uri=` query param resolved by the wrappers.
   const detailRoutes: { path: string; element: ReactNode }[] = [
-    { path: "/building/:selectedBuilding", element: <BuildingWrapper /> },
-    { path: "/observation/:selectedBuilding", element: <EnergyWrapper /> },
+    { path: DETAIL_PATTERNS.building, element: <BuildingWrapper /> },
+    { path: DETAIL_PATTERNS.observation, element: <EnergyWrapper /> },
     { path: DETAIL_PATTERNS.aggregation, element: <AggregationWrapper session={session} /> },
-    { path: "/contact/:webId", element: <ContactWrapper /> },
-    { path: "/room/:roomUri", element: <RoomWrapper session={session} /> },
+    { path: DETAIL_PATTERNS.contact, element: <ContactWrapper /> },
+    { path: DETAIL_PATTERNS.room, element: <RoomWrapper session={session} /> },
   ];
 
   // The five FINDER routes share the persistent app chrome (top-nav + header):

@@ -102,7 +102,7 @@ test.describe("sharing across two pods", () => {
         // absolute subject IRI), so following it lands on /building/<id> and the
         // header shows the "Shared with you" ownership chip.
         await received.getByRole("link", { name: /^Building / }).first().click();
-        await expect(b2.page).toHaveURL(/\/building\//);
+        await expect(b2.page).toHaveURL(/\/building\?/);
         await expect(b2.page.getByText("Shared with you"))
           .toBeVisible({ timeout: T.action });
       } finally {
@@ -328,14 +328,15 @@ test.describe("sharing across two pods", () => {
         });
 
         // The map is a pure finder now: a marker click NAVIGATES to the shared
-        // building's page (`/building/:id`). B owns no buildings, so the shared
-        // one is the only marker — click it and capture the id from the URL, then
-        // open its observation page (the AnnualEnergy per-year table lives there).
+        // building's page (`/building?uri=<id>` — a shared id is absolute, so it
+        // rides in `?uri=`). B owns no buildings, so the shared one is the only
+        // marker — click it and capture the id from the URL query, then open its
+        // observation page (the AnnualEnergy per-year table lives there).
         await markers.first().click({ force: true });
-        await b2.page.waitForURL(/\/building\//, { timeout: T.action });
-        const sharedId = decodeURIComponent(
-          b2.page.url().split("/building/")[1] ?? "",
-        );
+        await b2.page.waitForURL(/\/building\?/, { timeout: T.action });
+        const sharedId =
+          new URL(b2.page.url()).searchParams.get("uri") ??
+            new URL(b2.page.url()).searchParams.get("ref") ?? "";
         expect(sharedId, "the shared building's id").toBeTruthy();
         await b2.page.goto(buildingRoute("observation", sharedId));
 
