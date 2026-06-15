@@ -3,7 +3,7 @@ import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-import { useLocation } from "react-router-dom";
+import { useLocation, useSearchParams } from "react-router-dom";
 import {
   Button,
   Stack,
@@ -61,7 +61,20 @@ interface BuildingsFinderProps {
  * (`/aggregations`) now, not a section here.
  */
 export default function BuildingsFinder({ session }: BuildingsFinderProps) {
-  const [buildingsView, setBuildingsView] = useState<"map" | "list">("map");
+  // The Map ⇄ List view is URL state (`?view=list`; Map is the default → implicit),
+  // so a reload/share/Back keeps the chosen view. Map and List carry their own
+  // orthogonal params (the map's ?c=&z=, the list's ?offset=).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const buildingsView: "map" | "list" =
+    searchParams.get("view") === "list" ? "list" : "map";
+  const setBuildingsView = (next: "map" | "list") => {
+    setSearchParams((prev) => {
+      const sp = new URLSearchParams(prev);
+      if (next === "map") sp.delete("view");
+      else sp.set("view", "list");
+      return sp;
+    });
+  };
   // The finder only renders on /buildings (the shell unmounts it otherwise), so
   // the map is "active" whenever Map is the chosen view; the pathname guard keeps
   // the prop honest even if a parent kept us mounted.

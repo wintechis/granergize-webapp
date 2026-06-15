@@ -128,8 +128,9 @@ test.describe("URI-encoded navigational state survives reload", () => {
 
     await page.goto("/");
     // Buildings tab lands on the Map view (the former Explore) — markers live
-    // here. ensureBuilding left the view on List, and the Map/List toggle is
-    // local (non-URL) state, so select Map explicitly.
+    // here. The Map/List view is URL state (`?view=list`; Map is the implicit
+    // default), and goto("/") drops the query, so we're already on Map; the
+    // explicit toggle is belt-and-suspenders.
     await page.getByRole("tab", { name: "Buildings" }).click();
     await page.getByRole("button", { name: "Map" }).click();
 
@@ -146,6 +147,35 @@ test.describe("URI-encoded navigational state survives reload", () => {
     await page.reload();
     await expect(page).toHaveURL(/\/building\//, { timeout: T.action });
     expect(page.url()).toContain(`/building/${encodeURIComponent(id)}`);
+  });
+
+  test("the Map ⇄ List view is restored from the URL after reload", async () => {
+    test.setTimeout(T.testSolo);
+    if (!id) id = await ensureBuilding(page);
+    await page.goto("/buildings");
+    // List is URL state now (?view=list) — switching writes it.
+    await page.getByRole("button", { name: "List" }).click();
+    await expect(page).toHaveURL(/view=list/, { timeout: T.action });
+    await expect(page.getByRole("heading", { name: "Your buildings" }))
+      .toBeVisible({ timeout: T.action });
+    // A genuine reload restores List — not the default Map.
+    await page.reload();
+    await expect(page).toHaveURL(/view=list/, { timeout: T.action });
+    await expect(page.getByRole("heading", { name: "Your buildings" }))
+      .toBeVisible({ timeout: T.action });
+  });
+
+  test("the map viewport (centre+zoom) is written to the URL", async () => {
+    test.setTimeout(T.testSolo);
+    if (!id) id = await ensureBuilding(page);
+    // Map is the default view; with a located building the map auto-frames it,
+    // and that settle writes the centre+zoom to the URL — so the view is
+    // shareable and a later Back restores it (`?c=<lat>,<lng>&z=<zoom>`).
+    await page.goto("/buildings");
+    await expect(page.locator(".leaflet-marker-icon").first())
+      .toBeVisible({ timeout: T.action });
+    await expect(page).toHaveURL(/[?&]c=/, { timeout: T.action });
+    await expect(page).toHaveURL(/[?&]z=/, { timeout: T.action });
   });
 
   test("a cold deep-link opens the observation page (incl. its Weather section)", async () => {

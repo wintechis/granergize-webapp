@@ -1,6 +1,6 @@
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { buildingRoute } from "../routes.ts";
 import { BuildingType, EnergyType } from "../types.ts";
 import {
@@ -261,8 +261,16 @@ function FitToBuildings(
 ) {
   const map = useMap();
   const done = useRef(false);
+  const [searchParams] = useSearchParams();
   useEffect(() => {
     if (done.current || !active) return;
+    // A viewport in the URL (?c=&z=) wins over the auto-fit — a shared or
+    // back-restored map view shouldn't be reframed to the markers. ViewportUrlSync
+    // applies it; we just stand down.
+    if (searchParams.get("c") && searchParams.get("z")) {
+      done.current = true;
+      return;
+    }
     const pts = buildings
       .filter((b) => b.lat != null && b.long != null)
       .map((b) => [b.lat as number, b.long as number] as [number, number]);
@@ -270,7 +278,50 @@ function FitToBuildings(
     done.current = true;
     // Defer so it runs after invalidateSize() has corrected the container size.
     setTimeout(() => map.fitBounds(L.latLngBounds(pts), { padding: [40, 40] }), 0);
-  }, [active, buildings, map]);
+  }, [active, buildings, map, searchParams]);
+  return null;
+}
+
+/** Write the map's centre+zoom to the URL (`?c=<lat>,<lng>&z=<zoom>`), REPLACE so
+ * panning doesn't spam history (a later navigation still captures the latest view). */
+function writeViewport(
+  map: L.Map,
+  setSearchParams: ReturnType<typeof useSearchParams>[1],
+) {
+  const c = map.getCenter();
+  setSearchParams((prev) => {
+    const sp = new URLSearchParams(prev);
+    sp.set("c", `${c.lat.toFixed(5)},${c.lng.toFixed(5)}`);
+    sp.set("z", String(Math.round(map.getZoom() * 100) / 100));
+    return sp;
+  }, { replace: true });
+}
+
+/**
+ * Two-way sync of the map viewport with the URL. On mount, a viewport present in
+ * the URL (`?c=&z=`) is applied once (so a shared link / Back restores the exact
+ * view, ahead of FitToBuildings). On every pan/zoom settle the current view is
+ * written back. Makes the map a real, bookmarkable URI.
+ */
+function ViewportUrlSync() {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const map = useMapEvents({
+    moveend: () => writeViewport(map, setSearchParams),
+    zoomend: () => writeViewport(map, setSearchParams),
+  });
+  const applied = useRef(false);
+  useEffect(() => {
+    if (applied.current) return;
+    applied.current = true; // apply at most once (and never re-fire on our own write)
+    const c = searchParams.get("c");
+    const z = searchParams.get("z");
+    if (!c || !z) return;
+    const [lat, lng] = c.split(",").map(Number);
+    const zoom = Number(z);
+    if ([lat, lng, zoom].every(Number.isFinite)) {
+      setTimeout(() => map.setView([lat, lng], zoom), 0);
+    }
+  }, [map, searchParams]);
   return null;
 }
 
@@ -421,6 +472,7 @@ export default function ExplorePage(
         />
         <InvalidateOnActive active={active} />
         <FitToBuildings active={active} buildings={buildings} />
+        <ViewportUrlSync />
         <BoundsWatcher active={active} onChange={setBbox} />
         {buildings.map((building) => (
           building.lat != null && building.long != null && (
