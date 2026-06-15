@@ -1,11 +1,6 @@
-import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { BuildingType, EnergyType } from "../types.ts";
 import {
   Box,
-  Card,
-  CardContent,
-  CardHeader,
-  Container,
   Divider,
   Paper,
   Stack,
@@ -18,12 +13,11 @@ import {
   Typography,
 } from "@mui/material";
 import { alpha } from "@mui/material/styles";
-import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import { useReceivedBenchmarks, useSolidData } from "../hooks/queries.ts";
 import { pickBenchmark } from "../services/aggregation/benchmarkSelector.ts";
 import { annualMetricDesc } from "../constants/annualMetrics.ts";
 import { AgentLabel } from "../components/AgentLabel.tsx";
-import { BackLink, RdfSourceLink } from "../components/detail/DetailView.tsx";
+import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 
@@ -36,7 +30,7 @@ import { splitEnergyDatasets } from "../lib/energyResolution.ts";
 import EnergyResolutionSwitch from "../components/EnergyResolutionSwitch.tsx";
 import SeriesEnergy from "./SeriesEnergy.tsx";
 import { formatNumber } from "../lib/formatNumber.ts";
-import EnergyEntryButton from "../components/observation/EnergyEntryButton.tsx";
+import ObservationHeader from "../components/observation/ObservationHeader.tsx";
 
 type EnergyProps = {
   selectedBuilding: string;
@@ -77,27 +71,20 @@ export default function Energy(
   const { series } = splitEnergyDatasets(building.energyDatasets);
 
   if (!energy && series.length === 0) {
-    // No energy yet. The entry point moved off the finder row to this page, so
-    // the owner must still be able to add the first year here (the building page
-    // links here for exactly that). A building shared with the user is read-only
-    // — it only gets the no-access note.
-    return building.isShared
-      ? (
-        <Typography>
-          No energy data available for this building. You may not have access to
-          this data.
+    // No energy yet — still the full detail page (header + back link); the
+    // header carries the owner's "Edit energy years" action (the entry point
+    // moved off the finder row to this page). A building shared with the user is
+    // read-only, so it only gets the no-access note.
+    return (
+      <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
+        <ObservationHeader building={building} />
+        <Typography color="text.secondary">
+          {building.isShared
+            ? "No energy data available for this building. You may not have access to this data."
+            : "No energy data yet. Use the “Edit energy years” button above to add a year."}
         </Typography>
-      )
-      : (
-        <Stack spacing={2}>
-          <Box sx={{ alignSelf: "flex-start" }}>
-            <EnergyEntryButton building={building} />
-          </Box>
-          <Typography color="text.secondary">
-            No energy data yet. Use the “Edit energy years” button to add a year.
-          </Typography>
-        </Stack>
-      );
+      </Stack>
+    );
   }
 
   function sumUpPropValues(obj: Record<string, unknown>): number {
@@ -160,7 +147,7 @@ export default function Energy(
     return (
       <>
         <Typography variant="h6">{toTitleCase(title)}</Typography>
-          <Container>
+          <Box>
             <TableContainer component={Paper}>
               <Table size="small">
                 <TableHead>
@@ -283,66 +270,49 @@ export default function Energy(
               />
             </Box>
             <Divider />
-          </Container>
+          </Box>
       </>
     );
   }
 
   const annualView = energy && (
-    <Card>
-      <CardHeader
-        avatar={<ElectricBoltIcon />}
-        title={
-          <Typography variant="h5">
-            {/* The year the bulk load actually used (latest accessible actual
-                annual year) — plumbed through EnergyType, never hardcoded. */}
-            {`Energy Need for ${buildingDisplayName(building)}${
-              energy.year ? ` in ${energy.year}` : ""
-            }`}
-          </Typography>
-        }
-      />
-      <CardContent>
-        {dev && (
-          <>
-            <RdfSourceLink href={energy.uri} />
-            <Divider />
-          </>
-        )}
-        <Stack spacing={2}>
-          {createEnergyGrid("energyNeed")}
-          {createEnergyGrid("energyGeneration")}
-          {createEnergyGrid("energyStorage")}
-          {createEnergyGrid("energyDistribution")}
-          {createEnergyGrid("energyTransfer")}
-          {createEnergyGrid("energyUsage")}
-          {createEnergyGrid("environmentalFactor")}
-        </Stack>
-        {benchmarkProviders.length > 0 && (
-          <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{ mt: 2, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.5 }}
-          >
-            Benchmark provided by{" "}
-            {benchmarkProviders.map((webId) => (
-              <AgentLabel key={webId} value={webId} />
-            ))}
-          </Typography>
-        )}
-        <BackLink />
-      </CardContent>
-    </Card>
+    <Box>
+      {dev && (
+        <>
+          <RdfSourceLink href={energy.uri} />
+          <Divider />
+        </>
+      )}
+      <Stack spacing={2}>
+        {createEnergyGrid("energyNeed")}
+        {createEnergyGrid("energyGeneration")}
+        {createEnergyGrid("energyStorage")}
+        {createEnergyGrid("energyDistribution")}
+        {createEnergyGrid("energyTransfer")}
+        {createEnergyGrid("energyUsage")}
+        {createEnergyGrid("environmentalFactor")}
+      </Stack>
+      {benchmarkProviders.length > 0 && (
+        <Typography
+          variant="body2"
+          color="text.secondary"
+          sx={{ mt: 2, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.5 }}
+        >
+          Benchmark provided by{" "}
+          {benchmarkProviders.map((webId) => (
+            <AgentLabel key={webId} value={webId} />
+          ))}
+        </Typography>
+      )}
+    </Box>
   );
 
+  // Same master-detail shape as the building / contact / aggregation / room
+  // pages: a header (back link + identity + the owner's energy-entry action) and
+  // a divider-separated stack of sections — here the Annual | Time series view.
   return (
-    <Stack spacing={2}>
-      {/* The energy-year data-entry lives only on this full detail page (the
-          building page keeps energy minimal and links here). Self-hides for a
-          building shared with the user — read-only, not theirs to write. */}
-      <Box sx={{ alignSelf: "flex-start" }}>
-        <EnergyEntryButton building={building} />
-      </Box>
+    <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
+      <ObservationHeader building={building} year={energy?.year} />
       <EnergyResolutionSwitch
         annual={annualView || undefined}
         series={series.length > 0

@@ -535,9 +535,8 @@ test.describe("handbuch screenshots", () => {
       //     route — latest year's figures with the Portfolio / Operator /
       //     Benchmark comparison columns side by side. ---
       await page.goto(buildingRoute("observation", buildingId));
-      await expect(
-        page.getByRole("heading", { name: /Energy Need for / }),
-      ).toBeVisible({ timeout: 60_000 });
+      // (The observation page titles by building name now; the comparison-column
+      // assertion below is the load gate.)
       await expect(
         page.locator("th", { hasText: "Operator average kWh / a" }).first(),
       ).toBeVisible({ timeout: 60_000 });

@@ -77,11 +77,8 @@ test.describe("energy view smoke", () => {
     // loadEnergy + the chart run on the new model (annual aggregate fetched from
     // its own `<year>-P1Y.ttl`, or the series listed from its `<year>-PT15M/`).
     await page.goto(buildingRoute("observation", id));
-    await expect(
-      page.getByRole("heading", {
-        name: /Energy Need for |Electricity Consumption for /,
-      }),
-    ).toBeVisible({ timeout: T.action });
+    // (The observation page titles by building name now; the chart assertion below
+    // is the load gate.)
 
     // …and a chart is actually drawn. The charts are Recharts (SVG, not canvas),
     // so we can assert real chart DOM: the SVG surface plus at least one drawn
@@ -164,9 +161,6 @@ test.describe("energy view smoke", () => {
     // The standalone /energy/:id view (latest annual year) carries the same
     // benchmark as its "Operator average" column.
     await page.goto(buildingRoute("observation", id));
-    await expect(
-      page.getByRole("heading", { name: /Energy Need for / }),
-    ).toBeVisible({ timeout: T.action });
     await expect(
       page.locator("th", { hasText: "Operator average kWh / a" }).first(),
     ).toBeVisible({ timeout: T.action });

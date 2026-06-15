@@ -51,4 +51,5 @@ actions.
 - [peer-benchmark.md](./peer-benchmark.md) — the benchmark-snapshot round-trip back to contributing owners.
 - [attachments.md](./attachments.md) — arbitrary files attached to a building (the energy certificate is one of them).
 - [building-pane.md](./building-pane.md) — what hangs off a building IRI and how the detail pane projects it.
+- [weather.md](./weather.md) — the external, live, read-only DWD weather layer (nearest-station proximity join), outside the Pod data path.
 - [ui-state.md](./ui-state.md) — which UI state is navigational (encoded in the URI hash) vs. ephemeral.

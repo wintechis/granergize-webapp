@@ -133,9 +133,9 @@ test.describe("building details", () => {
     expect(id, "the annual demo building's id").toBeTruthy();
 
     await page.goto(buildingRoute("observation", id));
-    await expect(
-      page.getByRole("heading", { name: /Energy Need for / }),
-    ).toBeVisible({ timeout: T.action });
+    // (The observation page titles by the building name now — the shared
+    // detail-page header — not the old "Energy Need for …" card title; the
+    // comparison-column assertion below is the load gate.)
 
     // The building's own figures sit beside the portfolio-average comparison column
     // (the mean over the user's own buildings). The comparison table repeats a plain
