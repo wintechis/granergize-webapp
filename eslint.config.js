@@ -53,7 +53,7 @@ export default tseslint.config(
       "src/components/NetworkActivityIndicator.tsx", // the one allowed spinner + debug popup
       "src/App.tsx", // full-page route spinners (header not mounted)
       "src/pages/Agent.tsx",
-      "src/pages/AggregatedView.tsx",
+      "src/pages/Aggregation.tsx",
       "src/pages/index.tsx", // lazy-chunk Suspense fallback
     ],
     rules: {

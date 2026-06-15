@@ -1,58 +1,41 @@
-import { type ReactNode, useState } from "react";
-import Modal from "../components/Modal.tsx";
 import { useParams } from "react-router-dom";
 import { useBackNavigation } from "../hooks/backNavigation.ts";
 import {
-  Alert,
   Box,
   Button,
-  Card,
-  CardContent,
-  CardHeader,
   CircularProgress,
   Container,
-  IconButton,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  TextField,
+  Divider,
+  Stack,
   Typography,
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
-import RefreshIcon from "@mui/icons-material/Refresh";
-import ShareIcon from "@mui/icons-material/Share";
-import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { getSnapshotUri } from "../services/aggregation/aggregationManager.ts";
 import { useAggregationDetail } from "../hooks/queries.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
-import {
-  useRefreshAggregation,
-  useShareAggregationSnapshot,
-} from "../hooks/mutations.ts";
-import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
-import { useNotification } from "../context/NotificationContext.tsx";
-import { formatDate, formatDateTime } from "../lib/formatDate.ts";
-import { formatNumber } from "../lib/formatNumber.ts";
-import { formatError } from "../lib/formatError.ts";
-import { annualMetricLabel } from "../constants/annualMetrics.ts";
+import AggregationHeader from "../components/aggregation/AggregationHeader.tsx";
+import AggregationDetailsSection from "../components/aggregation/AggregationDetailsSection.tsx";
+import AggregationResultsSection from "../components/aggregation/AggregationResultsSection.tsx";
+import AggregationSharingSection from "../components/aggregation/AggregationSharingSection.tsx";
 
 interface AggregationProps {
   session: Session;
 }
 
+/**
+ * The AGGREGATION PAGE — a single scrolling column of read-first sections for
+ * one aggregated view: an identity header (back link, name, type badge, Refresh),
+ * its definition details, the computed results (chart + table, or an empty/no-
+ * snapshot state), and the sharing status (who the snapshot is shared with,
+ * revoke, and a Share dialog) — mirroring the building page's master-detail
+ * composition.
+ */
 export default function Aggregation({ session }: AggregationProps) {
   const { id: aggregationId } = useParams<{ id: string }>();
   // Back = the in-app location the user came from (Manage, Share, …), falling
   // back to the overview for a deep link — see useBackNavigation.
   const goBack = useBackNavigation();
-  const { showNotification } = useNotification();
 
-  const [shareDialogOpen, setShareDialogOpen] = useState(false);
-  const [shareWebId, setShareWebId] = useState("");
   // Reads go through the aggregationDetail query (definition + snapshot; a missing
   // snapshot is auto-materialised in the queryFn — see useAggregationDetail), so the
   // navigate-away race is the cache's problem, not this page's: a late /aggregation/A
@@ -61,31 +44,8 @@ export default function Aggregation({ session }: AggregationProps) {
   // aggregationDetail invalidation refetches the query, so no result lands in local
   // state.
   const detail = useAggregationDetail(aggregationId);
-  const aggregationDefinition = detail.data?.definition ?? null;
+  const definition = detail.data?.definition ?? null;
   const snapshot = detail.data?.snapshot ?? null;
-  const refreshMut = useRefreshAggregation();
-  const refreshing = refreshMut.isPending;
-  const shareMut = useShareAggregationSnapshot();
-  const sharing = shareMut.isPending;
-
-  const handleRefresh = () => {
-    if (!aggregationId) return;
-    refreshMut.mutate(aggregationId, {
-      onSuccess: () => showNotification("Snapshot refreshed", "success"),
-    });
-  };
-
-  const handleShare = () => {
-    if (!aggregationId || !shareWebId.trim() || !session.info.webId) return;
-    const snapshotUri = getSnapshotUri(session.info.webId, aggregationId);
-    shareMut.mutate({ snapshotUri, recipients: [shareWebId.trim()] }, {
-      onSuccess: () => {
-        setShareDialogOpen(false);
-        setShareWebId("");
-        showNotification("Aggregation shared successfully", "success");
-      },
-    });
-  };
 
   if (detail.isPending) {
     return (
@@ -104,12 +64,8 @@ export default function Aggregation({ session }: AggregationProps) {
 
   if (detail.isError) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={goBack}
-          sx={{ mb: 2 }}
-        >
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
           Back
         </Button>
         <Typography color="error">
@@ -119,14 +75,10 @@ export default function Aggregation({ session }: AggregationProps) {
     );
   }
 
-  if (!aggregationDefinition) {
+  if (!definition) {
     return (
-      <Container maxWidth="lg" sx={{ py: 4 }}>
-        <Button
-          startIcon={<ArrowBackIcon />}
-          onClick={goBack}
-          sx={{ mb: 2 }}
-        >
+      <Container maxWidth="md" sx={{ py: 4 }}>
+        <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
           Back
         </Button>
         <Typography>Aggregation not found</Typography>
@@ -134,244 +86,18 @@ export default function Aggregation({ session }: AggregationProps) {
     );
   }
 
-  // Human metric labels (with units) from the shared annual-metric schema —
-  // never the raw camelCase identifier.
-  const chartRows = snapshot
-    ? Object.entries(snapshot.values).map(([metric, value]) => ({
-      name: annualMetricLabel(metric),
-      value,
-    }))
-    : [];
-  const aggregationLabel = `${
-    aggregationDefinition.aggregationType.charAt(0).toUpperCase() +
-    aggregationDefinition.aggregationType.slice(1)
-  } Values`;
-
   return (
-    <Container maxWidth="lg" sx={{ py: 4 }}>
-      <Box
-        sx={{
-          display: "flex",
-          alignItems: "center",
-          justifyContent: "space-between",
-          mb: 3,
-        }}
-      >
-        <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-          <IconButton onClick={goBack} aria-label="Back">
-            <ArrowBackIcon />
-          </IconButton>
-          <Typography variant="h5">{aggregationDefinition.name}</Typography>
-        </Box>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          {/* Buttons go disabled while in flight — no inline spinner (the
-              full-page-route spinner exemption covers the PAGE load only). */}
-          <Button
-            variant="outlined"
-            startIcon={<RefreshIcon />}
-            onClick={handleRefresh}
-            disabled={refreshing}
-          >
-            {refreshing ? "Refreshing…" : "Refresh Snapshot"}
-          </Button>
-          <Button
-            variant="contained"
-            startIcon={<ShareIcon />}
-            onClick={() => setShareDialogOpen(true)}
-          >
-            Share
-          </Button>
-        </Box>
-      </Box>
-
-      <Card sx={{ mb: 3 }}>
-        <CardHeader title="Aggregation details" />
-        <CardContent>
-          <Box
-            component="dl"
-            sx={{
-              display: "grid",
-              gridTemplateColumns: "repeat(auto-fit, minmax(200px, 1fr))",
-              gap: 2,
-              m: 0,
-            }}
-          >
-            {(
-              [
-                [
-                  "Aggregation Type",
-                  <Box component="span" sx={{ textTransform: "capitalize" }}>
-                    {aggregationDefinition.aggregationType}
-                  </Box>,
-                ],
-                ["Buildings Included", aggregationDefinition.buildingUris.length],
-                ["Metrics", aggregationDefinition.metrics.length],
-                [
-                  "Created",
-                  formatDate(aggregationDefinition.createdAt),
-                ],
-                aggregationDefinition.lastComputedAt && [
-                  "Last Computed",
-                  formatDateTime(aggregationDefinition.lastComputedAt),
-                ],
-                aggregationDefinition.period && [
-                  "Period",
-                  new Date(`${aggregationDefinition.period}-01`).toLocaleString(
-                    "default",
-                    { month: "long", year: "numeric" },
-                  ),
-                ],
-                snapshot && ["Buildings in Snapshot", snapshot.buildingCount],
-              ].filter(Boolean) as [string, ReactNode][]
-            ).map(([label, value]) => (
-              <div key={label}>
-                <Typography component="dt" variant="body2" color="textSecondary">
-                  {label}
-                </Typography>
-                <Typography component="dd" variant="body1" sx={{ m: 0 }}>
-                  {value}
-                </Typography>
-              </div>
-            ))}
-          </Box>
-        </CardContent>
-      </Card>
-
-      {snapshot && chartRows.length === 0 && (
-        // A snapshot can legitimately compute to NO values — the selected
-        // metrics are absent from every included building, or the chosen month
-        // has no readings. Say so instead of rendering bare empty axes
-        // (heike-4's "empty diagram"). Inline persistent state → Alert.
-        <Alert severity="info">
-          The computed summary contains no values: none of the included
-          buildings carry data for the selected metrics
-          {aggregationDefinition.period ? " in the selected month" : ""}. Enter energy
-          data for them (or adjust the aggregation), then refresh the snapshot.
-        </Alert>
-      )}
-      {snapshot && chartRows.length > 0 && (
-          <>
-            <Card sx={{ mb: 3 }}>
-              <CardHeader title="Aggregated Values Chart" />
-              <CardContent>
-                <Box sx={{ height: 400 }}>
-                  <MetricBarChart
-                    data={chartRows}
-                    bars={[{
-                      key: "value",
-                      name: aggregationLabel,
-                      color: CHART_COLOR_PALETTE[0],
-                      palette: CHART_COLOR_PALETTE,
-                    }]}
-                    xKey="name"
-                    yUnit={aggregationDefinition.period ? "kWh/month" : "kWh"}
-                    height={400}
-                    hideLegend
-                  />
-                </Box>
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader title="Aggregated Values Table" />
-              <CardContent>
-                <TableContainer>
-                  <Table>
-                    <TableHead>
-                      <TableRow>
-                        <TableCell>Metric</TableCell>
-                        <TableCell align="right">
-                          {/* Units live in the per-metric row labels — a flat
-                              "(kWh)" here lied for the m³ and % metrics. */}
-                          {aggregationDefinition.aggregationType.charAt(0)
-                            .toUpperCase() +
-                            aggregationDefinition.aggregationType.slice(1)} Value
-                        </TableCell>
-                      </TableRow>
-                    </TableHead>
-                    <TableBody>
-                      {Object.entries(snapshot.values).map((
-                        [metric, value],
-                      ) => (
-                        <TableRow key={metric}>
-                          <TableCell component="th" scope="row">
-                            {annualMetricLabel(metric)}
-                          </TableCell>
-                          <TableCell align="right">
-                            {formatNumber(value, 2)}
-                          </TableCell>
-                        </TableRow>
-                      ))}
-                    </TableBody>
-                  </Table>
-                </TableContainer>
-              </CardContent>
-            </Card>
-          </>
-      )}
-      {!snapshot && (
-        <>
-          {detail.data?.computeError != null && (
-            // The auto-compute on first open failed (the load itself
-            // succeeded) — persistent in-place state → Alert; "Refresh
-            // Snapshot" is the retry affordance.
-            <Alert severity="warning" sx={{ mb: 3 }}>
-              {formatError("compute the aggregation summary", detail.data.computeError)}
-            </Alert>
-          )}
-          <Card>
-            <CardContent>
-              <Typography color="textSecondary" align="center">
-                No snapshot computed yet. Click "Refresh Snapshot" to compute
-                aggregated values.
-              </Typography>
-            </CardContent>
-          </Card>
-        </>
-      )}
-
-      {/* Share Dialog */}
-      <Modal
-        open={shareDialogOpen}
-        onClose={() => setShareDialogOpen(false)}
-        dirty={shareWebId.trim() !== ""}
-        busy={sharing}
-        title="Share aggregation"
-        actions={
-          <>
-            <Button
-              onClick={() => setShareDialogOpen(false)}
-              disabled={sharing}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleShare}
-              variant="contained"
-              disabled={!shareWebId.trim() || sharing}
-            >
-              {sharing ? "Sharing…" : "Share"}
-            </Button>
-          </>
-        }
-      >
-        <Typography variant="body2" sx={{ mb: 2 }}>
-          Share this aggregation with another user. They will receive access to the
-          computed snapshot values only, without seeing which buildings were
-          included.
-        </Typography>
-        <TextField
-          autoFocus
-          margin="dense"
-          label="Recipient WebID"
-          type="url"
-          fullWidth
-          variant="outlined"
-          value={shareWebId}
-          onChange={(e) => setShareWebId(e.target.value)}
-          placeholder="https://example.solidcommunity.net/profile/card#me"
+    <Container maxWidth="md" sx={{ py: 4 }}>
+      <Stack spacing={3} divider={<Divider />}>
+        <AggregationHeader definition={definition} />
+        <AggregationDetailsSection definition={definition} snapshot={snapshot} />
+        <AggregationResultsSection
+          definition={definition}
+          snapshot={snapshot}
+          computeError={detail.data?.computeError}
         />
-      </Modal>
+        <AggregationSharingSection aggregation={definition} session={session} />
+      </Stack>
     </Container>
   );
 }
