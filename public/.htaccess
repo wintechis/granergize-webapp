@@ -5,3 +5,20 @@
 # Requires the vhost to allow AddType overrides (AllowOverride FileInfo/All);
 # if .htaccess is disabled on this host, set the type in the server config.
 AddType application/ld+json .jsonld
+
+# SPA fallback (BrowserRouter). The app now uses real-path routes (e.g.
+# /building/<id>, /sharing) served by a single index.html. A cold load or reload
+# of such a path is a real request the host would otherwise 404 — so route any
+# request that is NOT an existing file or directory to index.html and let the
+# client router resolve it. The target is RELATIVE (no leading slash) so it
+# resolves against this .htaccess's own directory — deploy-path-agnostic, matching
+# the runtime base-href detection (plans/plan-app-design-overhaul.md §5 / R-b).
+# Real assets (clientid.jsonld, favicon.svg, assets/*) match -f and are served
+# directly. Requires the vhost to allow rewrite overrides (AllowOverride FileInfo
+# is not enough — needs at least Options/FileInfo with mod_rewrite permitted).
+<IfModule mod_rewrite.c>
+  RewriteEngine On
+  RewriteCond %{REQUEST_FILENAME} !-f
+  RewriteCond %{REQUEST_FILENAME} !-d
+  RewriteRule . index.html [L]
+</IfModule>
