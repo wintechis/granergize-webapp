@@ -23,9 +23,9 @@ import { T } from "../helpers/timeouts.ts";
  * assume a pre-seeded Pod.
  *
  *   # tier 3 (local CSS, no creds):
- *   deno task e2e:local test/e2e/tasks/view-data.spec.ts
+ *   deno task e2e:local test/e2e/tasks/aggregations.spec.ts
  *   # tier 4 (real Pods):
- *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/view-data.spec.ts
+ *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/aggregations.spec.ts
  *
  * Runs against Alice (account A).
  * Skipped automatically when the account env vars are absent.
@@ -46,7 +46,7 @@ test.describe("energy view smoke", () => {
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(T.setup); // login (IdP + consent) can be slow / retried
-    page = await newCapturedPage(browser, "view-data");
+    page = await newCapturedPage(browser, "aggregations");
     await login(page, ACC);
     await assertCleanStart(page);
     // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the
@@ -55,7 +55,7 @@ test.describe("energy view smoke", () => {
   });
 
   test.afterAll(async () => {
-    await verifyAndReset(page, "view-data");
+    await verifyAndReset(page, "aggregations");
     await page.close();
   });
 

@@ -13,7 +13,7 @@ import {
   loadComputedSnapshot,
   storeComputedSnapshot,
 } from "./aggregationManager.ts";
-import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
+import { CONSUMPTION_NS, SOSA_NS } from "../rdf/vocabularies.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
 _setStorageRootForTesting(WEBID, "https://pod.example/");
@@ -56,7 +56,7 @@ Deno.test("createAggregationDefinition writes one aggregations/<id>.ttl resource
 
 Deno.test("getAggregationDefinitions lists the container and parses each aggregation", async () => {
   const { session } = makeSession();
-  const v1 = await createAggregationDefinition(session, "A", [], "average", ["heat"]);
+  const v1 = await createAggregationDefinition(session, "A", [], "average", ["heatConsumption"]);
   const v2 = await createAggregationDefinition(session, "B", [], "sum", ["water"]);
 
   const aggregations = await getAggregationDefinitions(session);
@@ -72,15 +72,15 @@ Deno.test("getAggregationDefinitions lists the container and parses each aggrega
 
 Deno.test("getAggregationDefinitions ignores the snapshots/ subfolder", async () => {
   const { session } = makeSession();
-  const v = await createAggregationDefinition(session, "A", [], "average", ["heat"]);
+  const v = await createAggregationDefinition(session, "A", [], "average", ["heatConsumption"]);
   await storeComputedSnapshot(session, {
     id: v.id,
     name: "A",
     aggregationType: "average",
     computedAt: "2026-06-04T10:00:00Z",
     buildingCount: 3,
-    metrics: ["heat"],
-    values: { heat: 1234.5 },
+    metrics: ["heatConsumption"],
+    values: { heatConsumption:1234.5 },
   });
 
   // Snapshot landed under snapshots/, and the def now records lastComputedAt.
@@ -91,24 +91,35 @@ Deno.test("getAggregationDefinitions ignores the snapshots/ subfolder", async ()
 
 Deno.test("storeComputedSnapshot writes the shareable snapshot under snapshots/", async () => {
   const { session, store } = makeSession();
-  const v = await createAggregationDefinition(session, "A", [], "average", ["heat"]);
+  const v = await createAggregationDefinition(session, "A", [], "average", [
+    "heatConsumption",
+  ]);
   await storeComputedSnapshot(session, {
     id: v.id,
     name: "A",
     aggregationType: "average",
     computedAt: "2026-06-04T10:00:00Z",
     buildingCount: 3,
-    metrics: ["heat"],
-    values: { heat: 1234.5 },
+    metrics: ["heatConsumption"],
+    values: { heatConsumption: 1234.5 },
   });
 
   const snapUri = getSnapshotUri(WEBID, v.id);
   assert.equal(snapUri, `${SNAPSHOTS}${v.id}.ttl`);
   const s = parse(store[snapUri]);
   assert.equal(s.getObjects(null, `${CONS}buildingCount`, null)[0]?.value, "3");
-  // Full precision — the ground value is no longer rounded to two decimals
-  // (display formatting is the UI's job).
-  assert.equal(s.getObjects(null, `${CONS}heatValue`, null)[0]?.value, "1234.5");
+  // The snapshot collapsed into a sosa:ObservationCollection: each value is a
+  // member observation (same shape as an energy dataset), not a `*Value` literal.
+  const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+  assert.equal(
+    s.getQuads(null, RDF_TYPE, `${SOSA_NS}ObservationCollection`, null).length,
+    1,
+  );
+  assert.equal(s.getObjects(null, `${SOSA_NS}hasMember`, null).length, 1);
+  // Full precision — the ground value is no longer rounded; it round-trips through
+  // the member observation back to the same metric key/value.
+  const loaded = await loadComputedSnapshot(session, snapUri);
+  assert.equal(loaded?.values.heatConsumption, 1234.5);
 });
 
 Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot", async () => {
@@ -161,15 +172,15 @@ Deno.test("benchmark snapshot round-trips its result fields and stays a snapshot
 
 Deno.test("a plain (non-benchmark) snapshot has no benchmark fields", async () => {
   const { session } = makeSession();
-  const v = await createAggregationDefinition(session, "Plain", [], "average", ["heat"]);
+  const v = await createAggregationDefinition(session, "Plain", [], "average", ["heatConsumption"]);
   await storeComputedSnapshot(session, {
     id: v.id,
     name: "Plain",
     aggregationType: "average",
     computedAt: "2026-06-08T10:00:00Z",
     buildingCount: 2,
-    metrics: ["heat"],
-    values: { heat: 5 },
+    metrics: ["heatConsumption"],
+    values: { heatConsumption:5 },
   });
   const loaded = await loadComputedSnapshot(session, getSnapshotUri(WEBID, v.id));
   assert.equal(loaded?.isBenchmark, undefined);
@@ -192,7 +203,7 @@ Deno.test("createAggregationDefinition persists the benchmark flag and round-tri
   const got = await getAggregationDefinition(session, v.id);
   assert.equal(got?.benchmark, true);
   // And a plain definition stays unflagged.
-  const plain = await createAggregationDefinition(session, "P", [], "average", ["heat"]);
+  const plain = await createAggregationDefinition(session, "P", [], "average", ["heatConsumption"]);
   assert.equal((await getAggregationDefinition(session, plain.id))?.benchmark, undefined);
 });
 
@@ -228,15 +239,15 @@ Deno.test("loadComputedSnapshot: 404 means absence (null), a transient failure T
 
 Deno.test("deleteAggregation removes the definition and its snapshot", async () => {
   const { session, store } = makeSession();
-  const v = await createAggregationDefinition(session, "A", [], "average", ["heat"]);
+  const v = await createAggregationDefinition(session, "A", [], "average", ["heatConsumption"]);
   await storeComputedSnapshot(session, {
     id: v.id,
     name: "A",
     aggregationType: "average",
     computedAt: "2026-06-04T10:00:00Z",
     buildingCount: 1,
-    metrics: ["heat"],
-    values: { heat: 1 },
+    metrics: ["heatConsumption"],
+    values: { heatConsumption:1 },
   });
 
   await deleteAggregation(session, v.id);

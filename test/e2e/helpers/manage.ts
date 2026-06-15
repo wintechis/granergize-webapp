@@ -285,7 +285,7 @@ export async function shareByWebId(
   await reviewAndConfirmShare(page);
 }
 
-/** The aggregation name the share-view spec creates and shares. */
+/** The aggregation name the share-aggregation spec creates and shares. */
 export const AGGREGATION_NAME = "E2E Shared Aggregation";
 
 /** Create the shared aggregation (idempotent: reuse an existing one with AGGREGATION_NAME). */

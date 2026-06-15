@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 /**
- * Catalog task `share-view` (headless): A shares an aggregation snapshot with
+ * Catalog task `share-aggregation` (headless): A shares an aggregation snapshot with
  * B, then REVOKES it. Checks both the fold (B sees it / no longer sees it) and the
  * WAC truth (B can read the snapshot, then can't after revoke).
  */
@@ -13,7 +13,7 @@ import {
 } from "../../../src/services/interop/sharingManager.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
 
-export const name = "share-view";
+export const name = "share-aggregation";
 
 export async function run(ctx: TaskContext): Promise<void> {
   const { a, b, check } = ctx;

@@ -21,7 +21,7 @@ import {
 } from "./taskContext.ts";
 import * as dataRoom from "./tasks/data-room.ts";
 import * as shareBuilding from "./tasks/share-building.ts";
-import * as shareView from "./tasks/share-view.ts";
+import * as shareAggregation from "./tasks/share-aggregation.ts";
 import * as addBuilding from "./tasks/add-building.ts";
 import * as excelRoundtrip from "./tasks/excel-roundtrip.ts";
 import * as attachmentShare from "./tasks/attachment-share.ts";
@@ -33,7 +33,7 @@ import * as grantProjection from "./tasks/grant-projection.ts";
 const TASKS: TaskModule[] = [
   dataRoom,
   shareBuilding,
-  shareView,
+  shareAggregation,
   addBuilding,
   excelRoundtrip,
   attachmentShare,

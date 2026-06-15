@@ -104,6 +104,7 @@
     rdfs:comment "La définition privée d'une agrégation : les IRI des bâtiments contributeurs, les métriques choisies et la méthode d'agrégation. Reste sur le Pod de l'agent qui la calcule et n'est jamais partagée."@fr .
 
 :AggregationSnapshot rdf:type rdfs:Class ;
+    rdfs:subClassOf sosa:ObservationCollection ;
     rdfs:label "Aggregation snapshot"@en ; rdfs:label "Momentaufnahme der Aggregation"@de ; rdfs:label "Instantané d'agrégation"@fr ;
     rdfs:comment "A computed, shareable copy of an aggregation: only the per-metric values and a building count, never the contributing building IRIs."@en ;
     rdfs:comment "Eine berechnete, teilbare Kopie einer Aggregation: nur die Werte je Kennzahl und eine Gebäudeanzahl, niemals die IRIs der beitragenden Gebäude."@de ;
@@ -149,29 +150,11 @@
     rdfs:label "building count"@en ; rdfs:label "Gebäudeanzahl"@de ; rdfs:label "nombre de bâtiments"@fr ;
     rdfs:domain :AggregationSnapshot ; rdfs:range xsd:integer .
 
-# Per-metric snapshot values (one property per metric key — the annual metric
-# keys, plus the bare `electricity` key the sub-hourly series path mints).
-:electricityValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "electricity value"@en ; rdfs:label "Stromwert"@de ; rdfs:label "valeur d'électricité"@fr ;
-    rdfs:comment "Aggregated sub-hourly electricity consumption (series-path snapshots)."@en ;
-    rdfs:comment "Aggregierter infra-stündlicher Stromverbrauch (Momentaufnahmen des Serienpfads)."@de ;
-    rdfs:comment "Consommation d'électricité infra-horaire agrégée (instantanés du chemin série)."@fr ;
-    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
-:electricityConsumptionValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "electricity consumption value"@en ; rdfs:label "Stromverbrauchswert"@de ; rdfs:label "valeur de consommation d'électricité"@fr ;
-    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
-:heatConsumptionValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "heat consumption value"@en ; rdfs:label "Wärmeverbrauchswert"@de ; rdfs:label "valeur de consommation de chaleur"@fr ;
-    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
-:waterConsumptionValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "water consumption value"@en ; rdfs:label "Wasserverbrauchswert"@de ; rdfs:label "valeur de consommation d'eau"@fr ;
-    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
-:wastewaterConsumptionValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "wastewater consumption value"@en ; rdfs:label "Abwasserwert"@de ; rdfs:label "valeur de consommation d'eaux usées"@fr ;
-    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
-:renewableSelfGeneratedShareValue rdf:type owl:DatatypeProperty ;
-    rdfs:label "renewable self-generated share value"@en ; rdfs:label "Wert des Anteils selbst erzeugter erneuerbarer Energie"@de ; rdfs:label "valeur de part d'énergie renouvelable autoproduite"@fr ;
-    rdfs:domain :AggregationSnapshot ; rdfs:range xsd:decimal .
+# Snapshot values are COLLAPSED into sosa:ObservationCollection members — one
+# sosa:Observation per metric (sosa:observedProperty + sosa:hasResult /
+# sosa:hasSimpleResult + ssn:hasUnit), the same shape an energy dataset uses — so
+# there are no per-metric `*Value` datatype properties. The observed properties
+# are the :…Consumption / :…Generation / :…Share terms defined above.
 
 ############################
 ###   Benchmark results  ###

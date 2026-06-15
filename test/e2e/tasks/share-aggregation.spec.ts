@@ -44,7 +44,7 @@ const A = account("A");
 const B = account("B");
 
 // Cross-Pod aggregation sharing needs an INTEROPERATING provider pair (see share-building).
-// Skips on NSS↔CSS-v5; the logic is covered by the Tier-2 headless `share-view` task.
+// Skips on NSS↔CSS-v5; the logic is covered by the Tier-2 headless `share-aggregation` task.
 const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 
 test.describe("aggregation sharing across two pods", () => {
@@ -62,8 +62,8 @@ test.describe("aggregation sharing across two pods", () => {
     const [a, b] = await freshPagesParallel(browser, [A, B]);
     a.page.on("dialog", (d) => d.accept()); // Delete aggregation / room confirms
     try {
-      await assertCleanStart(a.page, "share-view:A");
-      await assertCleanStart(b.page, "share-view:B");
+      await assertCleanStart(a.page, "share-aggregation:A");
+      await assertCleanStart(b.page, "share-aggregation:B");
       // ── A hosts a room + role; B joins + role; A creates + shares the aggregation ──
       const roomUri = await hostRoomAndGetUri(a.page);
       await assignUserRole(a.page);
@@ -188,7 +188,7 @@ test.describe("aggregation sharing across two pods", () => {
       }
       // Leave both Pods empty — the per-run collection is removed entirely on each.
       try {
-        await verifyAndResetBoth(a.page, b.page, "share-view");
+        await verifyAndResetBoth(a.page, b.page, "share-aggregation");
       } finally {
         await b.ctx.close();
         await a.ctx.close();

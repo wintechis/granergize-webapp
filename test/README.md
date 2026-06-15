@@ -16,7 +16,7 @@ Three roles, **A = Alice / B = Bob / C = Charlie**, and the catalog specs split 
 pod count: **solo** specs use A; **duo** (cross-Pod sharing) use A + B; **trio** (the
 benchmark-service round-trip) use A + B + C. The
 specs live in `test/e2e/tasks/` (one per feature: login, organisation, add-building,
-energy-entry, view-data, data-room, share-building, share-view); Tier 2 mirrors a
+energy-entry, aggregations, data-room, share-building, share-aggregation); Tier 2 mirrors a
 subset in `test/headless/tasks/`. Shared config in `test/config/` (`providers.ts`,
 `accounts.ts`, `actors.ts`).
 
@@ -75,7 +75,7 @@ surfaces as a spec that hangs to its full timeout rather than a clear assertion:
   year's checkbox unrendered, so the per-year `share-building` spec hangs on it.
 - **A view's role must exist among the buildings.** `CreateViewDialog` only offers
   roles present in the buildings' `provenance`. `ensureView` creates an **Investor**
-  view, so `share-view` must seed an *investor* building — a `user`-seeded building
+  view, so `share-aggregation` must seed an *investor* building — a `user`-seeded building
   leaves no "Investor" option in the Role dropdown and the spec hangs selecting it.
   More generally: a spec that drives the view/share dialogs must seed a building
   whose kind matches the role it then selects.
@@ -84,7 +84,7 @@ surfaces as a spec that hangs to its full timeout rather than a clear assertion:
   generic `getByRole("dialog").isVisible()` run right after another dialog was
   submitted can bind to that dialog's ghost — a poll that uses the check to decide
   "already open, skip the open click" then waits its whole budget on a dialog that
-  no longer exists (`share-view` did, against the just-closed `CreateViewDialog`).
+  no longer exists (`share-aggregation` did, against the just-closed `CreateViewDialog`).
   Scope such locators by the dialog's title text
   (`.filter({ hasText: ... })`), have helpers that submit a dialog not return
   until it is hidden (`ensureView` does), and give any click inside a

@@ -11,12 +11,15 @@ import {
   BENCH_RESULT,
   CONSUMPTION_NS,
   RDF_TYPE,
+  SOSA_NS,
+  SSN_NS,
   XSD_BOOLEAN,
   XSD_DATETIME,
   XSD_DECIMAL,
   XSD_GYEAR,
   XSD_INTEGER,
 } from "../rdf/vocabularies.ts";
+import { ENERGY_METRICS } from "../rdf/energyDataset.ts";
 import { getQuadValue, getQuadValues } from "../rdf/rdfHelpers.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
 import { ensureContainer, readModifyWrite } from "../pod/podWrite.ts";
@@ -24,7 +27,7 @@ import { listDirectChildren } from "../pod/podDelete.ts";
 import { mapPooled } from "../../lib/pool.ts";
 import { logError } from "../../lib/logError.ts";
 
-const { namedNode, literal, quad } = DataFactory;
+const { namedNode, literal, quad, blankNode } = DataFactory;
 
 const VOCAB_PREFIX = CONSUMPTION_NS;
 
@@ -295,6 +298,17 @@ export async function getAggregationDefinition(
  * Store a computed snapshot for an aggregation
  * @operation mutation
  */
+/**
+ * A snapshot metric key → its `sosa:observedProperty` + unit, for collapsing the
+ * value into a member observation. Most keys are annual energy metrics
+ * ({@link ENERGY_METRICS}); the sub-hourly series aggregation path mints a bare
+ * `electricity` key with no own entry, so alias it to electricity consumption.
+ */
+function metricInfo(metric: string): { prop: string; unit: string } | undefined {
+  return ENERGY_METRICS[metric as keyof typeof ENERGY_METRICS] ??
+    (metric === "electricity" ? ENERGY_METRICS.electricityConsumption : undefined);
+}
+
 export async function storeComputedSnapshot(
   session: Session,
   snapshot: AggregationSnapshot,
@@ -381,22 +395,38 @@ export async function storeComputedSnapshot(
     ));
   }
 
-  // Add computed values. Full precision — rounding the GROUND value to two
-  // decimals lost real precision (share-% metrics, sums over 15-min readings);
-  // display formatting is the UI's job. `toFixed(20)` would be invalid lexical
-  // xsd:decimal for huge floats; plain String() of a finite number is fine
-  // except exponent forms, which we expand via toFixed's integer-digit form.
+  // Computed values, COLLAPSED into a sosa:ObservationCollection — each metric is
+  // a member sosa:Observation, the same shape an energy dataset uses (see
+  // energyDataset.ts), so one renderer can serve energy + aggregation + benchmark.
+  // The node stays a cons:AggregationSnapshot (marker, above) AND is now an
+  // observation-collection. Full precision — rounding lost real precision
+  // (share-% metrics, 15-min sums); display formatting is the UI's job. `e`-form
+  // floats are expanded via toFixed (invalid lexical xsd:decimal otherwise).
+  store.addQuad(quad(
+    snapshotNode,
+    namedNode(RDF_TYPE),
+    namedNode(`${SOSA_NS}ObservationCollection`),
+  ));
   for (const [metric, value] of Object.entries(snapshot.values)) {
+    const m = metricInfo(metric);
+    if (!m) continue; // only known energy metrics carry an observedProperty + unit
     const lexical = Number.isInteger(value)
       ? String(value)
       : String(value).includes("e")
       ? value.toFixed(10)
       : String(value);
+    const obs = blankNode();
+    const result = blankNode();
+    store.addQuad(quad(snapshotNode, namedNode(`${SOSA_NS}hasMember`), obs));
+    store.addQuad(quad(obs, namedNode(RDF_TYPE), namedNode(`${SOSA_NS}Observation`)));
+    store.addQuad(quad(obs, namedNode(`${SOSA_NS}observedProperty`), namedNode(m.prop)));
+    store.addQuad(quad(obs, namedNode(`${SOSA_NS}hasResult`), result));
     store.addQuad(quad(
-      snapshotNode,
-      namedNode(`${VOCAB_PREFIX}${metric}Value`),
+      result,
+      namedNode(`${SOSA_NS}hasSimpleResult`),
       literal(lexical, namedNode(XSD_DECIMAL)),
     ));
+    store.addQuad(quad(result, namedNode(`${SSN_NS}hasUnit`), namedNode(m.unit)));
   }
 
   // Serialize and save
@@ -519,14 +549,47 @@ export async function loadComputedSnapshot(
     snapshotNode,
     namedNode(`${VOCAB_PREFIX}includesMetric`),
   );
+  // Values are now sosa:ObservationCollection members (collapsed shape). Read each
+  // member observation's value keyed by its observedProperty IRI, then map back to
+  // the EXACT metric keys from `includesMetric` (driving by those keys keeps the
+  // round-trip lossless — the series path's bare `electricity` and the annual
+  // `electricityConsumption` share one observedProperty, so a prop→key reverse
+  // would be ambiguous; `metricInfo` resolves each key's prop instead).
+  const valueByProp: Record<string, number> = {};
+  for (
+    const memberQ of store.getQuads(
+      snapshotNode,
+      namedNode(`${SOSA_NS}hasMember`),
+      null,
+      null,
+    )
+  ) {
+    const obs = memberQ.object;
+    const propQ = store.getQuads(
+      obs,
+      namedNode(`${SOSA_NS}observedProperty`),
+      null,
+      null,
+    )[0];
+    const resultQ = store.getQuads(
+      obs,
+      namedNode(`${SOSA_NS}hasResult`),
+      null,
+      null,
+    )[0];
+    if (!propQ || !resultQ) continue;
+    const simpleQ = store.getQuads(
+      resultQ.object,
+      namedNode(`${SOSA_NS}hasSimpleResult`),
+      null,
+      null,
+    )[0];
+    if (simpleQ) valueByProp[propQ.object.value] = parseFloat(simpleQ.object.value);
+  }
   const values: Record<string, number> = {};
   for (const metric of metrics) {
-    const v = getQuadValue(
-      store,
-      snapshotNode,
-      namedNode(`${VOCAB_PREFIX}${metric}Value`),
-    );
-    if (v !== undefined) values[metric] = parseFloat(v);
+    const m = metricInfo(metric);
+    if (m && valueByProp[m.prop] !== undefined) values[metric] = valueByProp[m.prop];
   }
 
   return {

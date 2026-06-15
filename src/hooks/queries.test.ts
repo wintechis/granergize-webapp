@@ -549,13 +549,17 @@ const AGG_DEF_TTL = `@prefix cons: <${CONS}> .
   cons:includesBuilding <${B1}> ;
   cons:includesMetric "electricityConsumption" .`;
 const AGG_SNAP_TTL = `@prefix cons: <${CONS}> .
-<#snapshot> a cons:AggregationSnapshot ;
+@prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix xsd: <http://www.w3.org/2001/XMLSchema#> .
+<#snapshot> a cons:AggregationSnapshot , sosa:ObservationCollection ;
   cons:aggregationId "v1" ; cons:aggregationName "My aggregation" ;
   cons:aggregationType "average" ;
   cons:computedAt "2026-01-02T00:00:00Z" ;
   cons:buildingCount "1" ;
   cons:includesMetric "electricityConsumption" ;
-  cons:electricityConsumptionValue "1000" .`;
+  sosa:hasMember [ a sosa:Observation ;
+    sosa:observedProperty cons:ElectricityConsumption ;
+    sosa:hasResult [ sosa:hasSimpleResult "1000"^^xsd:decimal ] ] .`;
 
 Deno.test("useAggregationDetail loads definition + snapshot, and an existing snapshot writes NOTHING", async () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");

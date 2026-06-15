@@ -146,12 +146,9 @@ Deno.test("benchmark + aggregation terms are defined in the consumption vocab", 
       "includesBuilding",
       "includesMetric",
       "buildingCount",
-      "electricityValue",
-      "electricityConsumptionValue",
-      "heatConsumptionValue",
-      "waterConsumptionValue",
-      "wastewaterConsumptionValue",
-      "renewableSelfGeneratedShareValue",
+      // Snapshot values collapsed into sosa:ObservationCollection members (no
+      // per-metric `*Value` properties); the observed properties are the
+      // :…Consumption / :…Generation / :…Share terms asserted above.
     ].map((n) => `${CONSUMPTION_NS}${n}`),
   ];
   for (const iri of owned) {

@@ -3,7 +3,7 @@ import { T } from "./timeouts.ts";
 
 /**
  * Connect-tab room/role helpers, shared by the cross-Pod specs (`share-building`,
- * `share-view`) and `data-room`. Extracted from the per-spec copies that were
+ * `share-aggregation`) and `data-room`. Extracted from the per-spec copies that were
  * byte-identical.
  */
 
