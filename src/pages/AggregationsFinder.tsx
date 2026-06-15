@@ -153,7 +153,17 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                 return (
                   <ResourceRow
                     key={aggregation.id}
-                    title={<strong>{aggregation.name}</strong>}
+                    title={
+                      <>
+                        <strong>{aggregation.name}</strong>
+                        {rdf && (
+                          <RdfSourceLink
+                            href={`${rdf.aggregations}${aggregation.id}.ttl`}
+                            inline
+                          />
+                        )}
+                      </>
+                    }
                     subtitle={
                       <>
                         Type: {aggregation.aggregationType} | Buildings:{" "}

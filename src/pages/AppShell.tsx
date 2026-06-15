@@ -355,7 +355,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   /** Dev-mode: rebuild WAC ACLs from the shared-out/ event log (repair / audit). */
   const handleReissueGrants = () =>
     reissueMut.mutate(undefined, {
-      onSuccess: ({ buildings, views, skipped, missing, revoked }) => {
+      onSuccess: ({ buildings, aggregations, skipped, missing, revoked }) => {
         const tails = [
           revoked ? `${revoked} revocation(s) replayed` : "",
           missing ? `${missing} deleted skipped` : "",
@@ -363,7 +363,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
         ].filter(Boolean);
         const tail = tails.length ? ` (${tails.join(", ")})` : "";
         showNotification(
-          `Reissued ${buildings + views} share grant(s)${tail}`,
+          `Reissued ${buildings + aggregations} share grant(s)${tail}`,
           "success",
         );
       },

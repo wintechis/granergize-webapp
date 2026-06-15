@@ -43,7 +43,6 @@ import { buildingRoute } from "../routes.ts";
 import {
   RdfSourceLink,
   RefLink,
-  UriLink,
 } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import FilesSection from "../components/detail/FilesSection.tsx";
@@ -327,16 +326,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
                         </RefLink>
                       )
                       : <>Building {building.buildingId}</>}
-                    {dev && (
-                      <Box
-                        component="span"
-                        sx={{ display: "block", wordBreak: "break-all" }}
-                      >
-                        <UriLink href={building.buildingUri}>
-                          {building.buildingUri}
-                        </UriLink>
-                      </Box>
-                    )}
+                    <RdfSourceLink href={building.buildingUri} inline />
                   </>
                 }
                 subtitle={<>Shared by: <AgentLabel value={building.sharedBy} /></>}

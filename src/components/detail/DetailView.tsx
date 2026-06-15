@@ -184,19 +184,28 @@ export function UriLink({ href, children }: { href: string; children: ReactNode 
 }
 
 /**
- * A muted one-line link to a backing RDF resource on the Pod, shown under a
- * section so the underlying storage (Turtle file / LDP container) is visible and
- * inspectable. The URL is the link text. Developer-mode only — these raw source
- * links are hidden unless the footer's "Developer mode" toggle is on.
+ * A muted one-line link to a backing RDF resource on the Pod (a Turtle file / LDP
+ * container), so the underlying storage is visible and inspectable. The URL is the
+ * link text. Developer-mode only — self-hides unless the footer's "Developer mode"
+ * toggle is on, so it's the one-call way to expose a backing-resource IRI anywhere.
+ *
+ * Two placements, ONE style (so every source IRI reads identically): the default
+ * sits under a section heading; `inline` sits under a finder row's title. The only
+ * difference is structural — a row title may already render inside a `<p>`, so the
+ * inline form is a block-level `<span>` (a nested `<p>` is invalid HTML) with no
+ * bottom margin; the muted `body2`/secondary look is shared.
  */
-export function RdfSourceLink({ href }: { href: string }) {
+export function RdfSourceLink(
+  { href, inline }: { href: string; inline?: boolean },
+) {
   const dev = useDevMode();
   if (!dev) return null;
   return (
     <Typography
       variant="body2"
       color="text.secondary"
-      sx={{ mb: 1, wordBreak: "break-all" }}
+      component={inline ? "span" : "p"}
+      sx={{ display: "block", mb: inline ? 0 : 1, wordBreak: "break-all" }}
     >
       <UriLink href={href}>{href}</UriLink>
     </Typography>

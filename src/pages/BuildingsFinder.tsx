@@ -34,9 +34,7 @@ import { downloadXlsx } from "../lib/download.ts";
 import {
   RdfSourceLink,
   RefLink,
-  UriLink,
 } from "../components/detail/DetailView.tsx";
-import { useDevMode } from "../hooks/devMode.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
 import RowAction from "../components/RowAction.tsx";
 import Pager from "../components/Pager.tsx";
@@ -87,7 +85,6 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   const ownedBuildings = buildings.filter((b) => !b.isShared);
   const buildingPaging = usePaging(ownedBuildings);
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
-  const dev = useDevMode();
 
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
@@ -248,14 +245,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                             {b.streetAddress && b.streetAddress !== name
                               ? ` — ${b.streetAddress}`
                               : ""}
-                            {dev && (
-                              <Box
-                                component="span"
-                                sx={{ display: "block", wordBreak: "break-all" }}
-                              >
-                                <UriLink href={b.uri as string}>{b.uri}</UriLink>
-                              </Box>
-                            )}
+                            <RdfSourceLink href={b.uri as string} inline />
                           </>
                         }
                         actions={
