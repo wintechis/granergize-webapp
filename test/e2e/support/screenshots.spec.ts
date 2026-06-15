@@ -8,7 +8,7 @@ import {
   webIdOf,
 } from "../helpers/login.ts";
 import { freshPage } from "../helpers/twoPod.ts";
-import { buildingRoute, exploreRoute } from "../helpers/manage.ts";
+import { buildingRoute } from "../helpers/manage.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 
@@ -209,7 +209,7 @@ test.describe("handbuch screenshots", () => {
     //     finder; enter the active room if one exists, else host a fresh one
     //     ("Host a data room" navigates straight onto the new room's page). The
     //     room.png figure now captures that room page (with a role assigned). ---
-    await page.getByRole("tab", { name: "Rooms" }).click();
+    await page.getByRole("tab", { name: "Meet" }).click();
     const activeRoomRow = page.locator("li", { hasText: /active/ }).first();
     if (await activeRoomRow.count()) {
       await activeRoomRow.getByRole("link").first().click();
@@ -463,19 +463,16 @@ test.describe("handbuch screenshots", () => {
     await expect(page.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 30_000 });
 
-    // --- Explore: the Nordostpark demo's Building/Energy/Weather detail pane.
-    //     Selected deterministically via the URI-state deep link (the same
-    //     selection a marker click produces) — a blind marker click could land
-    //     on any of the four demo markers. The fully-populated investor demo
-    //     gives the figure a rich detail panel. ---
+    // --- The Buildings map finder (map-tabs.png): the map is a pure finder now
+    //     (a marker click navigates to /building/:id; there is no detail pane).
+    //     Resolve the Nordostpark demo's id from the List for the energy shots
+    //     below, then show the map with all four demo markers settled. ---
     await page.getByRole("tab", { name: "Buildings" }).click();
     await page.getByRole("button", { name: "List" }).click();
     const nordRow = page.locator("li").filter({ hasText: "Nordostpark" }).first();
     await expect(nordRow).toBeVisible({ timeout: 30_000 });
     const buildingId = await nordRow.getAttribute("data-building-id");
-    await page.goto(exploreRoute(buildingId));
-    await expect(page.getByRole("tab", { name: "Building data" }))
-      .toBeVisible({ timeout: 60_000 });
+    await page.getByRole("button", { name: "Map", exact: true }).click();
     const markers = page.locator(".leaflet-marker-icon");
     await markers.first().waitFor({ timeout: 20_000 }).catch(() => {});
     await page.waitForLoadState("networkidle").catch(() => {});
@@ -503,14 +500,15 @@ test.describe("handbuch screenshots", () => {
         .click({ force: true }).catch(() => {});
     }
 
-    // --- Energy-data tab with the operator average (energy-data-tab.png): the
-    //     Nordostpark demo's "Energy data" tab. Two annual-carrying demos
-    //     (Nordostpark + Lange Gasse) are self-operated, so the summary table
-    //     shows the "Operator average" row — the Betreiber benchmark of the
-    //     handbuch's "Daten ansehen" section — plus the planned-2024 (Soll)
-    //     column pair. ---
+    // --- Energy with the operator average (energy-data-tab.png): the
+    //     Nordostpark demo's observation page (`/observation/:id`) — the energy
+    //     surface now (the map's old "Energy data" tab is gone). Two
+    //     annual-carrying demos (Nordostpark + Lange Gasse) are self-operated, so
+    //     the AnnualEnergy table shows the "Operator average" row — the Betreiber
+    //     benchmark of the handbuch's "Daten ansehen" section — plus the
+    //     planned-2024 (Soll) row pair. ---
     if (buildingId) {
-      await page.goto(exploreRoute(buildingId, "energy"));
+      await page.goto(buildingRoute("observation", buildingId));
       await expect(
         page.getByRole("row").filter({ hasText: "Operator average" }).first(),
       ).toBeVisible({ timeout: 60_000 });
@@ -532,17 +530,17 @@ test.describe("handbuch screenshots", () => {
       );
 
       // --- Energy detail page (energy-detail.png): the standalone /energy/:id
-      //     route — latest year's figures with the Portfolio / Operator /
-      //     Benchmark comparison columns side by side. ---
+      //     route — the single annual table with per-year figures plus the
+      //     Operator / Portfolio / Benchmark comparison rows beneath them. ---
       await page.goto(buildingRoute("observation", buildingId));
-      // (The observation page titles by building name now; the comparison-column
+      // (The observation page titles by building name now; the comparison-row
       // assertion below is the load gate.)
       await expect(
-        page.locator("th", { hasText: "Operator average kWh / a" }).first(),
+        page.getByRole("row").filter({ hasText: "Operator average" }).first(),
       ).toBeVisible({ timeout: 60_000 });
       // Local tier: the seeded BSP benchmark must be on the page — the filled
-      // Benchmark column plus the provider caption naming Charlie — before the
-      // shot (the figure's caption promises all three comparison columns).
+      // Benchmark row plus the provider caption naming Charlie — before the
+      // shot (the figure's caption promises all three comparison rows).
       if (E2E_LOCAL) {
         await expect(page.getByText(/Benchmark provided by/i))
           .toBeVisible({ timeout: 60_000 });
@@ -562,7 +560,7 @@ test.describe("handbuch screenshots", () => {
       if (E2E_LOCAL) {
         await shotOf(
           page.locator("table").filter({
-            has: page.locator("th", { hasText: "Benchmark kWh / a" }),
+            has: page.getByRole("row").filter({ hasText: "Benchmark" }),
           }).first(),
           "benchmark-payoff.png",
         );
@@ -650,9 +648,9 @@ test.describe("handbuch screenshots", () => {
       await shot(b.page, "shared-with-you.png");
 
       // --- The Vertriebsoptimierung walkthrough punchline (teilen-payoff.png):
-      //     B's Explore map with
-      //     A's shared building SELECTED — the orange shared pin next to B's
-      //     own (blue) buildings, and the detail panel reading A's master data
+      //     B's Buildings map with A's shared building (the orange shared pin
+      //     next to B's own blue buildings) — the map is a pure finder now, so a
+      //     marker click NAVIGATES to A's building page, reading A's master data
       //     live from A's Pod. Local-only: it needs the seeded share (remote
       //     keeps the committed figure). ---
       if (E2E_LOCAL) {
@@ -665,8 +663,7 @@ test.describe("handbuch screenshots", () => {
         await waitForMapTiles(b.page);
         await b.page.waitForTimeout(1500); // let markers/logos settle
         await sharedMarker.click();
-        await expect(b.page.getByRole("tab", { name: "Building data" }))
-          .toBeVisible({ timeout: 60_000 });
+        await b.page.waitForURL(/\/building\//, { timeout: 60_000 });
         await b.page.waitForLoadState("networkidle").catch(() => {});
         await b.page.waitForTimeout(800);
         await b.page.evaluate(() => globalThis.scrollTo(0, 0));

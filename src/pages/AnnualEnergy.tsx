@@ -25,7 +25,13 @@ import {
   SectionTitle,
 } from "../components/detail/DetailView.tsx";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
-import { useAnnualEnergy, useSolidData } from "../hooks/queries.ts";
+import { AgentLabel } from "../components/AgentLabel.tsx";
+import {
+  useAnnualEnergy,
+  useReceivedBenchmarks,
+  useSolidData,
+} from "../hooks/queries.ts";
+import { pickBenchmark } from "../services/aggregation/benchmarkSelector.ts";
 import { formatNumber } from "../lib/formatNumber.ts";
 import {
   type AnnualMetricDesc,
@@ -115,11 +121,25 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   // latest actual year (computed in loadEnergy; keyed by the canonical metric
   // keys `electricityConsumption`/… — same as the per-year data and the metric
   // schema). Empty when no operator is set or no peer carries annual figures.
-  const { operatorAverages } = useSolidData();
+  const { operatorAverages, portfolioAverages } = useSolidData();
   const operatorAvg =
     (typeof building.operatedBy === "string" &&
       operatorAverages[building.operatedBy]) || {};
   const hasOperatorAvg = Object.keys(operatorAvg).length > 0;
+  // The portfolio mean (across the user's OWN buildings) and the received-BSP
+  // benchmark, shown as two more comparison rows beneath the operator average —
+  // the same comparison figures the page's old per-metric grid carried, folded
+  // into this single annual table so there is ONE annual view.
+  const hasPortfolio = Object.values(portfolioAverages).some((v) => v > 0);
+  const { data: benchmarks = [] } = useReceivedBenchmarks();
+  // Distinct BSPs behind the received benchmarks, for the provenance caption.
+  const benchmarkProviders = [
+    ...new Set(
+      benchmarks.map((b) => b.computedBy).filter((w): w is string =>
+        Boolean(w)
+      ),
+    ),
+  ];
 
   // Master data shown above the table — whichever fields this building carries
   // (one generic building shape; the block is not tied to any producer kind).
@@ -163,6 +183,13 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const visibleMetrics = ANNUAL_METRICS.filter((m) =>
     [...actual, ...planned].some((d) => d[m.key] != null) ||
     operatorAvg[m.key] != null
+  );
+
+  // A benchmark is shown only when a received BSP snapshot covers at least one
+  // visible metric (mirrors hasOperatorAvg's gating).
+  const benchmarkFor = (key: string) => pickBenchmark(benchmarks, key)?.value;
+  const hasBenchmark = visibleMetrics.some((m) =>
+    benchmarkFor(m.key) != null
   );
 
   /** One metric → a row-per-year `[{ year, actual?, planned? }]` for Recharts.
@@ -342,6 +369,36 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                         ))}
                       </TableRow>
                     )}
+                    {hasPortfolio && (
+                      <TableRow>
+                        <TableCell>
+                          <strong>Portfolio average</strong>
+                        </TableCell>
+                        {visibleMetrics.map((m) => (
+                          <TableCell key={m.key} align="right">
+                            {portfolioAverages[m.key] != null &&
+                                portfolioAverages[m.key] > 0
+                              ? formatNumber(portfolioAverages[m.key], m.decimals)
+                              : "—"}
+                          </TableCell>
+                        ))}
+                      </TableRow>
+                    )}
+                    {hasBenchmark && (
+                      <TableRow>
+                        <TableCell>
+                          <strong>Benchmark</strong>
+                        </TableCell>
+                        {visibleMetrics.map((m) => {
+                          const b = benchmarkFor(m.key);
+                          return (
+                            <TableCell key={m.key} align="right">
+                              {b != null ? formatNumber(b, m.decimals) : "—"}
+                            </TableCell>
+                          );
+                        })}
+                      </TableRow>
+                    )}
                   </TableBody>
                 </Table>
               </TableContainer>
@@ -350,6 +407,29 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                   Operator average — mean across all buildings with the same
                   "Operated by" agent, each counted with its latest actual year
                   (the Betreiber benchmark).
+                </Typography>
+              )}
+              {hasPortfolio && (
+                <Typography variant="body2" color="text.secondary">
+                  Portfolio average — mean across your own buildings carrying the
+                  metric.
+                </Typography>
+              )}
+              {benchmarkProviders.length > 0 && (
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{
+                    display: "flex",
+                    alignItems: "center",
+                    flexWrap: "wrap",
+                    gap: 0.5,
+                  }}
+                >
+                  Benchmark provided by{" "}
+                  {benchmarkProviders.map((webId) => (
+                    <AgentLabel key={webId} value={webId} />
+                  ))}
                 </Typography>
               )}
 

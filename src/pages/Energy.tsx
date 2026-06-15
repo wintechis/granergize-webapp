@@ -1,60 +1,25 @@
-import { BuildingType, EnergyType } from "../types.ts";
-import {
-  Box,
-  Divider,
-  Paper,
-  Stack,
-  Table,
-  TableBody,
-  TableCell,
-  TableContainer,
-  TableHead,
-  TableRow,
-  Typography,
-} from "@mui/material";
-import { alpha } from "@mui/material/styles";
-import { useReceivedBenchmarks, useSolidData } from "../hooks/queries.ts";
-import { pickBenchmark } from "../services/aggregation/benchmarkSelector.ts";
-import { annualMetricDesc } from "../constants/annualMetrics.ts";
-import { AgentLabel } from "../components/AgentLabel.tsx";
+import { BuildingType } from "../types.ts";
+import { Box, Divider, Stack, Typography } from "@mui/material";
+import { useSolidData } from "../hooks/queries.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
-import MetricBarChart from "../components/detail/MetricBarChart.tsx";
-
-import {
-  CHART_COLOR_PALETTE,
-  ENERGY_ABOVE_AVG_COLOR,
-  ENERGY_BELOW_AVG_COLOR,
-} from "../constants/chartColors.ts";
 import { splitEnergyDatasets } from "../lib/energyResolution.ts";
 import EnergyResolutionSwitch from "../components/EnergyResolutionSwitch.tsx";
 import SeriesEnergy from "./SeriesEnergy.tsx";
-import { formatNumber } from "../lib/formatNumber.ts";
+import AnnualEnergy from "./AnnualEnergy.tsx";
 import ObservationHeader from "../components/observation/ObservationHeader.tsx";
+import WeatherData from "./WeatherData.tsx";
 
 type EnergyProps = {
-  selectedBuilding: string;
   building: BuildingType;
 };
 
-export default function Energy(
-  { selectedBuilding, building }: EnergyProps,
-) {
-  const { energyNeed, portfolioAverages, operatorAverages, isLoading, error } =
-    useSolidData();
-  // BSP benchmark snapshots shared with this user; the comparison figure prefers
-  // these over the local portfolio mean when one covers the row's metric.
-  const { data: benchmarks = [] } = useReceivedBenchmarks();
-  // Distinct BSPs behind the received benchmarks, for the provenance caption.
-  const benchmarkProviders = [
-    ...new Set(
-      benchmarks.map((b) => b.computedBy).filter((w): w is string => Boolean(w)),
-    ),
-  ];
+export default function Energy({ building }: EnergyProps) {
+  // Only the global error/loading flags are read here now — the annual and
+  // series surfaces own their own data (AnnualEnergy via useAnnualEnergy from
+  // building.energyDatasets; SeriesEnergy lazy-loads the time series).
+  const { isLoading, error } = useSolidData();
   const dev = useDevMode();
-
-  // Find the energy data for the selected building
-  const energy = energyNeed?.find((e) => e.id === selectedBuilding);
 
   // While the global load is in flight, stay blank — the header spinner is the
   // single loading indicator; this avoids a misleading "no data" flash.
@@ -68,13 +33,27 @@ export default function Energy(
     );
   }
 
-  const { series } = splitEnergyDatasets(building.energyDatasets);
+  // The building's energy datasets partitioned by granularity. The finder lists
+  // a building precisely when it has energy datasets, so gating the page on the
+  // SAME source (not the latest-year bulk `energyNeed`) keeps the two in step:
+  // a building the finder shows always renders its energy here.
+  const { aggregates, series } = splitEnergyDatasets(building.energyDatasets);
 
-  if (!energy && series.length === 0) {
+  // Weather is the building's OTHER observation layer: external, live, read-only
+  // observations from the nearest DWD station (a spatial join by proximity, see
+  // notes/weather.md). It is about the building's location, so it shows whenever
+  // the building has coordinates — independent of whether it owns energy data.
+  const weatherSection =
+    building.lat != null && building.long != null
+      ? <WeatherData building={building} />
+      : null;
+
+  if (aggregates.length === 0 && series.length === 0) {
     // No energy yet — still the full detail page (header + back link); the
     // header carries the owner's "Edit energy years" action (the entry point
     // moved off the finder row to this page). A building shared with the user is
-    // read-only, so it only gets the no-access note.
+    // read-only, so it only gets the no-access note. Weather (when located) still
+    // renders — it's an independent observation layer about the building.
     return (
       <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
         <ObservationHeader building={building} />
@@ -83,242 +62,42 @@ export default function Energy(
             ? "No energy data available for this building. You may not have access to this data."
             : "No energy data yet. Use the “Edit energy years” button above to add a year."}
         </Typography>
+        {weatherSection}
       </Stack>
     );
   }
 
-  function sumUpPropValues(obj: Record<string, unknown>): number {
-    if (typeof obj === "object" && obj !== null) {
-      return Object.values(obj)
-        .filter((value): value is number => typeof value === "number")
-        .reduce((sum, value) => sum + value, 0);
-    }
-    return 0;
-  }
-
-  function toTitleCase(str: string) {
-    return str.replace(
-      /\w\S*/g,
-      (text) => text.charAt(0).toUpperCase() + text.substring(1).toLowerCase(),
-    );
-  }
-
-  /** A section's `{ type: value }` map → `[{ name, value }]` rows for Recharts. */
-  const chartRows = function (
-    string: keyof EnergyType,
-  ): Array<{ name: string; value: number }> {
-    const sectionData = energy?.[string] as Record<string, number> | undefined;
-    if (!sectionData) return [];
-    return Object.entries(sectionData).map(([name, value]) => ({
-      name,
-      value,
-    }));
-  };
-
-  // Tint a value against a reference average; no reference (≤ 0) → no tint.
-  function getBackgroundColor(value: number, average: number): string {
-    if (!(average > 0)) return "transparent";
-    const deviation = value - average;
-    const percentageDeviation = Math.abs(deviation / average) * 100;
-    const saturation = Math.min(percentageDeviation, 100); // Cap saturation at 100%
-
-    if (deviation < 0) {
-      // Below average — a pale success-green tint, saturated by deviation.
-      return alpha(ENERGY_BELOW_AVG_COLOR, saturation / 100);
-    } else {
-      // Above average — a pale error-red tint, saturated by deviation.
-      return alpha(ENERGY_ABOVE_AVG_COLOR, saturation / 100);
-    }
-  }
-
-  function createEnergyGrid(title: keyof EnergyType) {
-    if (!energy) {
-      return null;
-    }
-    if (!energy[title]) {
-      return;
-    }
-    // The Betreiber-Durchschnitt: the mean consumption across all buildings of
-    // this building's operator (operatedBy), keyed by the same metric labels as
-    // the row. Empty when the building has no operator or no operator peers.
-    const operatorAvg =
-      (typeof building.operatedBy === "string" &&
-        operatorAverages[building.operatedBy]) || {};
-    return (
-      <>
-        <Typography variant="h6">{toTitleCase(title)}</Typography>
-          <Box>
-            <TableContainer component={Paper}>
-              <Table size="small">
-                <TableHead>
-                  <TableRow>
-                    <TableCell>Energy Type</TableCell>
-                    <TableCell align="right">kWh / a</TableCell>
-                    <TableCell align="right">Portfolio average kWh / a</TableCell>
-                    <TableCell align="right">Operator average kWh / a</TableCell>
-                    <TableCell align="right">Benchmark kWh / a</TableCell>
-                  </TableRow>
-                </TableHead>
-                <TableBody>
-                  {Object.entries(energy[title]).map(([key, value]) => {
-                    const portfolioAverage = portfolioAverages[key] || 0;
-                    const operatorAverage = operatorAvg[key] || 0;
-                    const benchmark = pickBenchmark(benchmarks, key);
-                    // Compare the building's own value against the external
-                    // benchmark when one covers this metric; else the operator
-                    // (Betreiber) average when comparable buildings of the same
-                    // operator exist; else the portfolio mean.
-                    const reference = benchmark
-                      ? benchmark.value
-                      : operatorAverage > 0
-                      ? operatorAverage
-                      : portfolioAverage;
-                    return (
-                      <TableRow hover key={key}>
-                        <TableCell component="th" scope="row">
-                          {annualMetricDesc(key)?.label ?? key}
-                        </TableCell>
-                        <TableCell
-                          align="right"
-                          style={{
-                            backgroundColor: getBackgroundColor(value, reference),
-                          }}
-                        >
-                          {formatNumber(value, 2)}
-                        </TableCell>
-                        <TableCell align="right">
-                          {formatNumber(portfolioAverage, 2)}
-                        </TableCell>
-                        <TableCell align="right">
-                          {operatorAverage > 0
-                            ? formatNumber(operatorAverage, 2)
-                            : "—"}
-                        </TableCell>
-                        <TableCell align="right">
-                          {benchmark ? formatNumber(benchmark.value, 2) : "—"}
-                        </TableCell>
-                      </TableRow>
-                    );
-                  })}
-                </TableBody>
-                <TableHead>
-                  <TableRow hover>
-                    <TableCell>
-                      <strong>Total</strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>
-                        {typeof energy[title] === "object" &&
-                            energy[title] !== null
-                          ? formatNumber(
-                            sumUpPropValues(
-                              energy[title] as Record<string, unknown>,
-                            ),
-                            2,
-                          )
-                          : 0}
-                      </strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>
-                        {formatNumber(
-                          Object.keys(energy[title]).reduce((sum, key) =>
-                            sum + (portfolioAverages[key] || 0), 0),
-                          2,
-                        )}
-                      </strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>
-                        {(() => {
-                          const total = Object.keys(energy[title]).reduce(
-                            (sum, key) => sum + (operatorAvg[key] || 0),
-                            0,
-                          );
-                          return total > 0 ? formatNumber(total, 2) : "—";
-                        })()}
-                      </strong>
-                    </TableCell>
-                    <TableCell align="right">
-                      <strong>
-                        {(() => {
-                          const total = Object.keys(energy[title]).reduce(
-                            (sum, key) =>
-                              sum + (pickBenchmark(benchmarks, key)?.value ?? 0),
-                            0,
-                          );
-                          return total > 0 ? formatNumber(total, 2) : "—";
-                        })()}
-                      </strong>
-                    </TableCell>
-                  </TableRow>
-                </TableHead>
-              </Table>
-            </TableContainer>
-            <Box sx={{ position: "relative", width: "100%" }}>
-              <MetricBarChart
-                data={chartRows(title)}
-                bars={[{
-                  key: "value",
-                  name: toTitleCase(title),
-                  color: CHART_COLOR_PALETTE[0],
-                  palette: CHART_COLOR_PALETTE,
-                }]}
-                xKey="name"
-                yUnit="kWh / a"
-                hideLegend
-              />
-            </Box>
+  // The single annual view — multi-year per-year rows, the actual-vs-planned
+  // (Soll-Ist) overlay, the per-metric charts, AND the operator / portfolio /
+  // benchmark comparison rows. (The map's old "Energy data" detail tab folded
+  // into this one home; the map is a pure finder now.)
+  const annualView = aggregates.length > 0
+    ? (
+      <Box>
+        {dev && (
+          <>
+            <RdfSourceLink href={aggregates[0].url} />
             <Divider />
-          </Box>
-      </>
-    );
-  }
-
-  const annualView = energy && (
-    <Box>
-      {dev && (
-        <>
-          <RdfSourceLink href={energy.uri} />
-          <Divider />
-        </>
-      )}
-      <Stack spacing={2}>
-        {createEnergyGrid("energyNeed")}
-        {createEnergyGrid("energyGeneration")}
-        {createEnergyGrid("energyStorage")}
-        {createEnergyGrid("energyDistribution")}
-        {createEnergyGrid("energyTransfer")}
-        {createEnergyGrid("energyUsage")}
-        {createEnergyGrid("environmentalFactor")}
-      </Stack>
-      {benchmarkProviders.length > 0 && (
-        <Typography
-          variant="body2"
-          color="text.secondary"
-          sx={{ mt: 2, display: "flex", alignItems: "center", flexWrap: "wrap", gap: 0.5 }}
-        >
-          Benchmark provided by{" "}
-          {benchmarkProviders.map((webId) => (
-            <AgentLabel key={webId} value={webId} />
-          ))}
-        </Typography>
-      )}
-    </Box>
-  );
+          </>
+        )}
+        <AnnualEnergy building={building} />
+      </Box>
+    )
+    : undefined;
 
   // Same master-detail shape as the building / contact / aggregation / room
   // pages: a header (back link + identity + the owner's energy-entry action) and
   // a divider-separated stack of sections — here the Annual | Time series view.
   return (
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
-      <ObservationHeader building={building} year={energy?.year} />
+      <ObservationHeader building={building} />
       <EnergyResolutionSwitch
-        annual={annualView || undefined}
+        annual={annualView}
         series={series.length > 0
           ? <SeriesEnergy building={building} />
           : undefined}
       />
+      {weatherSection}
     </Stack>
   );
 }

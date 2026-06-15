@@ -120,12 +120,7 @@ function BuildingWrapper() {
 function EnergyWrapper() {
   return (
     <BuildingRouteGuard>
-      {(building, selectedBuilding) => (
-        <Energy
-          selectedBuilding={selectedBuilding}
-          building={building}
-        />
-      )}
+      {(building) => <Energy building={building} />}
     </BuildingRouteGuard>
   );
 }

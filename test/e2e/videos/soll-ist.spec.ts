@@ -2,7 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
-import { buildingRoute, exploreRoute } from "../helpers/manage.ts";
+import { buildingRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo } from "./demoPolish.ts";
 
@@ -158,22 +158,18 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await demo.click(stage.getByRole("button", { name: "Close" }));
     await expect(dialog).toBeHidden({ timeout: 10_000 });
 
-    // --- Scene 3: the payoff — plan next to actual in the annual overview.
-    //     Land on the building first (the deep link reads as a scene cut),
-    //     settle, then switch to Energy data with a VISIBLE click — a raw
-    //     `?dt=energy` teleport was too fast to follow. ---
+    // --- Scene 3: the payoff — plan next to actual in the annual overview, on
+    //     the building's observation page (the energy surface now; the map is a
+    //     pure finder). Land there as a scene cut and settle. ---
     await demo.scene(
       "payoff",
-      "Auf der Karte zeigt die Jahresübersicht Soll und Ist nebeneinander",
+      "Die Jahresübersicht zeigt Soll und Ist nebeneinander",
     );
-    await stage.goto(exploreRoute(buildingId));
-    await expect(stage.getByRole("tab", { name: "Building data" }))
-      .toBeVisible({ timeout: 60_000 });
-    await stage.waitForLoadState("networkidle").catch(() => {});
-    await demo.pause(1_500);
-    await demo.click(stage.getByRole("tab", { name: "Energy data" }));
+    await stage.goto(buildingRoute("observation", buildingId));
     const planned = stage.getByText(/\(planned\)/i).first();
     await expect(planned).toBeVisible({ timeout: 60_000 });
+    await stage.waitForLoadState("networkidle").catch(() => {});
+    await demo.pause(1_500);
     await stage.waitForLoadState("networkidle").catch(() => {});
     await demo.pause(1_200);
     await demo.moveTo(planned);

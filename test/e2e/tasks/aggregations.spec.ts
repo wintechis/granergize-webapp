@@ -6,10 +6,8 @@ import {
   addBuilding,
   addEnergyYear,
   buildingRoute,
-  exploreRoute,
   openAggregations,
   openBuildingsList,
-  openBuildingsMap,
 } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -120,9 +118,11 @@ test.describe("energy view smoke", () => {
   // buildings sharing ONE operator WebID, 1000 and 3000 kWh → the operator average
   // is their mean (2000), shown in each building's Energy tab.
   //
-  // Asserts the benchmark on the Map detail-pane "Energy data" tab (AnnualEnergy
-  // via ?b=&dt=energy). The detail pane belongs to the Buildings tab's Map view,
-  // so switch to Map before the deep link selects building A.
+  // Asserts the benchmark on the building's standalone observation page
+  // (`/observation/:id`) — the single energy surface now (the map is a pure
+  // finder, its old "Energy data" detail tab is gone). That page renders ONE
+  // annual view (AnnualEnergy), whose summary table carries the operator /
+  // portfolio / benchmark comparisons as ROWS beneath the per-year rows.
   test("the energy view shows the operator-average (Betreiber) benchmark", async () => {
     test.setTimeout(T.testSolo);
     const OP = "https://operator.example/profile/card#me";
@@ -135,41 +135,23 @@ test.describe("energy view smoke", () => {
     await addBuilding(page, B, { operatedBy: OP });
     await addEnergyYear(page, B, "2022", "3000");
 
-    // Walk the surface Heike actually uses: the Explore detail pane's
-    // "Energy data" tab → AnnualEnergy (annual data dispatches there, never
-    // to the standalone /energy route). Earlier tests in this spec seeded demo
-    // buildings, so a blind marker click could land on any of them — select
-    // building A deterministically via the URI-state deep link instead
-    // (?b=<id>&dt=energy, the same selection a marker click produces). The
-    // operator mean (2000 → "2.000") differs from A's own 1000, proving it
-    // aggregates across the operator's buildings.
+    // Resolve building A's id deterministically from the Buildings list (earlier
+    // tests seeded demo buildings, so a blind pick is ambiguous), then open its
+    // observation page. The operator mean (2000 → "2.000") differs from A's own
+    // 1000, proving it aggregates across the operator's buildings.
     await openBuildingsList(page);
     const rowA = page.locator("li", { hasText: A }).first();
     await expect(rowA).toBeVisible({ timeout: T.action });
     const id = await rowA.getAttribute("data-building-id");
     expect(id, "building A's id").toBeTruthy();
-    // The detail pane lives in Map view; switch to it so the ?b= deep link opens it.
-    await openBuildingsMap(page);
-    await page.goto(exploreRoute(id, "energy"));
+    await page.goto(buildingRoute("observation", id));
+    // The AnnualEnergy multi-year table carries an "Operator average" row;
+    // columns derive from the data present (schema order, electricity first) →
+    // [label, Electricity] → electricity at cell index 1 (de-DE "2.000").
     const avgRow = page.getByRole("row")
       .filter({ hasText: "Operator average" }).first();
     await expect(avgRow).toBeVisible({ timeout: T.action });
-    // Columns derive from the data present (schema order, electricity first);
-    // this seed carries electricity only → [label, Electricity] → electricity = 1.
     await expect(avgRow.getByRole("cell").nth(1)).toHaveText("2.000");
-
-    // The standalone /energy/:id view (latest annual year) carries the same
-    // benchmark as its "Operator average" column.
-    await page.goto(buildingRoute("observation", id));
-    await expect(
-      page.locator("th", { hasText: "Operator average kWh / a" }).first(),
-    ).toBeVisible({ timeout: T.action });
-    // Shows the OPERATOR MEAN (2000 → "2.000,00"), not A's own 1000. The row's
-    // first column is a <th scope="row">, so the four <td> cells are
-    // [own kWh/a, Portfolio avg, Operator avg, Benchmark] → operator = index 2.
-    const elecRow = page.getByRole("row").filter({ hasText: "Electricity" })
-      .first();
-    await expect(elecRow.getByRole("cell").nth(2)).toHaveText("2.000,00");
   });
 
   // Heike-4 (aggregations), end-to-end repro of exactly what she did: enter an

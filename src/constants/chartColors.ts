@@ -31,9 +31,6 @@ export const MARKER_OWNED_COLOR = BRAND_PRIMARY;
  * green/amber/red, so the two lenses can't be read into each other. */
 export const MARKER_SHARED_COLOR = "#ef6c00";
 
-/** Gold glow border applied to the selected building marker */
-export const MARKER_SELECTED_COLOR = "#FFD700";
-
 /**
  * Heat-map tints for the energy comparison grid (below / above the average),
  * saturated by the deviation via `alpha()`. A deliberately PALE pair (not the

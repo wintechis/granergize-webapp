@@ -63,15 +63,6 @@ export function buildingRoute(
   return `/${kind}/${encodeURIComponent(id)}`;
 }
 
-/** Real-path route to the Buildings finder (Map view) with a building selected
- * (`?b=`), optionally on a detail sub-tab (`?dt=`). The active finder is the
- * route now (`/buildings`); `?b=`/`?dt=` are the map sub-state. Encodes +
- * null-rejects like {@link buildingRoute}. */
-export function exploreRoute(id: string | null, dt?: string): string {
-  if (!id) throw new Error("exploreRoute: missing building id");
-  return `/buildings?b=${encodeURIComponent(id)}${dt ? `&dt=${dt}` : ""}`;
-}
-
 /**
  * Delete one building row and wait for THAT row to vanish — not the shared
  * "Building deleted" toast, which lingers ~6 s from the previous delete and

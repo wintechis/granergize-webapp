@@ -358,23 +358,23 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
 
     await demoP.scene(
       "benchmark-column",
-      "Auf der Energie-Detailseite füllt sich die Spalte „Benchmark“ – mit dem Branchenwert von C",
+      "Auf der Energie-Detailseite füllt sich die Zeile „Benchmark“ – mit dem Branchenwert von C",
     );
     await stageA2.goto(buildingRoute("observation", buildingId));
     await expect(
-      stageA2.getByRole("columnheader", { name: /benchmark kwh/i }).first(),
+      stageA2.getByRole("row").filter({ hasText: "Benchmark" }).first(),
     ).toBeVisible({ timeout: 60_000 });
     // The provider caption proves the benchmark arrived, but it sits at the
     // page bottom — moving there would frame the (empty) trailing sections.
-    // The visual payoff is the FIRST consumption table's filled Benchmark
-    // column, near the top.
+    // The visual payoff is the consumption table's filled Benchmark row,
+    // near the top.
     await expect(stageA2.getByText(/benchmark provided by/i))
       .toBeVisible({ timeout: 60_000 });
     await stageA2.waitForLoadState("networkidle").catch(() => {});
     await demoP.pause(1_500); // let the page read before the cursor moves
     await demoP.moveTo(
       stageA2.locator("table").filter({
-        has: stageA2.locator("th", { hasText: "Benchmark kWh / a" }),
+        has: stageA2.getByRole("row").filter({ hasText: "Benchmark" }),
       }).first(),
     );
     await demoP.pause(2_500);

@@ -1,14 +1,8 @@
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
+import { buildingRoute } from "../routes.ts";
 import { BuildingType, EnergyType } from "../types.ts";
-import {
-  detailIndexFromSlug,
-  mergeParams,
-  slugFromDetailIndex,
-} from "./uriState.ts";
-import { RefLink, UriLink } from "../components/detail/DetailView.tsx";
-import { useDevMode } from "../hooks/devMode.ts";
 import {
   MapContainer,
   Marker,
@@ -22,12 +16,6 @@ import L from "leaflet";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
-import Stack from "@mui/material/Stack";
-import Tabs from "@mui/material/Tabs";
-import Tab from "@mui/material/Tab";
-import Grid from "@mui/material/Grid";
-import SeriesEnergy from "./SeriesEnergy.tsx";
-import IconButton from "@mui/material/IconButton";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import {
@@ -35,18 +23,13 @@ import {
   useResolveOrg,
   useSolidData,
 } from "../hooks/queries.ts";
-import WeatherData from "./WeatherData.tsx";
-import AnnualEnergy from "./AnnualEnergy.tsx";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
-import OpenInFullIcon from "@mui/icons-material/OpenInFull";
-import CloseFullscreenIcon from "@mui/icons-material/CloseFullscreen";
 import {
   ENERGY_ABOVE_AVG_COLOR,
   ENERGY_BELOW_AVG_COLOR,
   ENERGY_TYPICAL_COLOR,
   MARKER_NO_DATA_COLOR,
   MARKER_OWNED_COLOR,
-  MARKER_SELECTED_COLOR,
   MARKER_SHARED_COLOR,
 } from "../constants/chartColors.ts";
 import {
@@ -54,8 +37,6 @@ import {
   endActivity,
 } from "../lib/networkActivity.ts";
 import { safeImageSrc } from "../lib/safeHref.ts";
-import { splitEnergyDatasets } from "../lib/energyResolution.ts";
-import EnergyResolutionSwitch from "../components/EnergyResolutionSwitch.tsx";
 import {
   categoriserFor,
   type EnergyCategory,
@@ -87,7 +68,8 @@ const BASEMAP_DE = {
 
 // Ownership-lens marker: a plain SVG pin tinted by the theme's owned/shared
 // colour (the marker encodes ownership and nothing else; the producer's logo
-// lives in the marker's hover card). Selected = gold glow.
+// lives in the marker's hover card). A click navigates to the building page —
+// the map is a pure finder, so there is no persistent "selected" marker state.
 //
 // Leaflet icons are CACHED at module level: react-leaflet calls
 // `marker.setIcon()` (replacing the marker's DOM node) whenever the `icon`
@@ -95,14 +77,12 @@ const BASEMAP_DE = {
 // icon object per render meant the whole fleet's DOM was rebuilt on every map
 // move. Stable cached instances make those re-renders no-ops.
 const pinIconCache = new Map<string, L.DivIcon>();
-function createPinIcon(shared: boolean, selected: boolean): L.DivIcon {
-  const key = `${shared ? "s" : "o"}-${selected}`;
+function createPinIcon(shared: boolean): L.DivIcon {
+  const key = shared ? "s" : "o";
   const hit = pinIconCache.get(key);
   if (hit) return hit;
   const color = shared ? MARKER_SHARED_COLOR : MARKER_OWNED_COLOR;
-  const glow = selected
-    ? `filter:drop-shadow(0 0 3px ${MARKER_SELECTED_COLOR}) drop-shadow(0 0 5px ${MARKER_SELECTED_COLOR});`
-    : "filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));";
+  const glow = "filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));";
   // The ownership is baked into the className (`pin-owned`/`pin-shared`) so
   // the e2e specs can target a marker by it (the energy-marker precedent).
   const icon = L.divIcon({
@@ -126,28 +106,21 @@ function createPinIcon(shared: boolean, selected: boolean): L.DivIcon {
  * (`energy-marker energy-<category>`) so the e2e spec can assert it.
  */
 const categoryIconCache = new Map<string, L.DivIcon>();
-function createCategoryIcon(
-  category: EnergyCategory,
-  selected: boolean,
-): L.DivIcon {
-  const key = `${category}-${selected}`;
-  const hit = categoryIconCache.get(key);
+function createCategoryIcon(category: EnergyCategory): L.DivIcon {
+  const hit = categoryIconCache.get(category);
   if (hit) return hit;
-  const ring = selected ? MARKER_SELECTED_COLOR : "#fff";
-  const shadow = selected
-    ? `box-shadow:0 0 0 2px ${MARKER_SELECTED_COLOR},0 1px 4px rgba(0,0,0,0.45);`
-    : "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
+  const shadow = "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
   const icon = L.divIcon({
     className: `energy-marker energy-${category}`,
     html:
       `<div style="width:28px;height:28px;border-radius:50%;background:${
         CATEGORY_COLOR[category]
-      };border:3px solid ${ring};${shadow}"></div>`,
+      };border:3px solid #fff;${shadow}"></div>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -17],
   });
-  categoryIconCache.set(key, icon);
+  categoryIconCache.set(category, icon);
   return icon;
 }
 
@@ -157,13 +130,12 @@ function createCategoryIcon(
  * buildings `.map()`. The marker itself is an owned/shared-coloured pin; the
  * producer's (`attributedTo`) organisation — name and logo, when they resolve —
  * shows in the hover card, as does the operator (`operatedBy`) agent's name and
- * logo when present.
+ * logo when present. A click navigates to the building's detail page.
  */
 function BuildingMarker(
-  { building, position, selected, onClick, lens, category }: {
+  { building, position, onClick, lens, category }: {
     building: BuildingType;
     position: [number, number];
-    selected: boolean;
     onClick: () => void;
     lens: MapLens;
     category: EnergyCategory;
@@ -182,8 +154,8 @@ function BuildingMarker(
     ? safeImageSrc(operator.avatarUrl)
     : null;
   const icon = lens === "energy"
-    ? createCategoryIcon(category, selected)
-    : createPinIcon(building.isShared ?? false, selected);
+    ? createCategoryIcon(category)
+    : createPinIcon(building.isShared ?? false);
   const tooltipOffset: [number, number] = lens === "energy"
     ? [0, -20]
     : [0, -38];
@@ -334,8 +306,8 @@ interface ExplorePageProps {
 export default function ExplorePage(
   { active = true }: ExplorePageProps,
 ) {
-  const { buildings, energyNeed, error, isLoading } = useSolidData();
-  const dev = useDevMode();
+  const { buildings, energyNeed, error } = useSolidData();
+  const navigate = useNavigate();
   // One activity token per tile-loading burst (the layer fires `loading` when it
   // starts fetching tiles and `load` once the visible set is in), so panning/
   // zooming registers in the global indicator without a token per image.
@@ -350,21 +322,9 @@ export default function ExplorePage(
       }
     };
   }, []);
-  // The selected building and detail sub-tab live in the hash query params
-  // (`?b=`/`?dt=`) so a reload / bookmark restores the view — see
-  // notes/ui-state.md. The right pane shows the building `?b=` names; selection
-  // is a single building (no "back" stack), so the id captures it fully.
-  const [searchParams, setSearchParams] = useSearchParams();
-  const selectedId = searchParams.get("b");
-  // Which detail tab is shown for the selected building: 0=building, 1=energy,
-  // 2=weather (only meaningful while a building is selected).
-  const detailTab = detailIndexFromSlug(searchParams.get("dt"));
   // The map's current bounding box; the energy lens's peer set is computed
   // over the buildings that fall inside it.
   const [bbox, setBbox] = useState<L.LatLngBounds | null>(null);
-  // false = balanced 50/50 split with the map; true = the detail pane fills the
-  // tab body and the map pane is hidden (kept mounted, see InvalidateOnActive).
-  const [detailFull, setDetailFull] = useState(false);
   // Which colour lens the markers use: owned/shared (default) or energy
   // intensity. The two are mutually exclusive so neither meaning is overloaded.
   const [lens, setLens] = useState<MapLens>("ownership");
@@ -412,28 +372,9 @@ export default function ExplorePage(
     [peerIntensities],
   );
 
-  // Whether the map renders any markers at all — a marker only appears for a
-  // building that has coordinates (see the `building.lat && building.long`
-  // guard in the Marker map below), so buildings can exist with none shown.
-  const hasMarkers = buildings.some((b) => b.lat != null && b.long != null);
-
-  // The selected building, re-resolved from `?b=` each render so it survives
-  // data reloads and disappears if the building is removed.
-  const selectedBuilding = selectedId
-    ? buildings.find((b) => b.id === selectedId) ?? null
-    : null;
-
-  // Select a building: set `?b=` and drop `?dt=` so the detail view opens on the
-  // Building tab. `replace` keeps selection out of the browser history;
-  // `mergeParams` updates `b` without clobbering the sibling `dt` param.
-  const focusBuilding = (id: string) =>
-    setSearchParams((p) => mergeParams(p, { b: id, dt: null }), {
-      replace: true,
-    });
-
-  const togglePaneSize = () => {
-    setDetailFull((v) => !v);
-  };
+  // Navigate to a building's detail page — the map is a pure finder, so a
+  // marker click leaves the map for `/building/:id` (the same as a List row).
+  const openBuilding = (id: string) => navigate(buildingRoute(id));
 
   return (
     <Box
@@ -451,288 +392,100 @@ export default function ExplorePage(
         </Typography>
       )}
 
-      {/* Wide screens: two panes fill the height side-by-side, each scrolling on
-          its own. Narrow screens: the panes stack and the whole tab scrolls once. */}
-      <Grid
-        container
-        spacing={2}
-        sx={{ flexGrow: 1, minHeight: 0, overflow: { xs: "auto", md: "visible" } }}
+      <MapContainer
+        className="map-container"
+        center={[50.976558, 10.404674]}
+        zoom={6.5}
+        zoomSnap={0.5}
+        style={{ flex: 1, minHeight: 0 }}
       >
-        <Grid
-          size={{ xs: 12, md: 6 }}
-          sx={{
-            // Full-screen detail hides the map pane — but keep it mounted (display
-            // none, not unmounted) so the Leaflet instance survives; InvalidateOnActive
-            // recomputes its size when it reappears.
-            display: detailFull ? "none" : "flex",
-            height: { xs: "auto", md: "100%" },
-            minHeight: { xs: "22.5rem", md: 0 },
-            overflow: { xs: "visible", md: "auto" },
-            position: "relative",
-            flexDirection: "column",
+        <WMSTileLayer
+          url={BASEMAP_DE.url}
+          layers={BASEMAP_DE.layers}
+          format="image/png"
+          transparent={false}
+          attribution={BASEMAP_DE.attribution}
+          eventHandlers={{
+            loading: () => {
+              if (tileToken.current === null) {
+                tileToken.current = beginActivity("map tiles");
+              }
+            },
+            load: () => {
+              if (tileToken.current !== null) {
+                endActivity(tileToken.current);
+                tileToken.current = null;
+              }
+            },
           }}
+        />
+        <InvalidateOnActive active={active} />
+        <FitToBuildings active={active} buildings={buildings} />
+        <BoundsWatcher active={active} onChange={setBbox} />
+        {buildings.map((building) => (
+          building.lat != null && building.long != null && (
+            <BuildingMarker
+              key={building.id}
+              building={building}
+              position={[building.lat, building.long]}
+              lens={lens}
+              category={categoriseIntensity(
+                intensityById.get(building.id) ?? null,
+              )}
+              onClick={() => openBuilding(building.id)}
+            />
+          )
+        ))}
+      </MapContainer>
+      {/* Map legend — a lens toggle plus the swatches for the active lens. */}
+      <Paper
+        variant="outlined"
+        sx={{
+          mt: 2,
+          px: 1.5,
+          py: 0.75,
+          display: "flex",
+          flexWrap: "wrap",
+          gap: 1.5,
+          alignItems: "center",
+          flexShrink: 0,
+        }}
+      >
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={lens}
+          onChange={(_e, v: MapLens | null) => v && setLens(v)}
+          aria-label="Marker colour lens"
         >
-          <MapContainer
-            className="map-container"
-                center={[50.976558, 10.404674]}
-                zoom={6.5}
-                zoomSnap={0.5}
-                style={{ flex: 1, minHeight: 0 }}
-              >
-                <WMSTileLayer
-                  url={BASEMAP_DE.url}
-                  layers={BASEMAP_DE.layers}
-                  format="image/png"
-                  transparent={false}
-                  attribution={BASEMAP_DE.attribution}
-                  eventHandlers={{
-                    loading: () => {
-                      if (tileToken.current === null) {
-                        tileToken.current = beginActivity("map tiles");
-                      }
-                    },
-                    load: () => {
-                      if (tileToken.current !== null) {
-                        endActivity(tileToken.current);
-                        tileToken.current = null;
-                      }
-                    },
-                  }}
-                />
-                <InvalidateOnActive active={active && !detailFull} />
-                <FitToBuildings active={active} buildings={buildings} />
-                <BoundsWatcher active={active} onChange={setBbox} />
-                {buildings.map((building) => (
-                  building.lat != null && building.long != null && (
-                    <BuildingMarker
-                      key={building.id}
-                      building={building}
-                      position={[building.lat, building.long]}
-                      selected={selectedBuilding?.id === building.id}
-                      lens={lens}
-                      category={categoriseIntensity(
-                        intensityById.get(building.id) ?? null,
-                      )}
-                      onClick={() => focusBuilding(building.id)}
-                    />
-                  )
-                ))}
-          </MapContainer>
-          {/* Map legend — a lens toggle plus the swatches for the active lens. */}
-          <Paper
-            variant="outlined"
-            sx={{
-              mt: 2,
-              px: 1.5,
-              py: 0.75,
-              display: "flex",
-              flexWrap: "wrap",
-              gap: 1.5,
-              alignItems: "center",
-            }}
-          >
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={lens}
-              onChange={(_e, v: MapLens | null) => v && setLens(v)}
-              aria-label="Marker colour lens"
-            >
-              <ToggleButton value="ownership">Ownership</ToggleButton>
-              <ToggleButton value="energy">Energy</ToggleButton>
-            </ToggleButtonGroup>
-            {(lens === "energy"
-              ? ([
-                [CATEGORY_COLOR.efficient, "More efficient"],
-                [CATEGORY_COLOR.typical, "Typical"],
-                [CATEGORY_COLOR.inefficient, "Less efficient"],
-                [CATEGORY_COLOR.none, "No energy data"],
-              ] as const)
-              : ([
-                [MARKER_OWNED_COLOR, "My buildings"],
-                [MARKER_SHARED_COLOR, "Shared with me"],
-              ] as const)).map(([color, label]) => (
-                <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
-                  <Box
-                    sx={{
-                      width: 10,
-                      height: 10,
-                      backgroundColor: color,
-                      borderRadius: "50%",
-                      flexShrink: 0,
-                    }}
-                  />
-                  <Typography variant="body2">{label}</Typography>
-                </Box>
-              ))}
-          </Paper>
-        </Grid>
-        <Grid
-          size={{ xs: 12, md: detailFull ? 12 : 6 }}
-          sx={{
-            height: { xs: "auto", md: "100%" },
-            overflow: { xs: "visible", md: "auto" },
-          }}
-        >
-          {!selectedId
-            ? (
-              <Typography variant="body1">
-                {isLoading
-                  ? "Loading…"
-                  : buildings.length === 0
-                  ? "No buildings yet. Add one to see it on the map."
-                  : hasMarkers
-                  ? "Select a marker to show details"
-                  : "No buildings have a location yet — add coordinates to place them on the map"}
-              </Typography>
-            )
-            : (
-              <Stack spacing={2}>
-                {selectedBuilding && (
-                  <>
-                    {/* Persistent building identity — the building stays the
-                        focus while the tabs below switch its detail views. */}
-                    <Box
-                      sx={{
-                        display: "flex",
-                        gap: 1.5,
-                        alignItems: "flex-start",
-                        mb: 1,
-                      }}
-                    >
-                      <CorporateFareIcon color="action" />
-                      <Box sx={{ flexGrow: 1 }}>
-                        <Typography variant="h6">
-                          {buildingDisplayName(selectedBuilding)}
-                        </Typography>
-                        <Typography variant="body2" color="text.secondary">
-                          {selectedBuilding.streetAddress !==
-                              buildingDisplayName(selectedBuilding) && (
-                            <>
-                              {selectedBuilding.streetAddress}
-                              <br />
-                            </>
-                          )}
-                          {`${selectedBuilding.postalCode ?? ""} ${
-                            selectedBuilding.locality ?? ""
-                          }${
-                            selectedBuilding.region
-                              ? `, ${selectedBuilding.region}`
-                              : ""
-                          }`}
-                        </Typography>
-                        {dev && (
-                          <Typography
-                            variant="body1"
-                            sx={{ mt: 0.5, wordBreak: "break-all" }}
-                          >
-                            <UriLink href={selectedBuilding.uri}>
-                              {selectedBuilding.uri}
-                            </UriLink>
-                          </Typography>
-                        )}
-                      </Box>
-                      <IconButton
-                        size="small"
-                        onClick={togglePaneSize}
-                        aria-label={detailFull
-                          ? "Show map"
-                          : "Fill screen with details"}
-                        title={detailFull
-                          ? "Show map"
-                          : "Fill screen with details"}
-                      >
-                        {detailFull
-                          ? <CloseFullscreenIcon fontSize="small" />
-                          : <OpenInFullIcon fontSize="small" />}
-                      </IconButton>
-                    </Box>
-
-                    <Tabs
-                      value={detailTab}
-                      onChange={(_e, v) =>
-                        setSearchParams(
-                          (p) => mergeParams(p, { dt: slugFromDetailIndex(v) }),
-                          { replace: true },
-                        )}
-                      variant="fullWidth"
-                    >
-                      <Tab label="Building data" />
-                      <Tab label="Energy data" />
-                      <Tab label="Weather data" />
-                    </Tabs>
-
-                    {detailTab === 0 && (
-                      // A LIGHT summary — a couple of already-loaded master-data
-                      // facts — plus a prominent link into the full building page
-                      // page. The map pane is a finder, not the building page: the detailed
-                      // master data, files, energy years and sharing live on
-                      // /building/:id.
-                      <Stack spacing={2}>
-                        {selectedBuilding.usedAs && (
-                          <Typography variant="body2">
-                            Use: {selectedBuilding.usedAs}
-                          </Typography>
-                        )}
-                        {selectedBuilding.yearOfConstruction != null && (
-                          <Typography variant="body2">
-                            Year of construction:{" "}
-                            {selectedBuilding.yearOfConstruction}
-                          </Typography>
-                        )}
-                        {selectedBuilding.buildingArea != null && (
-                          <Typography variant="body2">
-                            Building area: {selectedBuilding.buildingArea} m²
-                          </Typography>
-                        )}
-                        <Box>
-                          <RefLink
-                            to={`/building/${
-                              encodeURIComponent(selectedBuilding.id)
-                            }`}
-                          >
-                            Open building
-                          </RefLink>
-                        </Box>
-                      </Stack>
-                    )}
-
-                    {detailTab === 1 && (() => {
-                      // Dispatch on the data the building actually carries, not
-                      // its provenance role: each granularity kind present gets
-                      // its view (annual aggregates → AnnualEnergy, sub-hourly
-                      // series → SeriesEnergy), and with both the user switches.
-                      const { aggregates, series } = splitEnergyDatasets(
-                        selectedBuilding.energyDatasets,
-                      );
-                      if (aggregates.length === 0 && series.length === 0) {
-                        return (
-                          <Typography variant="body2">
-                            No energy data for this building.
-                          </Typography>
-                        );
-                      }
-                      return (
-                        <EnergyResolutionSwitch
-                          annual={aggregates.length > 0
-                            ? <AnnualEnergy building={selectedBuilding} />
-                            : undefined}
-                          series={series.length > 0
-                            ? <SeriesEnergy building={selectedBuilding} />
-                            : undefined}
-                        />
-                      );
-                    })()}
-
-                    {detailTab === 2 && (
-                      <WeatherData building={selectedBuilding} />
-                    )}
-                  </>
-                )}
-              </Stack>
-            )}
-        </Grid>
-      </Grid>
+          <ToggleButton value="ownership">Ownership</ToggleButton>
+          <ToggleButton value="energy">Energy</ToggleButton>
+        </ToggleButtonGroup>
+        {(lens === "energy"
+          ? ([
+            [CATEGORY_COLOR.efficient, "More efficient"],
+            [CATEGORY_COLOR.typical, "Typical"],
+            [CATEGORY_COLOR.inefficient, "Less efficient"],
+            [CATEGORY_COLOR.none, "No energy data"],
+          ] as const)
+          : ([
+            [MARKER_OWNED_COLOR, "My buildings"],
+            [MARKER_SHARED_COLOR, "Shared with me"],
+          ] as const)).map(([color, label]) => (
+            <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
+              <Box
+                sx={{
+                  width: 10,
+                  height: 10,
+                  backgroundColor: color,
+                  borderRadius: "50%",
+                  flexShrink: 0,
+                }}
+              />
+              <Typography variant="body2">{label}</Typography>
+            </Box>
+          ))}
+      </Paper>
     </Box>
   );
 }

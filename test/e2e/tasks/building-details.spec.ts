@@ -13,10 +13,10 @@ import { T } from "../helpers/timeouts.ts";
  *   1. Viewing a building shows its linked operator as a resolvable WebID link —
  *      the detail panel renders IRIs as clickable links that open the WebID
  *      itself (the education-mandate "IRIs are dereferenceable" behaviour).
- *   2. The energy view benchmarks a building's consumption — the table shows the
- *      building's own figures beside a "Portfolio average kWh / a" column (the
- *      mean over the user's own buildings; a separate BSP "Benchmark" column
- *      carries any service-provider benchmark).
+ *   2. The energy view benchmarks a building's consumption — the single annual
+ *      table shows the building's own per-year figures plus a "Portfolio
+ *      average" comparison row (the mean over the user's own buildings; a
+ *      separate "Benchmark" row carries any received service-provider benchmark).
  *
  *   # tier 3 (local CSS, no creds):
  *   deno task e2e:local test/e2e/tasks/building-details.spec.ts
@@ -124,8 +124,8 @@ test.describe("building details", () => {
     test.setTimeout(T.testSolo);
 
     // The demo investor building ("Nordostpark 84") carries an annual aggregate, so
-    // its energy view renders the comparison table (with the operator-average
-    // column) rather than the 15-min series chart.
+    // its energy view renders the single annual table (with the comparison rows)
+    // rather than the 15-min series chart.
     await openBuildingsList(page);
     const annual = page.locator("li", { hasText: "Nordostpark" }).first();
     await expect(annual).toBeVisible({ timeout: T.action });
@@ -137,16 +137,16 @@ test.describe("building details", () => {
     // detail-page header — not the old "Energy Need for …" card title; the
     // comparison-column assertion below is the load gate.)
 
-    // The building's own figures sit beside the portfolio-average comparison column
-    // (the mean over the user's own buildings). The comparison table repeats a plain
-    // "kWh / a" header per energy-type block, so match the first (the assertion only
-    // proves the column exists).
-    await expect(page.locator("th", { hasText: /^kWh \/ a$/ }).first())
-      .toBeVisible({ timeout: T.action });
+    // The single annual table carries per-metric columns (e.g. "Electricity
+    // (kWh)") with one row per year, plus a "Portfolio average" comparison row
+    // (the mean over the user's own buildings).
     await expect(
-      page.locator("th", { hasText: "Portfolio average kWh / a" }).first(),
+      page.locator("th", { hasText: "Electricity (kWh)" }).first(),
     ).toBeVisible({ timeout: T.action });
-    // …and the table has at least one energy-type row under those columns.
+    await expect(
+      page.getByRole("row").filter({ hasText: "Portfolio average" }).first(),
+    ).toBeVisible({ timeout: T.action });
+    // …and the table has at least one per-year data row.
     await expect(page.locator("tbody tr").first()).toBeVisible({
       timeout: T.action,
     });

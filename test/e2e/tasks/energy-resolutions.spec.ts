@@ -5,7 +5,6 @@ import {
   addEnergyYear,
   buildingRoute,
   openBuildingsList,
-  openBuildingsMap,
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -131,8 +130,9 @@ test.describe("energy resolution toggle", () => {
   test("/energy/:id offers the toggle and reaches the series chart", async () => {
     test.setTimeout(T.testSolo);
     await page.goto(buildingRoute("observation", id));
-    // Annual is the default view — the entered figure shows (de-DE formatted).
-    await expect(page.getByText("77.777,00").first())
+    // Annual is the default view — the entered figure shows (de-DE formatted at
+    // the metric's precision; electricity is 0-decimals → "77.777").
+    await expect(page.getByText(/77\.777/).first())
       .toBeVisible({ timeout: T.action });
     // Both resolutions exist, so the toggle renders.
     const seriesBtn = page.getByRole("button", { name: "Time series" });
@@ -142,29 +142,16 @@ test.describe("energy resolution toggle", () => {
     await seriesBtn.click();
     await expect(page.getByRole("tab", { name: "Day View" }))
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByText("77.777,00").first()).toBeHidden();
+    await expect(page.getByText(/77\.777/).first()).toBeHidden();
     // And back: the annual view returns.
     await page.getByRole("button", { name: "Annual" }).click();
-    await expect(page.getByText("77.777,00").first())
+    await expect(page.getByText(/77\.777/).first())
       .toBeVisible({ timeout: T.action });
   });
 
-  // Asserts the same toggle on the map's "Energy data" detail tab (AnnualEnergy),
-  // reached via the Buildings tab's Map view + a marker click.
-  test("the map's Energy tab offers the same toggle", async () => {
-    test.setTimeout(T.testSolo);
-    await page.goto("/");
-    await openBuildingsMap(page);
-    const marker = page.locator(".leaflet-marker-icon").first();
-    await expect(marker).toBeVisible({ timeout: T.action });
-    await marker.click({ force: true });
-    await page.getByRole("tab", { name: "Energy data" }).click();
-    // Default = the annual view (AnnualEnergy lists the entered year).
-    await expect(page.getByText(YEAR).first())
-      .toBeVisible({ timeout: T.action });
-    // Toggle to the series → the Day-View tab strip renders here too.
-    await page.getByRole("button", { name: "Time series" }).click();
-    await expect(page.getByRole("tab", { name: "Day View" }))
-      .toBeVisible({ timeout: T.action });
-  });
+  // NOTE: a second case used to assert the same Annual | Time series toggle on
+  // the map's "Energy data" detail tab. The map is a pure finder now (a marker
+  // click navigates to /building/:id; the detail pane is gone), so the energy
+  // surface lives only on /observation/:id — already covered by the case above.
+  // The redundant map sub-case was dropped rather than re-pointed at the same page.
 });

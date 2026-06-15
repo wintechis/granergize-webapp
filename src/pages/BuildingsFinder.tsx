@@ -52,8 +52,9 @@ interface BuildingsFinderProps {
 /**
  * The Buildings finder (`/buildings`): one finder over two views of the same set,
  * picked by a Map ⇄ List toggle (local, non-URL state; defaults to Map). Map is
- * `ExplorePage` (kept mounted-but-hidden on List so the Leaflet instance and the
- * `?b=`/`?dt=` map sub-state survive the toggle); List is the buildings list —
+ * `ExplorePage` (kept mounted-but-hidden on List so the Leaflet instance and map
+ * viewport survive the toggle) — a pure finder whose markers navigate to the
+ * building page like a List row; List is the buildings list —
  * each row navigates to the building page (`/building/:id`, where edit / files /
  * energy / share / download live) and carries one destructive action (delete),
  * showing who it's shared with (and revoking). Aggregations are their OWN finder

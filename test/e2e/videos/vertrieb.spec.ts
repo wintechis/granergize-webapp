@@ -241,14 +241,15 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     await sharedMarker.waitFor({ timeout: 60_000 });
     await waitForMapTiles(stageB);
     await demoB.pause(1_500);
+    // The map is a pure finder: clicking the shared marker NAVIGATES to A's
+    // building page (`/building/:id`), where B reads A's data live.
     await demoB.click(sharedMarker);
 
     await demoB.scene(
       "payoff",
       "B liest A's Gebäude- und Energiedaten live aus A's Pod",
     );
-    await expect(stageB.getByRole("tab", { name: "Building data" }))
-      .toBeVisible({ timeout: 60_000 });
+    await stageB.waitForURL(/\/building\//, { timeout: 60_000 });
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await demoB.pause(2_000);
     await demoB.caption(

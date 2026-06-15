@@ -162,8 +162,7 @@ export const Login: React.FC<LoginProps> = ({
     // Restoring a session on refresh does a *silent redirect* through the Solid
     // identity provider, which returns to the registered redirect_uri (the app
     // root) — dropping the in-app route (now a real PATH under BrowserRouter,
-    // `/building/<id>`, plus its `?tab=`/`?b=`/`?dt=` UI-state query params; see
-    // notes/ui-state.md). The `sessionRestore` event hands back the pre-redirect
+    // `/building/<id>`). The `sessionRestore` event hands back the pre-redirect
     // URL (inrupt preserves it for exactly this). The event fires *while*
     // `handleIncomingRedirect` is still cleaning the URL, so applying it
     // synchronously gets clobbered by that cleanup — defer to a macrotask so it

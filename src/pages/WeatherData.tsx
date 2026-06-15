@@ -1,4 +1,3 @@
-import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -7,15 +6,14 @@ import {
 } from "@wintechis/wetterdienst-rdf-adapter";
 import {
   Alert,
-  Card,
-  CardContent,
-  CardHeader,
+  Box,
   FormControl,
   Grid,
   InputLabel,
   MenuItem,
   Paper,
   Select,
+  Stack,
   Table,
   TableBody,
   TableCell,
@@ -156,13 +154,12 @@ export default function WeatherData({ building }: WeatherDataProps) {
     : null;
 
   return (
-    <Card variant="outlined">
-      <CardHeader
-        avatar={<WbSunnyIcon />}
-        titleTypographyProps={{ variant: "h5" }}
-        title={`Weather Data for ${buildingDisplayName(building)}`}
-      />
-      <CardContent>
+    <Stack spacing={2}>
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+        <WbSunnyIcon color="action" />
+        <Typography variant="h6">Weather</Typography>
+      </Stack>
+      <Box>
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth>
@@ -273,7 +270,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
             </Typography>
           </>
         )}
-      </CardContent>
-    </Card>
+      </Box>
+    </Stack>
   );
 }

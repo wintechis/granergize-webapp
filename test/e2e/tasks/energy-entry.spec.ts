@@ -5,7 +5,6 @@ import {
   addEnergyYear,
   buildingRoute,
   openBuildingsList,
-  openBuildingsMap,
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -123,26 +122,23 @@ test.describe("energy entry + Soll-Ist", () => {
 
   test("the actual figure flows into the building's energy view", async () => {
     test.setTimeout(T.testSolo);
-    // 2099 is the building's only/latest actual year, so loadEnergy surfaces our
-    // electricity figure (de-DE formatted "88.888,00") in the energy-need table.
+    // The consolidated annual table shows our electricity figure de-DE formatted
+    // at the metric's own precision (electricity is 0-decimals → "88.888"), so
+    // match the value decimals-agnostically.
     await page.goto(buildingRoute("observation", id));
-    await expect(page.getByText("88.888,00").first())
+    await expect(page.getByText(/88\.888/).first())
       .toBeVisible({ timeout: T.action });
     // The migrated chart is a Recharts SVG (not a canvas) — assert it draws.
     await expect(page.locator("svg.recharts-surface").first())
       .toBeVisible({ timeout: T.action });
   });
 
-  // The Soll-Ist comparison renders on the map's "Energy data" detail tab
-  // (AnnualEnergy), reached via the Buildings tab's Map view + a marker click.
+  // The Soll-Ist comparison (AnnualEnergy's multi-year view) now lives on the
+  // building's standalone observation page (`/observation/:id`) — the map is a
+  // pure finder, so the old map "Energy data" detail tab is gone.
   test("the planned (Soll) figure shows beside actual in the comparison", async () => {
     test.setTimeout(T.testSolo);
-    await page.goto("/");
-    await openBuildingsMap(page);
-    const marker = page.locator(".leaflet-marker-icon").first();
-    await expect(marker).toBeVisible({ timeout: T.action });
-    await marker.click({ force: true });
-    await page.getByRole("tab", { name: "Energy data" }).click();
+    await page.goto(buildingRoute("observation", id));
     // hasPlanned adds a "<metric> (planned)" series to the chart legend — its
     // presence proves the entered planned dataset flowed back into the comparison.
     await expect(page.getByText(/\(planned\)/).first())

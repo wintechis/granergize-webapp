@@ -183,11 +183,6 @@ export interface EnergyDatasetRef {
   scenario: Scenario;
 }
 
-export type WeatherType = {
-  id: string;
-  sunshineDuration?: number;
-};
-
 export type EnergyType = {
   /** The owning building's id (see {@link BuildingType.id}). */
   id: string;

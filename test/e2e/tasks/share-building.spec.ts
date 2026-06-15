@@ -95,6 +95,16 @@ test.describe("sharing across two pods", () => {
           b2.guard.assertNoAppErrors();
           throw timeout;
         }
+
+        // Click-through: the shared row's title is now a link to the building's
+        // read-only detail page (the redesign closed this navigation gap). The
+        // link resolves the display stem to the building's resolvable id (the
+        // absolute subject IRI), so following it lands on /building/<id> and the
+        // header shows the "Shared with you" ownership chip.
+        await received.getByRole("link", { name: /^Building / }).first().click();
+        await expect(b2.page).toHaveURL(/\/building\//);
+        await expect(b2.page.getByText("Shared with you"))
+          .toBeVisible({ timeout: T.action });
       } finally {
         await b2.ctx.close();
       }
@@ -317,19 +327,17 @@ test.describe("sharing across two pods", () => {
           await expect(markers.first()).toBeVisible({ timeout: T.action });
         });
 
-        // Open the building's detail pane → Energy tab (AnnualEnergy per-year table).
-        // No blind map-settle wait: click each marker until the Energy tab appears,
-        // letting toPass pace the retries (it returns the instant the pane opens).
-        const energyTab = b2.page.getByRole("tab", { name: "Energy data" });
-        await expect(async () => {
-          const count = await markers.count();
-          for (let i = 0; i < count; i++) {
-            await markers.nth(i).click({ force: true }).catch(() => {});
-            if (await energyTab.isVisible().catch(() => false)) return;
-          }
-          throw new Error("building detail (Energy tab) not open yet");
-        }).toPass({ timeout: T.poll });
-        await energyTab.click();
+        // The map is a pure finder now: a marker click NAVIGATES to the shared
+        // building's page (`/building/:id`). B owns no buildings, so the shared
+        // one is the only marker — click it and capture the id from the URL, then
+        // open its observation page (the AnnualEnergy per-year table lives there).
+        await markers.first().click({ force: true });
+        await b2.page.waitForURL(/\/building\//, { timeout: T.action });
+        const sharedId = decodeURIComponent(
+          b2.page.url().split("/building/")[1] ?? "",
+        );
+        expect(sharedId, "the shared building's id").toBeTruthy();
+        await b2.page.goto(buildingRoute("observation", sharedId));
 
         try {
           // The granted year renders as an AnnualEnergy row with its electricity
