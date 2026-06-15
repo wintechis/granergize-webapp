@@ -7,7 +7,6 @@ import {
 } from "@mui/icons-material";
 import type {
   BuildingType,
-  InvestorCertification,
   InvestorOperatingCosts,
   PvSystem,
 } from "../../types.ts";
@@ -15,105 +14,20 @@ import { useNotification } from "../../context/NotificationContext.tsx";
 import { useSolidData } from "../../hooks/queries.ts";
 import { useUpdateBuilding } from "../../hooks/mutations.ts";
 import { useGeocodeFields } from "../../hooks/useGeocodeFields.ts";
-import { makeBuildingFields } from "../buildingFields.tsx";
+import {
+  buildingToFields,
+  makeBuildingFields,
+  OPCOST_FIELDS,
+} from "../buildingFields.tsx";
 import {
   BuildingAddressFields,
   BuildingDetailFields,
 } from "../BuildingDetailFields.tsx";
 import { ADDRESS_FIELDS } from "../../constants/addressFields.ts";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
-import { investorLocalNameLabels } from "../../services/rdf/building/buildingConfig.ts";
 import { INVESTOR_CERT_SYSTEMS } from "../../services/rdf/buildingTemplates.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { DetailRow, SectionTitle } from "../detail/DetailView.tsx";
-
-// Mirrors EditBuildingDialog's field plumbing (those constants are private to
-// that dialog, so they're replicated here for the inline editor). Keep in step.
-const SKIP_FIELDS = new Set([
-  "id",
-  "uri",
-  "sourceUri",
-  "attributedTo",
-  "isShared",
-  "energyData",
-  "certifications",
-  "annualData",
-  "operatingCosts",
-  "customer",
-  "type",
-  "naceCode",
-  "energyCertificate",
-]);
-
-const ENUM_FIELDS = new Set([
-  "shiftRegime",
-  "tenancyType",
-  "indoorTemperatureClass",
-]);
-
-const labelToLocalName: Record<string, string> = Object.fromEntries(
-  Object.entries(investorLocalNameLabels).map(([ln, label]) => [label, ln]),
-);
-
-const OPCOST_FIELDS: { key: string; label: string; bool?: boolean }[] = [
-  { key: "wasteDisposal", label: "Waste disposal" },
-  { key: "insurance", label: "Insurance" },
-  {
-    key: "operationInspectionAndMaintenance",
-    label: "Operation, inspection and maintenance",
-    bool: true,
-  },
-  { key: "routineCleaningOffice", label: "Routine cleaning (office)" },
-  { key: "routineCleaningWarehouse", label: "Routine cleaning (warehouse)" },
-  { key: "glassCleaning", label: "Glass cleaning" },
-  { key: "exteriorMaintenance", label: "Exterior maintenance" },
-  { key: "security", label: "Security" },
-  { key: "propertyManagement", label: "Property management" },
-  { key: "caretaker", label: "Caretaker" },
-  { key: "repairAndMaintenance", label: "Repair and maintenance" },
-];
-
-function buildingToFields(b: BuildingType): Record<string, string> {
-  const fields: Record<string, string> = {};
-  for (const [key, val] of Object.entries(b)) {
-    if (SKIP_FIELDS.has(key) || val == null) continue;
-    if (Array.isArray(val) || typeof val === "object") continue;
-    if (typeof val === "boolean") {
-      fields[key] = val ? "true" : "false";
-    } else if (typeof val === "number") {
-      fields[key] = String(val);
-    } else if (typeof val === "string") {
-      fields[key] = ENUM_FIELDS.has(key) ? (labelToLocalName[val] ?? val) : val;
-    }
-  }
-  const oc = b.operatingCosts as InvestorOperatingCosts | undefined;
-  if (oc) {
-    for (const [k, v] of Object.entries(oc)) {
-      if (v == null) continue;
-      fields[`_opcost_${k}`] = typeof v === "boolean"
-        ? (v ? "true" : "false")
-        : String(v);
-    }
-  }
-  const certs = b.certifications as InvestorCertification[] | undefined;
-  certs?.forEach((c, i) => {
-    if (c.type) fields[`_cert_${i}_type`] = c.type;
-    if (c.level) fields[`_cert_${i}_level`] = c.level;
-    if (c.scope) fields[`_cert_${i}_scope`] = c.scope;
-  });
-  // PV plant → flat `_pv_*` keys (the inline editor's fields), so the <#pv> node
-  // round-trips through the form. Seed sameAs too (not shown) to preserve it.
-  const pv = b.pvSystem as PvSystem | undefined;
-  if (pv) {
-    if (pv.capacityKW != null) fields._pv_capacityKW = String(pv.capacityKW);
-    if (pv.commissioningYear != null) {
-      fields._pv_commissioningYear = String(pv.commissioningYear);
-    }
-    if (pv.operatedBy) fields._pv_operatedBy = pv.operatedBy;
-    if (pv.sameAs) fields._pv_sameAs = pv.sameAs;
-  }
-  return fields;
-}
 
 const hasValue = (value: unknown): boolean => {
   if (value == null) return false;

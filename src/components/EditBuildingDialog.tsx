@@ -1,18 +1,16 @@
 import { useMemo, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
-import type {
-  BuildingType,
-  InvestorCertification,
-  InvestorOperatingCosts,
-  PvSystem,
-} from "../types.ts";
+import type { BuildingType } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
 import { INVESTOR_CERT_SYSTEMS } from "../services/rdf/buildingTemplates.ts";
 import { useGeocodeFields } from "../hooks/useGeocodeFields.ts";
 import { useSolidData } from "../hooks/queries.ts";
 import { useUpdateBuilding } from "../hooks/mutations.ts";
-import { makeBuildingFields } from "./buildingFields.tsx";
+import {
+  buildingToFields,
+  makeBuildingFields,
+  OPCOST_FIELDS,
+} from "./buildingFields.tsx";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
 import {
@@ -28,92 +26,6 @@ interface EditBuildingDialogProps {
   onClose: () => void;
 }
 
-const SKIP_FIELDS = new Set([
-  "id",
-  "uri",
-  "sourceUri",
-  "attributedTo",
-  "isShared",
-  "energyData",
-  "certifications",
-  "annualData",
-  "operatingCosts",
-  "customer",
-  "type",
-  "naceCode",
-  "energyCertificate",
-]);
-
-// Reverse map: human-readable label → local name (e.g. "1-Shift" → "OneShift")
-const labelToLocalName: Record<string, string> = Object.fromEntries(
-  Object.entries(investorLocalNameLabels).map(([ln, label]) => [label, ln]),
-);
-
-const ENUM_FIELDS = new Set(["shiftRegime", "tenancyType", "indoorTemperatureClass"]);
-
-// Investor operating-cost categories (mirrors OPCOST_FIELDS in buildingSerializer);
-// edited as `_opcost_<key>`. One boolean, the rest free-text currency values.
-const OPCOST_FIELDS: { key: string; label: string; bool?: boolean }[] = [
-  { key: "wasteDisposal", label: "Waste disposal" },
-  { key: "insurance", label: "Insurance" },
-  {
-    key: "operationInspectionAndMaintenance",
-    label: "Operation, inspection and maintenance",
-    bool: true,
-  },
-  { key: "routineCleaningOffice", label: "Routine cleaning (office)" },
-  { key: "routineCleaningWarehouse", label: "Routine cleaning (warehouse)" },
-  { key: "glassCleaning", label: "Glass cleaning" },
-  { key: "exteriorMaintenance", label: "Exterior maintenance" },
-  { key: "security", label: "Security" },
-  { key: "propertyManagement", label: "Property management" },
-  { key: "caretaker", label: "Caretaker" },
-  { key: "repairAndMaintenance", label: "Repair and maintenance" },
-];
-
-function buildingToFields(b: BuildingType): Record<string, string> {
-  const fields: Record<string, string> = {};
-  for (const [key, val] of Object.entries(b)) {
-    if (SKIP_FIELDS.has(key) || val == null) continue;
-    if (Array.isArray(val) || typeof val === "object") continue;
-    if (typeof val === "boolean") {
-      fields[key] = val ? "true" : "false";
-    } else if (typeof val === "number") {
-      fields[key] = String(val);
-    } else if (typeof val === "string") {
-      // Enum fields are stored as human-readable labels; form needs local names
-      fields[key] = ENUM_FIELDS.has(key) ? (labelToLocalName[val] ?? val) : val;
-    }
-  }
-  // Seed the investor master-data substructures as flat `_opcost_*` / `_cert_<i>_*`
-  // keys (the shape updateBuilding expects), so they round-trip through the form.
-  const oc = b.operatingCosts as InvestorOperatingCosts | undefined;
-  if (oc) {
-    for (const [k, v] of Object.entries(oc)) {
-      if (v == null) continue;
-      fields[`_opcost_${k}`] = typeof v === "boolean" ? (v ? "true" : "false") : String(v);
-    }
-  }
-  const certs = b.certifications as InvestorCertification[] | undefined;
-  certs?.forEach((c, i) => {
-    if (c.type) fields[`_cert_${i}_type`] = c.type;
-    if (c.level) fields[`_cert_${i}_level`] = c.level;
-    if (c.scope) fields[`_cert_${i}_scope`] = c.scope;
-  });
-  // PV plant as flat `_pv_*` keys (the shape updateBuilding's replacePvSystem
-  // expects). Seed ALL of them — incl. sameAs, which the form doesn't show — so a
-  // generator-written `owl:sameAs` survives an edit round-trip.
-  const pv = b.pvSystem as PvSystem | undefined;
-  if (pv) {
-    if (pv.capacityKW != null) fields._pv_capacityKW = String(pv.capacityKW);
-    if (pv.commissioningYear != null) {
-      fields._pv_commissioningYear = String(pv.commissioningYear);
-    }
-    if (pv.operatedBy) fields._pv_operatedBy = pv.operatedBy;
-    if (pv.sameAs) fields._pv_sameAs = pv.sameAs;
-  }
-  return fields;
-}
 
 export default function EditBuildingDialog(
   { open, building, onClose }: EditBuildingDialogProps,
