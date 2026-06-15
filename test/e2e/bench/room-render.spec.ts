@@ -28,17 +28,18 @@ const CONTROL = `http://localhost:${LOCAL_CSS_CONTROL_PORT}`;
 const ACC = account("A");
 
 /**
- * The seeded synthetic member rows in the active room's expanded box. A member row
- * renders as an AgentLabel — the WebID is the contact-detail link's HREF, while the
- * visible text is the resolved name (for these unresolvable synthetic WebIDs, the
- * `#me` fragment fallback) — so the bench marker is matched in the href, not the
- * text. Counts exactly the N seeded members; A's own (auto-joined) row doesn't
- * match. `:not(:has(ul))` keeps it to the leaf member `<li>`s: the active room's
- * OUTER row is also an `<li>` and wraps the members `<ul>`, so it contains the
- * same links and would otherwise be miscounted.
+ * The seeded synthetic member rows in the room PAGE's Members section. A member
+ * row renders as an AgentLabel — the WebID is the contact-detail link's HREF
+ * (`/contact/<url-encoded-webid>`, which still contains the un-escaped
+ * `bench.example` host marker), while the visible text is the resolved name (for
+ * these unresolvable synthetic WebIDs, the `#me` fragment fallback) — so the
+ * bench marker is matched in the href, not the text. Counts exactly the N seeded
+ * members; A's own (auto-joined) row doesn't match. The redesign moved the
+ * member list off the Rooms finder onto the standalone room page
+ * (`/room/:uri`), so the bench navigates into the active room before counting.
  */
 const memberRows = (page: Page) =>
-  page.locator('li:not(:has(ul)):has(a[href*="bench.example"])');
+  page.locator('li:has(a[href*="bench.example"])');
 
 test.describe.configure({ mode: "serial" });
 
@@ -70,10 +71,19 @@ test.describe("room-render benchmark", () => {
 
       // Cold load: a full navigation drops the in-memory query cache, so the app
       // refetches + folds the room log + re-renders from scratch. Time from
-      // navigation to the member list reflecting all N seeded members.
+      // navigation to the member list reflecting all N seeded members. The
+      // redesign split the member list onto the standalone room page: open the
+      // Rooms finder, follow the active room's row link into `/room/:uri` (the
+      // page enters the room and folds its membership on mount), then count.
       const t0 = Date.now();
       await page.goto("/");
       await page.getByRole("tab", { name: "Rooms" }).click();
+      // The active room row carries an "active" badge; its title link opens the
+      // room page. There is exactly one seeded (hosted-by-you, active) room.
+      const activeRow = page.locator("li", { hasText: /active/ }).first();
+      await expect(activeRow).toBeVisible({ timeout: 120_000 });
+      await activeRow.getByRole("link").first().click();
+      await expect(page).toHaveURL(/\/room\//, { timeout: 30_000 });
       await expect(memberRows(page)).toHaveCount(n, { timeout: 120_000 });
       const ms = Date.now() - t0;
 

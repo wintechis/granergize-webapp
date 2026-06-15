@@ -203,15 +203,25 @@ test.describe("handbuch screenshots", () => {
     }
 
     // --- Meet: be in a room with a role (seeds an empty Pod so the rest of the
-    //     app has something to show) ---
+    //     app has something to show). The redesign split rooms into the Rooms
+    //     FINDER (`/rooms`, lists the rooms you know) and the standalone ROOM
+    //     PAGE (`/room/:uri`, where invite/roles/members/leave live). Open the
+    //     finder; enter the active room if one exists, else host a fresh one
+    //     ("Host a data room" navigates straight onto the new room's page). The
+    //     room.png figure now captures that room page (with a role assigned). ---
     await page.getByRole("tab", { name: "Rooms" }).click();
-    const leave = page.getByRole("button", { name: /leave data room/i });
-    if (!(await leave.count())) {
+    const activeRoomRow = page.locator("li", { hasText: /active/ }).first();
+    if (await activeRoomRow.count()) {
+      await activeRoomRow.getByRole("link").first().click();
+    } else {
       await page.getByRole("button", { name: /host a data room/i }).click();
-      await expect(leave).toBeVisible({ timeout: 30_000 });
     }
+    // Landed on the standalone room page (no app-shell tabs): the roles section
+    // appears once membership has folded.
+    await expect(page).toHaveURL(/\/room\//, { timeout: 30_000 });
     // Assign the User role (MUI multi-select: open, tick, close, save).
     const roleSelect = page.getByRole("combobox", { name: "My role(s)" });
+    await expect(roleSelect).toBeVisible({ timeout: 30_000 });
     await roleSelect.click();
     await page.getByRole("option", { name: "User" }).click();
     await page.keyboard.press("Escape");
@@ -224,6 +234,12 @@ test.describe("handbuch screenshots", () => {
     await page.waitForTimeout(1000);
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "room.png");
+    // Back to the app shell (the room page is a standalone route without tabs) so
+    // the onboarding "Add examples" banner (on the Buildings Map) is reachable.
+    await page.goto("/");
+    await expect(page.getByRole("tab", { name: "Buildings" }))
+      .toBeVisible({ timeout: 30_000 });
+    await page.getByRole("button", { name: "Map", exact: true }).click();
 
     // Dismiss the "Roles updated" toast, then ACCEPT the fresh-Pod onboarding
     // banner's "Add examples": every figure is captured over the SAME four demo
@@ -318,11 +334,12 @@ test.describe("handbuch screenshots", () => {
     await page.getByRole("tab", { name: "Buildings" }).click();
     await page.getByRole("button", { name: "List" }).click();
     const dialog = page.getByRole("dialog");
-    // Wait for a per-building row action (only present once a building has
-    // loaded) so no figure captures a "Loading…" panel.
-    const shareAction = page.getByRole("button", { name: "Share building data" })
-      .first();
-    await shareAction.waitFor({ state: "visible", timeout: 60_000 });
+    // Wait for a building ROW to be present (only present once buildings have
+    // loaded) so no figure captures a "Loading…" panel. The redesign collapsed
+    // the per-row actions onto the building detail page, so the row itself —
+    // not a per-row "Share" action — is the loaded signal.
+    const firstRow = page.locator("li[data-building-id]").first();
+    await firstRow.waitFor({ state: "visible", timeout: 60_000 });
 
     // Add Building dialog — capture the one generic form, then close (the demo
     // buildings are the data; nothing is added manually).
@@ -332,33 +349,56 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "add-building.png");
     await page.keyboard.press("Escape");
 
-    // Manage tab now lists the building with its per-row actions (edit / share /
-    // download / delete) — the subject of the sharing section. Wait for a row's action
-    // to be present so the screenshot isn't a "Loading…" panel.
-    await expect(shareAction).toBeVisible({ timeout: 60_000 });
+    // --- The building detail page (share-building.png): the redesign moved the
+    //     per-building actions off the finder row onto the standalone
+    //     `/building/:id` page. Navigate to the first building's page and capture
+    //     it showing the SharingSection "Share" affordance — the subject of the
+    //     sharing section. Resolve the id from the first row's data-building-id
+    //     while still on the list, then route to the page. ---
+    const firstRowId = await page.locator("li[data-building-id]").first()
+      .getAttribute("data-building-id");
+    await page.goto(buildingRoute("building", firstRowId));
+    await expect(page.getByRole("heading", { name: "Sharing" }))
+      .toBeVisible({ timeout: 60_000 });
+    await expect(page.getByRole("button", { name: "Share", exact: true }))
+      .toBeVisible({ timeout: 30_000 });
+    await page.waitForLoadState("networkidle").catch(() => {});
     await page.waitForTimeout(500);
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "share-building.png");
 
-    // --- Manage row actions: a focused shot of one building row showing the
-    //     per-building actions (edit / files / energy year / share / download /
-    //     delete) — the subject of "Gebäude bearbeiten, Dateien … und löschen" ---
-    const buildingRow = page.locator("li").filter({
-      has: page.getByRole("button", { name: "Share building data" }),
-    }).first();
-    await buildingRow.scrollIntoViewIfNeeded().catch(() => {});
+    // --- Building-page actions (manage-actions.png): the redesign collapsed the
+    //     finder rows to navigate+delete and moved the per-building actions
+    //     (edit master data / Files / energy / Share / download) onto the
+    //     building detail page header + sections — the subject of "Gebäude
+    //     bearbeiten, Dateien … und löschen". Capture the same building page
+    //     showing the header download action and the section affordances. ---
+    await expect(
+      page.getByRole("button", { name: "Download building data (Excel)" }),
+    ).toBeVisible({ timeout: 30_000 });
+    await page.evaluate(() => globalThis.scrollTo(0, 0));
     await page.waitForTimeout(300);
-    await shotOf(buildingRow, "manage-actions.png");
+    await shot(page, "manage-actions.png");
+    // Back to the app shell (the building page is a standalone route without tabs).
+    await page.goto("/");
+    await expect(page.getByRole("tab", { name: "Buildings" }))
+      .toBeVisible({ timeout: 30_000 });
 
     // --- Energy-year dialog: the per-year consumption form plus the "Stored
     //     years" read-back table, opened on the Nordostpark demo — its table is
     //     populated out of the box (actual 2022–2024 AND the planned 2024, so
-    //     the figure shows the Soll-Ist pair and the building-name header). ---
-    const nordostparkRow = page.locator("li").filter({ hasText: "Nordostpark" })
-      .first();
+    //     the figure shows the Soll-Ist pair and the building-name header). The
+    //     redesign moved energy entry off the finder row onto the building's
+    //     OBSERVATION page (`/observation/:id`); resolve the Nordostpark id from
+    //     the list, route there, click "Edit energy years". ---
+    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("button", { name: "List" }).click();
+    const nordostparkRow = page.locator("li[data-building-id]")
+      .filter({ hasText: "Nordostpark" }).first();
     await expect(nordostparkRow).toBeVisible({ timeout: 30_000 });
-    await nordostparkRow
-      .getByRole("button", { name: "Add or edit energy year" }).click();
+    const nordId = await nordostparkRow.getAttribute("data-building-id");
+    await page.goto(buildingRoute("observation", nordId));
+    await page.getByRole("button", { name: "Edit energy years" }).click();
     await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10_000 });
     // The stored-years table loads the datasets — wait for the planned 2024 row.
     await expect(
@@ -368,6 +408,10 @@ test.describe("handbuch screenshots", () => {
     await shot(page, "energy-year.png");
     await page.getByRole("button", { name: "Close" }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: 10_000 });
+    // /observation/:id is a standalone route (no app-shell tabs) — return to the shell.
+    await page.goto("/");
+    await expect(page.getByRole("tab", { name: "Buildings" }))
+      .toBeVisible({ timeout: 30_000 });
 
     // --- Aggregations: aggregations (Create aggregation lives here, with buildings) ---
     await page.getByRole("tab", { name: "Aggregations" }).click();
@@ -548,14 +592,16 @@ test.describe("handbuch screenshots", () => {
       // B's authoritative WebID is discovered after login (not built from creds).
       const bWebId = await webIdOf(b.page);
 
-      // A shares its first building by B's WebID (mirrors manage.ts shareByWebId,
-      // but targets the first row so it doesn't depend on a known street).
+      // A shares its first building by B's WebID. The redesign moved sharing off
+      // the finder row onto the building page's SharingSection: resolve the first
+      // row's id, route to /building/:id, click the section's "Share" button,
+      // then drive the same by-WebID dialog flow (mirrors manage.ts shareByWebId).
       await page.getByRole("tab", { name: "Buildings" }).click();
       await page.getByRole("button", { name: "List" }).click();
-      const aRow = page.locator("li").filter({
-        has: page.getByRole("button", { name: "Share building data" }),
-      }).first();
-      await aRow.getByRole("button", { name: "Share building data" }).click();
+      const aRowId = await page.locator("li[data-building-id]").first()
+        .getAttribute("data-building-id");
+      await page.goto(buildingRoute("building", aRowId));
+      await page.getByRole("button", { name: "Share", exact: true }).click();
       const shareDialog = page.getByRole("dialog");
       await expect(shareDialog).toBeVisible({ timeout: 10_000 });
       await shareDialog.getByRole("button", { name: /by webid/i }).click();
