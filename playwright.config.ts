@@ -94,6 +94,7 @@ const CHROME = { ...devices["Desktop Chrome"] };
 // SOLO — one pod (Alice): single-account specs.
 const SOLO_SPECS = [
   "**/building-page.spec.ts",
+  "**/contact-page.spec.ts",
   "**/uri-state.spec.ts",
   "**/add-building.spec.ts",
   "**/aggregations.spec.ts",
