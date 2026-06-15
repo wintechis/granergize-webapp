@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { account } from "../helpers/login.ts";
+import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
@@ -8,7 +8,7 @@ import {
   removeAllBookmarkedRooms,
 } from "../helpers/rooms.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { freshPagesParallel } from "../helpers/twoPod.ts";
+import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
 import {
   assignUserRole,
   hostRoomAndGetUri,
@@ -19,16 +19,20 @@ import {
   ensureAggregation,
   openBuildingsList,
   receivedAggregations,
+  shareAggregationByWebId,
 } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Aggregation sharing across TWO throwaway Pods (PROBLEMS.md #17 + #21), in
- * ONE test (the data room is the WebID directory, so no WebID is configured):
+ * Aggregation sharing across TWO throwaway Pods (PROBLEMS.md #17 + #21), both ways
+ * a recipient can be addressed (mirrors share-building / share-files):
  *
- *   • A hosts a room + role; B joins + role; A creates an aggregation and shares it with B
- *     via the dialog's room-members "Add" (ShareAggregationDialog has no "by role");
+ *   • DIRECT (By WebID) — the simple DUO: A already knows B's WebID and types it
+ *     into the share dialog's recipient field — no data room;
+ *   • VIA A DATA ROOM — A hosts a room + role; B joins + role; A shares the
+ *     aggregation with B via the dialog's room-members "Add" (the room resolves
+ *     membership to B's WebID). This test also covers the delete-revoke tail:
  *   • B reloads (re-draining the inbox) until it appears under "Aggregations shared with
  *     you" and the values render;
  *   • A deletes the aggregation (revokes + notifies B via `revokeAllAggregationRecipients`);
@@ -50,6 +54,73 @@ const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 test.describe("aggregation sharing across two pods", () => {
   test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
+  test("A shares an aggregation by WebID; B sees it under Aggregations shared with you", async ({ browser }) => {
+    test.setTimeout(T.testSharing);
+    // The SIMPLE DUO: A already holds B's WebID, so it shares the aggregation
+    // straight to it — no data room. A's seed-buildings + build-aggregation takes
+    // long enough that B's inbox is provisioned by share time; keep B's first
+    // session open through the share, then B re-logs in fresh to drain the grant.
+    const [a, b1] = await freshPagesParallel(browser, [A, B]);
+    a.page.on("dialog", (d) => d.accept()); // Delete aggregation confirms
+    try {
+      await assertCleanStart(a.page, "share-aggregation:A");
+      await assertCleanStart(b1.page, "share-aggregation:B");
+      const bWebId = await webIdOf(b1.page);
+
+      // A self-seeds buildings (so the aggregation picker isn't empty) + builds
+      // the aggregation, then shares it directly to B's WebID.
+      await ensureDemoBuildings(a.page);
+      await ensureAggregation(a.page);
+      await shareAggregationByWebId(a.page, bWebId);
+      await b1.ctx.close(); // inbox provisioned; B re-logs in fresh below
+
+      const b2 = await freshPage(browser, B);
+      try {
+        await reloadUntil(b2.page, async () => {
+          await b2.page.getByRole("tab", { name: "Share" }).click();
+          await expect(receivedAggregations(b2.page).getByText(AGGREGATION_NAME))
+            .toBeVisible({ timeout: T.action });
+        });
+        await b2.page.getByRole("button", { name: /show values/i }).first()
+          .click();
+        await expect(b2.page.locator("svg.recharts-surface").first())
+          .toBeVisible({ timeout: T.action });
+      } catch (timeout) {
+        b2.guard.assertNoAppErrors();
+        throw timeout;
+      } finally {
+        await b2.ctx.close();
+      }
+    } finally {
+      await b1.ctx.close().catch(() => {}); // no-op if already closed above
+      // Self-cleaning: delete the aggregation A created (no room — direct share).
+      try {
+        if (!a.page.isClosed()) {
+          await openBuildingsList(a.page);
+          await a.page.waitForLoadState("networkidle").catch(() => {});
+          const del = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
+            .getByRole("button", { name: "Delete aggregation" });
+          for (let i = 0; i < 10; i++) {
+            if (!(await del.count())) break;
+            await del.first().click();
+            await confirmDialog(a.page, "Delete");
+            await expect(a.page.getByText("Aggregation deleted").first())
+              .toBeVisible({ timeout: T.action }).catch(() => {});
+          }
+        }
+      } catch {
+        // best-effort cleanup; never fail the run
+      }
+      const bEnd = await freshPage(browser, B);
+      try {
+        await verifyAndResetBoth(a.page, bEnd.page, "share-aggregation");
+      } finally {
+        await bEnd.ctx.close();
+        await a.ctx.close();
+      }
+    }
+  });
+
   test("A shares an aggregation; B sees it, then A deletes it and B no longer sees it", async ({ browser }) => {
     test.setTimeout(T.testSharing);
     // Log A and B in ONCE each. B's three phases (join, see the shared aggregation, see it
@@ -66,7 +137,7 @@ test.describe("aggregation sharing across two pods", () => {
       await assertCleanStart(b.page, "share-aggregation:B");
       // ── A hosts a room + role; B joins + role; A creates + shares the aggregation ──
       const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page);
+      await assignUserRole(a.page, roomUri);
       await joinRoomAsUser(b.page, roomUri);
 
       // A needs buildings to build an aggregation from — self-seed an empty

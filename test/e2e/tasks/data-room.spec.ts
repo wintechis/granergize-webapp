@@ -6,10 +6,13 @@ import { confirmDialog } from "../helpers/confirm.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Data-room lifecycle on the Connect tab, single account (a THROWAWAY Solid Pod
- * — never a real account; see e2e/README.md). Drives the real UI:
- *   1. host a room → enter/leave it back and forth;
- *   2. host a room → leave → re-enter → delete.
+ * Data-room lifecycle, single account (a THROWAWAY Solid Pod — never a real
+ * account; see e2e/README.md). Drives the real UI across the two surfaces of the
+ * redesigned room feature:
+ *   • the Connect tab is the room FINDER — host a room, list rooms, delete one;
+ *   • `/#/room/<uri>` is the room DETAIL page — navigating there ENTERS the room
+ *     (the page calls `openRoom` on mount), and it carries the roles + members.
+ *
  * Each test hosts its own room and deletes it at the end, so it cleans up after
  * itself. Runs serially behind ONE login.
  *
@@ -25,6 +28,9 @@ const A = account("A"); // Alice — solo specs use one account
 // Each room mutation does a Pod write + a re-read of the room log; on the
 // throttled shared pod that can be slow, so allow a generous settle window.
 const SETTLE = T.action;
+
+/** Hash route to a room's detail page. */
+const roomRoute = (uri: string) => `/#/room/${encodeURIComponent(uri)}`;
 
 test.describe.configure({ mode: "serial" });
 
@@ -52,88 +58,101 @@ test.describe("data rooms", () => {
     await page.close();
   });
 
-  /**
-   * All room URIs currently listed (to diff before/after a host). A room row is the
-   * list item carrying an Enter/Leave action; its link text is the room URI. We
-   * identify rooms by that UI affordance rather than the `/rooms/` storage path —
-   * the path is an app-internal convention the spec shouldn't depend on (the room's
-   * URI is its identity, but *where* it's stored is not the test's business).
-   */
-  const roomHrefs = () =>
-    page.locator("li")
-      .filter({
-        has: page.locator(
-          'button[aria-label="Enter data room"], button[aria-label="Leave data room"]',
-        ),
-      })
-      .locator("a")
-      .evaluateAll((els) =>
-        els.map((e) => (e as HTMLAnchorElement).getAttribute("href") ?? "")
-      );
+  /** Every room row currently listed on Connect. A room row carries a
+   * delete/remove action; the room URI is the row's "open" link text (the link
+   * routes to that room's detail page). We identify rooms by that UI affordance
+   * rather than the `/rooms/` storage path — where a room is stored is an
+   * app-internal convention the spec shouldn't depend on. */
+  const roomRow = () =>
+    page.locator("li").filter({
+      has: page.locator(
+        'button[aria-label="Delete data room"], button[aria-label="Remove data room"]',
+      ),
+    });
+
+  const roomUris = () =>
+    roomRow().getByRole("link").evaluateAll((els) =>
+      els.map((e) => (e.textContent ?? "").trim())
+    );
+
+  /** Open the Connect tab. The room detail page is a STANDALONE route with no
+   * app-shell tabs, so first land on the shell (`/#/`) — clicking the Connect tab
+   * directly from a room page would never find the tab. */
+  async function openConnect() {
+    if (/#\/room\//.test(page.url())) await page.goto("/#/");
+    await page.getByRole("tab", { name: "Connect" }).click();
+  }
 
   /**
-   * Host a fresh room and return its row + URI. Robust to pre-existing rooms
-   * (the pod may carry cruft): identifies the genuinely-new room by diffing the
-   * list before/after, rather than trusting whichever room is currently active.
+   * Host a fresh room on Connect and return its row + URI. Robust to pre-existing
+   * rooms: identifies the genuinely-new room by diffing the list before/after.
+   * Hosting navigates to the new room's page, so we return to Connect to read it.
    */
   async function hostRoom(): Promise<{ row: Locator; uri: string }> {
-    const before = new Set(await roomHrefs());
+    await openConnect();
+    const before = new Set(await roomUris());
     await page.getByRole("button", { name: /host a data room/i }).click();
+    // Hosting lands on the new room's STANDALONE detail page (no app-shell tabs);
+    // return to the shell before reading the Connect list.
+    await expect(page).toHaveURL(/#\/room\//, { timeout: SETTLE });
+    await openConnect();
     let uri = "";
     await expect(async () => {
-      uri = (await roomHrefs()).find((h) => h && !before.has(h)) ?? "";
+      uri = (await roomUris()).find((h) => h && !before.has(h)) ?? "";
       expect(uri, "a newly-hosted room should appear in the list").toBeTruthy();
-      // …and it should be the active room.
-      await expect(
-        page.locator("li").filter({ hasText: uri }).getByRole("button", {
-          name: "Leave data room",
-        }),
-      ).toBeVisible();
     }).toPass({ timeout: SETTLE });
     return { row: page.locator("li").filter({ hasText: uri }), uri };
   }
 
-  async function leaveRoom(row: Locator) {
-    await row.getByRole("button", { name: "Leave data room" }).click();
-    await expect(row.getByRole("button", { name: "Enter data room" }))
-      .toBeVisible({ timeout: SETTLE });
+  /** Open a room's detail page (which enters it on mount) and confirm it loaded. */
+  async function openRoomPage(uri: string) {
+    await page.goto(roomRoute(uri));
+    await expect(page.getByRole("heading", { name: uri })).toBeVisible({
+      timeout: SETTLE,
+    });
   }
 
-  async function enterRoom(row: Locator) {
-    await row.getByRole("button", { name: "Enter data room" }).click();
-    await expect(row.getByRole("button", { name: "Leave data room" }))
-      .toBeVisible({ timeout: SETTLE });
-  }
-
-  test("host a data room, then enter/leave back and forth", async () => {
-    test.setTimeout(T.testSolo);
-    const { row, uri } = await hostRoom();
-
-    // Just hosted → we are in it.
-    await expect(row.getByRole("button", { name: "Leave data room" }))
-      .toBeVisible();
-
-    // Toggle membership back and forth; the available action flips each time.
-    for (let i = 0; i < 2; i++) {
-      await leaveRoom(row);
-      await enterRoom(row);
-    }
-
-    // Clean up: delete the room we created (confirm auto-accepted above).
+  /** Delete a room from its row on Connect and wait for it to drop out. */
+  async function deleteRoom(uri: string) {
+    await openConnect();
+    const row = page.locator("li").filter({ hasText: uri });
     await row.getByRole("button", { name: "Delete data room" }).click();
     await confirmDialog(page, "Delete");
     await expect(page.locator("li").filter({ hasText: uri }))
       .toHaveCount(0, { timeout: SETTLE });
+  }
+
+  test("host a data room, open its page, leave, then delete", async () => {
+    test.setTimeout(T.testSolo);
+    const { uri } = await hostRoom();
+
+    // The room page is its detail surface: navigating there enters the room (the
+    // page's openRoom-on-mount). It carries the invite QR, the role selector
+    // (we're a member) and the members list.
+    await openRoomPage(uri);
+    await expect(page.getByRole("combobox", { name: "My role(s)" }))
+      .toBeVisible({ timeout: SETTLE });
+    await expect(page.getByRole("heading", { name: "Members" }))
+      .toBeVisible();
+
+    // Leave from the page footer; on success it navigates back off the room page
+    // (the durable signal). The room itself persists (we still host it) — clean
+    // it up by deleting from its Connect row.
+    await page.getByRole("button", { name: /^leave$/i }).click();
+    await expect(page).not.toHaveURL(/#\/room\//, { timeout: SETTLE });
+
+    await deleteRoom(uri);
   });
 
   test("the room role selector offers all eight Granergize roles", async () => {
     test.setTimeout(T.testSolo);
     // heike-1: early builds only exposed Investor / Nutzer / BSP, and partners
     // missed the other actor types. Roles now live only as data-room membership,
-    // and every actor type must be assignable. Host a room (→ we're a member, so
-    // the "My role(s)" selector shows), open it, and assert the full set — the
-    // eight ROOM_ROLE_OPTIONS — is offered.
-    const { row, uri } = await hostRoom();
+    // and every actor type must be assignable. Host a room, open its page (→ we're
+    // a member, so the "My role(s)" selector shows), and assert the full set —
+    // the eight ROOM_ROLE_OPTIONS — is offered.
+    const { uri } = await hostRoom();
+    await openRoomPage(uri);
     const ROLES = [
       "Investor",
       "User",
@@ -151,64 +170,52 @@ test.describe("data rooms", () => {
     }
     await page.keyboard.press("Escape");
 
-    await row.getByRole("button", { name: "Delete data room" }).click();
-    await confirmDialog(page, "Delete");
-    await expect(page.locator("li").filter({ hasText: uri }))
-      .toHaveCount(0, { timeout: SETTLE });
+    await deleteRoom(uri);
   });
 
-  test("switch the active room back and forth between two rooms", async () => {
+  test("navigate between two rooms — each becomes the active room", async () => {
     test.setTimeout(T.testSolo);
-    // Host two rooms. Hosting the second leaves the first, so room2 ends active.
+    // The active room is whichever room page you last opened (openRoom-on-mount
+    // enters it, leaving the previous one). Drive that through the room pages and
+    // verify each becomes active in turn. The active room is reflected on Connect
+    // as the row's "active" sub-line.
     const a = await hostRoom();
     const b = await hostRoom();
-    await expect(b.row.getByRole("button", { name: "Leave data room" }))
-      .toBeVisible({ timeout: SETTLE });
-    await expect(a.row.getByRole("button", { name: "Enter data room" }))
-      .toBeVisible({ timeout: SETTLE });
 
-    // Switching to a room must make it active AND deactivate the other one
-    // (enterRoom leaves the previous current). The "other shows Enter" assertion
-    // is the one that catches an unreliable switch.
-    async function switchTo(target: Locator, other: Locator) {
-      await target.getByRole("button", { name: "Enter data room" }).click();
-      await expect(target.getByRole("button", { name: "Leave data room" }))
+    /** Open a room page, then confirm Connect marks exactly that room active. */
+    async function activate(uri: string, other: string) {
+      await openRoomPage(uri);
+      await openConnect();
+      const activeRow = page.locator("li").filter({ hasText: uri });
+      const otherRow = page.locator("li").filter({ hasText: other });
+      await expect(activeRow.getByText(/active/i))
         .toBeVisible({ timeout: SETTLE });
-      await expect(other.getByRole("button", { name: "Enter data room" }))
-        .toBeVisible({ timeout: SETTLE });
+      // The other room must NOT be active (it was left when we entered this one).
+      await expect(otherRow.getByText(/active/i))
+        .toBeHidden({ timeout: SETTLE });
     }
 
     for (let i = 0; i < 3; i++) {
-      await switchTo(a.row, b.row); // room A active, room B inactive
-      await switchTo(b.row, a.row); // room B active, room A inactive
+      await activate(a.uri, b.uri);
+      await activate(b.uri, a.uri);
     }
 
-    // Clean up both rooms. Like every action here, assert the durable OUTCOME (the
-    // room row disappears, driven by the delete mutation's onSuccess cache patch),
-    // never a transient toast: notifications are a single FIFO snackbar with a 6 s
-    // auto-hide, so a burst (e.g. the rapid "You joined" notices from the switch loop
-    // above) backs up and a later toast can be delayed past SETTLE even though its
-    // action succeeded immediately. The row-gone assertion is the real check.
-    await a.row.getByRole("button", { name: "Delete data room" }).click();
-    await confirmDialog(page, "Delete");
-    await expect(page.locator("li").filter({ hasText: a.uri }))
-      .toHaveCount(0, { timeout: SETTLE });
-    await b.row.getByRole("button", { name: "Delete data room" }).click();
-    await confirmDialog(page, "Delete");
-    await expect(page.locator("li").filter({ hasText: b.uri }))
-      .toHaveCount(0, { timeout: SETTLE });
+    // Clean up both rooms. Assert the durable OUTCOME (the row disappears), never
+    // a transient toast — notifications are a single FIFO snackbar with a 6 s
+    // auto-hide, so a burst backs up and a later toast can be delayed past SETTLE
+    // even though its action succeeded immediately.
+    await deleteRoom(a.uri);
+    await deleteRoom(b.uri);
   });
 
-  test("host a data room, leave, re-enter, then delete", async () => {
+  test("host a data room, re-open its page, then delete", async () => {
     test.setTimeout(T.testSolo);
-    const { row, uri } = await hostRoom();
+    const { uri } = await hostRoom();
 
-    await leaveRoom(row);
-    await enterRoom(row);
+    // Re-opening the page re-enters the room (idempotent openRoom).
+    await openRoomPage(uri);
+    await openRoomPage(uri);
 
-    await row.getByRole("button", { name: "Delete data room" }).click();
-    await confirmDialog(page, "Delete");
-    await expect(page.locator("li").filter({ hasText: uri }))
-      .toHaveCount(0, { timeout: SETTLE });
+    await deleteRoom(uri);
   });
 });

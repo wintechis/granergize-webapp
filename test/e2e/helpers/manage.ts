@@ -323,6 +323,43 @@ export async function ensureAggregation(page: Page): Promise<void> {
 }
 
 /**
+ * Share the `AGGREGATION_NAME` aggregation directly with a recipient WebID — the
+ * simple DUO path (no data room): the `ShareAggregationDialog`'s recipient field
+ * is a free-solo WebID Autocomplete (room members are only a convenience "Add"
+ * list), so we type the WebID + Enter, then Review→Confirm. Mirrors `shareByWebId`
+ * for buildings. Leaves the dialog closed; assumes the aggregation already exists.
+ */
+export async function shareAggregationByWebId(
+  page: Page,
+  webId: string,
+): Promise<void> {
+  await openBuildingsList(page);
+  const row = page.locator("li").filter({ hasText: AGGREGATION_NAME }).first();
+  await expect(row).toBeVisible({ timeout: T.action });
+  await row.getByRole("button", { name: "Share aggregation" }).click();
+  // Scope to the SHARE dialog by its title (the CreateAggregationDialog's closing
+  // ghost can otherwise bind a generic role=dialog locator — see ensureAggregation).
+  const dialog = page.getByRole("dialog")
+    .filter({ hasText: `Share "${AGGREGATION_NAME}"` });
+  await expect(dialog).toBeVisible({ timeout: T.action });
+  // The recipient field is a multi free-solo Autocomplete: type the WebID and
+  // press Enter to commit it (a plain fill doesn't register it).
+  const recipientInput = dialog.getByLabel(/Recipient WebID/i);
+  await recipientInput.fill(webId);
+  await recipientInput.press("Enter");
+  const confirm = dialog.getByRole("button", { name: /confirm share/i });
+  await expect(async () => {
+    await dialog.getByRole("button", { name: /review and share/i }).click();
+    await expect(confirm).toBeVisible({ timeout: T.quick });
+  }).toPass({ timeout: T.poll });
+  await confirm.click();
+  await expect(dialog.getByText(/shared successfully/i))
+    .toBeVisible({ timeout: T.action });
+  await dialog.getByRole("button", { name: /close/i }).click();
+  await expect(dialog).toBeHidden({ timeout: T.action });
+}
+
+/**
  * The Share-tab "Aggregations shared with you" list (named via the `<ul>`'s aria-label).
  * Present only when at least one aggregation is shared; for the empty state assert the
  * section's "no aggregations shared with you yet…" text on the page directly.

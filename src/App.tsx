@@ -1,7 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
 import { HashRouter, Route, Routes } from "react-router-dom";
-import { openRoom } from "./services/interop/dataRoom.ts";
 import {
   getStorageRoot,
   resolveStorageRoot,
@@ -11,6 +10,7 @@ import Index from "./pages/index.tsx";
 import Building from "./pages/Building.tsx";
 import Energy from "./pages/Energy.tsx";
 import Contact from "./pages/Contact.tsx";
+import Room from "./pages/Room.tsx";
 import Aggregation from "./pages/Aggregation.tsx";
 import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
@@ -128,34 +128,20 @@ function ContactWrapper() {
 }
 
 /**
- * Deep link `#/room/:roomUri` — opens (and joins) the linked room, then lands the
- * user on the Connect tab. This is what the room QR code / invite link points at.
+ * Resolve the `:roomUri` route param (URL-encoded) and render the standalone
+ * room detail page. The room page opens (joins + enters) the linked room on
+ * mount — this is what the room QR code / invite link points at.
  */
-function RoomDeepLink({ session }: { session: Session }) {
+function RoomWrapper({ session }: { session: Session }) {
   const { roomUri = "" } = useParams();
-  const navigate = useNavigate();
-
-  useEffect(() => {
-    let active = true;
-    // The IIFE catches openRoom internally and floats navigate (below), so it
-    // never rejects — float it explicitly.
-    void (async () => {
-      if (roomUri) {
-        await openRoom(roomUri, session).catch((err) =>
-          logError("open data room from route", err)
-        );
-      }
-      // Land on Connect via the `?tab=` param (not router state) so the tab
-      // survives a subsequent reload — see notes/ui-state.md. (v7 navigate
-      // returns a promise; fire-and-forget.)
-      if (active) void navigate("/?tab=connect", { replace: true });
-    })();
-    return () => {
-      active = false;
-    };
-  }, [roomUri, session, navigate]);
-
-  return <FullPageSpinner />;
+  if (!roomUri) {
+    return <Typography>No data room specified.</Typography>;
+  }
+  return (
+    <Container maxWidth="md" sx={{ py: 3 }}>
+      <Room roomUri={decodeURIComponent(roomUri)} session={session} />
+    </Container>
+  );
 }
 
 interface AppProps {
@@ -247,7 +233,7 @@ function App({ onLogout, session }: AppProps) {
     { path: "/observation/:selectedBuilding", element: <EnergyWrapper /> },
     { path: DETAIL_PATTERNS.aggregation, element: <AggregationWrapper session={session} /> },
     { path: "/contact/:webId", element: <ContactWrapper /> },
-    { path: "/room/:roomUri", element: <RoomDeepLink session={session} /> },
+    { path: "/room/:roomUri", element: <RoomWrapper session={session} /> },
   ];
 
   return (

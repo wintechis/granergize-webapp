@@ -120,7 +120,7 @@ test.describe("file sharing across two pods", () => {
     a.page.on("dialog", (d) => d.accept());
     try {
       const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page);
+      await assignUserRole(a.page, roomUri);
       try {
         await joinRoomAsUser(b1.page, roomUri);
       } finally {

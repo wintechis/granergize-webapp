@@ -1,48 +1,35 @@
 import { useEffect, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   Box,
   Button,
-  Checkbox,
-  FormControl,
   IconButton,
-  InputLabel,
-  MenuItem,
-  OutlinedInput,
-  Select,
   Stack,
   TextField,
   Tooltip,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import DeleteIcon from "@mui/icons-material/Delete";
-import LoginIcon from "@mui/icons-material/Login";
-import LogoutIcon from "@mui/icons-material/Logout";
-import { QRCodeSVG } from "qrcode.react";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { ownsRoom } from "../services/interop/dataRoom.ts";
-import type { UserRole } from "../types.ts";
-import { roleLabel, ROOM_ROLE_OPTIONS } from "../constants/roles.ts";
+import { roomRoute } from "../routes.ts";
 import { queryKeys, useContacts, useRoomState } from "../hooks/queries.ts";
 import {
   useAddRoom,
   useCreateRoom,
   useDeleteRoom,
-  useEnterRoom,
-  useExitRoom,
   useRemoveBookmark,
   useRemoveContact,
   useSaveContact,
-  useSaveRoles,
 } from "../hooks/mutations.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { resolveAgent, webIdFragment } from "../services/agents/agentResolver.ts";
 import { formatError } from "../lib/formatError.ts";
-import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
+import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
@@ -67,9 +54,13 @@ interface ConnectPageProps {
 export default function ConnectPage({ session }: ConnectPageProps) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
+  const navigate = useNavigate();
 
-  // All room state comes from ONE React Query (`useRoomState`) — one log read,
-  // cached and deduped, refreshed only when a room mutation invalidates it.
+  // The Connect tab is now a FINDER for rooms: it lists the rooms you know (host
+  // or have bookmarked) and lets you host/add/remove them. The per-room detail —
+  // QR/invite, roles, members, enter/leave — lives on the standalone room page
+  // (`/room/:uri`); each row navigates there (entering the room on the page's
+  // mount). Room state still comes from ONE React Query (`useRoomState`).
   const roomQuery = useRoomState();
   // The room log is CROSS-AGENT state: another member's join is appended by THEM
   // into the room container, so no local write ever invalidates it, and the
@@ -85,20 +76,6 @@ export default function ConnectPage({ session }: ConnectPageProps) {
   }, [qc]);
   const activeRoom = roomQuery.data?.current ?? null;
   const knownRooms = roomQuery.data?.known ?? [];
-  const members = roomQuery.data?.members ?? [];
-  const serverRoles = roomQuery.data?.myRoles;
-
-  // Local editable copy of the role multi-select, seeded from the server value.
-  // Re-syncs whenever the query data changes (e.g. after a save invalidates it);
-  // React Query's structural sharing keeps the reference stable while editing, so
-  // the during-render reset (vs an effect) fires only on a real change — no
-  // cascading second render.
-  const [myRoles, setMyRoles] = useState<UserRole[]>(serverRoles ?? []);
-  const [seededRoles, setSeededRoles] = useState(serverRoles);
-  if (serverRoles !== seededRoles) {
-    setSeededRoles(serverRoles);
-    setMyRoles(serverRoles ?? []);
-  }
 
   // Contacts (the personal address book).
   const contactsQuery = useContacts();
@@ -112,8 +89,7 @@ export default function ConnectPage({ session }: ConnectPageProps) {
   // Which QR scanner is open (one camera view at a time): a scanned code adds
   // a contact (WebID) or a data room (invite link), depending on the opener.
   const [scanning, setScanning] = useState<"contact" | "room" | null>(null);
-  // All known rooms in their natural order; the active one expands in place (its
-  // detail box renders beneath its own row). If the active room isn't bookmarked,
+  // All known rooms in their natural order; if the active room isn't bookmarked,
   // it is shown first so it's never hidden.
   const rooms = activeRoom && !knownRooms.includes(activeRoom)
     ? [activeRoom, ...knownRooms]
@@ -121,27 +97,14 @@ export default function ConnectPage({ session }: ConnectPageProps) {
   const roomPaging = usePaging(rooms);
 
   const create = useCreateRoom();
-  const enter = useEnterRoom();
-  const exit = useExitRoom();
   const del = useDeleteRoom();
   const add = useAddRoom();
   const remove = useRemoveBookmark();
-  const saveRoles = useSaveRoles();
-  const mutations = [create, enter, exit, del, add, remove, saveRoles];
+  const mutations = [create, del, add, remove];
   // Disable actions while any write is in flight or the resulting re-read runs.
   const busy = roomQuery.isFetching || mutations.some((m) => m.isPending);
 
   const ok = (msg: string) => () => showNotification(msg, "success");
-
-  // A shareable app link that opens (and joins) this room — what the QR encodes.
-  const inviteLink = activeRoom
-    ? `${globalThis.location.origin}${globalThis.location.pathname}#/room/${
-      encodeURIComponent(activeRoom)
-    }`
-    : "";
-
-  const handleEnter = (room: string) =>
-    enter.mutate(room, { onSuccess: ok("You joined the data room") });
 
   const handleAdd = (input: string) =>
     add.mutate(input, {
@@ -155,12 +118,13 @@ export default function ConnectPage({ session }: ConnectPageProps) {
     remove.mutate(room, { onSuccess: ok("Removed from your list") });
 
   const handleCreate = () =>
-    create.mutate(undefined, { onSuccess: ok("Data room created") });
-
-  const handleLeave = () => {
-    if (!activeRoom) return;
-    exit.mutate(activeRoom, { onSuccess: ok("You left the data room") });
-  };
+    create.mutate(undefined, {
+      onSuccess: (room) => {
+        showNotification("Data room created", "success");
+        // Land on the new room's page (it enters there on mount).
+        void navigate(roomRoute(room));
+      },
+    });
 
   /** Delete a room you own (destroys it for everyone), then drop the bookmark. */
   const handleDeleteRoom = async (room: string) => {
@@ -176,24 +140,6 @@ export default function ConnectPage({ session }: ConnectPageProps) {
       return;
     }
     del.mutate(room, { onSuccess: ok("Data room deleted") });
-  };
-
-  const handleSaveRoles = () => {
-    if (!activeRoom) return;
-    saveRoles.mutate({ room: activeRoom, roles: myRoles }, {
-      onSuccess: ok("Roles updated"),
-    });
-  };
-
-  const handleCopyLink = async () => {
-    if (!inviteLink) return;
-    try {
-      await navigator.clipboard.writeText(inviteLink);
-      showNotification("Invite link copied", "success");
-    } catch (err) {
-      logError("copy invite link to clipboard", err);
-      showNotification("Could not copy link", "error");
-    }
   };
 
   const handleRoomScan = (text: string) => {
@@ -366,9 +312,9 @@ export default function ConnectPage({ session }: ConnectPageProps) {
       {/* Your data rooms — one ordered list mixing rooms you host and rooms
           others host. The toolbar above it holds both ways of getting a room
           into the list: host a new one, or add someone else's by URI / QR.
-          Each row shows the room URI with enter / delete-or-remove; the active
-          room expands in place, its QR, roles and members in a box directly
-          beneath its own row. */}
+          Each row opens the room's detail page (`/room/:uri`, where entering,
+          roles, members and the invite QR live); the trailing action is delete
+          (owned) or remove-from-list. */}
       <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Your data rooms</Typography>
       {rdf && <RdfSourceLink href={rdf.bookmarks} />}
       <Stack
@@ -424,168 +370,18 @@ export default function ConnectPage({ session }: ConnectPageProps) {
         )
         : (
           <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
-            {roomPaging.pageItems.map((r) => {
-              const isActive = r === activeRoom;
-              return (
-                <ResourceRow
-                  key={r}
-                  title={
-                    <Box component="span" sx={{ wordBreak: "break-all" }}>
-                      <UriLink href={r}>{r}</UriLink>
-                      {isActive && (
-                        <Tooltip title="Copy invite link">
-                          <IconButton
-                            size="small"
-                            aria-label="Copy invite link"
-                            onClick={handleCopyLink}
-                            sx={{ ml: 0.5 }}
-                          >
-                            <ContentCopyIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      )}
-                    </Box>
-                  }
-                  subtitle={roomMeta(r)}
-                  actions={
-                    <>
-                      {isActive
-                        ? (
-                          <Tooltip
-                            title={exit.isPending
-                              ? "Leaving…"
-                              : "Leave this data room"}
-                          >
-                            <span>
-                              <IconButton
-                                size="small"
-                                aria-label="Leave data room"
-                                onClick={handleLeave}
-                                disabled={busy}
-                              >
-                                <LogoutIcon fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        )
-                        : (
-                          <Tooltip title="Enter this data room">
-                            <span>
-                              <IconButton
-                                size="small"
-                                aria-label="Enter data room"
-                                onClick={() => handleEnter(r)}
-                                disabled={busy}
-                              >
-                                <LoginIcon fontSize="small" />
-                              </IconButton>
-                            </span>
-                          </Tooltip>
-                        )}
-                      {deleteOrRemove(r)}
-                    </>
-                  }
-                  expansion={isActive && (
-                    <Box
-                      sx={{
-                        border: 1,
-                        borderColor: "primary.main",
-                        borderRadius: 1,
-                        p: 2,
-                        mt: 1,
-                      }}
-                    >
-                      {/* Expanded detail: QR / invite, roles, members. */}
-                      <Box sx={{ mb: 1 }}>
-                        <QRCodeSVG value={inviteLink} size={160} />
-                        <Typography
-                          variant="body2"
-                          color="text.secondary"
-                          sx={{ mt: 1 }}
-                        >
-                          Show this QR code, or copy the invite link, so others
-                          can join this data room.
-                        </Typography>
-                      </Box>
-
-                      <Typography
-                        variant="body2"
-                        color="text.secondary"
-                        sx={{ mt: 3, mb: 1 }}
-                      >
-                        Assign or change your role(s) anytime — this is how
-                        others share data with you by role.
-                      </Typography>
-                      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
-                        <FormControl size="small" sx={{ minWidth: 280 }}>
-                          <InputLabel id="my-roles-label">
-                            My role(s)
-                          </InputLabel>
-                          <Select
-                            labelId="my-roles-label"
-                            multiple
-                            value={myRoles}
-                            input={<OutlinedInput label="My role(s)" />}
-                            renderValue={(selected) =>
-                              (selected as UserRole[]).map((role) =>
-                                roleLabel(role)
-                              ).join(", ")}
-                            onChange={(e) => {
-                              const v = e.target.value;
-                              setMyRoles(
-                                (typeof v === "string"
-                                  ? v.split(",")
-                                  : v) as UserRole[],
-                              );
-                            }}
-                          >
-                            {ROOM_ROLE_OPTIONS.map((role) => (
-                              <MenuItem key={role} value={role}>
-                                <Checkbox checked={myRoles.includes(role)} />
-                                {roleLabel(role)}
-                              </MenuItem>
-                            ))}
-                          </Select>
-                        </FormControl>
-                        <Button
-                          variant="outlined"
-                          onClick={handleSaveRoles}
-                          disabled={busy}
-                        >
-                          {saveRoles.isPending ? "Saving…" : "Save roles"}
-                        </Button>
-                      </Stack>
-
-                      <Typography variant="subtitle1" sx={{ mt: 3, mb: 1 }}>
-                        Members
-                      </Typography>
-                      {members.length === 0
-                        ? <Typography variant="body2">No members yet.</Typography>
-                        : (
-                          <Box
-                            component="ul"
-                            sx={{ listStyle: "none", pl: 0, m: 0 }}
-                          >
-                            {members.map((m) => (
-                              <Box component="li" key={m.webId}>
-                                <AgentLabel value={m.webId} /> —{" "}
-                                <Typography
-                                  component="span"
-                                  variant="caption"
-                                  color="text.secondary"
-                                >
-                                  {m.roles.map((role) => roleLabel(role))
-                                    .join(", ") || "no role"}
-                                </Typography>
-                              </Box>
-                            ))}
-                          </Box>
-                        )}
-                    </Box>
-                  )}
-                />
-              );
-            })}
+            {roomPaging.pageItems.map((r) => (
+              <ResourceRow
+                key={r}
+                title={
+                  <Box component="span" sx={{ wordBreak: "break-all" }}>
+                    <RefLink to={roomRoute(r)}>{r}</RefLink>
+                  </Box>
+                }
+                subtitle={roomMeta(r)}
+                actions={deleteOrRemove(r)}
+              />
+            ))}
           </Box>
         )}
       <Pager paging={roomPaging} />

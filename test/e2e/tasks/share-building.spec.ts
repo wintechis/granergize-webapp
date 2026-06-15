@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { account } from "../helpers/login.ts";
+import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import {
@@ -21,20 +21,25 @@ import {
   openBuildingsList,
   openBuildingsMap,
   shareByRole,
+  shareByWebId,
 } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * End-to-end building sharing across TWO throwaway Solid Pods, in ONE test (the
- * data room is the WebID directory, so no WebID is configured):
+ * End-to-end building sharing across TWO throwaway Solid Pods, both ways the app
+ * supports (mirrors share-files):
  *
- *   • write part — A hosts a room + takes the User role; B joins + takes the User
- *     role; A adds a building and shares it "By role" → User (the room resolves the
- *     role to B's WebID);
- *   • read part — B logs in fresh (so `drainInbox` archives the grant into B's
- *     `shared-in/`), reloading until the building appears under "Buildings shared
- *     with you".
+ *   • DIRECT (By WebID) — the simple DUO: A already knows B's WebID, so it shares
+ *     straight to it — no data room, no role resolution;
+ *   • VIA A DATA ROOM (By role) — A hosts a room + takes the User role; B joins +
+ *     takes the User role; A shares "By role" → User and the room resolves the role
+ *     to B's WebID. The room machinery exists only to do that resolution.
+ *
+ * In each case A adds a building + shares, then B logs in fresh (so `drainInbox`
+ * archives the grant into B's `shared-in/`), reloading until the building appears
+ * under "Buildings shared with you". The by-role test additionally exercises the
+ * single-year energy grant, the recipient hide/show toggle, and the delete-revoke.
  *
  * Previously split into 4 single-account parts to stay under solidcommunity.net's
  * Cloudflare burst limit; on the reliable Pods (solidweb.org) it runs as one test
@@ -55,6 +60,71 @@ const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 test.describe("sharing across two pods", () => {
   test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
+  const STREET_W = "WebID Direkt Weg 5"; // distinct from the by-role building
+
+  test("A shares a building by WebID; B sees it under Buildings shared with you", async ({ browser }) => {
+    test.setTimeout(T.testSharing);
+    // The SIMPLE DUO: A already holds B's WebID, so it shares directly — no room,
+    // no role resolution. Keep B's first session open THROUGH the share so B's
+    // inbox is provisioned (ensureOwnInbox runs async post-login) and A can POST
+    // the grant; B then re-logs in fresh to drain it. Mirrors share-files test 1.
+    const [a, b1] = await freshPagesParallel(browser, [A, B]);
+    await assertCleanStart(a.page, "share-building:A");
+    await assertCleanStart(b1.page, "share-building:B");
+    a.page.on("dialog", (d) => d.accept()); // cleanup confirms (delete building)
+    try {
+      const bWebId = await webIdOf(b1.page);
+      await addBuilding(a.page, STREET_W);
+      await shareByWebId(a.page, STREET_W, bWebId);
+      await b1.ctx.close(); // inbox provisioned; B re-logs in fresh below to drain it
+
+      const b2 = await freshPage(browser, B);
+      try {
+        const received = b2.page.getByRole("list", {
+          name: /buildings shared with you/i,
+        });
+        try {
+          // No blind write→read cooldown: poll B's view, reloading to re-drain the
+          // inbox each attempt, until A's grant propagates and folds in.
+          await reloadUntil(b2.page, async () => {
+            await b2.page.getByRole("tab", { name: "Share" }).click();
+            await expect(received.getByText(/^Building /))
+              .toBeVisible({ timeout: T.action });
+          });
+        } catch (timeout) {
+          b2.guard.assertNoAppErrors();
+          throw timeout;
+        }
+      } finally {
+        await b2.ctx.close();
+      }
+    } finally {
+      await b1.ctx.close().catch(() => {}); // no-op if already closed above
+      // Self-cleaning: A deletes its building (no room to drop — direct share).
+      try {
+        if (!a.page.isClosed()) {
+          await a.page.goto("/#/");
+          await openBuildingsList(a.page);
+          const row = a.page.locator("li[data-building-id]", { hasText: STREET_W })
+            .first();
+          if (await row.count()) {
+            const id = await buildingIdOf(row);
+            if (id) await deleteBuildingRow(a.page, id);
+          }
+        }
+      } catch {
+        // best-effort cleanup; never fail the run
+      }
+      const bEnd = await freshPage(browser, B);
+      try {
+        await verifyAndResetBoth(a.page, bEnd.page, "share-building");
+      } finally {
+        await bEnd.ctx.close();
+        await a.ctx.close();
+      }
+    }
+  });
+
   test("A shares a building by role; B sees it under Buildings shared with you", async ({ browser }) => {
     test.setTimeout(T.testSharing);
     // A and B's first logins are independent (B only needs A's room URI to JOIN,
@@ -69,7 +139,7 @@ test.describe("sharing across two pods", () => {
     try {
       // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
       const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page);
+      await assignUserRole(a.page, roomUri);
 
       try {
         await joinRoomAsUser(b1.page, roomUri);
@@ -221,7 +291,7 @@ test.describe("sharing across two pods", () => {
     try {
       // ── Write part: A hosts a room + role, B joins + role ──
       const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page);
+      await assignUserRole(a.page, roomUri);
 
       try {
         await joinRoomAsUser(b1.page, roomUri);
@@ -329,7 +399,7 @@ test.describe("sharing across two pods", () => {
     try {
       // ── Write part: A hosts a room + role, B joins + role, A adds + shares ──
       const roomUri = await hostRoomAndGetUri(a.page);
-      await assignUserRole(a.page);
+      await assignUserRole(a.page, roomUri);
       try {
         await joinRoomAsUser(b1.page, roomUri);
       } finally {
