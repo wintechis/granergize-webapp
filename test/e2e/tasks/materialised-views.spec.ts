@@ -2,7 +2,14 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { addBuilding, addEnergyYear, buildingRoute, exploreRoute, openBuildingsList } from "../helpers/manage.ts";
+import {
+  addBuilding,
+  addEnergyYear,
+  buildingRoute,
+  exploreRoute,
+  openBuildingsList,
+  openBuildingsMap,
+} from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -113,13 +120,10 @@ test.describe("energy view smoke", () => {
   // buildings sharing ONE operator WebID, 1000 and 3000 kWh → the operator average
   // is their mean (2000), shown in each building's Energy tab.
   //
-  // DEFERRED: this asserts the benchmark on the Explore/Map detail-pane "Energy
-  // data" tab (AnnualEnergy via ?b=&dt=energy) — a surface the Buildings-tab
-  // merge reshaped (the detail pane belongs to Map view, not the List the other
-  // tests use) and which the `map-energy-lens` quarantined spec owns. Re-enable
-  // when that surface is rebuilt; the operator-average LOGIC stays covered by the
-  // benchmarkSelector Tier-1 tests.
-  test.skip("the energy view shows the operator-average (Betreiber) benchmark", async () => {
+  // Asserts the benchmark on the Map detail-pane "Energy data" tab (AnnualEnergy
+  // via ?b=&dt=energy). The detail pane belongs to the Buildings tab's Map view,
+  // so switch to Map before the deep link selects building A.
+  test("the energy view shows the operator-average (Betreiber) benchmark", async () => {
     test.setTimeout(T.testSolo);
     const OP = "https://operator.example/profile/card#me";
     const A = "Betreiber Strasse 1";
@@ -144,6 +148,8 @@ test.describe("energy view smoke", () => {
     await expect(rowA).toBeVisible({ timeout: T.action });
     const id = await rowA.getAttribute("data-building-id");
     expect(id, "building A's id").toBeTruthy();
+    // The detail pane lives in Map view; switch to it so the ?b= deep link opens it.
+    await openBuildingsMap(page);
     await page.goto(exploreRoute(id, "energy"));
     const avgRow = page.getByRole("row")
       .filter({ hasText: "Operator average" }).first();

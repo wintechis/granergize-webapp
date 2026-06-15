@@ -2,6 +2,11 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import {
+  buildingIdOf,
+  buildingRoute,
+  openBuildingsList,
+} from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -68,7 +73,8 @@ test.describe("building form + energy entry", () => {
 
   /** Add a building via the single generic manual form (no role/template). */
   async function addBuilding(addr: string): Promise<void> {
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await page.goto("/#/"); // robust if a prior test ended on a standalone detail route
+    await openBuildingsList(page);
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
@@ -89,7 +95,7 @@ test.describe("building form + energy entry", () => {
   test("(1)(2)(3) a field shown when adding stays editable afterwards", async () => {
     test.setTimeout(T.testSolo);
 
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
@@ -101,7 +107,7 @@ test.describe("building form + energy entry", () => {
     // Heating systems section — no role/template gating.
     await expect(add.getByText("Heating systems", { exact: true }))
       .toBeVisible({ timeout: T.visible });
-    await expect(add.getByLabel("Heat pump", { exact: true })).toBeVisible();
+    await expect(add.getByLabel(/heat pump/i)).toBeVisible();
 
     // Finish the add WITHOUT setting heating (the "forgotten field" scenario).
     await add.getByLabel(/street address/i).fill(ADDR_FIELDS);
@@ -115,13 +121,16 @@ test.describe("building form + energy entry", () => {
       .toBeVisible({ timeout: T.action });
 
     // (3) Re-open the building: the heating type offered at Add is still reachable
-    // here (Edit renders the same generic field set).
-    const row = page.locator("li", { hasText: ADDR_FIELDS }).first();
+    // on the building page's inline editor (Add and Edit render the same generic
+    // field set; editing is inline on /building/:id now, no per-row dialog).
+    const row = page.locator("li[data-building-id]", { hasText: ADDR_FIELDS })
+      .first();
     await expect(row).toBeVisible({ timeout: T.action });
-    await row.getByRole("button", { name: "Edit building" }).click();
-    const edit = page.getByRole("dialog");
-    await expect(edit).toBeVisible({ timeout: T.visible });
-    await expect(edit.getByLabel("Heat pump", { exact: true }))
+    const id = await buildingIdOf(row);
+    if (!id) throw new Error("building-form: missing building id");
+    await page.goto(buildingRoute("building", id));
+    await page.getByRole("button", { name: /^edit$/i }).first().click();
+    await expect(page.getByLabel(/heat pump/i))
       .toBeVisible({ timeout: T.visible });
   });
 
@@ -130,16 +139,21 @@ test.describe("building form + energy entry", () => {
 
     await addBuilding(ADDR_HEADER);
 
-    const row = page.locator("li", { hasText: ADDR_HEADER }).first();
+    const row = page.locator("li[data-building-id]", { hasText: ADDR_HEADER })
+      .first();
     await expect(row).toBeVisible({ timeout: T.action });
-    await row.getByRole("button", { name: "Add or edit energy year" }).click();
+    const id = await buildingIdOf(row);
+    if (!id) throw new Error("building-form: missing building id");
+    // The energy-year dialog opens from the building's observation page now.
+    await page.goto(buildingRoute("observation", id));
+    await page.getByRole("button", { name: "Edit energy years" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
 
     // The header carries the building's address so the user knows which building
-    // they're entering figures for.
-    await expect(dialog.getByRole("heading", { name: ADDR_HEADER }))
-      .toBeVisible({ timeout: T.visible });
+    // they're entering figures for (the dialog title is "Energy years — <name>").
+    await expect(dialog.getByRole("heading", { level: 2 }))
+      .toContainText(ADDR_HEADER, { timeout: T.visible });
   });
 
   test("(5) switching Actual→Planned clears the prefilled actual figures", async () => {
@@ -147,9 +161,13 @@ test.describe("building form + energy entry", () => {
 
     await addBuilding(ADDR_PREFILL);
 
-    const row = page.locator("li", { hasText: ADDR_PREFILL }).first();
+    const row = page.locator("li[data-building-id]", { hasText: ADDR_PREFILL })
+      .first();
     await expect(row).toBeVisible({ timeout: T.action });
-    await row.getByRole("button", { name: "Add or edit energy year" }).click();
+    const id = await buildingIdOf(row);
+    if (!id) throw new Error("building-form: missing building id");
+    await page.goto(buildingRoute("observation", id));
+    await page.getByRole("button", { name: "Edit energy years" }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
 

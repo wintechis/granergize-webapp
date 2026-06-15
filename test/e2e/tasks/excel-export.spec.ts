@@ -3,8 +3,10 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   buildingIdOf,
   buildingIds,
+  buildingRoute,
   buildingRows,
   deleteBuildingRow,
+  openBuildingsList,
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -30,7 +32,10 @@ import { T } from "../helpers/timeouts.ts";
 
 
 async function openManage(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  // Robust from any prior route (a test may end on a standalone /building/:id):
+  // return to the shell, then open the Buildings tab's List view.
+  await page.goto("/#/");
+  await openBuildingsList(page);
   await expect(buildingRows(page).first()).toBeVisible({ timeout: T.action });
 }
 
@@ -77,16 +82,16 @@ test.describe("excel export", () => {
     await page.getByRole("button", { name: "Download all (Excel)" }).click();
     expect((await dlAll).suggestedFilename()).toBe("buildings-mine.xlsx");
 
-    // A single building's row download opens a layout menu (the building carries no
-    // role, so the export style is chosen here); picking one → building-<stem>.xlsx.
-    // The filename carries the id's filename-safe STEM (the file basename), not
-    // the raw IRI-reference id — browsers mangle "/" and "#" in filenames.
+    // A single building's workbook export moved to its page header (a direct
+    // download in the default layout — the per-row style menu is gone). The
+    // filename carries the id's filename-safe STEM (the file basename), not the
+    // raw IRI-reference id — browsers mangle "/" and "#" in filenames.
     const firstId = await buildingIdOf(buildingRows(page).first());
     const stem = firstId!.split("#")[0].split("/").pop()!.replace(/\.ttl$/, "");
-    await buildingRows(page).first()
-      .getByRole("button", { name: "Download building data" }).click();
+    await page.goto(buildingRoute("building", firstId));
     const dlOne = page.waitForEvent("download");
-    await page.getByRole("menuitem", { name: /generic/i }).click();
+    await page.getByRole("button", { name: "Download building data (Excel)" })
+      .click();
     expect((await dlOne).suggestedFilename()).toBe(`building-${stem}.xlsx`);
   });
 

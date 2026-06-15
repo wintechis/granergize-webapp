@@ -1,7 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { confirmDialog } from "../helpers/confirm.ts";
-import { addBuilding } from "../helpers/manage.ts";
+import {
+  addBuilding,
+  buildingIdOf,
+  buildingRoute,
+  deleteBuildingRow,
+  openBuildingsList,
+} from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -59,46 +64,46 @@ test.describe("edit building operating costs + certifications", () => {
     test.setTimeout(T.testSolo);
 
     await addBuilding(page, ADDR);
-    const row = page.locator("li", { hasText: ADDR }).first();
-    await expect(row).toBeVisible({ timeout: T.action });
+    const listRow = page.locator("li[data-building-id]", { hasText: ADDR }).first();
+    await expect(listRow).toBeVisible({ timeout: T.action });
+    const id = await buildingIdOf(listRow);
+    if (!id) throw new Error("edit-building-fields: missing building id");
 
-    // Open the Edit dialog and confirm the new investor sections are present.
-    await row.getByRole("button", { name: "Edit building" }).click();
-    let dialog = page.getByRole("dialog");
-    await expect(dialog.getByText("Operating costs", { exact: true }))
+    // Master-data editing is inline on the building page now (no per-row dialog).
+    // Open the inline editor and confirm the investor sections are present (they
+    // render for every building — one generic form, no role gating).
+    await page.goto(buildingRoute("building", id));
+    await page.getByRole("button", { name: /^edit$/i }).first().click();
+    await expect(page.getByText("Operating costs", { exact: true }))
       .toBeVisible({ timeout: T.visible });
-    await expect(dialog.getByText("Certifications", { exact: true }))
-      .toBeVisible();
+    await expect(page.getByText("Certifications", { exact: true })).toBeVisible();
 
     // Fill an operating-cost figure and the first certification, then save.
     // The cert type is a select over the known systems (it mints an IRI local
     // name, so free text is rejected), not a text field.
-    await dialog.getByLabel("Insurance", { exact: true }).fill("1200");
-    await dialog.getByLabel("Type", { exact: true }).first().click();
+    await page.getByLabel("Insurance", { exact: true }).fill("1200");
+    await page.getByLabel("Type", { exact: true }).first().click();
     await page.getByRole("option", { name: "LEED" }).click();
-    await dialog.getByLabel("Level", { exact: true }).first().fill("Gold");
-    await dialog.getByRole("button", { name: /save changes/i }).click();
+    await page.getByLabel("Level", { exact: true }).first().fill("Gold");
+    await page.getByRole("button", { name: /^save$/i }).click();
     await expect(page.getByText(/building updated/i))
       .toBeVisible({ timeout: T.action });
-    await page.waitForLoadState("networkidle").catch(() => {}); // list refetch
 
-    // Reopen Edit — the values must have round-tripped through the Pod's Turtle.
-    await row.getByRole("button", { name: "Edit building" }).click();
-    dialog = page.getByRole("dialog");
-    await expect(dialog.getByLabel("Insurance", { exact: true }))
+    // Saving closes the editor → read view. Re-open it: the update invalidates +
+    // refetches the building from the Pod, so the form now reflects the values
+    // that round-tripped through its Turtle.
+    await page.getByRole("button", { name: /^edit$/i }).first().click();
+    await expect(page.getByLabel("Insurance", { exact: true }))
       .toHaveValue("1200", { timeout: T.visible });
-    await expect(dialog.getByLabel("Type", { exact: true }).first())
+    await expect(page.getByLabel("Type", { exact: true }).first())
       .toHaveText("LEED");
-    await expect(dialog.getByLabel("Level", { exact: true }).first())
+    await expect(page.getByLabel("Level", { exact: true }).first())
       .toHaveValue("Gold");
-    await dialog.getByRole("button", { name: /^cancel$/i }).click();
-    await expect(dialog).toBeHidden({ timeout: T.visible });
+    await page.getByRole("button", { name: /^cancel$/i }).click();
 
-    // Cleanup: delete the throwaway building.
-    await row.getByRole("button", { name: "Delete building" }).click();
-    await confirmDialog(page, "Delete");
-    await expect(page.getByText("Building deleted").first())
-      .toBeVisible({ timeout: T.action });
-    await expect(row).toHaveCount(0, { timeout: T.action });
+    // Cleanup: delete the throwaway building from the Buildings list.
+    await page.goto("/#/");
+    await openBuildingsList(page);
+    await deleteBuildingRow(page, id);
   });
 });

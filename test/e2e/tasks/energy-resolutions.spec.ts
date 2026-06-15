@@ -1,7 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
-import { addEnergyYear, buildingRoute } from "../helpers/manage.ts";
+import {
+  addEnergyYear,
+  buildingRoute,
+  openBuildingsList,
+  openBuildingsMap,
+} from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -62,7 +67,7 @@ test.describe("energy resolution toggle", () => {
     await assertCleanStart(page);
 
     // Import the Lastgang fixture — the building arrives with a PT15M series.
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
@@ -106,7 +111,7 @@ test.describe("energy resolution toggle", () => {
         // The first test left us on the standalone /energy/:id route (no app
         // shell, so no Manage tab) — return to the shell first.
         await page.goto("/#/");
-        await page.getByRole("tab", { name: "Manage" }).click();
+        await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
           await row.getByRole("button", { name: "Delete building" }).click();
@@ -144,13 +149,12 @@ test.describe("energy resolution toggle", () => {
       .toBeVisible({ timeout: T.action });
   });
 
+  // Asserts the same toggle on the map's "Energy data" detail tab (AnnualEnergy),
+  // reached via the Buildings tab's Map view + a marker click.
   test("the map's Energy tab offers the same toggle", async () => {
     test.setTimeout(T.testSolo);
-    // Select the (only) building marker — assumes a pristine collection,
-    // guaranteed by the per-spec CSS reset (Tier 3) or the per-run
-    // granergize-e2e-<uuid> collection (Tier 4).
     await page.goto("/#/");
-    await page.getByRole("tab", { name: "Explore" }).click();
+    await openBuildingsMap(page);
     const marker = page.locator(".leaflet-marker-icon").first();
     await expect(marker).toBeVisible({ timeout: T.action });
     await marker.click({ force: true });

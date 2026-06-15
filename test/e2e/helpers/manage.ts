@@ -29,6 +29,17 @@ export async function openBuildingsList(page: Page): Promise<void> {
 }
 
 /**
+ * Open the Buildings tab's **Map** view (the former "Explore" map). The redesign
+ * merged Explore + Manage into one Buildings tab with a Map⇄List toggle; the tab
+ * lands on Map, but a prior `openBuildingsList` may have left List active, so
+ * select the tab then the Map toggle explicitly.
+ */
+export async function openBuildingsMap(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: "Buildings" }).click();
+  await page.getByRole("button", { name: "Map", exact: true }).click();
+}
+
+/**
  * Hash route to a building's standalone page. The id is an IRI reference
  * (contains `/` and `#`), so it MUST be URL-encoded — a raw `#` truncates the
  * hash route. Every spec goto goes through this, never hand-built paths.
@@ -122,6 +133,10 @@ export async function addEnergyYear(
   electricity: string,
   scenario: RegExp = /^Actual$/,
 ): Promise<void> {
+  // Self-contained: a caller may be on a standalone detail route (no app-shell
+  // tabs) where openBuildingsList can't find the Buildings tab — return to the
+  // shell first.
+  await page.goto("/#/");
   await openBuildingsList(page);
   const row = page.locator("li[data-building-id]", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
@@ -151,19 +166,22 @@ export async function addEnergyYear(
  * Share the building at `street` with the room's User-role members, choosing the
  * "What to share" scope. With `years`, picks "energy for specific year(s)" and
  * ticks exactly those years; without, shares static + all energy (the default).
+ *
+ * The redesign removed the per-row "Share building data" action; sharing now lives
+ * on the building page's `SharingSection` — resolve the building's id from the
+ * Buildings list, route to `/building/:id`, click that section's "Share" button,
+ * then drive the SAME `ShareBuildingDialog` (its internals are unchanged). Returns
+ * to the app shell (`/#/`) at the end so a caller's next tab nav works (the
+ * building page is a standalone route with no app-shell tabs).
  */
 export async function shareByRole(
   page: Page,
   street: string,
   years?: number[],
 ): Promise<void> {
-  await openBuildingsList(page);
-  const row = page.locator("li", { hasText: street }).first();
-  await expect(row).toBeVisible({ timeout: T.action });
-  await row.getByRole("button", { name: "Share building data" }).click();
+  await openShareDialog(page, street);
 
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible({ timeout: T.quick });
   await dialog.getByRole("button", { name: /by role/i }).click();
   await dialog.getByLabel("Role").click();
   await page.getByRole("option", { name: "User" }).click();
@@ -177,8 +195,35 @@ export async function shareByRole(
     }
   }
 
-  // "Review and Share" resolves the role to member WebIDs over the network; retry
-  // until the review step's Confirm appears.
+  await reviewAndConfirmShare(page);
+}
+
+/**
+ * Open the `ShareBuildingDialog` for the building at `street`, via the redesigned
+ * flow: resolve its id from the Buildings list, route to `/building/:id`, click
+ * the SharingSection "Share" button. Leaves the dialog open and visible; the
+ * page is on the standalone `/building/:id` route.
+ */
+async function openShareDialog(page: Page, street: string): Promise<void> {
+  await page.goto("/#/");
+  await openBuildingsList(page);
+  const row = page.locator("li[data-building-id]", { hasText: street }).first();
+  await expect(row).toBeVisible({ timeout: T.action });
+  const id = await buildingIdOf(row);
+  if (!id) throw new Error(`openShareDialog: no id for building "${street}"`);
+  await page.goto(buildingRoute("building", id));
+  await page.getByRole("button", { name: "Share", exact: true }).click();
+  await expect(page.getByRole("dialog")).toBeVisible({ timeout: T.action });
+}
+
+/**
+ * Drive the share dialog's review→confirm tail (shared by the by-role / by-WebID
+ * flows): "Review and Share" resolves recipients over the network, so retry until
+ * the review step's Confirm appears, confirm, await success, dismiss. Returns the
+ * page to the app shell so a caller's next tab nav works.
+ */
+async function reviewAndConfirmShare(page: Page): Promise<void> {
+  const dialog = page.getByRole("dialog");
   const confirm = dialog.getByRole("button", { name: /confirm share/i });
   await expect(async () => {
     await dialog.getByRole("button", { name: /review and share/i }).click();
@@ -188,6 +233,9 @@ export async function shareByRole(
   await expect(dialog.getByText(/shared successfully/i))
     .toBeVisible({ timeout: T.action });
   await dialog.getByRole("button", { name: /done/i }).click();
+  await expect(dialog).toBeHidden({ timeout: T.action });
+  // /building/:id is a standalone route (no app shell) — return to the shell.
+  await page.goto("/#/");
 }
 
 /** Upload a file to the building at `street` via the Files dialog. */
@@ -197,21 +245,21 @@ export async function uploadBuildingFile(
   fixturePath: string,
 ): Promise<void> {
   await openBuildingsList(page);
-  const row = page.locator("li", { hasText: street }).first();
+  const row = page.locator("li[data-building-id]", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
-  await row.getByRole("button", { name: "Manage files" }).click();
-  const dialog = page.getByRole("dialog");
-  await expect(dialog.getByRole("button", { name: "Add files" }))
-    .toBeVisible({ timeout: T.visible });
-  await dialog.locator('input[type="file"]').setInputFiles(fixturePath, {
+  const id = await buildingIdOf(row);
+  if (!id) throw new Error(`uploadBuildingFile: no id for building "${street}"`);
+  // Files moved to the building page's Files section (the per-row "Manage files"
+  // dialog is gone); the hidden input is set directly.
+  await page.goto(buildingRoute("building", id));
+  await page.locator("#building-files-input").setInputFiles(fixturePath, {
     timeout: T.action,
   });
   const name = fixturePath.split("/").pop()!;
-  await expect(dialog.getByText(name)).toBeVisible({ timeout: T.action });
-  await dialog.getByRole("button", { name: /close/i }).click({
-    timeout: T.visible,
-  });
-  await expect(dialog).toBeHidden({ timeout: T.visible });
+  await expect(page.locator("li", { hasText: name }).first())
+    .toBeVisible({ timeout: T.action });
+  // Back to the shell so the caller's next nav works.
+  await page.goto("/#/");
 }
 
 /** Share the building at `street` directly with a recipient WebID ("By WebID"). */
@@ -220,13 +268,9 @@ export async function shareByWebId(
   street: string,
   webId: string,
 ): Promise<void> {
-  await openBuildingsList(page);
-  const row = page.locator("li", { hasText: street }).first();
-  await expect(row).toBeVisible({ timeout: T.action });
-  await row.getByRole("button", { name: "Share building data" }).click();
+  await openShareDialog(page, street);
 
   const dialog = page.getByRole("dialog");
-  await expect(dialog).toBeVisible({ timeout: T.quick });
   await dialog.getByRole("button", { name: /by webid/i }).click();
   // The recipient field is a multi free-solo Autocomplete: type the WebID and
   // press Enter to commit it as a chip (a plain fill doesn't register it).
@@ -238,15 +282,7 @@ export async function shareByWebId(
   // the chip's title attribute).
   await expect(dialog.getByText(webId, { exact: true })).toHaveCount(0);
 
-  const confirm = dialog.getByRole("button", { name: /confirm share/i });
-  await expect(async () => {
-    await dialog.getByRole("button", { name: /review and share/i }).click();
-    await expect(confirm).toBeVisible({ timeout: T.quick });
-  }).toPass({ timeout: T.poll });
-  await confirm.click();
-  await expect(dialog.getByText(/shared successfully/i))
-    .toBeVisible({ timeout: T.action });
-  await dialog.getByRole("button", { name: /done/i }).click();
+  await reviewAndConfirmShare(page);
 }
 
 /** The aggregation name the share-view spec creates and shares. */

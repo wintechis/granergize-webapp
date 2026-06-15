@@ -1,5 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { account, hasAccount, login, logout } from "../helpers/login.ts";
+import { openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { watchAppErrors } from "../helpers/errorGuard.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -42,7 +43,7 @@ test.describe("logout", () => {
     // getStorageRoot (contacts + rooms on Connect; buildings, views and the
     // shared-out fold on Manage), so the logout-time cache clear has live
     // query observers — the condition that triggered the bug.
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     await expect(page.getByRole("heading", { name: "Your buildings" }))
       .toBeVisible({ timeout: T.visible });
     await page.getByRole("tab", { name: "Connect" }).click();

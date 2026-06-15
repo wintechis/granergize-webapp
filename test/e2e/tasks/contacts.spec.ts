@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
-import { addBuilding, buildingRows } from "../helpers/manage.ts";
+import { addBuilding, buildingRows, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -58,7 +58,7 @@ test.describe("contacts address book + auto-remember", () => {
     // Bounded well under Playwright's 30s afterAll-hook budget so a slow/dead
     // substrate can't blow the hook (the building is throwaway either way).
     try {
-      await page.getByRole("tab", { name: "Manage" }).click({ timeout: T.quick });
+      await openBuildingsList(page);
       const row = buildingRows(page).filter({ hasText: ADDR }).first();
       if (await row.count()) {
         await row.getByRole("button", { name: "Delete building" })
@@ -89,30 +89,18 @@ test.describe("contacts address book + auto-remember", () => {
   test("a building's operatedBy WebID is auto-remembered as a contact", async () => {
     test.setTimeout(T.testSolo);
 
-    // Add a building, then set its operator on the Edit dialog and save — the
-    // save fires rememberAgent(operatedBy) fire-and-forget.
-    await addBuilding(page, ADDR);
+    // Saving a building that carries an operatedBy WebID fires
+    // rememberBuildingAgents (fire-and-forget) on the write — set it at creation
+    // via the Add dialog (the per-row Edit dialog is gone; master-data edits live
+    // on the building page now, and the create path remembers agents too).
+    await addBuilding(page, ADDR, { operatedBy: OPERATOR });
     const row = buildingRows(page).filter({ hasText: ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
-
-    await row.getByRole("button", { name: "Edit building" }).click();
-    const dialog = page.getByRole("dialog");
-    const operatedBy = dialog.getByLabel("Operated by (WebID)");
-    await expect(operatedBy).toBeVisible({ timeout: T.visible });
-    // <AgentField> is a MUI Autocomplete — type with real keystrokes (fill() can
-    // be dropped by the controlled combobox), then dismiss the suggestion popup.
-    await operatedBy.click();
-    await operatedBy.pressSequentially(OPERATOR);
-    await page.keyboard.press("Escape");
-    await expect(operatedBy).toHaveValue(OPERATOR); // value stuck before saving
-    await dialog.getByRole("button", { name: /save changes/i }).click();
-    await expect(page.getByText(/building updated/i))
-      .toBeVisible({ timeout: T.action });
 
     // The operator shows up in Contacts on Connect (auto-remember is a fire-and-
     // forget resolve+write, so poll by re-opening the tab until it lands).
     await expect(async () => {
-      await page.getByRole("tab", { name: "Manage" }).click();
+      await page.getByRole("tab", { name: "Buildings" }).click();
       await page.getByRole("tab", { name: "Connect" }).click();
       await expect(contactsList(page).locator("li", { hasText: "OperatorBob" }))
         .toBeVisible({ timeout: T.quick });

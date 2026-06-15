@@ -1,7 +1,13 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
-import { addBuilding } from "../helpers/manage.ts";
+import {
+  addBuilding,
+  buildingIdOf,
+  buildingRoute,
+  deleteBuildingRow,
+  openBuildingsList,
+} from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -51,45 +57,45 @@ test.describe("building file attachments", () => {
     test.setTimeout(T.testSolo);
 
     await addBuilding(page, ADDR);
-    const row = page.locator("li", { hasText: ADDR }).first();
-    await expect(row).toBeVisible({ timeout: T.action });
+    const listRow = page.locator("li[data-building-id]", { hasText: ADDR }).first();
+    await expect(listRow).toBeVisible({ timeout: T.action });
+    const id = await buildingIdOf(listRow);
+    if (!id) throw new Error("attachments: missing building id");
 
-    // Open the Files dialog from the row action.
-    await row.getByRole("button", { name: "Manage files" }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog.getByRole("button", { name: "Add files" }))
-      .toBeVisible({ timeout: T.visible });
+    // Files live in the building page's Files section now (no per-row dialog).
+    await page.goto(buildingRoute("building", id));
+    await expect(page.getByRole("heading", { name: "Files" }))
+      .toBeVisible({ timeout: T.action });
 
     // Upload the fixture (the file input is hidden; set it directly).
-    await dialog.locator('input[type="file"]').setInputFiles(
+    await page.locator("#building-files-input").setInputFiles(
       "test/e2e/fixtures/sample.pdf",
     );
-    await expect(dialog.getByText("sample.pdf")).toBeVisible({ timeout: T.action });
+    // Scope to the file's own row — the page header carries its OWN "Download …"
+    // (the building workbook), so an unscoped "Download" would grab that instead.
+    const fileRow = page.locator("li", { hasText: "sample.pdf" });
+    await expect(fileRow).toBeVisible({ timeout: T.action });
 
     // Download it — the browser download fires with the original filename.
     const downloadPromise = page.waitForEvent("download");
-    await dialog.getByRole("button", { name: "Download" }).first().click();
+    await fileRow.getByRole("button", { name: "Download" }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe("sample.pdf");
 
     // Flag it as the energy certificate → the badge appears.
-    await dialog.getByRole("button", { name: "Set as cert" }).first().click();
-    await expect(dialog.getByText("Energy certificate"))
+    await fileRow.getByRole("button", { name: "Set as cert" }).click();
+    await expect(fileRow.getByText("Energy certificate"))
       .toBeVisible({ timeout: T.action });
 
     // Delete it (the in-app confirm dialog asks first) → it drops off the list.
-    await dialog.getByRole("button", { name: "Delete sample.pdf" }).first()
-      .click();
+    await fileRow.getByRole("button", { name: "Delete sample.pdf" }).click();
     await confirmDialog(page, "Delete");
-    await expect(dialog.getByText("sample.pdf"))
+    await expect(page.getByText("sample.pdf"))
       .toHaveCount(0, { timeout: T.action });
-    await dialog.getByRole("button", { name: /close/i }).click();
 
-    // Cleanup: delete the throwaway building.
-    await row.getByRole("button", { name: "Delete building" }).click();
-    await confirmDialog(page, "Delete");
-    await expect(page.getByText("Building deleted").first())
-      .toBeVisible({ timeout: T.action });
-    await expect(row).toHaveCount(0, { timeout: T.action });
+    // Cleanup: delete the throwaway building from the Buildings list.
+    await page.goto("/#/");
+    await openBuildingsList(page);
+    await deleteBuildingRow(page, id);
   });
 });

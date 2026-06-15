@@ -1,7 +1,6 @@
 import { expect, test } from "@playwright/test";
 import { account } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
-import { confirmDialog } from "../helpers/confirm.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import {
   deleteAllOwnedRooms,
@@ -13,7 +12,16 @@ import {
   hostRoomAndGetUri,
   joinRoomAsUser,
 } from "../helpers/connect.ts";
-import { addBuilding, addEnergyYear, shareByRole } from "../helpers/manage.ts";
+import {
+  addBuilding,
+  addEnergyYear,
+  buildingIdOf,
+  buildingRoute,
+  deleteBuildingRow,
+  openBuildingsList,
+  openBuildingsMap,
+  shareByRole,
+} from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -72,21 +80,35 @@ test.describe("sharing across two pods", () => {
       await addBuilding(a.page, STREET);
       await shareByRole(a.page, STREET);
 
-      // ── Producer side: A's Manage row now surfaces the outgoing-share STATE —
-      // the "Shared with" badge (the materialized fold of the shared-out/ event
-      // log, via getSharedBuildings) with a revoke control + the <AgentLabel>
-      // recipient. This is the sharer-side display the suite never asserted; it's
-      // shown in default (non-dev) mode, unlike the raw shared-out/ log link.
-      // Bounce tabs to force a refetch (sharing doesn't invalidate the query).
-      await a.page.getByRole("tab", { name: "Explore" }).click();
-      await a.page.getByRole("tab", { name: "Manage" }).click();
-      const sharedRow = a.page.locator("li", { hasText: STREET }).first();
-      await expect(sharedRow.getByText(/shared with/i))
-        .toBeVisible({ timeout: T.action });
-      await expect(
-        sharedRow.getByRole("button", { name: "Revoke access" }).first(),
-      )
-        .toBeVisible({ timeout: T.action });
+      // ── Producer side: the building page's SharingSection now surfaces the
+      // outgoing-share STATE — the "Shared with:" list (the materialized fold of
+      // the shared-out/ event log, via useSharedBuildings) with a per-recipient
+      // "Revoke access" control + the <AgentLabel> recipient. The redesign moved
+      // this off the Manage row onto /building/:id; it shows in default (non-dev)
+      // mode, unlike the raw shared-out/ log link. Re-routing to the page forces a
+      // fresh fold (sharing doesn't invalidate the query).
+      await openBuildingsList(a.page);
+      const aRow = a.page.locator("li[data-building-id]", { hasText: STREET })
+        .first();
+      await expect(aRow).toBeVisible({ timeout: T.action });
+      const aId = await buildingIdOf(aRow);
+      await a.page.goto(buildingRoute("building", aId));
+      // The SharingSection's heading, the "Shared with:" list, and each recipient's
+      // "Revoke access" control are unique on the building page, so assert on the
+      // page directly (the "Shared with" list is a sibling of the heading+Share
+      // Stack, not nested under it). Sharing doesn't invalidate the shared-out
+      // fold, so the in-memory query can hold the pre-share (empty) state; a reload
+      // re-mounts the page and cold-refetches it — poll the reload until the
+      // recipient + its Revoke control appear.
+      await reloadUntil(a.page, async () => {
+        await expect(a.page.getByText("Shared with:"))
+          .toBeVisible({ timeout: T.action });
+        await expect(
+          a.page.getByRole("button", { name: "Revoke access" }).first(),
+        ).toBeVisible({ timeout: T.action });
+      });
+      // Back to the shell for the read-side / cleanup tab nav.
+      await a.page.goto("/#/");
 
       // ── Read part: B logs in fresh → drainInbox archives the grant → verify ──
       const b2 = await freshPage(browser, B);
@@ -111,8 +133,9 @@ test.describe("sharing across two pods", () => {
         // OWN dashboard (map + lists) via the eye toggle, without touching the
         // owner's share. The Share-tab row carries a "Shown/Hidden" Switch
         // (gran:hiddenBuilding in prefs.ttl, re-read by getSharedWithMe). B owns
-        // nothing, so the shared building is the only Explore marker — a clean
-        // signal that hiding removes it from the map and showing brings it back.
+        // nothing, so the shared building is the only Buildings/Map marker — a
+        // clean signal that hiding removes it from the map and showing brings it
+        // back.
         const sharedRow = received.locator("li")
           .filter({ has: b2.page.getByText(/^Building /) }).first();
         const visToggle = sharedRow.getByRole("switch"); // the Shown/Hidden Switch (MUI v9 Switch → role="switch")
@@ -121,12 +144,12 @@ test.describe("sharing across two pods", () => {
         });
         const markers = b2.page.locator(".leaflet-marker-icon");
 
-        // Hide → row reads "Hidden" and B's Explore map drops to no markers.
+        // Hide → row reads "Hidden" and B's Buildings/Map drops to no markers.
         await visToggle.click();
         await expect(sharedRow.getByText("Hidden")).toBeVisible({
           timeout: T.action,
         });
-        await b2.page.getByRole("tab", { name: "Explore" }).click();
+        await openBuildingsMap(b2.page);
         await expect(async () => {
           expect(await markers.count()).toBe(0);
         }).toPass({ timeout: T.poll });
@@ -140,7 +163,7 @@ test.describe("sharing across two pods", () => {
         await expect(sharedRow.getByText("Shown")).toBeVisible({
           timeout: T.action,
         });
-        await b2.page.getByRole("tab", { name: "Explore" }).click();
+        await openBuildingsMap(b2.page);
         await expect(markers.first()).toBeVisible({ timeout: T.action });
       } finally {
         // Drop B's bookmark of A's room so it doesn't leak on B's Pod.
@@ -151,13 +174,13 @@ test.describe("sharing across two pods", () => {
       // Self-cleaning: A deletes its building + the room it hosted (best-effort).
       try {
         if (!a.page.isClosed()) {
-          await a.page.getByRole("tab", { name: "Manage" }).click();
-          const row = a.page.locator("li", { hasText: STREET }).first();
+          await a.page.goto("/#/");
+          await openBuildingsList(a.page);
+          const row = a.page.locator("li[data-building-id]", { hasText: STREET })
+            .first();
           if (await row.count()) {
-            await row.getByRole("button", { name: "Delete building" }).click();
-            await confirmDialog(a.page, "Delete");
-            await expect(a.page.getByText("Building deleted").first())
-              .toBeVisible({ timeout: T.action });
+            const id = await buildingIdOf(row);
+            if (id) await deleteBuildingRow(a.page, id);
           }
           await deleteAllOwnedRooms(a.page);
         }
@@ -220,7 +243,7 @@ test.describe("sharing across two pods", () => {
         // attempt, until the shared marker propagates and renders.
         const markers = b2.page.locator(".leaflet-marker-icon");
         await reloadUntil(b2.page, async () => {
-          await b2.page.getByRole("tab", { name: "Explore" }).click();
+          await openBuildingsMap(b2.page);
           await expect(markers.first()).toBeVisible({ timeout: T.action });
         });
 
@@ -262,13 +285,14 @@ test.describe("sharing across two pods", () => {
       // Self-cleaning: A deletes its building + the room it hosted (best-effort).
       try {
         if (!a.page.isClosed()) {
-          await a.page.getByRole("tab", { name: "Manage" }).click();
-          const row = a.page.locator("li", { hasText: STREET_Y }).first();
+          await a.page.goto("/#/");
+          await openBuildingsList(a.page);
+          const row = a.page.locator("li[data-building-id]", {
+            hasText: STREET_Y,
+          }).first();
           if (await row.count()) {
-            await row.getByRole("button", { name: "Delete building" }).click();
-            await confirmDialog(a.page, "Delete");
-            await expect(a.page.getByText("Building deleted").first())
-              .toBeVisible({ timeout: T.action });
+            const id = await buildingIdOf(row);
+            if (id) await deleteBuildingRow(a.page, id);
           }
           await deleteAllOwnedRooms(a.page);
         }
@@ -332,12 +356,14 @@ test.describe("sharing across two pods", () => {
         }
 
         // ── A deletes the shared building (revokes B + posts the inbox notice) ──
-        await a.page.getByRole("tab", { name: "Manage" }).click();
-        const row = a.page.locator("li", { hasText: STREET_D }).first();
-        await row.getByRole("button", { name: "Delete building" }).click();
-        await confirmDialog(a.page, "Delete");
-        await expect(a.page.getByText("Building deleted").first())
-          .toBeVisible({ timeout: T.action });
+        await a.page.goto("/#/");
+        await openBuildingsList(a.page);
+        const row = a.page.locator("li[data-building-id]", { hasText: STREET_D })
+          .first();
+        await expect(row).toBeVisible({ timeout: T.action });
+        const delId = await buildingIdOf(row);
+        if (!delId) throw new Error("share-building delete: no id for " + STREET_D);
+        await deleteBuildingRow(a.page, delId);
         // ── B reloads → drainInbox drains the revocation → it folds out. No blind
         //    settle wait: reload inside the poll so each attempt re-drains. ──
         try {

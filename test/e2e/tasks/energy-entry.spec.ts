@@ -1,7 +1,12 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
-import { addEnergyYear, buildingRoute } from "../helpers/manage.ts";
+import {
+  addEnergyYear,
+  buildingRoute,
+  openBuildingsList,
+  openBuildingsMap,
+} from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -58,7 +63,7 @@ test.describe("energy entry + Soll-Ist", () => {
     await assertCleanStart(page);
 
     // Add a throwaway building to write the year to (deleted in afterAll).
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
@@ -93,7 +98,7 @@ test.describe("energy entry + Soll-Ist", () => {
         // so no Manage tab) — return to the shell first, else the click below hangs
         // until the hook timeout. Mirrors building-details.spec.ts cleanup.
         await page.goto("/#/");
-        await page.getByRole("tab", { name: "Manage" }).click();
+        await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
           await row.getByRole("button", { name: "Delete building" }).click();
@@ -128,15 +133,12 @@ test.describe("energy entry + Soll-Ist", () => {
       .toBeVisible({ timeout: T.action });
   });
 
+  // The Soll-Ist comparison renders on the map's "Energy data" detail tab
+  // (AnnualEnergy), reached via the Buildings tab's Map view + a marker click.
   test("the planned (Soll) figure shows beside actual in the comparison", async () => {
     test.setTimeout(T.testSolo);
-    // The Soll-Ist comparison renders only in the map's Energy tab
-    // (AnnualEnergy), not the standalone /energy route — so drive the map:
-    // return to the app shell, select the (only) building marker, open Energy.
-    // Selecting the single marker assumes a pristine collection — guaranteed by the
-    // per-spec CSS reset (Tier 3) or the per-run granergize-e2e-<uuid> (Tier 4).
     await page.goto("/#/");
-    await page.getByRole("tab", { name: "Explore" }).click();
+    await openBuildingsMap(page);
     const marker = page.locator(".leaflet-marker-icon").first();
     await expect(marker).toBeVisible({ timeout: T.action });
     await marker.click({ force: true });
@@ -155,11 +157,11 @@ test.describe("energy entry + Soll-Ist", () => {
     // pre-loads the stored figures when you type a year that already exists.
     await addEnergyYear(page, ADDR, EDIT_YEAR, "55555"); // electricity only
 
+    // The energy-year dialog now opens from the building's observation page
+    // ("Edit energy years"), not a finder-row action.
     const openYearDialog = async () => {
-      await page.getByRole("tab", { name: "Manage" }).click();
-      const row = page.locator("li", { hasText: ADDR }).first();
-      await expect(row).toBeVisible({ timeout: T.action });
-      await row.getByRole("button", { name: "Add or edit energy year" }).click();
+      await page.goto(buildingRoute("observation", id));
+      await page.getByRole("button", { name: "Edit energy years" }).click();
       await page.getByRole("spinbutton", { name: "Year", exact: true })
         .fill(EDIT_YEAR);
     };
@@ -193,10 +195,8 @@ test.describe("energy entry + Soll-Ist", () => {
     const DEL_YEAR = "2096";
     // Seed a throwaway year, then re-open: the read-back table shows it.
     await addEnergyYear(page, ADDR, DEL_YEAR, "12345");
-    await page.getByRole("tab", { name: "Manage" }).click();
-    const row = page.locator("li", { hasText: ADDR }).first();
-    await expect(row).toBeVisible({ timeout: T.action });
-    await row.getByRole("button", { name: "Add or edit energy year" }).click();
+    await page.goto(buildingRoute("observation", id));
+    await page.getByRole("button", { name: "Edit energy years" }).click();
 
     const table = page.getByRole("dialog").getByRole("table");
     const yearRow = table.getByRole("row", {

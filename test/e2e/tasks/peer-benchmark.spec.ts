@@ -2,8 +2,12 @@ import { expect, test } from "@playwright/test";
 import { account, webIdOf } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { buildingRoute, shareByWebId } from "../helpers/manage.ts";
-import { receivedAggregations } from "../helpers/manage.ts";
+import {
+  buildingRoute,
+  openBuildingsList,
+  receivedAggregations,
+  shareByWebId,
+} from "../helpers/manage.ts";
 import { freshPage } from "../helpers/twoPod.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -85,7 +89,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     // ── C (fresh login drains its inbox) benchmarks across BOTH and shares back ──
     const c2 = await freshPage(browser, C);
     try {
-      await c2.page.getByRole("tab", { name: "Manage" }).click();
+      await openBuildingsList(c2.page);
       await c2.page.getByRole("button", { name: /create aggregation/i }).click();
       const dlg = c2.page.getByRole("dialog");
       await expect(dlg).toBeVisible({ timeout: T.action });
@@ -154,7 +158,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       await expect(receivedAggregations(a2.page).getByText(BENCH_VIEW))
         .toBeVisible({ timeout: T.action });
 
-      await a2.page.getByRole("tab", { name: "Manage" }).click();
+      await openBuildingsList(a2.page);
       const row = a2.page.locator("li", { hasText: STREET }).first();
       await expect(row).toBeVisible({ timeout: T.action });
       const id = await row.getAttribute("data-building-id");

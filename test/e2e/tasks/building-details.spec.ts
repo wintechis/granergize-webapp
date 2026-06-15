@@ -3,7 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { buildingRoute } from "../helpers/manage.ts";
+import { buildingRoute, openBuildingsList } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -61,7 +61,7 @@ test.describe("building details", () => {
     test.setTimeout(T.testSolo);
 
     // --- add a building whose operator is a WebID (User template) ---
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
@@ -100,7 +100,7 @@ test.describe("building details", () => {
 
     // --- self-clean: delete the throwaway building ---
     await page.goto("/#/");
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     const back = page.locator("li", { hasText: OP_STREET }).first();
     await expect(back).toBeVisible({ timeout: T.action });
     await back.getByRole("button", { name: "Delete building" }).click();
@@ -120,7 +120,7 @@ test.describe("building details", () => {
     // The demo investor building ("Nordostpark 84") carries an annual aggregate, so
     // its energy view renders the comparison table (with the operator-average
     // column) rather than the 15-min series chart.
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     const annual = page.locator("li", { hasText: "Nordostpark" }).first();
     await expect(annual).toBeVisible({ timeout: T.action });
     const id = await annual.getAttribute("data-building-id");

@@ -707,20 +707,25 @@ export async function writeBuildingEnergy(
     await ensureContainer(yearContainer, session);
     // A full year is ~365 daily files; write them with bounded concurrency.
     // Day chunks are time-first (`{year}/{month}/{day}/{id}.ttl`), so each
-    // distinct day container is provisioned before its chunk lands.
-    const ensuredDirs = new Set<string>();
+    // distinct day container is provisioned before its chunk lands. Because the
+    // writes run concurrently and many days share one month container, dedup the
+    // ensure calls through a promise-cache: each container is created exactly
+    // once and concurrent callers await the same in-flight promise — otherwise
+    // they'd race to PUT the same shared parent and conflict.
+    const ensuring = new Map<string, Promise<unknown>>();
+    const ensureOnce = (uri: string): Promise<unknown> => {
+      let p = ensuring.get(uri);
+      if (!p) {
+        p = ensureContainer(uri, session);
+        ensuring.set(uri, p);
+      }
+      return p;
+    };
     const ensureDayDir = async (date: string): Promise<void> => {
       const [, mm, dd] = date.split("-");
       const monthDir = `${yearContainer}${mm}/`;
-      const dayDir = `${monthDir}${dd}/`;
-      if (!ensuredDirs.has(monthDir)) {
-        await ensureContainer(monthDir, session);
-        ensuredDirs.add(monthDir);
-      }
-      if (!ensuredDirs.has(dayDir)) {
-        await ensureContainer(dayDir, session);
-        ensuredDirs.add(dayDir);
-      }
+      await ensureOnce(monthDir); // parent must exist before the day container
+      await ensureOnce(`${monthDir}${dd}/`);
     };
     const total = series.days.length;
     let done = 0;

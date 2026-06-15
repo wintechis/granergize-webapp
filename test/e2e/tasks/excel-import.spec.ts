@@ -1,6 +1,11 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { buildingIds, buildingRows, deleteBuildingRow } from "../helpers/manage.ts";
+import {
+  buildingIds,
+  buildingRows,
+  deleteBuildingRow,
+  openBuildingsList,
+} from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -27,7 +32,8 @@ import { T } from "../helpers/timeouts.ts";
 /** Capture the id token of every owned building row currently on Manage. */
 /** Open the Add-building dialog from the Manage tab (manual entry — no picker). */
 async function openAddDialog(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await page.goto("/#/"); // robust from any prior route (no app-shell tabs on detail pages)
+  await openBuildingsList(page);
   // Wait on the Add Building action itself, not a building row — the Pod may have
   // no buildings yet (so the test doesn't depend on demo seeding).
   const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
@@ -159,7 +165,7 @@ test.describe("excel upload", () => {
     // delay only widens the cancel window; it changes nothing about the abort
     // path being asserted, and is independent of the real-Pod latency that makes
     // this a genuinely long upload in production (Tier 4).
-    await page.route(/\/energy\/[^/]*PT15M\/\d{4}-\d{2}-\d{2}\.ttl$/, async (route) => {
+    await page.route(/\/observations\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.ttl$/, async (route) => {
       if (route.request().method() !== "PUT") return await route.continue();
       await new Promise((r) => setTimeout(r, 300));
       // Cancel aborts in-flight requests, so a parked one may already be gone by

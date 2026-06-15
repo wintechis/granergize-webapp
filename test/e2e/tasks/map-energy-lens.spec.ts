@@ -71,7 +71,11 @@ test.describe("map energy lens (Vertriebsoptimierung)", () => {
     // write-read convergence pattern).
     await expect(async () => {
       await page.goto("/#/");
-      await page.getByRole("tab", { name: "Explore" }).click();
+      // The map is the Buildings tab's Map view (Explore + Manage merged into one
+      // tab with a Map⇄List toggle); ensure Map view so the markers + colour lens
+      // render.
+      await page.getByRole("tab", { name: "Buildings" }).click();
+      await page.getByRole("button", { name: "Map", exact: true }).click();
       // Markers paint under the default (ownership) lens — the standard pins.
       await expect(page.locator(".leaflet-marker-icon").first())
         .toBeVisible({ timeout: T.action });

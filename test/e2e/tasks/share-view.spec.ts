@@ -14,7 +14,12 @@ import {
   hostRoomAndGetUri,
   joinRoomAsUser,
 } from "../helpers/connect.ts";
-import { AGGREGATION_NAME, ensureAggregation, receivedAggregations } from "../helpers/manage.ts";
+import {
+  AGGREGATION_NAME,
+  ensureAggregation,
+  openBuildingsList,
+  receivedAggregations,
+} from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -138,7 +143,7 @@ test.describe("aggregation sharing across two pods", () => {
       }
 
       // ── A deletes the aggregation (revokes + notifies B) ──
-      await a.page.getByRole("tab", { name: "Manage" }).click();
+      await openBuildingsList(a.page);
       await a.page.waitForLoadState("networkidle").catch(() => {});
       const del = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
         .getByRole("button", { name: "Delete aggregation" });

@@ -88,11 +88,8 @@ const CHROME = { ...devices["Desktop Chrome"] };
 // redesign has rebuilt its surface AND the spec is rewritten to the new nav
 // (helper `openBuildingsList` in test/e2e/helpers/manage.ts is the seam).
 //
-// QUARANTINED (re-add to the lists below when rewritten): login, logout,
-// session-restore, organisation, attachments, edit-building-fields,
-// excel-import, excel-export, energy-entry, energy-resolutions,
-// map-energy-lens, data-room, building-details, contacts, archive-restore,
-// building-form-and-energy; share-building, share-view, share-files; peer-benchmark.
+// QUARANTINED (re-add to the lists below when rewritten):
+// session-restore (the user's dev-aha login-hiccups spec).
 
 // SOLO — one pod (Alice): single-account specs.
 const SOLO_SPECS = [
@@ -100,11 +97,32 @@ const SOLO_SPECS = [
   "**/uri-state.spec.ts",
   "**/add-building.spec.ts",
   "**/materialised-views.spec.ts",
+  "**/energy-entry.spec.ts",
+  "**/energy-resolutions.spec.ts",
+  "**/contacts.spec.ts",
+  "**/edit-building-fields.spec.ts",
+  "**/attachments.spec.ts",
+  "**/excel-export.spec.ts",
+  "**/excel-import.spec.ts",
+  "**/building-details.spec.ts",
+  "**/login.spec.ts",
+  "**/logout.spec.ts",
+  "**/archive-restore.spec.ts",
+  "**/map-energy-lens.spec.ts",
+  "**/organisation.spec.ts",
+  "**/data-room.spec.ts",
+  "**/building-form-and-energy.spec.ts",
 ];
 // DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
-const DUO_SPECS: string[] = [];
+const DUO_SPECS: string[] = [
+  "**/share-building.spec.ts",
+  "**/share-view.spec.ts",
+  "**/share-files.spec.ts",
+];
 // TRIO — three pods (A + B + C = Charlie): the benchmark-service round-trip.
-const TRIO_SPECS: string[] = [];
+const TRIO_SPECS: string[] = [
+  "**/peer-benchmark.spec.ts",
+];
 
 export default defineConfig({
   testDir: "./test/e2e",

@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
-import { buildingIds, buildingRows } from "../helpers/manage.ts";
+import { buildingIds, buildingRows, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -28,7 +28,7 @@ const ACC = account("A");
 const ARCHIVE_PATH = "test-results/archive-e2e.zip";
 
 async function openManage(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Manage" }).click();
+  await openBuildingsList(page);
 }
 
 

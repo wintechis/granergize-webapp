@@ -1,6 +1,7 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
+import { openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -119,7 +120,7 @@ test.describe("organisation logo", () => {
     test.setTimeout(T.testSolo);
 
     // Add an owned building via the single generic form (no role/template).
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     const addBtn = page.getByRole("button", {
       name: "Add Building",
       exact: true,
@@ -146,13 +147,14 @@ test.describe("organisation logo", () => {
     await expect(page.locator("li", { hasText: LOGO_ADDR }).first())
       .toBeVisible({ timeout: T.action });
     await page.reload();
-    await expect(page.getByRole("tab", { name: "Explore" }))
+    await expect(page.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: T.action });
 
-    // On the map, hovering the building's pin opens the hover card, which
-    // renders the producer's org logo image. (Several owned buildings would
-    // all show Alice's logo, so hover the first owned pin.)
-    await page.getByRole("tab", { name: "Explore" }).click();
+    // On the map (Buildings tab → Map view), hovering the building's pin opens the
+    // hover card, which renders the producer's org logo image. (Several owned
+    // buildings would all show Alice's logo, so hover the first owned pin.)
+    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("button", { name: "Map", exact: true }).click();
     const ownedPin = page.locator(".leaflet-marker-icon.pin-owned").first();
     await expect(ownedPin).toBeVisible({ timeout: T.action });
     await ownedPin.hover();
@@ -160,7 +162,7 @@ test.describe("organisation logo", () => {
       .toBeVisible({ timeout: T.action });
 
     // Clean up the building.
-    await page.getByRole("tab", { name: "Manage" }).click();
+    await openBuildingsList(page);
     const row = page.locator("li", { hasText: LOGO_ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
     await row.getByRole("button", { name: "Delete building" }).click();
