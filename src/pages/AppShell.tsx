@@ -64,10 +64,11 @@ interface AppShellProps {
  */
 const NAV: { label: string; path: string }[] = [
   { label: "Buildings", path: FINDERS.buildings },
+  { label: "Observations", path: FINDERS.observations },
   { label: "Aggregations", path: FINDERS.aggregations },
-  { label: "Rooms", path: FINDERS.rooms },
-  { label: "Contacts", path: FINDERS.contacts },
   { label: "Sharing", path: FINDERS.sharing },
+  { label: "Contacts", path: FINDERS.contacts },
+  { label: "Rooms", path: FINDERS.rooms },
 ];
 
 /**

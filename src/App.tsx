@@ -8,6 +8,7 @@ import {
 import { DETAIL_PATTERNS, FINDERS, HOME } from "./routes.ts";
 import AppShell from "./pages/AppShell.tsx";
 import BuildingsFinder from "./pages/BuildingsFinder.tsx";
+import ObservationsFinder from "./pages/ObservationsFinder.tsx";
 import AggregationsFinder from "./pages/AggregationsFinder.tsx";
 import RoomsFinder from "./pages/RoomsFinder.tsx";
 import ContactsFinder from "./pages/ContactsFinder.tsx";
@@ -259,6 +260,7 @@ function App({ onLogout, session }: AppProps) {
   // while the nav stays mounted. "/" redirects to the Buildings finder.
   const finderRoutes: { path: string; element: ReactNode }[] = [
     { path: FINDERS.buildings, element: <BuildingsFinder session={session} /> },
+    { path: FINDERS.observations, element: <ObservationsFinder /> },
     { path: FINDERS.aggregations, element: <AggregationsFinder session={session} /> },
     { path: FINDERS.rooms, element: <RoomsFinder session={session} /> },
     { path: FINDERS.contacts, element: <ContactsFinder session={session} /> },

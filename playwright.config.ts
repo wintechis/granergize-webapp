@@ -95,6 +95,7 @@ const CHROME = { ...devices["Desktop Chrome"] };
 const SOLO_SPECS = [
   "**/building-page.spec.ts",
   "**/contact-page.spec.ts",
+  "**/observations-finder.spec.ts",
   "**/uri-state.spec.ts",
   "**/add-building.spec.ts",
   "**/aggregations.spec.ts",
