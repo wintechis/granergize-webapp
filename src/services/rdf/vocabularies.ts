@@ -67,6 +67,7 @@ export const ORG_MEMBER_OF = `${ORG_NS}memberOf`;
 
 /** OWL — owl:sameAs links the local org node to the org's own WebID, if any. */
 export const OWL_NS = "http://www.w3.org/2002/07/owl#";
+export const OWL_SAME_AS = `${OWL_NS}sameAs`;
 
 export const SOSA_NS = "http://www.w3.org/ns/sosa/";
 export const TIME_NS = "http://www.w3.org/2006/time#";

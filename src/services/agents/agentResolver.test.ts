@@ -96,3 +96,79 @@ Deno.test("resolveAgentOrg returns null for an unreachable profile", async () =>
   _resetProfileCacheForTesting();
   assert.equal(await resolveAgentOrg(WEBID, makeSession(undefined)), null);
 });
+
+const COMMONS = "https://commons.wikimedia.org/wiki/Special:FilePath/";
+
+/** A fake fetch serving canned Wikidata EntityData JSON; tracks calls. */
+function fakeWikidataFetch(
+  id: string,
+  filename: string,
+): typeof fetch & { called: boolean } {
+  const fn = (() => {
+    fn.called = true;
+    return Promise.resolve(
+      new Response(
+        JSON.stringify({
+          entities: {
+            [id]: { claims: { P154: [{ mainsnak: { datavalue: { value: filename } } }] } },
+          },
+        }),
+        { status: 200 },
+      ),
+    );
+  }) as unknown as typeof fetch & { called: boolean };
+  fn.called = false;
+  return fn;
+}
+
+Deno.test("resolveAgentOrg falls back to owl:sameAs → Wikidata logo when no foaf:logo", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    @prefix org: <http://www.w3.org/ns/org#> .
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    <${WEBID}> org:memberOf <https://alice.example/profile/card#org> .
+    <https://alice.example/profile/card#org> a org:Organization ;
+      foaf:name "Ahlmann Logistik" ;
+      owl:sameAs <https://www.wikidata.org/entity/Q123> .`;
+  const fetchFn = fakeWikidataFetch("Q123", "Ahlmann logo.svg");
+  const org = await resolveAgentOrg(WEBID, makeSession(ttl), fetchFn);
+  assert.equal(org?.name, "Ahlmann Logistik");
+  assert.equal(
+    org?.logoUrl,
+    `${COMMONS}${encodeURIComponent("Ahlmann logo.svg")}`,
+  );
+  assert.equal(fetchFn.called, true);
+});
+
+Deno.test("resolveAgentOrg prefers foaf:logo and does NOT hit Wikidata", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    @prefix org: <http://www.w3.org/ns/org#> .
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    <${WEBID}> org:memberOf <https://alice.example/profile/card#org> .
+    <https://alice.example/profile/card#org>
+      foaf:logo <https://alice.example/profile/logo.png> ;
+      owl:sameAs <https://www.wikidata.org/entity/Q123> .`;
+  const fetchFn = fakeWikidataFetch("Q123", "should-not-be-used.svg");
+  const org = await resolveAgentOrg(WEBID, makeSession(ttl), fetchFn);
+  assert.equal(org?.logoUrl, "https://alice.example/profile/logo.png");
+  assert.equal(fetchFn.called, false, "foaf:logo wins, no Wikidata fetch");
+});
+
+Deno.test("resolveAgentOrg: owl:sameAs to a non-Wikidata IRI yields no logo", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    @prefix org: <http://www.w3.org/ns/org#> .
+    @prefix owl: <http://www.w3.org/2002/07/owl#> .
+    <${WEBID}> org:memberOf <https://alice.example/profile/card#org> .
+    <https://alice.example/profile/card#org> a org:Organization ;
+      foaf:name "ACME" ;
+      owl:sameAs <https://example.org/companies/acme> .`;
+  const fetchFn = fakeWikidataFetch("Q123", "unused.svg");
+  const org = await resolveAgentOrg(WEBID, makeSession(ttl), fetchFn);
+  assert.deepEqual(org, { name: "ACME" });
+  assert.equal(fetchFn.called, false, "non-Wikidata sameAs triggers no fetch");
+});

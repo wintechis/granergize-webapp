@@ -2,11 +2,14 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import { DataFactory, Store } from "n3";
 import { loadProfileStoreFor } from "../pod/profileDocument.ts";
 import { logError } from "../../lib/logError.ts";
+import { trackedFetch } from "../../lib/networkActivity.ts";
+import { fetchWikidataLogo } from "./wikidataLogo.ts";
 import {
   FOAF_IMG,
   FOAF_LOGO,
   FOAF_NAME,
   ORG_MEMBER_OF,
+  OWL_SAME_AS,
   VCARD_FN,
   VCARD_HAS_PHOTO,
 } from "../rdf/vocabularies.ts";
@@ -38,6 +41,13 @@ function firstObject(
     null,
   );
   return quads.length > 0 ? quads[0].object.value : undefined;
+}
+
+/** All object values for subject+predicate (insertion order). */
+function objects(store: Store, subject: string, predicate: string): string[] {
+  return store
+    .getQuads(namedNode(subject), namedNode(predicate), null, null)
+    .map((q) => q.object.value);
 }
 
 /** The local name of a WebID (fragment after `#`, else the last path segment). */
@@ -90,15 +100,20 @@ export interface ResolvedOrg {
 /**
  * Resolve a WebID to its organisation (name + logo IRI) by reading the agent's
  * own profile: follow `org:memberOf` to the org node, then read its
- * `foaf:name`/`foaf:logo`. Serves *arbitrary* producers (e.g. a building's
- * `attributedTo`), unlike the self-only `organizationManager`. Returns `null`
- * when the profile is unreachable/private or states no org — never throws, so
- * the map can fall back to a default marker unconditionally.
+ * `foaf:name`/`foaf:logo`. When the org node states no `foaf:logo`, fall back to
+ * its `owl:sameAs` links — for the first that resolves to a Wikidata entity, use
+ * that entity's logo (P154/P18) rendered through Commons. Serves *arbitrary*
+ * producers (e.g. a building's `attributedTo`), unlike the self-only
+ * `organizationManager`. Returns `null` when the profile is unreachable/private
+ * or states no org — never throws, so the map can fall back to a default marker
+ * unconditionally. The Wikidata fetch is a public (non-Pod) request, so it goes
+ * through the tracked external fetch; tests inject a fake `fetchFn`.
  * @operation query
  */
 export async function resolveAgentOrg(
   webId: string,
   session: Session,
+  fetchFn: typeof fetch = trackedFetch,
 ): Promise<ResolvedOrg | null> {
   let store: Store | null;
   try {
@@ -112,6 +127,17 @@ export async function resolveAgentOrg(
   const org = firstObject(store, webId, ORG_MEMBER_OF);
   if (!org) return null;
   const name = firstObject(store, org, FOAF_NAME);
-  const logoUrl = firstObject(store, org, FOAF_LOGO);
+
+  // A profile-stated foaf:logo wins; otherwise try the org's Wikidata sameAs.
+  let logoUrl = firstObject(store, org, FOAF_LOGO);
+  if (!logoUrl) {
+    for (const sameAs of objects(store, org, OWL_SAME_AS)) {
+      const fromWikidata = await fetchWikidataLogo(sameAs, fetchFn);
+      if (fromWikidata) {
+        logoUrl = fromWikidata;
+        break;
+      }
+    }
+  }
   return { ...(name ? { name } : {}), ...(logoUrl ? { logoUrl } : {}) };
 }
