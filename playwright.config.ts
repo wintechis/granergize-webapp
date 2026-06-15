@@ -89,7 +89,8 @@ const CHROME = { ...devices["Desktop Chrome"] };
 // (helper `openBuildingsList` in test/e2e/helpers/manage.ts is the seam).
 //
 // QUARANTINED (re-add to the lists below when rewritten):
-// session-restore (the user's dev-aha login-hiccups spec).
+// (none — session-restore re-activated 2026-06-15; its post-login readiness
+// locator still matches the AppShell top-nav, which renders as role="tab".)
 
 // SOLO — one pod (Alice): single-account specs.
 const SOLO_SPECS = [
@@ -114,6 +115,7 @@ const SOLO_SPECS = [
   "**/organisation.spec.ts",
   "**/data-room.spec.ts",
   "**/building-form-and-energy.spec.ts",
+  "**/session-restore.spec.ts",
 ];
 // DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
 const DUO_SPECS: string[] = [

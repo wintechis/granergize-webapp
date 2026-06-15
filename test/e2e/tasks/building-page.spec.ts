@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
+import { setDevMode } from "../helpers/accountMenu.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { buildingIds, buildingRoute, openBuildingsList } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -110,5 +111,26 @@ test.describe("redesign: building page", () => {
     await expect(
       page.getByRole("button", { name: "Download building data (Excel)" }),
     ).toBeVisible({ timeout: T.action });
+  });
+
+  test("Developer mode reveals the row's backing-resource IRI (self-hidden otherwise)", async () => {
+    // The Buildings list row's source IRI goes through the one `RdfSourceLink`
+    // (muted, self-hiding) like every other backing-resource link — no bespoke
+    // render. Off by default, shown under the row name in Developer mode.
+    await page.goto("/");
+    await openBuildingsList(page);
+    const row = page.locator(`li[data-building-id="${id}"]`);
+    await expect(row).toBeVisible({ timeout: T.action });
+    // A building's IRI lives under its own buildings/ container; the link text
+    // IS the IRI. Hidden while Developer mode is off.
+    const sourceLink = row.getByRole("link", { name: /\/buildings\// });
+    await expect(sourceLink).toHaveCount(0);
+
+    await setDevMode(page, true);
+    await expect(sourceLink.first()).toBeVisible({ timeout: T.action });
+
+    // Leave Developer mode as we found it (the afterAll reset doesn't touch it).
+    await setDevMode(page, false);
+    await expect(row.getByRole("link", { name: /\/buildings\// })).toHaveCount(0);
   });
 });
