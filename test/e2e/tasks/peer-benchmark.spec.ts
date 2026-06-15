@@ -4,6 +4,7 @@ import { resolveAccounts } from "../../config/resolve.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import {
   buildingRoute,
+  openAggregations,
   openBuildingsList,
   receivedAggregations,
   shareByWebId,
@@ -89,7 +90,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     // ── C (fresh login drains its inbox) benchmarks across BOTH and shares back ──
     const c2 = await freshPage(browser, C);
     try {
-      await openBuildingsList(c2.page);
+      await openAggregations(c2.page);
       await c2.page.getByRole("button", { name: /create aggregation/i }).click();
       const dlg = c2.page.getByRole("dialog");
       await expect(dlg).toBeVisible({ timeout: T.action });
@@ -154,7 +155,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     try {
       // First confirm A actually RECEIVED the benchmark (Share tab) — separates a
       // receipt failure from an energy-render failure.
-      await a2.page.getByRole("tab", { name: "Share" }).click();
+      await a2.page.getByRole("tab", { name: "Sharing" }).click();
       await expect(receivedAggregations(a2.page).getByText(BENCH_VIEW))
         .toBeVisible({ timeout: T.action });
 

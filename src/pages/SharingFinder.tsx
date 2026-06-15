@@ -46,7 +46,7 @@ import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 
-interface SharePageProps {
+interface SharingFinderProps {
   session: Session;
 }
 
@@ -163,7 +163,7 @@ function SharedBuildingFiles(
  * The SHARE tab: a pure inbox of what others have shared with you. Outgoing
  * sharing (your buildings and aggregations) lives on the MANAGE tab.
  */
-export default function SharePage({ session }: SharePageProps) {
+export default function SharingFinder({ session }: SharingFinderProps) {
   const { showNotification } = useNotification();
   const dev = useDevMode();
 
@@ -249,7 +249,7 @@ export default function SharePage({ session }: SharePageProps) {
     toggleVis.mutate(buildingUri);
 
   return (
-    <Box component="section" sx={{ p: 3 }}>
+    <Box component="section" sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}>
       <Typography variant="h6" sx={{ mb: 1 }}>
         Buildings shared with you
       </Typography>

@@ -48,7 +48,7 @@ test.describe("session restore", () => {
 
     // Establish a real, restorable session.
     await login(page, ACC);
-    await expect(page.getByRole("tab", { name: "Connect" })).toBeVisible({
+    await expect(page.getByRole("tab", { name: "Buildings" })).toBeVisible({
       timeout: T.action,
     });
     assertNoAppErrors();

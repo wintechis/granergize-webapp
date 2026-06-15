@@ -44,7 +44,7 @@ async function seedShared(n: number, drained: boolean): Promise<void> {
  * just the rendered page), else the row count inside the named shared list.
  */
 async function awaitSharedList(page: Page, n: number): Promise<void> {
-  await page.getByRole("tab", { name: "Share" }).click();
+  await page.getByRole("tab", { name: "Sharing" }).click();
   if (n > PAGE_SIZE) {
     await expect(page.getByText(new RegExp(`\\bof ${n}\\b`)).first())
       .toBeVisible({ timeout: 120_000 });

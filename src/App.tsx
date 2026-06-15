@@ -1,12 +1,17 @@
 import { type ReactNode, useEffect, useState } from "react";
-import { useNavigate, useParams } from "react-router-dom";
+import { Navigate, useNavigate, useParams } from "react-router-dom";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
 import {
   getStorageRoot,
   resolveStorageRoot,
 } from "./services/pod/solidUtils.ts";
-import { DETAIL_PATTERNS, HOME } from "./routes.ts";
-import Index from "./pages/index.tsx";
+import { DETAIL_PATTERNS, FINDERS, HOME } from "./routes.ts";
+import AppShell from "./pages/AppShell.tsx";
+import BuildingsFinder from "./pages/BuildingsFinder.tsx";
+import AggregationsFinder from "./pages/AggregationsFinder.tsx";
+import RoomsFinder from "./pages/RoomsFinder.tsx";
+import ContactsFinder from "./pages/ContactsFinder.tsx";
+import SharingFinder from "./pages/SharingFinder.tsx";
 import Building from "./pages/Building.tsx";
 import Energy from "./pages/Energy.tsx";
 import Contact from "./pages/Contact.tsx";
@@ -237,12 +242,11 @@ function App({ onLogout, session }: AppProps) {
     return <ActivityScreen title="Loading…" />;
   }
 
-  // Routes expressed as a data table, then rendered by mapping to <Route>. The
-  // observation + aggregation detail have adopted the routes.ts grammar
-  // (`/observation/:id`, `/aggregation/:id`); the remaining building/contact/room
-  // renames belong to later lanes.
-  const routeTable: { path: string; element: ReactNode }[] = [
-    { path: HOME, element: <Index onLogout={onLogout} session={session} /> },
+  // Standalone DETAIL routes — rendered shell-less (no top-nav), as siblings of
+  // the finder shell. The observation + aggregation detail have adopted the
+  // routes.ts grammar (`/observation/:id`, `/aggregation/:id`); the remaining
+  // building/contact/room renames belong to later lanes.
+  const detailRoutes: { path: string; element: ReactNode }[] = [
     { path: "/building/:selectedBuilding", element: <BuildingWrapper /> },
     { path: "/observation/:selectedBuilding", element: <EnergyWrapper /> },
     { path: DETAIL_PATTERNS.aggregation, element: <AggregationWrapper session={session} /> },
@@ -250,10 +254,27 @@ function App({ onLogout, session }: AppProps) {
     { path: "/room/:roomUri", element: <RoomWrapper session={session} /> },
   ];
 
+  // The five FINDER routes share the persistent app chrome (top-nav + header):
+  // they are children of one shell route whose <Outlet/> swaps the active finder
+  // while the nav stays mounted. "/" redirects to the Buildings finder.
+  const finderRoutes: { path: string; element: ReactNode }[] = [
+    { path: FINDERS.buildings, element: <BuildingsFinder session={session} /> },
+    { path: FINDERS.aggregations, element: <AggregationsFinder session={session} /> },
+    { path: FINDERS.rooms, element: <RoomsFinder session={session} /> },
+    { path: FINDERS.contacts, element: <ContactsFinder session={session} /> },
+    { path: FINDERS.sharing, element: <SharingFinder session={session} /> },
+  ];
+
   return (
     <BrowserRouter basename={appBasename()}>
       <Routes>
-        {routeTable.map((r) => (
+        <Route element={<AppShell onLogout={onLogout} session={session} />}>
+          <Route path={HOME} element={<Navigate to={FINDERS.buildings} replace />} />
+          {finderRoutes.map((r) => (
+            <Route key={r.path} path={r.path} element={r.element} />
+          ))}
+        </Route>
+        {detailRoutes.map((r) => (
           <Route key={r.path} path={r.path} element={r.element} />
         ))}
       </Routes>

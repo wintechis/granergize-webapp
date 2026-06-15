@@ -16,7 +16,7 @@ import { confirmDialog } from "./confirm.ts";
  */
 export async function deleteAllOwnedRooms(page: Page): Promise<void> {
   try {
-    const connect = page.getByRole("tab", { name: "Connect" });
+    const connect = page.getByRole("tab", { name: "Rooms" });
     if (await connect.count()) await connect.click();
 
     const deleteButtons = page.getByRole("button", {
@@ -47,7 +47,7 @@ export async function deleteAllOwnedRooms(page: Page): Promise<void> {
  */
 export async function removeAllBookmarkedRooms(page: Page): Promise<void> {
   try {
-    const connect = page.getByRole("tab", { name: "Connect" });
+    const connect = page.getByRole("tab", { name: "Rooms" });
     if (await connect.count()) await connect.click();
     await page.waitForLoadState("networkidle").catch(() => {});
 

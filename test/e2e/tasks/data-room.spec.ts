@@ -50,7 +50,7 @@ test.describe("data rooms", () => {
     page.on("dialog", (d) => d.accept());
     await login(page, A);
     await assertCleanStart(page);
-    await page.getByRole("tab", { name: "Connect" }).click();
+    await page.getByRole("tab", { name: "Rooms" }).click();
   });
 
   test.afterAll(async () => {
@@ -75,12 +75,12 @@ test.describe("data rooms", () => {
       els.map((e) => (e.textContent ?? "").trim())
     );
 
-  /** Open the Connect tab. The room detail page is a STANDALONE route with no
-   * app-shell tabs, so first land on the shell (`/`) — clicking the Connect tab
+  /** Open the Rooms finder (`/rooms`). The room detail page is a STANDALONE route
+   * with no app-shell tabs, so first land on the shell — clicking the Rooms tab
    * directly from a room page would never find the tab. */
   async function openConnect() {
-    if (/\/room\//.test(page.url())) await page.goto("/");
-    await page.getByRole("tab", { name: "Connect" }).click();
+    if (/\/room\//.test(page.url())) await page.goto("/rooms");
+    await page.getByRole("tab", { name: "Rooms" }).click();
   }
 
   /**

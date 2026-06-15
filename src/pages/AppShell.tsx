@@ -1,6 +1,5 @@
-import { lazy, Suspense, useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import Avatar from "@mui/material/Avatar";
-import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
@@ -8,15 +7,7 @@ import Divider from "@mui/material/Divider";
 import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
-import ToggleButton from "@mui/material/ToggleButton";
-import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
-const ExplorePage = lazy(() => import("./ExplorePage.tsx"));
-import { useSearchParams } from "react-router-dom";
-import {
-  mergeParams,
-  slugFromTabIndex,
-  tabIndexFromSlug,
-} from "./uriState.ts";
+import { Outlet, useLocation, useNavigate } from "react-router-dom";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
@@ -28,9 +19,6 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import PersonIcon from "@mui/icons-material/Person";
-import SharePage from "./SharePage.tsx";
-import ManagePage from "./ManagePage.tsx";
-import ConnectPage from "./ConnectPage.tsx";
 import Footer from "../components/Footer.tsx";
 import { setDevMode, useDevMode } from "../hooks/devMode.ts";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
@@ -48,6 +36,7 @@ import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
 import { inspectArchive } from "../services/pod/podArchive.ts";
 import { downloadBlob } from "../lib/download.ts";
+import { FINDERS } from "../routes.ts";
 import {
   useAuditGrants,
   useExportArchive,
@@ -59,12 +48,27 @@ import {
   useSeedDemoRooms,
 } from "../hooks/mutations.ts";
 
-interface IndexPageProps {
+interface AppShellProps {
   session: Session;
   onLogout: (
     opts?: { suppressAutoLogin?: boolean; logoutType?: "app" | "idp" },
   ) => void;
 }
+
+/**
+ * The five finder routes, in top-nav order. Each is a routed finder page; the
+ * shell's `<Outlet/>` renders the active one. The active finder is read from the
+ * pathname (no `?tab=` state — the route IS the active finder). The Buildings
+ * map sub-state (`?b=`/`?dt=`) lives in the query string and is owned by
+ * ExplorePage; it survives a finder switch only while staying on /buildings.
+ */
+const NAV: { label: string; path: string }[] = [
+  { label: "Buildings", path: FINDERS.buildings },
+  { label: "Aggregations", path: FINDERS.aggregations },
+  { label: "Rooms", path: FINDERS.rooms },
+  { label: "Contacts", path: FINDERS.contacts },
+  { label: "Sharing", path: FINDERS.sharing },
+];
 
 /**
  * Owns the object-URL lifecycle for a profile image (personal avatar or
@@ -102,18 +106,23 @@ function useProfileImageUrl(
   return url;
 }
 
-function IndexPage({ session, onLogout }: IndexPageProps) {
-  // Tabs: 0 = Buildings (map ⇄ list finder), 1 = Share (inbox), 2 = Connect
-  // (rooms). The active tab lives in the `?tab=` query param so a browser
-  // reload (or a bookmark/share) restores it — see notes/ui-state.md. Arriving
-  // from a room deep link (/room/:uri) lands on the Connect tab via
-  // `?tab=connect` (set in App.tsx's RoomDeepLink).
-  const [searchParams, setSearchParams] = useSearchParams();
-  const tabValue = tabIndexFromSlug(searchParams.get("tab"));
-  // Buildings tab: which finder is showing — Map (the default, matching the old
-  // landing) or List. Local state for now; a `?view=` param could persist it
-  // across reload later, like `?tab=`.
-  const [buildingsView, setBuildingsView] = useState<"map" | "list">("map");
+/**
+ * The persistent app chrome for the five finder routes: a route-driven top-nav,
+ * the account header (org logo + avatar, account menu, dev-mode toggle and
+ * dev-only account actions), the fresh-Pod demo banner, and a react-router
+ * `<Outlet/>` for the active finder. Mounts only on the finder routes — the
+ * standalone detail routes (`/building/:id`, …) render shell-less.
+ */
+export default function AppShell({ session, onLogout }: AppShellProps) {
+  const navigate = useNavigate();
+  const location = useLocation();
+  // The active finder is the longest NAV path the pathname starts with; default
+  // to Buildings (the route table redirects "/" to /buildings, so this is just a
+  // safety net). MUI `Tabs` needs a value present in its <Tab>s, so fall back to
+  // the Buildings path rather than `false` (which would render no active tab).
+  const activePath =
+    NAV.find((n) => location.pathname === n.path)?.path ?? FINDERS.buildings;
+
   const devMode = useDevMode();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   // "Remove all app data" — while the mutation is pending the page renders a
@@ -374,18 +383,6 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
 
   const menuOpen = Boolean(anchorEl);
 
-  const handleTabChange = (_event: React.SyntheticEvent, newValue: number) => {
-    // No refresh-on-switch: every write already invalidates its own queries
-    // (add/edit call reloadData on success; delete/visibility/share/view use
-    // mutation hooks that invalidate). A blanket reload here just refetched the
-    // whole dataset on every tab change — a request storm for nothing.
-    // `replace` keeps tab switches out of the browser history (matches the old
-    // state-only behaviour); `mergeParams` preserves Explore's `b`/`dt`.
-    setSearchParams((p) => mergeParams(p, { tab: slugFromTabIndex(newValue) }), {
-      replace: true,
-    });
-  };
-
   const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => {
     setAnchorEl(event.currentTarget);
   };
@@ -477,9 +474,7 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
       // cleared the query cache, so useDemoOffer re-probes the (now empty) Pod and
       // returns true; just lift any in-session dismissal so the banner can show.
       setDemoDismissed(false);
-      setSearchParams((p) => mergeParams(p, { tab: "buildings" }), {
-        replace: true,
-      });
+      void navigate(FINDERS.buildings, { replace: true });
       showNotification("All app data removed", "success");
     } catch {
       // Already toasted centrally via the hook's meta.action.
@@ -525,10 +520,12 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           flexShrink: 0,
         }}
       >
-        <Tabs value={tabValue} onChange={handleTabChange} centered>
-          <Tab label="Buildings" />
-          <Tab label="Share" />
-          <Tab label="Connect" />
+        <Tabs
+          value={activePath}
+          onChange={(_e, path) => navigate(path)}
+          centered
+        >
+          {NAV.map((n) => <Tab key={n.path} label={n.label} value={n.path} />)}
         </Tabs>
         <Box
           sx={{
@@ -736,64 +733,13 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
           explore?
         </Alert>
       </Collapse>
-      {/* Buildings tab (0): one finder, a Map ⇄ List toggle picks the view.
-          The whole tab body hides (display:none) when another tab is active so
-          the map stays mounted underneath — returning to Buildings is instant
-          (no Leaflet re-init / tile re-fetch). Content fills the remaining
-          column height; the footer below stays pinned. */}
-      <Box
-        sx={{
-          display: tabValue === 0 ? "flex" : "none",
-          flexDirection: "column",
-          flexGrow: 1,
-          minHeight: 0,
-        }}
-      >
-        <Box sx={{ display: "flex", justifyContent: "center", p: 1, flexShrink: 0 }}>
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={buildingsView}
-            onChange={(_e, next) => {
-              if (next) setBuildingsView(next); // ignore deselect of the active button
-            }}
-            aria-label="Buildings view"
-          >
-            <ToggleButton value="map">Map</ToggleButton>
-            <ToggleButton value="list">List</ToggleButton>
-          </ToggleButtonGroup>
-        </Box>
-        {/* Map: kept mounted whenever Buildings is the active tab (only hidden
-            when switched to List), preserving ExplorePage's Leaflet instance. */}
-        <Box
-          sx={{
-            display: buildingsView === "map" ? "flex" : "none",
-            flexDirection: "column",
-            flexGrow: 1,
-            minHeight: 0,
-          }}
-        >
-          <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
-            <ExplorePage active={tabValue === 0 && buildingsView === "map"} />
-          </Suspense>
-        </Box>
-        {/* List: mounted only while showing — no costly instance to preserve. */}
-        {buildingsView === "list" && (
-          <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-            <ManagePage session={session} />
-          </Box>
-        )}
+      {/* The active finder renders here. ExplorePage (the Buildings map) is kept
+          mounted via BuildingsFinder's own display:none trick, so a switch among
+          the OTHER finders unmounts the map — returning to /buildings re-inits the
+          Leaflet instance (the map's intra-finder Map⇄List toggle preserves it). */}
+      <Box sx={{ flexGrow: 1, minHeight: 0, display: "flex", flexDirection: "column" }}>
+        <Outlet />
       </Box>
-      {tabValue === 1 && (
-        <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-          <SharePage session={session} />
-        </Box>
-      )}
-      {tabValue === 2 && (
-        <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-          <ConnectPage session={session} />
-        </Box>
-      )}
       <Box sx={{ flexShrink: 0 }}>
         <Footer />
       </Box>
@@ -808,5 +754,3 @@ function IndexPage({ session, onLogout }: IndexPageProps) {
     </Box>
   );
 }
-
-export default IndexPage;

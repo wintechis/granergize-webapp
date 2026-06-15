@@ -46,7 +46,7 @@ test.describe("logout", () => {
     await openBuildingsList(page);
     await expect(page.getByRole("heading", { name: "Your buildings" }))
       .toBeVisible({ timeout: T.visible });
-    await page.getByRole("tab", { name: "Connect" }).click();
+    await page.getByRole("tab", { name: "Contacts" }).click();
     await expect(page.getByRole("heading", { name: "Contacts" }))
       .toBeVisible({ timeout: T.visible });
 

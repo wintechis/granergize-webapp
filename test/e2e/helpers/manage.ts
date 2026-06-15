@@ -40,6 +40,15 @@ export async function openBuildingsMap(page: Page): Promise<void> {
 }
 
 /**
+ * Open the **Aggregations** finder (`/aggregations`) — the redesign split it out
+ * of the old Buildings/Manage list into its own top-nav finder. Used by the
+ * create / share / detail aggregation flows.
+ */
+export async function openAggregations(page: Page): Promise<void> {
+  await page.getByRole("tab", { name: "Aggregations" }).click();
+}
+
+/**
  * Real-path route to a building's standalone page (BrowserRouter). The id is an
  * IRI reference (contains `/` and `#`), so it MUST be URL-encoded — a raw `#`/`/`
  * would break the path segment. Every spec goto goes through this, never
@@ -54,11 +63,13 @@ export function buildingRoute(
   return `/${kind}/${encodeURIComponent(id)}`;
 }
 
-/** Real-path route to the Buildings tab (Map view) with a building selected (`?b=`),
- * optionally on a detail sub-tab (`?dt=`). Encodes + null-rejects like {@link buildingRoute}. */
+/** Real-path route to the Buildings finder (Map view) with a building selected
+ * (`?b=`), optionally on a detail sub-tab (`?dt=`). The active finder is the
+ * route now (`/buildings`); `?b=`/`?dt=` are the map sub-state. Encodes +
+ * null-rejects like {@link buildingRoute}. */
 export function exploreRoute(id: string | null, dt?: string): string {
   if (!id) throw new Error("exploreRoute: missing building id");
-  return `/?tab=buildings&b=${encodeURIComponent(id)}${dt ? `&dt=${dt}` : ""}`;
+  return `/buildings?b=${encodeURIComponent(id)}${dt ? `&dt=${dt}` : ""}`;
 }
 
 /**
@@ -290,7 +301,7 @@ export const AGGREGATION_NAME = "E2E Shared Aggregation";
 
 /** Create the shared aggregation (idempotent: reuse an existing one with AGGREGATION_NAME). */
 export async function ensureAggregation(page: Page): Promise<void> {
-  await openBuildingsList(page);
+  await openAggregations(page);
   await page.waitForLoadState("networkidle").catch(() => {});
   if (await page.locator("li").filter({ hasText: AGGREGATION_NAME }).count()) return;
 
@@ -333,7 +344,7 @@ export async function shareAggregationByWebId(
   page: Page,
   webId: string,
 ): Promise<void> {
-  await openBuildingsList(page);
+  await openAggregations(page);
   const row = page.locator("li").filter({ hasText: AGGREGATION_NAME }).first();
   await expect(row).toBeVisible({ timeout: T.action });
   await row.getByRole("button", { name: "Share aggregation" }).click();

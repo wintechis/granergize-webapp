@@ -73,7 +73,7 @@ test.describe("room-render benchmark", () => {
       // navigation to the member list reflecting all N seeded members.
       const t0 = Date.now();
       await page.goto("/");
-      await page.getByRole("tab", { name: "Connect" }).click();
+      await page.getByRole("tab", { name: "Rooms" }).click();
       await expect(memberRows(page)).toHaveCount(n, { timeout: 120_000 });
       const ms = Date.now() - t0;
 

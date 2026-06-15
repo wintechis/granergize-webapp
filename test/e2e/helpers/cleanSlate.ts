@@ -106,7 +106,7 @@ export async function wipeCollection(
     if (reload) {
       await page.reload();
       // Wait until logged back in (tabs present) so ensureOwnInbox has re-run.
-      await expect(page.getByRole("tab", { name: "Connect" }))
+      await expect(page.getByRole("tab", { name: "Buildings" }))
         .toBeVisible({ timeout: T.action });
       logRun(`clean-slate wipe [${tag}]: reloaded, inbox re-provisioned`);
     }
@@ -119,8 +119,8 @@ export async function wipeCollection(
 /**
  * Bring the page back to the app shell before a teardown reads/wipes. A spec can
  * leave the page on a STANDALONE full-page route (`/energy/:id`, `/aggregation/:id`,
- * `/building/:id` — no app-shell tabs) or mid-reload, where the "Manage" tab the
- * teardown clicks doesn't exist; without this, that click hangs the whole afterAll
+ * `/building/:id` — no app-shell tabs) or mid-reload, where the finder tabs the
+ * teardown clicks don't exist; without this, that click hangs the whole afterAll
  * budget (the 240s "wipe hang"). `goto("/")` re-enters the shell (the seeded session
  * survives navigation — specs already `goto` standalone routes mid-test), then we
  * wait, BOUNDED, for the tabs so a genuine login failure fails in seconds instead of

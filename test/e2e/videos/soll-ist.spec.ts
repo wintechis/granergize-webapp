@@ -61,7 +61,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await login(page, ACC);
     await controlSeed("/seed-profiles");
     await page.reload();
-    await expect(page.getByRole("tab", { name: "Connect" }))
+    await expect(page.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
     await setDevMode(page, false);
     // The fresh-Pod onboarding banner appears once the (empty) buildings query

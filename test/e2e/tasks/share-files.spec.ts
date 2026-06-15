@@ -49,7 +49,7 @@ async function downloadSharedFile(page: Page): Promise<void> {
   // surfaces — replaces a blind write→read cooldown at the call sites. The download
   // itself fires once, after the file is confirmed present.
   await reloadUntil(page, async () => {
-    await page.getByRole("tab", { name: "Share" }).click();
+    await page.getByRole("tab", { name: "Sharing" }).click();
     await expect(page.getByText("sample.pdf")).toBeVisible({
       timeout: T.action,
     });

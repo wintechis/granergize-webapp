@@ -5,11 +5,12 @@ import { T } from "./timeouts.ts";
  * Room/role helpers, shared by the cross-Pod specs (`share-building`,
  * `share-aggregation`, `share-files`, `peer-benchmark`) and `data-room`.
  *
- * Hosting and the room *list* are Connect-tab actions; per-room detail — entering,
- * roles, members, the invite QR — lives on the standalone room page
- * (`/room/<encoded room URI>`). So `hostRoomAndGetUri` stays on Connect, while
- * `assignUserRole` drives the room page; navigating to a room page enters it (the
- * page calls `openRoom` on mount).
+ * Hosting and the room *list* are Rooms-finder actions (the redesign split the
+ * old Connect tab into the Rooms and Contacts finders); per-room detail —
+ * entering, roles, members, the invite QR — lives on the standalone room page
+ * (`/room/<encoded room URI>`). So `hostRoomAndGetUri` stays on the Rooms finder,
+ * while `assignUserRole` drives the room page; navigating to a room page enters
+ * it (the page calls `openRoom` on mount).
  */
 
 /** Real-path route to a room's detail page (mirrors manage.ts's `buildingRoute`). */
@@ -17,12 +18,12 @@ function roomRoute(roomUri: string): string {
   return `/room/${encodeURIComponent(roomUri)}`;
 }
 
-/** Open the Connect tab. The room detail page is a STANDALONE route with no
- * app-shell tabs, so first land on the shell (`/`) when we're on a room page —
- * clicking the Connect tab directly from there would never find the tab. */
-async function gotoConnect(page: Page): Promise<void> {
-  if (/\/room\//.test(page.url())) await page.goto("/");
-  await page.getByRole("tab", { name: "Connect" }).click();
+/** Open the Rooms finder (`/rooms`). The room detail page is a STANDALONE route
+ * with no app-shell tabs, so first land on the shell when we're on a room page —
+ * clicking the Rooms tab directly from there would never find the tab. */
+async function gotoRooms(page: Page): Promise<void> {
+  if (/\/room\//.test(page.url())) await page.goto("/rooms");
+  await page.getByRole("tab", { name: "Rooms" }).click();
 }
 
 /** On the Connect tab, ensure a room exists (host one if none) and return ITS
@@ -31,7 +32,7 @@ async function gotoConnect(page: Page): Promise<void> {
  * is a button now). Robust to pre-existing rooms: if a room is already listed we
  * reuse the first one. */
 export async function hostRoomAndGetUri(page: Page): Promise<string> {
-  await gotoConnect(page);
+  await gotoRooms(page);
   // A room row carries a delete/remove action; the room URI is the row's "open"
   // link text (the link routes to that room's detail page).
   const roomLink = page.locator("li")
@@ -46,7 +47,7 @@ export async function hostRoomAndGetUri(page: Page): Promise<string> {
     await page.getByRole("button", { name: /host a data room/i }).click();
     // Hosting navigates to the new room's page; go back to Connect to read it.
     await expect(page).toHaveURL(/\/room\//, { timeout: T.action });
-    await gotoConnect(page);
+    await gotoRooms(page);
     await expect(roomLink).toBeVisible({ timeout: T.action });
   }
   const uri = (await roomLink.textContent())?.trim();
@@ -97,7 +98,7 @@ export async function joinRoomAsUser(
   page: Page,
   roomUri: string,
 ): Promise<void> {
-  await gotoConnect(page);
+  await gotoRooms(page);
   const row = page.locator("li").filter({ hasText: roomUri });
   if (!(await row.count())) {
     const uriField = page.getByLabel(/data room uri/i);

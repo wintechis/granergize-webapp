@@ -7,13 +7,12 @@ import { exploreRoute, openBuildingsList } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Navigational UI state lives in the hash query params so a browser reload (or a
- * bookmark) restores the view — see notes/ui-state.md. This proves the encoded
- * increments survive a real reload: the active home tab (`?tab=`), and the Explore
- * selected building + detail sub-tab (`?b=`/`?dt=`). A third test drives a cold
- * deep-link (no clicking) to confirm the read path. inrupt's
- * `handleIncomingRedirect` strips the URI fragment on load, so Login.tsx restores
- * the in-app hash after the redirect — this spec is its regression guard.
+ * Navigational UI state lives in the URI so a browser reload (or a bookmark)
+ * restores the view — see notes/ui-state.md. The active *finder* is the route now
+ * (`/buildings`, `/rooms`, …) — no `?tab=`; this proves the route survives a real
+ * reload, and that the Buildings-map selected building + detail sub-tab
+ * (`?b=`/`?dt=`) survive too. A third test drives a cold deep-link (no clicking) to
+ * confirm the read path.
  *
  * The tab test needs no data, so it runs first and is independent of the (Tier-3
  * CSS) write flakiness. The selection tests add one throwaway building idempotently
@@ -102,23 +101,23 @@ test.describe("URI-encoded navigational state survives reload", () => {
     }
   });
 
-  test("the active tab is restored after a reload", async () => {
+  test("the active finder is restored after a reload", async () => {
     test.setTimeout(T.testSolo);
-    // Pick a non-default tab (Connect) — the app lands on Buildings (tab 0),
-    // so restoring Connect proves the `?tab=` round-trip, not just the default.
-    const connectTab = page.getByRole("tab", { name: "Connect" });
-    await connectTab.click();
-    await expect(connectTab).toHaveAttribute("aria-selected", "true", {
+    // Pick a non-default finder (Rooms) — the app lands on /buildings, so
+    // restoring Rooms proves the route round-trips, not just the default.
+    const roomsTab = page.getByRole("tab", { name: "Rooms" });
+    await roomsTab.click();
+    await expect(roomsTab).toHaveAttribute("aria-selected", "true", {
       timeout: T.action,
     });
-    expect(page.url()).toContain("tab=connect");
+    expect(page.url()).toContain("/rooms");
 
     await page.reload();
 
-    // Same tab after reload — not back on the default Buildings tab.
-    await expect(page.getByRole("tab", { name: "Connect" }))
+    // Same finder after reload — not back on the default Buildings finder.
+    await expect(page.getByRole("tab", { name: "Rooms" }))
       .toHaveAttribute("aria-selected", "true", { timeout: T.action });
-    expect(page.url()).toContain("tab=connect");
+    expect(page.url()).toContain("/rooms");
   });
 
   test("the Explore selection + detail tab are restored after a reload", async () => {

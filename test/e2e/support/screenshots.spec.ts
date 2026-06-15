@@ -146,7 +146,7 @@ test.describe("handbuch screenshots", () => {
         Record<string, string>;
       contactWebId = webIds.B ?? contactWebId;
       await page.reload();
-      await expect(page.getByRole("tab", { name: "Connect" }))
+      await expect(page.getByRole("tab", { name: "Buildings" }))
         .toBeVisible({ timeout: 60_000 });
     }
 
@@ -203,7 +203,7 @@ test.describe("handbuch screenshots", () => {
 
     // --- Meet: be in a room with a role (seeds an empty Pod so the rest of the
     //     app has something to show) ---
-    await page.getByRole("tab", { name: "Connect" }).click();
+    await page.getByRole("tab", { name: "Rooms" }).click();
     const leave = page.getByRole("button", { name: /leave data room/i });
     if (!(await leave.count())) {
       await page.getByRole("button", { name: /host a data room/i }).click();
@@ -287,7 +287,7 @@ test.describe("handbuch screenshots", () => {
       // (the app's reload drain archives the received grant), then return to
       // the Connect tab the next section expects.
       await page.reload();
-      const connectTab = page.getByRole("tab", { name: "Connect" });
+      const connectTab = page.getByRole("tab", { name: "Contacts" });
       await expect(connectTab).toBeVisible({ timeout: 60_000 });
       await connectTab.click();
     }
@@ -572,7 +572,7 @@ test.describe("handbuch screenshots", () => {
       // session → drainInbox archives the grant into shared-in/).
       await page.waitForTimeout(COOLDOWN_MS);
       await b.page.reload();
-      await b.page.getByRole("tab", { name: "Share" }).click();
+      await b.page.getByRole("tab", { name: "Sharing" }).click();
       await expect(
         b.page.getByRole("list", { name: /buildings shared with you/i })
           .getByText(/^Building /),

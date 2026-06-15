@@ -54,7 +54,7 @@ export default tseslint.config(
       "src/App.tsx", // full-page route spinners (header not mounted)
       "src/pages/Agent.tsx",
       "src/pages/Aggregation.tsx",
-      "src/pages/index.tsx", // lazy-chunk Suspense fallback
+      "src/pages/BuildingsFinder.tsx", // lazy-chunk (ExplorePage) Suspense fallback
     ],
     rules: {
       "no-restricted-imports": [

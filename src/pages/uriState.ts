@@ -1,18 +1,14 @@
 /**
- * Navigational UI state encoded in the home route's hash query params, so a
- * browser reload (or a bookmark/share) restores what you were looking at. See
- * `notes/ui-state.md` for the full scheme and the per-tab inventory.
+ * Navigational UI state encoded in the Buildings finder's query params, so a
+ * browser reload (or a bookmark/share) restores what you were looking at. The
+ * active *finder* is the route now (`/buildings`, `/sharing`, …) — there is no
+ * `?tab=`; what remains here is the Buildings-map sub-state (`?b=` selected
+ * building, `?dt=` detail sub-tab), owned by ExplorePage. See `notes/ui-state.md`.
  *
  * Pure (no React/DOM), so it can be unit-tested under `deno test` — the MUI pages
  * that consume it cannot render there. (`URLSearchParams` here is the platform
- * built-in; the address we encode into is a hash URI per RFC 3986.)
+ * built-in; the address we encode into is a URI per RFC 3986.)
  */
-
-/** The three home tabs, in render order. The `?tab=` slug is the index here.
- * "Buildings" folds the former Explore (map) + Manage (list) into one tab with
- * an in-tab Map ⇄ List toggle (see IndexPage). */
-export const HOME_TABS = ["buildings", "share", "connect"] as const;
-export type HomeTabSlug = (typeof HOME_TABS)[number];
 
 /** The Explore detail sub-tabs, in render order. The `?dt=` slug indexes here. */
 export const DETAIL_TABS = ["building", "energy", "weather"] as const;
@@ -30,17 +26,6 @@ function slugFromIndex<T extends string>(slugs: readonly T[], index: number): T 
   return slugs[index] ?? slugs[0];
 }
 
-/** `?tab=` slug → home tab index (Buildings=0/Share=1/Connect=2); unknown → 0
- * (Buildings). `?tab=connect` still resolves (App.tsx's RoomDeepLink uses it). */
-export function tabIndexFromSlug(slug: string | null | undefined): number {
-  return indexFromSlug(HOME_TABS, slug);
-}
-
-/** Home tab index → `?tab=` slug; out-of-range → "buildings". */
-export function slugFromTabIndex(index: number): HomeTabSlug {
-  return slugFromIndex(HOME_TABS, index);
-}
-
 /** `?dt=` slug → detail sub-tab index (building=0/energy=1/weather=2); unknown → 0. */
 export function detailIndexFromSlug(slug: string | null | undefined): number {
   return indexFromSlug(DETAIL_TABS, slug);
@@ -53,8 +38,8 @@ export function slugFromDetailIndex(index: number): DetailTabSlug {
 
 /**
  * Return a copy of `prev` with `changes` applied: a string value sets the key, a
- * `null` deletes it, other keys are left untouched. Lets the shell (`tab`) and
- * Explore (`b`/`dt`) update their own params without clobbering each other.
+ * `null` deletes it, other keys are left untouched. Lets ExplorePage update one
+ * of its own params (`b`/`dt`) without clobbering the other.
  */
 export function mergeParams(
   prev: URLSearchParams,

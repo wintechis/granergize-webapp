@@ -94,7 +94,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await login(page, A);
     await controlSeed("/seed-profiles");
     await page.reload();
-    await expect(page.getByRole("tab", { name: "Connect" }))
+    await expect(page.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
     await setDevMode(page, false);
     const addExamples = page.getByRole("button", { name: "Add examples" });
@@ -133,7 +133,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     // provider's WebID arrived with the engagement; the contact-add moment
     // itself is established once, in the Vertriebsoptimierung video). The
     // share dialog then offers "Charlie Conrad" as a suggestion on camera.
-    await page.getByRole("tab", { name: "Connect" }).click();
+    await page.getByRole("tab", { name: "Contacts" }).click();
     const webIdField = page.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await webIdField.fill(cWebId);
@@ -212,7 +212,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     // Drain both grants on the DISCARDED setup page first (see vertrieb.spec.ts:
     // a stage page that drains while filming misses the fold).
     await cSetup.reload();
-    await cSetup.getByRole("tab", { name: "Share" }).click();
+    await cSetup.getByRole("tab", { name: "Sharing" }).click();
     await expect(async () => {
       const n = await cSetup
         .getByRole("list", { name: /buildings shared with you/i })
@@ -223,7 +223,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     const stageC = await cCtx.newPage();
     const t0c = Date.now();
     await stageC.goto("/");
-    await expect(stageC.getByRole("tab", { name: "Share" }))
+    await expect(stageC.getByRole("tab", { name: "Sharing" }))
       .toBeVisible({ timeout: 60_000 });
     await stageC.waitForLoadState("networkidle").catch(() => {});
     // C owns no buildings — wave off the fresh-Pod onboarding banner off-scene.
@@ -236,7 +236,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
       "received",
       "Bei C: Die Beiträge von A und B erscheinen unter „Shared with you“",
     );
-    await demoC.click(stageC.getByRole("tab", { name: "Share" }));
+    await demoC.click(stageC.getByRole("tab", { name: "Sharing" }));
     await expect(
       stageC.getByRole("list", { name: /buildings shared with you/i })
         .getByText(/^Building /).first(),
@@ -320,14 +320,14 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     // ============ Clip payoff: back at A. ============
     // Drain C's share-back on the discarded fixture page first.
     await page.reload();
-    await page.getByRole("tab", { name: "Share" }).click();
+    await page.getByRole("tab", { name: "Sharing" }).click();
     await expect(receivedAggregations(page).getByText(VIEW_NAME))
       .toBeVisible({ timeout: 120_000 });
 
     const stageA2 = await page.context().newPage();
     const t0p = Date.now();
     await stageA2.goto("/");
-    await expect(stageA2.getByRole("tab", { name: "Share" }))
+    await expect(stageA2.getByRole("tab", { name: "Sharing" }))
       .toBeVisible({ timeout: 60_000 });
     await stageA2.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageA2);
@@ -337,7 +337,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
       "returned",
       "Zurück bei A: Die Ansicht von C liegt unter „Aggregations shared with you“",
     );
-    await demoP.click(stageA2.getByRole("tab", { name: "Share" }));
+    await demoP.click(stageA2.getByRole("tab", { name: "Sharing" }));
     await expect(receivedAggregations(stageA2).getByText(VIEW_NAME))
       .toBeVisible({ timeout: 60_000 });
     await demoP.moveTo(receivedAggregations(stageA2).getByText(VIEW_NAME));

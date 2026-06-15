@@ -7,6 +7,7 @@ import {
   addEnergyYear,
   buildingRoute,
   exploreRoute,
+  openAggregations,
   openBuildingsList,
   openBuildingsMap,
 } from "../helpers/manage.ts";
@@ -93,8 +94,9 @@ test.describe("energy view smoke", () => {
   });
 
   // Storage-redesign smokes (dissolved from the old storage-smoke spec): the
-  // container-native Manage/Share panels render. Reuse the seeded, logged-in page.
-  test("Manage lists own buildings + the Aggregations section renders", async () => {
+  // container-native Buildings / Aggregations / Sharing finders render. Reuse the
+  // seeded, logged-in page. The redesign split Aggregations into its own finder.
+  test("Buildings lists own buildings + the Aggregations finder renders", async () => {
     // The previous test ended on the standalone /energy/:id route (no app shell, so
     // no tabs) — return to the shell before reaching for a tab.
     await page.goto("/");
@@ -103,12 +105,13 @@ test.describe("energy view smoke", () => {
       .toBeVisible({ timeout: T.action });
     await expect(page.locator("li[data-building-id]").first())
       .toBeVisible({ timeout: T.action });
+    await openAggregations(page);
     await expect(page.getByRole("heading", { name: "Aggregations" }))
       .toBeVisible({ timeout: T.action });
   });
 
-  test("the Share tab renders (folds the shared-in/ log)", async () => {
-    await page.getByRole("tab", { name: "Share" }).click();
+  test("the Sharing finder renders (folds the shared-in/ log)", async () => {
+    await page.getByRole("tab", { name: "Sharing" }).click();
     await expect(page.getByRole("heading", { name: "Buildings shared with you" }))
       .toBeVisible({ timeout: T.action });
   });
@@ -191,8 +194,8 @@ test.describe("energy view smoke", () => {
     await addEnergyYear(page, ADDR, "2022", "12345"); // Actual electricity, kWh
 
     // 2) Create an annual aggregation selecting ONLY electricity over THAT building.
-    // The "Create aggregation" button lives in the Buildings/List view (ManagePage).
-    await openBuildingsList(page);
+    // The "Create aggregation" button lives in the Aggregations finder.
+    await openAggregations(page);
     await page.getByRole("button", { name: /create aggregation/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });

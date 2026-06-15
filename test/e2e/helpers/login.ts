@@ -103,7 +103,7 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
 async function restoreSession(page: Page): Promise<void> {
   await expect(async () => {
     await page.goto("./");
-    await expect(page.getByRole("tab", { name: "Connect" }))
+    await expect(page.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: T.action });
   }).toPass({ timeout: T.login });
 }
@@ -190,7 +190,7 @@ export async function loginInteractive(page: Page, acc: SolidAccount): Promise<v
   await expect(async () => {
     if (await remember.count()) await remember.first().click().catch(() => {});
     await expect(remember).toHaveCount(0, { timeout: 1000 });
-    await expect(page.getByRole("tab", { name: "Connect" })).toBeVisible({
+    await expect(page.getByRole("tab", { name: "Buildings" })).toBeVisible({
       timeout: 1000,
     });
   }).toPass({ timeout: T.login });

@@ -425,7 +425,7 @@ export default function ExplorePage(
 
   // Select a building: set `?b=` and drop `?dt=` so the detail view opens on the
   // Building tab. `replace` keeps selection out of the browser history;
-  // `mergeParams` preserves the shell's `?tab=`.
+  // `mergeParams` updates `b` without clobbering the sibling `dt` param.
   const focusBuilding = (id: string) =>
     setSearchParams((p) => mergeParams(p, { b: id, dt: null }), {
       replace: true,

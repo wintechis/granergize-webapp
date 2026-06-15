@@ -73,7 +73,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     await login(page, A);
     await controlSeed("/seed-profiles");
     await page.reload();
-    await expect(page.getByRole("tab", { name: "Connect" }))
+    await expect(page.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
     await setDevMode(page, false);
     const addExamples = page.getByRole("button", { name: "Add examples" });
@@ -129,7 +129,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
       "contact",
       "B's WebID hat A von ihm selbst – wie eine E-Mail-Adresse. Einmal ins Adressbuch:",
     );
-    await demoA.click(stageA.getByRole("tab", { name: "Connect" }));
+    await demoA.click(stageA.getByRole("tab", { name: "Contacts" }));
     const webIdField = stageA.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await demoA.type(webIdField, bWebId);
@@ -190,7 +190,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     // Once the grant is archived in shared-in/, the stage page's first
     // buildings fetch includes A's hall and the initial map fit covers it.
     await bSetup.reload();
-    await bSetup.getByRole("tab", { name: "Share" }).click();
+    await bSetup.getByRole("tab", { name: "Sharing" }).click();
     await expect(
       bSetup.getByRole("list", { name: /buildings shared with you/i })
         .getByText(/^Building /),
@@ -199,7 +199,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     const stageB = await bCtx.newPage();
     const t0b = Date.now();
     await stageB.goto("/");
-    await expect(stageB.getByRole("tab", { name: "Share" }))
+    await expect(stageB.getByRole("tab", { name: "Sharing" }))
       .toBeVisible({ timeout: 60_000 });
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageB);
@@ -209,7 +209,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
       "received",
       "B (Bob Bauer) öffnet die App: A's Gebäude liegt unter „Shared with you“",
     );
-    await demoB.click(stageB.getByRole("tab", { name: "Share" }));
+    await demoB.click(stageB.getByRole("tab", { name: "Sharing" }));
     await expect(
       stageB.getByRole("list", { name: /buildings shared with you/i })
         .getByText(/^Building /),

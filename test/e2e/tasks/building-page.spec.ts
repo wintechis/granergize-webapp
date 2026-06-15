@@ -80,8 +80,8 @@ test.describe("redesign: building page", () => {
   });
 
   test("clicking a building name in the Buildings list opens the building page", async () => {
-    await page.goto("/?tab=buildings");
-    // The Buildings tab lands on Map; switch to the List view to get the rows.
+    await page.goto("/buildings");
+    // The Buildings finder lands on Map; switch to the List view to get the rows.
     await page.getByRole("button", { name: "List" }).click();
     const row = page.locator(`li[data-building-id="${id}"]`);
     await expect(row).toBeVisible({ timeout: T.action });
