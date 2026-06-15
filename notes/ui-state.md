@@ -45,9 +45,11 @@ does not pile up browser-history entries. Slugs are human-readable and reorder-s
 Encoded now:
 
 - `tab` — the active home tab: `explore | manage | share | connect`.
-- `b` — the Explore selected building (the building id); absent means none selected.
-- `dt` — the Explore detail sub-tab: `building | energy | weather`; only meaningful
-  with `b`.
+
+The Buildings map is a **pure finder**: a marker click navigates to the building's
+standalone page (`/building/:id`), so there is no selected-building / detail-sub-tab
+query state to encode (the former `b`/`dt` params are gone). Energy and weather are
+sections on the building's observation page (`/observation/:id`), reached by route.
 
 Reserved for later increments (named here so they land consistently):
 
@@ -75,12 +77,13 @@ page address.
 
 ### Explore — `src/pages/ExplorePage.tsx`
 
-- Navigational: the selected building → `b`; the detail sub-tab → `dt`. The
-  selection is held as a one-entry focus list, so a single building id captures it.
-- Deferred-navigational: detail fullscreen → `full`; the map bounding box / viewport.
-- Ephemeral: the energy record synced to the selected building (derived), the
-  tile-loading token.
-- Children: `WeatherData` holds a selected parameter and station (deferred
+- Navigational: none — the map is a pure finder; a marker click navigates to
+  `/building/:id` rather than encoding a selection.
+- Deferred-navigational: the map bounding box / viewport.
+- Ephemeral: the colour-lens choice (ownership / energy), the energy intensities
+  derived per building, the tile-loading token.
+- Children: `WeatherData` (now a section on the observation page) holds a selected
+  parameter and station (deferred
   navigational); `UserEnergyChart` holds a view, a day and a month (deferred
   navigational); `Building`, `Energy` and `AnnualEnergy` hold only
   fetched and derived data.

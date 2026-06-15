@@ -26,6 +26,7 @@ import {
   useReceivedAggregations,
   useSharedBuildingDetail,
   useSharedWithMe,
+  useSolidData,
 } from "../hooks/queries.ts";
 import { useCheckInbox, useToggleVisibility } from "../hooks/mutations.ts";
 import { loadSharedBuilding } from "../services/interop/sharedBuilding.ts";
@@ -37,7 +38,12 @@ import {
 import { formatNumber } from "../lib/formatNumber.ts";
 import { downloadXlsx } from "../lib/download.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
-import { RdfSourceLink, UriLink } from "../components/detail/DetailView.tsx";
+import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
+import {
+  RdfSourceLink,
+  RefLink,
+  UriLink,
+} from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import FilesSection from "../components/detail/FilesSection.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
@@ -172,6 +178,16 @@ export default function SharingFinder({ session }: SharingFinderProps) {
   const loading = sharedWithMeQuery.isLoading;
   const sharedPaging = usePaging(sharedWithMe);
 
+  // The shared-with-me ENTRIES carry only a display stem (`buildingId`) and the
+  // building's document URI; the resolvable building id (the absolute subject IRI
+  // the /building/:id route expects) lives on the folded `useSolidData` building.
+  // Key those by their document URI so a row can link to the detail page when the
+  // building is loaded and readable (an inaccessible one stays unlinked).
+  const { buildings } = useSolidData();
+  const idByFileUri = new Map(
+    buildings.map((b) => [buildingFileUri(b.id), b.id]),
+  );
+
   const receivedAggregationsQuery = useReceivedAggregations();
   const receivedAggregations = receivedAggregationsQuery.data ?? [];
   const receivedAggregationsPaging = usePaging(receivedAggregations);
@@ -292,12 +308,22 @@ export default function SharingFinder({ session }: SharingFinderProps) {
             aria-label="Buildings shared with you"
             sx={{ listStyle: "none", pl: 0, m: 0 }}
           >
-            {sharedPaging.pageItems.map((building) => (
+            {sharedPaging.pageItems.map((building) => {
+              const resolvableId = idByFileUri.get(building.buildingUri);
+              return (
               <ResourceRow
                 key={building.buildingUri}
                 title={
                   <>
-                    Building {building.buildingId}
+                    {resolvableId
+                      ? (
+                        <RefLink
+                          to={`/building/${encodeURIComponent(resolvableId)}`}
+                        >
+                          Building {building.buildingId}
+                        </RefLink>
+                      )
+                      : <>Building {building.buildingId}</>}
                     {dev && (
                       <Box
                         component="span"
@@ -343,7 +369,8 @@ export default function SharingFinder({ session }: SharingFinderProps) {
                 }
                 expansion={<SharedBuildingFiles entry={building} />}
               />
-            ))}
+              );
+            })}
           </Box>
         )}
       <Pager paging={sharedPaging} />

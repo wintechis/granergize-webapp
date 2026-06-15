@@ -50,7 +50,7 @@ test.describe("data rooms", () => {
     page.on("dialog", (d) => d.accept());
     await login(page, A);
     await assertCleanStart(page);
-    await page.getByRole("tab", { name: "Rooms" }).click();
+    await page.getByRole("tab", { name: "Meet" }).click();
   });
 
   test.afterAll(async () => {
@@ -80,7 +80,7 @@ test.describe("data rooms", () => {
    * directly from a room page would never find the tab. */
   async function openConnect() {
     if (/\/room\//.test(page.url())) await page.goto("/rooms");
-    await page.getByRole("tab", { name: "Rooms" }).click();
+    await page.getByRole("tab", { name: "Meet" }).click();
   }
 
   /**

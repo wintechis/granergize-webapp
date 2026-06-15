@@ -23,7 +23,7 @@ function roomRoute(roomUri: string): string {
  * clicking the Rooms tab directly from there would never find the tab. */
 async function gotoRooms(page: Page): Promise<void> {
   if (/\/room\//.test(page.url())) await page.goto("/rooms");
-  await page.getByRole("tab", { name: "Rooms" }).click();
+  await page.getByRole("tab", { name: "Meet" }).click();
 }
 
 /** On the Connect tab, ensure a room exists (host one if none) and return ITS

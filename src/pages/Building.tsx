@@ -1,6 +1,8 @@
 import { Divider, Stack } from "@mui/material";
 import type { BuildingType } from "../types.ts";
 import { getSession } from "../hooks/session.ts";
+import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
+import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import BuildingHeader from "../components/building/BuildingHeader.tsx";
 import MasterDataSection from "../components/building/MasterDataSection.tsx";
 import EnergySummarySection from "../components/building/EnergySummarySection.tsx";
@@ -34,6 +36,13 @@ export default function Building({ building }: BuildingProps) {
   // drives the file download/upload and the share dialog.
   const session = getSession();
 
+  // The dereferenceable backing resource: the building's document URI. Both
+  // `uri` (the subject IRI) and `sourceUri` (its source document) are stored
+  // ABSOLUTE by the parser for owned AND shared buildings — only the app-level
+  // `id` is relativized — so this href is absolute either way. Dev-mode only
+  // (RdfSourceLink self-hides outside it).
+  const sourceUri = buildingFileUri(building.sourceUri ?? building.uri);
+
   return (
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
       <BuildingHeader building={building} />
@@ -41,6 +50,7 @@ export default function Building({ building }: BuildingProps) {
       <EnergySummarySection building={building} />
       <BuildingFilesSection building={building} session={session} />
       <SharingSection building={building} session={session} />
+      <RdfSourceLink href={sourceUri} />
     </Stack>
   );
 }

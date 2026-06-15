@@ -2,9 +2,11 @@ import { Box, Typography } from "@mui/material";
 import type { BuildingType } from "../types.ts";
 import { observationRoute } from "../routes.ts";
 import { useSolidData } from "../hooks/queries.ts";
+import { getSession } from "../hooks/session.ts";
+import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
-import { RefLink } from "../components/detail/DetailView.tsx";
+import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
@@ -42,12 +44,18 @@ export default function ObservationsFinder() {
   );
   const paging = usePaging(withObservations);
 
+  // Dev-mode-only source link to the backing observations container (self-hides
+  // outside dev mode); null until the storage root resolves.
+  const webId = getSession().info.webId;
+  const rdf = webId ? tryPodResources(webId) : null;
+
   return (
     <Box
       component="section"
       sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}
     >
       <Typography variant="h6" sx={{ mb: 1 }}>Observations</Typography>
+      {rdf && <RdfSourceLink href={rdf.observations} />}
       {isLoading
         ? <Typography variant="body2">Loading…</Typography>
         : withObservations.length === 0

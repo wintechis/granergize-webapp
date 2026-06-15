@@ -59,8 +59,8 @@ interface AppShellProps {
  * The five finder routes, in top-nav order. Each is a routed finder page; the
  * shell's `<Outlet/>` renders the active one. The active finder is read from the
  * pathname (no `?tab=` state — the route IS the active finder). The Buildings
- * map sub-state (`?b=`/`?dt=`) lives in the query string and is owned by
- * ExplorePage; it survives a finder switch only while staying on /buildings.
+ * map is a pure finder: a marker click navigates to the building's detail page
+ * (`/building/:id`), like a List row.
  */
 const NAV: { label: string; path: string }[] = [
   { label: "Buildings", path: FINDERS.buildings },
@@ -68,7 +68,7 @@ const NAV: { label: string; path: string }[] = [
   { label: "Aggregations", path: FINDERS.aggregations },
   { label: "Sharing", path: FINDERS.sharing },
   { label: "Contacts", path: FINDERS.contacts },
-  { label: "Rooms", path: FINDERS.rooms },
+  { label: "Meet", path: FINDERS.rooms },
 ];
 
 /**

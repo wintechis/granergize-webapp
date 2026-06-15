@@ -77,7 +77,7 @@ test.describe("room-render benchmark", () => {
       // page enters the room and folds its membership on mount), then count.
       const t0 = Date.now();
       await page.goto("/");
-      await page.getByRole("tab", { name: "Rooms" }).click();
+      await page.getByRole("tab", { name: "Meet" }).click();
       // The active room row carries an "active" badge; its title link opens the
       // room page. There is exactly one seeded (hosted-by-you, active) room.
       const activeRow = page.locator("li", { hasText: /active/ }).first();

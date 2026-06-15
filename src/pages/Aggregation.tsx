@@ -13,6 +13,8 @@ import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { useAggregationDetail } from "../hooks/queries.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
+import { tryPodResources } from "../services/pod/solidUtils.ts";
+import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import AggregationHeader from "../components/aggregation/AggregationHeader.tsx";
 import AggregationDetailsSection from "../components/aggregation/AggregationDetailsSection.tsx";
 import AggregationResultsSection from "../components/aggregation/AggregationResultsSection.tsx";
@@ -46,6 +48,11 @@ export default function Aggregation({ session }: AggregationProps) {
   const detail = useAggregationDetail(aggregationId);
   const definition = detail.data?.definition ?? null;
   const snapshot = detail.data?.snapshot ?? null;
+
+  // Dev-mode-only source link to the backing definition resource
+  // (`aggregations/<id>.ttl`); self-hides outside dev mode, null until the root
+  // resolves.
+  const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
 
   if (detail.isPending) {
     return (
@@ -97,6 +104,9 @@ export default function Aggregation({ session }: AggregationProps) {
           computeError={detail.data?.computeError}
         />
         <AggregationSharingSection aggregation={definition} session={session} />
+        {rdf && (
+          <RdfSourceLink href={`${rdf.aggregations}${definition.id}.ttl`} />
+        )}
       </Stack>
     </Container>
   );
