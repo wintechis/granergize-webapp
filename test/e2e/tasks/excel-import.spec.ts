@@ -32,7 +32,7 @@ import { T } from "../helpers/timeouts.ts";
 /** Capture the id token of every owned building row currently on Manage. */
 /** Open the Add-building dialog from the Manage tab (manual entry — no picker). */
 async function openAddDialog(page: Page): Promise<void> {
-  await page.goto("/#/"); // robust from any prior route (no app-shell tabs on detail pages)
+  await page.goto("/"); // robust from any prior route (no app-shell tabs on detail pages)
   await openBuildingsList(page);
   // Wait on the Add Building action itself, not a building row — the Pod may have
   // no buildings yet (so the test doesn't depend on demo seeding).

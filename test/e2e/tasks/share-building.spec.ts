@@ -103,7 +103,7 @@ test.describe("sharing across two pods", () => {
       // Self-cleaning: A deletes its building (no room to drop — direct share).
       try {
         if (!a.page.isClosed()) {
-          await a.page.goto("/#/");
+          await a.page.goto("/");
           await openBuildingsList(a.page);
           const row = a.page.locator("li[data-building-id]", { hasText: STREET_W })
             .first();
@@ -178,7 +178,7 @@ test.describe("sharing across two pods", () => {
         ).toBeVisible({ timeout: T.action });
       });
       // Back to the shell for the read-side / cleanup tab nav.
-      await a.page.goto("/#/");
+      await a.page.goto("/");
 
       // ── Read part: B logs in fresh → drainInbox archives the grant → verify ──
       const b2 = await freshPage(browser, B);
@@ -244,7 +244,7 @@ test.describe("sharing across two pods", () => {
       // Self-cleaning: A deletes its building + the room it hosted (best-effort).
       try {
         if (!a.page.isClosed()) {
-          await a.page.goto("/#/");
+          await a.page.goto("/");
           await openBuildingsList(a.page);
           const row = a.page.locator("li[data-building-id]", { hasText: STREET })
             .first();
@@ -355,7 +355,7 @@ test.describe("sharing across two pods", () => {
       // Self-cleaning: A deletes its building + the room it hosted (best-effort).
       try {
         if (!a.page.isClosed()) {
-          await a.page.goto("/#/");
+          await a.page.goto("/");
           await openBuildingsList(a.page);
           const row = a.page.locator("li[data-building-id]", {
             hasText: STREET_Y,
@@ -426,7 +426,7 @@ test.describe("sharing across two pods", () => {
         }
 
         // ── A deletes the shared building (revokes B + posts the inbox notice) ──
-        await a.page.goto("/#/");
+        await a.page.goto("/");
         await openBuildingsList(a.page);
         const row = a.page.locator("li[data-building-id]", { hasText: STREET_D })
           .first();

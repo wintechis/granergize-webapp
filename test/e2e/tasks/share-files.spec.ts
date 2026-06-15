@@ -160,7 +160,7 @@ async function deleteOwnBuilding(page: Page, street: string): Promise<void> {
     // A failed step may have left a modal open; dismiss it (Escape) so the clicks
     // below aren't blocked by its backdrop and hang (default action timeout is 0).
     await page.keyboard.press("Escape").catch(() => {});
-    await page.goto("/#/");
+    await page.goto("/");
     await openBuildingsList(page);
     const row = page.locator("li", { hasText: street }).first();
     if (await row.count()) {

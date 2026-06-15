@@ -97,7 +97,7 @@ test.describe("energy view smoke", () => {
   test("Manage lists own buildings + the Aggregations section renders", async () => {
     // The previous test ended on the standalone /energy/:id route (no app shell, so
     // no tabs) — return to the shell before reaching for a tab.
-    await page.goto("/#/");
+    await page.goto("/");
     await openBuildingsList(page);
     await expect(page.getByRole("heading", { name: "Your buildings" }))
       .toBeVisible({ timeout: T.action });
@@ -129,7 +129,7 @@ test.describe("energy view smoke", () => {
     const A = "Betreiber Strasse 1";
     const B = "Betreiber Strasse 2";
 
-    await page.goto("/#/");
+    await page.goto("/");
     await addBuilding(page, A, { operatedBy: OP });
     await addEnergyYear(page, A, "2022", "1000");
     await addBuilding(page, B, { operatedBy: OP });
@@ -186,7 +186,7 @@ test.describe("energy view smoke", () => {
     const VIEW = "Heike Electricity View";
 
     // 1) Enter electricity data for a fresh building, the way Heike did.
-    await page.goto("/#/");
+    await page.goto("/");
     await addBuilding(page, ADDR);
     await addEnergyYear(page, ADDR, "2022", "12345"); // Actual electricity, kWh
 

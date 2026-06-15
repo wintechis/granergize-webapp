@@ -8,16 +8,20 @@ import { SectionTitle } from "../detail/DetailView.tsx";
 
 /**
  * The room page's INVITE section: a QR code plus a copy-invite-link affordance.
- * Both encode the same app deep link (`…#/room/<encoded room URI>`) — what the
- * room page opens (and joins) on mount — so showing the QR or copying the link
+ * Both encode the same app deep link (`<app root>/room/<encoded room URI>`) — what
+ * the room page opens (and joins) on mount — so showing the QR or copying the link
  * lets others join this data room. Extracted from the old Connect-tab room
  * expansion.
  */
 export default function RoomInviteSection({ roomUri }: { roomUri: string }) {
   const { showNotification } = useNotification();
 
-  const inviteLink = `${globalThis.location.origin}${globalThis.location.pathname}#${
-    roomRoute(roomUri)
+  // Real-path deep link under BrowserRouter: <origin><app root><room path>. The
+  // app root comes from the R-b base detection (window.__APP_BASE__, ends in "/");
+  // `roomRoute` returns a leading-slash path, so drop one slash when joining.
+  const appRoot = globalThis.__APP_BASE__ ?? globalThis.location.pathname;
+  const inviteLink = `${globalThis.location.origin}${appRoot}${
+    roomRoute(roomUri).slice(1)
   }`;
 
   const handleCopyLink = async () => {

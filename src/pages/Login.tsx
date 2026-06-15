@@ -160,21 +160,39 @@ export const Login: React.FC<LoginProps> = ({
     const watchdog = setTimeout(() => setLoading(false), 8000);
 
     // Restoring a session on refresh does a *silent redirect* through the Solid
-    // identity provider, which drops the URL fragment — and with it the in-app
-    // HashRouter route plus its `?tab=`/`?b=`/`?dt=` UI-state params (see
+    // identity provider, which returns to the registered redirect_uri (the app
+    // root) — dropping the in-app route (now a real PATH under BrowserRouter,
+    // `/building/<id>`, plus its `?tab=`/`?b=`/`?dt=` UI-state query params; see
     // notes/ui-state.md). The `sessionRestore` event hands back the pre-redirect
-    // URL (inrupt preserves it for exactly this), but the event fires *while*
-    // `handleIncomingRedirect` is still cleaning the URL — applying the fragment
-    // synchronously there gets clobbered by that cleanup. Defer to a macrotask so
-    // it runs after the cleanup (and after the app has mounted); setting the hash
-    // fires a `hashchange` the HashRouter picks up.
+    // URL (inrupt preserves it for exactly this). The event fires *while*
+    // `handleIncomingRedirect` is still cleaning the URL, so applying it
+    // synchronously gets clobbered by that cleanup — defer to a macrotask so it
+    // runs after the cleanup (and after the app has mounted). We rewrite the
+    // history entry to the pre-redirect path+query+hash and dispatch `popstate`,
+    // which BrowserRouter listens to (the path-based analogue of the old
+    // `hashchange`-on-`location.hash` trick) — no reload, so the restored session
+    // survives.
+    // NOTE: For a plain reload (F5) of a deep link, the browser already preserves
+    // the full path, and `handleIncomingRedirect` (no redirect needed when a valid
+    // token is cached) leaves it intact — this replay only matters when a silent
+    // IdP round-trip actually occurs and bounces back to the root redirect_uri.
+    // TODO(e2e): verify session-restore under BrowserRouter — confirm a deep-link
+    // reload that triggers a silent IdP round-trip lands back on the original
+    // route (session-restore.spec.ts + uri-state.spec.ts).
     const restoreRouteFrom = (url?: string) => {
       if (!url) return;
       setTimeout(() => {
         try {
-          const { hash } = new URL(url);
-          if (hash && hash !== "#" && window.location.hash !== hash) {
-            window.location.hash = hash;
+          const target = new URL(url);
+          const current = window.location;
+          const targetRoute = target.pathname + target.search + target.hash;
+          const currentRoute = current.pathname + current.search +
+            current.hash;
+          // Only replay if the redirect actually moved us off the saved route
+          // (e.g. cleaned to the bare root). A path-only restore must not reload.
+          if (targetRoute && targetRoute !== currentRoute) {
+            window.history.replaceState(window.history.state, "", targetRoute);
+            window.dispatchEvent(new PopStateEvent("popstate"));
           }
         } catch {
           // Ignore a malformed event URL — restoration is best-effort.
@@ -331,9 +349,10 @@ export const Login: React.FC<LoginProps> = ({
     setClearing(true);
     await clearLocalData();
     // Reload to a clean URL: drop the `?error=…` OIDC query so the remedy
-    // doesn't re-appear after the wipe (keep the in-app hash route). This also
-    // restarts the auth flow so the library re-registers the OIDC client.
-    // (clearLocalData already dropped prevIdps.)
+    // doesn't re-appear after the wipe (keep the in-app route, which now lives in
+    // the path under BrowserRouter — preserved by pathname). This also restarts
+    // the auth flow so the library re-registers the OIDC client. (clearLocalData
+    // already dropped prevIdps.)
     window.location.replace(
       window.location.origin + window.location.pathname + window.location.hash,
     );

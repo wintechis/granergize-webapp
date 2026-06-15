@@ -413,7 +413,7 @@ test.describe("handbuch screenshots", () => {
     await page.waitForTimeout(800);
     await shot(page, "aggregated-view.png");
     // Back to the app shell (the view page is a standalone route without tabs).
-    await page.goto("/#/");
+    await page.goto("/");
     await expect(page.getByRole("tab", { name: "Explore" }))
       .toBeVisible({ timeout: 30_000 });
 
@@ -523,7 +523,7 @@ test.describe("handbuch screenshots", () => {
       }
 
       // Back to the app shell (the detail page is a standalone route without tabs).
-      await page.goto("/#/");
+      await page.goto("/");
       await expect(page.getByRole("tab", { name: "Manage" }))
         .toBeVisible({ timeout: 30_000 });
     }

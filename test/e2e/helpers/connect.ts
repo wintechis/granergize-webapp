@@ -7,21 +7,21 @@ import { T } from "./timeouts.ts";
  *
  * Hosting and the room *list* are Connect-tab actions; per-room detail — entering,
  * roles, members, the invite QR — lives on the standalone room page
- * (`#/room/<encoded room URI>`). So `hostRoomAndGetUri` stays on Connect, while
+ * (`/room/<encoded room URI>`). So `hostRoomAndGetUri` stays on Connect, while
  * `assignUserRole` drives the room page; navigating to a room page enters it (the
  * page calls `openRoom` on mount).
  */
 
-/** Hash route to a room's detail page (mirrors manage.ts's `buildingRoute`). */
+/** Real-path route to a room's detail page (mirrors manage.ts's `buildingRoute`). */
 function roomRoute(roomUri: string): string {
-  return `/#/room/${encodeURIComponent(roomUri)}`;
+  return `/room/${encodeURIComponent(roomUri)}`;
 }
 
 /** Open the Connect tab. The room detail page is a STANDALONE route with no
- * app-shell tabs, so first land on the shell (`/#/`) when we're on a room page —
+ * app-shell tabs, so first land on the shell (`/`) when we're on a room page —
  * clicking the Connect tab directly from there would never find the tab. */
 async function gotoConnect(page: Page): Promise<void> {
-  if (/#\/room\//.test(page.url())) await page.goto("/#/");
+  if (/\/room\//.test(page.url())) await page.goto("/");
   await page.getByRole("tab", { name: "Connect" }).click();
 }
 
@@ -45,7 +45,7 @@ export async function hostRoomAndGetUri(page: Page): Promise<string> {
   if (!(await roomLink.count())) {
     await page.getByRole("button", { name: /host a data room/i }).click();
     // Hosting navigates to the new room's page; go back to Connect to read it.
-    await expect(page).toHaveURL(/#\/room\//, { timeout: T.action });
+    await expect(page).toHaveURL(/\/room\//, { timeout: T.action });
     await gotoConnect(page);
     await expect(roomLink).toBeVisible({ timeout: T.action });
   }
@@ -85,7 +85,7 @@ export async function assignUserRole(
   }
   // Return to the app shell: the room page is a standalone route with no tabs, so
   // a caller's next shell action (a building/share tab click) would hang here.
-  await page.goto("/#/");
+  await page.goto("/");
 }
 
 /**

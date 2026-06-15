@@ -102,7 +102,7 @@ test.describe("edit building operating costs + certifications", () => {
     await page.getByRole("button", { name: /^cancel$/i }).click();
 
     // Cleanup: delete the throwaway building from the Buildings list.
-    await page.goto("/#/");
+    await page.goto("/");
     await openBuildingsList(page);
     await deleteBuildingRow(page, id);
   });

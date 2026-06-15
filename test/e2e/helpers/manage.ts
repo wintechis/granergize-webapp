@@ -40,25 +40,25 @@ export async function openBuildingsMap(page: Page): Promise<void> {
 }
 
 /**
- * Hash route to a building's standalone page. The id is an IRI reference
- * (contains `/` and `#`), so it MUST be URL-encoded — a raw `#` truncates the
- * hash route. Every spec goto goes through this, never hand-built paths.
- * Accepts `null` (getAttribute's type) and fails LOUDLY instead of routing to
- * the literal string "null".
+ * Real-path route to a building's standalone page (BrowserRouter). The id is an
+ * IRI reference (contains `/` and `#`), so it MUST be URL-encoded — a raw `#`/`/`
+ * would break the path segment. Every spec goto goes through this, never
+ * hand-built paths. Accepts `null` (getAttribute's type) and fails LOUDLY instead
+ * of routing to the literal string "null".
  */
 export function buildingRoute(
   kind: "building" | "observation",
   id: string | null,
 ): string {
   if (!id) throw new Error(`buildingRoute(${kind}): missing building id`);
-  return `/#/${kind}/${encodeURIComponent(id)}`;
+  return `/${kind}/${encodeURIComponent(id)}`;
 }
 
-/** Hash route to the Buildings tab (Map view) with a building selected (`?b=`), optionally
- * on a detail sub-tab (`?dt=`). Encodes + null-rejects like {@link buildingRoute}. */
+/** Real-path route to the Buildings tab (Map view) with a building selected (`?b=`),
+ * optionally on a detail sub-tab (`?dt=`). Encodes + null-rejects like {@link buildingRoute}. */
 export function exploreRoute(id: string | null, dt?: string): string {
   if (!id) throw new Error("exploreRoute: missing building id");
-  return `/#/?tab=buildings&b=${encodeURIComponent(id)}${dt ? `&dt=${dt}` : ""}`;
+  return `/?tab=buildings&b=${encodeURIComponent(id)}${dt ? `&dt=${dt}` : ""}`;
 }
 
 /**
@@ -136,7 +136,7 @@ export async function addEnergyYear(
   // Self-contained: a caller may be on a standalone detail route (no app-shell
   // tabs) where openBuildingsList can't find the Buildings tab — return to the
   // shell first.
-  await page.goto("/#/");
+  await page.goto("/");
   await openBuildingsList(page);
   const row = page.locator("li[data-building-id]", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
@@ -159,7 +159,7 @@ export async function addEnergyYear(
   await page.getByRole("button", { name: "Close" }).click();
   await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
   // /observation/:id is a standalone route (no app shell) — return to the shell.
-  await page.goto("/#/");
+  await page.goto("/");
 }
 
 /**
@@ -171,7 +171,7 @@ export async function addEnergyYear(
  * on the building page's `SharingSection` — resolve the building's id from the
  * Buildings list, route to `/building/:id`, click that section's "Share" button,
  * then drive the SAME `ShareBuildingDialog` (its internals are unchanged). Returns
- * to the app shell (`/#/`) at the end so a caller's next tab nav works (the
+ * to the app shell (`/`) at the end so a caller's next tab nav works (the
  * building page is a standalone route with no app-shell tabs).
  */
 export async function shareByRole(
@@ -205,7 +205,7 @@ export async function shareByRole(
  * page is on the standalone `/building/:id` route.
  */
 async function openShareDialog(page: Page, street: string): Promise<void> {
-  await page.goto("/#/");
+  await page.goto("/");
   await openBuildingsList(page);
   const row = page.locator("li[data-building-id]", { hasText: street }).first();
   await expect(row).toBeVisible({ timeout: T.action });
@@ -235,7 +235,7 @@ async function reviewAndConfirmShare(page: Page): Promise<void> {
   await dialog.getByRole("button", { name: /done/i }).click();
   await expect(dialog).toBeHidden({ timeout: T.action });
   // /building/:id is a standalone route (no app shell) — return to the shell.
-  await page.goto("/#/");
+  await page.goto("/");
 }
 
 /** Upload a file to the building at `street` via the Files dialog. */
@@ -259,7 +259,7 @@ export async function uploadBuildingFile(
   await expect(page.locator("li", { hasText: name }).first())
     .toBeVisible({ timeout: T.action });
   // Back to the shell so the caller's next nav works.
-  await page.goto("/#/");
+  await page.goto("/");
 }
 
 /** Share the building at `street` directly with a recipient WebID ("By WebID"). */

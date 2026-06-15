@@ -34,7 +34,7 @@ import { T } from "../helpers/timeouts.ts";
 async function openManage(page: Page): Promise<void> {
   // Robust from any prior route (a test may end on a standalone /building/:id):
   // return to the shell, then open the Buildings tab's List view.
-  await page.goto("/#/");
+  await page.goto("/");
   await openBuildingsList(page);
   await expect(buildingRows(page).first()).toBeVisible({ timeout: T.action });
 }

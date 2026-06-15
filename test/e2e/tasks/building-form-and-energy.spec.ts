@@ -73,7 +73,7 @@ test.describe("building form + energy entry", () => {
 
   /** Add a building via the single generic manual form (no role/template). */
   async function addBuilding(addr: string): Promise<void> {
-    await page.goto("/#/"); // robust if a prior test ended on a standalone detail route
+    await page.goto("/"); // robust if a prior test ended on a standalone detail route
     await openBuildingsList(page);
     const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
       .first();

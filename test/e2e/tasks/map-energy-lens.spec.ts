@@ -70,7 +70,7 @@ test.describe("map energy lens (Vertriebsoptimierung)", () => {
     // loadBuildings/loadEnergy against the now-consistent Pod (the standard Tier-3
     // write-read convergence pattern).
     await expect(async () => {
-      await page.goto("/#/");
+      await page.goto("/");
       // The map is the Buildings tab's Map view (Explore + Manage merged into one
       // tab with a Map⇄List toggle); ensure Map view so the markers + colour lens
       // render.

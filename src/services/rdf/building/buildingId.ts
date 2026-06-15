@@ -16,8 +16,8 @@
  * The two id shapes are syntactically disjoint (RFC 3986: a relative
  * reference cannot carry a scheme), so {@link isAbsoluteIri} disambiguates
  * without any marker. Ids contain `/` and `#`; route/link builders must
- * `encodeURIComponent` them (inside the HashRouter a raw `#` truncates the
- * route).
+ * `encodeURIComponent` them (a raw `#` or `/` would otherwise break the path
+ * segment in the BrowserRouter route).
  */
 
 /** The constant fragment of an own building's subject IRI. */

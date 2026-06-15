@@ -10,7 +10,7 @@ import { T } from "../helpers/timeouts.ts";
  * account; see e2e/README.md). Drives the real UI across the two surfaces of the
  * redesigned room feature:
  *   • the Connect tab is the room FINDER — host a room, list rooms, delete one;
- *   • `/#/room/<uri>` is the room DETAIL page — navigating there ENTERS the room
+ *   • `/room/<uri>` is the room DETAIL page — navigating there ENTERS the room
  *     (the page calls `openRoom` on mount), and it carries the roles + members.
  *
  * Each test hosts its own room and deletes it at the end, so it cleans up after
@@ -30,7 +30,7 @@ const A = account("A"); // Alice — solo specs use one account
 const SETTLE = T.action;
 
 /** Hash route to a room's detail page. */
-const roomRoute = (uri: string) => `/#/room/${encodeURIComponent(uri)}`;
+const roomRoute = (uri: string) => `/room/${encodeURIComponent(uri)}`;
 
 test.describe.configure({ mode: "serial" });
 
@@ -76,10 +76,10 @@ test.describe("data rooms", () => {
     );
 
   /** Open the Connect tab. The room detail page is a STANDALONE route with no
-   * app-shell tabs, so first land on the shell (`/#/`) — clicking the Connect tab
+   * app-shell tabs, so first land on the shell (`/`) — clicking the Connect tab
    * directly from a room page would never find the tab. */
   async function openConnect() {
-    if (/#\/room\//.test(page.url())) await page.goto("/#/");
+    if (/\/room\//.test(page.url())) await page.goto("/");
     await page.getByRole("tab", { name: "Connect" }).click();
   }
 
@@ -94,7 +94,7 @@ test.describe("data rooms", () => {
     await page.getByRole("button", { name: /host a data room/i }).click();
     // Hosting lands on the new room's STANDALONE detail page (no app-shell tabs);
     // return to the shell before reading the Connect list.
-    await expect(page).toHaveURL(/#\/room\//, { timeout: SETTLE });
+    await expect(page).toHaveURL(/\/room\//, { timeout: SETTLE });
     await openConnect();
     let uri = "";
     await expect(async () => {
@@ -110,6 +110,12 @@ test.describe("data rooms", () => {
     await expect(page.getByRole("heading", { name: uri })).toBeVisible({
       timeout: SETTLE,
     });
+    // The page ENTERS the room on mount via an async POST. Under BrowserRouter the
+    // next navigation is a full document reload that would ABORT an in-flight
+    // enter (a real user clicks a link → client-side nav, which never aborts
+    // fetches; only the test's `goto` reloads). Let the network settle so the
+    // enter persists to the Pod before we navigate away to read the active room.
+    await page.waitForLoadState("networkidle").catch(() => {});
   }
 
   /** Delete a room from its row on Connect and wait for it to drop out. */
@@ -139,7 +145,7 @@ test.describe("data rooms", () => {
     // (the durable signal). The room itself persists (we still host it) — clean
     // it up by deleting from its Connect row.
     await page.getByRole("button", { name: /^leave$/i }).click();
-    await expect(page).not.toHaveURL(/#\/room\//, { timeout: SETTLE });
+    await expect(page).not.toHaveURL(/\/room\//, { timeout: SETTLE });
 
     await deleteRoom(uri);
   });
@@ -185,14 +191,19 @@ test.describe("data rooms", () => {
     /** Open a room page, then confirm Connect marks exactly that room active. */
     async function activate(uri: string, other: string) {
       await openRoomPage(uri);
-      await openConnect();
-      const activeRow = page.locator("li").filter({ hasText: uri });
-      const otherRow = page.locator("li").filter({ hasText: other });
-      await expect(activeRow.getByText(/active/i))
-        .toBeVisible({ timeout: SETTLE });
-      // The other room must NOT be active (it was left when we entered this one).
-      await expect(otherRow.getByText(/active/i))
-        .toBeHidden({ timeout: SETTLE });
+      // The active room is folded from the Pod membership log; re-read Connect
+      // (each openConnect reloads) until the just-entered room shows active and
+      // the other doesn't — robust to the fold propagating a beat after the enter.
+      await expect(async () => {
+        await openConnect();
+        const activeRow = page.locator("li").filter({ hasText: uri });
+        const otherRow = page.locator("li").filter({ hasText: other });
+        await expect(activeRow.getByText(/active/i))
+          .toBeVisible({ timeout: SETTLE });
+        // The other room must NOT be active (left when we entered this one).
+        await expect(otherRow.getByText(/active/i))
+          .toBeHidden({ timeout: SETTLE });
+      }).toPass({ timeout: T.poll });
     }
 
     for (let i = 0; i < 3; i++) {

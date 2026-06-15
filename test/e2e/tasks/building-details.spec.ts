@@ -33,6 +33,10 @@ const OP_HASH = "me"; // the detail link shows the IRI's #fragment as its text
 
 const ACC = account("A"); // Alice -- solo specs use one account
 
+/** Escape a string for safe interpolation into a RegExp (the encoded WebID
+ * carries `.`/`%` etc.). */
+const escapeRegExp = (s: string) => s.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+
 test.describe.configure({ mode: "serial" });
 
 test.describe("building details", () => {
@@ -92,14 +96,16 @@ test.describe("building details", () => {
     const opLink = page.locator(`a[href$="${encodeURIComponent(OP_WEBID)}"]`);
     await expect(opLink).toBeVisible({ timeout: T.action });
     await expect(opLink).toHaveText(OP_HASH); // shows the agent name (the IRI's #fragment)
-    // The contact route stays inside the app (HashRouter), not an external WebID link.
+    // The contact route stays inside the app (real-path BrowserRouter route, under
+    // the app base), not an external WebID link — assert by suffix so a non-root
+    // deploy base doesn't break it.
     await expect(opLink).toHaveAttribute(
       "href",
-      `#/contact/${encodeURIComponent(OP_WEBID)}`,
+      new RegExp(`/contact/${escapeRegExp(encodeURIComponent(OP_WEBID))}$`),
     );
 
     // --- self-clean: delete the throwaway building ---
-    await page.goto("/#/");
+    await page.goto("/");
     await openBuildingsList(page);
     const back = page.locator("li", { hasText: OP_STREET }).first();
     await expect(back).toBeVisible({ timeout: T.action });

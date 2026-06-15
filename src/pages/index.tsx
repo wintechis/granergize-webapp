@@ -104,9 +104,9 @@ function useProfileImageUrl(
 
 function IndexPage({ session, onLogout }: IndexPageProps) {
   // Tabs: 0 = Buildings (map ⇄ list finder), 1 = Share (inbox), 2 = Connect
-  // (rooms). The active tab lives in the hash query param `?tab=` so a browser
+  // (rooms). The active tab lives in the `?tab=` query param so a browser
   // reload (or a bookmark/share) restores it — see notes/ui-state.md. Arriving
-  // from a room deep link (#/room/:uri) lands on the Connect tab via
+  // from a room deep link (/room/:uri) lands on the Connect tab via
   // `?tab=connect` (set in App.tsx's RoomDeepLink).
   const [searchParams, setSearchParams] = useSearchParams();
   const tabValue = tabIndexFromSlug(searchParams.get("tab"));

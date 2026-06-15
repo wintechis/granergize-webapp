@@ -13,6 +13,13 @@ function gitCommit(): string {
 }
 
 export default defineConfig({
+  // Relative asset URLs ("./assets/x"). With real-path routing (BrowserRouter),
+  // index.html is served for every deep link, so a single deploy-agnostic build
+  // must resolve assets at any subpath depth. The R-b inline `<head>` script in
+  // index.html sets a runtime `<base href>` to the detected app root, against
+  // which these relative URLs then resolve correctly (see
+  // plans/plan-app-design-overhaul.md §5). Keep `base: "./"` paired with that
+  // runtime base-href — do NOT switch to an absolute base.
   base: "./",
   define: {
     __APP_COMMIT__: JSON.stringify(gitCommit()),

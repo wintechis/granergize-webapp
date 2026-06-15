@@ -351,8 +351,8 @@ Deno.test("extractRoomUri parses raw URIs and app invite links", () => {
     extractRoomUri("https://alice.example/granergize/rooms/r1"),
     room,
   );
-  // An invite link (#/room/<encoded>) yields the decoded container URL.
-  const link = `https://app.example/granergize/#/room/${
+  // An invite link (<app root>/room/<encoded>) yields the decoded container URL.
+  const link = `https://app.example/granergize/room/${
     encodeURIComponent(room)
   }`;
   assertEquals(extractRoomUri(link), room);

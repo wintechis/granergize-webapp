@@ -5,6 +5,64 @@
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Granergize App</title>
+    <!--
+      R-b runtime base-href detection (plans/plan-app-design-overhaul.md §5).
+      This SYNCHRONOUS script runs before the module script so that:
+        - a <base href> is set BEFORE Vite's relative ("./") asset URLs resolve,
+          letting one deploy-agnostic dist/ work at any subpath depth, and
+        - window.__APP_BASE__ carries the computed app root to BrowserRouter's
+          `basename` (read in src/App.tsx).
+
+      The app uses real-path routing (BrowserRouter), so the document served for a
+      deep link like /testing/granergize/building/<id> is index.html — but its
+      relative asset URLs would otherwise resolve against /testing/granergize/building/,
+      which is wrong. We recover the app root by stripping a trailing KNOWN-ROUTE
+      portion off location.pathname.
+
+      KNOWN_ROUTE_SEGMENTS MUST track the top-level route segments in src/routes.ts
+      (FINDERS plurals + DETAIL_PATTERNS singulars + sharing). A detail route adds a
+      further /<id> segment after its singular; finders are bare. Detection works by
+      finding the FIRST path segment in this set: everything before it is the app
+      root. If none match (e.g. the bare root, or an unknown deep path), the fallback
+      is the full pathname ensured to end in "/" — a safe over-broad base that still
+      loads assets relative to the served document rather than blanking the app.
+    -->
+    <script>
+      (function () {
+        // Keep in sync with src/routes.ts (FINDERS + DETAIL_PATTERNS + sharing).
+        var KNOWN_ROUTE_SEGMENTS = [
+          "building", "buildings",
+          "observation", "observations",
+          "aggregation", "aggregations",
+          "contact", "contacts",
+          "room", "rooms",
+          "sharing"
+        ];
+        var path = window.location.pathname;
+        var segments = path.split("/"); // leading "" from the leading slash
+        var root;
+        var routeIdx = -1;
+        for (var i = 0; i < segments.length; i++) {
+          if (KNOWN_ROUTE_SEGMENTS.indexOf(segments[i]) !== -1) {
+            routeIdx = i;
+            break;
+          }
+        }
+        if (routeIdx !== -1) {
+          // App root = everything BEFORE the first route segment, with a trailing slash.
+          root = segments.slice(0, routeIdx).join("/") + "/";
+        } else {
+          // No known route segment: treat the whole path as the root (the home
+          // route, or an unknown path). Ensure a single trailing slash.
+          root = path.endsWith("/") ? path : path + "/";
+        }
+        window.__APP_BASE__ = root;
+        var base = document.createElement("base");
+        base.setAttribute("href", root);
+        // Insert as the first <head> child so it precedes any relative reference.
+        document.head.insertBefore(base, document.head.firstChild);
+      })();
+    </script>
   </head>
   <body>
     <div id="root"></div>

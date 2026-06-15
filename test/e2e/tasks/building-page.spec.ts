@@ -74,25 +74,25 @@ test.describe("redesign: building page", () => {
     // The Energy section is minimal here and links to /observation/:id for full charts.
     await page.getByRole("link", { name: /energy|observation|details?/i })
       .first().click();
-    await expect(page).toHaveURL(/#\/observation\//, { timeout: T.action });
+    await expect(page).toHaveURL(/\/observation\//, { timeout: T.action });
     await expect(page.getByRole("button", { name: "Edit energy years" }))
       .toBeVisible();
   });
 
   test("clicking a building name in the Buildings list opens the building page", async () => {
-    await page.goto("/#/?tab=buildings");
+    await page.goto("/?tab=buildings");
     // The Buildings tab lands on Map; switch to the List view to get the rows.
     await page.getByRole("button", { name: "List" }).click();
     const row = page.locator(`li[data-building-id="${id}"]`);
     await expect(row).toBeVisible({ timeout: T.action });
     await row.getByRole("link").first().click();
-    await expect(page).toHaveURL(/#\/building\//, { timeout: T.action });
+    await expect(page).toHaveURL(/\/building\//, { timeout: T.action });
     await expect(page.getByRole("heading", { name: "Files" })).toBeVisible();
   });
 
   test("the list row is a finder — navigate + Delete only (other actions on the page)", async () => {
     // /building/:id is a standalone route (no app-shell tabs) — return to the shell.
-    await page.goto("/#/");
+    await page.goto("/");
     await openBuildingsList(page);
     const row = page.locator(`li[data-building-id="${id}"]`);
     await expect(row).toBeVisible({ timeout: T.action });

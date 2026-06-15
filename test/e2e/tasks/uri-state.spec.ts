@@ -84,7 +84,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     test.setTimeout(T.afterAll);
     try {
       if (!page.isClosed()) {
-        await page.goto("/#/");
+        await page.goto("/");
         await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
@@ -125,7 +125,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     test.setTimeout(T.testSolo);
     id = await ensureBuilding(page);
 
-    await page.goto("/#/");
+    await page.goto("/");
     // Buildings tab lands on the Map view (the former Explore) — markers + the
     // selection/detail pane live here. ensureBuilding left the view on List, and
     // the Map/List toggle is local (non-URL) state, so select Map explicitly.

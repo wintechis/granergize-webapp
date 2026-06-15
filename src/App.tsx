@@ -1,6 +1,6 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { useNavigate, useParams } from "react-router-dom";
-import { HashRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Route, Routes } from "react-router-dom";
 import {
   getStorageRoot,
   resolveStorageRoot,
@@ -25,6 +25,20 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType } from "./types.ts";
 import { useSolidData } from "./hooks/queries.ts";
 import { logError } from "./lib/logError.ts";
+
+/**
+ * The app root for `BrowserRouter`'s `basename`, read from the R-b inline
+ * `<head>` script's `window.__APP_BASE__` (see index.html — it strips a trailing
+ * known-route portion off the pathname so the same build runs at any deploy
+ * depth). The script always sets it to a path ENDING in "/"; react-router wants a
+ * `basename` WITHOUT a trailing slash (except the bare root "/"), so strip it.
+ * Falls back to "/" if the script didn't run (e.g. a non-browser test render).
+ */
+function appBasename(): string {
+  const root = globalThis.__APP_BASE__ ?? "/";
+  if (root === "/") return "/";
+  return root.endsWith("/") ? root.slice(0, -1) : root;
+}
 
 function useBuildingParam(): {
   building: BuildingType | null;
@@ -237,13 +251,13 @@ function App({ onLogout, session }: AppProps) {
   ];
 
   return (
-    <HashRouter>
+    <BrowserRouter basename={appBasename()}>
       <Routes>
         {routeTable.map((r) => (
           <Route key={r.path} path={r.path} element={r.element} />
         ))}
       </Routes>
-    </HashRouter>
+    </BrowserRouter>
   );
 }
 

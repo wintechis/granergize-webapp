@@ -110,7 +110,7 @@ test.describe("energy resolution toggle", () => {
       if (!page.isClosed()) {
         // The first test left us on the standalone /energy/:id route (no app
         // shell, so no Manage tab) — return to the shell first.
-        await page.goto("/#/");
+        await page.goto("/");
         await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
@@ -153,7 +153,7 @@ test.describe("energy resolution toggle", () => {
   // reached via the Buildings tab's Map view + a marker click.
   test("the map's Energy tab offers the same toggle", async () => {
     test.setTimeout(T.testSolo);
-    await page.goto("/#/");
+    await page.goto("/");
     await openBuildingsMap(page);
     const marker = page.locator(".leaflet-marker-icon").first();
     await expect(marker).toBeVisible({ timeout: T.action });

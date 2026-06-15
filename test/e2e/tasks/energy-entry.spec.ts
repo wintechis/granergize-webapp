@@ -97,7 +97,7 @@ test.describe("energy entry + Soll-Ist", () => {
         // The last test left us on the standalone /energy/:id route (no app shell,
         // so no Manage tab) — return to the shell first, else the click below hangs
         // until the hook timeout. Mirrors building-details.spec.ts cleanup.
-        await page.goto("/#/");
+        await page.goto("/");
         await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
@@ -137,7 +137,7 @@ test.describe("energy entry + Soll-Ist", () => {
   // (AnnualEnergy), reached via the Buildings tab's Map view + a marker click.
   test("the planned (Soll) figure shows beside actual in the comparison", async () => {
     test.setTimeout(T.testSolo);
-    await page.goto("/#/");
+    await page.goto("/");
     await openBuildingsMap(page);
     const marker = page.locator(".leaflet-marker-icon").first();
     await expect(marker).toBeVisible({ timeout: T.action });

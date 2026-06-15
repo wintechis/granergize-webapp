@@ -94,7 +94,7 @@ test.describe("building file attachments", () => {
       .toHaveCount(0, { timeout: T.action });
 
     // Cleanup: delete the throwaway building from the Buildings list.
-    await page.goto("/#/");
+    await page.goto("/");
     await openBuildingsList(page);
     await deleteBuildingRow(page, id);
   });
