@@ -32,7 +32,7 @@ the RDF layer (read and write); [data-deref.md](./data-deref.md) traces the
 storage→object read translation; [object-model.md](./object-model.md) inventories
 the typed objects **and** their verbs; [queries-mutations.md](./queries-mutations.md)
 owns the verbs (the query/mutation taxonomy — the read/write split);
-[building-pane.md](./building-pane.md) shows the object→UI projection and its row
+[building-detail.md](./building-detail.md) shows the object→UI projection and its row
 actions.
 
 ## Present-state notes
@@ -50,6 +50,6 @@ actions.
 - [aggregated-views.md](./aggregated-views.md) — saved aggregations: a private definition plus a shareable computed snapshot.
 - [peer-benchmark.md](./peer-benchmark.md) — the benchmark-snapshot round-trip back to contributing owners.
 - [attachments.md](./attachments.md) — arbitrary files attached to a building (the energy certificate is one of them).
-- [building-pane.md](./building-pane.md) — what hangs off a building IRI and how the detail pane projects it.
+- [building-detail.md](./building-detail.md) — what hangs off a building IRI and how the detail pane projects it.
 - [weather.md](./weather.md) — the external, live, read-only DWD weather layer (nearest-station proximity join), outside the Pod data path.
 - [ui-state.md](./ui-state.md) — which UI state is navigational (encoded in the URI hash) vs. ephemeral.

@@ -98,7 +98,7 @@ merged graph — the app does not re-dereference each IRI it encounters**:
   `schema:customer` and the producer `attributedTo` — are kept as **opaque IRIs**; the
   bulk load does *not* fetch them, and agent *names* no longer come from the merged
   graph (the legacy agents source was removed — see
-  [`building-pane.md`](./building-pane.md) §3a). A name/avatar is resolved **on demand**
+  [`building-detail.md`](./building-detail.md) §3a). A name/avatar is resolved **on demand**
   by `resolveAgent` / `resolveAgentOrg` (`agents/agentResolver.ts`, behind
   `useResolveAgent` / `useResolveOrg`): it dereferences the agent's **own document** —
   the IRI minus its `#fragment` (`profileDocUri`) — via `fetchFresh`, reads

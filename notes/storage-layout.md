@@ -44,7 +44,16 @@ containment *or* a link (a building's energy hangs in its subtree; its agents ar
 linked IRIs); the writer/concurrency situation picks the storage model
 (single-writer files vs. multi-writer append-only logs). The *Tree* and
 *Rationale* below record the current profiles; companion:
-[`building-pane.md`](./building-pane.md) (what hangs off a building URI).
+[`building-detail.md`](./building-detail.md) (what hangs off a building URI).
+
+The partitioning shape is also the storage-side of the presentation profile's
+**subordinate vs. first-class** distinction (the "has a page?" axis,
+[`building-detail.md`](./building-detail.md)): a thing partitioned as a
+fragment/blank node or a contained child renders subordinate (no page); one linked
+as a standalone document the user navigates to is first-class. Coupled but not
+identical — a contained child can have its own URI yet stay subordinate (the energy
+observation collections), and a subordinate fragment can be `owl:sameAs` a
+first-class resource elsewhere (the PV-system node ≡ its MaStR Einheit).
 
 ## One root
 

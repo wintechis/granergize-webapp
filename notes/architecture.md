@@ -158,7 +158,7 @@ directions**:
 - **Rendered UI.** Components render those objects into widgets for display, and an
   edit invokes a mutation that serializes back down the chain — today mostly
   hand-wired per type, already partly config-driven for buildings
-  ([`building-pane.md`](./building-pane.md)).
+  ([`building-detail.md`](./building-detail.md)).
 
 Reads flow toward the UI, writes flow back to storage; the verbs that drive the
 write path are the query/mutation layer ([`queries-mutations.md`](./queries-mutations.md)).

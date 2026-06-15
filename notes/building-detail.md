@@ -1,10 +1,47 @@
-# Building pane — what hangs off a building URI
+# Building detail — what hangs off a building URI
 
 Two layers: §1 the RDF graph dangling off the building IRI on the Pod; §2 the
-typed projection the pane renders (a whitelist, not a triple browser). §3 maps each
-pane row/action back to its Pod file, keyed against
+typed projection the detail renders (a whitelist, not a triple browser). §3 maps each
+row/action back to its Pod file, keyed against
 [`storage-layout.md`](./storage-layout.md). Source: `buildingParser.ts`,
-`config/buildingConfig.ts`.
+`config/buildingConfig.ts`. The same projection backs both the standalone
+`/building/:id` detail page and the map's embedded detail pane.
+
+## Subordinate resources (no detail page of their own)
+
+Not every resource that hangs off a building is **first-class** in the UI. A
+first-class resource has its own route/detail page — the building (`/building/:id`),
+an agent (`/agent/:hash`), an aggregated view (`/view/:id`), a data room
+(`/room/:uri`). A **subordinate resource** has none: it is always rendered
+*attached to its parent* (here, inside the building detail), never navigated to on
+its own.
+
+This is a **presentation-profile** distinction (whether the app gives a thing a
+page), and it shadows the **resource-profile** partitioning shape
+([`storage-layout.md`](./storage-layout.md)): how a thing is partitioned into Pod
+resources is the storage-side of the same decision. A thing partitioned as a
+*fragment / blank node* in its parent's document, or as a *contained child* in the
+parent's subtree, renders subordinate; a thing *linked* as a standalone document
+the user navigates to and acts on is first-class. The two axes are coupled but not
+identical — a resource can have its own URI/document and still be subordinate (the
+energy observation collections), and a subordinate node can be `owl:sameAs` a
+first-class resource elsewhere (the PV plant ≡ its MaStR Einheit). What ultimately
+makes it subordinate is that the app gives it no page.
+
+Subordinate to the building:
+
+- **Technical systems** — the PV plant, heating/cooling, etc. A PV plant is a real
+  entity with its own MaStR identity and even its own operator (distinct from the
+  building's), yet it gets no page: it shows in the building detail's systems
+  section. (See the building vocab's system component.)
+- **Operating-cost** and **certification** blocks — blank-node components.
+- **Energy observation collections** — first-class resources at top-level
+  `observations/{year}/…` (their own URIs), but the UI renders them only as the
+  building's energy tab/charts; there is no observation page.
+
+Rule of thumb: if it describes *part of* a building rather than a standalone thing a
+user would navigate to and act on, model it as a component/attachment and render it
+in the building detail — don't give it a route.
 
 Two of the building entity's facets meet here: §1 is its **schema** in instance
 form (what it *is*); §2–§3 are its **presentation profile** (how it renders) and
