@@ -123,7 +123,7 @@ Consequences:
   numeric/boolean).
 - **Unmapped predicates are invisible** — the parser only copies predicates present
   in the maps; anything else in the Turtle is dropped on read and never written
-  back. The RDF may legitimately carry more than the app model knows about.
+  back. The RDF may legitimately carry more than the object model knows about.
 - Drift between the four is otherwise silent.
 
 A single descriptor table closes the datatype gap: `BUILDING_FIELDS` in

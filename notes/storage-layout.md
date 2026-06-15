@@ -48,12 +48,14 @@ linked IRIs); the writer/concurrency situation picks the storage model
 
 The partitioning shape is also the storage-side of the presentation profile's
 **subordinate vs. first-class** distinction (the "has a page?" axis,
-[`building-detail.md`](./building-detail.md)): a thing partitioned as a
-fragment/blank node or a contained child renders subordinate (no page); one linked
-as a standalone document the user navigates to is first-class. Coupled but not
-identical — a contained child can have its own URI yet stay subordinate (the energy
-observation collections), and a subordinate fragment can be `owl:sameAs` a
-first-class resource elsewhere (the PV-system node ≡ its MaStR Einheit).
+[`building-detail.md`](./building-detail.md)): a thing partitioned **within the
+parent document** — a hash (fragment) URI (`<…/buildings/{id}.ttl#pv>`) or a blank
+node, both fetched/PUT with the parent — or as a contained child renders
+subordinate (no page); one linked as a standalone document the user navigates to is
+first-class. Coupled but not identical — a contained child can have its own URI yet
+stay subordinate (the energy observation collections), and a subordinate fragment
+can be `owl:sameAs` a first-class resource elsewhere (the PV-system node ≡ its MaStR
+Einheit).
 
 ## One root
 

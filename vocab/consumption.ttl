@@ -16,6 +16,7 @@
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix rec:  <https://w3id.org/rec#> .
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
+@prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
@@ -32,7 +33,7 @@
 ############################
 
 :EnergyDataset rdf:type rdfs:Class ;
-    rdfs:subClassOf sosa:ObservationCollection ;
+    rdfs:subClassOf sosa:ObservationCollection , prov:Entity ;
     rdfs:label "Energy dataset"@en ; rdfs:label "Energiedatensatz"@de ; rdfs:label "Jeu de données énergétiques"@fr .
 
 :hasEnergyDataset rdf:type owl:ObjectProperty ;
@@ -48,7 +49,7 @@
     rdfs:comment "The stored Turtle resource holding this dataset's observations."@en ;
     rdfs:comment "Die gespeicherte Turtle-Ressource mit den Beobachtungen dieses Datensatzes."@de ;
     rdfs:comment "La ressource Turtle stockée contenant les observations de ce jeu de données."@fr ;
-    rdfs:domain :EnergyDataset .
+    rdfs:domain :EnergyDataset ; rdfs:range rdfs:Resource .
 
 :granularity rdf:type owl:DatatypeProperty ;
     rdfs:label "granularity"@en ; rdfs:label "Granularität"@de ; rdfs:label "granularité"@fr ;
@@ -93,39 +94,43 @@
 # An aggregation's private definition (holds the contributing building IRIs and
 # the chosen metric/aggregation) vs. its shareable snapshot (only the computed
 # values + a building count — never the contributor list). :Aggregation is the
-# umbrella class used as the sharing-log kind marker for shared aggregations.
+# common superclass of both, and the sharing-log kind marker for shared
+# (snapshot) aggregations.
 :Aggregation rdf:type rdfs:Class ;
     rdfs:label "Aggregation"@en ; rdfs:label "Aggregation"@de ; rdfs:label "Agrégation"@fr .
 
 :AggregationDefinition rdf:type rdfs:Class ;
+    rdfs:subClassOf :Aggregation ;
     rdfs:label "Aggregation definition"@en ; rdfs:label "Aggregationsdefinition"@de ; rdfs:label "Définition d'agrégation"@fr ;
     rdfs:comment "The private definition of an aggregation: the contributing building IRIs, the chosen metrics and the aggregation method. Stays on the computing agent's Pod and is never shared."@en ;
     rdfs:comment "Die private Definition einer Aggregation: die IRIs der beitragenden Gebäude, die gewählten Kennzahlen und die Aggregationsmethode. Verbleibt auf dem Pod des berechnenden Agenten und wird nie geteilt."@de ;
     rdfs:comment "La définition privée d'une agrégation : les IRI des bâtiments contributeurs, les métriques choisies et la méthode d'agrégation. Reste sur le Pod de l'agent qui la calcule et n'est jamais partagée."@fr .
 
 :AggregationSnapshot rdf:type rdfs:Class ;
-    rdfs:subClassOf sosa:ObservationCollection ;
+    rdfs:subClassOf sosa:ObservationCollection , :Aggregation , prov:Entity ;
     rdfs:label "Aggregation snapshot"@en ; rdfs:label "Momentaufnahme der Aggregation"@de ; rdfs:label "Instantané d'agrégation"@fr ;
     rdfs:comment "A computed, shareable copy of an aggregation: only the per-metric values and a building count, never the contributing building IRIs."@en ;
     rdfs:comment "Eine berechnete, teilbare Kopie einer Aggregation: nur die Werte je Kennzahl und eine Gebäudeanzahl, niemals die IRIs der beitragenden Gebäude."@de ;
     rdfs:comment "Une copie calculée et partageable d'une agrégation : uniquement les valeurs par métrique et un nombre de bâtiments, jamais les IRI des bâtiments contributeurs."@fr .
 
 :aggregationId rdf:type owl:DatatypeProperty ;
-    rdfs:label "aggregation id"@en ; rdfs:label "Aggregations-ID"@de ; rdfs:label "identifiant d'agrégation"@fr ; rdfs:range xsd:string .
+    rdfs:label "aggregation id"@en ; rdfs:label "Aggregations-ID"@de ; rdfs:label "identifiant d'agrégation"@fr ;
+    rdfs:domain :Aggregation ; rdfs:range xsd:string .
 :aggregationName rdf:type owl:DatatypeProperty ;
-    rdfs:label "aggregation name"@en ; rdfs:label "Aggregationsname"@de ; rdfs:label "nom de l'agrégation"@fr ; rdfs:range xsd:string .
+    rdfs:label "aggregation name"@en ; rdfs:label "Aggregationsname"@de ; rdfs:label "nom de l'agrégation"@fr ;
+    rdfs:domain :Aggregation ; rdfs:range xsd:string .
 :aggregationType rdf:type owl:DatatypeProperty ;
     rdfs:label "aggregation type"@en ; rdfs:label "Aggregationsart"@de ; rdfs:label "type d'agrégation"@fr ;
     rdfs:comment "The aggregation method (e.g. average, sum)."@en ;
     rdfs:comment "Die Aggregationsmethode (z. B. Durchschnitt, Summe)."@de ;
     rdfs:comment "La méthode d'agrégation (p. ex. moyenne, somme)."@fr ;
-    rdfs:range xsd:string .
+    rdfs:domain :Aggregation ; rdfs:range xsd:string .
 :aggregationPeriod rdf:type owl:DatatypeProperty ;
     rdfs:label "aggregation period"@en ; rdfs:label "Zeitraum der Aggregation"@de ; rdfs:label "période de l'agrégation"@fr ;
     rdfs:comment "The year the aggregation's metrics cover."@en ;
     rdfs:comment "Das Jahr, das die Kennzahlen der Aggregation abdecken."@de ;
     rdfs:comment "L'année couverte par les métriques de l'agrégation."@fr ;
-    rdfs:range xsd:string .
+    rdfs:domain :Aggregation ; rdfs:range xsd:string .
 :benchmark rdf:type owl:DatatypeProperty ;
     rdfs:label "benchmark"@en ; rdfs:label "Benchmark"@de ; rdfs:label "benchmark"@fr ;
     rdfs:comment "Marks an aggregation definition as a benchmark: every computed snapshot derives its :BenchmarkResult typing from this persisted flag, so a recompute cannot strip it."@en ;
@@ -139,13 +144,15 @@
     rdfs:label "last computed at"@en ; rdfs:label "zuletzt berechnet am"@de ; rdfs:label "dernier calcul le"@fr ;
     rdfs:domain :AggregationDefinition ; rdfs:range xsd:dateTime .
 :computedAt rdf:type owl:DatatypeProperty ;
+    rdfs:subPropertyOf prov:generatedAtTime ;
     rdfs:label "computed at"@en ; rdfs:label "berechnet am"@de ; rdfs:label "calculé le"@fr ;
     rdfs:domain :AggregationSnapshot ; rdfs:range xsd:dateTime .
 :includesBuilding rdf:type owl:ObjectProperty ;
     rdfs:label "includes building"@en ; rdfs:label "umfasst Gebäude"@de ; rdfs:label "inclut le bâtiment"@fr ;
     rdfs:domain :AggregationDefinition ; rdfs:range rec:Building .
 :includesMetric rdf:type owl:DatatypeProperty ;
-    rdfs:label "includes metric"@en ; rdfs:label "umfasst Kennzahl"@de ; rdfs:label "inclut la métrique"@fr ; rdfs:range xsd:string .
+    rdfs:label "includes metric"@en ; rdfs:label "umfasst Kennzahl"@de ; rdfs:label "inclut la métrique"@fr ;
+    rdfs:domain :AggregationDefinition ; rdfs:range xsd:string .
 :buildingCount rdf:type owl:DatatypeProperty ;
     rdfs:label "building count"@en ; rdfs:label "Gebäudeanzahl"@de ; rdfs:label "nombre de bâtiments"@fr ;
     rdfs:domain :AggregationSnapshot ; rdfs:range xsd:integer .
@@ -170,6 +177,7 @@
     rdfs:label "Benchmark result"@en ; rdfs:label "Benchmark-Ergebnis"@de ; rdfs:label "Résultat de benchmark"@fr .
 
 :computedBy rdf:type owl:ObjectProperty ;
+    rdfs:subPropertyOf prov:wasAttributedTo ;
     rdfs:label "computed by"@en ; rdfs:label "berechnet von"@de ; rdfs:label "calculé par"@fr ;
     rdfs:comment "The agent (benchmark service provider) that computed this benchmark result."@en ;
     rdfs:comment "Der Agent (Benchmark-Dienstleister), der dieses Benchmark-Ergebnis berechnet hat."@de ;

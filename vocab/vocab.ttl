@@ -11,7 +11,6 @@
 @prefix rdf:  <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix rec:  <https://w3id.org/rec#> .
-@prefix cons: <https://solid.ti.rw.fau.de/gra/consumption.ttl#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
 <#> rdf:type owl:Ontology ;
@@ -33,7 +32,7 @@
     rdfs:comment "The class of the shared resource in a sharing-log event (rec:Building or cons:Aggregation)."@en ;
     rdfs:comment "Die Klasse der geteilten Ressource in einem Freigabeprotokoll-Ereignis (rec:Building oder cons:Aggregation)."@de ;
     rdfs:comment "La classe de la ressource partagée dans un événement du journal de partage (rec:Building ou cons:Aggregation)."@fr ;
-    rdfs:seeAlso rec:Building , cons:Aggregation .
+    rdfs:range rdfs:Class .
 
 ############################
 ###   Membership roles   ###

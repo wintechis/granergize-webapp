@@ -4,13 +4,16 @@
 #
 # A RealEstateCore extension profile: every property here describes a
 # rec:Building (or a component node hanging off one) with logistics-real-estate
-# master data. Alignment policy (see notes/plan-vocab-consolidation.md): terms
-# are minted here and aligned to REC 4 / Brick via rdfs:seeAlso where those
-# vocabularies model the concept structurally (component nodes / entity
-# properties / equipment instances); rdfs:subPropertyOf is reserved for
-# shape-compatible targets, of which the audit found none. The structural
-# spine (rec:Building, rec:ownedBy, rec:operatedBy, geo, vCard, schema.org,
-# FOAF, PROV) is reused directly, not wrapped.
+# master data. Alignment policy: external alignment is asserted ONLY as ENTAILING
+# relations — rdfs:subClassOf /
+# rdfs:subPropertyOf / owl:equivalentClass / owl:equivalentProperty, and
+# rdfs:domain / rdfs:range — never rdfs:seeAlso (a pointer with no entailment).
+# Where a flat master-data property does not structurally match REC/Brick's shape
+# (e.g. an area as a building→m² literal vs REC's area-component node), nothing is
+# asserted rather than a decorative link; those connections appear once the data is
+# structured (the technical-system / area component nodes). The structural spine
+# (rec:Building, rec:ownedBy, rec:operatedBy, geo, vCard, schema.org, FOAF, PROV)
+# is reused directly, not wrapped.
 
 @prefix :      <#> .
 @prefix owl:   <http://www.w3.org/2002/07/owl#> .
@@ -18,6 +21,7 @@
 @prefix rdfs:  <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix rec:   <https://w3id.org/rec#> .
 @prefix brick: <https://brickschema.org/schema/Brick#> .
+@prefix sosa:  <http://www.w3.org/ns/sosa/> .
 @prefix foaf:  <http://xmlns.com/foaf/0.1/> .
 @prefix schema: <http://schema.org/> .
 @prefix geo:   <http://www.w3.org/2003/01/geo/wgs84_pos#> .
@@ -44,7 +48,6 @@
 
 :yearOfConstruction rdf:type owl:DatatypeProperty ;
     rdfs:label "year of construction"@en ; rdfs:label "Baujahr"@de ; rdfs:label "année de construction"@fr ;
-    rdfs:seeAlso brick:yearBuilt ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :yearOfRenovation rdf:type owl:DatatypeProperty ;
@@ -52,17 +55,15 @@
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 # Areas are flat literals (m²). REC models areas on a component node
-# (rec:area → rec:ArchitectureArea with grossArea/netArea/rentableArea) and
-# Brick as structured entity properties, so the links are rdfs:seeAlso, not
-# subsumption.
+# (rec:area → rec:ArchitectureArea with grossArea/netArea/rentableArea) and Brick
+# as structured entity properties — a different shape, so no formal relation is
+# asserted (a flat building→m² literal does not subsume the node-based form).
 :hasBuildingArea rdf:type owl:DatatypeProperty ;
     rdfs:label "building area (m²)"@en ; rdfs:label "Gebäudefläche"@de ; rdfs:label "surface du bâtiment (m²)"@fr ;
-    rdfs:seeAlso rec:grossArea , brick:grossArea ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :hasLandArea rdf:type owl:DatatypeProperty ;
     rdfs:label "land area (m²)"@en ; rdfs:label "Grundstücksfläche"@de ; rdfs:label "surface du terrain (m²)"@fr ;
-    rdfs:seeAlso rec:area ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :officeArea rdf:type owl:DatatypeProperty ;
@@ -90,12 +91,10 @@
     rdfs:comment "Free-text usage of the building."@en ;
     rdfs:comment "Freitext-Nutzung des Gebäudes."@de ;
     rdfs:comment "Usage du bâtiment en texte libre."@fr ;
-    rdfs:seeAlso brick:buildingPrimaryFunction ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :logisticsFunction rdf:type owl:DatatypeProperty ;
     rdfs:label "logistics function"@en ; rdfs:label "Logistikfunktion"@de ; rdfs:label "fonction logistique"@fr ;
-    rdfs:seeAlso brick:buildingPrimaryFunction ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :climateControlType rdf:type owl:DatatypeProperty ;
@@ -108,7 +107,6 @@
 
 :leaseType rdf:type owl:DatatypeProperty ;
     rdfs:label "lease type"@en ; rdfs:label "Mietvertragsart"@de ; rdfs:label "type de bail"@fr ;
-    rdfs:seeAlso rec:Lease ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :tenantIndustry rdf:type owl:DatatypeProperty ;
@@ -155,32 +153,49 @@
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
 ############################
-###   Photovoltaics      ###
+###   Technical systems  ###
 ############################
 
-:hasPVSystem rdf:type owl:DatatypeProperty ;
-    rdfs:label "has PV system"@en ; rdfs:label "Hat Photovoltaik-Anlage"@de ; rdfs:label "possède une installation photovoltaïque"@fr ;
-    rdfs:seeAlso brick:PV_Generation_System ;
-    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+# A technical building system (PV, …) is a COMPONENT NODE of the building — a
+# subordinate resource (a hash-URI fragment in the building document, no detail
+# page; rendered attached to the building, see notes/building-detail.md). Modelled
+# as a node, not a flat flag, so it can carry its own attributes AND agents: a PV
+# plant has a capacity, a commissioning year, and an operator that may differ from
+# the building's (rec:operatedBy on the SYSTEM = the plant operator, e.g. the MaStR
+# Anlagenbetreiber; rec:operatedBy on the BUILDING = the building's user/operator).
+# owl:sameAs links the node to its external registry identity (the MaStR Einheit).
+# (Battery storage + heating are still flat flags below; they migrate here later.)
+:hasSystem rdf:type owl:ObjectProperty ;
+    rdfs:label "has system"@en ; rdfs:label "hat Anlage"@de ; rdfs:label "possède un système"@fr ;
+    rdfs:subPropertyOf brick:hasPart ;
+    rdfs:domain rec:Building ; rdfs:range :TechnicalSystem .
 
-:pvInstallationYear rdf:type owl:DatatypeProperty ;
-    rdfs:label "PV installation year"@en ; rdfs:label "PV-Installationsjahr"@de ; rdfs:label "année d'installation photovoltaïque"@fr ;
-    rdfs:seeAlso rec:installationDate ;
-    rdfs:domain rec:Building ; rdfs:range xsd:integer .
+:TechnicalSystem rdf:type rdfs:Class ;
+    rdfs:label "Technical system"@en ; rdfs:label "Technische Anlage"@de ; rdfs:label "Système technique"@fr ;
+    rdfs:subClassOf brick:Equipment , sosa:System .
 
-:pvCapacityKW rdf:type owl:DatatypeProperty ;
-    rdfs:label "PV capacity (kW)"@en ; rdfs:label "PV-Leistung (kW)"@de ; rdfs:label "puissance photovoltaïque (kW)"@fr ;
-    rdfs:seeAlso brick:ratedPowerOutput ;
-    rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+:PVSystem rdf:type rdfs:Class ;
+    rdfs:label "Photovoltaic system"@en ; rdfs:label "Photovoltaik-Anlage"@de ; rdfs:label "Installation photovoltaïque"@fr ;
+    rdfs:subClassOf :TechnicalSystem , brick:PV_Generation_System .
+
+:capacityKW rdf:type owl:DatatypeProperty ;
+    rdfs:label "capacity (kW)"@en ; rdfs:label "Leistung (kW)"@de ; rdfs:label "puissance (kW)"@fr ;
+    rdfs:domain :TechnicalSystem ; rdfs:range xsd:decimal .
+
+:commissioningYear rdf:type owl:DatatypeProperty ;
+    rdfs:label "commissioning year"@en ; rdfs:label "Inbetriebnahmejahr"@de ; rdfs:label "année de mise en service"@fr ;
+    rdfs:domain :TechnicalSystem ; rdfs:range xsd:gYear .
+
+############################
+###   Battery storage    ###
+############################
 
 :hasBatteryStorage rdf:type owl:DatatypeProperty ;
     rdfs:label "has battery storage"@en ; rdfs:label "Hat Batteriespeicher"@de ; rdfs:label "possède un stockage par batterie"@fr ;
-    rdfs:seeAlso brick:Battery ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :storageCapacityKWh rdf:type owl:DatatypeProperty ;
     rdfs:label "Usable storage capacity (kWh)"@en ; rdfs:label "Nutzbare Speicherkapazität (kWh)"@de ; rdfs:label "Capacité de stockage utile (kWh)"@fr ;
-    rdfs:seeAlso brick:Battery ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 ############################
@@ -188,21 +203,19 @@
 ############################
 
 # Boolean presence flags. Brick models these as equipment instances (with
-# feeds-topology); the flags are the deliberate flat form — the seeAlso links
-# name the equipment class where Brick has one (it lacks oil boilers, a
-# standalone heat pump, and district heating).
+# feeds-topology) — a different shape, so no formal relation is asserted; the
+# equipment-as-entity alignment (brick:Equipment) rides on the technical-system
+# component nodes, not these flat flags.
 :hasOilBoiler rdf:type owl:DatatypeProperty ;
     rdfs:label "has oil boiler"@en ; rdfs:label "Hat Ölkessel"@de ; rdfs:label "possède une chaudière au fioul"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :hasGasBoiler rdf:type owl:DatatypeProperty ;
     rdfs:label "has gas boiler"@en ; rdfs:label "Hat Gaskessel"@de ; rdfs:label "possède une chaudière au gaz"@fr ;
-    rdfs:seeAlso brick:Natural_Gas_Boiler ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :hasElectricBoiler rdf:type owl:DatatypeProperty ;
     rdfs:label "has electric boiler"@en ; rdfs:label "Hat Elektrokessel"@de ; rdfs:label "possède une chaudière électrique"@fr ;
-    rdfs:seeAlso brick:Electric_Boiler ;
     rdfs:domain rec:Building ; rdfs:range xsd:boolean .
 
 :hasHeatPump rdf:type owl:DatatypeProperty ;
@@ -220,7 +233,7 @@
 :shiftRegime rdf:type owl:ObjectProperty ;
     rdfs:label "shift regime"@en ; rdfs:label "Schichtbetrieb"@de ; rdfs:label "régime de postes"@fr ; rdfs:domain rec:Building ; rdfs:range :ShiftRegime .
 :tenancyType rdf:type owl:ObjectProperty ;
-    rdfs:label "tenancy type"@en ; rdfs:label "Mietverhältnisart"@de ; rdfs:label "type de location"@fr ; rdfs:seeAlso rec:Lease ;
+    rdfs:label "tenancy type"@en ; rdfs:label "Mietverhältnisart"@de ; rdfs:label "type de location"@fr ;
     rdfs:domain rec:Building ; rdfs:range :TenancyType .
 :indoorTemperatureClass rdf:type owl:ObjectProperty ;
     rdfs:label "indoor temperature class"@en ; rdfs:label "Innentemperaturklasse"@de ; rdfs:label "classe de température intérieure"@fr ; rdfs:domain rec:Building ; rdfs:range :IndoorTemperatureClass .
@@ -300,7 +313,6 @@
 # rec:documentation → rec:Document.
 :hasAttachment rdf:type owl:ObjectProperty ;
     rdfs:label "has attachment"@en ; rdfs:label "Hat Anhang"@de ; rdfs:label "possède une pièce jointe"@fr ;
-    rdfs:seeAlso rec:documentation ;
     rdfs:domain rec:Building ; rdfs:range schema:MediaObject .
 
 :hasEnergyCertificate rdf:type owl:ObjectProperty ;
@@ -308,7 +320,7 @@
     rdfs:comment "Flags one attachment (a schema:MediaObject) as the energy certificate."@en ;
     rdfs:comment "Kennzeichnet einen Anhang (ein schema:MediaObject) als den Energieausweis."@de ;
     rdfs:comment "Désigne une pièce jointe (un schema:MediaObject) comme le certificat énergétique."@fr ;
-    rdfs:domain rec:Building .
+    rdfs:subPropertyOf :hasAttachment ; rdfs:domain rec:Building .
 
 ############################
 ###   Geocode precision  ###

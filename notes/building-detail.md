@@ -19,22 +19,31 @@ its own.
 This is a **presentation-profile** distinction (whether the app gives a thing a
 page), and it shadows the **resource-profile** partitioning shape
 ([`storage-layout.md`](./storage-layout.md)): how a thing is partitioned into Pod
-resources is the storage-side of the same decision. A thing partitioned as a
-*fragment / blank node* in its parent's document, or as a *contained child* in the
-parent's subtree, renders subordinate; a thing *linked* as a standalone document
+resources is the storage-side of the same decision. An in-document subordinate
+component is either a **hash (fragment) URI** (`<…/buildings/{id}.ttl#pv>`) or a
+**blank node** — both live *inside the parent document*, fetched and PUT with it,
+never resolved on their own. Use a fragment URI when the node needs a stable,
+addressable identity (to be `owl:sameAs`'d or referenced from elsewhere — e.g. the
+PV-system node, equated with its MaStR Einheit); a blank node suffices for a purely
+internal component. A *contained child* (a separate slash-URI resource in the
+parent's subtree) is the other subordinate form; a thing *linked* as a standalone document
 the user navigates to and acts on is first-class. The two axes are coupled but not
 identical — a resource can have its own URI/document and still be subordinate (the
-energy observation collections), and a subordinate node can be `owl:sameAs` a
-first-class resource elsewhere (the PV plant ≡ its MaStR Einheit). What ultimately
-makes it subordinate is that the app gives it no page.
+energy observation collections, contained children), and a subordinate fragment can
+be `owl:sameAs` a first-class resource elsewhere (the PV-system node
+`<…#pv>` ≡ its MaStR Einheit). What ultimately makes it subordinate is that the app
+gives it no page.
 
 Subordinate to the building:
 
-- **Technical systems** — the PV plant, heating/cooling, etc. A PV plant is a real
-  entity with its own MaStR identity and even its own operator (distinct from the
-  building's), yet it gets no page: it shows in the building detail's systems
-  section. (See the building vocab's system component.)
-- **Operating-cost** and **certification** blocks — blank-node components.
+- **Technical systems** — the PV plant, heating/cooling, etc. A fragment node
+  (`<…#pv>`) in the building document; a real entity with its own MaStR identity
+  and even its own operator (distinct from the building's), yet it gets no page —
+  it shows in the building detail's systems section. (See the building vocab's
+  system component.)
+- **Operating-cost** and **certification** blocks — in-document component nodes
+  (blank nodes, or fragment URIs `<…#oc>`/`<…#cert1>` if an addressable identity is
+  wanted).
 - **Energy observation collections** — first-class resources at top-level
   `observations/{year}/…` (their own URIs), but the UI renders them only as the
   building's energy tab/charts; there is no observation page.
