@@ -10,8 +10,8 @@ import { T } from "../helpers/timeouts.ts";
 
 /**
  * Archive backup/restore e2e (dev-mode). Drives the real account-menu flow end to
- * end against a throwaway local CSS: enable Developer mode, **Download archive**
- * (capture the .zip), **Remove all app data** (wipe), **Upload archive…** (restore
+ * end against a throwaway local CSS: enable Developer mode, **Export archive**
+ * (capture the .zip), **Remove all app data** (wipe), **Import archive…** (restore
  * from the captured file), and assert the buildings come back. Exercises the UI
  * wiring + the two native confirm() dialogs; field/IRI fidelity and the sharing
  * replay are covered by the unit + Tier-2 (`archive-restore`) tests.
@@ -78,9 +78,9 @@ test.describe("archive backup/restore", () => {
     // Developer mode gates the archive menu items (off by default).
     await setDevMode(page, true);
 
-    // Download archive → capture the .zip.
+    // Export archive → capture the .zip.
     const dl = page.waitForEvent("download");
-    await menuAction(page, /Download archive/);
+    await menuAction(page, /Export archive/);
     await (await dl).saveAs(ARCHIVE_PATH);
     await expect(page.getByText(/Archived \d+ resource\(s\)/)).toBeVisible({
       timeout: T.action,
@@ -98,7 +98,7 @@ test.describe("archive backup/restore", () => {
       timeout: T.action,
     });
 
-    // Upload archive → the hidden picker drives importArchive; the in-app confirm
+    // Import archive → the hidden picker drives importArchive; the in-app confirm
     // dialog asks before overwriting.
     await page.locator('input[type="file"][accept*="zip"]').setInputFiles(ARCHIVE_PATH);
     await confirmDialog(page, "Restore");

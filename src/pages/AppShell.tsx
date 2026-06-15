@@ -635,7 +635,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             {devMode && <Divider />}
             {devMode && (
               <MenuItem onClick={handleDownloadArchive} disabled={accountBusy}>
-                {accountBusy ? "Working…" : "Download archive"}
+                {accountBusy ? "Working…" : "Export archive"}
               </MenuItem>
             )}
             {devMode && (
@@ -643,7 +643,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
                 onClick={() => archiveInput.current?.click()}
                 disabled={accountBusy}
               >
-                Upload archive…
+                Import archive…
               </MenuItem>
             )}
 
@@ -695,7 +695,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           </Menu>
         </Box>
       </Box>
-      {/* Hidden picker for the dev-mode "Upload archive…" menu item. */}
+      {/* Hidden picker for the dev-mode "Import archive…" menu item. */}
       <input
         ref={archiveInput}
         type="file"
