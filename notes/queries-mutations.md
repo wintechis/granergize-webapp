@@ -193,7 +193,7 @@ Queries split by *consumption shape*, which decides their hook home:
 - **Imperative read-intents** — a user *invokes* a read as an action with its own
   feedback surface, and the answer must be fresh per invocation (caching an audit
   would report stale consistency): `auditGrants` ("Check sharing consistency"),
-  `exportArchive` ("Download archive"), the wipe preview (`listContainedResources`)
+  `exportArchive` ("Export archive"), the wipe preview (`listContainedResources`)
   and the restore preview (`inspectArchive`). The two Pod-reading ones are reified as
   hooks (`useAuditGrants`, `useExportArchive`) on the `useMutation` *primitive* — used
   here purely as the on-demand trigger (busy state + the central error toast), not as

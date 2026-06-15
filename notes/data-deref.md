@@ -94,9 +94,20 @@ merged graph — the app does not re-dereference each IRI it encounters**:
   segment). Blank-node sub-structures (energy datasets, operating costs,
   certifications, SOSA observations) are stitched back to their building through
   blank-node→building maps built during the walk.
-- Cross-references such as `rec:operatedBy` / `schema:customer` are kept as IRIs and
-  resolved against the in-memory **agents** map (rendered as in-app links); the app
-  does *not* fetch each agent IRI on its own.
+- Cross-references to agents — `rec:operatedBy` / `rec:ownedBy` / `bldg:investor` /
+  `schema:customer` and the producer `attributedTo` — are kept as **opaque IRIs**; the
+  bulk load does *not* fetch them, and agent *names* no longer come from the merged
+  graph (the legacy agents source was removed — see
+  [`building-pane.md`](./building-pane.md) §3a). A name/avatar is resolved **on demand**
+  by `resolveAgent` / `resolveAgentOrg` (`agents/agentResolver.ts`, behind
+  `useResolveAgent` / `useResolveOrg`): it dereferences the agent's **own document** —
+  the IRI minus its `#fragment` (`profileDocUri`) — via `fetchFresh`, reads
+  `foaf:name` / `vcard:fn` (+ `foaf:img` / `vcard:hasPhoto`; `org:memberOf` → org
+  name/logo), caches per **target** doc-URI, and **never throws** — an
+  unreadable/offline/non-RDF document yields the IRI **fragment** as the label
+  (`webIdFragment`), never text derived from the IRI's structure. This is the one lazy,
+  per-agent dereference the app makes — a narrow exception to discover-then-bulk-fetch
+  (§ What this is NOT).
 - **Energy** dispatches on the declared `cons:granularity` (an `xsd:duration`):
   date-part durations (`P1Y`, `P1M`, …) are **aggregates**, bulk-loaded with the
   building; time-only durations (`PT15M`, `PT1H`, …) are **time series**,
@@ -106,6 +117,17 @@ merged graph — the app does not re-dereference each IRI it encounters**:
   resolved against already-loaded data) and `UriLink` (opens the raw resource in a
   new tab — lets the browser dereference it). See
   `src/components/detail/DetailView.tsx`.
+
+**External (non-Pod) agent IRIs** are managed the same way — e.g. an operator
+`https://wunderfacts.com/mastr/abr/937743848821#it`: the app fetches the document
+`https://wunderfacts.com/mastr/abr/937743848821` and reads its `foaf:name`. But this is
+a real cross-origin browser request, so a name comes back only if the host serves
+RDF/Turtle **and** sends permissive CORS — a Solid WebID profile does; a no-CORS Linked
+Data source such as wunderfacts does not, so the label falls back to the fragment
+(`it`). A `foaf:name` the *producer inlined* in the building file is not consulted —
+`resolveAgent` reads the agent's own document, not the merged graph. The raw external
+document stays reachable via `UriLink` / the dev-mode source link, which opens it in a
+new tab, a top-level navigation CORS does not gate.
 
 A two-phase load (`fetchAndParseData`'s `onBuildingsAndAgents` callback) hands
 buildings + agents to the UI first, then streams energy in.

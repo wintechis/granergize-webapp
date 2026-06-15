@@ -162,6 +162,39 @@ directions (missing grants and lingering revoked ones) without writing. Surfaced
 as the dev-mode "Check sharing consistency" action next to the rebuild; the
 Tier-2 task uses it for full pair coverage where the recipient-side GETs sample.
 
+## Invalidation cost — and the responsiveness it bounds
+
+The sections above are about *coverage* — does a write's change reach the read. There
+is a second axis the same contract implies: the **cost** of the refetch a write
+triggers, which is what the UI's responsiveness is bounded by. TanStack Query's low
+latency is the **client cache** — invalidate a key and the dependent components
+re-render *from memory* instantly. It does **not** make the **Pod I/O** faster, and
+because freshness is server-driven (`staleTime: 0`, conditional GET) there is no fresh
+*cached* data after a write: reflecting the change means a network re-read.
+
+The **archive restore** is the worst case, and a useful one to name. `useRestoreArchive`
+runs `importArchive` (a **sequential** PUT per archived resource — buildings, energy
+datasets, logs, prefs, views, rooms, attachments), then `reissueGrants` (fold the
+`shared-out/` log, rewrite an `.acl` per building), before anything settles; only then
+does `onSettled` fire — and it calls **`qc.invalidateQueries()` with no key**, because
+the restore "may have replaced anything under the app collection." That invalidates
+*every* query, forcing a **full re-read** of the whole projection through the normal
+dependent chain (storage root → `shared-in/` fold + `prefs` → list + GET each building →
+phase-2 energy — [`data-deref.md`](./data-deref.md)), each a conditional GET subject to
+`retryFetch` backoff. Throughout, `keepPreviousData` holds the *pre-restore* projection
+on screen rather than blanking — so the change reads as a lag until the maximal re-read
+lands. No optimistic patch is possible: the archive is opaque bytes the client never
+modelled, so it is invalidate-then-refetch, at the coarsest possible grain.
+
+So responsiveness here is bounded by Pod I/O — a long sequential write followed by the
+*largest* re-read the app can issue — not by the query layer, which is doing its job
+the instant data arrives.
+
+The app today keys and invalidates at the grain of **app-shaped queries**
+(`buildings`, `energy`, the folds), not per individual resource — and the archive
+restore is the coarsest point, invalidate-everything. The grain of invalidation is
+therefore what bounds write responsiveness here.
+
 ## The principle
 
 Prefer making the refetch fall out of the data over making it fall out of
