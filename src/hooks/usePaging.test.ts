@@ -1,15 +1,24 @@
 /// <reference lib="deno.ns" />
 import "./test-dom-setup.ts"; // must precede React / Testing Library
 import { strict as assert } from "node:assert";
+import { createElement, type ReactNode } from "react";
 import { act, renderHook } from "@testing-library/react";
+import { MemoryRouter } from "react-router-dom";
 import { usePaging } from "./usePaging.ts";
 
 /** A list of N items: "item-0" … "item-(N-1)". */
 const list = (n: number) => Array.from({ length: n }, (_, i) => `item-${i}`);
 
+/** usePaging reads/writes the URL (`?offset=`), so it needs a Router context.
+ * A fresh MemoryRouter per render → each test starts at offset 0, isolated. */
+const wrapper = ({ children }: { children: ReactNode }) =>
+  createElement(MemoryRouter, null, children);
+
 Deno.test("usePaging: hundreds of items split into pages of the given size", () => {
   const items = list(300);
-  const { result } = renderHook(() => usePaging(items, 20));
+  const { result } = renderHook(() => usePaging(items, { pageSize: 20 }), {
+    wrapper,
+  });
 
   assert.equal(result.current.total, 300);
   assert.equal(result.current.pageCount, 15);
@@ -21,7 +30,9 @@ Deno.test("usePaging: hundreds of items split into pages of the given size", () 
 
 Deno.test("usePaging: navigates to a later page and slices correctly", () => {
   const items = list(300);
-  const { result } = renderHook(() => usePaging(items, 20));
+  const { result } = renderHook(() => usePaging(items, { pageSize: 20 }), {
+    wrapper,
+  });
 
   act(() => result.current.setPage(15));
   assert.equal(result.current.page, 15);
@@ -31,7 +42,9 @@ Deno.test("usePaging: navigates to a later page and slices correctly", () => {
 
 Deno.test("usePaging: clamps out-of-range page requests", () => {
   const items = list(300);
-  const { result } = renderHook(() => usePaging(items, 20));
+  const { result } = renderHook(() => usePaging(items, { pageSize: 20 }), {
+    wrapper,
+  });
 
   act(() => result.current.setPage(999));
   assert.equal(result.current.page, 15); // clamped to last page
@@ -42,26 +55,33 @@ Deno.test("usePaging: clamps out-of-range page requests", () => {
 
 Deno.test("usePaging: a shrunk list never strands you on an empty page", () => {
   let items = list(300);
-  const { result, rerender } = renderHook(() => usePaging(items, 20));
+  const { result, rerender } = renderHook(
+    () => usePaging(items, { pageSize: 20 }),
+    { wrapper },
+  );
 
-  act(() => result.current.setPage(15)); // last page of 300
+  act(() => result.current.setPage(15)); // last page of 300 → ?offset=280
   assert.equal(result.current.page, 15);
 
   items = list(25); // now only 2 pages
   rerender();
   assert.equal(result.current.pageCount, 2);
-  assert.equal(result.current.page, 2); // clamped, not blank
+  assert.equal(result.current.page, 2); // offset 280 clamped to the last page
   assert.equal(result.current.pageItems.length, 5); // items 20..24
 });
 
 Deno.test("usePaging: a short list is a single page (Pager will hide)", () => {
-  const { result } = renderHook(() => usePaging(list(7), 20));
+  const { result } = renderHook(() => usePaging(list(7), { pageSize: 20 }), {
+    wrapper,
+  });
   assert.equal(result.current.pageCount, 1);
   assert.equal(result.current.pageItems.length, 7);
 });
 
 Deno.test("usePaging: empty list is one empty page", () => {
-  const { result } = renderHook(() => usePaging([], 20));
+  const { result } = renderHook(() => usePaging([], { pageSize: 20 }), {
+    wrapper,
+  });
   assert.equal(result.current.pageCount, 1);
   assert.equal(result.current.total, 0);
   assert.equal(result.current.pageItems.length, 0);

@@ -176,7 +176,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
   const sharedWithMeQuery = useSharedWithMe();
   const sharedWithMe = sharedWithMeQuery.data ?? [];
   const loading = sharedWithMeQuery.isLoading;
-  const sharedPaging = usePaging(sharedWithMe);
+  const sharedPaging = usePaging(sharedWithMe, { key: "shared" });
 
   // The shared-with-me ENTRIES carry only a display stem (`buildingId`) and the
   // building's document URI; the resolvable building id (the absolute subject IRI
@@ -190,7 +190,9 @@ export default function SharingFinder({ session }: SharingFinderProps) {
 
   const receivedAggregationsQuery = useReceivedAggregations();
   const receivedAggregations = receivedAggregationsQuery.data ?? [];
-  const receivedAggregationsPaging = usePaging(receivedAggregations);
+  const receivedAggregationsPaging = usePaging(receivedAggregations, {
+    key: "received",
+  });
 
   const toggleVis = useToggleVisibility();
   const checkInbox = useCheckInbox();
