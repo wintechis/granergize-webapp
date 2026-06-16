@@ -41,7 +41,12 @@ export async function openBuildingsList(page: Page): Promise<void> {
  */
 export async function openBuildingsMap(page: Page): Promise<void> {
   await page.getByRole("tab", { name: en("navBuildings") }).click();
-  await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+  // Scope to the Buildings-view toggle group: the cube's "Explore view" selector also
+  // carries a "Map" button, so an unscoped getByRole matches two (see plans/stumble.md).
+  await page
+    .getByLabel(en("bldgsViewAria"))
+    .getByRole("button", { name: en("btnMap"), exact: true })
+    .click();
 }
 
 /**

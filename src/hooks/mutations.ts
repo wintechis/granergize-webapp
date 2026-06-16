@@ -18,11 +18,8 @@ import {
   reissueGrants,
   shareAggregation,
 } from "../services/interop/share.ts";
-import {
-  shareBuildingCore,
-  type ShareBuildingParams,
-} from "../intents/shareBuilding.ts";
-import { checkSharingConsistencyCore } from "../intents/checkSharingConsistency.ts";
+import type { ShareBuildingParams } from "../intents/shareBuilding.ts";
+import { invoke, query } from "../intents/registry.ts";
 import { logError } from "../lib/logError.ts";
 import { drainInbox } from "../services/interop/inbox.ts";
 import {
@@ -45,7 +42,7 @@ import {
   writeEnergyYear,
 } from "../services/rdf/building/buildingSerializer.ts";
 import { removeAppData } from "../services/pod/podDelete.ts";
-import { exportArchive, importArchive } from "../services/pod/podArchive.ts";
+import { importArchive } from "../services/pod/podArchive.ts";
 import { mintBuildingSubject } from "../services/rdf/building/buildingId.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
 import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
@@ -465,10 +462,11 @@ export function useShareBuilding() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionShareBuilding", silent: true },
-    // Thin adapter over the React-free core (src/intents/shareBuilding.ts): the
-    // core owns the Pod-request composition; the hook keeps only busy state, the
-    // central toast, and the sharedOutLog invalidation.
-    mutationFn: (vars: ShareBuildingParams) => shareBuildingCore(getSession(), vars),
+    // Thin adapter over the React-free core (src/intents/shareBuilding.ts),
+    // routed through the registry's invoke() entry point (one path for UI +
+    // headless): the core owns the Pod-request composition; the hook keeps only
+    // busy state, the central toast, and the sharedOutLog invalidation.
+    mutationFn: (vars: ShareBuildingParams) => invoke("ShareBuilding", vars, getSession()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog }),
   });
 }
@@ -820,7 +818,9 @@ export function useReissueGrants() {
 export function useExportArchive() {
   return useMutation({
     meta: { action: "actionDownloadArchive" },
-    mutationFn: () => exportArchive(getSession()),
+    // Routed through the registry's read entry point (query()); the core
+    // (src/intents/exportArchive.ts) packs the archive and returns the blob.
+    mutationFn: () => query("ExportArchive", {}, getSession()),
   });
 }
 
@@ -835,9 +835,9 @@ export function useAuditGrants() {
   return useMutation({
     meta: { action: "actionCheckSharing" },
     // Thin adapter over the React-free read core
-    // (src/intents/checkSharingConsistency.ts): the core returns the drift
-    // report value; the hook keeps only busy state + the central toast (a read
-    // declares no invalidation).
-    mutationFn: () => checkSharingConsistencyCore(getSession()),
+    // (src/intents/checkSharingConsistency.ts), routed through the registry's
+    // query() entry point: the core returns the drift report value; the hook
+    // keeps only busy state + the central toast (a read declares no invalidation).
+    mutationFn: () => query("AuditGrants", {}, getSession()),
   });
 }
