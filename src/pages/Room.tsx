@@ -116,7 +116,7 @@ export default function Room(
           </Typography>
           <Chip
             size="small"
-            label={owned ? "Hosted by you" : `Hosted by ${roomHost(room)}`}
+            label={owned ? msg("roomHostedByYou") : msg("roomHostedBy", { host: roomHost(room) })}
             color={owned ? "primary" : "default"}
           />
         </Stack>

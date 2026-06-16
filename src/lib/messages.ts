@@ -655,6 +655,88 @@ export const MESSAGES = {
     de: "z. B. Portfolio-Durchschnitt 2024",
     fr: "p. ex. moyenne du portefeuille 2024",
   },
+  // App shell — dev-mode (Developer mode) archive + sharing-maintenance results.
+  devRebaseContent: {
+    en: "Content will be rebased from {base} to {target}.",
+    de: "Inhalte werden von {base} auf {target} umgebast.",
+    fr: "Le contenu sera rebasé de {base} vers {target}.",
+  },
+  devRebaseWebId: {
+    en: "Owner WebID will be rewritten from {old} to {new}.",
+    de: "Eigentümer-WebID wird von {old} auf {new} umgeschrieben.",
+    fr: "La WebID du propriétaire sera réécrite de {old} vers {new}.",
+  },
+  devRestoreConfirm: {
+    en:
+      'Restore {count} resource(s) from "{file}" into this Pod?\n\nThis overwrites any ' +
+      "existing resource at a matching path under granergize/. This cannot be undone — " +
+      "intended for a wiped Pod.",
+    de:
+      "{count} Ressource(n) aus „{file}“ in diesen Pod wiederherstellen?\n\nDies " +
+      "überschreibt vorhandene Ressourcen an passenden Pfaden unter granergize/. Kann " +
+      "nicht rückgängig gemacht werden — gedacht für einen geleerten Pod.",
+    fr:
+      "Restaurer {count} ressource(s) depuis « {file} » dans ce Pod ?\n\nCela écrase " +
+      "toute ressource existante à un chemin correspondant sous granergize/. Irréversible " +
+      "— prévu pour un Pod vidé.",
+  },
+  devRebased: { en: " (rebased)", de: " (umgebast)", fr: " (rebasé)" },
+  devRestoreSuccess: {
+    en: "Restored {restored} resource(s){rebased}; reissued {reissued} share grant(s)",
+    de: "{restored} Ressource(n){rebased} wiederhergestellt; {reissued} Freigabe(n) neu erteilt",
+    fr: "{restored} ressource(s){rebased} restaurée(s) ; {reissued} partage(s) réémis",
+  },
+  devAuditMissing: {
+    en: "{count} deleted skipped",
+    de: "{count} gelöschte übersprungen",
+    fr: "{count} supprimée(s) ignorée(s)",
+  },
+  devAuditSkipped: {
+    en: "{count} off-Pod skipped",
+    de: "{count} Pod-fremde übersprungen",
+    fr: "{count} hors-Pod ignorée(s)",
+  },
+  devReissueRevoked: {
+    en: "{count} revocation(s) replayed",
+    de: "{count} Entzug/Entzüge erneut angewandt",
+    fr: "{count} révocation(s) rejouée(s)",
+  },
+  devAuditConsistent: {
+    en: "Sharing consistent: {checked} grant(s) match the log{tail}",
+    de: "Freigaben konsistent: {checked} Erteilung(en) stimmen mit dem Log überein{tail}",
+    fr: "Partage cohérent : {checked} autorisation(s) correspondent au journal{tail}",
+  },
+  devAuditDrift: {
+    en:
+      'Sharing drift: {drift} of {checked} grant(s) differ from the log — run "Rebuild ' +
+      'sharing from log"{tail}',
+    de:
+      "Freigabe-Abweichung: {drift} von {checked} Erteilung(en) weichen vom Log ab — " +
+      "„Freigaben aus Log neu aufbauen“ ausführen{tail}",
+    fr:
+      "Dérive du partage : {drift} sur {checked} autorisation(s) diffèrent du journal — " +
+      "lancez « Reconstruire le partage depuis le journal »{tail}",
+  },
+  devReissueSuccess: {
+    en: "Reissued {count} share grant(s){tail}",
+    de: "{count} Freigabe(n) neu erteilt{tail}",
+    fr: "{count} partage(s) réémis{tail}",
+  },
+  devRemoveDeletes: {
+    en: "This permanently deletes {count} resource(s):",
+    de: "Dies löscht dauerhaft {count} Ressource(n):",
+    fr: "Cela supprime définitivement {count} ressource(s) :",
+  },
+  devRemoveAllHead: {
+    en: "Remove ALL Granergize data from your Pod?",
+    de: "ALLE Granergize-Daten aus deinem Pod entfernen?",
+    fr: "Supprimer TOUTES les données Granergize de votre Pod ?",
+  },
+  devRemoveAllTail: {
+    en: "Your profile and organisation logo are kept. This cannot be undone.",
+    de: "Dein Profil und das Organisationslogo bleiben erhalten. Kann nicht rückgängig gemacht werden.",
+    fr: "Votre profil et le logo de l'organisation sont conservés. Action irréversible.",
+  },
   // App shell — account menu + onboarding.
   menuAccountAria: { en: "Account menu", de: "Kontomenü", fr: "Menu du compte" },
   menuProfile: { en: "Profile", de: "Profil", fr: "Profil" },

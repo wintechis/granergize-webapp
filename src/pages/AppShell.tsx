@@ -287,10 +287,10 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
       const targetRoot = webId ? getStorageRoot(webId) : "";
       const notes = [
         preview.base && preview.base !== targetRoot
-          ? `Content will be rebased from ${preview.base} to ${targetRoot}.`
+          ? msg("devRebaseContent", { base: preview.base, target: targetRoot })
           : "",
         preview.webId && preview.webId !== webId
-          ? `Owner WebID will be rewritten from ${preview.webId} to ${webId}.`
+          ? msg("devRebaseWebId", { old: preview.webId, new: webId ?? "" })
           : "",
       ].filter(Boolean);
       rebaseNote = notes.length ? "\n\n" + notes.join("\n") : "";
@@ -303,11 +303,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     if (
       !await confirm({
         title: msg("dlgRestoreArchive"),
-        message:
-          `Restore ${count} resource(s) from "${file.name}" into this Pod?\n\n` +
-          "This overwrites any existing resource at a matching path under " +
-          "granergize/. This cannot be undone — intended for a wiped Pod." +
-          rebaseNote,
+        message: msg("devRestoreConfirm", { count, file: file.name }) + rebaseNote,
         confirmLabel: msg("btnRestore"),
       })
     ) {
@@ -318,9 +314,9 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
         hydrateActiveRoom(session).catch((err) =>
           logError("hydrate active data room", err)
         );
-        const rebased = rebasedTo || rebasedWebId ? " (rebased)" : "";
+        const rebased = rebasedTo || rebasedWebId ? msg("devRebased") : "";
         showNotification(
-          `Restored ${restored} resource(s)${rebased}; reissued ${reissued} share grant(s)`,
+          msg("devRestoreSuccess", { restored, rebased, reissued }),
           "success",
         );
       },
@@ -333,13 +329,13 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     auditMut.mutate(undefined, {
       onSuccess: ({ checked, drift, skipped, missing }) => {
         const tails = [
-          missing ? `${missing} deleted skipped` : "",
-          skipped ? `${skipped} off-Pod skipped` : "",
+          missing ? msg("devAuditMissing", { count: missing }) : "",
+          skipped ? msg("devAuditSkipped", { count: skipped }) : "",
         ].filter(Boolean);
         const tail = tails.length ? ` (${tails.join(", ")})` : "";
         if (drift.length === 0) {
           showNotification(
-            `Sharing consistent: ${checked} grant(s) match the log${tail}`,
+            msg("devAuditConsistent", { checked, tail }),
             "success",
           );
         } else {
@@ -350,8 +346,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             drift.map((d) => `${d.kind} ${d.resource} → ${d.grantee}`),
           );
           showNotification(
-            `Sharing drift: ${drift.length} of ${checked} grant(s) differ from the log` +
-              ` — run "Rebuild sharing from log"${tail}`,
+            msg("devAuditDrift", { drift: drift.length, checked, tail }),
             "warning",
           );
         }
@@ -363,13 +358,13 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     reissueMut.mutate(undefined, {
       onSuccess: ({ buildings, aggregations, skipped, missing, revoked }) => {
         const tails = [
-          revoked ? `${revoked} revocation(s) replayed` : "",
-          missing ? `${missing} deleted skipped` : "",
-          skipped ? `${skipped} off-Pod skipped` : "",
+          revoked ? msg("devReissueRevoked", { count: revoked }) : "",
+          missing ? msg("devAuditMissing", { count: missing }) : "",
+          skipped ? msg("devAuditSkipped", { count: skipped }) : "",
         ].filter(Boolean);
         const tail = tails.length ? ` (${tails.join(", ")})` : "";
         showNotification(
-          `Reissued ${buildings + aggregations} share grant(s)${tail}`,
+          msg("devReissueSuccess", { count: buildings + aggregations, tail }),
           "success",
         );
       },
@@ -436,15 +431,14 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     }
 
     const list = resources.length
-      ? `\n\nThis permanently deletes ${resources.length} resource(s):\n\n` +
+      ? `\n\n${msg("devRemoveDeletes", { count: resources.length })}\n\n` +
         `${formatResourceList(resources, root)}`
       : "";
 
     if (
       !await confirm({
         title: msg("dlgRemoveAppData"),
-        message: "Remove ALL Granergize data from your Pod?" + list +
-          "\n\nYour profile and organisation logo are kept. This cannot be undone.",
+        message: msg("devRemoveAllHead") + list + "\n\n" + msg("devRemoveAllTail"),
         confirmLabel: msg("btnRemoveAll"),
       })
     ) {
