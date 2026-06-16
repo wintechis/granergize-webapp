@@ -23,7 +23,7 @@ import { ConfirmProvider } from "./context/ConfirmContext.tsx";
 import { QueryProvider } from "./context/QueryProvider.tsx";
 import { I18nProvider } from "./context/I18nProvider.tsx";
 import { queryKeys } from "./hooks/queries.ts";
-import { SESSION_EXPIRED_MESSAGE } from "./hooks/queryErrors.ts";
+import { sessionExpiredMessage } from "./hooks/queryErrors.ts";
 import { drainInbox, ensureOwnInbox } from "./services/interop/inbox.ts";
 import {
   clearRequestLog,
@@ -86,7 +86,7 @@ function AppContent() {
   );
   useEffect(() => {
     if (expired && session) {
-      showNotification(SESSION_EXPIRED_MESSAGE, "warning");
+      showNotification(sessionExpiredMessage(), "warning");
       // Suppress the silent restore: the token is already dead, but set the
       // one-shot flag too so the Login screen can't attempt a doomed restore
       // (keeps every logout path consistent — see handleLogout).

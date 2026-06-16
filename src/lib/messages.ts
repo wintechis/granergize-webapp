@@ -84,6 +84,18 @@ export const MESSAGES = {
       "Aucune agrégation partagée avec vous pour l'instant. Une agrégation partagée par un partenaire apparaît ici.",
   },
   uiLanguage: { en: "Language", de: "Sprache", fr: "Langue" },
+  // The two classified-warning sentences (session-expiry gate + optimistic-lock
+  // conflict) — complete sentences about an app-level state, not "Failed to …".
+  sessionExpired: {
+    en: "Session expired — please log in again",
+    de: "Sitzung abgelaufen — bitte melde dich erneut an",
+    fr: "Session expirée — veuillez vous reconnecter",
+  },
+  conflictReload: {
+    en: "This changed elsewhere — please reload and try again.",
+    de: "Dies wurde anderswo geändert — bitte lade neu und versuche es erneut.",
+    fr: "Ceci a été modifié ailleurs — veuillez recharger et réessayer.",
+  },
 
   // Error-toast template + its action phrases (the `formatError` chokepoint). The
   // action is nominalised in de/fr so it slots into each language's template

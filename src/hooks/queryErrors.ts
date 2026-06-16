@@ -1,17 +1,21 @@
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
 import { formatError } from "../lib/formatError.ts";
-import type { MessageId } from "../lib/messages.ts";
+import { type MessageId, translate } from "../lib/messages.ts";
+import { getLanguage } from "../lib/language.ts";
 import { isSessionExpired } from "../services/pod/sessionGate.ts";
 
 export type ErrorSeverity = "error" | "warning";
 
 /**
- * The single sentence shown when the Solid session has expired. Reused by the
- * session gate's logout toast (main.tsx) and every error classified below as
- * an expiry, so the notification queue collapses the duplicates into one.
+ * The single sentence shown when the Solid session has expired, in the active UI
+ * language. Reused by the session gate's logout toast (main.tsx) and every error
+ * classified below as an expiry, so the notification queue collapses the duplicates
+ * into one — both call this, so both get the identical string for that locale.
  */
-export const SESSION_EXPIRED_MESSAGE = "Session expired — please log in again";
+export function sessionExpiredMessage(): string {
+  return translate(getLanguage(), "sessionExpired");
+}
 
 /**
  * Meta a mutation hook declares to steer the central error toast
@@ -60,13 +64,13 @@ export function classifyQueryError(
     // same sentence as the session-gate logout toast in main.tsx, so the
     // notification queue collapses the duplicates into one.
     return {
-      message: SESSION_EXPIRED_MESSAGE,
+      message: sessionExpiredMessage(),
       severity: "warning",
     };
   }
   if (error instanceof ConflictError) {
     return {
-      message: "This changed elsewhere — please reload and try again.",
+      message: translate(getLanguage(), "conflictReload"),
       severity: "warning",
     };
   }
