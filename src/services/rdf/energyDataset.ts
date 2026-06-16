@@ -123,6 +123,14 @@ export interface EnergyDataset {
   metrics?: AnnualMetrics;
   /** Series: the container IRI the daily chunk files are located under. */
   datasetLocation?: string;
+  /**
+   * The `sosa:hasFeatureOfInterest` the observations are about, when it is a
+   * specific component rather than the building as a whole — e.g. generation
+   * observations are about the building's `<#pv>` :PVSystem plant. An IRI
+   * reference (may be document-relative). Omitted ⇒ the building is the implicit
+   * feature of interest (via `cons:ofBuilding`).
+   */
+  featureOfInterest?: string;
 }
 
 /** Mint a fresh dataset id (UUID stem) for a new observation collection. */
@@ -330,10 +338,17 @@ export function serializeEnergyDataset(ds: EnergyDataset): string {
     "",
   ].join("\n");
 
+  // The component the observations are about, when not the building itself
+  // (e.g. generation is about the <#pv> plant). Reuses SOSA directly.
+  const foi = ds.featureOfInterest
+    ? `   sosa:hasFeatureOfInterest <${ds.featureOfInterest}> ;\n`
+    : "";
+
   if (ds.datasetLocation) {
     return header +
       `<#ds> a cons:EnergyDataset ;\n` +
       `   cons:ofBuilding <${ds.building}> ;\n` +
+      foi +
       `   cons:granularity "${ds.granularity}" ;\n` +
       `   cons:scenario ${scenarioIri} ;\n` +
       `   sosa:phenomenonTime ${interval} ;\n` +
@@ -353,6 +368,7 @@ export function serializeEnergyDataset(ds: EnergyDataset): string {
   return header +
     `<#ds> a cons:EnergyDataset , sosa:ObservationCollection ;\n` +
     `   cons:ofBuilding <${ds.building}> ;\n` +
+    foi +
     `   cons:granularity "${ds.granularity}" ;\n` +
     `   cons:scenario ${scenarioIri} ;\n` +
     `   sosa:phenomenonTime ${interval}` +

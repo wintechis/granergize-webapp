@@ -103,7 +103,6 @@ export interface BuildingType {
   /** The PV plant as a technical-system node (presence ⇒ has PV). Replaces the
    * former flat `hasPVSystem`/`pvCapacityKW`/`pvInstallationYear` fields. */
   pvSystem?: PvSystem;
-  hasBatteryStorage?: boolean;
   /** Investor WebID (`bldg:investor`, ranges over foaf:Agent — an agent link like
    * operatedBy, not a free-text label). Legacy literal values tolerated on read. */
   investor?: string;
@@ -134,8 +133,6 @@ export interface BuildingType {
   logisticsFunction?: string;
   climateControlType?: string;
   greenLeaseShare?: number; // %
-  /** Usable battery storage capacity (kWh), Ist (operating units only). */
-  storageCapacityKWh?: number;
   companyName?: string;
   // Investor role fields
   label?: string;

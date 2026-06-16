@@ -95,8 +95,8 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   { field: "logisticsFunction", iri: `${BUILDING_NS}logisticsFunction` },
   { field: "climateControlType", iri: `${BUILDING_NS}climateControlType` },
   { field: "greenLeaseShare", iri: `${BUILDING_NS}greenLeaseShare`, range: XSD_DECIMAL },
-  { field: "hasBatteryStorage", iri: `${BUILDING_NS}hasBatteryStorage`, range: XSD_BOOLEAN },
-  { field: "storageCapacityKWh", iri: `${BUILDING_NS}storageCapacityKWh`, range: XSD_DECIMAL },
+  // Battery storage is no longer a flat field — it's the `<#battery>` :BatteryStorage
+  // node (bldg:hasSystem), like PV. The parser/UI for it land with the loader work.
   { field: "companyName", iri: `${BUILDING_NS}companyName` },
 ];
 

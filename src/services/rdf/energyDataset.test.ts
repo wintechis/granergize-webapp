@@ -121,6 +121,43 @@ Deno.test("annual dataset round-trips through serialize → parse", () => {
   );
 });
 
+Deno.test("featureOfInterest emits sosa:hasFeatureOfInterest on the dataset node", () => {
+  // Generation observations are about the building's <#pv> plant, not the building.
+  const ds: EnergyDataset = {
+    building: B,
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "planned",
+    metrics: { electricityGeneration: 240000 },
+    featureOfInterest: "../../buildings/x.ttl#pv",
+  };
+  const node = `${datasetFileUri(ROOT, 2024, ID)}#ds`;
+  const ttl = serializeEnergyDataset(ds);
+  const store = parse(
+    ttl.replace(/<#ds>/g, `<${node}>`)
+      .replace("<../../buildings/x.ttl#pv>", `<${ROOT}buildings/x.ttl#pv>`),
+  );
+  assert.equal(
+    store.getQuads(
+      node,
+      "http://www.w3.org/ns/sosa/hasFeatureOfInterest",
+      `${ROOT}buildings/x.ttl#pv`,
+      null,
+    ).length,
+    1,
+  );
+  // Without it, no such triple is emitted.
+  const plain = parse(
+    serializeEnergyDataset({ ...ds, featureOfInterest: undefined })
+      .replace(/<#ds>/g, `<${node}>`),
+  );
+  assert.equal(
+    plain.getQuads(node, "http://www.w3.org/ns/sosa/hasFeatureOfInterest", null, null)
+      .length,
+    0,
+  );
+});
+
 Deno.test("planned scenario serializes cons:Planned and round-trips", () => {
   const ds: EnergyDataset = {
     building: B,

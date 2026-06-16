@@ -164,7 +164,9 @@
 # the building's (rec:operatedBy on the SYSTEM = the plant operator, e.g. the MaStR
 # Anlagenbetreiber; rec:operatedBy on the BUILDING = the building's user/operator).
 # owl:sameAs links the node to its external registry identity (the MaStR Einheit).
-# (Battery storage + heating are still flat flags below; they migrate here later.)
+# Battery storage is likewise a :TechnicalSystem node (the <#battery> :BatteryStorage,
+# its capacity in kWh of usable energy); heating boilers remain flat presence flags
+# below (no per-asset source), while a registered cogeneration plant would be a node.
 :hasSystem rdf:type owl:ObjectProperty ;
     rdfs:label "has system"@en ; rdfs:label "hat Anlage"@de ; rdfs:label "possède un système"@fr ;
     rdfs:subPropertyOf brick:hasPart ;
@@ -178,6 +180,10 @@
     rdfs:label "Photovoltaic system"@en ; rdfs:label "Photovoltaik-Anlage"@de ; rdfs:label "Installation photovoltaïque"@fr ;
     rdfs:subClassOf :TechnicalSystem , brick:PV_Generation_System .
 
+:BatteryStorage rdf:type rdfs:Class ;
+    rdfs:label "Battery storage"@en ; rdfs:label "Batteriespeicher"@de ; rdfs:label "Stockage par batterie"@fr ;
+    rdfs:subClassOf :TechnicalSystem , brick:Battery .
+
 :capacityKW rdf:type owl:DatatypeProperty ;
     rdfs:label "capacity (kW)"@en ; rdfs:label "Leistung (kW)"@de ; rdfs:label "puissance (kW)"@fr ;
     rdfs:domain :TechnicalSystem ; rdfs:range xsd:decimal .
@@ -186,17 +192,11 @@
     rdfs:label "commissioning year"@en ; rdfs:label "Inbetriebnahmejahr"@de ; rdfs:label "année de mise en service"@fr ;
     rdfs:domain :TechnicalSystem ; rdfs:range xsd:gYear .
 
-############################
-###   Battery storage    ###
-############################
-
-:hasBatteryStorage rdf:type owl:DatatypeProperty ;
-    rdfs:label "has battery storage"@en ; rdfs:label "Hat Batteriespeicher"@de ; rdfs:label "possède un stockage par batterie"@fr ;
-    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
-
+# Usable energy capacity (kWh) of a battery storage node — distinct from :capacityKW
+# (nameplate power). Domain is the :BatteryStorage node, not the building.
 :storageCapacityKWh rdf:type owl:DatatypeProperty ;
     rdfs:label "Usable storage capacity (kWh)"@en ; rdfs:label "Nutzbare Speicherkapazität (kWh)"@de ; rdfs:label "Capacité de stockage utile (kWh)"@fr ;
-    rdfs:domain rec:Building ; rdfs:range xsd:decimal .
+    rdfs:domain :BatteryStorage ; rdfs:range xsd:decimal .
 
 ############################
 ###   Heating systems    ###
