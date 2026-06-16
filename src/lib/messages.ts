@@ -427,6 +427,27 @@ export const MESSAGES = {
     fr: "Moyenne du portefeuille",
   },
   aeBenchmark: { en: "Benchmark", de: "Benchmark", fr: "Référence" },
+  // Regional-context section (linked-regionalstatistik external observations).
+  regContextTitle: {
+    en: "Regional context ({region})",
+    de: "Regionaler Kontext ({region})",
+    fr: "Contexte régional ({region})",
+  },
+  regRenewableShare: {
+    en: "Renewable electricity share",
+    de: "Anteil erneuerbarer Stromerzeugung",
+    fr: "Part d'électricité renouvelable",
+  },
+  regDataSource: {
+    en: "Data source: Regionalstatistik (statistical offices of the Federation and the Länder)",
+    de: "Datenquelle: Regionalstatistik (Statistische Ämter des Bundes und der Länder)",
+    fr: "Source des données : Regionalstatistik (offices statistiques de la Fédération et des Länder)",
+  },
+  regGeoCaption: {
+    en: "Figures for the federal state of {region}, not this building specifically.",
+    de: "Werte für das Bundesland {region}, nicht für dieses Gebäude im Einzelnen.",
+    fr: "Valeurs pour le Land de {region}, pas pour ce bâtiment en particulier.",
+  },
   // Building master-data READ-view row labels (MasterDataSection ReadView).
   mdOperatedBy: { en: "Operated by", de: "Betrieben von", fr: "Exploité par" },
   mdOwnedBy: { en: "Owned by", de: "Eigentümer", fr: "Propriétaire" },

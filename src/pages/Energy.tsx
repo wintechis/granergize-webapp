@@ -14,6 +14,7 @@ import AnnualEnergy from "./AnnualEnergy.tsx";
 import ObservationHeader from "../components/observation/ObservationHeader.tsx";
 import WeatherData from "./WeatherData.tsx";
 import EnergyWeatherOverlay from "../components/EnergyWeatherOverlay.tsx";
+import RegionalContextSection from "../components/observation/RegionalContextSection.tsx";
 
 type EnergyProps = {
   building: BuildingType;
@@ -100,6 +101,7 @@ export default function Energy({ building }: EnergyProps) {
             : "No energy data yet. Use the “Edit energy years” button above to add a year."}
         </Typography>
         {weatherSection}
+        <RegionalContextSection building={building} />
       </Stack>
     );
   }
@@ -145,6 +147,7 @@ export default function Energy({ building }: EnergyProps) {
           : undefined}
       />
       {weatherSection}
+      <RegionalContextSection building={building} />
     </Stack>
   );
 }

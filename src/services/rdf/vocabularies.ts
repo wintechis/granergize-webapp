@@ -73,6 +73,12 @@ export const SOSA_NS = "http://www.w3.org/ns/sosa/";
 export const TIME_NS = "http://www.w3.org/2006/time#";
 export const SSN_NS = "http://www.w3.org/ns/ssn/";
 
+/** RDF Data Cube — the shape `linked-regionalstatistik` serves (see
+ * `regionalCube.ts`). Only `qb:Observation` is a fixed term; the dimension /
+ * measure predicates are table-scoped (`…/ds/{tableId}#dim-geo`, `#dim-TIME_PERIOD`,
+ * `#measure-OBS_VALUE`, `#unit`), so the parser matches them by suffix. */
+export const QB_NS = "http://purl.org/linked-data/cube#";
+
 /** QUDT units — kWh (`KiloW-HR`), m³ (`M3`), percent (`PERCENT`) on energy results. */
 export const UNIT_NS = "https://qudt.org/vocab/unit#";
 
