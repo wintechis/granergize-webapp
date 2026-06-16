@@ -54,7 +54,7 @@ function regionalstatistikBase(): string {
   // browser build. Same pattern as `solidUtils.ts`.
   const env =
     (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.VITE_REGIONALSTATISTIK_API_URL || "/regionalstatistik-api/";
+  return env?.VITE_REGIONALSTATISTIK_API_URI || "/regionalstatistik-api/";
 }
 
 /**

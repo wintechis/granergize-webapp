@@ -2,9 +2,10 @@ import { msg } from "../lib/messages.ts";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
-  WeatherParameters,
-  WetterdienstClient,
-} from "@wintechis/wetterdienst-rdf-adapter";
+  fetchNearestStations,
+  fetchStationValues,
+  WEATHER_PARAMETERS,
+} from "../services/rdf/linkedWeather.ts";
 import {
   Alert,
   Box,
@@ -25,46 +26,33 @@ import {
 } from "@mui/material";
 import WbSunnyIcon from "@mui/icons-material/WbSunny";
 import { BuildingType } from "../types.ts";
-import {
-  beginActivity,
-  endActivity,
-} from "../lib/networkActivity.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 
 interface WeatherDataProps {
   building: BuildingType;
 }
 
-const WEATHER_API_URL = import.meta.env.VITE_WEATHER_API_URL || "/weather-api/";
+const WEATHER_API_URI = import.meta.env.VITE_WEATHER_API_URI || "/weather-api/";
 
-// The weather RDF adapter the app actually queries, resolved to an absolute URI
-// (the dev proxy `/weather-api/` → its origin). Surfaced as a dev-mode source
-// link so the external data service is inspectable, mirroring the Pod links.
-const WEATHER_SOURCE_URL = WEATHER_API_URL.startsWith("http")
-  ? WEATHER_API_URL
-  : `${globalThis.location.origin}${WEATHER_API_URL}`;
+// The linked-wetterdienst wrapper the app dereferences, resolved to an absolute URI
+// (the dev proxy `/weather-api/` → its origin). Surfaced as a dev-mode source link so
+// the external data service is inspectable, mirroring the Pod links.
+const WEATHER_SOURCE_URI = WEATHER_API_URI.startsWith("http")
+  ? WEATHER_API_URI
+  : `${globalThis.location.origin}${WEATHER_API_URI}`;
 
-const wetterdienstClient = new WetterdienstClient(
-  WEATHER_API_URL.startsWith("http")
-    ? WEATHER_API_URL
-    : `${globalThis.location.origin}${WEATHER_API_URL}`,
-  3, // maxRetries
-  10000, // timeout
-  { "Accept": "application/json" }, // headers
-);
-
-// Map of parameter names to more readable titles
+// Map of parameter dataset paths to more readable titles
 const parameterTitles: Record<string, string> = {
-  [WeatherParameters.SUNSHINE_DURATION_ANNUAL]: "Sunshine Duration Annual",
-  [WeatherParameters.TEMPERATURE_MEAN_ANNUAL]: "Mean Temperature Annual",
-  [WeatherParameters.PRECIPITATION_ANNUAL]: "Precipitation Annual",
+  [WEATHER_PARAMETERS.SUNSHINE_DURATION_ANNUAL]: "Sunshine Duration Annual",
+  [WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL]: "Mean Temperature Annual",
+  [WEATHER_PARAMETERS.PRECIPITATION_ANNUAL]: "Precipitation Annual",
 };
 
-// Map of parameter names to their units
+// Map of parameter dataset paths to their units
 const parameterUnits: Record<string, string> = {
-  [WeatherParameters.SUNSHINE_DURATION_ANNUAL]: "h",
-  [WeatherParameters.TEMPERATURE_MEAN_ANNUAL]: "°C",
-  [WeatherParameters.PRECIPITATION_ANNUAL]: "mm",
+  [WEATHER_PARAMETERS.SUNSHINE_DURATION_ANNUAL]: "h",
+  [WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL]: "°C",
+  [WEATHER_PARAMETERS.PRECIPITATION_ANNUAL]: "mm",
 };
 
 /**
@@ -79,22 +67,8 @@ function useWeatherStations(building: BuildingType, parameter: string) {
   return useQuery({
     queryKey: ["weatherStations", lat, long, parameter],
     enabled: Boolean(lat) && Boolean(long),
-    queryFn: async () => {
-      const token = beginActivity("weather stations");
-      try {
-        const res = await wetterdienstClient.getStations({
-          provider: "dwd",
-          network: "observation",
-          parameters: parameter,
-          latitude: lat as number,
-          longitude: long as number,
-          rank: 5,
-        });
-        return res.stations;
-      } finally {
-        endActivity(token);
-      }
-    },
+    queryFn: () =>
+      fetchNearestStations(lat as number, long as number, 5, parameter),
   });
 }
 
@@ -103,26 +77,13 @@ function useWeatherValues(station: string | null, parameter: string) {
   return useQuery({
     queryKey: ["weatherValues", station, parameter],
     enabled: Boolean(station),
-    queryFn: async () => {
-      const token = beginActivity("weather data");
-      try {
-        return await wetterdienstClient.getValues({
-          provider: "dwd",
-          network: "observation",
-          parameters: parameter,
-          periods: "recent",
-          station: station as string,
-        });
-      } finally {
-        endActivity(token);
-      }
-    },
+    queryFn: () => fetchStationValues(station as string, parameter),
   });
 }
 
 export default function WeatherData({ building }: WeatherDataProps) {
   const [selectedParameter, setSelectedParameter] = useState<string>(
-    WeatherParameters.TEMPERATURE_MEAN_ANNUAL,
+    WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL,
   );
   const [selectedStation, setSelectedStation] = useState<string | null>(null);
 
@@ -144,7 +105,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
   }
 
   const valuesQuery = useWeatherValues(selectedStation, selectedParameter);
-  const weatherData = valuesQuery.data ?? null;
+  const values = valuesQuery.data ?? null;
   const isLoading = valuesQuery.isFetching;
 
   const queryError = stationsQuery.error ?? valuesQuery.error;
@@ -215,15 +176,15 @@ export default function WeatherData({ building }: WeatherDataProps) {
           </Alert>
         )}
 
-        {!isLoading && !error && weatherData?.values &&
-          weatherData?.values.length === 0 && (
+        {!isLoading && !error && values &&
+          values.length === 0 && (
           <Alert severity="info">
             No weather data available for the selected station and parameter.
           </Alert>
         )}
 
-        {!isLoading && !error && weatherData?.values &&
-          weatherData?.values.length > 0 && (
+        {!isLoading && !error && values &&
+          values.length > 0 && (
           <>
             <Typography variant="h6" gutterBottom>
               Recent Weather Data
@@ -239,18 +200,17 @@ export default function WeatherData({ building }: WeatherDataProps) {
                   </TableRow>
                 </TableHead>
                 <TableBody>
-                  {weatherData.values &&
-                    weatherData.values.map((item, index) => (
-                      <TableRow key={index}>
-                        <TableCell>
-                          {new Date(item.date).getFullYear()}
-                        </TableCell>
-                        <TableCell>
-                          {item.value} {parameterUnits[selectedParameter]}
-                        </TableCell>
-                        <TableCell>{item.quality}</TableCell>
-                      </TableRow>
-                    ))}
+                  {values.map((item, index) => (
+                    <TableRow key={index}>
+                      <TableCell>
+                        {new Date(item.date).getFullYear()}
+                      </TableCell>
+                      <TableCell>
+                        {item.value} {parameterUnits[selectedParameter]}
+                      </TableCell>
+                      <TableCell>{item.quality}</TableCell>
+                    </TableRow>
+                  ))}
                 </TableBody>
               </Table>
             </TableContainer>
@@ -258,7 +218,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
             <Typography variant="body2" color="text.secondary">
               Data source: Deutscher Wetterdienst (DWD)
             </Typography>
-            <RdfSourceLink href={WEATHER_SOURCE_URL} />
+            <RdfSourceLink href={WEATHER_SOURCE_URI} />
 
             <Typography
               variant="caption"

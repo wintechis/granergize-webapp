@@ -4,14 +4,13 @@
  * energy and a nearby DWD station's annual weather on the **shared year axis**, so
  * consumption can be read against the weather.
  *
- * This module is React/adapter-free — it takes the years the energy chart already
- * plots and the weather adapter's annual {@link WeatherAnnualValue}s and folds them
- * into one row-per-year overlay. The fetch (the `WetterdienstClient`, station
- * picking, the activity store) and the rendering (the second Recharts axis) live in
- * the chart component; only the alignment is here so it stays unit-testable with no
- * network.
+ * This module is React/fetch-free — it takes the years the energy chart already
+ * plots and the wrapper's annual {@link WeatherAnnualValue}s and folds them
+ * into one row-per-year overlay. The fetch (`linkedWeather.ts`, station picking) and
+ * the rendering (the second Recharts axis) live in the chart component; only the
+ * alignment is here so it stays unit-testable with no network.
  *
- * First cut = **mean temperature** (directly available from the adapter). HDD
+ * First cut = **mean temperature** (directly available from the wrapper). HDD
  * (heating-degree-days) is a deliberate follow-up: it needs a base-temperature
  * choice (a design decision), so it is NOT derived here.
  */

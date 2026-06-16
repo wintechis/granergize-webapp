@@ -119,7 +119,8 @@ test.describe("cube calendar heatmap + weather overlay", () => {
     // then EITHER the dual-axis chart (when a year has both layers) OR an honest
     // caveat (no nearby station / no overlapping year). All three are valid
     // outcomes of the live DWD lookup, so assert the title plus one of them.
-    await expect(page.getByText(en("weatherOverlayTitle")))
+    // (Role/heading, not getByText: the no-overlap caveat also contains the phrase.)
+    await expect(page.getByRole("heading", { name: en("weatherOverlayTitle") }))
       .toBeVisible({ timeout: T.action });
     await expect(async () => {
       const chart = await page.locator(".recharts-responsive-container").count();
@@ -127,5 +128,33 @@ test.describe("cube calendar heatmap + weather overlay", () => {
       const noOverlap = await page.getByText(en("weatherOverlayNoOverlap")).count();
       expect(chart + noStation + noOverlap).toBeGreaterThan(0);
     }).toPass({ timeout: T.action, intervals: [1_000] });
+  });
+
+  test("the Weather panel lists a nearby station and resolves its values", async () => {
+    test.setTimeout(T.testSolo);
+    await page.goto(buildingRoute("observation", id));
+
+    // The Weather panel (WeatherData) renders for a located building: a parameter and
+    // a station select. Their presence proves the panel mounted.
+    await expect(page.getByText(en("wdParameter")).first())
+      .toBeVisible({ timeout: T.action });
+    await expect(page.getByText(en("wdStation")).first())
+      .toBeVisible({ timeout: T.visible });
+
+    // The live linked-wetterdienst lookup (fetchNearestStations → fetchStationValues,
+    // both parsed from the wrapper's Turtle) resolves to a definite state: the values
+    // table, or an honest empty notice. Asserting one appears proves the
+    // dereference+parse path runs end-to-end against the wrapper (specific values
+    // depend on a live external service, so are not asserted).
+    await expect(async () => {
+      const table = await page.getByText("Recent Weather Data").count();
+      const noStations = await page.getByText("No weather stations found", {
+        exact: false,
+      }).count();
+      const noData = await page.getByText("No weather data available", {
+        exact: false,
+      }).count();
+      expect(table + noStations + noData).toBeGreaterThan(0);
+    }).toPass({ timeout: T.poll, intervals: [1_000] });
   });
 });

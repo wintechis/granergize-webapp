@@ -73,6 +73,15 @@ export const SOSA_NS = "http://www.w3.org/ns/sosa/";
 export const TIME_NS = "http://www.w3.org/2006/time#";
 export const SSN_NS = "http://www.w3.org/ns/ssn/";
 
+/**
+ * DWD vocabulary served by `linked-wetterdienst` (see `linkedWeather.ts`): a
+ * `dwd:WeatherStation` carries `dwd:station_id`/`dwd:station_name`, an observation
+ * carries `dwd:quality`. The QUDT *schema* namespace (`qudt:numericValue` on the
+ * `qudt:QuantityValue` result) — distinct from {@link UNIT_NS}, the unit vocabulary.
+ */
+export const DWD_NS = "https://opendata.dwd.de/#";
+export const QUDT_SCHEMA_NS = "http://qudt.org/1.1/schema/qudt#";
+
 /** RDF Data Cube — the shape `linked-regionalstatistik` serves (see
  * `regionalCube.ts`). Only `qb:Observation` is a fixed term; the dimension /
  * measure predicates are table-scoped (`…/ds/{tableId}#dim-geo`, `#dim-TIME_PERIOD`,
@@ -101,6 +110,7 @@ export const PROV_GENERATED_AT_TIME = `${PROV_NS}generatedAtTime`;
 export const INTEROP_NS = "http://www.w3.org/ns/solid/interop#";
 
 export const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
+export const RDFS_NS = "http://www.w3.org/2000/01/rdf-schema#";
 export const ACL_NS = "http://www.w3.org/ns/auth/acl#";
 
 export const XSD_NS = "http://www.w3.org/2001/XMLSchema#";

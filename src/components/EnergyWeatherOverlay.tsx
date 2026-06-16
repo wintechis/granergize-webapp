@@ -1,6 +1,10 @@
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { WeatherParameters, WetterdienstClient } from "@wintechis/wetterdienst-rdf-adapter";
+import {
+  fetchNearestStations,
+  fetchStationValues,
+  WEATHER_PARAMETERS,
+} from "../services/rdf/linkedWeather.ts";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Stack from "@mui/material/Stack";
@@ -27,7 +31,6 @@ import {
   hasOverlap,
   weatherByYear,
 } from "../services/rdf/energyWeather.ts";
-import { beginActivity, endActivity } from "../lib/networkActivity.ts";
 import { ELECTRICITY_COLOR } from "../constants/chartColors.ts";
 
 /**
@@ -36,10 +39,10 @@ import { ELECTRICITY_COLOR } from "../constants/chartColors.ts";
  * drawn on ONE year axis (a second, right-hand axis for °C), so consumption can be
  * read against the weather (the cross-layer superimpose guise).
  *
- * The weather path REUSES the existing adapter (`WetterdienstClient`) the way
- * `WeatherData.tsx` does — nearest-station-by-coordinates, then annual values —
- * feeding the global activity store (`beginActivity`/`endActivity`); there is no
- * new adapter. The energy side reads the SELECTED metric's absolute figure per year
+ * The weather path dereferences the `linked-wetterdienst` wrapper the way
+ * `WeatherData.tsx` does (via `linkedWeather.ts`) — nearest-station-by-coordinates,
+ * then annual values; the fetch is tracked by `trackedFetch`. The energy side reads
+ * the SELECTED metric's absolute figure per year
  * (`metricRawAtYear` over `useAnnualEnergyByYear`) — the same cube and measure axis
  * the map's cube views honour, so a metric choice generalises both in one place.
  *
@@ -48,17 +51,6 @@ import { ELECTRICITY_COLOR } from "../constants/chartColors.ts";
  * and the dual-axis render. First cut = mean temperature; heating-degree-days is a
  * noted follow-up (it needs a base-temperature choice).
  */
-
-const WEATHER_API_URL = import.meta.env.VITE_WEATHER_API_URL || "/weather-api/";
-
-const wetterdienstClient = new WetterdienstClient(
-  WEATHER_API_URL.startsWith("http")
-    ? WEATHER_API_URL
-    : `${globalThis.location.origin}${WEATHER_API_URL}`,
-  3, // maxRetries
-  10000, // timeout
-  { "Accept": "application/json" },
-);
 
 const TEMP_COLOR = "#d95f02"; // warm orange — the weather axis, distinct from energy
 
@@ -73,20 +65,13 @@ function useNearestStation(building: BuildingType) {
     queryKey: ["overlayWeatherStation", lat, long],
     enabled: Boolean(lat) && Boolean(long),
     queryFn: async () => {
-      const token = beginActivity("weather station");
-      try {
-        const res = await wetterdienstClient.getStations({
-          provider: "dwd",
-          network: "observation",
-          parameters: WeatherParameters.TEMPERATURE_MEAN_ANNUAL,
-          latitude: lat as number,
-          longitude: long as number,
-          rank: 1,
-        });
-        return res.stations[0] ?? null;
-      } finally {
-        endActivity(token);
-      }
+      const stations = await fetchNearestStations(
+        lat as number,
+        long as number,
+        1,
+        WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL,
+      );
+      return stations[0] ?? null;
     },
   });
 }
@@ -96,21 +81,11 @@ function useStationTemperatures(stationId: string | null) {
   return useQuery({
     queryKey: ["overlayWeatherValues", stationId],
     enabled: Boolean(stationId),
-    queryFn: async () => {
-      const token = beginActivity("weather data");
-      try {
-        const res = await wetterdienstClient.getValues({
-          provider: "dwd",
-          network: "observation",
-          parameters: WeatherParameters.TEMPERATURE_MEAN_ANNUAL,
-          periods: "recent",
-          station: stationId as string,
-        });
-        return res.values ?? [];
-      } finally {
-        endActivity(token);
-      }
-    },
+    queryFn: () =>
+      fetchStationValues(
+        stationId as string,
+        WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL,
+      ),
   });
 }
 
