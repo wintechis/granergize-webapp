@@ -14,12 +14,15 @@ import {
   toggleBuildingVisibility,
 } from "../services/interop/sharingManager.ts";
 import {
-  auditGrants,
   reconcileBuildingGrants,
   reissueGrants,
   shareAggregation,
-  shareBuildingData,
 } from "../services/interop/share.ts";
+import {
+  shareBuildingCore,
+  type ShareBuildingParams,
+} from "../intents/shareBuilding.ts";
+import { checkSharingConsistencyCore } from "../intents/checkSharingConsistency.ts";
 import { logError } from "../lib/logError.ts";
 import { drainInbox } from "../services/interop/inbox.ts";
 import {
@@ -71,7 +74,6 @@ import {
 import {
   addContact,
   type Contact,
-  rememberAgent,
   removeContact,
 } from "../services/contacts.ts";
 import { seedDemoContacts, seedDemoRooms } from "../services/demoConnect.ts";
@@ -463,22 +465,10 @@ export function useShareBuilding() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionShareBuilding", silent: true },
-    mutationFn: async (vars: {
-      buildingUri: string;
-      recipients: string[];
-      includeEnergyData: boolean;
-      years?: number[];
-    }) => {
-      const session = getSession();
-      for (const recipient of vars.recipients) {
-        await shareBuildingData(vars.buildingUri, recipient, session, {
-          includeEnergyData: vars.includeEnergyData,
-          years: vars.years,
-        });
-        // Auto-remember the recipient in the address book (fire-and-forget).
-        void rememberAgent(session, recipient);
-      }
-    },
+    // Thin adapter over the React-free core (src/intents/shareBuilding.ts): the
+    // core owns the Pod-request composition; the hook keeps only busy state, the
+    // central toast, and the sharedOutLog invalidation.
+    mutationFn: (vars: ShareBuildingParams) => shareBuildingCore(getSession(), vars),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog }),
   });
 }
@@ -836,7 +826,7 @@ export function useExportArchive() {
 
 /**
  * Dev-mode: dry-run diff of the `.acl` projection against the shared-out log
- * (see {@link auditGrants}).
+ * (see {@link checkSharingConsistencyCore}).
  * @operation query — an imperative READ-intent like {@link useExportArchive}.
  * Deliberately not a `useQuery`: every click must re-read the Pod — a cached
  * audit would report stale consistency. The caller renders the verdict.
@@ -844,6 +834,10 @@ export function useExportArchive() {
 export function useAuditGrants() {
   return useMutation({
     meta: { action: "actionCheckSharing" },
-    mutationFn: () => auditGrants(getSession()),
+    // Thin adapter over the React-free read core
+    // (src/intents/checkSharingConsistency.ts): the core returns the drift
+    // report value; the hook keeps only busy state + the central toast (a read
+    // declares no invalidation).
+    mutationFn: () => checkSharingConsistencyCore(getSession()),
   });
 }
