@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, hasAccount, login, LOGIN_HEADING } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { watchAppErrors } from "../helpers/errorGuard.ts";
@@ -48,7 +49,7 @@ test.describe("session restore", () => {
 
     // Establish a real, restorable session.
     await login(page, ACC);
-    await expect(page.getByRole("tab", { name: "Buildings" })).toBeVisible({
+    await expect(page.getByRole("tab", { name: en("navBuildings") })).toBeVisible({
       timeout: T.action,
     });
     assertNoAppErrors();

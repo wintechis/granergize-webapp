@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,
@@ -59,7 +60,7 @@ test.describe("redesign: observations finder", () => {
     await addEnergyYear(page, ADDR, YEAR, "12345");
 
     // The Observations finder lists buildings that carry energy data.
-    await page.getByRole("tab", { name: "Observations" }).click();
+    await page.getByRole("tab", { name: en("navObservations") }).click();
     const row = page.locator("li[data-building-id]", { hasText: ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
     const id = await buildingIdOf(row);

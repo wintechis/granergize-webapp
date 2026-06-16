@@ -1,3 +1,4 @@
+import { en } from "../helpers/i18n.ts";
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -105,7 +106,7 @@ test.describe("building form + energy entry", () => {
 
     // (1)(2) The one generic form always offers the full field set, including the
     // Heating systems section — no role/template gating.
-    await expect(add.getByText("Heating systems", { exact: true }))
+    await expect(add.getByText(en("secHeatingSystems")))
       .toBeVisible({ timeout: T.visible });
     await expect(add.getByLabel(/heat pump/i)).toBeVisible();
 

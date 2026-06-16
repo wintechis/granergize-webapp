@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { en } from "./i18n.ts";
 import { buildingRows, openBuildingsList } from "./manage.ts";
 import { confirmDialog } from "./confirm.ts";
 import { logRun } from "./consoleLog.ts";
@@ -106,7 +107,7 @@ export async function wipeCollection(
     if (reload) {
       await page.reload();
       // Wait until logged back in (tabs present) so ensureOwnInbox has re-run.
-      await expect(page.getByRole("tab", { name: "Buildings" }))
+      await expect(page.getByRole("tab", { name: en("navBuildings") }))
         .toBeVisible({ timeout: T.action });
       logRun(`clean-slate wipe [${tag}]: reloaded, inbox re-provisioned`);
     }
@@ -129,7 +130,7 @@ export async function wipeCollection(
 async function returnToShell(page: Page): Promise<boolean> {
   if (page.isClosed()) return false;
   await page.goto("/").catch(() => {});
-  return await page.getByRole("tab", { name: "Buildings" })
+  return await page.getByRole("tab", { name: en("navBuildings") })
     .waitFor({ state: "visible", timeout: T.action })
     .then(() => true)
     .catch(() => false);

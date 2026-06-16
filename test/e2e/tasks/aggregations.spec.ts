@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -96,18 +97,18 @@ test.describe("energy view smoke", () => {
     // no tabs) — return to the shell before reaching for a tab.
     await page.goto("/");
     await openBuildingsList(page);
-    await expect(page.getByRole("heading", { name: "Your buildings" }))
+    await expect(page.getByRole("heading", { name: en("headingYourBuildings") }))
       .toBeVisible({ timeout: T.action });
     await expect(page.locator("li[data-building-id]").first())
       .toBeVisible({ timeout: T.action });
     await openAggregations(page);
-    await expect(page.getByRole("heading", { name: "Aggregations" }))
+    await expect(page.getByRole("heading", { name: en("navAggregations") }))
       .toBeVisible({ timeout: T.action });
   });
 
   test("the Sharing finder renders (folds the shared-in/ log)", async () => {
-    await page.getByRole("tab", { name: "Sharing" }).click();
-    await expect(page.getByRole("heading", { name: "Buildings shared with you" }))
+    await page.getByRole("tab", { name: en("navSharing") }).click();
+    await expect(page.getByRole("heading", { name: en("sharedBuildingsHeading") }))
       .toBeVisible({ timeout: T.action });
   });
 

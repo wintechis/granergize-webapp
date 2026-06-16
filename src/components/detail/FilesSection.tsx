@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { Button } from "@mui/material";
 import type { AttachmentRef, BuildingType } from "../../types.ts";
 import { RdfSourceLink, SectionTitle } from "./DetailView.tsx";
@@ -21,7 +22,7 @@ export default function FilesSection({ building }: { building: BuildingType }) {
 
   return (
     <>
-      <SectionTitle divider>Files</SectionTitle>
+      <SectionTitle divider>{msg("secFiles")}</SectionTitle>
       <ul style={listStyle}>
         {attachments.map((a) => (
           <li key={a.url} style={rowStyle}>

@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -48,7 +49,7 @@ test.describe("data rooms", () => {
     page.on("dialog", (d) => d.accept());
     await login(page, A);
     await assertCleanStart(page);
-    await page.getByRole("tab", { name: "Meet" }).click();
+    await page.getByRole("tab", { name: en("navMeet") }).click();
   });
 
   test.afterAll(async () => {
@@ -78,7 +79,7 @@ test.describe("data rooms", () => {
    * directly from a room page would never find the tab. */
   async function openConnect() {
     if (/\/room\?/.test(page.url())) await page.goto("/rooms");
-    await page.getByRole("tab", { name: "Meet" }).click();
+    await page.getByRole("tab", { name: en("navMeet") }).click();
   }
 
   /**
@@ -136,7 +137,7 @@ test.describe("data rooms", () => {
     await openRoomPage(uri);
     await expect(page.getByRole("combobox", { name: "My role(s)" }))
       .toBeVisible({ timeout: SETTLE });
-    await expect(page.getByRole("heading", { name: "Members" }))
+    await expect(page.getByRole("heading", { name: en("secMembers") }))
       .toBeVisible();
 
     // Leave from the page footer; on success it navigates back off the room page

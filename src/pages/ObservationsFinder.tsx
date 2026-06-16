@@ -56,7 +56,7 @@ export default function ObservationsFinder() {
       component="section"
       sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}
     >
-      <Typography variant="h6" sx={{ mb: 1 }}>Observations</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>{t("navObservations")}</Typography>
       {rdf && <RdfSourceLink href={rdf.observations} />}
       {isLoading
         ? <Typography variant="body2">Loading…</Typography>

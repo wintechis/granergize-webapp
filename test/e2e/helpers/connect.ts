@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { en } from "./i18n.ts";
 import { T } from "./timeouts.ts";
 import { roomRoute } from "../../../src/routes.ts";
 
@@ -20,7 +21,7 @@ import { roomRoute } from "../../../src/routes.ts";
  * clicking the Rooms tab directly from there would never find the tab. */
 async function gotoRooms(page: Page): Promise<void> {
   if (/\/room\?/.test(page.url())) await page.goto("/rooms");
-  await page.getByRole("tab", { name: "Meet" }).click();
+  await page.getByRole("tab", { name: en("navMeet") }).click();
 }
 
 /** On the Connect tab, ensure a room exists (host one if none) and return ITS

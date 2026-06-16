@@ -1,3 +1,4 @@
+import { en } from "../helpers/i18n.ts";
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -53,9 +54,9 @@ test.describe("redesign: building page", () => {
     await page.goto(buildingRoute("building", id));
     // Owned badge in the header, plus the section headings of the scrolling building page.
     await expect(page.getByText("Owned")).toBeVisible({ timeout: T.action });
-    await expect(page.getByRole("heading", { name: "Energy" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Files" })).toBeVisible();
-    await expect(page.getByRole("heading", { name: "Sharing" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: en("secEnergy") })).toBeVisible();
+    await expect(page.getByRole("heading", { name: en("secFiles") })).toBeVisible();
+    await expect(page.getByRole("heading", { name: en("secSharing") })).toBeVisible();
   });
 
   test("master data edits inline on the page (no modal)", async () => {
@@ -88,7 +89,7 @@ test.describe("redesign: building page", () => {
     await expect(row).toBeVisible({ timeout: T.action });
     await row.getByRole("link").first().click();
     await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
-    await expect(page.getByRole("heading", { name: "Files" })).toBeVisible();
+    await expect(page.getByRole("heading", { name: en("secFiles") })).toBeVisible();
   });
 
   test("the list row is a finder — navigate + Delete only (other actions on the page)", async () => {

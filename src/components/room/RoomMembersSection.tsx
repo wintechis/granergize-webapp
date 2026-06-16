@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { Box, Typography } from "@mui/material";
 import type { DataRoomMember } from "../../services/interop/dataRoom.ts";
 import { roleLabel } from "../../constants/roles.ts";
@@ -14,7 +15,7 @@ export default function RoomMembersSection(
 ) {
   return (
     <Box>
-      <SectionTitle>Members</SectionTitle>
+      <SectionTitle>{msg("secMembers")}</SectionTitle>
       {members.length === 0
         ? (
           <Typography variant="body2" color="text.secondary">

@@ -272,7 +272,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
   return (
     <Box component="section" sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}>
       <Typography variant="h6" sx={{ mb: 1 }}>
-        Buildings shared with you
+        {t("sharedBuildingsHeading")}
       </Typography>
       {collections && <RdfSourceLink href={collections.sharedIn} />}
       <Stack
@@ -371,7 +371,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
       <Pager paging={sharedPaging} />
 
       <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
-        Aggregations shared with you
+        {t("sharedAggregationsHeading")}
       </Typography>
       {receivedAggregationsQuery.isLoading
         ? <Typography variant="body2">Loading…</Typography>
@@ -399,7 +399,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
           Developer-mode only: this exposes the raw transport container. */}
       {dev && collections && (
         <>
-          <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>Your inbox</Typography>
+          <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>{t("headingInbox")}</Typography>
           <RdfSourceLink href={collections.inbox} />
         </>
       )}

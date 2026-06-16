@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
+import { en } from "./i18n.ts";
 import { T } from "./timeouts.ts";
 import { confirmDialog } from "./confirm.ts";
 import {
@@ -28,7 +29,7 @@ export const buildingIdOf = (row: Locator): Promise<string | null> =>
  * reaching the list is now: select the Buildings tab, then toggle to List.
  */
 export async function openBuildingsList(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Buildings" }).click();
+  await page.getByRole("tab", { name: en("navBuildings") }).click();
   await page.getByRole("button", { name: "List" }).click();
 }
 
@@ -39,7 +40,7 @@ export async function openBuildingsList(page: Page): Promise<void> {
  * select the tab then the Map toggle explicitly.
  */
 export async function openBuildingsMap(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Buildings" }).click();
+  await page.getByRole("tab", { name: en("navBuildings") }).click();
   await page.getByRole("button", { name: "Map", exact: true }).click();
 }
 
@@ -49,7 +50,7 @@ export async function openBuildingsMap(page: Page): Promise<void> {
  * create / share / detail aggregation flows.
  */
 export async function openAggregations(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: "Aggregations" }).click();
+  await page.getByRole("tab", { name: en("navAggregations") }).click();
 }
 
 /**

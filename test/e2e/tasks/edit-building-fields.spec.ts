@@ -1,3 +1,4 @@
+import { en } from "../helpers/i18n.ts";
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
@@ -74,9 +75,9 @@ test.describe("edit building operating costs + certifications", () => {
     // render for every building — one generic form, no role gating).
     await page.goto(buildingRoute("building", id));
     await page.getByRole("button", { name: /^edit$/i }).first().click();
-    await expect(page.getByText("Operating costs", { exact: true }))
+    await expect(page.getByText(en("secOperatingCosts")))
       .toBeVisible({ timeout: T.visible });
-    await expect(page.getByText("Certifications", { exact: true })).toBeVisible();
+    await expect(page.getByText(en("secCertifications"))).toBeVisible();
 
     // Fill an operating-cost figure and the first certification, then save.
     // The cert type is a select over the known systems (it mints an IRI local
@@ -121,8 +122,8 @@ test.describe("edit building operating costs + certifications", () => {
     // fields write the `<#pv>` :PVSystem node, not flat building fields).
     await page.goto(buildingRoute("building", id));
     await page.getByRole("button", { name: /^edit$/i }).first().click();
-    await page.getByLabel("PV capacity (kW)", { exact: true }).fill("500");
-    await page.getByLabel("PV commissioning year", { exact: true }).fill("2020");
+    await page.getByLabel(en("lblPvCapacity"), { exact: true }).fill("500");
+    await page.getByLabel(en("lblPvCommissioning"), { exact: true }).fill("2020");
     await page.getByRole("button", { name: /^save$/i }).click();
     await expect(page.getByText(/building updated/i))
       .toBeVisible({ timeout: T.action });
@@ -133,9 +134,9 @@ test.describe("edit building operating costs + certifications", () => {
 
     // Re-open the editor: the values round-tripped through the <#pv> node's Turtle.
     await page.getByRole("button", { name: /^edit$/i }).first().click();
-    await expect(page.getByLabel("PV capacity (kW)", { exact: true }))
+    await expect(page.getByLabel(en("lblPvCapacity"), { exact: true }))
       .toHaveValue("500", { timeout: T.visible });
-    await expect(page.getByLabel("PV commissioning year", { exact: true }))
+    await expect(page.getByLabel(en("lblPvCommissioning"), { exact: true }))
       .toHaveValue("2020");
     await page.getByRole("button", { name: /^cancel$/i }).click();
 

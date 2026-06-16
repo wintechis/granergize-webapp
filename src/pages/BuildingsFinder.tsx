@@ -107,7 +107,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
     // Build the "what will be removed" preview, confirm, then delete (the
     // confirm lives here, not in the service — same pattern as handleRevoke).
     const { message } = await buildBuildingDeletionPreview(session, building);
-    if (!await confirm({ title: "Delete building", message, confirmLabel: "Delete" })) {
+    if (!await confirm({ title: msg("dlgDeleteBuilding"), message, confirmLabel: "Delete" })) {
       return;
     }
     deleteBuilding.mutate(building, {
@@ -118,7 +118,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   const handleRevoke = async (buildingUri: string, webId: string) => {
     if (
       !await confirm({
-        title: "Revoke access",
+        title: msg("dlgRevokeAccess"),
         message: `Revoke access for ${webId}?`,
         confirmLabel: "Revoke",
       })
@@ -179,7 +179,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
       {buildingsView === "list" && (
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
           <Box component="section" sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 1 }}>Your buildings</Typography>
+            <Typography variant="h6" sx={{ mb: 1 }}>{t("headingYourBuildings")}</Typography>
             {rdf && <RdfSourceLink href={rdf.buildings} />}
             <Stack
               direction="row"

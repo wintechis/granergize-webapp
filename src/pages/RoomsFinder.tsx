@@ -123,7 +123,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   const handleDeleteRoom = async (room: string) => {
     if (
       !await confirm({
-        title: "Delete data room",
+        title: msg("dlgDeleteRoom"),
         message:
           "Delete this data room for everyone? This removes the data room and its " +
           "entire membership and role history. This cannot be undone.",
@@ -198,7 +198,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
           Each row opens the room's detail page (`/room/:uri`, where entering,
           roles, members and the invite QR live); the trailing action is delete
           (owned) or remove-from-list. */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Your data rooms</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>{t("headingYourRooms")}</Typography>
       {rdf && <RdfSourceLink href={rdf.bookmarks} />}
       <Stack
         direction="row"

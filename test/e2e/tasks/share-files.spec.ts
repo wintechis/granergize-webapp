@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -49,7 +50,7 @@ async function downloadSharedFile(page: Page): Promise<void> {
   // surfaces — replaces a blind write→read cooldown at the call sites. The download
   // itself fires once, after the file is confirmed present.
   await reloadUntil(page, async () => {
-    await page.getByRole("tab", { name: "Sharing" }).click();
+    await page.getByRole("tab", { name: en("navSharing") }).click();
     await expect(page.getByText("sample.pdf")).toBeVisible({
       timeout: T.action,
     });

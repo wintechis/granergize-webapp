@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -107,7 +108,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     test.setTimeout(T.testSolo);
     // Pick a non-default finder (Rooms) — the app lands on /buildings, so
     // restoring Rooms proves the route round-trips, not just the default.
-    const roomsTab = page.getByRole("tab", { name: "Meet" });
+    const roomsTab = page.getByRole("tab", { name: en("navMeet") });
     await roomsTab.click();
     await expect(roomsTab).toHaveAttribute("aria-selected", "true", {
       timeout: T.action,
@@ -117,7 +118,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     await page.reload();
 
     // Same finder after reload — not back on the default Buildings finder.
-    await expect(page.getByRole("tab", { name: "Meet" }))
+    await expect(page.getByRole("tab", { name: en("navMeet") }))
       .toHaveAttribute("aria-selected", "true", { timeout: T.action });
     expect(page.url()).toContain("/rooms");
   });
@@ -131,7 +132,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     // here. The Map/List view is URL state (`?view=list`; Map is the implicit
     // default), and goto("/") drops the query, so we're already on Map; the
     // explicit toggle is belt-and-suspenders.
-    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("tab", { name: en("navBuildings") }).click();
     await page.getByRole("button", { name: "Map" }).click();
 
     // The map is a pure finder: clicking the (only) marker NAVIGATES to the
@@ -158,12 +159,12 @@ test.describe("URI-encoded navigational state survives reload", () => {
     // List is URL state now (?view=list) — switching writes it.
     await page.getByRole("button", { name: "List" }).click();
     await expect(page).toHaveURL(/view=list/, { timeout: T.action });
-    await expect(page.getByRole("heading", { name: "Your buildings" }))
+    await expect(page.getByRole("heading", { name: en("headingYourBuildings") }))
       .toBeVisible({ timeout: T.action });
     // A genuine reload restores List — not the default Map.
     await page.reload();
     await expect(page).toHaveURL(/view=list/, { timeout: T.action });
-    await expect(page.getByRole("heading", { name: "Your buildings" }))
+    await expect(page.getByRole("heading", { name: en("headingYourBuildings") }))
       .toBeVisible({ timeout: T.action });
   });
 

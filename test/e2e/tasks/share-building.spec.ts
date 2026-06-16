@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
@@ -87,7 +88,7 @@ test.describe("sharing across two pods", () => {
           // No blind write→read cooldown: poll B's view, reloading to re-drain the
           // inbox each attempt, until A's grant propagates and folds in.
           await reloadUntil(b2.page, async () => {
-            await b2.page.getByRole("tab", { name: "Sharing" }).click();
+            await b2.page.getByRole("tab", { name: en("navSharing") }).click();
             await expect(received.getByText(/^Building /))
               .toBeVisible({ timeout: T.action });
           });
@@ -200,7 +201,7 @@ test.describe("sharing across two pods", () => {
           // No blind write→read cooldown: poll B's view, reloading to re-drain the
           // inbox each attempt, until A's grant propagates and folds in.
           await reloadUntil(b2.page, async () => {
-            await b2.page.getByRole("tab", { name: "Sharing" }).click();
+            await b2.page.getByRole("tab", { name: en("navSharing") }).click();
             await expect(received.getByText(/^Building /))
               .toBeVisible({ timeout: T.action });
           });
@@ -235,7 +236,7 @@ test.describe("sharing across two pods", () => {
         }).toPass({ timeout: T.poll });
 
         // Show → row reads "Shown" again and the marker returns.
-        await b2.page.getByRole("tab", { name: "Sharing" }).click();
+        await b2.page.getByRole("tab", { name: en("navSharing") }).click();
         await expect(sharedRow.getByText("Hidden")).toBeVisible({
           timeout: T.action,
         });
@@ -423,7 +424,7 @@ test.describe("sharing across two pods", () => {
       // → drainInbox), so B drains the revocation without a second ~OIDC login.
       const b = await freshPage(browser, B);
       try {
-        await b.page.getByRole("tab", { name: "Sharing" }).click();
+        await b.page.getByRole("tab", { name: en("navSharing") }).click();
         const received = () =>
           b.page.getByRole("list", { name: /buildings shared with you/i });
         try {
@@ -448,7 +449,7 @@ test.describe("sharing across two pods", () => {
         try {
           // B owned nothing else, so the received list must have no building rows.
           await reloadUntil(b.page, async () => {
-            await b.page.getByRole("tab", { name: "Sharing" }).click();
+            await b.page.getByRole("tab", { name: en("navSharing") }).click();
             expect(await received().getByText(/^Building /).count()).toBe(0);
           });
         } catch (timeout) {

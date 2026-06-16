@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import {
   Alert,
   Box,
@@ -49,7 +50,7 @@ export default function AggregationResultsSection(
 
   return (
     <Box>
-      <SectionTitle>Results</SectionTitle>
+      <SectionTitle>{msg("secResults")}</SectionTitle>
       <Box sx={{ mt: 1 }}>
         {snapshot && chartRows.length === 0 && (
           // A snapshot can legitimately compute to NO values — the selected

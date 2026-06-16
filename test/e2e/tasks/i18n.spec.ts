@@ -35,7 +35,7 @@ test.describe("app-chrome i18n: language switcher", () => {
       // Contacts is empty on a clean start → its migrated empty-state shows. Assert
       // against the CATALOG (en form), not a hardcoded copy, so the spec can't drift
       // from the message — `en("contactsEmpty")` is the single source of truth.
-      await page.getByRole("tab", { name: "Contacts" }).click();
+      await page.getByRole("tab", { name: en("navContacts") }).click();
       const englishEmpty = page.getByText(en("contactsEmpty"));
       await expect(englishEmpty).toBeVisible({ timeout: T.action });
 
@@ -61,7 +61,9 @@ test.describe("app-chrome i18n: language switcher", () => {
         ),
       ).toBe("de");
       await page.reload();
-      await page.getByRole("tab", { name: "Contacts" }).click();
+      // The locale persisted as German, so the NAV labels are German too now —
+      // click the Contacts tab by its German label (`Kontakte`), not the en form.
+      await page.getByRole("tab", { name: translate("de", "navContacts") }).click();
       await expect(page.getByText(translate("de", "contactsEmpty")))
         .toBeVisible({ timeout: T.login }); // reload re-runs the session restore
     } finally {

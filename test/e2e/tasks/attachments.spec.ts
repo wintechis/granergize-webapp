@@ -1,3 +1,4 @@
+import { en } from "../helpers/i18n.ts";
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -64,7 +65,7 @@ test.describe("building file attachments", () => {
 
     // Files live in the building page's Files section now (no per-row dialog).
     await page.goto(buildingRoute("building", id));
-    await expect(page.getByRole("heading", { name: "Files" }))
+    await expect(page.getByRole("heading", { name: en("secFiles") }))
       .toBeVisible({ timeout: T.action });
 
     // Upload the fixture (the file input is hidden; set it directly).

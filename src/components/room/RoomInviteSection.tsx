@@ -37,7 +37,7 @@ export default function RoomInviteSection({ roomUri }: { roomUri: string }) {
 
   return (
     <Box>
-      <SectionTitle>Invite</SectionTitle>
+      <SectionTitle>{msg("secInvite")}</SectionTitle>
       <QRCodeSVG value={inviteLink} size={160} />
       <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
         Show this QR code, or copy the invite link, so others can join this data

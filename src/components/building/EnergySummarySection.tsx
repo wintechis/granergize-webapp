@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { Box, Stack, Typography } from "@mui/material";
 import ShowChartIcon from "@mui/icons-material/ShowChart";
 import type { BuildingType } from "../../types.ts";
@@ -21,7 +22,7 @@ export default function EnergySummarySection(
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 1 }}>Energy</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>{msg("secEnergy")}</Typography>
       {years.length === 0
         ? (
           <Typography variant="body2" color="text.secondary">

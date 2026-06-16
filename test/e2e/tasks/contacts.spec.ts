@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { addBuilding, buildingRows, openBuildingsList } from "../helpers/manage.ts";
@@ -73,7 +74,7 @@ test.describe("contacts address book + auto-remember", () => {
 
   test("a contact can be added by WebID and removed", async () => {
     test.setTimeout(T.testSolo);
-    await page.getByRole("tab", { name: "Contacts" }).click();
+    await page.getByRole("tab", { name: en("navContacts") }).click();
 
     await page.getByLabel("WebID", { exact: true }).fill(CONTACT);
     await page.getByRole("button", { name: "Add contact" }).click();
@@ -100,8 +101,8 @@ test.describe("contacts address book + auto-remember", () => {
     // The operator shows up in the Contacts finder (auto-remember is a fire-and-
     // forget resolve+write, so poll by re-opening the finder until it lands).
     await expect(async () => {
-      await page.getByRole("tab", { name: "Buildings" }).click();
-      await page.getByRole("tab", { name: "Contacts" }).click();
+      await page.getByRole("tab", { name: en("navBuildings") }).click();
+      await page.getByRole("tab", { name: en("navContacts") }).click();
       await expect(contactsList(page).locator("li", { hasText: "OperatorBob" }))
         .toBeVisible({ timeout: T.quick });
     }).toPass({ timeout: T.poll });

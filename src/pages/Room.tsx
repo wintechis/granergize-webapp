@@ -88,7 +88,7 @@ export default function Room(
   const handleDelete = async () => {
     if (
       !await confirm({
-        title: "Delete data room",
+        title: msg("dlgDeleteRoom"),
         message:
           "Delete this data room for everyone? This removes the data room and " +
           "its entire membership and role history. This cannot be undone.",

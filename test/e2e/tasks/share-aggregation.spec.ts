@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -77,7 +78,7 @@ test.describe("aggregation sharing across two pods", () => {
       const b2 = await freshPage(browser, B);
       try {
         await reloadUntil(b2.page, async () => {
-          await b2.page.getByRole("tab", { name: "Sharing" }).click();
+          await b2.page.getByRole("tab", { name: en("navSharing") }).click();
           await expect(receivedAggregations(b2.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.action });
         });
@@ -200,7 +201,7 @@ test.describe("aggregation sharing across two pods", () => {
       //    propagates and folds in, then reads its values — no blind cooldown ──
       try {
         await reloadUntil(b.page, async () => {
-          await b.page.getByRole("tab", { name: "Sharing" }).click();
+          await b.page.getByRole("tab", { name: en("navSharing") }).click();
           await expect(receivedAggregations(b.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.action });
         });
@@ -232,7 +233,7 @@ test.describe("aggregation sharing across two pods", () => {
         // Positive empty-state assertion: the section's empty notice is shown
         // (the list is absent when empty) AND the aggregation is gone.
         await reloadUntil(b.page, async () => {
-          await b.page.getByRole("tab", { name: "Sharing" }).click();
+          await b.page.getByRole("tab", { name: en("navSharing") }).click();
           await expect(
             b.page.getByText(/no aggregations shared with you yet/i),
           ).toBeVisible({ timeout: T.action });

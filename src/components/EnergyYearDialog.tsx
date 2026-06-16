@@ -262,7 +262,7 @@ export default function EnergyYearDialog(
   const handleDelete = async (d: EnergyDataset) => {
     if (
       !await confirm({
-        title: "Delete energy data",
+        title: msg("dlgDeleteEnergy"),
         message: `Delete the ${scenarioLabel(d.scenario)} figures for ${d.year}?`,
         confirmLabel: "Delete",
       })

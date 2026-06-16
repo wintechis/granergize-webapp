@@ -136,14 +136,14 @@ export default function EditBuildingDialog(
           }}
         />
 
-        {sectionHeader("Operating costs")}
+        {sectionHeader(msg("secOperatingCosts"))}
         {OPCOST_FIELDS.map((f) =>
           f.bool
             ? <Box key={f.key}>{check(f.label, `_opcost_${f.key}`)}</Box>
             : <Box key={f.key}>{tf(f.label, `_opcost_${f.key}`)}</Box>
         )}
 
-        {sectionHeader("Certifications")}
+        {sectionHeader(msg("secCertifications"))}
         {Array.from({ length: certCount }, (_, i) => (
           <Box key={i} sx={{ mb: 1.5 }}>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>

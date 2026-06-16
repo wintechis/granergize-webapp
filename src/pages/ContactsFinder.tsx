@@ -97,7 +97,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
   return (
     <Box component="section" sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}>
       {/* Contacts — a personal address book of WebID agents. */}
-      <Typography variant="h6" sx={{ mb: 1 }}>Contacts</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>{t("navContacts")}</Typography>
       {rdf && <RdfSourceLink href={rdf.contacts} />}
       <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 1 }}>
         <TextField

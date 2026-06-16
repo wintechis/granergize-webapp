@@ -44,7 +44,7 @@ export default function SharingSection(
   const handleRevoke = async (webId: string) => {
     if (
       !await confirm({
-        title: "Revoke access",
+        title: msg("dlgRevokeAccess"),
         message: `Revoke access for ${webId}?`,
         confirmLabel: "Revoke",
       })
@@ -62,7 +62,7 @@ export default function SharingSection(
         direction="row"
         sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}
       >
-        <Typography variant="h6">Sharing</Typography>
+        <Typography variant="h6">{msg("secSharing")}</Typography>
         <Button
           size="small"
           startIcon={<ShareIcon fontSize="small" />}

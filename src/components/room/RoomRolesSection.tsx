@@ -54,7 +54,7 @@ export default function RoomRolesSection(
 
   return (
     <Box>
-      <SectionTitle>My role(s)</SectionTitle>
+      <SectionTitle>{msg("secMyRoles")}</SectionTitle>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
         Assign or change your role(s) anytime — this is how others share data
         with you by role.

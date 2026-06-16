@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { Button } from "@mui/material";
 import MyLocationIcon from "@mui/icons-material/MyLocation";
 import type { BuildingFieldHelpers } from "./buildingFields.tsx";
@@ -32,13 +33,13 @@ export function BuildingAddressFields(
   const { tf, sectionHeader } = f;
   return (
     <>
-      {sectionHeader("Address")}
-      {tf("Street address", "streetAddress", { required: isRequired("streetAddress") })}
-      {tf("Locality (city)", "locality", { required: isRequired("locality") })}
-      {tf("Postal code", "postalCode", { required: isRequired("postalCode") })}
-      {tf("Region (state)", "region", { required: isRequired("region") })}
+      {sectionHeader(msg("secAddress"))}
+      {tf(msg("lblStreetAddress"), "streetAddress", { required: isRequired("streetAddress") })}
+      {tf(msg("lblLocality"), "locality", { required: isRequired("locality") })}
+      {tf(msg("lblPostalCode"), "postalCode", { required: isRequired("postalCode") })}
+      {tf(msg("lblRegion"), "region", { required: isRequired("region") })}
 
-      {sectionHeader("Location and Physical")}
+      {sectionHeader(msg("secLocationPhysical"))}
       <Button
         variant="outlined"
         startIcon={<MyLocationIcon />}
@@ -48,38 +49,38 @@ export function BuildingAddressFields(
       >
         {geocode.busy ? "Looking up…" : geocode.label}
       </Button>
-      {tf("Latitude", "lat", { type: "number", required: isRequired("lat") })}
-      {tf("Longitude", "long", { type: "number", required: isRequired("long") })}
+      {tf(msg("lblLatitude"), "lat", { type: "number", required: isRequired("lat") })}
+      {tf(msg("lblLongitude"), "long", { type: "number", required: isRequired("long") })}
       {tf(fieldLabel("buildingArea"), "buildingArea", { type: "number" })}
       {tf(fieldLabel("landArea"), "landArea", { type: "number" })}
       {tf(fieldLabel("yearOfConstruction"), "yearOfConstruction", { type: "number" })}
       <AgentField
-        label="Operated by (WebID)"
+        label={msg("lblOperatedBy")}
         value={fields.operatedBy ?? ""}
         onChange={(v) => setField("operatedBy", v)}
       />
       <AgentField
-        label="Owned by (WebID)"
+        label={msg("lblOwnedBy")}
         value={fields.ownedBy ?? ""}
         onChange={(v) => setField("ownedBy", v)}
       />
       <AgentField
-        label="Investor (WebID)"
+        label={msg("lblInvestor")}
         value={fields.investor ?? ""}
         onChange={(v) => setField("investor", v)}
       />
       <AgentField
-        label="Facility manager (WebID)"
+        label={msg("lblFacilityManager")}
         value={fields.facilityManagedBy ?? ""}
         onChange={(v) => setField("facilityManagedBy", v)}
       />
       <AgentField
-        label="Developed by (WebID)"
+        label={msg("lblDevelopedBy")}
         value={fields.developedBy ?? ""}
         onChange={(v) => setField("developedBy", v)}
       />
       <AgentField
-        label="Consultant / broker (WebID)"
+        label={msg("lblConsultant")}
         value={fields.consultedBy ?? ""}
         onChange={(v) => setField("consultedBy", v)}
       />
@@ -105,9 +106,9 @@ export function BuildingDetailFields(
   const { tf, check, enumSelect, sectionHeader } = f;
   return (
     <>
-      {sectionHeader("Building details")}
+      {sectionHeader(msg("secBuildingDetails"))}
       {tf(fieldLabel("buildingCode"), "buildingCode", buildingCode)}
-      {tf("Label / name", "label")}
+      {tf(msg("lblLabelName"), "label")}
       {tf(fieldLabel("companyName"), "companyName")}
       {tf(fieldLabel("hallArea"), "hallArea", { type: "number" })}
       {tf(fieldLabel("officeSocialArea"), "officeSocialArea", { type: "number" })}
@@ -122,9 +123,9 @@ export function BuildingDetailFields(
       {/* PV plant (the <#pv> :PVSystem node) — presence of any value ⇒ has PV.
           Keys are `_pv_*` so the serializer writes them onto the node, not the
           building subject. */}
-      {tf("PV capacity (kW)", "_pv_capacityKW", { type: "number" })}
-      {tf("PV commissioning year", "_pv_commissioningYear", { type: "number" })}
-      {tf("PV operator (WebID)", "_pv_operatedBy")}
+      {tf(msg("lblPvCapacity"), "_pv_capacityKW", { type: "number" })}
+      {tf(msg("lblPvCommissioning"), "_pv_commissioningYear", { type: "number" })}
+      {tf(msg("lblPvOperator"), "_pv_operatedBy")}
       {enumSelect(fieldLabel("shiftRegime"), "shiftRegime", [
         { value: "OneShift", label: optionLabel(`${BUILDING_NS}OneShift`) },
         { value: "TwoShift", label: optionLabel(`${BUILDING_NS}TwoShift`) },
@@ -138,7 +139,7 @@ export function BuildingDetailFields(
         { value: "MaxTwelveDegrees", label: optionLabel(`${BUILDING_NS}MaxTwelveDegrees`) },
         { value: "MaxEighteenDegrees", label: optionLabel(`${BUILDING_NS}MaxEighteenDegrees`) },
       ])}
-      {sectionHeader("Heating systems")}
+      {sectionHeader(msg("secHeatingSystems"))}
       {check(fieldLabel("hasOilBoiler"), "hasOilBoiler")}
       {check(fieldLabel("hasGasBoiler"), "hasGasBoiler")}
       {check(fieldLabel("hasElectricBoiler"), "hasElectricBoiler")}

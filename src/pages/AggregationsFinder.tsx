@@ -86,7 +86,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
   const handleDeleteAggregation = async (aggregationId: string) => {
     if (
       !await confirm({
-        title: "Delete aggregation",
+        title: msg("dlgDeleteAggregation"),
         message:
           "Delete this aggregation? This also revokes access for everyone it is shared with.",
         confirmLabel: "Delete",
@@ -102,7 +102,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
   const handleRevokeAggregationAccess = async (snapshotUri: string, webId: string) => {
     if (
       !await confirm({
-        title: "Revoke aggregation access",
+        title: msg("dlgRevokeAggregation"),
         message: `Revoke aggregation access for ${webId}?`,
         confirmLabel: "Revoke",
       })
@@ -124,7 +124,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
     <Box component="section" sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}>
       <section>
         <Typography variant="h6" sx={{ mb: 1 }}>
-          Aggregations
+          {t("navAggregations")}
         </Typography>
         {rdf && <RdfSourceLink href={rdf.aggregations} />}
         <Stack
@@ -265,7 +265,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
       {dev && rdf && (
         <section>
           <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
-            Outgoing shares
+            {t("headingOutgoingShares")}
           </Typography>
           <RdfSourceLink href={rdf.sharedOut} />
         </section>

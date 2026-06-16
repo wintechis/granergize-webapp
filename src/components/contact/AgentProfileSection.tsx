@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { Box } from "@mui/material";
 import { useResolveOrg } from "../../hooks/queries.ts";
 import {
@@ -17,7 +18,7 @@ export default function AgentProfileSection({ webId }: { webId: string }) {
   const { data: org } = useResolveOrg(webId);
   return (
     <Box>
-      <SectionTitle>Profile</SectionTitle>
+      <SectionTitle>{msg("secProfile")}</SectionTitle>
       <DetailRow label="WebID" value={<UriLink href={webId}>{webId}</UriLink>} />
       {org?.name && <DetailRow label="Organisation" value={org.name} />}
       <RdfSourceLink href={webId} />

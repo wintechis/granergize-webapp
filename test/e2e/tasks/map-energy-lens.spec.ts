@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -74,7 +75,7 @@ test.describe("map energy lens (Vertriebsoptimierung)", () => {
       // The map is the Buildings tab's Map view (Explore + Manage merged into one
       // tab with a Map⇄List toggle); ensure Map view so the markers + colour lens
       // render.
-      await page.getByRole("tab", { name: "Buildings" }).click();
+      await page.getByRole("tab", { name: en("navBuildings") }).click();
       await page.getByRole("button", { name: "Map", exact: true }).click();
       // Markers paint under the default (ownership) lens — the standard pins.
       await expect(page.locator(".leaflet-marker-icon").first())

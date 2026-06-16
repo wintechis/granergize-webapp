@@ -1,5 +1,5 @@
 import { msg } from "../../lib/messages.ts";
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import {
@@ -157,7 +157,7 @@ function ReadView({ building }: { building: BuildingType }) {
         building.hasHeatPump != null ||
         building.hasDistrictHeating != null) && (
         <>
-          <SectionTitle divider>Heat generation</SectionTitle>
+          <SectionTitle divider>{msg("secHeatGeneration")}</SectionTitle>
           {building.hasDistrictHeating != null && (
             <DetailRow
               label="District heating"
@@ -185,7 +185,7 @@ function ReadView({ building }: { building: BuildingType }) {
       {Array.isArray(building.certifications) &&
         building.certifications.length > 0 && (
         <>
-          <SectionTitle divider>Certifications</SectionTitle>
+          <SectionTitle divider>{msg("secCertifications")}</SectionTitle>
           {building.certifications.map((cert, i) => (
             <DetailRow
               key={i}
@@ -198,7 +198,7 @@ function ReadView({ building }: { building: BuildingType }) {
 
       {operatingCostEntries.length > 0 && (
         <>
-          <SectionTitle divider>Operating costs</SectionTitle>
+          <SectionTitle divider>{msg("secOperatingCosts")}</SectionTitle>
           {operatingCostEntries.map(([k, v]) => (
             <DetailRow
               key={k}
@@ -224,6 +224,20 @@ function EditView(
   const { showNotification } = useNotification();
   const initialFields = useMemo(() => buildingToFields(building), [building]);
   const [fields, setFields] = useState<Record<string, string>>(initialFields);
+  // Re-seed when the building changes while the form is still pristine — a
+  // successful save closes the editor and triggers a refetch, so reopening the
+  // editor before that refetch lands would otherwise show the stale (pre-save)
+  // values forever (the `key` is the URI, which doesn't change across a refetch,
+  // so the mount-time `useState` seed never re-runs). We re-seed only when the
+  // form still matches the last seed (pristine), so a refetch landing mid-edit
+  // never clobbers in-progress edits.
+  const lastSeedRef = useRef(initialFields);
+  useEffect(() => {
+    const prevSeed = lastSeedRef.current;
+    if (initialFields === prevSeed) return; // same building object
+    lastSeedRef.current = initialFields;
+    setFields((cur) => (cur === prevSeed ? initialFields : cur));
+  }, [initialFields]);
   const update = useUpdateBuilding();
   const saving = update.isPending;
 
@@ -288,14 +302,14 @@ function EditView(
         }}
       />
 
-      {sectionHeader("Operating costs")}
+      {sectionHeader(msg("secOperatingCosts"))}
       {OPCOST_FIELDS.map((f) =>
         f.bool
           ? <Box key={f.key}>{check(f.label, `_opcost_${f.key}`)}</Box>
           : <Box key={f.key}>{tf(f.label, `_opcost_${f.key}`)}</Box>
       )}
 
-      {sectionHeader("Certifications")}
+      {sectionHeader(msg("secCertifications"))}
       {Array.from({ length: certCount }, (_, i) => (
         <Box key={i} sx={{ mb: 1.5 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
@@ -353,7 +367,9 @@ export default function MasterDataSection({ building }: { building: BuildingType
         )}
       </Stack>
       {editing
-        // key on the building uri so a refetched building re-seeds the form.
+        // key on the building uri so switching to a different building remounts
+        // the editor; re-seeding after a same-building refetch is handled by the
+        // pristine-guarded effect in EditView (the uri is stable across refetch).
         ? (
           <EditView
             key={building.uri as string}

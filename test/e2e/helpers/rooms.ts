@@ -1,4 +1,5 @@
 import { expect, type Page } from "@playwright/test";
+import { en } from "./i18n.ts";
 import { T } from "./timeouts.ts";
 import { confirmDialog } from "./confirm.ts";
 
@@ -16,7 +17,7 @@ import { confirmDialog } from "./confirm.ts";
  */
 export async function deleteAllOwnedRooms(page: Page): Promise<void> {
   try {
-    const connect = page.getByRole("tab", { name: "Meet" });
+    const connect = page.getByRole("tab", { name: en("navMeet") });
     if (await connect.count()) await connect.click();
 
     const deleteButtons = page.getByRole("button", {
@@ -47,7 +48,7 @@ export async function deleteAllOwnedRooms(page: Page): Promise<void> {
  */
 export async function removeAllBookmarkedRooms(page: Page): Promise<void> {
   try {
-    const connect = page.getByRole("tab", { name: "Meet" });
+    const connect = page.getByRole("tab", { name: en("navMeet") });
     if (await connect.count()) await connect.click();
     await page.waitForLoadState("networkidle").catch(() => {});
 

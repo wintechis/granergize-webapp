@@ -474,7 +474,7 @@ export function FilesDialog(
   const handleDelete = async (a: AttachmentRef) => {
     if (
       !await confirm({
-        title: "Delete file",
+        title: msg("dlgDeleteFile"),
         message: `Delete "${a.filename}"? This cannot be undone.`,
         confirmLabel: "Delete",
       })

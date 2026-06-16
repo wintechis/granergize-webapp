@@ -84,6 +84,196 @@ export const MESSAGES = {
       "Aucune agrégation partagée avec vous pour l'instant. Une agrégation partagée par un partenaire apparaît ici.",
   },
   uiLanguage: { en: "Language", de: "Sprache", fr: "Langue" },
+  // Top-nav finder labels.
+  navBuildings: { en: "Buildings", de: "Gebäude", fr: "Bâtiments" },
+  navObservations: {
+    en: "Observations",
+    de: "Beobachtungen",
+    fr: "Observations",
+  },
+  navAggregations: {
+    en: "Aggregations",
+    de: "Aggregationen",
+    fr: "Agrégations",
+  },
+  navSharing: { en: "Sharing", de: "Freigaben", fr: "Partages" },
+  navContacts: { en: "Contacts", de: "Kontakte", fr: "Contacts" },
+  navMeet: { en: "Meet", de: "Treffen", fr: "Rencontrer" },
+  // Finder page headings (exact-nav-word headings reuse the nav* ids above).
+  headingYourBuildings: {
+    en: "Your buildings",
+    de: "Deine Gebäude",
+    fr: "Vos bâtiments",
+  },
+  headingYourRooms: {
+    en: "Your data rooms",
+    de: "Deine Datenräume",
+    fr: "Vos salles de données",
+  },
+  sharedBuildingsHeading: {
+    en: "Buildings shared with you",
+    de: "Mit dir geteilte Gebäude",
+    fr: "Bâtiments partagés avec vous",
+  },
+  sharedAggregationsHeading: {
+    en: "Aggregations shared with you",
+    de: "Mit dir geteilte Aggregationen",
+    fr: "Agrégations partagées avec vous",
+  },
+  headingInbox: {
+    en: "Your inbox",
+    de: "Dein Posteingang",
+    fr: "Votre boîte de réception",
+  },
+  headingOutgoingShares: {
+    en: "Outgoing shares",
+    de: "Ausgehende Freigaben",
+    fr: "Partages sortants",
+  },
+  // Detail-page section headings.
+  secFiles: { en: "Files", de: "Dateien", fr: "Fichiers" },
+  secEnergy: { en: "Energy", de: "Energie", fr: "Énergie" },
+  secSharing: { en: "Sharing", de: "Freigabe", fr: "Partage" },
+  secWeather: { en: "Weather", de: "Wetter", fr: "Météo" },
+  secResults: { en: "Results", de: "Ergebnisse", fr: "Résultats" },
+  secDetails: { en: "Details", de: "Details", fr: "Détails" },
+  secInvite: { en: "Invite", de: "Einladung", fr: "Invitation" },
+  secMembers: { en: "Members", de: "Mitglieder", fr: "Membres" },
+  secMyRoles: { en: "My role(s)", de: "Meine Rolle(n)", fr: "Mes rôles" },
+  secProfile: { en: "Profile", de: "Profil", fr: "Profil" },
+  secAppearsIn: { en: "Appears in", de: "Erscheint in", fr: "Apparaît dans" },
+  // Building master-data section headers (read view + Add/Edit form).
+  secAddress: { en: "Address", de: "Adresse", fr: "Adresse" },
+  secLocationPhysical: {
+    en: "Location and Physical",
+    de: "Lage und Gebäude",
+    fr: "Emplacement et physique",
+  },
+  secBuildingDetails: {
+    en: "Building details",
+    de: "Gebäudedetails",
+    fr: "Détails du bâtiment",
+  },
+  secHeatingSystems: {
+    en: "Heating systems",
+    de: "Heizsysteme",
+    fr: "Systèmes de chauffage",
+  },
+  secHeatGeneration: {
+    en: "Heat generation",
+    de: "Wärmeerzeugung",
+    fr: "Production de chaleur",
+  },
+  secOperatingCosts: {
+    en: "Operating costs",
+    de: "Betriebskosten",
+    fr: "Charges d'exploitation",
+  },
+  secCertifications: {
+    en: "Certifications",
+    de: "Zertifizierungen",
+    fr: "Certifications",
+  },
+  // Confirm-dialog titles (the message/button localize in a later pass).
+  dlgDeleteBuilding: {
+    en: "Delete building",
+    de: "Gebäude löschen",
+    fr: "Supprimer le bâtiment",
+  },
+  dlgRevokeAccess: {
+    en: "Revoke access",
+    de: "Zugriff entziehen",
+    fr: "Révoquer l'accès",
+  },
+  dlgDeleteAggregation: {
+    en: "Delete aggregation",
+    de: "Aggregation löschen",
+    fr: "Supprimer l'agrégation",
+  },
+  dlgRevokeAggregation: {
+    en: "Revoke aggregation access",
+    de: "Aggregationszugriff entziehen",
+    fr: "Révoquer l'accès à l'agrégation",
+  },
+  dlgDeleteRoom: {
+    en: "Delete data room",
+    de: "Datenraum löschen",
+    fr: "Supprimer la salle de données",
+  },
+  dlgDeleteFile: {
+    en: "Delete file",
+    de: "Datei löschen",
+    fr: "Supprimer le fichier",
+  },
+  dlgDeleteEnergy: {
+    en: "Delete energy data",
+    de: "Energiedaten löschen",
+    fr: "Supprimer les données énergétiques",
+  },
+  dlgRestoreArchive: {
+    en: "Restore archive",
+    de: "Archiv wiederherstellen",
+    fr: "Restaurer l'archive",
+  },
+  dlgRemoveAppData: {
+    en: "Remove all app data",
+    de: "Alle App-Daten entfernen",
+    fr: "Supprimer toutes les données de l'application",
+  },
+  // Building Add/Edit form field labels (the hardcoded ones; vocab-derived field
+  // labels already localise via fieldLabel()).
+  lblStreetAddress: { en: "Street address", de: "Straße", fr: "Adresse (rue)" },
+  lblLocality: { en: "Locality (city)", de: "Ort (Stadt)", fr: "Localité (ville)" },
+  lblPostalCode: { en: "Postal code", de: "Postleitzahl", fr: "Code postal" },
+  lblRegion: { en: "Region (state)", de: "Bundesland", fr: "Région (Land)" },
+  lblLatitude: { en: "Latitude", de: "Breitengrad", fr: "Latitude" },
+  lblLongitude: { en: "Longitude", de: "Längengrad", fr: "Longitude" },
+  lblLabelName: { en: "Label / name", de: "Bezeichnung / Name", fr: "Libellé / nom" },
+  lblPvCapacity: {
+    en: "PV capacity (kW)",
+    de: "PV-Leistung (kW)",
+    fr: "Puissance PV (kW)",
+  },
+  lblPvCommissioning: {
+    en: "PV commissioning year",
+    de: "PV-Inbetriebnahmejahr",
+    fr: "Année de mise en service PV",
+  },
+  lblPvOperator: {
+    en: "PV operator (WebID)",
+    de: "PV-Betreiber (WebID)",
+    fr: "Exploitant PV (WebID)",
+  },
+  lblOperatedBy: {
+    en: "Operated by (WebID)",
+    de: "Betrieben von (WebID)",
+    fr: "Exploité par (WebID)",
+  },
+  lblOwnedBy: {
+    en: "Owned by (WebID)",
+    de: "Eigentümer (WebID)",
+    fr: "Propriétaire (WebID)",
+  },
+  lblInvestor: {
+    en: "Investor (WebID)",
+    de: "Investor (WebID)",
+    fr: "Investisseur (WebID)",
+  },
+  lblFacilityManager: {
+    en: "Facility manager (WebID)",
+    de: "Facility Manager (WebID)",
+    fr: "Gestionnaire technique (WebID)",
+  },
+  lblDevelopedBy: {
+    en: "Developed by (WebID)",
+    de: "Entwickelt von (WebID)",
+    fr: "Développé par (WebID)",
+  },
+  lblConsultant: {
+    en: "Consultant / broker (WebID)",
+    de: "Berater / Makler (WebID)",
+    fr: "Conseiller / courtier (WebID)",
+  },
   // Rooms / Meet notifications (imperative toasts → resolved via `msg()` at fire time).
   roomAdded: {
     en: "Data room added to your list",

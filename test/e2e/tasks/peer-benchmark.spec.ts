@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -155,7 +156,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     try {
       // First confirm A actually RECEIVED the benchmark (Share tab) — separates a
       // receipt failure from an energy-render failure.
-      await a2.page.getByRole("tab", { name: "Sharing" }).click();
+      await a2.page.getByRole("tab", { name: en("navSharing") }).click();
       await expect(receivedAggregations(a2.page).getByText(BENCH_VIEW))
         .toBeVisible({ timeout: T.action });
 

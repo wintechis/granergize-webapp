@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
@@ -79,7 +80,7 @@ export default function BuildingFilesSection(
   const handleDelete = async (a: AttachmentRef) => {
     if (
       !await confirm({
-        title: "Delete file",
+        title: msg("dlgDeleteFile"),
         message: `Delete "${a.filename}"? This cannot be undone.`,
         confirmLabel: "Delete",
       })

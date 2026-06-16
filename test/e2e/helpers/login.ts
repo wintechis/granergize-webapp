@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { en } from "./i18n.ts";
 import { account as resolveAccount, type TestAccount } from "../../config/accounts.ts";
 import { localProvider } from "../../config/providers.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
@@ -103,7 +104,7 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
 async function restoreSession(page: Page): Promise<void> {
   await expect(async () => {
     await page.goto("./");
-    await expect(page.getByRole("tab", { name: "Buildings" }))
+    await expect(page.getByRole("tab", { name: en("navBuildings") }))
       .toBeVisible({ timeout: T.action });
   }).toPass({ timeout: T.login });
 }
@@ -190,7 +191,7 @@ export async function loginInteractive(page: Page, acc: SolidAccount): Promise<v
   await expect(async () => {
     if (await remember.count()) await remember.first().click().catch(() => {});
     await expect(remember).toHaveCount(0, { timeout: 1000 });
-    await expect(page.getByRole("tab", { name: "Buildings" })).toBeVisible({
+    await expect(page.getByRole("tab", { name: en("navBuildings") })).toBeVisible({
       timeout: 1000,
     });
   }).toPass({ timeout: T.login });

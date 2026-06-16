@@ -159,7 +159,7 @@ export default function ShareAggregationDialog(
     if (!session.info.webId) return;
     if (
       !await confirm({
-        title: "Revoke access",
+        title: msg("dlgRevokeAccess"),
         message: `Revoke access for ${webId}?`,
         confirmLabel: "Revoke",
       })

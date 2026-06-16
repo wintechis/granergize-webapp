@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { Box } from "@mui/material";
 import type {
   AggregationDefinition,
@@ -24,7 +25,7 @@ export default function AggregationDetailsSection(
 ) {
   return (
     <Box>
-      <SectionTitle>Details</SectionTitle>
+      <SectionTitle>{msg("secDetails")}</SectionTitle>
       <Box sx={{ mt: 1 }}>
         <DetailRow
           label="Type"

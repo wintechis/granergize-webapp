@@ -1,4 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
+import { en } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { openBuildingsList } from "../helpers/manage.ts";
@@ -147,13 +148,13 @@ test.describe("organisation logo", () => {
     await expect(page.locator("li", { hasText: LOGO_ADDR }).first())
       .toBeVisible({ timeout: T.action });
     await page.reload();
-    await expect(page.getByRole("tab", { name: "Buildings" }))
+    await expect(page.getByRole("tab", { name: en("navBuildings") }))
       .toBeVisible({ timeout: T.action });
 
     // On the map (Buildings tab → Map view), hovering the building's pin opens the
     // hover card, which renders the producer's org logo image. (Several owned
     // buildings would all show Alice's logo, so hover the first owned pin.)
-    await page.getByRole("tab", { name: "Buildings" }).click();
+    await page.getByRole("tab", { name: en("navBuildings") }).click();
     await page.getByRole("button", { name: "Map", exact: true }).click();
     const ownedPin = page.locator(".leaflet-marker-icon.pin-owned").first();
     await expect(ownedPin).toBeVisible({ timeout: T.action });

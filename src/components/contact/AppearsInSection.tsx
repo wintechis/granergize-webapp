@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { Box, Typography } from "@mui/material";
 import { useSolidData } from "../../hooks/queries.ts";
 import { DetailRow, RefLink, SectionTitle } from "../detail/DetailView.tsx";
@@ -15,7 +16,7 @@ export default function AppearsInSection({ webId }: { webId: string }) {
   const appearances = appearancesOf(webId, buildings);
   return (
     <Box>
-      <SectionTitle divider>Appears in</SectionTitle>
+      <SectionTitle divider>{msg("secAppearsIn")}</SectionTitle>
       {isLoading ? <Typography>Loading…</Typography> : (
         appearances.length === 0
           ? (

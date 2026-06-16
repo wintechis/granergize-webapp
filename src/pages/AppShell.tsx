@@ -37,7 +37,7 @@ import { useDemoOffer, useSharedWithMe } from "../hooks/queries.ts";
 import { setDemoSeedDeclined } from "../services/prefs.ts";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
-import { msg } from "../lib/messages.ts";
+import { type MessageId, msg } from "../lib/messages.ts";
 import { inspectArchive } from "../services/pod/podArchive.ts";
 import { downloadBlob } from "../lib/download.ts";
 import { FINDERS } from "../routes.ts";
@@ -66,13 +66,13 @@ interface AppShellProps {
  * map is a pure finder: a marker click navigates to the building's detail page
  * (`/building/:id`), like a List row.
  */
-const NAV: { label: string; path: string }[] = [
-  { label: "Buildings", path: FINDERS.buildings },
-  { label: "Observations", path: FINDERS.observations },
-  { label: "Aggregations", path: FINDERS.aggregations },
-  { label: "Sharing", path: FINDERS.sharing },
-  { label: "Contacts", path: FINDERS.contacts },
-  { label: "Meet", path: FINDERS.rooms },
+const NAV: { labelId: MessageId; path: string }[] = [
+  { labelId: "navBuildings", path: FINDERS.buildings },
+  { labelId: "navObservations", path: FINDERS.observations },
+  { labelId: "navAggregations", path: FINDERS.aggregations },
+  { labelId: "navSharing", path: FINDERS.sharing },
+  { labelId: "navContacts", path: FINDERS.contacts },
+  { labelId: "navMeet", path: FINDERS.rooms },
 ];
 
 /**
@@ -302,7 +302,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     }
     if (
       !await confirm({
-        title: "Restore archive",
+        title: msg("dlgRestoreArchive"),
         message:
           `Restore ${count} resource(s) from "${file.name}" into this Pod?\n\n` +
           "This overwrites any existing resource at a matching path under " +
@@ -442,7 +442,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
 
     if (
       !await confirm({
-        title: "Remove all app data",
+        title: msg("dlgRemoveAppData"),
         message: "Remove ALL Granergize data from your Pod?" + list +
           "\n\nYour profile and organisation logo are kept. This cannot be undone.",
         confirmLabel: "Remove all",
@@ -532,7 +532,9 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           onChange={(_e, path) => navigate(path)}
           centered
         >
-          {NAV.map((n) => <Tab key={n.path} label={n.label} value={n.path} />)}
+          {NAV.map((n) => (
+            <Tab key={n.path} label={t(n.labelId)} value={n.path} />
+          ))}
         </Tabs>
         <Box
           sx={{
