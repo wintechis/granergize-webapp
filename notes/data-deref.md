@@ -157,6 +157,11 @@ Each wrapper client reads its base lazily and parses the response pure
 Both wrappers are siblings of the `linked-*` family (`~/projects/linked-*`); the
 weather one is documented end-to-end in `~/projects/linked-wetterdienst`.
 
+The env-var base is also the **hermetic-e2e switch**: a Tier-3 build can point
+`VITE_*_API_URI` at a local fixture host (or a spec can `page.route` the wrapper URL)
+so a test never depends on the live external service — see
+[`../test/README.md`](../test/README.md) §External queried sources.
+
 ## Writes — dereference, then conditionally replace
 
 Mutations use `readModifyWrite` (`src/services/pod/podWrite.ts`): GET (capturing

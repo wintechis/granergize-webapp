@@ -35,6 +35,33 @@ intermittent **local-CSS JWKS boot race** (a freshly-booted CSS transiently 401s
 DPoP token until its key set warms) — not an app bug; mitigated by a boot warmup and
 bounded retries.
 
+## External queried sources (weather / regionalstatistik)
+
+The two queried external wrappers — `linked-wetterdienst` and
+`linked-regionalstatistik` (see [`../notes/data-deref.md`](../notes/data-deref.md)
+§External wrapper endpoints) — are **not** the Pod. By default a Tier-3/4 build's
+`VITE_WEATHER_API_URI` / `VITE_REGIONALSTATISTIK_API_URI` point at the live
+`wunderfacts.com` hosts (CORS-enabled, fetched directly — no dev proxy), so a spec
+that opens the weather/regional surfaces hits the **real external service** over the
+network.
+
+That env-var indirection is also the **switch to a fully-local, hermetic run**: a spec
+need not depend on an external source. Two ways, in order of reach:
+
+- **Override the env var** at build time — `VITE_WEATHER_API_URI` /
+  `VITE_REGIONALSTATISTIK_API_URI` → a local fixture host. The *same* indirection
+  prod/dev use, so it flips the entire source local (the wrapper itself can run
+  locally, like the CSS/JSS Pods do).
+- **`page.route`** the wrapper URL inside the spec and fulfill fixed Turtle —
+  per-spec, no rebuild; deterministic assertions on concrete values.
+
+Current coverage reflects the trade-off: `regional-context.spec.ts` **stubs** via
+`page.route` (deterministic), while `cube-calendar-weather.spec.ts` runs **live and
+tolerant** — it asserts the dereference+parse path resolves to a definite state (a
+values table / chart, or an honest empty/no-overlap notice), not specific
+temperatures, so a live-service hiccup can't flake it. Prefer a stub (or the env
+override) when an assertion must pin exact figures.
+
 ## Local ports & parallel lanes
 
 Every Tier-2/3 Pod port derives from a single `LOCAL_PORT_OFFSET` (added to the
