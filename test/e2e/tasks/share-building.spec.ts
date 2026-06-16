@@ -182,10 +182,10 @@ test.describe("sharing across two pods", () => {
       // re-mounts the page and cold-refetches it — poll the reload until the
       // recipient + its Revoke control appear.
       await reloadUntil(a.page, async () => {
-        await expect(a.page.getByText("Shared with:"))
+        await expect(a.page.getByText(en("sharedWithLabel")))
           .toBeVisible({ timeout: T.action });
         await expect(
-          a.page.getByRole("button", { name: "Revoke access" }).first(),
+          a.page.getByRole("button", { name: en("revokeAccess") }).first(),
         ).toBeVisible({ timeout: T.action });
       });
       // Back to the shell for the read-side / cleanup tab nav.

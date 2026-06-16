@@ -2,6 +2,7 @@ import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { AgentLabel } from "./AgentLabel.tsx";
 import { ellipsis } from "../constants/listStyles.ts";
+import { msg } from "../lib/messages.ts";
 
 /**
  * The "shared with" sub-list under a resource row: each grantee as an
@@ -11,7 +12,7 @@ import { ellipsis } from "../constants/listStyles.ts";
  * Tooltip). Renders nothing when empty.
  */
 export default function NestedAgentList(
-  { agents, label, onRevoke, isRevoking, revokeLabel = "Revoke access" }: {
+  { agents, label, onRevoke, isRevoking, revokeLabel = msg("revokeAccess") }: {
     agents: string[];
     /** Optional heading above the list (e.g. "Shared with:"). */
     label?: string;

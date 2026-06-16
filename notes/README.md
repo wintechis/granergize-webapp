@@ -53,3 +53,4 @@ actions.
 - [building-detail.md](./building-detail.md) — what hangs off a building IRI and how the detail pane projects it.
 - [weather.md](./weather.md) — the external, live, read-only DWD weather layer (nearest-station proximity join), outside the Pod data path.
 - [ui-state.md](./ui-state.md) — which UI state is navigational (encoded in the URI hash) vs. ephemeral.
+- [i18n.md](./i18n.md) — the de/en/fr paths (build-time vocab labels vs. the in-app chrome catalog), the rolled-in-house `Intl`-based message layer, and why no i18n library.

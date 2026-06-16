@@ -503,6 +503,13 @@ export const MESSAGES = {
     fr: "Révoquer l'accès",
   },
   noRole: { en: "no role", de: "keine Rolle", fr: "aucun rôle" },
+  btnShare: { en: "Share", de: "Teilen", fr: "Partager" },
+  sharedWithLabel: { en: "Shared with:", de: "Geteilt mit:", fr: "Partagé avec :" },
+  shareBuildingNoneYet: {
+    en: "Not shared with anyone yet. Use Share to grant access.",
+    de: "Noch mit niemandem geteilt. Über „Teilen“ Zugriff gewähren.",
+    fr: "Pas encore partagé. Utilisez « Partager » pour accorder l'accès.",
+  },
   // Share-aggregation dialog.
   shareAggTitle: {
     en: 'Share "{name}"',
