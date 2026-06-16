@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useState } from "react";
 import { geocodeFields } from "../services/geocode.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
@@ -22,7 +23,7 @@ export function useGeocodeFields(
     try {
       const coords = await geocodeFields(fields);
       if (!coords) {
-        showNotification("Address not found", "warning");
+        showNotification(msg("addressNotFound"), "warning");
         return;
       }
       setField("lat", coords.lat);

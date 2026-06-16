@@ -33,6 +33,7 @@ import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { formatDate } from "../lib/formatDate.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { useT } from "../context/I18nProvider.tsx";
+import { msg } from "../lib/messages.ts";
 import { useDevMode } from "../hooks/devMode.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
@@ -79,7 +80,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
 
   const handleRefreshAggregation = (aggregationId: string) =>
     refreshAggregation.mutate(aggregationId, {
-      onSuccess: () => showNotification("Aggregation snapshot refreshed", "success"),
+      onSuccess: () => showNotification(msg("snapshotRefreshed"), "success"),
     });
 
   const handleDeleteAggregation = async (aggregationId: string) => {
@@ -94,7 +95,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
       return;
     }
     deleteAggregationMut.mutate(aggregationId, {
-      onSuccess: () => showNotification("Aggregation deleted", "success"),
+      onSuccess: () => showNotification(msg("aggregationDeleted"), "success"),
     });
   };
 
@@ -107,7 +108,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
       })
     ) return;
     revokeAggregation.mutate({ snapshotUri, webId }, {
-      onSuccess: () => showNotification("Aggregation access revoked", "success"),
+      onSuccess: () => showNotification(msg("aggregationAccessRevoked"), "success"),
     });
   };
 

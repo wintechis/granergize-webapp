@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useEffect, useMemo, useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import Modal from "./Modal.tsx";
@@ -165,7 +166,7 @@ export default function ShareAggregationDialog(
     ) return;
     revoke.mutate(
       { snapshotUri: getSnapshotUri(session.info.webId, aggregation.id), webId },
-      { onSuccess: () => showNotification("Aggregation access revoked", "success") },
+      { onSuccess: () => showNotification(msg("aggregationAccessRevoked"), "success") },
     );
   };
 

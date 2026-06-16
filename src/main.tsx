@@ -24,6 +24,7 @@ import { QueryProvider } from "./context/QueryProvider.tsx";
 import { I18nProvider } from "./context/I18nProvider.tsx";
 import { queryKeys } from "./hooks/queries.ts";
 import { sessionExpiredMessage } from "./hooks/queryErrors.ts";
+import { msg } from "./lib/messages.ts";
 import { drainInbox, ensureOwnInbox } from "./services/interop/inbox.ts";
 import {
   clearRequestLog,
@@ -146,7 +147,7 @@ function AppContent() {
       // first time, when it actually creates the inbox.
       const createdInbox = await ensureOwnInbox(authSession);
       if (createdInbox) {
-        showNotification("Set up your Granergize inbox on this Pod", "info");
+        showNotification(msg("inboxSetUp"), "info");
       }
       await drainInbox(authSession);
       // drainInbox may have archived newly-granted shares into the user's
@@ -202,7 +203,7 @@ function AppContent() {
     session.logout()
       .then(() => {
         setSession(null);
-        showNotification("User logged out successfully", "info");
+        showNotification(msg("loggedOut"), "info");
       })
       .catch((err) => {
         logError("log out", err);

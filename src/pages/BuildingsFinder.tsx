@@ -20,6 +20,7 @@ import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { buildingRoute } from "../routes.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useT } from "../context/I18nProvider.tsx";
+import { msg } from "../lib/messages.ts";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { useSharedBuildings, useSolidData } from "../hooks/queries.ts";
 import {
@@ -110,7 +111,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
       return;
     }
     deleteBuilding.mutate(building, {
-      onSuccess: () => showNotification("Building deleted", "success"),
+      onSuccess: () => showNotification(msg("buildingDeleted"), "success"),
     });
   };
 
@@ -123,7 +124,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
       })
     ) return;
     revoke.mutate({ buildingUri, webId }, {
-      onSuccess: () => showNotification("Access revoked", "success"),
+      onSuccess: () => showNotification(msg("accessRevoked"), "success"),
     });
   };
 

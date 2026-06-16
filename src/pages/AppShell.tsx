@@ -37,6 +37,7 @@ import { useDemoOffer, useSharedWithMe } from "../hooks/queries.ts";
 import { setDemoSeedDeclined } from "../services/prefs.ts";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
+import { msg } from "../lib/messages.ts";
 import { inspectArchive } from "../services/pod/podArchive.ts";
 import { downloadBlob } from "../lib/download.ts";
 import { FINDERS } from "../routes.ts";
@@ -202,11 +203,11 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
       onSuccess: ({ seeded, total }) => {
         if (seeded === total) {
           setDemoDismissed(true);
-          showNotification("Demo buildings and energy data added", "success");
+          showNotification(msg("demoBuildingsAdded"), "success");
         } else if (seeded > 0) {
           setDemoDismissed(true);
           showNotification(
-            `Added ${seeded} of ${total} demo buildings (with energy data)`,
+            msg("demoBuildingsPartial", { seeded, total }),
             "warning",
           );
         } else {
@@ -262,7 +263,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           new Blob([bytes as BlobPart], { type: "application/zip" }),
           `granergize-archive-${stamp}.zip`,
         );
-        showNotification(`Archived ${count} resource(s)`, "success");
+        showNotification(msg("archived", { count }), "success");
       },
     });
 
@@ -481,7 +482,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
       // returns true; just lift any in-session dismissal so the banner can show.
       setDemoDismissed(false);
       void navigate(FINDERS.buildings, { replace: true });
-      showNotification("All app data removed", "success");
+      showNotification(msg("allDataRemoved"), "success");
     } catch {
       // Already toasted centrally via the hook's meta.action.
     } finally {

@@ -184,6 +184,10 @@
     rdfs:label "Battery storage"@en ; rdfs:label "Batteriespeicher"@de ; rdfs:label "Stockage par batterie"@fr ;
     rdfs:subClassOf :TechnicalSystem , brick:Battery .
 
+:CHPSystem rdf:type rdfs:Class ;
+    rdfs:label "Cogeneration plant"@en ; rdfs:label "Kraft-Wärme-Kopplung"@de ; rdfs:label "Installation de cogénération"@fr ;
+    rdfs:subClassOf :TechnicalSystem , brick:CHP .
+
 :capacityKW rdf:type owl:DatatypeProperty ;
     rdfs:label "capacity (kW)"@en ; rdfs:label "Leistung (kW)"@de ; rdfs:label "puissance (kW)"@fr ;
     rdfs:domain :TechnicalSystem ; rdfs:range xsd:decimal .
@@ -197,6 +201,12 @@
 :storageCapacityKWh rdf:type owl:DatatypeProperty ;
     rdfs:label "Usable storage capacity (kWh)"@en ; rdfs:label "Nutzbare Speicherkapazität (kWh)"@de ; rdfs:label "Capacité de stockage utile (kWh)"@fr ;
     rdfs:domain :BatteryStorage ; rdfs:range xsd:decimal .
+
+# Thermal output (kW) of a cogeneration node — its heat side, distinct from the
+# electrical :capacityKW. Domain is the :CHPSystem node.
+:thermalCapacityKW rdf:type owl:DatatypeProperty ;
+    rdfs:label "Thermal output (kW)"@en ; rdfs:label "Thermische Nutzleistung (kW)"@de ; rdfs:label "Puissance thermique (kW)"@fr ;
+    rdfs:domain :CHPSystem ; rdfs:range xsd:decimal .
 
 ############################
 ###   Heating systems    ###

@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { Box, Button, Chip, Stack, Typography } from "@mui/material";
 import RefreshIcon from "@mui/icons-material/Refresh";
 import type { AggregationDefinition } from "../../types.ts";
@@ -24,7 +25,7 @@ export default function AggregationHeader(
 
   const handleRefresh = () => {
     refresh.mutate(definition.id, {
-      onSuccess: () => showNotification("Snapshot refreshed", "success"),
+      onSuccess: () => showNotification(msg("snapshotRefreshed"), "success"),
     });
   };
 

@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { useMemo, useState } from "react";
@@ -256,19 +257,19 @@ export default function CreateAggregationDialog({
 
   const handleCreate = () => {
     if (!aggregationName.trim()) {
-      showNotification("Please enter an aggregation name", "warning");
+      showNotification(msg("enterAggregationName"), "warning");
       return;
     }
     if (selectedBuildings.length === 0) {
-      showNotification("Please select at least one building", "warning");
+      showNotification(msg("selectBuilding"), "warning");
       return;
     }
     if (mode === "monthly" && !effectivePeriod) {
-      showNotification("Please select a month", "warning");
+      showNotification(msg("selectMonth"), "warning");
       return;
     }
     if (mode !== "monthly" && selectedMetrics.length === 0) {
-      showNotification("Please select at least one metric", "warning");
+      showNotification(msg("selectMetric"), "warning");
       return;
     }
 
@@ -286,7 +287,7 @@ export default function CreateAggregationDialog({
       },
       {
         onSuccess: () => {
-          showNotification("Aggregation created successfully", "success");
+          showNotification(msg("aggregationCreated"), "success");
           handleClose();
         },
       },

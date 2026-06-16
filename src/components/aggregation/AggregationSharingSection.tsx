@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { useMemo, useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import ShareIcon from "@mui/icons-material/Share";
@@ -52,7 +53,7 @@ export default function AggregationSharingSection(
       })
     ) return;
     revoke.mutate({ snapshotUri, webId }, {
-      onSuccess: () => showNotification("Access revoked", "success"),
+      onSuccess: () => showNotification(msg("accessRevoked"), "success"),
     });
   };
 

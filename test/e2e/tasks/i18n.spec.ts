@@ -2,6 +2,8 @@ import { expect, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { en } from "../helpers/i18n.ts";
+import { translate } from "../../../src/lib/messages.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -30,9 +32,11 @@ test.describe("app-chrome i18n: language switcher", () => {
     await login(page, ACC);
     await assertCleanStart(page);
     try {
-      // Contacts is empty on a clean start → its migrated empty-state shows (English).
+      // Contacts is empty on a clean start → its migrated empty-state shows. Assert
+      // against the CATALOG (en form), not a hardcoded copy, so the spec can't drift
+      // from the message — `en("contactsEmpty")` is the single source of truth.
       await page.getByRole("tab", { name: "Contacts" }).click();
-      const englishEmpty = page.getByText(/No contacts yet\./);
+      const englishEmpty = page.getByText(en("contactsEmpty"));
       await expect(englishEmpty).toBeVisible({ timeout: T.action });
 
       // Switch the UI language to German via the Account-menu switcher.
@@ -41,9 +45,11 @@ test.describe("app-chrome i18n: language switcher", () => {
       await page.getByRole("option", { name: "Deutsch" }).click();
       await page.keyboard.press("Escape"); // close the Account menu
 
-      // The empty state re-renders in German — no reload (context re-render).
-      await expect(page.getByText(/Noch keine Kontakte\./))
-        .toBeVisible({ timeout: T.action });
+      // The empty state re-renders in German — no reload (context re-render). The
+      // German form also comes from the catalog (`translate("de", …)`), so the
+      // assertion follows any future copy edit.
+      const germanEmpty = page.getByText(translate("de", "contactsEmpty"));
+      await expect(germanEmpty).toBeVisible({ timeout: T.action });
       await expect(englishEmpty).toHaveCount(0);
 
       // The choice is persisted (localStorage) and survives a reload — on reload
@@ -56,7 +62,7 @@ test.describe("app-chrome i18n: language switcher", () => {
       ).toBe("de");
       await page.reload();
       await page.getByRole("tab", { name: "Contacts" }).click();
-      await expect(page.getByText(/Noch keine Kontakte\./))
+      await expect(page.getByText(translate("de", "contactsEmpty")))
         .toBeVisible({ timeout: T.login }); // reload re-runs the session restore
     } finally {
       // Reset the persisted locale so it can't bleed into other specs.

@@ -46,6 +46,7 @@ import {
 } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import { useT } from "../context/I18nProvider.tsx";
+import { msg } from "../lib/messages.ts";
 import FilesSection from "../components/detail/FilesSection.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
@@ -204,7 +205,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
   // login/reload), then surface the outcome.
   const handleCheckInbox = () =>
     checkInbox.mutate(undefined, {
-      onSuccess: () => showNotification("Checked for new shares", "success"),
+      onSuccess: () => showNotification(msg("checkedForShares"), "success"),
       onError: (err) =>
         showNotification(formatError("actionCheckShares", err), "error"),
     });

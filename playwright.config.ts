@@ -166,6 +166,14 @@ export default defineConfig({
     // always yields a trace, no retry needed (unlike `on-first-retry`, which writes
     // nothing on a retries=0 run).
     trace: "retain-on-failure",
+    // Force the UI locale to English for every spec, regardless of the runner's OS
+    // language (CI vs a German dev machine). The app seeds its active locale from
+    // `navigator.languages` (lib/language.ts) when no override is stored, so this
+    // pins the seed to `en` — keeping every `getByRole(..., { name: "<English>" })`
+    // locator stable once app-chrome (nav/buttons/headings) is translated. A spec
+    // that exercises switching (i18n.spec) still flips at runtime + persists, since
+    // a stored choice wins over this seed.
+    locale: "en-US",
   },
   /**
    * Catalog specs split by POD COUNT (the roles are A = Alice, B = Bob, C = Charlie);

@@ -130,6 +130,160 @@ export const MESSAGES = {
     de: "Aus deiner Liste entfernt",
     fr: "Retiré de votre liste",
   },
+  // Building / sharing success toasts.
+  buildingDeleted: {
+    en: "Building deleted",
+    de: "Gebäude gelöscht",
+    fr: "Bâtiment supprimé",
+  },
+  buildingUpdated: {
+    en: "Building updated",
+    de: "Gebäude aktualisiert",
+    fr: "Bâtiment mis à jour",
+  },
+  buildingShared: {
+    en: "Building shared successfully",
+    de: "Gebäude erfolgreich geteilt",
+    fr: "Bâtiment partagé avec succès",
+  },
+  accessRevoked: {
+    en: "Access revoked",
+    de: "Zugriff entzogen",
+    fr: "Accès révoqué",
+  },
+  // Aggregation area + create/share dialogs.
+  snapshotRefreshed: {
+    en: "Snapshot refreshed",
+    de: "Snapshot aktualisiert",
+    fr: "Instantané actualisé",
+  },
+  aggregationDeleted: {
+    en: "Aggregation deleted",
+    de: "Aggregation gelöscht",
+    fr: "Agrégation supprimée",
+  },
+  aggregationAccessRevoked: {
+    en: "Aggregation access revoked",
+    de: "Aggregationszugriff entzogen",
+    fr: "Accès à l'agrégation révoqué",
+  },
+  aggregationCreated: {
+    en: "Aggregation created successfully",
+    de: "Aggregation erfolgreich erstellt",
+    fr: "Agrégation créée avec succès",
+  },
+  enterAggregationName: {
+    en: "Please enter an aggregation name",
+    de: "Bitte gib einen Aggregationsnamen ein",
+    fr: "Veuillez saisir un nom d'agrégation",
+  },
+  selectBuilding: {
+    en: "Please select at least one building",
+    de: "Bitte wähle mindestens ein Gebäude",
+    fr: "Veuillez sélectionner au moins un bâtiment",
+  },
+  selectMonth: {
+    en: "Please select a month",
+    de: "Bitte wähle einen Monat",
+    fr: "Veuillez sélectionner un mois",
+  },
+  selectMetric: {
+    en: "Please select at least one metric",
+    de: "Bitte wähle mindestens eine Kennzahl",
+    fr: "Veuillez sélectionner au moins une métrique",
+  },
+  // Energy-year + organisation dialogs, geocoding, account/session.
+  enterValidYear: {
+    en: "Enter a valid year",
+    de: "Gib ein gültiges Jahr ein",
+    fr: "Saisissez une année valide",
+  },
+  enterFigure: {
+    en: "Enter at least one figure",
+    de: "Gib mindestens einen Wert ein",
+    fr: "Saisissez au moins une valeur",
+  },
+  energySaved: {
+    en: "Energy data saved",
+    de: "Energiedaten gespeichert",
+    fr: "Données énergétiques enregistrées",
+  },
+  energyYearDeleted: {
+    en: "Energy year deleted",
+    de: "Energiejahr gelöscht",
+    fr: "Année énergétique supprimée",
+  },
+  chooseImageType: {
+    en: "Please choose a PNG, JPG, SVG, WEBP or GIF image",
+    de: "Bitte wähle ein PNG-, JPG-, SVG-, WEBP- oder GIF-Bild",
+    fr: "Veuillez choisir une image PNG, JPG, SVG, WEBP ou GIF",
+  },
+  organisationSaved: {
+    en: "Organisation saved",
+    de: "Organisation gespeichert",
+    fr: "Organisation enregistrée",
+  },
+  addressNotFound: {
+    en: "Address not found",
+    de: "Adresse nicht gefunden",
+    fr: "Adresse introuvable",
+  },
+  coordinatesUpdated: {
+    en: "Coordinates updated",
+    de: "Koordinaten aktualisiert",
+    fr: "Coordonnées mises à jour",
+  },
+  demoBuildingsAdded: {
+    en: "Demo buildings and energy data added",
+    de: "Beispielgebäude und Energiedaten hinzugefügt",
+    fr: "Bâtiments et données énergétiques de démonstration ajoutés",
+  },
+  allDataRemoved: {
+    en: "All app data removed",
+    de: "Alle App-Daten entfernt",
+    fr: "Toutes les données de l'application supprimées",
+  },
+  inboxSetUp: {
+    en: "Set up your Granergize inbox on this Pod",
+    de: "Granergize-Posteingang auf diesem Pod eingerichtet",
+    fr: "Boîte de réception Granergize configurée sur ce Pod",
+  },
+  loggedOut: {
+    en: "User logged out successfully",
+    de: "Erfolgreich abgemeldet",
+    fr: "Déconnexion réussie",
+  },
+  noBuildingsInFile: {
+    en: "No buildings found in file",
+    de: "Keine Gebäude in der Datei gefunden",
+    fr: "Aucun bâtiment trouvé dans le fichier",
+  },
+  checkedForShares: {
+    en: "Checked for new shares",
+    de: "Auf neue Freigaben geprüft",
+    fr: "Recherche de nouveaux partages effectuée",
+  },
+  loadedWithReadings: {
+    en: "Loaded building with {readings} readings ({days} days)",
+    de: "Gebäude mit {readings} Messwerten geladen ({days} Tage)",
+    fr: "Bâtiment chargé avec {readings} relevés ({days} jours)",
+  },
+  loadedBuildings: {
+    en: "Loaded {count} building(s) from file",
+    de: "{count} Gebäude aus der Datei geladen",
+    fr: "{count} bâtiment(s) chargé(s) depuis le fichier",
+  },
+  archived: {
+    en: "Archived {count} resource(s)",
+    de: "{count} Ressource(n) archiviert",
+    fr: "{count} ressource(s) archivée(s)",
+  },
+  demoBuildingsPartial: {
+    en: "Added {seeded} of {total} demo buildings (with energy data)",
+    de: "{seeded} von {total} Beispielgebäuden hinzugefügt (mit Energiedaten)",
+    fr:
+      "{seeded} bâtiments de démonstration sur {total} ajoutés (avec données énergétiques)",
+  },
   // The two classified-warning sentences (session-expiry gate + optimistic-lock
   // conflict) — complete sentences about an app-level state, not "Failed to …".
   sessionExpired: {

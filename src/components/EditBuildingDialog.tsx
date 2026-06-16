@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useMemo, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import type { BuildingType } from "../types.ts";
@@ -77,7 +78,7 @@ export default function EditBuildingDialog(
   const { onGeocode, busy: geocoding } = useGeocodeFields(
     fields,
     setField,
-    "Coordinates updated",
+    msg("coordinatesUpdated"),
   );
 
   const handleSubmit = () =>
@@ -85,7 +86,7 @@ export default function EditBuildingDialog(
       { fileUri, subjectUri: building.uri as string, fields },
       {
         onSuccess: () => {
-          showNotification("Building updated", "success");
+          showNotification(msg("buildingUpdated"), "success");
           onClose();
         },
       },

@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useEffect, useRef, useState } from "react";
 import {
   Avatar,
@@ -95,7 +96,7 @@ export default function OrganizationDialog(
     e.target.value = "";
     if (!file) return;
     if (!isSupportedLogoType(file)) {
-      showNotification("Please choose a PNG, JPG, SVG, WEBP or GIF image", "warning");
+      showNotification(msg("chooseImageType"), "warning");
       return;
     }
     if (pickedPreview) URL.revokeObjectURL(pickedPreview);
@@ -108,7 +109,7 @@ export default function OrganizationDialog(
       { org: { name, homepage, sameAs }, logo: pickedFile },
       {
         onSuccess: () => {
-          showNotification("Organisation saved", "success");
+          showNotification(msg("organisationSaved"), "success");
           onSaved();
           close();
         },

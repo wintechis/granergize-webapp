@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useEffect, useRef, useState } from "react";
 import {
   Box,
@@ -204,7 +205,7 @@ export default function AddBuildingDialog(
       setFormat(format);
       const parsed = await parseCsvToFields(file, format);
       if (parsed.length === 0) {
-        showNotification("No buildings found in file", "warning");
+        showNotification(msg("noBuildingsInFile"), "warning");
         return;
       }
 
@@ -265,10 +266,13 @@ export default function AddBuildingDialog(
       setBuildingsList(cleanParsed);
       setActiveIdx(0);
 
-      const msg = readings
-        ? `Loaded building with ${readings.length} readings (${new Set(readings.map((r) => r.date)).size} days)`
-        : `Loaded ${parsed.length} building(s) from file`;
-      showNotification(msg, "success");
+      const loaded = readings
+        ? msg("loadedWithReadings", {
+          readings: readings.length,
+          days: new Set(readings.map((r) => r.date)).size,
+        })
+        : msg("loadedBuildings", { count: parsed.length });
+      showNotification(loaded, "success");
     } catch (err) {
       showNotification(formatError("actionParseFile", err), "error");
     } finally {

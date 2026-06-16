@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   Button,
@@ -200,7 +201,7 @@ export default function EnergyYearDialog(
   const handleSave = async () => {
     const y = parseInt(year);
     if (!Number.isInteger(y) || y < 1900 || y > 2100) {
-      showNotification("Enter a valid year", "error");
+      showNotification(msg("enterValidYear"), "error");
       return;
     }
     const metrics: AnnualMetrics = {};
@@ -223,7 +224,7 @@ export default function EnergyYearDialog(
       }
     }
     if (Object.keys(metrics).length === 0) {
-      showNotification("Enter at least one figure", "error");
+      showNotification(msg("enterFigure"), "error");
       return;
     }
 
@@ -247,7 +248,7 @@ export default function EnergyYearDialog(
             );
             return [...rest, dataset];
           });
-          showNotification("Energy data saved", "success");
+          showNotification(msg("energySaved"), "success");
           // Clear year/figures but KEEP the scenario: entering several planned
           // (Soll) years in a row shouldn't need re-selecting "Planned" each time.
           const keep = scenario;
@@ -282,7 +283,7 @@ export default function EnergyYearDialog(
           );
           // If the deleted year was loaded in the form, clear it.
           if (loadedKey.current === dsKey(d.year, d.scenario)) reset();
-          showNotification("Energy year deleted", "success");
+          showNotification(msg("energyYearDeleted"), "success");
         },
       },
     );

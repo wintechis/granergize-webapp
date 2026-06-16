@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { useMemo, useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
@@ -255,7 +256,7 @@ function EditView(
   const { onGeocode, busy: geocoding } = useGeocodeFields(
     fields,
     setField,
-    "Coordinates updated",
+    msg("coordinatesUpdated"),
   );
 
   const handleSave = () =>
@@ -263,7 +264,7 @@ function EditView(
       { fileUri, subjectUri: building.uri as string, fields },
       {
         onSuccess: () => {
-          showNotification("Building updated", "success");
+          showNotification(msg("buildingUpdated"), "success");
           onDone();
         },
       },

@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useMemo, useState } from "react";
 import {
   Alert,
@@ -164,7 +165,7 @@ export function ShareBuildingDialog({
       },
       {
         onSuccess: () =>
-          showNotification("Building shared successfully", "success"),
+          showNotification(msg("buildingShared"), "success"),
         // Back to the form step, where the inline error Alert renders.
         onError: () => setConfirmStep(false),
       },
