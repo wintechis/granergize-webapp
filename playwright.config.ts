@@ -111,6 +111,8 @@ const SOLO_SPECS = [
   "**/login.spec.ts",
   "**/logout.spec.ts",
   "**/archive-restore.spec.ts",
+  "**/archive-systems.spec.ts",
+  "**/archive-full-load.spec.ts",
   "**/map-energy-lens.spec.ts",
   "**/regional-context.spec.ts",
   // Cube UI — CQ-anchored space-time-cube specs (plans/plan-cube-ui.md).
