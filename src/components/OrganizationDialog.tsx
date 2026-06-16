@@ -124,7 +124,7 @@ export default function OrganizationDialog(
       onClose={close}
       dirty={dirty}
       busy={saving}
-      title="Your organisation"
+      title={msg("orgDialogTitle")}
       actions={
         <>
           <Button onClick={close} disabled={saving}>Cancel</Button>
@@ -142,7 +142,7 @@ export default function OrganizationDialog(
           <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
             <Avatar
               src={shownLogo}
-              alt="Organisation logo"
+              alt={msg("orgLogoAlt")}
               variant="rounded"
               sx={{
                 width: 160,
@@ -154,10 +154,10 @@ export default function OrganizationDialog(
             />
             <Box>
               <Button onClick={() => fileInputRef.current?.click()}>
-                Choose logo…
+                {msg("orgChooseLogo")}
               </Button>
               <Typography variant="caption" color="text.secondary" sx={{ display: "block" }}>
-                PNG, JPG, SVG, WEBP or GIF
+                {msg("orgLogoFormats")}
               </Typography>
             </Box>
             <input
@@ -170,13 +170,13 @@ export default function OrganizationDialog(
           </Box>
 
           <TextField
-            label="Company name"
+            label={msg("lblCompanyName")}
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
           />
           <TextField
-            label="Homepage URI"
+            label={msg("lblHomepageUri")}
             type="url"
             placeholder="https://example.com/"
             value={homepage}
@@ -184,12 +184,12 @@ export default function OrganizationDialog(
             fullWidth
           />
           <TextField
-            label="Organisation WebID"
+            label={msg("lblOrgWebId")}
             type="url"
             placeholder="https://example.com/profile/card#me"
             value={sameAs}
             onChange={(e) => setSameAs(e.target.value)}
-            helperText="If the company has its own WebID, link it here."
+            helperText={msg("orgWebIdHelp")}
             fullWidth
           />
         </Box>

@@ -124,7 +124,7 @@ export default function ShareAggregationDialog(
 
   const handleProceedToConfirm = () => {
     if (recipients.length === 0) {
-      setWebIdError("Enter at least one WebID");
+      setWebIdError(msg("shareEnterOneWebId"));
       return;
     }
     const err = webIdsError(recipients);
@@ -143,9 +143,7 @@ export default function ShareAggregationDialog(
       onSuccess: () => {
         setConfirmStep(false);
         showNotification(
-          `Aggregation shared with ${recipients.length} recipient${
-            recipients.length === 1 ? "" : "s"
-          }`,
+          msg("aggregationSharedCount", { count: recipients.length }),
           "success",
         );
         setRecipients([]);
@@ -160,8 +158,8 @@ export default function ShareAggregationDialog(
     if (
       !await confirm({
         title: msg("dlgRevokeAccess"),
-        message: `Revoke access for ${webId}?`,
-        confirmLabel: "Revoke",
+        message: msg("confirmRevokeMessage", { webId }),
+        confirmLabel: msg("confirmRevoke"),
       })
     ) return;
     revoke.mutate(
@@ -184,19 +182,17 @@ export default function ShareAggregationDialog(
       onClose={handleClose}
       dirty={recipients.length > 0}
       busy={loading}
-      title={`Share "${aggregation.name}"`}
-      actions={<Button onClick={handleClose}>Close</Button>}
+      title={msg("shareAggTitle", { name: aggregation.name })}
+      actions={<Button onClick={handleClose}>{msg("btnClose")}</Button>}
     >
       {loading
         ? (
-          <Typography variant="body2" color="text.secondary">Loading…</Typography>
+          <Typography variant="body2" color="text.secondary">{msg("loadingEllipsis")}</Typography>
         )
         : (
         <>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-            Share this aggregation with another user by entering their
-            WebID. They will receive read access to the computed snapshot
-            (values only, no building details).
+            {msg("shareAggIntro")}
           </Typography>
 
           {shareSuccess && (
@@ -209,7 +205,7 @@ export default function ShareAggregationDialog(
                   gap: 0.5,
                 }}
               >
-                Shared successfully with{" "}
+                {msg("shareSuccessWith")}{" "}
                 {successRecipients.map((r) => (
                   <AgentChip key={r} value={r} size="small" variant="outlined" />
                 ))}
@@ -228,8 +224,7 @@ export default function ShareAggregationDialog(
               {isBenchmarkAggregation && contributors.length > 0 && (
                 <Box sx={{ mb: 2 }}>
                   <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-                    This is a benchmark. Share it back to everyone who contributed
-                    a building so they can compare against the peer average.
+                    {msg("shareBenchmarkHint")}
                   </Typography>
                   <Button
                     variant="outlined"
@@ -244,18 +239,18 @@ export default function ShareAggregationDialog(
                       recipients.includes(w) || sharedWith.includes(w)
                     )}
                   >
-                    Add all {contributors.length} contributors
+                    {msg("shareAddAllContributors", { count: contributors.length })}
                   </Button>
                 </Box>
               )}
 
               <Typography variant="h6" gutterBottom>
-                Data room members
+                {msg("shareDataRoomMembers")}
               </Typography>
               {membersLoading
                 ? (
                   <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-                    Loading…
+                    {msg("loadingEllipsis")}
                   </Typography>
                 )
                 : members.length === 0
@@ -265,8 +260,7 @@ export default function ShareAggregationDialog(
                     color="text.secondary"
                     sx={{ mb: 2 }}
                   >
-                    No other members in your active data room. Enter a WebID
-                    below instead.
+                    {msg("shareNoMembers")}
                   </Typography>
                 )
                 : (
@@ -279,7 +273,7 @@ export default function ShareAggregationDialog(
                           <ListItemText
                             primary={<AgentLabel value={m.webId} />}
                             secondary={m.roles.map((r) => roleLabel(r))
-                              .join(", ") || "no role"}
+                              .join(", ") || msg("noRole")}
                             slotProps={{
                               primary: {
                                 variant: "body2",
@@ -296,10 +290,10 @@ export default function ShareAggregationDialog(
                               disabled={inField || alreadyShared}
                             >
                               {alreadyShared
-                                ? "Shared"
+                                ? msg("shareStateShared")
                                 : inField
-                                ? "Added"
-                                : "Add"}
+                                ? msg("shareStateAdded")
+                                : msg("btnAdd")}
                             </Button>
                           </ListItemSecondaryAction>
                         </ListItem>
@@ -323,7 +317,7 @@ export default function ShareAggregationDialog(
                 onClick={handleProceedToConfirm}
                 disabled={loading || recipients.length === 0}
               >
-                Review and Share
+                {msg("shareReviewAndShare")}
               </Button>
             </>
           )}
@@ -336,7 +330,7 @@ export default function ShareAggregationDialog(
                 </Alert>
               )}
               <Typography variant="body2" color="text.secondary" gutterBottom>
-                Confirm sharing with:
+                {msg("shareConfirmWith")}
               </Typography>
               <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
                 {recipients.map((r) => (
@@ -344,13 +338,12 @@ export default function ShareAggregationDialog(
                 ))}
               </Box>
               <Typography variant="body2" sx={{ mb: 2 }}>
-                Recipients will see computed snapshot values only — no building
-                details.
+                {msg("shareSnapshotOnly")}
               </Typography>
               <Box sx={{ display: "flex", gap: 1 }}>
-                <Button onClick={() => setConfirmStep(false)}>Back</Button>
+                <Button onClick={() => setConfirmStep(false)}>{msg("btnBack")}</Button>
                 <Button variant="contained" onClick={handleConfirmShare}>
-                  Confirm Share
+                  {msg("shareConfirmShare")}
                 </Button>
               </Box>
             </Box>
@@ -359,19 +352,19 @@ export default function ShareAggregationDialog(
           <Divider sx={{ my: 3 }} />
 
           <Typography variant="h6" gutterBottom>
-            Currently shared with:
+            {msg("shareCurrentlyWith")}
           </Typography>
 
           {loadingShared
             ? (
               <Typography variant="body2" color="text.secondary" sx={{ py: 2 }}>
-                Loading…
+                {msg("loadingEllipsis")}
               </Typography>
             )
             : sharedWith.length === 0
             ? (
               <Typography variant="body2" color="text.secondary">
-                Not shared with anyone yet.
+                {msg("shareNoneYet")}
               </Typography>
             )
             : (
@@ -391,12 +384,12 @@ export default function ShareAggregationDialog(
                       }}
                     />
                     <ListItemSecondaryAction>
-                      <Tooltip title="Revoke access">
+                      <Tooltip title={msg("revokeAccess")}>
                         <span>
                           <IconButton
                             edge="end"
                             size="small"
-                            aria-label="Revoke access"
+                            aria-label={msg("revokeAccess")}
                             onClick={() => handleRevoke(webId)}
                             disabled={loading}
                           >

@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
 import { buildingRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
@@ -120,7 +121,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     const dialog = stage.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await demo.type(
-      stage.getByRole("spinbutton", { name: "Year", exact: true }),
+      stage.getByRole("spinbutton", { name: en("lblYear"), exact: true }),
       YEAR,
     );
     await demo.type(
@@ -143,10 +144,10 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await demo.click(editYears);
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await demo.type(
-      stage.getByRole("spinbutton", { name: "Year", exact: true }),
+      stage.getByRole("spinbutton", { name: en("lblYear"), exact: true }),
       YEAR,
     );
-    await demo.select(stage.getByLabel("Scenario", { exact: true }), /^Planned/);
+    await demo.select(stage.getByLabel(en("lblScenario"), { exact: true }), /^Planned/);
     await demo.type(
       stage.getByRole("spinbutton", { name: "Electricity (kWh)" }),
       "90000",

@@ -274,6 +274,377 @@ export const MESSAGES = {
     de: "Berater / Makler (WebID)",
     fr: "Conseiller / courtier (WebID)",
   },
+  // Operating-cost category labels (the investor opcost form rows).
+  lblOpcostWasteDisposal: {
+    en: "Waste disposal",
+    de: "Abfallentsorgung",
+    fr: "Élimination des déchets",
+  },
+  lblOpcostInsurance: { en: "Insurance", de: "Versicherung", fr: "Assurance" },
+  lblOpcostOperationInspectionAndMaintenance: {
+    en: "Operation, inspection and maintenance",
+    de: "Betrieb, Inspektion und Wartung",
+    fr: "Exploitation, inspection et maintenance",
+  },
+  lblOpcostRoutineCleaningOffice: {
+    en: "Routine cleaning (office)",
+    de: "Unterhaltsreinigung (Büro)",
+    fr: "Nettoyage courant (bureau)",
+  },
+  lblOpcostRoutineCleaningWarehouse: {
+    en: "Routine cleaning (warehouse)",
+    de: "Unterhaltsreinigung (Lager)",
+    fr: "Nettoyage courant (entrepôt)",
+  },
+  lblOpcostGlassCleaning: {
+    en: "Glass cleaning",
+    de: "Glasreinigung",
+    fr: "Nettoyage des vitres",
+  },
+  lblOpcostExteriorMaintenance: {
+    en: "Exterior maintenance",
+    de: "Außenanlagenpflege",
+    fr: "Entretien extérieur",
+  },
+  lblOpcostSecurity: { en: "Security", de: "Sicherheit", fr: "Sécurité" },
+  lblOpcostPropertyManagement: {
+    en: "Property management",
+    de: "Objektverwaltung",
+    fr: "Gestion immobilière",
+  },
+  lblOpcostCaretaker: { en: "Caretaker", de: "Hausmeister", fr: "Concierge" },
+  lblOpcostRepairAndMaintenance: {
+    en: "Repair and maintenance",
+    de: "Reparatur und Instandhaltung",
+    fr: "Réparation et entretien",
+  },
+  // Certification form-row labels.
+  lblCertType: { en: "Type", de: "Typ", fr: "Type" },
+  lblCertLevel: { en: "Level", de: "Stufe", fr: "Niveau" },
+  lblCertScope: { en: "Scope", de: "Geltungsbereich", fr: "Portée" },
+  lblCertificationN: {
+    en: "Certification {n}",
+    de: "Zertifizierung {n}",
+    fr: "Certification {n}",
+  },
+  // Create-aggregation dialog form-field labels (the radio/metric/mode chrome is a
+  // separate follow-up slice).
+  aggTypeLabel: {
+    en: "Aggregation type",
+    de: "Aggregationsart",
+    fr: "Type d'agrégation",
+  },
+  aggSelectBuildings: {
+    en: "Select Buildings",
+    de: "Gebäude auswählen",
+    fr: "Sélectionner les bâtiments",
+  },
+  aggNameLabel: {
+    en: "Aggregation name",
+    de: "Name der Aggregation",
+    fr: "Nom de l'agrégation",
+  },
+  aggMonthLabel: { en: "Month", de: "Monat", fr: "Mois" },
+  aggCreateTitle: {
+    en: "Create aggregation",
+    de: "Aggregation erstellen",
+    fr: "Créer une agrégation",
+  },
+  aggCreatingSnapshot: {
+    en: "Creating aggregation and computing snapshot…",
+    de: "Aggregation wird erstellt und Snapshot berechnet…",
+    fr: "Création de l'agrégation et calcul de l'instantané…",
+  },
+  aggModeAnnual: {
+    en: "Annual portfolio",
+    de: "Jahresportfolio",
+    fr: "Portefeuille annuel",
+  },
+  aggModeMonthly: {
+    en: "Monthly (15-minute series)",
+    de: "Monatlich (15-Minuten-Reihe)",
+    fr: "Mensuel (série de 15 minutes)",
+  },
+  aggModeBenchmark: {
+    en: "Compare shared buildings",
+    de: "Geteilte Gebäude vergleichen",
+    fr: "Comparer les bâtiments partagés",
+  },
+  aggDescAnnual: {
+    en:
+      "Aggregate annual energy figures across your buildings. The computed values are " +
+      "stored as a privacy-preserving snapshot that can be shared without revealing the " +
+      "source buildings.",
+    de:
+      "Aggregiere die Jahresenergiewerte über deine Gebäude. Die berechneten Werte werden " +
+      "als datenschutzfreundlicher Snapshot gespeichert, der geteilt werden kann, ohne die " +
+      "zugrunde liegenden Gebäude offenzulegen.",
+    fr:
+      "Agrégez les valeurs énergétiques annuelles de vos bâtiments. Les valeurs calculées " +
+      "sont stockées sous forme d'instantané préservant la confidentialité, partageable sans " +
+      "révéler les bâtiments sources.",
+  },
+  aggDescMonthly: {
+    en:
+      "Aggregate monthly electricity consumption across buildings that carry a 15-minute " +
+      "load profile. The result is a privacy-preserving snapshot of the combined kWh total.",
+    de:
+      "Aggregiere den monatlichen Stromverbrauch über Gebäude mit einem 15-Minuten-Lastprofil. " +
+      "Das Ergebnis ist ein datenschutzfreundlicher Snapshot der kombinierten kWh-Summe.",
+    fr:
+      "Agrégez la consommation d'électricité mensuelle des bâtiments dotés d'un profil de " +
+      "charge de 15 minutes. Le résultat est un instantané préservant la confidentialité du " +
+      "total kWh combiné.",
+  },
+  aggDescBenchmark: {
+    en:
+      "Aggregate annual consumption across the buildings shared with you. " +
+      "Metrics: electricity, heat, water, and wastewater consumption (kWh / m³).",
+    de:
+      "Aggregiere den Jahresverbrauch über die mit dir geteilten Gebäude. " +
+      "Kennzahlen: Strom-, Wärme-, Wasser- und Abwasserverbrauch (kWh / m³).",
+    fr:
+      "Agrégez la consommation annuelle des bâtiments partagés avec vous. " +
+      "Indicateurs : consommation d'électricité, de chaleur, d'eau et d'eaux usées (kWh / m³).",
+  },
+  // Generic "Loading…" region text (reused wherever a region waits on data).
+  loadingEllipsis: { en: "Loading…", de: "Wird geladen…", fr: "Chargement…" },
+  // Energy-years dialog.
+  eyAction: { en: "Energy years", de: "Energiejahre", fr: "Années énergétiques" },
+  eyStoredYears: {
+    en: "Stored years",
+    de: "Gespeicherte Jahre",
+    fr: "Années enregistrées",
+  },
+  eyNoneYet: {
+    en: "No energy years entered yet.",
+    de: "Noch keine Energiejahre erfasst.",
+    fr: "Aucune année énergétique saisie pour l'instant.",
+  },
+  lblYear: { en: "Year", de: "Jahr", fr: "Année" },
+  lblScenario: { en: "Scenario", de: "Szenario", fr: "Scénario" },
+  scenarioActual: { en: "Actual", de: "Ist", fr: "Réel" },
+  scenarioPlanned: {
+    en: "Planned (Soll)",
+    de: "Geplant (Soll)",
+    fr: "Planifié (Soll)",
+  },
+  eyEditYear: {
+    en: "Edit this year",
+    de: "Dieses Jahr bearbeiten",
+    fr: "Modifier cette année",
+  },
+  eyDeleteYear: {
+    en: "Delete this year",
+    de: "Dieses Jahr löschen",
+    fr: "Supprimer cette année",
+  },
+  eyEditHeading: { en: "Edit year", de: "Jahr bearbeiten", fr: "Modifier l'année" },
+  eyAddHeading: { en: "Add a year", de: "Jahr hinzufügen", fr: "Ajouter une année" },
+  eyEditingNote: {
+    en:
+      "Editing existing figures for this year — change only what you need; " +
+      "the rest are kept.",
+    de:
+      "Bestehende Werte für dieses Jahr bearbeiten — ändere nur, was nötig ist; " +
+      "der Rest bleibt erhalten.",
+    fr:
+      "Modification des valeurs existantes pour cette année — ne changez que le " +
+      "nécessaire ; le reste est conservé.",
+  },
+  // Create-aggregation dialog: metric-function radios + metric-selection section.
+  aggFnLegend: {
+    en: "Aggregation Type",
+    de: "Aggregationsfunktion",
+    fr: "Fonction d'agrégation",
+  },
+  aggFnAverage: { en: "Average", de: "Durchschnitt", fr: "Moyenne" },
+  aggFnSum: { en: "Sum", de: "Summe", fr: "Somme" },
+  aggFnMin: { en: "Minimum", de: "Minimum", fr: "Minimum" },
+  aggFnMax: { en: "Maximum", de: "Maximum", fr: "Maximum" },
+  aggMetricsLegend: {
+    en: "Metrics to Include",
+    de: "Einzubeziehende Kennzahlen",
+    fr: "Indicateurs à inclure",
+  },
+  aggSelectAll: { en: "Select all", de: "Alle auswählen", fr: "Tout sélectionner" },
+  aggDeselectAll: {
+    en: "Deselect all",
+    de: "Alle abwählen",
+    fr: "Tout désélectionner",
+  },
+  aggSelectBuildingsFirst: {
+    en: "Select buildings first",
+    de: "Zuerst Gebäude auswählen",
+    fr: "Sélectionnez d'abord des bâtiments",
+  },
+  aggNoSeriesData: {
+    en: "The selected buildings carry no 15-minute series data for any month.",
+    de: "Die gewählten Gebäude haben für keinen Monat 15-Minuten-Reihendaten.",
+    fr: "Les bâtiments sélectionnés ne comportent de données de série de 15 minutes pour aucun mois.",
+  },
+  aggNamePlaceholderMonthly: {
+    en: "e.g., Warehouse Portfolio March 2024",
+    de: "z. B. Lagerportfolio März 2024",
+    fr: "p. ex. portefeuille d'entrepôts mars 2024",
+  },
+  aggNamePlaceholderAnnual: {
+    en: "e.g., Portfolio Average 2024",
+    de: "z. B. Portfolio-Durchschnitt 2024",
+    fr: "p. ex. moyenne du portefeuille 2024",
+  },
+  // Reusable button / small-label ids (shared across surfaces).
+  btnClose: { en: "Close", de: "Schließen", fr: "Fermer" },
+  btnBack: { en: "Back", de: "Zurück", fr: "Retour" },
+  btnAdd: { en: "Add", de: "Hinzufügen", fr: "Ajouter" },
+  revokeAccess: {
+    en: "Revoke access",
+    de: "Zugriff entziehen",
+    fr: "Révoquer l'accès",
+  },
+  noRole: { en: "no role", de: "keine Rolle", fr: "aucun rôle" },
+  // Share-aggregation dialog.
+  shareAggTitle: {
+    en: 'Share "{name}"',
+    de: "„{name}“ teilen",
+    fr: "Partager « {name} »",
+  },
+  shareAggIntro: {
+    en:
+      "Share this aggregation with another user by entering their WebID. They will " +
+      "receive read access to the computed snapshot (values only, no building details).",
+    de:
+      "Teile diese Aggregation mit einer anderen Person, indem du ihre WebID eingibst. " +
+      "Sie erhält Lesezugriff auf den berechneten Snapshot (nur Werte, keine Gebäudedetails).",
+    fr:
+      "Partagez cette agrégation avec un autre utilisateur en saisissant sa WebID. Il " +
+      "recevra un accès en lecture à l'instantané calculé (valeurs uniquement, sans détails).",
+  },
+  shareEnterOneWebId: {
+    en: "Enter at least one WebID",
+    de: "Gib mindestens eine WebID ein",
+    fr: "Saisissez au moins une WebID",
+  },
+  confirmRevoke: { en: "Revoke", de: "Entziehen", fr: "Révoquer" },
+  shareSuccessWith: {
+    en: "Shared successfully with",
+    de: "Erfolgreich geteilt mit",
+    fr: "Partagé avec succès avec",
+  },
+  shareBenchmarkHint: {
+    en:
+      "This is a benchmark. Share it back to everyone who contributed a building so " +
+      "they can compare against the peer average.",
+    de:
+      "Dies ist ein Benchmark. Teile ihn an alle zurück, die ein Gebäude beigetragen " +
+      "haben, damit sie sich mit dem Peer-Durchschnitt vergleichen können.",
+    fr:
+      "Ceci est un benchmark. Repartagez-le avec tous ceux qui ont contribué un bâtiment " +
+      "afin qu'ils puissent se comparer à la moyenne des pairs.",
+  },
+  shareAddAllContributors: {
+    en: "Add all {count} contributors",
+    de: "Alle {count} Beitragenden hinzufügen",
+    fr: "Ajouter les {count} contributeurs",
+  },
+  shareDataRoomMembers: {
+    en: "Data room members",
+    de: "Datenraum-Mitglieder",
+    fr: "Membres de la salle de données",
+  },
+  shareNoMembers: {
+    en: "No other members in your active data room. Enter a WebID below instead.",
+    de:
+      "Keine weiteren Mitglieder in deinem aktiven Datenraum. Gib stattdessen unten eine " +
+      "WebID ein.",
+    fr:
+      "Aucun autre membre dans votre salle de données active. Saisissez plutôt une WebID " +
+      "ci-dessous.",
+  },
+  shareStateShared: { en: "Shared", de: "Geteilt", fr: "Partagé" },
+  shareStateAdded: { en: "Added", de: "Hinzugefügt", fr: "Ajouté" },
+  shareReviewAndShare: {
+    en: "Review and Share",
+    de: "Prüfen und teilen",
+    fr: "Vérifier et partager",
+  },
+  shareConfirmWith: {
+    en: "Confirm sharing with:",
+    de: "Teilen bestätigen mit:",
+    fr: "Confirmer le partage avec :",
+  },
+  shareSnapshotOnly: {
+    en: "Recipients will see computed snapshot values only — no building details.",
+    de: "Empfänger sehen nur die berechneten Snapshot-Werte — keine Gebäudedetails.",
+    fr: "Les destinataires ne verront que les valeurs calculées — sans détails de bâtiment.",
+  },
+  shareConfirmShare: {
+    en: "Confirm Share",
+    de: "Teilen bestätigen",
+    fr: "Confirmer le partage",
+  },
+  shareCurrentlyWith: {
+    en: "Currently shared with:",
+    de: "Aktuell geteilt mit:",
+    fr: "Actuellement partagé avec :",
+  },
+  shareNoneYet: {
+    en: "Not shared with anyone yet.",
+    de: "Noch mit niemandem geteilt.",
+    fr: "Pas encore partagé.",
+  },
+  aggregationSharedCount: {
+    en: {
+      one: "Aggregation shared with {count} recipient",
+      other: "Aggregation shared with {count} recipients",
+    },
+    de: {
+      one: "Aggregation mit {count} Empfänger geteilt",
+      other: "Aggregation mit {count} Empfängern geteilt",
+    },
+    fr: {
+      one: "Agrégation partagée avec {count} destinataire",
+      other: "Agrégation partagée avec {count} destinataires",
+    },
+  },
+  confirmRevokeMessage: {
+    en: "Revoke access for {webId}?",
+    de: "Zugriff für {webId} entziehen?",
+    fr: "Révoquer l'accès pour {webId} ?",
+  },
+  // Organisation dialog chrome.
+  orgDialogTitle: {
+    en: "Your organisation",
+    de: "Deine Organisation",
+    fr: "Votre organisation",
+  },
+  orgChooseLogo: { en: "Choose logo…", de: "Logo wählen…", fr: "Choisir un logo…" },
+  orgLogoFormats: {
+    en: "PNG, JPG, SVG, WEBP or GIF",
+    de: "PNG, JPG, SVG, WEBP oder GIF",
+    fr: "PNG, JPG, SVG, WEBP ou GIF",
+  },
+  orgLogoAlt: {
+    en: "Organisation logo",
+    de: "Organisationslogo",
+    fr: "Logo de l'organisation",
+  },
+  lblCompanyName: {
+    en: "Company name",
+    de: "Firmenname",
+    fr: "Nom de l'entreprise",
+  },
+  lblHomepageUri: { en: "Homepage URI", de: "Homepage-URI", fr: "URI de la page d'accueil" },
+  lblOrgWebId: {
+    en: "Organisation WebID",
+    de: "Organisations-WebID",
+    fr: "WebID de l'organisation",
+  },
+  orgWebIdHelp: {
+    en: "If the company has its own WebID, link it here.",
+    de: "Falls das Unternehmen eine eigene WebID hat, verknüpfe sie hier.",
+    fr: "Si l'entreprise possède sa propre WebID, reliez-la ici.",
+  },
   // Rooms / Meet notifications (imperative toasts → resolved via `msg()` at fire time).
   roomAdded: {
     en: "Data room added to your list",

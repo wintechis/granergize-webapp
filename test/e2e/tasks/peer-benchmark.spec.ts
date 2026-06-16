@@ -99,7 +99,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       // The "Compare shared buildings" aggregation type appears once the dialog has folded
       // in the shared-with-me roster (an async effect); re-open the Aggregation type select
       // until it's offered.
-      const modeSel = dlg.getByLabel("Aggregation type");
+      const modeSel = dlg.getByLabel(en("aggTypeLabel"));
       await expect(async () => {
         await modeSel.click();
         const opt = c2.page.getByRole("option", {
@@ -114,11 +114,11 @@ test.describe("peer benchmark round-trip (BSP)", () => {
         }
       }).toPass({ timeout: T.poll });
 
-      await dlg.getByLabel("Aggregation name").fill(BENCH_VIEW);
+      await dlg.getByLabel(en("aggNameLabel")).fill(BENCH_VIEW);
 
       // Both owners' buildings must be offered — one shared from A's Pod, one from
       // B's — proving two contributors reached the BSP. Select them all.
-      await dlg.getByLabel("Select Buildings").click();
+      await dlg.getByLabel(en("aggSelectBuildings")).click();
       const options = c2.page.getByRole("option");
       await expect(async () => {
         expect(await options.count()).toBe(2);

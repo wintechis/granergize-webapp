@@ -1,4 +1,4 @@
-import { msg } from "../lib/messages.ts";
+import { msg, type MessageId } from "../lib/messages.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { useMemo, useState } from "react";
@@ -71,23 +71,16 @@ const MenuProps = {
  */
 type AggregationMode = "annual" | "monthly" | "benchmark";
 
-const MODE_LABEL: Record<AggregationMode, string> = {
-  annual: "Annual portfolio",
-  monthly: "Monthly (15-minute series)",
-  benchmark: "Compare shared buildings",
+const MODE_LABEL: Record<AggregationMode, MessageId> = {
+  annual: "aggModeAnnual",
+  monthly: "aggModeMonthly",
+  benchmark: "aggModeBenchmark",
 };
 
-const MODE_DESCRIPTION: Record<AggregationMode, string> = {
-  annual:
-    "Aggregate annual energy figures across your buildings. The computed values are " +
-    "stored as a privacy-preserving snapshot that can be shared without revealing the " +
-    "source buildings.",
-  monthly:
-    "Aggregate monthly electricity consumption across buildings that carry a 15-minute " +
-    "load profile. The result is a privacy-preserving snapshot of the combined kWh total.",
-  benchmark:
-    "Aggregate annual consumption across the buildings shared with you. " +
-    "Metrics: electricity, heat, water, and wastewater consumption (kWh / m³).",
+const MODE_DESCRIPTION: Record<AggregationMode, MessageId> = {
+  annual: "aggDescAnnual",
+  monthly: "aggDescMonthly",
+  benchmark: "aggDescBenchmark",
 };
 
 // Annual metrics any building may carry (read from building.annualData); a
@@ -298,16 +291,16 @@ export default function CreateAggregationDialog({
   // single annual portfolio is implicit.
   const modeDropdown = availableModes.length > 1 && (
     <FormControl fullWidth sx={{ mb: 3 }}>
-      <InputLabel id="mode-label">Aggregation type</InputLabel>
+      <InputLabel id="mode-label">{msg("aggTypeLabel")}</InputLabel>
       <Select<AggregationMode>
         labelId="mode-label"
         value={mode}
         onChange={handleModeChange}
-        input={<OutlinedInput label="Aggregation type" />}
+        input={<OutlinedInput label={msg("aggTypeLabel")} />}
       >
         {availableModes.map((m) => (
           <MenuItem key={m} value={m}>
-            {MODE_LABEL[m]}
+            {msg(MODE_LABEL[m])}
           </MenuItem>
         ))}
       </Select>
@@ -316,14 +309,14 @@ export default function CreateAggregationDialog({
 
   const buildingSelect = (
     <FormControl fullWidth sx={{ mb: 3 }}>
-      <InputLabel id="buildings-label">Select Buildings</InputLabel>
+      <InputLabel id="buildings-label">{msg("aggSelectBuildings")}</InputLabel>
       <Select
         labelId="buildings-label"
         id="buildings-select"
         multiple
         value={selectedBuildings}
         onChange={handleBuildingChange}
-        input={<OutlinedInput label="Select Buildings" />}
+        input={<OutlinedInput label={msg("aggSelectBuildings")} />}
         renderValue={(selected) => (
           <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
             {selected.map((uri) => {
@@ -357,18 +350,20 @@ export default function CreateAggregationDialog({
     </FormControl>
   );
 
-  const aggregationRadio = (
-    <FormControl component="fieldset" sx={{ mb: 3 }}>
-      <FormLabel component="legend">Aggregation Type</FormLabel>
+  // One render, used by both branches (was duplicated inline in the monthly
+  // branch); `mb` is the only thing that differed between the two copies.
+  const aggregationRadio = (mb: number) => (
+    <FormControl component="fieldset" sx={{ mb }}>
+      <FormLabel component="legend">{msg("aggFnLegend")}</FormLabel>
       <RadioGroup
         row
         value={aggregationType}
         onChange={(e) => setAggregationType(e.target.value as AggregationType)}
       >
-        <FormControlLabel value="average" control={<Radio />} label="Average" />
-        <FormControlLabel value="sum" control={<Radio />} label="Sum" />
-        <FormControlLabel value="min" control={<Radio />} label="Minimum" />
-        <FormControlLabel value="max" control={<Radio />} label="Maximum" />
+        <FormControlLabel value="average" control={<Radio />} label={msg("aggFnAverage")} />
+        <FormControlLabel value="sum" control={<Radio />} label={msg("aggFnSum")} />
+        <FormControlLabel value="min" control={<Radio />} label={msg("aggFnMin")} />
+        <FormControlLabel value="max" control={<Radio />} label={msg("aggFnMax")} />
       </RadioGroup>
     </FormControl>
   );
@@ -379,7 +374,7 @@ export default function CreateAggregationDialog({
       onClose={handleClose}
       dirty={aggregationName.trim() !== "" || selectedBuildings.length > 0}
       busy={creating}
-      title="Create aggregation"
+      title={msg("aggCreateTitle")}
       actions={!creating && (
         <>
           <Button onClick={handleClose}>Cancel</Button>
@@ -391,7 +386,7 @@ export default function CreateAggregationDialog({
                 ? !effectivePeriod
                 : selectedMetrics.length === 0)}
           >
-            Create aggregation
+            {msg("aggCreateTitle")}
           </Button>
         </>
       )}
@@ -399,14 +394,14 @@ export default function CreateAggregationDialog({
       {creating
         ? (
           <Typography sx={{ my: 2 }}>
-            Creating aggregation and computing snapshot…
+            {msg("aggCreatingSnapshot")}
           </Typography>
         )
         : mode === "monthly"
         ? (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {MODE_DESCRIPTION.monthly}
+              {msg(MODE_DESCRIPTION.monthly)}
             </Typography>
 
             {modeDropdown}
@@ -415,13 +410,13 @@ export default function CreateAggregationDialog({
                 autoFocus
                 margin="dense"
                 id="aggregationName"
-                label="Aggregation name"
+                label={msg("aggNameLabel")}
                 type="text"
                 fullWidth
                 variant="outlined"
                 value={aggregationName}
                 onChange={(e) => setAggregationName(e.target.value)}
-                placeholder="e.g., Warehouse Portfolio March 2024"
+                placeholder={msg("aggNamePlaceholderMonthly")}
                 sx={{ mb: 3 }}
               />
 
@@ -439,10 +434,10 @@ export default function CreateAggregationDialog({
                 sx={{ mb: 3, minWidth: 160 }}
                 disabled={selectedBuildings.length === 0 || monthsLoading}
               >
-                <InputLabel id="aggregation-month-label">Month</InputLabel>
+                <InputLabel id="aggregation-month-label">{msg("aggMonthLabel")}</InputLabel>
                 <Select
                   labelId="aggregation-month-label"
-                  label="Month"
+                  label={msg("aggMonthLabel")}
                   value={effectivePeriod}
                   onChange={(e) => setSelectedPeriod(e.target.value)}
                 >
@@ -453,55 +448,25 @@ export default function CreateAggregationDialog({
                 {(selectedBuildings.length === 0 || monthsLoading) && (
                   <FormHelperText>
                     {selectedBuildings.length === 0
-                      ? "Select buildings first"
-                      : "Loading…"}
+                      ? msg("aggSelectBuildingsFirst")
+                      : msg("loadingEllipsis")}
                   </FormHelperText>
                 )}
               </FormControl>
               {selectedBuildings.length > 0 && !monthsLoading &&
                 seriesDays.isSuccess && availableMonths.length === 0 && (
                 <Alert severity="info" sx={{ mb: 3 }}>
-                  The selected buildings carry no 15-minute series data for any
-                  month.
+                  {msg("aggNoSeriesData")}
                 </Alert>
               )}
 
-              <FormControl component="fieldset" sx={{ mb: 1 }}>
-                <FormLabel component="legend">Aggregation Type</FormLabel>
-                <RadioGroup
-                  row
-                  value={aggregationType}
-                  onChange={(e) =>
-                    setAggregationType(e.target.value as AggregationType)}
-                >
-                  <FormControlLabel
-                    value="average"
-                    control={<Radio />}
-                    label="Average"
-                  />
-                  <FormControlLabel
-                    value="sum"
-                    control={<Radio />}
-                    label="Sum"
-                  />
-                  <FormControlLabel
-                    value="min"
-                    control={<Radio />}
-                    label="Minimum"
-                  />
-                  <FormControlLabel
-                    value="max"
-                    control={<Radio />}
-                    label="Maximum"
-                  />
-                </RadioGroup>
-              </FormControl>
+              {aggregationRadio(1)}
           </>
         )
         : (
           <>
             <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
-              {MODE_DESCRIPTION[mode]}
+              {msg(MODE_DESCRIPTION[mode])}
             </Typography>
 
             {modeDropdown}
@@ -510,22 +475,22 @@ export default function CreateAggregationDialog({
                 autoFocus
                 margin="dense"
                 id="aggregationName"
-                label="Aggregation name"
+                label={msg("aggNameLabel")}
                 type="text"
                 fullWidth
                 variant="outlined"
                 value={aggregationName}
                 onChange={(e) => setAggregationName(e.target.value)}
-                placeholder="e.g., Portfolio Average 2024"
+                placeholder={msg("aggNamePlaceholderAnnual")}
                 sx={{ mb: 3 }}
               />
 
               {buildingSelect}
 
-              {aggregationRadio}
+              {aggregationRadio(3)}
 
               <FormControl component="fieldset">
-                <FormLabel component="legend">Metrics to Include</FormLabel>
+                <FormLabel component="legend">{msg("aggMetricsLegend")}</FormLabel>
                 <Box sx={{ mt: 1 }}>
                   {availableMetrics.map((category) => {
                     const allSelected = category.metrics.every((m) =>
@@ -558,7 +523,7 @@ export default function CreateAggregationDialog({
                                     ]
                                 )}
                             >
-                              {allSelected ? "Deselect all" : "Select all"}
+                              {allSelected ? msg("aggDeselectAll") : msg("aggSelectAll")}
                             </Typography>
                           )}
                         </Box>

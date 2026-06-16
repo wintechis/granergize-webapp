@@ -18,6 +18,7 @@ import type {
   PvSystem,
 } from "../types.ts";
 import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
+import type { MessageId } from "../lib/messages.ts";
 
 export interface BuildingFieldHelpers {
   /** A labelled text field bound to `fields[field]`. */
@@ -110,22 +111,22 @@ export function makeBuildingFields(
 /** Investor operating-cost categories rendered as `_opcost_<key>` form rows (mirrors
  * OPCOST_FIELDS in buildingSerializer). One boolean; the rest free-text currency
  * values. Shared by the EditBuildingDialog AND the building page's inline editor. */
-export const OPCOST_FIELDS: { key: string; label: string; bool?: boolean }[] = [
-  { key: "wasteDisposal", label: "Waste disposal" },
-  { key: "insurance", label: "Insurance" },
+export const OPCOST_FIELDS: { key: string; labelId: MessageId; bool?: boolean }[] = [
+  { key: "wasteDisposal", labelId: "lblOpcostWasteDisposal" },
+  { key: "insurance", labelId: "lblOpcostInsurance" },
   {
     key: "operationInspectionAndMaintenance",
-    label: "Operation, inspection and maintenance",
+    labelId: "lblOpcostOperationInspectionAndMaintenance",
     bool: true,
   },
-  { key: "routineCleaningOffice", label: "Routine cleaning (office)" },
-  { key: "routineCleaningWarehouse", label: "Routine cleaning (warehouse)" },
-  { key: "glassCleaning", label: "Glass cleaning" },
-  { key: "exteriorMaintenance", label: "Exterior maintenance" },
-  { key: "security", label: "Security" },
-  { key: "propertyManagement", label: "Property management" },
-  { key: "caretaker", label: "Caretaker" },
-  { key: "repairAndMaintenance", label: "Repair and maintenance" },
+  { key: "routineCleaningOffice", labelId: "lblOpcostRoutineCleaningOffice" },
+  { key: "routineCleaningWarehouse", labelId: "lblOpcostRoutineCleaningWarehouse" },
+  { key: "glassCleaning", labelId: "lblOpcostGlassCleaning" },
+  { key: "exteriorMaintenance", labelId: "lblOpcostExteriorMaintenance" },
+  { key: "security", labelId: "lblOpcostSecurity" },
+  { key: "propertyManagement", labelId: "lblOpcostPropertyManagement" },
+  { key: "caretaker", labelId: "lblOpcostCaretaker" },
+  { key: "repairAndMaintenance", labelId: "lblOpcostRepairAndMaintenance" },
 ];
 
 /** Scalar building keys that never become editable form fields (identity, derived

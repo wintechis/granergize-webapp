@@ -3,6 +3,7 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, webIdOf } from "../helpers/login.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
 import { buildingRoute, receivedAggregations } from "../helpers/manage.ts";
+import { en } from "../helpers/i18n.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo, type SceneMark } from "./demoPolish.ts";
 
@@ -269,7 +270,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await expect(dlg).toBeVisible({ timeout: 10_000 });
     // The shared-with-me roster folds in asynchronously; retry the select
     // until the benchmark mode is offered (mirrors peer-benchmark.spec.ts).
-    const modeSel = dlg.getByLabel("Aggregation type");
+    const modeSel = dlg.getByLabel(en("aggTypeLabel"));
     await expect(async () => {
       await modeSel.click();
       const opt = stageC.getByRole("option", { name: /compare shared buildings/i });
@@ -281,8 +282,8 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
         throw e;
       }
     }).toPass({ timeout: 60_000 });
-    await demoC.type(dlg.getByLabel("Aggregation name"), VIEW_NAME);
-    await demoC.click(dlg.getByLabel("Select Buildings"));
+    await demoC.type(dlg.getByLabel(en("aggNameLabel")), VIEW_NAME);
+    await demoC.click(dlg.getByLabel(en("aggSelectBuildings")));
     const options = stageC.getByRole("option");
     await expect(async () => {
       expect(await options.count()).toBe(2);

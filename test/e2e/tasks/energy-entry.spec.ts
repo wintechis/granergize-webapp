@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import {
   addEnergyYear,
@@ -158,7 +159,7 @@ test.describe("energy entry + Soll-Ist", () => {
     const openYearDialog = async () => {
       await page.goto(buildingRoute("observation", id));
       await page.getByRole("button", { name: "Edit energy years" }).click();
-      await page.getByRole("spinbutton", { name: "Year", exact: true })
+      await page.getByRole("spinbutton", { name: en("lblYear"), exact: true })
         .fill(EDIT_YEAR);
     };
 
@@ -203,8 +204,8 @@ test.describe("energy entry + Soll-Ist", () => {
     // The row's Edit button loads that year's figures into the form (the
     // "edit afterwards" path, like editing a building) — the raw stored values,
     // not the de-DE-formatted table cells.
-    await yearRow.getByRole("button", { name: "Edit this year" }).click();
-    await expect(page.getByRole("spinbutton", { name: "Year", exact: true }))
+    await yearRow.getByRole("button", { name: en("eyEditYear") }).click();
+    await expect(page.getByRole("spinbutton", { name: en("lblYear"), exact: true }))
       .toHaveValue(DEL_YEAR);
     await expect(page.getByRole("spinbutton", { name: "Electricity (kWh)" }))
       .toHaveValue("12345");
@@ -212,7 +213,7 @@ test.describe("energy entry + Soll-Ist", () => {
       .toBeVisible({ timeout: T.action });
 
     // Delete it (the in-app confirm dialog asks first) — the row disappears.
-    await yearRow.getByRole("button", { name: "Delete this year" }).click();
+    await yearRow.getByRole("button", { name: en("eyDeleteYear") }).click();
     await confirmDialog(page, "Delete");
     await expect(page.getByText("Energy year deleted").first())
       .toBeVisible({ timeout: T.action });

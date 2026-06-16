@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, login } from "../helpers/login.ts";
 import { receivedAggregations } from "../helpers/manage.ts";
+import { en } from "../helpers/i18n.ts";
 import { freshPage } from "../helpers/twoPod.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { sweepSizes, writeBenchDat } from "./benchSpec.ts";
@@ -87,7 +88,7 @@ test.describe("view-roundtrip benchmark", () => {
 
       // The "Compare shared buildings" type appears once the dialog has folded
       // the shared-with-me roster (async); re-open the select until offered.
-      const modeSel = dlg.getByLabel("Aggregation type");
+      const modeSel = dlg.getByLabel(en("aggTypeLabel"));
       await expect(async () => {
         await modeSel.click();
         const opt = page.getByRole("option", { name: /compare shared buildings/i });
@@ -100,11 +101,11 @@ test.describe("view-roundtrip benchmark", () => {
         }
       }).toPass({ timeout: 120_000 });
 
-      await dlg.getByLabel("Aggregation name").fill(VIEW);
+      await dlg.getByLabel(en("aggNameLabel")).fill(VIEW);
 
       // Select ALL 2N contributed buildings. Untimed: per-option clicks are
       // Playwright interaction cost, not the app's compute path.
-      await dlg.getByLabel("Select Buildings").click();
+      await dlg.getByLabel(en("aggSelectBuildings")).click();
       const options = page.getByRole("option");
       await expect(options).toHaveCount(2 * n, { timeout: 120_000 });
       for (let i = 0; i < 2 * n; i++) await options.nth(i).click();

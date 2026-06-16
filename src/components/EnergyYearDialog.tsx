@@ -56,7 +56,7 @@ const fmt = (value: number, decimals: number): string =>
   }).format(value);
 
 const scenarioLabel = (s: Scenario): string =>
-  s === "planned" ? "Planned (Soll)" : "Actual";
+  s === "planned" ? msg("scenarioPlanned") : msg("scenarioActual");
 
 /** Stable key for one (year, scenario) annual dataset. */
 const dsKey = (year: number, scenario: Scenario): string => `${year}|${scenario}`;
@@ -297,7 +297,7 @@ export default function EnergyYearDialog(
     <Modal
       open={open}
       onClose={close}
-      title={<BuildingDialogTitle building={building} action="Energy years" />}
+      title={<BuildingDialogTitle building={building} action={msg("eyAction")} />}
       maxWidth="md"
       dirty={dirty}
       busy={busy}
@@ -313,13 +313,13 @@ export default function EnergyYearDialog(
       <Stack spacing={3} sx={{ mt: 1 }}>
         {/* Read-back of what's stored for this building. */}
         <section>
-          <Typography variant="h6" sx={{ mb: 1 }}>Stored years</Typography>
+          <Typography variant="h6" sx={{ mb: 1 }}>{msg("eyStoredYears")}</Typography>
           {listLoading
-            ? <Typography color="text.secondary">Loading…</Typography>
+            ? <Typography color="text.secondary">{msg("loadingEllipsis")}</Typography>
             : sorted.length === 0
             ? (
               <Typography color="text.secondary">
-                No energy years entered yet.
+                {msg("eyNoneYet")}
               </Typography>
             )
             : (
@@ -327,8 +327,8 @@ export default function EnergyYearDialog(
                 <Table size="small">
                   <TableHead>
                     <TableRow>
-                      <TableCell><strong>Year</strong></TableCell>
-                      <TableCell><strong>Scenario</strong></TableCell>
+                      <TableCell><strong>{msg("lblYear")}</strong></TableCell>
+                      <TableCell><strong>{msg("lblScenario")}</strong></TableCell>
                       {METRIC_FIELDS.map((m) => (
                         <TableCell key={m.key} align="right">
                           <strong>{m.short}</strong>
@@ -351,21 +351,21 @@ export default function EnergyYearDialog(
                           );
                         })}
                         <TableCell align="right" sx={{ whiteSpace: "nowrap" }}>
-                          <Tooltip title="Edit this year">
+                          <Tooltip title={msg("eyEditYear")}>
                             <IconButton
                               size="small"
-                              aria-label="Edit this year"
+                              aria-label={msg("eyEditYear")}
                               onClick={() => editYear(d)}
                               disabled={busy}
                             >
                               <EditIcon fontSize="small" />
                             </IconButton>
                           </Tooltip>
-                          <Tooltip title="Delete this year">
+                          <Tooltip title={msg("eyDeleteYear")}>
                             <IconButton
                               size="small"
                               color="error"
-                              aria-label="Delete this year"
+                              aria-label={msg("eyDeleteYear")}
                               onClick={() => handleDelete(d)}
                               disabled={busy}
                             >
@@ -384,11 +384,11 @@ export default function EnergyYearDialog(
         {/* Add / edit one year. */}
         <section>
           <Typography variant="h6" sx={{ mb: 1 }}>
-            {editingExisting ? "Edit year" : "Add a year"}
+            {editingExisting ? msg("eyEditHeading") : msg("eyAddHeading")}
           </Typography>
           <Stack spacing={2}>
             <TextField
-              label="Year"
+              label={msg("lblYear")}
               type="number"
               size="small"
               value={year}
@@ -396,18 +396,17 @@ export default function EnergyYearDialog(
             />
             <TextField
               select
-              label="Scenario"
+              label={msg("lblScenario")}
               size="small"
               value={scenario}
               onChange={(e) => setScenario(e.target.value as Scenario)}
             >
-              <MenuItem value="actual">Actual</MenuItem>
-              <MenuItem value="planned">Planned (Soll)</MenuItem>
+              <MenuItem value="actual">{msg("scenarioActual")}</MenuItem>
+              <MenuItem value="planned">{msg("scenarioPlanned")}</MenuItem>
             </TextField>
             {editingExisting && (
               <Typography variant="body2" color="text.secondary">
-                Editing existing figures for this year — change only what you need;
-                the rest are kept.
+                {msg("eyEditingNote")}
               </Typography>
             )}
             {METRIC_FIELDS.map(({ key, label }) => (

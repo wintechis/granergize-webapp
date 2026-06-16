@@ -82,10 +82,10 @@ test.describe("edit building operating costs + certifications", () => {
     // Fill an operating-cost figure and the first certification, then save.
     // The cert type is a select over the known systems (it mints an IRI local
     // name, so free text is rejected), not a text field.
-    await page.getByLabel("Insurance", { exact: true }).fill("1200");
-    await page.getByLabel("Type", { exact: true }).first().click();
+    await page.getByLabel(en("lblOpcostInsurance"), { exact: true }).fill("1200");
+    await page.getByLabel(en("lblCertType"), { exact: true }).first().click();
     await page.getByRole("option", { name: "LEED" }).click();
-    await page.getByLabel("Level", { exact: true }).first().fill("Gold");
+    await page.getByLabel(en("lblCertLevel"), { exact: true }).first().fill("Gold");
     await page.getByRole("button", { name: /^save$/i }).click();
     await expect(page.getByText(/building updated/i))
       .toBeVisible({ timeout: T.action });
@@ -94,11 +94,11 @@ test.describe("edit building operating costs + certifications", () => {
     // refetches the building from the Pod, so the form now reflects the values
     // that round-tripped through its Turtle.
     await page.getByRole("button", { name: /^edit$/i }).first().click();
-    await expect(page.getByLabel("Insurance", { exact: true }))
+    await expect(page.getByLabel(en("lblOpcostInsurance"), { exact: true }))
       .toHaveValue("1200", { timeout: T.visible });
-    await expect(page.getByLabel("Type", { exact: true }).first())
+    await expect(page.getByLabel(en("lblCertType"), { exact: true }).first())
       .toHaveText("LEED");
-    await expect(page.getByLabel("Level", { exact: true }).first())
+    await expect(page.getByLabel(en("lblCertLevel"), { exact: true }).first())
       .toHaveValue("Gold");
     await page.getByRole("button", { name: /^cancel$/i }).click();
 

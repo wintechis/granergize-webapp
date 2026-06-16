@@ -10,6 +10,7 @@ import {
 import { freshPage } from "../helpers/twoPod.ts";
 import { buildingRoute } from "../helpers/manage.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
+import { en } from "../helpers/i18n.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 
 /**
@@ -186,7 +187,7 @@ test.describe("handbuch screenshots", () => {
       await page.getByRole("menuitem", { name: /organisation/i }).click();
       const orgDialog = page.getByRole("dialog");
       await expect(orgDialog).toBeVisible({ timeout: 30_000 });
-      await orgDialog.getByLabel("Company name")
+      await orgDialog.getByLabel(en("lblCompanyName"))
         .fill("Friedrich-Alexander-Universität Erlangen-Nürnberg");
       // The org resolves in a building marker's hover card via its PROV
       // attribution to the producing agent (A), recorded on every building A adds.
@@ -434,8 +435,8 @@ test.describe("handbuch screenshots", () => {
     if (await aggregationRow.count()) {
       await page.keyboard.press("Escape"); // view exists from a prior run
     } else {
-      await dialog.getByLabel("Aggregation name").fill(VIEW_NAME);
-      await dialog.getByLabel("Select Buildings").click();
+      await dialog.getByLabel(en("aggNameLabel")).fill(VIEW_NAME);
+      await dialog.getByLabel(en("aggSelectBuildings")).click();
       for (const street of ["Nordostpark", "Hafenstraße", "Lange Gasse"]) {
         await page.getByRole("option").filter({ hasText: street }).first()
           .click({ timeout: 10_000 }).catch(() => {});

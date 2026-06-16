@@ -176,8 +176,8 @@ test.describe("energy view smoke", () => {
     await page.getByRole("button", { name: /create aggregation/i }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
-    await dialog.getByLabel("Aggregation name").fill(VIEW);
-    await dialog.getByLabel("Select Buildings").click();
+    await dialog.getByLabel(en("aggNameLabel")).fill(VIEW);
+    await dialog.getByLabel(en("aggSelectBuildings")).click();
     await page.getByRole("option").filter({ hasText: ADDR }).first().click();
     await page.keyboard.press("Escape");
     // Default-checked are electricity+heat+water; narrow to just electricity to

@@ -305,23 +305,23 @@ function EditView(
       {sectionHeader(msg("secOperatingCosts"))}
       {OPCOST_FIELDS.map((f) =>
         f.bool
-          ? <Box key={f.key}>{check(f.label, `_opcost_${f.key}`)}</Box>
-          : <Box key={f.key}>{tf(f.label, `_opcost_${f.key}`)}</Box>
+          ? <Box key={f.key}>{check(msg(f.labelId), `_opcost_${f.key}`)}</Box>
+          : <Box key={f.key}>{tf(msg(f.labelId), `_opcost_${f.key}`)}</Box>
       )}
 
       {sectionHeader(msg("secCertifications"))}
       {Array.from({ length: certCount }, (_, i) => (
         <Box key={i} sx={{ mb: 1.5 }}>
           <Typography variant="body2" color="text.secondary" sx={{ mb: 0.5 }}>
-            Certification {i + 1}
+            {msg("lblCertificationN", { n: i + 1 })}
           </Typography>
           {enumSelect(
-            "Type",
+            msg("lblCertType"),
             `_cert_${i}_type`,
             INVESTOR_CERT_SYSTEMS.map((s) => ({ value: s, label: s })),
           )}
-          {tf("Level", `_cert_${i}_level`)}
-          {tf("Scope", `_cert_${i}_scope`)}
+          {tf(msg("lblCertLevel"), `_cert_${i}_level`)}
+          {tf(msg("lblCertScope"), `_cert_${i}_scope`)}
         </Box>
       ))}
 

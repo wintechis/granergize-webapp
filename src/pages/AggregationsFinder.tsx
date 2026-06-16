@@ -137,7 +137,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
             startIcon={<AddIcon />}
             onClick={() => setCreateAggregationOpen(true)}
           >
-            Create aggregation
+            {t("aggCreateTitle")}
           </Button>
         </Stack>
         {aggregationDefsQuery.isLoading

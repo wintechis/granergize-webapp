@@ -172,9 +172,9 @@ test.describe("building form + energy entry", () => {
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
 
-    const year = page.getByRole("spinbutton", { name: "Year", exact: true });
+    const year = page.getByRole("spinbutton", { name: en("lblYear"), exact: true });
     const electricity = page.getByRole("spinbutton", { name: "Electricity (kWh)" });
-    const scenario = page.getByLabel("Scenario", { exact: true });
+    const scenario = page.getByLabel(en("lblScenario"), { exact: true });
 
     // Save an ACTUAL figure for the year (the dialog stays open, form resets).
     await year.fill("2099");

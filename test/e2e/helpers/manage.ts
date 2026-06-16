@@ -154,8 +154,8 @@ export async function addEnergyYear(
   await page.getByRole("button", { name: "Edit energy years" }).click();
   // The dialog's accessible name contains "year", so target inputs by exact
   // label / role to avoid matching the dialog itself.
-  await page.getByRole("spinbutton", { name: "Year", exact: true }).fill(year);
-  await page.getByLabel("Scenario", { exact: true }).click();
+  await page.getByRole("spinbutton", { name: en("lblYear"), exact: true }).fill(year);
+  await page.getByLabel(en("lblScenario"), { exact: true }).click();
   await page.getByRole("option", { name: scenario }).click();
   await page.getByRole("spinbutton", { name: "Electricity (kWh)" })
     .fill(electricity);
@@ -307,8 +307,8 @@ export async function ensureAggregation(page: Page): Promise<void> {
   await expect(dialog).toBeVisible({ timeout: T.quick });
   // Default annual-portfolio mode (no role selection; for an annual-only building
   // set the "Aggregation type" dropdown isn't even shown). Metrics are pre-selected.
-  await dialog.getByLabel("Aggregation name").fill(AGGREGATION_NAME);
-  await dialog.getByLabel("Select Buildings").click();
+  await dialog.getByLabel(en("aggNameLabel")).fill(AGGREGATION_NAME);
+  await dialog.getByLabel(en("aggSelectBuildings")).click();
   // Fail fast with a clear message if the picker is empty (no buildings to aggregate),
   // rather than hanging on a click that waits out the whole test timeout.
   const firstBuilding = page.getByRole("option").first();
