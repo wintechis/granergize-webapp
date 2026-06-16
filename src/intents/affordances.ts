@@ -208,6 +208,18 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   CheckInbox: { params: [], applies: devOnly },
   ReissueGrants: { params: [], applies: devOnly },
   AuditGrants: { params: [], applies: devOnly },
+  // ── Rooms ────────────────────────────────────────────────────────────────────
+  // No per-object building menu surfaces a room verb (they live in the rooms
+  // finder / room page), so `applies: never` — but the params are recorded so the
+  // reified INTENT_PARAMS schema can be drift-guarded against them.
+  CreateRoom: { params: [], applies: never },
+  EnterRoom: { params: ["roomUri"], applies: never },
+  ExitRoom: { params: ["roomUri"], applies: never },
+  DeleteRoom: { params: ["roomUri"], applies: never },
+  AddRoom: { params: ["input"], applies: never },
+  RemoveBookmark: { params: ["roomUri"], applies: never },
+  SaveRoles: { params: ["room", "roles"], applies: never },
+  SeedDemoRooms: { params: [], applies: devOnly },
   // ── Organisation ─────────────────────────────────────────────────────────────
   SaveOrganisation: { params: ["org", "logo"], applies: always },
   // ── Contacts ─────────────────────────────────────────────────────────────────

@@ -9,6 +9,38 @@ import type { Session } from "@inrupt/solid-client-authn-browser";
 import { shareBuildingCore } from "./shareBuilding.ts";
 import { checkSharingConsistencyCore } from "./checkSharingConsistency.ts";
 import { exportArchiveCore } from "./exportArchive.ts";
+import { addBuildingCore } from "./AddBuilding.ts";
+import { updateBuildingCore } from "./UpdateBuilding.ts";
+import { deleteBuildingCore } from "./DeleteBuilding.ts";
+import { toggleVisibilityCore } from "./ToggleVisibility.ts";
+import { saveObservationCore } from "./SaveObservation.ts";
+import { deleteObservationCore } from "./DeleteObservation.ts";
+import { uploadAttachmentsCore } from "./UploadAttachments.ts";
+import { deleteAttachmentCore } from "./DeleteAttachment.ts";
+import { setEnergyCertificateCore } from "./SetEnergyCertificate.ts";
+import { createAggregationCore } from "./CreateAggregation.ts";
+import { deleteAggregationCore } from "./DeleteAggregation.ts";
+import { refreshAggregationCore } from "./RefreshAggregation.ts";
+import { revokeAggregationAccessCore } from "./RevokeAggregationAccess.ts";
+import { shareAggregationCore } from "./ShareAggregation.ts";
+import { revokeBuildingAccessCore } from "./RevokeBuildingAccess.ts";
+import { checkInboxCore } from "./CheckInbox.ts";
+import { reissueGrantsCore } from "./ReissueGrants.ts";
+import { createRoomCore } from "./CreateRoom.ts";
+import { enterRoomCore } from "./EnterRoom.ts";
+import { exitRoomCore } from "./ExitRoom.ts";
+import { deleteRoomCore } from "./DeleteRoom.ts";
+import { addRoomCore } from "./AddRoom.ts";
+import { removeBookmarkCore } from "./RemoveBookmark.ts";
+import { saveRolesCore } from "./SaveRoles.ts";
+import { seedDemoRoomsCore } from "./SeedDemoRooms.ts";
+import { saveContactCore } from "./SaveContact.ts";
+import { removeContactCore } from "./RemoveContact.ts";
+import { seedDemoContactsCore } from "./SeedDemoContacts.ts";
+import { saveOrganisationCore } from "./SaveOrganisation.ts";
+import { seedDemoBuildingsCore } from "./SeedDemoBuildings.ts";
+import { removeAppDataCore } from "./RemoveAppData.ts";
+import { restoreArchiveCore } from "./RestoreArchive.ts";
 
 /**
  * Write-effect cores keyed by the catalog `name`. Only **extracted** cores are
@@ -16,7 +48,66 @@ import { exportArchiveCore } from "./exportArchive.ts";
  * returns an OUTCOME (settled / a small tally), never a value.
  */
 export const WRITE_CORES = {
+  AddBuilding: addBuildingCore,
+  UpdateBuilding: updateBuildingCore,
+  DeleteBuilding: deleteBuildingCore,
+  ToggleVisibility: toggleVisibilityCore,
   ShareBuilding: shareBuildingCore,
+  SaveObservation: saveObservationCore,
+  DeleteObservation: deleteObservationCore,
+  UploadAttachments: uploadAttachmentsCore,
+  DeleteAttachment: deleteAttachmentCore,
+  SetEnergyCertificate: setEnergyCertificateCore,
+  CreateAggregation: createAggregationCore,
+  DeleteAggregation: deleteAggregationCore,
+  RefreshAggregation: refreshAggregationCore,
+  RevokeAggregationAccess: revokeAggregationAccessCore,
+  ShareAggregation: shareAggregationCore,
+  RevokeBuildingAccess: revokeBuildingAccessCore,
+  // Paramless: the inbox drain / ACL rebuild are collection-wide. The `(s, _p)`
+  // wrapper keeps every core's `(session, params)` arity uniform (see AuditGrants).
+  CheckInbox: (s: Session, p: Record<never, never>) => {
+    void p;
+    return checkInboxCore(s);
+  },
+  ReissueGrants: (s: Session, p: Record<never, never>) => {
+    void p;
+    return reissueGrantsCore(s);
+  },
+  // ── Rooms ──────────────────────────────────────────────────────────────────
+  // The 6 cache-patching cores return the normalized room URI / registry datum
+  // the adapter's `patchRooms` race-guard folds into the cache (the reachability/
+  // existence throws stay IN the core). CreateRoom + SeedDemoRooms are paramless.
+  CreateRoom: (s: Session, p: Record<never, never>) => {
+    void p;
+    return createRoomCore(s);
+  },
+  EnterRoom: enterRoomCore,
+  ExitRoom: exitRoomCore,
+  DeleteRoom: deleteRoomCore,
+  AddRoom: addRoomCore,
+  RemoveBookmark: removeBookmarkCore,
+  SaveRoles: saveRolesCore,
+  SeedDemoRooms: (s: Session, p: Record<never, never>) => {
+    void p;
+    return seedDemoRoomsCore(s);
+  },
+  // ── Contacts ─────────────────────────────────────────────────────────────────
+  SaveContact: saveContactCore,
+  RemoveContact: removeContactCore,
+  SeedDemoContacts: (s: Session, p: Record<never, never>) => {
+    void p;
+    return seedDemoContactsCore(s);
+  },
+  // ── Organisation ─────────────────────────────────────────────────────────────
+  SaveOrganisation: saveOrganisationCore,
+  // ── Account ──────────────────────────────────────────────────────────────────
+  SeedDemoBuildings: (s: Session, p: Record<never, never>) => {
+    void p;
+    return seedDemoBuildingsCore(s);
+  },
+  RemoveAppData: removeAppDataCore,
+  RestoreArchive: restoreArchiveCore,
 } as const;
 
 /**

@@ -88,3 +88,33 @@ The result channel is discriminated on effect:
 
 The full outcome taxonomy (abort-as-outcome, whole-cache invalidation, the
 boundary cases) lands in later steps; Step 1 establishes only the shape.
+
+### Outcome vocabulary (`outcomes.ts`)
+
+The shared write-outcome types, used from Step 5 on:
+
+- **`Settled { ok: true }`** — a plain write succeeded; nothing further to report
+  (most pass-through writes: `UpdateBuilding`, `ToggleVisibility`).
+- **`Tally { done; total }`** — a batch/seed write's progress (seeders).
+- **`Aborted { aborted }`** — an abortable write's cancellation flag; a user
+  cancel is an *outcome*, not an error (`AddBuilding` returns `{ added } & Aborted`).
+
+Rooms (`{ room }`), `RestoreArchive` (`{ …, reissued }`), `DeleteBuilding`
+(`{ uri }`, so the adapter's rapid-delete cache patch has the IRI), and the read
+cores keep **bespoke** shapes. The already-shipped
+`ShareBuildingOutcome { recipientsShared }` predates this vocabulary and is left
+as-is.
+
+## The catalog ⇄ core drift guard (`registry.drift.test.ts`)
+
+`catalog.drift.test` proves the catalog matches `mutations.ts`; nothing there
+proved a catalog entry is actually *invocable*. `registry.drift.test.ts` closes
+that gap: every `write` catalog entry has a `WRITE_CORES` key, every `read` a
+`READ_CORES` key, no core key is an orphan, and an explicit `NOT_YET_EXTRACTED`
+allowlist carries any names whose cores aren't extracted yet.
+
+**Step 5 is complete:** `NOT_YET_EXTRACTED` is now **empty**, so the guard proves
+that *every* one of the ~35 catalog operations is callable headless via
+`invoke`/`query` (no allowlisted gaps). The allowlist machinery stays in place
+(asserted empty) so a future `navigate` verb — or a temporarily-unextracted
+addition — has a named, guarded home rather than a silent hole.

@@ -16,9 +16,11 @@
  */
 import {
   FOAF_AGENT,
+  LDP_RESOURCE,
   REC_BUILDING,
   XSD_BOOLEAN,
   XSD_GYEAR,
+  XSD_STRING,
 } from "../services/rdf/vocabularies.ts";
 import type { CoreParams, ReadIntentName, WriteIntentName } from "./registry.ts";
 
@@ -48,11 +50,144 @@ export type ParamSchema = Readonly<Record<string, ParamSpec>>;
  * they are an abort affordance, not an RDF param.
  */
 export const INTENT_PARAMS = {
+  // ── Buildings ──────────────────────────────────────────────────────────────
+  AddBuilding: {
+    // Opaque field-map array + readings: not IRIs to resolve, placeholder-modelled.
+    buildings: { nodeKind: "literal", range: XSD_STRING, cardinality: "many" },
+    lastgangReadings: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
+  },
+  UpdateBuilding: {
+    fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    // Opaque edited-field map; not an IRI to resolve.
+    fields: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+  },
+  DeleteBuilding: {
+    // Opaque BuildingType instance; not an IRI to resolve.
+    building: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+  },
+  ToggleVisibility: {
+    buildingUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+  },
+  // ── Sharing ────────────────────────────────────────────────────────────────
   ShareBuilding: {
     buildingUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
     recipients: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "many" },
     includeEnergyData: { nodeKind: "literal", range: XSD_BOOLEAN, cardinality: "one" },
     years: { nodeKind: "literal", range: XSD_GYEAR, cardinality: "many" },
+  },
+  ShareAggregation: {
+    snapshotUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
+    recipients: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "many" },
+  },
+  RevokeBuildingAccess: {
+    buildingUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    webId: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "one" },
+  },
+  // Paramless (collection-wide): the inbox drain / ACL rebuild take no params.
+  CheckInbox: {},
+  ReissueGrants: {},
+  // ── Observations ─────────────────────────────────────────────────────────────
+  SaveObservation: {
+    fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    // Opaque EnergyDataset instance; not an IRI to resolve.
+    dataset: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+  },
+  DeleteObservation: {
+    fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    // Opaque (year, granularity, scenario) selector; not an IRI to resolve.
+    dataset: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+  },
+  // ── Attachments ──────────────────────────────────────────────────────────────
+  UploadAttachments: {
+    fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    // Opaque File[]; not IRIs to resolve.
+    files: { nodeKind: "literal", range: XSD_STRING, cardinality: "many" },
+  },
+  DeleteAttachment: {
+    fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    url: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
+  },
+  SetEnergyCertificate: {
+    fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    url: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "optional" },
+  },
+  // ── Aggregations ─────────────────────────────────────────────────────────────
+  CreateAggregation: {
+    name: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+    buildingUris: { nodeKind: "iri", range: REC_BUILDING, cardinality: "many" },
+    aggregationType: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+    metrics: { nodeKind: "literal", range: XSD_STRING, cardinality: "many" },
+    period: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
+    benchmark: { nodeKind: "literal", range: XSD_BOOLEAN, cardinality: "optional" },
+  },
+  DeleteAggregation: {
+    aggregationId: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+  },
+  RefreshAggregation: {
+    aggregationId: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+  },
+  RevokeAggregationAccess: {
+    snapshotUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
+    webId: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "one" },
+  },
+  // ── Rooms ──────────────────────────────────────────────────────────────────
+  // `roomUri`/`room` are room-container IRIs (resolvable). `input` (AddRoom) is a
+  // raw URI OR an invite link (not necessarily an IRI) → literal placeholder.
+  // `roles` are membership-role labels (a `UserRole` string, not the IRI it maps
+  // to) → literal placeholder. CreateRoom + SeedDemoRooms are paramless.
+  CreateRoom: {},
+  EnterRoom: {
+    roomUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
+  },
+  ExitRoom: {
+    roomUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
+  },
+  DeleteRoom: {
+    roomUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
+  },
+  AddRoom: {
+    input: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+  },
+  RemoveBookmark: {
+    roomUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
+  },
+  SaveRoles: {
+    room: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
+    roles: { nodeKind: "literal", range: XSD_STRING, cardinality: "many" },
+  },
+  SeedDemoRooms: {},
+  // ── Contacts ─────────────────────────────────────────────────────────────────
+  // `contact` is an opaque Contact instance (not an IRI to resolve) → placeholder;
+  // `webId` is a removable contact's WebID → IRI reference. SeedDemoContacts is
+  // paramless (collection-wide).
+  SaveContact: {
+    contact: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+  },
+  RemoveContact: {
+    webId: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "one" },
+  },
+  SeedDemoContacts: {},
+  // ── Organisation ─────────────────────────────────────────────────────────────
+  // `org` is an opaque fields object, `logo` an opaque File — neither an IRI to
+  // resolve, both placeholder-modelled (the `logo` is a real, optional param).
+  SaveOrganisation: {
+    org: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+    logo: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
+  },
+  // ── Account ──────────────────────────────────────────────────────────────────
+  // SeedDemoBuildings is paramless (collection-wide; the core reads the WebID off
+  // the session). RemoveAppData's only param is the runtime-only `signal` → empty.
+  // RestoreArchive's `bytes` is an opaque Uint8Array → placeholder.
+  SeedDemoBuildings: {},
+  RemoveAppData: {},
+  RestoreArchive: {
+    bytes: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
   },
   ExportArchive: {},
   AuditGrants: {},
@@ -68,7 +203,7 @@ export type ParamIntentName = keyof typeof INTENT_PARAMS;
 // can't express IRI-ness, so the rigour wouldn't pay.
 
 /** Param keys that are runtime-only handles, never modelled in the schema. */
-type RuntimeOnlyKey = "signal";
+type RuntimeOnlyKey = "signal" | "onProgress" | "onUploaded";
 
 /** The modelled key set of a core's param object (runtime-only keys stripped). */
 type ModelledCoreKeys<N extends ParamIntentName> = N extends
@@ -94,7 +229,39 @@ export type ParamKeysMatch<N extends ParamIntentName> =
 const _paramKeysMatch: {
   [N in ParamIntentName]: ParamKeysMatch<N>;
 } = {
+  AddBuilding: true,
+  UpdateBuilding: true,
+  DeleteBuilding: true,
+  ToggleVisibility: true,
   ShareBuilding: true,
+  ShareAggregation: true,
+  RevokeBuildingAccess: true,
+  CheckInbox: true,
+  ReissueGrants: true,
+  SaveObservation: true,
+  DeleteObservation: true,
+  UploadAttachments: true,
+  DeleteAttachment: true,
+  SetEnergyCertificate: true,
+  CreateAggregation: true,
+  DeleteAggregation: true,
+  RefreshAggregation: true,
+  RevokeAggregationAccess: true,
+  CreateRoom: true,
+  EnterRoom: true,
+  ExitRoom: true,
+  DeleteRoom: true,
+  AddRoom: true,
+  RemoveBookmark: true,
+  SaveRoles: true,
+  SeedDemoRooms: true,
+  SaveContact: true,
+  RemoveContact: true,
+  SeedDemoContacts: true,
+  SaveOrganisation: true,
+  SeedDemoBuildings: true,
+  RemoveAppData: true,
+  RestoreArchive: true,
   ExportArchive: true,
   AuditGrants: true,
 };

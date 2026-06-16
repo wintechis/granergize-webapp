@@ -168,8 +168,11 @@ Deno.test("query('ExportArchive', {}, …) dispatches to the read core and retur
 
 Deno.test("invokeByName throws IntentNotInvocableError for a name with no extracted core", () => {
   const { session } = sharePod();
+  // Step 5 extracted the WHOLE catalog, so no real catalog name lacks a core; a
+  // name that isn't a catalog write intent at all still hits the clear-error path
+  // (never a silent fallback).
   assert.throws(
-    () => invokeByName("AddBuilding", {}, session),
+    () => invokeByName("NotARealIntent", {}, session),
     (err: unknown) =>
       err instanceof IntentNotInvocableError && err.name === "IntentNotInvocableError" &&
       (err as IntentNotInvocableError).kind === "write",

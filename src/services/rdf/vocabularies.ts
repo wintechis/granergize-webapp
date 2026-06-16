@@ -126,6 +126,8 @@ export const XSD_GYEAR = `${XSD_NS}gYear`;
 export const LDP_NS = "http://www.w3.org/ns/ldp#";
 export const LDP_CONTAINS = `${LDP_NS}contains`;
 export const LDP_INBOX = `${LDP_NS}inbox`;
+/** The generic LDP resource class — the range of an opaque Pod-resource IRI param. */
+export const LDP_RESOURCE = `${LDP_NS}Resource`;
 
 /** RealEstateCore (industry ontology, not W3C) — a building resource is typed `rec:Building`. */
 export const REC_NS = "https://w3id.org/rec#";

@@ -10,7 +10,7 @@ import { affordanceFor } from "./affordances.ts";
 import { findIntent } from "./applicable.ts";
 
 /** Param field names that are runtime-only handles, not modelled RDF params. */
-const RUNTIME_ONLY = new Set(["signal"]);
+const RUNTIME_ONLY = new Set(["signal", "onProgress", "onUploaded"]);
 
 Deno.test("every INTENT_PARAMS key names a real catalog intent", () => {
   for (const name of Object.keys(INTENT_PARAMS)) {

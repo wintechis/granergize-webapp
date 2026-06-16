@@ -202,7 +202,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   const seedBuildingsMut = useSeedDemoBuildings();
   const seedDemos = () =>
     seedBuildingsMut.mutate(undefined, {
-      onSuccess: ({ seeded, total }) => {
+      onSuccess: ({ done: seeded, total }) => {
         if (seeded === total) {
           setDemoDismissed(true);
           showNotification(msg("demoBuildingsAdded"), "success");
@@ -230,7 +230,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   const seedRoomsMut = useSeedDemoRooms();
   const seedDemoContactsClick = () =>
     seedContactsMut.mutate(undefined, {
-      onSuccess: ({ seeded, total }) =>
+      onSuccess: ({ done: seeded, total }) =>
         showNotification(
           seeded === total
             ? msg("demoContactsAdded")

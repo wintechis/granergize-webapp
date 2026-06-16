@@ -5,75 +5,12 @@ import {
 } from "@tanstack/react-query";
 import { getSession } from "./session.ts";
 import { queryKeys } from "./queries.ts";
-import { rememberBuildingAgents } from "./rememberAgents.ts";
-import { deleteBuildingResource } from "../services/buildingActions.ts";
-import {
-  revokeAccess,
-  revokeAllAggregationRecipients,
-  revokeAggregationAccess,
-  toggleBuildingVisibility,
-} from "../services/interop/sharingManager.ts";
-import {
-  reconcileBuildingGrants,
-  reissueGrants,
-  shareAggregation,
-} from "../services/interop/share.ts";
 import type { ShareBuildingParams } from "../intents/shareBuilding.ts";
 import { invoke, query } from "../intents/registry.ts";
-import { logError } from "../lib/logError.ts";
-import { drainInbox } from "../services/interop/inbox.ts";
-import {
-  createAggregationDefinition,
-  deleteAggregation,
-  getSnapshotUri,
-} from "../services/aggregation/aggregationManager.ts";
-import {
-  computeAndStoreSnapshot,
-  refreshSnapshot,
-} from "../services/aggregation/aggregationComputer.ts";
-import {
-  deleteEnergyYear,
-  newBuildingUri,
-  seedDemoBuildings,
-  serializeBuildingToTurtle,
-  updateBuilding,
-  uploadBuilding,
-  writeBuildingEnergy,
-  writeEnergyYear,
-} from "../services/rdf/building/buildingSerializer.ts";
-import { removeAppData } from "../services/pod/podDelete.ts";
-import { importArchive } from "../services/pod/podArchive.ts";
-import { mintBuildingSubject } from "../services/rdf/building/buildingId.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
 import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
-import {
-  deleteAttachment,
-  setEnergyCertificate,
-  uploadAttachment,
-} from "../services/attachmentManager.ts";
-import {
-  type Organization,
-  saveOrganization,
-  uploadOrgLogo,
-} from "../services/organization/organizationManager.ts";
-import {
-  addKnownRoom,
-  createRoom,
-  deleteRoom,
-  exitRoom,
-  extractRoomUri,
-  normalizeRoomUri,
-  openRoom,
-  removeKnownRoom,
-  roomExists,
-  setMyRole,
-} from "../services/interop/dataRoom.ts";
-import {
-  addContact,
-  type Contact,
-  removeContact,
-} from "../services/contacts.ts";
-import { seedDemoContacts, seedDemoRooms } from "../services/demoConnect.ts";
+import type { Organization } from "../services/organization/organizationManager.ts";
+import type { Contact } from "../services/contacts.ts";
 import type {
   AggregationDefinition,
   AttachmentRef,
@@ -117,7 +54,7 @@ export function useDeleteBuilding() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (building: BuildingType) =>
-      deleteBuildingResource(getSession(), building),
+      invoke("DeleteBuilding", { building }, getSession()),
     // Drop the building from the list cache authoritatively on success, so the
     // Manage/Explore lists converge the instant the delete is confirmed instead of
     // waiting on the onSettled invalidation to schedule a refetch. A burst of rapid
@@ -160,7 +97,7 @@ export function useDeleteBuilding() {
 export function useCheckInbox() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => drainInbox(getSession()),
+    mutationFn: () => invoke("CheckInbox", {}, getSession()),
     onSettled: () => {
       // One log query feeds every "shared with me" reader (the lists derive
       // in memory), so the drain refolds shared-in/ once. receivedBenchmarks
@@ -178,7 +115,7 @@ export function useToggleVisibility() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (buildingUri: string) =>
-      toggleBuildingVisibility(buildingUri, getSession()),
+      invoke("ToggleVisibility", { buildingUri }, getSession()),
     onSettled: () => {
       // The toggle writes prefs.ttl; every reader follows from that one
       // invalidation. The Share-tab "shared with you" list derives from the
@@ -194,8 +131,8 @@ export function useToggleVisibility() {
 export function useRevokeBuildingAccess() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ buildingUri, webId }: { buildingUri: string; webId: string }) =>
-      revokeAccess(buildingUri, webId, getSession()),
+    mutationFn: (vars: { buildingUri: string; webId: string }) =>
+      invoke("RevokeBuildingAccess", vars, getSession()),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
@@ -205,17 +142,11 @@ export function useRevokeBuildingAccess() {
 export function useDeleteAggregation() {
   const qc = useQueryClient();
   return useMutation({
-    // Revoke every recipient first (notifying them, so the aggregation drops off their
-    // "Aggregations shared with you"), THEN delete the definition/snapshot — deleting the
-    // snapshot alone would leave a stale row on each recipient's list.
-    mutationFn: async (aggregationId: string) => {
-      const session = getSession();
-      const webId = session.info.webId;
-      if (webId) {
-        await revokeAllAggregationRecipients(getSnapshotUri(webId, aggregationId), session);
-      }
-      await deleteAggregation(session, aggregationId);
-    },
+    // The core revokes every recipient first (notifying them, so the aggregation
+    // drops off their "Aggregations shared with you"), THEN deletes the
+    // definition/snapshot — that ordering is domain logic in the core.
+    mutationFn: (aggregationId: string) =>
+      invoke("DeleteAggregation", { aggregationId }, getSession()),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions });
       qc.invalidateQueries({ queryKey: queryKeys.aggregationDetail });
@@ -227,7 +158,8 @@ export function useDeleteAggregation() {
 export function useRefreshAggregation() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (aggregationId: string) => refreshSnapshot(getSession(), aggregationId),
+    mutationFn: (aggregationId: string) =>
+      invoke("RefreshAggregation", { aggregationId }, getSession()),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions });
       // The standalone /aggregation page reads through aggregationDetail (definition +
@@ -240,8 +172,8 @@ export function useRefreshAggregation() {
 export function useRevokeAggregationAccess() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ snapshotUri, webId }: { snapshotUri: string; webId: string }) =>
-      revokeAggregationAccess(snapshotUri, webId, getSession()),
+    mutationFn: (vars: { snapshotUri: string; webId: string }) =>
+      invoke("RevokeAggregationAccess", vars, getSession()),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
     },
@@ -262,75 +194,23 @@ export function useUploadBuildings() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionAddBuilding" },
-    mutationFn: async (vars: {
+    mutationFn: (vars: {
       buildings: Array<Record<string, string>>;
       lastgangReadings: LastgangReading[] | null;
       signal: AbortSignal;
       onProgress: (done: number, total: number) => void;
-    }) => {
-      const session = getSession();
-      const webId = session.info.webId;
-      if (!webId) throw new Error("Not authenticated");
-      // Provenance records only WHO produced the building (the logged-in agent)
-      // as a PROV qualified attribution.
-      const provenance = { agent: webId };
-      const added: string[] = [];
-      try {
-        for (const b of vars.buildings) {
-          vars.signal.throwIfAborted();
-          // A collision-free FILE name: `Date.now()`+short-random clashed when
-          // several buildings were written within the same millisecond in a bulk
-          // import, so the second PUT overwrote the first (buildings silently
-          // vanished). Identity is the subject IRI, not the uuid.
-          const uri = newBuildingUri(webId, crypto.randomUUID());
-          const subjectUri = mintBuildingSubject(uri);
-
-          // Group the Lastgang (15-min) readings by day into a single series
-          // dataset; annual aggregates come from the field map (`_inv_*`/`_bsp_*`).
-          let series:
-            | {
-              year: number;
-              days: Array<{ date: string; readings: LastgangReading[] }>;
-              label: string;
-            }
-            | undefined;
-          if (vars.lastgangReadings && vars.lastgangReadings.length > 0) {
-            const byDate = new Map<string, LastgangReading[]>();
-            for (const r of vars.lastgangReadings) {
-              const list = byDate.get(r.date) ?? [];
-              list.push(r);
-              byDate.set(r.date, list);
-            }
-            const days = [...byDate.entries()].map(([date, readings]) => ({
-              date,
-              readings,
-            }));
-            // All readings are one calendar year; take it from the first date.
-            const year = parseInt(days[0].date.slice(0, 4));
-            series = { year, days, label: b.label ?? "" };
-          }
-
-          const energyLinks = await writeBuildingEnergy(
-            session,
-            uri,
-            subjectUri,
-            b,
-            series,
-            vars.onProgress,
-            vars.signal,
-          );
-          const ttl = serializeBuildingToTurtle(b, uri, energyLinks, provenance);
-          await uploadBuilding(session, uri, ttl, webId, vars.signal);
-          added.push(subjectUri);
-          // Auto-remember the building's WebID agents in the address book.
-          rememberBuildingAgents(session, qc, b);
-        }
-      } catch (err) {
-        if (vars.signal.aborted) return { added, aborted: true };
-        throw err;
-      }
-      return { added, aborted: false };
-    },
+    }) =>
+      invoke("AddBuilding", {
+        buildings: vars.buildings,
+        lastgangReadings: vars.lastgangReadings,
+        signal: vars.signal,
+        onProgress: vars.onProgress,
+      }, getSession()),
+    // The core auto-remembers each building's WebID agents (Pod writes); prime
+    // the inactive contacts query here so Connect picks them up without a reload
+    // (the cache concern that stays in the adapter).
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.contacts, refetchType: "all" }),
     onSettled: () => invalidateBuildingData(qc),
   });
 }
@@ -340,15 +220,20 @@ export function useUpdateBuilding() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionUpdateBuilding" },
-    mutationFn: async (vars: {
+    mutationFn: (vars: {
       fileUri: string;
       subjectUri: string;
       fields: Record<string, string>;
-    }) => {
-      const session = getSession();
-      await updateBuilding(session, vars.fileUri, vars.subjectUri, vars.fields);
-      rememberBuildingAgents(session, qc, vars.fields);
-    },
+    }) =>
+      invoke("UpdateBuilding", {
+        fileUri: vars.fileUri,
+        subjectUri: vars.subjectUri,
+        fields: vars.fields,
+      }, getSession()),
+    // The core auto-remembers WebID agents (Pod writes); prime the inactive
+    // contacts query here so Connect picks them up without a reload.
+    onSuccess: () =>
+      qc.invalidateQueries({ queryKey: queryKeys.contacts, refetchType: "all" }),
     onSettled: () => invalidateBuildingData(qc),
   });
 }
@@ -358,22 +243,13 @@ export function useWriteEnergyYear() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionSaveEnergy" },
-    mutationFn: async (vars: {
+    // The core writes the year then best-effort reconciles the building's
+    // sharing grants (domain logic — a failed reconcile must not fail the save).
+    mutationFn: (vars: {
       fileUri: string;
       subjectUri: string;
       dataset: EnergyDataset;
-    }) => {
-      const session = getSession();
-      await writeEnergyYear(session, vars.fileUri, vars.subjectUri, vars.dataset);
-      // Reconciliation: an active all-years grant must extend to the dataset
-      // that now exists (its ACL projection is enumerated per dataset, so a
-      // grown scope needs a re-apply). Best-effort — the year is already
-      // saved, so a failed reconcile must not fail the save; the resulting
-      // drift is what auditGrants detects and reissueGrants repairs.
-      await reconcileBuildingGrants(vars.fileUri, session).catch((err) =>
-        logError("reconcile sharing grants after energy write", err)
-      );
-    },
+    }) => invoke("SaveObservation", vars, getSession()),
     onSettled: () => invalidateBuildingData(qc),
   });
 }
@@ -387,7 +263,7 @@ export function useDeleteEnergyYear() {
       fileUri: string;
       subjectUri: string;
       dataset: Pick<EnergyDataset, "year" | "granularity" | "scenario">;
-    }) => deleteEnergyYear(getSession(), vars.fileUri, vars.subjectUri, vars.dataset),
+    }) => invoke("DeleteObservation", vars, getSession()),
     onSettled: () => invalidateBuildingData(qc),
   });
 }
@@ -405,23 +281,12 @@ export function useUploadAttachments() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionUploadFile" },
-    mutationFn: async (vars: {
+    mutationFn: (vars: {
       fileUri: string;
       subjectUri: string;
       files: File[];
       onUploaded?: (ref: AttachmentRef) => void;
-    }) => {
-      const session = getSession();
-      for (const file of vars.files) {
-        const ref = await uploadAttachment(
-          vars.fileUri,
-          vars.subjectUri,
-          file,
-          session,
-        );
-        vars.onUploaded?.(ref);
-      }
-    },
+    }) => invoke("UploadAttachments", vars, getSession()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
   });
 }
@@ -431,7 +296,7 @@ export function useDeleteAttachment() {
   return useMutation({
     meta: { action: "actionDeleteFile" },
     mutationFn: (vars: { fileUri: string; subjectUri: string; url: string }) =>
-      deleteAttachment(vars.fileUri, vars.subjectUri, vars.url, getSession()),
+      invoke("DeleteAttachment", vars, getSession()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
   });
 }
@@ -445,8 +310,7 @@ export function useSetEnergyCertificate() {
       fileUri: string;
       subjectUri: string;
       url: string | null;
-    }) =>
-      setEnergyCertificate(vars.fileUri, vars.subjectUri, vars.url, getSession()),
+    }) => invoke("SetEnergyCertificate", vars, getSession()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
   });
 }
@@ -479,13 +343,11 @@ export function useShareBuilding() {
 export function useShareAggregationSnapshot(opts: { silent?: boolean } = {}) {
   const qc = useQueryClient();
   return useMutation({
+    // `opts.silent` stays an adapter concern (the dialog renders the error inline
+    // via meta.silent); the core knows nothing about it.
     meta: { action: "actionShareAggregation", silent: opts.silent },
-    mutationFn: async (vars: { snapshotUri: string; recipients: string[] }) => {
-      const session = getSession();
-      for (const recipient of vars.recipients) {
-        await shareAggregation(vars.snapshotUri, recipient, session);
-      }
-    },
+    mutationFn: (vars: { snapshotUri: string; recipients: string[] }) =>
+      invoke("ShareAggregation", vars, getSession()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog }),
   });
 }
@@ -495,26 +357,14 @@ export function useCreateAggregation() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionCreateAggregation" },
-    mutationFn: async (vars: {
+    mutationFn: (vars: {
       name: string;
       buildingUris: string[];
       aggregationType: AggregationDefinition["aggregationType"];
       metrics: string[];
       period?: string;
       benchmark?: boolean;
-    }) => {
-      const session = getSession();
-      const def = await createAggregationDefinition(
-        session,
-        vars.name,
-        vars.buildingUris,
-        vars.aggregationType,
-        vars.metrics,
-        { period: vars.period, benchmark: vars.benchmark },
-      );
-      await computeAndStoreSnapshot(session, def.id);
-      return def;
-    },
+    }) => invoke("CreateAggregation", vars, getSession()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions }),
   });
 }
@@ -529,14 +379,10 @@ export function useSaveOrganization() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionSaveOrganisation" },
-    mutationFn: async (vars: {
+    mutationFn: (vars: {
       org: Pick<Organization, "name" | "homepage" | "sameAs">;
       logo?: File | null;
-    }) => {
-      const session = getSession();
-      await saveOrganization(session, vars.org);
-      if (vars.logo) await uploadOrgLogo(vars.logo, session);
-    },
+    }) => invoke("SaveOrganisation", vars, getSession()),
     onSettled: () => {
       qc.invalidateQueries({ queryKey: queryKeys.agent });
       qc.invalidateQueries({ queryKey: queryKeys.agentOrg });
@@ -550,7 +396,7 @@ export function useSaveOrganization() {
 export function useSaveContact() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (contact: Contact) => addContact(getSession(), contact),
+    mutationFn: (contact: Contact) => invoke("SaveContact", { contact }, getSession()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
   });
 }
@@ -559,16 +405,16 @@ export function useSaveContact() {
 export function useRemoveContact() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (webId: string) => removeContact(getSession(), webId),
+    mutationFn: (webId: string) => invoke("RemoveContact", { webId }, getSession()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
   });
 }
 
-/** Dev-mode: seed the demo contacts (see {@link seedDemoContacts}). */
+/** Dev-mode: seed the demo contacts (see the SeedDemoContacts core). */
 export function useSeedDemoContacts() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => seedDemoContacts(getSession()),
+    mutationFn: () => invoke("SeedDemoContacts", {}, getSession()),
     meta: { action: "actionAddDemoContacts" },
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
   });
@@ -600,20 +446,26 @@ function patchRooms(
 const withRoom = (known: string[], room: string) =>
   known.includes(room) ? known : [...known, room];
 
+// Each adapter routes its Pod write through the React-free core via invoke()
+// (one path for UI + headless): the core does the Pod write + reachability/
+// existence check and returns the normalized room URI (`{ room }`), which the
+// adapter's `patchRooms` race-guard folds into the cache. The return shape MUST
+// match what each `onSuccess` patch consumes (the silent break-mode — the query
+// cache is browser-only, so Tier-1 can't catch a mismatch).
 export function useCreateRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => createRoom(getSession()),
-    onSuccess: (room) =>
+    mutationFn: () => invoke("CreateRoom", {}, getSession()),
+    onSuccess: ({ room }) =>
       patchRooms(qc, (reg) => ({ known: withRoom(reg.known, room), current: room })),
   });
 }
 
-/** Dev-mode: seed the demo data rooms (see {@link seedDemoRooms}). */
+/** Dev-mode: seed the demo data rooms (see the SeedDemoRooms core). */
 export function useSeedDemoRooms() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => seedDemoRooms(getSession()),
+    mutationFn: () => invoke("SeedDemoRooms", {}, getSession()),
     meta: { action: "actionAddDemoRooms" },
     onSuccess: ({ rooms }) =>
       patchRooms(qc, (reg) => ({
@@ -627,13 +479,8 @@ export function useSeedDemoRooms() {
 export function useEnterRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (roomUri: string) => {
-      if (!(await openRoom(roomUri, getSession()))) {
-        throw new Error("Data room is not reachable");
-      }
-      return normalizeRoomUri(extractRoomUri(roomUri));
-    },
-    onSuccess: (room) =>
+    mutationFn: (roomUri: string) => invoke("EnterRoom", { roomUri }, getSession()),
+    onSuccess: ({ room }) =>
       patchRooms(qc, (reg) => ({ known: withRoom(reg.known, room), current: room })),
   });
 }
@@ -641,11 +488,8 @@ export function useEnterRoom() {
 export function useExitRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (roomUri: string) => {
-      await exitRoom(roomUri, getSession());
-      return normalizeRoomUri(roomUri);
-    },
-    onSuccess: (room) =>
+    mutationFn: (roomUri: string) => invoke("ExitRoom", { roomUri }, getSession()),
+    onSuccess: ({ room }) =>
       patchRooms(qc, (reg) => ({
         ...reg,
         current: reg.current === room ? null : reg.current,
@@ -657,13 +501,8 @@ export function useExitRoom() {
 export function useDeleteRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (roomUri: string) => {
-      const session = getSession();
-      await deleteRoom(roomUri, session);
-      await removeKnownRoom(roomUri, session);
-      return normalizeRoomUri(roomUri);
-    },
-    onSuccess: (room) =>
+    mutationFn: (roomUri: string) => invoke("DeleteRoom", { roomUri }, getSession()),
+    onSuccess: ({ room }) =>
       patchRooms(qc, (reg) => ({
         known: reg.known.filter((r) => r !== room),
         current: reg.current === room ? null : reg.current,
@@ -675,16 +514,8 @@ export function useDeleteRoom() {
 export function useAddRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (input: string) => {
-      const session = getSession();
-      const room = extractRoomUri(input);
-      if (!(await roomExists(room, session))) {
-        throw new Error("Data room is not reachable");
-      }
-      await addKnownRoom(room, session);
-      return normalizeRoomUri(room);
-    },
-    onSuccess: (room) =>
+    mutationFn: (input: string) => invoke("AddRoom", { input }, getSession()),
+    onSuccess: ({ room }) =>
       patchRooms(qc, (reg) => ({ ...reg, known: withRoom(reg.known, room) })),
   });
 }
@@ -693,11 +524,8 @@ export function useAddRoom() {
 export function useRemoveBookmark() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: async (roomUri: string) => {
-      await removeKnownRoom(roomUri, getSession());
-      return normalizeRoomUri(roomUri);
-    },
-    onSuccess: (room) =>
+    mutationFn: (roomUri: string) => invoke("RemoveBookmark", { roomUri }, getSession()),
+    onSuccess: ({ room }) =>
       patchRooms(qc, (reg) => ({
         known: reg.known.filter((r) => r !== room),
         current: reg.current === room ? null : reg.current,
@@ -708,8 +536,8 @@ export function useRemoveBookmark() {
 export function useSaveRoles() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: ({ room, roles }: { room: string; roles: UserRole[] }) =>
-      setMyRole(room, roles, getSession()),
+    mutationFn: (vars: { room: string; roles: UserRole[] }) =>
+      invoke("SaveRoles", vars, getSession()),
     // Roles live in the room's log, not the registry — refresh just that.
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.roomLog }),
   });
@@ -725,7 +553,7 @@ export function useSaveRoles() {
 
 /**
  * Dev-mode/banner: seed the fixed demo building set
- * (see {@link seedDemoBuildings}). Per-building best-effort — the result is a
+ * (see the SeedDemoBuildings core). Per-building best-effort — the result is a
  * tally `{seeded, total}`, never a throw for an individual building; the
  * caller renders partial success ("Added N of M").
  */
@@ -733,19 +561,14 @@ export function useSeedDemoBuildings() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionAddDemoBuildings" },
-    mutationFn: () => {
-      const session = getSession();
-      const webId = session.info.webId;
-      if (!webId) throw new Error("Not authenticated");
-      return seedDemoBuildings(session, webId);
-    },
+    mutationFn: () => invoke("SeedDemoBuildings", {}, getSession()),
     // Energy follows automatically: useEnergy is keyed on the building set.
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
   });
 }
 
 /**
- * Remove the entire app collection from the Pod (see {@link removeAppData}).
+ * Remove the entire app collection from the Pod (see the RemoveAppData core).
  * Long-running and cancellable: the abort signal travels in the variables and
  * a cancel resolves as an OUTCOME (`{aborted: true}`), never an error — the
  * `useUploadBuildings` pattern. The caller owns the confirmation (with its
@@ -757,15 +580,8 @@ export function useRemoveAppData() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionRemoveAppData" },
-    mutationFn: async (vars: { signal: AbortSignal }) => {
-      try {
-        await removeAppData(getSession(), vars.signal);
-      } catch (err) {
-        if (vars.signal.aborted) return { aborted: true };
-        throw err;
-      }
-      return { aborted: false };
-    },
+    mutationFn: (vars: { signal: AbortSignal }) =>
+      invoke("RemoveAppData", vars, getSession()),
     // The "entire-cache" invalidation: success leaves an empty Pod, an abort
     // or failure an unknown partially-deleted subset — in every case nothing
     // cached can be trusted, so reset rather than enumerate key families.
@@ -774,7 +590,7 @@ export function useRemoveAppData() {
 }
 
 /**
- * Dev-mode: restore an archive into the Pod (see {@link importArchive}), then
+ * Dev-mode: restore an archive into the Pod (see the RestoreArchive core), then
  * rebuild the WAC ACLs by replaying the shared-out log — the reconciliation
  * follow-up is part of the restore intent, because the archive carries the
  * log (ground truth) but not the derived `.acl` files. The caller owns the
@@ -784,12 +600,8 @@ export function useRestoreArchive() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionRestoreArchive" },
-    mutationFn: async (vars: { bytes: Uint8Array }) => {
-      const session = getSession();
-      const restore = await importArchive(session, vars.bytes);
-      const reissue = await reissueGrants(session);
-      return { ...restore, reissued: reissue.buildings + reissue.aggregations };
-    },
+    mutationFn: (vars: { bytes: Uint8Array }) =>
+      invoke("RestoreArchive", vars, getSession()),
     // The restore may have replaced anything under the app collection.
     onSettled: () => qc.invalidateQueries(),
   });
@@ -797,14 +609,14 @@ export function useRestoreArchive() {
 
 /**
  * Dev-mode: rebuild the WAC `.acl` projection from the shared-out event log
- * (see {@link reissueGrants}) — a materialized-projection reconciliation behind a user-intent
+ * (see the ReissueGrants core) — a materialized-projection reconciliation behind a user-intent
  * button. No invalidations: it writes only the ACL projection, which no
  * query reads.
  */
 export function useReissueGrants() {
   return useMutation({
     meta: { action: "actionRebuildSharing" },
-    mutationFn: () => reissueGrants(getSession()),
+    mutationFn: () => invoke("ReissueGrants", {}, getSession()),
   });
 }
 

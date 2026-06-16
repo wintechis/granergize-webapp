@@ -125,7 +125,9 @@ Deno.test("useCreateRoom adds the new room to the registry and makes it current"
   const { client, wrapper } = makeWrapper({ known: [], current: null });
   try {
     const { result } = renderHook(() => useCreateRoom(), { wrapper });
-    const room = await result.current.mutateAsync();
+    // The mutation now resolves to the core's RoomOutcome `{ room }`; the cache
+    // patch folds in the URI string.
+    const { room } = await result.current.mutateAsync();
     await waitFor(() => assert.equal(rooms(client).current, room));
     assert.deepEqual(rooms(client).known, [room]);
     assert.ok(room.startsWith(`${ORIGIN}granergize/rooms/`));
@@ -524,7 +526,7 @@ Deno.test("useSeedDemoBuildings seeds the full demo set and invalidates the buil
   try {
     const { result } = renderHook(() => useSeedDemoBuildings(), { wrapper });
     const outcome = await result.current.mutateAsync();
-    assert.equal(outcome.seeded, outcome.total, "all demo buildings written");
+    assert.equal(outcome.done, outcome.total, "all demo buildings written");
     assert.ok(outcome.total > 0);
     assert.ok(invalidated.includes("buildings"));
   } finally {

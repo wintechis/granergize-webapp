@@ -112,7 +112,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
 
   const handleCreate = () =>
     create.mutate(undefined, {
-      onSuccess: (room) => {
+      onSuccess: ({ room }) => {
         showNotification(msg("roomCreated"), "success");
         // Land on the new room's page (it enters there on mount).
         void navigate(roomRoute(room));

@@ -1,0 +1,53 @@
+// Intent core (React-free) for UpdateBuilding. See ./README.md for the
+// core/adapter split and the write→outcome convention.
+import type { Session } from "@inrupt/solid-client-authn-browser";
+import { updateBuilding } from "../services/rdf/building/buildingSerializer.ts";
+import { rememberAgent } from "../services/contacts.ts";
+import type { Settled } from "./outcomes.ts";
+
+/** The WebID-bearing master-data fields whose agents get auto-remembered. */
+const AGENT_FIELDS = [
+  "operatedBy",
+  "ownedBy",
+  "investor",
+  "facilityManagedBy",
+  "developedBy",
+  "consultedBy",
+] as const;
+
+/** Parameters of the UpdateBuilding intent. */
+export interface UpdateBuildingParams {
+  /** The building file's IRI (the resource conditionally rewritten). */
+  fileUri: string;
+  /** The building subject's IRI (`#b` in the file). */
+  subjectUri: string;
+  /** The edited master-data field map. */
+  fields: Record<string, string>;
+}
+
+/**
+ * React-free core of {@link import("../hooks/mutations.ts").useUpdateBuilding}:
+ * save edited master data on an existing building (conditional RMW PUT), then
+ * fire-and-forget auto-remember each WebID-bearing agent field in the address
+ * book (mirroring `shareBuildingCore`'s `void rememberAgent`).
+ *
+ * The address-book *cache priming* (`rememberBuildingAgents`'s
+ * `invalidateQueries({contacts})` so an inactive Connect picks up the new
+ * contacts) stays in the adapter `onSuccess` — that is a query-cache concern, not
+ * a Pod write. The core does only the Pod composition + the remember writes.
+ */
+export async function updateBuildingCore(
+  session: Session,
+  params: UpdateBuildingParams,
+): Promise<Settled> {
+  await updateBuilding(session, params.fileUri, params.subjectUri, params.fields);
+  // Auto-remember each WebID agent in the address book (fire-and-forget; the
+  // contacts cache priming is the adapter's concern).
+  for (const field of AGENT_FIELDS) {
+    const value = params.fields[field];
+    if (typeof value === "string" && /^https?:\/\//.test(value)) {
+      void rememberAgent(session, value);
+    }
+  }
+  return { ok: true };
+}
