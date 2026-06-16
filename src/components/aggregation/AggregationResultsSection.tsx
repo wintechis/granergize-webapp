@@ -120,7 +120,7 @@ export default function AggregationResultsSection(
               // succeeded) — persistent in-place state → Alert; "Refresh" is
               // the retry affordance.
               <Alert severity="warning" sx={{ mb: 2 }}>
-                {formatError("compute the aggregation summary", computeError)}
+                {formatError("actionComputeAggregation", computeError)}
               </Alert>
             )}
             <Alert severity="warning">

@@ -16,6 +16,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { resolveAgent, webIdFragment } from "../services/agents/agentResolver.ts";
 import { formatError } from "../lib/formatError.ts";
+import { useT } from "../context/I18nProvider.tsx";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
@@ -37,6 +38,7 @@ interface ContactsFinderProps {
  */
 export default function ContactsFinder({ session }: ContactsFinderProps) {
   const { showNotification } = useNotification();
+  const t = useT();
 
   const contactsQuery = useContacts();
   const contacts = contactsQuery.data ?? [];
@@ -51,7 +53,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
   /** Add a contact: resolve the WebID's name/avatar, then persist it. */
   const addContact = async (webId: string) => {
     if (!/^https?:\/\//i.test(webId)) {
-      showNotification("Enter a WebID (an http(s) URI)", "error");
+      showNotification(t("enterWebId"), "error");
       return;
     }
     try {
@@ -61,12 +63,12 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
       // resolve reads the agent's own profile, which can retry for many seconds).
       await saveContact.mutateAsync({ webId, name: webIdFragment(webId) });
       setContactInput("");
-      showNotification("Contact added", "success");
+      showNotification(t("contactAdded"), "success");
       void resolveAgent(webId, session)
         .then((agent) => saveContact.mutateAsync(agent))
         .catch((e) => logError("upgrade added contact profile", e));
     } catch (e) {
-      showNotification(formatError("add contact", e), "error");
+      showNotification(formatError("actionAddContact", e), "error");
     }
   };
 
@@ -86,7 +88,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
 
   const handleRemoveContact = (webId: string) =>
     removeContact.mutate(webId, {
-      onSuccess: () => showNotification("Contact removed", "success"),
+      onSuccess: () => showNotification(t("contactRemoved"), "success"),
     });
 
   // Backing RDF resource (the contacts), linked so storage is inspectable.
@@ -134,7 +136,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
         : contacts.length === 0
         ? (
           <Typography variant="body2">
-            No contacts yet. Add one by WebID or QR code.
+            {t("contactsEmpty")}
           </Typography>
         )
         : (

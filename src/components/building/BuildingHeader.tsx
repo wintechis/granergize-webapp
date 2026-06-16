@@ -75,7 +75,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
         `building-${buildingIdStem(building.id)}.xlsx`,
       );
     } catch (error) {
-      showNotification(formatError("export the building", error), "error");
+      showNotification(formatError("actionExportBuilding", error), "error");
     }
   };
 

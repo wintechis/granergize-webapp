@@ -37,7 +37,7 @@ Deno.test("classifyQueryError: non-Error value → error, stringified", () => {
 });
 
 Deno.test("classifyQueryError: an action wraps a generic error in the standard phrasing", () => {
-  const r = classifyQueryError(new Error("boom"), "update the building");
+  const r = classifyQueryError(new Error("boom"), "actionUpdateBuilding");
   assert.equal(r.severity, "error");
   assert.equal(r.message, "Failed to update the building: boom");
 });
@@ -47,13 +47,13 @@ Deno.test("classifyQueryError: the classified warnings ignore the action", () =>
   // app-level state; wrapping them in "Failed to …" would misattribute them.
   const expired = classifyQueryError(
     new SessionExpiredError("token gone"),
-    "update the building",
+    "actionUpdateBuilding",
   );
   assert.equal(expired.message, "Session expired — please log in again");
   assert.equal(expired.severity, "warning");
   const conflict = classifyQueryError(
     new ConflictError("https://pod.example/x.ttl"),
-    "update the building",
+    "actionUpdateBuilding",
   );
   assert.match(conflict.message, /reload/i);
   assert.equal(conflict.severity, "warning");
@@ -71,7 +71,7 @@ Deno.test("classifyQueryError: a generic error while the session-expiry gate is 
     assert.equal(generic.severity, "warning");
     assert.equal(generic.message, "Session expired — please log in again");
     // An action does not re-wrap it (same rule as the other classified warnings).
-    const withAction = classifyQueryError(new Error("boom"), "update the building");
+    const withAction = classifyQueryError(new Error("boom"), "actionUpdateBuilding");
     assert.equal(withAction.severity, "warning");
     assert.equal(withAction.message, "Session expired — please log in again");
     // A ConflictError racing the expiry is moot too — expiry wins.
@@ -89,7 +89,7 @@ Deno.test("classifyMutationError: a non-silent mutation error while expired → 
   markSessionExpired();
   try {
     const note = classifyMutationError(new Error("HTTP 401"), {
-      action: "share the aggregation",
+      action: "actionShareAggregation",
     });
     assert.equal(note?.severity, "warning");
     assert.equal(note?.message, "Session expired — please log in again");
@@ -105,7 +105,7 @@ Deno.test("classifyMutationError: a non-silent mutation error while expired → 
 
 Deno.test("classifyMutationError: honours meta (action phrasing, silent → null)", () => {
   const withAction = classifyMutationError(new Error("boom"), {
-    action: "share the aggregation",
+    action: "actionShareAggregation",
   });
   assert.equal(withAction?.message, "Failed to share the aggregation: boom");
   assert.equal(withAction?.severity, "error");

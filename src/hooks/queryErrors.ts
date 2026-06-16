@@ -1,6 +1,7 @@
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
 import { formatError } from "../lib/formatError.ts";
+import type { MessageId } from "../lib/messages.ts";
 import { isSessionExpired } from "../services/pod/sessionGate.ts";
 
 export type ErrorSeverity = "error" | "warning";
@@ -14,14 +15,14 @@ export const SESSION_EXPIRED_MESSAGE = "Session expired — please log in again"
 
 /**
  * Meta a mutation hook declares to steer the central error toast
- * (`QueryProvider`'s MutationCache): `action` is the lowercase verb phrase for
- * the standard `"Failed to {action}: {detail}"` shape; `silent` suppresses the
+ * (`QueryProvider`'s MutationCache): `action` is the catalog message id (an
+ * `action*` key) for the standard `"Failed to {action}: {detail}"` shape; `silent` suppresses the
  * toast entirely for mutations whose canonical error surface is an inline
  * `<Alert>` (the share dialogs' confirm step) — the component then renders
  * `mutation.error` through {@link classifyQueryError} so the wording can't fork.
  */
 export interface MutationNotificationMeta {
-  action?: string;
+  action?: MessageId;
   silent?: boolean;
 }
 
@@ -45,7 +46,7 @@ declare module "@tanstack/react-query" {
  */
 export function classifyQueryError(
   error: unknown,
-  action?: string,
+  action?: MessageId,
 ): { message: string; severity: ErrorSeverity } {
   // Once the session-expiry gate has tripped, EVERY in-flight query/mutation is
   // doomed to a 401 — but only the buildings loader converts that into a

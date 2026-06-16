@@ -68,14 +68,14 @@ export const INTENTS: readonly IntentEntry[] = [
   // ── Buildings ──────────────────────────────────────────────────────────────
   {
     name: "AddBuilding",
-    action: "add the building",
+    action: "actionAddBuilding",
     effect: "write",
     entity: "building",
     hook: "useUploadBuildings",
   },
   {
     name: "UpdateBuilding",
-    action: "update the building",
+    action: "actionUpdateBuilding",
     effect: "write",
     entity: "building",
     hook: "useUpdateBuilding",
@@ -97,14 +97,14 @@ export const INTENTS: readonly IntentEntry[] = [
   // ── Energy (observations) ────────────────────────────────────────────────────
   {
     name: "SaveObservation", // hook: energy year (rename lands in L-observations)
-    action: "save energy data",
+    action: "actionSaveEnergy",
     effect: "write",
     entity: "observation",
     hook: "useWriteEnergyYear",
   },
   {
     name: "DeleteObservation", // hook: energy year (rename lands in L-observations)
-    action: "delete energy data",
+    action: "actionDeleteEnergy",
     effect: "write",
     entity: "observation",
     hook: "useDeleteEnergyYear",
@@ -112,21 +112,21 @@ export const INTENTS: readonly IntentEntry[] = [
   // ── Attachments ──────────────────────────────────────────────────────────────
   {
     name: "UploadAttachments",
-    action: "upload the file",
+    action: "actionUploadFile",
     effect: "write",
     entity: "attachment",
     hook: "useUploadAttachments",
   },
   {
     name: "DeleteAttachment",
-    action: "delete the file",
+    action: "actionDeleteFile",
     effect: "write",
     entity: "attachment",
     hook: "useDeleteAttachment",
   },
   {
     name: "SetEnergyCertificate",
-    action: "update the energy certificate",
+    action: "actionUpdateCertificate",
     effect: "write",
     entity: "attachment",
     hook: "useSetEnergyCertificate",
@@ -134,7 +134,7 @@ export const INTENTS: readonly IntentEntry[] = [
   // ── Aggregations ─────────────────────────────────────────────────────────────
   {
     name: "CreateAggregation",
-    action: "create the aggregation",
+    action: "actionCreateAggregation",
     effect: "write",
     entity: "aggregation",
     hook: "useCreateAggregation",
@@ -155,7 +155,7 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "ShareAggregation",
-    action: "share the aggregation",
+    action: "actionShareAggregation",
     effect: "write",
     entity: "aggregation",
     silentError: true, // share-aggregation dialog renders inline (silent: opts.silent)
@@ -171,7 +171,7 @@ export const INTENTS: readonly IntentEntry[] = [
   // ── Sharing ──────────────────────────────────────────────────────────────────
   {
     name: "ShareBuilding",
-    action: "share the building",
+    action: "actionShareBuilding",
     effect: "write",
     entity: "building",
     silentError: true,
@@ -194,7 +194,7 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "ReissueGrants",
-    action: "rebuild sharing",
+    action: "actionRebuildSharing",
     effect: "write",
     entity: "sharing",
     exposure: "developer",
@@ -202,7 +202,7 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "AuditGrants",
-    action: "check sharing consistency",
+    action: "actionCheckSharing",
     effect: "read",
     entity: "sharing",
     exposure: "developer",
@@ -211,7 +211,7 @@ export const INTENTS: readonly IntentEntry[] = [
   // ── Organisation ─────────────────────────────────────────────────────────────
   {
     name: "SaveOrganisation",
-    action: "save your organisation",
+    action: "actionSaveOrganisation",
     effect: "write",
     entity: "organisation",
     hook: "useSaveOrganization",
@@ -233,7 +233,7 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "SeedDemoContacts",
-    action: "add demo contacts",
+    action: "actionAddDemoContacts",
     effect: "write",
     entity: "contact",
     exposure: "developer",
@@ -291,7 +291,7 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "SeedDemoRooms",
-    action: "add demo data rooms",
+    action: "actionAddDemoRooms",
     effect: "write",
     entity: "room",
     exposure: "developer",
@@ -300,7 +300,7 @@ export const INTENTS: readonly IntentEntry[] = [
   // ── Account-scope ────────────────────────────────────────────────────────────
   {
     name: "SeedDemoBuildings",
-    action: "add demo buildings and energy data",
+    action: "actionAddDemoBuildings",
     effect: "write",
     entity: "building",
     exposure: "developer",
@@ -308,7 +308,7 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "RemoveAppData",
-    action: "remove app data",
+    action: "actionRemoveAppData",
     effect: "write",
     entity: "appData",
     exposure: "developer",
@@ -316,7 +316,7 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "RestoreArchive",
-    action: "restore the archive",
+    action: "actionRestoreArchive",
     effect: "write",
     entity: "appData",
     exposure: "developer",
@@ -324,7 +324,7 @@ export const INTENTS: readonly IntentEntry[] = [
   },
   {
     name: "ExportArchive",
-    action: "download the archive",
+    action: "actionDownloadArchive",
     effect: "read",
     entity: "appData",
     exposure: "developer",

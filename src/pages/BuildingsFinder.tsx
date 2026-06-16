@@ -19,6 +19,7 @@ import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { buildingRoute } from "../routes.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { useT } from "../context/I18nProvider.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { useSharedBuildings, useSolidData } from "../hooks/queries.ts";
 import {
@@ -85,6 +86,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   const ownedBuildings = buildings.filter((b) => !b.isShared);
   const buildingPaging = usePaging(ownedBuildings);
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
+  const t = useT();
 
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
@@ -131,7 +133,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
       const enriched = await attachAnnualData(ownedBuildings, session);
       downloadXlsx(await buildingsToXlsx(enriched), "buildings-mine.xlsx");
     } catch (error) {
-      showNotification(formatError("export the buildings", error), "error");
+      showNotification(formatError("actionExportBuildings", error), "error");
     }
   };
 
@@ -218,7 +220,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
               : ownedBuildings.length === 0
               ? (
                 <Typography variant="body2">
-                  No buildings yet. Add one, or autofill it from a file.
+                  {t("buildingsEmpty")}
                 </Typography>
               )
               : (

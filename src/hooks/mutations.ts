@@ -262,7 +262,7 @@ export function useRevokeAggregationAccess() {
 export function useUploadBuildings() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "add the building" },
+    meta: { action: "actionAddBuilding" },
     mutationFn: async (vars: {
       buildings: Array<Record<string, string>>;
       lastgangReadings: LastgangReading[] | null;
@@ -340,7 +340,7 @@ export function useUploadBuildings() {
 export function useUpdateBuilding() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "update the building" },
+    meta: { action: "actionUpdateBuilding" },
     mutationFn: async (vars: {
       fileUri: string;
       subjectUri: string;
@@ -358,7 +358,7 @@ export function useUpdateBuilding() {
 export function useWriteEnergyYear() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "save energy data" },
+    meta: { action: "actionSaveEnergy" },
     mutationFn: async (vars: {
       fileUri: string;
       subjectUri: string;
@@ -383,7 +383,7 @@ export function useWriteEnergyYear() {
 export function useDeleteEnergyYear() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "delete energy data" },
+    meta: { action: "actionDeleteEnergy" },
     mutationFn: (vars: {
       fileUri: string;
       subjectUri: string;
@@ -405,7 +405,7 @@ export function useDeleteEnergyYear() {
 export function useUploadAttachments() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "upload the file" },
+    meta: { action: "actionUploadFile" },
     mutationFn: async (vars: {
       fileUri: string;
       subjectUri: string;
@@ -430,7 +430,7 @@ export function useUploadAttachments() {
 export function useDeleteAttachment() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "delete the file" },
+    meta: { action: "actionDeleteFile" },
     mutationFn: (vars: { fileUri: string; subjectUri: string; url: string }) =>
       deleteAttachment(vars.fileUri, vars.subjectUri, vars.url, getSession()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
@@ -441,7 +441,7 @@ export function useDeleteAttachment() {
 export function useSetEnergyCertificate() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "update the energy certificate" },
+    meta: { action: "actionUpdateCertificate" },
     mutationFn: (vars: {
       fileUri: string;
       subjectUri: string;
@@ -462,7 +462,7 @@ export function useSetEnergyCertificate() {
 export function useShareBuilding() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "share the building", silent: true },
+    meta: { action: "actionShareBuilding", silent: true },
     mutationFn: async (vars: {
       buildingUri: string;
       recipients: string[];
@@ -491,7 +491,7 @@ export function useShareBuilding() {
 export function useShareAggregationSnapshot(opts: { silent?: boolean } = {}) {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "share the aggregation", silent: opts.silent },
+    meta: { action: "actionShareAggregation", silent: opts.silent },
     mutationFn: async (vars: { snapshotUri: string; recipients: string[] }) => {
       const session = getSession();
       for (const recipient of vars.recipients) {
@@ -506,7 +506,7 @@ export function useShareAggregationSnapshot(opts: { silent?: boolean } = {}) {
 export function useCreateAggregation() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "create the aggregation" },
+    meta: { action: "actionCreateAggregation" },
     mutationFn: async (vars: {
       name: string;
       buildingUris: string[];
@@ -540,7 +540,7 @@ export function useCreateAggregation() {
 export function useSaveOrganization() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "save your organisation" },
+    meta: { action: "actionSaveOrganisation" },
     mutationFn: async (vars: {
       org: Pick<Organization, "name" | "homepage" | "sameAs">;
       logo?: File | null;
@@ -581,7 +581,7 @@ export function useSeedDemoContacts() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => seedDemoContacts(getSession()),
-    meta: { action: "add demo contacts" },
+    meta: { action: "actionAddDemoContacts" },
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
   });
 }
@@ -626,7 +626,7 @@ export function useSeedDemoRooms() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: () => seedDemoRooms(getSession()),
-    meta: { action: "add demo data rooms" },
+    meta: { action: "actionAddDemoRooms" },
     onSuccess: ({ rooms }) =>
       patchRooms(qc, (reg) => ({
         known: rooms.reduce(withRoom, reg.known),
@@ -744,7 +744,7 @@ export function useSaveRoles() {
 export function useSeedDemoBuildings() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "add demo buildings and energy data" },
+    meta: { action: "actionAddDemoBuildings" },
     mutationFn: () => {
       const session = getSession();
       const webId = session.info.webId;
@@ -768,7 +768,7 @@ export function useSeedDemoBuildings() {
 export function useRemoveAppData() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "remove app data" },
+    meta: { action: "actionRemoveAppData" },
     mutationFn: async (vars: { signal: AbortSignal }) => {
       try {
         await removeAppData(getSession(), vars.signal);
@@ -795,7 +795,7 @@ export function useRemoveAppData() {
 export function useRestoreArchive() {
   const qc = useQueryClient();
   return useMutation({
-    meta: { action: "restore the archive" },
+    meta: { action: "actionRestoreArchive" },
     mutationFn: async (vars: { bytes: Uint8Array }) => {
       const session = getSession();
       const restore = await importArchive(session, vars.bytes);
@@ -815,7 +815,7 @@ export function useRestoreArchive() {
  */
 export function useReissueGrants() {
   return useMutation({
-    meta: { action: "rebuild sharing" },
+    meta: { action: "actionRebuildSharing" },
     mutationFn: () => reissueGrants(getSession()),
   });
 }
@@ -829,7 +829,7 @@ export function useReissueGrants() {
  */
 export function useExportArchive() {
   return useMutation({
-    meta: { action: "download the archive" },
+    meta: { action: "actionDownloadArchive" },
     mutationFn: () => exportArchive(getSession()),
   });
 }
@@ -843,7 +843,7 @@ export function useExportArchive() {
  */
 export function useAuditGrants() {
   return useMutation({
-    meta: { action: "check sharing consistency" },
+    meta: { action: "actionCheckSharing" },
     mutationFn: () => auditGrants(getSession()),
   });
 }

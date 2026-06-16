@@ -32,6 +32,7 @@ import { getSnapshotUri } from "../services/aggregation/aggregationManager.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { formatDate } from "../lib/formatDate.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
+import { useT } from "../context/I18nProvider.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
@@ -59,6 +60,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
   const navigate = useNavigate();
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
   const dev = useDevMode();
+  const t = useT();
 
   const [createAggregationOpen, setCreateAggregationOpen] = useState(false);
   const [aggregationToShare, setAggregationToShare] = useState<
@@ -142,8 +144,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
           : aggregationDefinitions.length === 0
           ? (
             <Typography variant="body2">
-              No aggregations yet. Create one to aggregate energy values
-              across buildings.
+              {t("aggregationsEmpty")}
             </Typography>
           )
           : (

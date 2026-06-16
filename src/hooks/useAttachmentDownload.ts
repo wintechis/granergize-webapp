@@ -24,7 +24,7 @@ export function useAttachmentDownload(
     try {
       downloadBlob(await fetchAttachmentBlob(a.url, session), a.filename);
     } catch (error) {
-      showNotification(formatError("download the file", error), "error");
+      showNotification(formatError("actionDownloadFile", error), "error");
     } finally {
       setDownloadingUrl(null);
     }

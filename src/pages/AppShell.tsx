@@ -4,6 +4,7 @@ import Box from "@mui/material/Box";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
+import Select from "@mui/material/Select";
 import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -21,6 +22,8 @@ import Tooltip from "@mui/material/Tooltip";
 import PersonIcon from "@mui/icons-material/Person";
 import Footer from "../components/Footer.tsx";
 import { setDevMode, useDevMode } from "../hooks/devMode.ts";
+import { type Lang, setLanguage, useLanguage } from "../hooks/language.ts";
+import { useT } from "../context/I18nProvider.tsx";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
@@ -125,6 +128,8 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     NAV.find((n) => location.pathname === n.path)?.path ?? FINDERS.buildings;
 
   const devMode = useDevMode();
+  const t = useT();
+  const language = useLanguage();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   // "Remove all app data" — while the mutation is pending the page renders a
   // full-page activity screen with the live deletion requests and a Cancel
@@ -207,7 +212,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
         } else {
           showNotification(
             formatError(
-              "add demo buildings and energy data",
+              "actionAddDemoBuildings",
               new Error("no building could be written"),
             ),
             "error",
@@ -291,7 +296,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     } catch (err) {
       // A pre-mutation failure (unreadable file / not an archive) — the
       // mutation's central toast can't cover it.
-      showNotification(formatError("read the archive", err), "error");
+      showNotification(formatError("actionReadArchive", err), "error");
       return;
     }
     if (
@@ -591,6 +596,29 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             </MenuItem>
             <MenuItem onClick={handleOrganisation}>
               Organisation…
+            </MenuItem>
+
+            {/* Language switcher — a fixed entry (the one active-locale signal also
+                drives the vocab labels). Keep the menu open while choosing. */}
+            <Divider />
+            <MenuItem
+              onClick={(e) => e.stopPropagation()}
+              disableRipple
+              sx={{ justifyContent: "space-between", gap: 2 }}
+            >
+              {t("uiLanguage")}
+              <Select
+                size="small"
+                value={language}
+                onChange={(e) => setLanguage(e.target.value as Lang)}
+                onClick={(e) => e.stopPropagation()}
+                aria-label={t("uiLanguage")}
+                sx={{ minWidth: 130 }}
+              >
+                <MenuItem value="de">Deutsch</MenuItem>
+                <MenuItem value="en">English</MenuItem>
+                <MenuItem value="fr">Français</MenuItem>
+              </Select>
             </MenuItem>
 
             {/* Developer-mode toggle — fixed third entry, present in both modes */}

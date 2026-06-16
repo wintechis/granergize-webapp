@@ -26,6 +26,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
+import { useT } from "../context/I18nProvider.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
@@ -60,6 +61,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   const navigate = useNavigate();
 
   const roomQuery = useRoomState();
+  const t = useT();
   // The room log is CROSS-AGENT state: another member's join is appended by THEM
   // into the room container, so no local write ever invalidates it, and the
   // global policy is refetch-on-invalidation only (refetchOnMount: false).
@@ -245,7 +247,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
         : !hasRooms
         ? (
           <Typography variant="body2">
-            No data rooms yet. Host one, or add one by URI or QR code.
+            {t("roomsEmpty")}
           </Typography>
         )
         : (

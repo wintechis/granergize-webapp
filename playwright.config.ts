@@ -116,6 +116,7 @@ const SOLO_SPECS = [
   "**/data-room.spec.ts",
   "**/building-form-and-energy.spec.ts",
   "**/session-restore.spec.ts",
+  "**/i18n.spec.ts",
 ];
 // DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
 const DUO_SPECS: string[] = [

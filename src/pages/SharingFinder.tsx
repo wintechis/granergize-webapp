@@ -45,6 +45,7 @@ import {
   RefLink,
 } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
+import { useT } from "../context/I18nProvider.tsx";
 import FilesSection from "../components/detail/FilesSection.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
@@ -172,6 +173,7 @@ function SharedBuildingFiles(
 export default function SharingFinder({ session }: SharingFinderProps) {
   const { showNotification } = useNotification();
   const dev = useDevMode();
+  const t = useT();
 
   const sharedWithMeQuery = useSharedWithMe();
   const sharedWithMe = sharedWithMeQuery.data ?? [];
@@ -204,7 +206,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
     checkInbox.mutate(undefined, {
       onSuccess: () => showNotification("Checked for new shares", "success"),
       onError: (err) =>
-        showNotification(formatError("check for new shares", err), "error"),
+        showNotification(formatError("actionCheckShares", err), "error"),
     });
 
   // The Solid containers that back this tab, so the user can open the raw RDF:
@@ -225,7 +227,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
       const [enriched] = await attachAnnualData([building], session);
       downloadXlsx(await buildingToXlsx(enriched), `building-${entry.buildingId}.xlsx`);
     } catch (error) {
-      showNotification(formatError("export the building", error), "error");
+      showNotification(formatError("actionExportBuilding", error), "error");
     }
   };
 
@@ -257,7 +259,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
         );
       }
     } catch (error) {
-      showNotification(formatError("export the buildings", error), "error");
+      showNotification(formatError("actionExportBuildings", error), "error");
     } finally {
       setBundling(false);
     }
@@ -300,8 +302,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
         : sharedWithMe.length === 0
         ? (
           <Typography variant="body2">
-            No buildings shared with you yet. Join a data room so owners can
-            find you, or ask an owner to share with your WebID.
+            {t("sharedBuildingsEmpty")}
           </Typography>
         )
         : (
@@ -376,7 +377,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
         : receivedAggregations.length === 0
         ? (
           <Typography variant="body2">
-            No aggregations shared with you yet. An aggregation a partner shares appears here.
+            {t("sharedAggregationsEmpty")}
           </Typography>
         )
         : (

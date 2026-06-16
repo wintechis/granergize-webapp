@@ -1,16 +1,21 @@
+import { getLanguage } from "./language.ts";
+import { type MessageId, translate } from "./messages.ts";
+
 /**
- * Standard phrasing for an error notification: `Failed to {action}: {detail}`.
+ * Standard phrasing for an error notification: `Failed to {action}: {detail}` —
+ * now locale-aware. `action` is a catalog message id naming the failed operation
+ * (e.g. `"actionSaveEnergy"`); both the template and the action phrase come from
+ * the message catalog in the active UI language, so every error toast reads the
+ * same way and translates at once (UI-conventions: one small message vocabulary).
  *
- * Use it so every error toast in the app reads the same way (UI-conventions: a
- * small, consistent message vocabulary instead of one-off "X failed" / "Error
- * X" / "Could not X" variants):
+ *   showNotification(formatError("actionAddContact", err), "error");
  *
- *   showNotification(formatError("save the building", err), "error");
- *
- * `action` is a lowercase verb phrase ("save the building", "revoke access").
- * `err` is unwrapped to its `.message` when it's an Error, else stringified.
+ * Pure (reads the active locale from the `language` store, no React) so it works
+ * in services and the central mutation-error handler alike. `err` is unwrapped to
+ * its `.message` when it's an Error, else stringified.
  */
-export function formatError(action: string, err: unknown): string {
+export function formatError(action: MessageId, err: unknown): string {
   const detail = err instanceof Error ? err.message : String(err);
-  return `Failed to ${action}: ${detail}`;
+  const lang = getLanguage();
+  return translate(lang, "failedTo", { action: translate(lang, action), detail });
 }

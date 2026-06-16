@@ -7,6 +7,7 @@ import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
+import { useT } from "../context/I18nProvider.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
@@ -39,6 +40,7 @@ function datasetSummary(b: BuildingType): string {
  */
 export default function ObservationsFinder() {
   const { buildings, isLoading } = useSolidData();
+  const t = useT();
   const withObservations = buildings.filter(
     (b) => (b.energyDatasets?.length ?? 0) > 0,
   );
@@ -61,8 +63,7 @@ export default function ObservationsFinder() {
         : withObservations.length === 0
         ? (
           <Typography variant="body2">
-            No observations yet. Add energy data on a building's observation page
-            to see it here.
+            {t("observationsEmpty")}
           </Typography>
         )
         : (

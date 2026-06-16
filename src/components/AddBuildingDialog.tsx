@@ -270,7 +270,7 @@ export default function AddBuildingDialog(
         : `Loaded ${parsed.length} building(s) from file`;
       showNotification(msg, "success");
     } catch (err) {
-      showNotification(formatError("parse the file", err), "error");
+      showNotification(formatError("actionParseFile", err), "error");
     } finally {
       setParsing(false);
       if (fileInputRef.current) fileInputRef.current.value = "";

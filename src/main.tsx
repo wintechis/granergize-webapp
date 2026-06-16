@@ -21,6 +21,7 @@ import {
 import { useQueryClient } from "@tanstack/react-query";
 import { ConfirmProvider } from "./context/ConfirmContext.tsx";
 import { QueryProvider } from "./context/QueryProvider.tsx";
+import { I18nProvider } from "./context/I18nProvider.tsx";
 import { queryKeys } from "./hooks/queries.ts";
 import { SESSION_EXPIRED_MESSAGE } from "./hooks/queryErrors.ts";
 import { drainInbox, ensureOwnInbox } from "./services/interop/inbox.ts";
@@ -163,7 +164,7 @@ function AppContent() {
       // shown the "Session expired" warning and is logging out. Swallow the
       // redundant (and alarming) inbox error rather than stacking a second toast.
       if (isSessionExpired()) return;
-      showNotification(formatError("read your inbox", error), "error");
+      showNotification(formatError("actionReadInbox", error), "error");
     }
   }, [showNotification, queryClient]);
 
@@ -250,13 +251,15 @@ function Root() {
     <React.Fragment>
       <ThemeProvider theme={theme}>
         <CssBaseline enableColorScheme />
-        <NotificationProvider>
-          <ConfirmProvider>
-            <QueryProvider>
-              <AppContent />
-            </QueryProvider>
-          </ConfirmProvider>
-        </NotificationProvider>
+        <I18nProvider>
+          <NotificationProvider>
+            <ConfirmProvider>
+              <QueryProvider>
+                <AppContent />
+              </QueryProvider>
+            </ConfirmProvider>
+          </NotificationProvider>
+        </I18nProvider>
       </ThemeProvider>
     </React.Fragment>
   );
