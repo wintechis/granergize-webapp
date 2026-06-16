@@ -14,7 +14,7 @@
  * a plural entry carries one string per `Intl.PluralRules` category, selected by
  * `{count}`.
  */
-import { DEFAULT_LANG, type Lang } from "./language.ts";
+import { DEFAULT_LANG, getLanguage, type Lang } from "./language.ts";
 
 /** A message is one string per language, OR — for counts — one string per plural
  * category (selected via `Intl.PluralRules` on `{count}`). `other` is required. */
@@ -84,6 +84,52 @@ export const MESSAGES = {
       "Aucune agrégation partagée avec vous pour l'instant. Une agrégation partagée par un partenaire apparaît ici.",
   },
   uiLanguage: { en: "Language", de: "Sprache", fr: "Langue" },
+  // Rooms / Meet notifications (imperative toasts → resolved via `msg()` at fire time).
+  roomAdded: {
+    en: "Data room added to your list",
+    de: "Datenraum zu deiner Liste hinzugefügt",
+    fr: "Salle de données ajoutée à votre liste",
+  },
+  roomCreated: {
+    en: "Data room created",
+    de: "Datenraum erstellt",
+    fr: "Salle de données créée",
+  },
+  roomUnreachable: {
+    en: "Data room is not reachable",
+    de: "Datenraum nicht erreichbar",
+    fr: "Salle de données injoignable",
+  },
+  roomLeft: {
+    en: "You left the data room",
+    de: "Du hast den Datenraum verlassen",
+    fr: "Vous avez quitté la salle de données",
+  },
+  roomDeleted: {
+    en: "Data room deleted",
+    de: "Datenraum gelöscht",
+    fr: "Salle de données supprimée",
+  },
+  rolesUpdated: {
+    en: "Roles updated",
+    de: "Rollen aktualisiert",
+    fr: "Rôles mis à jour",
+  },
+  inviteCopied: {
+    en: "Invite link copied",
+    de: "Einladungslink kopiert",
+    fr: "Lien d'invitation copié",
+  },
+  inviteCopyFailed: {
+    en: "Could not copy link",
+    de: "Link konnte nicht kopiert werden",
+    fr: "Impossible de copier le lien",
+  },
+  removedFromList: {
+    en: "Removed from your list",
+    de: "Aus deiner Liste entfernt",
+    fr: "Retiré de votre liste",
+  },
   // The two classified-warning sentences (session-expiry gate + optimistic-lock
   // conflict) — complete sentences about an app-level state, not "Failed to …".
   sessionExpired: {
@@ -300,4 +346,15 @@ export function translate(
     return interpolate(form, params);
   }
   return interpolate(value, params);
+}
+
+/**
+ * Resolve a message id in the CURRENT active locale — the imperative counterpart
+ * to `useT()`/`translate`. For one-shot strings fired outside render (notification
+ * toasts in handlers/effects/`onSuccess`): it reads `getLanguage()` at call time,
+ * so the toast shows in the locale active when it fires, no React/hook needed. Use
+ * `useT()` for strings RENDERED in the tree (they must re-render on a locale switch).
+ */
+export function msg(id: MessageId, params?: MessageParams): string {
+  return translate(getLanguage(), id, params);
 }

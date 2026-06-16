@@ -27,6 +27,7 @@ import { useConfirm } from "../context/ConfirmContext.tsx";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import { useT } from "../context/I18nProvider.tsx";
+import { msg } from "../lib/messages.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
@@ -96,23 +97,23 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   // Disable actions while any write is in flight or the resulting re-read runs.
   const busy = roomQuery.isFetching || mutations.some((m) => m.isPending);
 
-  const ok = (msg: string) => () => showNotification(msg, "success");
+  const ok = (text: string) => () => showNotification(text, "success");
 
   const handleAdd = (input: string) =>
     add.mutate(input, {
       onSuccess: () => {
         setRoomInput("");
-        showNotification("Data room added to your list", "success");
+        showNotification(msg("roomAdded"), "success");
       },
     });
 
   const handleRemoveBookmark = (room: string) =>
-    remove.mutate(room, { onSuccess: ok("Removed from your list") });
+    remove.mutate(room, { onSuccess: ok(msg("removedFromList")) });
 
   const handleCreate = () =>
     create.mutate(undefined, {
       onSuccess: (room) => {
-        showNotification("Data room created", "success");
+        showNotification(msg("roomCreated"), "success");
         // Land on the new room's page (it enters there on mount).
         void navigate(roomRoute(room));
       },
@@ -131,7 +132,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
     ) {
       return;
     }
-    del.mutate(room, { onSuccess: ok("Data room deleted") });
+    del.mutate(room, { onSuccess: ok(msg("roomDeleted")) });
   };
 
   const handleRoomScan = (text: string) => {

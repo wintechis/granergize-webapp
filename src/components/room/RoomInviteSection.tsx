@@ -2,6 +2,7 @@ import { Box, IconButton, Tooltip, Typography } from "@mui/material";
 import ContentCopyIcon from "@mui/icons-material/ContentCopy";
 import { QRCodeSVG } from "qrcode.react";
 import { useNotification } from "../../context/NotificationContext.tsx";
+import { msg } from "../../lib/messages.ts";
 import { roomRoute } from "../../routes.ts";
 import { logError } from "../../lib/logError.ts";
 import { SectionTitle } from "../detail/DetailView.tsx";
@@ -27,10 +28,10 @@ export default function RoomInviteSection({ roomUri }: { roomUri: string }) {
   const handleCopyLink = async () => {
     try {
       await navigator.clipboard.writeText(inviteLink);
-      showNotification("Invite link copied", "success");
+      showNotification(msg("inviteCopied"), "success");
     } catch (err) {
       logError("copy invite link to clipboard", err);
-      showNotification("Could not copy link", "error");
+      showNotification(msg("inviteCopyFailed"), "error");
     }
   };
 

@@ -15,6 +15,7 @@ import type { UserRole } from "../../types.ts";
 import { roleLabel, ROOM_ROLE_OPTIONS } from "../../constants/roles.ts";
 import { useSaveRoles } from "../../hooks/mutations.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
+import { msg } from "../../lib/messages.ts";
 import { SectionTitle } from "../detail/DetailView.tsx";
 
 /**
@@ -46,7 +47,7 @@ export default function RoomRolesSection(
 
   const handleSave = () =>
     saveRoles.mutate({ room: roomUri, roles: myRoles }, {
-      onSuccess: () => showNotification("Roles updated", "success"),
+      onSuccess: () => showNotification(msg("rolesUpdated"), "success"),
     });
 
   const disabled = busy || saveRoles.isPending;

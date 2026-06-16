@@ -5,6 +5,7 @@ import { normalizeRoomUri, ownsRoom } from "../services/interop/dataRoom.ts";
 import { useRoomState } from "../hooks/queries.ts";
 import { useDeleteRoom, useEnterRoom, useExitRoom } from "../hooks/mutations.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
+import { msg } from "../lib/messages.ts";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { useBackNavigation } from "../hooks/backNavigation.ts";
 import { BackLink, RdfSourceLink } from "../components/detail/DetailView.tsx";
@@ -57,7 +58,7 @@ export default function Room(
     if (enteredRef.current === room) return;
     enteredRef.current = room;
     enter.mutate(room, {
-      onError: () => showNotification("Data room is not reachable", "error"),
+      onError: () => showNotification(msg("roomUnreachable"), "error"),
     });
     // enter/showNotification are stable; room identifies the room to enter.
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -79,7 +80,7 @@ export default function Room(
   const handleLeave = () =>
     exit.mutate(room, {
       onSuccess: () => {
-        showNotification("You left the data room", "success");
+        showNotification(msg("roomLeft"), "success");
         goBack();
       },
     });
@@ -96,7 +97,7 @@ export default function Room(
     ) return;
     del.mutate(room, {
       onSuccess: () => {
-        showNotification("Data room deleted", "success");
+        showNotification(msg("roomDeleted"), "success");
         goBack();
       },
     });
