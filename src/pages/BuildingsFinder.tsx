@@ -12,7 +12,6 @@ import {
 import AddIcon from "@mui/icons-material/Add";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
-import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType } from "../types.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
@@ -38,7 +37,7 @@ import {
   RefLink,
 } from "../components/detail/DetailView.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
-import RowAction from "../components/RowAction.tsx";
+import ObjectActions from "../components/ObjectActions.tsx";
 import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
@@ -91,6 +90,22 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
 
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
+
+  // Honour a palette-routed `?action=add` by DERIVING the dialog-open state from
+  // the URL (no setState-in-effect): the palette routes the rich create verb to
+  // the finder that owns its bespoke dialog (plan-palette §5). The close handler
+  // strips the param so a reload/Back doesn't re-open it.
+  const actionIsAdd = searchParams.get("action") === "add";
+  const clearAction = () =>
+    setSearchParams((prev) => {
+      const sp = new URLSearchParams(prev);
+      sp.delete("action");
+      return sp;
+    }, { replace: true });
+  const closeAdd = () => {
+    setAddOpen(false);
+    if (actionIsAdd) clearAction();
+  };
 
   // buildingUri → WebIDs it is shared with.
   const sharedQuery = useSharedBuildings();
@@ -252,14 +267,21 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                           </>
                         }
                         actions={
-                          // A finder row carries at most one (destructive) action;
-                          // Edit / Files / energy / Share / Download all live on the
-                          // building page (/building/:id) now.
-                          <RowAction
-                            label={t("buildingDeleteAria")}
-                            color="error"
-                            icon={<DeleteIcon fontSize="small" />}
-                            onClick={() => handleDelete(b)}
+                          // Registry-driven: the finder row's destructive action
+                          // (delete, owner-only via the registry's `applies()`
+                          // guard) — Edit / Files / energy / Share / Download all
+                          // live on the building page (/building/:id) now.
+                          <ObjectActions
+                            object={b}
+                            handlers={{
+                              DeleteBuilding: () => {
+                                void handleDelete(b);
+                              },
+                            }}
+                            pending={(name) =>
+                              name === "DeleteBuilding" &&
+                              deleteBuilding.isPending &&
+                              deleteBuilding.variables?.uri === b.uri}
                           />
                         }
                       >
@@ -290,9 +312,9 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
         </Box>
       )}
       <AddBuildingDialog
-        open={addOpen}
+        open={addOpen || actionIsAdd}
         autostartImport={importMode}
-        onClose={() => setAddOpen(false)}
+        onClose={closeAdd}
       />
     </Box>
   );

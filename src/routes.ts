@@ -69,3 +69,37 @@ export const roomRoute = (uri: string): string =>
 /** A WebID is always an absolute IRI, so a contact always rides in `?uri=`. */
 export const contactRoute = (webId: string): string =>
   `${DETAIL_PATTERNS.contact}?uri=${encodeURIComponent(webId)}`;
+
+/**
+ * The query param a surface reads to **auto-open** a bespoke dialog/editor on
+ * arrival (plan-palette §5). When the ⌘K palette routes a *rich* verb
+ * (share/edit/create — anything needing a recipient picker or the edit form) it
+ * does NOT auto-generate a form; it navigates to the surface that owns that
+ * verb's dialog with `?action=<token>` appended, and the surface opens itself.
+ *
+ * The token vocabulary is small and stable (one per rich verb). It composes with
+ * the `?ref=`/`?uri=` id param already on a detail route (`withAction` appends,
+ * preserving any existing query string), so e.g. routing Share for an own
+ * building yields `/building?ref=…&action=share`. Pure string helpers — Tier-1
+ * testable, no React.
+ */
+export type DialogAction =
+  | "add" // Buildings finder → Add building dialog
+  | "edit" // Building page → inline master-data editor
+  | "share" // Building page → Share dialog
+  | "enter-energy" // Observation page → Energy-year dialog (add/edit a year)
+  | "create-aggregation" // Aggregations finder → Create aggregation dialog
+  | "share-aggregation"; // Aggregation detail → Share aggregation dialog
+
+/** The `?action=` query-param name a surface reads (see {@link DialogAction}). */
+export const ACTION_PARAM = "action";
+
+/**
+ * Append `?action=<token>` to a route, preserving any existing query string
+ * (the `?ref=`/`?uri=` id param a detail route already carries). Used by the
+ * palette to route a rich verb to the surface that opens its bespoke dialog.
+ */
+export const withAction = (route: string, action: DialogAction): string =>
+  route.includes("?")
+    ? `${route}&${ACTION_PARAM}=${action}`
+    : `${route}?${ACTION_PARAM}=${action}`;

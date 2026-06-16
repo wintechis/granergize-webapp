@@ -123,12 +123,16 @@ const SOLO_SPECS = [
   "**/building-form-and-energy.spec.ts",
   "**/session-restore.spec.ts",
   "**/i18n.spec.ts",
+  "**/palette-add-and-energy.spec.ts",
 ];
 // DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
 const DUO_SPECS: string[] = [
   "**/share-building.spec.ts",
   "**/share-aggregation.spec.ts",
   "**/share-files.spec.ts",
+  "**/palette-share-building.spec.ts",
+  "**/palette-hide-shared-building.spec.ts",
+  "**/palette-benchmark-share.spec.ts",
 ];
 // TRIO — three pods (A + B + C = Charlie): the benchmark-service round-trip.
 const TRIO_SPECS: string[] = [

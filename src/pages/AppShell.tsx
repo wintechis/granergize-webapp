@@ -20,11 +20,13 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import PersonIcon from "@mui/icons-material/Person";
+import SearchIcon from "@mui/icons-material/Search";
 import Footer from "../components/Footer.tsx";
 import { setDevMode, useDevMode } from "../hooks/devMode.ts";
 import { type Lang, setLanguage, useLanguage } from "../hooks/language.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
+import CommandPalette, { OPEN_PALETTE_EVENT } from "../components/CommandPalette.tsx";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { getAvatarObjectUrl } from "../services/organization/logoManager.ts";
@@ -539,6 +541,16 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             gap: 2,
           }}
         >
+          <Tooltip title={t("paletteOpenAria")}>
+            <IconButton
+              size="small"
+              aria-label={t("paletteOpenAria")}
+              onClick={() =>
+                globalThis.dispatchEvent(new CustomEvent(OPEN_PALETTE_EVENT))}
+            >
+              <SearchIcon />
+            </IconButton>
+          </Tooltip>
           <NetworkActivityIndicator />
           {orgLogoUrl && (
             <Box
@@ -776,6 +788,9 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           loadAvatar();
         }}
       />
+      {/* The global ⌘K command palette — reads the intent registry, scoped to the
+          focused object (via PaletteFocusProvider) plus the navigation verbs. */}
+      <CommandPalette />
     </Box>
   );
 }

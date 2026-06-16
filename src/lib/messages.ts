@@ -84,6 +84,24 @@ export const MESSAGES = {
       "Aucune agrégation partagée avec vous pour l'instant. Une agrégation partagée par un partenaire apparaît ici.",
   },
   uiLanguage: { en: "Language", de: "Sprache", fr: "Langue" },
+  // ⌘K command palette (plan-palette §4).
+  palettePlaceholder: {
+    en: "Type a command…",
+    de: "Befehl eingeben…",
+    fr: "Saisir une commande…",
+  },
+  paletteEmpty: {
+    en: "No matching commands",
+    de: "Keine passenden Befehle",
+    fr: "Aucune commande correspondante",
+  },
+  paletteGroupNavigation: { en: "Go to", de: "Gehe zu", fr: "Aller à" },
+  paletteGroupActions: { en: "Actions", de: "Aktionen", fr: "Actions" },
+  paletteOpenAria: {
+    en: "Open command palette (Ctrl K)",
+    de: "Befehlspalette öffnen (Strg K)",
+    fr: "Ouvrir la palette de commandes (Ctrl K)",
+  },
   // Top-nav finder labels.
   navBuildings: { en: "Buildings", de: "Gebäude", fr: "Bâtiments" },
   navObservations: {
@@ -2072,6 +2090,64 @@ export const MESSAGES = {
     en: "Contact removed",
     de: "Kontakt entfernt",
     fr: "Contact supprimé",
+  },
+  // Per-object action-menu verb labels (the intent-registry-driven row/section
+  // actions — plan-palette §3). One id per registry descriptor whose verb is
+  // surfaced as an action control; the registry maps `descriptor.name` → these.
+  intentAddBuilding: {
+    en: "Add building…",
+    de: "Gebäude hinzufügen…",
+    fr: "Ajouter un bâtiment…",
+  },
+  intentUpdateBuilding: {
+    en: "Edit building…",
+    de: "Gebäude bearbeiten…",
+    fr: "Modifier le bâtiment…",
+  },
+  intentCreateAggregation: {
+    en: "Create aggregation…",
+    de: "Aggregation erstellen…",
+    fr: "Créer une agrégation…",
+  },
+  intentDeleteBuilding: {
+    en: "Delete building",
+    de: "Gebäude löschen",
+    fr: "Supprimer le bâtiment",
+  },
+  intentShareBuilding: {
+    en: "Share building",
+    de: "Gebäude teilen",
+    fr: "Partager le bâtiment",
+  },
+  intentToggleBuildingVisibility: {
+    en: "Show/hide building",
+    de: "Gebäude ein-/ausblenden",
+    fr: "Afficher/masquer le bâtiment",
+  },
+  intentDeleteAggregation: {
+    en: "Delete aggregation",
+    de: "Aggregation löschen",
+    fr: "Supprimer l'agrégation",
+  },
+  intentRefreshAggregation: {
+    en: "Refresh snapshot",
+    de: "Snapshot aktualisieren",
+    fr: "Actualiser l'instantané",
+  },
+  intentShareAggregation: {
+    en: "Share aggregation",
+    de: "Aggregation teilen",
+    fr: "Partager l'agrégation",
+  },
+  intentSaveEnergyYear: {
+    en: "Enter energy…",
+    de: "Energie eingeben…",
+    fr: "Saisir l'énergie…",
+  },
+  intentDeleteEnergyYear: {
+    en: "Delete energy…",
+    de: "Energie löschen…",
+    fr: "Supprimer l'énergie…",
   },
   // A plural exemplar (drives the machinery's `Intl.PluralRules` path; German has
   // the same form for one/other, English/French differ).

@@ -3,8 +3,8 @@
  *
  * Phase-0 contract **C3** of the redesign (see `plans/plan-redesign-parallel-execution.md`):
  * this freezes the *shape* (the {@link IntentEntry} type) plus a representative seed,
- * so the command-palette and RowAction lanes code against one enumerable catalog
- * instead of reading `mutations.ts` by eye. The full population — one entry per
+ * so the command-palette and the per-object `ObjectActions` menu code against one
+ * enumerable catalog instead of reading `mutations.ts` by eye. The full population — one entry per
  * mutation hook, with the hooks *deriving* their `meta.action`/invalidations from
  * here, plus the drift guard against `mutations.ts` — is the **L-intent-registry**
  * lane. Design + the full Actions list: `explore/explore-intent-registry.md`.

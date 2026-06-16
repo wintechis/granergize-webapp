@@ -345,9 +345,18 @@ function EditView(
  * the page (no modal), saving through {@link useUpdateBuilding}. A shared
  * building is read-only (no Edit) — the recipient doesn't own the file.
  */
-export default function MasterDataSection({ building }: { building: BuildingType }) {
-  const [editing, setEditing] = useState(false);
+export default function MasterDataSection(
+  { building, autoOpenEdit }: {
+    building: BuildingType;
+    /** Open the inline editor on mount (the palette routed here `?action=edit`). */
+    autoOpenEdit?: boolean;
+  },
+) {
   const canEdit = !building.isShared;
+  // Honour a palette-routed `?action=edit` by SEEDING the edit state from the
+  // prop (no setState-in-effect): flip to the inline editor on arrival, only
+  // when editing is allowed (a shared building is read-only).
+  const [editing, setEditing] = useState(() => autoOpenEdit === true && canEdit);
 
   return (
     <Box>

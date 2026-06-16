@@ -22,6 +22,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { ConfirmProvider } from "./context/ConfirmContext.tsx";
 import { QueryProvider } from "./context/QueryProvider.tsx";
 import { I18nProvider } from "./context/I18nProvider.tsx";
+import { PaletteFocusProvider } from "./context/PaletteFocusContext.tsx";
 import { queryKeys } from "./hooks/queries.ts";
 import { sessionExpiredMessage } from "./hooks/queryErrors.ts";
 import { msg } from "./lib/messages.ts";
@@ -256,7 +257,9 @@ function Root() {
           <NotificationProvider>
             <ConfirmProvider>
               <QueryProvider>
-                <AppContent />
+                <PaletteFocusProvider>
+                  <AppContent />
+                </PaletteFocusProvider>
               </QueryProvider>
             </ConfirmProvider>
           </NotificationProvider>

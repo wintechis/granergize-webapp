@@ -8,11 +8,8 @@ import {
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import DeleteIcon from "@mui/icons-material/Delete";
-import ShareIcon from "@mui/icons-material/Share";
-import RefreshIcon from "@mui/icons-material/Refresh";
 import VisibilityIcon from "@mui/icons-material/Visibility";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { AggregationDefinition } from "../types.ts";
 import { aggregationRoute } from "../routes.ts";
@@ -36,6 +33,7 @@ import { useT } from "../context/I18nProvider.tsx";
 import { msg } from "../lib/messages.ts";
 import { useDevMode } from "../hooks/devMode.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
+import ObjectActions from "../components/ObjectActions.tsx";
 import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
@@ -63,10 +61,28 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
   const dev = useDevMode();
   const t = useT();
 
+  const [searchParams, setSearchParams] = useSearchParams();
   const [createAggregationOpen, setCreateAggregationOpen] = useState(false);
   const [aggregationToShare, setAggregationToShare] = useState<
     AggregationDefinition | null
   >(null);
+
+  // Honour a palette-routed `?action=create-aggregation` by DERIVING the
+  // dialog-open state from the URL (no setState-in-effect): the palette routes
+  // this no-object create verb to the finder that owns its bespoke dialog
+  // (plan-palette §5). The close handler strips the param so a reload/Back
+  // doesn't re-open it.
+  const actionIsCreate = searchParams.get("action") === "create-aggregation";
+  const closeCreate = () => {
+    setCreateAggregationOpen(false);
+    if (actionIsCreate) {
+      setSearchParams((prev) => {
+        const sp = new URLSearchParams(prev);
+        sp.delete("action");
+        return sp;
+      }, { replace: true });
+    }
+  };
 
   const aggregationDefsQuery = useAggregationDefinitions();
   const aggregationDefinitions = aggregationDefsQuery.data ?? [];
@@ -184,53 +200,41 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                       </>
                     }
                     actions={
-                      <>
-                        <Tooltip title={t("aggDetailsAria")}>
-                          <IconButton
-                            size="small"
-                            aria-label={t("aggDetailsAria")}
-                            onClick={() =>
-                              navigate(aggregationRoute(aggregation.id))}
-                          >
-                            <VisibilityIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={t("aggRefreshAria")}>
-                          <span>
+                      // Registry-driven: which verbs apply (refresh needs a
+                      // snapshot, share/delete always) comes from the intent
+                      // registry's `applies()` guards, not inline conditionals.
+                      // "Details" is navigation, not a mutation intent → leading.
+                      <ObjectActions
+                        object={aggregation}
+                        handlers={{
+                          RefreshAggregation: () =>
+                            handleRefreshAggregation(aggregation.id),
+                          ShareAggregation: () =>
+                            setAggregationToShare(aggregation),
+                          DeleteAggregation: () => {
+                            void handleDeleteAggregation(aggregation.id);
+                          },
+                        }}
+                        pending={(name) =>
+                          (name === "RefreshAggregation" &&
+                            refreshAggregation.isPending &&
+                            refreshAggregation.variables === aggregation.id) ||
+                          (name === "DeleteAggregation" &&
+                            deleteAggregationMut.isPending &&
+                            deleteAggregationMut.variables === aggregation.id)}
+                        leading={
+                          <Tooltip title={t("aggDetailsAria")}>
                             <IconButton
                               size="small"
-                              aria-label={t("aggRefreshAria")}
-                              onClick={() => handleRefreshAggregation(aggregation.id)}
-                              disabled={refreshAggregation.isPending &&
-                                refreshAggregation.variables === aggregation.id}
+                              aria-label={t("aggDetailsAria")}
+                              onClick={() =>
+                                navigate(aggregationRoute(aggregation.id))}
                             >
-                              <RefreshIcon />
+                              <VisibilityIcon fontSize="small" />
                             </IconButton>
-                          </span>
-                        </Tooltip>
-                        <Tooltip title={t("aggShareAria")}>
-                          <IconButton
-                            size="small"
-                            aria-label={t("aggShareAria")}
-                            onClick={() => setAggregationToShare(aggregation)}
-                          >
-                            <ShareIcon />
-                          </IconButton>
-                        </Tooltip>
-                        <Tooltip title={t("aggDeleteAria")}>
-                          <span>
-                            <IconButton
-                              size="small"
-                              aria-label={t("aggDeleteAria")}
-                              onClick={() => handleDeleteAggregation(aggregation.id)}
-                              disabled={deleteAggregationMut.isPending &&
-                                deleteAggregationMut.variables === aggregation.id}
-                            >
-                              <DeleteIcon />
-                            </IconButton>
-                          </span>
-                        </Tooltip>
-                      </>
+                          </Tooltip>
+                        }
+                      />
                     }
                   >
                     {sharedAggregationsQuery.isLoading
@@ -286,9 +290,9 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
         />
       )}
       <CreateAggregationDialog
-        open={createAggregationOpen}
+        open={createAggregationOpen || actionIsCreate}
         buildings={buildings}
-        onClose={() => setCreateAggregationOpen(false)}
+        onClose={closeCreate}
       />
     </Box>
   );

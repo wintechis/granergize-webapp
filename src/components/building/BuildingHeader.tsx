@@ -12,7 +12,7 @@ import {
 } from "../../lib/buildingDisplay.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { RefLink } from "../detail/DetailView.tsx";
-import RowAction from "../RowAction.tsx";
+import IconAction from "../IconAction.tsx";
 import { MARKER_OWNED_COLOR, MARKER_SHARED_COLOR } from "../../constants/chartColors.ts";
 import { getSession } from "../../hooks/session.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
@@ -101,7 +101,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
               color={shared ? "warning" : "primary"}
               variant="outlined"
             />
-            <RowAction
+            <IconAction
               label={msg("bhDownloadData")}
               icon={<DownloadIcon fontSize="small" />}
               onClick={handleDownload}

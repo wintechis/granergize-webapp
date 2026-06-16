@@ -1,4 +1,4 @@
-import { msg } from "../lib/messages.ts";
+import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
 import { useBackNavigation } from "../hooks/backNavigation.ts";
 import {
@@ -12,7 +12,16 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Session } from "@inrupt/solid-client-authn-browser";
+import { ACTION_PARAM } from "../routes.ts";
+import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
+import { useNotification } from "../context/NotificationContext.tsx";
+import { useConfirm } from "../context/ConfirmContext.tsx";
+import { msg } from "../lib/messages.ts";
 import { useAggregationDetail } from "../hooks/queries.ts";
+import {
+  useDeleteAggregation,
+  useRefreshAggregation,
+} from "../hooks/mutations.ts";
 import { classifyQueryError } from "../hooks/queryErrors.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
@@ -53,6 +62,54 @@ export default function Aggregation({ session }: AggregationProps) {
   const detail = useAggregationDetail(aggregationId);
   const definition = detail.data?.definition ?? null;
   const snapshot = detail.data?.snapshot ?? null;
+
+  // A palette-routed Share arrives with `?action=share-aggregation`, opened by
+  // the sharing section on mount (plan-palette §5).
+  const action = searchParams.get(ACTION_PARAM);
+
+  // Register this aggregation as the ⌘K palette's focused object, with the SIMPLE
+  // (param-less) verbs the palette can fire directly: refresh + delete. Rich
+  // Share carries no handler — the palette routes here `?action=share-aggregation`
+  // instead. The hooks stay the implementation (busy/toast/invalidation theirs).
+  const { showNotification } = useNotification();
+  const { confirm } = useConfirm();
+  const { setFocus, clearFocus } = usePaletteFocus();
+  const refresh = useRefreshAggregation();
+  const remove = useDeleteAggregation();
+  useEffect(() => {
+    if (!definition) return;
+    const id = definition.id;
+    setFocus({
+      object: definition,
+      handlers: {
+        RefreshAggregation: () =>
+          refresh.mutate(id, {
+            onSuccess: () => showNotification(msg("snapshotRefreshed"), "success"),
+          }),
+        DeleteAggregation: () => {
+          void (async () => {
+            if (
+              !await confirm({
+                title: msg("dlgDeleteAggregation"),
+                message:
+                  "Delete this aggregation? This also revokes access for everyone it is shared with.",
+                confirmLabel: "Delete",
+              })
+            ) return;
+            remove.mutate(id, {
+              onSuccess: () => {
+                showNotification(msg("aggregationDeleted"), "success");
+                goBack();
+              },
+            });
+          })();
+        },
+      },
+    });
+    return () => clearFocus();
+    // Re-register when the focused aggregation changes; the rest are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [definition?.id]);
 
   // Dev-mode-only source link to the backing definition resource
   // (`aggregations/<id>.ttl`); self-hides outside dev mode, null until the root
@@ -108,7 +165,11 @@ export default function Aggregation({ session }: AggregationProps) {
           snapshot={snapshot}
           computeError={detail.data?.computeError}
         />
-        <AggregationSharingSection aggregation={definition} session={session} />
+        <AggregationSharingSection
+          aggregation={definition}
+          session={session}
+          autoOpenShare={action === "share-aggregation"}
+        />
         {rdf && (
           <RdfSourceLink href={`${rdf.aggregations}${definition.id}.ttl`} />
         )}

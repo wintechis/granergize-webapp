@@ -1,6 +1,10 @@
+import { useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { BuildingType } from "../types.ts";
 import { Box, Divider, Stack, Typography } from "@mui/material";
 import { useSolidData } from "../hooks/queries.ts";
+import { ACTION_PARAM } from "../routes.ts";
+import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
 import { splitEnergyDatasets } from "../lib/energyResolution.ts";
@@ -21,6 +25,34 @@ export default function Energy({ building }: EnergyProps) {
   // building.energyDatasets; SeriesEnergy lazy-loads the time series).
   const { isLoading, error } = useSolidData();
   const dev = useDevMode();
+
+  // Register the building this page is showing as the ⌘K palette's focused
+  // object — the observation surface is titled by its building, and energy
+  // belongs to that building. The energy verbs (SaveEnergyYear /
+  // DeleteEnergyYear) are RICH (a dialog-routed surface, EnergyYearDialog), so
+  // they need no direct handler — the palette routes here `?action=enter-energy`
+  // and the header's EnergyEntryButton opens the dialog (mirroring Building.tsx /
+  // Aggregation.tsx). Clearing on unmount returns the palette to navigation-only.
+  const { setFocus, clearFocus } = usePaletteFocus();
+  useEffect(() => {
+    setFocus({ object: building, handlers: {} });
+    return () => clearFocus();
+    // Re-register whenever the focused building changes; the setters are stable.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [building]);
+
+  // A palette-routed energy entry arrives with `?action=enter-energy`, which the
+  // header's EnergyEntryButton seeds open from (plan-palette §5). The close
+  // handler strips the param so a reload / re-focus doesn't reopen the dialog.
+  const [sp, setSp] = useSearchParams();
+  const autoOpenEntry = sp.get(ACTION_PARAM) === "enter-energy";
+  const onEntryClosed = () => {
+    setSp((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete(ACTION_PARAM);
+      return next;
+    }, { replace: true });
+  };
 
   // While the global load is in flight, stay blank — the header spinner is the
   // single loading indicator; this avoids a misleading "no data" flash.
@@ -57,7 +89,11 @@ export default function Energy({ building }: EnergyProps) {
     // renders — it's an independent observation layer about the building.
     return (
       <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
-        <ObservationHeader building={building} />
+        <ObservationHeader
+          building={building}
+          autoOpenEntry={autoOpenEntry}
+          onEntryClosed={onEntryClosed}
+        />
         <Typography color="text.secondary">
           {building.isShared
             ? "No energy data available for this building. You may not have access to this data."
@@ -97,7 +133,11 @@ export default function Energy({ building }: EnergyProps) {
   // a divider-separated stack of sections — here the Annual | Time series view.
   return (
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
-      <ObservationHeader building={building} />
+      <ObservationHeader
+        building={building}
+        autoOpenEntry={autoOpenEntry}
+        onEntryClosed={onEntryClosed}
+      />
       <EnergyResolutionSwitch
         annual={annualView}
         series={series.length > 0

@@ -19,14 +19,19 @@ import ShareAggregationDialog from "../ShareAggregationDialog.tsx";
  * SharingSection.
  */
 export default function AggregationSharingSection(
-  { aggregation, session }: {
+  { aggregation, session, autoOpenShare }: {
     aggregation: AggregationDefinition;
     session: Session;
+    /** Open the Share dialog on mount (palette routed here `?action=share-aggregation`). */
+    autoOpenShare?: boolean;
   },
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
-  const [shareOpen, setShareOpen] = useState(false);
+  // Honour a palette-routed `?action=share-aggregation` by SEEDING the open state
+  // from the prop (no setState-in-effect): open the bespoke Share dialog on
+  // arrival.
+  const [shareOpen, setShareOpen] = useState(() => autoOpenShare === true);
 
   // The snapshot is the shared resource (recipients see values only, not the
   // private building list); revoke keys on its IRI.

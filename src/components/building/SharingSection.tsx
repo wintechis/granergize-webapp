@@ -19,11 +19,21 @@ import { ShareBuildingDialog } from "../BuildingDialogs.tsx";
  * the owner) has no sharing controls — it renders nothing.
  */
 export default function SharingSection(
-  { building, session }: { building: BuildingType; session: Session },
+  { building, session, autoOpenShare }: {
+    building: BuildingType;
+    session: Session;
+    /** Open the Share dialog on mount (the palette routed here `?action=share`). */
+    autoOpenShare?: boolean;
+  },
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
-  const [shareOpen, setShareOpen] = useState(false);
+  // Honour a palette-routed `?action=share` by SEEDING the open state from the
+  // prop (no setState-in-effect): an own building opens the Share dialog on
+  // arrival (a shared building renders nothing below, so the seed is harmless).
+  const [shareOpen, setShareOpen] = useState(
+    () => autoOpenShare === true && !building.isShared,
+  );
 
   // The share grant / log key on the building FILE URI (fragment stripped), like
   // the manage list — the recipients map is keyed that way.
