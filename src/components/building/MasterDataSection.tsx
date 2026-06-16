@@ -7,7 +7,9 @@ import {
   Clear as ClearIcon,
 } from "@mui/icons-material";
 import type {
+  BatteryStorage,
   BuildingType,
+  ChpSystem,
   InvestorOperatingCosts,
   PvSystem,
 } from "../../types.ts";
@@ -46,6 +48,23 @@ const pvSystemSummary = (pv: PvSystem): string => {
   const parts: string[] = [];
   if (pv.capacityKW != null) parts.push(`${pv.capacityKW} kW`);
   if (pv.commissioningYear != null) parts.push(`since ${pv.commissioningYear}`);
+  return parts.length ? parts.join(", ") : "Yes";
+};
+
+/** One-line summary of the battery ("215.5 kWh, since 2021"), else "Yes". */
+const batterySummary = (b: BatteryStorage): string => {
+  const parts: string[] = [];
+  if (b.capacityKWh != null) parts.push(`${b.capacityKWh} kWh`);
+  if (b.commissioningYear != null) parts.push(`since ${b.commissioningYear}`);
+  return parts.length ? parts.join(", ") : "Yes";
+};
+
+/** One-line summary of the CHP plant ("61 kW el, 126 kW th, since 2017"), else "Yes". */
+const chpSummary = (c: ChpSystem): string => {
+  const parts: string[] = [];
+  if (c.capacityKW != null) parts.push(`${c.capacityKW} kW el`);
+  if (c.thermalCapacityKW != null) parts.push(`${c.thermalCapacityKW} kW th`);
+  if (c.commissioningYear != null) parts.push(`since ${c.commissioningYear}`);
   return parts.length ? parts.join(", ") : "Yes";
 };
 
@@ -148,6 +167,27 @@ function ReadView({ building }: { building: BuildingType }) {
         <DetailRow
           label={msg("mdPvOperator")}
           value={<AgentLabel value={building.pvSystem.operatedBy} />}
+        />
+      )}
+      {building.batteryStorage && (
+        <DetailRow
+          label={msg("mdBatteryStorage")}
+          value={batterySummary(building.batteryStorage)}
+        />
+      )}
+      {building.batteryStorage?.operatedBy && (
+        <DetailRow
+          label={msg("mdBatteryOperator")}
+          value={<AgentLabel value={building.batteryStorage.operatedBy} />}
+        />
+      )}
+      {building.chpSystem && (
+        <DetailRow label={msg("mdChpSystem")} value={chpSummary(building.chpSystem)} />
+      )}
+      {building.chpSystem?.operatedBy && (
+        <DetailRow
+          label={msg("mdChpOperator")}
+          value={<AgentLabel value={building.chpSystem.operatedBy} />}
         />
       )}
 

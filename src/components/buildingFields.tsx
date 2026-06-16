@@ -12,7 +12,9 @@ import {
   Typography,
 } from "@mui/material";
 import type {
+  BatteryStorage,
   BuildingType,
+  ChpSystem,
   InvestorCertification,
   InvestorOperatingCosts,
   PvSystem,
@@ -207,6 +209,31 @@ export function buildingToFields(b: BuildingType): Record<string, string> {
     }
     if (pv.operatedBy) fields._pv_operatedBy = pv.operatedBy;
     if (pv.sameAs) fields._pv_sameAs = pv.sameAs;
+  }
+  // Battery storage → flat `_battery_*` keys (what replaceSystems expects).
+  const battery = b.batteryStorage as BatteryStorage | undefined;
+  if (battery) {
+    if (battery.capacityKWh != null) {
+      fields._battery_capacityKWh = String(battery.capacityKWh);
+    }
+    if (battery.commissioningYear != null) {
+      fields._battery_commissioningYear = String(battery.commissioningYear);
+    }
+    if (battery.operatedBy) fields._battery_operatedBy = battery.operatedBy;
+    if (battery.sameAs) fields._battery_sameAs = battery.sameAs;
+  }
+  // CHP / cogeneration → flat `_chp_*` keys.
+  const chp = b.chpSystem as ChpSystem | undefined;
+  if (chp) {
+    if (chp.capacityKW != null) fields._chp_capacityKW = String(chp.capacityKW);
+    if (chp.thermalCapacityKW != null) {
+      fields._chp_thermalCapacityKW = String(chp.thermalCapacityKW);
+    }
+    if (chp.commissioningYear != null) {
+      fields._chp_commissioningYear = String(chp.commissioningYear);
+    }
+    if (chp.operatedBy) fields._chp_operatedBy = chp.operatedBy;
+    if (chp.sameAs) fields._chp_sameAs = chp.sameAs;
   }
   return fields;
 }

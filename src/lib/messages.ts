@@ -262,6 +262,41 @@ export const MESSAGES = {
     de: "PV-Betreiber (WebID)",
     fr: "Exploitant PV (WebID)",
   },
+  lblBatteryCapacity: {
+    en: "Battery capacity (kWh)",
+    de: "Batteriekapazität (kWh)",
+    fr: "Capacité de la batterie (kWh)",
+  },
+  lblBatteryCommissioning: {
+    en: "Battery commissioning year",
+    de: "Batterie-Inbetriebnahmejahr",
+    fr: "Année de mise en service de la batterie",
+  },
+  lblBatteryOperator: {
+    en: "Battery operator (WebID)",
+    de: "Batterie-Betreiber (WebID)",
+    fr: "Exploitant de la batterie (WebID)",
+  },
+  lblChpCapacity: {
+    en: "CHP electrical capacity (kW)",
+    de: "BHKW elektrische Leistung (kW)",
+    fr: "Puissance électrique de cogénération (kW)",
+  },
+  lblChpThermal: {
+    en: "CHP thermal output (kW)",
+    de: "BHKW thermische Leistung (kW)",
+    fr: "Puissance thermique de cogénération (kW)",
+  },
+  lblChpCommissioning: {
+    en: "CHP commissioning year",
+    de: "BHKW-Inbetriebnahmejahr",
+    fr: "Année de mise en service de la cogénération",
+  },
+  lblChpOperator: {
+    en: "CHP operator (WebID)",
+    de: "BHKW-Betreiber (WebID)",
+    fr: "Exploitant de la cogénération (WebID)",
+  },
   lblOperatedBy: {
     en: "Operated by (WebID)",
     de: "Betrieben von (WebID)",
@@ -446,6 +481,22 @@ export const MESSAGES = {
   },
   mdPvSystem: { en: "PV system", de: "PV-Anlage", fr: "Système PV" },
   mdPvOperator: { en: "PV operator", de: "PV-Betreiber", fr: "Exploitant PV" },
+  mdBatteryStorage: {
+    en: "Battery storage",
+    de: "Batteriespeicher",
+    fr: "Stockage par batterie",
+  },
+  mdBatteryOperator: {
+    en: "Battery operator",
+    de: "Batterie-Betreiber",
+    fr: "Exploitant batterie",
+  },
+  mdChpSystem: { en: "Cogeneration (CHP)", de: "BHKW (KWK)", fr: "Cogénération" },
+  mdChpOperator: {
+    en: "CHP operator",
+    de: "BHKW-Betreiber",
+    fr: "Exploitant cogénération",
+  },
   mdDistrictHeating: { en: "District heating", de: "Fernwärme", fr: "Chauffage urbain" },
   mdHeatPump: { en: "Heat pump", de: "Wärmepumpe", fr: "Pompe à chaleur" },
   mdGasBoiler: { en: "Gas boiler", de: "Gaskessel", fr: "Chaudière à gaz" },

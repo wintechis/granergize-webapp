@@ -291,16 +291,119 @@ function addPvSystem(
 }
 
 /**
- * Replace the building's PV-system node on an EXISTING store (the edit path): drop
- * the current `<#pv>` node, then re-add from `fields`. Call only when the edit
- * carries `_pv_*` keys. Mirrors {@link replaceOperatingCosts}.
+ * Serialize battery storage as a `<…/{id}.ttl#battery>` `:BatteryStorage` node,
+ * from `_battery_<field>` keys (`capacityKWh`/`commissioningYear`/`operatedBy`/
+ * `sameAs`). Sibling of {@link addPvSystem}; capacity is usable energy (kWh) via
+ * `:storageCapacityKWh`. No-op when no `_battery_*` keys are present.
  */
-function replacePvSystem(
+function addBatterySystem(
   store: Store,
   subject: ReturnType<typeof namedNode>,
   fields: Record<string, string>,
 ): void {
-  replaceLinkedNodes(store, subject, `${BUILDING_NS}hasSystem`, fields, addPvSystem);
+  const capacity = fields._battery_capacityKWh?.trim();
+  const year = fields._battery_commissioningYear?.trim();
+  const operatedBy = fields._battery_operatedBy?.trim();
+  const sameAs = fields._battery_sameAs?.trim();
+  const present = normalizeBoolean(fields._battery_present ?? "") === "true";
+  if (!capacity && !year && !operatedBy && !sameAs && !present) return;
+  const node = namedNode(`${buildingFileUri(subject.value)}#battery`);
+  store.addQuad(subject, namedNode(`${BUILDING_NS}hasSystem`), node);
+  store.addQuad(
+    node,
+    namedNode(RDF_TYPE_IRI),
+    namedNode(`${BUILDING_NS}BatteryStorage`),
+  );
+  if (capacity) {
+    store.addQuad(
+      node,
+      namedNode(`${BUILDING_NS}storageCapacityKWh`),
+      literal(capacity, namedNode(XSD_DECIMAL)),
+    );
+  }
+  if (year) {
+    store.addQuad(
+      node,
+      namedNode(`${BUILDING_NS}commissioningYear`),
+      literal(year, namedNode(XSD_GYEAR)),
+    );
+  }
+  if (operatedBy) {
+    store.addQuad(node, namedNode(`${REC_NS}operatedBy`), namedNode(operatedBy));
+  }
+  if (sameAs) store.addQuad(node, namedNode(OWL_SAME_AS), namedNode(sameAs));
+}
+
+/**
+ * Serialize a cogeneration plant as a `<…/{id}.ttl#chp>` `:CHPSystem` node, from
+ * `_chp_<field>` keys (`capacityKW` electrical, `thermalCapacityKW` heat,
+ * `commissioningYear`/`operatedBy`/`sameAs`). No-op when no `_chp_*` keys present.
+ */
+function addChpSystem(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  const capacity = fields._chp_capacityKW?.trim();
+  const thermal = fields._chp_thermalCapacityKW?.trim();
+  const year = fields._chp_commissioningYear?.trim();
+  const operatedBy = fields._chp_operatedBy?.trim();
+  const sameAs = fields._chp_sameAs?.trim();
+  const present = normalizeBoolean(fields._chp_present ?? "") === "true";
+  if (!capacity && !thermal && !year && !operatedBy && !sameAs && !present) return;
+  const node = namedNode(`${buildingFileUri(subject.value)}#chp`);
+  store.addQuad(subject, namedNode(`${BUILDING_NS}hasSystem`), node);
+  store.addQuad(node, namedNode(RDF_TYPE_IRI), namedNode(`${BUILDING_NS}CHPSystem`));
+  if (capacity) {
+    store.addQuad(
+      node,
+      namedNode(`${BUILDING_NS}capacityKW`),
+      literal(capacity, namedNode(XSD_DECIMAL)),
+    );
+  }
+  if (thermal) {
+    store.addQuad(
+      node,
+      namedNode(`${BUILDING_NS}thermalCapacityKW`),
+      literal(thermal, namedNode(XSD_DECIMAL)),
+    );
+  }
+  if (year) {
+    store.addQuad(
+      node,
+      namedNode(`${BUILDING_NS}commissioningYear`),
+      literal(year, namedNode(XSD_GYEAR)),
+    );
+  }
+  if (operatedBy) {
+    store.addQuad(node, namedNode(`${REC_NS}operatedBy`), namedNode(operatedBy));
+  }
+  if (sameAs) store.addQuad(node, namedNode(OWL_SAME_AS), namedNode(sameAs));
+}
+
+/** Writes every technical-system node (PV, battery, CHP) the fields describe. */
+function addSystems(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  addPvSystem(store, subject, fields);
+  addBatterySystem(store, subject, fields);
+  addChpSystem(store, subject, fields);
+}
+
+/**
+ * Replace ALL of the building's technical-system nodes on an EXISTING store (the
+ * edit path): drop every `bldg:hasSystem` node, then re-add from `fields`. Call
+ * when the edit carries any `_pv_*`/`_battery_*`/`_chp_*` key — replacing them
+ * together so editing one system doesn't clobber its siblings.
+ */
+function replaceSystems(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  replaceLinkedNodes(store, subject, `${BUILDING_NS}hasSystem`, fields, addSystems);
 }
 
 /**
@@ -452,8 +555,9 @@ export function serializeBuildingToTurtle(
   addOperatingCosts(store, subject, fields);
   addCertifications(store, subject, fields);
 
-  // PV plant as a `<#pv>` :PVSystem node (bldg:hasSystem), when present.
-  addPvSystem(store, subject, fields);
+  // Technical-system nodes (PV `<#pv>`, battery `<#battery>`, CHP `<#chp>`), each
+  // linked by bldg:hasSystem, when present.
+  addSystems(store, subject, fields);
 
   // Provenance (PROV-O qualified attribution), when provided.
   if (provenance) addProvenance(store, subject, provenance);
@@ -895,8 +999,10 @@ export async function updateBuilding(
     if (keys.some((k) => k.startsWith("_cert_"))) {
       replaceCertifications(store, subject, updatedFields);
     }
-    if (keys.some((k) => k.startsWith("_pv_"))) {
-      replacePvSystem(store, subject, updatedFields);
+    if (keys.some((k) =>
+      k.startsWith("_pv_") || k.startsWith("_battery_") || k.startsWith("_chp_")
+    )) {
+      replaceSystems(store, subject, updatedFields);
     }
   });
 }

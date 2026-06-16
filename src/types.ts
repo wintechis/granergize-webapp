@@ -55,6 +55,33 @@ export interface PvSystem {
   sameAs?: string;
 }
 
+/**
+ * A battery storage installation as a technical-system component — the typed
+ * mirror of the `<…/{id}.ttl#battery>` node (`:BatteryStorage ⊑ :TechnicalSystem`,
+ * linked by `bldg:hasSystem`). Sibling of {@link PvSystem}; presence ⇒ has battery.
+ * Carries usable energy capacity (kWh, distinct from PV's nameplate power kW).
+ */
+export interface BatteryStorage {
+  capacityKWh?: number; // :storageCapacityKWh (xsd:decimal) — usable energy
+  commissioningYear?: number;
+  operatedBy?: string;
+  sameAs?: string;
+}
+
+/**
+ * A cogeneration plant (CHP / KWK) as a technical-system component — the typed
+ * mirror of the `<…/{id}.ttl#chp>` node (`:CHPSystem ⊑ :TechnicalSystem`, linked
+ * by `bldg:hasSystem`). Sibling of {@link PvSystem}; presence ⇒ has CHP. Carries
+ * both electrical (`:capacityKW`) and thermal (`:thermalCapacityKW`) output.
+ */
+export interface ChpSystem {
+  capacityKW?: number; // :capacityKW — electrical output
+  thermalCapacityKW?: number; // :thermalCapacityKW — heat output
+  commissioningYear?: number;
+  operatedBy?: string;
+  sameAs?: string;
+}
+
 export interface BuildingType {
   [key: string]:
     | string
@@ -66,6 +93,8 @@ export interface BuildingType {
     | InvestorCertification[]
     | InvestorOperatingCosts
     | PvSystem
+    | BatteryStorage
+    | ChpSystem
     | undefined;
   /** The building's identifier IS its subject IRI (see buildingId.ts):
    * storage-root-relative for the user's own buildings
@@ -103,6 +132,10 @@ export interface BuildingType {
   /** The PV plant as a technical-system node (presence ⇒ has PV). Replaces the
    * former flat `hasPVSystem`/`pvCapacityKW`/`pvInstallationYear` fields. */
   pvSystem?: PvSystem;
+  /** Battery storage as a technical-system node (presence ⇒ has battery). */
+  batteryStorage?: BatteryStorage;
+  /** Cogeneration plant as a technical-system node (presence ⇒ has CHP). */
+  chpSystem?: ChpSystem;
   /** Investor WebID (`bldg:investor`, ranges over foaf:Agent — an agent link like
    * operatedBy, not a free-text label). Legacy literal values tolerated on read. */
   investor?: string;

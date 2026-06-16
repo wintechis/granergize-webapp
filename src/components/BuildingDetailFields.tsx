@@ -126,6 +126,17 @@ export function BuildingDetailFields(
       {tf(msg("lblPvCapacity"), "_pv_capacityKW", { type: "number" })}
       {tf(msg("lblPvCommissioning"), "_pv_commissioningYear", { type: "number" })}
       {tf(msg("lblPvOperator"), "_pv_operatedBy")}
+      {/* Battery storage (the <#battery> :BatteryStorage node) — `_battery_*` keys. */}
+      {tf(msg("lblBatteryCapacity"), "_battery_capacityKWh", { type: "number" })}
+      {tf(msg("lblBatteryCommissioning"), "_battery_commissioningYear", {
+        type: "number",
+      })}
+      {tf(msg("lblBatteryOperator"), "_battery_operatedBy")}
+      {/* CHP / cogeneration (the <#chp> :CHPSystem node) — `_chp_*` keys. */}
+      {tf(msg("lblChpCapacity"), "_chp_capacityKW", { type: "number" })}
+      {tf(msg("lblChpThermal"), "_chp_thermalCapacityKW", { type: "number" })}
+      {tf(msg("lblChpCommissioning"), "_chp_commissioningYear", { type: "number" })}
+      {tf(msg("lblChpOperator"), "_chp_operatedBy")}
       {enumSelect(fieldLabel("shiftRegime"), "shiftRegime", [
         { value: "OneShift", label: optionLabel(`${BUILDING_NS}OneShift`) },
         { value: "TwoShift", label: optionLabel(`${BUILDING_NS}TwoShift`) },

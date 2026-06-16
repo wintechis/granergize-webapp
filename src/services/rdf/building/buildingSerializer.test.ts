@@ -171,6 +171,48 @@ Deno.test("serializeBuildingToTurtle: no `_pv_*` fields → no PV node", () => {
   assert.equal(b?.pvSystem, undefined, "no pvSystem when PV is absent / not installed");
 });
 
+Deno.test("round-trips PV + battery + CHP as distinct <#pv>/<#battery>/<#chp> nodes", () => {
+  const uri = newBuildingUri(WEBID, "b-systems");
+  const ttl = serializeBuildingToTurtle({
+    _pv_capacityKW: "750",
+    _pv_commissioningYear: "2018",
+    _battery_capacityKWh: "215.5",
+    _battery_commissioningYear: "2021",
+    _chp_capacityKW: "61",
+    _chp_thermalCapacityKW: "126",
+    _chp_commissioningYear: "2017",
+  }, uri);
+  const store = parse(ttl);
+  // Three distinct hasSystem nodes, each typed by its own class.
+  assert.equal(
+    store.getQuads(namedNode(`${uri}#it`), namedNode(`${BUILDING_NS}hasSystem`), null, null).length,
+    3,
+    "three bldg:hasSystem links",
+  );
+  assert.equal(
+    store.getQuads(namedNode(`${uri}#battery`), namedNode(RDF_TYPE), namedNode(`${BUILDING_NS}BatteryStorage`), null).length,
+    1,
+    "<#battery> is :BatteryStorage",
+  );
+  assert.equal(
+    store.getQuads(namedNode(`${uri}#chp`), namedNode(RDF_TYPE), namedNode(`${BUILDING_NS}CHPSystem`), null).length,
+    1,
+    "<#chp> is :CHPSystem",
+  );
+
+  // Parse back: each system dispatches to its own typed field by rdf:type.
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  assert.equal(b!.pvSystem!.capacityKW, 750);
+  assert.equal(b!.batteryStorage!.capacityKWh, 215.5);
+  assert.equal(b!.batteryStorage!.commissioningYear, 2021);
+  assert.equal(b!.chpSystem!.capacityKW, 61);
+  assert.equal(b!.chpSystem!.thermalCapacityKW, 126);
+  assert.equal(b!.chpSystem!.commissioningYear, 2017);
+  // No cross-contamination between the sibling shapes.
+  assert.equal((b!.pvSystem as { capacityKWh?: number }).capacityKWh, undefined);
+  assert.equal((b!.batteryStorage as { capacityKW?: number }).capacityKW, undefined);
+});
+
 Deno.test("parseBuildings tolerates a legacy xsd:string operatedBy literal", () => {
   const uri = newBuildingUri(WEBID, "b-legacy");
   // Old Pods stored operatedBy as a plain string literal.

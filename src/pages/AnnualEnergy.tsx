@@ -17,10 +17,13 @@ import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
+import BatteryChargingFullIcon from "@mui/icons-material/BatteryChargingFull";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import {
   AnnualData,
+  BatteryStorage,
   BuildingType,
+  ChpSystem,
   InvestorCertification,
   PvSystem,
 } from "../types.ts";
@@ -158,6 +161,8 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
     | number
     | undefined;
   const pvSystem = building.pvSystem as PvSystem | undefined;
+  const battery = building.batteryStorage as BatteryStorage | undefined;
+  const chp = building.chpSystem as ChpSystem | undefined;
   const certifications =
     (building.certifications ?? []) as InvestorCertification[];
   const leaseType = building.leaseType as string | undefined;
@@ -168,8 +173,8 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const hasMasterData = Boolean(
     climateControlType || tenancyType || leaseType || tenantIndustry ||
       indoorTemperatureClass || numberOfLoadingDocks != null ||
-      greenLeaseShare != null || pvSystem != null ||
-      certifications.length > 0,
+      greenLeaseShare != null || pvSystem != null || battery != null ||
+      chp != null || certifications.length > 0,
   );
 
   if (annual.isLoading) {
@@ -277,6 +282,54 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                       : pvSystem.capacityKW != null
                       ? `Yes (${formatNumber(pvSystem.capacityKW, 1)} kW)`
                       : "Yes"}
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                  />
+                }
+              />
+            )}
+            {battery && (
+              <DetailRow
+                label="Battery storage"
+                value={
+                  <Chip
+                    icon={<BatteryChargingFullIcon />}
+                    label={battery.commissioningYear != null
+                      ? `Yes (since ${battery.commissioningYear}${
+                        battery.capacityKWh != null
+                          ? `, ${formatNumber(battery.capacityKWh, 1)} kWh`
+                          : ""
+                      })`
+                      : battery.capacityKWh != null
+                      ? `Yes (${formatNumber(battery.capacityKWh, 1)} kWh)`
+                      : "Yes"}
+                    size="small"
+                    color="success"
+                    variant="outlined"
+                  />
+                }
+              />
+            )}
+            {chp && (
+              <DetailRow
+                label="Cogeneration (CHP)"
+                value={
+                  <Chip
+                    icon={<LocalFireDepartmentIcon />}
+                    label={(() => {
+                      const p: string[] = [];
+                      if (chp.capacityKW != null) {
+                        p.push(`${formatNumber(chp.capacityKW, 1)} kW el`);
+                      }
+                      if (chp.thermalCapacityKW != null) {
+                        p.push(`${formatNumber(chp.thermalCapacityKW, 1)} kW th`);
+                      }
+                      if (chp.commissioningYear != null) {
+                        p.push(`since ${chp.commissioningYear}`);
+                      }
+                      return p.length ? `Yes (${p.join(", ")})` : "Yes";
+                    })()}
                     size="small"
                     color="success"
                     variant="outlined"

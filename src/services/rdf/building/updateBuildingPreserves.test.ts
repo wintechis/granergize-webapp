@@ -116,6 +116,40 @@ Deno.test("updateBuilding replaces operating costs and certifications when the e
   );
 });
 
+Deno.test("updateBuilding preserves PV + battery + CHP nodes on a scalar edit", async () => {
+  const initial = serializeBuildingToTurtle(
+    {
+      streetAddress: "Old Street 1",
+      _pv_capacityKW: "750",
+      _battery_capacityKWh: "215.5",
+      _chp_thermalCapacityKW: "126",
+    },
+    FILE,
+  );
+  const { session, body } = podWith(initial);
+
+  // A scalar-only edit carries no _pv_/_battery_/_chp_ keys, so the system nodes
+  // are left untouched (same contract as the opcost/cert substructures).
+  await updateBuilding(session, FILE, SUBJECT, { streetAddress: "New Street 2" });
+
+  const store = new Store(new Parser({ baseIRI: FILE }).parse(body()));
+  assert.equal(
+    store.getQuads(null, `${BUILDING_NS}hasSystem`, null, null).length,
+    3,
+    "all three system nodes preserved",
+  );
+  assert.equal(
+    store.getObjects(null, `${BUILDING_NS}storageCapacityKWh`, null)[0]?.value,
+    "215.5",
+    "battery capacity preserved",
+  );
+  assert.equal(
+    store.getObjects(null, `${BUILDING_NS}thermalCapacityKW`, null)[0]?.value,
+    "126",
+    "CHP thermal output preserved",
+  );
+});
+
 Deno.test("updateBuilding clears an operating-cost field when its edited value is emptied", async () => {
   const initial = serializeBuildingToTurtle(
     { streetAddress: "S", _opcost_insurance: "1200", _opcost_security: "300" },

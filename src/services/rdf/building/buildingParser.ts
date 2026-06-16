@@ -1,12 +1,25 @@
 import type { Quad } from "@rdfjs/types";
 import type {
   AttachmentRef,
+  BatteryStorage,
   BuildingType,
+  ChpSystem,
   EnergyDatasetRef,
   InvestorCertification,
   InvestorOperatingCosts,
   PvSystem,
 } from "../../../types.ts";
+
+/** Raw props collected off one `bldg:hasSystem` node before dispatch on its type. */
+interface SystemRaw {
+  type?: string;
+  capacityKW?: number;
+  capacityKWh?: number;
+  thermalCapacityKW?: number;
+  commissioningYear?: number;
+  operatedBy?: string;
+  sameAs?: string;
+}
 import {
   investorLocalNameLabels,
   iriPropertyMap,
@@ -90,7 +103,7 @@ export function parseBuildings(
   const attachmentUriBuilding = new Map<string, string>();
   /** PV-system node IRI (`<…#pv>`) → building ID. The node is a NamedNode subject
    * (a hash fragment, not a blank node), so its props are collected separately. */
-  const pvNodeBuilding = new Map<string, string>();
+  const systemNodeBuilding = new Map<string, string>();
 
   // ── Pass 1: Create buildings from the typed roster ────────────────────────
   quads.forEach((quad: Quad) => {
@@ -174,11 +187,13 @@ export function parseBuildings(
       return;
     }
 
-    // Technical-system node (bldg:hasSystem → the `<#pv>` :PVSystem IRI). A
-    // NamedNode hash fragment, so its props are collected in a separate pass below.
+    // Technical-system node (bldg:hasSystem → a `<#pv>`/`<#battery>`/`<#chp>` IRI).
+    // A building can carry several; each is a NamedNode hash fragment whose props —
+    // including its rdf:type, which decides which system it is — are collected in a
+    // separate pass below and dispatched there.
     if (pred === `${BUILDING_NS}hasSystem`) {
       if (obj.termType === "NamedNode") {
-        pvNodeBuilding.set(obj.value, buildingId);
+        systemNodeBuilding.set(obj.value, buildingId);
       }
       return;
     }
@@ -336,23 +351,29 @@ export function parseBuildings(
     });
   }
 
-  // ── PV-system node: its props (capacity/year/operatedBy/sameAs) hang off the
-  // `<#pv>` NamedNode subject, which the two passes above skip. Gather them here. ──
-  const pvData = new Map<string, PvSystem>();
-  if (pvNodeBuilding.size > 0) {
+  // ── Technical-system nodes: each `<#pv>`/`<#battery>`/`<#chp>` NamedNode's props
+  // (rdf:type + capacity/year/operatedBy/sameAs) hang off the node subject, which the
+  // passes above skip. Gather them here; dispatch on rdf:type in post-processing. ──
+  const systemData = new Map<string, SystemRaw>();
+  if (systemNodeBuilding.size > 0) {
     quads.forEach((quad: Quad) => {
       if (quad.subject.termType !== "NamedNode") return;
       const node = quad.subject.value;
-      if (!pvNodeBuilding.has(node)) return;
-      if (!pvData.has(node)) pvData.set(node, {});
-      const pv = pvData.get(node)!;
+      if (!systemNodeBuilding.has(node)) return;
+      if (!systemData.has(node)) systemData.set(node, {});
+      const s = systemData.get(node)!;
       const pred = quad.predicate.value;
       const v = quad.object.value;
-      if (pred === `${BUILDING_NS}capacityKW`) pv.capacityKW = parseFloat(v);
-      else if (pred === `${BUILDING_NS}commissioningYear`) {
-        pv.commissioningYear = parseInt(v, 10);
-      } else if (pred === `${REC_NS}operatedBy`) pv.operatedBy = v;
-      else if (pred === OWL_SAME_AS) pv.sameAs = v;
+      if (pred === RDF_TYPE) s.type = v;
+      else if (pred === `${BUILDING_NS}capacityKW`) s.capacityKW = parseFloat(v);
+      else if (pred === `${BUILDING_NS}storageCapacityKWh`) {
+        s.capacityKWh = parseFloat(v);
+      } else if (pred === `${BUILDING_NS}thermalCapacityKW`) {
+        s.thermalCapacityKW = parseFloat(v);
+      } else if (pred === `${BUILDING_NS}commissioningYear`) {
+        s.commissioningYear = parseInt(v, 10);
+      } else if (pred === `${REC_NS}operatedBy`) s.operatedBy = v;
+      else if (pred === OWL_SAME_AS) s.sameAs = v;
     });
   }
 
@@ -439,11 +460,21 @@ export function parseBuildings(
     }
   }
 
-  // PV system: the `<#pv>` node's props become building.pvSystem (presence ⇒ has PV).
-  for (const [node, buildingId] of pvNodeBuilding.entries()) {
+  // Technical-system nodes: dispatch each by rdf:type onto the matching building
+  // field (presence ⇒ has that system). An untyped node defaults to PV (tolerates a
+  // legacy `<#pv>` without an explicit type). Each node only carries its own
+  // predicates, so the leftover props match the target interface.
+  for (const [node, buildingId] of systemNodeBuilding.entries()) {
     const building = buildings.get(buildingId);
-    const pv = pvData.get(node);
-    if (building) building.pvSystem = pv ?? {};
+    if (!building) continue;
+    const { type, ...props } = systemData.get(node) ?? {};
+    if (type === `${BUILDING_NS}BatteryStorage`) {
+      building.batteryStorage = props as BatteryStorage;
+    } else if (type === `${BUILDING_NS}CHPSystem`) {
+      building.chpSystem = props as ChpSystem;
+    } else {
+      building.pvSystem = props as PvSystem;
+    }
   }
 
   return buildings;
