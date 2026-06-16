@@ -89,10 +89,10 @@ const MODE_DESCRIPTION: Record<AggregationMode, MessageId> = {
 // entry form renders, so the checklist can never offer a metric no form
 // captures (heike-4's confusion). Offered for the annual portfolio and (minus
 // the ratio metric) the benchmark.
-const ANNUAL_METRIC_GROUPS = [
-  { category: "Annual Consumption", metrics: CONSUMPTION_METRIC_KEYS as string[] },
+const ANNUAL_METRIC_GROUPS: { category: MessageId; metrics: string[] }[] = [
+  { category: "aggGroupConsumption", metrics: CONSUMPTION_METRIC_KEYS as string[] },
   {
-    category: "Renewable Generation",
+    category: "aggGroupGeneration",
     metrics: ANNUAL_METRIC_SCHEMA.filter((m) => m.unit === "%").map((m) => m.key as string),
   },
 ];
@@ -104,9 +104,11 @@ const DEFAULT_ANNUAL_METRICS = [
 ];
 const BENCHMARK_METRICS = CONSUMPTION_METRIC_KEYS as string[];
 
-function metricsForMode(mode: AggregationMode) {
+function metricsForMode(
+  mode: AggregationMode,
+): { category: MessageId; metrics: string[] }[] {
   return mode === "benchmark"
-    ? [{ category: "Annual Consumption", metrics: BENCHMARK_METRICS }]
+    ? [{ category: "aggGroupConsumption", metrics: BENCHMARK_METRICS }]
     : ANNUAL_METRIC_GROUPS;
 }
 
@@ -502,7 +504,7 @@ export default function CreateAggregationDialog({
                           sx={{ display: "flex", alignItems: "center", gap: 1 }}
                         >
                           <Typography variant="h6" color="textSecondary">
-                            {category.category}
+                            {msg(category.category)}
                           </Typography>
                           {mode === "benchmark" && (
                             <Typography

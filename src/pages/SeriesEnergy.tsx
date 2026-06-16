@@ -1,5 +1,6 @@
 import { Card, CardContent, CardHeader, Typography } from "@mui/material";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
+import { msg } from "../lib/messages.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import type { BuildingType } from "../types.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
@@ -19,7 +20,9 @@ export default function SeriesEnergy({ building }: { building: BuildingType }) {
         avatar={<ElectricBoltIcon />}
         title={
           <Typography variant="h5">
-            Electricity Consumption for {buildingDisplayName(building)}
+            {msg("seriesElectricityTitle", {
+              building: buildingDisplayName(building),
+            })}
           </Typography>
         }
       />

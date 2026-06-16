@@ -1,4 +1,4 @@
-import { msg } from "../lib/messages.ts";
+import { msg, type MessageId } from "../lib/messages.ts";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -38,11 +38,11 @@ interface WeatherDataProps {
 // inspectable, mirroring the Pod links.
 const WEATHER_SOURCE_URI = linkedWeatherBase();
 
-// Map of parameter dataset paths to more readable titles
-const parameterTitles: Record<string, string> = {
-  [WEATHER_PARAMETERS.SUNSHINE_DURATION_ANNUAL]: "Sunshine Duration Annual",
-  [WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL]: "Mean Temperature Annual",
-  [WEATHER_PARAMETERS.PRECIPITATION_ANNUAL]: "Precipitation Annual",
+// Map of parameter dataset paths to their catalog label id (resolved at render).
+const parameterTitles: Record<string, MessageId> = {
+  [WEATHER_PARAMETERS.SUNSHINE_DURATION_ANNUAL]: "wdSunshineDuration",
+  [WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL]: "wdMeanTemperature",
+  [WEATHER_PARAMETERS.PRECIPITATION_ANNUAL]: "wdPrecipitation",
 };
 
 // Map of parameter dataset paths to their units
@@ -116,7 +116,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
     <Stack spacing={2}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
         <WbSunnyIcon color="action" />
-        <Typography variant="h6">Weather</Typography>
+        <Typography variant="h6">{msg("secWeather")}</Typography>
       </Stack>
       <Box>
         <Grid container spacing={2} sx={{ mb: 2 }}>
@@ -129,8 +129,8 @@ export default function WeatherData({ building }: WeatherDataProps) {
                 label={msg("wdParameter")}
                 disabled={isLoadingStations}
               >
-                {Object.entries(parameterTitles).map(([value, label]) => (
-                  <MenuItem key={value} value={value}>{label}</MenuItem>
+                {Object.entries(parameterTitles).map(([value, labelId]) => (
+                  <MenuItem key={value} value={value}>{msg(labelId)}</MenuItem>
                 ))}
               </Select>
             </FormControl>
@@ -155,7 +155,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
                         {station.name} ({station.station_id}) -{" "}
                         {station.distance !== undefined
                           ? `${Math.round(station.distance)} km`
-                          : "Distance N/A"}
+                          : msg("wdDistanceNA")}
                       </MenuItem>
                     ))
                   )}
@@ -167,24 +167,19 @@ export default function WeatherData({ building }: WeatherDataProps) {
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 
         {!isLoading && !isLoadingStations && !error && stations.length === 0 && (
-          <Alert severity="info">
-            No weather stations found near this location for the selected
-            parameter.
-          </Alert>
+          <Alert severity="info">{msg("wdNoStations")}</Alert>
         )}
 
         {!isLoading && !error && values &&
           values.length === 0 && (
-          <Alert severity="info">
-            No weather data available for the selected station and parameter.
-          </Alert>
+          <Alert severity="info">{msg("wdNoData")}</Alert>
         )}
 
         {!isLoading && !error && values &&
           values.length > 0 && (
           <>
             <Typography variant="h6" gutterBottom>
-              Recent Weather Data
+              {msg("wdRecentData")}
             </Typography>
 
             <TableContainer component={Paper} sx={{ mb: 2 }}>
@@ -213,7 +208,7 @@ export default function WeatherData({ building }: WeatherDataProps) {
             </TableContainer>
 
             <Typography variant="body2" color="text.secondary">
-              Data source: Deutscher Wetterdienst (DWD)
+              {msg("dataSourceLabel")} Deutscher Wetterdienst (DWD)
             </Typography>
             <RdfSourceLink href={WEATHER_SOURCE_URI} />
 
@@ -222,9 +217,12 @@ export default function WeatherData({ building }: WeatherDataProps) {
               color="text.secondary"
               sx={{ display: "block", mt: 1 }}
             >
-              Station {selectedStation}:{" "}
-              {stations.find((s) => s.station_id === selectedStation)?.name ||
-                ""}
+              {msg("wdStationCaption", {
+                id: selectedStation ?? "",
+                name:
+                  stations.find((s) => s.station_id === selectedStation)?.name ||
+                  "",
+              })}
             </Typography>
           </>
         )}

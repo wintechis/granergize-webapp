@@ -764,14 +764,14 @@ export default function ExplorePage(
           )
           : view === "map" && lens === "trend"
           ? ([
-            [TREND_COLOR.improving, "Improving"],
-            [TREND_COLOR.flat, "Little change"],
-            [TREND_COLOR.worsening, "Worsening"],
-            [TREND_COLOR.unknown, "No trend yet"],
+            [TREND_COLOR.improving, t("legendImproving")],
+            [TREND_COLOR.flat, t("legendLittleChange")],
+            [TREND_COLOR.worsening, t("legendWorsening")],
+            [TREND_COLOR.unknown, t("legendNoTrend")],
           ] as const)
           : ([
-            [MARKER_OWNED_COLOR, "My buildings"],
-            [MARKER_SHARED_COLOR, "Shared with me"],
+            [MARKER_OWNED_COLOR, t("legendMyBuildings")],
+            [MARKER_SHARED_COLOR, t("legendSharedWithMe")],
           ] as const)).map(([color, label]) => (
             <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
               <Box

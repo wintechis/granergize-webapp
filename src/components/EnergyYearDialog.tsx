@@ -36,18 +36,22 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
-import { ANNUAL_METRICS } from "../constants/annualMetrics.ts";
+import { annualMetricLabel, ANNUAL_METRICS } from "../constants/annualMetrics.ts";
 
 // Derived from the shared annual-metric schema (constants/annualMetrics.ts) so
 // the entry form and the view dialogs can't drift on the metric set/labels.
-const METRIC_FIELDS: Array<
+// A function (not a const) so the labels resolve in the ACTIVE language on each
+// render — the full label comes from the vocab, the short form from the catalog.
+function metricFields(): Array<
   { key: EnergyMetricKey; label: string; short: string; decimals: number }
-> = ANNUAL_METRICS.map((m) => ({
-  key: m.key,
-  label: `${m.label} (${m.unit})`,
-  short: m.short,
-  decimals: m.decimals,
-}));
+> {
+  return ANNUAL_METRICS.map((m) => ({
+    key: m.key,
+    label: annualMetricLabel(m.key),
+    short: msg(m.shortId),
+    decimals: m.decimals,
+  }));
+}
 
 const fmt = (value: number, decimals: number): string =>
   new Intl.NumberFormat("de-DE", {
@@ -205,7 +209,7 @@ export default function EnergyYearDialog(
       return;
     }
     const metrics: AnnualMetrics = {};
-    for (const { key, label } of METRIC_FIELDS) {
+    for (const { key, label } of metricFields()) {
       const raw = values[key];
       if (raw && raw.trim() !== "") {
         const n = parseFloat(raw);
@@ -332,7 +336,7 @@ export default function EnergyYearDialog(
                     <TableRow>
                       <TableCell><strong>{msg("lblYear")}</strong></TableCell>
                       <TableCell><strong>{msg("lblScenario")}</strong></TableCell>
-                      {METRIC_FIELDS.map((m) => (
+                      {metricFields().map((m) => (
                         <TableCell key={m.key} align="right">
                           <strong>{m.short}</strong>
                         </TableCell>
@@ -345,7 +349,7 @@ export default function EnergyYearDialog(
                       <TableRow hover key={dsKey(d.year, d.scenario)}>
                         <TableCell>{d.year}</TableCell>
                         <TableCell>{scenarioLabel(d.scenario)}</TableCell>
-                        {METRIC_FIELDS.map((m) => {
+                        {metricFields().map((m) => {
                           const v = d.metrics?.[m.key];
                           return (
                             <TableCell key={m.key} align="right">
@@ -412,7 +416,7 @@ export default function EnergyYearDialog(
                 {msg("eyEditingNote")}
               </Typography>
             )}
-            {METRIC_FIELDS.map(({ key, label }) => (
+            {metricFields().map(({ key, label }) => (
               <TextField
                 key={key}
                 label={label}

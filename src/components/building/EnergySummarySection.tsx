@@ -26,8 +26,8 @@ export default function EnergySummarySection(
       {years.length === 0
         ? (
           <Typography variant="body2" color="text.secondary">
-            No energy data yet.{" "}
-            <RefLink to={energyHref}>Open the energy page</RefLink> to add a year.
+            {msg("essNoData")}{" "}
+            <RefLink to={energyHref}>{msg("essOpenEnergyPage")}</RefLink>
           </Typography>
         )
         : (
@@ -35,11 +35,13 @@ export default function EnergySummarySection(
             <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
               <ShowChartIcon color="action" fontSize="small" />
               <Typography variant="body1">
-                {years.length} year{years.length === 1 ? "" : "s"} of energy data
-                {latestYear != null && ` (latest: ${latestYear})`}
+                {msg("essYearsSummary", {
+                  count: years.length,
+                  year: latestYear ?? years[years.length - 1],
+                })}
               </Typography>
             </Stack>
-            <RefLink to={energyHref}>View energy charts →</RefLink>
+            <RefLink to={energyHref}>{msg("essViewCharts")}</RefLink>
           </Stack>
         )}
     </Box>

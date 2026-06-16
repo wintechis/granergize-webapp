@@ -1,4 +1,7 @@
 import type { EnergyMetricKey } from "../services/rdf/energyDataset.ts";
+import type { MessageId } from "../lib/messages.ts";
+import { label as vocabLabel } from "../services/rdf/vocabLabels.ts";
+import { CONSUMPTION_NS } from "../services/rdf/vocabularies.ts";
 
 /**
  * THE annual-metric schema — the one description of the five annual energy
@@ -7,49 +10,47 @@ import type { EnergyMetricKey } from "../services/rdf/energyDataset.ts";
  * rendering all derive their labels/units from this table, so adding or
  * renaming a metric happens in exactly one place (three hand-maintained copies
  * once drifted into a checklist offering fields no form captures — heike-4).
+ *
+ * Display labels are NOT stored here: the full metric label comes from the
+ * vocab (`consumption.ttl`, de/en/fr) via {@link metricLabel}; only the compact
+ * column-header abbreviation — UI chrome with no vocab term — is a catalog id.
  */
 export interface AnnualMetricDesc {
   key: EnergyMetricKey;
-  /** Short human name ("Electricity"). */
-  label: string;
   unit: "kWh" | "m³" | "%";
-  /** Compact column-header form ("Renewable %"). */
-  short: string;
+  /** Catalog id for the compact column-header abbreviation ("Renewable %"). */
+  shortId: MessageId;
   /** Display decimals (de-DE formatting). */
   decimals: number;
 }
 
 export const ANNUAL_METRICS: AnnualMetricDesc[] = [
-  { key: "electricityConsumption", label: "Electricity", unit: "kWh", short: "Electricity", decimals: 0 },
-  { key: "heatConsumption", label: "Heat", unit: "kWh", short: "Heat", decimals: 0 },
-  { key: "waterConsumption", label: "Water", unit: "m³", short: "Water", decimals: 1 },
-  { key: "wastewaterConsumption", label: "Wastewater", unit: "m³", short: "Wastewater", decimals: 1 },
-  {
-    key: "renewableSelfGeneratedShare",
-    label: "Renewable self-generated share",
-    unit: "%",
-    short: "Renewable %",
-    decimals: 1,
-  },
-  {
-    key: "electricityGeneration",
-    label: "Electricity generation",
-    unit: "kWh",
-    short: "Generation",
-    decimals: 0,
-  },
+  { key: "electricityConsumption", unit: "kWh", shortId: "metricShortElectricity", decimals: 0 },
+  { key: "heatConsumption", unit: "kWh", shortId: "metricShortHeat", decimals: 0 },
+  { key: "waterConsumption", unit: "m³", shortId: "metricShortWater", decimals: 1 },
+  { key: "wastewaterConsumption", unit: "m³", shortId: "metricShortWastewater", decimals: 1 },
+  { key: "renewableSelfGeneratedShare", unit: "%", shortId: "metricShortRenewable", decimals: 1 },
+  { key: "electricityGeneration", unit: "kWh", shortId: "metricShortGeneration", decimals: 0 },
 ];
 
 export function annualMetricDesc(key: string): AnnualMetricDesc | undefined {
   return ANNUAL_METRICS.find((m) => m.key === key);
 }
 
-/** "Electricity (kWh)" — the labelled form for checklists, headers and rows.
- * Unknown keys (e.g. the monthly view's "electricity" total) fall back to the
- * capitalised key so nothing renders as a raw camelCase identifier. */
+/** The metric's full display label from the vocab (`consumption.ttl`) in the
+ * active language — e.g. "Electricity consumption". The metric key (camelCase)
+ * names its vocab class IRI (PascalCase) under CONSUMPTION_NS; an unknown key
+ * resolves to its own local-name fragment (the `vocabLabel` fallback). */
+export function metricLabel(key: string): string {
+  return vocabLabel(`${CONSUMPTION_NS}${key.charAt(0).toUpperCase()}${key.slice(1)}`);
+}
+
+/** "Electricity consumption (kWh)" — the labelled form for checklists, headers
+ * and rows. Unknown keys (e.g. the monthly view's "electricity" total) fall back
+ * to the capitalised key so nothing renders as a raw camelCase identifier. */
 export function annualMetricLabel(key: string): string {
   const d = annualMetricDesc(key);
-  if (d) return `${d.label} (${d.unit})`;
+  if (d) return `${metricLabel(key)} (${d.unit})`;
   return key.charAt(0).toUpperCase() + key.slice(1);
 }
 

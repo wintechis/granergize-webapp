@@ -1,5 +1,6 @@
 import { useEffect } from "react";
 import { useSearchParams } from "react-router-dom";
+import { msg } from "../lib/messages.ts";
 import { BuildingType } from "../types.ts";
 import { Box, Divider, Stack, Typography } from "@mui/material";
 import { useSolidData } from "../hooks/queries.ts";
@@ -62,7 +63,7 @@ export default function Energy({ building }: EnergyProps) {
   if (error) {
     return (
       <Typography color="error">
-        Error loading data: {error}
+        {msg("energyLoadError", { error: String(error) })}
       </Typography>
     );
   }
@@ -96,9 +97,7 @@ export default function Energy({ building }: EnergyProps) {
           onEntryClosed={onEntryClosed}
         />
         <Typography color="text.secondary">
-          {building.isShared
-            ? "No energy data available for this building. You may not have access to this data."
-            : "No energy data yet. Use the “Edit energy years” button above to add a year."}
+          {building.isShared ? msg("energyNoneShared") : msg("energyNoneOwn")}
         </Typography>
         {weatherSection}
         <RegionalContextSection building={building} />

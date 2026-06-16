@@ -107,13 +107,11 @@ export default function BuildingFilesSection(
 
   return (
     <Box>
-      <Typography variant="h6" sx={{ mb: 1 }}>Files</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>{msg("secFiles")}</Typography>
       {items.length === 0
         ? (
           <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-            No files yet.{canWrite
-              ? " Attach a PDF, image, or document below — it's stored on your Pod and shared automatically with anyone you share the building with."
-              : ""}
+            {canWrite ? msg("filesEmpty") : msg("filesEmptyReadonly")}
           </Typography>
         )
         : (
@@ -127,7 +125,7 @@ export default function BuildingFilesSection(
                     onClick={() => download(a)}
                     disabled={downloadingUrl === a.url}
                   >
-                    {downloadingUrl === a.url ? "Downloading…" : "Download"}
+                    {downloadingUrl === a.url ? msg("btnDownloading") : msg("btnDownload")}
                   </Button>
                   {canWrite && (
                     <>
@@ -136,16 +134,16 @@ export default function BuildingFilesSection(
                         onClick={() => handleToggleCert(a)}
                         disabled={busy}
                       >
-                        {a.isEnergyCertificate ? "Unset cert" : "Set as cert"}
+                        {a.isEnergyCertificate ? msg("filesUnsetCert") : msg("filesSetCert")}
                       </Button>
                       <Button
                         size="small"
                         color="error"
-                        aria-label={`Delete ${a.filename}`}
+                        aria-label={msg("filesDeleteAria", { filename: a.filename })}
                         onClick={() => handleDelete(a)}
                         disabled={busy}
                       >
-                        Delete
+                        {msg("btnDelete")}
                       </Button>
                     </>
                   )}
@@ -166,7 +164,7 @@ export default function BuildingFilesSection(
           />
           <label htmlFor="building-files-input">
             <Button variant="contained" component="span" disabled={busy}>
-              {busy ? "Working…" : "Add files"}
+              {busy ? msg("btnWorking") : msg("filesAdd")}
             </Button>
           </label>
         </Stack>

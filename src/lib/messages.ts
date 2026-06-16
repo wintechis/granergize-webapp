@@ -448,6 +448,215 @@ export const MESSAGES = {
     de: "Werte für das Bundesland {region}, nicht für dieses Gebäude im Einzelnen.",
     fr: "Valeurs pour le Land de {region}, pas pour ce bâtiment en particulier.",
   },
+  // Generic "Data source:" prefix (building producer attribution, weather, …).
+  dataSourceLabel: {
+    en: "Data source:",
+    de: "Datenquelle:",
+    fr: "Source des données :",
+  },
+  // Building header (back link, ownership badge).
+  bhBackBuildings: { en: "← Buildings", de: "← Gebäude", fr: "← Bâtiments" },
+  chipOwned: { en: "Owned", de: "Eigentum", fr: "Propriété" },
+  chipSharedWithYou: {
+    en: "Shared with you",
+    de: "Mit Ihnen geteilt",
+    fr: "Partagé avec vous",
+  },
+  // Master-data section heading + inline edit.
+  secMasterData: { en: "Master data", de: "Stammdaten", fr: "Données de base" },
+  btnEdit: { en: "Edit", de: "Bearbeiten", fr: "Modifier" },
+  // Files section (component) — complements the existing filesEmpty (canWrite text).
+  filesEmptyReadonly: {
+    en: "No files yet.",
+    de: "Noch keine Dateien.",
+    fr: "Aucun fichier pour l'instant.",
+  },
+  btnDownloading: {
+    en: "Downloading…",
+    de: "Wird heruntergeladen…",
+    fr: "Téléchargement…",
+  },
+  btnWorking: { en: "Working…", de: "Wird verarbeitet…", fr: "En cours…" },
+  filesAdd: {
+    en: "Add files",
+    de: "Dateien hinzufügen",
+    fr: "Ajouter des fichiers",
+  },
+  // Energy summary on the building page.
+  essNoData: {
+    en: "No energy data yet.",
+    de: "Noch keine Energiedaten.",
+    fr: "Pas encore de données énergétiques.",
+  },
+  essOpenEnergyPage: {
+    en: "Open the energy page to add a year",
+    de: "Energieseite öffnen, um ein Jahr hinzuzufügen",
+    fr: "Ouvrir la page d'énergie pour ajouter une année",
+  },
+  essViewCharts: {
+    en: "View energy charts →",
+    de: "Energiediagramme ansehen →",
+    fr: "Voir les graphiques d'énergie →",
+  },
+  essYearsSummary: {
+    en: {
+      one: "{count} year of energy data (latest: {year})",
+      other: "{count} years of energy data (latest: {year})",
+    },
+    de: {
+      one: "{count} Jahr Energiedaten (aktuellstes: {year})",
+      other: "{count} Jahre Energiedaten (aktuellstes: {year})",
+    },
+    fr: {
+      one: "{count} année de données énergétiques (dernière : {year})",
+      other: "{count} années de données énergétiques (dernière : {year})",
+    },
+  },
+  // Compact metric column-header abbreviations — UI chrome (the full metric
+  // display labels come from the vocab via annualMetricLabel).
+  metricShortElectricity: { en: "Electricity", de: "Strom", fr: "Électricité" },
+  metricShortHeat: { en: "Heat", de: "Wärme", fr: "Chaleur" },
+  metricShortWater: { en: "Water", de: "Wasser", fr: "Eau" },
+  metricShortWastewater: { en: "Wastewater", de: "Abwasser", fr: "Eaux usées" },
+  metricShortRenewable: { en: "Renewable %", de: "Erneuerbar %", fr: "Renouvelable %" },
+  metricShortGeneration: { en: "Generation", de: "Erzeugung", fr: "Production" },
+  // Aggregation metric-group categories (CreateAggregationDialog checklist).
+  aggGroupConsumption: {
+    en: "Annual Consumption",
+    de: "Jahresverbrauch",
+    fr: "Consommation annuelle",
+  },
+  aggGroupGeneration: {
+    en: "Renewable Generation",
+    de: "Erneuerbare Erzeugung",
+    fr: "Production renouvelable",
+  },
+  // Weather section (component stragglers).
+  wdSunshineDuration: {
+    en: "Sunshine Duration Annual",
+    de: "Sonnenscheindauer (jährlich)",
+    fr: "Durée d'ensoleillement (annuelle)",
+  },
+  wdMeanTemperature: {
+    en: "Mean Temperature Annual",
+    de: "Mittlere Temperatur (jährlich)",
+    fr: "Température moyenne (annuelle)",
+  },
+  wdPrecipitation: {
+    en: "Precipitation Annual",
+    de: "Niederschlag (jährlich)",
+    fr: "Précipitations (annuelles)",
+  },
+  wdDistanceNA: { en: "Distance N/A", de: "Entfernung n. v.", fr: "Distance n/d" },
+  wdNoStations: {
+    en: "No weather stations found near this location for the selected parameter.",
+    de:
+      "Keine Wetterstationen in der Nähe für den gewählten Parameter gefunden.",
+    fr:
+      "Aucune station météo trouvée à proximité pour le paramètre sélectionné.",
+  },
+  wdNoData: {
+    en: "No weather data available for the selected station and parameter.",
+    de: "Keine Wetterdaten für die gewählte Station und den Parameter verfügbar.",
+    fr:
+      "Aucune donnée météo disponible pour la station et le paramètre sélectionnés.",
+  },
+  wdRecentData: {
+    en: "Recent Weather Data",
+    de: "Aktuelle Wetterdaten",
+    fr: "Données météo récentes",
+  },
+  wdStationCaption: {
+    en: "Station {id}: {name}",
+    de: "Station {id}: {name}",
+    fr: "Station {id} : {name}",
+  },
+  // Explore map legends (trend lens + ownership lens).
+  legendImproving: { en: "Improving", de: "Verbessert sich", fr: "En amélioration" },
+  legendLittleChange: {
+    en: "Little change",
+    de: "Kaum Veränderung",
+    fr: "Peu de changement",
+  },
+  legendWorsening: {
+    en: "Worsening",
+    de: "Verschlechtert sich",
+    fr: "En dégradation",
+  },
+  legendNoTrend: {
+    en: "No trend yet",
+    de: "Noch kein Trend",
+    fr: "Pas encore de tendance",
+  },
+  legendMyBuildings: {
+    en: "My buildings",
+    de: "Meine Gebäude",
+    fr: "Mes bâtiments",
+  },
+  legendSharedWithMe: {
+    en: "Shared with me",
+    de: "Mit mir geteilt",
+    fr: "Partagés avec moi",
+  },
+  // User-energy (sub-hourly electricity series) chart labels.
+  uecNoData: {
+    en: "No data available for this date.",
+    de: "Keine Daten für dieses Datum verfügbar.",
+    fr: "Aucune donnée disponible pour cette date.",
+  },
+  uecDailyTotal: { en: "Daily total:", de: "Tagessumme:", fr: "Total journalier :" },
+  uecReadingsCount: {
+    en: { one: "{count} reading", other: "{count} readings" },
+    de: { one: "{count} Messwert", other: "{count} Messwerte" },
+    fr: { one: "{count} relevé", other: "{count} relevés" },
+  },
+  uecAvgDaily: {
+    en: "Average daily consumption:",
+    de: "Durchschnittlicher Tagesverbrauch:",
+    fr: "Consommation journalière moyenne :",
+  },
+  uecDaysCount: {
+    en: { one: "{count} day", other: "{count} days" },
+    de: { one: "{count} Tag", other: "{count} Tage" },
+    fr: { one: "{count} jour", other: "{count} jours" },
+  },
+  uecDailyConsumption: {
+    en: "Daily Consumption (kWh)",
+    de: "Tagesverbrauch (kWh)",
+    fr: "Consommation journalière (kWh)",
+  },
+  uecAvgProfilePre: {
+    en: "Average 15-minute profile across",
+    de: "Durchschnittliches 15-Minuten-Profil über",
+    fr: "Profil moyen sur 15 minutes sur",
+  },
+  uecAvgKwh: { en: "Average kWh", de: "Durchschnitt kWh", fr: "Moyenne kWh" },
+  // SeriesEnergy chart title.
+  seriesElectricityTitle: {
+    en: "Electricity Consumption for {building}",
+    de: "Stromverbrauch für {building}",
+    fr: "Consommation d'électricité pour {building}",
+  },
+  // Observation page (Energy.tsx) load-error + no-data states.
+  energyLoadError: {
+    en: "Error loading data: {error}",
+    de: "Fehler beim Laden der Daten: {error}",
+    fr: "Erreur de chargement des données : {error}",
+  },
+  energyNoneShared: {
+    en: "No energy data available for this building. You may not have access to this data.",
+    de:
+      "Für dieses Gebäude sind keine Energiedaten verfügbar. Möglicherweise haben Sie keinen Zugriff darauf.",
+    fr:
+      "Aucune donnée énergétique disponible pour ce bâtiment. Vous n'y avez peut-être pas accès.",
+  },
+  energyNoneOwn: {
+    en: "No energy data yet. Use the “Edit energy years” button above to add a year.",
+    de:
+      "Noch keine Energiedaten. Verwenden Sie oben die Schaltfläche „Energiejahre bearbeiten“, um ein Jahr hinzuzufügen.",
+    fr:
+      "Pas encore de données énergétiques. Utilisez le bouton « Modifier les années d'énergie » ci-dessus pour ajouter une année.",
+  },
   // Building master-data READ-view row labels (MasterDataSection ReadView).
   mdOperatedBy: { en: "Operated by", de: "Betrieben von", fr: "Exploité par" },
   mdOwnedBy: { en: "Owned by", de: "Eigentümer", fr: "Propriétaire" },

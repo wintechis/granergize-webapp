@@ -125,10 +125,10 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
       YEAR,
     );
     await demo.type(
-      stage.getByRole("spinbutton", { name: "Electricity (kWh)" }),
+      stage.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }),
       "98000",
     );
-    await demo.type(stage.getByRole("spinbutton", { name: "Heat (kWh)" }), "64000");
+    await demo.type(stage.getByRole("spinbutton", { name: "Heat consumption (kWh)" }), "64000");
     await demo.click(stage.getByRole("button", { name: "Save" }));
     await expect(stage.getByText("Energy data saved").first())
       .toBeVisible({ timeout: 60_000 });
@@ -149,10 +149,10 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     );
     await demo.select(stage.getByLabel(en("lblScenario"), { exact: true }), /^Planned/);
     await demo.type(
-      stage.getByRole("spinbutton", { name: "Electricity (kWh)" }),
+      stage.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }),
       "90000",
     );
-    await demo.type(stage.getByRole("spinbutton", { name: "Heat (kWh)" }), "60000");
+    await demo.type(stage.getByRole("spinbutton", { name: "Heat consumption (kWh)" }), "60000");
     await demo.click(stage.getByRole("button", { name: "Save" }));
     await expect(stage.getByText("Energy data saved").first())
       .toBeVisible({ timeout: 60_000 });

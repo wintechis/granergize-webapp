@@ -84,7 +84,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
     <Box>
       {/* Breadcrumb back to the buildings list (the Home tab). */}
       <Box sx={{ mb: 1 }}>
-        <RefLink to="/">← Buildings</RefLink>
+        <RefLink to="/">{msg("bhBackBuildings")}</RefLink>
       </Box>
       <Stack
         direction={{ xs: "column", sm: "row" }}
@@ -97,7 +97,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
             <Typography variant="h5">{name}</Typography>
             <Chip
               size="small"
-              label={shared ? "Shared with you" : "Owned"}
+              label={shared ? msg("chipSharedWithYou") : msg("chipOwned")}
               color={shared ? "warning" : "primary"}
               variant="outlined"
             />
@@ -118,7 +118,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
               color="text.secondary"
               sx={{ display: "flex", alignItems: "center", gap: 0.5, mt: 0.5 }}
             >
-              Data source: <AgentLabel value={building.attributedTo} />
+              {msg("dataSourceLabel")} <AgentLabel value={building.attributedTo} />
             </Typography>
           )}
         </Box>

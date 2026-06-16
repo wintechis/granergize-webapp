@@ -127,7 +127,7 @@ test.describe("palette: add building + enter energy", () => {
 
     await page.getByRole("spinbutton", { name: en("lblYear"), exact: true })
       .fill(YEAR);
-    await page.getByRole("spinbutton", { name: "Electricity (kWh)" })
+    await page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" })
       .fill(ELECTRICITY);
     await energy.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Energy data saved").first()).toBeVisible({

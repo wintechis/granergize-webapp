@@ -167,10 +167,10 @@ test.describe("energy entry + Soll-Ist", () => {
     await openYearDialog();
     await expect(page.getByText(/editing existing figures/i))
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByRole("spinbutton", { name: "Electricity (kWh)" }))
+    await expect(page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }))
       .toHaveValue("55555");
     // Add Heat WITHOUT re-typing electricity, then save.
-    await page.getByRole("spinbutton", { name: "Heat (kWh)" }).fill("33333");
+    await page.getByRole("spinbutton", { name: "Heat consumption (kWh)" }).fill("33333");
     await page.getByRole("button", { name: "Save" }).click();
     await expect(page.getByText("Energy data saved").first())
       .toBeVisible({ timeout: T.action });
@@ -180,9 +180,9 @@ test.describe("energy entry + Soll-Ist", () => {
 
     // Re-open once more: BOTH figures persisted — electricity was not zeroed.
     await openYearDialog();
-    await expect(page.getByRole("spinbutton", { name: "Electricity (kWh)" }))
+    await expect(page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }))
       .toHaveValue("55555");
-    await expect(page.getByRole("spinbutton", { name: "Heat (kWh)" }))
+    await expect(page.getByRole("spinbutton", { name: "Heat consumption (kWh)" }))
       .toHaveValue("33333");
     await page.getByRole("button", { name: "Close" }).click();
   });
@@ -207,7 +207,7 @@ test.describe("energy entry + Soll-Ist", () => {
     await yearRow.getByRole("button", { name: en("eyEditYear") }).click();
     await expect(page.getByRole("spinbutton", { name: en("lblYear"), exact: true }))
       .toHaveValue(DEL_YEAR);
-    await expect(page.getByRole("spinbutton", { name: "Electricity (kWh)" }))
+    await expect(page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }))
       .toHaveValue("12345");
     await expect(page.getByText(/editing existing figures/i))
       .toBeVisible({ timeout: T.action });

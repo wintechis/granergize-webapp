@@ -162,7 +162,7 @@ export async function addEnergyYear(
   await page.getByRole("spinbutton", { name: en("lblYear"), exact: true }).fill(year);
   await page.getByLabel(en("lblScenario"), { exact: true }).click();
   await page.getByRole("option", { name: scenario }).click();
-  await page.getByRole("spinbutton", { name: "Electricity (kWh)" })
+  await page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" })
     .fill(electricity);
   await page.getByRole("button", { name: "Save" }).click();
   await expect(page.getByText("Energy data saved").first())

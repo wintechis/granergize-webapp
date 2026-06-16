@@ -45,6 +45,7 @@ import { formatNumber } from "../lib/formatNumber.ts";
 import {
   type AnnualMetricDesc,
   ANNUAL_METRICS,
+  metricLabel,
 } from "../constants/annualMetrics.ts";
 import type { EnergyMetricKey } from "../services/rdf/energyDataset.ts";
 import {
@@ -77,13 +78,15 @@ const METRIC_ICONS: Partial<Record<EnergyMetricKey, React.ReactElement>> = {
   wastewaterConsumption: <WaterDropIcon fontSize="small" />,
 };
 
-/** Column-header form: "Electricity (kWh)" / "Renewable %" (unit already in). */
+/** Column-header form: "Electricity (kWh)" / "Renewable %" (unit already in the
+ * "%" abbreviation). The compact label is a catalog id; the unit stays as-is. */
 const headerOf = (m: AnnualMetricDesc) =>
-  m.short.includes("%") ? m.short : `${m.short} (${m.unit})`;
+  m.unit === "%" ? msg(m.shortId) : `${msg(m.shortId)} (${m.unit})`;
 
-/** Chart-section title: "<label> Consumption (<unit>/year)", "%" as itself. */
+/** Chart-section title from the vocab full label + unit: "Electricity
+ * consumption (kWh/year)" / "Renewable self-generated share (%)". */
 const chartTitleOf = (m: AnnualMetricDesc) =>
-  m.unit === "%" ? `${m.label} (%)` : `${m.label} Consumption (${m.unit}/year)`;
+  `${metricLabel(m.key)} (${m.unit === "%" ? "%" : `${m.unit}/year`})`;
 
 class ChartErrorBoundary extends React.Component<
   { children: React.ReactNode },

@@ -183,13 +183,13 @@ test.describe("energy view smoke", () => {
     // Default-checked are electricity+heat+water; narrow to just electricity to
     // mirror "ich electricity auswähle" and isolate her metric. The checkboxes
     // carry the human labels from the shared annual-metric schema (with units),
-    // not raw camelCase keys; exact: true keeps "Water (m³)" from also matching
+    // not raw camelCase keys; exact: true keeps "Water consumption (m³)" from also matching
     // "Wastewater (m³)".
-    await dialog.getByRole("checkbox", { name: "Heat (kWh)", exact: true })
+    await dialog.getByRole("checkbox", { name: "Heat consumption (kWh)", exact: true })
       .uncheck();
-    await dialog.getByRole("checkbox", { name: "Water (m³)", exact: true })
+    await dialog.getByRole("checkbox", { name: "Water consumption (m³)", exact: true })
       .uncheck();
-    await dialog.getByRole("checkbox", { name: "Electricity (kWh)", exact: true })
+    await dialog.getByRole("checkbox", { name: "Electricity consumption (kWh)", exact: true })
       .check();
     await dialog.getByRole("button", { name: /create aggregation/i }).click();
     // Assert the durable outcome — the view row appears (step 3) — NOT the

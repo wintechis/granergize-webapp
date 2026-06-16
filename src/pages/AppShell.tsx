@@ -688,12 +688,12 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             {devMode && <Divider />}
             {devMode && (
               <MenuItem onClick={handleAuditGrants} disabled={accountBusy}>
-                Check sharing consistency
+                {t("menuCheckConsistency")}
               </MenuItem>
             )}
             {devMode && (
               <MenuItem onClick={handleReissueGrants} disabled={accountBusy}>
-                Rebuild sharing from log
+                {t("menuRebuildSharing")}
               </MenuItem>
             )}
 
@@ -715,7 +715,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
                 onClick={handleRemoveAppData}
                 sx={{ color: "error.main" }}
               >
-                Remove all app data…
+                {t("menuRemoveAll")}
               </MenuItem>
             )}
 
@@ -723,7 +723,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             <Divider />
             {devMode && (
               <MenuItem onClick={handleChangeAccount}>
-                Change account (full logout)
+                {t("menuChangeAccount")}
               </MenuItem>
             )}
             <MenuItem onClick={handleLogout}>

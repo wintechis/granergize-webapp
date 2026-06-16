@@ -404,14 +404,14 @@ export default function MasterDataSection(
         direction="row"
         sx={{ alignItems: "center", justifyContent: "space-between", mb: 1 }}
       >
-        <Typography variant="h6">Master data</Typography>
+        <Typography variant="h6">{msg("secMasterData")}</Typography>
         {canEdit && !editing && (
           <Button
             size="small"
             startIcon={<EditIcon fontSize="small" />}
             onClick={() => setEditing(true)}
           >
-            Edit
+            {msg("btnEdit")}
           </Button>
         )}
       </Stack>

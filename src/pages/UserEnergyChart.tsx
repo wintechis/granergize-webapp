@@ -1,4 +1,5 @@
 import { msg } from "../lib/messages.ts";
+import { annualMetricLabel } from "../constants/annualMetrics.ts";
 import { useMemo, useState } from "react";
 import { Box, TextField, Typography } from "@mui/material";
 import Tabs from "@mui/material/Tabs";
@@ -189,7 +190,9 @@ export default function UserEnergyChart(
           />
 
           {dayQuery.isFetching && (
-            <Typography variant="body2" sx={{ mb: 1 }}>Loading…</Typography>
+            <Typography variant="body2" sx={{ mb: 1 }}>
+              {msg("loadingEllipsis")}
+            </Typography>
           )}
           {dayQuery.error != null && (
             <Typography color="error" variant="body2" sx={{ mb: 1 }}>
@@ -199,23 +202,23 @@ export default function UserEnergyChart(
           {!dayQuery.isFetching && dayQuery.error == null && selectedDay &&
             !selectedEntry && (
             <Typography variant="body2" color="text.secondary">
-              No data available for this date.
+              {msg("uecNoData")}
             </Typography>
           )}
           {!dayQuery.isFetching && dayQuery.error == null &&
             readings.length > 0 && (
             <>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Daily total: <strong>{formatNumber(dailyTotal, 2)} kWh</strong>
-                {" "}
-                ({readings.length} readings)
+                {msg("uecDailyTotal")}{" "}
+                <strong>{formatNumber(dailyTotal, 2)} kWh</strong>{" "}
+                ({msg("uecReadingsCount", { count: readings.length })})
               </Typography>
               <Box sx={{ position: "relative", width: "100%" }}>
                 <MetricLineChart
                   data={dayViewRows}
                   lines={[{
                     key: "value",
-                    name: "Electricity Consumption (kWh)",
+                    name: annualMetricLabel("electricityConsumption"),
                     color: SERIES_COLOR,
                   }]}
                   yUnit="kWh"
@@ -233,16 +236,16 @@ export default function UserEnergyChart(
           {!bulkLoading && allDaysData && dailyTotals.length > 0 && (
             <>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Average daily consumption:{" "}
+                {msg("uecAvgDaily")}{" "}
                 <strong>{formatNumber(avgDailyTotal, 2)} kWh</strong>{" "}
-                ({dailyTotals.length} days)
+                ({msg("uecDaysCount", { count: dailyTotals.length })})
               </Typography>
               <Box sx={{ position: "relative", width: "100%" }}>
                 <MetricBarChart
                   data={dailyTotalsRows}
                   bars={[{
                     key: "value",
-                    name: "Daily Consumption (kWh)",
+                    name: msg("uecDailyConsumption"),
                     color: "rgba(31, 120, 180, 0.7)",
                   }]}
                   xKey="t"
@@ -261,15 +264,15 @@ export default function UserEnergyChart(
           {!bulkLoading && allDaysData && avgProfile.length > 0 && (
             <>
               <Typography variant="body2" sx={{ mb: 1 }}>
-                Average 15-minute profile across{" "}
-                <strong>{allDaysData.size} days</strong>
+                {msg("uecAvgProfilePre")}{" "}
+                <strong>{msg("uecDaysCount", { count: allDaysData.size })}</strong>
               </Typography>
               <Box sx={{ position: "relative", width: "100%" }}>
                 <MetricLineChart
                   data={avgProfileRows}
                   lines={[{
                     key: "value",
-                    name: "Average kWh",
+                    name: msg("uecAvgKwh"),
                     color: SERIES_COLOR,
                   }]}
                   yUnit="kWh"
