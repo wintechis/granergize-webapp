@@ -57,7 +57,10 @@ and services: read hooks in `queries.ts`, write hooks in `mutations.ts`, the sin
 `QueryClient` and central error routing in `context/QueryProvider.tsx`, and the
 `getSession()` singleton the hooks read their transport from. This is the boundary the
 query/mutation split is named for — see [`queries-mutations.md`](./queries-mutations.md). UI gets Pod
-data only through this layer.
+data only through this layer. React Query caches by an app-chosen *query key* (not by
+resource IRI) and is transport-agnostic — it neither tracks Pod resources nor observes
+writes, so freshness is explicit: a mutation invalidates the query keys it declares it
+affects.
 
 **Services** (`src/services/`). The domain logic the hooks call. The multi-file domains
 keep a **folder** — `interop/` (sharing, data rooms, inbox), `aggregation/` (computes and
