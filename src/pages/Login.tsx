@@ -90,6 +90,10 @@ export const Login: React.FC<LoginProps> = ({
   const [activeWebId, setActiveWebId] = useState<string>();
 
   const [invalidIDP, setInvalidIDP] = useState(false);
+  // The IdP the user tried + the underlying reason, so the error explains WHAT
+  // failed and WHY instead of a bare "correct URI" (see submitCallback).
+  const [attemptedIdp, setAttemptedIdp] = useState("");
+  const [loginErrorDetail, setLoginErrorDetail] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   // Holds the IdP's error message when a silent session restore fails
   // (typically a stale OIDC client registration → "Unknown client"). Surfaces
@@ -338,10 +342,15 @@ export const Login: React.FC<LoginProps> = ({
       // not a full URL yet — show what we have
     }
     setRedirectingTo(host);
-    session.login({ oidcIssuer: targetIdp, ...loginOptions }).catch(() => {
-      // Login never got to the redirect (e.g. bad IdP) — restore the form.
+    session.login({ oidcIssuer: targetIdp, ...loginOptions }).catch((err) => {
+      // Login never got to the redirect — e.g. the host is unreachable, isn't a
+      // Solid identity provider, or refused OIDC discovery. Surface WHICH provider
+      // failed and WHY (the error used to be discarded, leaving only "correct URI").
+      logError("sign in to the identity provider", err);
       setRedirectingTo(null);
       setInvalidIDP(true);
+      setAttemptedIdp(targetIdp);
+      setLoginErrorDetail(err instanceof Error ? err.message : String(err));
     });
   }
 
@@ -361,7 +370,18 @@ export const Login: React.FC<LoginProps> = ({
   function handleNewIdpSubmit(e: React.FormEvent) {
     e.preventDefault();
     setInvalidIDP(false);
+    setLoginErrorDetail(null);
     const enteredIdp = normalizeIssuer(login);
+    // Reject a clearly-malformed address up front — a faster, clearer message
+    // than waiting for OIDC discovery to fail on it.
+    try {
+      new URL(enteredIdp);
+    } catch {
+      setInvalidIDP(true);
+      setAttemptedIdp(login || enteredIdp);
+      setLoginErrorDetail("That doesn’t look like a web address.");
+      return;
+    }
     submitCallback(enteredIdp);
   }
 
@@ -592,9 +612,21 @@ export const Login: React.FC<LoginProps> = ({
                   </IdpInputWrapper>
                 </Box>
                 {invalidIDP && (
-                  <Typography variant="body2" color="error">
-                    Please provide a correct URI.
-                  </Typography>
+                  <Alert severity="error" sx={{ mt: 1 }}>
+                    Couldn’t sign in{attemptedIdp ? ` to ${attemptedIdp}` : ""}.
+                    Enter your identity provider’s web address — for example{" "}
+                    https://login.inrupt.com or https://solidcommunity.net — not
+                    your email or WebID.
+                    {loginErrorDetail && (
+                      <Typography
+                        variant="body2"
+                        color="text.secondary"
+                        sx={{ mt: 0.5 }}
+                      >
+                        Details: {loginErrorDetail}
+                      </Typography>
+                    )}
+                  </Alert>
                 )}
               </Box>
             </Box>

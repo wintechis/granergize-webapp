@@ -12,6 +12,8 @@ import {
 import { formatNumber } from "../lib/formatNumber.ts";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import MetricLineChart from "../components/detail/MetricLineChart.tsx";
+import CalendarHeatmap from "../components/CalendarHeatmap.tsx";
+import { useT } from "../context/I18nProvider.tsx";
 
 const SERIES_COLOR = "rgba(31, 120, 180, 1)";
 
@@ -25,6 +27,7 @@ const errText = (err: unknown) =>
 export default function UserEnergyChart(
   { seriesDatasets }: UserEnergyChartProps,
 ) {
+  const t = useT();
   // The daily reading files live in each series descriptor's container; the
   // listing feeds the date/month pickers (read through the data layer).
   const days = useSeriesDays(seriesDatasets);
@@ -36,7 +39,7 @@ export default function UserEnergyChart(
   );
 
   // ── Tab 0: Day View ──────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<0 | 1 | 2>(0);
+  const [activeTab, setActiveTab] = useState<0 | 1 | 2 | 3>(0);
   const [selectedDay, setSelectedDay] = useState<string>("");
   const selectedEntry = dateEntries.find((d) => d.day === selectedDay);
   const dayQuery = useDayReadings(selectedEntry?.url);
@@ -68,7 +71,7 @@ export default function UserEnergyChart(
   );
   const monthQuery = useMonthReadings(
     monthEntries,
-    activeTab === 1 || activeTab === 2,
+    activeTab === 1 || activeTab === 2 || activeTab === 3,
   );
   const allDaysData = monthQuery.data ?? null;
   const bulkLoading = monthQuery.isFetching;
@@ -158,12 +161,13 @@ export default function UserEnergyChart(
     <Box>
       <Tabs
         value={activeTab}
-        onChange={(_e, v) => setActiveTab(v as 0 | 1 | 2)}
+        onChange={(_e, v) => setActiveTab(v as 0 | 1 | 2 | 3)}
         sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
       >
         <Tab label={msg("ucDayView")} />
         <Tab label={msg("ucDailyTotals")} />
         <Tab label={msg("ucAvgProfile")} />
+        <Tab label={t("calendarTab")} />
       </Tabs>
 
       {activeTab === 0 && (
@@ -273,6 +277,15 @@ export default function UserEnergyChart(
                 />
               </Box>
             </>
+          )}
+        </Box>
+      )}
+
+      {activeTab === 3 && (
+        <Box>
+          {monthPickerAndProgress}
+          {!bulkLoading && allDaysData && (
+            <CalendarHeatmap readingsByDay={allDaysData} />
           )}
         </Box>
       )}

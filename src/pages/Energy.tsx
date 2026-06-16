@@ -9,6 +9,7 @@ import SeriesEnergy from "./SeriesEnergy.tsx";
 import AnnualEnergy from "./AnnualEnergy.tsx";
 import ObservationHeader from "../components/observation/ObservationHeader.tsx";
 import WeatherData from "./WeatherData.tsx";
+import EnergyWeatherOverlay from "../components/EnergyWeatherOverlay.tsx";
 
 type EnergyProps = {
   building: BuildingType;
@@ -81,6 +82,12 @@ export default function Energy({ building }: EnergyProps) {
           </>
         )}
         <AnnualEnergy building={building} />
+        {/* Step 6a: overlay the building's annual energy with the nearest DWD
+            station's mean temperature on the shared year axis (cross-layer
+            superimpose). Off by default; honest about the station distance. */}
+        <Box sx={{ mt: 3 }}>
+          <EnergyWeatherOverlay building={building} />
+        </Box>
       </Box>
     )
     : undefined;

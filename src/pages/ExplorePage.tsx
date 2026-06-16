@@ -3,7 +3,7 @@ import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { buildingRoute } from "../routes.ts";
-import { BuildingType, EnergyType } from "../types.ts";
+import { BuildingType } from "../types.ts";
 import {
   MapContainer,
   Marker,
@@ -17,21 +17,29 @@ import L from "leaflet";
 import Typography from "@mui/material/Typography";
 import Box from "@mui/material/Box";
 import Paper from "@mui/material/Paper";
+import Slider from "@mui/material/Slider";
+import IconButton from "@mui/material/IconButton";
+import MuiTooltip from "@mui/material/Tooltip";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
+import MenuItem from "@mui/material/MenuItem";
+import TextField from "@mui/material/TextField";
 import {
+  useAnnualEnergyByYear,
   useResolveAgent,
   useResolveOrg,
   useSolidData,
 } from "../hooks/queries.ts";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
+import PlayArrowIcon from "@mui/icons-material/PlayArrow";
+import PauseIcon from "@mui/icons-material/Pause";
 import {
-  ENERGY_ABOVE_AVG_COLOR,
-  ENERGY_BELOW_AVG_COLOR,
-  ENERGY_TYPICAL_COLOR,
   MARKER_NO_DATA_COLOR,
   MARKER_OWNED_COLOR,
   MARKER_SHARED_COLOR,
+  TREND_FLAT_COLOR,
+  TREND_IMPROVING_COLOR,
+  TREND_WORSENING_COLOR,
 } from "../constants/chartColors.ts";
 import {
   beginActivity,
@@ -39,20 +47,44 @@ import {
 } from "../lib/networkActivity.ts";
 import { safeImageSrc } from "../lib/safeHref.ts";
 import {
-  categoriserFor,
-  type EnergyCategory,
-  energyIntensity,
-} from "../services/rdf/energyCategory.ts";
+  clampYear,
+  type LensBand,
+  selectableYears,
+  yearLens,
+} from "../services/rdf/energyTimeCut.ts";
+import {
+  clampMetric,
+  type MetricFraming,
+  metricFraming,
+  metricLabelKey,
+  SELECTABLE_METRICS,
+} from "../services/rdf/energyMetric.ts";
+import { bandColor, bandLabelKey, legendBands } from "../constants/lensBand.ts";
+import {
+  type EnergyTrend,
+  trendForBuildings,
+} from "../services/rdf/energyTrend.ts";
+import SpaceCutPanel from "../components/SpaceCutPanel.tsx";
+import SmallMultiplesPanel from "../components/SmallMultiplesPanel.tsx";
+import { useT } from "../context/I18nProvider.tsx";
 
-/** Which colour lens the map markers use. */
-type MapLens = "ownership" | "energy";
+/** Which colour lens the map markers use: ownership (default), absolute energy
+ * tier at a chosen year, or year-over-year trend. Mutually exclusive so no
+ * marker colour means two things at once. */
+type MapLens = "ownership" | "energy" | "trend";
 
-/** Energy-category → marker colour (reuses the energy-grid heat-map palette). */
-const CATEGORY_COLOR: Record<EnergyCategory, string> = {
-  efficient: ENERGY_BELOW_AVG_COLOR,
-  typical: ENERGY_TYPICAL_COLOR,
-  inefficient: ENERGY_ABOVE_AVG_COLOR,
-  none: MARKER_NO_DATA_COLOR,
+/** Which collection guise the Explore surface shows over the building set: the
+ * geographic map, the cross-building over-time matrix, or the year-juxtaposing
+ * small multiples ("compare years"). */
+type ExploreView = "map" | "matrix" | "compare";
+
+/** Trend → marker colour (the colourblind-safe diverging blue↔orange palette,
+ * distinct from the energy tier palette so the two lenses can't be confused). */
+const TREND_COLOR: Record<EnergyTrend, string> = {
+  improving: TREND_IMPROVING_COLOR,
+  flat: TREND_FLAT_COLOR,
+  worsening: TREND_WORSENING_COLOR,
+  unknown: MARKER_NO_DATA_COLOR,
 };
 
 // Basemap: the official German basemap.de Web Raster (BKG) via its WMS endpoint
@@ -101,27 +133,55 @@ function createPinIcon(shared: boolean): L.DivIcon {
 }
 
 /**
- * Energy-lens marker: a filled circle tinted by the building's energy category,
- * shown for EVERY building (not just those with a producer logo) so the
- * categorisation is always legible. The category is baked into the `className`
- * (`energy-marker energy-<category>`) so the e2e spec can assert it.
+ * Energy-lens marker: a filled circle tinted by the building's energy **band** for
+ * the selected metric — an efficiency tier (consumption) or a neutral magnitude
+ * bucket (generation). Shown for EVERY building (not just those with a producer
+ * logo) so the categorisation is always legible. The band is baked into the
+ * `className` (`energy-marker energy-<band>`) so the e2e spec can assert it.
  */
 const categoryIconCache = new Map<string, L.DivIcon>();
-function createCategoryIcon(category: EnergyCategory): L.DivIcon {
-  const hit = categoryIconCache.get(category);
+function createCategoryIcon(band: LensBand, framing: MetricFraming): L.DivIcon {
+  const key = `${framing}:${band}`;
+  const hit = categoryIconCache.get(key);
   if (hit) return hit;
   const shadow = "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
   const icon = L.divIcon({
-    className: `energy-marker energy-${category}`,
+    className: `energy-marker energy-${band}`,
     html:
       `<div style="width:28px;height:28px;border-radius:50%;background:${
-        CATEGORY_COLOR[category]
+        bandColor(band, framing)
       };border:3px solid #fff;${shadow}"></div>`,
     iconSize: [34, 34],
     iconAnchor: [17, 17],
     popupAnchor: [0, -17],
   });
-  categoryIconCache.set(category, icon);
+  categoryIconCache.set(key, icon);
+  return icon;
+}
+
+/**
+ * Trend-lens marker: a filled circle tinted by the building's year-over-year
+ * trend (improving / flat / worsening / unknown), shown for every building so
+ * the recolour is always legible. The trend is baked into the `className`
+ * (`trend-marker trend-<trend>`) so the e2e spec can assert it. Same shape as the
+ * energy marker — only the palette differs.
+ */
+const trendIconCache = new Map<string, L.DivIcon>();
+function createTrendIcon(trend: EnergyTrend): L.DivIcon {
+  const hit = trendIconCache.get(trend);
+  if (hit) return hit;
+  const shadow = "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
+  const icon = L.divIcon({
+    className: `trend-marker trend-${trend}`,
+    html:
+      `<div style="width:28px;height:28px;border-radius:50%;background:${
+        TREND_COLOR[trend]
+      };border:3px solid #fff;${shadow}"></div>`,
+    iconSize: [34, 34],
+    iconAnchor: [17, 17],
+    popupAnchor: [0, -17],
+  });
+  trendIconCache.set(trend, icon);
   return icon;
 }
 
@@ -134,12 +194,14 @@ function createCategoryIcon(category: EnergyCategory): L.DivIcon {
  * logo when present. A click navigates to the building's detail page.
  */
 function BuildingMarker(
-  { building, position, onClick, lens, category }: {
+  { building, position, onClick, lens, band, framing, trend }: {
     building: BuildingType;
     position: [number, number];
     onClick: () => void;
     lens: MapLens;
-    category: EnergyCategory;
+    band: LensBand;
+    framing: MetricFraming;
+    trend: EnergyTrend;
   },
 ) {
   const { data: org } = useResolveOrg(building.attributedTo);
@@ -155,11 +217,13 @@ function BuildingMarker(
     ? safeImageSrc(operator.avatarUrl)
     : null;
   const icon = lens === "energy"
-    ? createCategoryIcon(category)
+    ? createCategoryIcon(band, framing)
+    : lens === "trend"
+    ? createTrendIcon(trend)
     : createPinIcon(building.isShared ?? false);
-  const tooltipOffset: [number, number] = lens === "energy"
-    ? [0, -20]
-    : [0, -38];
+  const tooltipOffset: [number, number] = lens === "ownership"
+    ? [0, -38]
+    : [0, -20];
   return (
     <Marker
       position={position}
@@ -358,8 +422,10 @@ interface ExplorePageProps {
 export default function ExplorePage(
   { active = true }: ExplorePageProps,
 ) {
-  const { buildings, energyNeed, error } = useSolidData();
+  const { buildings, error } = useSolidData();
   const navigate = useNavigate();
+  const t = useT();
+  const [searchParams, setSearchParams] = useSearchParams();
   // One activity token per tile-loading burst (the layer fires `loading` when it
   // starts fetching tiles and `load` once the visible set is in), so panning/
   // zooming registers in the global indicator without a token per image.
@@ -380,6 +446,10 @@ export default function ExplorePage(
   // Which colour lens the markers use: owned/shared (default) or energy
   // intensity. The two are mutually exclusive so neither meaning is overloaded.
   const [lens, setLens] = useState<MapLens>("ownership");
+  // Which collection guise is shown: the geographic map (default) or the
+  // cross-building space-cut matrix (buildings × years). Both read the same
+  // building set; the matrix is the temporal finder over it.
+  const [view, setView] = useState<ExploreView>("map");
 
   // Buildings currently visible in the map's bounding box (before the first
   // bounds report, treat every located building as visible).
@@ -392,37 +462,123 @@ export default function ExplorePage(
     [buildings, bbox],
   );
 
-  // Energy intensity (kWh / m² / a) per building id, and the intensities of the
-  // buildings currently in view — the peer set the energy lens categorises
-  // against, so panning/zooming re-frames the comparison. Recomputes when
-  // phase-2 energy arrives, re-tinting the markers without a refetch.
-  const energyById = useMemo(() => {
-    const m = new Map<string, EnergyType>();
-    for (const e of energyNeed ?? []) {
-      if (!m.has(e.id)) m.set(e.id, e);
-    }
-    return m;
-  }, [energyNeed]);
-  const intensityById = useMemo(() => {
-    const m = new Map<string, number | null>();
-    for (const b of buildings) {
-      m.set(b.id, energyIntensity(b, energyById.get(b.id)));
-    }
-    return m;
-  }, [buildings, energyById]);
-  const peerIntensities = useMemo(
+  // The per-year energy cube both temporal surfaces re-colour over: every
+  // reachable annual figure across the set, keyed by building id and year. Loaded
+  // only when a temporal surface is in use — the map's energy or trend lens (the
+  // slider lives with the energy lens), the space-cut matrix, OR the compare-years
+  // small multiples — so a user on the plain ownership map pays no extra GETs.
+  const { data: energyByYear } = useAnnualEnergyByYear(
+    buildings,
+    lens === "energy" || lens === "trend" || view === "matrix" ||
+      view === "compare",
+  );
+
+  // The selected observed property (the cube's measure axis) — URI-encoded
+  // navigational state (`?m=`), like the year, so a metric choice is shareable and
+  // survives a reload. Decoded through `clampMetric` (an unknown/stale value falls
+  // back to the default electricity consumption). Every cube surface honours this
+  // ONE choice.
+  const metric = useMemo(
+    () => clampMetric(searchParams.get("m")),
+    [searchParams],
+  );
+  const framing = metricFraming(metric);
+
+  // The selectable year range = the union of reachable buildings' dataset years
+  // (no fixed range). Empty until the per-year energy has loaded.
+  const years = useMemo(
+    () => (energyByYear ? selectableYears(energyByYear) : []),
+    [energyByYear],
+  );
+
+  // The selected year is URI-encoded navigational state (`?y=`), so a time-cut is
+  // shareable and survives a reload. Clamp the decoded value to the selectable
+  // set — a stale/shared link can't select a year no building has — defaulting to
+  // the latest (the map's pre-slider behaviour). Held in component state so
+  // dragging is smooth; the URL is written on commit (see onYearChangeCommitted).
+  const urlYear = useMemo(() => {
+    const raw = searchParams.get("y");
+    return raw != null && Number.isFinite(Number(raw)) ? Number(raw) : null;
+  }, [searchParams]);
+  const selectedYear = useMemo(
+    () => clampYear(years, urlYear),
+    [years, urlYear],
+  );
+
+  // Drag-local year so the slider tracks the thumb at 60fps without rewriting the
+  // URL on every pixel; null = "follow the committed/URL year".
+  const [draftYear, setDraftYear] = useState<number | null>(null);
+  const activeYear = draftYear ?? selectedYear;
+
+  // Animation play/pause state — declared here so the URI writers can stop it.
+  const [playing, setPlaying] = useState(false);
+
+  const writeYear = (year: number) => {
+    setSearchParams((prev) => {
+      const sp = new URLSearchParams(prev);
+      sp.set("y", String(year));
+      return sp;
+    }, { replace: true });
+  };
+
+  // Write the selected metric to the URI (`?m=`); stop any animation first (a new
+  // metric re-frames the whole cut).
+  const writeMetric = (m: string) => {
+    setPlaying(false);
+    setSearchParams((prev) => {
+      const sp = new URLSearchParams(prev);
+      sp.set("m", m);
+      return sp;
+    }, { replace: true });
+  };
+
+  // Animation: a timer stepping the selected year over the range, wrapping at the
+  // end. Torn down on unmount and whenever it stops (the cleanup clears the
+  // interval), so it never outlives the page.
+  // The animation runs only while the energy lens is up and ≥2 years exist; the
+  // guard here (rather than a setState-in-effect reset) keeps the timer from
+  // firing when those conditions lapse, and the cleanup tears it down on unmount.
+  const animating = playing && lens === "energy" && years.length >= 2;
+  useEffect(() => {
+    if (!animating) return;
+    const id = setInterval(() => {
+      const cur = clampYear(years, urlYear) ?? years[0];
+      const next = years[(years.indexOf(cur) + 1) % years.length];
+      writeYear(next);
+    }, 1200);
+    return () => clearInterval(id);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [animating, years, urlYear]);
+
+  // The visible peer set (ids) the lens categorises against — panning re-frames
+  // it, year-scrubbing re-cuts the cube. The categoriser is parameterised by the
+  // active year, not duplicated.
+  const visibleIds = useMemo(
+    () => new Set(visibleBuildings.map((b) => b.id)),
+    [visibleBuildings],
+  );
+  const lensAtYear = useMemo(
     () =>
-      visibleBuildings
-        .map((b) => intensityById.get(b.id))
-        .filter((v): v is number => v != null),
-    [visibleBuildings, intensityById],
+      energyByYear
+        ? yearLens(buildings, visibleIds, energyByYear, activeYear, metric)
+        : null,
+    [buildings, visibleIds, energyByYear, activeYear, metric],
   );
-  // The per-value classifier for the current peer set — the tercile thresholds
-  // are computed once per peer set here, not per marker per render.
-  const categoriseIntensity = useMemo(
-    () => categoriserFor(peerIntensities),
-    [peerIntensities],
+  const bandFor = (id: string): LensBand =>
+    lensAtYear ? lensAtYear.band(id) : "none";
+
+  // The per-building year-over-year trend (the trend lens) on the selected metric.
+  // Unlike the energy lens it judges each building against its OWN prior year (no
+  // peer set), so it doesn't re-frame on pan and isn't tied to the selected year.
+  const trendByBuilding = useMemo(
+    () =>
+      energyByYear && lens === "trend"
+        ? trendForBuildings(buildings, energyByYear, metric)
+        : null,
+    [buildings, energyByYear, lens, metric],
   );
+  const trendFor = (id: string): EnergyTrend =>
+    trendByBuilding?.get(id) ?? "unknown";
 
   // Navigate to a building's detail page — the map is a pure finder, so a
   // marker click leaves the map for `/building/:id` (the same as a List row).
@@ -444,6 +600,16 @@ export default function ExplorePage(
         </Typography>
       )}
 
+      {/* The map stays MOUNTED while the matrix is shown (Leaflet needs its
+          container to keep its viewport/tile state), just hidden — the matrix
+          renders over the same flex slot. */}
+      <Box
+        sx={{
+          flex: 1,
+          minHeight: 0,
+          display: view === "map" ? "flex" : "none",
+        }}
+      >
       <MapContainer
         className="map-container"
         center={[50.976558, 10.404674]}
@@ -482,14 +648,41 @@ export default function ExplorePage(
               building={building}
               position={[building.lat, building.long]}
               lens={lens}
-              category={categoriseIntensity(
-                intensityById.get(building.id) ?? null,
-              )}
+              band={bandFor(building.id)}
+              framing={framing}
+              trend={trendFor(building.id)}
               onClick={() => openBuilding(building.id)}
             />
           )
         ))}
       </MapContainer>
+      </Box>
+      {/* The cross-building space-cut matrix (buildings × years), over the same
+          set as the map — the temporal finder. Only the visible (in-bbox) set
+          forms each year's peer terciles, matching the map energy lens. */}
+      {view === "matrix" && (
+        <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          <SpaceCutPanel
+            buildings={visibleBuildings}
+            energyByYear={energyByYear}
+            visibleIds={visibleIds}
+            metric={metric}
+          />
+        </Box>
+      )}
+      {/* The year-juxtaposing small multiples (one mini-panel per year, side by
+          side, all on one shared scale), over the same visible set as the map —
+          the time-juxtaposing finder. */}
+      {view === "compare" && (
+        <Box sx={{ flex: 1, minHeight: 0, overflow: "auto" }}>
+          <SmallMultiplesPanel
+            buildings={visibleBuildings}
+            energyByYear={energyByYear}
+            visibleIds={visibleIds}
+            metric={metric}
+          />
+        </Box>
+      )}
       {/* Map legend — a lens toggle plus the swatches for the active lens. */}
       <Paper
         variant="outlined"
@@ -507,19 +700,74 @@ export default function ExplorePage(
         <ToggleButtonGroup
           size="small"
           exclusive
-          value={lens}
-          onChange={(_e, v: MapLens | null) => v && setLens(v)}
-          aria-label={msg("lensAria")}
+          value={view}
+          onChange={(_e, v: ExploreView | null) => {
+            if (!v) return;
+            if (v !== "map") setPlaying(false);
+            setView(v);
+          }}
+          aria-label={t("exploreViewAria")}
         >
-          <ToggleButton value="ownership">{msg("lensOwnership")}</ToggleButton>
-          <ToggleButton value="energy">{msg("lensEnergy")}</ToggleButton>
+          <ToggleButton value="map">{t("exploreViewMap")}</ToggleButton>
+          <ToggleButton value="matrix">{t("exploreViewOverTime")}</ToggleButton>
+          <ToggleButton value="compare">
+            {t("exploreViewCompareYears")}
+          </ToggleButton>
         </ToggleButtonGroup>
-        {(lens === "energy"
+        {view === "map" && (
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={lens}
+            onChange={(_e, v: MapLens | null) => {
+              if (!v) return;
+              if (v !== "energy") setPlaying(false);
+              setLens(v);
+            }}
+            aria-label={msg("lensAria")}
+          >
+            <ToggleButton value="ownership">{msg("lensOwnership")}</ToggleButton>
+            <ToggleButton value="energy">{msg("lensEnergy")}</ToggleButton>
+            <ToggleButton value="trend">{msg("lensTrend")}</ToggleButton>
+          </ToggleButtonGroup>
+        )}
+        {/* Metric selector — the cube's measure axis. Shown whenever a
+            metric-driven surface is active (the energy/trend lens, the over-time
+            matrix or the compare-years multiples); the choice is URI-encoded
+            (`?m=`) so every surface honours ONE selection. */}
+        {(view === "matrix" || view === "compare" ||
+          (view === "map" && (lens === "energy" || lens === "trend"))) && (
+          <TextField
+            select
+            size="small"
+            value={metric}
+            onChange={(e) => writeMetric(e.target.value)}
+            label={t("metricSelectLabel")}
+            sx={{ minWidth: 160 }}
+          >
+            {SELECTABLE_METRICS.map((m) => (
+              <MenuItem key={m.key} value={m.key}>
+                {t(metricLabelKey(m.key))}
+              </MenuItem>
+            ))}
+          </TextField>
+        )}
+        {/* Swatches for the active lens/view. The energy lens / matrix / compare
+            multiples colour by the selected metric's FRAMING — efficiency tiers for
+            consumption, a neutral low/mid/high magnitude ramp for generation; the
+            trend lens has its own diverging palette; the ownership swatches are
+            map-only. */}
+        {(view === "matrix" || view === "compare" ||
+            (view === "map" && lens === "energy")
+          ? legendBands(framing).map((b) =>
+            [bandColor(b, framing), t(bandLabelKey(b, framing))] as const
+          )
+          : view === "map" && lens === "trend"
           ? ([
-            [CATEGORY_COLOR.efficient, "More efficient"],
-            [CATEGORY_COLOR.typical, "Typical"],
-            [CATEGORY_COLOR.inefficient, "Less efficient"],
-            [CATEGORY_COLOR.none, "No energy data"],
+            [TREND_COLOR.improving, "Improving"],
+            [TREND_COLOR.flat, "Little change"],
+            [TREND_COLOR.worsening, "Worsening"],
+            [TREND_COLOR.unknown, "No trend yet"],
           ] as const)
           : ([
             [MARKER_OWNED_COLOR, "My buildings"],
@@ -538,6 +786,58 @@ export default function ExplorePage(
               <Typography variant="body2">{label}</Typography>
             </Box>
           ))}
+        {/* Time-cut slider: scrub the year the energy lens colours by. Only on
+            the map with the energy lens active and ≥1 reachable year; ≥2 enables
+            animation. (The matrix shows every year at once, so no slider.) */}
+        {view === "map" && lens === "energy" && years.length > 0 && (
+          <Box
+            sx={{
+              display: "flex",
+              alignItems: "center",
+              gap: 1.5,
+              flexGrow: 1,
+              flexBasis: 240,
+              minWidth: 200,
+            }}
+          >
+            <MuiTooltip title={animating ? "Pause" : "Play through years"}>
+              <span>
+                <IconButton
+                  size="small"
+                  onClick={() => setPlaying((p) => !p)}
+                  disabled={years.length < 2}
+                  aria-label={animating ? "Pause year animation" : "Play year animation"}
+                >
+                  {animating ? <PauseIcon /> : <PlayArrowIcon />}
+                </IconButton>
+              </span>
+            </MuiTooltip>
+            <Slider
+              size="small"
+              aria-label="Energy year"
+              value={activeYear ?? years[years.length - 1]}
+              min={years[0]}
+              max={years[years.length - 1]}
+              step={null}
+              marks={years.map((y) => ({ value: y }))}
+              valueLabelDisplay="auto"
+              disabled={years.length < 2}
+              onChange={(_e, v) => {
+                setPlaying(false);
+                setDraftYear(typeof v === "number" ? v : v[0]);
+              }}
+              onChangeCommitted={(_e, v) => {
+                const year = typeof v === "number" ? v : v[0];
+                setDraftYear(null);
+                writeYear(year);
+              }}
+              sx={{ flexGrow: 1, minWidth: 120 }}
+            />
+            <Typography variant="body2" sx={{ minWidth: 40, textAlign: "right" }}>
+              {activeYear ?? "—"}
+            </Typography>
+          </Box>
+        )}
       </Paper>
     </Box>
   );

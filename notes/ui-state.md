@@ -45,6 +45,9 @@ does not pile up browser-history entries. Slugs are human-readable and reorder-s
 Encoded now:
 
 - `tab` — the active home tab: `explore | manage | share | connect`.
+- `y` — the Explore map's energy time-cut year (the year the energy lens colours
+  by). Clamped on read to the reachable year set; absent → the latest year. Set
+  by the year slider (and its play/pause animation) on the Buildings map.
 
 The Buildings map is a **pure finder**: a marker click navigates to the building's
 standalone page (`/building/:id`), so there is no selected-building / detail-sub-tab
@@ -77,11 +80,12 @@ page address.
 
 ### Explore — `src/pages/ExplorePage.tsx`
 
-- Navigational: none — the map is a pure finder; a marker click navigates to
-  `/building/:id` rather than encoding a selection.
+- Navigational: the energy time-cut year → `y` (the energy lens's selected
+  year). A marker click still navigates to `/building/:id` (the map is a finder).
 - Deferred-navigational: the map bounding box / viewport.
-- Ephemeral: the colour-lens choice (ownership / energy), the energy intensities
-  derived per building, the tile-loading token.
+- Ephemeral: the colour-lens choice (ownership / energy), the drag-local draft
+  year and the play/pause flag, the energy intensities derived per building, the
+  tile-loading token.
 - Children: `WeatherData` (now a section on the observation page) holds a selected
   parameter and station (deferred
   navigational); `UserEnergyChart` holds a view, a day and a month (deferred

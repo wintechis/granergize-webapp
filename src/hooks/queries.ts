@@ -46,6 +46,10 @@ import {
 } from "../services/rdf/energyDataset.ts";
 import { parseTtlReadings } from "../services/rdf/userEnergyParser.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
+import type {
+  EnergyByBuildingYear,
+  EnergyByYear,
+} from "../services/rdf/energyTimeCut.ts";
 import { fetchFresh } from "../services/pod/podFetch.ts";
 import { emitNotification } from "../lib/notificationSink.ts";
 import type {
@@ -528,6 +532,54 @@ export function useAnnualDatasets(building: BuildingType, enabled = true) {
 }
 
 /**
+ * Every reachable annual energy figure across the building set, keyed by building
+ * id and the year it covers — the per-year cube the map's interactive time-cut
+ * slider (`plans/plan-cube-ui.md` §1) re-colours over. `useEnergy`/`loadEnergy`
+ * keep only each building's LATEST year (enough to paint the static map); the
+ * slider scrubs the whole range, so it loads ALL actual annual datasets. Keyed on
+ * the same dataset-link fingerprint (`energyKeyFor`) so adding/removing a year
+ * refetches from the data, not a remembered invalidation; `enabled` gates it to
+ * the energy lens so the extra GETs only happen when the lens (and thus the
+ * slider) is in use. The per-year figure is the `energyNeed` section, built the
+ * same way `loadEnergy` builds the latest one.
+ */
+export function useAnnualEnergyByYear(
+  buildings: BuildingType[] | undefined,
+  enabled = true,
+) {
+  return useWebIdQuery(
+    queryKeys.annualEnergyByYear,
+    async (): Promise<EnergyByBuildingYear> => {
+      const out: EnergyByBuildingYear = new Map();
+      const fetchFn = freshFetchFn();
+      await Promise.all((buildings ?? []).map(async (building) => {
+        const refs = (building.energyDatasets ?? []).filter(
+          (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),
+        );
+        if (refs.length === 0) return;
+        const datasets = await loadEnergyDatasets(refs, fetchFn);
+        const byYear: EnergyByYear = new Map();
+        for (const ds of datasets) {
+          if (!ds.metrics) continue;
+          // Keep the full per-metric figures (consumption AND generation) so a cube
+          // view can read the SELECTED metric off the year — the metric is a
+          // selectable measure axis, not a fixed consumption sum (plan-cube-ui §
+          // "Metric / observed-property selection"). A later year wins on a clash.
+          if (Object.keys(ds.metrics).length === 0) continue;
+          byYear.set(ds.year, { ...ds.metrics });
+        }
+        if (byYear.size > 0) out.set(building.id, byYear);
+      }));
+      return out;
+    },
+    {
+      extraKey: [energyKeyFor(buildings)],
+      enabled: Boolean(buildings) && enabled,
+    },
+  );
+}
+
+/**
  * Whether to offer the fresh-Pod demo buildings: true when the user's OWN
  * buildings container is absent or empty AND the demo hasn't been declined
  * (`prefs.demoSeedDeclined`). A render-driven probe (lists the container + reads
@@ -681,6 +733,8 @@ export const queryKeys = {
   annualEnergy: ["annualEnergy"] as const,
   /** One building's raw annual datasets (energy-year dialog), keyed by id + fingerprint. */
   annualDatasets: ["annualDatasets"] as const,
+  /** Every reachable annual figure across the set, keyed by set fingerprint (the time-cut slider). */
+  annualEnergyByYear: ["annualEnergyByYear"] as const,
   /** The fresh-Pod demo-buildings offer (own container empty + not declined). */
   demoOffer: ["demoOffer"] as const,
   /** Day files behind a set of 15-min series descriptors, keyed by ref URLs. */

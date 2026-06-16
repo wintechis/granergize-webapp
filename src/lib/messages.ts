@@ -320,6 +320,7 @@ export const MESSAGES = {
   },
   lensOwnership: { en: "Ownership", de: "Eigentum", fr: "Propriété" },
   lensEnergy: { en: "Energy", de: "Energie", fr: "Énergie" },
+  lensTrend: { en: "Trend", de: "Trend", fr: "Tendance" },
   ucMonth: { en: "Month", de: "Monat", fr: "Mois" },
   ucDayView: { en: "Day View", de: "Tagesansicht", fr: "Vue journalière" },
   ucDailyTotals: { en: "Daily Totals", de: "Tagessummen", fr: "Totaux journaliers" },
@@ -571,6 +572,139 @@ export const MESSAGES = {
   },
   // Generic "Loading…" region text (reused wherever a region waits on data).
   loadingEllipsis: { en: "Loading…", de: "Wird geladen…", fr: "Chargement…" },
+  // Explore collection-view toggle (Map | Over time | Compare years) + the
+  // compare-years (small-multiples) empty state.
+  exploreViewAria: {
+    en: "Explore view",
+    de: "Ansicht erkunden",
+    fr: "Vue d'exploration",
+  },
+  exploreViewMap: { en: "Map", de: "Karte", fr: "Carte" },
+  exploreViewOverTime: { en: "Over time", de: "Im Zeitverlauf", fr: "Dans le temps" },
+  exploreViewCompareYears: {
+    en: "Compare years",
+    de: "Jahre vergleichen",
+    fr: "Comparer les années",
+  },
+  // Metric selector (the cube's measure axis) — the picker label and the
+  // selectable observed properties (consumption set + generation).
+  metricSelectLabel: { en: "Metric", de: "Kennzahl", fr: "Indicateur" },
+  metricElectricityConsumption: {
+    en: "Electricity",
+    de: "Strom",
+    fr: "Électricité",
+  },
+  metricHeatConsumption: { en: "Heat", de: "Wärme", fr: "Chaleur" },
+  metricWaterConsumption: { en: "Water", de: "Wasser", fr: "Eau" },
+  metricWastewaterConsumption: {
+    en: "Wastewater",
+    de: "Abwasser",
+    fr: "Eaux usées",
+  },
+  metricElectricityGeneration: {
+    en: "Electricity generation",
+    de: "Stromerzeugung",
+    fr: "Production d'électricité",
+  },
+  // Cube-view band labels — efficiency tiers (consumption framing) and the
+  // neutral low/mid/high magnitude buckets (generation framing).
+  lensTierEfficient: {
+    en: "More efficient",
+    de: "Effizienter",
+    fr: "Plus efficace",
+  },
+  lensTierTypical: { en: "Typical", de: "Typisch", fr: "Typique" },
+  lensTierInefficient: {
+    en: "Less efficient",
+    de: "Weniger effizient",
+    fr: "Moins efficace",
+  },
+  lensMagnitudeLow: { en: "Lower", de: "Niedriger", fr: "Plus faible" },
+  lensMagnitudeMid: { en: "Medium", de: "Mittel", fr: "Moyen" },
+  lensMagnitudeHigh: { en: "Higher", de: "Höher", fr: "Plus élevé" },
+  lensBandNoData: {
+    en: "No data",
+    de: "Keine Daten",
+    fr: "Aucune donnée",
+  },
+  // Calendar-heatmap view (day × hour) of a building's 15-minute series — the
+  // tab label, its short legend captions, and the no-data / no-coverage states.
+  calendarTab: {
+    en: "Calendar",
+    de: "Kalender",
+    fr: "Calendrier",
+  },
+  calendarSubtitle: {
+    en: "Hourly consumption (kWh) by day and hour",
+    de: "Stündlicher Verbrauch (kWh) nach Tag und Stunde",
+    fr: "Consommation horaire (kWh) par jour et heure",
+  },
+  calendarLegendLess: { en: "Less", de: "Weniger", fr: "Moins" },
+  calendarLegendMore: { en: "More", de: "Mehr", fr: "Plus" },
+  calendarNoData: {
+    en: "No readings for this month.",
+    de: "Keine Messwerte für diesen Monat.",
+    fr: "Aucun relevé pour ce mois.",
+  },
+  calendarAxisHour: { en: "Hour", de: "Stunde", fr: "Heure" },
+  // Energy × weather overlay (Step 6a of plan-cube-ui): the toggle, the chart's
+  // weather-axis label, the station-distance caveat, and the no-overlap note.
+  weatherOverlayToggle: {
+    en: "Overlay weather",
+    de: "Wetter überlagern",
+    fr: "Superposer la météo",
+  },
+  weatherOverlayTitle: {
+    en: "Energy and weather",
+    de: "Energie und Wetter",
+    fr: "Énergie et météo",
+  },
+  weatherOverlayEnergyAxis: {
+    en: "Energy (kWh)",
+    de: "Energie (kWh)",
+    fr: "Énergie (kWh)",
+  },
+  weatherOverlayTempAxis: {
+    en: "Mean temperature (°C)",
+    de: "Mitteltemperatur (°C)",
+    fr: "Température moyenne (°C)",
+  },
+  weatherOverlayTempSeries: {
+    en: "Mean temperature",
+    de: "Mitteltemperatur",
+    fr: "Température moyenne",
+  },
+  // Honest station-distance caveat (mirrors the Weather panel): which station and
+  // how far. {name}/{id}/{km} are interpolated.
+  weatherOverlayStation: {
+    en: "Nearest station {name} ({id}), {km} km away · Deutscher Wetterdienst (DWD)",
+    de: "Nächste Station {name} ({id}), {km} km entfernt · Deutscher Wetterdienst (DWD)",
+    fr: "Station la plus proche {name} ({id}), à {km} km · Deutscher Wetterdienst (DWD)",
+  },
+  weatherOverlayNoStation: {
+    en: "No nearby weather station found for this location.",
+    de: "Keine nahegelegene Wetterstation für diesen Standort gefunden.",
+    fr: "Aucune station météo proche trouvée pour cet emplacement.",
+  },
+  weatherOverlayNoOverlap: {
+    en:
+      "No year has both energy and weather data, so they can't be compared on one axis.",
+    de:
+      "Kein Jahr hat sowohl Energie- als auch Wetterdaten, daher sind sie nicht auf einer Achse vergleichbar.",
+    fr:
+      "Aucune année ne dispose à la fois de données énergétiques et météo, elles ne peuvent donc pas être comparées sur un même axe.",
+  },
+  compareYearsEmpty: {
+    en:
+      "No annual energy data yet. Add energy years to your buildings to compare " +
+      "them side by side here.",
+    de:
+      "Noch keine Jahresenergiedaten. Füge deinen Gebäuden Energiejahre hinzu, um sie " +
+      "hier nebeneinander zu vergleichen.",
+    fr:
+      "Aucune donnée énergétique annuelle pour l'instant. Ajoutez des années " +
+      "énergétiques à vos bâtiments pour les comparer côte à côte ici.",
+  },
   // Energy-years dialog.
   eyAction: { en: "Energy years", de: "Energiejahre", fr: "Années énergétiques" },
   eyStoredYears: {

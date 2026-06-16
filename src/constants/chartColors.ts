@@ -52,6 +52,32 @@ export const ENERGY_TYPICAL_COLOR = "#ffcc80"; // pale amber
 export const MARKER_NO_DATA_COLOR = "#bdbdbd"; // neutral grey
 
 /**
+ * Map **trend-lens** palette (year-over-year change, Step 3 of plan-cube-ui).
+ * A colourblind-safe DIVERGING pair — blue (improving) ↔ orange/brown
+ * (worsening) — deliberately the blue/orange family rather than the energy
+ * lens's green/amber/red tier palette, so a "got better" marker can't be misread
+ * as the "efficient" tier. Flat sits at a neutral grey midpoint; a building
+ * without two comparable years (no trend) falls back to `MARKER_NO_DATA_COLOR`.
+ * (ColorBrewer-derived divergent blue↔orange, the standard deuteranopia-safe
+ * sequential-diverging hues.)
+ */
+export const TREND_IMPROVING_COLOR = "#2c7fb8"; // blue — intensity fell
+export const TREND_FLAT_COLOR = "#cccccc"; // neutral grey — little change
+export const TREND_WORSENING_COLOR = "#d95f02"; // orange/brown — intensity rose
+
+/**
+ * Map/heatmap **magnitude** ramp (Step "metric selector" of plan-cube-ui): a NEUTRAL
+ * sequential ramp for non-consumption metrics (electricity generation). Unlike the
+ * energy tier palette (green = good, red = bad), a generation magnitude carries NO
+ * value judgement — more PV output is not "inefficient" — so this is a single-hue
+ * light→dark blue ramp (ColorBrewer "Blues"), read as "low → high", not good/bad.
+ * Buildings with no figure reuse the neutral `MARKER_NO_DATA_COLOR`.
+ */
+export const MAGNITUDE_LOW_COLOR = "#bdd7e7"; // light blue — lower output
+export const MAGNITUDE_MID_COLOR = "#6baed6"; // mid blue
+export const MAGNITUDE_HIGH_COLOR = "#2171b5"; // dark blue — higher output
+
+/**
  * Per-metric bar colours for the annual energy charts (AnnualEnergy), drawn from the ColorBrewer palette above at reduced alpha;
  * centralised so the same metric keeps the same colour on every page.
  */
