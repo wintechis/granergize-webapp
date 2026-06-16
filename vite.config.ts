@@ -54,36 +54,4 @@ export default defineConfig({
       },
     },
   },
-  server: {
-    proxy: {
-      // linked-wetterdienst — German weather (Deutscher Wetterdienst, via the
-      // wetterdienst service) as SOSA/QUDT RDF. Dev-only proxy so the browser reaches
-      // the wrapper regardless of its own CORS; prod points at the absolute host
-      // (.env.production). Dereferenced as Turtle by linkedWeather.ts.
-      "/weather-api": {
-        target: "https://wunderfacts.com/wetterdienst/",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/weather-api/, ""),
-        secure: true,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Accept": "text/turtle",
-        },
-      },
-      // linked-regionalstatistik (German Regionalstatistik/GENESIS as an RDF Data
-      // Cube). Dev-only proxy so the browser reaches the wrapper regardless of its
-      // own CORS; prod points at the absolute host (.env.production). A queried,
-      // off-Pod external-observation source, the place-joined sibling of weather.
-      "/regionalstatistik-api": {
-        target: "https://wunderfacts.com/regionalstatistik/",
-        changeOrigin: true,
-        rewrite: (p) => p.replace(/^\/regionalstatistik-api/, ""),
-        secure: true,
-        headers: {
-          "Access-Control-Allow-Origin": "*",
-          "Accept": "text/turtle",
-        },
-      },
-    },
-  },
 });

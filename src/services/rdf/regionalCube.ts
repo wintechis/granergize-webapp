@@ -46,15 +46,16 @@ export const REGIONAL_TABLES: RegionalTable[] = [
   { tableId: "86251-Z-02", labelId: "regRenewableShare", grain: "land" },
 ];
 
-/** Base URL of the wrapper — Vite proxy in dev, absolute host in prod. Read lazily
- * so importing this module for the pure parser test never touches `import.meta.env`. */
+/** Base URI of the wrapper (the CORS-enabled host — fetched directly, no dev proxy).
+ * Read lazily so importing this module for the pure parser test never touches
+ * `import.meta.env`. */
 function regionalstatistikBase(): string {
   // Cast (not bare `import.meta.env`) so deno's type-checker — which lacks Vite's
   // ImportMeta typing — accepts it; Vite still injects `import.meta.env` for the
   // browser build. Same pattern as `solidUtils.ts`.
   const env =
     (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.VITE_REGIONALSTATISTIK_API_URI || "/regionalstatistik-api/";
+  return env?.VITE_REGIONALSTATISTIK_API_URI || "https://wunderfacts.com/regionalstatistik/";
 }
 
 /**

@@ -58,14 +58,15 @@ export interface WeatherObservation extends WeatherAnnualValue {
   quality?: number;
 }
 
-/** Base URL of the wrapper — Vite proxy in dev, absolute host in prod. Read lazily so
- * importing this module for the pure parsers (tests) never touches `import.meta.env`. */
-function linkedWeatherBase(): string {
+/** Base URI of the wrapper (the CORS-enabled host — fetched directly, no dev proxy).
+ * Read lazily so importing this module for the pure parsers (tests) never touches
+ * `import.meta.env`. */
+export function linkedWeatherBase(): string {
   // Cast (not bare `import.meta.env`) so deno's type-checker accepts it; Vite injects
   // `import.meta.env` for the browser build. Same pattern as `regionalCube.ts`.
   const env =
     (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.VITE_WEATHER_API_URI || "/weather-api/";
+  return env?.VITE_WEATHER_API_URI || "https://wunderfacts.com/wetterdienst/";
 }
 
 /**

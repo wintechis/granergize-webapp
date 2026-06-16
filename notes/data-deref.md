@@ -138,16 +138,14 @@ Beyond the Pod, the app reads a few **queried external sources** — third-party
 Linked Data wrappers and a geocoder — over plain (non-Solid, non-DPoP) HTTP through
 `trackedFetch` (`networkActivity.ts`: records the request in the activity indicator
 **and** retries transient throttling), never the authed session. These are the only
-hard-coded third-party links; their base is an env var so it stays configurable, with
-a **dev Vite proxy** (so the browser reaches the wrapper regardless of its CORS) and a
-**direct, CORS-reliant prod host** (`vite.config.ts`, `.env.development` /
-`.env.production`):
+hard-coded third-party links. Both wrappers are **CORS-enabled, so they are fetched
+directly** (no dev proxy); the base is an env var only so it stays overridable:
 
-- **`linked-wetterdienst`** — weather (SOSA/QUDT). `VITE_WEATHER_API_URI`; dev
-  `/weather-api/` → prod `https://wunderfacts.com/wetterdienst/`. Dereferenced as
-  Turtle by `linkedWeather.ts` (see [`weather.md`](./weather.md)).
+- **`linked-wetterdienst`** — weather (SOSA/QUDT). `VITE_WEATHER_API_URI`, default
+  `https://wunderfacts.com/wetterdienst/`. Dereferenced as Turtle by
+  `linkedWeather.ts` (see [`weather.md`](./weather.md)).
 - **`linked-regionalstatistik`** — regional statistics (RDF Data Cube).
-  `VITE_REGIONALSTATISTIK_API_URI`; dev `/regionalstatistik-api/` → prod
+  `VITE_REGIONALSTATISTIK_API_URI`, default
   `https://wunderfacts.com/regionalstatistik/`. Dereferenced as Turtle by
   `regionalCube.ts`.
 - **Nominatim** — geocoding (JSON, not RDF), hard-coded

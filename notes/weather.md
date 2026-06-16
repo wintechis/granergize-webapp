@@ -17,12 +17,12 @@ The backend is the **`linked-wetterdienst`** Linked Data wrapper (`linkedWeather
 a Java/Jena SOSA/QUDT RDF wrapper over the **wetterdienst** service (which serves
 **Deutscher Wetterdienst (DWD)** data) — a sibling of the other `linked-*` wrappers.
 The app **dereferences its Turtle** (`Accept: text/turtle`, parsed with n3 via
-`parseRdfText`), not a JSON RPC. `VITE_WEATHER_API_URI` selects it — dev points at the
-Vite proxy `/weather-api/` (rewritten onto `https://wunderfacts.com/wetterdienst/` in
-`vite.config.ts`), prod at that host directly (`.env.development` / `.env.production`);
-see [external wrapper endpoints](./data-deref.md#external-wrapper-endpoints). The
-absolute base backs a dev-mode `RdfSourceLink`, so the service is inspectable like a
-Pod resource.
+`parseRdfText`), not a JSON RPC. It is fetched **directly** from
+`https://wunderfacts.com/wetterdienst/` — the wrapper is CORS-enabled, so no dev proxy
+is needed — overridable via `VITE_WEATHER_API_URI` (`.env.development` /
+`.env.production`); see
+[external wrapper endpoints](./data-deref.md#external-wrapper-endpoints). The base
+backs a dev-mode `RdfSourceLink`, so the service is inspectable like a Pod resource.
 
 ## The query path — two steps, by proximity
 

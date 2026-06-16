@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchNearestStations,
   fetchStationValues,
+  linkedWeatherBase,
   WEATHER_PARAMETERS,
 } from "../services/rdf/linkedWeather.ts";
 import {
@@ -32,14 +33,10 @@ interface WeatherDataProps {
   building: BuildingType;
 }
 
-const WEATHER_API_URI = import.meta.env.VITE_WEATHER_API_URI || "/weather-api/";
-
-// The linked-wetterdienst wrapper the app dereferences, resolved to an absolute URI
-// (the dev proxy `/weather-api/` → its origin). Surfaced as a dev-mode source link so
-// the external data service is inspectable, mirroring the Pod links.
-const WEATHER_SOURCE_URI = WEATHER_API_URI.startsWith("http")
-  ? WEATHER_API_URI
-  : `${globalThis.location.origin}${WEATHER_API_URI}`;
+// The linked-wetterdienst wrapper the app dereferences (an absolute, CORS-enabled
+// host). Surfaced as a dev-mode source link so the external data service is
+// inspectable, mirroring the Pod links.
+const WEATHER_SOURCE_URI = linkedWeatherBase();
 
 // Map of parameter dataset paths to more readable titles
 const parameterTitles: Record<string, string> = {
