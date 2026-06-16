@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { buildingIds, buildingRows, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -94,7 +95,7 @@ test.describe("archive backup/restore", () => {
     });
     // The buildings are gone (the fresh-Pod "Add examples" offer returns).
     await openManage(page);
-    await expect(page.getByRole("button", { name: "Add examples" })).toBeVisible({
+    await expect(page.getByRole("button", { name: en("onboardAddExamples") })).toBeVisible({
       timeout: T.action,
     });
 

@@ -150,7 +150,7 @@ test.describe("energy view smoke", () => {
     // columns derive from the data present (schema order, electricity first) →
     // [label, Electricity] → electricity at cell index 1 (de-DE "2.000").
     const avgRow = page.getByRole("row")
-      .filter({ hasText: "Operator average" }).first();
+      .filter({ hasText: en("aeOperatorAvg") }).first();
     await expect(avgRow).toBeVisible({ timeout: T.action });
     await expect(avgRow.getByRole("cell").nth(1)).toHaveText("2.000");
   });
@@ -205,7 +205,7 @@ test.describe("energy view smoke", () => {
     // figure end-to-end.
     const aggregationRow = page.locator("li").filter({ hasText: VIEW }).first();
     await expect(aggregationRow).toBeVisible({ timeout: T.action });
-    await aggregationRow.getByRole("button", { name: "Aggregation details" }).click();
+    await aggregationRow.getByRole("button", { name: en("aggDetailsAria") }).click();
     const surface = page.locator("svg.recharts-surface").first();
     await expect(surface).toBeVisible({ timeout: T.action });
     await expect(surface.locator(".recharts-bar-rectangle").first())

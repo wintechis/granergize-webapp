@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { buildingRows, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -55,7 +56,7 @@ test.describe("building deletion", () => {
 
     await openBuildingsList(page);
     const addBtn = page.getByRole("button", {
-      name: "Add Building",
+      name: en("addBuildingBtn"),
       exact: true,
     })
       .first();
@@ -82,7 +83,7 @@ test.describe("building deletion", () => {
     await expect(row.first()).toBeVisible({ timeout: T.action });
 
     // …delete it, and the row disappears with the count back to the start.
-    await row.first().getByRole("button", { name: "Delete building" }).click();
+    await row.first().getByRole("button", { name: en("buildingDeleteAria") }).click();
     await confirmDialog(page, "Delete");
     await expect(page.getByText("Building deleted").first())
       .toBeVisible({ timeout: T.action });

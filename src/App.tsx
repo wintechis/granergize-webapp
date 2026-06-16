@@ -1,3 +1,4 @@
+import { msg } from "./lib/messages.ts";
 import { type ReactNode, useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
 import { BrowserRouter, Route, Routes } from "react-router-dom";
@@ -254,7 +255,7 @@ function App({ onLogout, session }: AppProps) {
   if (!rootReady) {
     // Same plain activity screen as the login loading, so the hand-off from
     // login to the app shell reads as one continuous "Loading…" screen.
-    return <ActivityScreen title="Loading…" />;
+    return <ActivityScreen title={msg("loadingEllipsis")} />;
   }
 
   // Standalone DETAIL routes — rendered shell-less (no top-nav), as siblings of

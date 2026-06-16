@@ -100,7 +100,7 @@ test.describe("aggregation sharing across two pods", () => {
           await openAggregations(a.page);
           await a.page.waitForLoadState("networkidle").catch(() => {});
           const del = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
-            .getByRole("button", { name: "Delete aggregation" });
+            .getByRole("button", { name: en("aggDeleteAria") });
           for (let i = 0; i < 10; i++) {
             if (!(await del.count())) break;
             await del.first().click();
@@ -166,7 +166,7 @@ test.describe("aggregation sharing across two pods", () => {
       // so a member that's still propagating on a remote Pod (Tier 4) is re-read.
       await expect(async () => {
         if (!(await shareDlg.isVisible().catch(() => false))) {
-          await aggregationRow.getByRole("button", { name: "Share aggregation" }).click();
+          await aggregationRow.getByRole("button", { name: en("aggShareAria") }).click();
           await expect(shareDlg).toBeVisible({ timeout: T.quick });
         }
         try {
@@ -218,7 +218,7 @@ test.describe("aggregation sharing across two pods", () => {
       await openAggregations(a.page);
       await a.page.waitForLoadState("networkidle").catch(() => {});
       const del = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
-        .getByRole("button", { name: "Delete aggregation" });
+        .getByRole("button", { name: en("aggDeleteAria") });
       for (let i = 0; i < 10; i++) {
         if (!(await del.count())) break;
         await del.first().click();

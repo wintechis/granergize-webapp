@@ -124,10 +124,8 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
     if (
       !await confirm({
         title: msg("dlgDeleteRoom"),
-        message:
-          "Delete this data room for everyone? This removes the data room and its " +
-          "entire membership and role history. This cannot be undone.",
-        confirmLabel: "Delete",
+        message: msg("roomDeleteConfirm"),
+        confirmLabel: msg("btnDelete"),
       })
     ) {
       return;
@@ -148,11 +146,11 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   const deleteOrRemove = (r: string) =>
     ownsRoom(r, session)
       ? (
-        <Tooltip title="Delete data room (for everyone)">
+        <Tooltip title={t("roomDeleteTooltip")}>
           <IconButton
             size="small"
             color="error"
-            aria-label="Delete data room"
+            aria-label={t("roomDeleteAria")}
             onClick={() => handleDeleteRoom(r)}
             disabled={busy}
           >
@@ -161,11 +159,11 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
         </Tooltip>
       )
       : (
-        <Tooltip title="Remove from your list">
+        <Tooltip title={t("roomRemoveTooltip")}>
           <IconButton
             size="small"
             color="error"
-            aria-label="Remove data room"
+            aria-label={t("roomRemoveAria")}
             onClick={() => handleRemoveBookmark(r)}
             disabled={busy}
           >
@@ -178,11 +176,13 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
    * ResourceRow's caption subtitle). */
   const roomMeta = (r: string) => (
     <>
-      {ownsRoom(r, session) ? "Hosted by you" : `Hosted by ${roomHost(r)}`}
+      {ownsRoom(r, session)
+        ? t("roomHostedByYou")
+        : t("roomHostedBy", { host: roomHost(r) })}
       {r === activeRoom && (
         <>
           {" · "}
-          <strong style={{ color: "inherit" }}>active</strong>
+          <strong style={{ color: "inherit" }}>{t("roomActive")}</strong>
         </>
       )}
     </>
@@ -211,11 +211,11 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
           onClick={handleCreate}
           disabled={busy}
         >
-          {create.isPending ? "Creating…" : "Host a data room"}
+          {create.isPending ? t("roomHosting") : t("roomHostBtn")}
         </Button>
         <TextField
           size="small"
-          label="Data room URI"
+          label={t("roomUriLabel")}
           value={roomInput}
           onChange={(e) => setRoomInput(e.target.value)}
           sx={{ minWidth: 320 }}
@@ -225,7 +225,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
           disabled={!roomInput.trim() || busy}
           onClick={() => handleAdd(roomInput)}
         >
-          {add.isPending ? "Adding…" : "Add"}
+          {add.isPending ? t("addingEllipsis") : t("btnAdd")}
         </Button>
         {/* Opener only — the scanner's own Cancel button (right under the
             camera view) is the one way to close it. */}
@@ -234,7 +234,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
           onClick={() => setScanning(true)}
           disabled={scanning}
         >
-          Scan QR code
+          {t("scanQrCode")}
         </Button>
       </Stack>
       {scanning && (
@@ -244,7 +244,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
         />
       )}
       {roomQuery.isLoading
-        ? <Typography variant="body2">Loading…</Typography>
+        ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : !hasRooms
         ? (
           <Typography variant="body2">

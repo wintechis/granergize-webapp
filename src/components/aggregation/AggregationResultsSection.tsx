@@ -89,7 +89,7 @@ export default function AggregationResultsSection(
               <Table>
                 <TableHead>
                   <TableRow>
-                    <TableCell>Metric</TableCell>
+                    <TableCell>{msg("aggResultsMetricCol")}</TableCell>
                     <TableCell align="right">
                       {/* Units live in the per-metric row labels — a flat
                           "(kWh)" here lied for the m³ and % metrics. */}
@@ -125,8 +125,7 @@ export default function AggregationResultsSection(
               </Alert>
             )}
             <Alert severity="warning">
-              No snapshot computed yet. Click "Refresh" to compute aggregated
-              values.
+              {msg("aggNoSnapshotYet")}
             </Alert>
           </>
         )}

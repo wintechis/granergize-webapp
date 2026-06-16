@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import { buildingRows } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { sweepSizes, writeBenchDat } from "./benchSpec.ts";
@@ -60,9 +61,9 @@ test.describe("manage-render benchmark", () => {
       const t0 = Date.now();
       await page.goto("/");
       await page.getByRole("tab", { name: "Buildings" }).click();
-      await page.getByRole("button", { name: "List" }).click();
+      await page.getByRole("button", { name: en("btnList") }).click();
       await expect(
-        page.getByRole("button", { name: "Add Building", exact: true }).first(),
+        page.getByRole("button", { name: en("addBuildingBtn"), exact: true }).first(),
       ).toBeVisible({ timeout: 120_000 });
       if (n > PAGE_SIZE) {
         // Pager summary "x–y of N" appears only when there's more than one page;

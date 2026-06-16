@@ -9,6 +9,7 @@ import Typography from "@mui/material/Typography";
 import HistoryIcon from "@mui/icons-material/History";
 import Modal from "./Modal.tsx";
 import RequestActivityList from "./RequestActivityList.tsx";
+import { msg } from "../lib/messages.ts";
 import {
   currentStorageRoot,
   displayLabel,
@@ -98,13 +99,13 @@ export default function NetworkActivityIndicator() {
       )}
       <Tooltip
         title={count > 0
-          ? `${count} request(s) loading — click for the request log`
-          : "Show request log"}
+          ? msg("naRequestsLoading", { count })
+          : msg("naShowLogShort")}
       >
         <IconButton
           size="small"
           onClick={() => setOpen(true)}
-          aria-label="Show network request log"
+          aria-label={msg("naShowLog")}
         >
           {spinning || count > 0
             ? (
@@ -123,7 +124,7 @@ export default function NetworkActivityIndicator() {
         maxWidth="md"
         title={
           <>
-            Network requests
+            {msg("naTitle")}
             <Typography
               component="span"
               variant="body2"
@@ -141,9 +142,9 @@ export default function NetworkActivityIndicator() {
               onClick={clearRequestLog}
               disabled={logEntries.length === 0}
             >
-              Clear
+              {msg("btnClear")}
             </Button>
-            <Button onClick={() => setOpen(false)}>Close</Button>
+            <Button onClick={() => setOpen(false)}>{msg("btnClose")}</Button>
           </>
         }
       >

@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -66,7 +67,7 @@ test.describe("building details", () => {
 
     // --- add a building whose operator is a WebID (User template) ---
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
@@ -109,7 +110,7 @@ test.describe("building details", () => {
     await openBuildingsList(page);
     const back = page.locator("li", { hasText: OP_STREET }).first();
     await expect(back).toBeVisible({ timeout: T.action });
-    await back.getByRole("button", { name: "Delete building" }).click();
+    await back.getByRole("button", { name: en("buildingDeleteAria") }).click();
     await confirmDialog(page, "Delete");
     await expect(page.getByText("Building deleted").first()).toBeVisible({
       timeout: T.action,
@@ -144,7 +145,7 @@ test.describe("building details", () => {
       page.locator("th", { hasText: "Electricity (kWh)" }).first(),
     ).toBeVisible({ timeout: T.action });
     await expect(
-      page.getByRole("row").filter({ hasText: "Portfolio average" }).first(),
+      page.getByRole("row").filter({ hasText: en("aePortfolioAvg") }).first(),
     ).toBeVisible({ timeout: T.action });
     // …and the table has at least one per-year data row.
     await expect(page.locator("tbody tr").first()).toBeVisible({

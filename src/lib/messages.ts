@@ -274,6 +274,168 @@ export const MESSAGES = {
     de: "Berater / Makler (WebID)",
     fr: "Conseiller / courtier (WebID)",
   },
+  // Energy / observation / weather / map surfaces (final i18n batch).
+  aggNotFound: {
+    en: "Aggregation not found",
+    de: "Aggregation nicht gefunden",
+    fr: "Agrégation introuvable",
+  },
+  energyCertChip: {
+    en: "Energy certificate",
+    de: "Energieausweis",
+    fr: "Certificat énergétique",
+  },
+  bhDownloadData: {
+    en: "Download building data (Excel)",
+    de: "Gebäudedaten herunterladen (Excel)",
+    fr: "Télécharger les données du bâtiment (Excel)",
+  },
+  erSwitchAria: {
+    en: "Energy data resolution",
+    de: "Energiedaten-Auflösung",
+    fr: "Résolution des données énergétiques",
+  },
+  erAnnual: { en: "Annual", de: "Jährlich", fr: "Annuel" },
+  erTimeSeries: { en: "Time series", de: "Zeitreihe", fr: "Série temporelle" },
+  naShowLog: {
+    en: "Show network request log",
+    de: "Netzwerk-Anfrageprotokoll anzeigen",
+    fr: "Afficher le journal des requêtes réseau",
+  },
+  naTitle: { en: "Network requests", de: "Netzwerkanfragen", fr: "Requêtes réseau" },
+  naShowLogShort: {
+    en: "Show request log",
+    de: "Anfrageprotokoll anzeigen",
+    fr: "Afficher le journal",
+  },
+  naRequestsLoading: {
+    en: "{count} request(s) loading — click for the request log",
+    de: "{count} Anfrage(n) werden geladen — für das Protokoll klicken",
+    fr: "{count} requête(s) en cours — cliquez pour le journal",
+  },
+  lensAria: {
+    en: "Marker colour lens",
+    de: "Marker-Farblinse",
+    fr: "Filtre de couleur des marqueurs",
+  },
+  lensOwnership: { en: "Ownership", de: "Eigentum", fr: "Propriété" },
+  lensEnergy: { en: "Energy", de: "Energie", fr: "Énergie" },
+  ucMonth: { en: "Month", de: "Monat", fr: "Mois" },
+  ucDayView: { en: "Day View", de: "Tagesansicht", fr: "Vue journalière" },
+  ucDailyTotals: { en: "Daily Totals", de: "Tagessummen", fr: "Totaux journaliers" },
+  ucAvgProfile: { en: "Average Profile", de: "Durchschnittsprofil", fr: "Profil moyen" },
+  ucDate: { en: "Date", de: "Datum", fr: "Date" },
+  wdParameter: {
+    en: "Weather Parameter",
+    de: "Wetterparameter",
+    fr: "Paramètre météo",
+  },
+  wdStation: { en: "Weather Station", de: "Wetterstation", fr: "Station météo" },
+  wdLoadingStations: {
+    en: "Loading stations…",
+    de: "Stationen werden geladen…",
+    fr: "Chargement des stations…",
+  },
+  wdValue: { en: "Value", de: "Wert", fr: "Valeur" },
+  wdQuality: { en: "Quality", de: "Qualität", fr: "Qualité" },
+  aeClimateControl: {
+    en: "Climate Control",
+    de: "Klimatisierung",
+    fr: "Climatisation",
+  },
+  aeTenancyType: { en: "Tenancy Type", de: "Mietverhältnis", fr: "Type de location" },
+  aeLeaseType: { en: "Lease Type", de: "Pachtart", fr: "Type de bail" },
+  aeTenantIndustry: {
+    en: "Tenant Industry",
+    de: "Branche des Mieters",
+    fr: "Secteur du locataire",
+  },
+  aeIndoorTemp: {
+    en: "Indoor Temp. Class",
+    de: "Innentemperatur-Klasse",
+    fr: "Classe de température intérieure",
+  },
+  aeLoadingDocks: { en: "Loading Docks", de: "Laderampen", fr: "Quais de chargement" },
+  aeGreenLease: {
+    en: "Green Lease Share",
+    de: "Green-Lease-Anteil",
+    fr: "Part de bail vert",
+  },
+  aeCertifications: { en: "Certifications", de: "Zertifizierungen", fr: "Certifications" },
+  aeOperatorAvg: {
+    en: "Operator average",
+    de: "Betreiber-Durchschnitt",
+    fr: "Moyenne de l'exploitant",
+  },
+  aePortfolioAvg: {
+    en: "Portfolio average",
+    de: "Portfolio-Durchschnitt",
+    fr: "Moyenne du portefeuille",
+  },
+  aeBenchmark: { en: "Benchmark", de: "Benchmark", fr: "Référence" },
+  // Building master-data READ-view row labels (MasterDataSection ReadView).
+  mdOperatedBy: { en: "Operated by", de: "Betrieben von", fr: "Exploité par" },
+  mdOwnedBy: { en: "Owned by", de: "Eigentümer", fr: "Propriétaire" },
+  mdInvestor: { en: "Investor", de: "Investor", fr: "Investisseur" },
+  mdFacilityManager: {
+    en: "Facility manager",
+    de: "Gebäudeverwalter",
+    fr: "Gestionnaire d'installations",
+  },
+  mdDevelopedBy: { en: "Developed by", de: "Entwickelt von", fr: "Développé par" },
+  mdConsultant: {
+    en: "Consultant / broker",
+    de: "Berater / Makler",
+    fr: "Conseiller / courtier",
+  },
+  mdBuildingArea: { en: "Building area", de: "Gebäudefläche", fr: "Surface du bâtiment" },
+  mdLandArea: { en: "Land area", de: "Grundstücksfläche", fr: "Surface du terrain" },
+  mdHallArea: { en: "Hall area", de: "Hallenfläche", fr: "Surface de la halle" },
+  mdOfficeArea: {
+    en: "Office and social area",
+    de: "Büro- und Sozialfläche",
+    fr: "Surface de bureaux et sociale",
+  },
+  mdBuildingHeight: {
+    en: "Building height",
+    de: "Gebäudehöhe",
+    fr: "Hauteur du bâtiment",
+  },
+  mdLoadingDocks: { en: "Loading docks", de: "Laderampen", fr: "Quais de chargement" },
+  mdYearConstruction: {
+    en: "Year of construction",
+    de: "Baujahr",
+    fr: "Année de construction",
+  },
+  mdYearRenovation: {
+    en: "Year of renovation",
+    de: "Sanierungsjahr",
+    fr: "Année de rénovation",
+  },
+  mdShiftRegime: { en: "Shift regime", de: "Schichtbetrieb", fr: "Régime de travail" },
+  mdTenancyType: { en: "Tenancy type", de: "Mietverhältnis", fr: "Type de location" },
+  mdLeaseType: { en: "Lease type", de: "Pachtart", fr: "Type de bail" },
+  mdTenantIndustry: {
+    en: "Tenant industry",
+    de: "Branche des Mieters",
+    fr: "Secteur du locataire",
+  },
+  mdIndoorTemp: {
+    en: "Indoor temperature",
+    de: "Innentemperatur",
+    fr: "Température intérieure",
+  },
+  mdPvSystem: { en: "PV system", de: "PV-Anlage", fr: "Système PV" },
+  mdPvOperator: { en: "PV operator", de: "PV-Betreiber", fr: "Exploitant PV" },
+  mdDistrictHeating: { en: "District heating", de: "Fernwärme", fr: "Chauffage urbain" },
+  mdHeatPump: { en: "Heat pump", de: "Wärmepumpe", fr: "Pompe à chaleur" },
+  mdGasBoiler: { en: "Gas boiler", de: "Gaskessel", fr: "Chaudière à gaz" },
+  mdOilBoiler: { en: "Oil boiler", de: "Ölkessel", fr: "Chaudière à fioul" },
+  mdElectricBoiler: {
+    en: "Electric boiler",
+    de: "Elektrokessel",
+    fr: "Chaudière électrique",
+  },
   // Operating-cost category labels (the investor opcost form rows).
   lblOpcostWasteDisposal: {
     en: "Waste disposal",
@@ -493,8 +655,137 @@ export const MESSAGES = {
     de: "z. B. Portfolio-Durchschnitt 2024",
     fr: "p. ex. moyenne du portefeuille 2024",
   },
+  // App shell — account menu + onboarding.
+  menuAccountAria: { en: "Account menu", de: "Kontomenü", fr: "Menu du compte" },
+  menuProfile: { en: "Profile", de: "Profil", fr: "Profil" },
+  menuOrganisation: { en: "Organisation…", de: "Organisation…", fr: "Organisation…" },
+  menuDevMode: { en: "Developer mode", de: "Entwicklermodus", fr: "Mode développeur" },
+  menuAddBuildings: {
+    en: "Add example buildings and energy data",
+    de: "Beispielgebäude und Energiedaten hinzufügen",
+    fr: "Ajouter des bâtiments et données d'exemple",
+  },
+  menuAddContacts: {
+    en: "Add example contacts and rooms",
+    de: "Beispielkontakte und -datenräume hinzufügen",
+    fr: "Ajouter des contacts et salles d'exemple",
+  },
+  menuExportArchive: {
+    en: "Export archive",
+    de: "Archiv exportieren",
+    fr: "Exporter l'archive",
+  },
+  menuImportArchive: {
+    en: "Import archive…",
+    de: "Archiv importieren…",
+    fr: "Importer une archive…",
+  },
+  menuCheckConsistency: {
+    en: "Check sharing consistency",
+    de: "Freigabe-Konsistenz prüfen",
+    fr: "Vérifier la cohérence du partage",
+  },
+  menuRebuildSharing: {
+    en: "Rebuild sharing from log",
+    de: "Freigaben aus Log neu aufbauen",
+    fr: "Reconstruire le partage depuis le journal",
+  },
+  menuHandbuch: {
+    en: "Download Praxishandbuch",
+    de: "Praxishandbuch herunterladen",
+    fr: "Télécharger le Praxishandbuch",
+  },
+  menuRemoveAll: {
+    en: "Remove all app data…",
+    de: "Alle App-Daten entfernen…",
+    fr: "Supprimer toutes les données…",
+  },
+  menuChangeAccount: {
+    en: "Change account (full logout)",
+    de: "Konto wechseln (vollständige Abmeldung)",
+    fr: "Changer de compte (déconnexion complète)",
+  },
+  menuLogout: { en: "Logout", de: "Abmelden", fr: "Déconnexion" },
+  removingAllData: {
+    en: "Removing all app data…",
+    de: "Alle App-Daten werden entfernt…",
+    fr: "Suppression de toutes les données…",
+  },
+  onboardAddExamples: { en: "Add examples", de: "Beispiele hinzufügen", fr: "Ajouter des exemples" },
+  btnNoThanks: { en: "No thanks", de: "Nein danke", fr: "Non merci" },
+  onboardBanner: {
+    en: "No buildings yet — add a couple of example buildings (with energy data) to explore?",
+    de: "Noch keine Gebäude — ein paar Beispielgebäude (mit Energiedaten) zum Erkunden hinzufügen?",
+    fr: "Aucun bâtiment — ajouter quelques bâtiments d'exemple (avec données énergétiques) à explorer ?",
+  },
+  demoContactsAdded: {
+    en: "Demo contacts added",
+    de: "Demo-Kontakte hinzugefügt",
+    fr: "Contacts de démonstration ajoutés",
+  },
+  demoContactsPartial: {
+    en: "Added {seeded} of {total} demo contacts",
+    de: "{seeded} von {total} Demo-Kontakten hinzugefügt",
+    fr: "{seeded} sur {total} contacts de démonstration ajoutés",
+  },
+  demoRoomsAdded: {
+    en: "Demo data rooms added",
+    de: "Demo-Datenräume hinzugefügt",
+    fr: "Salles de données de démonstration ajoutées",
+  },
+  demoRoomsPartial: {
+    en: "Added {rooms} of {total} demo data rooms",
+    de: "{rooms} von {total} Demo-Datenräumen hinzugefügt",
+    fr: "{rooms} sur {total} salles de données de démonstration ajoutées",
+  },
   // Reusable button / small-label ids (shared across surfaces).
   btnClose: { en: "Close", de: "Schließen", fr: "Fermer" },
+  btnClear: { en: "Clear", de: "Leeren", fr: "Effacer" },
+  // Login (pre-auth) screen.
+  loginLogoAlt: { en: "Logo", de: "Logo", fr: "Logo" },
+  loginTitleFallback: { en: "Solid Login", de: "Solid-Login", fr: "Connexion Solid" },
+  loginChooseIdpPrefix: {
+    en: "Choose an Identity Provider for this ",
+    de: "Wähle einen Identity Provider für diese ",
+    fr: "Choisissez un fournisseur d'identité pour cette ",
+  },
+  loginSolidApp: {
+    en: "Solid Application",
+    de: "Solid-Anwendung",
+    fr: "application Solid",
+  },
+  loginClearing: { en: "Clearing…", de: "Wird gelöscht…", fr: "Effacement…" },
+  loginClearRetry: {
+    en: "Clear local data & retry",
+    de: "Lokale Daten löschen & erneut versuchen",
+    fr: "Effacer les données locales et réessayer",
+  },
+  loginRestoreFailed: {
+    en: "Couldn’t restore your previous session: {error}",
+    de: "Deine vorherige Sitzung konnte nicht wiederhergestellt werden: {error}",
+    fr: "Impossible de restaurer votre session précédente : {error}",
+  },
+  loginSignIn: { en: "Sign in", de: "Anmelden", fr: "Se connecter" },
+  loginSignInAgainWith: {
+    en: "Sign in again with",
+    de: "Erneut anmelden mit",
+    fr: "Se reconnecter avec",
+  },
+  loginSignInOther: {
+    en: "Sign in with another identity provider",
+    de: "Mit einem anderen Identity Provider anmelden",
+    fr: "Se connecter avec un autre fournisseur d'identité",
+  },
+  loginIdpLabel: {
+    en: "Identity Provider",
+    de: "Identity Provider",
+    fr: "Fournisseur d'identité",
+  },
+  loginIdpPlaceholder: {
+    en: "e.g. inrupt.net",
+    de: "z. B. inrupt.net",
+    fr: "p. ex. inrupt.net",
+  },
   btnBack: { en: "Back", de: "Zurück", fr: "Retour" },
   btnAdd: { en: "Add", de: "Hinzufügen", fr: "Ajouter" },
   revokeAccess: {
@@ -502,8 +793,518 @@ export const MESSAGES = {
     de: "Zugriff entziehen",
     fr: "Révoquer l'accès",
   },
+  // Finder row-action aria-labels / tooltips.
+  buildingDeleteAria: {
+    en: "Delete building",
+    de: "Gebäude löschen",
+    fr: "Supprimer le bâtiment",
+  },
+  aggShareAria: {
+    en: "Share aggregation",
+    de: "Aggregation teilen",
+    fr: "Partager l'agrégation",
+  },
+  aggDetailsAria: {
+    en: "Aggregation details",
+    de: "Aggregationsdetails",
+    fr: "Détails de l'agrégation",
+  },
+  // Aggregation detail page (Details / Header / Results sections).
+  aggDetType: { en: "Type", de: "Typ", fr: "Type" },
+  aggDetBuildingsIncluded: {
+    en: "Buildings included",
+    de: "Einbezogene Gebäude",
+    fr: "Bâtiments inclus",
+  },
+  aggDetMetrics: { en: "Metrics", de: "Kennzahlen", fr: "Indicateurs" },
+  aggDetCreated: { en: "Created", de: "Erstellt", fr: "Créé" },
+  aggDetLastComputed: {
+    en: "Last computed",
+    de: "Zuletzt berechnet",
+    fr: "Dernier calcul",
+  },
+  aggDetPeriod: { en: "Period", de: "Zeitraum", fr: "Période" },
+  aggDetBuildingsInSnapshot: {
+    en: "Buildings in snapshot",
+    de: "Gebäude im Snapshot",
+    fr: "Bâtiments dans l'instantané",
+  },
+  aggRefreshing: { en: "Refreshing…", de: "Wird aktualisiert…", fr: "Actualisation…" },
+  aggRefreshBtn: { en: "Refresh", de: "Aktualisieren", fr: "Actualiser" },
+  aggResultsMetricCol: { en: "Metric", de: "Kennzahl", fr: "Indicateur" },
+  aggNoSnapshotYet: {
+    en: 'No snapshot computed yet. Click "Refresh" to compute aggregated values.',
+    de: "Noch kein Snapshot berechnet. Klicke „Aktualisieren“, um die aggregierten Werte zu berechnen.",
+    fr: "Aucun instantané calculé. Cliquez sur « Actualiser » pour calculer les valeurs agrégées.",
+  },
+  // Contact detail page.
+  lblOrganisation: { en: "Organisation", de: "Organisation", fr: "Organisation" },
+  contactAddToContacts: {
+    en: "Add to contacts",
+    de: "Zu Kontakten hinzufügen",
+    fr: "Ajouter aux contacts",
+  },
+  // Detail FilesSection (read-only shared files).
+  fileDownloading: { en: "Downloading…", de: "Wird heruntergeladen…", fr: "Téléchargement…" },
+  // Room detail sections.
+  roomCopyInvite: {
+    en: "Copy invite link",
+    de: "Einladungslink kopieren",
+    fr: "Copier le lien d'invitation",
+  },
+  roomMyRoles: { en: "My role(s)", de: "Meine Rolle(n)", fr: "Mon/mes rôle(s)" },
+  roomRolesHint: {
+    en:
+      "Assign or change your role(s) anytime — this is how others share data with " +
+      "you by role.",
+    de:
+      "Weise deine Rolle(n) jederzeit zu oder ändere sie — so teilen andere Daten " +
+      "nach Rolle mit dir.",
+    fr:
+      "Attribuez ou modifiez vos rôles à tout moment — c'est ainsi que d'autres " +
+      "partagent des données avec vous par rôle.",
+  },
+  aggRefreshAria: {
+    en: "Refresh snapshot",
+    de: "Snapshot aktualisieren",
+    fr: "Actualiser l'instantané",
+  },
+  aggRowMeta: {
+    en: "Type: {type} | Buildings: {buildings} | Metrics: {metrics}",
+    de: "Typ: {type} | Gebäude: {buildings} | Kennzahlen: {metrics}",
+    fr: "Type : {type} | Bâtiments : {buildings} | Indicateurs : {metrics}",
+  },
+  aggRowCreated: { en: "Created: {date}", de: "Erstellt: {date}", fr: "Créé : {date}" },
+  aggRowLastComputed: {
+    en: "Last computed: {date}",
+    de: "Zuletzt berechnet: {date}",
+    fr: "Dernier calcul : {date}",
+  },
+  aggDeleteAria: {
+    en: "Delete aggregation",
+    de: "Aggregation löschen",
+    fr: "Supprimer l'agrégation",
+  },
+  roomDeleteAria: {
+    en: "Delete data room",
+    de: "Datenraum löschen",
+    fr: "Supprimer la salle de données",
+  },
+  roomDeleteTooltip: {
+    en: "Delete data room (for everyone)",
+    de: "Datenraum löschen (für alle)",
+    fr: "Supprimer la salle de données (pour tous)",
+  },
   noRole: { en: "no role", de: "keine Rolle", fr: "aucun rôle" },
+  lblWebId: { en: "WebID", de: "WebID", fr: "WebID" },
+  contactAddAria: {
+    en: "Add contact",
+    de: "Kontakt hinzufügen",
+    fr: "Ajouter un contact",
+  },
+  contactRemoveAria: {
+    en: "Remove contact",
+    de: "Kontakt entfernen",
+    fr: "Retirer le contact",
+  },
+  // Generic affordances reused by the Contacts + Rooms finders.
+  addingEllipsis: { en: "Adding…", de: "Wird hinzugefügt…", fr: "Ajout…" },
+  scanQrCode: {
+    en: "Scan QR code",
+    de: "QR-Code scannen",
+    fr: "Scanner le code QR",
+  },
+  // Rooms finder body.
+  roomHostBtn: {
+    en: "Host a data room",
+    de: "Datenraum hosten",
+    fr: "Héberger une salle de données",
+  },
+  roomHosting: { en: "Creating…", de: "Wird erstellt…", fr: "Création…" },
+  roomUriLabel: {
+    en: "Data room URI",
+    de: "Datenraum-URI",
+    fr: "URI de la salle de données",
+  },
+  roomHostedByYou: {
+    en: "Hosted by you",
+    de: "Von dir gehostet",
+    fr: "Hébergée par vous",
+  },
+  roomHostedBy: {
+    en: "Hosted by {host}",
+    de: "Gehostet von {host}",
+    fr: "Hébergée par {host}",
+  },
+  roomActive: { en: "active", de: "aktiv", fr: "active" },
+  roomRemoveTooltip: {
+    en: "Remove from your list",
+    de: "Aus deiner Liste entfernen",
+    fr: "Retirer de votre liste",
+  },
+  roomRemoveAria: {
+    en: "Remove data room",
+    de: "Datenraum entfernen",
+    fr: "Retirer la salle de données",
+  },
   btnShare: { en: "Share", de: "Teilen", fr: "Partager" },
+  btnMap: { en: "Map", de: "Karte", fr: "Carte" },
+  btnList: { en: "List", de: "Liste", fr: "Liste" },
+  bldgsViewAria: {
+    en: "Buildings view",
+    de: "Gebäudeansicht",
+    fr: "Vue des bâtiments",
+  },
+  bldgsAutofillFromFile: {
+    en: "Autofill from file",
+    de: "Aus Datei ausfüllen",
+    fr: "Remplir depuis un fichier",
+  },
+  bldgsDownloadAll: {
+    en: "Download all (Excel)",
+    de: "Alle herunterladen (Excel)",
+    fr: "Tout télécharger (Excel)",
+  },
+  btnCancel: { en: "Cancel", de: "Abbrechen", fr: "Annuler" },
+  btnDone: { en: "Done", de: "Fertig", fr: "Terminé" },
+  btnDelete: { en: "Delete", de: "Löschen", fr: "Supprimer" },
+  btnSave: { en: "Save", de: "Speichern", fr: "Enregistrer" },
+  btnSaving: { en: "Saving…", de: "Wird gespeichert…", fr: "Enregistrement…" },
+  btnConfirm: { en: "Confirm", de: "Bestätigen", fr: "Confirmer" },
+  confirmDefaultTitle: {
+    en: "Please confirm",
+    de: "Bitte bestätigen",
+    fr: "Veuillez confirmer",
+  },
+  btnRestore: { en: "Restore", de: "Wiederherstellen", fr: "Restaurer" },
+  btnRemoveAll: { en: "Remove all", de: "Alle entfernen", fr: "Tout supprimer" },
+  saveChanges: {
+    en: "Save Changes",
+    de: "Änderungen speichern",
+    fr: "Enregistrer les modifications",
+  },
+  saveRoles: { en: "Save roles", de: "Rollen speichern", fr: "Enregistrer les rôles" },
+  btnDownload: { en: "Download", de: "Herunterladen", fr: "Télécharger" },
+  // Files dialog (per-building attachments).
+  filesEmpty: {
+    en:
+      "No files yet. Attach a PDF, image, or document below — it's stored on your " +
+      "Pod and shared automatically with anyone you share the building with.",
+    de:
+      "Noch keine Dateien. Hänge unten ein PDF, Bild oder Dokument an — es wird auf " +
+      "deinem Pod gespeichert und automatisch mit allen geteilt, mit denen du das " +
+      "Gebäude teilst.",
+    fr:
+      "Aucun fichier pour l'instant. Ajoutez un PDF, une image ou un document " +
+      "ci-dessous — il est stocké sur votre Pod et partagé automatiquement avec " +
+      "toute personne avec qui vous partagez le bâtiment.",
+  },
+  filesSetCert: {
+    en: "Set as cert",
+    de: "Als Ausweis festlegen",
+    fr: "Définir comme certificat",
+  },
+  filesUnsetCert: {
+    en: "Unset cert",
+    de: "Ausweis aufheben",
+    fr: "Retirer le certificat",
+  },
+  filesDeleteAria: {
+    en: "Delete {filename}",
+    de: "{filename} löschen",
+    fr: "Supprimer {filename}",
+  },
+  filesDeleteConfirm: {
+    en: 'Delete "{filename}"? This cannot be undone.',
+    de: "„{filename}“ löschen? Dies kann nicht rückgängig gemacht werden.",
+    fr: "Supprimer « {filename} » ? Cette action est irréversible.",
+  },
+  filesWorking: { en: "Working…", de: "Wird verarbeitet…", fr: "Traitement…" },
+  filesAddFiles: { en: "Add files", de: "Dateien hinzufügen", fr: "Ajouter des fichiers" },
+  filesTooMany: {
+    en: "This building will have more than {max} files — consider keeping it tidy.",
+    de: "Dieses Gebäude hätte mehr als {max} Dateien — halte es übersichtlich.",
+    fr: "Ce bâtiment aurait plus de {max} fichiers — pensez à rester ordonné.",
+  },
+  filesTooLarge: {
+    en: '"{name}" is large ({size}); the upload may be slow or rejected by the Pod.',
+    de: "„{name}“ ist groß ({size}); der Upload kann langsam sein oder vom Pod abgelehnt werden.",
+    fr: "« {name} » est volumineux ({size}) ; l'envoi peut être lent ou refusé par le Pod.",
+  },
+  lblRole: { en: "Role", de: "Rolle", fr: "Rôle" },
+  buildingCodeExists: {
+    en: "Building code already exists",
+    de: "Gebäudecode existiert bereits",
+    fr: "Le code du bâtiment existe déjà",
+  },
+  // Add-building dialog.
+  addBuildingBtn: { en: "Add Building", de: "Gebäude hinzufügen", fr: "Ajouter un bâtiment" },
+  addBuildingsCount: {
+    en: { one: "Add {count} Building", other: "Add {count} Buildings" },
+    de: { one: "{count} Gebäude hinzufügen", other: "{count} Gebäude hinzufügen" },
+    fr: {
+      one: "Ajouter {count} bâtiment",
+      other: "Ajouter {count} bâtiments",
+    },
+  },
+  addTitleAutofill: {
+    en: "Autofill buildings from a file",
+    de: "Gebäude aus einer Datei automatisch ausfüllen",
+    fr: "Remplir automatiquement des bâtiments à partir d'un fichier",
+  },
+  addFmtInvestor: {
+    en: "Row-label sheet (one column per building)",
+    de: "Zeilenbeschriftungs-Blatt (eine Spalte je Gebäude)",
+    fr: "Feuille à libellés de ligne (une colonne par bâtiment)",
+  },
+  addFmtBenchmark: {
+    en: "Table (one row per building)",
+    de: "Tabelle (eine Zeile je Gebäude)",
+    fr: "Tableau (une ligne par bâtiment)",
+  },
+  addFmtGeneric: {
+    en: "Generic (field-name columns)",
+    de: "Generisch (Feldnamen-Spalten)",
+    fr: "Générique (colonnes par nom de champ)",
+  },
+  addHintInvestor: {
+    en: "Row-label sheet: field labels down column B, one column per building (D–K).",
+    de: "Zeilenbeschriftungs-Blatt: Feldbeschriftungen in Spalte B, eine Spalte je Gebäude (D–K).",
+    fr: "Feuille à libellés : libellés de champ en colonne B, une colonne par bâtiment (D–K).",
+  },
+  addHintBenchmark: {
+    en: "Table: one row per building, with column headers.",
+    de: "Tabelle: eine Zeile je Gebäude, mit Spaltenüberschriften.",
+    fr: "Tableau : une ligne par bâtiment, avec en-têtes de colonnes.",
+  },
+  addHintGeneric: {
+    en: "Generic: field-name column headers, or a 15-minute load-profile (Lastgang) export.",
+    de: "Generisch: Feldnamen-Spaltenüberschriften oder ein 15-Minuten-Lastgang-Export.",
+    fr: "Générique : en-têtes par nom de champ, ou un export de profil de charge de 15 minutes.",
+  },
+  addImportCancelled: {
+    en: "Import cancelled — any buildings already written are kept",
+    de: "Import abgebrochen — bereits geschriebene Gebäude bleiben erhalten",
+    fr: "Import annulé — les bâtiments déjà écrits sont conservés",
+  },
+  addBuildingAddedCount: {
+    en: { one: "Building added", other: "{count} buildings added" },
+    de: { one: "Gebäude hinzugefügt", other: "{count} Gebäude hinzugefügt" },
+    fr: { one: "Bâtiment ajouté", other: "{count} bâtiments ajoutés" },
+  },
+  addProcessingFile: {
+    en: "Processing file…",
+    de: "Datei wird verarbeitet…",
+    fr: "Traitement du fichier…",
+  },
+  addUploadingEnergyDays: {
+    en: "Uploading energy data… {done}/{total} days",
+    de: "Energiedaten werden hochgeladen… {done}/{total} Tage",
+    fr: "Envoi des données énergétiques… {done}/{total} jours",
+  },
+  addUploadingBoth: {
+    en: "Uploading building and energy data…",
+    de: "Gebäude- und Energiedaten werden hochgeladen…",
+    fr: "Envoi des données du bâtiment et de l'énergie…",
+  },
+  addAddingCount: {
+    en: { one: "Adding building…", other: "Adding {count} buildings…" },
+    de: { one: "Gebäude wird hinzugefügt…", other: "{count} Gebäude werden hinzugefügt…" },
+    fr: { one: "Ajout du bâtiment…", other: "Ajout de {count} bâtiments…" },
+  },
+  addStarting: { en: "Starting…", de: "Wird gestartet…", fr: "Démarrage…" },
+  addCancelUpload: {
+    en: "Cancel upload",
+    de: "Upload abbrechen",
+    fr: "Annuler l'envoi",
+  },
+  addChooseFile: { en: "Choose file…", de: "Datei wählen…", fr: "Choisir un fichier…" },
+  addFileFormat: { en: "File format", de: "Dateiformat", fr: "Format de fichier" },
+  addReadingsReady: {
+    en: "{count} readings ({days} days) ready to upload",
+    de: "{count} Messwerte ({days} Tage) bereit zum Hochladen",
+    fr: "{count} relevés ({days} jours) prêts à être envoyés",
+  },
+  addAnnualDetected: {
+    en: "Annual energy detected for {years} — saved with the building.",
+    de: "Jahresenergie für {years} erkannt — mit dem Gebäude gespeichert.",
+    fr: "Énergie annuelle détectée pour {years} — enregistrée avec le bâtiment.",
+  },
+  addRemoveBuilding: {
+    en: "Remove this building",
+    de: "Dieses Gebäude entfernen",
+    fr: "Retirer ce bâtiment",
+  },
+  addGetCoordinates: {
+    en: "Get coordinates",
+    de: "Koordinaten ermitteln",
+    fr: "Obtenir les coordonnées",
+  },
+  // Sharing finder body.
+  shareAggFallbackName: {
+    en: "Shared aggregation",
+    de: "Geteilte Aggregation",
+    fr: "Agrégation partagée",
+  },
+  shareSharedBy: { en: "Shared by:", de: "Geteilt von:", fr: "Partagé par :" },
+  shareShowValues: { en: "Show values", de: "Werte anzeigen", fr: "Afficher les valeurs" },
+  shareHideValues: { en: "Hide values", de: "Werte ausblenden", fr: "Masquer les valeurs" },
+  shareNoComputedValues: {
+    en: "This aggregation has no computed values.",
+    de: "Diese Aggregation hat keine berechneten Werte.",
+    fr: "Cette agrégation n'a aucune valeur calculée.",
+  },
+  shareAcrossBuildings: {
+    en: "{type} across {count} building(s)",
+    de: "{type} über {count} Gebäude",
+    fr: "{type} sur {count} bâtiment(s)",
+  },
+  shareChecking: { en: "Checking…", de: "Wird geprüft…", fr: "Vérification…" },
+  shareCheckForNew: {
+    en: "Check for new shares",
+    de: "Auf neue Freigaben prüfen",
+    fr: "Vérifier les nouveaux partages",
+  },
+  sharePreparing: { en: "Preparing…", de: "Wird vorbereitet…", fr: "Préparation…" },
+  shareBuildingN: {
+    en: "Building {id}",
+    de: "Gebäude {id}",
+    fr: "Bâtiment {id}",
+  },
+  shareDownloadBuildingTooltip: {
+    en: "Download this building's data (Excel)",
+    de: "Daten dieses Gebäudes herunterladen (Excel)",
+    fr: "Télécharger les données de ce bâtiment (Excel)",
+  },
+  shareDownloadBuildingAria: {
+    en: "Download this building's data",
+    de: "Daten dieses Gebäudes herunterladen",
+    fr: "Télécharger les données de ce bâtiment",
+  },
+  shareVisibilityTooltip: {
+    en:
+      "Controls whether this building appears in your dashboard. Does not affect the " +
+      "owner's sharing settings.",
+    de:
+      "Steuert, ob dieses Gebäude in deinem Dashboard erscheint. Beeinflusst nicht die " +
+      "Freigabeeinstellungen des Eigentümers.",
+    fr:
+      "Détermine si ce bâtiment apparaît dans votre tableau de bord. N'affecte pas les " +
+      "réglages de partage du propriétaire.",
+  },
+  shareShown: { en: "Shown", de: "Sichtbar", fr: "Affiché" },
+  shareHidden: { en: "Hidden", de: "Ausgeblendet", fr: "Masqué" },
+  shareSnapshotEmpty: {
+    en: "snapshot not found or empty",
+    de: "Snapshot nicht gefunden oder leer",
+    fr: "instantané introuvable ou vide",
+  },
+  // Recipient picker (shared by both share dialogs).
+  racLabel: {
+    en: "Recipient WebID(s)",
+    de: "Empfänger-WebID(s)",
+    fr: "WebID(s) du/des destinataire(s)",
+  },
+  racHelp: {
+    en: "Pick a contact/member, or type a WebID and press Enter",
+    de: "Kontakt/Mitglied wählen oder eine WebID eingeben und Enter drücken",
+    fr: "Choisissez un contact/membre, ou saisissez une WebID et appuyez sur Entrée",
+  },
+  // Share-building dialog.
+  shareBuildingTitle: {
+    en: "Share Building Data",
+    de: "Gebäudedaten teilen",
+    fr: "Partager les données du bâtiment",
+  },
+  shareResolving: { en: "Resolving…", de: "Wird aufgelöst…", fr: "Résolution…" },
+  shareInProgress: { en: "Sharing…", de: "Wird geteilt…", fr: "Partage en cours…" },
+  shareSelfError: {
+    en: "You cannot share a building with yourself",
+    de: "Du kannst ein Gebäude nicht mit dir selbst teilen",
+    fr: "Vous ne pouvez pas partager un bâtiment avec vous-même",
+  },
+  shareSelectRole: {
+    en: "Select a role",
+    de: "Wähle eine Rolle",
+    fr: "Sélectionnez un rôle",
+  },
+  shareNoRoleMembers: {
+    en: "No data room members currently hold that role.",
+    de: "Derzeit hat kein Datenraum-Mitglied diese Rolle.",
+    fr: "Aucun membre de la salle de données ne détient actuellement ce rôle.",
+  },
+  shareRoleLoadError: {
+    en: "Could not load data room members: {error}",
+    de: "Datenraum-Mitglieder konnten nicht geladen werden: {error}",
+    fr: "Impossible de charger les membres de la salle de données : {error}",
+  },
+  shareByWebId: { en: "By WebID", de: "Nach WebID", fr: "Par WebID" },
+  shareByRole: { en: "By role", de: "Nach Rolle", fr: "Par rôle" },
+  shareWebIdHint: {
+    en:
+      "Choose recipients from your contacts and data room members, or type a WebID " +
+      "and press Enter to add it.",
+    de:
+      "Wähle Empfänger aus deinen Kontakten und Datenraum-Mitgliedern, oder gib eine " +
+      "WebID ein und drücke Enter, um sie hinzuzufügen.",
+    fr:
+      "Choisissez des destinataires parmi vos contacts et membres de la salle de " +
+      "données, ou saisissez une WebID et appuyez sur Entrée pour l'ajouter.",
+  },
+  shareRoleHint: {
+    en:
+      "Share with everyone in the GRANERGIZE data room who holds the selected role.",
+    de:
+      "Teile mit allen im GRANERGIZE-Datenraum, die die gewählte Rolle innehaben.",
+    fr:
+      "Partagez avec toutes les personnes de la salle de données GRANERGIZE qui " +
+      "détiennent le rôle sélectionné.",
+  },
+  shareWhatToShare: {
+    en: "What to share",
+    de: "Was geteilt wird",
+    fr: "Que partager",
+  },
+  shareScopeStatic: {
+    en: "Static building data only",
+    de: "Nur statische Gebäudedaten",
+    fr: "Données statiques du bâtiment uniquement",
+  },
+  shareScopeAll: {
+    en: "Static building data and all energy readings",
+    de: "Statische Gebäudedaten und alle Energiewerte",
+    fr: "Données statiques et toutes les valeurs énergétiques",
+  },
+  shareScopeYears: {
+    en: "Static building data and energy for specific year(s)",
+    de: "Statische Gebäudedaten und Energie für bestimmte Jahre",
+    fr: "Données statiques et énergie pour des années spécifiques",
+  },
+  shareScopeYearsSummary: {
+    en: "Static building data and energy for {years}",
+    de: "Statische Gebäudedaten und Energie für {years}",
+    fr: "Données statiques et énergie pour {years}",
+  },
+  shareNoYearDatasets: {
+    en: "This building has no energy datasets to share by year.",
+    de: "Dieses Gebäude hat keine Energiedatensätze, die sich nach Jahr teilen lassen.",
+    fr: "Ce bâtiment n'a aucun jeu de données énergétiques à partager par année.",
+  },
+  shareIncludes: { en: "Includes:", de: "Enthält:", fr: "Comprend :" },
+  shareConfirmWithRoleCount: {
+    en: {
+      one: "Confirm sharing with {count} data room member:",
+      other: "Confirm sharing with {count} data room members:",
+    },
+    de: {
+      one: "Teilen mit {count} Datenraum-Mitglied bestätigen:",
+      other: "Teilen mit {count} Datenraum-Mitgliedern bestätigen:",
+    },
+    fr: {
+      one: "Confirmer le partage avec {count} membre de la salle de données :",
+      other: "Confirmer le partage avec {count} membres de la salle de données :",
+    },
+  },
   sharedWithLabel: { en: "Shared with:", de: "Geteilt mit:", fr: "Partagé avec :" },
   shareBuildingNoneYet: {
     en: "Not shared with anyone yet. Use Share to grant access.",
@@ -618,6 +1419,36 @@ export const MESSAGES = {
     en: "Revoke access for {webId}?",
     de: "Zugriff für {webId} entziehen?",
     fr: "Révoquer l'accès pour {webId} ?",
+  },
+  aggRevokeMessage: {
+    en: "Revoke aggregation access for {webId}?",
+    de: "Aggregations-Zugriff für {webId} entziehen?",
+    fr: "Révoquer l'accès à l'agrégation pour {webId} ?",
+  },
+  aggDeleteConfirm: {
+    en: "Delete this aggregation? This also revokes access for everyone it is shared with.",
+    de:
+      "Diese Aggregation löschen? Damit wird auch der Zugriff für alle entzogen, mit denen " +
+      "sie geteilt ist.",
+    fr:
+      "Supprimer cette agrégation ? Cela révoque aussi l'accès de toutes les personnes avec " +
+      "qui elle est partagée.",
+  },
+  roomDeleteConfirm: {
+    en:
+      "Delete this data room for everyone? This removes the data room and its entire " +
+      "membership and role history. This cannot be undone.",
+    de:
+      "Diesen Datenraum für alle löschen? Damit werden der Datenraum und seine gesamte " +
+      "Mitglieds- und Rollenhistorie entfernt. Dies kann nicht rückgängig gemacht werden.",
+    fr:
+      "Supprimer cette salle de données pour tous ? Cela supprime la salle et tout son " +
+      "historique de membres et de rôles. Cette action est irréversible.",
+  },
+  eyDeleteConfirm: {
+    en: "Delete the {scenario} figures for {year}?",
+    de: "Die {scenario}-Werte für {year} löschen?",
+    fr: "Supprimer les valeurs {scenario} pour {year} ?",
   },
   // Organisation dialog chrome.
   orgDialogTitle: {

@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { type ReactNode, useState } from "react";
 import { Stack, ToggleButton, ToggleButtonGroup } from "@mui/material";
 
@@ -21,11 +22,11 @@ export default function EnergyResolutionSwitch(
         exclusive
         value={resolution}
         onChange={(_e, v: EnergyResolution | null) => v && setResolution(v)}
-        aria-label="Energy data resolution"
+        aria-label={msg("erSwitchAria")}
         sx={{ alignSelf: "flex-start" }}
       >
-        <ToggleButton value="annual">Annual</ToggleButton>
-        <ToggleButton value="series">Time series</ToggleButton>
+        <ToggleButton value="annual">{msg("erAnnual")}</ToggleButton>
+        <ToggleButton value="series">{msg("erTimeSeries")}</ToggleButton>
       </ToggleButtonGroup>
       {resolution === "annual" ? annual : series}
     </Stack>

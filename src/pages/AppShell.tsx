@@ -231,8 +231,8 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
       onSuccess: ({ seeded, total }) =>
         showNotification(
           seeded === total
-            ? "Demo contacts added"
-            : `Added ${seeded} of ${total} demo contacts`,
+            ? msg("demoContactsAdded")
+            : msg("demoContactsPartial", { seeded, total }),
           seeded === total ? "success" : "warning",
         ),
     });
@@ -241,8 +241,8 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
       onSuccess: ({ rooms, total }) =>
         showNotification(
           rooms.length === total
-            ? "Demo data rooms added"
-            : `Added ${rooms.length} of ${total} demo data rooms`,
+            ? msg("demoRoomsAdded")
+            : msg("demoRoomsPartial", { rooms: rooms.length, total }),
           rooms.length === total ? "success" : "warning",
         ),
     });
@@ -308,7 +308,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           "This overwrites any existing resource at a matching path under " +
           "granergize/. This cannot be undone — intended for a wiped Pod." +
           rebaseNote,
-        confirmLabel: "Restore",
+        confirmLabel: msg("btnRestore"),
       })
     ) {
       return;
@@ -445,7 +445,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
         title: msg("dlgRemoveAppData"),
         message: "Remove ALL Granergize data from your Pod?" + list +
           "\n\nYour profile and organisation logo are kept. This cannot be undone.",
-        confirmLabel: "Remove all",
+        confirmLabel: msg("btnRemoveAll"),
       })
     ) {
       return;
@@ -504,7 +504,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   if (removeMut.isPending) {
     return (
       <ActivityScreen
-        title="Removing all app data…"
+        title={msg("removingAllData")}
         onCancel={handleCancelRemove}
       />
     );
@@ -550,16 +550,16 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             <Box
               component="img"
               src={orgLogoUrl}
-              alt="Organisation logo"
+              alt={t("orgLogoAlt")}
               sx={{ height: 40, maxWidth: 120, objectFit: "contain" }}
             />
           )}
-          <Tooltip title={session.info.webId ?? "Account menu"}>
+          <Tooltip title={session.info.webId ?? t("menuAccountAria")}>
             <IconButton
               onClick={handleMenuOpen}
               aria-label={session.info.webId
-                ? `Account menu — ${session.info.webId}`
-                : "Account menu"}
+                ? `${t("menuAccountAria")} — ${session.info.webId}`
+                : t("menuAccountAria")}
               sx={{ p: 0 }}
             >
               <Avatar
@@ -595,10 +595,10 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           >
             {/* Identity */}
             <MenuItem onClick={handleProfile}>
-              Profile
+              {t("menuProfile")}
             </MenuItem>
             <MenuItem onClick={handleOrganisation}>
-              Organisation…
+              {t("menuOrganisation")}
             </MenuItem>
 
             {/* Language switcher — a fixed entry (the one active-locale signal also
@@ -635,7 +635,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
               }}
               sx={{ justifyContent: "space-between", gap: 2 }}
             >
-              Developer mode
+              {t("menuDevMode")}
               <Switch edge="end" size="small" checked={devMode} tabIndex={-1} />
             </MenuItem>
 
@@ -644,8 +644,8 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             {devMode && (
               <MenuItem onClick={seedDemos} disabled={seedBuildingsMut.isPending}>
                 {seedBuildingsMut.isPending
-                  ? "Adding…"
-                  : "Add example buildings and energy data"}
+                  ? t("addingEllipsis")
+                  : t("menuAddBuildings")}
               </MenuItem>
             )}
             {devMode && (
@@ -657,8 +657,8 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
                 disabled={seedContactsMut.isPending || seedRoomsMut.isPending}
               >
                 {seedContactsMut.isPending || seedRoomsMut.isPending
-                  ? "Adding…"
-                  : "Add example contacts and rooms"}
+                  ? t("addingEllipsis")
+                  : t("menuAddContacts")}
               </MenuItem>
             )}
 
@@ -666,7 +666,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             {devMode && <Divider />}
             {devMode && (
               <MenuItem onClick={handleDownloadArchive} disabled={accountBusy}>
-                {accountBusy ? "Working…" : "Export archive"}
+                {accountBusy ? t("filesWorking") : t("menuExportArchive")}
               </MenuItem>
             )}
             {devMode && (
@@ -674,7 +674,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
                 onClick={() => archiveInput.current?.click()}
                 disabled={accountBusy}
               >
-                Import archive…
+                {t("menuImportArchive")}
               </MenuItem>
             )}
 
@@ -698,7 +698,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
                 component="a"
                 href={`${import.meta.env.BASE_URL}granergize-handbuch.docx`}
               >
-                Praxishandbuch herunterladen
+                {t("menuHandbuch")}
               </MenuItem>
             )}
 
@@ -721,7 +721,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
               </MenuItem>
             )}
             <MenuItem onClick={handleLogout}>
-              Logout
+              {t("menuLogout")}
             </MenuItem>
           </Menu>
         </Box>
@@ -748,7 +748,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
                 onClick={seedDemos}
                 disabled={seedBuildingsMut.isPending}
               >
-                {seedBuildingsMut.isPending ? "Adding…" : "Add examples"}
+                {seedBuildingsMut.isPending ? t("addingEllipsis") : t("onboardAddExamples")}
               </Button>
               <Button
                 color="inherit"
@@ -761,8 +761,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             </Box>
           }
         >
-          No buildings yet — add a couple of example buildings (with energy data) to
-          explore?
+          {t("onboardBanner")}
         </Alert>
       </Collapse>
       {/* The active finder renders here. ExplorePage (the Buildings map) is kept

@@ -32,7 +32,7 @@ const CONTACT = "https://contacts-e2e.example/profile/card#DirectCarol";
 const OPERATOR = "https://contacts-e2e.example/profile/card#OperatorBob";
 
 /** The aria-labelled contacts list on Connect (added for this disambiguation). */
-const contactsList = (page: Page) => page.getByRole("list", { name: "Contacts" });
+const contactsList = (page: Page) => page.getByRole("list", { name: en("navContacts") });
 
 test.describe.configure({ mode: "serial" });
 
@@ -62,7 +62,7 @@ test.describe("contacts address book + auto-remember", () => {
       await openBuildingsList(page);
       const row = buildingRows(page).filter({ hasText: ADDR }).first();
       if (await row.count()) {
-        await row.getByRole("button", { name: "Delete building" })
+        await row.getByRole("button", { name: en("buildingDeleteAria") })
           .click({ timeout: T.quick });
         await confirmDialog(page, "Delete");
         await expect(row).toHaveCount(0, { timeout: T.quick });
@@ -77,13 +77,13 @@ test.describe("contacts address book + auto-remember", () => {
     await page.getByRole("tab", { name: en("navContacts") }).click();
 
     await page.getByLabel("WebID", { exact: true }).fill(CONTACT);
-    await page.getByRole("button", { name: "Add contact" }).click();
+    await page.getByRole("button", { name: en("contactAddAria") }).click();
     await expect(page.getByText(/contact added/i)).toBeVisible({ timeout: T.action });
 
     const row = contactsList(page).locator("li", { hasText: "DirectCarol" });
     await expect(row).toBeVisible({ timeout: T.action });
 
-    await row.getByRole("button", { name: "Remove contact" }).click();
+    await row.getByRole("button", { name: en("contactRemoveAria") }).click();
     await expect(row).toHaveCount(0, { timeout: T.action });
   });
 
@@ -109,7 +109,7 @@ test.describe("contacts address book + auto-remember", () => {
 
     // Remove the auto-remembered contact (the building is torn down in afterAll).
     await contactsList(page).locator("li", { hasText: "OperatorBob" })
-      .getByRole("button", { name: "Remove contact" }).click();
+      .getByRole("button", { name: en("contactRemoveAria") }).click();
     await expect(contactsList(page).locator("li", { hasText: "OperatorBob" }))
       .toHaveCount(0, { timeout: T.action });
   });

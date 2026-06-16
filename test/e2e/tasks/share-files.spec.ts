@@ -56,7 +56,7 @@ async function downloadSharedFile(page: Page): Promise<void> {
     });
   });
   const dl = page.waitForEvent("download");
-  await page.getByRole("button", { name: "Download", exact: true }).first()
+  await page.getByRole("button", { name: en("btnDownload"), exact: true }).first()
     .click();
   const download = await dl;
   expect(download.suggestedFilename()).toBe("sample.pdf");
@@ -165,7 +165,7 @@ async function deleteOwnBuilding(page: Page, street: string): Promise<void> {
     await openBuildingsList(page);
     const row = page.locator("li", { hasText: street }).first();
     if (await row.count()) {
-      await row.getByRole("button", { name: "Delete building" })
+      await row.getByRole("button", { name: en("buildingDeleteAria") })
         .click({ timeout: T.visible });
       await confirmDialog(page, "Delete");
       await expect(page.getByText("Building deleted").first())

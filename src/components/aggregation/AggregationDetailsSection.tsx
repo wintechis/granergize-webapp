@@ -28,24 +28,24 @@ export default function AggregationDetailsSection(
       <SectionTitle>{msg("secDetails")}</SectionTitle>
       <Box sx={{ mt: 1 }}>
         <DetailRow
-          label="Type"
+          label={msg("aggDetType")}
           value={capitalize(definition.aggregationType)}
         />
         <DetailRow
-          label="Buildings included"
+          label={msg("aggDetBuildingsIncluded")}
           value={definition.buildingUris.length}
         />
-        <DetailRow label="Metrics" value={definition.metrics.length} />
-        <DetailRow label="Created" value={formatDate(definition.createdAt)} />
+        <DetailRow label={msg("aggDetMetrics")} value={definition.metrics.length} />
+        <DetailRow label={msg("aggDetCreated")} value={formatDate(definition.createdAt)} />
         {definition.lastComputedAt && (
           <DetailRow
-            label="Last computed"
+            label={msg("aggDetLastComputed")}
             value={formatDateTime(definition.lastComputedAt)}
           />
         )}
         {definition.period && (
           <DetailRow
-            label="Period"
+            label={msg("aggDetPeriod")}
             value={new Date(`${definition.period}-01`).toLocaleString(
               "default",
               { month: "long", year: "numeric" },
@@ -54,7 +54,7 @@ export default function AggregationDetailsSection(
         )}
         {snapshot && (
           <DetailRow
-            label="Buildings in snapshot"
+            label={msg("aggDetBuildingsInSnapshot")}
             value={snapshot.buildingCount}
           />
         )}

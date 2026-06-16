@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useSearchParams } from "react-router-dom";
 import { useBackNavigation } from "../hooks/backNavigation.ts";
 import {
@@ -92,7 +93,7 @@ export default function Aggregation({ session }: AggregationProps) {
         <Button startIcon={<ArrowBackIcon />} onClick={goBack} sx={{ mb: 2 }}>
           Back
         </Button>
-        <Typography>Aggregation not found</Typography>
+        <Typography>{msg("aggNotFound")}</Typography>
       </Container>
     );
   }

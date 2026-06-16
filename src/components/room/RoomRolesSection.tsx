@@ -56,17 +56,16 @@ export default function RoomRolesSection(
     <Box>
       <SectionTitle>{msg("secMyRoles")}</SectionTitle>
       <Typography variant="body2" color="text.secondary" sx={{ mb: 1 }}>
-        Assign or change your role(s) anytime — this is how others share data
-        with you by role.
+        {msg("roomRolesHint")}
       </Typography>
       <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap" }}>
         <FormControl size="small" sx={{ minWidth: 280 }}>
-          <InputLabel id="my-roles-label">My role(s)</InputLabel>
+          <InputLabel id="my-roles-label">{msg("roomMyRoles")}</InputLabel>
           <Select
             labelId="my-roles-label"
             multiple
             value={myRoles}
-            input={<OutlinedInput label="My role(s)" />}
+            input={<OutlinedInput label={msg("roomMyRoles")} />}
             renderValue={(selected) =>
               (selected as UserRole[]).map((role) => roleLabel(role)).join(", ")}
             onChange={(e) => {
@@ -85,7 +84,7 @@ export default function RoomRolesSection(
           </Select>
         </FormControl>
         <Button variant="outlined" onClick={handleSave} disabled={disabled}>
-          {saveRoles.isPending ? "Saving…" : "Save roles"}
+          {saveRoles.isPending ? msg("btnSaving") : msg("saveRoles")}
         </Button>
       </Stack>
     </Box>

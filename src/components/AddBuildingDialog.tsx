@@ -1,4 +1,4 @@
-import { msg } from "../lib/messages.ts";
+import { msg, type MessageId } from "../lib/messages.ts";
 import { useEffect, useRef, useState } from "react";
 import {
   Box,
@@ -54,21 +54,16 @@ interface AddBuildingDialogProps {
 // columns. Mapped onto the three parse shapes `parseCsvToFields` knows. (The
 // identifiers say "format", matching the SpreadsheetFormat type — the old
 // "template"/"role" vocabulary is retired.)
-const FORMAT_LABEL: Record<SpreadsheetFormat, string> = {
-  investor: "Row-label sheet (one column per building)",
-  benchmark: "Table (one row per building)",
-  generic: "Generic (field-name columns)",
+const FORMAT_LABEL: Record<SpreadsheetFormat, MessageId> = {
+  investor: "addFmtInvestor",
+  benchmark: "addFmtBenchmark",
+  generic: "addFmtGeneric",
 };
 
-const GENERIC_CSV_HINT =
-  "Generic: field-name column headers, or a 15-minute load-profile (Lastgang) export.";
-
-const CSV_HINT: Record<SpreadsheetFormat, string> = {
-  investor:
-    "Row-label sheet: field labels down column B, one column per building (D–K).",
-  benchmark:
-    "Table: one row per building, with column headers.",
-  generic: GENERIC_CSV_HINT,
+const CSV_HINT: Record<SpreadsheetFormat, MessageId> = {
+  investor: "addHintInvestor",
+  benchmark: "addHintBenchmark",
+  generic: "addHintGeneric",
 };
 
 /** The selectable import formats (excludes the demo "dummy" shape). */
@@ -284,7 +279,7 @@ export default function AddBuildingDialog(
   const { onGeocode, busy: geocoding } = useGeocodeFields(
     fields,
     setField,
-    "Coordinates filled",
+    msg("coordinatesUpdated"),
   );
 
   const handleSubmit = () => {
@@ -302,16 +297,11 @@ export default function AddBuildingDialog(
           if (aborted) {
             // A user cancel is an outcome, not an error: the buildings written
             // before the cancel are kept (and already invalidated).
-            showNotification(
-              "Import cancelled — any buildings already written are kept",
-              "warning",
-            );
+            showNotification(msg("addImportCancelled"), "warning");
             return;
           }
           showNotification(
-            added.length === 1
-              ? "Building added"
-              : `${added.length} buildings added`,
+            msg("addBuildingAddedCount", { count: added.length }),
             "success",
           );
           handleClose();
@@ -340,7 +330,7 @@ export default function AddBuildingDialog(
         Object.values(b).some((v) => v && String(v).trim())
       ) || lastgangReadings != null}
       busy={isProcessing}
-      title={autostartImport ? "Autofill buildings from a file" : "Add Building"}
+      title={autostartImport ? msg("addTitleAutofill") : msg("addBuildingBtn")}
       overlay={isProcessing && (
         <Box
           sx={{
@@ -358,24 +348,27 @@ export default function AddBuildingDialog(
         >
           <Typography variant="body2" color="text.secondary">
             {parsing
-              ? "Processing file…"
+              ? msg("addProcessingFile")
               : uploadProgress
-              ? `Uploading energy data… ${uploadProgress.done}/${uploadProgress.total} days`
+              ? msg("addUploadingEnergyDays", {
+                done: uploadProgress.done,
+                total: uploadProgress.total,
+              })
               : lastgangReadings
-              ? "Uploading building and energy data…"
-              : `Adding ${buildingsList.length > 1 ? `${buildingsList.length} buildings` : "building"}…`}
+              ? msg("addUploadingBoth")
+              : msg("addAddingCount", { count: buildingsList.length })}
           </Typography>
           {uploading && (
             <>
               <Box
                 sx={{ width: "100%", maxWidth: 480, maxHeight: "40vh", overflowY: "auto" }}
               >
-                <RequestActivityList emptyText="Starting…" />
+                <RequestActivityList emptyText={msg("addStarting")} />
               </Box>
               {/* The overlay covers the action row, so the cancel control lives
                   here, on top of the curtain. */}
               <Button variant="outlined" onClick={handleCancelUpload}>
-                Cancel upload
+                {msg("addCancelUpload")}
               </Button>
             </>
           )}
@@ -383,15 +376,15 @@ export default function AddBuildingDialog(
       )}
       actions={
         <>
-          <Button onClick={handleClose} disabled={isProcessing}>Cancel</Button>
+          <Button onClick={handleClose} disabled={isProcessing}>{msg("btnCancel")}</Button>
           <Button
             variant="contained"
             onClick={handleSubmit}
             disabled={isProcessing || !isValid || isDuplicate}
           >
             {buildingsList.length === 1
-              ? "Add Building"
-              : `Add ${buildingsList.length} Buildings`}
+              ? msg("addBuildingBtn")
+              : msg("addBuildingsCount", { count: buildingsList.length })}
           </Button>
         </>
       }
@@ -416,25 +409,25 @@ export default function AddBuildingDialog(
             onClick={() => fileInputRef.current?.click()}
             sx={{ mb: 1 }}
           >
-            Choose file…
+            {msg("addChooseFile")}
           </Button>
           {/* File format — auto-detected on upload; override here if a sheet's layout
               isn't recognised. A format, not a role. */}
           <FormControl size="small" fullWidth sx={{ mt: 1, mb: 1 }}>
-            <InputLabel id="add-building-format-label">File format</InputLabel>
+            <InputLabel id="add-building-format-label">{msg("addFileFormat")}</InputLabel>
             <Select
               labelId="add-building-format-label"
-              label="File format"
+              label={msg("addFileFormat")}
               value={format}
               onChange={handleFormatChange}
             >
               {FORMAT_OPTIONS.map((t) => (
-                <MenuItem key={t} value={t}>{FORMAT_LABEL[t]}</MenuItem>
+                <MenuItem key={t} value={t}>{msg(FORMAT_LABEL[t])}</MenuItem>
               ))}
             </Select>
           </FormControl>
           <Typography variant="caption" sx={{ display: "block" }} color="text.secondary">
-            {CSV_HINT[format]}
+            {msg(CSV_HINT[format])}
           </Typography>
         </Box>
         )}
@@ -447,7 +440,10 @@ export default function AddBuildingDialog(
             sx={{ display: "block", mb: 2 }}
             color="success.main"
           >
-            {lastgangReadings.length} readings ({new Set(lastgangReadings.map((r) => r.date)).size} days) ready to upload
+            {msg("addReadingsReady", {
+              count: lastgangReadings.length,
+              days: new Set(lastgangReadings.map((r) => r.date)).size,
+            })}
           </Typography>
         )}
         {importedAnnualYears.length > 0 && (
@@ -456,8 +452,7 @@ export default function AddBuildingDialog(
             sx={{ display: "block", mb: 2 }}
             color="success.main"
           >
-            Annual energy detected for {importedAnnualYears.join(", ")} — saved with
-            the building.
+            {msg("addAnnualDetected", { years: importedAnnualYears.join(", ") })}
           </Typography>
         )}
 
@@ -476,11 +471,11 @@ export default function AddBuildingDialog(
                   label={
                     <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
                       {tabLabel(b, i)}
-                      <Tooltip title="Remove this building">
+                      <Tooltip title={msg("addRemoveBuilding")}>
                         <IconButton
                           size="small"
                           component="span"
-                          aria-label="Remove this building"
+                          aria-label={msg("addRemoveBuilding")}
                           onClick={(e: React.MouseEvent) => {
                             e.stopPropagation();
                             removeBuilding(i);
@@ -520,7 +515,7 @@ export default function AddBuildingDialog(
             busy: geocoding,
             disabled: !["streetAddress", "postalCode", "locality", "region"]
               .some((f) => fields[f]?.trim()),
-            label: "Get coordinates",
+            label: msg("addGetCoordinates"),
           }}
         />
 
@@ -530,7 +525,7 @@ export default function AddBuildingDialog(
           f={{ tf, check, enumSelect, sectionHeader }}
           buildingCode={{
             error: currentIsDuplicate,
-            helperText: currentIsDuplicate ? "Building code already exists" : undefined,
+            helperText: currentIsDuplicate ? msg("buildingCodeExists") : undefined,
           }}
         />
       </Box>

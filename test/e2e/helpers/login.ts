@@ -225,7 +225,7 @@ export async function logout(page: Page): Promise<void> {
   const menu = page.getByRole("menuitem", { name: /logout/i });
   await expect(async () => {
     if (!(await menu.isVisible().catch(() => false))) {
-      await page.getByRole("button", { name: "Account menu" }).click({
+      await page.getByRole("button", { name: en("menuAccountAria") }).click({
         timeout: 2000,
       });
     }

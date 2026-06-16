@@ -30,7 +30,7 @@ export const buildingIdOf = (row: Locator): Promise<string | null> =>
  */
 export async function openBuildingsList(page: Page): Promise<void> {
   await page.getByRole("tab", { name: en("navBuildings") }).click();
-  await page.getByRole("button", { name: "List" }).click();
+  await page.getByRole("button", { name: en("btnList") }).click();
 }
 
 /**
@@ -41,7 +41,7 @@ export async function openBuildingsList(page: Page): Promise<void> {
  */
 export async function openBuildingsMap(page: Page): Promise<void> {
   await page.getByRole("tab", { name: en("navBuildings") }).click();
-  await page.getByRole("button", { name: "Map", exact: true }).click();
+  await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
 }
 
 /**
@@ -76,7 +76,7 @@ export function buildingRoute(
  */
 export async function deleteBuildingRow(page: Page, id: string): Promise<void> {
   const row = page.locator(`li[data-building-id="${id}"]`).first();
-  await row.getByRole("button", { name: "Delete building" }).click();
+  await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
   await confirmDialog(page, "Delete");
   await expect(row).toHaveCount(0, { timeout: T.action });
 }
@@ -191,7 +191,7 @@ export async function shareByRole(
 
   const dialog = page.getByRole("dialog");
   await dialog.getByRole("button", { name: /by role/i }).click();
-  await dialog.getByLabel("Role").click();
+  await dialog.getByLabel(en("lblRole")).click();
   await page.getByRole("option", { name: "User" }).click();
 
   if (years) {
@@ -344,7 +344,7 @@ export async function shareAggregationByWebId(
   await openAggregations(page);
   const row = page.locator("li").filter({ hasText: AGGREGATION_NAME }).first();
   await expect(row).toBeVisible({ timeout: T.action });
-  await row.getByRole("button", { name: "Share aggregation" }).click();
+  await row.getByRole("button", { name: en("aggShareAria") }).click();
   // Scope to the SHARE dialog by its title (the CreateAggregationDialog's closing
   // ghost can otherwise bind a generic role=dialog locator — see ensureAggregation).
   const dialog = page.getByRole("dialog")

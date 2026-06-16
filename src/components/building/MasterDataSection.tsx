@@ -59,94 +59,94 @@ function ReadView({ building }: { building: BuildingType }) {
     <>
       {hasValue(building.operatedBy) && (
         <DetailRow
-          label="Operated by"
+          label={msg("mdOperatedBy")}
           value={<AgentLabel value={building.operatedBy as string} />}
         />
       )}
       {hasValue(building.ownedBy) && (
         <DetailRow
-          label="Owned by"
+          label={msg("mdOwnedBy")}
           value={<AgentLabel value={building.ownedBy as string} />}
         />
       )}
       {hasValue(building.investor) && (
         <DetailRow
-          label="Investor"
+          label={msg("mdInvestor")}
           value={<AgentLabel value={building.investor as string} />}
         />
       )}
       {hasValue(building.facilityManagedBy) && (
         <DetailRow
-          label="Facility manager"
+          label={msg("mdFacilityManager")}
           value={<AgentLabel value={building.facilityManagedBy as string} />}
         />
       )}
       {hasValue(building.developedBy) && (
         <DetailRow
-          label="Developed by"
+          label={msg("mdDevelopedBy")}
           value={<AgentLabel value={building.developedBy as string} />}
         />
       )}
       {hasValue(building.consultedBy) && (
         <DetailRow
-          label="Consultant / broker"
+          label={msg("mdConsultant")}
           value={<AgentLabel value={building.consultedBy as string} />}
         />
       )}
       {building.buildingArea != null && (
-        <DetailRow label="Building area" value={`${building.buildingArea} m²`} />
+        <DetailRow label={msg("mdBuildingArea")} value={`${building.buildingArea} m²`} />
       )}
       {building.landArea != null && (
-        <DetailRow label="Land area" value={`${building.landArea} m²`} />
+        <DetailRow label={msg("mdLandArea")} value={`${building.landArea} m²`} />
       )}
       {building.hallArea != null && (
-        <DetailRow label="Hall area" value={`${building.hallArea} m²`} />
+        <DetailRow label={msg("mdHallArea")} value={`${building.hallArea} m²`} />
       )}
       {building.officeSocialArea != null && (
         <DetailRow
-          label="Office and social area"
+          label={msg("mdOfficeArea")}
           value={`${building.officeSocialArea} m²`}
         />
       )}
       {building.buildingHeight != null && (
-        <DetailRow label="Building height" value={`${building.buildingHeight} m`} />
+        <DetailRow label={msg("mdBuildingHeight")} value={`${building.buildingHeight} m`} />
       )}
       {building.numberOfLoadingDocks != null && (
-        <DetailRow label="Loading docks" value={building.numberOfLoadingDocks} />
+        <DetailRow label={msg("mdLoadingDocks")} value={building.numberOfLoadingDocks} />
       )}
       {building.yearOfConstruction != null && (
         <DetailRow
-          label="Year of construction"
+          label={msg("mdYearConstruction")}
           value={building.yearOfConstruction}
         />
       )}
       {building.yearOfRenovation != null && (
-        <DetailRow label="Year of renovation" value={building.yearOfRenovation} />
+        <DetailRow label={msg("mdYearRenovation")} value={building.yearOfRenovation} />
       )}
       {hasValue(building.shiftRegime) && (
-        <DetailRow label="Shift regime" value={building.shiftRegime} />
+        <DetailRow label={msg("mdShiftRegime")} value={building.shiftRegime} />
       )}
       {hasValue(building.tenancyType) && (
-        <DetailRow label="Tenancy type" value={building.tenancyType} />
+        <DetailRow label={msg("mdTenancyType")} value={building.tenancyType} />
       )}
       {hasValue(building.leaseType) && (
-        <DetailRow label="Lease type" value={building.leaseType} />
+        <DetailRow label={msg("mdLeaseType")} value={building.leaseType} />
       )}
       {hasValue(building.tenantIndustry) && (
-        <DetailRow label="Tenant industry" value={building.tenantIndustry} />
+        <DetailRow label={msg("mdTenantIndustry")} value={building.tenantIndustry} />
       )}
       {hasValue(building.indoorTemperatureClass) && (
         <DetailRow
-          label="Indoor temperature"
+          label={msg("mdIndoorTemp")}
           value={building.indoorTemperatureClass}
         />
       )}
       {building.pvSystem && (
-        <DetailRow label="PV system" value={pvSystemSummary(building.pvSystem)} />
+        <DetailRow label={msg("mdPvSystem")} value={pvSystemSummary(building.pvSystem)} />
       )}
       {building.pvSystem?.operatedBy && (
         <DetailRow
-          label="PV operator"
+          label={msg("mdPvOperator")}
           value={<AgentLabel value={building.pvSystem.operatedBy} />}
         />
       )}
@@ -160,22 +160,22 @@ function ReadView({ building }: { building: BuildingType }) {
           <SectionTitle divider>{msg("secHeatGeneration")}</SectionTitle>
           {building.hasDistrictHeating != null && (
             <DetailRow
-              label="District heating"
+              label={msg("mdDistrictHeating")}
               value={boolIcon(building.hasDistrictHeating)}
             />
           )}
           {building.hasHeatPump != null && (
-            <DetailRow label="Heat pump" value={boolIcon(building.hasHeatPump)} />
+            <DetailRow label={msg("mdHeatPump")} value={boolIcon(building.hasHeatPump)} />
           )}
           {building.hasGasBoiler != null && (
-            <DetailRow label="Gas boiler" value={boolIcon(building.hasGasBoiler)} />
+            <DetailRow label={msg("mdGasBoiler")} value={boolIcon(building.hasGasBoiler)} />
           )}
           {building.hasOilBoiler != null && (
-            <DetailRow label="Oil boiler" value={boolIcon(building.hasOilBoiler)} />
+            <DetailRow label={msg("mdOilBoiler")} value={boolIcon(building.hasOilBoiler)} />
           )}
           {building.hasElectricBoiler != null && (
             <DetailRow
-              label="Electric boiler"
+              label={msg("mdElectricBoiler")}
               value={boolIcon(building.hasElectricBoiler)}
             />
           )}
@@ -298,7 +298,7 @@ function EditView(
         f={{ tf, check, enumSelect, sectionHeader }}
         buildingCode={{
           error: isDuplicateCode,
-          helperText: isDuplicateCode ? "Building code already exists" : undefined,
+          helperText: isDuplicateCode ? msg("buildingCodeExists") : undefined,
         }}
       />
 
@@ -326,13 +326,13 @@ function EditView(
       ))}
 
       <Stack direction="row" spacing={1} sx={{ mt: 2 }}>
-        <Button onClick={onDone} disabled={saving}>Cancel</Button>
+        <Button onClick={onDone} disabled={saving}>{msg("btnCancel")}</Button>
         <Button
           variant="contained"
           onClick={handleSave}
           disabled={saving || !isValid}
         >
-          {saving ? "Saving…" : "Save"}
+          {saving ? msg("btnSaving") : msg("btnSave")}
         </Button>
       </Stack>
     </Box>

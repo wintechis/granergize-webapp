@@ -36,7 +36,7 @@ export async function hostRoomAndGetUri(page: Page): Promise<string> {
   const roomLink = page.locator("li")
     .filter({
       has: page.locator(
-        'button[aria-label="Delete data room"], button[aria-label="Remove data room"]',
+        `button[aria-label="${en("roomDeleteAria")}"], button[aria-label="${en("roomRemoveAria")}"]`,
       ),
     })
     .getByRole("link")
@@ -63,7 +63,7 @@ export async function assignUserRole(
   roomUri: string,
 ): Promise<void> {
   await page.goto(roomRoute(roomUri));
-  const select = page.getByRole("combobox", { name: "My role(s)" });
+  const select = page.getByRole("combobox", { name: en("roomMyRoles") });
   await expect(select).toBeVisible({ timeout: T.visible });
   await select.click();
   const userOption = page.getByRole("option", { name: "User", exact: true });

@@ -68,13 +68,13 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     // The fresh-Pod onboarding banner appears once the (empty) buildings query
     // settles — wait for it rather than poll-and-skip (the pod is reset per
     // spec file, so it always comes).
-    const addExamples = page.getByRole("button", { name: "Add examples" });
+    const addExamples = page.getByRole("button", { name: en("onboardAddExamples") });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
-    await expect(page.getByText("Demo buildings and energy data added").first())
+    await expect(page.getByText(en("demoBuildingsAdded")).first())
       .toBeVisible({ timeout: 300_000 });
     await page.getByRole("tab", { name: "Buildings" }).click();
-    await page.getByRole("button", { name: "List" }).click();
+    await page.getByRole("button", { name: en("btnList") }).click();
     const setupRow = page.locator("li", { hasText: BUILDING }).first();
     await expect(setupRow).toBeVisible({ timeout: 60_000 });
     const buildingId = await setupRow.getAttribute("data-building-id");
@@ -87,7 +87,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await expect(stage.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
     await stage.getByRole("tab", { name: "Buildings" }).click();
-    await stage.getByRole("button", { name: "List" }).click();
+    await stage.getByRole("button", { name: en("btnList") }).click();
     const row = stage.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stage.waitForLoadState("networkidle").catch(() => {});

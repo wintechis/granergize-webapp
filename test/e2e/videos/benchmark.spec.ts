@@ -59,7 +59,7 @@ function saveMarks(name: string, marks: SceneMark[]) {
 /** Share a building to `webId` without demo pacing (the off-camera B share). */
 async function shareFirstBuildingTo(page: Page, webId: string) {
   await page.getByRole("tab", { name: "Buildings" }).click();
-  await page.getByRole("button", { name: "List" }).click();
+  await page.getByRole("button", { name: en("btnList") }).click();
   const row = page.locator("li[data-building-id]").first();
   await expect(row).toBeVisible({ timeout: 60_000 });
   // Sharing moved onto the building's detail page (redesign): open it, then Share.
@@ -102,13 +102,13 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await expect(page.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
     await setDevMode(page, false);
-    const addExamples = page.getByRole("button", { name: "Add examples" });
+    const addExamples = page.getByRole("button", { name: en("onboardAddExamples") });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
-    await expect(page.getByText("Demo buildings and energy data added").first())
+    await expect(page.getByText(en("demoBuildingsAdded")).first())
       .toBeVisible({ timeout: 300_000 });
     await page.getByRole("tab", { name: "Buildings" }).click();
-    await page.getByRole("button", { name: "List" }).click();
+    await page.getByRole("button", { name: en("btnList") }).click();
     const aRow = page.locator("li", { hasText: BUILDING }).first();
     await expect(aRow).toBeVisible({ timeout: 60_000 });
     const buildingId = await aRow.getAttribute("data-building-id");
@@ -139,13 +139,13 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     // provider's WebID arrived with the engagement; the contact-add moment
     // itself is established once, in the Vertriebsoptimierung video). The
     // share dialog then offers "Charlie Conrad" as a suggestion on camera.
-    await page.getByRole("tab", { name: "Contacts" }).click();
+    await page.getByRole("tab", { name: en("navContacts") }).click();
     const webIdField = page.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await webIdField.fill(cWebId);
-    await page.getByRole("button", { name: "Add contact" }).click();
+    await page.getByRole("button", { name: en("contactAddAria") }).click();
     await expect(
-      page.getByRole("list", { name: "Contacts" }).getByText("Charlie Conrad"),
+      page.getByRole("list", { name: en("navContacts") }).getByText("Charlie Conrad"),
     ).toBeVisible({ timeout: 30_000 });
 
     // ============ Clip A: Alice contributes her hall. ============
@@ -155,7 +155,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await expect(stageA.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
     await stageA.getByRole("tab", { name: "Buildings" }).click();
-    await stageA.getByRole("button", { name: "List" }).click();
+    await stageA.getByRole("button", { name: en("btnList") }).click();
     const row = stageA.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
@@ -303,7 +303,7 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     );
     const aggregationRow = stageC.locator("li").filter({ hasText: VIEW_NAME }).first();
     await expect(aggregationRow).toBeVisible({ timeout: 30_000 });
-    await demoC.click(aggregationRow.getByRole("button", { name: "Share aggregation" }));
+    await demoC.click(aggregationRow.getByRole("button", { name: en("aggShareAria") }));
     const shareDlg = stageC.getByRole("dialog");
     const addAll = shareDlg.getByRole("button", { name: /add all .* contributors/i });
     await expect(addAll).toBeEnabled({ timeout: 60_000 });

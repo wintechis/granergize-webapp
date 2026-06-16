@@ -3,6 +3,7 @@ import Box from "@mui/material/Box";
 import Button from "@mui/material/Button";
 import Typography from "@mui/material/Typography";
 import RequestActivityList from "./RequestActivityList.tsx";
+import { msg } from "../lib/messages.ts";
 
 interface ActivityScreenProps {
   /** What is happening, e.g. "Removing all app data…" or "Loading…". */
@@ -22,7 +23,7 @@ interface ActivityScreenProps {
  * an optional Cancel button is shown when `onCancel` is provided.
  */
 export default function ActivityScreen(
-  { title, onCancel, cancelLabel = "Cancel" }: ActivityScreenProps,
+  { title, onCancel, cancelLabel = msg("btnCancel") }: ActivityScreenProps,
 ) {
   return (
     <Box

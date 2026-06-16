@@ -8,6 +8,7 @@ import React, {
 } from "react";
 import { Button, Typography } from "@mui/material";
 import Modal from "../components/Modal.tsx";
+import { msg } from "../lib/messages.ts";
 
 export interface ConfirmOptions {
   /** Header text (default "Please confirm"). */
@@ -67,18 +68,18 @@ export function ConfirmProvider({ children }: { children: React.ReactNode }) {
       <Modal
         open={options !== null}
         onClose={() => settle(false)}
-        title={options?.title ?? "Please confirm"}
+        title={options?.title ?? msg("confirmDefaultTitle")}
         actions={options && (
           <>
             <Button variant="text" onClick={() => settle(false)}>
-              {options.cancelLabel ?? "Cancel"}
+              {options.cancelLabel ?? msg("btnCancel")}
             </Button>
             <Button
               variant="contained"
               color={destructive ? "error" : "primary"}
               onClick={() => settle(true)}
             >
-              {options.confirmLabel ?? "Confirm"}
+              {options.confirmLabel ?? msg("btnConfirm")}
             </Button>
           </>
         )}

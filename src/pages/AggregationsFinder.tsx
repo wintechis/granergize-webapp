@@ -88,8 +88,8 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
       !await confirm({
         title: msg("dlgDeleteAggregation"),
         message:
-          "Delete this aggregation? This also revokes access for everyone it is shared with.",
-        confirmLabel: "Delete",
+          msg("aggDeleteConfirm"),
+        confirmLabel: msg("btnDelete"),
       })
     ) {
       return;
@@ -103,8 +103,8 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
     if (
       !await confirm({
         title: msg("dlgRevokeAggregation"),
-        message: `Revoke aggregation access for ${webId}?`,
-        confirmLabel: "Revoke",
+        message: msg("aggRevokeMessage", { webId }),
+        confirmLabel: msg("confirmRevoke"),
       })
     ) return;
     revokeAggregation.mutate({ snapshotUri, webId }, {
@@ -141,7 +141,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
           </Button>
         </Stack>
         {aggregationDefsQuery.isLoading
-          ? <Typography variant="body2">Loading…</Typography>
+          ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
           : aggregationDefinitions.length === 0
           ? (
             <Typography variant="body2">
@@ -168,32 +168,38 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                     }
                     subtitle={
                       <>
-                        Type: {aggregation.aggregationType} | Buildings:{" "}
-                        {aggregation.buildingUris.length} | Metrics:{" "}
-                        {aggregation.metrics.length}
+                        {t("aggRowMeta", {
+                          type: aggregation.aggregationType,
+                          buildings: aggregation.buildingUris.length,
+                          metrics: aggregation.metrics.length,
+                        })}
                         <br />
-                        Created: {formatDate(aggregation.createdAt)}
+                        {t("aggRowCreated", { date: formatDate(aggregation.createdAt) })}
                         {aggregation.lastComputedAt &&
-                          ` | Last computed: ${formatDate(aggregation.lastComputedAt)}`}
+                          ` | ${
+                            t("aggRowLastComputed", {
+                              date: formatDate(aggregation.lastComputedAt),
+                            })
+                          }`}
                       </>
                     }
                     actions={
                       <>
-                        <Tooltip title="Aggregation details">
+                        <Tooltip title={t("aggDetailsAria")}>
                           <IconButton
                             size="small"
-                            aria-label="Aggregation details"
+                            aria-label={t("aggDetailsAria")}
                             onClick={() =>
                               navigate(aggregationRoute(aggregation.id))}
                           >
                             <VisibilityIcon fontSize="small" />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Refresh snapshot">
+                        <Tooltip title={t("aggRefreshAria")}>
                           <span>
                             <IconButton
                               size="small"
-                              aria-label="Refresh snapshot"
+                              aria-label={t("aggRefreshAria")}
                               onClick={() => handleRefreshAggregation(aggregation.id)}
                               disabled={refreshAggregation.isPending &&
                                 refreshAggregation.variables === aggregation.id}
@@ -202,20 +208,20 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                             </IconButton>
                           </span>
                         </Tooltip>
-                        <Tooltip title="Share aggregation">
+                        <Tooltip title={t("aggShareAria")}>
                           <IconButton
                             size="small"
-                            aria-label="Share aggregation"
+                            aria-label={t("aggShareAria")}
                             onClick={() => setAggregationToShare(aggregation)}
                           >
                             <ShareIcon />
                           </IconButton>
                         </Tooltip>
-                        <Tooltip title="Delete aggregation">
+                        <Tooltip title={t("aggDeleteAria")}>
                           <span>
                             <IconButton
                               size="small"
-                              aria-label="Delete aggregation"
+                              aria-label={t("aggDeleteAria")}
                               onClick={() => handleDeleteAggregation(aggregation.id)}
                               disabled={deleteAggregationMut.isPending &&
                                 deleteAggregationMut.variables === aggregation.id}
@@ -230,13 +236,13 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                     {sharedAggregationsQuery.isLoading
                       ? (
                         <Typography variant="caption" color="text.secondary">
-                          Shared with: Loading…
+                          {t("sharedWithLabel")} {t("loadingEllipsis")}
                         </Typography>
                       )
                       : (
                         <NestedAgentList
                           agents={sharedWith}
-                          label="Shared with:"
+                          label={t("sharedWithLabel")}
                           onRevoke={(webId) =>
                             handleRevokeAggregationAccess(
                               getSnapshotUri(session.info.webId!, aggregation.id),

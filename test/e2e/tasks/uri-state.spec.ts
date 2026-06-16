@@ -42,7 +42,7 @@ async function ensureBuilding(page: Page): Promise<string> {
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.visible });
     }
-    await page.getByRole("button", { name: "Add Building", exact: true }).first()
+    await page.getByRole("button", { name: en("addBuildingBtn"), exact: true }).first()
       .click();
     const add = page.getByRole("dialog");
     await add.getByLabel(/street address/i).fill(ADDR);
@@ -90,7 +90,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
         await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
-          await row.getByRole("button", { name: "Delete building" }).click();
+          await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
           await confirmDialog(page, "Delete");
           await expect(page.getByText("Building deleted").first())
             .toBeVisible({ timeout: T.action });
@@ -133,7 +133,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     // default), and goto("/") drops the query, so we're already on Map; the
     // explicit toggle is belt-and-suspenders.
     await page.getByRole("tab", { name: en("navBuildings") }).click();
-    await page.getByRole("button", { name: "Map" }).click();
+    await page.getByRole("button", { name: en("btnMap") }).click();
 
     // The map is a pure finder: clicking the (only) marker NAVIGATES to the
     // building's standalone page — a real route (`/building?ref=<id>`; an own
@@ -157,7 +157,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     if (!id) id = await ensureBuilding(page);
     await page.goto("/buildings");
     // List is URL state now (?view=list) — switching writes it.
-    await page.getByRole("button", { name: "List" }).click();
+    await page.getByRole("button", { name: en("btnList") }).click();
     await expect(page).toHaveURL(/view=list/, { timeout: T.action });
     await expect(page.getByRole("heading", { name: en("headingYourBuildings") }))
       .toBeVisible({ timeout: T.action });

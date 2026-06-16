@@ -76,13 +76,13 @@ test.describe("map energy lens (Vertriebsoptimierung)", () => {
       // tab with a Map⇄List toggle); ensure Map view so the markers + colour lens
       // render.
       await page.getByRole("tab", { name: en("navBuildings") }).click();
-      await page.getByRole("button", { name: "Map", exact: true }).click();
+      await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
       // Markers paint under the default (ownership) lens — the standard pins.
       await expect(page.locator(".leaflet-marker-icon").first())
         .toBeVisible({ timeout: T.action });
       // Switch the colour lens to Energy. (The map is a pure finder — no detail
       // pane, so the "Energy" lens button is the only "Energy" control here.)
-      await page.getByRole("button", { name: "Energy", exact: true }).click();
+      await page.getByRole("button", { name: en("lensEnergy"), exact: true }).click();
       // Across three distinct intensities the terciles give at least one efficient
       // (green) and one inefficient (red) marker — the category is on the className.
       await expect(page.locator(".energy-marker.energy-efficient").first())

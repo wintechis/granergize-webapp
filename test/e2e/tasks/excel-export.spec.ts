@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import {
   buildingIdOf,
   buildingIds,
@@ -79,7 +80,7 @@ test.describe("excel export", () => {
 
     // "Download all (Excel)" → one workbook for all owned buildings.
     const dlAll = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download all (Excel)" }).click();
+    await page.getByRole("button", { name: en("bldgsDownloadAll") }).click();
     expect((await dlAll).suggestedFilename()).toBe("buildings-mine.xlsx");
 
     // A single building's workbook export moved to its page header (a direct
@@ -115,7 +116,7 @@ test.describe("excel export", () => {
 
     // Export every building.
     const dl = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download all (Excel)" }).click();
+    await page.getByRole("button", { name: en("bldgsDownloadAll") }).click();
     const path = "test-results/roundtrip.xlsx";
     await (await dl).saveAs(path);
 
@@ -130,7 +131,7 @@ test.describe("excel export", () => {
     // Re-import the workbook through the file picker. buildingsToXlsx writes the
     // generic flat shape; uploading it lets the importer auto-detect the generic
     // format and re-parse every row.
-    await page.getByRole("button", { name: "Add Building", exact: true }).first()
+    await page.getByRole("button", { name: en("addBuildingBtn"), exact: true }).first()
       .click();
     const dialog = page.getByRole("dialog");
     await dialog.locator('input[type="file"]').setInputFiles(path);

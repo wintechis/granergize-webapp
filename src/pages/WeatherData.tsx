@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
@@ -163,11 +164,11 @@ export default function WeatherData({ building }: WeatherDataProps) {
         <Grid container spacing={2} sx={{ mb: 2 }}>
           <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth>
-              <InputLabel>Weather Parameter</InputLabel>
+              <InputLabel>{msg("wdParameter")}</InputLabel>
               <Select
                 value={selectedParameter}
                 onChange={(e) => setSelectedParameter(e.target.value)}
-                label="Weather Parameter"
+                label={msg("wdParameter")}
                 disabled={isLoadingStations}
               >
                 {Object.entries(parameterTitles).map(([value, label]) => (
@@ -179,14 +180,14 @@ export default function WeatherData({ building }: WeatherDataProps) {
 
           <Grid size={{ xs: 12, md: 6 }}>
             <FormControl fullWidth disabled={stations.length === 0}>
-              <InputLabel>Weather Station</InputLabel>
+              <InputLabel>{msg("wdStation")}</InputLabel>
               <Select
                 value={selectedStation || ""}
                 onChange={(e) => setSelectedStation(e.target.value)}
-                label="Weather Station"
+                label={msg("wdStation")}
               >
                 {isLoadingStations
-                  ? <MenuItem disabled>Loading stations…</MenuItem>
+                  ? <MenuItem disabled>{msg("wdLoadingStations")}</MenuItem>
                   : (
                     stations.map((station) => (
                       <MenuItem
@@ -232,9 +233,9 @@ export default function WeatherData({ building }: WeatherDataProps) {
               <Table size="small">
                 <TableHead>
                   <TableRow>
-                    <TableCell>Year</TableCell>
-                    <TableCell>Value</TableCell>
-                    <TableCell>Quality</TableCell>
+                    <TableCell>{msg("lblYear")}</TableCell>
+                    <TableCell>{msg("wdValue")}</TableCell>
+                    <TableCell>{msg("wdQuality")}</TableCell>
                   </TableRow>
                 </TableHead>
                 <TableBody>

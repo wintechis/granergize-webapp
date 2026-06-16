@@ -263,8 +263,11 @@ export default function EnergyYearDialog(
     if (
       !await confirm({
         title: msg("dlgDeleteEnergy"),
-        message: `Delete the ${scenarioLabel(d.scenario)} figures for ${d.year}?`,
-        confirmLabel: "Delete",
+        message: msg("eyDeleteConfirm", {
+          scenario: scenarioLabel(d.scenario),
+          year: d.year,
+        }),
+        confirmLabel: msg("btnDelete"),
       })
     ) return;
     const subjectUri = building.uri as string;
@@ -303,9 +306,9 @@ export default function EnergyYearDialog(
       busy={busy}
       actions={
         <>
-          <Button variant="text" onClick={close} disabled={busy}>Close</Button>
+          <Button variant="text" onClick={close} disabled={busy}>{msg("btnClose")}</Button>
           <Button variant="contained" onClick={handleSave} disabled={busy}>
-            {busy ? "Saving…" : "Save"}
+            {busy ? msg("btnSaving") : msg("btnSave")}
           </Button>
         </>
       }

@@ -52,7 +52,7 @@ export default function AggregationHeader(
           onClick={handleRefresh}
           disabled={refreshing}
         >
-          {refreshing ? "Refreshing…" : "Refresh"}
+          {refreshing ? msg("aggRefreshing") : msg("aggRefreshBtn")}
         </Button>
       </Stack>
     </Box>

@@ -59,7 +59,7 @@ export default function ObservationsFinder() {
       <Typography variant="h6" sx={{ mb: 1 }}>{t("navObservations")}</Typography>
       {rdf && <RdfSourceLink href={rdf.observations} />}
       {isLoading
-        ? <Typography variant="body2">Loading…</Typography>
+        ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : withObservations.length === 0
         ? (
           <Typography variant="body2">

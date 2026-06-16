@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { useMemo, useState } from "react";
 import { Box, TextField, Typography } from "@mui/material";
 import Tabs from "@mui/material/Tabs";
@@ -127,7 +128,7 @@ export default function UserEnergyChart(
       <TextField
         type="month"
         size="small"
-        label="Month"
+        label={msg("ucMonth")}
         value={selectedMonth}
         onChange={(e) => setSelectedMonth(e.target.value)}
         slotProps={{
@@ -160,9 +161,9 @@ export default function UserEnergyChart(
         onChange={(_e, v) => setActiveTab(v as 0 | 1 | 2)}
         sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
       >
-        <Tab label="Day View" />
-        <Tab label="Daily Totals" />
-        <Tab label="Average Profile" />
+        <Tab label={msg("ucDayView")} />
+        <Tab label={msg("ucDailyTotals")} />
+        <Tab label={msg("ucAvgProfile")} />
       </Tabs>
 
       {activeTab === 0 && (
@@ -170,7 +171,7 @@ export default function UserEnergyChart(
           <TextField
             type="date"
             size="small"
-            label="Date"
+            label={msg("ucDate")}
             value={selectedDay}
             onChange={(e) => setSelectedDay(e.target.value)}
             slotProps={{

@@ -76,7 +76,7 @@ test.describe("building form + energy entry", () => {
   async function addBuilding(addr: string): Promise<void> {
     await page.goto("/"); // robust if a prior test ended on a standalone detail route
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
@@ -97,7 +97,7 @@ test.describe("building form + energy entry", () => {
     test.setTimeout(T.testSolo);
 
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();

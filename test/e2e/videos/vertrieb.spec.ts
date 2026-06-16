@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, webIdOf } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo, type SceneMark } from "./demoPolish.ts";
@@ -76,10 +77,10 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     await expect(page.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
     await setDevMode(page, false);
-    const addExamples = page.getByRole("button", { name: "Add examples" });
+    const addExamples = page.getByRole("button", { name: en("onboardAddExamples") });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
-    await expect(page.getByText("Demo buildings and energy data added").first())
+    await expect(page.getByText(en("demoBuildingsAdded")).first())
       .toBeVisible({ timeout: 300_000 });
 
     // --- Setup B: own surroundings (seeded out-of-band, before B's first
@@ -101,7 +102,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     await expect(stageA.getByRole("tab", { name: "Buildings" }))
       .toBeVisible({ timeout: 60_000 });
     await stageA.getByRole("tab", { name: "Buildings" }).click();
-    await stageA.getByRole("button", { name: "List" }).click();
+    await stageA.getByRole("button", { name: en("btnList") }).click();
     const row = stageA.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
@@ -130,16 +131,16 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
       "contact",
       "B's WebID hat A von ihm selbst – wie eine E-Mail-Adresse. Einmal ins Adressbuch:",
     );
-    await demoA.click(stageA.getByRole("tab", { name: "Contacts" }));
+    await demoA.click(stageA.getByRole("tab", { name: en("navContacts") }));
     const webIdField = stageA.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await demoA.type(webIdField, bWebId);
-    await demoA.click(stageA.getByRole("button", { name: "Add contact" }));
+    await demoA.click(stageA.getByRole("button", { name: en("contactAddAria") }));
     // The entry resolves to the person: name + avatar, no raw IRI.
     await expect(
-      stageA.getByRole("list", { name: "Contacts" }).getByText("Bob Bauer"),
+      stageA.getByRole("list", { name: en("navContacts") }).getByText("Bob Bauer"),
     ).toBeVisible({ timeout: 30_000 });
-    await demoA.moveTo(stageA.getByRole("list", { name: "Contacts" }));
+    await demoA.moveTo(stageA.getByRole("list", { name: en("navContacts") }));
     await demoA.pause(2_000);
     await dismissToasts(stageA);
 
@@ -151,7 +152,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     // redesign). Back to the Buildings list (the contact scene left us on
     // Contacts), open the building via its name link, then its "Share" button.
     await demoA.click(stageA.getByRole("tab", { name: "Buildings" }));
-    await demoA.click(stageA.getByRole("button", { name: "List" }));
+    await demoA.click(stageA.getByRole("button", { name: en("btnList") }));
     await expect(row).toBeVisible({ timeout: 60_000 });
     await demoA.click(row.locator('a[href*="/building?"]').first());
     const shareButton = stageA.getByRole("button", { name: "Share", exact: true });
@@ -235,7 +236,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
       "Auf der Karte: A's freigegebene Halle (orange markiert) neben B's eigenen Objekten",
     );
     await demoB.click(stageB.getByRole("tab", { name: "Buildings" }));
-    await demoB.click(stageB.getByRole("button", { name: "Map", exact: true }));
+    await demoB.click(stageB.getByRole("button", { name: en("btnMap"), exact: true }));
     const sharedMarker = stageB
       .locator(".leaflet-marker-icon.pin-shared").first();
     await sharedMarker.waitFor({ timeout: 60_000 });

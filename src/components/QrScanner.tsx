@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import { logError } from "../lib/logError.ts";
 import { describeCameraError } from "../lib/cameraError.ts";
+import { msg } from "../lib/messages.ts";
 
 interface QrScannerProps {
   /** Called with the decoded text once a QR code is read. */
@@ -101,7 +102,7 @@ export default function QrScanner({ onResult, onCancel }: QrScannerProps) {
           {error}
         </Typography>
       )}
-      <Button onClick={onCancel} sx={{ mt: 1 }}>Cancel</Button>
+      <Button onClick={onCancel} sx={{ mt: 1 }}>{msg("btnCancel")}</Button>
     </Box>
   );
 }

@@ -21,7 +21,7 @@ export async function deleteAllOwnedRooms(page: Page): Promise<void> {
     if (await connect.count()) await connect.click();
 
     const deleteButtons = page.getByRole("button", {
-      name: "Delete data room",
+      name: en("roomDeleteAria"),
     });
     for (let i = 0; i < 50; i++) {
       const remaining = await deleteButtons.count();
@@ -59,7 +59,7 @@ export async function removeAllBookmarkedRooms(page: Page): Promise<void> {
     }
 
     const removeButtons = page.getByRole("button", {
-      name: "Remove data room",
+      name: en("roomRemoveAria"),
     });
     for (let i = 0; i < 50; i++) {
       const remaining = await removeButtons.count();

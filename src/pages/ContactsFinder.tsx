@@ -102,18 +102,18 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
       <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 1 }}>
         <TextField
           size="small"
-          label="WebID"
+          label={t("lblWebId")}
           value={contactInput}
           onChange={(e) => setContactInput(e.target.value)}
           sx={{ minWidth: 320 }}
         />
         <Button
           variant="outlined"
-          aria-label="Add contact"
+          aria-label={t("contactAddAria")}
           disabled={!contactInput.trim() || saveContact.isPending}
           onClick={handleAddContact}
         >
-          {saveContact.isPending ? "Adding…" : "Add"}
+          {saveContact.isPending ? t("addingEllipsis") : t("btnAdd")}
         </Button>
         {/* Opener only — the scanner's own Cancel button (right under the
             camera view) is the one way to close it. */}
@@ -122,7 +122,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
           onClick={() => setScanning(true)}
           disabled={scanning}
         >
-          Scan QR code
+          {t("scanQrCode")}
         </Button>
       </Stack>
       {scanning && (
@@ -132,7 +132,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
         />
       )}
       {contactsQuery.isLoading
-        ? <Typography variant="body2">Loading…</Typography>
+        ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : contacts.length === 0
         ? (
           <Typography variant="body2">
@@ -140,17 +140,17 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
           </Typography>
         )
         : (
-          <Box component="ul" aria-label="Contacts" sx={{ listStyle: "none", pl: 0, m: 0 }}>
+          <Box component="ul" aria-label={t("navContacts")} sx={{ listStyle: "none", pl: 0, m: 0 }}>
             {contactPaging.pageItems.map((c) => (
               <ResourceRow
                 key={c.webId}
                 title={<AgentLabel value={c.webId} />}
                 actions={
-                  <Tooltip title="Remove contact">
+                  <Tooltip title={t("contactRemoveAria")}>
                     <IconButton
                       size="small"
                       color="error"
-                      aria-label="Remove contact"
+                      aria-label={t("contactRemoveAria")}
                       onClick={() => handleRemoveContact(c.webId)}
                       disabled={removeContact.isPending}
                     >

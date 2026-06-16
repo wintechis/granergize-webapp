@@ -48,8 +48,8 @@ export default function AggregationSharingSection(
     if (
       !await confirm({
         title: msg("dlgRevokeAccess"),
-        message: `Revoke access for ${webId}?`,
-        confirmLabel: "Revoke",
+        message: msg("confirmRevokeMessage", { webId }),
+        confirmLabel: msg("confirmRevoke"),
       })
     ) return;
     revoke.mutate({ snapshotUri, webId }, {
@@ -69,22 +69,22 @@ export default function AggregationSharingSection(
           startIcon={<ShareIcon fontSize="small" />}
           onClick={() => setShareOpen(true)}
         >
-          Share
+          {msg("btnShare")}
         </Button>
       </Stack>
 
       {sharedQuery.isLoading
-        ? <Typography variant="body2" color="text.secondary">Loading…</Typography>
+        ? <Typography variant="body2" color="text.secondary">{msg("loadingEllipsis")}</Typography>
         : sharedWith.length === 0
         ? (
           <Typography variant="body2" color="text.secondary">
-            Not shared with anyone yet. Use Share to grant access.
+            {msg("shareBuildingNoneYet")}
           </Typography>
         )
         : (
           <NestedAgentList
             agents={sharedWith}
-            label="Shared with:"
+            label={msg("sharedWithLabel")}
             onRevoke={handleRevoke}
             isRevoking={(webId) =>
               revoke.isPending &&

@@ -20,7 +20,7 @@ export default function AgentProfileSection({ webId }: { webId: string }) {
     <Box>
       <SectionTitle>{msg("secProfile")}</SectionTitle>
       <DetailRow label="WebID" value={<UriLink href={webId}>{webId}</UriLink>} />
-      {org?.name && <DetailRow label="Organisation" value={org.name} />}
+      {org?.name && <DetailRow label={msg("lblOrganisation")} value={org.name} />}
       <RdfSourceLink href={webId} />
     </Box>
   );

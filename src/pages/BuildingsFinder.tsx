@@ -107,7 +107,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
     // Build the "what will be removed" preview, confirm, then delete (the
     // confirm lives here, not in the service — same pattern as handleRevoke).
     const { message } = await buildBuildingDeletionPreview(session, building);
-    if (!await confirm({ title: msg("dlgDeleteBuilding"), message, confirmLabel: "Delete" })) {
+    if (!await confirm({ title: msg("dlgDeleteBuilding"), message, confirmLabel: msg("btnDelete") })) {
       return;
     }
     deleteBuilding.mutate(building, {
@@ -119,8 +119,8 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
     if (
       !await confirm({
         title: msg("dlgRevokeAccess"),
-        message: `Revoke access for ${webId}?`,
-        confirmLabel: "Revoke",
+        message: msg("confirmRevokeMessage", { webId }),
+        confirmLabel: msg("confirmRevoke"),
       })
     ) return;
     revoke.mutate({ buildingUri, webId }, {
@@ -155,10 +155,10 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
           onChange={(_e, next) => {
             if (next) setBuildingsView(next); // ignore deselect of the active button
           }}
-          aria-label="Buildings view"
+          aria-label={t("bldgsViewAria")}
         >
-          <ToggleButton value="map">Map</ToggleButton>
-          <ToggleButton value="list">List</ToggleButton>
+          <ToggleButton value="map">{t("btnMap")}</ToggleButton>
+          <ToggleButton value="list">{t("btnList")}</ToggleButton>
         </ToggleButtonGroup>
       </Box>
       {/* Map: kept mounted whenever Buildings is the finder (only hidden when
@@ -194,7 +194,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                   setAddOpen(true);
                 }}
               >
-                Add Building
+                {t("addBuildingBtn")}
               </Button>
               <Button
                 variant="outlined"
@@ -204,7 +204,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                   setAddOpen(true);
                 }}
               >
-                Autofill from file
+                {t("bldgsAutofillFromFile")}
               </Button>
               <Button
                 variant="outlined"
@@ -212,12 +212,12 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                 onClick={handleDownloadAll}
                 disabled={ownedBuildings.length === 0}
               >
-                Download all (Excel)
+                {t("bldgsDownloadAll")}
               </Button>
             </Stack>
 
             {buildingsLoading
-              ? <Typography variant="body2">Loading…</Typography>
+              ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
               : ownedBuildings.length === 0
               ? (
                 <Typography variant="body2">
@@ -256,7 +256,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                           // Edit / Files / energy / Share / Download all live on the
                           // building page (/building/:id) now.
                           <RowAction
-                            label="Delete building"
+                            label={t("buildingDeleteAria")}
                             color="error"
                             icon={<DeleteIcon fontSize="small" />}
                             onClick={() => handleDelete(b)}
@@ -272,7 +272,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                           : (
                             <NestedAgentList
                               agents={sharedWith}
-                              label="Shared with:"
+                              label={t("sharedWithLabel")}
                               onRevoke={(webId) => handleRevoke(fileUri, webId)}
                               isRevoking={(webId) =>
                                 revoke.isPending &&

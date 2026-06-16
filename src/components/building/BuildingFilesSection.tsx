@@ -81,8 +81,8 @@ export default function BuildingFilesSection(
     if (
       !await confirm({
         title: msg("dlgDeleteFile"),
-        message: `Delete "${a.filename}"? This cannot be undone.`,
-        confirmLabel: "Delete",
+        message: msg("filesDeleteConfirm", { filename: a.filename }),
+        confirmLabel: msg("btnDelete"),
       })
     ) {
       return;

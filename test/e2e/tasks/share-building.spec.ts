@@ -220,14 +220,14 @@ test.describe("sharing across two pods", () => {
         const sharedRow = received.locator("li")
           .filter({ has: b2.page.getByText(/^Building /) }).first();
         const visToggle = sharedRow.getByRole("switch"); // the Shown/Hidden Switch (MUI v9 Switch → role="switch")
-        await expect(sharedRow.getByText("Shown")).toBeVisible({
+        await expect(sharedRow.getByText(en("shareShown"))).toBeVisible({
           timeout: T.action,
         });
         const markers = b2.page.locator(".leaflet-marker-icon");
 
         // Hide → row reads "Hidden" and B's Buildings/Map drops to no markers.
         await visToggle.click();
-        await expect(sharedRow.getByText("Hidden")).toBeVisible({
+        await expect(sharedRow.getByText(en("shareHidden"))).toBeVisible({
           timeout: T.action,
         });
         await openBuildingsMap(b2.page);
@@ -237,11 +237,11 @@ test.describe("sharing across two pods", () => {
 
         // Show → row reads "Shown" again and the marker returns.
         await b2.page.getByRole("tab", { name: en("navSharing") }).click();
-        await expect(sharedRow.getByText("Hidden")).toBeVisible({
+        await expect(sharedRow.getByText(en("shareHidden"))).toBeVisible({
           timeout: T.action,
         });
         await visToggle.click();
-        await expect(sharedRow.getByText("Shown")).toBeVisible({
+        await expect(sharedRow.getByText(en("shareShown"))).toBeVisible({
           timeout: T.action,
         });
         await openBuildingsMap(b2.page);

@@ -70,6 +70,7 @@ function ReceivedAggregationRow(
   },
 ) {
   const [open, setOpen] = useState(false);
+  const t = useT();
 
   // Recipients hold Read on the snapshot (which carries the aggregation's name) but not
   // the definition. The query loads it on mount so the row shows the aggregation's NAME
@@ -82,29 +83,29 @@ function ReceivedAggregationRow(
       ? snapQuery.error.message
       : String(snapQuery.error))
     : snapQuery.isSuccess && snapQuery.data === null
-    ? "snapshot not found or empty"
+    ? t("shareSnapshotEmpty")
     : null;
 
   const toggle = () => setOpen((prev) => !prev);
 
   const label = (snapshot?.name && snapshot.name.trim()) || aggregation.aggregationId ||
-    "Shared aggregation";
+    t("shareAggFallbackName");
   const entries = snapshot ? Object.entries(snapshot.values) : [];
 
   return (
     <ResourceRow
       title={label}
-      subtitle={<>Shared by: <AgentLabel value={aggregation.sharedBy} /></>}
+      subtitle={<>{t("shareSharedBy")} <AgentLabel value={aggregation.sharedBy} /></>}
       actions={
         <Button size="small" variant="text" onClick={toggle}>
-          {open ? "Hide values" : "Show values"}
+          {open ? t("shareHideValues") : t("shareShowValues")}
         </Button>
       }
       expansion={open && (
         <Box sx={{ mt: 1 }}>
           {loading && (
             <Typography variant="body2" color="text.secondary">
-              Loading…
+              {t("loadingEllipsis")}
             </Typography>
           )}
           {error && (
@@ -112,14 +113,16 @@ function ReceivedAggregationRow(
           )}
           {snapshot && entries.length === 0 && (
             <Typography variant="body2" color="text.secondary">
-              This aggregation has no computed values.
+              {t("shareNoComputedValues")}
             </Typography>
           )}
           {snapshot && entries.length > 0 && (
             <>
               <Typography variant="body2" color="text.secondary">
-                {snapshot.aggregationType} across {snapshot.buildingCount}{" "}
-                building(s)
+                {t("shareAcrossBuildings", {
+                  type: snapshot.aggregationType,
+                  count: snapshot.buildingCount,
+                })}
               </Typography>
               <Table size="small">
                 <TableBody>
@@ -286,7 +289,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
             onClick={handleCheckInbox}
             disabled={checkInbox.isPending}
           >
-            {checkInbox.isPending ? "Checking…" : "Check for new shares"}
+            {checkInbox.isPending ? t("shareChecking") : t("shareCheckForNew")}
           </Button>
         )}
         <Button
@@ -295,11 +298,11 @@ export default function SharingFinder({ session }: SharingFinderProps) {
           onClick={handleDownloadAll}
           disabled={bundling || sharedWithMe.length === 0}
         >
-          {bundling ? "Preparing…" : "Download all (Excel)"}
+          {bundling ? t("sharePreparing") : t("bldgsDownloadAll")}
         </Button>
       </Stack>
       {loading
-        ? <Typography variant="body2">Loading…</Typography>
+        ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : sharedWithMe.length === 0
         ? (
           <Typography variant="body2">
@@ -309,7 +312,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
         : (
           <Box
             component="ul"
-            aria-label="Buildings shared with you"
+            aria-label={t("sharedBuildingsHeading")}
             sx={{ listStyle: "none", pl: 0, m: 0 }}
           >
             {sharedPaging.pageItems.map((building) => {
@@ -324,26 +327,26 @@ export default function SharingFinder({ session }: SharingFinderProps) {
                         <RefLink
                           to={buildingRoute(resolvableId)}
                         >
-                          Building {building.buildingId}
+                          {t("shareBuildingN", { id: building.buildingId })}
                         </RefLink>
                       )
-                      : <>Building {building.buildingId}</>}
+                      : <>{t("shareBuildingN", { id: building.buildingId })}</>}
                     <RdfSourceLink href={building.buildingUri} inline />
                   </>
                 }
-                subtitle={<>Shared by: <AgentLabel value={building.sharedBy} /></>}
+                subtitle={<>{t("shareSharedBy")} <AgentLabel value={building.sharedBy} /></>}
                 actions={
                   <>
-                    <Tooltip title="Download this building's data (Excel)">
+                    <Tooltip title={t("shareDownloadBuildingTooltip")}>
                       <IconButton
                         size="small"
-                        aria-label="Download this building's data"
+                        aria-label={t("shareDownloadBuildingAria")}
                         onClick={() => handleDownloadBuilding(building)}
                       >
                         <DownloadIcon fontSize="small" />
                       </IconButton>
                     </Tooltip>
-                    <Tooltip title="Controls whether this building appears in your dashboard. Does not affect the owner's sharing settings.">
+                    <Tooltip title={t("shareVisibilityTooltip")}>
                       <Box
                         component="label"
                         sx={{ display: "inline-flex", alignItems: "center" }}
@@ -357,7 +360,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
                           icon={<VisibilityOffIcon />}
                           checkedIcon={<VisibilityIcon />}
                         />
-                        {building.isVisible ? "Shown" : "Hidden"}
+                        {building.isVisible ? t("shareShown") : t("shareHidden")}
                       </Box>
                     </Tooltip>
                   </>
@@ -374,7 +377,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
         {t("sharedAggregationsHeading")}
       </Typography>
       {receivedAggregationsQuery.isLoading
-        ? <Typography variant="body2">Loading…</Typography>
+        ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : receivedAggregations.length === 0
         ? (
           <Typography variant="body2">
@@ -384,7 +387,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
         : (
           <Box
             component="ul"
-            aria-label="Aggregations shared with you"
+            aria-label={t("sharedAggregationsHeading")}
             sx={{ listStyle: "none", pl: 0, m: 0 }}
           >
             {receivedAggregationsPaging.pageItems.map((aggregation) => (

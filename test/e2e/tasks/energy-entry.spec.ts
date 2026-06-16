@@ -64,7 +64,7 @@ test.describe("energy entry + Soll-Ist", () => {
 
     // Add a throwaway building to write the year to (deleted in afterAll).
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
@@ -101,7 +101,7 @@ test.describe("energy entry + Soll-Ist", () => {
         await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
-          await row.getByRole("button", { name: "Delete building" }).click();
+          await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
           await confirmDialog(page, "Delete");
           await expect(page.getByText("Building deleted").first())
             .toBeVisible({ timeout: T.action });

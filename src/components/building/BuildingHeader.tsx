@@ -1,3 +1,4 @@
+import { msg } from "../../lib/messages.ts";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { MapContainer, Marker, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -101,7 +102,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
               variant="outlined"
             />
             <RowAction
-              label="Download building data (Excel)"
+              label={msg("bhDownloadData")}
               icon={<DownloadIcon fontSize="small" />}
               onClick={handleDownload}
             />

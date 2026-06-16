@@ -79,13 +79,13 @@ test.describe("building file attachments", () => {
 
     // Download it — the browser download fires with the original filename.
     const downloadPromise = page.waitForEvent("download");
-    await fileRow.getByRole("button", { name: "Download" }).click();
+    await fileRow.getByRole("button", { name: en("btnDownload") }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe("sample.pdf");
 
     // Flag it as the energy certificate → the badge appears.
-    await fileRow.getByRole("button", { name: "Set as cert" }).click();
-    await expect(fileRow.getByText("Energy certificate"))
+    await fileRow.getByRole("button", { name: en("filesSetCert") }).click();
+    await expect(fileRow.getByText(en("energyCertChip")))
       .toBeVisible({ timeout: T.action });
 
     // Delete it (the in-app confirm dialog asks first) → it drops off the list.

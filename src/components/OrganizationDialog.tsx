@@ -127,13 +127,13 @@ export default function OrganizationDialog(
       title={msg("orgDialogTitle")}
       actions={
         <>
-          <Button onClick={close} disabled={saving}>Cancel</Button>
+          <Button onClick={close} disabled={saving}>{msg("btnCancel")}</Button>
           <Button
             onClick={handleSave}
             variant="contained"
             disabled={saving || !dirty}
           >
-            {saving ? "Saving…" : "Save"}
+            {saving ? msg("btnSaving") : msg("btnSave")}
           </Button>
         </>
       }

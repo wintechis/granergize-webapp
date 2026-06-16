@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { sweepSizes, writeBenchDat } from "./benchSpec.ts";
 import { buildingRoute } from "../helpers/manage.ts";
@@ -82,7 +83,7 @@ test.describe("series-render benchmark", () => {
 
       // The month view bulk-fetches the selected month's day-files.
       t0 = Date.now();
-      await page.getByRole("tab", { name: "Daily Totals" }).click();
+      await page.getByRole("tab", { name: en("ucDailyTotals") }).click();
       await expect(page.getByText("Loading…")).toHaveCount(0, { timeout: 120_000 });
       await expect(page.locator(".recharts-wrapper").first())
         .toBeVisible({ timeout: 120_000 });

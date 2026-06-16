@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
@@ -508,10 +509,10 @@ export default function ExplorePage(
           exclusive
           value={lens}
           onChange={(_e, v: MapLens | null) => v && setLens(v)}
-          aria-label="Marker colour lens"
+          aria-label={msg("lensAria")}
         >
-          <ToggleButton value="ownership">Ownership</ToggleButton>
-          <ToggleButton value="energy">Energy</ToggleButton>
+          <ToggleButton value="ownership">{msg("lensOwnership")}</ToggleButton>
+          <ToggleButton value="energy">{msg("lensEnergy")}</ToggleButton>
         </ToggleButtonGroup>
         {(lens === "energy"
           ? ([

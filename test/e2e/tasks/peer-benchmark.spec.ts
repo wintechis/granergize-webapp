@@ -133,7 +133,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
 
       // Share the benchmark back to its contributors (A + B) via the dedicated button.
       const aggregationRow = c2.page.locator("li").filter({ hasText: BENCH_VIEW }).first();
-      await aggregationRow.getByRole("button", { name: "Share aggregation" }).click();
+      await aggregationRow.getByRole("button", { name: en("aggShareAria") }).click();
       const shareDlg = c2.page.getByRole("dialog");
       const addAll = shareDlg.getByRole("button", { name: /add all .* contributors/i });
       await expect(addAll).toBeVisible({ timeout: T.action });

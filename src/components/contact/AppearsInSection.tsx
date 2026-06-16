@@ -17,7 +17,7 @@ export default function AppearsInSection({ webId }: { webId: string }) {
   return (
     <Box>
       <SectionTitle divider>{msg("secAppearsIn")}</SectionTitle>
-      {isLoading ? <Typography>Loading…</Typography> : (
+      {isLoading ? <Typography>{msg("loadingEllipsis")}</Typography> : (
         appearances.length === 0
           ? (
             <Typography color="text.secondary">

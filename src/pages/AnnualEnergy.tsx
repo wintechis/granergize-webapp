@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import React from "react";
 import {
@@ -237,27 +238,27 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
         {hasMasterData && (
           <Stack spacing={0.5}>
             {climateControlType && (
-              <DetailRow label="Climate Control" value={climateControlType} />
+              <DetailRow label={msg("aeClimateControl")} value={climateControlType} />
             )}
             {tenancyType && (
-              <DetailRow label="Tenancy Type" value={tenancyType} />
+              <DetailRow label={msg("aeTenancyType")} value={tenancyType} />
             )}
-            {leaseType && <DetailRow label="Lease Type" value={leaseType} />}
+            {leaseType && <DetailRow label={msg("aeLeaseType")} value={leaseType} />}
             {tenantIndustry && (
-              <DetailRow label="Tenant Industry" value={tenantIndustry} />
+              <DetailRow label={msg("aeTenantIndustry")} value={tenantIndustry} />
             )}
             {indoorTemperatureClass && (
               <DetailRow
-                label="Indoor Temp. Class"
+                label={msg("aeIndoorTemp")}
                 value={indoorTemperatureClass}
               />
             )}
             {numberOfLoadingDocks != null && (
-              <DetailRow label="Loading Docks" value={numberOfLoadingDocks} />
+              <DetailRow label={msg("aeLoadingDocks")} value={numberOfLoadingDocks} />
             )}
             {greenLeaseShare != null && (
               <DetailRow
-                label="Green Lease Share"
+                label={msg("aeGreenLease")}
                 value={`${formatNumber(greenLeaseShare, 1)} %`}
               />
             )}
@@ -285,7 +286,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
             )}
             {certifications.length > 0 && (
               <DetailRow
-                label="Certifications"
+                label={msg("aeCertifications")}
                 value={
                   <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap" }}>
                     {certifications.map((cert, i) => (
@@ -321,7 +322,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                   <TableHead>
                     <TableRow>
                       <TableCell>
-                        <strong>Year</strong>
+                        <strong>{msg("lblYear")}</strong>
                       </TableCell>
                       {visibleMetrics.map((m) => (
                         <TableCell key={m.key} align="right">
@@ -358,7 +359,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                     {hasOperatorAvg && (
                       <TableRow>
                         <TableCell>
-                          <strong>Operator average</strong>
+                          <strong>{msg("aeOperatorAvg")}</strong>
                         </TableCell>
                         {/* The carrier keys are the consumption metrics' schema
                             labels; the renewable share is a ratio and stays out
@@ -375,7 +376,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                     {hasPortfolio && (
                       <TableRow>
                         <TableCell>
-                          <strong>Portfolio average</strong>
+                          <strong>{msg("aePortfolioAvg")}</strong>
                         </TableCell>
                         {visibleMetrics.map((m) => (
                           <TableCell key={m.key} align="right">
@@ -390,7 +391,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                     {hasBenchmark && (
                       <TableRow>
                         <TableCell>
-                          <strong>Benchmark</strong>
+                          <strong>{msg("aeBenchmark")}</strong>
                         </TableCell>
                         {visibleMetrics.map((m) => {
                           const b = benchmarkFor(m.key);

@@ -101,13 +101,13 @@ export default function EditBuildingDialog(
       title={<BuildingDialogTitle building={building} action="Edit building" />}
       actions={
         <>
-          <Button onClick={handleClose} disabled={saving}>Cancel</Button>
+          <Button onClick={handleClose} disabled={saving}>{msg("btnCancel")}</Button>
           <Button
             variant="contained"
             onClick={handleSubmit}
             disabled={saving || !isValid}
           >
-            {saving ? "Saving…" : "Save Changes"}
+            {saving ? msg("btnSaving") : msg("saveChanges")}
           </Button>
         </>
       }
@@ -131,7 +131,7 @@ export default function EditBuildingDialog(
           buildingCode={{
             error: isDuplicateCode,
             helperText: isDuplicateCode
-              ? "Building code already exists"
+              ? msg("buildingCodeExists")
               : undefined,
           }}
         />

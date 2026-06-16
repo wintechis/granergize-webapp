@@ -29,7 +29,7 @@ const LOGO_ADDR = "Logo Marker E2E Strasse 2"; // building used for the logo-mar
 async function openOrgDialog(page: Page): Promise<Locator> {
   // Bounded clicks: Playwright's default action timeout is 0 (wait forever), so a
   // stuck click here would consume a whole hook budget uncatchably. 15 s is ample.
-  await page.getByRole("button", { name: "Account menu" }).click({
+  await page.getByRole("button", { name: en("menuAccountAria") }).click({
     timeout: T.visible,
   });
   await page.getByRole("menuitem", { name: /organisation/i })
@@ -123,7 +123,7 @@ test.describe("organisation logo", () => {
     // Add an owned building via the single generic form (no role/template).
     await openBuildingsList(page);
     const addBtn = page.getByRole("button", {
-      name: "Add Building",
+      name: en("addBuildingBtn"),
       exact: true,
     })
       .first();
@@ -155,7 +155,7 @@ test.describe("organisation logo", () => {
     // hover card, which renders the producer's org logo image. (Several owned
     // buildings would all show Alice's logo, so hover the first owned pin.)
     await page.getByRole("tab", { name: en("navBuildings") }).click();
-    await page.getByRole("button", { name: "Map", exact: true }).click();
+    await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
     const ownedPin = page.locator(".leaflet-marker-icon.pin-owned").first();
     await expect(ownedPin).toBeVisible({ timeout: T.action });
     await ownedPin.hover();
@@ -166,7 +166,7 @@ test.describe("organisation logo", () => {
     await openBuildingsList(page);
     const row = page.locator("li", { hasText: LOGO_ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
-    await row.getByRole("button", { name: "Delete building" }).click();
+    await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
     await confirmDialog(page, "Delete");
     await expect(page.getByText("Building deleted").first())
       .toBeVisible({ timeout: T.action });

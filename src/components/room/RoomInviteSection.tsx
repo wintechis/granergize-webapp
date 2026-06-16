@@ -43,10 +43,10 @@ export default function RoomInviteSection({ roomUri }: { roomUri: string }) {
         Show this QR code, or copy the invite link, so others can join this data
         room.
       </Typography>
-      <Tooltip title="Copy invite link">
+      <Tooltip title={msg("roomCopyInvite")}>
         <IconButton
           size="small"
-          aria-label="Copy invite link"
+          aria-label={msg("roomCopyInvite")}
           onClick={handleCopyLink}
           sx={{ mt: 1 }}
         >

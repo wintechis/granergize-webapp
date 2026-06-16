@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import {
   addEnergyYear,
@@ -67,7 +68,7 @@ test.describe("energy resolution toggle", () => {
 
     // Import the Lastgang fixture — the building arrives with a PT15M series.
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
@@ -113,7 +114,7 @@ test.describe("energy resolution toggle", () => {
         await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
-          await row.getByRole("button", { name: "Delete building" }).click();
+          await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
           await confirmDialog(page, "Delete");
           await expect(page.getByText("Building deleted").first())
             .toBeVisible({ timeout: T.action });
@@ -135,16 +136,16 @@ test.describe("energy resolution toggle", () => {
     await expect(page.getByText(/77\.777/).first())
       .toBeVisible({ timeout: T.action });
     // Both resolutions exist, so the toggle renders.
-    const seriesBtn = page.getByRole("button", { name: "Time series" });
+    const seriesBtn = page.getByRole("button", { name: en("erTimeSeries") });
     await expect(seriesBtn).toBeVisible({ timeout: T.action });
     // Switching reaches the series chart — its Day-View tab strip renders
     // (this was unreachable while annual data existed).
     await seriesBtn.click();
-    await expect(page.getByRole("tab", { name: "Day View" }))
+    await expect(page.getByRole("tab", { name: en("ucDayView") }))
       .toBeVisible({ timeout: T.action });
     await expect(page.getByText(/77\.777/).first()).toBeHidden();
     // And back: the annual view returns.
-    await page.getByRole("button", { name: "Annual" }).click();
+    await page.getByRole("button", { name: en("erAnnual") }).click();
     await expect(page.getByText(/77\.777/).first())
       .toBeVisible({ timeout: T.action });
   });

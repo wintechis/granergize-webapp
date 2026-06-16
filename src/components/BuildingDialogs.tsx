@@ -101,7 +101,7 @@ export function ShareBuildingDialog({
   const handleProceedToConfirm = async () => {
     if (shareMode === "webid") {
       if (webIds.length === 0) {
-        setWebIdError("Enter at least one WebID");
+        setWebIdError(msg("shareEnterOneWebId"));
         return;
       }
       const err = webIdsError(webIds);
@@ -114,7 +114,7 @@ export function ShareBuildingDialog({
       // the pair can never fold away) and posts a pointless self-notification.
       // The role path already excludes self (getMembersByRole).
       if (webIds.includes(session.info.webId ?? "")) {
-        setWebIdError("You cannot share a building with yourself");
+        setWebIdError(msg("shareSelfError"));
         return;
       }
       setWebIdError("");
@@ -125,7 +125,7 @@ export function ShareBuildingDialog({
 
     // Role mode: resolve the chosen role to member WebIDs via the data room.
     if (!targetRole) {
-      setWebIdError("Select a role");
+      setWebIdError(msg("shareSelectRole"));
       return;
     }
     setResolving(true);
@@ -137,18 +137,16 @@ export function ShareBuildingDialog({
         session,
       );
       if (resolved.length === 0) {
-        setWebIdError(
-          "No data room members currently hold that role.",
-        );
+        setWebIdError(msg("shareNoRoleMembers"));
         return;
       }
       setRecipients(resolved);
       setConfirmStep(true);
     } catch (error) {
       setWebIdError(
-        `Could not load data room members: ${
-          error instanceof Error ? error.message : String(error)
-        }`,
+        msg("shareRoleLoadError", {
+          error: error instanceof Error ? error.message : String(error),
+        }),
       );
     } finally {
       setResolving(false);
@@ -177,15 +175,15 @@ export function ShareBuildingDialog({
       onClose={onClose}
       dirty={webIds.length > 0 || recipients.length > 0 || targetRole !== ""}
       busy={sharing}
-      title="Share Building Data"
+      title={msg("shareBuildingTitle")}
       actions={sharing
         ? undefined
         : shareSuccess
-        ? <Button onClick={onClose} variant="contained">Done</Button>
+        ? <Button onClick={onClose} variant="contained">{msg("btnDone")}</Button>
         : !confirmStep
         ? (
           <>
-            <Button onClick={onClose}>Cancel</Button>
+            <Button onClick={onClose}>{msg("btnCancel")}</Button>
             <Button
               onClick={handleProceedToConfirm}
               variant="contained"
@@ -193,21 +191,21 @@ export function ShareBuildingDialog({
                 (shareMode === "webid" ? webIds.length === 0 : !targetRole) ||
                 (shareScope === "years" && selectedYears.length === 0)}
             >
-              {resolving ? "Resolving…" : "Review and Share"}
+              {resolving ? msg("shareResolving") : msg("shareReviewAndShare")}
             </Button>
           </>
         )
         : (
           <>
-            <Button onClick={() => setConfirmStep(false)}>Back</Button>
+            <Button onClick={() => setConfirmStep(false)}>{msg("btnBack")}</Button>
             <Button onClick={handleShare} variant="contained">
-              Confirm Share
+              {msg("shareConfirmShare")}
             </Button>
           </>
         )}
     >
       {sharing && (
-        <Typography variant="body2" color="text.secondary">Sharing…</Typography>
+        <Typography variant="body2" color="text.secondary">{msg("shareInProgress")}</Typography>
       )}
 
       {!sharing && shareSuccess && (
@@ -220,7 +218,7 @@ export function ShareBuildingDialog({
               gap: 0.5,
             }}
           >
-            Shared successfully with{" "}
+            {msg("shareSuccessWith")}{" "}
             {recipients.map((r) => (
               <AgentChip key={r} value={r} size="small" variant="outlined" />
             ))}
@@ -249,8 +247,8 @@ export function ShareBuildingDialog({
                 }
               }}
             >
-              <ToggleButton value="webid">By WebID</ToggleButton>
-              <ToggleButton value="role">By role</ToggleButton>
+              <ToggleButton value="webid">{msg("shareByWebId")}</ToggleButton>
+              <ToggleButton value="role">{msg("shareByRole")}</ToggleButton>
             </ToggleButtonGroup>
 
             {shareMode === "webid"
@@ -261,8 +259,7 @@ export function ShareBuildingDialog({
                     color="text.secondary"
                     sx={{ mb: 2 }}
                   >
-                    Choose recipients from your contacts and data room members, or
-                    type a WebID and press Enter to add it.
+                    {msg("shareWebIdHint")}
                   </Typography>
                   <RecipientAutocomplete
                     value={webIds}
@@ -282,14 +279,13 @@ export function ShareBuildingDialog({
                     color="text.secondary"
                     sx={{ mb: 2 }}
                   >
-                    Share with everyone in the GRANERGIZE data room who holds the
-                    selected role.
+                    {msg("shareRoleHint")}
                   </Typography>
                   <FormControl fullWidth error={!!webIdError}>
-                    <InputLabel id="share-role-label">Role</InputLabel>
+                    <InputLabel id="share-role-label">{msg("lblRole")}</InputLabel>
                     <Select
                       labelId="share-role-label"
-                      label="Role"
+                      label={msg("lblRole")}
                       value={targetRole}
                       onChange={(e) => {
                         setTargetRole(e.target.value as UserRole);
@@ -311,7 +307,7 @@ export function ShareBuildingDialog({
                 </>
               )}
             <FormControl component="fieldset" sx={{ mt: 3 }}>
-              <FormLabel component="legend">What to share</FormLabel>
+              <FormLabel component="legend">{msg("shareWhatToShare")}</FormLabel>
               <RadioGroup
                 value={shareScope}
                 onChange={(e) =>
@@ -320,17 +316,17 @@ export function ShareBuildingDialog({
                 <FormControlLabel
                   value="static"
                   control={<Radio />}
-                  label="Static building data only"
+                  label={msg("shareScopeStatic")}
                 />
                 <FormControlLabel
                   value="all"
                   control={<Radio />}
-                  label="Static building data and all energy readings"
+                  label={msg("shareScopeAll")}
                 />
                 <FormControlLabel
                   value="years"
                   control={<Radio />}
-                  label="Static building data and energy for specific year(s)"
+                  label={msg("shareScopeYears")}
                   disabled={availableYears.length === 0}
                 />
               </RadioGroup>
@@ -338,7 +334,7 @@ export function ShareBuildingDialog({
                 availableYears.length === 0
                   ? (
                     <Alert severity="info" sx={{ mt: 1 }}>
-                      This building has no energy datasets to share by year.
+                      {msg("shareNoYearDatasets")}
                     </Alert>
                   )
                   : (
@@ -371,10 +367,8 @@ export function ShareBuildingDialog({
         <>
             <Typography variant="body2" color="text.secondary" gutterBottom>
               {shareMode === "role"
-                ? `Confirm sharing with ${recipients.length} data room member${
-                  recipients.length === 1 ? "" : "s"
-                }:`
-                : "Confirm sharing with:"}
+                ? msg("shareConfirmWithRoleCount", { count: recipients.length })
+                : msg("shareConfirmWith")}
             </Typography>
             <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5, mb: 2 }}>
               {recipients.map((r) => (
@@ -382,13 +376,13 @@ export function ShareBuildingDialog({
               ))}
             </Box>
             <Typography variant="body2">
-              <strong>Includes:</strong> {shareScope === "static"
-                ? "Static building data only"
+              <strong>{msg("shareIncludes")}</strong> {shareScope === "static"
+                ? msg("shareScopeStatic")
                 : shareScope === "all"
-                ? "Static building data and all energy readings"
-                : `Static building data and energy for ${
-                  [...selectedYears].sort((a, b) => a - b).join(", ")
-                }`}
+                ? msg("shareScopeAll")
+                : msg("shareScopeYearsSummary", {
+                  years: [...selectedYears].sort((a, b) => a - b).join(", "),
+                })}
             </Typography>
         </>
       )}
@@ -444,17 +438,12 @@ export function FilesDialog(
     e.target.value = ""; // allow re-selecting the same file
     if (files.length === 0) return;
     if (items.length + files.length > MAX_FILES) {
-      showNotification(
-        `This building will have more than ${MAX_FILES} files — consider keeping it tidy.`,
-        "warning",
-      );
+      showNotification(msg("filesTooMany", { max: MAX_FILES }), "warning");
     }
     for (const file of files) {
       if (file.size > MAX_FILE_BYTES) {
         showNotification(
-          `"${file.name}" is large (${
-            formatBytes(file.size)
-          }); the upload may be slow or rejected by the Pod.`,
+          msg("filesTooLarge", { name: file.name, size: formatBytes(file.size) }),
           "warning",
         );
       }
@@ -475,8 +464,8 @@ export function FilesDialog(
     if (
       !await confirm({
         title: msg("dlgDeleteFile"),
-        message: `Delete "${a.filename}"? This cannot be undone.`,
-        confirmLabel: "Delete",
+        message: msg("filesDeleteConfirm", { filename: a.filename }),
+        confirmLabel: msg("btnDelete"),
       })
     ) {
       return;
@@ -506,15 +495,13 @@ export function FilesDialog(
       open={open}
       onClose={onClose}
       busy={busy}
-      title="Files"
-      actions={<Button onClick={onClose}>Close</Button>}
+      title={msg("secFiles")}
+      actions={<Button onClick={onClose}>{msg("btnClose")}</Button>}
     >
       {items.length === 0
         ? (
           <Typography variant="body2" sx={{ mb: 2 }}>
-            No files yet. Attach a PDF, image, or document below — it's stored on
-            your Pod and shared automatically with anyone you share the building
-            with.
+            {msg("filesEmpty")}
           </Typography>
         )
         : (
@@ -528,23 +515,23 @@ export function FilesDialog(
                     onClick={() => download(a)}
                     disabled={busy}
                   >
-                    Download
+                    {msg("btnDownload")}
                   </Button>
                   <Button
                     size="small"
                     onClick={() => handleToggleCert(a)}
                     disabled={busy}
                   >
-                    {a.isEnergyCertificate ? "Unset cert" : "Set as cert"}
+                    {a.isEnergyCertificate ? msg("filesUnsetCert") : msg("filesSetCert")}
                   </Button>
                   <Button
                     size="small"
                     color="error"
-                    aria-label={`Delete ${a.filename}`}
+                    aria-label={msg("filesDeleteAria", { filename: a.filename })}
                     onClick={() => handleDelete(a)}
                     disabled={busy}
                   >
-                    Delete
+                    {msg("btnDelete")}
                   </Button>
                 </span>
               </li>
@@ -562,7 +549,7 @@ export function FilesDialog(
         />
         <label htmlFor="files-input">
           <Button variant="contained" component="span" disabled={busy}>
-            {busy ? "Working…" : "Add files"}
+            {busy ? msg("filesWorking") : msg("filesAddFiles")}
           </Button>
         </label>
       </Box>

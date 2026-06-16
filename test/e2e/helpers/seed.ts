@@ -1,5 +1,6 @@
 import { expect, type Page } from "@playwright/test";
 import { T } from "./timeouts.ts";
+import { en } from "./i18n.ts";
 import { openBuildingsList } from "./manage.ts";
 
 /**
@@ -40,7 +41,7 @@ export async function ensureDemoBuildings(page: Page): Promise<void> {
   // wait again. Do NOT loop reloads — each restarts the app bootstrap and resets the
   // settle clock. If it still never shows, the Pod has gran:demoSeedDeclined.
   await openBuildingsList(page);
-  const addExamples = page.getByRole("button", { name: "Add examples" });
+  const addExamples = page.getByRole("button", { name: en("onboardAddExamples") });
   try {
     await expect(addExamples).toBeVisible({ timeout: T.action });
   } catch {

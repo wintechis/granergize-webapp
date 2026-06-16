@@ -1,3 +1,4 @@
+import { msg } from "../lib/messages.ts";
 import { Chip, Typography } from "@mui/material";
 import type { AttachmentRef } from "../types.ts";
 import { formatBytes } from "../lib/download.ts";
@@ -12,7 +13,7 @@ export default function AttachmentInfo({ a }: { a: AttachmentRef }) {
     <span style={{ minWidth: 0 }}>
       {a.filename}
       {a.isEnergyCertificate && (
-        <Chip size="small" label="Energy certificate" sx={{ ml: 1 }} />
+        <Chip size="small" label={msg("energyCertChip")} sx={{ ml: 1 }} />
       )}
       <br />
       <Typography component="span" variant="caption" color="text.secondary">

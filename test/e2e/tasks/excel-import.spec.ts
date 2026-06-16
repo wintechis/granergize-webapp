@@ -1,5 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { en } from "../helpers/i18n.ts";
 import {
   buildingIds,
   buildingRows,
@@ -36,7 +37,7 @@ async function openAddDialog(page: Page): Promise<void> {
   await openBuildingsList(page);
   // Wait on the Add Building action itself, not a building row — the Pod may have
   // no buildings yet (so the test doesn't depend on demo seeding).
-  const addBtn = page.getByRole("button", { name: "Add Building", exact: true })
+  const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
     .first();
   await expect(addBtn).toBeVisible({ timeout: T.action });
   await addBtn.click();

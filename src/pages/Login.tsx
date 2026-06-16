@@ -18,6 +18,7 @@ import { shouldRestoreSession } from "../services/pod/sessionRestore.ts";
 import { logError } from "../lib/logError.ts";
 import { clearLocalData } from "../lib/clearLocalData.ts";
 import { normalizeIssuer } from "../lib/normalizeIssuer.ts";
+import { msg } from "../lib/messages.ts";
 
 interface LoginProps {
   children: React.JSX.Element;
@@ -73,7 +74,7 @@ export const Login: React.FC<LoginProps> = ({
   logo = (
     <img
       src="https://solidproject.org/assets/img/solid-emblem.svg"
-      alt="Logo"
+      alt={msg("loginLogoAlt")}
     />
   ),
   recommendedLogins = [
@@ -369,7 +370,7 @@ export const Login: React.FC<LoginProps> = ({
   // load, so the whole login→app transition reads as one continuous "Loading…"
   // instead of a chain of different-looking screens.
   if (loading) {
-    return <ActivityScreen title={loadingIndicator ?? "Loading…"} />;
+    return <ActivityScreen title={loadingIndicator ?? msg("loadingEllipsis")} />;
   }
 
   // A provider was just picked: take over the whole screen with the same
@@ -442,7 +443,7 @@ export const Login: React.FC<LoginProps> = ({
             )}
 
             <Typography variant="h5">
-              {name ?? "Solid Login"}
+              {name ?? msg("loginTitleFallback")}
             </Typography>
 
             <Box
@@ -459,8 +460,8 @@ export const Login: React.FC<LoginProps> = ({
               {/* lead text or default */}
               {lead || (
                 <Typography variant="body1">
-                  Choose an Identity Provider for this{" "}
-                  <a href="https://solidproject.org/">Solid Application</a>
+                  {msg("loginChooseIdpPrefix")}
+                  <a href="https://solidproject.org/">{msg("loginSolidApp")}</a>
                 </Typography>
               )}
 
@@ -477,11 +478,11 @@ export const Login: React.FC<LoginProps> = ({
                       disabled={clearing}
                       onClick={handleClearLocalData}
                     >
-                      {clearing ? "Clearing…" : "Clear local data & retry"}
+                      {clearing ? msg("loginClearing") : msg("loginClearRetry")}
                     </Button>
                   }
                 >
-                  Couldn’t restore your previous session: {restoreError}
+                  {msg("loginRestoreFailed", { error: restoreError })}
                 </Alert>
               )}
 
@@ -496,7 +497,7 @@ export const Login: React.FC<LoginProps> = ({
                     }}
                   >
                     <Typography variant="subtitle2">
-                      Sign in
+                      {msg("loginSignIn")}
                     </Typography>
                     {recommendedLogins.map((idp) => (
                       <Button
@@ -525,7 +526,7 @@ export const Login: React.FC<LoginProps> = ({
                     }}
                   >
                     <Typography variant="subtitle2">
-                      Sign in again with
+                      {msg("loginSignInAgainWith")}
                     </Typography>
                     <Box
                       sx={{
@@ -559,7 +560,7 @@ export const Login: React.FC<LoginProps> = ({
                         setPrevIdps([]);
                       }}
                     >
-                      Clear
+                      {msg("btnClear")}
                     </Button>
                   </Box>
                 )
@@ -572,7 +573,7 @@ export const Login: React.FC<LoginProps> = ({
                 {(prevIdps.length || recommendedLogins.length)
                   ? (
                     <Typography variant="subtitle2">
-                      Sign in with another identity provider
+                      {msg("loginSignInOther")}
                     </Typography>
                   )
                   : null}
@@ -580,8 +581,8 @@ export const Login: React.FC<LoginProps> = ({
                   <IdpInputWrapper>
                     <TextField
                       name="login"
-                      label="Identity Provider"
-                      placeholder="e.g. inrupt.net"
+                      label={msg("loginIdpLabel")}
+                      placeholder={msg("loginIdpPlaceholder")}
                       onChange={(e) => setLogin(e.target.value)}
                       fullWidth
                     />

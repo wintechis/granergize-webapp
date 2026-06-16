@@ -65,7 +65,7 @@ test.describe("data rooms", () => {
   const roomRow = () =>
     page.locator("li").filter({
       has: page.locator(
-        'button[aria-label="Delete data room"], button[aria-label="Remove data room"]',
+        `button[aria-label="${en("roomDeleteAria")}"], button[aria-label="${en("roomRemoveAria")}"]`,
       ),
     });
 
@@ -121,7 +121,7 @@ test.describe("data rooms", () => {
   async function deleteRoom(uri: string) {
     await openConnect();
     const row = page.locator("li").filter({ hasText: uri });
-    await row.getByRole("button", { name: "Delete data room" }).click();
+    await row.getByRole("button", { name: en("roomDeleteAria") }).click();
     await confirmDialog(page, "Delete");
     await expect(page.locator("li").filter({ hasText: uri }))
       .toHaveCount(0, { timeout: SETTLE });
@@ -135,7 +135,7 @@ test.describe("data rooms", () => {
     // page's openRoom-on-mount). It carries the invite QR, the role selector
     // (we're a member) and the members list.
     await openRoomPage(uri);
-    await expect(page.getByRole("combobox", { name: "My role(s)" }))
+    await expect(page.getByRole("combobox", { name: en("roomMyRoles") }))
       .toBeVisible({ timeout: SETTLE });
     await expect(page.getByRole("heading", { name: en("secMembers") }))
       .toBeVisible();
@@ -168,7 +168,7 @@ test.describe("data rooms", () => {
       "Software Provider",
       "Energy Provider",
     ];
-    await page.getByRole("combobox", { name: "My role(s)" }).click();
+    await page.getByRole("combobox", { name: en("roomMyRoles") }).click();
     for (const role of ROLES) {
       await expect(page.getByRole("option", { name: role, exact: true }))
         .toBeVisible({ timeout: SETTLE });

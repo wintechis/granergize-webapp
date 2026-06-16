@@ -32,7 +32,7 @@ export default function FilesSection({ building }: { building: BuildingType }) {
               onClick={() => download(a)}
               disabled={downloadingUrl === a.url}
             >
-              {downloadingUrl === a.url ? "Downloading…" : "Download"}
+              {downloadingUrl === a.url ? msg("fileDownloading") : msg("btnDownload")}
             </Button>
           </li>
         ))}

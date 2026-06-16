@@ -89,10 +89,8 @@ export default function Room(
     if (
       !await confirm({
         title: msg("dlgDeleteRoom"),
-        message:
-          "Delete this data room for everyone? This removes the data room and " +
-          "its entire membership and role history. This cannot be undone.",
-        confirmLabel: "Delete",
+        message: msg("roomDeleteConfirm"),
+        confirmLabel: msg("btnDelete"),
       })
     ) return;
     del.mutate(room, {

@@ -8,8 +8,7 @@ import {
 import type { HTMLAttributes } from "react";
 import { AgentChip, AgentLabel } from "./AgentLabel.tsx";
 import { useAgentOptions } from "../hooks/useAgentOptions.ts";
-
-const DEFAULT_HELP = "Pick a contact/member, or type a WebID and press Enter";
+import { msg } from "../lib/messages.ts";
 
 interface RecipientAutocompleteProps {
   /** Selected WebIDs (free-solo / typed entries included). */
@@ -36,7 +35,7 @@ export default function RecipientAutocomplete({
   error,
   disabled,
   autoFocus,
-  label = "Recipient WebID(s)",
+  label = msg("racLabel"),
 }: RecipientAutocompleteProps) {
   const agentOptions = useAgentOptions();
   return (
@@ -76,7 +75,7 @@ export default function RecipientAutocomplete({
           autoFocus={autoFocus}
           label={label}
           error={!!error}
-          helperText={error || DEFAULT_HELP}
+          helperText={error || msg("racHelp")}
           sx={{ mb: 2 }}
         />
       )}

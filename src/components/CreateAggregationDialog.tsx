@@ -377,7 +377,7 @@ export default function CreateAggregationDialog({
       title={msg("aggCreateTitle")}
       actions={!creating && (
         <>
-          <Button onClick={handleClose}>Cancel</Button>
+          <Button onClick={handleClose}>{msg("btnCancel")}</Button>
           <Button
             onClick={handleCreate}
             variant="contained"

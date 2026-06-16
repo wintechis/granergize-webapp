@@ -119,7 +119,7 @@ test.describe("view-roundtrip benchmark", () => {
 
       // ── A: share the snapshot back to its contributors (B + C) ──
       const aggregationRow = page.locator("li").filter({ hasText: VIEW }).first();
-      await aggregationRow.getByRole("button", { name: "Share aggregation" }).click();
+      await aggregationRow.getByRole("button", { name: en("aggShareAria") }).click();
       const shareDlg = page.getByRole("dialog");
       const addAll = shareDlg.getByRole("button", { name: /add all .* contributors/i });
       await expect(addAll).toBeVisible({ timeout: 30_000 });
