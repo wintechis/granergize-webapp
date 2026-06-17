@@ -20,7 +20,14 @@ import { T } from "../helpers/timeouts.ts";
  *     building's region "Bayern" → ags 09), and
  *   - the **Kreis** renewable-energy figure (table 43531-01-02-4, carrier pinned
  *     to "Erneuerbare Energien"), whose Kreis is reverse-geocoded from the nearby
- *     MaStR units (also stubbed) and whose name comes from the cl/geo codelist.
+ *     MaStR units (also stubbed) and whose NAME comes from the cl/geo codelist.
+ *
+ * The Kreis is a LANDKREIS — `09574` (Roth) — deliberately a code that sits beyond
+ * the real wrapper's ~100-concept `cl/geo` page, the exact case that surfaced the
+ * truncation bug (figures showed a bare AGS instead of the district name). The
+ * second test pins the DEGRADED path: when the codelist does NOT carry the Kreis
+ * (mirroring the truncation), the data still renders but the caption falls back to
+ * the bare AGS — proving the section degrades gracefully rather than breaking.
  * Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/tasks/regional-context.spec.ts
@@ -29,6 +36,10 @@ import { T } from "../helpers/timeouts.ts";
 const ADDR = "Regional Context E2E Strasse 1";
 const ACC = account("A");
 const CORS = { "access-control-allow-origin": "*" };
+
+// The building's reverse-geocoded Kreis: Landkreis Roth (Bavaria).
+const KREIS_AGS = "09574";
+const KREIS_NAME = "Roth, Landkreis";
 
 // Bundesland cube: one renewable-electricity-share observation for Bayern (ags/09).
 // The dimension/measure predicates are table-scoped (matched by suffix); the geo
@@ -44,30 +55,41 @@ const LAND_CUBE_TTL = `
 
 // Kreis cube (43531-01-02-4): a DIFFERENT geo dimension (#dim-DINSG → cl/DINSG#code)
 // and an extra carrier dimension (#dim-ENRNW1) the app pins to ENRGTRNW4 (renewable
-// energy). One row for Nürnberg (09564) with the renewable carrier; a decoy row for
-// the same Kreis with a DIFFERENT carrier must be excluded by the selector.
+// energy). One row for Landkreis Roth (09574) with the renewable carrier; a decoy row
+// for the same Kreis with a DIFFERENT carrier must be excluded by the selector.
 const KREIS_CUBE_TTL = `
 @prefix qb: <http://purl.org/linked-data/cube#> .
 @prefix ds: <https://wunderfacts.com/regionalstatistik/ds/43531-01-02-4#> .
 @prefix dinsg: <https://wunderfacts.com/regionalstatistik/cl/DINSG#> .
 @prefix enr: <https://wunderfacts.com/regionalstatistik/cl/ENRNW1#> .
 <#k1> a qb:Observation ;
-  ds:dim-DINSG dinsg:09564 ; ds:dim-ENRNW1 enr:ENRGTRNW4 ;
+  ds:dim-DINSG dinsg:09574 ; ds:dim-ENRNW1 enr:ENRGTRNW4 ;
   ds:dim-TIME_PERIOD "2024" ; ds:measure-OBS_VALUE 1234 ; ds:unit "Tsd. MJ" .
 <#k2> a qb:Observation ;
-  ds:dim-DINSG dinsg:09564 ; ds:dim-ENRNW1 enr:ENRGTRNW2 ;
+  ds:dim-DINSG dinsg:09574 ; ds:dim-ENRNW1 enr:ENRGTRNW2 ;
   ds:dim-TIME_PERIOD "2024" ; ds:measure-OBS_VALUE 9999 ; ds:unit "Tsd. MJ" .
 `;
 
-// geo codelist: 09564 → the Kreis display name used in the Kreis caption.
+// geo codelist: 09574 → the Kreis display name used in the Kreis caption.
 const GEO_CL_TTL = `
 @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix ags: <https://wunderfacts.com/regionalstatistik/ags/> .
-ags:09564 a skos:Concept ; skos:notation "09564" ;
-  skos:prefLabel "Nürnberg, kreisfreie Stadt"@de .
+ags:09574 a skos:Concept ; skos:notation "09574" ;
+  skos:prefLabel "Roth, Landkreis"@de .
 `;
 
-// MaStR bbox: one renewable unit in Gemeinde 09564000 → Kreis 09564 (reverse-geocode).
+// The SAME codelist but WITHOUT the building's Kreis (09574) — mirrors the real
+// wrapper truncating cl/geo at ~100 concepts, so this district is absent. A decoy
+// concept keeps it non-empty (the codelist DID load, it just lacks 09574), so
+// fetchKreisName returns null and the caller falls back to the bare AGS.
+const GEO_CL_NO_KREIS_TTL = `
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix ags: <https://wunderfacts.com/regionalstatistik/ags/> .
+ags:09563 a skos:Concept ; skos:notation "09563" ;
+  skos:prefLabel "Weißenburg-Gunzenhausen, Landkreis"@de .
+`;
+
+// MaStR bbox: one renewable unit in Gemeinde 09574000 → Kreis 09574 (reverse-geocode).
 const MASTR_TTL = `
 @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
@@ -75,7 +97,7 @@ const MASTR_TTL = `
 @prefix mastr: <https://wunderfacts.com/mastr/mastr#> .
 <https://wunderfacts.com/mastr/see/1#it> rdfs:label "Solardach" ;
   geo:lat 49.451 ; geo:long 11.081 ;
-  dcterms:spatial <https://wunderfacts.com/mastr/ags/09564000#it> ;
+  dcterms:spatial <https://wunderfacts.com/mastr/ags/09574000#it> ;
   mastr:Energietraeger "2495" .
 `;
 
@@ -88,6 +110,11 @@ test.describe("regional context (linked-regionalstatistik)", () => {
   );
 
   let page: Page;
+  let id = "";
+  // Whether the stubbed cl/geo codelist carries the building's Kreis. The second
+  // test flips this to false (then reloads to drop the session-cached codelist) to
+  // exercise the bare-AGS fallback.
+  let geoHasKreis = true;
 
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(T.setup);
@@ -103,7 +130,7 @@ test.describe("regional context (linked-regionalstatistik)", () => {
         : url.includes("/data/43531-01-02-4")
         ? KREIS_CUBE_TTL
         : url.includes("/cl/geo")
-        ? GEO_CL_TTL
+        ? (geoHasKreis ? GEO_CL_TTL : GEO_CL_NO_KREIS_TTL)
         : null;
       return body
         ? route.fulfill({ status: 200, contentType: "text/turtle", headers: CORS, body })
@@ -125,14 +152,15 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     await page.close();
   });
 
-  test("the observation page shows both the Bundesland and the Kreis figure", async () => {
+  test("the observation page shows the Bundesland figure + the named Kreis figure", async () => {
     test.setTimeout(T.testSolo);
 
     await addBuilding(page, ADDR); // the helper fills region "Bayern" + Nürnberg coords
     const row = page.locator("li[data-building-id]", { hasText: ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
-    const id = await buildingIdOf(row);
-    if (!id) throw new Error("regional-context: missing building id");
+    const buildingId = await buildingIdOf(row);
+    if (!buildingId) throw new Error("regional-context: missing building id");
+    id = buildingId;
 
     // The observation page renders the standalone Regional-context section even
     // with no energy data (it's about the building's region, like weather).
@@ -147,18 +175,49 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     await expect(page.getByText(en("regDataSource"))).toBeVisible();
 
     // Kreis grain: the renewable-energy-use metric, joined via the building's Kreis
-    // (reverse-geocoded from the stubbed MaStR unit → 09564). The decoy carrier row
-    // (9999) must NOT appear; the Kreis caption carries the resolved Kreis name.
+    // (reverse-geocoded from the stubbed MaStR unit → 09574). The decoy carrier row
+    // (9999) must NOT appear; the Kreis caption carries the resolved Kreis NAME
+    // (the codelist serves 09574 → "Roth, Landkreis").
     await expect(page.getByText(en("regKreisRenewableUse"))).toBeVisible({
       timeout: T.action,
     });
     await expect(page.getByRole("cell", { name: /1234\s*Tsd\. MJ/ })).toBeVisible();
     await expect(page.getByRole("cell", { name: /9999/ })).toHaveCount(0);
     await expect(
-      page.getByText(en("regGeoCaptionKreis", { region: "Nürnberg, kreisfreie Stadt" })),
+      page.getByText(en("regGeoCaptionKreis", { region: KREIS_NAME })),
     ).toBeVisible();
+    // The bare AGS must NOT leak into the caption when the name resolved.
+    await expect(
+      page.getByText(en("regGeoCaptionKreis", { region: KREIS_AGS })),
+    ).toHaveCount(0);
+  });
 
-    // Cleanup: delete the throwaway building.
+  test("the Kreis caption falls back to the bare AGS when the codelist lacks it", async () => {
+    test.setTimeout(T.testSolo);
+
+    // Mirror the real wrapper truncating cl/geo so 09574 is ABSENT. A full reload
+    // drops the session-cached codelist (the module-level `kreisNamesPromise` in
+    // regionalCube.ts) + the React Query cache, so the section re-resolves the
+    // Kreis name against the now-incomplete codelist and gets null.
+    geoHasKreis = false;
+    await page.reload();
+    await page.goto(buildingRoute("observation", id));
+
+    // The Kreis metric + figure STILL render — the data join is unaffected, only
+    // the name lookup misses…
+    await expect(page.getByText(en("regKreisRenewableUse"))).toBeVisible({
+      timeout: T.action,
+    });
+    await expect(page.getByRole("cell", { name: /1234\s*Tsd\. MJ/ })).toBeVisible();
+    // …so the caption degrades to the bare AGS, never the (now-unresolvable) name.
+    await expect(
+      page.getByText(en("regGeoCaptionKreis", { region: KREIS_AGS })),
+    ).toBeVisible();
+    await expect(
+      page.getByText(en("regGeoCaptionKreis", { region: KREIS_NAME })),
+    ).toHaveCount(0);
+
+    // Cleanup: delete the throwaway building (it persisted from the first test).
     await page.goto("/");
     await openBuildingsList(page);
     await deleteBuildingRow(page, id);
