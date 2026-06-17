@@ -64,23 +64,28 @@ override) when an assertion must pin exact figures.
 
 ## Local ports & parallel lanes
 
-Every Tier-2/3 Pod port derives from a single `LOCAL_PORT_OFFSET` (added to the
-base ports in `test/config/localSeed.ts`: CSS `3456`, CSS control `3457`, preview
-app `4183`). Distinct offsets give concurrent runs disjoint port lanes:
+Every Tier-2/3 Pod port derives from a single offset (added to the base ports in
+`test/config/localSeed.ts`: CSS `3456`, CSS control `3457`, preview app `4183`).
+A task sets its **CSS base** with `LOCAL_PORT_OFFSET`; the rule is then dead simple:
 
-- **`0`** (the base lane) — `deno task dev:local`, the by-hand interactive stack,
-  which claims the memorable base ports (pod `3456`/`3457`; its Vite **dev** server
-  is fixed at `5173`, not offset, and never clashes with the `4183`-based preview
-  ports). The heavier/occasional automated lanes (`e2e:local:matrix`'s CSS lane,
-  `e2e:stress`, `bench*`) also default to `0` — they run in isolation, not
-  alongside `dev:local`.
-- **`40`** — `deno task handbuch`.
-- **`60`** — `deno task videos`.
-- **`80`** — the everyday automated lanes `deno task it` and `deno task e2e:local`
-  (and `e2e:local:reuse`; the `:jss` variants inherit it by chaining), set in their
-  deno tasks so they can run while `dev:local` holds the base ports.
+> **CSS lane = base, JSS lane = base + 10.**
 
-To run a second concurrent lane of the same task, give it an unused offset.
+The `+10` is applied once, in `localSeed.ts` (a `LOCAL_POD_SERVER=jss` process bumps
+its own offset), so every `:jss` task stays the trivial
+`LOCAL_POD_SERVER=jss deno task <css-task>` with **no offset duplicated** — and a CSS
+lane never collides with its JSS twin. The lanes:
+
+- **`0` / `10`** — `dev:local` (CSS / JSS), the by-hand interactive stack; claims the
+  memorable base ports (its Vite **dev** server is fixed at `5173`, not offset).
+- **`20` / `30`** — `bench` (`bench:css`/`bench:ui:css` / `bench`/`bench:ui`) + `explore`.
+- **`50`** — `handbuch` (CSS only).
+- **`60`** — `videos` (CSS only).
+- **`80` / `90`** — the everyday e2e lanes `it`, `e2e:local`, `e2e:local:reuse`,
+  `e2e:stress`, and **both `e2e:local:matrix` lanes** (CSS `80` / JSS `90`). The matrix
+  reuses this lane, so it is not run at the same instant as a single-lane `e2e:local`.
+
+Each lane prints its resolved ports on start (`[tier-3 jss] pod=… app=… (offset 90)`).
+To add a concurrent lane, give it an unused even base; its JSS twin is `+10` for free.
 
 ## Spec invariants (these caused silent hangs)
 
