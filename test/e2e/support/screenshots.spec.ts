@@ -648,7 +648,7 @@ test.describe("handbuch screenshots", () => {
       await b.page.waitForTimeout(800);
       await shot(b.page, "shared-with-you.png");
 
-      // --- The Vertriebsoptimierung walkthrough punchline (teilen-payoff.png):
+      // --- The Vertriebsunterstützung walkthrough punchline (teilen-payoff.png):
       //     B's Buildings map with A's shared building (the orange shared pin
       //     next to B's own blue buildings) — the map is a pure finder now, so a
       //     marker click NAVIGATES to A's building page, reading A's master data

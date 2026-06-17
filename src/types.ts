@@ -154,7 +154,7 @@ export interface BuildingType {
   /** Project-developer WebID (`bldg:developedBy`) — who developed the building. */
   developedBy?: string;
   /** Consultant/broker WebID (`bldg:consultedBy`) — who consults for / markets
-   * the building (Vertriebsoptimierung). */
+   * the building (Vertriebsunterstützung). */
   consultedBy?: string;
   /**
    * Unified energy model: the building's `cons:hasEnergyDataset` links (one per

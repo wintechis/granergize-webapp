@@ -111,7 +111,7 @@ wird hier zunächst fachlich beschrieben; wo die App ihn einlöst, nennt der
 jeweilige Abschnitt – und die betreffenden Stellen im praktischen Teil dieses
 Handbuchs greifen den Anwendungsfall namentlich wieder auf. Die Reihenfolge
 folgt der Zahl der Beteiligten: Der Soll-Ist-Vergleich spielt sich im eigenen
-Bestand ab, die Vertriebsoptimierung lebt vom Teilen zwischen zwei Parteien,
+Bestand ab, die Vertriebsunterstützung lebt vom Teilen zwischen zwei Parteien,
 und das Energieverbrauchsbenchmark bringt mit dem Benchmark-Dienstleister
 einen dritten Akteur ins Spiel. Am Ende des praktischen Teils läuft jeder der
 drei noch einmal als durchgehender Ablauf ab (Kapitel „Die Anwendungsfälle
@@ -168,30 +168,33 @@ sind nicht erforderlich. Den durchgehenden Ablauf zeigt der Abschnitt
 „Soll-Ist-Vergleich durchgespielt" im Kapitel „Die Anwendungsfälle
 durchgespielt".
 
-### Vertriebsoptimierung
+### Vertriebsunterstützung
 
 Ein weiterer relevanter Anwendungsfall ist die Unterstützung vertrieblicher
-Prozesse auf Basis energiebezogener Gebäude- und Standortdaten. Ziel ist es,
-Logistik- und Gewerbeobjekte systematisch zu verorten sowie hinsichtlich ihrer
-energetischen Eigenschaften zu visualisieren. Eine visuelle Kategorisierung
-anhand des Energieverbrauchs erleichtert die Einordnung der jeweiligen
-Logistikimmobilie in ihr Wettbewerbsumfeld. So kann hervorgehoben werden, dass
-eine Immobilie im Vergleich zu benachbarten Hallen besonders energieeffizient
-ist. Die bereitgestellten Informationen unterstützen Investoren und Makler bei
-der Vermarktung von Immobilien und fördern die Zusammenarbeit zwischen Beratern,
-Facility Managern und Nutzern. Für diesen Anwendungsfall werden vor allem
-aggregierte Verbrauchsdaten sowie allgemeine Objektdaten benötigt.
+Prozesse auf Basis energiebezogener Gebäude- und Standortdaten. Die energetische
+Qualität eines Objekts ist bei der Vermietung und beim Verkauf von Logistik- und
+Gewerbeimmobilien zunehmend ein Argument – aber nur, wenn sie belegbar ist. Kern
+des Anwendungsfalls ist daher, die Energieeffizienz einer Immobilie mit echten
+statt geschätzten Zahlen darzustellen, sodass Makler, Berater und Investoren im
+Vertrieb belastbar damit argumentieren können. Entscheidend ist dabei die
+Datenhoheit: Der Eigentümer gibt seine Energiedaten gezielt für die vertrieblich
+Beteiligten frei, ohne sie aus der Hand zu geben oder zentral zu hinterlegen.
+Für diesen Anwendungsfall werden vor allem aggregierte Verbrauchsdaten sowie
+allgemeine Objektdaten benötigt.
 
-In der Granergize-App übernimmt das die Energie-Linse der Karte: Sie färbt die
-Gebäude-Marker nach Energieintensität ein und ordnet ein Objekt so auf einen
-Blick in sein sichtbares Umfeld ein – einschließlich der Gebäude, die andere
-mit Ihnen geteilt haben (siehe Abschnitt „Gebäude nach Energieverbrauch
-einordnen"). Ihre volle Wirkung entfaltet die Linse damit erst im Zusammenspiel
-mit dem Teilen: Je mehr Eigentümer einem Makler oder Berater ihre Gebäude
-einschließlich Energiedaten freigeben, desto vollständiger wird dessen
-Marktüberblick. Wie eine solche Freigabe abläuft und beim Empfänger auf der
-Karte landet, führt der Abschnitt „Vertriebsoptimierung durchgespielt" im
-Kapitel „Die Anwendungsfälle durchgespielt" aus.
+Die Granergize-App löst das über zwei ineinandergreifende Wege ein. Erstens die
+gezielte Freigabe: Ein Eigentümer teilt sein Gebäude einschließlich der
+Energiedaten mit seinem Makler oder Berater – die Daten bleiben dabei auf dem
+Pod des Eigentümers, werden nicht kopiert und können jederzeit wieder entzogen
+werden (siehe Abschnitt „Vorgehensweise beim Datenteilen"). Zweitens die
+Energie-Linse der Karte: Sie färbt die Gebäude-Marker nach Energieintensität ein
+und ordnet ein Objekt – einschließlich der mit Ihnen geteilten Gebäude – auf
+einen Blick in sein sichtbares Umfeld ein (siehe Abschnitt „Gebäude nach
+Energieverbrauch einordnen"). So wird die belegte Effizienz einer Halle zum
+sichtbaren Argument gegenüber ihren Nachbarn. Wie eine solche Freigabe abläuft
+und beim Empfänger auf der Karte landet, führt der Abschnitt
+„Vertriebsunterstützung durchgespielt" im Kapitel „Die Anwendungsfälle
+durchgespielt" aus.
 
 ### Energieverbrauchsbenchmark
 
@@ -792,7 +795,7 @@ Die Karte im Tab **Explore** kann die Gebäude-Marker auf zwei Arten einfärben.
 - **Energy:** färbt jeden Marker nach dem **Energieverbrauch** ein – von „More
   efficient" über „Typical" bis „Less efficient"; Gebäude ohne auswertbare
   Energiedaten bleiben neutral („No energy data"). Damit setzt die Karte den
-  Anwendungsfall „Vertriebsoptimierung" um: Ein Objekt ist auf einen Blick als
+  Anwendungsfall „Vertriebsunterstützung" um: Ein Objekt ist auf einen Blick als
   energieeffizienter oder -ineffizienter als seine Nachbarn erkennbar.
 
 Die Einordnung erfolgt nach der **Energieintensität** (Verbrauch je m² Fläche,
@@ -1027,7 +1030,7 @@ Die vorangegangenen Kapitel beschreiben jeden Arbeitsschritt für sich. Hier
 laufen die drei Anwendungsfälle vom Anfang dieses Handbuchs noch einmal als
 durchgehende Abläufe ab, in derselben Reihenfolge wie dort – mit wachsender
 Zahl der Beteiligten: der Soll-Ist-Vergleich allein auf dem eigenen Pod, die
-Vertriebsoptimierung zu zweit (A teilt an B), das Energieverbrauchsbenchmark
+Vertriebsunterstützung zu zweit (A teilt an B), das Energieverbrauchsbenchmark
 zu dritt (A, B und der Dienstleister C). A, B und C sind dabei wieder Alice
 Ahlmann, Bob Bauer und Charlie Conrad mit ihren Firmen, wie eingangs im
 Abschnitt „Praxisbeispiele: Use Cases für die Anwendung" vorgestellt – in den
@@ -1052,13 +1055,13 @@ eigenem Pod ab – geteilt wird nichts.
 
 ![Die Pointe des Soll-Ist-Vergleichs: In der Jahresübersicht steht der Plan-Eintrag („planned") neben den Ist-Jahren desselben Gebäudes](figures/soll-ist-payoff.png){width=100%}
 
-## Vertriebsoptimierung durchgespielt: Ein Gebäude teilen – aus beiden Perspektiven
+## Vertriebsunterstützung durchgespielt: Ein Gebäude teilen – aus beiden Perspektiven
 
 Beteiligt sind zwei Personen mit jeweils eigenem Solid Pod: **A**, eine
 Bestandshalterin, die ein Gebäude mit erfassten Energiejahren verwaltet, und
-**B**, ein Geschäftspartner – etwa ein Investor oder ein Makler bzw. Berater,
-der sich einen Marktüberblick verschafft (der Anwendungsfall
-„Vertriebsoptimierung") –, der diese Daten einsehen soll.
+**B**, ihr Makler bzw. Berater, der diese Energiedaten für die Vermarktung des
+Objekts einsehen soll (der Anwendungsfall „Vertriebsunterstützung") – ohne dass
+A dafür die Hoheit über ihre Daten aufgibt.
 Wichtig vorab: Die Daten werden zu keinem Zeitpunkt kopiert oder an einen
 zentralen Dienst übertragen – sie bleiben auf A's Pod, und B liest sie dort
 direkt mit seiner eigenen WebID.
@@ -1125,7 +1128,7 @@ Beteiligten:
 **Was A und B tun (die beitragende Seite):**
 
 1. Jeder teilt seine Gebäude über den normalen Teilen-Dialog an C – genau die
-   Schritte aus „Vertriebsoptimierung durchgespielt", nur dass A unter „What to share" diesmal
+   Schritte aus „Vertriebsunterstützung durchgespielt", nur dass A unter „What to share" diesmal
    **einschließlich Energiedaten** freigibt, wahlweise alle Jahre oder gezielt
    ausgewählte. C's WebID liegt dabei längst im Adressbuch – sie kam mit der
    Beauftragung des Dienstleisters, wie eine E-Mail-Adresse –, sodass der

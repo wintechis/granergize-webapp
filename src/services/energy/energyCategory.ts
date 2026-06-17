@@ -2,7 +2,7 @@ import { BuildingType, EnergyType } from "../../types.ts";
 
 /**
  * Energy-map categorisation — the pure core behind the map's "energy lens"
- * (handbuch Praxisbeispiel "Vertriebsoptimierung": a visual categorisation of
+ * (handbuch Praxisbeispiel "Vertriebsunterstützung": a visual categorisation of
  * buildings by energy consumption so a logistics object reads, at a glance, as
  * more or less efficient than its neighbours). No React / Leaflet here so the
  * thresholds are unit-testable in isolation; the colours and the marker live in

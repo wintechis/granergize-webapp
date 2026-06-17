@@ -39,7 +39,7 @@ Deno.test("overlayCss styles all overlay elements, click-transparent", () => {
 });
 
 Deno.test("introCardHtml carries title and per-actor identity + tagline, escaped", () => {
-  const html = introCardHtml("Vertriebsoptimierung & Co", [
+  const html = introCardHtml("Vertriebsunterstützung & Co", [
     {
       theme: ACTOR_THEMES.A,
       avatarDataUri: "data:image/png;base64,AAAA",
@@ -51,7 +51,7 @@ Deno.test("introCardHtml carries title and per-actor identity + tagline, escaped
       tagline: "fehlende Daten",
     },
   ]);
-  assert.ok(html.includes("Vertriebsoptimierung &amp; Co"), "title escaped");
+  assert.ok(html.includes("Vertriebsunterstützung &amp; Co"), "title escaped");
   assert.ok(html.includes("Alice Ahlmann") && html.includes("Bob Bauer"));
   assert.ok(html.includes("Ahlmann Logistik GmbH"));
   assert.ok(html.includes("Halle &lt;&quot;effizient&quot;&gt;"), "tagline escaped");

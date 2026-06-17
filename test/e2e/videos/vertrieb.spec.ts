@@ -6,8 +6,8 @@ import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo, type SceneMark } from "./demoPolish.ts";
 
 /**
- * Records the second handbuch video — the Vertriebsoptimierung walkthrough
- * („Vertriebsoptimierung durchgespielt": A shares a building, B sees it) —
+ * Records the second handbuch video — the Vertriebsunterstützung walkthrough
+ * („Vertriebsunterstützung durchgespielt": A shares a building, B sees it) —
  * the actor ladder's first PERSPECTIVE CUT: two clips, one per actor, each
  * recorded on its own staged page (per-page video, see soll-ist.spec.ts for
  * why) and concatenated in post:
@@ -64,7 +64,7 @@ function saveMarks(name: string, marks: SceneMark[]) {
   writeFileSync(`${OUT}/${name}.marks.json`, JSON.stringify(marks, null, 2));
 }
 
-test.describe("handbuch video: Vertriebsoptimierung", () => {
+test.describe("handbuch video: Vertriebsunterstützung", () => {
   test.use({ locale: VID_LOCALE }); // render the app in German
   test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task videos)");
   test.skip(!hasAccount(A) || !hasAccount(B), "local seeded accounts A+B missing");
@@ -114,16 +114,16 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     const demoA = await Demo.install(stageA, "A", t0a);
 
     // --- Scene zero: establish the cast and whose problem this solves. ---
-    await demoA.intro("Vertriebsoptimierung", [
+    await demoA.intro("Vertriebsunterstützung", [
       {
         slot: "A",
         tagline:
-          "Bestandshalterin: Ihre effiziente Halle soll im Marktumfeld sichtbar sein",
+          "Bestandshalterin: Ihre energieeffiziente Halle ist ein Verkaufsargument – wenn es belegbar ist",
       },
       {
         slot: "B",
         tagline:
-          "Makler & Berater: Ihm fehlen Energiedaten für einen echten Marktüberblick",
+          "Makler & Berater: Vermarktet die Halle und braucht dafür belastbare Energiedaten",
       },
     ]);
 
@@ -148,7 +148,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
 
     await demoA.scene(
       "share-open",
-      "A öffnet ihr Gebäude und teilt es über „Teilen“ auf der Detailseite",
+      "A gibt ihr Gebäude für ihren Makler frei – direkt auf der Detailseite über „Teilen“",
     );
     // Sharing lives on the building's detail page. Back to the Buildings list,
     // open the building via its name link, then its "Teilen" button.
@@ -176,7 +176,7 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
 
     await demoA.scene(
       "share-confirm",
-      "Prüfen und teilen: B erhält Lesezugriff – die Daten bleiben auf A's Pod",
+      "Prüfen und teilen: B erhält Lesezugriff – die Daten bleiben auf A's Pod, nichts wird kopiert",
     );
     await demoA.click(shareDialog.getByRole("button", { name: vt("shareReviewAndShare") }));
     const confirm = shareDialog.getByRole("button", { name: vt("shareConfirmShare") });
@@ -244,13 +244,13 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
 
     await demoB.scene(
       "payoff",
-      "B liest A's Gebäude- und Energiedaten live aus A's Pod",
+      "B sieht A's Gebäude- und Energiedaten live aus A's Pod – und kann die Effizienz der Halle im Vertrieb belegen",
     );
     await stageB.waitForURL(/\/building\?/, { timeout: 60_000 });
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await demoB.pause(2_000);
     await demoB.caption(
-      "Vertriebsoptimierung: Je mehr geteilt wird, desto vollständiger der Marktüberblick",
+      "Vertriebsunterstützung: echte Energiedaten als Verkaufsargument – die Datenhoheit bleibt bei der Eigentümerin",
       4_000,
     );
     await demoB.caption("");

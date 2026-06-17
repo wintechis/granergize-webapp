@@ -9,7 +9,7 @@ import { T } from "../helpers/timeouts.ts";
 
 /**
  * Energy-map categorisation "in practice" (browser) — the handbuch's third
- * Praxisbeispiel, "Vertriebsoptimierung": the map can colour each building by its
+ * Praxisbeispiel, "Vertriebsunterstützung": the map can colour each building by its
  * energy intensity so a logistics object reads, at a glance, as more or less
  * efficient than its neighbours.
  *
@@ -40,7 +40,7 @@ const ACC = account("A"); // Alice -- solo specs use one account
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("map energy lens (Vertriebsoptimierung)", () => {
+test.describe("map energy lens (Vertriebsunterstützung)", () => {
   test.skip(
     !hasAccount(ACC),
     `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the map-energy-lens e2e.`,

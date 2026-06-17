@@ -70,7 +70,7 @@ Deno.test("categoriserFor: terciles over 3+ peers — low intensity = efficient"
 
 Deno.test("categoriserFor: fewer than 3 peers falls back to the mean split", () => {
   // Two buildings: the cheaper one is efficient, the dearer inefficient — the
-  // exact case the Vertriebsoptimierung spec seeds.
+  // exact case the Vertriebsunterstützung spec seeds.
   const categorise = categoriserFor([10, 30]);
   assert.equal(categorise(10), "efficient");
   assert.equal(categorise(30), "inefficient");

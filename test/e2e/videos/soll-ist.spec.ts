@@ -103,14 +103,14 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
       {
         slot: "A",
         tagline:
-          "Bestandshalterin und Nutzerin ihrer Hallen: Hält der reale Verbrauch, was der Plan verspricht?",
+          "Bestandshalterin und Betreiberin ihrer Hallen: Sie hat sich Einsparungen vorgenommen – liefert der Betrieb sie auch?",
       },
     ]);
 
     // --- Scene 1: the actual (Ist) year, in the per-building energy dialog. ---
     await demo.scene(
       "ist",
-      "A erfasst für ihr Gebäude die tatsächlichen Verbräuche eines Jahres",
+      "Zuerst das Ist: A trägt die tatsächlichen Jahresverbräuche ihres Gebäudes ein",
     );
     // Energy entry lives on the building's observation (energy) page — land there,
     // then open the year dialog via its "Edit energy years" button (hardcoded,
@@ -138,7 +138,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     // --- Scene 2: the planned (Soll) entry for the same year. ---
     await demo.scene(
       "soll",
-      `Für dasselbe Jahr legt A einen Plan-Eintrag an: Szenario „${vt("scenarioPlanned")}“`,
+      `Dann das Soll: für dasselbe Jahr ein Plan-Wert – das Szenario „${vt("scenarioPlanned")}“ hält ihn getrennt vom Ist`,
     );
     await demo.click(editYears);
     await expect(dialog).toBeVisible({ timeout: 10_000 });
@@ -160,7 +160,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     //     a reliable target. Land there as a scene cut and settle. ---
     await demo.scene(
       "payoff",
-      "Die Jahresübersicht zeigt Soll und Ist nebeneinander",
+      "Die Jahresübersicht stellt Soll und Ist desselben Jahres direkt gegenüber",
     );
     await stage.goto(buildingRoute("observation", buildingId));
     const planned = stage.getByText(/\(planned\)/i).first();
@@ -172,7 +172,7 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await demo.moveTo(planned);
     await demo.pause(2_000);
     await demo.caption(
-      "Der Soll-Ist-Vergleich: auf einen Blick, wie nah der Verbrauch am Plan liegt",
+      "Soll-Ist-Vergleich: sofort sichtbar, ob der Verbrauch den Plan einhält – Grundlage für Nachsteuern und Budget",
       4_000,
     );
     await demo.caption("");
