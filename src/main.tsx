@@ -34,6 +34,7 @@ import {
 } from "./lib/networkActivity.ts";
 import { formatError } from "./lib/formatError.ts";
 import { logError } from "./lib/logError.ts";
+import { resetUrlToAppRoot } from "./lib/appUrl.ts";
 import {
   clearStorageRootCache,
   resolveStorageRoot,
@@ -189,6 +190,11 @@ function AppContent() {
       sessionStorage.setItem(NO_RESTORE_KEY, "1");
       setSuppressRestore(true);
     }
+    // Explicit logout: drop the last protected page's path+query from the address
+    // bar so the login screen doesn't keep showing a deep link (the route is
+    // otherwise retained for reload + silent-restore — see Login.tsx). No reload —
+    // the view follows React state, not the path. The expiry path leaves it be.
+    resetUrlToAppRoot();
     if (opts?.logoutType === "idp") {
       // Full logout AT the identity provider: clears the provider's own login
       // cookie, which "app" logout can't touch. Without it the IdP silently
