@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./pod/podGateway.ts";
 import { DataFactory, Store } from "n3";
 import { GRAN_NS, RDF_TYPE, XSD_BOOLEAN as XSD_BOOLEAN_IRI } from "./rdf/vocabularies.ts";
 import { appRoot } from "./pod/solidUtils.ts";
@@ -39,15 +39,15 @@ export function prefsUri(webId: string): string {
  * Read `prefs.ttl`. A missing file yields empty prefs (created on first write).
  * @operation query
  */
-export async function readPrefs(session: Session): Promise<Preferences> {
-  const webId = session.info.webId;
+export async function readPrefs(gateway: PodGateway): Promise<Preferences> {
+  const webId = gateway.webId;
   const empty: Preferences = {
     currentRoom: null,
     hiddenBuildings: new Set(),
     demoSeedDeclined: false,
   };
   if (!webId) return empty;
-  const store = await readStoreOrEmpty(prefsUri(webId), session);
+  const store = await readStoreOrEmpty(prefsUri(webId), gateway);
   const self = namedNode(prefsUri(webId));
   return {
     currentRoom:
@@ -68,12 +68,12 @@ export async function readPrefs(session: Session): Promise<Preferences> {
  * list — written by independent code paths — coexist in one file safely.
  */
 function mutatePrefs(
-  session: Session,
+  gateway: PodGateway,
   mutate: (store: Store, self: ReturnType<typeof namedNode>) => void,
 ): Promise<void> {
-  const url = prefsUri(session.info.webId!);
-  const self = namedNode(url);
-  return readModifyWrite(url, session, (store) => {
+  const uri = prefsUri(gateway.webId!);
+  const self = namedNode(uri);
+  return readModifyWrite(uri, gateway, (store) => {
     store.addQuad(self, RDF_TYPE_NODE, GRAN_PREFERENCES);
     mutate(store, self);
   });
@@ -84,10 +84,10 @@ function mutatePrefs(
  * @operation mutation
  */
 export function setCurrentRoom(
-  session: Session,
+  gateway: PodGateway,
   room: string | null,
 ): Promise<void> {
-  return mutatePrefs(session, (store, self) => {
+  return mutatePrefs(gateway, (store, self) => {
     store.removeQuads(store.getQuads(self, GRAN_CURRENT_ROOM, null, null));
     if (room) store.addQuad(self, GRAN_CURRENT_ROOM, namedNode(room));
   });
@@ -98,10 +98,10 @@ export function setCurrentRoom(
  * @operation mutation
  */
 export function setDemoSeedDeclined(
-  session: Session,
+  gateway: PodGateway,
   declined: boolean,
 ): Promise<void> {
-  return mutatePrefs(session, (store, self) => {
+  return mutatePrefs(gateway, (store, self) => {
     store.removeQuads(store.getQuads(self, GRAN_DEMO_SEED_DECLINED, null, null));
     if (declined) {
       store.addQuad(
@@ -118,11 +118,11 @@ export function setDemoSeedDeclined(
  * @operation mutation
  */
 export function toggleHiddenBuilding(
-  session: Session,
+  gateway: PodGateway,
   buildingUri: string,
 ): Promise<void> {
   const building = namedNode(buildingUri);
-  return mutatePrefs(session, (store, self) => {
+  return mutatePrefs(gateway, (store, self) => {
     const existing = store.getQuads(self, GRAN_HIDDEN_BUILDING, building, null);
     if (existing.length > 0) store.removeQuads(existing); // hidden → visible
     else store.addQuad(self, GRAN_HIDDEN_BUILDING, building); // visible → hidden

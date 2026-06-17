@@ -1,6 +1,6 @@
 // Intent core (React-free) for AddRoom. See ./README.md and ./CreateRoom.ts. The
 // existence (`roomExists`) throw stays IN the core.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import {
   addKnownRoom,
   extractRoomUri,
@@ -22,13 +22,13 @@ export interface AddRoomParams {
  * `patchRooms` adds to `known`.
  */
 export async function addRoomCore(
-  session: Session,
+  gateway: PodGateway,
   params: AddRoomParams,
 ): Promise<RoomOutcome> {
   const room = extractRoomUri(params.input);
-  if (!(await roomExists(room, session))) {
+  if (!(await roomExists(room, gateway))) {
     throw new Error("Data room is not reachable");
   }
-  await addKnownRoom(room, session);
+  await addKnownRoom(room, gateway);
   return { room: normalizeRoomUri(room) };
 }

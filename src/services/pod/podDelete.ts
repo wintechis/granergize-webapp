@@ -1,4 +1,4 @@
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./podGateway.ts";
 import { DataFactory, Parser, Store } from "n3";
 import { fetchFresh, fetchUncached, readStoreOrEmpty } from "./podFetch.ts";
 import { appRoot } from "./solidUtils.ts";
@@ -16,7 +16,7 @@ const LDP_CONTAINS = DataFactory.namedNode(LDP_CONTAINS_IRI);
  * ~6 connections/host means that flood queues, and an unlucky request can sit
  * `pending` past the test budget — the "Remove all app data" stall tracked in
  * the JSS issue delete-acl-of-acl-hangs-tier3. A global ceiling keeps a heavy
- * subtree (a sub-hourly series is dozens of daily files) from ever opening more
+ * subtree (a sub-houriy series is dozens of daily files) from ever opening more
  * sockets than this.
  */
 const DELETE_CONCURRENCY = 8;
@@ -58,7 +58,7 @@ const isGone = (status: number) =>
  */
 export async function deleteContainerRecursive(
   container: string,
-  session: Session,
+  gateway: PodGateway,
   signal?: AbortSignal,
   // One shared gate for the whole walk. Created on the top-level call and passed
   // down every recursion so the GLOBAL in-flight count — not a per-container one
@@ -70,8 +70,8 @@ export async function deleteContainerRecursive(
   // Route every request through the shared `limit` so the GLOBAL in-flight count
   // stays bounded; a slot is held only around the request itself, never across a
   // recursive descent (which would deadlock a tree deeper than the limit).
-  const getListing = () => limit(() => fetchUncached(container, session));
-  const del = (uri: string) => limit(() => deleteResource(uri, session));
+  const getListing = () => limit(() => fetchUncached(container, gateway));
+  const del = (uri: string) => limit(() => deleteResource(uri, gateway));
 
   for (let round = 1; round <= MAX_DELETE_ROUNDS; round++) {
     signal?.throwIfAborted();
@@ -91,7 +91,7 @@ export async function deleteContainerRecursive(
       await Promise.all(children.map(async (child) => {
         signal?.throwIfAborted();
         if (child.endsWith("/")) {
-          await deleteContainerRecursive(child, session, signal, limit);
+          await deleteContainerRecursive(child, gateway, signal, limit);
         } else {
           const status = await del(child);
           if (!isGone(status)) {
@@ -131,8 +131,8 @@ export async function deleteContainerRecursive(
  * `403` that even the owner can't delete) is left for MANUAL cleanup — a rare
  * broken-ACL case not worth a special-cased recovery path.
  */
-async function deleteResource(uri: string, session: Session): Promise<number> {
-  const del = await session.fetch(uri, { method: "DELETE" });
+async function deleteResource(uri: string, gateway: PodGateway): Promise<number> {
+  const del = await gateway.fetch(uri, { method: "DELETE" });
   return del.status;
 }
 
@@ -145,10 +145,10 @@ async function deleteResource(uri: string, session: Session): Promise<number> {
  */
 export async function listContainedResources(
   container: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string[]> {
   const out: string[] = [];
-  const store = await readStoreOrEmpty(container, session);
+  const store = await readStoreOrEmpty(container, gateway);
   const children = store
     .getObjects(DataFactory.namedNode(container), LDP_CONTAINS, null)
     .map((o) => o.value)
@@ -156,7 +156,7 @@ export async function listContainedResources(
   for (const child of children) {
     out.push(child);
     if (child.endsWith("/")) {
-      out.push(...await listContainedResources(child, session));
+      out.push(...await listContainedResources(child, gateway));
     }
   }
   return out;
@@ -173,9 +173,9 @@ export async function listContainedResources(
  */
 export async function listDirectChildren(
   container: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string[] | null> {
-  const listing = await fetchFresh(container, session);
+  const listing = await fetchFresh(container, gateway);
   if (listing.status === 404) return null;
   if (!listing.ok) return [];
   const store = new Store(
@@ -192,13 +192,13 @@ export async function listDirectChildren(
  * building with hundreds of daily energy files doesn't produce a wall of text.
  */
 export function formatResourceList(
-  urls: string[],
+  uris: string[],
   root: string,
   max = 20,
 ): string {
   const rel = (u: string) => (root && u.startsWith(root) ? u.slice(root.length) : u);
-  const shown = urls.slice(0, max).map((u) => `  • ${rel(u)}`);
-  const extra = urls.length > max ? [`  …and ${urls.length - max} more`] : [];
+  const shown = uris.slice(0, max).map((u) => `  • ${rel(u)}`);
+  const extra = uris.length > max ? [`  …and ${uris.length - max} more`] : [];
   return [...shown, ...extra].join("\n");
 }
 
@@ -209,11 +209,11 @@ export function formatResourceList(
  * @operation mutation
  */
 export async function removeAppData(
-  session: Session,
+  gateway: PodGateway,
   signal?: AbortSignal,
 ): Promise<void> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) throw new Error("Not logged in");
   const granDir = appRoot(webId);
-  await deleteContainerRecursive(granDir, session, signal);
+  await deleteContainerRecursive(granDir, gateway, signal);
 }

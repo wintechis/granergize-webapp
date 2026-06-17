@@ -1,4 +1,4 @@
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./pod/podGateway.ts";
 import type { BuildingType } from "../types.ts";
 import { deleteBuilding } from "./rdf/building/buildingSerializer.ts";
 import { formatResourceList, listContainedResources } from "./pod/podDelete.ts";
@@ -26,14 +26,14 @@ function buildingFileUriOf(building: BuildingType): string {
  * @operation query
  */
 export async function buildBuildingDeletionPreview(
-  session: Session,
+  gateway: PodGateway,
   building: BuildingType,
 ): Promise<{ fileUri: string; message: string }> {
   const fileUri = buildingFileUriOf(building);
 
   let root = "";
   try {
-    if (session.info.webId) root = getStorageRoot(session.info.webId);
+    if (gateway.webId) root = getStorageRoot(gateway.webId);
   } catch (err) {
     logError("resolve storage root for deletion preview", err);
     /* storage root not resolved — fall back to absolute URLs */
@@ -44,7 +44,7 @@ export async function buildBuildingDeletionPreview(
     resources.push(
       ...await listContainedResources(
         `${fileUri.replace(/\.ttl$/, "")}/`,
-        session,
+        gateway,
       ),
     );
   } catch (err) {
@@ -74,12 +74,12 @@ export async function buildBuildingDeletionPreview(
  * @operation mutation
  */
 export async function deleteBuildingResource(
-  session: Session,
+  gateway: PodGateway,
   building: BuildingType,
 ): Promise<void> {
   const fileUri = buildingFileUriOf(building);
-  await revokeAllBuildingRecipients(fileUri, session).catch((err) =>
+  await revokeAllBuildingRecipients(fileUri, gateway).catch((err) =>
     logError("revoke recipients before building delete", err)
   );
-  await deleteBuilding(session, session.info.webId!, fileUri);
+  await deleteBuilding(gateway, gateway.webId!, fileUri);
 }

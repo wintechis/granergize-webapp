@@ -4,7 +4,7 @@ import type { AttachmentRef, BuildingType } from "../../types.ts";
 import { RdfSourceLink, SectionTitle } from "./DetailView.tsx";
 import { listStyle, rowStyle } from "../../constants/listStyles.ts";
 import { filesContainerFor } from "../../services/attachmentManager.ts";
-import { getSession } from "../../hooks/session.ts";
+import { getGateway } from "../../hooks/session.ts";
 import { useAttachmentDownload } from "../../hooks/useAttachmentDownload.ts";
 import AttachmentInfo from "../AttachmentInfo.tsx";
 
@@ -16,7 +16,7 @@ import AttachmentInfo from "../AttachmentInfo.tsx";
  */
 export default function FilesSection({ building }: { building: BuildingType }) {
   const attachments = (building.attachments as AttachmentRef[] | undefined) ?? [];
-  const { download, downloadingUrl } = useAttachmentDownload(getSession());
+  const { download, downloadingUrl } = useAttachmentDownload(getGateway());
 
   if (attachments.length === 0) return null;
 
@@ -25,14 +25,14 @@ export default function FilesSection({ building }: { building: BuildingType }) {
       <SectionTitle divider>{msg("secFiles")}</SectionTitle>
       <ul style={listStyle}>
         {attachments.map((a) => (
-          <li key={a.url} style={rowStyle}>
+          <li key={a.uri} style={rowStyle}>
             <AttachmentInfo a={a} />
             <Button
               size="small"
               onClick={() => download(a)}
-              disabled={downloadingUrl === a.url}
+              disabled={downloadingUrl === a.uri}
             >
-              {downloadingUrl === a.url ? msg("fileDownloading") : msg("btnDownload")}
+              {downloadingUrl === a.uri ? msg("fileDownloading") : msg("btnDownload")}
             </Button>
           </li>
         ))}

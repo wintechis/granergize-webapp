@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the AddBuilding core is callable HEADLESS, driven with a fake
@@ -21,7 +22,7 @@ interface Call {
  */
 function ownerPod(
   onCall?: (c: Call) => void,
-): { session: Session; calls: Call[] } {
+): { session: PodGateway; calls: Call[] } {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const store: Record<string, string> = {};
   const calls: Call[] = [];
@@ -46,7 +47,7 @@ function ownerPod(
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session),
     calls,
   };
 }

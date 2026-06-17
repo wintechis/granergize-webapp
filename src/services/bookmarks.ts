@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./pod/podGateway.ts";
 import { DataFactory } from "n3";
 import { GRAN_NS, RDF_TYPE } from "./rdf/vocabularies.ts";
 import { appRoot } from "./pod/solidUtils.ts";
@@ -25,12 +25,12 @@ export function bookmarksUri(webId: string): string {
  * Bookmarked room IRIs (the "Your rooms" list). Missing file ⇒ `[]`.
  * @operation query
  */
-export async function readBookmarks(session: Session): Promise<string[]> {
-  const webId = session.info.webId;
+export async function readBookmarks(gateway: PodGateway): Promise<string[]> {
+  const webId = gateway.webId;
   if (!webId) return [];
-  const url = bookmarksUri(webId);
-  const store = await readStoreOrEmpty(url, session);
-  return store.getObjects(namedNode(url), GRAN_KNOWN_ROOM, null).map((o) =>
+  const uri = bookmarksUri(webId);
+  const store = await readStoreOrEmpty(uri, gateway);
+  return store.getObjects(namedNode(uri), GRAN_KNOWN_ROOM, null).map((o) =>
     o.value
   );
 }
@@ -39,11 +39,11 @@ export async function readBookmarks(session: Session): Promise<string[]> {
  * Add a room to bookmarks (deduped). No-op (no write) if already present.
  * @operation mutation
  */
-export function addBookmark(session: Session, room: string): Promise<void> {
-  const url = bookmarksUri(session.info.webId!);
-  const self = namedNode(url);
+export function addBookmark(gateway: PodGateway, room: string): Promise<void> {
+  const uri = bookmarksUri(gateway.webId!);
+  const self = namedNode(uri);
   const node = namedNode(room);
-  return readModifyWrite(url, session, (store) => {
+  return readModifyWrite(uri, gateway, (store) => {
     if (store.getQuads(self, GRAN_KNOWN_ROOM, node, null).length > 0) {
       return false; // already bookmarked → skip the write
     }
@@ -56,11 +56,11 @@ export function addBookmark(session: Session, room: string): Promise<void> {
  * Remove a room from bookmarks. No-op (no write) if it wasn't bookmarked.
  * @operation mutation
  */
-export function removeBookmark(session: Session, room: string): Promise<void> {
-  const url = bookmarksUri(session.info.webId!);
-  const self = namedNode(url);
+export function removeBookmark(gateway: PodGateway, room: string): Promise<void> {
+  const uri = bookmarksUri(gateway.webId!);
+  const self = namedNode(uri);
   const node = namedNode(room);
-  return readModifyWrite(url, session, (store) => {
+  return readModifyWrite(uri, gateway, (store) => {
     const existing = store.getQuads(self, GRAN_KNOWN_ROOM, node, null);
     if (existing.length === 0) return false;
     store.removeQuads(existing);

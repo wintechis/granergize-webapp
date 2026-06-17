@@ -1,3 +1,4 @@
+import { sessionGateway } from "../services/pod/podGateway.ts";
 import { msg } from "../lib/messages.ts";
 import { useEffect, useRef, useState } from "react";
 import {
@@ -54,7 +55,7 @@ export default function OrganizationDialog(
   useEffect(() => {
     if (!open) return;
     let revoke: string | null = null;
-    getOrganization(session).then((org) => {
+    getOrganization(sessionGateway(session)).then((org) => {
       const o = org ?? {};
       setInitial(o);
       setName(o.name ?? "");

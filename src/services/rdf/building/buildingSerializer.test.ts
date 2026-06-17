@@ -381,8 +381,8 @@ Deno.test("serializeBuildingToTurtle links energy datasets via cons:hasEnergyDat
   const dsA = `${datasetFileUri(root, 2024, "id-a")}#ds`;
   const dsB = `${datasetFileUri(root, 2024, "id-b")}#ds`;
   const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, [
-    { url: dsA, granularity: "P1Y", scenario: "actual" },
-    { url: dsB, granularity: "PT15M", scenario: "actual" },
+    { uri: dsA, granularity: "P1Y", scenario: "actual" },
+    { uri: dsB, granularity: "PT15M", scenario: "actual" },
   ]);
 
   // Raw shape: one cons:hasEnergyDataset link per dataset (no inline energy).
@@ -727,16 +727,16 @@ Deno.test("writeBuildingEnergy stops writing daily files once aborted", async ()
   const controller = new AbortController();
   // Abort the moment the first 15-min daily file is dispatched, so the rest of
   // the year's files can't be written.
-  const isDailyFile = (url: string) =>
-    /\/observations\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.ttl$/.test(url);
+  const isDailyFile = (uri: string) =>
+    /\/observations\/\d{4}\/\d{2}\/\d{2}\/[^/]+\.ttl$/.test(uri);
   const inner = session.fetch.bind(session);
   (session as { fetch: typeof fetch }).fetch = ((
     input: string | URL | Request,
     init?: RequestInit,
   ) => {
-    const url = String(input);
+    const uri = String(input);
     const p = inner(input as string, init);
-    if ((init?.method ?? "GET").toUpperCase() === "PUT" && isDailyFile(url)) {
+    if ((init?.method ?? "GET").toUpperCase() === "PUT" && isDailyFile(uri)) {
       controller.abort();
     }
     return p;
@@ -825,8 +825,8 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   // Stub the geocoder (global fetch) so the seed runs offline.
   const realFetch = globalThis.fetch;
   globalThis.fetch = ((input: string | URL) => {
-    const url = typeof input === "string" ? input : input.toString();
-    if (url.includes("nominatim")) {
+    const uri = typeof input === "string" ? input : input.toString();
+    if (uri.includes("nominatim")) {
       return Promise.resolve(
         new Response(JSON.stringify([{ lat: "49.45", lon: "11.08" }]), {
           status: 200,
@@ -1000,8 +1000,8 @@ Deno.test("seedDemoBuildings counts a failed building instead of throwing — an
   // Stub the geocoder (global fetch) so the seed runs offline.
   const realFetch = globalThis.fetch;
   globalThis.fetch = ((input: string | URL) => {
-    const url = typeof input === "string" ? input : input.toString();
-    if (url.includes("nominatim")) {
+    const uri = typeof input === "string" ? input : input.toString();
+    if (uri.includes("nominatim")) {
       return Promise.resolve(
         new Response(JSON.stringify([{ lat: "49.45", lon: "11.08" }]), {
           status: 200,
@@ -1170,12 +1170,12 @@ function deletingSession(uri: string, lagReads: number) {
     webId: WEBID,
     // Everything not handled here (e.g. the energy/ probe) falls through to
     // the empty store's 404.
-    respond: (url, init) => {
+    respond: (uri, init) => {
       if ((init?.method ?? "GET").toUpperCase() === "DELETE") {
         counts.deletes++;
         return new Response(null, { status: 205 });
       }
-      if (url === container) {
+      if (uri === container) {
         counts.containerGets++;
         // Still lists the deleted file for the first `lagReads` reads, then drops it.
         return new Response(listing(counts.containerGets <= lagReads), {

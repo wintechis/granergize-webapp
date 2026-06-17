@@ -1,7 +1,7 @@
 // Intent core (React-free) for ExportArchive — an imperative READ-intent. See
 // ./README.md: a read core returns its VALUE (here the archive blob + count),
 // never an outcome.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { exportArchive, type ExportResult } from "../services/pod/podArchive.ts";
 
 /**
@@ -29,12 +29,12 @@ export interface ExportArchiveParams {
  * param→value path is exercised (`AuditGrants` alone is paramless).
  *
  * The hook is a thin adapter owning only busy state + the central toast (no
- * invalidation: CQS forbids a read declaring one). Takes `session` as an
+ * invalidation: CQS forbids a read declaring one). Takes `gateway` as an
  * argument — no `getSession()`, no React — so it is callable headless.
  */
 export function exportArchiveCore(
-  session: Session,
+  gateway: PodGateway,
   params: ExportArchiveParams = {},
 ): Promise<ExportResult> {
-  return exportArchive(session, params.signal);
+  return exportArchive(gateway, params.signal);
 }

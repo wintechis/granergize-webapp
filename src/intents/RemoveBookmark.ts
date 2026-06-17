@@ -1,5 +1,5 @@
 // Intent core (React-free) for RemoveBookmark. See ./README.md and ./CreateRoom.ts.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { normalizeRoomUri, removeKnownRoom } from "../services/interop/dataRoom.ts";
 import type { RoomOutcome } from "./CreateRoom.ts";
 
@@ -16,9 +16,9 @@ export interface RemoveBookmarkParams {
  * and clears `current` if it matched.
  */
 export async function removeBookmarkCore(
-  session: Session,
+  gateway: PodGateway,
   params: RemoveBookmarkParams,
 ): Promise<RoomOutcome> {
-  await removeKnownRoom(params.roomUri, session);
+  await removeKnownRoom(params.roomUri, gateway);
   return { room: normalizeRoomUri(params.roomUri) };
 }

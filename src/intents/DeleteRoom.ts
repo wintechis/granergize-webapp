@@ -1,5 +1,5 @@
 // Intent core (React-free) for DeleteRoom. See ./README.md and ./CreateRoom.ts.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { deleteRoom, normalizeRoomUri, removeKnownRoom } from "../services/interop/dataRoom.ts";
 import type { RoomOutcome } from "./CreateRoom.ts";
 
@@ -16,10 +16,10 @@ export interface DeleteRoomParams {
  * `current` if it matched.
  */
 export async function deleteRoomCore(
-  session: Session,
+  gateway: PodGateway,
   params: DeleteRoomParams,
 ): Promise<RoomOutcome> {
-  await deleteRoom(params.roomUri, session);
-  await removeKnownRoom(params.roomUri, session);
+  await deleteRoom(params.roomUri, gateway);
+  await removeKnownRoom(params.roomUri, gateway);
   return { room: normalizeRoomUri(params.roomUri) };
 }

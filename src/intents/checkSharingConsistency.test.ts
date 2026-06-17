@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the CheckSharingConsistency read core is callable HEADLESS:
@@ -57,7 +58,7 @@ ${isContainer ? `   acl:default <${resource}> ;\n` : ""}   acl:mode acl:Read .
 /** A building with no energy datasets grants two targets: the file + its files/ container. */
 const FILES_CONTAINER = `${BUILDING.replace(/\.ttl$/, "")}/files/`;
 
-function makePod(opts: { withAcl: boolean }): { session: Session } {
+function makePod(opts: { withAcl: boolean }): { session: PodGateway } {
   const ev1 = `${SHARED_OUT}e1`;
   const store: Record<string, string> = {
     [SHARED_OUT]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .\n<${SHARED_OUT}> ldp:contains <${ev1}> .`,
@@ -81,7 +82,7 @@ function makePod(opts: { withAcl: boolean }): { session: Session } {
       new Response(body, { status: 200, headers: { "Content-Type": "text/turtle" } }),
     );
   };
-  return { session: { info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session };
+  return { session: sessionGateway({ info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session) };
 }
 
 Deno.test("checkSharingConsistencyCore (headless): a logged grant with no .acl → missing-grant drift", async () => {

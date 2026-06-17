@@ -1,6 +1,6 @@
+import type { PodGateway } from "./podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
   APP_DIR,
   appRoot,
@@ -18,7 +18,7 @@ const WEBID = "https://pod.example/profile/card#me";
  * `webId` so the module-global storage-root cache (resolveStorageRoot is now
  * idempotent) doesn't carry over between cases.
  */
-function makeSession(webId: string, profileTtl: string | null): Session {
+function makeSession(webId: string, profileTtl: string | null): PodGateway {
   const profileDoc = webId.split("#")[0];
   return makeFakeSession({
     webId,

@@ -111,12 +111,12 @@ export const INTENT_PARAMS = {
   DeleteAttachment: {
     fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
     subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
-    url: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
+    uri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
   },
   SetEnergyCertificate: {
     fileUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
     subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
-    url: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "optional" },
+    uri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "optional" },
   },
   // ── Aggregations ─────────────────────────────────────────────────────────────
   CreateAggregation: {
@@ -183,7 +183,7 @@ export const INTENT_PARAMS = {
   },
   // ── Account ──────────────────────────────────────────────────────────────────
   // SeedDemoBuildings is paramless (collection-wide; the core reads the WebID off
-  // the session). RemoveAppData's only param is the runtime-only `signal` → empty.
+  // the gateway). RemoveAppData's only param is the runtime-only `signal` → empty.
   // RestoreArchive's `bytes` is an opaque Uint8Array → placeholder.
   SeedDemoBuildings: {},
   RemoveAppData: {},

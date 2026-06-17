@@ -27,7 +27,7 @@ export default function SeriesEnergy({ building }: { building: BuildingType }) {
         }
       />
       <CardContent>
-        {series.map((d) => <RdfSourceLink key={d.url} href={d.url} />)}
+        {series.map((d) => <RdfSourceLink key={d.uri} href={d.uri} />)}
         <UserEnergyChart seriesDatasets={series} />
       </CardContent>
     </Card>

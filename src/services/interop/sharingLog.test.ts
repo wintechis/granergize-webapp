@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -27,7 +28,7 @@ const B2 = "https://alice.example/granergize/buildings/b2.ttl";
  * paths run offline.
  */
 function makePod(): {
-  session: Session;
+  session: PodGateway;
   store: Record<string, string>;
   gets: string[];
 } {
@@ -83,10 +84,10 @@ function makePod(): {
     );
   };
   return {
-    session: {
+    session: sessionGateway({
       info: { webId: WEBID, isLoggedIn: true },
       fetch,
-    } as unknown as Session,
+    } as unknown as Session),
     store,
     gets,
   };

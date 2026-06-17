@@ -1,6 +1,7 @@
 // Test-only module: the shared offline-fixture fake Session for Tier-1 unit
 // tests. Never import from app code — it must stay out of the bundle.
 import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 
 /** One recorded request (query string already stripped from `url`). */
 export interface FakeSessionCall {
@@ -30,7 +31,13 @@ export interface FakeSessionOptions {
 }
 
 export interface FakeSession {
-  session: Session;
+  // The double stands in for BOTH the @inrupt `Session` (for
+  // `_setSessionForTesting`) AND the flat `PodGateway` port (for direct
+  // data-layer calls), so a test can pass `.session` to either without an
+  // adapter — the object carries `info.webId` (Session) and a top-level `webId`
+  // (PodGateway). Production code never has this dual shape; it goes through
+  // `sessionGateway`.
+  session: Session & PodGateway;
   /** The live in-memory Pod: url → body. Mutate/inspect freely. */
   store: Record<string, string>;
   /** Every request, in order. */
@@ -123,7 +130,8 @@ export function makeFakeSession(opts: FakeSessionOptions = {}): FakeSession {
   };
 
   return {
-    session: { info: { isLoggedIn: true, webId }, fetch } as unknown as Session,
+    session: { info: { isLoggedIn: true, webId }, fetch, webId } as unknown as
+      Session & PodGateway,
     store,
     calls,
   };

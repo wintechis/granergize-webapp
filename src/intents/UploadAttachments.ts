@@ -1,7 +1,7 @@
 // Intent core (React-free) for UploadAttachments (the hook is
 // `useUploadAttachments`). See ./README.md for the core/adapter split and the
 // write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { uploadAttachment } from "../services/attachmentManager.ts";
 import type { AttachmentRef } from "../types.ts";
 import type { Tally } from "./outcomes.ts";
@@ -26,13 +26,13 @@ export interface UploadAttachmentsParams {
  * tally). The adapter owns the buildings invalidation.
  */
 export async function uploadAttachmentsCore(
-  session: Session,
+  gateway: PodGateway,
   params: UploadAttachmentsParams,
 ): Promise<Tally> {
   const total = params.files.length;
   let done = 0;
   for (const file of params.files) {
-    const ref = await uploadAttachment(params.fileUri, params.subjectUri, file, session);
+    const ref = await uploadAttachment(params.fileUri, params.subjectUri, file, gateway);
     params.onUploaded?.(ref);
     done++;
   }

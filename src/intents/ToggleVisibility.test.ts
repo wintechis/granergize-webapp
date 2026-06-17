@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the ToggleVisibility core is callable HEADLESS (a
@@ -19,7 +20,7 @@ interface Call {
   body?: string;
 }
 
-function ownerPod(): { session: Session; calls: Call[]; store: Record<string, string> } {
+function ownerPod(): { session: PodGateway; calls: Call[]; store: Record<string, string> } {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const store: Record<string, string> = {};
   const calls: Call[] = [];
@@ -43,7 +44,7 @@ function ownerPod(): { session: Session; calls: Call[]; store: Record<string, st
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session),
     calls,
     store,
   };

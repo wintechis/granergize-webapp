@@ -43,7 +43,7 @@ export default function UserEnergyChart(
   const [activeTab, setActiveTab] = useState<0 | 1 | 2 | 3>(0);
   const [selectedDay, setSelectedDay] = useState<string>("");
   const selectedEntry = dateEntries.find((d) => d.day === selectedDay);
-  const dayQuery = useDayReadings(selectedEntry?.url);
+  const dayQuery = useDayReadings(selectedEntry?.uri);
   const readings = useMemo(() => dayQuery.data ?? [], [dayQuery.data]);
 
   // ── Tabs 1 & 2: Monthly bulk fetch ───────────────────────────────────────

@@ -1,6 +1,6 @@
 // Intent core (React-free) for EnterRoom. See ./README.md and ./CreateRoom.ts
 // (`RoomOutcome`). The reachability throw stays IN the core.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { extractRoomUri, normalizeRoomUri, openRoom } from "../services/interop/dataRoom.ts";
 import type { RoomOutcome } from "./CreateRoom.ts";
 
@@ -17,10 +17,10 @@ export interface EnterRoomParams {
  * adapter's `patchRooms` adds to `known` and sets `current`.
  */
 export async function enterRoomCore(
-  session: Session,
+  gateway: PodGateway,
   params: EnterRoomParams,
 ): Promise<RoomOutcome> {
-  if (!(await openRoom(params.roomUri, session))) {
+  if (!(await openRoom(params.roomUri, gateway))) {
     throw new Error("Data room is not reachable");
   }
   return { room: normalizeRoomUri(extractRoomUri(params.roomUri)) };

@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import { podResources } from "../pod/solidUtils.ts";
 import type {
@@ -78,14 +78,14 @@ function aggregationNodeFor(webId: string, aggregationId: string) {
 /** Ensure the `aggregations/` and `aggregations/snapshots/` containers exist (parent first).
  * A creation failure propagates here, instead of resurfacing later as a
  * confusing aggregation-PUT failure. */
-async function ensureAggregationsDirectoryExists(session: Session): Promise<void> {
-  const webId = session.info.webId;
+async function ensureAggregationsDirectoryExists(gateway: PodGateway): Promise<void> {
+  const webId = gateway.webId;
   if (!webId) {
     throw new Error("User is not logged in");
   }
 
-  await ensureContainer(aggregationsContainerUri(webId), session);
-  await ensureContainer(snapshotsContainerUri(webId), session);
+  await ensureContainer(aggregationsContainerUri(webId), gateway);
+  await ensureContainer(snapshotsContainerUri(webId), gateway);
 }
 
 /**
@@ -102,7 +102,7 @@ function generateAggregationId(): string {
  * @operation mutation
  */
 export async function createAggregationDefinition(
-  session: Session,
+  gateway: PodGateway,
   name: string,
   buildingUris: string[],
   aggregationType: AggregationDefinition["aggregationType"],
@@ -110,15 +110,15 @@ export async function createAggregationDefinition(
   opts: { period?: string; benchmark?: boolean } = {},
 ): Promise<AggregationDefinition> {
   const { period, benchmark } = opts;
-  if (!session.info.isLoggedIn || !session.info.webId) {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
 
-  await ensureAggregationsDirectoryExists(session);
+  await ensureAggregationsDirectoryExists(gateway);
 
   const aggregationId = generateAggregationId();
   const now = new Date().toISOString();
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   const definitionUri = getAggregationDefinitionUri(webId, aggregationId);
 
   const newAggregation: AggregationDefinition = {
@@ -188,7 +188,7 @@ export async function createAggregationDefinition(
     ));
   }
 
-  const res = await session.fetch(definitionUri, {
+  const res = await gateway.fetch(definitionUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: serializeWithPrefixes(store),
@@ -247,10 +247,10 @@ function parseAggregationDefinition(store: Store): AggregationDefinition | null 
  * @operation query
  */
 export async function getAggregationDefinitions(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<AggregationDefinition[]> {
-  const webId = session.info.webId;
-  if (!session.info.isLoggedIn || !webId) {
+  const webId = gateway.webId;
+  if (!webId) {
     throw new Error("User is not logged in");
   }
 
@@ -258,7 +258,7 @@ export async function getAggregationDefinitions(
   // keeps the last good aggregations via keepPreviousData). The legitimate empty — the
   // container doesn't exist yet — is the explicit `if (!children) return []` below,
   // so it stays distinct from "the read failed".
-  const children = await listDirectChildren(aggregationsContainerUri(webId), session);
+  const children = await listDirectChildren(aggregationsContainerUri(webId), gateway);
   if (!children) return []; // container doesn't exist yet
   const defUris = children.filter((u) => u.endsWith(".ttl"));
 
@@ -266,7 +266,7 @@ export async function getAggregationDefinitions(
   const aggregations = await mapPooled(
     defUris,
     4,
-    async (url) => parseAggregationDefinition(await readStoreOrEmpty(url, session)),
+    async (url) => parseAggregationDefinition(await readStoreOrEmpty(url, gateway)),
   );
   return aggregations.filter((v): v is AggregationDefinition => v !== null);
 }
@@ -277,15 +277,15 @@ export async function getAggregationDefinitions(
  * @operation query
  */
 export async function getAggregationDefinition(
-  session: Session,
+  gateway: PodGateway,
   aggregationId: string,
 ): Promise<AggregationDefinition | null> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) return null;
   try {
     const store = await readStoreOrEmpty(
       getAggregationDefinitionUri(webId, aggregationId),
-      session,
+      gateway,
     );
     return parseAggregationDefinition(store);
   } catch (error) {
@@ -310,16 +310,16 @@ function metricInfo(metric: string): { prop: string; unit: string } | undefined 
 }
 
 export async function storeComputedSnapshot(
-  session: Session,
+  gateway: PodGateway,
   snapshot: AggregationSnapshot,
 ): Promise<string> {
-  if (!session.info.isLoggedIn || !session.info.webId) {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
 
-  await ensureAggregationsDirectoryExists(session);
+  await ensureAggregationsDirectoryExists(gateway);
 
-  const snapshotUri = getComputedSnapshotUri(session.info.webId, snapshot.id);
+  const snapshotUri = getComputedSnapshotUri(gateway.webId, snapshot.id);
   const snapshotNode = namedNode(`${snapshotUri}#snapshot`);
 
   const store = new Store();
@@ -432,7 +432,7 @@ export async function storeComputedSnapshot(
   // Serialize and save
   const ttl = serializeWithPrefixes(store);
 
-  const putResponse = await session.fetch(snapshotUri, {
+  const putResponse = await gateway.fetch(snapshotUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: ttl,
@@ -445,7 +445,7 @@ export async function storeComputedSnapshot(
   }
 
   // Update lastComputedAt in the definition
-  await updateAggregationLastComputed(session, snapshot.id, snapshot.computedAt);
+  await updateAggregationLastComputed(gateway, snapshot.id, snapshot.computedAt);
 
   return snapshotUri;
 }
@@ -454,18 +454,18 @@ export async function storeComputedSnapshot(
  * Update the lastComputedAt timestamp in an aggregation definition
  */
 async function updateAggregationLastComputed(
-  session: Session,
+  gateway: PodGateway,
   aggregationId: string,
   timestamp: string,
 ): Promise<void> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) return;
 
   const definitionUri = getAggregationDefinitionUri(webId, aggregationId);
   const aggregationNode = aggregationNodeFor(webId, aggregationId);
   const lastComputedPred = namedNode(`${VOCAB_PREFIX}lastComputedAt`);
 
-  await readModifyWrite(definitionUri, session, (store, { created }) => {
+  await readModifyWrite(definitionUri, gateway, (store, { created }) => {
     if (created) return false; // no definition file → nothing to update
     store.getQuads(aggregationNode, lastComputedPred, null, null)
       .forEach((q) => store.removeQuad(q));
@@ -490,10 +490,10 @@ async function updateAggregationLastComputed(
  * @operation query
  */
 export async function loadComputedSnapshot(
-  session: Session,
+  gateway: PodGateway,
   snapshotUri: string,
 ): Promise<AggregationSnapshot | null> {
-  const response = await fetchFresh(snapshotUri, session);
+  const response = await fetchFresh(snapshotUri, gateway);
   // 404/410 = deleted, 403 = the owner revoked your access — all mean "gone",
   // a normal lifecycle event for a resource shared WITH you, not a failure.
   if (
@@ -635,7 +635,7 @@ export async function loadComputedSnapshot(
  * @operation query
  */
 export async function getReceivedBenchmarksFor(
-  session: Session,
+  gateway: PodGateway,
   // Structural shape (only the snapshot IRI is read), so this stays decoupled
   // from interop's `ReceivedAggregation` — a `ReceivedAggregation[]` from the folded log is
   // assignable. Cross-domain composition happens at the caller (hook/test).
@@ -648,7 +648,7 @@ export async function getReceivedBenchmarksFor(
     // must not fail the whole fold — loadComputedSnapshot throws on transient
     // failures by design (so the aggregation page can tell absence from failure).
     (rv) =>
-      loadComputedSnapshot(session, rv.snapshotUri).catch((err) => {
+      loadComputedSnapshot(gateway, rv.snapshotUri).catch((err) => {
         logError(`load received benchmark ${rv.snapshotUri}`, err);
         return null;
       }),
@@ -663,12 +663,12 @@ export async function getReceivedBenchmarksFor(
  * @operation query
  */
 export async function getComputedSnapshotByAggregationId(
-  session: Session,
+  gateway: PodGateway,
   aggregationId: string,
 ): Promise<AggregationSnapshot | null> {
-  if (!session.info.webId) return null;
-  const snapshotUri = getComputedSnapshotUri(session.info.webId, aggregationId);
-  return loadComputedSnapshot(session, snapshotUri);
+  if (!gateway.webId) return null;
+  const snapshotUri = getComputedSnapshotUri(gateway.webId, aggregationId);
+  return loadComputedSnapshot(gateway, snapshotUri);
 }
 
 /**
@@ -676,11 +676,11 @@ export async function getComputedSnapshotByAggregationId(
  * @operation mutation
  */
 export async function deleteAggregation(
-  session: Session,
+  gateway: PodGateway,
   aggregationId: string,
 ): Promise<void> {
-  const webId = session.info.webId;
-  if (!session.info.isLoggedIn || !webId) {
+  const webId = gateway.webId;
+  if (!webId) {
     throw new Error("User is not logged in");
   }
 
@@ -689,10 +689,10 @@ export async function deleteAggregation(
   const definitionUri = getAggregationDefinitionUri(webId, aggregationId);
   const snapshotUri = getComputedSnapshotUri(webId, aggregationId);
   for (const url of [definitionUri, snapshotUri]) {
-    await session.fetch(`${url}.acl`, { method: "DELETE" }).catch((err) =>
+    await gateway.fetch(`${url}.acl`, { method: "DELETE" }).catch((err) =>
       logError("delete aggregation ACL", err)
     );
-    await session.fetch(url, { method: "DELETE" }).catch((err) =>
+    await gateway.fetch(url, { method: "DELETE" }).catch((err) =>
       logError("delete aggregation resource", err)
     );
   }

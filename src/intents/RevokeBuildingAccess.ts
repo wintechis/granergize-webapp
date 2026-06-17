@@ -1,7 +1,7 @@
 // Intent core (React-free) for RevokeBuildingAccess (the hook is
 // `useRevokeBuildingAccess`). See ./README.md for the core/adapter split and the
 // write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { revokeAccess } from "../services/interop/sharingManager.ts";
 import type { Settled } from "./outcomes.ts";
 
@@ -20,9 +20,9 @@ export interface RevokeBuildingAccessParams {
  * withdraws the ACL, notifies). The adapter owns the shared-out-log invalidation.
  */
 export async function revokeBuildingAccessCore(
-  session: Session,
+  gateway: PodGateway,
   params: RevokeBuildingAccessParams,
 ): Promise<Settled> {
-  await revokeAccess(params.buildingUri, params.webId, session);
+  await revokeAccess(params.buildingUri, params.webId, gateway);
   return { ok: true };
 }

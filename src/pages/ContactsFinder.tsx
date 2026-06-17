@@ -1,3 +1,4 @@
+import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useState } from "react";
 import {
   Box,
@@ -64,7 +65,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
       await saveContact.mutateAsync({ webId, name: webIdFragment(webId) });
       setContactInput("");
       showNotification(t("contactAdded"), "success");
-      void resolveAgent(webId, session)
+      void resolveAgent(webId, sessionGateway(session))
         .then((agent) => saveContact.mutateAsync(agent))
         .catch((e) => logError("upgrade added contact profile", e));
     } catch (e) {

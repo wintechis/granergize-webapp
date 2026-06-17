@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import assert from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -19,9 +20,9 @@ const WEBID = "https://b.example/profile/card#me";
  */
 function recordingSession(
   inboxExists: boolean,
-): { session: Session; writes: { url: string; method: string }[] } {
+): { session: PodGateway; writes: { url: string; method: string }[] } {
   const writes: { url: string; method: string }[] = [];
-  const session = {
+  const session = sessionGateway({
     info: { isLoggedIn: true, webId: WEBID },
     fetch: (input: string | URL | Request, init?: RequestInit) => {
       const url = (typeof input === "string" ? input : input.toString())
@@ -33,13 +34,13 @@ function recordingSession(
       writes.push({ url, method });
       return Promise.resolve(new Response("", { status: 201 }));
     },
-  } as unknown as Session;
+  } as unknown as Session);
   return { session, writes };
 }
 
 /** Fake session serving canned Turtle bodies by URL (query stripped). */
-function session(map: Record<string, string>): Session {
-  return {
+function session(map: Record<string, string>): PodGateway {
+  return sessionGateway({
     info: { isLoggedIn: true, webId: WEBID },
     fetch: (input: string | URL | Request) => {
       const url = (typeof input === "string" ? input : input.toString())
@@ -55,7 +56,7 @@ function session(map: Record<string, string>): Session {
         }),
       );
     },
-  } as unknown as Session;
+  } as unknown as Session);
 }
 
 Deno.test("getRecipientInboxUri: convention path when granergize root has no ldp:inbox", async () => {
@@ -145,7 +146,7 @@ Deno.test("drainInbox creates shared-in/ once when draining multiple messages (n
 
   let sharedInExists = false;
   const calls: { method: string; url: string }[] = [];
-  const session = {
+  const session = sessionGateway({
     info: { isLoggedIn: true, webId: WEBID },
     fetch: (input: string | URL | Request, init?: RequestInit) => {
       const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
@@ -173,7 +174,7 @@ Deno.test("drainInbox creates shared-in/ once when draining multiple messages (n
       if (url === sharedIn && method === "POST") return ttl("", 201);
       return ttl("Not found", 404);
     },
-  } as unknown as Session;
+  } as unknown as Session);
 
   await drainInbox(session);
 

@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "./podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -58,7 +59,7 @@ const FIXTURES: Record<string, string> = {
  * walk re-lists containers), so DELETE is overridden to record and respond
  * (.acl probes 404 — none in fixtures; real resources 205) without mutating.
  */
-function makeSession(): { session: Session; deletes: string[] } {
+function makeSession(): { session: PodGateway; deletes: string[] } {
   const deletes: string[] = [];
   const pod = makeFakeSession({
     webId: WEBID,
@@ -108,7 +109,7 @@ Deno.test("deleteContainerRecursive deletes a listed .acl child without deriving
   const acl = `${C}.acl`;
   const file = `${C}data.ttl`;
   const deletes: string[] = [];
-  const session = {
+  const session = sessionGateway({
     info: { webId: WEBID, isLoggedIn: true },
     fetch: (input: string | URL, init?: RequestInit) => {
       const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
@@ -127,7 +128,7 @@ Deno.test("deleteContainerRecursive deletes a listed .acl child without deriving
       }
       return Promise.resolve(new Response("Not found", { status: 404 }));
     },
-  } as unknown as Session;
+  } as unknown as Session);
 
   await deleteContainerRecursive(C, session);
 
@@ -153,7 +154,7 @@ Deno.test("deleteContainerRecursive self-corrects an INCOMPLETE listing (no sile
   const exists = new Set([a, b]); // server-side truth
   const deletes: string[] = [];
   let listGets = 0;
-  const session = {
+  const session = sessionGateway({
     info: { webId: WEBID, isLoggedIn: true },
     fetch: (input: string | URL, init?: RequestInit) => {
       const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
@@ -183,7 +184,7 @@ Deno.test("deleteContainerRecursive self-corrects an INCOMPLETE listing (no sile
       }
       return Promise.resolve(new Response("Not found", { status: 404 }));
     },
-  } as unknown as Session;
+  } as unknown as Session);
 
   await deleteContainerRecursive(C, session); // must NOT throw
 
@@ -200,7 +201,7 @@ Deno.test("deleteContainerRecursive throws (no false success) when a container c
   // wipe verify relies on.
   const C = `${GRAN}stuck/`;
   const stuck = `${C}x.ttl`;
-  const session = {
+  const session = sessionGateway({
     info: { webId: WEBID, isLoggedIn: true },
     fetch: (input: string | URL, init?: RequestInit) => {
       const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
@@ -221,7 +222,7 @@ Deno.test("deleteContainerRecursive throws (no false success) when a container c
       }
       return Promise.resolve(new Response("Not found", { status: 404 }));
     },
-  } as unknown as Session;
+  } as unknown as Session);
 
   await assert.rejects(() => deleteContainerRecursive(C, session));
 });

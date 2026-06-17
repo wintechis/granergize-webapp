@@ -1,6 +1,6 @@
 // Intent core (React-free) for ShareBuilding. See ./README.md for the
 // core/adapter split and the write→outcome / read→value convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { shareBuildingData } from "../services/interop/share.ts";
 import { rememberAgent } from "../services/contacts.ts";
 
@@ -38,22 +38,22 @@ export interface ShareBuildingOutcome {
  *
  * Holds exactly the Pod-request composition the hook's `mutationFn` used to; the
  * hook is now a thin adapter owning only busy state, the central toast, and the
- * `sharedOutLog` invalidation. Takes `session` as an argument — never calls
+ * `sharedOutLog` invalidation. Takes `gateway` as an argument — never calls
  * `getSession()`, imports no React/React Query — so it is callable headless
  * (a palette, a deep link, an LLM tool, the bench seeder, the Tier-2 runner).
  */
 export async function shareBuildingCore(
-  session: Session,
+  gateway: PodGateway,
   params: ShareBuildingParams,
 ): Promise<ShareBuildingOutcome> {
   let recipientsShared = 0;
   for (const recipient of params.recipients) {
-    await shareBuildingData(params.buildingUri, recipient, session, {
+    await shareBuildingData(params.buildingUri, recipient, gateway, {
       includeEnergyData: params.includeEnergyData,
       years: params.years,
     });
     // Auto-remember the recipient in the address book (fire-and-forget).
-    void rememberAgent(session, recipient);
+    void rememberAgent(gateway, recipient);
     recipientsShared++;
   }
   return { recipientsShared };

@@ -197,7 +197,7 @@ export interface BuildingType {
  */
 export interface AttachmentRef {
   /** The file's IRI on the Pod (also the RDF subject of its metadata). */
-  url: string;
+  uri: string;
   /** Original filename, for display/download (`schema:name`). */
   filename: string;
   /** IANA media type (`schema:encodingFormat`), e.g. `application/pdf`. */
@@ -223,8 +223,8 @@ export type Scenario = "actual" | "planned";
  * `services/rdf/energyDataset.ts`.
  */
 export interface EnergyDatasetRef {
-  /** The dataset node URL (the linked `observations/{year}/{id}.ttl#ds`). */
-  url: string;
+  /** The dataset node IRI (the linked `observations/{year}/{id}.ttl#ds`). */
+  uri: string;
   year: number;
   granularity: string;
   scenario: Scenario;

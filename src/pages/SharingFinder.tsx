@@ -1,3 +1,4 @@
+import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useState } from "react";
 import {
   Box,
@@ -226,9 +227,9 @@ export default function SharingFinder({ session }: SharingFinderProps) {
     buildingId: string;
   }) => {
     try {
-      const building = await loadSharedBuilding(entry, session);
+      const building = await loadSharedBuilding(entry, sessionGateway(session));
       if (!building) throw new Error("no building data found in the source file");
-      const [enriched] = await attachAnnualData([building], session);
+      const [enriched] = await attachAnnualData([building], sessionGateway(session));
       downloadXlsx(await buildingToXlsx(enriched), `building-${entry.buildingId}.xlsx`);
     } catch (error) {
       showNotification(formatError("actionExportBuilding", error), "error");
@@ -244,7 +245,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
       const built: BuildingType[] = [];
       for (const entry of sharedWithMe) {
         try {
-          const b = await loadSharedBuilding(entry, session);
+          const b = await loadSharedBuilding(entry, sessionGateway(session));
           if (b) built.push(b);
         } catch (err) {
           logError("read shared building for bundle", err);
@@ -254,7 +255,7 @@ export default function SharingFinder({ session }: SharingFinderProps) {
       if (built.length === 0) {
         throw new Error("none of the shared buildings could be read");
       }
-      const enriched = await attachAnnualData(built, session);
+      const enriched = await attachAnnualData(built, sessionGateway(session));
       downloadXlsx(await buildingsToXlsx(enriched), "buildings-shared.xlsx");
       if (built.length < sharedWithMe.length) {
         showNotification(

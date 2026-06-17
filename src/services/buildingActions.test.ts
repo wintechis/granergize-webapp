@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "./pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -18,12 +19,12 @@ const building = {
 } as unknown as BuildingType;
 
 /** Fake session; serves the energy-subtree container listing (or 404 if `empty`). */
-function session(opts: { empty?: boolean } = {}): Session {
+function session(opts: { empty?: boolean } = {}): PodGateway {
   const listing = `@prefix ldp: <http://www.w3.org/ns/ldp#> .
 <${CONTAINER}> ldp:contains <${CONTAINER}energy/2024-P1Y.ttl> ,
                               <${CONTAINER}energy/2023-P1Y.ttl> .
 `;
-  return {
+  return sessionGateway({
     info: { isLoggedIn: true, webId: WEBID },
     fetch: (input: string | URL | Request) => {
       const url = (typeof input === "string" ? input : input.toString())
@@ -38,7 +39,7 @@ function session(opts: { empty?: boolean } = {}): Session {
       }
       return Promise.resolve(new Response("Not found", { status: 404 }));
     },
-  } as unknown as Session;
+  } as unknown as Session);
 }
 
 Deno.test("buildBuildingDeletionPreview lists the file + energy subtree", async () => {

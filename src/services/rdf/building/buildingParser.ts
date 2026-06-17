@@ -338,10 +338,10 @@ export function parseBuildings(
   if (attachmentUriBuilding.size > 0) {
     quads.forEach((quad: Quad) => {
       if (quad.subject.termType !== "NamedNode") return;
-      const url = quad.subject.value;
-      if (!attachmentUriBuilding.has(url)) return;
-      if (!attachmentData.has(url)) attachmentData.set(url, {});
-      const ad = attachmentData.get(url)!;
+      const uri = quad.subject.value;
+      if (!attachmentUriBuilding.has(uri)) return;
+      if (!attachmentData.has(uri)) attachmentData.set(uri, {});
+      const ad = attachmentData.get(uri)!;
       const pred = quad.predicate.value;
       if (pred === SCHEMA_NAME) ad.filename = quad.object.value;
       else if (pred === SCHEMA_ENCODING_FORMAT) ad.mediaType = quad.object.value;
@@ -387,7 +387,7 @@ export function parseBuildings(
     const building = buildings.get(buildingId);
     if (!building) continue;
     building.energyDatasets = links
-      .map((url) => parseDatasetLink(url, linkStore))
+      .map((uri) => parseDatasetLink(uri, linkStore))
       .filter((r): r is EnergyDatasetRef => r !== null);
   }
 
@@ -426,15 +426,15 @@ export function parseBuildings(
     if (!building) continue;
     const list = (building.attachments as AttachmentRef[] | undefined) ?? [];
     const certUri = certUriOf(building);
-    for (const url of urls) {
-      const ad = attachmentData.get(url) ?? {};
+    for (const uri of urls) {
+      const ad = attachmentData.get(uri) ?? {};
       list.push({
-        url,
-        filename: ad.filename ?? decodeURIComponent(url.split("/").pop() ?? url),
+        uri,
+        filename: ad.filename ?? decodeURIComponent(uri.split("/").pop() ?? uri),
         mediaType: ad.mediaType ?? "application/octet-stream",
         size: ad.size ?? 0,
         uploadDate: ad.uploadDate ?? "",
-        ...(certUri === url ? { isEnergyCertificate: true } : {}),
+        ...(certUri === uri ? { isEnergyCertificate: true } : {}),
       });
     }
     building.attachments = list;

@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../../src/services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 /**
  * Tier-1 unit test for the room-seeding helper (offline, no CSS/network). The
@@ -68,11 +69,11 @@ class FakePod {
   }
 }
 
-function sessionFor(pod: FakePod): Session {
-  return {
+function sessionFor(pod: FakePod): PodGateway {
+  return sessionGateway({
     info: { isLoggedIn: true, webId: "https://alice.example/profile/card#me" },
     fetch: pod.fetch,
-  } as unknown as Session;
+  } as unknown as Session);
 }
 
 Deno.test("seedRoomMembers writes N folds-to-N-members join events", async () => {

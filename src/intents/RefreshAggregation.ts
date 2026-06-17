@@ -1,6 +1,6 @@
 // Intent core (React-free) for RefreshAggregation. See ./README.md for the
 // core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { refreshSnapshot } from "../services/aggregation/aggregationComputer.ts";
 import type { Settled } from "./outcomes.ts";
 
@@ -16,9 +16,9 @@ export interface RefreshAggregationParams {
  * adapter owns the definitions + detail invalidations.
  */
 export async function refreshAggregationCore(
-  session: Session,
+  gateway: PodGateway,
   params: RefreshAggregationParams,
 ): Promise<Settled> {
-  await refreshSnapshot(session, params.aggregationId);
+  await refreshSnapshot(gateway, params.aggregationId);
   return { ok: true };
 }

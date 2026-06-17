@@ -1,6 +1,6 @@
 // Intent core (React-free) for ToggleVisibility. See ./README.md for the
 // core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { toggleBuildingVisibility } from "../services/interop/sharingManager.ts";
 import type { Settled } from "./outcomes.ts";
 
@@ -16,9 +16,9 @@ export interface ToggleVisibilityParams {
  * The adapter owns the `prefs` invalidation.
  */
 export async function toggleVisibilityCore(
-  session: Session,
+  gateway: PodGateway,
   params: ToggleVisibilityParams,
 ): Promise<Settled> {
-  await toggleBuildingVisibility(params.buildingUri, session);
+  await toggleBuildingVisibility(params.buildingUri, gateway);
   return { ok: true };
 }

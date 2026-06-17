@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the ShareBuilding core is callable HEADLESS: it is driven
@@ -33,7 +34,7 @@ interface Call {
  * each recipient's profile (so inbox discovery resolves their storage root) and
  * inbox elsewhere. Records every call so the per-recipient writes can be counted.
  */
-function sharePod(): { session: Session; calls: Call[]; store: Record<string, string> } {
+function sharePod(): { session: PodGateway; calls: Call[]; store: Record<string, string> } {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const store: Record<string, string> = {
     [BUILDING]: BUILDING_TTL,
@@ -63,7 +64,7 @@ function sharePod(): { session: Session; calls: Call[]; store: Record<string, st
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session),
     calls,
     store,
   };

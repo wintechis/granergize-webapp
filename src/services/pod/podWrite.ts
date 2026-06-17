@@ -1,4 +1,4 @@
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./podGateway.ts";
 import { Parser, Store, Writer } from "n3";
 import { quadsToJsonLd } from "../rdf/rdfHelpers.ts";
 import { fetchFresh } from "./podFetch.ts";
@@ -25,8 +25,8 @@ function announceableContainer(containerUri: string): string | null {
  * elsewhere and to retry.
  */
 export class ConflictError extends Error {
-  constructor(public url: string, message?: string) {
-    super(message ?? `Conflicting concurrent edit to ${url}; please retry.`);
+  constructor(public uri: string, message?: string) {
+    super(message ?? `Conflicting concurrent edit to ${uri}; please retry.`);
     this.name = "ConflictError";
   }
 }
@@ -66,13 +66,13 @@ export interface RmwContext {
  */
 export async function ensureContainer(
   containerUri: string,
-  session: Session,
+  gateway: PodGateway,
   opts: { announce?: boolean } = {},
 ): Promise<boolean> {
   // HEAD, not GET: only existence matters, so don't transfer the container body.
-  const head = await session.fetch(containerUri, { method: "HEAD" });
+  const head = await gateway.fetch(containerUri, { method: "HEAD" });
   if (head.ok || head.status !== 404) return false;
-  const put = await session.fetch(containerUri, {
+  const put = await gateway.fetch(containerUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: "",
@@ -100,10 +100,10 @@ export async function ensureContainer(
 export async function appendToContainer(
   containerUri: string,
   turtle: string,
-  session: Session,
+  gateway: PodGateway,
   opts: { describeError?: (res: Response) => string } = {},
 ): Promise<void> {
-  const res = await session.fetch(containerUri, {
+  const res = await gateway.fetch(containerUri, {
     method: "POST",
     headers: { "Content-Type": "text/turtle" },
     body: turtle,
@@ -126,16 +126,16 @@ export async function appendToContainer(
 export async function putAcl(
   aclUri: string,
   turtleBody: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<Response> {
-  const res = await session.fetch(aclUri, {
+  const res = await gateway.fetch(aclUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: turtleBody,
   });
   if (res.ok || res.status !== 415) return res;
   const store = new Store(new Parser({ baseIRI: aclUri }).parse(turtleBody));
-  return await session.fetch(aclUri, {
+  return await gateway.fetch(aclUri, {
     method: "PUT",
     headers: { "Content-Type": "application/ld+json" },
     body: quadsToJsonLd(store.getQuads(null, null, null, null)),
@@ -147,8 +147,8 @@ export async function putAcl(
  * @operation mutation
  */
 export async function readModifyWrite(
-  url: string,
-  session: Session,
+  uri: string,
+  gateway: PodGateway,
   mutate: (store: Store, ctx: RmwContext) => void | boolean,
   opts: { retries?: number; serialize?: (store: Store) => string } = {},
 ): Promise<void> {
@@ -159,7 +159,7 @@ export async function readModifyWrite(
         store.getQuads(null, null, null, null),
       ));
   for (let attempt = 0; attempt <= retries; attempt++) {
-    const res = await fetchFresh(url, session);
+    const res = await fetchFresh(uri, gateway);
     let store: Store;
     let etag: string | null = null;
     let created = false;
@@ -167,10 +167,10 @@ export async function readModifyWrite(
       store = new Store();
       created = true;
     } else if (res.ok) {
-      store = new Store(new Parser({ baseIRI: url }).parse(await res.text()));
+      store = new Store(new Parser({ baseIRI: uri }).parse(await res.text()));
       etag = res.headers.get("ETag");
     } else {
-      throw new Error(`Failed to read ${url}: HTTP ${res.status}`);
+      throw new Error(`Failed to read ${uri}: HTTP ${res.status}`);
     }
 
     if (mutate(store, { created }) === false) return;
@@ -180,7 +180,7 @@ export async function readModifyWrite(
     if (created) headers["If-None-Match"] = "*";
     else if (etag) headers["If-Match"] = etag;
 
-    const put = await session.fetch(url, { method: "PUT", headers, body });
+    const put = await gateway.fetch(uri, { method: "PUT", headers, body });
     if (put.ok) return;
     // 415 Unsupported Media Type → the server rejects Turtle for this resource.
     // JSS demands `application/ld+json` for WAC `.acl` files; re-serialize the SAME
@@ -188,7 +188,7 @@ export async function readModifyWrite(
     // their path is untouched.
     if (put.status === 415) {
       const jsonld = quadsToJsonLd(store.getQuads(null, null, null, null));
-      const put2 = await session.fetch(url, {
+      const put2 = await gateway.fetch(uri, {
         method: "PUT",
         headers: { ...headers, "Content-Type": "application/ld+json" },
         body: jsonld,
@@ -196,14 +196,14 @@ export async function readModifyWrite(
       if (put2.ok) return;
       if (put2.status === 412 || put2.status === 409) continue;
       throw new Error(
-        `Failed to write ${url}: HTTP ${put2.status} ${put2.statusText}`,
+        `Failed to write ${uri}: HTTP ${put2.status} ${put2.statusText}`,
       );
     }
     // 412 Precondition Failed / 409 Conflict → someone wrote first: re-read & retry.
     if (put.status === 412 || put.status === 409) continue;
     throw new Error(
-      `Failed to write ${url}: HTTP ${put.status} ${put.statusText}`,
+      `Failed to write ${uri}: HTTP ${put.status} ${put.statusText}`,
     );
   }
-  throw new ConflictError(url);
+  throw new ConflictError(uri);
 }

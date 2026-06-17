@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -30,7 +31,7 @@ const SNAP =
   "https://me.example/granergize/aggregations/snapshots/aggregation-1-abc.ttl";
 
 /** Stateful fake Pod with POST-to-append + container-listing synthesis. */
-function makePod(): { session: Session; store: Record<string, string> } {
+function makePod(): { session: PodGateway; store: Record<string, string> } {
   const store: Record<string, string> = {};
   let seq = 0;
   const directChildren = (container: string): string[] => {
@@ -85,10 +86,10 @@ function makePod(): { session: Session; store: Record<string, string> } {
     );
   };
   return {
-    session: {
+    session: sessionGateway({
       info: { webId: WEBID, isLoggedIn: true },
       fetch,
-    } as unknown as Session,
+    } as unknown as Session),
     store,
   };
 }

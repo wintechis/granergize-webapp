@@ -1,3 +1,4 @@
+import { sessionGateway } from "./podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { DataFactory } from "n3";
@@ -82,8 +83,7 @@ function makeServer(
   };
 
   return {
-    session: { info: { webId: "x", isLoggedIn: true }, fetch } as unknown as
-      Session,
+    session: sessionGateway({ info: { webId: "x", isLoggedIn: true }, fetch } as unknown as Session),
     puts,
     get gets() {
       return gets;
@@ -240,8 +240,7 @@ Deno.test("appendToContainer POSTs Turtle to the container", async () => {
     });
     return Promise.resolve(new Response(null, { status: 201 }));
   };
-  const session = { info: { webId: "x", isLoggedIn: true }, fetch } as unknown as
-    Session;
+  const session = sessionGateway({ info: { webId: "x", isLoggedIn: true }, fetch } as unknown as Session);
   await appendToContainer(
     "https://pod.example/granergize/shared-out/",
     TTL(":s :p :o ."),
@@ -256,8 +255,7 @@ Deno.test("appendToContainer POSTs Turtle to the container", async () => {
 Deno.test("appendToContainer throws on a non-ok response, honouring describeError", async () => {
   const fetch = (): Promise<Response> =>
     Promise.resolve(new Response(null, { status: 403 }));
-  const session = { info: { webId: "x", isLoggedIn: true }, fetch } as unknown as
-    Session;
+  const session = sessionGateway({ info: { webId: "x", isLoggedIn: true }, fetch } as unknown as Session);
   await assert.rejects(
     () =>
       appendToContainer("https://pod.example/x/", "", session, {

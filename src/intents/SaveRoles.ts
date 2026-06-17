@@ -1,7 +1,7 @@
 // Intent core (React-free) for SaveRoles. See ./README.md. Plain write — no
 // cache patch; the adapter keeps the `roomLog` invalidation (roles live in the
 // room's log, not the registry).
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { setMyRole } from "../services/interop/dataRoom.ts";
 import type { UserRole } from "../types.ts";
 import type { Settled } from "./outcomes.ts";
@@ -20,9 +20,9 @@ export interface SaveRolesParams {
  * adapter keeps the `roomLog` invalidation.
  */
 export async function saveRolesCore(
-  session: Session,
+  gateway: PodGateway,
   params: SaveRolesParams,
 ): Promise<Settled> {
-  await setMyRole(params.room, params.roles, session);
+  await setMyRole(params.room, params.roles, gateway);
   return { ok: true };
 }

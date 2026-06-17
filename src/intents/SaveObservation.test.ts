@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the SaveObservation core swallows a failed grant
@@ -33,7 +34,7 @@ const DATASET: EnergyDataset = {
  * core after the save) rejects. Records calls so we can assert the year was
  * actually written before the reconcile blew up.
  */
-function pod(): { session: Session; calls: string[] } {
+function pod(): { session: PodGateway; calls: string[] } {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const store: Record<string, string> = { [BUILDING]: BUILDING_TTL };
   const calls: string[] = [];
@@ -61,7 +62,7 @@ function pod(): { session: Session; calls: string[] } {
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session),
     calls,
   };
 }

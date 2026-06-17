@@ -1,6 +1,6 @@
 // Intent core (React-free) for SaveObservation (the hook is `useWriteEnergyYear`).
 // See ./README.md for the core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { writeEnergyYear } from "../services/rdf/building/buildingSerializer.ts";
 import { reconcileBuildingGrants } from "../services/interop/share.ts";
 import { logError } from "../lib/logError.ts";
@@ -29,11 +29,11 @@ export interface SaveObservationParams {
  * invalidation.
  */
 export async function saveObservationCore(
-  session: Session,
+  gateway: PodGateway,
   params: SaveObservationParams,
 ): Promise<Settled> {
-  await writeEnergyYear(session, params.fileUri, params.subjectUri, params.dataset);
-  await reconcileBuildingGrants(params.fileUri, session).catch((err) =>
+  await writeEnergyYear(gateway, params.fileUri, params.subjectUri, params.dataset);
+  await reconcileBuildingGrants(params.fileUri, gateway).catch((err) =>
     logError("reconcile sharing grants after energy write", err)
   );
   return { ok: true };

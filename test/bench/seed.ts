@@ -6,7 +6,7 @@
  * shortcut — but takes the FAST routes: buildings are PUT with coordinates inline
  * (no Nominatim geocoding), and writes are pooled, so 500 buildings seed in seconds.
  */
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../../src/services/pod/podGateway.ts";
 import {
   newBuildingUri,
   serializeBuildingToTurtle,
@@ -81,7 +81,7 @@ export function lastAnnualYears(k: number): number[] {
 }
 
 /**
- * Seed `n` throwaway buildings into the session owner's Pod via the real
+ * Seed `n` throwaway buildings into the gateway owner's Pod via the real
  * serialize→PUT path (coords inline, so no geocoding). Returns their URIs for
  * later cleanup. `n === 0` is a no-op (the empty-Pod baseline).
  *
@@ -94,7 +94,7 @@ export function lastAnnualYears(k: number): number[] {
  * seeding them everywhere would be cost without measurement value).
  */
 export async function seedBuildings(
-  session: Session,
+  gateway: PodGateway,
   webId: string,
   n: number,
   idPrefix = "bench",
@@ -115,11 +115,11 @@ export async function seedBuildings(
   // race those too (the HTTP 409 that broke the seeded handbuch videos). Pre-create
   // the observations root + each annual year container the writers will target.
   if (n > 0) {
-    await ensureContainer(`${appRoot(webId)}buildings/`, session);
+    await ensureContainer(`${appRoot(webId)}buildings/`, gateway);
     const obsRoot = `${appRoot(webId)}observations/`;
-    await ensureContainer(obsRoot, session);
+    await ensureContainer(obsRoot, gateway);
     for (const year of [...new Set([...annualYears, seriesYear])]) {
-      await ensureContainer(`${obsRoot}${year}/`, session);
+      await ensureContainer(`${obsRoot}${year}/`, gateway);
     }
   }
   return mapPooled(specs, POOL, async (s) => {
@@ -143,12 +143,12 @@ export async function seedBuildings(
       ]),
     );
     const links = yearsFor.length > 0 || series
-      ? await writeBuildingEnergy(session, s.uri, s.subjectUri, energyFields, series)
+      ? await writeBuildingEnergy(gateway, s.uri, s.subjectUri, energyFields, series)
       : undefined;
     const ttl = serializeBuildingToTurtle(s.fields, s.uri, links, {
       agent: webId,
     });
-    await uploadBuilding(session, s.uri, ttl, webId);
+    await uploadBuilding(gateway, s.uri, ttl, webId);
     return { uri: s.uri, subjectUri: s.subjectUri, fileStem: s.id };
   });
 }
@@ -170,7 +170,7 @@ function consecutiveDates(year: number, days: number): string[] {
  * (what the series-load path lists + parses). `days === 0` writes a bare building.
  */
 export async function seedSeriesBuilding(
-  session: Session,
+  gateway: PodGateway,
   webId: string,
   days: number,
   year = 2024,
@@ -188,21 +188,21 @@ export async function seedSeriesBuilding(
       })),
     }
     : undefined;
-  const links = await writeBuildingEnergy(session, uri, subjectUri, {}, series);
+  const links = await writeBuildingEnergy(gateway, uri, subjectUri, {}, series);
   const ttl = serializeBuildingToTurtle(buildingFields(0), uri, links, {
     agent: webId,
   });
-  await uploadBuilding(session, uri, ttl, webId);
+  await uploadBuilding(gateway, uri, ttl, webId);
   return {
     building: { uri, subjectUri, fileStem: id },
     seriesContainer: seriesContainerUri(uri, year),
   };
 }
 
-/** A headless actor (subset of the Tier-2 `Actor` — session + webId is all we need). */
+/** A headless actor (subset of the Tier-2 `Actor` — gateway + webId is all we need). */
 export interface BenchActor {
   webId: string;
-  session: Session;
+  gateway: PodGateway;
 }
 
 /** An actor's organisation identity: name (+ optional homepage and logo image). */
@@ -227,7 +227,7 @@ async function putPublicReadAcl(url: string, x: BenchActor): Promise<void> {
     `  acl:agent <${x.webId}>; acl:mode acl:Read, acl:Write, acl:Control.`,
     "",
   ].join("\n");
-  const aclPut = await x.session.fetch(`${url}.acl`, {
+  const aclPut = await x.gateway.fetch(`${url}.acl`, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: acl,
@@ -260,7 +260,7 @@ export async function seedProfile(
   let avatarUrl: string | undefined;
   if (avatar) {
     avatarUrl = `${getPodBaseUri(x.webId)}avatar.png`;
-    const put = await x.session.fetch(avatarUrl, {
+    const put = await x.gateway.fetch(avatarUrl, {
       method: "PUT",
       headers: { "Content-Type": avatar.mime },
       body: avatar.bytes as BodyInit,
@@ -271,7 +271,7 @@ export async function seedProfile(
     await putPublicReadAcl(avatarUrl, x);
   }
   const docUri = x.webId.split("#")[0];
-  await readModifyWrite(docUri, x.session, (store, { created }) => {
+  await readModifyWrite(docUri, x.gateway, (store, { created }) => {
     if (created) {
       // A WebID profile is provisioned by the identity provider, never by us.
       throw new Error(`seed profile: no profile document at ${docUri}`);
@@ -282,7 +282,7 @@ export async function seedProfile(
     }
   });
   if (org) {
-    await saveOrganization(x.session, {
+    await saveOrganization(x.gateway, {
       name: org.name,
       homepage: org.homepage,
     });
@@ -290,7 +290,7 @@ export async function seedProfile(
       const file = new File([org.logo.bytes as BlobPart], "logo", {
         type: org.logo.mime,
       });
-      const logoUrl = await uploadOrgLogo(file, x.session);
+      const logoUrl = await uploadOrgLogo(file, x.gateway);
       await putPublicReadAcl(logoUrl, x);
     }
   }
@@ -306,9 +306,9 @@ export async function setupShareRoom(
   b: BenchActor,
   role: UserRole = "investor",
 ): Promise<string> {
-  const room = await createRoom(b.session);
-  await joinRoom(room, a.session);
-  await setMyRole(room, [role], a.session);
+  const room = await createRoom(b.gateway);
+  await joinRoom(room, a.gateway);
+  await setMyRole(room, [role], a.gateway);
   return room;
 }
 
@@ -333,16 +333,16 @@ export async function shareBuildingsViaRoom(
   options: ShareOptions = { includeEnergyData: true },
 ): Promise<void> {
   for (const s of buildings) {
-    const recipients = await getMembersByRole(room, role, b.session);
+    const recipients = await getMembersByRole(room, role, b.gateway);
     for (const recipient of recipients) {
-      await shareBuildingData(s.uri, recipient, b.session, options);
+      await shareBuildingData(s.uri, recipient, b.gateway, options);
     }
   }
 }
 
 /** Delete the owner's whole `buildings/` container (best-effort) — reset between sizes. */
-export async function wipeBuildings(session: Session, webId: string): Promise<void> {
-  await deleteContainerRecursive(`${appRoot(webId)}buildings/`, session).catch(() => {});
+export async function wipeBuildings(gateway: PodGateway, webId: string): Promise<void> {
+  await deleteContainerRecursive(`${appRoot(webId)}buildings/`, gateway).catch(() => {});
 }
 
 /**
@@ -355,12 +355,12 @@ export async function wipeBuildings(session: Session, webId: string): Promise<vo
  * unlike a read-modify-write log — concurrent writers don't contend; pooled.
  */
 export async function seedRoomMembers(
-  session: Session,
+  gateway: PodGateway,
   roomUri: string,
   n: number,
 ): Promise<void> {
   const container = normalizeRoomUri(roomUri);
-  if (n > 0) await ensureContainer(container, session);
+  if (n > 0) await ensureContainer(container, gateway);
   const webIds = Array.from(
     { length: n },
     (_, i) => `https://bench.example/member-${i}/profile/card#me`,
@@ -372,7 +372,7 @@ export async function seedRoomMembers(
       `   as:actor <${webId}> ;\n` +
       `   as:object <${container}> ;\n` +
       `   as:published "2024-01-01T00:00:00.000Z"^^xsd:dateTime .\n`;
-    const res = await session.fetch(container, {
+    const res = await gateway.fetch(container, {
       method: "POST",
       headers: { "Content-Type": "text/turtle" },
       body,
@@ -396,14 +396,14 @@ const CHURN_ROLE_IRIS = [`${GRAN_NS}InvestorRole`, `${GRAN_NS}UserRoleInstance`]
  * fold still returns those members. `members`/`roleEvents` ≤ 0 are no-ops.
  */
 export async function seedRoomRoleChurn(
-  session: Session,
+  gateway: PodGateway,
   roomUri: string,
   members: number,
   roleEvents: number,
 ): Promise<void> {
   if (members <= 0 || roleEvents <= 0) return;
   const container = normalizeRoomUri(roomUri);
-  await ensureContainer(container, session);
+  await ensureContainer(container, gateway);
   const base = new Date("2025-01-01T00:00:00Z").getTime();
   const events = Array.from({ length: roleEvents }, (_, i) => ({
     webId: `https://bench.example/member-${i % members}/profile/card#me`,
@@ -419,7 +419,7 @@ export async function seedRoomRoleChurn(
       `   as:object <${container}> ;\n` +
       `   as:published "${e.at}"^^xsd:dateTime ;\n` +
       `   sioc:has_function <${e.role}> .\n`;
-    const res = await session.fetch(container, {
+    const res = await gateway.fetch(container, {
       method: "POST",
       headers: { "Content-Type": "text/turtle" },
       body,
@@ -429,6 +429,6 @@ export async function seedRoomRoleChurn(
 }
 
 /** Delete the owner's whole `rooms/` container (best-effort) — reset between sizes. */
-export async function wipeRooms(session: Session, webId: string): Promise<void> {
-  await deleteContainerRecursive(`${appRoot(webId)}rooms/`, session).catch(() => {});
+export async function wipeRooms(gateway: PodGateway, webId: string): Promise<void> {
+  await deleteContainerRecursive(`${appRoot(webId)}rooms/`, gateway).catch(() => {});
 }

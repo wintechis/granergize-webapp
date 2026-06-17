@@ -1,3 +1,4 @@
+import { sessionGateway } from "./services/pod/podGateway.ts";
 import { msg } from "./lib/messages.ts";
 import { type ReactNode, useEffect, useState } from "react";
 import { Navigate, useNavigate, useSearchParams } from "react-router-dom";
@@ -215,7 +216,7 @@ function App({ onLogout, session }: AppProps) {
         15000,
       );
     });
-    Promise.race([resolveStorageRoot(session), timeout])
+    Promise.race([resolveStorageRoot(sessionGateway(session)), timeout])
       .then(() => active && setRootReady(true))
       .catch((e) => {
         const msg = e instanceof Error ? e.message : String(e);

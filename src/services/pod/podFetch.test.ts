@@ -1,6 +1,6 @@
+import type { PodGateway } from "./podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { Session } from "@inrupt/solid-client-authn-browser";
 import { readStoreOrEmpty } from "./podFetch.ts";
 import { makeFakeSession } from "../testing/fakeSession.ts";
 
@@ -8,7 +8,7 @@ import { makeFakeSession } from "../testing/fakeSession.ts";
  *  request init, so we can assert the read is sent with Accept: text/turtle. */
 function fakeSession(
   handler: (url: string) => Response,
-): { session: Session; lastInit: () => RequestInit | undefined } {
+): { session: PodGateway; lastInit: () => RequestInit | undefined } {
   let init: RequestInit | undefined;
   const { session } = makeFakeSession({
     respond: (url, requestInit) => {

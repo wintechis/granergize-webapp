@@ -23,7 +23,7 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { useT } from "../context/I18nProvider.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { getSession } from "./session.ts";
+import { getGateway } from "./session.ts";
 import { findIntent } from "../intents/applicable.ts";
 import { invokeByName } from "../intents/registry.ts";
 import { classifyQueryError } from "./queryErrors.ts";
@@ -50,7 +50,7 @@ export function useInvokeIntent(): (
   return async (name, params) => {
     const entry = findIntent(name);
     try {
-      await invokeByName(name, params, getSession());
+      await invokeByName(name, params, getGateway());
       await qc.invalidateQueries();
       showNotification(t("paramFormSuccess"), "success");
       return { ok: true };

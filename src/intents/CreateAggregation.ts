@@ -1,6 +1,6 @@
 // Intent core (React-free) for CreateAggregation. See ./README.md for the
 // core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { createAggregationDefinition } from "../services/aggregation/aggregationManager.ts";
 import { computeAndStoreSnapshot } from "../services/aggregation/aggregationComputer.ts";
 import type { AggregationDefinition } from "../types.ts";
@@ -30,17 +30,17 @@ export interface CreateAggregationParams {
  * than the def. The adapter owns the aggregation-definitions invalidation.
  */
 export async function createAggregationCore(
-  session: Session,
+  gateway: PodGateway,
   params: CreateAggregationParams,
 ): Promise<Settled> {
   const def = await createAggregationDefinition(
-    session,
+    gateway,
     params.name,
     params.buildingUris,
     params.aggregationType,
     params.metrics,
     { period: params.period, benchmark: params.benchmark },
   );
-  await computeAndStoreSnapshot(session, def.id);
+  await computeAndStoreSnapshot(gateway, def.id);
   return { ok: true };
 }

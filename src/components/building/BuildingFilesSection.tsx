@@ -1,3 +1,4 @@
+import { sessionGateway } from "../../services/pod/podGateway.ts";
 import { msg } from "../../lib/messages.ts";
 import { useState } from "react";
 import { Box, Button, Stack, Typography } from "@mui/material";
@@ -45,7 +46,7 @@ export default function BuildingFilesSection(
   const upload = useUploadAttachments();
   const del = useDeleteAttachment();
   const cert = useSetEnergyCertificate();
-  const { download, downloadingUrl } = useAttachmentDownload(session);
+  const { download, downloadingUrl } = useAttachmentDownload(sessionGateway(session));
   const busy = upload.isPending || del.isPending || cert.isPending ||
     downloadingUrl !== null;
 
@@ -87,19 +88,19 @@ export default function BuildingFilesSection(
     ) {
       return;
     }
-    del.mutate({ fileUri, subjectUri, url: a.url }, {
-      onSuccess: () => setItems((prev) => prev.filter((x) => x.url !== a.url)),
+    del.mutate({ fileUri, subjectUri, uri: a.uri }, {
+      onSuccess: () => setItems((prev) => prev.filter((x) => x.uri !== a.uri)),
     });
   };
 
   const handleToggleCert = (a: AttachmentRef) => {
     const makeIt = !a.isEnergyCertificate;
-    cert.mutate({ fileUri, subjectUri, url: makeIt ? a.url : null }, {
+    cert.mutate({ fileUri, subjectUri, uri: makeIt ? a.uri : null }, {
       onSuccess: () =>
         setItems((prev) =>
           prev.map((x) => ({
             ...x,
-            isEnergyCertificate: makeIt && x.url === a.url,
+            isEnergyCertificate: makeIt && x.uri === a.uri,
           }))
         ),
     });
@@ -117,15 +118,15 @@ export default function BuildingFilesSection(
         : (
           <ul style={listStyle}>
             {items.map((a) => (
-              <li key={a.url} style={rowStyle}>
+              <li key={a.uri} style={rowStyle}>
                 <AttachmentInfo a={a} />
                 <span style={{ display: "flex", gap: "0.25rem" }}>
                   <Button
                     size="small"
                     onClick={() => download(a)}
-                    disabled={downloadingUrl === a.url}
+                    disabled={downloadingUrl === a.uri}
                   >
-                    {downloadingUrl === a.url ? msg("btnDownloading") : msg("btnDownload")}
+                    {downloadingUrl === a.uri ? msg("btnDownloading") : msg("btnDownload")}
                   </Button>
                   {canWrite && (
                     <>

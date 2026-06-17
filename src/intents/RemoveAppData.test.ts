@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the RemoveAppData core is callable HEADLESS and that a CANCEL
@@ -14,7 +15,7 @@ const WEBID = "https://a.example/profile/card#me";
 
 /** A fake one-Pod world: an empty app collection (a HEAD/GET 200 for the root, 404
  * for anything below) so a non-aborted wipe completes cleanly. */
-function pod(): Session {
+function pod(): PodGateway {
   _setStorageRootForTesting(WEBID, "https://a.example/");
   const fetch = (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
     const url = (typeof input === "string" ? input : input.toString()).split("?")[0];
@@ -28,7 +29,7 @@ function pod(): Session {
     }
     return Promise.resolve(new Response("Not found", { status: 404 }));
   };
-  return { info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session;
+  return sessionGateway({ info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session);
 }
 
 Deno.test("removeAppDataCore (headless): cancelled run resolves {aborted: true}, not a throw", async () => {

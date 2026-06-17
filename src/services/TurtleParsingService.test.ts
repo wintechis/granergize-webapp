@@ -1,3 +1,4 @@
+import type { PodGateway } from "./pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -85,7 +86,7 @@ interface FetchLog {
 
 function makeSession(
   opts: { log: FetchLog; fixtures?: Record<string, string>; delayMs?: number },
-): Session {
+): Session & PodGateway {
   const { log, fixtures = FIXTURES, delayMs = 20 } = opts;
   return makeFakeSession({
     webId: WEBID,

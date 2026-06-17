@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -71,7 +72,7 @@ interface Call {
  * Stateful fake Pod: GET reads the store, PUT/POST write it (recording every
  * call). The shared-out container lists its event children via `ldp:contains`.
  */
-function makePod(): { session: Session; store: Record<string, string>; calls: Call[] } {
+function makePod(): { session: PodGateway; store: Record<string, string>; calls: Call[] } {
   const ev1 = `${SHARED_OUT}e1`;
   const ev2 = `${SHARED_OUT}e2`;
   const ev3 = `${SHARED_OUT}e3`;
@@ -105,7 +106,7 @@ function makePod(): { session: Session; store: Record<string, string>; calls: Ca
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session),
     store,
     calls,
   };
@@ -148,7 +149,7 @@ Deno.test("reissueGrants is record-free: no inbox POST, no shared-out/ append", 
 });
 
 Deno.test("reissueGrants throws when not logged in", async () => {
-  const session = { info: { isLoggedIn: false, webId: undefined } } as unknown as Session;
+  const session = sessionGateway({ info: { isLoggedIn: false, webId: undefined } } as unknown as Session);
   await assert.rejects(() => reissueGrants(session), /not logged in/i);
 });
 
@@ -181,7 +182,7 @@ const STALE_ACL = `@prefix acl: <http://www.w3.org/ns/auth/acl#> .
 function makePodWith(
   events: Record<string, string>,
   extra: Record<string, string> = {},
-): { session: Session; store: Record<string, string>; calls: Call[] } {
+): { session: PodGateway; store: Record<string, string>; calls: Call[] } {
   const refs = Object.keys(events).map((u) => `<${u}>`).join(", ");
   const store: Record<string, string> = {
     [SHARED_OUT]: `@prefix ldp: <http://www.w3.org/ns/ldp#> .
@@ -208,7 +209,7 @@ function makePodWith(
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session),
     store,
     calls,
   };

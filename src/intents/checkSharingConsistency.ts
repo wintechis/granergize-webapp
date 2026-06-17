@@ -1,7 +1,7 @@
 // Intent core (React-free) for CheckSharingConsistency — an imperative
 // READ-intent. See ./README.md: a read core returns its VALUE (here the drift
 // report), never an outcome.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { auditGrants, type GrantAuditResult } from "../services/interop/share.ts";
 
 /**
@@ -18,11 +18,11 @@ export type { GrantAuditResult };
  * returned value.
  *
  * The hook is a thin adapter owning only busy state + the central toast (no
- * invalidation: CQS forbids a read declaring one). Takes `session` as an
+ * invalidation: CQS forbids a read declaring one). Takes `gateway` as an
  * argument — no `getSession()`, no React — so it is callable headless.
  */
 export function checkSharingConsistencyCore(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<GrantAuditResult> {
-  return auditGrants(session);
+  return auditGrants(gateway);
 }

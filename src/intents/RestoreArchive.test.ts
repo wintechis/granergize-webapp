@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the RestoreArchive core is callable HEADLESS and COMPOSES its
@@ -31,7 +32,7 @@ interface Call {
  * bytes, PUT/POST records them, HEAD/GET 404 for absent URLs. */
 function makePod(
   initial: Record<string, Stored> = {},
-): { session: Session; store: Record<string, Stored>; calls: Call[] } {
+): { session: PodGateway; store: Record<string, Stored>; calls: Call[] } {
   const store: Record<string, Stored> = { ...initial };
   const calls: Call[] = [];
   const fetch = (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -61,7 +62,7 @@ function makePod(
     );
   };
   return {
-    session: { info: { webId: WEBID, isLoggedIn: true }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { webId: WEBID, isLoggedIn: true }, fetch } as unknown as Session),
     store,
     calls,
   };

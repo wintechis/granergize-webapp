@@ -1,5 +1,5 @@
 // Intent core (React-free) for ExitRoom. See ./README.md and ./CreateRoom.ts.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { exitRoom, normalizeRoomUri } from "../services/interop/dataRoom.ts";
 import type { RoomOutcome } from "./CreateRoom.ts";
 
@@ -15,9 +15,9 @@ export interface ExitRoomParams {
  * `current` if it matched.
  */
 export async function exitRoomCore(
-  session: Session,
+  gateway: PodGateway,
   params: ExitRoomParams,
 ): Promise<RoomOutcome> {
-  await exitRoom(params.roomUri, session);
+  await exitRoom(params.roomUri, gateway);
   return { room: normalizeRoomUri(params.roomUri) };
 }

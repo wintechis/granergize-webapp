@@ -1,4 +1,4 @@
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./pod/podGateway.ts";
 import { appRoot } from "./pod/solidUtils.ts";
 import { ensureContainer } from "./pod/podWrite.ts";
 import { addContact } from "./contacts.ts";
@@ -56,17 +56,17 @@ export const DEMO_ROOM_COUNT = 21;
  * @operation mutation
  */
 export async function seedDemoContacts(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<{ seeded: number; total: number }> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) throw new Error("Not logged in");
   const container = `${appRoot(webId)}demo-contacts/`;
-  await ensureContainer(container, session);
+  await ensureContainer(container, gateway);
   let seeded = 0;
   for (const name of DEMO_CONTACT_NAMES) {
     try {
       const doc = `${container}${name.toLowerCase().replace(/\s+/g, "-")}.ttl`;
-      const res = await session.fetch(doc, {
+      const res = await gateway.fetch(doc, {
         method: "PUT",
         headers: { "Content-Type": "text/turtle" },
         body: `<#me> a <${FOAF_AGENT}> ;\n  <${FOAF_NAME}> "${name}" .\n`,
@@ -74,7 +74,7 @@ export async function seedDemoContacts(
       if (!res.ok) {
         throw new Error(`Failed to write ${doc} (HTTP ${res.status})`);
       }
-      await addContact(session, { webId: `${doc}#me`, name });
+      await addContact(gateway, { webId: `${doc}#me`, name });
       seeded++;
     } catch (err) {
       logError("seed demo contact", err);
@@ -94,13 +94,13 @@ export async function seedDemoContacts(
  * @operation mutation
  */
 export async function seedDemoRooms(
-  session: Session,
+  gateway: PodGateway,
   count: number = DEMO_ROOM_COUNT,
 ): Promise<{ rooms: string[]; total: number }> {
   const rooms: string[] = [];
   for (let i = 0; i < count; i++) {
     try {
-      rooms.push(await createRoom(session));
+      rooms.push(await createRoom(gateway));
     } catch (err) {
       logError("seed demo data room", err);
     }

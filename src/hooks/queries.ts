@@ -1,7 +1,7 @@
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useMemo } from "react";
-import type { Session } from "@inrupt/solid-client-authn-browser";
-import { getSession } from "./session.ts";
+import type { PodGateway } from "../services/pod/podGateway.ts";
+import { getGateway, getSession } from "./session.ts";
 import {
   loadBuildings,
   loadEnergy,
@@ -87,7 +87,7 @@ function webIdOf(): string | undefined {
  */
 function useWebIdQuery<T>(
   keyPrefix: readonly unknown[],
-  queryFn: (session: Session, webId: string) => Promise<T>,
+  queryFn: (gateway: PodGateway, webId: string) => Promise<T>,
   opts: {
     extraKey?: readonly unknown[];
     enabled?: boolean;
@@ -103,7 +103,7 @@ function useWebIdQuery<T>(
   return useQuery({
     queryKey: [...keyPrefix, webId, ...(opts.extraKey ?? [])],
     enabled: Boolean(webId) && (opts.enabled ?? true),
-    queryFn: () => queryFn(getSession(), webId as string),
+    queryFn: () => queryFn(getGateway(), webId as string),
     ...(opts.staleTime !== undefined ? { staleTime: opts.staleTime } : {}),
   });
 }
@@ -476,9 +476,9 @@ export function useRoomState() {
 }
 
 /** The `fetchFresh` transport as the parsers' `fetchFn` shape. */
-function freshFetchFn(): (url: string) => Promise<Response> {
-  const session = getSession();
-  return (url) => fetchFresh(url, session);
+function freshFetchFn(): (uri: string) => Promise<Response> {
+  const gateway = getGateway();
+  return (uri) => fetchFresh(uri, gateway);
 }
 
 /**
@@ -609,7 +609,7 @@ export function useDemoOffer() {
  * cheap `day.substring(0, 7)` derivation at the call site).
  */
 export function useSeriesDays(refs: EnergyDatasetRef[]) {
-  const refKey = refs.map((r) => r.url).sort().join(";");
+  const refKey = refs.map((r) => r.uri).sort().join(";");
   return useWebIdQuery(
     queryKeys.seriesDays,
     async (session) => {
@@ -623,11 +623,11 @@ export function useSeriesDays(refs: EnergyDatasetRef[]) {
 }
 
 /** One day file's 15-minute readings; disabled until a date is picked. */
-export function useDayReadings(url: string | undefined) {
+export function useDayReadings(uri: string | undefined) {
   return useWebIdQuery(
     queryKeys.dayReadings,
-    () => parseTtlReadings(url as string, freshFetchFn()),
-    { extraKey: [url], enabled: Boolean(url) },
+    () => parseTtlReadings(uri as string, freshFetchFn()),
+    { extraKey: [uri], enabled: Boolean(uri) },
   );
 }
 
@@ -637,10 +637,10 @@ export function useDayReadings(url: string | undefined) {
  * gates it to the monthly tabs so the bulk fetch never runs for the day view.
  */
 export function useMonthReadings(
-  entries: { day: string; url: string }[],
+  entries: { day: string; uri: string }[],
   enabled: boolean,
 ) {
-  const entryKey = entries.map((e) => e.url).join(";");
+  const entryKey = entries.map((e) => e.uri).join(";");
   return useWebIdQuery(
     queryKeys.monthReadings,
     async () => {
@@ -648,7 +648,7 @@ export function useMonthReadings(
       const result = new Map<string, Array<{ begin: string; value: number }>>();
       const settled = await Promise.allSettled(
         entries.map((e) =>
-          parseTtlReadings(e.url, fetchFn).then((data) => ({
+          parseTtlReadings(e.uri, fetchFn).then((data) => ({
             day: e.day,
             data,
           }))
@@ -678,7 +678,7 @@ export function useResolveAgent(webId?: string) {
   return useQuery({
     queryKey: [...queryKeys.agent, webId],
     enabled: Boolean(webId),
-    queryFn: () => resolveAgent(webId as string, getSession()),
+    queryFn: () => resolveAgent(webId as string, getGateway()),
   });
 }
 
@@ -692,7 +692,7 @@ export function useResolveOrg(webId?: string) {
   return useQuery({
     queryKey: [...queryKeys.agentOrg, webId],
     enabled: Boolean(webId),
-    queryFn: () => resolveAgentOrg(webId as string, getSession()),
+    queryFn: () => resolveAgentOrg(webId as string, getGateway()),
   });
 }
 

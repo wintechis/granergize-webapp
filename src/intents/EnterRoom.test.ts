@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the EnterRoom core is callable HEADLESS, and — the rooms
@@ -22,7 +23,7 @@ const UNREACHABLE = "https://a.example/granergize/rooms/nope/";
  * the reachability check fails. Mirrors the shareBuilding fixture shape.
  */
 function roomPod(opts: { reachable: boolean } = { reachable: true }): {
-  session: Session;
+  session: PodGateway;
   calls: { url: string; method: string }[];
 } {
   _setStorageRootForTesting(OWNER, "https://a.example/");
@@ -58,7 +59,7 @@ function roomPod(opts: { reachable: boolean } = { reachable: true }): {
       new Response("", { status: 200, headers: { "Content-Type": "text/turtle" } }),
     );
   };
-  return { session: { info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session, calls };
+  return { session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session), calls };
 }
 
 Deno.test("enterRoomCore (headless): reachable → returns { room } = the normalized container URI", async () => {

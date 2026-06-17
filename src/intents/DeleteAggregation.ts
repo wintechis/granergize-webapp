@@ -1,6 +1,6 @@
 // Intent core (React-free) for DeleteAggregation. See ./README.md for the
 // core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import {
   deleteAggregation,
   getSnapshotUri,
@@ -23,16 +23,16 @@ export interface DeleteAggregationParams {
  * three invalidations.
  */
 export async function deleteAggregationCore(
-  session: Session,
+  gateway: PodGateway,
   params: DeleteAggregationParams,
 ): Promise<Settled> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (webId) {
     await revokeAllAggregationRecipients(
       getSnapshotUri(webId, params.aggregationId),
-      session,
+      gateway,
     );
   }
-  await deleteAggregation(session, params.aggregationId);
+  await deleteAggregation(gateway, params.aggregationId);
   return { ok: true };
 }

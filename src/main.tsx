@@ -1,3 +1,4 @@
+import { sessionGateway } from "./services/pod/podGateway.ts";
 /* eslint-disable react-refresh/only-export-components --
    This is the app entry module: it defines AppContent + Root and mounts them via
    ReactDOM.createRoot below. Nothing imports it, so it isn't an HMR-refreshable
@@ -137,20 +138,21 @@ function AppContent() {
     setSuppressRestore(false);
     instrumentSessionFetch(authSession);
     setSession(authSession);
+    const authGateway = sessionGateway(authSession);
     try {
       // drainInbox builds Pod paths (shared-in/) via the synchronous
       // getStorageRoot, which throws until the root is resolved. App's mount gate
       // resolves it too, but that runs AFTER this callback — so resolve it here
       // first (idempotent + cached, so the gate then no-ops).
-      await resolveStorageRoot(authSession);
+      await resolveStorageRoot(authGateway);
       // Self-provision the granergize inbox (container + append ACL) so others
       // can share with us even on a bare Pod. Idempotent; returns true only the
       // first time, when it actually creates the inbox.
-      const createdInbox = await ensureOwnInbox(authSession);
+      const createdInbox = await ensureOwnInbox(authGateway);
       if (createdInbox) {
         showNotification(msg("inboxSetUp"), "info");
       }
-      await drainInbox(authSession);
+      await drainInbox(authGateway);
       // drainInbox may have archived newly-granted shares into the user's
       // shared-in/ log; refold it (the ONE shared-in fold — every "shared with
       // me" reader derives from it) so they appear. receivedBenchmarks is also

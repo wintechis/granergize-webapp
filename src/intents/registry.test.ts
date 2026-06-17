@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the invoke/query entry point is callable HEADLESS: it is
@@ -38,7 +39,7 @@ interface Call {
  * building + shared-out/ on a.example, Bob's profile (so inbox discovery resolves
  * his storage root) and inbox elsewhere. Records every call.
  */
-function sharePod(): { session: Session; calls: Call[] } {
+function sharePod(): { session: PodGateway; calls: Call[] } {
   _setStorageRootForTesting(OWNER, ROOT);
   const store: Record<string, string> = {
     [BUILDING]: BUILDING_TTL,
@@ -66,7 +67,7 @@ function sharePod(): { session: Session; calls: Call[] } {
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session),
     calls,
   };
 }
@@ -92,7 +93,7 @@ function grantTtl(grantee: string, resource: string, at: string): string {
  * Read-path fake Pod: a shared-out grant with NO matching .acl (→ drift), and a
  * small app collection listing so ExportArchive packs at least one resource.
  */
-function readPod(): { session: Session } {
+function readPod(): { session: PodGateway } {
   _setStorageRootForTesting(OWNER, ROOT);
   const ev1 = `${SHARED_OUT}e1`;
   const store: Record<string, string> = {
@@ -114,7 +115,7 @@ function readPod(): { session: Session } {
       new Response(body, { status: 200, headers: { "Content-Type": "text/turtle" } }),
     );
   };
-  return { session: { info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session };
+  return { session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session) };
 }
 
 Deno.test("invoke('ShareBuilding', …) dispatches to the write core: tally + Pod writes", async () => {

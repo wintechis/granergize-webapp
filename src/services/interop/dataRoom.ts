@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import type { UserRole } from "../../types.ts";
 import {
@@ -66,8 +66,8 @@ const IRI_TO_ROLE = IRI_TO_MEMBERSHIP_ROLE;
 // A role event therefore does NOT make you a member: you must post an as:Join.
 
 /** Normalise a room IRI to its canonical LDP-container form (trailing "/"). */
-export function normalizeRoomUri(url: string): string {
-  return url.endsWith("/") ? url : `${url}/`;
+export function normalizeRoomUri(uri: string): string {
+  return uri.endsWith("/") ? uri : `${uri}/`;
 }
 
 // In-memory mirror of the Pod's current-room pointer, so components can read the
@@ -94,8 +94,8 @@ export function resetActiveRoom(): void {
 // The room state on the user's OWN Pod is the single source of truth — no
 // localStorage. It is split across two single-writer flat files (see prefs.ts /
 // bookmarks.ts):
-//   prefs.ttl     gran:currentRoom <url> .   (0 or 1 — the room you're in)
-//   bookmarks.ttl gran:knownRoom   <url> …   (the "Your rooms" list)
+//   prefs.ttl     gran:currentRoom <uri> .   (0 or 1 — the room you're in)
+//   bookmarks.ttl gran:knownRoom   <uri> …   (the "Your rooms" list)
 // Membership is single: you are a member of the current room only. Rooms you
 // host are discovered by listing `rooms/`, not recorded here.
 
@@ -120,16 +120,16 @@ function toTurtle(
  * Bookmarked room IRIs (the "Your rooms" list).
  * @operation query
  */
-export function getKnownRooms(session: Session): Promise<string[]> {
-  return readBookmarks(session);
+export function getKnownRooms(gateway: PodGateway): Promise<string[]> {
+  return readBookmarks(gateway);
 }
 
 /**
  * The current room recorded on the Pod (source of truth for getActiveRoom).
  * @operation query
  */
-export async function getCurrentRoom(session: Session): Promise<string | null> {
-  return (await readPrefs(session)).currentRoom;
+export async function getCurrentRoom(gateway: PodGateway): Promise<string | null> {
+  return (await readPrefs(gateway)).currentRoom;
 }
 
 /**
@@ -137,10 +137,10 @@ export async function getCurrentRoom(session: Session): Promise<string | null> {
  * current room plus the bookmark list — the shape the room UI consumes.
  * @operation query
  */
-export async function readRooms(session: Session): Promise<RoomRegistry> {
+export async function readRooms(gateway: PodGateway): Promise<RoomRegistry> {
   const [prefs, known] = await Promise.all([
-    readPrefs(session),
-    readBookmarks(session),
+    readPrefs(gateway),
+    readBookmarks(gateway),
   ]);
   activeRoom = prefs.currentRoom;
   return { known, current: prefs.currentRoom };
@@ -151,9 +151,9 @@ export async function readRooms(session: Session): Promise<RoomRegistry> {
  * @operation query
  */
 export async function hydrateActiveRoom(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string | null> {
-  activeRoom = (await readPrefs(session)).currentRoom;
+  activeRoom = (await readPrefs(gateway)).currentRoom;
   return activeRoom;
 }
 
@@ -163,9 +163,9 @@ export async function hydrateActiveRoom(
  */
 export async function addKnownRoom(
   roomUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  await addBookmark(session, normalizeRoomUri(roomUri));
+  await addBookmark(gateway, normalizeRoomUri(roomUri));
 }
 
 /**
@@ -174,12 +174,12 @@ export async function addKnownRoom(
  */
 export async function removeKnownRoom(
   roomUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
   const room = normalizeRoomUri(roomUri);
-  await removeBookmark(session, room);
-  if ((await getCurrentRoom(session)) === room) {
-    await setCurrentRoom(session, null);
+  await removeBookmark(gateway, room);
+  if ((await getCurrentRoom(gateway)) === room) {
+    await setCurrentRoom(gateway, null);
   }
   if (activeRoom === room) activeRoom = null;
 }
@@ -191,26 +191,26 @@ export async function removeKnownRoom(
  */
 export async function enterRoom(
   roomUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
   const room = normalizeRoomUri(roomUri);
-  const previous = await getCurrentRoom(session);
+  const previous = await getCurrentRoom(gateway);
   if (previous && previous !== room) {
     // Best-effort: leaving the previous room must not block joining the new one.
     // The old room may be deleted or no longer writable (e.g. access revoked),
     // which would 403/404 here and otherwise strand the user unable to switch.
-    await setMembership(previous, false, session).catch((err) =>
+    await setMembership(previous, false, gateway).catch((err) =>
       logError("leave previous data room", err)
     );
   }
-  if (!(await getMyMembership(room, session))) {
-    await setMembership(room, true, session);
+  if (!(await getMyMembership(room, gateway))) {
+    await setMembership(room, true, gateway);
   }
   // Ensure it's bookmarked and make it current. The current pointer is owned by
   // the room mutations and set authoritatively in the React Query cache, so a
   // slow/stale read-back can't revert a switch.
-  await addBookmark(session, room);
-  await setCurrentRoom(session, room);
+  await addBookmark(gateway, room);
+  await setCurrentRoom(gateway, room);
   activeRoom = room;
 }
 
@@ -220,12 +220,12 @@ export async function enterRoom(
  */
 export async function exitRoom(
   roomUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
   const room = normalizeRoomUri(roomUri);
-  await setMembership(room, false, session);
-  if ((await getCurrentRoom(session)) === room) {
-    await setCurrentRoom(session, null);
+  await setMembership(room, false, gateway);
+  if ((await getCurrentRoom(gateway)) === room) {
+    await setCurrentRoom(gateway, null);
   }
   if (activeRoom === room) activeRoom = null;
 }
@@ -236,10 +236,10 @@ export async function exitRoom(
  */
 export async function roomExists(
   roomUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<boolean> {
   try {
-    const res = await session.fetch(normalizeRoomUri(roomUri), {
+    const res = await gateway.fetch(normalizeRoomUri(roomUri), {
       method: "GET",
       headers: { Accept: "text/turtle" },
     });
@@ -252,7 +252,7 @@ export async function roomExists(
 
 /**
  * Extract a room container IRI from either a raw room URI or an app invite link
- * of the form `<app root>/room?uri=<url-encoded-room-uri>` (what the room QR
+ * of the form `<app root>/room?uri=<uri-encoded-room-uri>` (what the room QR
  * encodes under BrowserRouter real-path routing; a room id is always absolute, so
  * `?uri=` — `?ref=` is tolerated as a fallback). Returns the normalized container
  * IRI. A bare room URI (no `/room?` prefix) is normalized as-is.
@@ -271,11 +271,11 @@ export function extractRoomUri(input: string): string {
  */
 export async function openRoom(
   input: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<boolean> {
   const room = extractRoomUri(input);
-  if (!(await roomExists(room, session))) return false;
-  await enterRoom(room, session);
+  if (!(await roomExists(room, gateway))) return false;
+  await enterRoom(room, gateway);
   return true;
 }
 
@@ -303,12 +303,12 @@ interface MembershipEvent {
  */
 async function readLog(
   roomUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<{ roleEvents: RoleEvent[]; membershipEvents: MembershipEvent[] }> {
   const containerUri = normalizeRoomUri(roomUri);
   // fetchFresh bypasses caches so we always read the current container listing;
   // baseIRI below stays canonical (the cache-buster is only on the request URL).
-  const response = await fetchFresh(containerUri, session);
+  const response = await fetchFresh(containerUri, gateway);
   if (!response.ok) {
     if (response.status === 404) return { roleEvents: [], membershipEvents: [] };
     throw new Error(`Failed to load data room log (HTTP ${response.status})`);
@@ -326,8 +326,8 @@ async function readLog(
   // Bounded concurrency, not Promise.all: reading every event at once is a burst
   // that Cloudflare answers with 429s (opaque CORS errors in the browser). A small
   // pool keeps each wave under the rate limit. See utils/pool.ts.
-  const parsed = await mapPooled(eventUris, 4, async (url) => {
-    const store = await readStoreOrEmpty(url, session);
+  const parsed = await mapPooled(eventUris, 4, async (uri) => {
+    const store = await readStoreOrEmpty(uri, gateway);
 
     // Membership: as:Join / as:Leave.
     const joinSubj = store.getSubjects(RDF_TYPE_NODE, AS_JOIN, null)[0];
@@ -410,11 +410,11 @@ function deriveState(
  * @operation query
  */
 export async function getRoomLogState(
-  session: Session,
+  gateway: PodGateway,
   room: string,
 ): Promise<{ members: DataRoomMember[]; myRoles: UserRole[]; myMembership: boolean }> {
-  const webId = session.info.webId ?? null;
-  const log = await readLog(normalizeRoomUri(room), session);
+  const webId = gateway.webId ?? null;
+  const log = await readLog(normalizeRoomUri(room), gateway);
   return deriveState(log, webId);
 }
 
@@ -426,10 +426,10 @@ export async function getRoomLogState(
  */
 export async function getMembers(
   roomUri: string | null,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<DataRoomMember[]> {
   if (!roomUri) return [];
-  return deriveState(await readLog(roomUri, session), null).members;
+  return deriveState(await readLog(roomUri, gateway), null).members;
 }
 
 /**
@@ -444,10 +444,10 @@ export async function getMembers(
 export async function getMembersByRole(
   roomUri: string | null,
   role: UserRole,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string[]> {
-  const members = await getMembers(roomUri, session);
-  const me = session.info.webId;
+  const members = await getMembers(roomUri, gateway);
+  const me = gateway.webId;
   return members
     .filter((m) => m.roles.includes(role) && m.webId !== me)
     .map((m) => m.webId);
@@ -461,11 +461,11 @@ export async function getMembersByRole(
  */
 export async function getMyRole(
   roomUri: string | null,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<UserRole[]> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!roomUri || !webId) return [];
-  return deriveState(await readLog(roomUri, session), webId).myRoles;
+  return deriveState(await readLog(roomUri, gateway), webId).myRoles;
 }
 
 /**
@@ -474,11 +474,11 @@ export async function getMyRole(
  */
 export async function getMyMembership(
   roomUri: string | null,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<boolean> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!roomUri || !webId) return false;
-  return deriveState(await readLog(roomUri, session), webId).myMembership;
+  return deriveState(await readLog(roomUri, gateway), webId).myMembership;
 }
 
 /**
@@ -489,7 +489,7 @@ export async function getMyMembership(
 async function postEvent(
   roomUri: string,
   store: Store,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
   const containerUri = normalizeRoomUri(roomUri);
   const body = await toTurtle(store, {
@@ -499,9 +499,9 @@ async function postEvent(
     xsd: "http://www.w3.org/2001/XMLSchema#",
   });
 
-  await ensureContainer(containerUri, session);
+  await ensureContainer(containerUri, gateway);
 
-  await appendToContainer(containerUri, body, session, {
+  await appendToContainer(containerUri, body, gateway, {
     describeError: (res) =>
       res.status === 401 || res.status === 403
         ? `You don't have permission to write to the data room (HTTP ${res.status}). ` +
@@ -519,9 +519,9 @@ async function postEvent(
 export async function setMyRole(
   roomUri: string,
   roles: UserRole[],
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) throw new Error("Not logged in");
   // Blank-node event subject: the resource IRI is assigned by the server on POST,
   // and the fold matches events by rdf:type, not by subject IRI.
@@ -538,7 +538,7 @@ export async function setMyRole(
   for (const role of roles) {
     store.addQuad(event, SIOC_HAS_FUNCTION, namedNode(MEMBERSHIP_ROLE_TO_IRI[role]));
   }
-  await postEvent(roomUri, store, session);
+  await postEvent(roomUri, store, gateway);
 }
 
 /**
@@ -548,9 +548,9 @@ export async function setMyRole(
 async function setMembership(
   roomUri: string,
   joined: boolean,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) throw new Error("Not logged in");
   const event = blankNode();
   const store = new Store();
@@ -562,23 +562,23 @@ async function setMembership(
     AS_PUBLISHED,
     literal(new Date().toISOString(), namedNode(XSD_DATETIME)),
   );
-  await postEvent(roomUri, store, session);
+  await postEvent(roomUri, store, gateway);
 }
 
 /**
  * Add the logged-in user to `roomUri` (no role required).
  * @operation mutation
  */
-export function joinRoom(roomUri: string, session: Session): Promise<void> {
-  return setMembership(roomUri, true, session);
+export function joinRoom(roomUri: string, gateway: PodGateway): Promise<void> {
+  return setMembership(roomUri, true, gateway);
 }
 
 /**
  * Remove the logged-in user from `roomUri` (leaves role history intact).
  * @operation mutation
  */
-export function leaveRoom(roomUri: string, session: Session): Promise<void> {
-  return setMembership(roomUri, false, session);
+export function leaveRoom(roomUri: string, gateway: PodGateway): Promise<void> {
+  return setMembership(roomUri, false, gateway);
 }
 
 /**
@@ -589,19 +589,19 @@ export function leaveRoom(roomUri: string, session: Session): Promise<void> {
  * Returns the new room IRI.
  * @operation mutation
  */
-export async function createRoom(session: Session): Promise<string> {
-  const webId = session.info.webId;
+export async function createRoom(gateway: PodGateway): Promise<string> {
+  const webId = gateway.webId;
   if (!webId) throw new Error("Not logged in");
   // Provision the rooms/ parent first (announced once, on the first room) so the
   // structural folder isn't created silently; the per-room UUID container below
   // is then created quietly (it's nested, not a top-level granergize folder).
-  await ensureContainer(`${appRoot(webId)}rooms/`, session, { announce: true });
+  await ensureContainer(`${appRoot(webId)}rooms/`, gateway, { announce: true });
 
   const roomUri = normalizeRoomUri(
     `${appRoot(webId)}rooms/${crypto.randomUUID()}`,
   );
 
-  await ensureContainer(roomUri, session);
+  await ensureContainer(roomUri, gateway);
 
   // Write the room ACL the same way the rest of the app does (a direct
   // <container>.acl PUT with full-IRI triples — see share.ts grantReadAccess):
@@ -624,7 +624,7 @@ export async function createRoom(session: Session): Promise<string> {
     `<${aclUri}#members> <${ACL_NS}mode> <${ACL_NS}Append> .`,
   ].join("\n") + "\n";
 
-  const res = await putAcl(aclUri, aclBody, session);
+  const res = await putAcl(aclUri, aclBody, gateway);
   if (!res.ok) {
     throw new Error(
       `Created the room but failed to set its permissions (HTTP ${res.status}). ` +
@@ -633,13 +633,13 @@ export async function createRoom(session: Session): Promise<string> {
   }
 
   // The creator owns the room — enter it (join, bookmark, make current).
-  await enterRoom(roomUri, session);
+  await enterRoom(roomUri, gateway);
   return roomUri;
 }
 
 /** Whether the logged-in user owns `roomUri` (it lives under their own storage). */
-export function ownsRoom(roomUri: string, session: Session): boolean {
-  const webId = session.info.webId;
+export function ownsRoom(roomUri: string, gateway: PodGateway): boolean {
+  const webId = gateway.webId;
   return Boolean(webId) &&
     normalizeRoomUri(roomUri).startsWith(getStorageRoot(webId!));
 }
@@ -652,7 +652,7 @@ export function ownsRoom(roomUri: string, session: Session): boolean {
  */
 export async function deleteRoom(
   roomUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  await deleteContainerRecursive(normalizeRoomUri(roomUri), session);
+  await deleteContainerRecursive(normalizeRoomUri(roomUri), gateway);
 }

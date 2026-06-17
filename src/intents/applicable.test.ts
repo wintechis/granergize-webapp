@@ -96,7 +96,7 @@ Deno.test("DeleteObservation applies only to an own building that has energy", (
 Deno.test("DeleteAttachment / SetEnergyCertificate need an own building with attachments", () => {
   const withFiles = building({
     isShared: false,
-    attachments: [{ url: "x" } as never],
+    attachments: [{ uri: "x" } as never],
   });
   const without = building({ isShared: false, attachments: [] });
   for (const v of ["DeleteAttachment", "SetEnergyCertificate"]) {

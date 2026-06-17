@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Store } from "n3";
 import { putAcl, readModifyWrite } from "../pod/podWrite.ts";
 import { invalidateProfile, loadProfileStore } from "../pod/profileDocument.ts";
@@ -112,11 +112,11 @@ function firstObject(
  * @operation query
  */
 export async function getOrganization(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<Organization | null> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) return null;
-  const store = await loadProfileStore(session);
+  const store = await loadProfileStore(gateway);
   if (!store) return null;
 
   const orgIri = firstObject(store, webId, ORG_MEMBER_OF);
@@ -136,12 +136,12 @@ export async function getOrganization(
  * @operation query
  */
 export async function getOrgLogoObjectUrl(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string | null> {
-  const org = await getOrganization(session);
+  const org = await getOrganization(gateway);
   if (!org?.logoUrl) return null;
   try {
-    const res = await session.fetch(org.logoUrl);
+    const res = await gateway.fetch(org.logoUrl);
     if (!res.ok) return null;
     return URL.createObjectURL(await res.blob());
   } catch (err) {
@@ -240,17 +240,17 @@ function ensureOrgMembership(store: Store, webId: string): void {
  */
 async function mutateProfile(
   docUri: string,
-  session: Session,
+  gateway: PodGateway,
   edit: (store: Store) => void,
 ): Promise<void> {
-  await readModifyWrite(docUri, session, (store, { created }) => {
+  await readModifyWrite(docUri, gateway, (store, { created }) => {
     if (created) {
       // A WebID profile is provisioned by the identity provider, never by us.
       throw new Error(`Failed to fetch WebID profile at ${docUri}: Not Found`);
     }
     edit(store);
   });
-  invalidateProfile(session.info.webId ?? undefined);
+  invalidateProfile(gateway.webId ?? undefined);
 }
 
 /**
@@ -261,11 +261,11 @@ async function mutateProfile(
  * @operation mutation
  */
 export async function saveOrganization(
-  session: Session,
+  gateway: PodGateway,
   fields: Pick<Organization, "name" | "homepage" | "sameAs">,
 ): Promise<void> {
-  const webId = session.info.webId;
-  if (!session.info.isLoggedIn || !webId) {
+  const webId = gateway.webId;
+  if (!webId) {
     throw new Error("User is not logged in");
   }
   const docUri = profileDocUri(webId);
@@ -274,7 +274,7 @@ export async function saveOrganization(
   const homepage = fields.homepage?.trim();
   const sameAs = fields.sameAs?.trim();
 
-  await mutateProfile(docUri, session, (store) => {
+  await mutateProfile(docUri, gateway, (store) => {
     ensureOrgMembership(store, webId);
     if (name) setLiteral(store, org, FOAF_NAME, name);
     else clearPredicate(store, org, FOAF_NAME);
@@ -292,10 +292,10 @@ export async function saveOrganization(
  */
 export async function uploadOrgLogo(
   file: File,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string> {
-  const webId = session.info.webId;
-  if (!session.info.isLoggedIn || !webId) {
+  const webId = gateway.webId;
+  if (!webId) {
     throw new Error("User is not logged in");
   }
   const ext = EXT_BY_MIME[file.type];
@@ -307,7 +307,7 @@ export async function uploadOrgLogo(
   //    org is part of the profile (the inline <#org> node in card), so its logo
   //    lives in profile/, not under the app's granergize/ tree.
   const logoUrl = `${getPodBaseUri(webId)}logo.${ext}`;
-  const put = await session.fetch(logoUrl, {
+  const put = await gateway.fetch(logoUrl, {
     method: "PUT",
     headers: { "Content-Type": file.type },
     body: file,
@@ -331,13 +331,13 @@ export async function uploadOrgLogo(
 <#owner> a acl:Authorization; acl:accessTo <${logoUrl}>;
   acl:agent <${webId}>; acl:mode acl:Read, acl:Write, acl:Control.
 `;
-  await putAcl(`${logoUrl}.acl`, acl, session)
+  await putAcl(`${logoUrl}.acl`, acl, gateway)
     .catch((err) => logError("publish org logo ACL", err));
 
   // 3. Link it as foaf:logo on the org node (conditional GET → rewrite → PUT).
   const docUri = profileDocUri(webId);
   const org = orgNodeIri(webId);
-  await mutateProfile(docUri, session, (store) => {
+  await mutateProfile(docUri, gateway, (store) => {
     ensureOrgMembership(store, webId);
     setNamedNode(store, org, FOAF_LOGO, logoUrl);
   });

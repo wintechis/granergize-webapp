@@ -1,4 +1,4 @@
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./podGateway.ts";
 import { DataFactory, Parser, Writer } from "n3";
 import type { Quad_Graph, Quad_Object, Term } from "@rdfjs/types";
 import { listContainedResources } from "./podDelete.ts";
@@ -19,7 +19,7 @@ import { createZip, readZip, type ZipEntry } from "../../lib/zip.ts";
  * different Pod / app collection.
  *
  * Restore is app-collection-relative: the archive replays into the *current*
- * session's app collection. Resource *paths* are collection-relative already, but
+ * viewer's app collection. Resource *paths* are collection-relative already, but
  * the resource *bodies* (Turtle) carry absolute IRIs anchored at the source
  * Pod/identity — so when restoring into a different Pod or app dir, each Turtle
  * resource is rebased
@@ -127,16 +127,16 @@ export interface ExportResult {
  * @operation query
  */
 export async function exportArchive(
-  session: Session,
+  gateway: PodGateway,
   signal?: AbortSignal,
 ): Promise<ExportResult> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) throw new Error("Not logged in");
   const granDir = appRoot(webId);
 
   // Flat, recursive listing; drop containers (paths ending in "/") — they're
   // recreated on restore from the file paths.
-  const all = await listContainedResources(granDir, session);
+  const all = await listContainedResources(granDir, gateway);
   const files = all.filter((u) => !u.endsWith("/"));
 
   const entries: ZipEntry[] = [];
@@ -146,17 +146,17 @@ export async function exportArchive(
     webId,
     entries: {},
   };
-  for (const url of files) {
+  for (const uri of files) {
     signal?.throwIfAborted();
-    if (!url.startsWith(granDir)) continue; // defensive: only in-collection resources
-    const res = await session.fetch(url);
+    if (!uri.startsWith(granDir)) continue; // defensive: only in-collection resources
+    const res = await gateway.fetch(uri);
     if (!res.ok) {
-      throw new Error(`Failed to read ${url} (HTTP ${res.status})`);
+      throw new Error(`Failed to read ${uri} (HTTP ${res.status})`);
     }
     const data = new Uint8Array(await res.arrayBuffer());
     // App-collection-relative path: the `{APP_DIR}/` segment is dropped so the
     // archive isn't pinned to the source's app-dir config.
-    const path = url.slice(granDir.length);
+    const path = uri.slice(granDir.length);
     const contentType = res.headers.get("content-type")?.split(";")[0].trim() ||
       "application/octet-stream";
     entries.push({ path, data });
@@ -175,13 +175,13 @@ export interface ImportOptions {
   signal?: AbortSignal;
   /**
    * App collection root (`{storageRoot}{APP_DIR}/`) to restore into. Defaults to
-   * the current session's collection. Resource paths are written under this root
+   * the current viewer's collection. Resource paths are written under this root
    * and textual bodies are rebased `manifest.base` → here.
    */
   targetBase?: string;
   /**
    * WebID to rewrite the archive's owner WebID to. Defaults to the current
-   * session's WebID. Lets a cross-Pod restore re-anchor `prov:agent`/`grantee`/
+   * viewer's WebID. Lets a cross-Pod restore re-anchor `prov:agent`/`grantee`/
    * owner references on the new identity.
    */
   targetWebId?: string;
@@ -222,12 +222,12 @@ export function inspectArchive(
  * @operation mutation
  */
 export async function importArchive(
-  session: Session,
+  gateway: PodGateway,
   zipBytes: Uint8Array,
   options: ImportOptions = {},
 ): Promise<ImportResult> {
   const { signal, targetBase, targetWebId } = options;
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) throw new Error("Not logged in");
   const root = targetBase ?? appRoot(webId);
   const ownWebId = targetWebId ?? webId;
@@ -255,7 +255,7 @@ export async function importArchive(
   // The app collection root itself is no longer a path segment (paths are
   // collection-relative), so ensure it explicitly before the nested ones.
   signal?.throwIfAborted();
-  await ensureContainer(root, session);
+  await ensureContainer(root, gateway);
   const containers = new Set<string>();
   for (const { path } of files) {
     const parts = path.split("/");
@@ -265,7 +265,7 @@ export async function importArchive(
   }
   for (const rel of [...containers].sort((a, b) => a.length - b.length)) {
     signal?.throwIfAborted();
-    await ensureContainer(root + rel, session);
+    await ensureContainer(root + rel, gateway);
   }
 
   let restored = 0;
@@ -281,7 +281,7 @@ export async function importArchive(
       const text = rebaseTurtle(new TextDecoder().decode(data), sourceUri, m);
       body = new TextEncoder().encode(text);
     }
-    const put = await session.fetch(root + path, {
+    const put = await gateway.fetch(root + path, {
       method: "PUT",
       headers: { "Content-Type": contentType },
       body: body as unknown as BodyInit,

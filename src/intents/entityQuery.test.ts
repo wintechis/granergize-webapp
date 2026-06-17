@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the EntityQuery resolver turns a bare IRI into the typed
@@ -52,7 +53,7 @@ const AGGREGATION_TTL = `
 `;
 
 /** A read-only offline fixture serving in-memory Turtle per URL (no network). */
-function fakeSession(store: Record<string, string>): Session {
+function fakeSession(store: Record<string, string>): PodGateway {
   const fetch = (input: string | URL | Request): Promise<Response> => {
     const url = (typeof input === "string" ? input : input.toString()).split(
       "?",
@@ -68,10 +69,10 @@ function fakeSession(store: Record<string, string>): Session {
       }),
     );
   };
-  return {
+  return sessionGateway({
     info: { isLoggedIn: true, webId: WEBID },
     fetch,
-  } as unknown as Session;
+  } as unknown as Session);
 }
 
 Deno.test("resolve(building): own building IRI → BuildingType, isShared=false, has energy", async () => {

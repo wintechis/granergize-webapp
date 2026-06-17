@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory } from "n3";
 import { loadProfileStore } from "../pod/profileDocument.ts";
 import { FOAF_NS, VCARD_NS } from "../rdf/vocabularies.ts";
@@ -13,7 +13,7 @@ import { logError } from "../../lib/logError.ts";
  * vcard:hasPhoto, the profile photo an identity provider commonly populates.
  *
  * Read-only: the app no longer writes a personal logo (the upload now targets the
- * organisation). Reads go through session.fetch so it works on private Pods.
+ * organisation). Reads go through gateway.fetch so it works on private Pods.
  */
 
 const FOAF_IMG = `${FOAF_NS}img`;
@@ -27,11 +27,11 @@ const AVATAR_PREDICATES = [FOAF_IMG, VCARD_HAS_PHOTO];
  * falls back to a profile photo (vcard:hasPhoto).
  * @operation query
  */
-export async function getAvatarUrl(session: Session): Promise<string | null> {
-  const webId = session.info.webId;
+export async function getAvatarUrl(gateway: PodGateway): Promise<string | null> {
+  const webId = gateway.webId;
   if (!webId) return null;
 
-  const store = await loadProfileStore(session);
+  const store = await loadProfileStore(gateway);
   if (!store) return null;
 
   const subject = DataFactory.namedNode(webId);
@@ -48,12 +48,12 @@ export async function getAvatarUrl(session: Session): Promise<string | null> {
  * @operation query
  */
 export async function getAvatarObjectUrl(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string | null> {
-  const url = await getAvatarUrl(session);
+  const url = await getAvatarUrl(gateway);
   if (!url) return null;
   try {
-    const res = await session.fetch(url);
+    const res = await gateway.fetch(url);
     if (!res.ok) return null;
     return URL.createObjectURL(await res.blob());
   } catch (err) {

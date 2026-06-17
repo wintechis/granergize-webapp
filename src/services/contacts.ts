@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./pod/podGateway.ts";
 import { DataFactory, Store } from "n3";
 import {
   RDF_TYPE,
@@ -40,7 +40,7 @@ export function contactsUri(webId: string): string {
 }
 
 /** The `vcard:AddressBook` subject node within the contacts document. */
-const bookNode = (url: string) => namedNode(`${url}#book`);
+const bookNode = (uri: string) => namedNode(`${uri}#book`);
 
 /**
  * Read the address book. Folds `vcard:hasMember` (the WebIDs) with each member's
@@ -48,12 +48,12 @@ const bookNode = (url: string) => namedNode(`${url}#book`);
  * on first {@link addContact}), exactly like {@link readPrefs}.
  * @operation query
  */
-export async function readContacts(session: Session): Promise<Contact[]> {
-  const webId = session.info.webId;
+export async function readContacts(gateway: PodGateway): Promise<Contact[]> {
+  const webId = gateway.webId;
   if (!webId) return [];
-  const url = contactsUri(webId);
-  const store = await readStoreOrEmpty(url, session);
-  return store.getObjects(bookNode(url), HAS_MEMBER, null)
+  const uri = contactsUri(webId);
+  const store = await readStoreOrEmpty(uri, gateway);
+  return store.getObjects(bookNode(uri), HAS_MEMBER, null)
     .filter((m) => m.termType === "NamedNode")
     .map((m) => {
       const subject = namedNode(m.value);
@@ -72,12 +72,12 @@ export async function readContacts(session: Session): Promise<Contact[]> {
  * book + the one member it concerns, leaving other contacts intact.
  */
 function mutateContacts(
-  session: Session,
+  gateway: PodGateway,
   mutate: (store: Store, book: ReturnType<typeof namedNode>) => void,
 ): Promise<void> {
-  const url = contactsUri(session.info.webId!);
-  const book = bookNode(url);
-  return readModifyWrite(url, session, (store) => {
+  const uri = contactsUri(gateway.webId!);
+  const book = bookNode(uri);
+  return readModifyWrite(uri, gateway, (store) => {
     store.addQuad(book, RDF_TYPE_NODE, ADDRESS_BOOK);
     mutate(store, book);
   });
@@ -89,11 +89,11 @@ function mutateContacts(
  * @operation mutation
  */
 export function addContact(
-  session: Session,
+  gateway: PodGateway,
   contact: Contact,
 ): Promise<void> {
   const subject = namedNode(contact.webId);
-  return mutateContacts(session, (store, book) => {
+  return mutateContacts(gateway, (store, book) => {
     store.addQuad(book, HAS_MEMBER, subject);
     store.addQuad(subject, RDF_TYPE_NODE, INDIVIDUAL);
     store.removeQuads(store.getQuads(subject, FN, null, null));
@@ -110,11 +110,11 @@ export function addContact(
  * @operation mutation
  */
 export function removeContact(
-  session: Session,
+  gateway: PodGateway,
   webId: string,
 ): Promise<void> {
   const subject = namedNode(webId);
-  return mutateContacts(session, (store, book) => {
+  return mutateContacts(gateway, (store, book) => {
     store.removeQuads(store.getQuads(book, HAS_MEMBER, subject, null));
     store.removeQuads(store.getQuads(subject, null, null, null));
   });
@@ -138,18 +138,18 @@ export function removeContact(
  * @operation mutation
  */
 export async function rememberAgent(
-  session: Session,
+  gateway: PodGateway,
   webId: string,
 ): Promise<void> {
   if (!/^https?:\/\//.test(webId)) return;
   try {
-    await addContact(session, { webId, name: webIdFragment(webId) });
+    await addContact(gateway, { webId, name: webIdFragment(webId) });
   } catch (err) {
     logError("remember agent in contacts cache", err);
     return; // couldn't even write the cache entry — nothing to upgrade
   }
   // Background: refine the name/avatar from the agent's profile if it resolves.
-  void resolveAgent(webId, session)
-    .then((resolved) => addContact(session, resolved))
+  void resolveAgent(webId, gateway)
+    .then((resolved) => addContact(gateway, resolved))
     .catch((err) => logError("upgrade remembered agent profile", err));
 }

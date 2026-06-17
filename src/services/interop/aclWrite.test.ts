@@ -1,3 +1,4 @@
+import { sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
@@ -62,8 +63,7 @@ function aclServer(
   };
 
   return {
-    session: { info: { webId: OWNER, isLoggedIn: true }, fetch } as unknown as
-      Session,
+    session: sessionGateway({ info: { webId: OWNER, isLoggedIn: true }, fetch } as unknown as Session),
     get body() {
       return body;
     },

@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "./podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -14,7 +15,7 @@ const PROFILE = `@prefix foaf: <http://xmlns.com/foaf/0.1/> .
 <${WEBID}> pim:storage <https://pod.example/> ; foaf:name "Homer" .`;
 
 /** Fake Session whose fetch serves the profile and counts how often it's hit. */
-function makeSession(): { session: Session; calls: () => number } {
+function makeSession(): { session: PodGateway; calls: () => number } {
   const profileDoc = WEBID.split("#")[0];
   const pod = makeFakeSession({
     webId: WEBID,
@@ -68,13 +69,13 @@ Deno.test("invalidateProfile: next read re-fetches", async () => {
 Deno.test("loadProfileStore: an unreadable profile returns null and is not cached", async () => {
   _resetProfileCacheForTesting();
   let calls = 0;
-  const session = {
+  const session = sessionGateway({
     info: { isLoggedIn: true, webId: WEBID },
     fetch: (() => {
       calls++;
       return Promise.resolve(new Response("nope", { status: 404 }));
     }) as unknown as Session["fetch"],
-  } as unknown as Session;
+  } as unknown as Session);
   assert.equal(await loadProfileStore(session), null);
   assert.equal(await loadProfileStore(session), null); // retried, not cached
   assert.equal(calls, 2);

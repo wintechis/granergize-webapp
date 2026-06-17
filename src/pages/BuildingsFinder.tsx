@@ -1,3 +1,4 @@
+import { sessionGateway } from "../services/pod/podGateway.ts";
 import { lazy, Suspense, useMemo, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
@@ -121,7 +122,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   const handleDelete = async (building: BuildingType) => {
     // Build the "what will be removed" preview, confirm, then delete (the
     // confirm lives here, not in the service — same pattern as handleRevoke).
-    const { message } = await buildBuildingDeletionPreview(session, building);
+    const { message } = await buildBuildingDeletionPreview(sessionGateway(session), building);
     if (!await confirm({ title: msg("dlgDeleteBuilding"), message, confirmLabel: msg("btnDelete") })) {
       return;
     }
@@ -146,7 +147,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   const handleDownloadAll = async () => {
     if (ownedBuildings.length === 0) return;
     try {
-      const enriched = await attachAnnualData(ownedBuildings, session);
+      const enriched = await attachAnnualData(ownedBuildings, sessionGateway(session));
       downloadXlsx(await buildingsToXlsx(enriched), "buildings-mine.xlsx");
     } catch (error) {
       showNotification(formatError("actionExportBuildings", error), "error");

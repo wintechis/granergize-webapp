@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./podGateway.ts";
 import { Parser, Store } from "n3";
 import { logError } from "../../lib/logError.ts";
 
@@ -17,11 +17,11 @@ import { logError } from "../../lib/logError.ts";
  * @operation query
  */
 export async function fetchFresh(
-  url: string,
-  session: Session,
+  uri: string,
+  gateway: PodGateway,
 ): Promise<Response> {
   try {
-    return await session.fetch(url, {
+    return await gateway.fetch(uri, {
       cache: "no-cache",
       headers: { Accept: "text/turtle" },
     });
@@ -31,7 +31,7 @@ export async function fetchFresh(
     // attempting to fetch resource" / "Failed to fetch") names no resource, so
     // annotate it with the URL being dereferenced for a useful error upstream.
     const detail = e instanceof Error ? e.message : String(e);
-    throw new Error(`Network error fetching ${url}: ${detail}`, { cause: e });
+    throw new Error(`Network error fetching ${uri}: ${detail}`, { cause: e });
   }
 }
 
@@ -47,17 +47,17 @@ export async function fetchFresh(
  * @operation query
  */
 export async function fetchUncached(
-  url: string,
-  session: Session,
+  uri: string,
+  gateway: PodGateway,
 ): Promise<Response> {
   try {
-    return await session.fetch(url, {
+    return await gateway.fetch(uri, {
       cache: "reload",
       headers: { Accept: "text/turtle" },
     });
   } catch (e) {
     const detail = e instanceof Error ? e.message : String(e);
-    throw new Error(`Network error fetching ${url}: ${detail}`, { cause: e });
+    throw new Error(`Network error fetching ${uri}: ${detail}`, { cause: e });
   }
 }
 
@@ -78,12 +78,12 @@ export async function fetchUncached(
  * @operation query
  */
 export async function readStoreOrEmpty(
-  url: string,
-  session: Session,
+  uri: string,
+  gateway: PodGateway,
 ): Promise<Store> {
-  const res = await fetchFresh(url, session);
+  const res = await fetchFresh(uri, gateway);
   if (!res.ok) return new Store();
-  return new Store(new Parser({ baseIRI: url }).parse(await res.text()));
+  return new Store(new Parser({ baseIRI: uri }).parse(await res.text()));
 }
 
 /**
@@ -98,13 +98,13 @@ export async function readStoreOrEmpty(
  * @operation query
  */
 export async function fetchStoreWithHeaders(
-  url: string,
-  session: Session,
+  uri: string,
+  gateway: PodGateway,
   errorLabel: string,
 ): Promise<{ store: Store | null; response: Response | null }> {
   let response: Response;
   try {
-    response = await fetchFresh(url, session);
+    response = await fetchFresh(uri, gateway);
   } catch (err) {
     logError(errorLabel, err);
     return { store: null, response: null };
@@ -113,6 +113,6 @@ export async function fetchStoreWithHeaders(
     await response.body?.cancel();
     return { store: null, response };
   }
-  const store = new Store(new Parser({ baseIRI: url }).parse(await response.text()));
+  const store = new Store(new Parser({ baseIRI: uri }).parse(await response.text()));
   return { store, response };
 }

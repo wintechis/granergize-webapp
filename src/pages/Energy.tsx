@@ -116,7 +116,7 @@ export default function Energy({ building }: EnergyProps) {
       <Box>
         {dev && (
           <>
-            <RdfSourceLink href={aggregates[0].url} />
+            <RdfSourceLink href={aggregates[0].uri} />
             <Divider />
           </>
         )}

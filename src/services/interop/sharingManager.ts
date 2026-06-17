@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory } from "n3";
 import { postSharingEventToInbox } from "./inbox.ts";
 import {
@@ -40,7 +40,7 @@ function buildingIdFromUri(uri: string): string {
 // queries in hooks/queries.ts); the list shapes below are cheap in-memory
 // derivations of that fold. Hook code composes these with the log queries —
 // only non-hook callers (headless tasks, service-internal reads) use the
-// session-taking wrappers further down, which fold for themselves.
+// gateway-taking wrappers further down, which fold for themselves.
 
 /** {@link getSharedBuildings}, derived from already-folded `shared-out/` grants. */
 export function sharedBuildingsFromGrants(
@@ -113,16 +113,16 @@ export function sharedAggregationsFromGrants(grants: ActiveGrant[]): SharedAggre
  * @operation query
  */
 export async function getSharedBuildings(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<SharedBuilding[]> {
-  if (!session.info.isLoggedIn || !session.info.webId) {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
 
   // No try/catch: a network/parse failure propagates to React Query (which keeps
   // the last good list via keepPreviousData) rather than being masked as
   // "nothing shared".
-  const grants = await foldSharingLog(sharedOutUri(session.info.webId), session);
+  const grants = await foldSharingLog(sharedOutUri(gateway.webId), gateway);
   return sharedBuildingsFromGrants(grants);
 }
 
@@ -136,17 +136,17 @@ export async function getSharedBuildings(
  * @operation query
  */
 export async function getSharedWithMe(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<SharedWithMeBuilding[]> {
-  if (!session.info.isLoggedIn || !session.info.webId) {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
 
   // No try/catch: errors propagate to React Query (keepPreviousData keeps the last
   // good list) instead of being masked as "nothing shared".
   const [{ hiddenBuildings }, grants] = await Promise.all([
-    readPrefs(session),
-    foldSharingLog(sharedInUri(session.info.webId), session),
+    readPrefs(gateway),
+    foldSharingLog(sharedInUri(gateway.webId), gateway),
   ]);
   return sharedWithMeFromGrants(grants, hiddenBuildings);
 }
@@ -158,15 +158,15 @@ export async function getSharedWithMe(
 export async function revokeAccess(
   buildingUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  const userWebId = session.info.webId;
-  if (!session.info.isLoggedIn || !userWebId) {
+  const userWebId = gateway.webId;
+  if (!userWebId) {
     throw new Error("User is not logged in");
   }
 
   // Record the revocation in the outgoing log (audit), then withdraw enforcement.
-  await appendSharingEvent(sharedOutUri(userWebId), session, {
+  await appendSharingEvent(sharedOutUri(userWebId), gateway, {
     type: "revocation",
     owner: userWebId,
     grantee: webId,
@@ -175,7 +175,7 @@ export async function revokeAccess(
   });
 
   // Remove from ACL
-  await removeFromACL(buildingUri, webId, session);
+  await removeFromACL(buildingUri, webId, gateway);
 
   // Withdraw the building's sub-resources too: the files/ container (attachments
   // + certificate), any energy datasets, and a legacy cert outside files/.
@@ -187,16 +187,16 @@ export async function revokeAccess(
   // serial loop did — the catch swallows it identically).
   try {
     const targets = [
-      ...new Set(await getSubresourceAclTargets(buildingUri, session)),
+      ...new Set(await getSubresourceAclTargets(buildingUri, gateway)),
     ];
-    await mapPooled(targets, 4, (target) => removeFromACL(target, webId, session));
+    await mapPooled(targets, 4, (target) => removeFromACL(target, webId, gateway));
   } catch (error) {
     console.warn("Could not revoke sub-resource access:", error);
   }
 
   // Notify the user that access has been revoked
   try {
-    await notifyAccessRevoked(buildingUri, webId, session);
+    await notifyAccessRevoked(buildingUri, webId, gateway);
   } catch (error) {
     console.warn("Could not send revocation notification:", error);
     // Don't throw - revocation succeeded even if notification failed
@@ -229,16 +229,16 @@ export async function revokeAccess(
 export async function removeFromACL(
   resourceUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
   // Revoking your own access is meaningless and dangerous — see note above.
-  if (webId === session.info.webId) return;
+  if (webId === gateway.webId) return;
   const aclUri = `${resourceUri}.acl`;
   const agentPredicate = DataFactory.namedNode(`${ACL_NS}agent`);
   const modePredicate = DataFactory.namedNode(`${ACL_NS}mode`);
   const controlNode = DataFactory.namedNode(`${ACL_NS}Control`);
   const agentNode = DataFactory.namedNode(webId);
-  await readModifyWrite(aclUri, session, (store, { created }) => {
+  await readModifyWrite(aclUri, gateway, (store, { created }) => {
     if (created) return false; // no ACL → nothing to revoke
     const subjects = store
       .getQuads(null, agentPredicate, agentNode, null)
@@ -267,16 +267,16 @@ export async function removeFromACL(
  */
 export async function getSubresourceAclTargets(
   buildingUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string[]> {
   try {
-    const store = await readStoreOrEmpty(buildingUri, session);
+    const store = await readStoreOrEmpty(buildingUri, gateway);
     // Exactly the set the grant side applies ({@link buildingTargetsFromStore}),
     // minus the building file itself — revoke withdraws that separately. No year
     // filter: a full revoke withdraws every sub-resource the recipient may hold.
     return buildingTargetsFromStore(store, buildingUri, {
       includeBuildingFile: false,
-    }).map((t) => t.url);
+    }).map((t) => t.uri);
   } catch (err) {
     logError("collect extra revoke targets for building", err);
     // best-effort — still revoke at least the files container.
@@ -298,10 +298,10 @@ export async function getSubresourceAclTargets(
  */
 export async function revokeAllBuildingRecipients(
   buildingUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
   const fileUri = buildingUri.split("#")[0];
-  const shared = await getSharedBuildings(session);
+  const shared = await getSharedBuildings(gateway);
   const recipients = shared
     .find((b) => b.buildingUri.split("#")[0] === fileUri)
     ?.sharedWith ?? [];
@@ -311,7 +311,7 @@ export async function revokeAllBuildingRecipients(
   // no ETag, readModifyWrite degrades to a plain PUT, so concurrent revokes of
   // recipients A and B could last-write-win and resurrect a just-removed grant.
   for (const webId of recipients) {
-    await revokeAccess(fileUri, webId, session).catch((err) =>
+    await revokeAccess(fileUri, webId, gateway).catch((err) =>
       logError("revoke building access for recipient", err)
     );
   }
@@ -323,14 +323,14 @@ export async function revokeAllBuildingRecipients(
  */
 export async function toggleBuildingVisibility(
   buildingUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  if (!session.info.isLoggedIn || !session.info.webId) {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
   // The hidden list lives in prefs.ttl (read by getSharedWithMe /
   // TurtleParsingService via readPrefs); toggle there so write and read agree.
-  await toggleHiddenBuilding(session, buildingUri);
+  await toggleHiddenBuilding(gateway, buildingUri);
 }
 
 /**
@@ -340,15 +340,15 @@ export async function toggleBuildingVisibility(
 export async function recordSharing(
   buildingUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
   includesEnergy = true,
   years?: number[],
 ): Promise<void> {
-  const userWebId = session.info.webId;
-  if (!session.info.isLoggedIn || !userWebId) {
+  const userWebId = gateway.webId;
+  if (!userWebId) {
     throw new Error("User is not logged in");
   }
-  await appendSharingEvent(sharedOutUri(userWebId), session, {
+  await appendSharingEvent(sharedOutUri(userWebId), gateway, {
     type: "grant",
     owner: userWebId,
     grantee: webId,
@@ -370,11 +370,11 @@ export async function recordSharing(
 async function notifyAccessRevoked(
   resource: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  await postSharingEventToInbox(webId, session, {
+  await postSharingEventToInbox(webId, gateway, {
     type: "revocation",
-    owner: session.info.webId!,
+    owner: gateway.webId!,
     grantee: webId,
     resource,
     at: new Date().toISOString(),
@@ -389,13 +389,13 @@ async function notifyAccessRevoked(
 export async function recordAggregationSharing(
   snapshotUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  const userWebId = session.info.webId;
-  if (!session.info.isLoggedIn || !userWebId) {
+  const userWebId = gateway.webId;
+  if (!userWebId) {
     throw new Error("User is not logged in");
   }
-  await appendSharingEvent(sharedOutUri(userWebId), session, {
+  await appendSharingEvent(sharedOutUri(userWebId), gateway, {
     type: "grant",
     owner: userWebId,
     grantee: webId,
@@ -430,14 +430,14 @@ export interface ReceivedAggregation {
  * @operation query
  */
 export async function getReceivedAggregations(
-  session: Session,
+  gateway: PodGateway,
 ): Promise<ReceivedAggregation[]> {
-  if (!session.info.isLoggedIn || !session.info.webId) {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
 
   // Errors propagate to React Query (keepPreviousData keeps the last good list).
-  const grants = await foldSharingLog(sharedInUri(session.info.webId), session);
+  const grants = await foldSharingLog(sharedInUri(gateway.webId), gateway);
   return receivedAggregationsFromGrants(grants);
 }
 
@@ -450,13 +450,13 @@ export async function getReceivedAggregations(
  * {@link sharedAggregationsFromGrants} from the `sharedOutLog` query.
  * @operation query
  */
-export async function getSharedAggregations(session: Session): Promise<SharedAggregation[]> {
-  if (!session.info.isLoggedIn || !session.info.webId) {
+export async function getSharedAggregations(gateway: PodGateway): Promise<SharedAggregation[]> {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
 
   // Errors propagate to React Query / the dialog's own catch (not masked as empty).
-  const grants = await foldSharingLog(sharedOutUri(session.info.webId), session);
+  const grants = await foldSharingLog(sharedOutUri(gateway.webId), gateway);
   return sharedAggregationsFromGrants(grants);
 }
 
@@ -469,25 +469,25 @@ export async function getSharedAggregations(session: Session): Promise<SharedAgg
 export async function revokeAggregationAccess(
   snapshotUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  const userWebId = session.info.webId;
-  if (!session.info.isLoggedIn || !userWebId) {
+  const userWebId = gateway.webId;
+  if (!userWebId) {
     throw new Error("User is not logged in");
   }
 
-  await appendSharingEvent(sharedOutUri(userWebId), session, {
+  await appendSharingEvent(sharedOutUri(userWebId), gateway, {
     type: "revocation",
     owner: userWebId,
     grantee: webId,
     resource: snapshotUri,
     at: new Date().toISOString(),
   });
-  await removeFromACL(snapshotUri, webId, session);
+  await removeFromACL(snapshotUri, webId, gateway);
   // Best-effort: the ACL withdrawal is the source of truth; the inbox notice is a
   // courtesy that lets the recipient's shared-in/ fold the grant out (same as
   // building revocation). Never let a notify failure fail the revocation.
-  await notifyAccessRevoked(snapshotUri, webId, session).catch((err) =>
+  await notifyAccessRevoked(snapshotUri, webId, gateway).catch((err) =>
     logError("notify recipient of aggregation-access revocation", err)
   );
 }
@@ -502,9 +502,9 @@ export async function revokeAggregationAccess(
  */
 export async function revokeAllAggregationRecipients(
   snapshotUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  const shared = await getSharedAggregations(session);
+  const shared = await getSharedAggregations(gateway);
   const recipients = shared.find((v) => v.snapshotUri === snapshotUri)
     ?.sharedWith ?? [];
   // Deliberately SERIAL: every recipient's revokeAggregationAccess read-modify-writes
@@ -512,7 +512,7 @@ export async function revokeAllAggregationRecipients(
   // note in revokeAllBuildingRecipients (no-ETag servers degrade to a plain
   // PUT, so parallel revokes could clobber each other's removals).
   for (const webId of recipients) {
-    await revokeAggregationAccess(snapshotUri, webId, session).catch((err) =>
+    await revokeAggregationAccess(snapshotUri, webId, gateway).catch((err) =>
       logError("revoke aggregation access for recipient", err)
     );
   }

@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the UploadAttachments core uploads sequentially and returns
@@ -23,7 +24,7 @@ const BUILDING_TTL = `
  * name). The building store re-serves the latest PUT so the second upload's RMW
  * sees the first attachment.
  */
-function pod(): { session: Session; puts: string[] } {
+function pod(): { session: PodGateway; puts: string[] } {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const store: Record<string, string> = { [BUILDING]: BUILDING_TTL };
   const puts: string[] = [];
@@ -48,7 +49,7 @@ function pod(): { session: Session; puts: string[] } {
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session),
     puts,
   };
 }

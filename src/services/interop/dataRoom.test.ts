@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert";
 import { FakeTime } from "jsr:@std/testing/time";
@@ -141,14 +142,14 @@ class FakePod {
 }
 
 /** A fake authenticated Session backed by the in-memory Pod. */
-function sessionFor(pod: FakePod, webId: string): Session {
+function sessionFor(pod: FakePod, webId: string): PodGateway {
   // Storage root is normally resolved from pim:storage at login; prime it from the
   // WebID origin (matches these fixtures' `<origin>/granergize/…` paths).
   _setStorageRootForTesting(webId, new URL(webId).origin + "/");
-  return {
+  return sessionGateway({
     info: { isLoggedIn: true, webId },
     fetch: pod.fetch,
-  } as unknown as Session;
+  } as unknown as Session);
 }
 
 Deno.test("setMyRole persists, getMyRole reads it back (regression)", async () => {
@@ -486,7 +487,7 @@ Deno.test("leaving keeps the bookmark; removeKnownRoom forgets it", async () => 
 
 Deno.test("a forbidden write surfaces a permission error, not a raw 403", async () => {
   // Container reads succeed, but the user lacks append access (POST → 403).
-  const session = {
+  const session = sessionGateway({
     info: { isLoggedIn: true, webId: ALICE },
     fetch: (_input: RequestInfo | URL, init?: RequestInit) =>
       Promise.resolve(
@@ -495,7 +496,7 @@ Deno.test("a forbidden write surfaces a permission error, not a raw 403", async 
           headers: { "Content-Type": "text/turtle" },
         }),
       ),
-  } as unknown as Session;
+  } as unknown as Session);
 
   await assertRejects(() => joinRoom(ROOM, session), Error, "permission");
 });

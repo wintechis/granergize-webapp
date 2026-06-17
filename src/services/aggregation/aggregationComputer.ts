@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import type {
   AggregationDefinition,
   AggregationSnapshot,
@@ -57,13 +57,13 @@ function cachedBuildingRefs(buildingUri: string): EnergyDatasetRef[] | null {
 async function resolveBuildingRefs(
   buildingUri: string,
   fileUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<EnergyDatasetRef[]> {
   const cached = cachedBuildingRefs(buildingUri);
   if (cached) return cached;
   for (let attempt = 0; attempt < 4; attempt++) {
     const refs = parseEnergyDatasetRefs(
-      await readStoreOrEmpty(fileUri, session),
+      await readStoreOrEmpty(fileUri, gateway),
       null,
     );
     if (refs.length > 0 || attempt === 3) return refs;
@@ -79,7 +79,7 @@ async function resolveBuildingRefs(
  */
 async function loadBuildingEnergyData(
   buildingUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<{ energy: EnergyType; year: number } | null> {
   // The aggregation definition records the SUBJECT IRI; the document is its
   // fragment-free form. Carry the subject through verbatim — identity is the
@@ -90,7 +90,7 @@ async function loadBuildingEnergyData(
     // links (warm cache, else a retrying file read) and load the latest actual
     // year; its metrics become the energyNeed (keyed by the AnnualMetrics names
     // the aggregation metrics use).
-    const annual = (await resolveBuildingRefs(buildingUri, fileUri, session))
+    const annual = (await resolveBuildingRefs(buildingUri, fileUri, gateway))
       .filter((r) =>
         r.scenario === "actual" && !isSeriesGranularity(r.granularity)
       );
@@ -99,12 +99,12 @@ async function loadBuildingEnergyData(
       return null;
     }
     const latest = annual.reduce((a, b) => (a.year >= b.year ? a : b));
-    const [ds] = await loadEnergyDatasets([latest], session.fetch.bind(session));
+    const [ds] = await loadEnergyDatasets([latest], gateway.fetch.bind(gateway));
     if (!ds?.metrics) return null;
 
     return {
       energy: {
-        id: buildingIdFor(buildingUri, ownStorageRootOrUndefined(session)),
+        id: buildingIdFor(buildingUri, ownStorageRootOrUndefined(gateway)),
         uri: buildingUri,
         energyNeed: { ...ds.metrics },
         energyGeneration: {},
@@ -126,13 +126,13 @@ async function loadBuildingEnergyData(
 }
 
 /**
- * The session owner's storage root for id derivation, or undefined when the
+ * The gateway owner's storage root for id derivation, or undefined when the
  * cache isn't primed (headless callers) — ids then stay absolute, which the
  * two-shape id model treats as equivalent.
  */
-function ownStorageRootOrUndefined(session: Session): string | undefined {
+function ownStorageRootOrUndefined(gateway: PodGateway): string | undefined {
   try {
-    return session.info.webId ? getStorageRoot(session.info.webId) : undefined;
+    return gateway.webId ? getStorageRoot(gateway.webId) : undefined;
   } catch {
     return undefined;
   }
@@ -193,12 +193,12 @@ function extractMetricValue(
 async function loadUserBuildingMonthlyTotal(
   buildingUri: string,
   period: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<number | null> {
   const cleanUri = buildingFileUri(buildingUri);
   try {
     // An unreadable building degrades to an empty store, i.e. no datasets.
-    const buildingStore = await readStoreOrEmpty(cleanUri, session);
+    const buildingStore = await readStoreOrEmpty(cleanUri, gateway);
 
     // Series datasets locate their daily files in a container; list each and
     // sum the readings of the days within the requested period (e.g. "2024-03").
@@ -214,9 +214,9 @@ async function loadUserBuildingMonthlyTotal(
     // (e.g. "2024-03" → days starting "2024-03").
     const dailyUris: string[] = [];
     for (const ref of seriesRefs) {
-      const days = await listSeriesDays(session, ref);
-      for (const { day, url } of days) {
-        if (day.startsWith(period)) dailyUris.push(url);
+      const days = await listSeriesDays(gateway, ref);
+      for (const { day, uri } of days) {
+        if (day.startsWith(period)) dailyUris.push(uri);
       }
     }
     if (dailyUris.length === 0) {
@@ -225,7 +225,7 @@ async function loadUserBuildingMonthlyTotal(
     }
 
     const settled = await Promise.allSettled(
-      dailyUris.map((url) => parseTtlReadings(url, session.fetch.bind(session))),
+      dailyUris.map((uri) => parseTtlReadings(uri, gateway.fetch.bind(gateway))),
     );
 
     let total = 0;
@@ -258,7 +258,7 @@ async function loadUserBuildingMonthlyTotal(
  * @operation query
  */
 export async function computeAggregation(
-  session: Session,
+  gateway: PodGateway,
   aggregationDefinition: AggregationDefinition,
 ): Promise<AggregationSnapshot> {
   const { id, name, buildingUris, aggregationType, metrics, period, benchmark } =
@@ -267,7 +267,7 @@ export async function computeAggregation(
     benchmark
       ? {
         isBenchmark: true as const,
-        computedBy: session.info.webId,
+        computedBy: gateway.webId,
         ...(metricPeriod ? { metricPeriod } : {}),
       }
       : {};
@@ -280,7 +280,7 @@ export async function computeAggregation(
     const monthlyTotals = (await mapPooled(
       buildingUris,
       4,
-      (buildingUri) => loadUserBuildingMonthlyTotal(buildingUri, period, session),
+      (buildingUri) => loadUserBuildingMonthlyTotal(buildingUri, period, gateway),
     )).filter((t): t is number => t !== null);
 
     const snapshot: AggregationSnapshot = {
@@ -305,7 +305,7 @@ export async function computeAggregation(
   const loadedAll = (await mapPooled(
     buildingUris,
     4,
-    (buildingUri) => loadBuildingEnergyData(buildingUri, session),
+    (buildingUri) => loadBuildingEnergyData(buildingUri, gateway),
   )).filter((l): l is { energy: EnergyType; year: number } => l !== null);
   const energyDataResults = loadedAll.map((l) => l.energy);
   const latestYear = loadedAll.length > 0
@@ -353,17 +353,17 @@ export async function computeAggregation(
  * @operation mutation
  */
 export async function computeAndStoreSnapshot(
-  session: Session,
+  gateway: PodGateway,
   aggregationId: string,
 ): Promise<{ snapshot: AggregationSnapshot; snapshotUri: string }> {
-  const aggregationDefinition = await getAggregationDefinition(session, aggregationId);
+  const aggregationDefinition = await getAggregationDefinition(gateway, aggregationId);
 
   if (!aggregationDefinition) {
     throw new Error(`Aggregation definition not found: ${aggregationId}`);
   }
 
-  const snapshot = await computeAggregation(session, aggregationDefinition);
-  const snapshotUri = await storeComputedSnapshot(session, snapshot);
+  const snapshot = await computeAggregation(gateway, aggregationDefinition);
+  const snapshotUri = await storeComputedSnapshot(gateway, snapshot);
 
   return { snapshot, snapshotUri };
 }
@@ -373,10 +373,10 @@ export async function computeAndStoreSnapshot(
  * @operation mutation
  */
 export async function refreshSnapshot(
-  session: Session,
+  gateway: PodGateway,
   aggregationId: string,
 ): Promise<{ snapshot: AggregationSnapshot; snapshotUri: string }> {
-  return computeAndStoreSnapshot(session, aggregationId);
+  return computeAndStoreSnapshot(gateway, aggregationId);
 }
 
 /** The roster a benchmark aggregates over: the buildings shared *to* this user. */

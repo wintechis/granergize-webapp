@@ -1,6 +1,6 @@
 // Intent core (React-free) for SaveContact. See ./README.md for the core/adapter
 // split and the write→outcome convention. A plain in-place write → {@link Settled}.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { addContact, type Contact } from "../services/contacts.ts";
 import type { Settled } from "./outcomes.ts";
 
@@ -13,13 +13,15 @@ export interface SaveContactParams {
 /**
  * React-free core of {@link import("../hooks/mutations.ts").useSaveContact}:
  * add (or update) a contact in the address book. A plain write — the hook is a
- * thin adapter owning only the `contacts` invalidation. Takes `session` as an
- * argument — no `getSession()`, no React — so it is callable headless.
+ * thin adapter owning only the `contacts` invalidation. Takes a {@link PodGateway}
+ * (the authed transport + identity) — no `getSession()`, no React — so it is
+ * callable headless; a `Session` satisfies the gateway, so the hook passes
+ * `getSession()` unchanged.
  */
 export async function saveContactCore(
-  session: Session,
+  gateway: PodGateway,
   params: SaveContactParams,
 ): Promise<Settled> {
-  await addContact(session, params.contact);
+  await addContact(gateway, params.contact);
   return { ok: true };
 }

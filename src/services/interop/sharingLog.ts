@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Store } from "n3";
 import {
   ACL_NS,
@@ -129,13 +129,13 @@ export function buildSharingEventTurtle(e: SharingEvent): string {
  */
 export async function appendSharingEvent(
   containerUri: string,
-  session: Session,
+  gateway: PodGateway,
   event: SharingEvent,
 ): Promise<void> {
   // Announce: a first event lazily provisions shared-out//shared-in/, a creation
   // the user wouldn't otherwise see.
-  await ensureContainer(containerUri, session, { announce: true });
-  await appendToContainer(containerUri, buildSharingEventTurtle(event), session, {
+  await ensureContainer(containerUri, gateway, { announce: true });
+  await appendToContainer(containerUri, buildSharingEventTurtle(event), gateway, {
     describeError: (res) => `Failed to append sharing event (HTTP ${res.status})`,
   });
 }
@@ -184,33 +184,33 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
 }
 
 /**
- * Parsed events per event URL, scoped per Session (so a fresh login — or a
- * fresh fake session in tests — never sees another's entries). An event
+ * Parsed events per event URL, scoped per gateway (so a fresh login — or a
+ * fresh fake gateway in tests — never sees another's entries). An event
  * resource is IMMUTABLE once POSTed (append-only log, server-minted IRI, never
- * rewritten), so its parse can be reused for the session's lifetime: a re-fold
+ * rewritten), so its parse can be reused for the gateway's lifetime: a re-fold
  * then costs only the container listing, not one GET per event. Only non-empty
  * parses are cached — an empty result can be a TRANSIENT failure
  * (`readStoreOrEmpty` degrades 403/throttle to an empty store) and must stay
  * retryable.
  */
-const eventCacheBySession = new WeakMap<Session, Map<string, SharingEvent[]>>();
+const eventCacheBySession = new WeakMap<PodGateway, Map<string, SharingEvent[]>>();
 
 /** Read every event resource in a log container (bounded concurrency). */
 async function readAllEvents(
   containerUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<SharingEvent[]> {
-  const children = await listDirectChildren(containerUri, session);
+  const children = await listDirectChildren(containerUri, gateway);
   if (!children) return []; // container doesn't exist yet
   const eventUris = children.filter((u) => !u.endsWith("/"));
-  const cache = eventCacheBySession.get(session) ??
+  const cache = eventCacheBySession.get(gateway) ??
     new Map<string, SharingEvent[]>();
-  eventCacheBySession.set(session, cache);
-  const parsed = await mapPooled(eventUris, 4, async (url) => {
-    const cached = cache.get(url);
+  eventCacheBySession.set(gateway, cache);
+  const parsed = await mapPooled(eventUris, 4, async (uri) => {
+    const cached = cache.get(uri);
     if (cached) return cached;
-    const events = parseSharingEvents(await readStoreOrEmpty(url, session));
-    if (events.length > 0) cache.set(url, events);
+    const events = parseSharingEvents(await readStoreOrEmpty(uri, gateway));
+    if (events.length > 0) cache.set(uri, events);
     return events;
   });
   return parsed.flat();
@@ -227,9 +227,9 @@ async function readAllEvents(
  */
 export async function foldSharingLogEvents(
   containerUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<SharingEvent[]> {
-  const events = await readAllEvents(containerUri, session);
+  const events = await readAllEvents(containerUri, gateway);
   const latest = new Map<string, SharingEvent>();
   for (const e of events) {
     const key = `${e.grantee}\n${e.resource}`;
@@ -249,9 +249,9 @@ export async function foldSharingLogEvents(
  */
 export async function foldSharingLog(
   containerUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<ActiveGrant[]> {
-  return (await foldSharingLogEvents(containerUri, session))
+  return (await foldSharingLogEvents(containerUri, gateway))
     .filter((e) => e.type === "grant")
     .map((e): ActiveGrant => {
       const grant: ActiveGrant = {

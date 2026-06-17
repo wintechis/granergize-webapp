@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -12,7 +13,7 @@ const PROFILE_DOC = "https://pod.example/profile/card";
 // case's cached profile.
 
 /** A fake Session that serves in-memory docs for GET. */
-function makeSession(files: Record<string, string>): Session {
+function makeSession(files: Record<string, string>): PodGateway {
   const fetchImpl = (input: string | URL | Request): Promise<Response> => {
     const url = (typeof input === "string" ? input : input.toString())
       .split("?")[0];
@@ -26,10 +27,10 @@ function makeSession(files: Record<string, string>): Session {
         }),
     );
   };
-  return {
+  return sessionGateway({
     info: { isLoggedIn: true, webId: WEBID },
     fetch: fetchImpl as unknown as Session["fetch"],
-  } as unknown as Session;
+  } as unknown as Session);
 }
 
 Deno.test("getAvatarUrl prefers foaf:img over vcard:hasPhoto", async () => {

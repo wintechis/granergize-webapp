@@ -10,15 +10,15 @@ const { namedNode } = DataFactory;
  * @operation query
  */
 export async function parseTtlReadings(
-  url: string,
-  fetchFn: (url: string) => Promise<Response>,
+  uri: string,
+  fetchFn: (uri: string) => Promise<Response>,
 ): Promise<Array<{ begin: string; value: number }>> {
-  const response = await fetchFn(url);
+  const response = await fetchFn(uri);
   if (!response.ok) {
     throw new Error(`HTTP ${response.status}: ${response.statusText}`);
   }
   const text = await response.text();
-  const store = parseRdfText(text, url);
+  const store = parseRdfText(text, uri);
 
   const readingQuads = store.getQuads(
     null,

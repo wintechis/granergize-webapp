@@ -1,5 +1,5 @@
 import { useState } from "react";
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import type { AttachmentRef } from "../types.ts";
 import { fetchAttachmentBlob } from "../services/attachmentManager.ts";
 import { downloadBlob } from "../lib/download.ts";
@@ -14,15 +14,15 @@ import { formatError } from "../lib/formatError.ts";
  * null when idle.
  */
 export function useAttachmentDownload(
-  session: Session,
+  gateway: PodGateway,
 ): { download: (a: AttachmentRef) => Promise<void>; downloadingUrl: string | null } {
   const { showNotification } = useNotification();
   const [downloadingUrl, setDownloadingUrl] = useState<string | null>(null);
 
   const download = async (a: AttachmentRef) => {
-    setDownloadingUrl(a.url);
+    setDownloadingUrl(a.uri);
     try {
-      downloadBlob(await fetchAttachmentBlob(a.url, session), a.filename);
+      downloadBlob(await fetchAttachmentBlob(a.uri, gateway), a.filename);
     } catch (error) {
       showNotification(formatError("actionDownloadFile", error), "error");
     } finally {

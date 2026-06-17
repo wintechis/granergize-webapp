@@ -1,3 +1,4 @@
+import { sessionGateway } from "../../src/services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 /**
  * Playwright-managed local CSS for Tier 3 (E2E_LOCAL=1). Boots a throwaway CSS via
@@ -167,7 +168,7 @@ async function snapshotProfiles(): Promise<void> {
     const { live, actor } = await actorSession(slot);
     try {
       const cardDoc = actor.webId.split("#")[0];
-      const r = await actor.session.fetch(cardDoc);
+      const r = await actor.gateway.fetch(cardDoc);
       if (!r.ok) throw new Error(`profile snapshot ${cardDoc} → HTTP ${r.status}`);
       pristineProfiles.set(slot, {
         cardDoc,
@@ -193,7 +194,7 @@ async function resetToPristine(): Promise<void> {
       await wipeAppData(actor);
       const snap = pristineProfiles.get(slot);
       if (snap) {
-        const r = await actor.session.fetch(snap.cardDoc, {
+        const r = await actor.gateway.fetch(snap.cardDoc, {
           method: "PUT",
           headers: { "content-type": snap.contentType },
           body: snap.body,
@@ -215,7 +216,7 @@ async function resetToPristine(): Promise<void> {
 async function seedPodA(n: number): Promise<void> {
   const live = await css.liveSession("A");
   try {
-    const session = live as unknown as Session;
+    const session = sessionGateway(live as unknown as Session);
     await resolveStorageRoot(session);
     await wipeBuildings(session, css.A.webId);
     await seedBuildings(session, css.A.webId, n);
@@ -233,7 +234,7 @@ async function seedPodA(n: number): Promise<void> {
 async function seedRoomPodA(n: number): Promise<void> {
   const live = await css.liveSession("A");
   try {
-    const session = live as unknown as Session;
+    const session = sessionGateway(live as unknown as Session);
     await resolveStorageRoot(session);
     // Reset room state so each size starts from exactly one room: drop prior rooms
     // and the bookmarks/current-room pointer (stale bookmarks would otherwise pile
@@ -255,9 +256,9 @@ async function actorSession(
   slot: "A" | "B" | "C",
 ): Promise<{ live: Awaited<ReturnType<LocalPod["liveSession"]>>; actor: BenchActor }> {
   const live = await css.liveSession(slot);
-  const session = live as unknown as Session;
+  const session = sessionGateway(live as unknown as Session);
   await resolveStorageRoot(session);
-  return { live, actor: { webId: css[slot].webId, session } };
+  return { live, actor: { webId: css[slot].webId, gateway: session } };
 }
 
 // Wipe an actor's whole app collection. `deleteContainerRecursive` is now
@@ -267,8 +268,8 @@ async function actorSession(
 // `/wipe` returns 500, not a false-clean) and verify once as a backstop.
 async function wipeAppData(x: BenchActor): Promise<void> {
   const root = appRoot(x.webId);
-  await deleteContainerRecursive(root, x.session);
-  const left = await listDirectChildren(root, x.session);
+  await deleteContainerRecursive(root, x.gateway);
+  const left = await listDirectChildren(root, x.gateway);
   if (left !== null && left.length > 0) {
     throw new Error(`wipe ${root}: ${left.length} children remain after delete`);
   }
@@ -295,9 +296,9 @@ async function seedSharedPair(
   const [a, b] = await Promise.all([actorSession("A"), actorSession("B")]);
   try {
     await Promise.all([wipeAppData(a.actor), wipeAppData(b.actor)]);
-    await ensureOwnInbox(a.actor.session);
+    await ensureOwnInbox(a.actor.gateway);
     const seeded = await seedBuildings(
-      b.actor.session,
+      b.actor.gateway,
       b.actor.webId,
       n,
       "bench",
@@ -306,20 +307,20 @@ async function seedSharedPair(
     );
     const room = await setupShareRoom(a.actor, b.actor);
     await shareBuildingsViaRoom(b.actor, room, seeded);
-    if (drained) await drainInbox(a.actor.session);
+    if (drained) await drainInbox(a.actor.gateway);
     // Verify the substrate before letting the spec time anything against it —
     // a silent seeding shortfall (observed: stale JSS listings after wipes, see
     // ../../javascript-solid-server/jss-open-suspects.md) must fail HERE, not
     // as a mysterious browser-side timeout.
     const log = drained ? "shared-in" : "inbox";
     const children =
-      await listDirectChildren(`${appRoot(a.actor.webId)}${log}/`, a.actor.session) ?? [];
+      await listDirectChildren(`${appRoot(a.actor.webId)}${log}/`, a.actor.gateway) ?? [];
     const events = children.filter((c) => !c.endsWith(".acl"));
     if (events.length !== n) {
       throw new Error(`post-seed verify: ${log}/ holds ${events.length} events, want ${n}`);
     }
     if (n > 0) {
-      const b0 = await a.actor.session.fetch(seeded[0].uri);
+      const b0 = await a.actor.gateway.fetch(seeded[0].uri);
       if (!b0.ok) {
         throw new Error(`post-seed verify: ${seeded[0].uri} → HTTP ${b0.status} for A`);
       }
@@ -351,10 +352,10 @@ async function seedContribTrio(n: number): Promise<void> {
     // Re-provision EVERY actor's inbox: the wipe took them, and the share-back
     // (A → B, C) posts each grant to the recipient's inbox — in the real flow
     // they'd exist because each actor logged in once (ensureOwnInbox at login).
-    await Promise.all([a, b, c].map((x) => ensureOwnInbox(x.actor.session)));
+    await Promise.all([a, b, c].map((x) => ensureOwnInbox(x.actor.gateway)));
     for (const [contributor, prefix] of [[b, "bench-b"], [c, "bench-c"]] as const) {
       const seeded = await seedBuildings(
-        contributor.actor.session,
+        contributor.actor.gateway,
         contributor.actor.webId,
         n,
         prefix,
@@ -362,7 +363,7 @@ async function seedContribTrio(n: number): Promise<void> {
       const room = await setupShareRoom(a.actor, contributor.actor);
       await shareBuildingsViaRoom(contributor.actor, room, seeded);
     }
-    await drainInbox(a.actor.session);
+    await drainInbox(a.actor.gateway);
   } finally {
     for (const x of [a, b, c]) await x.live.dispose().catch(() => {});
   }
@@ -452,42 +453,42 @@ async function seedBenchmark(viewName: string): Promise<void> {
   ]);
   try {
     // B and C never logged in at this point, so their inboxes don't exist yet.
-    await Promise.all([a, b, c].map((x) => ensureOwnInbox(x.actor.session)));
+    await Promise.all([a, b, c].map((x) => ensureOwnInbox(x.actor.gateway)));
     const children = await listDirectChildren(
       `${appRoot(a.actor.webId)}buildings/`,
-      a.actor.session,
+      a.actor.gateway,
     ) ?? [];
     const aBuildings = children.filter((u) => u.endsWith(".ttl"));
     if (aBuildings.length === 0) {
       throw new Error("seed-benchmark: A owns no buildings to contribute");
     }
-    const bSeeded = await seedBuildings(b.actor.session, b.actor.webId, 2, "contrib");
+    const bSeeded = await seedBuildings(b.actor.gateway, b.actor.webId, 2, "contrib");
     for (const uri of aBuildings) {
-      await shareBuildingData(uri, c.actor.webId, a.actor.session, {
+      await shareBuildingData(uri, c.actor.webId, a.actor.gateway, {
         includeEnergyData: true,
       });
     }
     for (const s of bSeeded) {
-      await shareBuildingData(s.uri, c.actor.webId, b.actor.session, {
+      await shareBuildingData(s.uri, c.actor.webId, b.actor.gateway, {
         includeEnergyData: true,
       });
     }
-    await drainInbox(c.actor.session);
+    await drainInbox(c.actor.gateway);
     const { buildingUris } = summarizeContributors(
-      await getSharedWithMe(c.actor.session),
+      await getSharedWithMe(c.actor.gateway),
     );
     if (buildingUris.length === 0) {
       throw new Error("seed-benchmark: C's contributor roster is empty");
     }
     const view = await createAggregationDefinition(
-      c.actor.session,
+      c.actor.gateway,
       viewName,
       buildingUris,
       "average",
       CONSUMPTION_METRIC_KEYS,
       { benchmark: true },
     );
-    await computeAndStoreSnapshot(c.actor.session, view.id);
+    await computeAndStoreSnapshot(c.actor.gateway, view.id);
   } finally {
     for (const x of [a, b, c]) await x.live.dispose().catch(() => {});
   }
@@ -566,7 +567,7 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
       const x = await actorSession(slot);
       try {
         await seedBuildings(
-          x.actor.session,
+          x.actor.gateway,
           x.actor.webId,
           Number.isFinite(n) && n >= 0 ? n : 2,
           `own-${slot.toLowerCase()}`,

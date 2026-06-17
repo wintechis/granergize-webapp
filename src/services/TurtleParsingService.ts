@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./pod/podGateway.ts";
 import { parseBuildings } from "./rdf/building/buildingParser.ts";
 import { buildingFileUri } from "./rdf/building/buildingId.ts";
 import type {
@@ -40,12 +40,12 @@ export class SessionExpiredError extends Error {
 
 async function loadTtlFromMultipleSources(
   urls: string[],
-  session: Session,
+  gateway: PodGateway,
   description: string,
 ): Promise<{
   quads: Quad[];
   /** Sources that 403/404'd — access revoked since the grant; prunable. */
-  failedSources: Array<{ url: string; status: number }>;
+  failedSources: Array<{ uri: string; status: number }>;
   /** Sources that failed transiently (timeout / network / 5xx, NOT 403/404).
    * These are NOT pruned — they may load on the next refresh — but the caller
    * surfaces them so a slow Pod silently shedding files is never invisible. */
@@ -53,17 +53,17 @@ async function loadTtlFromMultipleSources(
 }> {
   const allQuads: Quad[] = [];
   const successfulSources: string[] = [];
-  const failedSources: { url: string; error: string; status?: number }[] = [];
+  const failedSources: { uri: string; error: string; status?: number }[] = [];
 
   // Try each source independently. fetchFresh revalidates (cache: "no-cache"),
   // so an unchanged document comes back as a cheap 304 instead of a full body.
   await Promise.all(
-    urls.map(async (url) => {
+    urls.map(async (uri) => {
       try {
-        const response = await fetchFresh(url, session);
+        const response = await fetchFresh(uri, gateway);
         if (!response.ok) {
           failedSources.push({
-            url,
+            uri,
             error: `HTTP ${response.status}: ${response.statusText}`,
             status: response.status,
           });
@@ -72,7 +72,7 @@ async function loadTtlFromMultipleSources(
 
         const text = await response.text();
         const parser = new Parser({
-          baseIRI: url,
+          baseIRI: uri,
         });
 
         // Parse with default graph set to the URL
@@ -80,7 +80,7 @@ async function loadTtlFromMultipleSources(
 
         // Unique prefix for blank nodes from this source, to avoid ID collisions
         // when multiple files use the same generic blank node names (_:obs0_0, etc.)
-        const bnPrefix = encodeURIComponent(url) + "__";
+        const bnPrefix = encodeURIComponent(uri) + "__";
         const scopedNode = (term: Quad["subject"]): Quad["subject"] => {
           if (term.termType === "BlankNode") {
             return DataFactory.blankNode(bnPrefix + term.value);
@@ -95,16 +95,16 @@ async function loadTtlFromMultipleSources(
             scopedNode(quad.subject) as Quad["subject"],
             quad.predicate,
             scopedNode(quad.object as Quad["subject"]) as Quad["object"],
-            DataFactory.namedNode(url),
+            DataFactory.namedNode(uri),
           );
         });
 
         // Add these quads to our collection
         allQuads.push(...quadsWithGraph);
-        successfulSources.push(url);
+        successfulSources.push(uri);
       } catch (error) {
         failedSources.push({
-          url,
+          uri,
           error: error instanceof Error ? error.message : String(error),
         });
       }
@@ -143,12 +143,12 @@ async function loadTtlFromMultipleSources(
     quads: allQuads,
     failedSources: failedSources
       .filter((f) => f.status === 403 || f.status === 404)
-      .map((f) => ({ url: f.url, status: f.status! })),
+      .map((f) => ({ uri: f.uri, status: f.status! })),
     // Everything else that failed without a 401 (which already threw above):
     // timeouts, network errors, 5xx. Reported, not pruned.
     transientFailures: failedSources
       .filter((f) => f.status !== 403 && f.status !== 404)
-      .map((f) => f.url),
+      .map((f) => f.uri),
   };
 }
 
@@ -159,23 +159,23 @@ async function loadTtlFromMultipleSources(
  * folded back in, so it isn't re-fetched).
  */
 async function removeInaccessibleBuildingSources(
-  failedSources: Array<{ url: string; status: number }>,
-  session: Session,
+  failedSources: Array<{ uri: string; status: number }>,
+  gateway: PodGateway,
 ): Promise<void> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) return;
   const sharedIn = sharedInUri(webId);
   const at = new Date().toISOString();
   for (const failed of failedSources) {
     try {
-      await appendSharingEvent(sharedIn, session, {
+      await appendSharingEvent(sharedIn, gateway, {
         type: "revocation",
         owner: webId,
         grantee: webId,
-        resource: failed.url,
+        resource: failed.uri,
         at,
       });
-      console.log(`Pruned inaccessible shared building source: ${failed.url}`);
+      console.log(`Pruned inaccessible shared building source: ${failed.uri}`);
     } catch (error) {
       console.error("Error pruning inaccessible building source:", error);
     }
@@ -192,12 +192,12 @@ async function removeInaccessibleBuildingSources(
  * Pod simply loads empty until the user chooses.
  */
 async function discoverOwnBuildings(
-  session: Session,
+  gateway: PodGateway,
   webId: string,
 ): Promise<string[]> {
   const container = podResources(webId).buildings;
-  const children = await listDirectChildren(container, session);
-  return (children ?? []).filter((url) => url.endsWith(".ttl"));
+  const children = await listDirectChildren(container, gateway);
+  return (children ?? []).filter((uri) => uri.endsWith(".ttl"));
 }
 
 /**
@@ -231,7 +231,7 @@ export function sharedBuildingSourcesFromGrants(grants: ActiveGrant[]): string[]
  * @operation query
  */
 export async function loadBuildings(
-  session: Session,
+  gateway: PodGateway,
   sharedSources: string[],
   hiddenBuildingUris: Set<string>,
 ): Promise<{
@@ -241,17 +241,17 @@ export async function loadBuildings(
    * later refresh, but reported so the missing buildings aren't a silent gap. */
   transientFailures: string[];
 }> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) {
-    throw new Error("No WebID found in session.");
+    throw new Error("No WebID found.");
   }
 
-  const ownBuildings = await discoverOwnBuildings(session, webId);
+  const ownBuildings = await discoverOwnBuildings(gateway, webId);
   const buildingSources = [...new Set([...ownBuildings, ...sharedSources])];
 
   const buildingsResult = await loadTtlFromMultipleSources(
     buildingSources,
-    session,
+    gateway,
     "buildings",
   );
 
@@ -261,7 +261,7 @@ export async function loadBuildings(
   if (buildingsResult.failedSources.length > 0) {
     await removeInaccessibleBuildingSources(
       buildingsResult.failedSources,
-      session,
+      gateway,
     );
   }
 
@@ -281,7 +281,7 @@ export async function loadBuildings(
 
   return {
     buildings: Array.from(visibleBuildings.values()),
-    prunedSources: buildingsResult.failedSources.map((f) => f.url),
+    prunedSources: buildingsResult.failedSources.map((f) => f.uri),
     transientFailures: buildingsResult.transientFailures,
   };
 }
@@ -318,7 +318,7 @@ function meanByMetric(
 }
 
 export async function loadEnergy(
-  session: Session,
+  gateway: PodGateway,
   buildings: BuildingType[],
 ): Promise<{
   energyNeed: EnergyType[];
@@ -358,13 +358,13 @@ export async function loadEnergy(
       // showing "no energy data" (and dropping out of the map's peer terciles).
       for (const ref of refs) {
         try {
-          const fileUri = buildingFileUri(ref.url);
-          const res = await fetchFresh(fileUri, session);
+          const fileUri = buildingFileUri(ref.uri);
+          const res = await fetchFresh(fileUri, gateway);
           if (!res.ok) continue;
           const store = new Store(
             new Parser({ baseIRI: fileUri }).parse(await res.text()),
           );
-          const ds = parseEnergyDataset(store, ref.url);
+          const ds = parseEnergyDataset(store, ref.uri);
           if (ds?.metrics) return { building, metrics: ds.metrics, year: ref.year };
         } catch (error) {
           console.error(
@@ -450,11 +450,11 @@ export async function loadEnergy(
  * @operation query
  */
 export async function listSharedBuildingSources(
-  session: Session,
+  gateway: PodGateway,
   webId: string,
 ): Promise<string[]> {
   try {
-    const grants = await foldSharingLog(sharedInUri(webId), session);
+    const grants = await foldSharingLog(sharedInUri(webId), gateway);
     return sharedBuildingSourcesFromGrants(grants);
   } catch (error) {
     console.error("Error loading shared building sources:", error);
@@ -471,21 +471,21 @@ export async function listSharedBuildingSources(
  * @operation query
  */
 export async function fetchAndParseData(
-  session: Session,
+  gateway: PodGateway,
   onBuildings?: (partial: { buildings: BuildingType[] }) => void,
 ) {
-  const webId = session.info.webId;
-  if (!webId) throw new Error("No WebID found in session.");
+  const webId = gateway.webId;
+  if (!webId) throw new Error("No WebID found.");
   const [sharedSources, prefs] = await Promise.all([
-    listSharedBuildingSources(session, webId),
-    readPrefs(session),
+    listSharedBuildingSources(gateway, webId),
+    readPrefs(gateway),
   ]);
   const { buildings } = await loadBuildings(
-    session,
+    gateway,
     sharedSources,
     prefs.hiddenBuildings,
   );
   onBuildings?.({ buildings });
-  const energy = await loadEnergy(session, buildings);
+  const energy = await loadEnergy(gateway, buildings);
   return { buildings, ...energy };
 }

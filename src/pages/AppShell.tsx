@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
@@ -88,14 +89,14 @@ const NAV: { labelId: MessageId; path: string }[] = [
 function useProfileImageUrl(
   session: Session,
   version: number,
-  load: (session: Session) => Promise<string | null>,
+  load: (gateway: PodGateway) => Promise<string | null>,
   action: string,
 ): string | null {
   const [url, setUrl] = useState<string | null>(null);
   useEffect(() => {
     let cancelled = false;
     let current: string | null = null;
-    load(session)
+    load(sessionGateway(session))
       .then((loaded) => {
         if (cancelled) {
           if (loaded) URL.revokeObjectURL(loaded);
@@ -251,7 +252,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
 
   const declineDemos = () => {
     setDemoDismissed(true);
-    setDemoSeedDeclined(session, true).catch((err) =>
+    setDemoSeedDeclined(sessionGateway(session), true).catch((err) =>
       logError("persist demo-seed declined", err)
     );
   };
@@ -313,7 +314,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     }
     restoreMut.mutate({ bytes }, {
       onSuccess: ({ restored, rebasedTo, rebasedWebId, reissued }) => {
-        hydrateActiveRoom(session).catch((err) =>
+        hydrateActiveRoom(sessionGateway(session)).catch((err) =>
           logError("hydrate active data room", err)
         );
         const rebased = rebasedTo || rebasedWebId ? msg("devRebased") : "";
@@ -380,7 +381,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   // Load the current-room pointer from the Pod into memory once after login, so
   // the sharing dialogs (which read it synchronously) know the room app-wide.
   useEffect(() => {
-    hydrateActiveRoom(session).catch((err) =>
+    hydrateActiveRoom(sessionGateway(session)).catch((err) =>
       logError("hydrate active data room on login", err)
     );
   }, [session]);
@@ -425,7 +426,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
     let resources: string[] = [];
     try {
       if (root) {
-        resources = await listContainedResources(`${root}${APP_DIR}/`, session);
+        resources = await listContainedResources(`${root}${APP_DIR}/`, sessionGateway(session));
       }
     } catch (err) {
       logError("list app-data resources for wipe preview", err);
@@ -470,7 +471,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
       // were reset by the mutation). Re-hydrate the (now absent) active room
       // and re-offer the demo buildings — startup no longer re-seeds silently,
       // so there's nothing to "log out to avoid" any more.
-      hydrateActiveRoom(session).catch((err) =>
+      hydrateActiveRoom(sessionGateway(session)).catch((err) =>
         logError("hydrate active data room", err)
       );
       // Re-offer the demo buildings now the collection is empty again: the wipe

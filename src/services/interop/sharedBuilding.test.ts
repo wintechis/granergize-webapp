@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -16,8 +17,8 @@ const BUILDING_TTL = `@prefix rec: <https://w3id.org/rec#> .
 `;
 
 /** Fake session serving the building Turtle at FILE; 404 elsewhere. */
-function session(body = BUILDING_TTL, status = 200): Session {
-  return {
+function session(body = BUILDING_TTL, status = 200): PodGateway {
+  return sessionGateway({
     info: { isLoggedIn: true, webId: "https://me.example/profile/card#me" },
     fetch: (input: string | URL | Request) => {
       const url = (typeof input === "string" ? input : input.toString())
@@ -31,7 +32,7 @@ function session(body = BUILDING_TTL, status = 200): Session {
           : new Response("Not found", { status: 404 }),
       );
     },
-  } as unknown as Session;
+  } as unknown as Session);
 }
 
 Deno.test("loadSharedBuilding fetches + parses the shared building file", async () => {

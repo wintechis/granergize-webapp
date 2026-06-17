@@ -37,7 +37,7 @@ const BUILDING_TTL = `
 const store = () => new Store(new Parser({ baseIRI: BUILDING }).parse(BUILDING_TTL));
 
 Deno.test("energyTargetsFromStore: every dataset + the series' year container, no filter", () => {
-  const set = new Set(energyTargetsFromStore(store()).map((t) => t.url));
+  const set = new Set(energyTargetsFromStore(store()).map((t) => t.uri));
   assert.ok(set.has(DS_2024_P1Y));
   assert.ok(set.has(DS_2024_PT15M));
   assert.ok(set.has(DS_2024_PLANNED));
@@ -47,22 +47,22 @@ Deno.test("energyTargetsFromStore: every dataset + the series' year container, n
 });
 
 Deno.test("energyTargetsFromStore: years:[2024] drops 2023, keeps the 2024 series container", () => {
-  const set = new Set(energyTargetsFromStore(store(), [2024]).map((t) => t.url));
+  const set = new Set(energyTargetsFromStore(store(), [2024]).map((t) => t.uri));
   assert.ok(!set.has(DS_2023_P1Y));
   assert.ok(set.has(YEAR_2024));
   assert.strictEqual(set.size, 4);
 });
 
 Deno.test("buildingTargetsFromStore: full grant set = file + files/ + legacy cert + energy", () => {
-  const set = new Set(buildingTargetsFromStore(store(), BUILDING).map((t) => t.url));
+  const set = new Set(buildingTargetsFromStore(store(), BUILDING).map((t) => t.uri));
   assert.ok(set.has(BUILDING), "building file");
   assert.ok(set.has(FILES), "files/ container");
   assert.ok(set.has(LEGACY_CERT), "legacy certificate outside files/");
   assert.ok(set.has(DS_2024_P1Y), "energy datasets included");
   // files/ is a container (acl:default); the building file is not.
   const targets = buildingTargetsFromStore(store(), BUILDING);
-  assert.strictEqual(targets.find((t) => t.url === FILES)!.isContainer, true);
-  assert.strictEqual(targets.find((t) => t.url === BUILDING)!.isContainer, false);
+  assert.strictEqual(targets.find((t) => t.uri === FILES)!.isContainer, true);
+  assert.strictEqual(targets.find((t) => t.uri === BUILDING)!.isContainer, false);
 });
 
 Deno.test("buildingTargetsFromStore: a cert already inside files/ is NOT a separate target", () => {
@@ -71,7 +71,7 @@ Deno.test("buildingTargetsFromStore: a cert already inside files/ is NOT a separ
 @prefix cons: <${CONSUMPTION_NS}> .
 <${BUILDING}#b-1> <${GRAN_HAS_ENERGY_CERTIFICATE}> <${certInFiles}> .`;
   const s = new Store(new Parser({ baseIRI: BUILDING }).parse(ttl));
-  const set = new Set(buildingTargetsFromStore(s, BUILDING).map((t) => t.url));
+  const set = new Set(buildingTargetsFromStore(s, BUILDING).map((t) => t.uri));
   assert.ok(!set.has(certInFiles), "inherited via the files/ container grant");
 });
 
@@ -81,10 +81,10 @@ Deno.test("grant vs revoke enumerate the SAME set (the unification invariant)", 
   // never drift apart, which is the whole point of one shared enumerator.
   const grant = buildingTargetsFromStore(store(), BUILDING, {
     includeBuildingFile: true,
-  }).map((t) => t.url).sort();
+  }).map((t) => t.uri).sort();
   const revoke = buildingTargetsFromStore(store(), BUILDING, {
     includeBuildingFile: false,
-  }).map((t) => t.url).sort();
+  }).map((t) => t.uri).sort();
   assert.deepStrictEqual(
     grant.filter((u) => u !== BUILDING),
     revoke,
@@ -95,7 +95,7 @@ Deno.test("grant vs revoke enumerate the SAME set (the unification invariant)", 
 Deno.test("buildingTargetsFromStore: includeEnergyData:false keeps only file + files/", () => {
   const set = new Set(
     buildingTargetsFromStore(store(), BUILDING, { includeEnergyData: false })
-      .map((t) => t.url),
+      .map((t) => t.uri),
   );
   assert.ok(set.has(BUILDING));
   assert.ok(set.has(FILES));

@@ -4,10 +4,10 @@ import type { BuildingType, EnergyDatasetRef } from "../types.ts";
 import { monthsFromDays, selectedSeriesRefs } from "./createAggregationMonths.ts";
 
 function ref(
-  url: string,
+  uri: string,
   granularity: string,
 ): EnergyDatasetRef {
-  return { url, year: 2024, granularity, scenario: "actual" };
+  return { uri, year: 2024, granularity, scenario: "actual" };
 }
 
 function building(
@@ -32,7 +32,7 @@ Deno.test("selectedSeriesRefs returns only the SELECTED buildings' series datase
   // heike-5 #4: months from unselected buildings let the user pick a month the
   // aggregation's actual inputs don't carry → empty snapshot.
   const refs = selectedSeriesRefs([A, B], [A.uri]);
-  assert.deepEqual(refs.map((r) => r.url), [
+  assert.deepEqual(refs.map((r) => r.uri), [
     "https://pod.example/a/2024-PT15M.ttl#ds",
   ]);
 });
@@ -43,7 +43,7 @@ Deno.test("selectedSeriesRefs with no selection yields no refs (query stays disa
 
 Deno.test("selectedSeriesRefs covers the whole selection", () => {
   const refs = selectedSeriesRefs([A, B], [A.uri, B.uri]);
-  assert.deepEqual(refs.map((r) => r.url), [
+  assert.deepEqual(refs.map((r) => r.uri), [
     "https://pod.example/a/2024-PT15M.ttl#ds",
     "https://pod.example/b/2023-PT15M.ttl#ds",
   ]);

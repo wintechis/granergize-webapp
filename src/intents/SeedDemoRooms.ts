@@ -2,7 +2,7 @@
 // seeder: per-room best-effort (the service swallows per-room failures and
 // returns the created set + the attempted total). The adapter's `patchRooms`
 // folds the created `rooms` into the registry cache.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { seedDemoRooms } from "../services/demoConnect.ts";
 
 /**
@@ -24,6 +24,6 @@ export interface SeedDemoRoomsOutcome {
  * seed the demo data rooms (per-room best-effort). Returns the created room set +
  * attempted total.
  */
-export function seedDemoRoomsCore(session: Session): Promise<SeedDemoRoomsOutcome> {
-  return seedDemoRooms(session);
+export function seedDemoRoomsCore(gateway: PodGateway): Promise<SeedDemoRoomsOutcome> {
+  return seedDemoRooms(gateway);
 }

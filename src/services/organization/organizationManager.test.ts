@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
@@ -30,7 +31,7 @@ function makeSession(
   files: Record<string, string>,
   writes: { url: string; contentType: string; ifMatch: string | null; body: unknown }[],
   opts: { etag?: string; failPutsWith?: number } = {},
-): Session {
+): PodGateway {
   const fetchImpl = (
     input: string | URL | Request,
     init?: RequestInit,
@@ -67,10 +68,10 @@ function makeSession(
         }),
     );
   };
-  return {
+  return sessionGateway({
     info: { isLoggedIn: true, webId: WEBID },
     fetch: fetchImpl as unknown as Session["fetch"],
-  } as unknown as Session;
+  } as unknown as Session);
 }
 
 type Write = { url: string; contentType: string; ifMatch: string | null; body: unknown };

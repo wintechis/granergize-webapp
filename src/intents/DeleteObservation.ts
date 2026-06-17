@@ -1,7 +1,7 @@
 // Intent core (React-free) for DeleteObservation (the hook is
 // `useDeleteEnergyYear`). See ./README.md for the core/adapter split and the
 // write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { deleteEnergyYear } from "../services/rdf/building/buildingSerializer.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
 import type { Settled } from "./outcomes.ts";
@@ -22,9 +22,9 @@ export interface DeleteObservationParams {
  * building-data invalidation.
  */
 export async function deleteObservationCore(
-  session: Session,
+  gateway: PodGateway,
   params: DeleteObservationParams,
 ): Promise<Settled> {
-  await deleteEnergyYear(session, params.fileUri, params.subjectUri, params.dataset);
+  await deleteEnergyYear(gateway, params.fileUri, params.subjectUri, params.dataset);
   return { ok: true };
 }

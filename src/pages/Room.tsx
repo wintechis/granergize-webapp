@@ -1,3 +1,4 @@
+import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useEffect, useRef } from "react";
 import { Box, Button, Chip, Divider, Stack, Typography } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
@@ -45,7 +46,7 @@ export default function Room(
   const goBack = useBackNavigation();
 
   const room = normalizeRoomUri(roomUri);
-  const owned = ownsRoom(room, session);
+  const owned = ownsRoom(room, sessionGateway(session));
 
   // Enter (join + bookmark + make current) on mount — preserves invite links.
   // useEnterRoom patches the registry cache, so `current` updates and the room

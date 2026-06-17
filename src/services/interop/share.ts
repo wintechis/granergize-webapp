@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Parser, Store } from "n3";
 import {
   getSubresourceAclTargets,
@@ -42,7 +42,7 @@ export interface ShareOptions {
 export async function shareBuildingData(
   buildingUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
   options: ShareOptions = { includeEnergyData: true },
 ) {
   const buildingFile = buildingUri.split("#")[0];
@@ -56,19 +56,19 @@ export async function shareBuildingData(
   await recordSharing(
     buildingFile,
     webId,
-    session,
+    gateway,
     options.includeEnergyData,
     options.years,
   );
 
   // Write the WAC grants (the enforcement side — a derived projection).
-  await applyBuildingGrant(buildingFile, webId, session, options);
+  await applyBuildingGrant(buildingFile, webId, gateway, options);
 
   // Notify the recipient (inbox) last, once enforcement is in place. The inbox
   // post and the log append are the *record/notify* side and are deliberately
   // NOT part of applyBuildingGrant, so a log replay (reissueGrants) can
   // re-apply ACLs without re-notifying or re-appending to the log.
-  await postToInbox(buildingFile, webId, session, options);
+  await postToInbox(buildingFile, webId, gateway, options);
 }
 
 /**
@@ -88,15 +88,15 @@ export async function shareBuildingData(
 export async function applyBuildingGrant(
   buildingFile: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
   options: ShareOptions = { includeEnergyData: true },
 ): Promise<void> {
   // Provision the per-building files/ container first so its acl:default grant
   // has something to attach to (attachments + the energy certificate; one
   // default covers every file in it — including uploads added after this share).
   const filesContainer = filesContainerFor(buildingFile);
-  await ensureContainer(filesContainer.replace(/files\/$/, ""), session);
-  await ensureContainer(filesContainer, session);
+  await ensureContainer(filesContainer.replace(/files\/$/, ""), gateway);
+  await ensureContainer(filesContainer, gateway);
 
   // The target set comes from the ONE enumeration shared with auditGrants
   // (buildingGrantTargets), so the applied projection and the audited
@@ -108,11 +108,11 @@ export async function applyBuildingGrant(
   // which is fine here — each grant is an idempotent projection of the
   // already-appended log event, so any extra successes only reduce log↔ACL
   // drift (reissueGrants would re-apply exactly those grants anyway).
-  const targets = await buildingGrantTargets(buildingFile, session, options);
+  const targets = await buildingGrantTargets(buildingFile, gateway, options);
   await mapPooled(
     targets,
     4,
-    (t) => grantReadAccess(t.url, webId, session, t.isContainer),
+    (t) => grantReadAccess(t.uri, webId, gateway, t.isContainer),
   );
 }
 
@@ -131,10 +131,10 @@ export async function applyBuildingGrant(
  */
 export async function buildingGrantTargets(
   buildingFile: string,
-  session: Session,
+  gateway: PodGateway,
   options: ShareOptions = { includeEnergyData: true },
 ): Promise<GrantTarget[]> {
-  const response = await fetchFresh(buildingFile, session);
+  const response = await fetchFresh(buildingFile, gateway);
   if (!response.ok) {
     throw new Error(
       `Failed to fetch building data at ${buildingFile}: ${response.statusText}`,
@@ -179,19 +179,19 @@ export interface ReissueResult {
  * it would resurrect empty containers and orphan `.acl` files.
  *
  * **Same-Pod only:** the log records absolute resource IRIs. Events whose
- * resource doesn't live under this session's storage root are skipped (a
+ * resource doesn't live under this viewer's storage root are skipped (a
  * cross-Pod restore would need the IRIs rewritten first). Recipient-side state
  * (their inbox / `shared-in/`) is on the recipient's Pod and is intentionally
  * untouched.
  * @operation mutation
  */
-export async function reissueGrants(session: Session): Promise<ReissueResult> {
-  const webId = session.info.webId;
-  if (!session.info.isLoggedIn || !webId) {
+export async function reissueGrants(gateway: PodGateway): Promise<ReissueResult> {
+  const webId = gateway.webId;
+  if (!webId) {
     throw new Error("User is not logged in");
   }
   const root = getStorageRoot(webId);
-  const events = await foldSharingLogEvents(sharedOutUri(webId), session);
+  const events = await foldSharingLogEvents(sharedOutUri(webId), gateway);
 
   const result: ReissueResult = {
     buildings: 0,
@@ -212,10 +212,10 @@ export async function reissueGrants(session: Session): Promise<ReissueResult> {
       // Withdraw enforcement the log says is gone. removeFromACL is idempotent
       // (and owner-lockout-safe), so replaying an already-withdrawn pair is a
       // no-op; sub-resources of a since-deleted building simply aren't there.
-      await removeFromACL(resourceFile, e.grantee, session);
+      await removeFromACL(resourceFile, e.grantee, gateway);
       try {
-        for (const t of await getSubresourceAclTargets(resourceFile, session)) {
-          await removeFromACL(t, e.grantee, session);
+        for (const t of await getSubresourceAclTargets(resourceFile, gateway)) {
+          await removeFromACL(t, e.grantee, gateway);
         }
       } catch {
         // The resource is gone — nothing underneath to withdraw.
@@ -226,18 +226,18 @@ export async function reissueGrants(session: Session): Promise<ReissueResult> {
 
     // A grant for a deleted resource must not be re-applied (it would recreate
     // empty containers + orphan .acls). HEAD distinguishes deleted from present.
-    const head = await session.fetch(resourceFile, { method: "HEAD" });
+    const head = await gateway.fetch(resourceFile, { method: "HEAD" });
     if (head.status === 404 || head.status === 410) {
       result.missing++;
       continue;
     }
 
     if (e.kind === "Aggregation") {
-      await grantReadAccess(resourceFile, e.grantee, session);
+      await grantReadAccess(resourceFile, e.grantee, gateway);
       result.aggregations++;
     } else {
       // Default to Building (kind is a routing hint; a missing kind is legacy).
-      await applyBuildingGrant(resourceFile, e.grantee, session, {
+      await applyBuildingGrant(resourceFile, e.grantee, gateway, {
         includeEnergyData: e.includesEnergy ?? true,
         years: e.years,
       });
@@ -270,20 +270,20 @@ export async function reissueGrants(session: Session): Promise<ReissueResult> {
  */
 export async function reconcileBuildingGrants(
   buildingFile: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<number> {
-  const webId = session.info.webId;
-  if (!session.info.isLoggedIn || !webId) {
+  const webId = gateway.webId;
+  if (!webId) {
     throw new Error("User is not logged in");
   }
-  const events = await foldSharingLogEvents(sharedOutUri(webId), session);
+  const events = await foldSharingLogEvents(sharedOutUri(webId), gateway);
   const active = events.filter((e) =>
     e.type !== "revocation" &&
     e.kind !== "Aggregation" &&
     e.resource.split("#")[0] === buildingFile
   );
   for (const e of active) {
-    await applyBuildingGrant(buildingFile, e.grantee, session, {
+    await applyBuildingGrant(buildingFile, e.grantee, gateway, {
       includeEnergyData: e.includesEnergy ?? true,
       years: e.years,
     });
@@ -306,7 +306,7 @@ export interface GrantAuditResult {
   checked: number;
   /** Empty ⇔ the ACL projection matches the folded log. */
   drift: GrantDrift[];
-  /** Events whose resource isn't on this Pod — not auditable from this session. */
+  /** Events whose resource isn't on this Pod — not auditable from this gateway. */
   skipped: number;
   /** Active grants whose resource no longer exists (deleted) — not drift; replay skips them too. */
   missing: number;
@@ -335,13 +335,13 @@ export interface GrantAuditResult {
  * before acting on one.
  * @operation query
  */
-export async function auditGrants(session: Session): Promise<GrantAuditResult> {
-  const webId = session.info.webId;
-  if (!session.info.isLoggedIn || !webId) {
+export async function auditGrants(gateway: PodGateway): Promise<GrantAuditResult> {
+  const webId = gateway.webId;
+  if (!webId) {
     throw new Error("User is not logged in");
   }
   const root = getStorageRoot(webId);
-  const events = await foldSharingLogEvents(sharedOutUri(webId), session);
+  const events = await foldSharingLogEvents(sharedOutUri(webId), gateway);
 
   const result: GrantAuditResult = {
     checked: 0,
@@ -365,7 +365,7 @@ export async function auditGrants(session: Session): Promise<GrantAuditResult> {
         targets = [
           ...new Set([
             resourceFile,
-            ...await getSubresourceAclTargets(resourceFile, session),
+            ...await getSubresourceAclTargets(resourceFile, gateway),
           ]),
         ];
       } catch {
@@ -373,7 +373,7 @@ export async function auditGrants(session: Session): Promise<GrantAuditResult> {
       }
       for (const t of targets) {
         result.checked++;
-        if (await hasReadGrant(t, e.grantee, session)) {
+        if (await hasReadGrant(t, e.grantee, gateway)) {
           result.drift.push({
             kind: "lingering-grant",
             grantee: e.grantee,
@@ -385,25 +385,25 @@ export async function auditGrants(session: Session): Promise<GrantAuditResult> {
     }
 
     // Same rule as the repair: a grant for a deleted resource is not drift.
-    const head = await session.fetch(resourceFile, { method: "HEAD" });
+    const head = await gateway.fetch(resourceFile, { method: "HEAD" });
     if (head.status === 404 || head.status === 410) {
       result.missing++;
       continue;
     }
 
     const targets: GrantTarget[] = e.kind === "Aggregation"
-      ? [{ url: resourceFile, isContainer: false }]
-      : await buildingGrantTargets(resourceFile, session, {
+      ? [{ uri: resourceFile, isContainer: false }]
+      : await buildingGrantTargets(resourceFile, gateway, {
         includeEnergyData: e.includesEnergy ?? true,
         years: e.years,
       });
     for (const t of targets) {
       result.checked++;
-      if (!(await hasReadGrant(t.url, e.grantee, session, t.isContainer))) {
+      if (!(await hasReadGrant(t.uri, e.grantee, gateway, t.isContainer))) {
         result.drift.push({
           kind: "missing-grant",
           grantee: e.grantee,
-          resource: t.url,
+          resource: t.uri,
         });
       }
     }
@@ -420,11 +420,11 @@ export async function auditGrants(session: Session): Promise<GrantAuditResult> {
 async function hasReadGrant(
   resourceUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
   isContainer = false,
 ): Promise<boolean> {
   const { namedNode } = DataFactory;
-  const store = await readStoreOrEmpty(`${resourceUri}.acl`, session);
+  const store = await readStoreOrEmpty(`${resourceUri}.acl`, gateway);
   return store
     .getQuads(null, namedNode(`${ACL_NS}agent`), namedNode(webId), null)
     .some(({ subject: s }) =>
@@ -441,16 +441,16 @@ async function hasReadGrant(
 async function postToInbox(
   buildingUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
   options: ShareOptions,
 ) {
   // The inbox message IS a sharing event (the recipient archives it into their
   // shared-in/ log on drainInbox) — same shape as shared-out/, carrying EVERY
   // share dimension (incl. per-year scope) so the recipient's record is as
   // self-sufficient as the owner's.
-  await postSharingEventToInbox(webId, session, {
+  await postSharingEventToInbox(webId, gateway, {
     type: "grant",
-    owner: session.info.webId!,
+    owner: gateway.webId!,
     grantee: webId,
     resource: buildingUri,
     kind: "Building",
@@ -472,10 +472,10 @@ async function postToInbox(
  */
 export async function getEnergyDataUris(
   buildingUri: string,
-  session: Session,
+  gateway: PodGateway,
   years?: number[],
 ): Promise<GrantTarget[]> {
-  const buildingResponse = await fetchFresh(buildingUri, session);
+  const buildingResponse = await fetchFresh(buildingUri, gateway);
   if (!buildingResponse.ok) {
     throw new Error(
       `Failed to fetch building data at ${buildingUri}: ${buildingResponse.statusText}`,
@@ -493,9 +493,9 @@ export async function getEnergyDataUris(
  */
 export async function getEnergyCertificateUri(
   buildingFileUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string | null> {
-  const store = await readStoreOrEmpty(buildingFileUri, session);
+  const store = await readStoreOrEmpty(buildingFileUri, gateway);
   const obj = store.getObjects(
     null,
     DataFactory.namedNode(GRAN_HAS_ENERGY_CERTIFICATE),
@@ -525,17 +525,17 @@ export async function getEnergyCertificateUri(
 export async function grantReadAccess(
   resourceUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
   isContainer = false,
 ): Promise<void> {
-  if (!session.info.isLoggedIn) {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
   const aclUri = `${resourceUri}.acl`;
-  const ownerWebId = session.info.webId as string;
+  const ownerWebId = gateway.webId as string;
   const authLabel = `Read_${webId.replace(/[^a-zA-Z0-9]/g, "_")}`;
   try {
-    await readModifyWrite(aclUri, session, (store, { created }) => {
+    await readModifyWrite(aclUri, gateway, (store, { created }) => {
       if (created) {
         writeAuthorization(store, aclUri, "ControlReadWrite", ownerWebId, {
           resourceUri,
@@ -593,29 +593,29 @@ function writeAuthorization(
 export async function shareAggregation(
   snapshotUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  if (!session.info.isLoggedIn) {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
 
   // Log first (ground truth), then enforcement, then notify — the same ordering
   // rationale as shareBuildingData. The aggregationId is recoverable from the snapshot
   // URL (`aggregations/snapshots/<aggregationId>.ttl`), so it isn't carried separately.
-  await recordAggregationSharing(snapshotUri, webId, session);
-  await grantReadAccess(snapshotUri, webId, session);
-  await postAggregationGrantToInbox(snapshotUri, webId, session);
+  await recordAggregationSharing(snapshotUri, webId, gateway);
+  await grantReadAccess(snapshotUri, webId, gateway);
+  await postAggregationGrantToInbox(snapshotUri, webId, gateway);
 }
 
 /** Post an aggregation access grant (the shared-event shape) to the inbox. */
 async function postAggregationGrantToInbox(
   snapshotUri: string,
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  await postSharingEventToInbox(webId, session, {
+  await postSharingEventToInbox(webId, gateway, {
     type: "grant",
-    owner: session.info.webId!,
+    owner: gateway.webId!,
     grantee: webId,
     resource: snapshotUri,
     kind: "Aggregation",

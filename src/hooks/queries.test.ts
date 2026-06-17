@@ -213,7 +213,7 @@ Deno.test("energyKeyFor changes when a building's dataset links change (not only
   // MUST change, else the bulk energy read stays stale after an energy write.
   const before = energyKeyFor([mk("1", []), mk("2", [])]);
   const after = energyKeyFor([
-    mk("1", [{ url: "u", year: 2099, granularity: "P1Y", scenario: "actual" }]),
+    mk("1", [{ uri: "u", year: 2099, granularity: "P1Y", scenario: "actual" }]),
     mk("2", []),
   ]);
   assert.notEqual(before, after);
@@ -222,14 +222,14 @@ Deno.test("energyKeyFor changes when a building's dataset links change (not only
   const a = energyKeyFor([
     mk("2", []),
     mk("1", [
-      { url: "u", year: 2099, granularity: "P1Y", scenario: "actual" },
-      { url: "v", year: 2098, granularity: "P1Y", scenario: "planned" },
+      { uri: "u", year: 2099, granularity: "P1Y", scenario: "actual" },
+      { uri: "v", year: 2098, granularity: "P1Y", scenario: "planned" },
     ]),
   ]);
   const b = energyKeyFor([
     mk("1", [
-      { url: "v", year: 2098, granularity: "P1Y", scenario: "planned" },
-      { url: "u", year: 2099, granularity: "P1Y", scenario: "actual" },
+      { uri: "v", year: 2098, granularity: "P1Y", scenario: "planned" },
+      { uri: "u", year: 2099, granularity: "P1Y", scenario: "actual" },
     ]),
     mk("2", []),
   ]);
@@ -371,11 +371,11 @@ Deno.test("useAnnualEnergy splits actual vs planned, sorted by year", async () =
     id: "b1",
     uri: `${B1}#b1`,
     energyDatasets: [
-      { url: `${ENERGY}#ds`, year: 2024, granularity: "P1Y", scenario: "actual" },
-      { url: `${EARLIER}#ds`, year: 2023, granularity: "P1Y", scenario: "actual" },
-      { url: `${PLANNED}#ds`, year: 2024, granularity: "P1Y", scenario: "planned" },
+      { uri: `${ENERGY}#ds`, year: 2024, granularity: "P1Y", scenario: "actual" },
+      { uri: `${EARLIER}#ds`, year: 2023, granularity: "P1Y", scenario: "actual" },
+      { uri: `${PLANNED}#ds`, year: 2024, granularity: "P1Y", scenario: "planned" },
       // A 15-min series ref must be ignored (annual aggregation only).
-      { url: `${ENERGY}#s`, year: 2024, granularity: "PT15M", scenario: "actual" },
+      { uri: `${ENERGY}#s`, year: 2024, granularity: "PT15M", scenario: "actual" },
     ],
   } as unknown as BuildingType;
   try {
@@ -413,10 +413,10 @@ Deno.test("useAnnualDatasets returns the raw annual datasets, ignoring series re
     id: "b1",
     uri: `${B1}#b1`,
     energyDatasets: [
-      { url: `${ENERGY}#ds`, year: 2024, granularity: "P1Y", scenario: "actual" },
-      { url: `${PLANNED}#ds`, year: 2024, granularity: "P1Y", scenario: "planned" },
+      { uri: `${ENERGY}#ds`, year: 2024, granularity: "P1Y", scenario: "actual" },
+      { uri: `${PLANNED}#ds`, year: 2024, granularity: "P1Y", scenario: "planned" },
       // A 15-min series ref must be ignored (annual datasets only).
-      { url: `${ENERGY}#s`, year: 2024, granularity: "PT15M", scenario: "actual" },
+      { uri: `${ENERGY}#s`, year: 2024, granularity: "PT15M", scenario: "actual" },
     ],
   } as unknown as BuildingType;
   try {
@@ -523,14 +523,14 @@ Deno.test("useSeriesDays lists the day files behind series refs, sorted", async 
   }));
   const { wrapper } = makeWrapper();
   const refs = [
-    { url: `${SERIES}#ds`, year: 2024, granularity: "PT15M", scenario: "actual" as const },
+    { uri: `${SERIES}#ds`, year: 2024, granularity: "PT15M", scenario: "actual" as const },
   ];
   try {
     const { result } = renderHook(() => useSeriesDays(refs), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
     assert.deepEqual(result.current.data, [
-      { day: "2024-01-01", url: `${D1}${ID}.ttl` },
-      { day: "2024-01-02", url: `${D2}${ID}.ttl` },
+      { day: "2024-01-01", uri: `${D1}${ID}.ttl` },
+      { day: "2024-01-02", uri: `${D2}${ID}.ttl` },
     ]);
   } finally {
     _setSessionForTesting(null);
@@ -612,8 +612,8 @@ Deno.test("useAggregationDetail degrades a failed auto-compute to definition-onl
   const fake = makeFakeSession({
     webId: WEBID,
     resources: { ...FIXTURES, [AGG_DEF]: AGG_DEF_TTL },
-    respond: (url, init) =>
-      init?.method === "PUT" && url.startsWith(AGG_SNAP)
+    respond: (uri, init) =>
+      init?.method === "PUT" && uri.startsWith(AGG_SNAP)
         ? new Response("boom", { status: 500 })
         : undefined,
   });

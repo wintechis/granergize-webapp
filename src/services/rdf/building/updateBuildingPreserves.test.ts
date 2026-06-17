@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
@@ -12,9 +13,9 @@ const FILE = "https://pod.example/granergize/buildings/b1.ttl";
 const SUBJECT = `${FILE}#it`;
 
 /** A stateful single-resource fake: GET serves the body, PUT overwrites it. */
-function podWith(initialBody: string): { session: Session; body: () => string } {
+function podWith(initialBody: string): { session: PodGateway; body: () => string } {
   let body = initialBody;
-  const session = {
+  const session = sessionGateway({
     info: { isLoggedIn: true, webId: "https://me.example/profile/card#me" },
     fetch: (_input: string | URL | Request, init?: RequestInit) => {
       const method = (init?.method ?? "GET").toUpperCase();
@@ -29,7 +30,7 @@ function podWith(initialBody: string): { session: Session; body: () => string } 
         }),
       );
     },
-  } as unknown as Session;
+  } as unknown as Session);
   return { session, body: () => body };
 }
 

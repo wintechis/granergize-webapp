@@ -4,7 +4,7 @@ import { splitEnergyDatasets } from "./energyResolution.ts";
 import type { EnergyDatasetRef } from "../types.ts";
 
 const ref = (granularity: string, year = 2024): EnergyDatasetRef => ({
-  url: `https://pod.example/b/energy/${year}-${granularity}.ttl#ds`,
+  uri: `https://pod.example/b/energy/${year}-${granularity}.ttl#ds`,
   year,
   granularity,
   scenario: "actual",

@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the ShareAggregation core is callable HEADLESS: driven
@@ -28,7 +29,7 @@ interface Call {
  * each recipient's profile (so inbox discovery resolves their storage root) and
  * inbox elsewhere. Records every call so the per-recipient writes can be counted.
  */
-function sharePod(): { session: Session; calls: Call[] } {
+function sharePod(): { session: PodGateway; calls: Call[] } {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const store: Record<string, string> = {
     ["https://bob.example/profile/card"]:
@@ -57,7 +58,7 @@ function sharePod(): { session: Session; calls: Call[] } {
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: OWNER }, fetch } as unknown as Session),
     calls,
   };
 }

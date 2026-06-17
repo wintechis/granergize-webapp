@@ -1,6 +1,6 @@
 // Intent core (React-free) for DeleteAttachment. See ./README.md for the
 // core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { deleteAttachment } from "../services/attachmentManager.ts";
 import type { Settled } from "./outcomes.ts";
 
@@ -11,7 +11,7 @@ export interface DeleteAttachmentParams {
   /** The building subject's IRI (`#b` in the file). */
   subjectUri: string;
   /** The IRI of the attachment resource to delete. */
-  url: string;
+  uri: string;
 }
 
 /**
@@ -20,9 +20,9 @@ export interface DeleteAttachmentParams {
  * the buildings invalidation.
  */
 export async function deleteAttachmentCore(
-  session: Session,
+  gateway: PodGateway,
   params: DeleteAttachmentParams,
 ): Promise<Settled> {
-  await deleteAttachment(params.fileUri, params.subjectUri, params.url, session);
+  await deleteAttachment(params.fileUri, params.subjectUri, params.uri, gateway);
   return { ok: true };
 }

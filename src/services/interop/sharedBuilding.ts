@@ -1,4 +1,4 @@
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { Parser } from "n3";
 import { fetchFresh } from "../pod/podFetch.ts";
 import { parseBuildings } from "../rdf/building/buildingParser.ts";
@@ -27,9 +27,9 @@ export interface SharedBuildingEntry {
  */
 export async function loadSharedBuilding(
   entry: SharedBuildingEntry,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<BuildingType | null> {
-  const res = await fetchFresh(entry.buildingUri, session);
+  const res = await fetchFresh(entry.buildingUri, gateway);
   // 404/410 = deleted, 403 = the owner revoked your access — both mean "gone",
   // a normal lifecycle event for a building shared WITH you (not a failure).
   // Other non-ok statuses are real and still throw.
@@ -42,7 +42,7 @@ export async function loadSharedBuilding(
   // id as on the owner path — one identity per building, however it loaded.
   let ownRoot: string | undefined;
   try {
-    ownRoot = session.info.webId ? getStorageRoot(session.info.webId) : undefined;
+    ownRoot = gateway.webId ? getStorageRoot(gateway.webId) : undefined;
   } catch {
     ownRoot = undefined; // headless callers without a primed root cache
   }

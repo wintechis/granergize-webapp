@@ -1,3 +1,4 @@
+import { sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -218,19 +219,19 @@ Deno.test("loadComputedSnapshot: 404 means absence (null), a transient failure T
   );
 
   // 403 (owner revoked the recipient's access) is also "gone", not a failure.
-  const forbidden = {
+  const forbidden = sessionGateway({
     info: { webId: WEBID, isLoggedIn: true },
     fetch: () => Promise.resolve(new Response("forbidden", { status: 403 })),
-  } as unknown as Session;
+  } as unknown as Session);
   assert.equal(
     await loadComputedSnapshot(forbidden, `${SNAPSHOTS}aggregation-x.ttl`),
     null,
   );
 
-  const throttled = {
+  const throttled = sessionGateway({
     info: { webId: WEBID, isLoggedIn: true },
     fetch: () => Promise.resolve(new Response("slow down", { status: 503 })),
-  } as unknown as Session;
+  } as unknown as Session);
   await assert.rejects(
     () => loadComputedSnapshot(throttled, `${SNAPSHOTS}aggregation-x.ttl`),
     /HTTP 503/,

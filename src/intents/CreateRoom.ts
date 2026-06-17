@@ -1,7 +1,7 @@
 // Intent core (React-free) for CreateRoom. See ./README.md for the core/adapter
 // split. The 6 cache-patching room cores return the normalized room URI the
 // adapter's `patchRooms` race-guard folds into the `["rooms", webId]` cache.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { createRoom } from "../services/interop/dataRoom.ts";
 
 /**
@@ -20,6 +20,6 @@ export interface RoomOutcome {
  * create a new data room and return its (already-normalized) URI. The adapter's
  * `patchRooms` adds it to `known` and sets it `current`.
  */
-export async function createRoomCore(session: Session): Promise<RoomOutcome> {
-  return { room: await createRoom(session) };
+export async function createRoomCore(gateway: PodGateway): Promise<RoomOutcome> {
+  return { room: await createRoom(gateway) };
 }

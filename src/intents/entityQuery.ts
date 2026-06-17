@@ -25,7 +25,7 @@
  * has-energy, has-attachment, snapshot-exists) — both reuse paths already populate
  * those facts, so no extra fetch is needed.
  */
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { Parser } from "n3";
 import type { Quad } from "@rdfjs/types";
 import type { BuildingType } from "../types.ts";
@@ -53,17 +53,17 @@ import { getAggregationDefinition } from "../services/aggregation/aggregationMan
  */
 async function resolveBuilding(
   iri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<IntentObject | undefined> {
   const fileUri = buildingFileUri(iri);
-  const res = await fetchFresh(fileUri, session);
+  const res = await fetchFresh(fileUri, gateway);
   if (!res.ok) return undefined;
 
   const quads: Quad[] = new Parser({ baseIRI: fileUri }).parse(await res.text());
 
   // The viewer's storage root decides own-vs-shared (and shortens the id to its
   // storage-relative form for own buildings — the same call `loadBuildings` makes).
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   let storageRoot: string | undefined;
   if (webId) {
     try {
@@ -107,13 +107,13 @@ async function resolveBuilding(
  */
 async function resolveAggregation(
   iri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<IntentObject | undefined> {
   const fileUri = buildingFileUri(iri); // strip any fragment
   const stem = fileUri.split("/").filter(Boolean).pop() ?? "";
   const aggregationId = stem.replace(/\.ttl$/, "");
   if (!aggregationId) return undefined;
-  const def = await getAggregationDefinition(session, aggregationId);
+  const def = await getAggregationDefinition(gateway, aggregationId);
   return def ?? undefined;
 }
 
@@ -126,13 +126,13 @@ async function resolveAggregation(
 export function resolve(
   entity: IntentEntity,
   iri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<IntentObject | undefined> {
   switch (entity) {
     case "building":
-      return resolveBuilding(iri, session);
+      return resolveBuilding(iri, gateway);
     case "aggregation":
-      return resolveAggregation(iri, session);
+      return resolveAggregation(iri, gateway);
     default:
       return Promise.resolve(undefined);
   }
@@ -149,9 +149,9 @@ export async function applicableForIri(
   entity: IntentEntity,
   iri: string,
   viewer: ViewerContext,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<IntentEntry[]> {
-  const object = await resolve(entity, iri, session);
+  const object = await resolve(entity, iri, gateway);
   if (object === undefined) return [];
   return applicableIntents(object, viewer);
 }

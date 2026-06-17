@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 //
 // Tier-1 proof that the SaveOrganisation core is callable HEADLESS, and that the
@@ -26,7 +27,7 @@ interface Call {
  * GET→PUT of `saveOrganization` resolves) and records every call so the save vs
  * logo-upload PUTs can be distinguished by URL.
  */
-function orgPod(): { session: Session; calls: Call[] } {
+function orgPod(): { session: PodGateway; calls: Call[] } {
   const store: Record<string, string> = { [PROFILE_DOC]: PROFILE_TTL };
   const calls: Call[] = [];
   const fetch = (input: string | URL | Request, init?: RequestInit): Promise<Response> => {
@@ -43,7 +44,7 @@ function orgPod(): { session: Session; calls: Call[] } {
     );
   };
   return {
-    session: { info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { isLoggedIn: true, webId: WEBID }, fetch } as unknown as Session),
     calls,
   };
 }

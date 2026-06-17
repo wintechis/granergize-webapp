@@ -1,7 +1,7 @@
 // Intent core (React-free) for SaveOrganisation. See ./README.md. The optional
 // logo upload is part of the intent's composition — it lives INSIDE the core
 // (save the org node, then upload the logo if one was supplied) → {@link Settled}.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import {
   type Organization,
   saveOrganization,
@@ -22,14 +22,14 @@ export interface SaveOrganisationParams {
  * save the organisation node in the WebID profile, then upload the logo when one
  * is supplied (the upload is part of the same intent — domain composition stays in
  * the core). The hook is a thin adapter owning only the `agent`/`agentOrg`
- * invalidations. Takes `session` as an argument — no `getSession()`, no React — so
+ * invalidations. Takes `gateway` as an argument — no `getSession()`, no React — so
  * it is callable headless.
  */
 export async function saveOrganisationCore(
-  session: Session,
+  gateway: PodGateway,
   params: SaveOrganisationParams,
 ): Promise<Settled> {
-  await saveOrganization(session, params.org);
-  if (params.logo) await uploadOrgLogo(params.logo, session);
+  await saveOrganization(gateway, params.org);
+  if (params.logo) await uploadOrgLogo(params.logo, gateway);
   return { ok: true };
 }

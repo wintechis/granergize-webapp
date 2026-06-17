@@ -1,6 +1,6 @@
+import type { PodGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import type { Session } from "@inrupt/solid-client-authn-browser";
 import { resolveAgent, resolveAgentOrg } from "./agentResolver.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";
 import { makeFakeSession } from "../testing/fakeSession.ts";
@@ -9,7 +9,7 @@ const WEBID = "https://alice.example/profile/card#me";
 const DOC = "https://alice.example/profile/card";
 
 /** Fake offline session: serves the given Turtle for the profile doc URL, 404 else. */
-function makeSession(profileTtl?: string): Session {
+function makeSession(profileTtl?: string): PodGateway {
   return makeFakeSession({
     webId: WEBID,
     resources: profileTtl === undefined ? {} : { [DOC]: profileTtl },

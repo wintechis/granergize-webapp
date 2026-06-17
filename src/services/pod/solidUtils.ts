@@ -1,7 +1,7 @@
 /**
  * Utility functions for working with Solid POD URLs and WebIDs
  */
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./podGateway.ts";
 import { DataFactory } from "n3";
 import { fetchStoreWithHeaders } from "./podFetch.ts";
 import { loadProfileStore } from "./profileDocument.ts";
@@ -18,31 +18,31 @@ const PIM_NS = "http://www.w3.org/ns/pim/space#";
  * pod boundary — so path-based Pods (`…/alice/`) resolve to the pod, not the host.
  */
 async function discoverStorageRoot(
-  session: Session,
+  gateway: PodGateway,
   docUri: string,
 ): Promise<string | null> {
   const origin = `${new URL(docUri).origin}/`;
   // Start at the WebID document's container.
-  let url = docUri.replace(/[^/]*$/, "");
+  let uri = docUri.replace(/[^/]*$/, "");
   for (let i = 0; i < 8; i++) {
     const { store } = await fetchStoreWithHeaders(
-      url,
-      session,
+      uri,
+      gateway,
       "fetch container while walking to storage root",
     );
     if (store) {
       const isStorage = store.getQuads(
-        DataFactory.namedNode(url),
+        DataFactory.namedNode(uri),
         DataFactory.namedNode(RDF_TYPE),
         DataFactory.namedNode(`${PIM_NS}Storage`),
         null,
       ).length > 0;
-      if (isStorage) return url;
+      if (isStorage) return uri;
     }
-    if (url === origin) break;
-    const parent = url.replace(/[^/]+\/$/, "");
-    if (parent === url || !parent.startsWith(origin)) break;
-    url = parent;
+    if (uri === origin) break;
+    const parent = uri.replace(/[^/]+\/$/, "");
+    if (parent === uri || !parent.startsWith(origin)) break;
+    uri = parent;
   }
   return null;
 }
@@ -67,8 +67,8 @@ const storageRootCache = new Map<string, string>();
  * @returns the storage root URL with a trailing slash
  * @operation query
  */
-export async function resolveStorageRoot(session: Session): Promise<string> {
-  const webId = session.info.webId;
+export async function resolveStorageRoot(gateway: PodGateway): Promise<string> {
+  const webId = gateway.webId;
   if (!webId) throw new Error("No WebID in session");
 
   // Idempotent: once resolved, return the cached root without re-fetching, so it
@@ -79,7 +79,7 @@ export async function resolveStorageRoot(session: Session): Promise<string> {
   const docUri = webId.split("#")[0];
   // Read the profile via the shared cache so this first read is reused by the
   // org/avatar lookups that follow at login (one fetch instead of several).
-  const store = await loadProfileStore(session);
+  const store = await loadProfileStore(gateway);
   if (!store) {
     throw new Error(`Cannot read WebID profile at ${docUri}`);
   }
@@ -89,7 +89,7 @@ export async function resolveStorageRoot(session: Session): Promise<string> {
     null,
   );
   const fromTriple = roots[0]?.value;
-  const root = fromTriple ?? await discoverStorageRoot(session, docUri);
+  const root = fromTriple ?? await discoverStorageRoot(gateway, docUri);
   if (!root) {
     throw new Error(
       `Cannot locate the Pod storage root for ${docUri}: no pim:storage on the ` +
@@ -234,12 +234,12 @@ export function podResources(webId: string): {
  */
 export async function resolveStorageRootForWebId(
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string> {
   const docUri = webId.split("#")[0];
   const { store } = await fetchStoreWithHeaders(
     docUri,
-    session,
+    gateway,
     "fetch WebID profile for storage-root resolution",
   );
   if (store) {
@@ -250,7 +250,7 @@ export async function resolveStorageRootForWebId(
     )[0]?.value;
     if (triple) return triple.endsWith("/") ? triple : `${triple}/`;
   }
-  const walked = await discoverStorageRoot(session, docUri);
+  const walked = await discoverStorageRoot(gateway, docUri);
   if (!walked) {
     throw new Error(`Cannot locate the storage root for ${webId}`);
   }

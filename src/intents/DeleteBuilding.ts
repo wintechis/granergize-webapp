@@ -1,6 +1,6 @@
 // Intent core (React-free) for DeleteBuilding. See ./README.md for the
 // core/adapter split.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { deleteBuildingResource } from "../services/buildingActions.ts";
 import type { BuildingType } from "../types.ts";
 
@@ -29,9 +29,9 @@ export interface DeleteBuildingOutcome {
  * the adapter.
  */
 export async function deleteBuildingCore(
-  session: Session,
+  gateway: PodGateway,
   params: DeleteBuildingParams,
 ): Promise<DeleteBuildingOutcome> {
-  await deleteBuildingResource(session, params.building);
+  await deleteBuildingResource(gateway, params.building);
   return { uri: params.building.uri };
 }

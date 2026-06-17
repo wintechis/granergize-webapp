@@ -14,7 +14,7 @@ import { AgentLabel } from "../AgentLabel.tsx";
 import { RefLink } from "../detail/DetailView.tsx";
 import IconAction from "../IconAction.tsx";
 import { MARKER_OWNED_COLOR, MARKER_SHARED_COLOR } from "../../constants/chartColors.ts";
-import { getSession } from "../../hooks/session.ts";
+import { getGateway } from "../../hooks/session.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { attachAnnualData } from "../../services/rdf/building/buildingSerializer.ts";
 import { buildingToXlsx } from "../../services/rdf/buildingWorkbook.ts";
@@ -70,7 +70,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
   // the filename-safe form of the id (an IRI reference browsers mangle in names).
   const handleDownload = async () => {
     try {
-      const [enriched] = await attachAnnualData([building], getSession());
+      const [enriched] = await attachAnnualData([building], getGateway());
       downloadXlsx(
         await buildingToXlsx(enriched),
         `building-${buildingIdStem(building.id)}.xlsx`,

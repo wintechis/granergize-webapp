@@ -2,10 +2,12 @@
 // dispatch with Command–Query Separation enforced at the TYPE level. See
 // ./README.md §"The invoke / query layer".
 //
-// This module imports the cores + `Session` ONLY — no React, no `getSession`,
-// no React Query — so a headless caller (a palette, a deep link, an LLM tool,
-// the bench seeder, a Tier-2 runner) hits the same entry point the UI does.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+// This module imports the cores + the `PodGateway` port ONLY — no React, no
+// `getSession`, no React Query — so a headless caller (a palette, a deep link,
+// an LLM tool, the bench seeder, a Tier-2 runner) hits the same entry point the
+// UI does. A `Session` satisfies `PodGateway`, so the React hooks pass
+// `getSession()` straight through.
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { shareBuildingCore } from "./shareBuilding.ts";
 import { checkSharingConsistencyCore } from "./checkSharingConsistency.ts";
 import { exportArchiveCore } from "./exportArchive.ts";
@@ -65,12 +67,12 @@ export const WRITE_CORES = {
   ShareAggregation: shareAggregationCore,
   RevokeBuildingAccess: revokeBuildingAccessCore,
   // Paramless: the inbox drain / ACL rebuild are collection-wide. The `(s, _p)`
-  // wrapper keeps every core's `(session, params)` arity uniform (see AuditGrants).
-  CheckInbox: (s: Session, p: Record<never, never>) => {
+  // wrapper keeps every core's `(gateway, params)` arity uniform (see AuditGrants).
+  CheckInbox: (s: PodGateway, p: Record<never, never>) => {
     void p;
     return checkInboxCore(s);
   },
-  ReissueGrants: (s: Session, p: Record<never, never>) => {
+  ReissueGrants: (s: PodGateway, p: Record<never, never>) => {
     void p;
     return reissueGrantsCore(s);
   },
@@ -78,7 +80,7 @@ export const WRITE_CORES = {
   // The 6 cache-patching cores return the normalized room URI / registry datum
   // the adapter's `patchRooms` race-guard folds into the cache (the reachability/
   // existence throws stay IN the core). CreateRoom + SeedDemoRooms are paramless.
-  CreateRoom: (s: Session, p: Record<never, never>) => {
+  CreateRoom: (s: PodGateway, p: Record<never, never>) => {
     void p;
     return createRoomCore(s);
   },
@@ -88,21 +90,21 @@ export const WRITE_CORES = {
   AddRoom: addRoomCore,
   RemoveBookmark: removeBookmarkCore,
   SaveRoles: saveRolesCore,
-  SeedDemoRooms: (s: Session, p: Record<never, never>) => {
+  SeedDemoRooms: (s: PodGateway, p: Record<never, never>) => {
     void p;
     return seedDemoRoomsCore(s);
   },
   // ── Contacts ─────────────────────────────────────────────────────────────────
   SaveContact: saveContactCore,
   RemoveContact: removeContactCore,
-  SeedDemoContacts: (s: Session, p: Record<never, never>) => {
+  SeedDemoContacts: (s: PodGateway, p: Record<never, never>) => {
     void p;
     return seedDemoContactsCore(s);
   },
   // ── Organisation ─────────────────────────────────────────────────────────────
   SaveOrganisation: saveOrganisationCore,
   // ── Account ──────────────────────────────────────────────────────────────────
-  SeedDemoBuildings: (s: Session, p: Record<never, never>) => {
+  SeedDemoBuildings: (s: PodGateway, p: Record<never, never>) => {
     void p;
     return seedDemoBuildingsCore(s);
   },
@@ -113,14 +115,14 @@ export const WRITE_CORES = {
 /**
  * Read-effect cores keyed by the catalog `name`. A read core returns its VALUE
  * (the audit report, the archive blob). `AuditGrants` ignores its params (the
- * audit is collection-wide); `(s, _p) => …` keeps every core's `(session, params)`
+ * audit is collection-wide); `(s, _p) => …` keeps every core's `(gateway, params)`
  * arity so the dispatch types stay uniform.
  */
 export const READ_CORES = {
   // AuditGrants is collection-wide — it takes no params. Declaring the empty
-  // param type keeps every read core's `(session, params)` arity uniform; the
+  // param type keeps every read core's `(gateway, params)` arity uniform; the
   // arg is read once into `void` so the dispatch maps stay homogeneous.
-  AuditGrants: (s: Session, p: Record<never, never>) => {
+  AuditGrants: (s: PodGateway, p: Record<never, never>) => {
     void p;
     return checkSharingConsistencyCore(s);
   },
@@ -171,13 +173,13 @@ export class IntentNotInvocableError extends Error {
 export function invoke<N extends WriteIntentName>(
   name: N,
   params: CoreParams<N>,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<WriteOutcome<N>> {
   const core = WRITE_CORES[name] as unknown as (
-    s: Session,
+    s: PodGateway,
     p: CoreParams<N>,
   ) => Promise<WriteOutcome<N>>;
-  return core(session, params);
+  return core(gateway, params);
 }
 
 /**
@@ -187,13 +189,13 @@ export function invoke<N extends WriteIntentName>(
 export function query<N extends ReadIntentName>(
   name: N,
   params: CoreParams<N>,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<ReadValue<N>> {
   const core = READ_CORES[name] as unknown as (
-    s: Session,
+    s: PodGateway,
     p: CoreParams<N>,
   ) => Promise<ReadValue<N>>;
-  return core(session, params);
+  return core(gateway, params);
 }
 
 /**
@@ -204,7 +206,7 @@ export function query<N extends ReadIntentName>(
 export function invokeByName(
   name: string,
   params: unknown,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<unknown> {
   if (!(name in WRITE_CORES)) {
     throw new IntentNotInvocableError(name, "write");
@@ -212,7 +214,7 @@ export function invokeByName(
   return invoke(
     name as WriteIntentName,
     params as CoreParams<WriteIntentName>,
-    session,
+    gateway,
   );
 }
 
@@ -223,7 +225,7 @@ export function invokeByName(
 export function queryByName(
   name: string,
   params: unknown,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<unknown> {
   if (!(name in READ_CORES)) {
     throw new IntentNotInvocableError(name, "read");
@@ -231,6 +233,6 @@ export function queryByName(
   return query(
     name as ReadIntentName,
     params as CoreParams<ReadIntentName>,
-    session,
+    gateway,
   );
 }

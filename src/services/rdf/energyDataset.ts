@@ -1,4 +1,4 @@
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Parser, Store } from "n3";
 import {
   CONSUMPTION_NS,
@@ -191,24 +191,24 @@ export function seriesDailyFileUri(
  * List a series dataset's daily chunk files. The descriptor's `datasetLocation`
  * is its year container; the day chunks are the same-`{id}` leaves under that
  * year's time-first `{month}/{day}/` sub-containers. Walks the year → month →
- * day containers, collecting `…/{id}.ttl` leaves. Each entry is `{ day, url }` —
- * `day` the file's `YYYY-MM-DD` (recovered from its path), `url` the chunk to
+ * day containers, collecting `…/{id}.ttl` leaves. Each entry is `{ day, uri }` —
+ * `day` the file's `YYYY-MM-DD` (recovered from its path), `uri` the chunk to
  * fetch — sorted ascending by day. A missing/inaccessible container yields `[]`.
  * @operation query
  */
 export async function listSeriesDays(
-  session: Session,
+  gateway: PodGateway,
   ref: EnergyDatasetRef,
-): Promise<{ day: string; url: string }[]> {
-  const root = observationsRootForObservation(ref.url);
-  const parsed = parseObservationUri(root, ref.url);
+): Promise<{ day: string; uri: string }[]> {
+  const root = observationsRootForObservation(ref.uri);
+  const parsed = parseObservationUri(root, ref.uri);
   if (!parsed) return [];
   const { year, id } = parsed;
-  const out: { day: string; url: string }[] = [];
+  const out: { day: string; uri: string }[] = [];
 
   const months = (await listDirectChildren(
     observationContainer(root, { year }),
-    session,
+    gateway,
   )) ?? [];
   await Promise.all(
     months
@@ -216,18 +216,18 @@ export async function listSeriesDays(
       .map(async (monthUrl) => {
         const month = Number(monthUrl.replace(/\/$/, "").split("/").pop());
         if (!Number.isInteger(month)) return;
-        const days = (await listDirectChildren(monthUrl, session)) ?? [];
+        const days = (await listDirectChildren(monthUrl, gateway)) ?? [];
         await Promise.all(
           days
             .filter((u) => u.endsWith("/"))
             .map(async (dayUrl) => {
               const day = Number(dayUrl.replace(/\/$/, "").split("/").pop());
               if (!Number.isInteger(day)) return;
-              const files = (await listDirectChildren(dayUrl, session)) ?? [];
+              const files = (await listDirectChildren(dayUrl, gateway)) ?? [];
               for (const f of files) {
                 if (f === `${dayUrl}${id}.ttl`) {
                   const date = `${year}-${pad(month)}-${pad(day)}`;
-                  out.push({ day: date, url: f });
+                  out.push({ day: date, uri: f });
                 }
               }
             }),
@@ -270,7 +270,7 @@ export function parseDatasetLink(
       ?.value;
     if (sc === `${CONSUMPTION_NS}Planned`) scenario = "planned";
   }
-  return { url: linkUri, year: parsed.year, granularity, scenario };
+  return { uri: linkUri, year: parsed.year, granularity, scenario };
 }
 
 /**
@@ -311,7 +311,7 @@ export function findDatasetLink(
       ref.year === year && ref.granularity === granularity &&
       ref.scenario === scenario
     ) {
-      return ref.url;
+      return ref.uri;
     }
   }
   return null;
@@ -378,23 +378,23 @@ export function serializeEnergyDataset(ds: EnergyDataset): string {
 /**
  * Fetch and parse a set of energy datasets (given their refs) concurrently — for
  * the per-building detail views that need the full annual history. Unreadable
- * datasets are skipped. `fetchFn` is typically `session.fetch.bind(session)`.
+ * datasets are skipped. `fetchFn` is typically `gateway.fetch.bind(gateway)`.
  * @operation query
  */
 export async function loadEnergyDatasets(
   refs: EnergyDatasetRef[],
-  fetchFn: (url: string) => Promise<Response>,
+  fetchFn: (uri: string) => Promise<Response>,
 ): Promise<EnergyDataset[]> {
   const out: EnergyDataset[] = [];
   await Promise.all(refs.map(async (ref) => {
     try {
-      const fileUri = ref.url.split("#")[0];
+      const fileUri = ref.uri.split("#")[0];
       const res = await fetchFn(fileUri);
       if (!res.ok) return;
       const store = new Store(
         new Parser({ baseIRI: fileUri }).parse(await res.text()),
       );
-      const ds = parseEnergyDataset(store, ref.url);
+      const ds = parseEnergyDataset(store, ref.uri);
       if (ds) out.push(ds);
     } catch (err) {
       logError("load energy dataset", err);

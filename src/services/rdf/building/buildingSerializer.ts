@@ -1,4 +1,4 @@
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../../pod/podGateway.ts";
 import { DataFactory, Parser, Store, Writer } from "n3";
 import type { AnnualData, BuildingType, Scenario } from "../../../types.ts";
 import {
@@ -522,7 +522,7 @@ function addProvenance(
  */
 export interface EnergyDatasetLink {
   /** The dataset node IRI (the time-first `observations/…/{id}.ttl#ds`). */
-  url: string;
+  uri: string;
   granularity: string;
   scenario: Scenario;
 }
@@ -566,7 +566,7 @@ export function serializeBuildingToTurtle(
   // separately by writeBuildingEnergy). One predicate, no inline observations —
   // plus the dataset's granularity/scenario re-stated so phase-1 needn't fetch.
   for (const ds of energyDatasets ?? []) {
-    const node = namedNode(ds.url);
+    const node = namedNode(ds.uri);
     store.addQuad(subject, namedNode(`${CONSUMPTION_NS}hasEnergyDataset`), node);
     store.addQuad(
       node,
@@ -601,7 +601,7 @@ function linkEnergyDatasetInStore(
   link: EnergyDatasetLink,
 ): void {
   const subject = namedNode(buildingSubjectUri);
-  const node = namedNode(link.url);
+  const node = namedNode(link.uri);
   const pred = namedNode(`${CONSUMPTION_NS}hasEnergyDataset`);
   store.removeQuads(store.getQuads(subject, pred, node, null));
   store.removeQuads(
@@ -637,7 +637,7 @@ function linkEnergyDatasetInStore(
  * @operation mutation
  */
 export async function writeEnergyYear(
-  session: Session,
+  gateway: PodGateway,
   buildingFileUri: string,
   buildingSubjectUri: string,
   ds: EnergyDataset,
@@ -646,7 +646,7 @@ export async function writeEnergyYear(
 
   // Reuse the existing dataset's id when this (year, granularity, scenario) is
   // already linked, so a re-save overwrites it rather than orphaning a file.
-  const store = await readBuildingStore(session, buildingFileUri);
+  const store = await readBuildingStore(gateway, buildingFileUri);
   const reuse = store
     ? findDatasetLink(store, buildingSubjectUri, ds.year, ds.granularity, ds.scenario)
     : null;
@@ -654,7 +654,7 @@ export async function writeEnergyYear(
     datasetNodeUri(datasetFileUri(root, ds.year, mintDatasetId()));
   const fileUri = nodeUri.split("#")[0];
 
-  const put = await session.fetch(fileUri, {
+  const put = await gateway.fetch(fileUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: serializeEnergyDataset({ ...ds, building: buildingSubjectUri }),
@@ -663,10 +663,10 @@ export async function writeEnergyYear(
     throw new Error(`Failed to write energy dataset: ${put.status} ${put.statusText}`);
   }
 
-  await readModifyWrite(buildingFileUri, session, (s, { created }) => {
+  await readModifyWrite(buildingFileUri, gateway, (s, { created }) => {
     if (created) return false; // the building file must already exist
     linkEnergyDatasetInStore(s, buildingSubjectUri, {
-      url: nodeUri,
+      uri: nodeUri,
       granularity: ds.granularity,
       scenario: ds.scenario,
     });
@@ -675,11 +675,11 @@ export async function writeEnergyYear(
 
 /** Fetch + parse the building file into a store, or null if missing/unreadable. */
 async function readBuildingStore(
-  session: Session,
+  gateway: PodGateway,
   buildingFileUri: string,
 ): Promise<Store | null> {
   try {
-    const res = await session.fetch(buildingFileUri);
+    const res = await gateway.fetch(buildingFileUri);
     if (!res.ok) return null;
     return new Store(new Parser({ baseIRI: buildingFileUri }).parse(await res.text()));
   } catch {
@@ -696,28 +696,28 @@ async function readBuildingStore(
  * @operation mutation
  */
 export async function deleteEnergyYear(
-  session: Session,
+  gateway: PodGateway,
   buildingFileUri: string,
   buildingSubjectUri: string,
   ds: Pick<EnergyDataset, "year" | "granularity" | "scenario">,
 ): Promise<void> {
   // Locate the linked dataset by (year, granularity, scenario) — the time-first
   // path no longer encodes those, so the building's own links are the index.
-  const store = await readBuildingStore(session, buildingFileUri);
+  const store = await readBuildingStore(gateway, buildingFileUri);
   const nodeUri = store
     ? findDatasetLink(store, buildingSubjectUri, ds.year, ds.granularity, ds.scenario)
     : null;
   if (!nodeUri) return; // nothing linked — already gone
 
   const fileUri = nodeUri.split("#")[0];
-  const del = await session.fetch(fileUri, { method: "DELETE" });
+  const del = await gateway.fetch(fileUri, { method: "DELETE" });
   if (!del.ok && del.status !== 404) {
     throw new Error(
       `Failed to delete energy dataset: ${del.status} ${del.statusText}`,
     );
   }
   // Drop the now-orphaned per-resource ACL if it had one (best-effort).
-  await session.fetch(`${fileUri}.acl`, { method: "DELETE" }).catch((err) =>
+  await gateway.fetch(`${fileUri}.acl`, { method: "DELETE" }).catch((err) =>
     logError("delete energy dataset ACL", err)
   );
 
@@ -725,7 +725,7 @@ export async function deleteEnergyYear(
   const link = namedNode(nodeUri);
   const subject = namedNode(buildingSubjectUri);
   const pred = namedNode(`${CONSUMPTION_NS}hasEnergyDataset`);
-  await readModifyWrite(buildingFileUri, session, (s, { created }) => {
+  await readModifyWrite(buildingFileUri, gateway, (s, { created }) => {
     if (created) return false; // building file gone — nothing to unlink
     const quads = s.getQuads(subject, pred, link, null);
     if (quads.length === 0) return false;
@@ -743,14 +743,14 @@ export async function deleteEnergyYear(
  */
 export function attachAnnualData(
   buildings: BuildingType[],
-  session: Session,
+  gateway: PodGateway,
 ): Promise<BuildingType[]> {
   return Promise.all(buildings.map(async (b) => {
     const refs = (b.energyDatasets ?? []).filter(
       (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),
     );
     if (refs.length === 0) return b;
-    const datasets = await loadEnergyDatasets(refs, session.fetch.bind(session));
+    const datasets = await loadEnergyDatasets(refs, gateway.fetch.bind(gateway));
     const annualData = datasets
       .filter((d) => d.metrics)
       .map((d) => ({ year: d.year, ...d.metrics }) as AnnualData)
@@ -830,7 +830,7 @@ export function annualDatasetsFromFields(
  * @operation mutation
  */
 export async function writeBuildingEnergy(
-  session: Session,
+  gateway: PodGateway,
   buildingUri: string,
   buildingSubjectUri: string,
   fields: Record<string, string>,
@@ -845,25 +845,25 @@ export async function writeBuildingEnergy(
   const root = observationsRootForBuilding(buildingUri);
   const links: EnergyDatasetLink[] = [];
 
-  const putTtl = async (url: string, body: string): Promise<void> => {
+  const putTtl = async (uri: string, body: string): Promise<void> => {
     signal?.throwIfAborted();
-    const res = await session.fetch(url, {
+    const res = await gateway.fetch(uri, {
       method: "PUT",
       headers: { "Content-Type": "text/turtle" },
       body,
       signal,
     });
     if (!res.ok) {
-      throw new Error(`Energy upload failed (${url}): ${res.status} ${res.statusText}`);
+      throw new Error(`Energy upload failed (${uri}): ${res.status} ${res.statusText}`);
     }
   };
 
   for (const ds of annualDatasetsFromFields(buildingSubjectUri, fields)) {
     const fileUri = datasetFileUri(root, ds.year, mintDatasetId());
-    await ensureContainer(seriesContainerUri(root, ds.year), session);
+    await ensureContainer(seriesContainerUri(root, ds.year), gateway);
     await putTtl(fileUri, serializeEnergyDataset(ds));
     links.push({
-      url: datasetNodeUri(fileUri),
+      uri: datasetNodeUri(fileUri),
       granularity: ds.granularity,
       scenario: ds.scenario,
     });
@@ -872,7 +872,7 @@ export async function writeBuildingEnergy(
   if (series && series.days.length > 0) {
     const seriesId = mintDatasetId();
     const yearContainer = seriesContainerUri(root, series.year);
-    await ensureContainer(yearContainer, session);
+    await ensureContainer(yearContainer, gateway);
     // A full year is ~365 daily files; write them with bounded concurrency.
     // Day chunks are time-first (`{year}/{month}/{day}/{id}.ttl`), so each
     // distinct day container is provisioned before its chunk lands. Because the
@@ -884,7 +884,7 @@ export async function writeBuildingEnergy(
     const ensureOnce = (uri: string): Promise<unknown> => {
       let p = ensuring.get(uri);
       if (!p) {
-        p = ensureContainer(uri, session);
+        p = ensureContainer(uri, gateway);
         ensuring.set(uri, p);
       }
       return p;
@@ -920,7 +920,7 @@ export async function writeBuildingEnergy(
       }),
     );
     links.push({
-      url: datasetNodeUri(descUri),
+      uri: datasetNodeUri(descUri),
       granularity: "PT15M",
       scenario: "actual",
     });
@@ -935,7 +935,7 @@ export async function writeBuildingEnergy(
  * @operation mutation
  */
 export async function uploadBuilding(
-  session: Session,
+  gateway: PodGateway,
   buildingUri: string,
   ttlString: string,
   webId: string,
@@ -944,9 +944,9 @@ export async function uploadBuilding(
   // Provision the buildings/ container first (silently — the add flow has its
   // own "Building added" toast) so the building-file PUT below has somewhere
   // to land — via the shared helper.
-  await ensureContainer(podResources(webId).buildings, session);
+  await ensureContainer(podResources(webId).buildings, gateway);
   signal?.throwIfAborted();
-  const res = await session.fetch(buildingUri, {
+  const res = await gateway.fetch(buildingUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
     body: ttlString,
@@ -964,13 +964,13 @@ export async function uploadBuilding(
  * @operation mutation
  */
 export async function updateBuilding(
-  session: Session,
+  gateway: PodGateway,
   buildingFileUri: string,
   subjectUri: string,
   updatedFields: Record<string, string>,
 ): Promise<void> {
   const subject = namedNode(subjectUri);
-  await readModifyWrite(buildingFileUri, session, (store, { created }) => {
+  await readModifyWrite(buildingFileUri, gateway, (store, { created }) => {
     if (created) throw new Error(`Building not found: ${buildingFileUri}`);
     for (const [field, value] of Object.entries(updatedFields)) {
       if (field.startsWith("_")) continue;
@@ -1023,7 +1023,7 @@ export function newBuildingUri(webId: string, id: string): string {
  * @operation mutation
  */
 export async function deleteBuilding(
-  session: Session,
+  gateway: PodGateway,
   webId: string,
   buildingUri: string,
 ): Promise<void> {
@@ -1034,17 +1034,17 @@ export async function deleteBuilding(
 
   // Energy datasets are first-class under observations/; delete each linked
   // dataset (and a series' day-chunks) best-effort, from the building's links.
-  const store = await readBuildingStore(session, fileUri);
+  const store = await readBuildingStore(gateway, fileUri);
   if (store) {
     for (const ref of parseEnergyDatasetRefs(store, null)) {
-      const dsFile = ref.url.split("#")[0];
+      const dsFile = ref.uri.split("#")[0];
       if (isSeriesGranularity(ref.granularity)) {
-        for (const { url } of await listSeriesDays(session, ref)) {
-          await session.fetch(url, { method: "DELETE" })
+        for (const { uri } of await listSeriesDays(gateway, ref)) {
+          await gateway.fetch(uri, { method: "DELETE" })
             .catch((err) => logError("delete energy day chunk", err));
         }
       }
-      await session.fetch(dsFile, { method: "DELETE" })
+      await gateway.fetch(dsFile, { method: "DELETE" })
         .catch((err) => logError("delete energy dataset", err));
     }
   }
@@ -1055,7 +1055,7 @@ export async function deleteBuilding(
   // that motivated such a "recovery" is prevented at the source now (a revoke
   // never strips the owner's Control; see sharingManager.removeFromACL), so a
   // normal delete keeps the owner's authorization and just works.
-  const res = await session.fetch(fileUri, { method: "DELETE" });
+  const res = await gateway.fetch(fileUri, { method: "DELETE" });
   if (!res.ok && res.status !== 404) {
     throw new Error(`Failed to delete building (HTTP ${res.status})`);
   }
@@ -1071,7 +1071,7 @@ export async function deleteBuilding(
   const container = fileUri.replace(/[^/]+$/, ""); // …/buildings/
   for (const delayMs of [0, 150, 300, 600, 900]) {
     if (delayMs) await new Promise((r) => setTimeout(r, delayMs));
-    const children = await listDirectChildren(container, session)
+    const children = await listDirectChildren(container, gateway)
       .catch(() => null);
     if (children === null || !children.includes(fileUri)) return;
   }
@@ -1317,7 +1317,7 @@ const DEMO_BUILDINGS: DemoSpec[] = [
  * @operation mutation
  */
 export async function seedDemoBuildings(
-  session: Session,
+  gateway: PodGateway,
   webId: string,
 ): Promise<{ seeded: number; total: number }> {
   let seeded = 0;
@@ -1373,7 +1373,7 @@ export async function seedDemoBuildings(
 
       // Write the energy dataset resources, then the building (with the links).
       const energyLinks = await writeBuildingEnergy(
-        session,
+        gateway,
         uri,
         subjectUri,
         fields,
@@ -1383,8 +1383,8 @@ export async function seedDemoBuildings(
         // The extra planned (Soll) dataset — its own time-first resource.
         const root = observationsRootForBuilding(uri);
         const fileUri = datasetFileUri(root, demo.planned.year, mintDatasetId());
-        await ensureContainer(seriesContainerUri(root, demo.planned.year), session);
-        const put = await session.fetch(fileUri, {
+        await ensureContainer(seriesContainerUri(root, demo.planned.year), gateway);
+        const put = await gateway.fetch(fileUri, {
           method: "PUT",
           headers: { "Content-Type": "text/turtle" },
           body: serializeEnergyDataset({
@@ -1401,7 +1401,7 @@ export async function seedDemoBuildings(
           );
         }
         energyLinks.push({
-          url: datasetNodeUri(fileUri),
+          uri: datasetNodeUri(fileUri),
           granularity: "P1Y",
           scenario: "planned",
         });
@@ -1409,7 +1409,7 @@ export async function seedDemoBuildings(
       const ttl = serializeBuildingToTurtle(fields, uri, energyLinks, {
         agent: webId,
       });
-      await uploadBuilding(session, uri, ttl, webId);
+      await uploadBuilding(gateway, uri, ttl, webId);
       seeded++;
     } catch (err) {
       console.error(

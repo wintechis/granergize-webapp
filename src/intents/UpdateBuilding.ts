@@ -1,6 +1,6 @@
 // Intent core (React-free) for UpdateBuilding. See ./README.md for the
 // core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { updateBuilding } from "../services/rdf/building/buildingSerializer.ts";
 import { rememberAgent } from "../services/contacts.ts";
 import type { Settled } from "./outcomes.ts";
@@ -37,16 +37,16 @@ export interface UpdateBuildingParams {
  * a Pod write. The core does only the Pod composition + the remember writes.
  */
 export async function updateBuildingCore(
-  session: Session,
+  gateway: PodGateway,
   params: UpdateBuildingParams,
 ): Promise<Settled> {
-  await updateBuilding(session, params.fileUri, params.subjectUri, params.fields);
+  await updateBuilding(gateway, params.fileUri, params.subjectUri, params.fields);
   // Auto-remember each WebID agent in the address book (fire-and-forget; the
   // contacts cache priming is the adapter's concern).
   for (const field of AGENT_FIELDS) {
     const value = params.fields[field];
     if (typeof value === "string" && /^https?:\/\//.test(value)) {
-      void rememberAgent(session, value);
+      void rememberAgent(gateway, value);
     }
   }
   return { ok: true };

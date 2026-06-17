@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./pod/podGateway.ts";
 import { DataFactory } from "n3";
 import type { AttachmentRef } from "../types.ts";
 import { ensureContainer, readModifyWrite } from "./pod/podWrite.ts";
@@ -39,22 +39,22 @@ export function filesContainerFor(buildingFileUri: string): string {
 async function uniqueFileUri(
   container: string,
   filename: string,
-  session: Session,
-): Promise<{ url: string; name: string }> {
+  gateway: PodGateway,
+): Promise<{ uri: string; name: string }> {
   const dot = filename.lastIndexOf(".");
   const base = dot > 0 ? filename.slice(0, dot) : filename;
   const ext = dot > 0 ? filename.slice(dot) : "";
   for (let i = 0; i < 50; i++) {
     const name = i === 0 ? filename : `${base}-${i}${ext}`;
-    const url = container + encodeURIComponent(name);
-    const res = await session.fetch(url, { method: "HEAD" });
+    const uri = container + encodeURIComponent(name);
+    const res = await gateway.fetch(uri, { method: "HEAD" });
     await res.body?.cancel().catch((err) =>
       logError("cancel HEAD response body during name probe", err)
     );
-    if (res.status === 404) return { url, name };
+    if (res.status === 404) return { uri, name };
   }
   const name = `${base}-${Date.now()}${ext}`;
-  return { url: container + encodeURIComponent(name), name };
+  return { uri: container + encodeURIComponent(name), name };
 }
 
 /**
@@ -67,31 +67,31 @@ export async function uploadAttachment(
   buildingFileUri: string,
   subjectUri: string,
   file: File,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<AttachmentRef> {
-  if (!session.info.isLoggedIn) throw new Error("User is not logged in");
+  if (!gateway.webId) throw new Error("User is not logged in");
 
   const container = filesContainerFor(buildingFileUri);
   // Provision the per-building container then the files/ sub-container.
-  await ensureContainer(container.replace(/files\/$/, ""), session);
-  await ensureContainer(container, session);
+  await ensureContainer(container.replace(/files\/$/, ""), gateway);
+  await ensureContainer(container, gateway);
 
-  const { url, name } = await uniqueFileUri(container, file.name, session);
+  const { uri, name } = await uniqueFileUri(container, file.name, gateway);
   const mediaType = file.type || "application/octet-stream";
 
-  const put = await session.fetch(url, {
+  const put = await gateway.fetch(uri, {
     method: "PUT",
     headers: { "Content-Type": mediaType },
     body: file,
   });
   if (!put.ok) {
-    throw new Error(`Failed to upload ${name} to ${url}: HTTP ${put.status}`);
+    throw new Error(`Failed to upload ${name} to ${uri}: HTTP ${put.status}`);
   }
 
   const uploadDate = new Date().toISOString();
   const subject = namedNode(subjectUri);
-  const fileNode = namedNode(url);
-  await readModifyWrite(buildingFileUri.split("#")[0], session, (store, { created }) => {
+  const fileNode = namedNode(uri);
+  await readModifyWrite(buildingFileUri.split("#")[0], gateway, (store, { created }) => {
     if (created) throw new Error(`Building not found: ${buildingFileUri}`);
     store.addQuad(subject, namedNode(GRAN_HAS_ATTACHMENT), fileNode);
     store.addQuad(fileNode, namedNode(RDF_TYPE), namedNode(SCHEMA_MEDIA_OBJECT));
@@ -109,7 +109,7 @@ export async function uploadAttachment(
     );
   });
 
-  return { url, filename: name, mediaType, size: file.size, uploadDate };
+  return { uri, filename: name, mediaType, size: file.size, uploadDate };
 }
 
 /**
@@ -122,18 +122,18 @@ export async function deleteAttachment(
   buildingFileUri: string,
   subjectUri: string,
   attachmentUri: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  if (!session.info.isLoggedIn) throw new Error("User is not logged in");
+  if (!gateway.webId) throw new Error("User is not logged in");
 
-  const del = await session.fetch(attachmentUri, { method: "DELETE" });
+  const del = await gateway.fetch(attachmentUri, { method: "DELETE" });
   if (!del.ok && del.status !== 404) {
     throw new Error(`Failed to delete ${attachmentUri}: HTTP ${del.status}`);
   }
 
   const subject = namedNode(subjectUri);
   const fileNode = namedNode(attachmentUri);
-  await readModifyWrite(buildingFileUri.split("#")[0], session, (store, { created }) => {
+  await readModifyWrite(buildingFileUri.split("#")[0], gateway, (store, { created }) => {
     if (created) return false; // nothing to clean
     store.removeQuads(
       store.getQuads(subject, namedNode(GRAN_HAS_ATTACHMENT), fileNode, null),
@@ -154,12 +154,12 @@ export async function setEnergyCertificate(
   buildingFileUri: string,
   subjectUri: string,
   attachmentUri: string | null,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<void> {
-  if (!session.info.isLoggedIn) throw new Error("User is not logged in");
+  if (!gateway.webId) throw new Error("User is not logged in");
   const subject = namedNode(subjectUri);
   const pred = namedNode(GRAN_HAS_ENERGY_CERTIFICATE);
-  await readModifyWrite(buildingFileUri.split("#")[0], session, (store, { created }) => {
+  await readModifyWrite(buildingFileUri.split("#")[0], gateway, (store, { created }) => {
     if (created) throw new Error(`Building not found: ${buildingFileUri}`);
     store.removeQuads(store.getQuads(subject, pred, null, null));
     if (attachmentUri) store.addQuad(subject, pred, namedNode(attachmentUri));
@@ -167,16 +167,16 @@ export async function setEnergyCertificate(
 }
 
 /**
- * Fetch an attachment's bytes with the authed session (works for shared files).
+ * Fetch an attachment's bytes with the authed gateway (works for shared files).
  * @operation query
  */
 export async function fetchAttachmentBlob(
-  url: string,
-  session: Session,
+  uri: string,
+  gateway: PodGateway,
 ): Promise<Blob> {
-  const res = await session.fetch(url);
+  const res = await gateway.fetch(uri);
   if (!res.ok) {
-    throw new Error(`Failed to fetch ${url}: HTTP ${res.status}`);
+    throw new Error(`Failed to fetch ${uri}: HTTP ${res.status}`);
   }
   return await res.blob();
 }

@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -46,7 +47,7 @@ function buildingDoc(uri: string, years: number[]): string {
  */
 function pod(
   buildings: Record<string, { year: number; value: number }[]>,
-): Session {
+): PodGateway {
   const docs = new Map<string, string>();
   for (const [uri, datasets] of Object.entries(buildings)) {
     docs.set(uri, buildingDoc(uri, datasets.map((d) => d.year)));
@@ -65,7 +66,7 @@ function pod(
     }
   }
 
-  return {
+  return sessionGateway({
     info: { isLoggedIn: true, webId: "https://me.example/profile/card#me" },
     fetch: (input: string | URL | Request) => {
       const url = (typeof input === "string" ? input : input.toString())
@@ -81,7 +82,7 @@ function pod(
         }),
       );
     },
-  } as unknown as Session;
+  } as unknown as Session);
 }
 
 function def(
@@ -171,7 +172,7 @@ Deno.test("computeAggregation: takes the building's dataset refs from the warm c
   const WEBID = "https://me.example/profile/card#me";
   const subject = `${B1}#b`;
   const dsFile = annualFile(B1, 2024);
-  const session = {
+  const session = sessionGateway({
     info: { isLoggedIn: true, webId: WEBID },
     fetch: (input: string | URL | Request) => {
       const url = (typeof input === "string" ? input : input.toString())
@@ -192,13 +193,13 @@ Deno.test("computeAggregation: takes the building's dataset refs from the warm c
       }
       return Promise.resolve(new Response("Not found", { status: 404 }));
     },
-  } as unknown as Session;
+  } as unknown as Session);
   const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
   qc.setQueryData(["buildings", WEBID], {
     buildings: [{
       uri: subject,
       energyDatasets: [{
-        url: datasetNodeUri(dsFile),
+        uri: datasetNodeUri(dsFile),
         year: 2024,
         granularity: "P1Y",
         scenario: "actual",

@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Store } from "n3";
 import { loadProfileStoreFor } from "../pod/profileDocument.ts";
 import { logError } from "../../lib/logError.ts";
@@ -68,12 +68,12 @@ export function webIdFragment(webId: string): string {
  */
 export async function resolveAgent(
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<ResolvedAgent> {
   const fallbackName = webIdFragment(webId);
   let store: Store | null;
   try {
-    store = await loadProfileStoreFor(webId, session);
+    store = await loadProfileStoreFor(webId, gateway);
   } catch (err) {
     logError("load agent profile for resolution", err);
     store = null;
@@ -112,12 +112,12 @@ export interface ResolvedOrg {
  */
 export async function resolveAgentOrg(
   webId: string,
-  session: Session,
+  gateway: PodGateway,
   fetchFn: typeof fetch = trackedFetch,
 ): Promise<ResolvedOrg | null> {
   let store: Store | null;
   try {
-    store = await loadProfileStoreFor(webId, session);
+    store = await loadProfileStoreFor(webId, gateway);
   } catch (err) {
     logError("load agent profile for org resolution", err);
     store = null;

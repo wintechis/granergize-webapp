@@ -1,6 +1,6 @@
 // Intent core (React-free) for ReissueGrants (the hook is `useReissueGrants`).
 // See ./README.md for the core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { reissueGrants, type ReissueResult } from "../services/interop/share.ts";
 
 /**
@@ -11,6 +11,6 @@ import { reissueGrants, type ReissueResult } from "../services/interop/share.ts"
  * the audit/repair figures the dialog can surface). The adapter has no
  * invalidations: it writes only the ACL projection, which no query reads.
  */
-export async function reissueGrantsCore(session: Session): Promise<ReissueResult> {
-  return await reissueGrants(session);
+export async function reissueGrantsCore(gateway: PodGateway): Promise<ReissueResult> {
+  return await reissueGrants(gateway);
 }

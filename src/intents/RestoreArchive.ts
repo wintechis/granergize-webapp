@@ -4,7 +4,7 @@
 // archive carries the log/ground truth but not the derived ACLs). A bespoke
 // outcome `{...importResult, reissued}`. The adapter owns the whole-cache
 // `qc.invalidateQueries()`.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { type ImportResult, importArchive } from "../services/pod/podArchive.ts";
 import { reissueGrants } from "../services/interop/share.ts";
 
@@ -30,14 +30,14 @@ export interface RestoreArchiveParams {
  * restore an archive into the Pod, then rebuild the ACL projection from the
  * shared-out log (the reconciliation follow-up is part of the restore intent). The
  * hook is a thin adapter owning only the whole-cache `qc.invalidateQueries()`.
- * Takes `session` as an argument — no `getSession()`, no React — so it is callable
+ * Takes `gateway` as an argument — no `getSession()`, no React — so it is callable
  * headless.
  */
 export async function restoreArchiveCore(
-  session: Session,
+  gateway: PodGateway,
   params: RestoreArchiveParams,
 ): Promise<RestoreArchiveOutcome> {
-  const restore = await importArchive(session, params.bytes);
-  const reissue = await reissueGrants(session);
+  const restore = await importArchive(gateway, params.bytes);
+  const reissue = await reissueGrants(gateway);
   return { ...restore, reissued: reissue.buildings + reissue.aggregations };
 }

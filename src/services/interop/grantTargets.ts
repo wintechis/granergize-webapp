@@ -10,7 +10,7 @@ import { filesContainerFor } from "../attachmentManager.ts";
 
 /** One resource a building grant covers. */
 export interface GrantTarget {
-  url: string;
+  uri: string;
   /** Granted with `acl:default` (a container whose members inherit). */
   isContainer: boolean;
 }
@@ -49,10 +49,10 @@ export function energyTargetsFromStore(
     if (!ref) continue;
     if (years && !years.includes(ref.year)) continue;
     const file = link.value.split("#")[0];
-    targets.push({ url: file, isContainer: false });
+    targets.push({ uri: file, isContainer: false });
     if (isSeriesGranularity(ref.granularity)) {
       const root = observationsRootForObservation(link.value);
-      targets.push({ url: seriesContainerUri(root, ref.year), isContainer: true });
+      targets.push({ uri: seriesContainerUri(root, ref.year), isContainer: true });
     }
   }
   return targets;
@@ -82,8 +82,8 @@ export function buildingTargetsFromStore(
   } = options;
   const filesContainer = filesContainerFor(buildingFile);
   const targets: GrantTarget[] = [];
-  if (includeBuildingFile) targets.push({ url: buildingFile, isContainer: false });
-  targets.push({ url: filesContainer, isContainer: true });
+  if (includeBuildingFile) targets.push({ uri: buildingFile, isContainer: false });
+  targets.push({ uri: filesContainer, isContainer: true });
 
   // A legacy energy certificate stored OUTSIDE files/ (the old certificates/
   // folder) isn't covered by the container grant, so the file itself is a target.
@@ -93,7 +93,7 @@ export function buildingTargetsFromStore(
     null,
   )[0];
   if (cert && !cert.value.startsWith(filesContainer)) {
-    targets.push({ url: cert.value, isContainer: false });
+    targets.push({ uri: cert.value, isContainer: false });
   }
 
   if (includeEnergyData) targets.push(...energyTargetsFromStore(store, years));
@@ -101,5 +101,5 @@ export function buildingTargetsFromStore(
   // Dedup: two dataset links into the same file must not yield one target twice
   // (a doubled grant would race one read-modify-write against itself).
   const seen = new Set<string>();
-  return targets.filter((t) => !seen.has(t.url) && !!seen.add(t.url));
+  return targets.filter((t) => !seen.has(t.uri) && !!seen.add(t.uri));
 }

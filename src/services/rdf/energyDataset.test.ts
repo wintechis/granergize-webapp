@@ -1,3 +1,4 @@
+import { sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
@@ -46,17 +47,17 @@ Deno.test("datasetFileUri / seriesDailyFileUri build time-first paths", () => {
 });
 
 Deno.test("parseDatasetLink reads year from the path, granularity/scenario from the store", () => {
-  const url = `${datasetFileUri(ROOT, 2023, ID)}#ds`;
+  const uri = `${datasetFileUri(ROOT, 2023, ID)}#ds`;
   const store = parse(
     `@prefix cons: <${CONSUMPTION_NS}> .\n` +
-      `<${url}> cons:granularity "P1Y" ; cons:scenario cons:Planned .\n`,
+      `<${uri}> cons:granularity "P1Y" ; cons:scenario cons:Planned .\n`,
   );
-  const ref = parseDatasetLink(url, store);
+  const ref = parseDatasetLink(uri, store);
   assert.ok(ref);
   assert.equal(ref!.year, 2023);
   assert.equal(ref!.granularity, "P1Y");
   assert.equal(ref!.scenario, "planned");
-  assert.equal(ref!.url, url);
+  assert.equal(ref!.uri, uri);
 
   // No store → year from path, granularity/scenario default to P1Y/actual.
   const bare = parseDatasetLink(`${datasetFileUri(ROOT, 2024, ID)}#ds`);
@@ -198,7 +199,7 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
   // untouched ones (#5 data loss).
   const fileUri = datasetFileUri(ROOT, 2024, ID);
   const ref: EnergyDatasetRef = {
-    url: datasetNodeUri(fileUri),
+    uri: datasetNodeUri(fileUri),
     year: 2024,
     granularity: "P1Y",
     scenario: "actual",
@@ -211,8 +212,8 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
     metrics: { electricityConsumption: 121500, waterConsumption: 1500 },
   };
   const ttl = serializeEnergyDataset(ds); // emits a relative <#ds> node
-  const fetchFn = (url: string): Promise<Response> => {
-    assert.equal(url, fileUri); // ref's #fragment stripped before the GET
+  const fetchFn = (uri: string): Promise<Response> => {
+    assert.equal(uri, fileUri); // ref's #fragment stripped before the GET
     return Promise.resolve(
       new Response(ttl, { headers: { "Content-Type": "text/turtle" } }),
     );
@@ -227,7 +228,7 @@ Deno.test("loadEnergyDatasets fetches a ref and returns its stored metrics", asy
 
 Deno.test("loadEnergyDatasets skips an unreadable ref without throwing", async () => {
   const ref: EnergyDatasetRef = {
-    url: datasetNodeUri(datasetFileUri(ROOT, 2024, ID)),
+    uri: datasetNodeUri(datasetFileUri(ROOT, 2024, ID)),
     year: 2024,
     granularity: "P1Y",
     scenario: "actual",
@@ -253,7 +254,7 @@ Deno.test("parseEnergyDatasetRefs reads the building's hasEnergyDataset links + 
 
 Deno.test("listSeriesDays walks the year's month/day containers for the dataset's id", async () => {
   const ref: EnergyDatasetRef = {
-    url: datasetNodeUri(datasetFileUri(ROOT, 2024, ID)),
+    uri: datasetNodeUri(datasetFileUri(ROOT, 2024, ID)),
     year: 2024,
     granularity: "PT15M",
     scenario: "actual",
@@ -281,11 +282,10 @@ Deno.test("listSeriesDays walks the year's month/day containers for the dataset'
     if (u === day2) return Promise.resolve(ldp(day2, [`${day2}${ID}.ttl`]));
     return Promise.resolve(new Response("not found", { status: 404 }));
   };
-  const session = { info: { webId: "x", isLoggedIn: true }, fetch } as unknown as
-    Session;
+  const session = sessionGateway({ info: { webId: "x", isLoggedIn: true }, fetch } as unknown as Session);
   const days = await listSeriesDays(session, ref);
   assert.deepEqual(days, [
-    { day: "2024-01-01", url: `${day1}${ID}.ttl` },
-    { day: "2024-01-02", url: `${day2}${ID}.ttl` },
+    { day: "2024-01-01", uri: `${day1}${ID}.ttl` },
+    { day: "2024-01-02", uri: `${day2}${ID}.ttl` },
   ]);
 });

@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "./podGateway.ts";
 import { Parser, Store } from "n3";
 import { fetchFresh } from "./podFetch.ts";
 
@@ -32,12 +32,12 @@ const inflight = new Map<string, Promise<Store | null>>();
  * @operation query
  */
 export function loadProfileStore(
-  session: Session,
+  gateway: PodGateway,
   opts: { fresh?: boolean } = {},
 ): Promise<Store | null> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) return Promise.resolve(null);
-  return loadProfileStoreFor(webId, session, opts);
+  return loadProfileStoreFor(webId, gateway, opts);
 }
 
 /**
@@ -49,7 +49,7 @@ export function loadProfileStore(
  */
 export function loadProfileStoreFor(
   webId: string,
-  session: Session,
+  gateway: PodGateway,
   opts: { fresh?: boolean } = {},
 ): Promise<Store | null> {
   const docUri = profileDocUri(webId);
@@ -70,7 +70,7 @@ export function loadProfileStoreFor(
     // graceful null + fragment-name fallback instead.
     let res: Response;
     try {
-      res = await fetchFresh(docUri, session);
+      res = await fetchFresh(docUri, gateway);
     } catch {
       return null;
     }

@@ -1,3 +1,4 @@
+import { sessionGateway } from "../services/pod/podGateway.ts";
 import { msg } from "../lib/messages.ts";
 import { useMemo, useState } from "react";
 import {
@@ -134,7 +135,7 @@ export function ShareBuildingDialog({
       const resolved = await getMembersByRole(
         getActiveRoom(),
         targetRole,
-        session,
+        sessionGateway(session),
       );
       if (resolved.length === 0) {
         setWebIdError(msg("shareNoRoleMembers"));
@@ -429,7 +430,7 @@ export function FilesDialog(
   const upload = useUploadAttachments();
   const del = useDeleteAttachment();
   const cert = useSetEnergyCertificate();
-  const { download, downloadingUrl } = useAttachmentDownload(session);
+  const { download, downloadingUrl } = useAttachmentDownload(sessionGateway(session));
   const busy = upload.isPending || del.isPending || cert.isPending ||
     downloadingUrl !== null;
 
@@ -470,21 +471,21 @@ export function FilesDialog(
     ) {
       return;
     }
-    del.mutate({ fileUri, subjectUri, url: a.url }, {
+    del.mutate({ fileUri, subjectUri, uri: a.uri }, {
       onSuccess: () =>
-        setItems((prev) => prev.filter((x) => x.url !== a.url)),
+        setItems((prev) => prev.filter((x) => x.uri !== a.uri)),
     });
   };
 
   const handleToggleCert = (a: AttachmentRef) => {
     const makeIt = !a.isEnergyCertificate;
-    cert.mutate({ fileUri, subjectUri, url: makeIt ? a.url : null }, {
+    cert.mutate({ fileUri, subjectUri, uri: makeIt ? a.uri : null }, {
       onSuccess: () =>
         // Only one file can be the certificate at a time.
         setItems((prev) =>
           prev.map((x) => ({
             ...x,
-            isEnergyCertificate: makeIt && x.url === a.url,
+            isEnergyCertificate: makeIt && x.uri === a.uri,
           }))
         ),
     });
@@ -507,7 +508,7 @@ export function FilesDialog(
         : (
           <ul style={listStyle}>
             {items.map((a) => (
-              <li key={a.url} style={rowStyle}>
+              <li key={a.uri} style={rowStyle}>
                 <AttachmentInfo a={a} />
                 <span style={{ display: "flex", gap: "0.25rem" }}>
                   <Button

@@ -1,3 +1,4 @@
+import { sessionGateway } from "./podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -52,7 +53,7 @@ function buildTree(branch: number, depth: number, leaves: number) {
 function trackingSession(fixtures: Record<string, string[]>) {
   let inFlight = 0;
   let peak = 0;
-  const session = {
+  const session = sessionGateway({
     info: { webId: WEBID, isLoggedIn: true },
     fetch: async (input: string | URL, init?: RequestInit) => {
       inFlight++;
@@ -75,7 +76,7 @@ function trackingSession(fixtures: Record<string, string[]>) {
         inFlight--;
       }
     },
-  } as unknown as Session;
+  } as unknown as Session);
   return { session, peak: () => peak };
 }
 

@@ -1,6 +1,6 @@
 // Intent core (React-free) for AddBuilding (the hook is `useUploadBuildings`).
 // See ./README.md for the core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import {
   newBuildingUri,
   serializeBuildingToTurtle,
@@ -50,10 +50,10 @@ export interface AddBuildingOutcome extends Aborted {
  * invalidation + the contacts cache priming.
  */
 export async function addBuildingCore(
-  session: Session,
+  gateway: PodGateway,
   params: AddBuildingParams,
 ): Promise<AddBuildingOutcome> {
-  const webId = session.info.webId;
+  const webId = gateway.webId;
   if (!webId) throw new Error("Not authenticated");
   // Provenance records only WHO produced the building (the logged-in agent).
   const provenance = { agent: webId };
@@ -92,7 +92,7 @@ export async function addBuildingCore(
       }
 
       const energyLinks = await writeBuildingEnergy(
-        session,
+        gateway,
         uri,
         subjectUri,
         b,
@@ -101,14 +101,14 @@ export async function addBuildingCore(
         signal,
       );
       const ttl = serializeBuildingToTurtle(b, uri, energyLinks, provenance);
-      await uploadBuilding(session, uri, ttl, webId, signal);
+      await uploadBuilding(gateway, uri, ttl, webId, signal);
       added.push(subjectUri);
       // Auto-remember the building's WebID agents (fire-and-forget; the contacts
       // cache priming is the adapter's concern).
       for (const field of AGENT_FIELDS) {
         const value = b[field];
         if (typeof value === "string" && /^https?:\/\//.test(value)) {
-          void rememberAgent(session, value);
+          void rememberAgent(gateway, value);
         }
       }
     }

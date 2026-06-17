@@ -1,3 +1,4 @@
+import { sessionGateway } from "../../src/services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 /**
  * Interactive look at the bench's shared-buildings scenario: boots the local
@@ -51,14 +52,14 @@ const [sA, sB] = await Promise.all([
   pod.liveSession("A"),
   pod.liveSession("B"),
 ]);
-const sessionA = sA as unknown as Session;
-const sessionB = sB as unknown as Session;
+const sessionA = sessionGateway(sA as unknown as Session);
+const sessionB = sessionGateway(sB as unknown as Session);
 const rootA = await resolveStorageRoot(sessionA);
 await resolveStorageRoot(sessionB);
 await ensureOwnInbox(sessionA);
 await ensureOwnInbox(sessionB);
-const a: BenchActor = { webId: sessionA.info.webId!, session: sessionA };
-const b: BenchActor = { webId: sessionB.info.webId!, session: sessionB };
+const a: BenchActor = { webId: sessionA.webId, gateway: sessionA };
+const b: BenchActor = { webId: sessionB.webId, gateway: sessionB };
 
 if (CONTACTS > 0) {
   console.log(`seeding ${CONTACTS} contacts on A…`);
@@ -88,11 +89,11 @@ if (ROOMS > 0) {
 
 console.log(`seeding ${N} buildings on B, sharing each with A via a data room…`);
 const room = await setupShareRoom(a, b);
-const seeded = await seedBuildings(b.session, b.webId, N, "bench-shared");
+const seeded = await seedBuildings(b.gateway, b.webId, N, "bench-shared");
 await shareBuildingsViaRoom(b, room, seeded);
 // Pre-create shared-in/ so the drain's concurrent folds don't race to create it.
 await ensureContainer(podResources(a.webId).sharedIn, sessionA);
-await drainInbox(a.session);
+await drainInbox(a.gateway);
 
 const resA = podResources(a.webId);
 const resB = podResources(b.webId);

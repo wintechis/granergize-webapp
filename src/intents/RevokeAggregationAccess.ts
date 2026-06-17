@@ -1,6 +1,6 @@
 // Intent core (React-free) for RevokeAggregationAccess. See ./README.md for the
 // core/adapter split and the write→outcome convention.
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import { revokeAggregationAccess } from "../services/interop/sharingManager.ts";
 import type { Settled } from "./outcomes.ts";
 
@@ -19,9 +19,9 @@ export interface RevokeAggregationAccessParams {
  * notifies). The adapter owns the shared-out-log invalidation.
  */
 export async function revokeAggregationAccessCore(
-  session: Session,
+  gateway: PodGateway,
   params: RevokeAggregationAccessParams,
 ): Promise<Settled> {
-  await revokeAggregationAccess(params.snapshotUri, params.webId, session);
+  await revokeAggregationAccess(params.snapshotUri, params.webId, gateway);
   return { ok: true };
 }

@@ -1,3 +1,4 @@
+import { sessionGateway } from "../../src/services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
 /**
  * Tier-2 scalability/performance BENCHMARK (`deno task bench`). Boots ONE throwaway
@@ -115,14 +116,14 @@ try {
     css.liveSession("A"),
     css.liveSession("B"),
   ]);
-  const sessionA = sA as unknown as Session;
-  const sessionB = sB as unknown as Session;
+  const sessionA = sessionGateway(sA as unknown as Session);
+  const sessionB = sessionGateway(sB as unknown as Session);
   await resolveStorageRoot(sessionA);
   await resolveStorageRoot(sessionB);
   await ensureOwnInbox(sessionA);
   await ensureOwnInbox(sessionB);
-  const a: BenchActor = { webId: sessionA.info.webId!, session: sessionA };
-  const b: BenchActor = { webId: sessionB.info.webId!, session: sessionB };
+  const a: BenchActor = { webId: sessionA.webId, gateway: sessionA };
+  const b: BenchActor = { webId: sessionB.webId, gateway: sessionB };
   console.log(`A = ${a.webId}\nB = ${b.webId}\nruns/median = ${RUNS}\n`);
 
   // ── D1: fetchAndParseData vs # owned buildings ───────────────────────────────

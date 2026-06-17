@@ -1,3 +1,4 @@
+import { type PodGateway, sessionGateway } from "./podGateway.ts";
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
@@ -29,7 +30,7 @@ interface Call {
  */
 function makePod(
   initial: Record<string, Stored> = {},
-): { session: Session; store: Record<string, Stored>; calls: Call[] } {
+): { session: PodGateway; store: Record<string, Stored>; calls: Call[] } {
   const store: Record<string, Stored> = { ...initial };
   const calls: Call[] = [];
   const fetch = (input: string | URL, init?: RequestInit): Promise<Response> => {
@@ -62,7 +63,7 @@ function makePod(
     );
   };
   return {
-    session: { info: { webId: WEBID, isLoggedIn: true }, fetch } as unknown as Session,
+    session: sessionGateway({ info: { webId: WEBID, isLoggedIn: true }, fetch } as unknown as Session),
     store,
     calls,
   };
@@ -284,6 +285,6 @@ Deno.test("importArchive resolves a relative <> subject against the source URL, 
 });
 
 Deno.test("exportArchive throws when not logged in", async () => {
-  const session = { info: { webId: undefined } } as unknown as Session;
+  const session = sessionGateway({ info: { webId: undefined } } as unknown as Session);
   await assert.rejects(() => exportArchive(session), /Not logged in/);
 });

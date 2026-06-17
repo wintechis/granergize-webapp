@@ -1,4 +1,4 @@
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../services/pod/podGateway.ts";
 import type { QueryClient } from "@tanstack/react-query";
 import { rememberAgent } from "../services/contacts.ts";
 import { queryKeys } from "./queries.ts";
@@ -21,7 +21,7 @@ import { queryKeys } from "./queries.ts";
  * all).
  */
 export function rememberBuildingAgents(
-  session: Session,
+  gateway: PodGateway,
   qc: QueryClient,
   fields: Record<string, string | undefined>,
 ): void {
@@ -35,7 +35,7 @@ export function rememberBuildingAgents(
   ]
     .filter((w): w is string => typeof w === "string" && /^https?:\/\//.test(w));
   if (agentWebIds.length === 0) return;
-  void Promise.all(agentWebIds.map((w) => rememberAgent(session, w)))
+  void Promise.all(agentWebIds.map((w) => rememberAgent(gateway, w)))
     .then(() =>
       qc.invalidateQueries({ queryKey: queryKeys.contacts, refetchType: "all" })
     );

@@ -1,4 +1,4 @@
-import { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Parser, Store } from "n3";
 import {
   fetchFresh,
@@ -22,7 +22,7 @@ import {
 import { logError } from "../../lib/logError.ts";
 
 /**
- * Is `url` a real inbox message — i.e. NOT an auxiliary sidecar (`.acl`/`.meta`)?
+ * Is `uri` a real inbox message — i.e. NOT an auxiliary sidecar (`.acl`/`.meta`)?
  *
  * Draining an inbox GETs + DELETEs every `ldp:contains` entry. A container
  * listing should expose only members, but some servers (JSS) also list a
@@ -32,8 +32,8 @@ import { logError } from "../../lib/logError.ts";
  * `ldp:contains`, so this never bit there. A leading-dot final path segment
  * (`.acl`, `.meta`, …) is never a sharing message, so exclude it.
  */
-export function isMessageResource(url: string): boolean {
-  const lastSegment = url.replace(/\/$/, "").split("/").pop() ?? "";
+export function isMessageResource(uri: string): boolean {
+  const lastSegment = uri.replace(/\/$/, "").split("/").pop() ?? "";
   return !lastSegment.startsWith(".");
 }
 
@@ -46,15 +46,15 @@ export function isMessageResource(url: string): boolean {
  * pruned, so a missed revocation self-heals).
  * @operation mutation
  */
-export async function drainInbox(session: Session) {
-  if (!session.info.isLoggedIn || !session.info.webId) {
+export async function drainInbox(gateway: PodGateway) {
+  if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
-  const myWebId = session.info.webId;
+  const myWebId = gateway.webId;
   const sharedIn = sharedInUri(myWebId);
 
-  const podInbox = await getInboxUri(session);
-  const store = await readStoreOrEmpty(podInbox, session);
+  const podInbox = await getInboxUri(gateway);
+  const store = await readStoreOrEmpty(podInbox, gateway);
   const messageUris = store.getQuads(
     null,
     DataFactory.namedNode(LDP_CONTAINS),
@@ -70,13 +70,13 @@ export async function drainInbox(session: Session) {
   // place the appends are plain POSTs into it, which ARE safe to run concurrently.
   // Announced: the inbox drain provisions shared-in/ as a side effect the user
   // wouldn't otherwise see.
-  await ensureContainer(sharedIn, session, { announce: true });
+  await ensureContainer(sharedIn, gateway, { announce: true });
 
   // Process each message fully (fetch → record in shared-in/ → delete) so a
   // re-read doesn't reprocess it. Distinct event resources, so the appends below
   // are safe to do concurrently.
   await Promise.all(messageUris.map(async (messageUri) => {
-    const msgResponse = await fetchFresh(messageUri, session);
+    const msgResponse = await fetchFresh(messageUri, gateway);
     if (msgResponse.status !== 200) {
       console.error(
         `Failed to fetch message at ${messageUri}: ${msgResponse.statusText}`,
@@ -87,19 +87,19 @@ export async function drainInbox(session: Session) {
       new Parser({ baseIRI: messageUri }).parse(await msgResponse.text()),
     );
     for (const event of parseSharingEvents(msgStore)) {
-      await appendSharingEvent(sharedIn, session, event);
+      await appendSharingEvent(sharedIn, gateway, event);
     }
-    await removeMessageFromInbox(session, messageUri, podInbox);
+    await removeMessageFromInbox(gateway, messageUri, podInbox);
   }));
 }
 
 async function removeMessageFromInbox(
-  session: Session,
+  gateway: PodGateway,
   messageUri: string,
   inboxUri: string,
 ) {
   console.log(`Removing message ${messageUri} from inbox ${inboxUri}`);
-  const response = await session.fetch(messageUri, {
+  const response = await gateway.fetch(messageUri, {
     method: "DELETE",
   });
 
@@ -124,7 +124,7 @@ async function removeMessageFromInbox(
  * Resolve a *recipient's* LDP inbox from their WebID profile (for posting a
  * sharing notification to someone else). Unlike {@link getInboxUri} for the
  * logged-in user, this fetches an arbitrary WebID document, so it can't use the
- * session-cached profile store. Shared by the share / revoke flows.
+ * gateway-cached profile store. Shared by the share / revoke flows.
  */
 
 /**
@@ -157,11 +157,11 @@ export function inboxFromLinkHeader(
  */
 async function granergizeInboxUri(
   appRoot: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string> {
   const { store, response } = await fetchStoreWithHeaders(
     appRoot,
-    session,
+    gateway,
     "fetch app root for inbox discovery",
   );
   if (store) {
@@ -187,10 +187,10 @@ async function granergizeInboxUri(
  */
 export async function getRecipientInboxUri(
   webId: string,
-  session: Session,
+  gateway: PodGateway,
 ): Promise<string> {
-  const root = await resolveStorageRootForWebId(webId, session);
-  return granergizeInboxUri(`${root}${APP_DIR}/`, session);
+  const root = await resolveStorageRootForWebId(webId, gateway);
+  return granergizeInboxUri(`${root}${APP_DIR}/`, gateway);
 }
 
 /**
@@ -203,11 +203,11 @@ export async function getRecipientInboxUri(
  */
 export async function postSharingEventToInbox(
   webId: string,
-  session: Session,
+  gateway: PodGateway,
   event: SharingEvent,
 ): Promise<void> {
-  const inboxUri = await getRecipientInboxUri(webId, session);
-  await appendToContainer(inboxUri, buildSharingEventTurtle(event), session, {
+  const inboxUri = await getRecipientInboxUri(webId, gateway);
+  await appendToContainer(inboxUri, buildSharingEventTurtle(event), gateway, {
     describeError: (res) =>
       `Failed to post sharing message to inbox at ${inboxUri}: ${res.statusText}`,
   });
@@ -230,18 +230,18 @@ export async function postSharingEventToInbox(
  * inbox already exists it's a no-op and returns `false`.
  * @operation mutation
  */
-export async function ensureOwnInbox(session: Session): Promise<boolean> {
-  const webId = session.info.webId;
+export async function ensureOwnInbox(gateway: PodGateway): Promise<boolean> {
+  const webId = gateway.webId;
   if (!webId) return false;
   const { inbox } = podResources(webId);
   // Provision (and notify) only on a bare Pod: a HEAD that doesn't 404 means the
   // inbox is already set up, so there's nothing to create.
-  const existing = await session.fetch(inbox, { method: "HEAD" }).catch((err) => {
+  const existing = await gateway.fetch(inbox, { method: "HEAD" }).catch((err) => {
     logError("HEAD own inbox to check provisioning", err);
     return null;
   });
   if (existing?.ok) return false;
-  await session.fetch(inbox, {
+  await gateway.fetch(inbox, {
     method: "PUT",
     headers: {
       "Content-Type": "text/turtle",
@@ -256,7 +256,7 @@ export async function ensureOwnInbox(session: Session): Promise<boolean> {
 <#append> a acl:Authorization; acl:agentClass acl:AuthenticatedAgent;
   acl:accessTo <${inbox}>; acl:mode acl:Read, acl:Append.
 `;
-  await putAcl(`${inbox}.acl`, acl, session)
+  await putAcl(`${inbox}.acl`, acl, gateway)
     .catch((err) => logError("provision own inbox ACL", err));
   return true;
 }
@@ -265,8 +265,8 @@ export async function ensureOwnInbox(session: Session): Promise<boolean> {
  * The logged-in user's own granergize inbox (same app-scoped discovery).
  * @operation query
  */
-async function getInboxUri(session: Session): Promise<string> {
-  const webId = session.info.webId;
+async function getInboxUri(gateway: PodGateway): Promise<string> {
+  const webId = gateway.webId;
   if (!webId) throw new Error("Session has no WebID");
-  return granergizeInboxUri(podResources(webId).appRoot, session);
+  return granergizeInboxUri(podResources(webId).appRoot, gateway);
 }
