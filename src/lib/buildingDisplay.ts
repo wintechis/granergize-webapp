@@ -17,3 +17,19 @@ export function buildingAddressLine(b: BuildingType): string {
   const cityLine = [b.postalCode, b.locality].filter(Boolean).join(" ");
   return [b.streetAddress, cityLine].filter(Boolean).join(", ");
 }
+
+/**
+ * The text a building matches keyword search against (shared by the Buildings and
+ * Observations finders): its display name plus the address, region, customer,
+ * company and code — i.e. everything a user might scan/type to find it.
+ */
+export function buildingSearchText(b: BuildingType): string {
+  return [
+    buildingDisplayName(b),
+    buildingAddressLine(b),
+    b.region,
+    b.customer,
+    b.companyName,
+    b.buildingCode,
+  ].filter(Boolean).join(" ");
+}

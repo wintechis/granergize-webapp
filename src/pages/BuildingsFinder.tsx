@@ -15,7 +15,10 @@ import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType } from "../types.ts";
-import { buildingDisplayName } from "../lib/buildingDisplay.ts";
+import { buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.ts";
+import { filterByText } from "../lib/textSearch.ts";
+import { useListSearch } from "../hooks/useListSearch.ts";
+import SearchField from "../components/SearchField.tsx";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { buildingRoute } from "../routes.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
@@ -85,7 +88,9 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   const { confirm } = useConfirm();
   const { buildings, isLoading: buildingsLoading } = useSolidData();
   const ownedBuildings = buildings.filter((b) => !b.isShared);
-  const buildingPaging = usePaging(ownedBuildings);
+  const { query, setQuery } = useListSearch();
+  const filteredBuildings = filterByText(ownedBuildings, query, buildingSearchText);
+  const buildingPaging = usePaging(filteredBuildings);
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
   const t = useT();
 
@@ -232,12 +237,24 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
               </Button>
             </Stack>
 
+            {ownedBuildings.length > 0 && (
+              <Box sx={{ mb: 1 }}>
+                <SearchField value={query} onChange={setQuery} />
+              </Box>
+            )}
+
             {buildingsLoading
               ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
               : ownedBuildings.length === 0
               ? (
                 <Typography variant="body2">
                   {t("buildingsEmpty")}
+                </Typography>
+              )
+              : filteredBuildings.length === 0
+              ? (
+                <Typography variant="body2">
+                  {t("searchNoMatches", { query })}
                 </Typography>
               )
               : (

@@ -1408,6 +1408,15 @@ export const MESSAGES = {
   lblEmail: { en: "E-mail", de: "E-Mail", fr: "E-mail" },
   lblPhone: { en: "Phone", de: "Telefon", fr: "Téléphone" },
   lblWebsite: { en: "Website", de: "Webseite", fr: "Site web" },
+  // Finder keyword search (shared SearchField).
+  searchPlaceholder: { en: "Search…", de: "Suchen…", fr: "Rechercher…" },
+  searchAria: { en: "Search this list", de: "Diese Liste durchsuchen", fr: "Rechercher dans cette liste" },
+  searchClear: { en: "Clear search", de: "Suche löschen", fr: "Effacer la recherche" },
+  searchNoMatches: {
+    en: "No matches for “{query}”.",
+    de: "Keine Treffer für „{query}“.",
+    fr: "Aucun résultat pour « {query} ».",
+  },
   contactAddToContacts: {
     en: "Add to contacts",
     de: "Zu Kontakten hinzufügen",

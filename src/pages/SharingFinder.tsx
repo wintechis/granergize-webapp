@@ -54,6 +54,9 @@ import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
+import { useListSearch } from "../hooks/useListSearch.ts";
+import SearchField from "../components/SearchField.tsx";
+import { filterByText } from "../lib/textSearch.ts";
 
 interface SharingFinderProps {
   session: Session;
@@ -183,7 +186,13 @@ export default function SharingFinder({ session }: SharingFinderProps) {
   const sharedWithMeQuery = useSharedWithMe();
   const sharedWithMe = sharedWithMeQuery.data ?? [];
   const loading = sharedWithMeQuery.isLoading;
-  const sharedPaging = usePaging(sharedWithMe, { key: "shared" });
+  const sharedSearch = useListSearch("shared");
+  const filteredShared = filterByText(
+    sharedWithMe,
+    sharedSearch.query,
+    (b) => `${b.buildingId} ${b.sharedBy}`,
+  );
+  const sharedPaging = usePaging(filteredShared, { key: "shared" });
 
   // The shared-with-me ENTRIES carry only a display stem (`buildingId`) and the
   // building's document URI; the resolvable building id (the absolute subject IRI
@@ -197,7 +206,13 @@ export default function SharingFinder({ session }: SharingFinderProps) {
 
   const receivedAggregationsQuery = useReceivedAggregations();
   const receivedAggregations = receivedAggregationsQuery.data ?? [];
-  const receivedAggregationsPaging = usePaging(receivedAggregations, {
+  const receivedSearch = useListSearch("received");
+  const filteredReceived = filterByText(
+    receivedAggregations,
+    receivedSearch.query,
+    (a) => `${a.aggregationId} ${a.sharedBy}`,
+  );
+  const receivedAggregationsPaging = usePaging(filteredReceived, {
     key: "received",
   });
 
@@ -302,12 +317,26 @@ export default function SharingFinder({ session }: SharingFinderProps) {
           {bundling ? t("sharePreparing") : t("bldgsDownloadAll")}
         </Button>
       </Stack>
+      {sharedWithMe.length > 0 && (
+        <Box sx={{ mb: 1 }}>
+          <SearchField
+            value={sharedSearch.query}
+            onChange={sharedSearch.setQuery}
+          />
+        </Box>
+      )}
       {loading
         ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : sharedWithMe.length === 0
         ? (
           <Typography variant="body2">
             {t("sharedBuildingsEmpty")}
+          </Typography>
+        )
+        : filteredShared.length === 0
+        ? (
+          <Typography variant="body2">
+            {t("searchNoMatches", { query: sharedSearch.query })}
           </Typography>
         )
         : (
@@ -377,12 +406,26 @@ export default function SharingFinder({ session }: SharingFinderProps) {
       <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
         {t("sharedAggregationsHeading")}
       </Typography>
+      {receivedAggregations.length > 0 && (
+        <Box sx={{ mb: 1 }}>
+          <SearchField
+            value={receivedSearch.query}
+            onChange={receivedSearch.setQuery}
+          />
+        </Box>
+      )}
       {receivedAggregationsQuery.isLoading
         ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : receivedAggregations.length === 0
         ? (
           <Typography variant="body2">
             {t("sharedAggregationsEmpty")}
+          </Typography>
+        )
+        : filteredReceived.length === 0
+        ? (
+          <Typography variant="body2">
+            {t("searchNoMatches", { query: receivedSearch.query })}
           </Typography>
         )
         : (

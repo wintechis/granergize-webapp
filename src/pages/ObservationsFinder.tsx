@@ -5,12 +5,15 @@ import { useSolidData } from "../hooks/queries.ts";
 import { getSession } from "../hooks/session.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
-import { buildingDisplayName } from "../lib/buildingDisplay.ts";
+import { buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.ts";
+import { filterByText } from "../lib/textSearch.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
+import { useListSearch } from "../hooks/useListSearch.ts";
+import SearchField from "../components/SearchField.tsx";
 
 /**
  * One observation collection per building today: `/observation/:id` is keyed by
@@ -44,7 +47,9 @@ export default function ObservationsFinder() {
   const withObservations = buildings.filter(
     (b) => (b.energyDatasets?.length ?? 0) > 0,
   );
-  const paging = usePaging(withObservations);
+  const { query, setQuery } = useListSearch();
+  const filtered = filterByText(withObservations, query, buildingSearchText);
+  const paging = usePaging(filtered);
 
   // Dev-mode-only source link to the backing observations container (self-hides
   // outside dev mode); null until the storage root resolves.
@@ -58,12 +63,23 @@ export default function ObservationsFinder() {
     >
       <Typography variant="h6" sx={{ mb: 1 }}>{t("navObservations")}</Typography>
       {rdf && <RdfSourceLink href={rdf.observations} />}
+      {withObservations.length > 0 && (
+        <Box sx={{ mb: 1 }}>
+          <SearchField value={query} onChange={setQuery} />
+        </Box>
+      )}
       {isLoading
         ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : withObservations.length === 0
         ? (
           <Typography variant="body2">
             {t("observationsEmpty")}
+          </Typography>
+        )
+        : filtered.length === 0
+        ? (
+          <Typography variant="body2">
+            {t("searchNoMatches", { query })}
           </Typography>
         )
         : (

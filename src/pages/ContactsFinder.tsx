@@ -23,6 +23,9 @@ import { AgentLabel } from "../components/AgentLabel.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
+import { useListSearch } from "../hooks/useListSearch.ts";
+import SearchField from "../components/SearchField.tsx";
+import { filterByText } from "../lib/textSearch.ts";
 import QrScanner from "../components/QrScanner.tsx";
 import { logError } from "../lib/logError.ts";
 
@@ -46,7 +49,13 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
   const saveContact = useSaveContact();
   const removeContact = useRemoveContact();
   const [contactInput, setContactInput] = useState("");
-  const contactPaging = usePaging(contacts);
+  const { query, setQuery } = useListSearch();
+  const filteredContacts = filterByText(
+    contacts,
+    query,
+    (c) => `${c.name ?? ""} ${c.webId}`,
+  );
+  const contactPaging = usePaging(filteredContacts);
   // Whether the QR scanner (one camera view) is open: a scanned code adds a
   // contact by WebID.
   const [scanning, setScanning] = useState(false);
@@ -132,12 +141,23 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
           onCancel={() => setScanning(false)}
         />
       )}
+      {contacts.length > 0 && (
+        <Box sx={{ mb: 1 }}>
+          <SearchField value={query} onChange={setQuery} />
+        </Box>
+      )}
       {contactsQuery.isLoading
         ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : contacts.length === 0
         ? (
           <Typography variant="body2">
             {t("contactsEmpty")}
+          </Typography>
+        )
+        : filteredContacts.length === 0
+        ? (
+          <Typography variant="body2">
+            {t("searchNoMatches", { query })}
           </Typography>
         )
         : (

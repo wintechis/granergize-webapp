@@ -37,6 +37,9 @@ import ObjectActions from "../components/ObjectActions.tsx";
 import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
+import { useListSearch } from "../hooks/useListSearch.ts";
+import SearchField from "../components/SearchField.tsx";
+import { filterByText } from "../lib/textSearch.ts";
 import ShareAggregationDialog from "../components/ShareAggregationDialog.tsx";
 import CreateAggregationDialog from "../components/CreateAggregationDialog.tsx";
 
@@ -86,7 +89,13 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
 
   const aggregationDefsQuery = useAggregationDefinitions();
   const aggregationDefinitions = aggregationDefsQuery.data ?? [];
-  const aggregationPaging = usePaging(aggregationDefinitions);
+  const { query, setQuery } = useListSearch();
+  const filteredAggregations = filterByText(
+    aggregationDefinitions,
+    query,
+    (a: AggregationDefinition) => `${a.name} ${a.aggregationType}`,
+  );
+  const aggregationPaging = usePaging(filteredAggregations);
   const sharedAggregationsQuery = useSharedAggregations();
   const sharedAggregations = sharedAggregationsQuery.data ?? [];
 
@@ -156,12 +165,23 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
             {t("aggCreateTitle")}
           </Button>
         </Stack>
+        {aggregationDefinitions.length > 0 && (
+          <Box sx={{ mb: 1 }}>
+            <SearchField value={query} onChange={setQuery} />
+          </Box>
+        )}
         {aggregationDefsQuery.isLoading
           ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
           : aggregationDefinitions.length === 0
           ? (
             <Typography variant="body2">
               {t("aggregationsEmpty")}
+            </Typography>
+          )
+          : filteredAggregations.length === 0
+          ? (
+            <Typography variant="body2">
+              {t("searchNoMatches", { query })}
             </Typography>
           )
           : (

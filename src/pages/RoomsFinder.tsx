@@ -32,6 +32,9 @@ import { msg } from "../lib/messages.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
+import { useListSearch } from "../hooks/useListSearch.ts";
+import SearchField from "../components/SearchField.tsx";
+import { filterByText } from "../lib/textSearch.ts";
 import QrScanner from "../components/QrScanner.tsx";
 import { logError } from "../lib/logError.ts";
 
@@ -88,7 +91,9 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   const rooms = activeRoom && !knownRooms.includes(activeRoom)
     ? [activeRoom, ...knownRooms]
     : knownRooms;
-  const roomPaging = usePaging(rooms);
+  const { query, setQuery } = useListSearch();
+  const filteredRooms = filterByText(rooms, query, (r) => `${r} ${roomHost(r)}`);
+  const roomPaging = usePaging(filteredRooms);
 
   const create = useCreateRoom();
   const del = useDeleteRoom();
@@ -244,12 +249,23 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
           onCancel={() => setScanning(false)}
         />
       )}
+      {hasRooms && (
+        <Box sx={{ mb: 1 }}>
+          <SearchField value={query} onChange={setQuery} />
+        </Box>
+      )}
       {roomQuery.isLoading
         ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : !hasRooms
         ? (
           <Typography variant="body2">
             {t("roomsEmpty")}
+          </Typography>
+        )
+        : filteredRooms.length === 0
+        ? (
+          <Typography variant="body2">
+            {t("searchNoMatches", { query })}
           </Typography>
         )
         : (
