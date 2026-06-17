@@ -59,6 +59,30 @@ export async function openAggregations(page: Page): Promise<void> {
 }
 
 /**
+ * Open the Buildings List and resolve the row for `street` + its building id,
+ * retrying with a **fresh read** (a full `goto`) until the row appears. Guards the
+ * Tier-3 CSS write→container-listing race: a just-added building can be missing from
+ * the freshly-fetched listing for a moment, and the app's global `refetchOnMount:
+ * false` means merely re-opening the tab won't re-read — only a fresh document load
+ * does. Replaces the bare `openBuildingsList → expect(row).toBeVisible` the share /
+ * energy / files helpers used to inline (the observed `share-building` flake).
+ */
+export async function findOwnBuildingRow(
+  page: Page,
+  street: string,
+): Promise<{ row: Locator; id: string }> {
+  const row = page.locator("li[data-building-id]", { hasText: street }).first();
+  await expect(async () => {
+    await page.goto("/");
+    await openBuildingsList(page);
+    await expect(row).toBeVisible({ timeout: T.quick });
+  }).toPass({ timeout: T.poll });
+  const id = await buildingIdOf(row);
+  if (!id) throw new Error(`findOwnBuildingRow: no id for building "${street}"`);
+  return { row, id };
+}
+
+/**
  * Real-path route to a building's standalone page (BrowserRouter). The id rides in
  * a query param — `?ref=` for a storage-relative (own) id, `?uri=` for an absolute
  * (foreign/shared) IRI — via the app's own route builders, so a raw `#`/`/` in the
@@ -146,15 +170,10 @@ export async function addEnergyYear(
   electricity: string,
   scenario: RegExp = /^Actual$/,
 ): Promise<void> {
-  // Self-contained: a caller may be on a standalone detail route (no app-shell
-  // tabs) where openBuildingsList can't find the Buildings tab — return to the
-  // shell first.
-  await page.goto("/");
-  await openBuildingsList(page);
-  const row = page.locator("li[data-building-id]", { hasText: street }).first();
-  await expect(row).toBeVisible({ timeout: T.action });
-  const id = await buildingIdOf(row);
-  if (!id) throw new Error(`addEnergyYear: no id for building "${street}"`);
+  // Self-contained + race-hardened: resolve the row with a fresh-read retry (a
+  // caller may be on a standalone detail route, and a just-added building can lag
+  // the listing — see findOwnBuildingRow).
+  const { id } = await findOwnBuildingRow(page, street);
   await page.goto(buildingRoute("observation", id));
   await page.getByRole("button", { name: "Edit energy years" }).click();
   // The dialog's accessible name contains "year", so target inputs by exact
@@ -218,12 +237,7 @@ export async function shareByRole(
  * page is on the standalone `/building/:id` route.
  */
 async function openShareDialog(page: Page, street: string): Promise<void> {
-  await page.goto("/");
-  await openBuildingsList(page);
-  const row = page.locator("li[data-building-id]", { hasText: street }).first();
-  await expect(row).toBeVisible({ timeout: T.action });
-  const id = await buildingIdOf(row);
-  if (!id) throw new Error(`openShareDialog: no id for building "${street}"`);
+  const { id } = await findOwnBuildingRow(page, street);
   await page.goto(buildingRoute("building", id));
   await page.getByRole("button", { name: "Share", exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible({ timeout: T.action });
@@ -257,11 +271,7 @@ export async function uploadBuildingFile(
   street: string,
   fixturePath: string,
 ): Promise<void> {
-  await openBuildingsList(page);
-  const row = page.locator("li[data-building-id]", { hasText: street }).first();
-  await expect(row).toBeVisible({ timeout: T.action });
-  const id = await buildingIdOf(row);
-  if (!id) throw new Error(`uploadBuildingFile: no id for building "${street}"`);
+  const { id } = await findOwnBuildingRow(page, street);
   // Files moved to the building page's Files section (the per-row "Manage files"
   // dialog is gone); the hidden input is set directly.
   await page.goto(buildingRoute("building", id));

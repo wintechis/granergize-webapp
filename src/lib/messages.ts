@@ -1417,6 +1417,17 @@ export const MESSAGES = {
     de: "Keine Treffer für „{query}“.",
     fr: "Aucun résultat pour « {query} ».",
   },
+  // Provenance marker on a finder row (a building/aggregation shared with me).
+  provSharedTag: { en: "Shared", de: "Geteilt", fr: "Partagé" },
+  // Tier source-selector (multi-select union: which provenance sources to show).
+  tierFilterAria: { en: "Filter by source", de: "Nach Quelle filtern", fr: "Filtrer par source" },
+  tierMine: { en: "Mine", de: "Meine", fr: "Les miens" },
+  tierShared: { en: "Shared with me", de: "Mit mir geteilt", fr: "Partagés avec moi" },
+  filterNoMatch: {
+    en: "Nothing matches the current filter.",
+    de: "Nichts entspricht dem aktuellen Filter.",
+    fr: "Rien ne correspond au filtre actuel.",
+  },
   contactAddToContacts: {
     en: "Add to contacts",
     de: "Zu Kontakten hinzufügen",
