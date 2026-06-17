@@ -5,7 +5,6 @@ import {
   findIntent,
   intentApplies,
   type IntentObject,
-  intentParams,
 } from "./applicable.ts";
 import type { AggregationDefinition, BuildingType } from "../types.ts";
 
@@ -40,12 +39,11 @@ function applies(name: string, object: IntentObject, devMode = false): boolean {
   return intentApplies(e!, object, { devMode });
 }
 
-// ── findIntent / intentParams ────────────────────────────────────────────────
+// ── findIntent ───────────────────────────────────────────────────────────────
 
-Deno.test("findIntent resolves a catalog name; intentParams reads the affordance vars", () => {
+Deno.test("findIntent resolves a catalog name", () => {
   assert.ok(findIntent("ShareBuilding"));
   assert.equal(findIntent("NotAnIntent"), undefined);
-  assert.deepEqual(intentParams(findIntent("DeleteBuilding")!), ["building"]);
 });
 
 // ── Guards: own vs shared building ───────────────────────────────────────────

@@ -30,10 +30,10 @@
 import { type IntentEntry } from "../intents/catalog.ts";
 import {
   applicableIntents,
-  intentParams,
   type IntentObject,
   type ViewerContext,
 } from "../intents/applicable.ts";
+import { INTENT_PARAMS } from "../intents/params.ts";
 import { intentLabelKey } from "../intents/labels.ts";
 import { type MessageId } from "./messages.ts";
 import type { DialogAction } from "../routes.ts";
@@ -70,8 +70,8 @@ export interface PaletteCommand {
   entry?: IntentEntry;
   /**
    * Intent only: does this verb route to its bespoke dialog (rather than invoke
-   * directly)? `true` when it both declares params AND has a bespoke dialog
-   * surface (share/edit/create/enter-energy); `false` for the direct verbs
+   * directly)? `true` when it both declares modelled params AND has a bespoke
+   * dialog surface (share/edit/create/enter-energy); `false` for the direct verbs
    * (hide/delete/refresh) the palette can fire straight away.
    */
   routesToDialog?: boolean;
@@ -127,13 +127,25 @@ const DIALOG_SURFACE = new Set<string>([
 ]);
 
 /**
+ * Does this verb have ≥1 *modelled* RDF param ({@link INTENT_PARAMS})? The basis
+ * for the dialog-routing decision: it counts only the params the user supplies,
+ * NOT the runtime-only handles (`signal`/`onProgress`/`onUploaded`) the schema
+ * deliberately omits — so a verb whose sole "param" is such a handle (e.g.
+ * `RemoveAppData`'s `signal`) is correctly param-less and is fired directly.
+ */
+function hasModelledParams(name: string): boolean {
+  const schema = (INTENT_PARAMS as Record<string, object>)[name];
+  return schema != null && Object.keys(schema).length > 0;
+}
+
+/**
  * Does a verb need parameter capture (→ route to its dialog) or can the palette
- * invoke it directly? A verb routes to a dialog when it both declares params AND
- * records a bespoke surface to open. A param-less verb, or one with no surface, is
- * invoked directly through the surface's handler.
+ * invoke it directly? A verb routes to a dialog when it both records a bespoke
+ * surface to open AND declares ≥1 modelled param. A param-less verb, or one with
+ * no surface, is invoked directly through the surface's handler.
  */
 export function intentRoutesToDialog(entry: IntentEntry): boolean {
-  return DIALOG_SURFACE.has(entry.name) && intentParams(entry).length > 0;
+  return DIALOG_SURFACE.has(entry.name) && hasModelledParams(entry.name);
 }
 
 /** Filter a command list by a case-insensitive substring of the label. */

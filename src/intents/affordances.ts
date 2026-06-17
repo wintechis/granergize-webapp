@@ -14,12 +14,16 @@
  *   state plus the viewer's relationship (own vs shared, snapshot-exists, dev
  *   mode) permit this verb? Pure; these were the per-surface conditionals
  *   (`!building.isShared`, `lastComputedAt != null`), made explicit and reusable.
- * - **`params`** — the verb's parameter field names (the hook's `vars` shape).
- *   The palette consults `params.length` to decide whether a verb needs a dialog
- *   (route to its bespoke surface) or can be fired directly.
+ *
+ * The verb's parameter shape is NOT recorded here — it lives in the modelled RDF
+ * schema {@link INTENT_PARAMS} (`params.ts`), bound to the core signature by the
+ * compile-time `_paramKeysMatch` witness. The palette's dialog-routing keys off
+ * those modelled params (`hasModelledParams` in `commandPalette.ts`), so a verb
+ * whose only "param" is a runtime handle (e.g. `RemoveAppData`'s `signal`) is
+ * correctly param-less from the user's view.
  *
  * Keyed by the intent's stable `name` (the `IntentEntry.name`); a verb with no
- * affordance entry defaults to "no params, never applies to a per-object menu"
+ * affordance entry defaults to "never applies to a per-object menu"
  * (account/room verbs that no menu surfaces yet). `affordances.test.ts` asserts
  * every key here names a real {@link INTENTS} entry — so a rename in the catalog
  * breaks here, not silently.
@@ -58,8 +62,6 @@ export type AppliesGuard = (
 
 /** The object-layer affordance facts for one intent. */
 export interface IntentAffordance {
-  /** The verb's parameter field names — the hook's `vars` shape. */
-  readonly params: readonly string[];
   /**
    * State-filter: does the object's current state + the viewer's relationship
    * permit this verb? Pure; recomputed per instance + viewer.
@@ -116,124 +118,90 @@ const never: AppliesGuard = () => false;
 
 /**
  * Affordance facts keyed by the catalog intent `name`. Verbs absent here default
- * to `{ params: [], applies: never }` via {@link affordanceFor} (the room /
- * collection verbs that no per-object menu surfaces yet).
+ * to `{ applies: never }` via {@link affordanceFor} (the room / collection verbs
+ * that no per-object menu surfaces yet).
  */
 export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   // ── Buildings ──────────────────────────────────────────────────────────────
-  AddBuilding: {
-    params: ["buildings", "lastgangReadings", "signal", "onProgress"],
-    applies: always,
-  },
+  AddBuilding: { applies: always },
   UpdateBuilding: {
     // Editing master data is owner-only (`!building.isShared`, MasterDataSection).
-    params: ["fileUri", "subjectUri", "fields"],
     applies: isOwnBuilding,
   },
-  DeleteBuilding: {
-    params: ["building"],
-    applies: isOwnBuilding,
-  },
+  DeleteBuilding: { applies: isOwnBuilding },
   ToggleVisibility: {
     // Only a shared-with-me building can be hidden from the dashboard.
-    params: ["buildingUri"],
     applies: isSharedBuilding,
   },
   // ── Observations (energy) ────────────────────────────────────────────────────
   SaveObservation: {
     // Entering energy is owner-only (EnergyEntryButton hides for shared).
-    params: ["fileUri", "subjectUri", "dataset"],
     applies: isOwnBuilding,
   },
   DeleteObservation: {
     // Own building AND at least one dataset to delete.
-    params: ["fileUri", "subjectUri", "dataset"],
     applies: (o) => isOwnBuilding(o) && hasEnergy(o),
   },
   // ── Attachments ──────────────────────────────────────────────────────────────
   UploadAttachments: {
     // Writing files is owner-only (`canWrite = !building.isShared`).
-    params: ["fileUri", "subjectUri", "files", "onUploaded"],
     applies: isOwnBuilding,
   },
   DeleteAttachment: {
-    params: ["fileUri", "subjectUri", "url"],
     applies: (o) => isOwnBuilding(o) && hasAttachments(o),
   },
   SetEnergyCertificate: {
-    params: ["fileUri", "subjectUri", "url"],
     applies: (o) => isOwnBuilding(o) && hasAttachments(o),
   },
   // ── Aggregations ─────────────────────────────────────────────────────────────
-  CreateAggregation: {
-    params: [
-      "name",
-      "buildingUris",
-      "aggregationType",
-      "metrics",
-      "period",
-      "benchmark",
-    ],
-    applies: always,
-  },
-  DeleteAggregation: {
-    params: ["aggregationId"],
-    applies: isAggregation,
-  },
+  CreateAggregation: { applies: always },
+  DeleteAggregation: { applies: isAggregation },
   RefreshAggregation: {
     // Refresh only once a first snapshot exists.
-    params: ["aggregationId"],
     applies: hasSnapshot,
   },
   ShareAggregation: {
     // Can only share a snapshot once one is computed.
-    params: ["snapshotUri", "recipients"],
     applies: hasSnapshot,
   },
-  RevokeAggregationAccess: {
-    params: ["snapshotUri", "webId"],
-    applies: isAggregation,
-  },
+  RevokeAggregationAccess: { applies: isAggregation },
   // ── Sharing ──────────────────────────────────────────────────────────────────
   ShareBuilding: {
     // Sharing is owner-only (SharingSection returns null for shared buildings).
-    params: ["buildingUri", "recipients", "includeEnergyData", "years"],
     applies: isOwnBuilding,
   },
   RevokeBuildingAccess: {
     // Revoking is owner-only (you can only revoke a grant you made).
-    params: ["buildingUri", "webId"],
     applies: isOwnBuilding,
   },
-  CheckInbox: { params: [], applies: devOnly },
-  ReissueGrants: { params: [], applies: devOnly },
-  AuditGrants: { params: [], applies: devOnly },
+  CheckInbox: { applies: devOnly },
+  ReissueGrants: { applies: devOnly },
+  AuditGrants: { applies: devOnly },
   // ── Rooms ────────────────────────────────────────────────────────────────────
   // No per-object building menu surfaces a room verb (they live in the rooms
-  // finder / room page), so `applies: never` — but the params are recorded so the
-  // reified INTENT_PARAMS schema can be drift-guarded against them.
-  CreateRoom: { params: [], applies: never },
-  EnterRoom: { params: ["roomUri"], applies: never },
-  ExitRoom: { params: ["roomUri"], applies: never },
-  DeleteRoom: { params: ["roomUri"], applies: never },
-  AddRoom: { params: ["input"], applies: never },
-  RemoveBookmark: { params: ["roomUri"], applies: never },
-  SaveRoles: { params: ["room", "roles"], applies: never },
-  SeedDemoRooms: { params: [], applies: devOnly },
+  // finder / room page), so `applies: never`.
+  CreateRoom: { applies: never },
+  EnterRoom: { applies: never },
+  ExitRoom: { applies: never },
+  DeleteRoom: { applies: never },
+  AddRoom: { applies: never },
+  RemoveBookmark: { applies: never },
+  SaveRoles: { applies: never },
+  SeedDemoRooms: { applies: devOnly },
   // ── Organisation ─────────────────────────────────────────────────────────────
-  SaveOrganisation: { params: ["org", "logo"], applies: always },
+  SaveOrganisation: { applies: always },
   // ── Contacts ─────────────────────────────────────────────────────────────────
-  SaveContact: { params: ["contact"], applies: always },
-  RemoveContact: { params: ["webId"], applies: always },
-  SeedDemoContacts: { params: [], applies: devOnly },
+  SaveContact: { applies: always },
+  RemoveContact: { applies: always },
+  SeedDemoContacts: { applies: devOnly },
   // ── Account-scope ────────────────────────────────────────────────────────────
-  SeedDemoBuildings: { params: [], applies: always },
-  RemoveAppData: { params: ["signal"], applies: devOnly },
-  RestoreArchive: { params: ["bytes"], applies: devOnly },
-  ExportArchive: { params: [], applies: devOnly },
+  SeedDemoBuildings: { applies: always },
+  RemoveAppData: { applies: devOnly },
+  RestoreArchive: { applies: devOnly },
+  ExportArchive: { applies: devOnly },
 };
 
-/** The affordance facts for an intent, defaulting to "no params, never applies". */
+/** The affordance facts for an intent, defaulting to "never applies". */
 export function affordanceFor(name: string): IntentAffordance {
-  return INTENT_AFFORDANCES[name] ?? { params: [], applies: never };
+  return INTENT_AFFORDANCES[name] ?? { applies: never };
 }

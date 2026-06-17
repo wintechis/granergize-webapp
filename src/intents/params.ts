@@ -3,12 +3,13 @@
  * node-kind / range / cardinality of each modelled param.
  *
  * A separate module from {@link IntentAffordance} (`affordances.ts`): the lean
- * affordance table stays a flat `params: string[]` bag (its drift guard is
- * against the hook vars), while THIS module records the RDF shape of each param —
- * whether it is an IRI reference or a literal, its class/datatype range, and its
- * cardinality. The schema binds against the cores' TS param types via the
+ * affordance table records only the `applies` state-guard, while THIS module is
+ * the sole source of each intent's param shape — the field-name set plus the RDF
+ * shape of each param (IRI reference vs literal, class/datatype range,
+ * cardinality). The schema binds against the cores' TS param types via the
  * compile-time {@link ParamKeysMatch} witness (the field-name set, minus
- * runtime-only handles like `signal`).
+ * runtime-only handles like `signal`). The palette's dialog-routing also keys off
+ * this schema's modelled-param count (`hasModelledParams` in `commandPalette.ts`).
  *
  * **Step-4 seam:** the `nodeKind: "iri"` markers tell the future EntityQuery
  * resolver which params (`buildingUri`, `recipients`) need IRI→instance

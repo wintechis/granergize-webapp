@@ -29,6 +29,8 @@ import * as archiveRestore from "./tasks/archive-restore.ts";
 import * as deleteSharedBuilding from "./tasks/delete-shared-building.ts";
 import * as benchmark from "./tasks/benchmark.ts";
 import * as grantProjection from "./tasks/grant-projection.ts";
+import * as roomsIntent from "./tasks/rooms-intent.ts";
+import * as sharingIntent from "./tasks/sharing-intent.ts";
 
 const TASKS: TaskModule[] = [
   dataRoom,
@@ -41,6 +43,8 @@ const TASKS: TaskModule[] = [
   deleteSharedBuilding,
   benchmark,
   grantProjection,
+  roomsIntent,
+  sharingIntent,
 ];
 
 const harness = makeHarness();

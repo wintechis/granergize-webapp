@@ -34,11 +34,6 @@ export function intentApplies(
   return affordanceFor(entry.name).applies(object, viewer);
 }
 
-/** The verb's parameter field names (its affordance `params`). */
-export function intentParams(entry: IntentEntry): readonly string[] {
-  return affordanceFor(entry.name).params;
-}
-
 /**
  * The verbs an object offers a viewer, in the catalog's source order, after both
  * the developer-mode exposure gate and the applicability guard.

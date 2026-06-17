@@ -21,7 +21,7 @@
     "e2e:remote": "npx playwright test --project=solo --project=duo --project=trio",
     "e2e:remote:spec": "npx playwright test",
     "e2e:install": "npx playwright install --with-deps chromium",
-    "it": "LOCAL_PORT_OFFSET=80 deno run -A --node-modules-dir=auto test/headless/runner.ts",
+    "it": "LOCAL_PORT_OFFSET=20 deno run -A --node-modules-dir=auto test/headless/runner.ts",
     "it:jss": "LOCAL_POD_SERVER=jss deno task it",
     "bench": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/runner.ts",
     "bench:css": "LOCAL_POD_SERVER=css deno run -A --node-modules-dir=auto test/bench/runner.ts",
