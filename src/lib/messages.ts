@@ -1404,6 +1404,10 @@ export const MESSAGES = {
   },
   // Contact detail page.
   lblOrganisation: { en: "Organisation", de: "Organisation", fr: "Organisation" },
+  lblAddress: { en: "Address", de: "Adresse", fr: "Adresse" },
+  lblEmail: { en: "E-mail", de: "E-Mail", fr: "E-mail" },
+  lblPhone: { en: "Phone", de: "Telefon", fr: "Téléphone" },
+  lblWebsite: { en: "Website", de: "Webseite", fr: "Site web" },
   contactAddToContacts: {
     en: "Add to contacts",
     de: "Zu Kontakten hinzufügen",

@@ -23,14 +23,26 @@ export const FOAF_NAME = `${FOAF_NS}name`;
 export const FOAF_IMG = `${FOAF_NS}img`;
 /** foaf:logo — an organisation's logo image (used for map markers). */
 export const FOAF_LOGO = `${FOAF_NS}logo`;
+/** foaf:mbox / foaf:homepage — contact e-mail and website on a profile. */
+export const FOAF_MBOX = `${FOAF_NS}mbox`;
+export const FOAF_HOMEPAGE = `${FOAF_NS}homepage`;
 
-/** vCard — profile photo (vcard:hasPhoto) fallback for the avatar. */
+/** vCard — profile photo (vcard:hasPhoto) fallback for the avatar, plus the
+ * agent's contact facts (postal address, e-mail, telephone, URL). */
 export const VCARD_NS = "http://www.w3.org/2006/vcard/ns#";
 export const VCARD_FN = `${VCARD_NS}fn`;
 export const VCARD_HAS_PHOTO = `${VCARD_NS}hasPhoto`;
 export const VCARD_INDIVIDUAL = `${VCARD_NS}Individual`;
 export const VCARD_ADDRESS_BOOK = `${VCARD_NS}AddressBook`;
 export const VCARD_HAS_MEMBER = `${VCARD_NS}hasMember`;
+export const VCARD_HAS_ADDRESS = `${VCARD_NS}hasAddress`;
+export const VCARD_STREET_ADDRESS = `${VCARD_NS}street-address`;
+export const VCARD_LOCALITY = `${VCARD_NS}locality`;
+export const VCARD_POSTAL_CODE = `${VCARD_NS}postal-code`;
+export const VCARD_COUNTRY_NAME = `${VCARD_NS}country-name`;
+export const VCARD_HAS_EMAIL = `${VCARD_NS}hasEmail`;
+export const VCARD_HAS_TELEPHONE = `${VCARD_NS}hasTelephone`;
+export const VCARD_HAS_URL = `${VCARD_NS}hasURL`;
 
 /**
  * W3C Basic Geo (WGS84). A building's coordinates live on a `geo:Point` blank

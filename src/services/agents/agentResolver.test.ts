@@ -172,3 +172,57 @@ Deno.test("resolveAgentOrg: owl:sameAs to a non-Wikidata IRI yields no logo", as
   assert.deepEqual(org, { name: "ACME" });
   assert.equal(fetchFn.called, false, "non-Wikidata sameAs triggers no fetch");
 });
+
+Deno.test("resolveAgent reads standard vCard/FOAF contact facts", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    @prefix vcard: <http://www.w3.org/2006/vcard/ns#> .
+    <${WEBID}> foaf:name "Alice Example" ;
+      foaf:mbox <mailto:alice@example.com> ;
+      foaf:homepage <https://alice.example/> ;
+      vcard:hasTelephone "+49 111 222" ;
+      vcard:hasAddress [ vcard:street-address "Main St 1" ;
+                         vcard:postal-code "12345" ;
+                         vcard:locality "Berlin" ;
+                         vcard:country-name "Germany" ] .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.address, "Main St 1, 12345 Berlin, Germany");
+  assert.equal(agent.email, "alice@example.com"); // mailto: stripped
+  assert.equal(agent.phone, "+49 111 222");
+  assert.equal(agent.website, "https://alice.example/");
+});
+
+Deno.test("resolveAgent: MaStR wrapper predicates fall back to contact facts", async () => {
+  _resetProfileCacheForTesting();
+  // The MaStR `abr` document: standard vcard:hasAddress, but e-mail/phone/website
+  // under the wrapper's own `…#Email/#Telefon/#Webseite` predicates.
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    @prefix vcard: <http://www.w3.org/2006/vcard/ns#> .
+    @prefix mastr: <https://wunderfacts.com/mastr/mastr#> .
+    <${WEBID}> foaf:name "Raiffeisenbank Knoblauchsland eG" ;
+      vcard:hasAddress [ vcard:street-address "Hofwiesenweg 9" ;
+                         vcard:postal-code "90427" ;
+                         vcard:locality "Nürnberg" ] ;
+      mastr:Email "info@rb-knoblauchsland.de" ;
+      mastr:Telefon "+49911934350" ;
+      mastr:Webseite "www.rb-knoblauchsland.de" .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.address, "Hofwiesenweg 9, 90427 Nürnberg");
+  assert.equal(agent.email, "info@rb-knoblauchsland.de");
+  assert.equal(agent.phone, "+49911934350");
+  assert.equal(agent.website, "www.rb-knoblauchsland.de");
+});
+
+Deno.test("resolveAgent: no contact facts → fields absent", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${WEBID}> foaf:name "Spartan" .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.address, undefined);
+  assert.equal(agent.email, undefined);
+  assert.equal(agent.phone, undefined);
+  assert.equal(agent.website, undefined);
+});

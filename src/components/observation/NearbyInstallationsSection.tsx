@@ -68,13 +68,26 @@ export default function NearbyInstallationsSection(
 
       <Box component="ul" sx={listStyle}>
         {paging.pageItems.map((u) => (
-          <Box component="li" key={u.iri} sx={{ ...rowStyle, py: 0.5 }}>
-            <Typography variant="body2" sx={{ ...ellipsis, minWidth: 0 }}>
-              {t(KIND_LABEL[u.kind])} — {u.label || t("niUnnamed")}
-            </Typography>
-            <Typography variant="body2" color="text.secondary" sx={{ flexShrink: 0 }}>
-              {t("niDistance", { km: u.distanceKm.toFixed(1) })}
-            </Typography>
+          <Box
+            component="li"
+            key={u.iri}
+            sx={{ display: "flex", flexDirection: "column", py: 0.5 }}
+          >
+            <Box sx={rowStyle}>
+              <Typography variant="body2" sx={{ ...ellipsis, minWidth: 0 }}>
+                {t(KIND_LABEL[u.kind])} — {u.label || t("niUnnamed")}
+              </Typography>
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{ flexShrink: 0 }}
+              >
+                {t("niDistance", { km: u.distanceKm.toFixed(1) })}
+              </Typography>
+            </Box>
+            {/* Per-unit RDF resource on linked-mastr — the only "detail" a unit
+                has (there is no in-app unit page); Developer-mode source link. */}
+            <RdfSourceLink href={u.iri} inline />
           </Box>
         ))}
       </Box>

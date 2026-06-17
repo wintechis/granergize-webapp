@@ -5,25 +5,44 @@ import { logError } from "../../lib/logError.ts";
 import { trackedFetch } from "../../lib/networkActivity.ts";
 import { fetchWikidataLogo } from "./wikidataLogo.ts";
 import {
+  FOAF_HOMEPAGE,
   FOAF_IMG,
   FOAF_LOGO,
+  FOAF_MBOX,
   FOAF_NAME,
   ORG_MEMBER_OF,
   OWL_SAME_AS,
+  VCARD_COUNTRY_NAME,
   VCARD_FN,
+  VCARD_HAS_ADDRESS,
+  VCARD_HAS_EMAIL,
   VCARD_HAS_PHOTO,
+  VCARD_HAS_TELEPHONE,
+  VCARD_HAS_URL,
+  VCARD_LOCALITY,
+  VCARD_POSTAL_CODE,
+  VCARD_STREET_ADDRESS,
 } from "../rdf/vocabularies.ts";
 
 /**
  * A WebID agent resolved against its own profile document. An agent's profile is
- * not ours to own — `foaf:name`/`vcard:fn` and `foaf:img`/`vcard:hasPhoto` live on
- * the agent's Pod — so this only *reads* them. `name`/`avatarUrl` are absent when
- * the profile is private, unreachable, or simply doesn't state them.
+ * not ours to own — its facts live on the agent's Pod (or a Linked-Data wrapper) —
+ * so this only *reads* them. Every field is absent when the profile is private,
+ * unreachable, or simply doesn't state it.
+ *
+ * `name`/`avatarUrl` are the identity; `address`/`email`/`phone`/`website` are the
+ * read-only **contact facts** the contact page surfaces so the profile shows what
+ * the dereferenced document actually holds, rather than only an opaque IRI.
  */
 export interface ResolvedAgent {
   webId: string;
   name?: string;
   avatarUrl?: string;
+  /** One-line postal address assembled from the `vcard:hasAddress` node. */
+  address?: string;
+  email?: string;
+  phone?: string;
+  website?: string;
 }
 
 const { namedNode } = DataFactory;
@@ -48,6 +67,52 @@ function objects(store: Store, subject: string, predicate: string): string[] {
   return store
     .getQuads(namedNode(subject), namedNode(predicate), null, null)
     .map((q) => q.object.value);
+}
+
+/**
+ * First object whose predicate IRI *ends with* `suffix`, for the subject. Used for
+ * the MaStR wrapper's contact predicates (`…/mastr#Email` etc.), which it serves
+ * under its own namespace instead of standard `vcard:`/`foaf:` — and whose relative
+ * form resolves unpredictably against the document base, so a suffix match is the
+ * robust read (mirrors `mastrNearby.ts`). Remove once the wrapper emits standard
+ * vCard/FOAF terms (see plans/stumble.md).
+ */
+function firstObjectBySuffix(
+  store: Store,
+  subject: string,
+  suffix: string,
+): string | undefined {
+  for (const q of store.getQuads(namedNode(subject), null, null, null)) {
+    if (q.predicate.value.endsWith(suffix)) return q.object.value;
+  }
+  return undefined;
+}
+
+/** Strip a leading `mailto:` so the value displays as a bare address. */
+function bareEmail(value?: string): string | undefined {
+  return value?.replace(/^mailto:/, "");
+}
+
+/**
+ * Assemble a one-line postal address from an agent's `vcard:hasAddress` node:
+ * "street, postcode locality, country", omitting absent parts. Returns undefined
+ * when the agent states no address.
+ */
+function readAddress(store: Store, subject: string): string | undefined {
+  // The address node is typically a blank node, so query it by its term (not by a
+  // reconstructed NamedNode, which never matches a BlankNode subject).
+  const node = store.getQuads(namedNode(subject), namedNode(VCARD_HAS_ADDRESS), null, null)[0]
+    ?.object;
+  if (!node) return undefined;
+  const part = (predicate: string) =>
+    store.getQuads(node, namedNode(predicate), null, null)[0]?.object.value;
+  const street = part(VCARD_STREET_ADDRESS);
+  const postcode = part(VCARD_POSTAL_CODE);
+  const locality = part(VCARD_LOCALITY);
+  const country = part(VCARD_COUNTRY_NAME);
+  const cityLine = [postcode, locality].filter(Boolean).join(" ");
+  const parts = [street, cityLine, country].filter((p) => p && p.length > 0);
+  return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
 /** The local name of a WebID (fragment after `#`, else the last path segment). */
@@ -84,7 +149,30 @@ export async function resolveAgent(
     firstObject(store, webId, VCARD_FN) ?? fallbackName;
   const avatarUrl = firstObject(store, webId, FOAF_IMG) ??
     firstObject(store, webId, VCARD_HAS_PHOTO);
-  return { webId, name, ...(avatarUrl ? { avatarUrl } : {}) };
+
+  // Contact facts: standard vCard/FOAF first, then the MaStR wrapper's own
+  // predicates as a fallback (it emits #Email/#Telefon/#Webseite, not vcard:*).
+  const address = readAddress(store, webId);
+  const email = bareEmail(
+    firstObject(store, webId, VCARD_HAS_EMAIL) ??
+      firstObject(store, webId, FOAF_MBOX) ??
+      firstObjectBySuffix(store, webId, "#Email"),
+  );
+  const phone = firstObject(store, webId, VCARD_HAS_TELEPHONE) ??
+    firstObjectBySuffix(store, webId, "#Telefon");
+  const website = firstObject(store, webId, FOAF_HOMEPAGE) ??
+    firstObject(store, webId, VCARD_HAS_URL) ??
+    firstObjectBySuffix(store, webId, "#Webseite");
+
+  return {
+    webId,
+    name,
+    ...(avatarUrl ? { avatarUrl } : {}),
+    ...(address ? { address } : {}),
+    ...(email ? { email } : {}),
+    ...(phone ? { phone } : {}),
+    ...(website ? { website } : {}),
+  };
 }
 
 /**
