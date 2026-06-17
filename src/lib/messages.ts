@@ -1320,6 +1320,16 @@ export const MESSAGES = {
     de: "Deine vorherige Sitzung konnte nicht wiederhergestellt werden: {error}",
     fr: "Impossible de restaurer votre session précédente : {error}",
   },
+  loginTroublePrefix: {
+    en: "Trouble signing in? ",
+    de: "Probleme bei der Anmeldung? ",
+    fr: "Problème de connexion ? ",
+  },
+  loginClearData: {
+    en: "Clear local data",
+    de: "Lokale Daten löschen",
+    fr: "Effacer les données locales",
+  },
   loginSignIn: { en: "Sign in", de: "Anmelden", fr: "Se connecter" },
   loginSignInAgainWith: {
     en: "Sign in again with",

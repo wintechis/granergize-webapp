@@ -119,3 +119,40 @@ test.describe("session restore", () => {
     expect(authKeys).toEqual([]);
   });
 });
+
+test.describe("login escape hatch (no creds)", () => {
+  // No login needed — this only reaches the chooser, so it runs in every mode.
+  // Use a plain unseeded page (NOT `newCapturedPage`, which seeds Alice's saved
+  // session in login-reuse mode) so the screen is genuinely logged out.
+  test("the login chooser always offers a working Clear-local-data action", async ({ browser }) => {
+    // The chooser must expose the clear-storage remedy unconditionally (not only
+    // after a caught restore error), so a user stranded by a stale OIDC client —
+    // e.g. one bounced to the IdP's dead-end "Unknown client" page, where no
+    // error ever reaches the app — can always recover without DevTools/Esc.
+    const page = await browser.newPage();
+    try {
+      await page.goto("./");
+      await expect(page.getByRole("heading", { name: LOGIN_HEADING }))
+        .toBeVisible({ timeout: T.login });
+
+      // The always-visible remedy (distinct from the failed-restore Alert above).
+      const clearBtn = page.getByRole("button", { name: /^clear local data$/i });
+      await expect(clearBtn).toBeVisible();
+
+      // Seed some local storage, then clear it through the button.
+      await page.evaluate(() => {
+        localStorage.setItem("granergize:restoreAttempted", "1");
+        localStorage.setItem("prevIdps", JSON.stringify(["https://example.test"]));
+      });
+      await clearBtn.click();
+
+      // It wipes local storage and returns to a clean chooser.
+      await expect(page.getByRole("heading", { name: LOGIN_HEADING }))
+        .toBeVisible({ timeout: T.action });
+      const leftover = await page.evaluate(() => localStorage.length);
+      expect(leftover).toBe(0);
+    } finally {
+      await page.close();
+    }
+  });
+});
