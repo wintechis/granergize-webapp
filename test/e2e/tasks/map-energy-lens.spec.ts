@@ -4,6 +4,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { openBuildingsMap } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -74,9 +75,10 @@ test.describe("map energy lens (Vertriebsoptimierung)", () => {
       await page.goto("/");
       // The map is the Buildings tab's Map view (Explore + Manage merged into one
       // tab with a Map⇄List toggle); ensure Map view so the markers + colour lens
-      // render.
-      await page.getByRole("tab", { name: en("navBuildings") }).click();
-      await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+      // render. The helper scopes the "Map" toggle to the Buildings-view group —
+      // the cube's "Explore view" selector also has a "Map" button (strict-mode
+      // collision otherwise; see plans/stumble.md).
+      await openBuildingsMap(page);
       // Markers paint under the default (ownership) lens — the standard pins.
       await expect(page.locator(".leaflet-marker-icon").first())
         .toBeVisible({ timeout: T.action });

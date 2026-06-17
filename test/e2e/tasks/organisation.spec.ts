@@ -2,7 +2,7 @@ import { expect, type Locator, type Page, test } from "@playwright/test";
 import { en } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
-import { openBuildingsList } from "../helpers/manage.ts";
+import { openBuildingsList, openBuildingsMap } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -154,8 +154,9 @@ test.describe("organisation logo", () => {
     // On the map (Buildings tab → Map view), hovering the building's pin opens the
     // hover card, which renders the producer's org logo image. (Several owned
     // buildings would all show Alice's logo, so hover the first owned pin.)
-    await page.getByRole("tab", { name: en("navBuildings") }).click();
-    await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+    // Scoped Map open — the cube's "Explore view" selector also carries a "Map"
+    // button, so an unscoped getByRole matches two (see plans/stumble.md).
+    await openBuildingsMap(page);
     const ownedPin = page.locator(".leaflet-marker-icon.pin-owned").first();
     await expect(ownedPin).toBeVisible({ timeout: T.action });
     await ownedPin.hover();

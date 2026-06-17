@@ -4,7 +4,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { buildingRoute, openBuildingsList } from "../helpers/manage.ts";
+import { buildingRoute, openBuildingsList, openBuildingsMap } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -131,9 +131,10 @@ test.describe("URI-encoded navigational state survives reload", () => {
     // Buildings tab lands on the Map view (the former Explore) — markers live
     // here. The Map/List view is URL state (`?view=list`; Map is the implicit
     // default), and goto("/") drops the query, so we're already on Map; the
-    // explicit toggle is belt-and-suspenders.
-    await page.getByRole("tab", { name: en("navBuildings") }).click();
-    await page.getByRole("button", { name: en("btnMap") }).click();
+    // explicit toggle is belt-and-suspenders. Use the shared helper, which scopes
+    // the "Map" toggle to the Buildings-view group (the cube's "Explore view"
+    // selector also has a "Map" button — see plans/stumble.md).
+    await openBuildingsMap(page);
 
     // The map is a pure finder: clicking the (only) marker NAVIGATES to the
     // building's standalone page — a real route (`/building?ref=<id>`; an own
