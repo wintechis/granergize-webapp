@@ -28,7 +28,7 @@
     "bench:plot": "deno run -A test/bench/plots.ts",
     "explore": "LOCAL_POD_SERVER=jss deno run -A --node-modules-dir=auto test/bench/explore.ts",
     "handbuch": "VITE_OIDC_CLIENT_ID= deno run -A npm:vite build --outDir dist-handbuch && E2E_LOCAL=1 LOCAL_PORT_OFFSET=40 E2E_RUN_ID=handbuch PREVIEW_OUTDIR=dist-handbuch npx playwright test --project=support && bash docs/build-handbuch.sh && rm -rf dist-handbuch",
-    "videos": "VITE_OIDC_CLIENT_ID= deno run -A npm:vite build --outDir dist-videos && E2E_LOCAL=1 LOCAL_PORT_OFFSET=60 E2E_RUN_ID=videos PREVIEW_OUTDIR=dist-videos npx playwright test --project=video && bash test/e2e/videos/postprocess.sh soll-ist && bash test/e2e/videos/postprocess.sh vertrieb vertrieb-a vertrieb-b && bash test/e2e/videos/postprocess.sh benchmark benchmark-a benchmark-c benchmark-payoff && rm -rf dist-videos"
+    "videos": "VITE_OIDC_CLIENT_ID= deno run -A npm:vite build --outDir dist-videos && E2E_LOCAL=1 LOCAL_PORT_OFFSET=60 E2E_RUN_ID=videos PREVIEW_OUTDIR=dist-videos npx playwright test --project=video && bash test/e2e/videos/postprocess.sh soll-ist && bash test/e2e/videos/postprocess.sh vertrieb vertrieb-a vertrieb-b && bash test/e2e/videos/postprocess.sh benchmark benchmark-a benchmark-c benchmark-payoff && bash test/e2e/videos/postprocess.sh prologue prologue-pod prologue-a prologue-b prologue-a2 && bash test/e2e/videos/postprocess.sh datenzimmer datenzimmer-a datenzimmer-b datenzimmer-a2 datenzimmer-b2 && rm -rf dist-videos"
   },
   "imports": {
     "@wintechis/wetterdienst-rdf-adapter": "jsr:@wintechis/wetterdienst-rdf-adapter@0.0.53"
