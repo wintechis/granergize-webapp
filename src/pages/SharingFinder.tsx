@@ -6,10 +6,6 @@ import {
   IconButton,
   Stack,
   Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -18,12 +14,10 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType } from "../types.ts";
-import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
 import {
-  useComputedSnapshot,
   useReceivedAggregations,
   useSharedBuildingDetail,
   useSharedWithMe,
@@ -36,7 +30,6 @@ import {
   buildingsToXlsx,
   buildingToXlsx,
 } from "../services/xlsx/buildingWorkbook.ts";
-import { formatNumber } from "../lib/formatNumber.ts";
 import { downloadXlsx } from "../lib/download.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
@@ -50,8 +43,8 @@ import { useT } from "../context/I18nProvider.tsx";
 import { msg } from "../lib/messages.ts";
 import FilesSection from "../components/detail/FilesSection.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
-import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
+import ReceivedAggregationRow from "../components/aggregation/ReceivedAggregationRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
@@ -60,105 +53,6 @@ import { filterByText } from "../lib/textSearch.ts";
 
 interface SharingFinderProps {
   session: Session;
-}
-
-/**
- * One "aggregation shared with you" row. Only the sharer's computed *snapshot* is
- * granted (not the definition), so we fetch it on demand from its URL (we hold
- * Read access) and show the aggregated values — a small table plus the same
- * SVG bar chart the owner sees.
- */
-function ReceivedAggregationRow(
-  { aggregation }: {
-    aggregation: { snapshotUri: string; aggregationId: string; sharedBy: string };
-  },
-) {
-  const [open, setOpen] = useState(false);
-  const t = useT();
-
-  // Recipients hold Read on the snapshot (which carries the aggregation's name) but not
-  // the definition. The query loads it on mount so the row shows the aggregation's NAME
-  // up front instead of the opaque snapshot id; expanding reuses the cached data.
-  const snapQuery = useComputedSnapshot(aggregation.snapshotUri);
-  const snapshot = snapQuery.data ?? null;
-  const loading = snapQuery.isLoading;
-  const error = snapQuery.error
-    ? (snapQuery.error instanceof Error
-      ? snapQuery.error.message
-      : String(snapQuery.error))
-    : snapQuery.isSuccess && snapQuery.data === null
-    ? t("shareSnapshotEmpty")
-    : null;
-
-  const toggle = () => setOpen((prev) => !prev);
-
-  const label = (snapshot?.name && snapshot.name.trim()) || aggregation.aggregationId ||
-    t("shareAggFallbackName");
-  const entries = snapshot ? Object.entries(snapshot.values) : [];
-
-  return (
-    <ResourceRow
-      title={label}
-      subtitle={<>{t("shareSharedBy")} <AgentLabel value={aggregation.sharedBy} /></>}
-      actions={
-        <Button size="small" variant="text" onClick={toggle}>
-          {open ? t("shareHideValues") : t("shareShowValues")}
-        </Button>
-      }
-      expansion={open && (
-        <Box sx={{ mt: 1 }}>
-          {loading && (
-            <Typography variant="body2" color="text.secondary">
-              {t("loadingEllipsis")}
-            </Typography>
-          )}
-          {error && (
-            <Typography variant="body2" color="error">{error}</Typography>
-          )}
-          {snapshot && entries.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              {t("shareNoComputedValues")}
-            </Typography>
-          )}
-          {snapshot && entries.length > 0 && (
-            <>
-              <Typography variant="body2" color="text.secondary">
-                {t("shareAcrossBuildings", {
-                  type: snapshot.aggregationType,
-                  count: snapshot.buildingCount,
-                })}
-              </Typography>
-              <Table size="small">
-                <TableBody>
-                  {entries.map(([metric, value]) => (
-                    <TableRow key={metric}>
-                      <TableCell>{metric}</TableCell>
-                      <TableCell align="right">
-                        {formatNumber(value, 2)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <Box sx={{ mt: 1 }}>
-                <MetricBarChart
-                  data={entries.map(([name, value]) => ({ name, value }))}
-                  bars={[{
-                    key: "value",
-                    name: `${snapshot.aggregationType} value`,
-                    color: CHART_COLOR_PALETTE[0],
-                    palette: CHART_COLOR_PALETTE,
-                  }]}
-                  xKey="name"
-                  hideLegend
-                />
-              </Box>
-            </>
-          )}
-        </Box>
-      )}
-    />
-  );
 }
 
 /**

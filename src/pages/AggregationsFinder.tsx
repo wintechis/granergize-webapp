@@ -17,6 +17,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
   useAggregationDefinitions,
+  useReceivedAggregations,
   useSharedAggregations,
   useSolidData,
 } from "../hooks/queries.ts";
@@ -38,14 +39,30 @@ import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
+import { useListFacet } from "../hooks/useListFacet.ts";
 import SearchField from "../components/SearchField.tsx";
+import TierFilter from "../components/TierFilter.tsx";
+import { TIER_VALUES } from "../constants/tiers.ts";
 import { filterByText } from "../lib/textSearch.ts";
+import ReceivedAggregationRow from "../components/aggregation/ReceivedAggregationRow.tsx";
+import type { ReceivedAggregation } from "../services/interop/sharingManager.ts";
 import ShareAggregationDialog from "../components/ShareAggregationDialog.tsx";
 import CreateAggregationDialog from "../components/CreateAggregationDialog.tsx";
 
 interface AggregationsFinderProps {
   session: Session;
 }
+
+/** A row in the unified Aggregations collection: an own definition (`mine`) or a
+ * snapshot shared with me (`shared`). */
+type AggItem =
+  | { kind: "own"; def: AggregationDefinition }
+  | { kind: "received"; recv: ReceivedAggregation };
+
+const aggItemSearchText = (it: AggItem): string =>
+  it.kind === "own"
+    ? `${it.def.name} ${it.def.aggregationType}`
+    : `${it.recv.aggregationId} ${it.recv.sharedBy}`;
 
 /**
  * The Aggregations finder (`/aggregations`): the aggregations you build from your
@@ -89,13 +106,25 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
 
   const aggregationDefsQuery = useAggregationDefinitions();
   const aggregationDefinitions = aggregationDefsQuery.data ?? [];
+  const receivedAggregationsQuery = useReceivedAggregations();
+  const receivedAggregations = receivedAggregationsQuery.data ?? [];
+  const hasReceived = receivedAggregations.length > 0;
+  const totalReachable = aggregationDefinitions.length + receivedAggregations.length;
+
   const { query, setQuery } = useListSearch();
-  const filteredAggregations = filterByText(
-    aggregationDefinitions,
-    query,
-    (a: AggregationDefinition) => `${a.name} ${a.aggregationType}`,
-  );
-  const aggregationPaging = usePaging(filteredAggregations);
+  const tierFacet = useListFacet("tiers", TIER_VALUES);
+  // Own aggregations are the `mine` tier; received (snapshots shared with me) the
+  // `shared` tier — one collection, the union of the ticked tiers (plan Slice 4).
+  const items: AggItem[] = [
+    ...(tierFacet.isSelected("mine")
+      ? aggregationDefinitions.map((def): AggItem => ({ kind: "own", def }))
+      : []),
+    ...(tierFacet.isSelected("shared")
+      ? receivedAggregations.map((recv): AggItem => ({ kind: "received", recv }))
+      : []),
+  ];
+  const filteredItems = filterByText(items, query, aggItemSearchText);
+  const aggregationPaging = usePaging(filteredItems);
   const sharedAggregationsQuery = useSharedAggregations();
   const sharedAggregations = sharedAggregationsQuery.data ?? [];
 
@@ -165,28 +194,44 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
             {t("aggCreateTitle")}
           </Button>
         </Stack>
-        {aggregationDefinitions.length > 0 && (
-          <Box sx={{ mb: 1 }}>
+        {totalReachable > 0 && (
+          <Stack
+            direction="row"
+            spacing={1.5}
+            sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
+          >
             <SearchField value={query} onChange={setQuery} />
-          </Box>
+            {/* The tier selector earns its place once an aggregation is shared with
+                me — otherwise there's a single source (my own). */}
+            {hasReceived && <TierFilter facet={tierFacet} />}
+          </Stack>
         )}
         {aggregationDefsQuery.isLoading
           ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
-          : aggregationDefinitions.length === 0
+          : totalReachable === 0
           ? (
             <Typography variant="body2">
               {t("aggregationsEmpty")}
             </Typography>
           )
-          : filteredAggregations.length === 0
+          : filteredItems.length === 0
           ? (
             <Typography variant="body2">
-              {t("searchNoMatches", { query })}
+              {query ? t("searchNoMatches", { query }) : t("filterNoMatch")}
             </Typography>
           )
           : (
             <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
-              {aggregationPaging.pageItems.map((aggregation) => {
+              {aggregationPaging.pageItems.map((item) => {
+                if (item.kind === "received") {
+                  return (
+                    <ReceivedAggregationRow
+                      key={item.recv.snapshotUri}
+                      aggregation={item.recv}
+                    />
+                  );
+                }
+                const aggregation = item.def;
                 const sharedWith = getAggregationSharedWith(aggregation.id);
                 return (
                   <ResourceRow

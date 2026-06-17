@@ -182,7 +182,21 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
         minHeight: 0,
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "center", p: 1, flexShrink: 0 }}>
+      {/* Shared collection chrome: the view toggle + the collection-level search /
+          tier facet, rendered ONCE here (not per guise) so both Map and List read
+          the same controls — capabilities are collection-level
+          (plan-finder-collection-model). */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          p: 1,
+          flexShrink: 0,
+        }}
+      >
         <ToggleButtonGroup
           size="small"
           exclusive
@@ -195,6 +209,10 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
           <ToggleButton value="map">{t("btnMap")}</ToggleButton>
           <ToggleButton value="list">{t("btnList")}</ToggleButton>
         </ToggleButtonGroup>
+        {buildings.length > 0 && (
+          <SearchField value={query} onChange={setQuery} />
+        )}
+        {hasShared && <TierFilter facet={tierFacet} />}
       </Box>
       {/* Map: kept mounted whenever Buildings is the finder (only hidden when
           switched to List), preserving ExplorePage's Leaflet instance + map state. */}
@@ -250,19 +268,6 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                 {t("bldgsDownloadAll")}
               </Button>
             </Stack>
-
-            {buildings.length > 0 && (
-              <Stack
-                direction="row"
-                spacing={1.5}
-                sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
-              >
-                <SearchField value={query} onChange={setQuery} />
-                {/* The tier selector only earns its place once a shared building
-                    exists — with own-only there's a single source. */}
-                {hasShared && <TierFilter facet={tierFacet} />}
-              </Stack>
-            )}
 
             {buildingsLoading
               ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>

@@ -1,5 +1,9 @@
 import { msg } from "../lib/messages.ts";
-import { buildingDisplayName } from "../lib/buildingDisplay.ts";
+import { buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.ts";
+import { filterByText } from "../lib/textSearch.ts";
+import { useListSearch } from "../hooks/useListSearch.ts";
+import { useListFacet } from "../hooks/useListFacet.ts";
+import { TIER_VALUES } from "../constants/tiers.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { buildingRoute } from "../routes.ts";
@@ -426,6 +430,28 @@ export default function ExplorePage(
   const navigate = useNavigate();
   const t = useT();
   const [searchParams, setSearchParams] = useSearchParams();
+  // Search + tier facet are collection-level: the CONTROLS live once in
+  // BuildingsFinder's shared chrome; ExplorePage only *reads* the URL state (same
+  // `/buildings` route, no key) to filter what it renders — so a filter set on the
+  // List shows on the Map too. They scope the collection feeding EVERY surface
+  // (markers, the over-time matrix, the compare-years multiples).
+  const { query } = useListSearch();
+  const tierFacet = useListFacet("tiers", TIER_VALUES);
+  const tierKey = tierFacet.selected.join(",");
+  const shownBuildings = useMemo(
+    () =>
+      filterByText(
+        buildings.filter((b) =>
+          tierFacet.isSelected(b.isShared ? "shared" : "mine")
+        ),
+        query,
+        buildingSearchText,
+      ),
+    // tierKey stands in for the (freshly-allocated each render) selected array;
+    // tierFacet itself is a new object each render, so it's deliberately excluded.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    [buildings, tierKey, query],
+  );
   // One activity token per tile-loading burst (the layer fires `loading` when it
   // starts fetching tiles and `load` once the visible set is in), so panning/
   // zooming registers in the global indicator without a token per image.
@@ -455,11 +481,11 @@ export default function ExplorePage(
   // bounds report, treat every located building as visible).
   const visibleBuildings = useMemo(
     () =>
-      buildings.filter((b) =>
+      shownBuildings.filter((b) =>
         b.lat != null && b.long != null &&
         (!bbox || bbox.contains([b.lat, b.long]))
       ),
-    [buildings, bbox],
+    [shownBuildings, bbox],
   );
 
   // The per-year energy cube both temporal surfaces re-colour over: every
@@ -638,10 +664,10 @@ export default function ExplorePage(
           }}
         />
         <InvalidateOnActive active={active} />
-        <FitToBuildings active={active} buildings={buildings} />
+        <FitToBuildings active={active} buildings={shownBuildings} />
         <ViewportUrlSync />
         <BoundsWatcher active={active} onChange={setBbox} />
-        {buildings.map((building) => (
+        {shownBuildings.map((building) => (
           building.lat != null && building.long != null && (
             <BuildingMarker
               key={building.id}
