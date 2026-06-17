@@ -1,8 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, webIdOf } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
-import { setDevMode } from "../helpers/accountMenu.ts";
+import { de } from "../helpers/i18n.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo, type SceneMark } from "./demoPolish.ts";
 
@@ -16,13 +15,15 @@ import { Demo, type SceneMark } from "./demoPolish.ts";
  *   deno task videos
  *   bash test/e2e/videos/postprocess.sh vertrieb vertrieb-a vertrieb-b
  *
- * Clip A: Alice shares her hall with Bob by WebID (Share Building Data →
- * By WebID → Review and Share). Clip B: Bob's fresh app load drains the grant,
- * the building shows under "Shared with you", and on the Explore map A's
- * logo-marked hall stands among B's own buildings — read live from A's Pod.
- * B's own surroundings come from the control server's `/seed-actor-buildings`
- * (B is otherwise a fresh pod). LOCAL tier only; artifacts land in
- * `test-results/videos/` and stay uncommitted (hosting is an open decision).
+ * The app renders in GERMAN (context locale `de-DE`); every app locator resolves
+ * through the message catalog via `de(key)` (i18n-driven).
+ *
+ * Clip A: Alice shares her hall with Bob by WebID (Teilen → Nach WebID → Prüfen
+ * und teilen). Clip B: Bob's fresh app load drains the grant, the building shows
+ * under "Freigaben", and on the map A's logo-marked hall stands among B's own
+ * buildings — read live from A's Pod. B's own surroundings come from the control
+ * server's `/seed-actor-buildings`. LOCAL tier only; artifacts land in
+ * `test-results/videos/` and stay uncommitted.
  */
 
 const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
@@ -33,6 +34,8 @@ const A = account("A");
 const B = account("B");
 /** A's hall that gets shared (the logistics demo, richest master data). */
 const BUILDING = "Nordostpark";
+/** The "Gebäude <id>" prefix the shared-with-you list shows for a received building. */
+const SHARED_PREFIX = new RegExp(`^${de("shareBuildingN", { id: "" }).trim()} `);
 
 async function controlSeed(path: string): Promise<Response> {
   const res = await fetch(
@@ -44,7 +47,7 @@ async function controlSeed(path: string): Promise<Response> {
 }
 
 async function dismissToasts(page: Page) {
-  await page.getByRole("button", { name: /^close$/i }).first()
+  await page.getByRole("button", { name: /^(close|schließen)$/i }).first()
     .click({ timeout: 4_000 }).catch(() => {});
 }
 
@@ -62,6 +65,7 @@ function saveMarks(name: string, marks: SceneMark[]) {
 }
 
 test.describe("handbuch video: Vertriebsoptimierung", () => {
+  test.use({ locale: "de-DE" }); // render the app in German
   test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task videos)");
   test.skip(!hasAccount(A) || !hasAccount(B), "local seeded accounts A+B missing");
 
@@ -70,25 +74,25 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     mkdirSync(OUT, { recursive: true });
 
     // --- Setup A (fixture page; its video is discarded): login, identities,
-    //     demo buildings. ---
+    //     demo buildings. (Dev mode defaults OFF in a fresh context — no
+    //     setDevMode, whose account-menu locators are English-only.) ---
     await login(page, A);
     await controlSeed("/seed-profiles");
     await page.reload();
-    await expect(page.getByRole("tab", { name: "Buildings" }))
+    await expect(page.getByRole("tab", { name: de("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
-    await setDevMode(page, false);
-    const addExamples = page.getByRole("button", { name: en("onboardAddExamples") });
+    const addExamples = page.getByRole("button", { name: de("onboardAddExamples") });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
-    await expect(page.getByText(en("demoBuildingsAdded")).first())
+    await expect(page.getByText(de("demoBuildingsAdded")).first())
       .toBeVisible({ timeout: 300_000 });
 
-    // --- Setup B: own surroundings (seeded out-of-band, before B's first
-    //     load), then a logged-in context of B's own. Manual contexts don't
-    //     inherit the project's video option — pass recordVideo explicitly. ---
+    // --- Setup B: own surroundings (seeded out-of-band), then a logged-in
+    //     context of B's own (German + its own recordVideo). ---
     await controlSeed("/seed-actor-buildings?slot=B&n=2");
     const bCtx = await browser.newContext({
       viewport: { width: 1280, height: 720 },
+      locale: "de-DE",
       recordVideo: { dir: `${OUT}/.raw`, size: { width: 1280, height: 720 } },
     });
     const bSetup = await bCtx.newPage();
@@ -99,18 +103,17 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     const stageA = await page.context().newPage();
     const t0a = Date.now();
     await stageA.goto("/");
-    await expect(stageA.getByRole("tab", { name: "Buildings" }))
+    await expect(stageA.getByRole("tab", { name: de("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
-    await stageA.getByRole("tab", { name: "Buildings" }).click();
-    await stageA.getByRole("button", { name: en("btnList") }).click();
+    await stageA.getByRole("tab", { name: de("navBuildings") }).click();
+    await stageA.getByRole("button", { name: de("btnList") }).click();
     const row = stageA.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageA);
     const demoA = await Demo.install(stageA, "A", t0a);
 
-    // --- Scene zero: establish the cast and whose problem this solves,
-    //     before the resolution starts. ---
+    // --- Scene zero: establish the cast and whose problem this solves. ---
     await demoA.intro("Vertriebsoptimierung", [
       {
         slot: "A",
@@ -124,38 +127,36 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
       },
     ]);
 
-    // --- Scene: first contact — a WebID is exchanged like an email address
-    //     and remembered once in the address book, which resolves it to a
-    //     person (name + picture). ---
+    // --- Scene: first contact — a WebID exchanged like an email address and
+    //     remembered once in the address book, which resolves it to a person. ---
     await demoA.scene(
       "contact",
       "B's WebID hat A von ihm selbst – wie eine E-Mail-Adresse. Einmal ins Adressbuch:",
     );
-    await demoA.click(stageA.getByRole("tab", { name: en("navContacts") }));
+    await demoA.click(stageA.getByRole("tab", { name: de("navContacts") }));
     const webIdField = stageA.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await demoA.type(webIdField, bWebId);
-    await demoA.click(stageA.getByRole("button", { name: en("contactAddAria") }));
+    await demoA.click(stageA.getByRole("button", { name: de("contactAddAria") }));
     // The entry resolves to the person: name + avatar, no raw IRI.
     await expect(
-      stageA.getByRole("list", { name: en("navContacts") }).getByText("Bob Bauer"),
+      stageA.getByRole("list", { name: de("navContacts") }).getByText("Bob Bauer"),
     ).toBeVisible({ timeout: 30_000 });
-    await demoA.moveTo(stageA.getByRole("list", { name: en("navContacts") }));
+    await demoA.moveTo(stageA.getByRole("list", { name: de("navContacts") }));
     await demoA.pause(2_000);
     await dismissToasts(stageA);
 
     await demoA.scene(
       "share-open",
-      "A öffnet ihr Gebäude und teilt es über „Share“ auf der Detailseite",
+      "A öffnet ihr Gebäude und teilt es über „Teilen“ auf der Detailseite",
     );
-    // Sharing moved off the list row onto the building's detail page (master-detail
-    // redesign). Back to the Buildings list (the contact scene left us on
-    // Contacts), open the building via its name link, then its "Share" button.
-    await demoA.click(stageA.getByRole("tab", { name: "Buildings" }));
-    await demoA.click(stageA.getByRole("button", { name: en("btnList") }));
+    // Sharing lives on the building's detail page. Back to the Buildings list,
+    // open the building via its name link, then its "Teilen" button.
+    await demoA.click(stageA.getByRole("tab", { name: de("navBuildings") }));
+    await demoA.click(stageA.getByRole("button", { name: de("btnList") }));
     await expect(row).toBeVisible({ timeout: 60_000 });
     await demoA.click(row.locator('a[href*="/building?"]').first());
-    const shareButton = stageA.getByRole("button", { name: "Share", exact: true });
+    const shareButton = stageA.getByRole("button", { name: de("btnShare"), exact: true });
     await expect(shareButton).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
     await demoA.pause(1_000);
@@ -167,24 +168,26 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
       "share-pick",
       "Als Empfänger schlägt die App B aus dem Adressbuch vor",
     );
-    await demoA.click(shareDialog.getByRole("button", { name: /by webid/i }));
-    const recipient = shareDialog.getByLabel(/Recipient WebID/i);
+    await demoA.click(shareDialog.getByRole("button", { name: de("shareByWebId") }));
+    const recipient = shareDialog.getByLabel(de("racLabel"));
     await demoA.click(recipient);
     await demoA.click(stageA.getByRole("option", { name: /Bob Bauer/ }));
     await demoA.pause(600);
 
     await demoA.scene(
       "share-confirm",
-      "Review and Share: B erhält Lesezugriff – die Daten bleiben auf A's Pod",
+      "Prüfen und teilen: B erhält Lesezugriff – die Daten bleiben auf A's Pod",
     );
-    await demoA.click(shareDialog.getByRole("button", { name: /review and share/i }));
-    const confirm = shareDialog.getByRole("button", { name: /confirm share/i });
+    await demoA.click(shareDialog.getByRole("button", { name: de("shareReviewAndShare") }));
+    const confirm = shareDialog.getByRole("button", { name: de("shareConfirmShare") });
     await expect(confirm).toBeVisible({ timeout: 30_000 });
     await demoA.click(confirm);
-    await expect(shareDialog.getByText(/shared successfully/i))
-      .toBeVisible({ timeout: 120_000 });
+    // Success = the dialog swaps Confirm for a Done button (the "shared" message
+    // itself is a global toast, not in-dialog).
+    const shareDone = shareDialog.getByRole("button", { name: de("btnDone") });
+    await expect(shareDone).toBeVisible({ timeout: 120_000 });
     await demoA.pause(1_500);
-    await demoA.click(shareDialog.getByRole("button", { name: /done/i }));
+    await demoA.click(shareDone);
     await expect(shareDialog).toBeHidden({ timeout: 10_000 });
     await demoA.caption("");
     await demoA.pause(800);
@@ -195,55 +198,48 @@ test.describe("handbuch video: Vertriebsoptimierung", () => {
     await videoA?.saveAs(`${OUT}/vertrieb-a.webm`);
 
     // ============ Clip B: Bob receives — list, map, live data. ============
-    // Drain the grant on the DISCARDED setup page first: the drain runs during
-    // a load, AFTER the buildings query already fetched — a stage page that
-    // both drains and films would fit the map to B's own buildings only, with
-    // A's marker landing outside the fitted bounds (the map never re-fits).
-    // Once the grant is archived in shared-in/, the stage page's first
-    // buildings fetch includes A's hall and the initial map fit covers it.
+    // Drain the grant on the DISCARDED setup page first (cf. the comment above
+    // about map-fit ordering).
     await bSetup.reload();
-    await bSetup.getByRole("tab", { name: "Sharing" }).click();
-    await expect(
-      bSetup.getByRole("list", { name: /buildings shared with you/i })
-        .getByText(/^Building /),
-    ).toBeVisible({ timeout: 120_000 });
+    await bSetup.getByRole("tab", { name: de("navSharing") }).click();
+    await expect(bSetup.getByText(SHARED_PREFIX).first())
+      .toBeVisible({ timeout: 120_000 });
 
     const stageB = await bCtx.newPage();
     const t0b = Date.now();
     await stageB.goto("/");
-    await expect(stageB.getByRole("tab", { name: "Sharing" }))
+    await expect(stageB.getByRole("tab", { name: de("navSharing") }))
       .toBeVisible({ timeout: 60_000 });
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageB);
     const demoB = await Demo.install(stageB, "B", t0b);
 
+    const sharedEntry = stageB.getByText(SHARED_PREFIX).first();
     await demoB.scene(
       "received",
-      "B (Bob Bauer) öffnet die App: A's Gebäude liegt unter „Shared with you“",
+      "B (Bob Bauer) öffnet die App: A's Gebäude liegt unter „Freigaben“",
     );
-    await demoB.click(stageB.getByRole("tab", { name: "Sharing" }));
-    await expect(
-      stageB.getByRole("list", { name: /buildings shared with you/i })
-        .getByText(/^Building /),
-    ).toBeVisible({ timeout: 120_000 });
-    await demoB.moveTo(
-      stageB.getByRole("list", { name: /buildings shared with you/i }),
-    );
+    await demoB.click(stageB.getByRole("tab", { name: de("navSharing") }));
+    await expect(sharedEntry).toBeVisible({ timeout: 120_000 });
+    await demoB.moveTo(sharedEntry);
     await demoB.pause(2_000);
 
     await demoB.scene(
       "map",
       "Auf der Karte: A's freigegebene Halle (orange markiert) neben B's eigenen Objekten",
     );
-    await demoB.click(stageB.getByRole("tab", { name: "Buildings" }));
-    await demoB.click(stageB.getByRole("button", { name: en("btnMap"), exact: true }));
+    await demoB.click(stageB.getByRole("tab", { name: de("navBuildings") }));
+    await demoB.click(
+      stageB.getByLabel(de("bldgsViewAria"))
+        .getByRole("button", { name: de("btnMap"), exact: true }),
+    );
     const sharedMarker = stageB
       .locator(".leaflet-marker-icon.pin-shared").first();
     await sharedMarker.waitFor({ timeout: 60_000 });
     await waitForMapTiles(stageB);
     await demoB.pause(1_500);
     // The map is a pure finder: clicking the shared marker NAVIGATES to A's
-    // building page (`/building/:id`), where B reads A's data live.
+    // building page (`/building?…`), where B reads A's data live.
     await demoB.click(sharedMarker);
 
     await demoB.scene(

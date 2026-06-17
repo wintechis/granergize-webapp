@@ -1,30 +1,29 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, webIdOf } from "../helpers/login.ts";
-import { setDevMode } from "../helpers/accountMenu.ts";
-import { buildingRoute, receivedAggregations } from "../helpers/manage.ts";
-import { en } from "../helpers/i18n.ts";
+import { buildingRoute } from "../helpers/manage.ts";
+import { de } from "../helpers/i18n.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo, type SceneMark } from "./demoPolish.ts";
 
 /**
- * Records the third handbuch video — the Energieverbrauchsbenchmark
- * walkthrough („Energieverbrauchsbenchmark durchgespielt": peer-benchmarking
- * with a benchmark service provider) — the actor ladder's top rung, three
- * clips cut by perspective:
+ * Records the third handbuch video — the Energieverbrauchsbenchmark walkthrough
+ * (peer-benchmarking with a benchmark service provider) — three clips cut by
+ * perspective:
  *
  *   deno task videos
  *   bash test/e2e/videos/postprocess.sh benchmark benchmark-a benchmark-c benchmark-payoff
  *
- * Clip A: Alice shares her hall — energy included — to C (Conrad Kennwert);
- * B contributes the same way OFF camera (the step is identical to clip A, and
- * the walkthrough says so). Clip C: the provider finds both contributions
- * under "Shared with you", builds a "Compare shared buildings" view over
- * them, and shares the result back via "Add all contributors". Clip payoff:
- * back at A, the received aggregation sits under "Aggregations shared with you" and the
- * energy detail page's Benchmark column is filled, naming C. The UI flow
- * mirrors the proven peer-benchmark.spec.ts roundtrip. LOCAL tier only;
- * artifacts land in `test-results/videos/`, uncommitted (hosting is open).
+ * The app renders in GERMAN (context locale `de-DE`); every app locator resolves
+ * through the message catalog via `de(key)` (i18n-driven).
+ *
+ * Clip A: Alice shares her hall — energy included — to C (Conrad Kennwert); B
+ * contributes the same way OFF camera. Clip C: the provider finds both
+ * contributions under "Freigaben", builds a "Geteilte Gebäude vergleichen" view
+ * over them, and shares the result back via "Alle Beitragenden hinzufügen". Clip
+ * payoff: back at A, the received aggregation sits under "Mit dir geteilte
+ * Aggregationen" and the energy detail page's Benchmark row is filled. LOCAL
+ * tier only; artifacts land in `test-results/videos/`, uncommitted.
  */
 
 const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
@@ -37,6 +36,11 @@ const C = account("C");
 /** A's hall that contributes to (and is judged against) the benchmark. */
 const BUILDING = "Nordostpark";
 const VIEW_NAME = "Energie-Benchmark";
+/** The "Gebäude <id>" prefix the shared-with-you list shows for a received building. */
+const SHARED_PREFIX = new RegExp(`^${de("shareBuildingN", { id: "" }).trim()} `);
+/** The "Aggregations shared with you" list (its aria-label is the section heading). */
+const receivedAggs = (page: Page) =>
+  page.getByRole("list", { name: de("sharedAggregationsHeading") });
 
 async function controlSeed(path: string): Promise<Response> {
   const res = await fetch(
@@ -48,7 +52,7 @@ async function controlSeed(path: string): Promise<Response> {
 }
 
 async function dismissToasts(page: Page) {
-  await page.getByRole("button", { name: /^close$/i }).first()
+  await page.getByRole("button", { name: /^(close|schließen)$/i }).first()
     .click({ timeout: 4_000 }).catch(() => {});
 }
 
@@ -58,32 +62,32 @@ function saveMarks(name: string, marks: SceneMark[]) {
 
 /** Share a building to `webId` without demo pacing (the off-camera B share). */
 async function shareFirstBuildingTo(page: Page, webId: string) {
-  await page.getByRole("tab", { name: "Buildings" }).click();
-  await page.getByRole("button", { name: en("btnList") }).click();
+  await page.getByRole("tab", { name: de("navBuildings") }).click();
+  await page.getByRole("button", { name: de("btnList") }).click();
   const row = page.locator("li[data-building-id]").first();
   await expect(row).toBeVisible({ timeout: 60_000 });
-  // Sharing moved onto the building's detail page (redesign): open it, then Share.
   const id = await row.getAttribute("data-building-id");
   await page.goto(buildingRoute("building", id));
-  await page.getByRole("button", { name: "Share", exact: true }).click();
+  await page.getByRole("button", { name: de("btnShare"), exact: true }).click();
   const dlg = page.getByRole("dialog");
-  await dlg.getByRole("button", { name: /by webid/i }).click();
-  const recipient = dlg.getByLabel(/Recipient WebID/i);
+  await dlg.getByRole("button", { name: de("shareByWebId") }).click();
+  const recipient = dlg.getByLabel(de("racLabel"));
   await recipient.fill(webId);
   await recipient.press("Enter");
-  const confirm = dlg.getByRole("button", { name: /confirm share/i });
+  const confirm = dlg.getByRole("button", { name: de("shareConfirmShare") });
   await expect(async () => {
-    await dlg.getByRole("button", { name: /review and share/i }).click();
+    await dlg.getByRole("button", { name: de("shareReviewAndShare") }).click();
     await expect(confirm).toBeVisible({ timeout: 10_000 });
   }).toPass({ timeout: 90_000 });
   await confirm.click();
-  await expect(dlg.getByText(/shared successfully/i))
-    .toBeVisible({ timeout: 120_000 });
-  await dlg.getByRole("button", { name: /done/i }).click();
+  const done = dlg.getByRole("button", { name: de("btnDone") });
+  await expect(done).toBeVisible({ timeout: 120_000 });
+  await done.click();
   await expect(dlg).toBeHidden({ timeout: 10_000 });
 }
 
 test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
+  test.use({ locale: "de-DE" }); // render the app in German
   test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task videos)");
   test.skip(
     !hasAccount(A) || !hasAccount(B) || !hasAccount(C),
@@ -95,28 +99,27 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     mkdirSync(OUT, { recursive: true });
 
     // --- Setup A (fixture page; video discarded): login, identities, demo
-    //     buildings. ---
+    //     buildings. (Dev mode defaults OFF in a fresh context.) ---
     await login(page, A);
     await controlSeed("/seed-profiles");
     await page.reload();
-    await expect(page.getByRole("tab", { name: "Buildings" }))
+    await expect(page.getByRole("tab", { name: de("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
-    await setDevMode(page, false);
-    const addExamples = page.getByRole("button", { name: en("onboardAddExamples") });
+    const addExamples = page.getByRole("button", { name: de("onboardAddExamples") });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
-    await expect(page.getByText(en("demoBuildingsAdded")).first())
+    await expect(page.getByText(de("demoBuildingsAdded")).first())
       .toBeVisible({ timeout: 300_000 });
-    await page.getByRole("tab", { name: "Buildings" }).click();
-    await page.getByRole("button", { name: en("btnList") }).click();
+    await page.getByRole("tab", { name: de("navBuildings") }).click();
+    await page.getByRole("button", { name: de("btnList") }).click();
     const aRow = page.locator("li", { hasText: BUILDING }).first();
     await expect(aRow).toBeVisible({ timeout: 60_000 });
     const buildingId = await aRow.getAttribute("data-building-id");
 
-    // --- Setup C: the provider's own recorded context; logging in also
-    //     self-provisions C's inbox, which A's and B's grants land in. ---
+    // --- Setup C: the provider's own recorded context (German). ---
     const cCtx = await browser.newContext({
       viewport: { width: 1280, height: 720 },
+      locale: "de-DE",
       recordVideo: { dir: `${OUT}/.raw`, size: { width: 1280, height: 720 } },
     });
     const cSetup = await cCtx.newPage();
@@ -124,46 +127,43 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     const cWebId = await webIdOf(cSetup);
     await cSetup.waitForLoadState("networkidle").catch(() => {});
 
-    // --- Setup B (never filmed, plain context): own buildings with energy,
+    // --- Setup B (never filmed, German context): own buildings with energy,
     //     one shared to C — the walkthrough's "B teilt ebenso". ---
     await controlSeed("/seed-actor-buildings?slot=B&n=2");
     const bCtx = await browser.newContext({
       viewport: { width: 1280, height: 720 },
+      locale: "de-DE",
     });
     const bPage = await bCtx.newPage();
     await login(bPage, B);
     await shareFirstBuildingTo(bPage, cWebId);
     await bCtx.close();
 
-    // C into A's address book OFF camera (the walkthrough story: the
-    // provider's WebID arrived with the engagement; the contact-add moment
-    // itself is established once, in the Vertriebsoptimierung video). The
-    // share dialog then offers "Charlie Conrad" as a suggestion on camera.
-    await page.getByRole("tab", { name: en("navContacts") }).click();
+    // C into A's address book OFF camera (the share dialog then offers
+    // "Charlie Conrad" as a suggestion on camera).
+    await page.getByRole("tab", { name: de("navContacts") }).click();
     const webIdField = page.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await webIdField.fill(cWebId);
-    await page.getByRole("button", { name: en("contactAddAria") }).click();
+    await page.getByRole("button", { name: de("contactAddAria") }).click();
     await expect(
-      page.getByRole("list", { name: en("navContacts") }).getByText("Charlie Conrad"),
+      page.getByRole("list", { name: de("navContacts") }).getByText("Charlie Conrad"),
     ).toBeVisible({ timeout: 30_000 });
 
     // ============ Clip A: Alice contributes her hall. ============
     const stageA = await page.context().newPage();
     const t0a = Date.now();
     await stageA.goto("/");
-    await expect(stageA.getByRole("tab", { name: "Buildings" }))
+    await expect(stageA.getByRole("tab", { name: de("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
-    await stageA.getByRole("tab", { name: "Buildings" }).click();
-    await stageA.getByRole("button", { name: en("btnList") }).click();
+    await stageA.getByRole("tab", { name: de("navBuildings") }).click();
+    await stageA.getByRole("button", { name: de("btnList") }).click();
     const row = stageA.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageA);
     const demoA = await Demo.install(stageA, "A", t0a);
 
-    // --- Scene zero: establish the cast and whose problem this solves,
-    //     before the resolution starts. ---
     await demoA.intro("Energieverbrauchsbenchmark", [
       {
         slot: "A",
@@ -184,31 +184,29 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
       "share-energy",
       "A teilt ihr Gebäude an C – einschließlich der Energiedaten. C's WebID liegt aus der Beauftragung im Adressbuch",
     );
-    // Sharing moved off the row onto the building page: open the building via its
-    // name link, then its "Share" button.
     await demoA.click(row.locator('a[href*="/building?"]').first());
-    const shareButton = stageA.getByRole("button", { name: "Share", exact: true });
+    const shareButton = stageA.getByRole("button", { name: de("btnShare"), exact: true });
     await expect(shareButton).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
     await demoA.pause(1_000);
     await demoA.click(shareButton);
     const shareDialog = stageA.getByRole("dialog");
     await expect(shareDialog).toBeVisible({ timeout: 10_000 });
-    await demoA.click(shareDialog.getByRole("button", { name: /by webid/i }));
-    const recipient = shareDialog.getByLabel(/Recipient WebID/i);
+    await demoA.click(shareDialog.getByRole("button", { name: de("shareByWebId") }));
+    const recipient = shareDialog.getByLabel(de("racLabel"));
     await demoA.click(recipient);
     await demoA.click(stageA.getByRole("option", { name: /Charlie Conrad/ }));
     await demoA.moveTo(
-      shareDialog.getByRole("radio", { name: /all energy readings/i }),
+      shareDialog.getByRole("radio", { name: de("shareScopeAll") }),
     );
     await demoA.pause(1_200);
-    await demoA.click(shareDialog.getByRole("button", { name: /review and share/i }));
-    const confirmA = shareDialog.getByRole("button", { name: /confirm share/i });
+    await demoA.click(shareDialog.getByRole("button", { name: de("shareReviewAndShare") }));
+    const confirmA = shareDialog.getByRole("button", { name: de("shareConfirmShare") });
     await expect(confirmA).toBeVisible({ timeout: 30_000 });
     await demoA.click(confirmA);
-    await expect(shareDialog.getByText(/shared successfully/i))
-      .toBeVisible({ timeout: 120_000 });
-    await demoA.click(shareDialog.getByRole("button", { name: /done/i }));
+    const shareDoneA = shareDialog.getByRole("button", { name: de("btnDone") });
+    await expect(shareDoneA).toBeVisible({ timeout: 120_000 });
+    await demoA.click(shareDoneA);
     await expect(shareDialog).toBeHidden({ timeout: 10_000 });
     await demoA.caption(
       "B teilt sein Gebäude ebenso – A und B sehen dabei gegenseitig keine Daten",
@@ -223,57 +221,50 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await videoA?.saveAs(`${OUT}/benchmark-a.webm`);
 
     // ============ Clip C: the provider computes and shares back. ============
-    // Drain both grants on the DISCARDED setup page first (see vertrieb.spec.ts:
-    // a stage page that drains while filming misses the fold).
+    // Drain both grants on the DISCARDED setup page first.
     await cSetup.reload();
-    await cSetup.getByRole("tab", { name: "Sharing" }).click();
+    await cSetup.getByRole("tab", { name: de("navSharing") }).click();
     await expect(async () => {
-      const n = await cSetup
-        .getByRole("list", { name: /buildings shared with you/i })
-        .getByText(/^Building /).count();
+      const n = await cSetup.getByText(SHARED_PREFIX).count();
       expect(n).toBe(2);
     }).toPass({ timeout: 120_000 });
 
     const stageC = await cCtx.newPage();
     const t0c = Date.now();
     await stageC.goto("/");
-    await expect(stageC.getByRole("tab", { name: "Sharing" }))
+    await expect(stageC.getByRole("tab", { name: de("navSharing") }))
       .toBeVisible({ timeout: 60_000 });
     await stageC.waitForLoadState("networkidle").catch(() => {});
     // C owns no buildings — wave off the fresh-Pod onboarding banner off-scene.
-    await stageC.getByRole("button", { name: "No thanks" })
+    await stageC.getByRole("button", { name: de("btnNoThanks") })
       .click({ timeout: 4_000 }).catch(() => {});
     await dismissToasts(stageC);
     const demoC = await Demo.install(stageC, "C", t0c);
 
     await demoC.scene(
       "received",
-      "Bei C: Die Beiträge von A und B erscheinen unter „Shared with you“",
+      "Bei C: Die Beiträge von A und B erscheinen unter „Freigaben“",
     );
-    await demoC.click(stageC.getByRole("tab", { name: "Sharing" }));
-    await expect(
-      stageC.getByRole("list", { name: /buildings shared with you/i })
-        .getByText(/^Building /).first(),
-    ).toBeVisible({ timeout: 60_000 });
-    await demoC.moveTo(
-      stageC.getByRole("list", { name: /buildings shared with you/i }),
-    );
+    await demoC.click(stageC.getByRole("tab", { name: de("navSharing") }));
+    await expect(stageC.getByText(SHARED_PREFIX).first())
+      .toBeVisible({ timeout: 60_000 });
+    await demoC.moveTo(stageC.getByText(SHARED_PREFIX).first());
     await demoC.pause(2_000);
 
     await demoC.scene(
       "create-view",
-      "C erstellt eine Ansicht der Art „Compare shared buildings“ über die geteilten Gebäude",
+      "C erstellt eine Ansicht der Art „Geteilte Gebäude vergleichen“ über die geteilten Gebäude",
     );
-    await demoC.click(stageC.getByRole("tab", { name: "Aggregations" }));
-    await demoC.click(stageC.getByRole("button", { name: /create aggregation/i }));
+    await demoC.click(stageC.getByRole("tab", { name: de("navAggregations") }));
+    await demoC.click(stageC.getByRole("button", { name: de("aggCreateTitle") }));
     const dlg = stageC.getByRole("dialog");
     await expect(dlg).toBeVisible({ timeout: 10_000 });
-    // The shared-with-me roster folds in asynchronously; retry the select
-    // until the benchmark mode is offered (mirrors peer-benchmark.spec.ts).
-    const modeSel = dlg.getByLabel(en("aggTypeLabel"));
+    // The shared-with-me roster folds in asynchronously; retry the select until
+    // the benchmark mode is offered (mirrors peer-benchmark.spec.ts).
+    const modeSel = dlg.getByLabel(de("aggTypeLabel"));
     await expect(async () => {
       await modeSel.click();
-      const opt = stageC.getByRole("option", { name: /compare shared buildings/i });
+      const opt = stageC.getByRole("option", { name: de("aggModeBenchmark") });
       try {
         await expect(opt).toBeVisible({ timeout: 5_000 });
         await opt.click();
@@ -282,8 +273,8 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
         throw e;
       }
     }).toPass({ timeout: 60_000 });
-    await demoC.type(dlg.getByLabel(en("aggNameLabel")), VIEW_NAME);
-    await demoC.click(dlg.getByLabel(en("aggSelectBuildings")));
+    await demoC.type(dlg.getByLabel(de("aggNameLabel")), VIEW_NAME);
+    await demoC.click(dlg.getByLabel(de("aggSelectBuildings")));
     const options = stageC.getByRole("option");
     await expect(async () => {
       expect(await options.count()).toBe(2);
@@ -292,32 +283,34 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await demoC.click(options.nth(1));
     await stageC.keyboard.press("Escape");
     await demoC.pause(600);
-    await demoC.click(dlg.getByRole("button", { name: /create aggregation/i }));
-    await expect(stageC.getByText(/aggregation created successfully/i))
+    await demoC.click(dlg.getByRole("button", { name: de("aggCreateTitle") }));
+    await expect(stageC.getByText(de("aggregationCreated")))
       .toBeVisible({ timeout: 60_000 });
     await dismissToasts(stageC);
 
     await demoC.scene(
       "share-back",
-      "C teilt das Ergebnis an alle Beitragenden zurück: „Add all contributors“ – ein Klick",
+      "C teilt das Ergebnis an alle Beitragenden zurück: „Alle Beitragenden hinzufügen“ – ein Klick",
     );
     const aggregationRow = stageC.locator("li").filter({ hasText: VIEW_NAME }).first();
     await expect(aggregationRow).toBeVisible({ timeout: 30_000 });
-    await demoC.click(aggregationRow.getByRole("button", { name: en("aggShareAria") }));
+    await demoC.click(aggregationRow.getByRole("button", { name: de("aggShareAria") }));
     const shareDlg = stageC.getByRole("dialog");
-    const addAll = shareDlg.getByRole("button", { name: /add all .* contributors/i });
+    const addAll = shareDlg.getByRole("button", { name: /Beitragenden hinzufügen/ });
     await expect(addAll).toBeEnabled({ timeout: 60_000 });
     await demoC.click(addAll);
     await demoC.pause(1_200);
-    const confirmC = shareDlg.getByRole("button", { name: /confirm share/i });
+    const confirmC = shareDlg.getByRole("button", { name: de("shareConfirmShare") });
     await expect(async () => {
-      await shareDlg.getByRole("button", { name: /review and share/i }).click();
+      await shareDlg.getByRole("button", { name: de("shareReviewAndShare") }).click();
       await expect(confirmC).toBeVisible({ timeout: 10_000 });
     }).toPass({ timeout: 60_000 });
     await demoC.click(confirmC);
-    await expect(shareDlg.getByText(/shared successfully/i))
+    // The aggregation dialog renders its success in-dialog ("Erfolgreich geteilt
+    // mit …") and keeps a Close button.
+    await expect(shareDlg.getByText(de("shareSuccessWith")))
       .toBeVisible({ timeout: 120_000 });
-    await demoC.click(shareDlg.getByRole("button", { name: /close/i }));
+    await demoC.click(shareDlg.getByRole("button", { name: de("btnClose"), exact: true }));
     await demoC.caption(
       "Nur der berechnete Snapshot wandert zurück – nicht die Gebäude der Beitragenden",
       3_500,
@@ -332,16 +325,15 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await cCtx.close();
 
     // ============ Clip payoff: back at A. ============
-    // Drain C's share-back on the discarded fixture page first.
     await page.reload();
-    await page.getByRole("tab", { name: "Sharing" }).click();
-    await expect(receivedAggregations(page).getByText(VIEW_NAME))
+    await page.getByRole("tab", { name: de("navSharing") }).click();
+    await expect(receivedAggs(page).getByText(VIEW_NAME))
       .toBeVisible({ timeout: 120_000 });
 
     const stageA2 = await page.context().newPage();
     const t0p = Date.now();
     await stageA2.goto("/");
-    await expect(stageA2.getByRole("tab", { name: "Sharing" }))
+    await expect(stageA2.getByRole("tab", { name: de("navSharing") }))
       .toBeVisible({ timeout: 60_000 });
     await stageA2.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageA2);
@@ -349,12 +341,12 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
 
     await demoP.scene(
       "returned",
-      "Zurück bei A: Die Ansicht von C liegt unter „Aggregations shared with you“",
+      "Zurück bei A: Die Ansicht von C liegt unter „Mit dir geteilte Aggregationen“",
     );
-    await demoP.click(stageA2.getByRole("tab", { name: "Sharing" }));
-    await expect(receivedAggregations(stageA2).getByText(VIEW_NAME))
+    await demoP.click(stageA2.getByRole("tab", { name: de("navSharing") }));
+    await expect(receivedAggs(stageA2).getByText(VIEW_NAME))
       .toBeVisible({ timeout: 60_000 });
-    await demoP.moveTo(receivedAggregations(stageA2).getByText(VIEW_NAME));
+    await demoP.moveTo(receivedAggs(stageA2).getByText(VIEW_NAME));
     await demoP.pause(2_000);
 
     await demoP.scene(
@@ -365,14 +357,12 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
     await expect(
       stageA2.getByRole("row").filter({ hasText: "Benchmark" }).first(),
     ).toBeVisible({ timeout: 60_000 });
-    // The provider caption proves the benchmark arrived, but it sits at the
-    // page bottom — moving there would frame the (empty) trailing sections.
-    // The visual payoff is the consumption table's filled Benchmark row,
-    // near the top.
+    // "Benchmark provided by" is hardcoded English even in the de UI, so it stays
+    // a reliable proof the benchmark arrived.
     await expect(stageA2.getByText(/benchmark provided by/i))
       .toBeVisible({ timeout: 60_000 });
     await stageA2.waitForLoadState("networkidle").catch(() => {});
-    await demoP.pause(1_500); // let the page read before the cursor moves
+    await demoP.pause(1_500);
     await demoP.moveTo(
       stageA2.locator("table").filter({
         has: stageA2.getByRole("row").filter({ hasText: "Benchmark" }),

@@ -63,7 +63,7 @@ export const MESSAGES = {
   roomsEmpty: {
     en: "No data rooms yet. Host one, or add one by URI or QR code.",
     de:
-      "Noch keine Datenräume. Erstelle einen oder füge einen per URI oder QR-Code hinzu.",
+      "Noch keine Datenzimmer. Erstelle einen oder füge einen per URI oder QR-Code hinzu.",
     fr:
       "Aucune salle de données pour l'instant. Créez-en une, ou ajoutez-en une par URI ou QR code.",
   },
@@ -71,7 +71,7 @@ export const MESSAGES = {
     en:
       "No buildings shared with you yet. Join a data room so owners can find you, or ask an owner to share with your WebID.",
     de:
-      "Noch keine mit dir geteilten Gebäude. Tritt einem Datenraum bei, damit Eigentümer dich finden, oder bitte einen Eigentümer, mit deiner WebID zu teilen.",
+      "Noch keine mit dir geteilten Gebäude. Tritt einem Datenzimmer bei, damit Eigentümer dich finden, oder bitte einen Eigentümer, mit deiner WebID zu teilen.",
     fr:
       "Aucun bâtiment partagé avec vous pour l'instant. Rejoignez une salle de données pour que les propriétaires vous trouvent, ou demandez à un propriétaire de partager avec votre WebID.",
   },
@@ -125,7 +125,7 @@ export const MESSAGES = {
   },
   headingYourRooms: {
     en: "Your data rooms",
-    de: "Deine Datenräume",
+    de: "Deine Datenzimmer",
     fr: "Vos salles de données",
   },
   sharedBuildingsHeading: {
@@ -215,7 +215,7 @@ export const MESSAGES = {
   },
   dlgDeleteRoom: {
     en: "Delete data room",
-    de: "Datenraum löschen",
+    de: "Datenzimmer löschen",
     fr: "Supprimer la salle de données",
   },
   dlgDeleteFile: {
@@ -1285,12 +1285,12 @@ export const MESSAGES = {
   },
   demoRoomsAdded: {
     en: "Demo data rooms added",
-    de: "Demo-Datenräume hinzugefügt",
+    de: "Demo-Datenzimmer hinzugefügt",
     fr: "Salles de données de démonstration ajoutées",
   },
   demoRoomsPartial: {
     en: "Added {rooms} of {total} demo data rooms",
-    de: "{rooms} von {total} Demo-Datenräumen hinzugefügt",
+    de: "{rooms} von {total} Demo-Datenzimmern hinzugefügt",
     fr: "{rooms} sur {total} salles de données de démonstration ajoutées",
   },
   // Reusable button / small-label ids (shared across surfaces).
@@ -1456,12 +1456,12 @@ export const MESSAGES = {
   },
   roomDeleteAria: {
     en: "Delete data room",
-    de: "Datenraum löschen",
+    de: "Datenzimmer löschen",
     fr: "Supprimer la salle de données",
   },
   roomDeleteTooltip: {
     en: "Delete data room (for everyone)",
-    de: "Datenraum löschen (für alle)",
+    de: "Datenzimmer löschen (für alle)",
     fr: "Supprimer la salle de données (pour tous)",
   },
   noRole: { en: "no role", de: "keine Rolle", fr: "aucun rôle" },
@@ -1486,13 +1486,13 @@ export const MESSAGES = {
   // Rooms finder body.
   roomHostBtn: {
     en: "Host a data room",
-    de: "Datenraum hosten",
+    de: "Datenzimmer hosten",
     fr: "Héberger une salle de données",
   },
   roomHosting: { en: "Creating…", de: "Wird erstellt…", fr: "Création…" },
   roomUriLabel: {
     en: "Data room URI",
-    de: "Datenraum-URI",
+    de: "Datenzimmer-URI",
     fr: "URI de la salle de données",
   },
   roomHostedByYou: {
@@ -1513,7 +1513,7 @@ export const MESSAGES = {
   },
   roomRemoveAria: {
     en: "Remove data room",
-    de: "Datenraum entfernen",
+    de: "Datenzimmer entfernen",
     fr: "Retirer la salle de données",
   },
   btnShare: { en: "Share", de: "Teilen", fr: "Partager" },
@@ -1799,12 +1799,12 @@ export const MESSAGES = {
   },
   shareNoRoleMembers: {
     en: "No data room members currently hold that role.",
-    de: "Derzeit hat kein Datenraum-Mitglied diese Rolle.",
+    de: "Derzeit hat kein Datenzimmer-Mitglied diese Rolle.",
     fr: "Aucun membre de la salle de données ne détient actuellement ce rôle.",
   },
   shareRoleLoadError: {
     en: "Could not load data room members: {error}",
-    de: "Datenraum-Mitglieder konnten nicht geladen werden: {error}",
+    de: "Datenzimmer-Mitglieder konnten nicht geladen werden: {error}",
     fr: "Impossible de charger les membres de la salle de données : {error}",
   },
   shareByWebId: { en: "By WebID", de: "Nach WebID", fr: "Par WebID" },
@@ -1814,7 +1814,7 @@ export const MESSAGES = {
       "Choose recipients from your contacts and data room members, or type a WebID " +
       "and press Enter to add it.",
     de:
-      "Wähle Empfänger aus deinen Kontakten und Datenraum-Mitgliedern, oder gib eine " +
+      "Wähle Empfänger aus deinen Kontakten und Datenzimmer-Mitgliedern, oder gib eine " +
       "WebID ein und drücke Enter, um sie hinzuzufügen.",
     fr:
       "Choisissez des destinataires parmi vos contacts et membres de la salle de " +
@@ -1824,7 +1824,7 @@ export const MESSAGES = {
     en:
       "Share with everyone in the GRANERGIZE data room who holds the selected role.",
     de:
-      "Teile mit allen im GRANERGIZE-Datenraum, die die gewählte Rolle innehaben.",
+      "Teile mit allen im GRANERGIZE-Datenzimmer, die die gewählte Rolle innehaben.",
     fr:
       "Partagez avec toutes les personnes de la salle de données GRANERGIZE qui " +
       "détiennent le rôle sélectionné.",
@@ -1866,8 +1866,8 @@ export const MESSAGES = {
       other: "Confirm sharing with {count} data room members:",
     },
     de: {
-      one: "Teilen mit {count} Datenraum-Mitglied bestätigen:",
-      other: "Teilen mit {count} Datenraum-Mitgliedern bestätigen:",
+      one: "Teilen mit {count} Datenzimmer-Mitglied bestätigen:",
+      other: "Teilen mit {count} Datenzimmer-Mitgliedern bestätigen:",
     },
     fr: {
       one: "Confirmer le partage avec {count} membre de la salle de données :",
@@ -1926,13 +1926,13 @@ export const MESSAGES = {
   },
   shareDataRoomMembers: {
     en: "Data room members",
-    de: "Datenraum-Mitglieder",
+    de: "Datenzimmer-Mitglieder",
     fr: "Membres de la salle de données",
   },
   shareNoMembers: {
     en: "No other members in your active data room. Enter a WebID below instead.",
     de:
-      "Keine weiteren Mitglieder in deinem aktiven Datenraum. Gib stattdessen unten eine " +
+      "Keine weiteren Mitglieder in deinem aktiven Datenzimmer. Gib stattdessen unten eine " +
       "WebID ein.",
     fr:
       "Aucun autre membre dans votre salle de données active. Saisissez plutôt une WebID " +
@@ -2008,7 +2008,7 @@ export const MESSAGES = {
       "Delete this data room for everyone? This removes the data room and its entire " +
       "membership and role history. This cannot be undone.",
     de:
-      "Diesen Datenraum für alle löschen? Damit werden der Datenraum und seine gesamte " +
+      "Diesen Datenzimmer für alle löschen? Damit werden der Datenzimmer und seine gesamte " +
       "Mitglieds- und Rollenhistorie entfernt. Dies kann nicht rückgängig gemacht werden.",
     fr:
       "Supprimer cette salle de données pour tous ? Cela supprime la salle et tout son " +
@@ -2055,27 +2055,27 @@ export const MESSAGES = {
   // Rooms / Meet notifications (imperative toasts → resolved via `msg()` at fire time).
   roomAdded: {
     en: "Data room added to your list",
-    de: "Datenraum zu deiner Liste hinzugefügt",
+    de: "Datenzimmer zu deiner Liste hinzugefügt",
     fr: "Salle de données ajoutée à votre liste",
   },
   roomCreated: {
     en: "Data room created",
-    de: "Datenraum erstellt",
+    de: "Datenzimmer erstellt",
     fr: "Salle de données créée",
   },
   roomUnreachable: {
     en: "Data room is not reachable",
-    de: "Datenraum nicht erreichbar",
+    de: "Datenzimmer nicht erreichbar",
     fr: "Salle de données injoignable",
   },
   roomLeft: {
     en: "You left the data room",
-    de: "Du hast den Datenraum verlassen",
+    de: "Du hast den Datenzimmer verlassen",
     fr: "Vous avez quitté la salle de données",
   },
   roomDeleted: {
     en: "Data room deleted",
-    de: "Datenraum gelöscht",
+    de: "Datenzimmer gelöscht",
     fr: "Salle de données supprimée",
   },
   rolesUpdated: {
@@ -2335,7 +2335,7 @@ export const MESSAGES = {
   },
   actionAddDemoRooms: {
     en: "add demo data rooms",
-    de: "Hinzufügen der Beispiel-Datenräume",
+    de: "Hinzufügen der Beispiel-Datenzimmer",
     fr: "l'ajout des salles de données de démonstration",
   },
   actionAddDemoBuildings: {
@@ -2504,27 +2504,27 @@ export const MESSAGES = {
   },
   intentEnterRoom: {
     en: "Enter data room…",
-    de: "Datenraum betreten…",
+    de: "Datenzimmer betreten…",
     fr: "Entrer dans la salle de données…",
   },
   intentExitRoom: {
     en: "Leave data room…",
-    de: "Datenraum verlassen…",
+    de: "Datenzimmer verlassen…",
     fr: "Quitter la salle de données…",
   },
   intentDeleteRoom: {
     en: "Delete data room…",
-    de: "Datenraum löschen…",
+    de: "Datenzimmer löschen…",
     fr: "Supprimer la salle de données…",
   },
   intentRemoveBookmark: {
     en: "Remove data room bookmark…",
-    de: "Datenraum-Lesezeichen entfernen…",
+    de: "Datenzimmer-Lesezeichen entfernen…",
     fr: "Retirer le marque-page de la salle de données…",
   },
   intentAddRoom: {
     en: "Add a data room…",
-    de: "Datenraum hinzufügen…",
+    de: "Datenzimmer hinzufügen…",
     fr: "Ajouter une salle de données…",
   },
   // Palette labels for the dev demo seeders surfaced as direct-invoke verbs (the
@@ -2537,7 +2537,7 @@ export const MESSAGES = {
   },
   intentSeedDemoRooms: {
     en: "Add example data rooms",
-    de: "Beispiel-Datenräume hinzufügen",
+    de: "Beispiel-Datenzimmer hinzufügen",
     fr: "Ajouter des salles de données d'exemple",
   },
   // Per-param field labels for the schema-driven palette form (paramForm.ts /
@@ -2545,7 +2545,7 @@ export const MESSAGES = {
   // recipient/year fields reuse the existing racLabel/lblYear ids.
   paramBuilding: { en: "Building", de: "Gebäude", fr: "Bâtiment" },
   paramAggregation: { en: "Aggregation", de: "Aggregation", fr: "Agrégation" },
-  paramRoom: { en: "Data room", de: "Datenraum", fr: "Salle de données" },
+  paramRoom: { en: "Data room", de: "Datenzimmer", fr: "Salle de données" },
   paramWebId: { en: "Person (WebID)", de: "Person (WebID)", fr: "Personne (WebID)" },
   paramIncludeEnergyData: {
     en: "Include energy data",
@@ -2555,7 +2555,7 @@ export const MESSAGES = {
   paramYears: { en: "Years", de: "Jahre", fr: "Années" },
   paramRoomInput: {
     en: "Invite link or room URI",
-    de: "Einladungslink oder Datenraum-URI",
+    de: "Einladungslink oder Datenzimmer-URI",
     fr: "Lien d'invitation ou URI de la salle de données",
   },
   // Generic param-form chrome.
@@ -2578,7 +2578,7 @@ export const MESSAGES = {
   },
   paramNoRooms: {
     en: "No data rooms yet.",
-    de: "Noch keine Datenräume.",
+    de: "Noch keine Datenzimmer.",
     fr: "Aucune salle de données pour l'instant.",
   },
   paramNoBuildings: {

@@ -104,7 +104,10 @@ export async function login(page: Page, acc: SolidAccount): Promise<void> {
 async function restoreSession(page: Page): Promise<void> {
   await expect(async () => {
     await page.goto("./");
-    await expect(page.getByRole("tab", { name: en("navBuildings") }))
+    // Readiness = the app shell's tab bar is present. Match ANY tab (not the
+    // "Buildings" tab by name) so the check is locale-agnostic — the handbuch
+    // video specs render the app in German (`locale: de-DE`).
+    await expect(page.getByRole("tab").first())
       .toBeVisible({ timeout: T.action });
   }).toPass({ timeout: T.login });
 }
@@ -191,7 +194,8 @@ export async function loginInteractive(page: Page, acc: SolidAccount): Promise<v
   await expect(async () => {
     if (await remember.count()) await remember.first().click().catch(() => {});
     await expect(remember).toHaveCount(0, { timeout: 1000 });
-    await expect(page.getByRole("tab", { name: en("navBuildings") })).toBeVisible({
+    // Locale-agnostic readiness (German video specs): any shell tab present.
+    await expect(page.getByRole("tab").first()).toBeVisible({
       timeout: 1000,
     });
   }).toPass({ timeout: T.login });
@@ -208,10 +212,14 @@ export const LOGIN_HEADING = "Granergize App";
  * username is an email or the provider's WebID layout isn't known.
  */
 export async function webIdOf(page: Page): Promise<string> {
+  // The account-menu button's aria-label is "<menu label> — <webid>"; the menu
+  // label is localized (e.g. "Kontomenü" in de), so locate the button by the
+  // WebID's URL scheme it carries and take the trailing token (locale-agnostic).
   const label = await page
-    .getByRole("button", { name: /^Account menu/ })
+    .getByRole("button", { name: /https?:\/\// })
+    .first()
     .getAttribute("aria-label");
-  const m = label?.match(/Account menu — (.+)$/);
+  const m = label?.match(/—\s*(\S+)\s*$/);
   if (!m) {
     throw new Error(`could not read WebID from account menu (aria-label: ${label})`);
   }

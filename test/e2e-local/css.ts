@@ -415,11 +415,15 @@ const PROFILE_SEED: Record<
   },
 };
 
-// Seed all three actor profiles; returns slot → WebID so the caller can use the
-// REAL WebIDs (e.g. as a contact entry) instead of constructing them.
-async function seedProfiles(): Promise<Record<string, string>> {
+// Seed the given actor profiles (default all three); returns slot → WebID so the
+// caller can use the REAL WebIDs (e.g. as a contact entry) instead of constructing
+// them. `slots` narrows it — e.g. the prologue video seeds only B so Alice's pod
+// has no org yet and she sets up her organisation + logo on camera.
+async function seedProfiles(
+  slots: readonly ("A" | "B" | "C")[] = ["A", "B", "C"],
+): Promise<Record<string, string>> {
   const webIds: Record<string, string> = {};
-  for (const slot of ["A", "B", "C"] as const) {
+  for (const slot of slots) {
     const { live, actor } = await actorSession(slot);
     try {
       const seed = PROFILE_SEED[slot];

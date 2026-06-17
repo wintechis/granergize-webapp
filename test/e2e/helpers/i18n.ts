@@ -14,3 +14,13 @@ import { type MessageId, type MessageParams, translate } from "../../../src/lib/
 export function en(id: MessageId, params?: MessageParams): string {
   return translate("en", id, params);
 }
+
+/**
+ * The German form of a catalog message — for specs that render the app in German
+ * (a context with `locale: "de-DE"`, e.g. the handbuch videos). Same lock-step
+ * guarantee as {@link en}: locators resolve to whatever the catalog says in `de`,
+ * so they match the rendered German UI.
+ */
+export function de(id: MessageId, params?: MessageParams): string {
+  return translate("de", id, params);
+}

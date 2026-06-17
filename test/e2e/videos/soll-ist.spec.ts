@@ -1,8 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
-import { setDevMode } from "../helpers/accountMenu.ts";
+import { de } from "../helpers/i18n.ts";
 import { buildingRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo } from "./demoPolish.ts";
@@ -15,16 +14,18 @@ import { Demo } from "./demoPolish.ts";
  *
  *   deno task videos
  *
+ * The app renders in GERMAN: the context locale is `de-DE` and every app locator
+ * resolves through the message catalog via `de(key)` (i18n-driven — the same
+ * spec would work in any locale).
+ *
  * Playwright records one video PER PAGE, and its video time compresses during
  * long idle stretches — wall-clock scene marks drift against it. So the noisy
  * setup (login, seeding, demo buildings) happens on the fixture page, and the
  * scenes run on a FRESH page in the same context (the app session restores
  * silently, as on a reload): that page's recording starts seconds before
- * scene 1, keeping the marks honest. Recording + marks land in
- * `test-results/videos/` (`soll-ist.webm` + `soll-ist.marks.json`);
- * `postprocess.sh soll-ist` trims the restore head and converts to MP4.
- * Hosting/distribution of the result is still an open decision
- * (notes/plan-handbuch-videos.md), so nothing is committed.
+ * scene 1, keeping the marks honest. `postprocess.sh soll-ist` trims the restore
+ * head and converts to MP4. Artifacts land in `test-results/videos/` and stay
+ * uncommitted.
  */
 
 const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
@@ -46,11 +47,12 @@ async function controlSeed(path: string): Promise<Response> {
 }
 
 async function dismissToasts(page: Page) {
-  await page.getByRole("button", { name: /^close$/i }).first()
+  await page.getByRole("button", { name: /^(close|schließen)$/i }).first()
     .click({ timeout: 4_000 }).catch(() => {});
 }
 
 test.describe("handbuch video: Soll-Ist-Vergleich", () => {
+  test.use({ locale: "de-DE" }); // render the app in German
   test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task videos)");
   test.skip(!hasAccount(ACC), "local seeded account A missing");
 
@@ -58,23 +60,24 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     test.setTimeout(900_000);
 
     // --- Setup (on the fixture page; its video is discarded): login,
-    //     identities, demo buildings — the walkthrough assumes a building. ---
+    //     identities, demo buildings — the walkthrough assumes a building.
+    //     (Dev mode defaults OFF in a fresh context — no setDevMode, whose
+    //     account-menu locators are English-only.) ---
     await login(page, ACC);
     await controlSeed("/seed-profiles");
     await page.reload();
-    await expect(page.getByRole("tab", { name: "Buildings" }))
+    await expect(page.getByRole("tab", { name: de("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
-    await setDevMode(page, false);
     // The fresh-Pod onboarding banner appears once the (empty) buildings query
     // settles — wait for it rather than poll-and-skip (the pod is reset per
     // spec file, so it always comes).
-    const addExamples = page.getByRole("button", { name: en("onboardAddExamples") });
+    const addExamples = page.getByRole("button", { name: de("onboardAddExamples") });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
-    await expect(page.getByText(en("demoBuildingsAdded")).first())
+    await expect(page.getByText(de("demoBuildingsAdded")).first())
       .toBeVisible({ timeout: 300_000 });
-    await page.getByRole("tab", { name: "Buildings" }).click();
-    await page.getByRole("button", { name: en("btnList") }).click();
+    await page.getByRole("tab", { name: de("navBuildings") }).click();
+    await page.getByRole("button", { name: de("btnList") }).click();
     const setupRow = page.locator("li", { hasText: BUILDING }).first();
     await expect(setupRow).toBeVisible({ timeout: 60_000 });
     const buildingId = await setupRow.getAttribute("data-building-id");
@@ -84,10 +87,10 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     const stage = await page.context().newPage();
     const t0 = Date.now();
     await stage.goto("/");
-    await expect(stage.getByRole("tab", { name: "Buildings" }))
+    await expect(stage.getByRole("tab", { name: de("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
-    await stage.getByRole("tab", { name: "Buildings" }).click();
-    await stage.getByRole("button", { name: en("btnList") }).click();
+    await stage.getByRole("tab", { name: de("navBuildings") }).click();
+    await stage.getByRole("button", { name: de("btnList") }).click();
     const row = stage.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stage.waitForLoadState("networkidle").catch(() => {});
@@ -109,9 +112,9 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
       "ist",
       "A erfasst für ihr Gebäude die tatsächlichen Verbräuche eines Jahres",
     );
-    // Energy entry now lives on the building's observation (energy) page — the
-    // master-detail redesign moved it off the list row. Land there, then open the
-    // year dialog via its "Edit energy years" button.
+    // Energy entry lives on the building's observation (energy) page — land there,
+    // then open the year dialog via its "Edit energy years" button (hardcoded,
+    // not localized, so it reads the same in de).
     await stage.goto(buildingRoute("observation", buildingId));
     const editYears = stage.getByRole("button", { name: "Edit energy years" });
     await expect(editYears).toBeVisible({ timeout: 60_000 });
@@ -121,47 +124,40 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     const dialog = stage.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await demo.type(
-      stage.getByRole("spinbutton", { name: en("lblYear"), exact: true }),
+      stage.getByRole("spinbutton", { name: de("lblYear"), exact: true }),
       YEAR,
     );
-    await demo.type(
-      stage.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }),
-      "98000",
-    );
-    await demo.type(stage.getByRole("spinbutton", { name: "Heat consumption (kWh)" }), "64000");
-    await demo.click(stage.getByRole("button", { name: "Save" }));
-    await expect(stage.getByText("Energy data saved").first())
+    await demo.type(stage.getByRole("spinbutton", { name: /Stromverbrauch/ }), "98000");
+    await demo.type(stage.getByRole("spinbutton", { name: /Wärmeverbrauch/ }), "64000");
+    await demo.click(stage.getByRole("button", { name: de("btnSave"), exact: true }));
+    await expect(stage.getByText(de("energySaved")).first())
       .toBeVisible({ timeout: 60_000 });
-    await demo.click(stage.getByRole("button", { name: "Close" }));
+    await demo.click(stage.getByRole("button", { name: de("btnClose"), exact: true }));
     await expect(dialog).toBeHidden({ timeout: 10_000 });
 
     // --- Scene 2: the planned (Soll) entry for the same year. ---
     await demo.scene(
       "soll",
-      "Für dasselbe Jahr legt A einen Plan-Eintrag an: Scenario „Planned (Soll)“",
+      `Für dasselbe Jahr legt A einen Plan-Eintrag an: Szenario „${de("scenarioPlanned")}“`,
     );
-    // Still on the observation page from scene 1 — just reopen the year dialog.
     await demo.click(editYears);
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await demo.type(
-      stage.getByRole("spinbutton", { name: en("lblYear"), exact: true }),
+      stage.getByRole("spinbutton", { name: de("lblYear"), exact: true }),
       YEAR,
     );
-    await demo.select(stage.getByLabel(en("lblScenario"), { exact: true }), /^Planned/);
-    await demo.type(
-      stage.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }),
-      "90000",
-    );
-    await demo.type(stage.getByRole("spinbutton", { name: "Heat consumption (kWh)" }), "60000");
-    await demo.click(stage.getByRole("button", { name: "Save" }));
-    await expect(stage.getByText("Energy data saved").first())
+    await demo.select(stage.getByLabel(de("lblScenario"), { exact: true }), de("scenarioPlanned"));
+    await demo.type(stage.getByRole("spinbutton", { name: /Stromverbrauch/ }), "90000");
+    await demo.type(stage.getByRole("spinbutton", { name: /Wärmeverbrauch/ }), "60000");
+    await demo.click(stage.getByRole("button", { name: de("btnSave"), exact: true }));
+    await expect(stage.getByText(de("energySaved")).first())
       .toBeVisible({ timeout: 60_000 });
-    await demo.click(stage.getByRole("button", { name: "Close" }));
+    await demo.click(stage.getByRole("button", { name: de("btnClose"), exact: true }));
     await expect(dialog).toBeHidden({ timeout: 10_000 });
 
-    // --- Scene 3: the payoff — plan next to actual in the annual overview, on
-    //     the building's observation page (the energy surface now; the map is a
-    //     pure finder). Land there as a scene cut and settle. ---
+    // --- Scene 3: the payoff — plan next to actual in the annual overview. The
+    //     "(planned)" marker is hardcoded English even in the de UI, so it stays
+    //     a reliable target. Land there as a scene cut and settle. ---
     await demo.scene(
       "payoff",
       "Die Jahresübersicht zeigt Soll und Ist nebeneinander",
