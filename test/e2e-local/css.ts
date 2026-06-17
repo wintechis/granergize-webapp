@@ -414,11 +414,15 @@ const PROFILE_SEED: Record<
   },
 };
 
-// Seed all three actor profiles; returns slot → WebID so the caller can use the
-// REAL WebIDs (e.g. as a contact entry) instead of constructing them.
-async function seedProfiles(): Promise<Record<string, string>> {
+// Seed the given actor profiles (default all three); returns slot → WebID so the
+// caller can use the REAL WebIDs (e.g. as a contact entry) instead of constructing
+// them. `slots` narrows it — e.g. the prologue video seeds only B so Alice's pod
+// has no org yet and she sets up her organisation + logo on camera.
+async function seedProfiles(
+  slots: readonly ("A" | "B" | "C")[] = ["A", "B", "C"],
+): Promise<Record<string, string>> {
   const webIds: Record<string, string> = {};
-  for (const slot of ["A", "B", "C"] as const) {
+  for (const slot of slots) {
     const { live, actor } = await actorSession(slot);
     try {
       const seed = PROFILE_SEED[slot];
@@ -582,7 +586,16 @@ Deno.serve({ port: LOCAL_CSS_CONTROL_PORT }, async (req) => {
   }
   if (req.method === "POST" && pathname === "/seed-profiles") {
     try {
-      return Response.json(await seedProfiles());
+      const raw = searchParams.get("slots");
+      const slots = raw
+        ? raw.toUpperCase().split(",").map((s) => s.trim()).filter(Boolean)
+        : undefined;
+      if (slots && !slots.every((s) => ["A", "B", "C"].includes(s))) {
+        return new Response(`unknown slot in ${raw}\n`, { status: 400 });
+      }
+      return Response.json(
+        await seedProfiles(slots as ("A" | "B" | "C")[] | undefined),
+      );
     } catch (e) {
       console.error(`/seed-profiles failed: ${e}`);
       return new Response(`seed-profiles failed: ${e}\n`, { status: 500 });
