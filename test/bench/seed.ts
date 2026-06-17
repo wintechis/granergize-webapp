@@ -14,7 +14,7 @@ import {
   writeBuildingEnergy,
 } from "../../src/services/rdf/building/buildingSerializer.ts";
 import { mintBuildingSubject } from "../../src/services/rdf/building/buildingId.ts";
-import { synthDayReadings } from "../../src/services/rdf/energySeriesXlsx.ts";
+import { synthDayReadings } from "../../src/services/xlsx/energySeriesXlsx.ts";
 import { seriesContainerUri } from "../../src/services/rdf/energyDataset.ts";
 import { shareBuildingData, type ShareOptions } from "../../src/services/interop/share.ts";
 import { appRoot, getPodBaseUri } from "../../src/services/pod/solidUtils.ts";

@@ -4,7 +4,7 @@ import {
   fetchNearestStations,
   fetchStationValues,
   WEATHER_PARAMETERS,
-} from "../services/rdf/linkedWeather.ts";
+} from "../services/linkedWeather.ts";
 import Box from "@mui/material/Box";
 import FormControlLabel from "@mui/material/FormControlLabel";
 import Stack from "@mui/material/Stack";
@@ -25,12 +25,12 @@ import { BuildingType } from "../types.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import { useAnnualEnergyByYear } from "../hooks/queries.ts";
 import { type EnergyMetricKey } from "../services/rdf/energyDataset.ts";
-import { DEFAULT_METRIC, metricRawAtYear } from "../services/rdf/energyMetric.ts";
+import { DEFAULT_METRIC, metricRawAtYear } from "../services/energy/energyMetric.ts";
 import {
   alignEnergyWeather,
   hasOverlap,
   weatherByYear,
-} from "../services/rdf/energyWeather.ts";
+} from "../services/energy/energyWeather.ts";
 import { ELECTRICITY_COLOR } from "../constants/chartColors.ts";
 
 /**

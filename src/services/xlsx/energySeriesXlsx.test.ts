@@ -8,7 +8,7 @@ import {
   parseLastgangXlsx,
   synthDayReadings,
 } from "./energySeriesXlsx.ts";
-import { CONSUMPTION_NS } from "./vocabularies.ts";
+import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 
 const { namedNode } = DataFactory;
 const RDF_TYPE = namedNode("http://www.w3.org/1999/02/22-rdf-syntax-ns#type");

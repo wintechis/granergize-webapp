@@ -2,13 +2,13 @@
 import { strict as assert } from "node:assert";
 import { Parser, Store } from "n3";
 import type { BuildingType } from "../../types.ts";
-import { serializeBuildingToTurtle } from "./building/buildingSerializer.ts";
+import { serializeBuildingToTurtle } from "../rdf/building/buildingSerializer.ts";
 import {
   detectSpreadsheetFormat,
   parseCsvToFields,
-} from "./building/buildingImport.ts";
+} from "../rdf/building/buildingImport.ts";
 import { buildingsToXlsx, buildingToXlsx } from "./buildingWorkbook.ts";
-import { BUILDING_NS } from "./vocabularies.ts";
+import { BUILDING_NS } from "../rdf/vocabularies.ts";
 
 const FILE = "https://pod.example/granergize/buildings/b1.ttl";
 

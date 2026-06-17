@@ -20,7 +20,7 @@ import {
   fetchNearbyInstallations,
   kreisFromInstallations,
   type NearbyInstallation,
-} from "../services/rdf/mastrNearby.ts";
+} from "../services/mastrNearby.ts";
 import { logError } from "../lib/logError.ts";
 
 export interface NearbyContext {

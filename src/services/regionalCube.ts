@@ -16,10 +16,10 @@
  * loading indicator and retries transient throttling. The parse is split out
  * pure for offline unit-testing.
  */
-import { QB_NS, RDF_TYPE, SKOS_NS } from "./vocabularies.ts";
-import { parseRdfText } from "./rdfHelpers.ts";
-import { trackedFetch } from "../../lib/networkActivity.ts";
-import type { MessageId } from "../../lib/messages.ts";
+import { QB_NS, RDF_TYPE, SKOS_NS } from "./rdf/vocabularies.ts";
+import { parseRdfText } from "./rdf/rdfHelpers.ts";
+import { trackedFetch } from "../lib/networkActivity.ts";
+import type { MessageId } from "../lib/messages.ts";
 
 /** One (year, value) point of a regional measure, with its source unit (e.g. "Prozent"). */
 export interface RegionalObservation {
@@ -172,6 +172,25 @@ export async function fetchRegionalObservations(
  * actually fetch (and the Developer-mode source link), not the HTML landing page. */
 export function regionalTableDataUrl(tableId: string): string {
   return `${regionalstatistikBase()}data/${tableId}`;
+}
+
+/**
+ * The dereferenceable IRI of the **place** a metric is about — the geo-dimension
+ * value the cube indexes by, reconstructed from the table's geo style: an
+ * `…/ags/{code}` region resource ("ags"), or a `…/cl/{scheme}#{code}` codelist
+ * concept ("frag"). This is the leaf the app references but does not internalize
+ * (no in-app place page); following it hands off to the wrapper — see
+ * `explore/explore-app-boundary.md`.
+ */
+export function regionalGeoUrl(table: RegionalTable, ags: string): string {
+  const base = regionalstatistikBase();
+  if ((table.geoCodeStyle ?? "ags") === "frag") {
+    // Frag style: the codelist scheme name is the geo dimension's local part
+    // (e.g. `#dim-DINSG` → `cl/DINSG`).
+    const scheme = (table.geoDimSuffix ?? "#dim-geo").replace(/^#dim-/, "");
+    return `${base}cl/${scheme}#${ags}`;
+  }
+  return `${base}ags/${ags}`;
 }
 
 const SKOS_NOTATION = `${SKOS_NS}notation`;

@@ -1,5 +1,5 @@
 import { BuildingType } from "../../types.ts";
-import { type EnergyMetricKey } from "./energyDataset.ts";
+import { type EnergyMetricKey } from "../rdf/energyDataset.ts";
 import { DEFAULT_METRIC, metricFraming } from "./energyMetric.ts";
 import {
   type EnergyByBuildingYear,

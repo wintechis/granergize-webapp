@@ -3,7 +3,7 @@ import { useMemo, useState } from "react";
 import { Box, Button, Typography } from "@mui/material";
 import type { BuildingType } from "../types.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
-import { INVESTOR_CERT_SYSTEMS } from "../services/rdf/buildingTemplates.ts";
+import { INVESTOR_CERT_SYSTEMS } from "../services/xlsx/buildingTemplates.ts";
 import { useGeocodeFields } from "../hooks/useGeocodeFields.ts";
 import { useSolidData } from "../hooks/queries.ts";
 import { useUpdateBuilding } from "../hooks/mutations.ts";

@@ -7,7 +7,7 @@ import {
   WEATHER_PARAMETERS,
   weatherStationsUrl,
   weatherValuesUrl,
-} from "../services/rdf/linkedWeather.ts";
+} from "../services/linkedWeather.ts";
 import {
   Alert,
   Box,

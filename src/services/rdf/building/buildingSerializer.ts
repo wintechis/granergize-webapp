@@ -60,7 +60,7 @@ import {
   generateEnergyDayTtl,
   type LastgangReading,
   synthDayReadings,
-} from "../energySeriesXlsx.ts";
+} from "../../xlsx/energySeriesXlsx.ts";
 import {
   INV_YEAR_ROW_STEMS,
   INVESTOR_CERT_SYSTEMS,
@@ -69,7 +69,7 @@ import {
   OPCOST_BOOLEAN_FIELDS,
   OPCOST_FIELDS,
   yearsIn,
-} from "../buildingTemplates.ts";
+} from "../../xlsx/buildingTemplates.ts";
 
 const { namedNode, literal, blankNode } = DataFactory;
 

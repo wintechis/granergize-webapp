@@ -10,7 +10,7 @@ import {
   SCALAR_FIELDS,
   type SpreadsheetFormat,
 } from "./buildingTemplates.ts";
-import { GRANERGIZE_LOGO_PNG_BASE64 } from "./logoPng.ts";
+import { GRANERGIZE_LOGO_PNG_BASE64 } from "../../lib/logoPng.ts";
 import { BRAND_PRIMARY } from "../../constants/chartColors.ts";
 
 // ---------------------------------------------------------------------------

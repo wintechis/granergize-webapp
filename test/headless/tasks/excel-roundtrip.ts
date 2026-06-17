@@ -21,7 +21,7 @@ import {
   detectSpreadsheetFormat,
   parseCsvToFields,
 } from "../../../src/services/rdf/building/buildingImport.ts";
-import { buildingsToXlsx } from "../../../src/services/rdf/buildingWorkbook.ts";
+import { buildingsToXlsx } from "../../../src/services/xlsx/buildingWorkbook.ts";
 import { fetchAndParseData } from "../../../src/services/TurtleParsingService.ts";
 
 import {

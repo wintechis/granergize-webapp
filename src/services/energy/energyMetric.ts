@@ -2,7 +2,7 @@ import { BuildingType } from "../../types.ts";
 import {
   type AnnualMetrics,
   type EnergyMetricKey,
-} from "./energyDataset.ts";
+} from "../rdf/energyDataset.ts";
 import { referenceArea } from "./energyCategory.ts";
 import { type MessageId } from "../../lib/messages.ts";
 

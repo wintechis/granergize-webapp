@@ -35,7 +35,7 @@ import { attachAnnualData } from "../services/rdf/building/buildingSerializer.ts
 import {
   buildingsToXlsx,
   buildingToXlsx,
-} from "../services/rdf/buildingWorkbook.ts";
+} from "../services/xlsx/buildingWorkbook.ts";
 import { formatNumber } from "../lib/formatNumber.ts";
 import { downloadXlsx } from "../lib/download.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";

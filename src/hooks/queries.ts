@@ -49,7 +49,7 @@ import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import type {
   EnergyByBuildingYear,
   EnergyByYear,
-} from "../services/rdf/energyTimeCut.ts";
+} from "../services/energy/energyTimeCut.ts";
 import { fetchFresh } from "../services/pod/podFetch.ts";
 import { emitNotification } from "../lib/notificationSink.ts";
 import type {

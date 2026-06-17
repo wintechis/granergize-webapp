@@ -17,7 +17,7 @@ import { MARKER_OWNED_COLOR, MARKER_SHARED_COLOR } from "../../constants/chartCo
 import { getGateway } from "../../hooks/session.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { attachAnnualData } from "../../services/rdf/building/buildingSerializer.ts";
-import { buildingToXlsx } from "../../services/rdf/buildingWorkbook.ts";
+import { buildingToXlsx } from "../../services/xlsx/buildingWorkbook.ts";
 import { buildingIdStem } from "../../services/rdf/building/buildingId.ts";
 import { downloadXlsx } from "../../lib/download.ts";
 import { formatError } from "../../lib/formatError.ts";

@@ -7,12 +7,12 @@ import { BuildingType } from "../types.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { buildingRoute } from "../routes.ts";
 import { type EnergyMetricKey } from "../services/rdf/energyDataset.ts";
-import { DEFAULT_METRIC } from "../services/rdf/energyMetric.ts";
+import { DEFAULT_METRIC } from "../services/energy/energyMetric.ts";
 import {
   buildEnergyMatrix,
   type MatrixCell,
-} from "../services/rdf/energyMatrix.ts";
-import { type EnergyByBuildingYear } from "../services/rdf/energyTimeCut.ts";
+} from "../services/energy/energyMatrix.ts";
+import { type EnergyByBuildingYear } from "../services/energy/energyTimeCut.ts";
 import { bandColor, bandLabelKey } from "../constants/lensBand.ts";
 import { ellipsis } from "../constants/listStyles.ts";
 import { useT } from "../context/I18nProvider.tsx";

@@ -9,14 +9,14 @@ import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { buildingRoute } from "../routes.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import { type EnergyMetricKey } from "../services/rdf/energyDataset.ts";
-import { DEFAULT_METRIC, type MetricFraming } from "../services/rdf/energyMetric.ts";
+import { DEFAULT_METRIC, type MetricFraming } from "../services/energy/energyMetric.ts";
 import {
   barFraction,
   buildSmallMultiples,
   type PanelBuilding,
   type SharedScale,
-} from "../services/rdf/energySmallMultiples.ts";
-import { type EnergyByBuildingYear } from "../services/rdf/energyTimeCut.ts";
+} from "../services/energy/energySmallMultiples.ts";
+import { type EnergyByBuildingYear } from "../services/energy/energyTimeCut.ts";
 import { bandColor } from "../constants/lensBand.ts";
 import { ellipsis } from "../constants/listStyles.ts";
 

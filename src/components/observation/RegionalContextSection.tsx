@@ -13,7 +13,7 @@ import {
 import QueryStatsIcon from "@mui/icons-material/QueryStats";
 import type { BuildingType } from "../../types.ts";
 import { useRegionalContext } from "../../hooks/regional.ts";
-import { regionalTableDataUrl } from "../../services/rdf/regionalCube.ts";
+import { regionalTableDataUrl } from "../../services/regionalCube.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
 
@@ -72,6 +72,9 @@ export default function RegionalContextSection(
             </Table>
           </TableContainer>
           <RdfSourceLink href={regionalTableDataUrl(m.table.tableId)} />
+          {/* The place itself — a leaf the app references but has no page for;
+              the dereference handoff (explore/explore-app-boundary.md). */}
+          <RdfSourceLink href={m.geoUri} />
           <Typography
             variant="caption"
             color="text.secondary"

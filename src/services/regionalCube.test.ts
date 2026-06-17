@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 import {
   parseRegionalObservations,
   REGIONAL_TABLES,
+  regionalGeoUrl,
   type RegionalTable,
 } from "./regionalCube.ts";
 
@@ -88,4 +89,20 @@ Deno.test("kreis table: a Kreis with no renewable row → empty", () => {
   // 08221 only appears with the renewable carrier here, so it DOES match — assert
   // instead that an absent Kreis yields nothing.
   assert.deepEqual(parseRegionalObservations(KREIS_TTL, KREIS_BASE, kreisTable(), "09999"), []);
+});
+
+// --- regionalGeoUrl: the place's dereferenceable IRI (the leaf handoff) -------
+
+Deno.test("regionalGeoUrl: ags-style land grain → …/ags/{code}", () => {
+  assert.equal(
+    regionalGeoUrl(landTable(), "09"),
+    "https://wunderfacts.com/regionalstatistik/ags/09",
+  );
+});
+
+Deno.test("regionalGeoUrl: frag-style kreis grain → …/cl/{scheme}#{code}", () => {
+  assert.equal(
+    regionalGeoUrl(kreisTable(), "09564"),
+    "https://wunderfacts.com/regionalstatistik/cl/DINSG#09564",
+  );
 });

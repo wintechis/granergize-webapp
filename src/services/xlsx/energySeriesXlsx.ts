@@ -1,5 +1,5 @@
 import * as XLSX from "xlsx";
-import { CONSUMPTION_NS } from "./vocabularies.ts";
+import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
 
 // ---------------------------------------------------------------------------
 // Lastgang (15-min load profile) helpers — parse a utility load-profile XLSX

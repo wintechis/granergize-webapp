@@ -34,11 +34,11 @@ import {
 } from "../services/rdf/building/buildingImport.ts";
 import { geocodeFields } from "../services/geocode.ts";
 import { useGeocodeFields } from "../hooks/useGeocodeFields.ts";
-import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
+import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
 import {
   SCALAR_FIELDS,
   type SpreadsheetFormat,
-} from "../services/rdf/buildingTemplates.ts";
+} from "../services/xlsx/buildingTemplates.ts";
 // Local file-parse errors only — the Pod-write errors toast centrally.
 import { formatError } from "../lib/formatError.ts";
 

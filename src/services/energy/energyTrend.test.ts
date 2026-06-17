@@ -9,7 +9,7 @@ import {
   trendForDelta,
 } from "./energyTrend.ts";
 import { type EnergyByBuildingYear } from "./energyTimeCut.ts";
-import { type AnnualMetrics } from "./energyDataset.ts";
+import { type AnnualMetrics } from "../rdf/energyDataset.ts";
 import { BuildingType } from "../../types.ts";
 
 /** One year's annual metrics (the cube cell). `year` is unused but kept for

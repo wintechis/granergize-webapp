@@ -5,7 +5,7 @@ import {
   iriPropertyMap,
   objectPropertyMap,
   predicateMap,
-} from "./building/buildingConfig.ts";
+} from "../rdf/building/buildingConfig.ts";
 
 // ---------------------------------------------------------------------------
 // Spreadsheet template maps + value normalization, shared by the building

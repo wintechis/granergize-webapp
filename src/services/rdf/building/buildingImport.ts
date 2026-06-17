@@ -11,8 +11,8 @@ import {
   normalizeNumber,
   type SpreadsheetFormat,
   yearsIn,
-} from "../buildingTemplates.ts";
-import { parseLastgangXlsx } from "../energySeriesXlsx.ts";
+} from "../../xlsx/buildingTemplates.ts";
+import { parseLastgangXlsx } from "../../xlsx/energySeriesXlsx.ts";
 
 // ── CSV / XLSX autofill: detect a partner spreadsheet's layout and parse it into
 // per-building field maps. The inverse of the export side (buildingWorkbook.ts);

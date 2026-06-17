@@ -8,7 +8,7 @@ import {
   selectableYears,
   yearLens,
 } from "./energyTimeCut.ts";
-import { type AnnualMetrics } from "./energyDataset.ts";
+import { type AnnualMetrics } from "../rdf/energyDataset.ts";
 import { BuildingType } from "../../types.ts";
 
 function building(fields: Partial<BuildingType>): BuildingType {

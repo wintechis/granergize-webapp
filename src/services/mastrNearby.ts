@@ -23,9 +23,9 @@
  * renewables (solar/wind/hydro/biomass). Per-unit Bruttoleistung and authoritative
  * `vocab:#…Unit` typing would need a follow-up deref of each `…/see/{id}` record.
  */
-import { GEO_LAT, GEO_LONG, DCTERMS_NS, RDFS_NS } from "./vocabularies.ts";
-import { parseRdfText } from "./rdfHelpers.ts";
-import { trackedFetch } from "../../lib/networkActivity.ts";
+import { GEO_LAT, GEO_LONG, DCTERMS_NS, RDFS_NS } from "./rdf/vocabularies.ts";
+import { parseRdfText } from "./rdf/rdfHelpers.ts";
+import { trackedFetch } from "../lib/networkActivity.ts";
 
 const RDFS_LABEL = `${RDFS_NS}label`;
 const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;

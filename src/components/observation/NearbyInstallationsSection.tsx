@@ -6,7 +6,7 @@ import {
   DEFAULT_RADIUS_KM,
   type InstallationKind,
   nearbyInstallationsUrl,
-} from "../../services/rdf/mastrNearby.ts";
+} from "../../services/mastrNearby.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import Pager from "../Pager.tsx";
 import { usePaging } from "../../hooks/usePaging.ts";

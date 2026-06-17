@@ -28,7 +28,7 @@ import {
   useRevokeBuildingAccess,
 } from "../hooks/mutations.ts";
 import { attachAnnualData } from "../services/rdf/building/buildingSerializer.ts";
-import { buildingsToXlsx } from "../services/rdf/buildingWorkbook.ts";
+import { buildingsToXlsx } from "../services/xlsx/buildingWorkbook.ts";
 import { buildBuildingDeletionPreview } from "../services/buildingActions.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { formatError } from "../lib/formatError.ts";

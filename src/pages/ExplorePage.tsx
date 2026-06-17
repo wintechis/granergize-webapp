@@ -51,19 +51,19 @@ import {
   type LensBand,
   selectableYears,
   yearLens,
-} from "../services/rdf/energyTimeCut.ts";
+} from "../services/energy/energyTimeCut.ts";
 import {
   clampMetric,
   type MetricFraming,
   metricFraming,
   metricLabelKey,
   SELECTABLE_METRICS,
-} from "../services/rdf/energyMetric.ts";
+} from "../services/energy/energyMetric.ts";
 import { bandColor, bandLabelKey, legendBands } from "../constants/lensBand.ts";
 import {
   type EnergyTrend,
   trendForBuildings,
-} from "../services/rdf/energyTrend.ts";
+} from "../services/energy/energyTrend.ts";
 import SpaceCutPanel from "../components/SpaceCutPanel.tsx";
 import SmallMultiplesPanel from "../components/SmallMultiplesPanel.tsx";
 import { useT } from "../context/I18nProvider.tsx";

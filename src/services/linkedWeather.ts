@@ -27,10 +27,10 @@ import {
   RDFS_NS,
   SCHEMA_NS,
   SOSA_NS,
-} from "./vocabularies.ts";
-import { parseRdfText } from "./rdfHelpers.ts";
-import { trackedFetch } from "../../lib/networkActivity.ts";
-import type { WeatherAnnualValue } from "./energyWeather.ts";
+} from "./rdf/vocabularies.ts";
+import { parseRdfText } from "./rdf/rdfHelpers.ts";
+import { trackedFetch } from "../lib/networkActivity.ts";
+import type { WeatherAnnualValue } from "./energy/energyWeather.ts";
 
 const { namedNode } = DataFactory;
 

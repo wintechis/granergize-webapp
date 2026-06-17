@@ -28,7 +28,7 @@ import {
 } from "../BuildingDetailFields.tsx";
 import { ADDRESS_FIELDS } from "../../constants/addressFields.ts";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
-import { INVESTOR_CERT_SYSTEMS } from "../../services/rdf/buildingTemplates.ts";
+import { INVESTOR_CERT_SYSTEMS } from "../../services/xlsx/buildingTemplates.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { DetailRow, SectionTitle } from "../detail/DetailView.tsx";
 

@@ -7,7 +7,7 @@ import {
   CALENDAR_RAMP_COLOR,
   calendarColorScale,
   type ReadingsByDay,
-} from "../services/rdf/energyCalendar.ts";
+} from "../services/energy/energyCalendar.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import { formatNumber } from "../lib/formatNumber.ts";
 

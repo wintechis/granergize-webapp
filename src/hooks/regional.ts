@@ -20,10 +20,11 @@ import { bundeslandToAgs } from "../services/region.ts";
 import {
   fetchKreisName,
   fetchRegionalObservations,
+  regionalGeoUrl,
   REGIONAL_TABLES,
   type RegionalObservation,
   type RegionalTable,
-} from "../services/rdf/regionalCube.ts";
+} from "../services/regionalCube.ts";
 import { useNearbyInstallations } from "./mastrNearby.ts";
 import { logError } from "../lib/logError.ts";
 
@@ -34,6 +35,9 @@ export interface RegionalMetric {
   latest: RegionalObservation;
   /** The geographic area this metric is for — Bundesland name, or Kreis name. */
   geoLabel: string;
+  /** The place's dereferenceable IRI (the cube's geo-dimension value) — the
+   * Developer-mode source link, the handoff to the place beyond the app. */
+  geoUri: string;
 }
 
 export interface RegionalContext {
@@ -67,7 +71,13 @@ export function useRegionalContext(building: BuildingType) {
         try {
           const observations = await fetchRegionalObservations(table, ags);
           if (observations.length) {
-            metrics.push({ table, observations, latest: observations.at(-1)!, geoLabel });
+            metrics.push({
+              table,
+              observations,
+              latest: observations.at(-1)!,
+              geoLabel,
+              geoUri: regionalGeoUrl(table, ags),
+            });
           }
         } catch (err) {
           // Best-effort: one table failing must not sink the section or toast.

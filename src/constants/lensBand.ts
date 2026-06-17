@@ -1,5 +1,5 @@
-import { type LensBand } from "../services/rdf/energyTimeCut.ts";
-import { type MetricFraming } from "../services/rdf/energyMetric.ts";
+import { type LensBand } from "../services/energy/energyTimeCut.ts";
+import { type MetricFraming } from "../services/energy/energyMetric.ts";
 import {
   ENERGY_ABOVE_AVG_COLOR,
   ENERGY_BELOW_AVG_COLOR,

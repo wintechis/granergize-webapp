@@ -8,7 +8,7 @@ import { queryKeys } from "./queries.ts";
 import type { ShareBuildingParams } from "../intents/shareBuilding.ts";
 import { invoke, query } from "../intents/registry.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
-import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
+import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
 import type { Organization } from "../services/organization/organizationManager.ts";
 import type { Contact } from "../services/contacts.ts";
 import type {

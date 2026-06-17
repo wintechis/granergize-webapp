@@ -9,7 +9,7 @@ import {
 } from "../services/rdf/building/buildingSerializer.ts";
 import { mintBuildingSubject } from "../services/rdf/building/buildingId.ts";
 import { rememberAgent } from "../services/contacts.ts";
-import type { LastgangReading } from "../services/rdf/energySeriesXlsx.ts";
+import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
 import type { Aborted } from "./outcomes.ts";
 
 /** The WebID-bearing master-data fields whose agents get auto-remembered. */
