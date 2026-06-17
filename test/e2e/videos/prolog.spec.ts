@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login, webIdOf } from "../helpers/login.ts";
-import { de } from "../helpers/i18n.ts";
+import { METRIC_ELEC, METRIC_HEAT, vt, VID_LOCALE, VID_OUT } from "./lang.ts";
 import { buildingRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo, type SceneMark } from "./demoPolish.ts";
@@ -22,7 +22,7 @@ import { Demo, type SceneMark } from "./demoPolish.ts";
  * WebID path; the room/role flow has its own video (datenzimmer.spec.ts).
  *
  * The app renders in GERMAN: the context locale is `de-DE`, and every app
- * locator resolves through the message catalog via `de(key)` (i18n-driven, so
+ * locator resolves through the message catalog via `vt(key)` (i18n-driven, so
  * the same spec would work in any locale). Only the CSS provider's own sign-up
  * pages stay English — they are not part of the app's i18n.
  *
@@ -41,7 +41,7 @@ import { Demo, type SceneMark } from "./demoPolish.ts";
 const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
   .process?.env;
 const E2E_LOCAL = !!ENV?.E2E_LOCAL;
-const OUT = "test-results/videos";
+const OUT = VID_OUT;
 const A = account("A");
 const B = account("B");
 /** The building Alice adds and threads through every step (display name = street). */
@@ -90,23 +90,23 @@ async function enterEnergyYear(
   const dialog = stage.getByRole("dialog");
   await expect(dialog).toBeVisible({ timeout: 10_000 });
   await demo.type(
-    stage.getByRole("spinbutton", { name: de("lblYear"), exact: true }),
+    stage.getByRole("spinbutton", { name: vt("lblYear"), exact: true }),
     year,
   );
   if (scenario) {
-    await demo.select(stage.getByLabel(de("lblScenario"), { exact: true }), scenario);
+    await demo.select(stage.getByLabel(vt("lblScenario"), { exact: true }), scenario);
   }
-  await demo.type(stage.getByRole("spinbutton", { name: /Stromverbrauch/ }), electricity);
-  await demo.type(stage.getByRole("spinbutton", { name: /Wärmeverbrauch/ }), heat);
-  await demo.click(stage.getByRole("button", { name: de("btnSave"), exact: true }));
-  await expect(stage.getByText(de("energySaved")).first())
+  await demo.type(stage.getByRole("spinbutton", { name: METRIC_ELEC }), electricity);
+  await demo.type(stage.getByRole("spinbutton", { name: METRIC_HEAT }), heat);
+  await demo.click(stage.getByRole("button", { name: vt("btnSave"), exact: true }));
+  await expect(stage.getByText(vt("energySaved")).first())
     .toBeVisible({ timeout: 60_000 });
-  await demo.click(stage.getByRole("button", { name: de("btnClose"), exact: true }));
+  await demo.click(stage.getByRole("button", { name: vt("btnClose"), exact: true }));
   await expect(dialog).toBeHidden({ timeout: 10_000 });
 }
 
 test.describe("handbuch video: Prolog", () => {
-  test.use({ locale: "de-DE" }); // render the app in German
+  test.use({ locale: VID_LOCALE }); // render the app in German
   test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task videos)");
   test.skip(!hasAccount(A) || !hasAccount(B), "local seeded accounts A+B missing");
 
@@ -120,7 +120,7 @@ test.describe("handbuch video: Prolog", () => {
     await login(page, A);
     await controlSeed("/seed-profiles?slots=B");
     await page.reload();
-    await expect(page.getByRole("tab", { name: de("navBuildings") }))
+    await expect(page.getByRole("tab", { name: vt("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
     // Dev mode defaults OFF in a fresh context — no setDevMode needed (and its
     // account-menu locators are English-only, which a de-DE context would miss).
@@ -129,7 +129,7 @@ test.describe("handbuch video: Prolog", () => {
     //     recordVideo; self-provisions B's inbox for the grant). ---
     const bCtx = await browser.newContext({
       viewport: { width: 1280, height: 720 },
-      locale: "de-DE",
+      locale: VID_LOCALE,
       recordVideo: { dir: `${OUT}/.raw`, size: { width: 1280, height: 720 } },
     });
     const bSetup = await bCtx.newPage();
@@ -198,7 +198,7 @@ test.describe("handbuch video: Prolog", () => {
     const stageA = await page.context().newPage();
     const t0a = Date.now();
     await stageA.goto("/");
-    await expect(stageA.getByRole("tab", { name: de("navBuildings") }))
+    await expect(stageA.getByRole("tab", { name: vt("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageA);
@@ -215,25 +215,25 @@ test.describe("handbuch video: Prolog", () => {
       "org",
       "Schritt 1: Alice richtet ihre Organisation ein – Name und Logo",
     );
-    await demoA.click(stageA.getByRole("button", { name: new RegExp(`^${de("menuAccountAria")}`) }));
-    await demoA.click(stageA.getByRole("menuitem", { name: de("menuOrganisation") }));
+    await demoA.click(stageA.getByRole("button", { name: new RegExp(`^${vt("menuAccountAria")}`) }));
+    await demoA.click(stageA.getByRole("menuitem", { name: vt("menuOrganisation") }));
     const orgDialog = stageA.getByRole("dialog");
     await expect(orgDialog).toBeVisible({ timeout: 10_000 });
-    await demoA.type(orgDialog.getByLabel(de("lblCompanyName")), "Ahlmann Logistik");
+    await demoA.type(orgDialog.getByLabel(vt("lblCompanyName")), "Ahlmann Logistik");
     // "Logo wählen…" opens a native file chooser the hidden <input type=file>
     // backs; capture the chooser event and hand it the SVG fixture.
     const [chooser] = await Promise.all([
       stageA.waitForEvent("filechooser"),
-      demoA.click(orgDialog.getByRole("button", { name: de("orgChooseLogo") })),
+      demoA.click(orgDialog.getByRole("button", { name: vt("orgChooseLogo") })),
     ]);
     await chooser.setFiles(ORG_LOGO);
     await demoA.pause(1_000);
-    await demoA.click(orgDialog.getByRole("button", { name: de("btnSave"), exact: true }));
-    await expect(stageA.getByText(de("organisationSaved")).first())
+    await demoA.click(orgDialog.getByRole("button", { name: vt("btnSave"), exact: true }));
+    await expect(stageA.getByText(vt("organisationSaved")).first())
       .toBeVisible({ timeout: 60_000 });
     await expect(orgDialog).toBeHidden({ timeout: 10_000 });
     await demoA.moveTo(
-      stageA.getByRole("img", { name: de("orgLogoAlt") }).first(),
+      stageA.getByRole("img", { name: vt("orgLogoAlt") }).first(),
     );
     await demoA.caption(
       "Das Logo erscheint nun in der App – und später an Alices Gebäuden auf der Karte.",
@@ -245,27 +245,27 @@ test.describe("handbuch video: Prolog", () => {
       "building",
       "Schritt 2: Alice legt ein Gebäude an – Koordinaten holt die App aus der Adresse",
     );
-    await demoA.click(stageA.getByRole("tab", { name: de("navBuildings") }));
-    await demoA.click(stageA.getByRole("button", { name: de("btnList") }));
+    await demoA.click(stageA.getByRole("tab", { name: vt("navBuildings") }));
+    await demoA.click(stageA.getByRole("button", { name: vt("btnList") }));
     await demoA.click(
-      stageA.getByRole("button", { name: de("addBuildingBtn") }).first(),
+      stageA.getByRole("button", { name: vt("addBuildingBtn") }).first(),
     );
     const addDialog = stageA.getByRole("dialog");
-    await expect(addDialog.getByLabel(de("lblStreetAddress")))
+    await expect(addDialog.getByLabel(vt("lblStreetAddress")))
       .toBeVisible({ timeout: 30_000 });
-    await demoA.type(addDialog.getByLabel(de("lblStreetAddress")), STREET);
-    await demoA.type(addDialog.getByLabel(de("lblLocality")), "Nürnberg");
-    await demoA.type(addDialog.getByLabel(de("lblPostalCode")), "90411");
-    await demoA.type(addDialog.getByLabel(de("lblRegion")), "Bayern");
-    await demoA.click(addDialog.getByRole("button", { name: de("addGetCoordinates") }));
-    await expect(stageA.getByText(de("coordinatesUpdated")).first())
+    await demoA.type(addDialog.getByLabel(vt("lblStreetAddress")), STREET);
+    await demoA.type(addDialog.getByLabel(vt("lblLocality")), "Nürnberg");
+    await demoA.type(addDialog.getByLabel(vt("lblPostalCode")), "90411");
+    await demoA.type(addDialog.getByLabel(vt("lblRegion")), "Bayern");
+    await demoA.click(addDialog.getByRole("button", { name: vt("addGetCoordinates") }));
+    await expect(stageA.getByText(vt("coordinatesUpdated")).first())
       .toBeVisible({ timeout: 60_000 });
-    await expect(addDialog.getByLabel(de("lblLatitude"))).not.toHaveValue("", {
+    await expect(addDialog.getByLabel(vt("lblLatitude"))).not.toHaveValue("", {
       timeout: 10_000,
     });
-    await demoA.moveTo(addDialog.getByLabel(de("lblLatitude")));
+    await demoA.moveTo(addDialog.getByLabel(vt("lblLatitude")));
     await demoA.pause(1_200);
-    await demoA.click(addDialog.getByRole("button", { name: de("addBuildingBtn") }));
+    await demoA.click(addDialog.getByRole("button", { name: vt("addBuildingBtn") }));
     await expect(addDialog).toBeHidden({ timeout: 60_000 });
 
     const row = stageA.locator("li[data-building-id]", { hasText: STREET }).first();
@@ -285,8 +285,8 @@ test.describe("handbuch video: Prolog", () => {
     await demoA.pause(1_000);
     await enterEnergyYear(demoA, stageA, "2024", "102000", "67000");
     await enterEnergyYear(demoA, stageA, "2025", "98000", "64000");
-    await demoA.caption(`Für 2025 zusätzlich der Plan: Szenario „${de("scenarioPlanned")}“`, 2_600);
-    await enterEnergyYear(demoA, stageA, "2025", "90000", "60000", de("scenarioPlanned"));
+    await demoA.caption(`Für 2025 zusätzlich der Plan: Szenario „${vt("scenarioPlanned")}“`, 2_600);
+    await enterEnergyYear(demoA, stageA, "2025", "90000", "60000", vt("scenarioPlanned"));
 
     // Payoff: the annual overview now carries both years + the plan. Land on the
     // observation page and settle on its (always-present) energy action — the
@@ -309,24 +309,24 @@ test.describe("handbuch video: Prolog", () => {
       "Schritt 4: Alice teilt das Gebäude direkt mit B – per WebID, B erhält nur Lesezugriff",
     );
     await stageA.goto(buildingRoute("building", buildingId));
-    const shareButton = stageA.getByRole("button", { name: de("btnShare"), exact: true });
+    const shareButton = stageA.getByRole("button", { name: vt("btnShare"), exact: true });
     await expect(shareButton).toBeVisible({ timeout: 60_000 });
     await stageA.waitForLoadState("networkidle").catch(() => {});
     await demoA.click(shareButton);
     const shareDialog = stageA.getByRole("dialog");
     await expect(shareDialog).toBeVisible({ timeout: 10_000 });
-    await demoA.click(shareDialog.getByRole("button", { name: de("shareByWebId") }));
-    const recipient = shareDialog.getByLabel(de("racLabel"));
+    await demoA.click(shareDialog.getByRole("button", { name: vt("shareByWebId") }));
+    const recipient = shareDialog.getByLabel(vt("racLabel"));
     await demoA.type(recipient, bWebId);
     await recipient.press("Enter");
     await demoA.pause(600);
-    await demoA.click(shareDialog.getByRole("button", { name: de("shareReviewAndShare") }));
-    const confirm = shareDialog.getByRole("button", { name: de("shareConfirmShare") });
+    await demoA.click(shareDialog.getByRole("button", { name: vt("shareReviewAndShare") }));
+    const confirm = shareDialog.getByRole("button", { name: vt("shareConfirmShare") });
     await expect(confirm).toBeVisible({ timeout: 30_000 });
     await demoA.click(confirm);
     // Success = the dialog swaps Confirm for a Done button (the "shared" message
     // itself is a global toast, not in-dialog).
-    const shareDone = shareDialog.getByRole("button", { name: de("btnDone") });
+    const shareDone = shareDialog.getByRole("button", { name: vt("btnDone") });
     await expect(shareDone).toBeVisible({ timeout: 120_000 });
     await demoA.pause(1_200);
     await demoA.click(shareDone);
@@ -341,28 +341,28 @@ test.describe("handbuch video: Prolog", () => {
 
     // --- Drain the A→B grant on the DISCARDED setup page first (cf. vertrieb). ---
     await bSetup.reload();
-    await bSetup.getByRole("tab", { name: de("navSharing") }).click();
+    await bSetup.getByRole("tab", { name: vt("navSharing") }).click();
     await expect(
-      bSetup.getByText(new RegExp(`^${de("shareBuildingN", { id: "" }).trim()} `)).first(),
+      bSetup.getByText(new RegExp(`^${vt("shareBuildingN", { id: "" }).trim()} `)).first(),
     ).toBeVisible({ timeout: 120_000 });
 
     // ============ Clip B: B receives the building. ============
     const stageB = await bCtx.newPage();
     const t0b = Date.now();
     await stageB.goto("/");
-    await expect(stageB.getByRole("tab", { name: de("navSharing") }))
+    await expect(stageB.getByRole("tab", { name: vt("navSharing") }))
       .toBeVisible({ timeout: 60_000 });
     await stageB.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageB);
     const demoB = await Demo.install(stageB, "B", t0b);
 
     const sharedEntry = stageB
-      .getByText(new RegExp(`^${de("shareBuildingN", { id: "" }).trim()} `)).first();
+      .getByText(new RegExp(`^${vt("shareBuildingN", { id: "" }).trim()} `)).first();
     await demoB.scene(
       "received",
       "B (Bob Bauer) sieht Alices Gebäude unter „Freigaben“",
     );
-    await demoB.click(stageB.getByRole("tab", { name: de("navSharing") }));
+    await demoB.click(stageB.getByRole("tab", { name: vt("navSharing") }));
     await expect(sharedEntry).toBeVisible({ timeout: 120_000 });
     await demoB.moveTo(sharedEntry);
     await demoB.pause(2_000);
@@ -372,10 +372,10 @@ test.describe("handbuch video: Prolog", () => {
       "map",
       "Auf der Karte: Alices freigegebene Halle (orange markiert)",
     );
-    await demoB.click(stageB.getByRole("tab", { name: de("navBuildings") }));
+    await demoB.click(stageB.getByRole("tab", { name: vt("navBuildings") }));
     await demoB.click(
-      stageB.getByLabel(de("bldgsViewAria"))
-        .getByRole("button", { name: de("btnMap"), exact: true }),
+      stageB.getByLabel(vt("bldgsViewAria"))
+        .getByRole("button", { name: vt("btnMap"), exact: true }),
     );
     const sharedMarker = stageB.locator(".leaflet-marker-icon.pin-shared").first();
     await sharedMarker.waitFor({ timeout: 60_000 });
@@ -402,7 +402,7 @@ test.describe("handbuch video: Prolog", () => {
     const stageA2 = await page.context().newPage();
     const t0a2 = Date.now();
     await stageA2.goto(buildingRoute("building", buildingId));
-    await expect(stageA2.getByRole("button", { name: de("btnShare"), exact: true }))
+    await expect(stageA2.getByRole("button", { name: vt("btnShare"), exact: true }))
       .toBeVisible({ timeout: 60_000 });
     await stageA2.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageA2);
@@ -412,13 +412,13 @@ test.describe("handbuch video: Prolog", () => {
       "revoke",
       "Schritt 5: Alice entzieht B den Zugriff – sofort wirksam",
     );
-    const revoke = stageA2.getByRole("button", { name: de("revokeAccess") }).first();
+    const revoke = stageA2.getByRole("button", { name: vt("revokeAccess") }).first();
     await expect(revoke).toBeVisible({ timeout: 60_000 });
-    await demoA2.moveTo(stageA2.getByText(de("sharedWithLabel")).first());
+    await demoA2.moveTo(stageA2.getByText(vt("sharedWithLabel")).first());
     await demoA2.pause(1_200);
     await demoA2.click(revoke);
-    await demoA2.click(stageA2.getByRole("button", { name: de("confirmRevoke"), exact: true }));
-    await expect(stageA2.getByText(de("accessRevoked")).first())
+    await demoA2.click(stageA2.getByRole("button", { name: vt("confirmRevoke"), exact: true }));
+    await expect(stageA2.getByText(vt("accessRevoked")).first())
       .toBeVisible({ timeout: 60_000 });
     await demoA2.pause(1_500);
     await demoA2.caption(

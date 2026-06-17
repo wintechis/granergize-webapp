@@ -155,7 +155,10 @@ export async function loginInteractive(page: Page, acc: SolidAccount): Promise<v
     if (await recommended.count()) {
       await recommended.first().click();
     } else {
-      await page.getByLabel(/Identity Provider/i).fill(acc.provider.issuer);
+      // The field label is localized ("Identity Provider" in en/de, "Fournisseur
+      // d'identité" in fr) — match all so login works in any video-spec locale.
+      await page.getByLabel(/Identity Provider|Fournisseur d'identité/i)
+        .fill(acc.provider.issuer);
       await page.getByRole("button", { name: "+" }).click();
     }
     await page.waitForLoadState("domcontentloaded");

@@ -24,3 +24,8 @@ export function en(id: MessageId, params?: MessageParams): string {
 export function de(id: MessageId, params?: MessageParams): string {
   return translate("de", id, params);
 }
+
+/** The French form of a catalog message (for a `locale: "fr-FR"` context). */
+export function fr(id: MessageId, params?: MessageParams): string {
+  return translate("fr", id, params);
+}

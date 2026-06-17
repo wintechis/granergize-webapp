@@ -1,7 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { de } from "../helpers/i18n.ts";
+import { METRIC_ELEC, METRIC_HEAT, vt, VID_LOCALE, VID_OUT } from "./lang.ts";
 import { buildingRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo } from "./demoPolish.ts";
@@ -15,7 +15,7 @@ import { Demo } from "./demoPolish.ts";
  *   deno task videos
  *
  * The app renders in GERMAN: the context locale is `de-DE` and every app locator
- * resolves through the message catalog via `de(key)` (i18n-driven — the same
+ * resolves through the message catalog via `vt(key)` (i18n-driven — the same
  * spec would work in any locale).
  *
  * Playwright records one video PER PAGE, and its video time compresses during
@@ -31,7 +31,7 @@ import { Demo } from "./demoPolish.ts";
 const ENV = (globalThis as { process?: { env: Record<string, string | undefined> } })
   .process?.env;
 const E2E_LOCAL = !!ENV?.E2E_LOCAL;
-const OUT = "test-results/videos";
+const OUT = VID_OUT;
 const ACC = account("A");
 /** The demo building the year is entered on (richest of the seeded four). */
 const BUILDING = "Nordostpark";
@@ -52,7 +52,7 @@ async function dismissToasts(page: Page) {
 }
 
 test.describe("handbuch video: Soll-Ist-Vergleich", () => {
-  test.use({ locale: "de-DE" }); // render the app in German
+  test.use({ locale: VID_LOCALE }); // render the app in German
   test.skip(!E2E_LOCAL, "videos are recorded on the local tier (deno task videos)");
   test.skip(!hasAccount(ACC), "local seeded account A missing");
 
@@ -66,18 +66,18 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     await login(page, ACC);
     await controlSeed("/seed-profiles");
     await page.reload();
-    await expect(page.getByRole("tab", { name: de("navBuildings") }))
+    await expect(page.getByRole("tab", { name: vt("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
     // The fresh-Pod onboarding banner appears once the (empty) buildings query
     // settles — wait for it rather than poll-and-skip (the pod is reset per
     // spec file, so it always comes).
-    const addExamples = page.getByRole("button", { name: de("onboardAddExamples") });
+    const addExamples = page.getByRole("button", { name: vt("onboardAddExamples") });
     await expect(addExamples).toBeVisible({ timeout: 60_000 });
     await addExamples.click();
-    await expect(page.getByText(de("demoBuildingsAdded")).first())
+    await expect(page.getByText(vt("demoBuildingsAdded")).first())
       .toBeVisible({ timeout: 300_000 });
-    await page.getByRole("tab", { name: de("navBuildings") }).click();
-    await page.getByRole("button", { name: de("btnList") }).click();
+    await page.getByRole("tab", { name: vt("navBuildings") }).click();
+    await page.getByRole("button", { name: vt("btnList") }).click();
     const setupRow = page.locator("li", { hasText: BUILDING }).first();
     await expect(setupRow).toBeVisible({ timeout: 60_000 });
     const buildingId = await setupRow.getAttribute("data-building-id");
@@ -87,10 +87,10 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     const stage = await page.context().newPage();
     const t0 = Date.now();
     await stage.goto("/");
-    await expect(stage.getByRole("tab", { name: de("navBuildings") }))
+    await expect(stage.getByRole("tab", { name: vt("navBuildings") }))
       .toBeVisible({ timeout: 60_000 });
-    await stage.getByRole("tab", { name: de("navBuildings") }).click();
-    await stage.getByRole("button", { name: de("btnList") }).click();
+    await stage.getByRole("tab", { name: vt("navBuildings") }).click();
+    await stage.getByRole("button", { name: vt("btnList") }).click();
     const row = stage.locator("li", { hasText: BUILDING }).first();
     await expect(row).toBeVisible({ timeout: 60_000 });
     await stage.waitForLoadState("networkidle").catch(() => {});
@@ -124,35 +124,35 @@ test.describe("handbuch video: Soll-Ist-Vergleich", () => {
     const dialog = stage.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await demo.type(
-      stage.getByRole("spinbutton", { name: de("lblYear"), exact: true }),
+      stage.getByRole("spinbutton", { name: vt("lblYear"), exact: true }),
       YEAR,
     );
-    await demo.type(stage.getByRole("spinbutton", { name: /Stromverbrauch/ }), "98000");
-    await demo.type(stage.getByRole("spinbutton", { name: /Wärmeverbrauch/ }), "64000");
-    await demo.click(stage.getByRole("button", { name: de("btnSave"), exact: true }));
-    await expect(stage.getByText(de("energySaved")).first())
+    await demo.type(stage.getByRole("spinbutton", { name: METRIC_ELEC }), "98000");
+    await demo.type(stage.getByRole("spinbutton", { name: METRIC_HEAT }), "64000");
+    await demo.click(stage.getByRole("button", { name: vt("btnSave"), exact: true }));
+    await expect(stage.getByText(vt("energySaved")).first())
       .toBeVisible({ timeout: 60_000 });
-    await demo.click(stage.getByRole("button", { name: de("btnClose"), exact: true }));
+    await demo.click(stage.getByRole("button", { name: vt("btnClose"), exact: true }));
     await expect(dialog).toBeHidden({ timeout: 10_000 });
 
     // --- Scene 2: the planned (Soll) entry for the same year. ---
     await demo.scene(
       "soll",
-      `Für dasselbe Jahr legt A einen Plan-Eintrag an: Szenario „${de("scenarioPlanned")}“`,
+      `Für dasselbe Jahr legt A einen Plan-Eintrag an: Szenario „${vt("scenarioPlanned")}“`,
     );
     await demo.click(editYears);
     await expect(dialog).toBeVisible({ timeout: 10_000 });
     await demo.type(
-      stage.getByRole("spinbutton", { name: de("lblYear"), exact: true }),
+      stage.getByRole("spinbutton", { name: vt("lblYear"), exact: true }),
       YEAR,
     );
-    await demo.select(stage.getByLabel(de("lblScenario"), { exact: true }), de("scenarioPlanned"));
-    await demo.type(stage.getByRole("spinbutton", { name: /Stromverbrauch/ }), "90000");
-    await demo.type(stage.getByRole("spinbutton", { name: /Wärmeverbrauch/ }), "60000");
-    await demo.click(stage.getByRole("button", { name: de("btnSave"), exact: true }));
-    await expect(stage.getByText(de("energySaved")).first())
+    await demo.select(stage.getByLabel(vt("lblScenario"), { exact: true }), vt("scenarioPlanned"));
+    await demo.type(stage.getByRole("spinbutton", { name: METRIC_ELEC }), "90000");
+    await demo.type(stage.getByRole("spinbutton", { name: METRIC_HEAT }), "60000");
+    await demo.click(stage.getByRole("button", { name: vt("btnSave"), exact: true }));
+    await expect(stage.getByText(vt("energySaved")).first())
       .toBeVisible({ timeout: 60_000 });
-    await demo.click(stage.getByRole("button", { name: de("btnClose"), exact: true }));
+    await demo.click(stage.getByRole("button", { name: vt("btnClose"), exact: true }));
     await expect(dialog).toBeHidden({ timeout: 10_000 });
 
     // --- Scene 3: the payoff — plan next to actual in the annual overview. The

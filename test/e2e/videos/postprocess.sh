@@ -16,7 +16,11 @@ out="${1:?usage: postprocess.sh <output> [clip ...]}"
 shift
 clips=("$@")
 [ ${#clips[@]} -gt 0 ] || clips=("$out")
+# Output dir mirrors lang.ts VID_OUT: German keeps the canonical videos/, other
+# languages get a suffix (so an `E2E_VID_LANG=fr` run can't clobber German).
+lang="${E2E_VID_LANG:-de}"
 dir="test-results/videos"
+[ "$lang" != de ] && dir="test-results/videos-$lang"
 
 trim_one() { # <clip> <target.mp4>
   local clip="$1" target="$2"
