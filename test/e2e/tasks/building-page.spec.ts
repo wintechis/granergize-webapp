@@ -53,7 +53,10 @@ test.describe("redesign: building page", () => {
   test("the building page renders its read-first sections", async () => {
     await page.goto(buildingRoute("building", id));
     // Owned badge in the header, plus the section headings of the scrolling building page.
-    await expect(page.getByText("Owned")).toBeVisible({ timeout: T.action });
+    // exact:true so the chip ("Owned") doesn't also match the master-data "Owned by"
+    // row label (which renders once ownedBy converges) — strict-mode-ambiguous otherwise.
+    await expect(page.getByText(en("chipOwned"), { exact: true }))
+      .toBeVisible({ timeout: T.action });
     await expect(page.getByRole("heading", { name: en("secEnergy") })).toBeVisible();
     await expect(page.getByRole("heading", { name: en("secFiles") })).toBeVisible();
     await expect(page.getByRole("heading", { name: en("secSharing") })).toBeVisible();
@@ -132,7 +135,9 @@ test.describe("redesign: building page", () => {
     });
     try {
       await page.goto(buildingRoute("building", id));
-      await expect(page.getByText("Owned")).toBeVisible({ timeout: T.action });
+      // exact:true — the chip "Owned" must not also match the "Owned by" row label.
+      await expect(page.getByText(en("chipOwned"), { exact: true }))
+        .toBeVisible({ timeout: T.action });
       // Leaflet fires the thumbnail's tile requests asynchronously; poll for one.
       await expect.poll(() => requestedDop20c, { timeout: T.action }).toBe(true);
     } finally {

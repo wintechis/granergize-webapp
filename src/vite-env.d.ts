@@ -5,6 +5,8 @@ interface ImportMetaEnv {
   readonly VITE_WEATHER_API_URI: string;
   /** Base URI of the linked-regionalstatistik wrapper (see regionalCube.ts). */
   readonly VITE_REGIONALSTATISTIK_API_URI?: string;
+  /** Base URI of the linked-mastr wrapper (see mastrNearby.ts). */
+  readonly VITE_MASTR_API_URI?: string;
   /** App collection segment on the Pod; default "granergize". Tier-4 e2e sets
    * "granergize-e2e" so browser tests never touch real data (see solidUtils). */
   readonly VITE_POD_APP_DIR?: string;

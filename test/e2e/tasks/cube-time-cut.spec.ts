@@ -82,8 +82,20 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
       // once ≥1 reachable year is loaded (≥2 enables the slider/animation).
       await expect(page.locator(".energy-marker").first())
         .toBeAttached({ timeout: T.action });
-      await expect(page.getByRole("slider", { name: "Energy year" }))
-        .toBeVisible({ timeout: T.action });
+      const slider = page.getByRole("slider", { name: "Energy year" });
+      await expect(slider).toBeVisible({ timeout: T.action });
+      // The bulk energy load can deliver the EARLIEST seed year (2022) a cycle
+      // after the slider first renders with only the later years, leaving the
+      // slider min transiently at 2023 — so a `Home` press would commit 2023,
+      // not 2022. Gate on the full seed range (min=2022, max=2024) having
+      // converged before returning; the enclosing toPass re-opens until it does.
+      // (Tier-3 bulk-energy read-after-write convergence — see plans/flakes.md.)
+      await expect(slider).toHaveAttribute("aria-valuemin", "2022", {
+        timeout: T.action,
+      });
+      await expect(slider).toHaveAttribute("aria-valuemax", "2024", {
+        timeout: T.action,
+      });
     }).toPass({ timeout: T.setup, intervals: [2_000] });
   }
 
@@ -95,14 +107,17 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
 
     // Step the slider to its minimum (the earliest reachable year, 2022) via the
     // keyboard — keyboard ArrowKeys commit (fire onChangeCommitted), so the year is
-    // written to the URI without needing a precise pixel drag.
+    // written to the URI without needing a precise pixel drag. Retry the
+    // press+assert as a unit: under Tier-3 eager refetch (staleTime:0) the energy
+    // fold can flap, briefly dropping 2022 out of the loaded set so a single Home
+    // press commits the then-minimum (2023). Re-pressing until 2022 is both loaded
+    // and committed keeps the spec honest. (App-level fold stability is the
+    // LDP-query-layer plan; see plans/flakes.md.)
     await slider.focus();
-    await slider.press("Home");
-    // The cut is now the earliest year: the URI carries ?y=2022 and the slider's
-    // committed value followed.
-    await expect.poll(() => new URL(page.url()).searchParams.get("y"), {
-      timeout: T.action,
-    }).toBe("2022");
+    await expect(async () => {
+      await slider.press("Home");
+      expect(new URL(page.url()).searchParams.get("y")).toBe("2022");
+    }).toPass({ timeout: T.poll, intervals: [1_000] });
     await expect(slider).toHaveAttribute("aria-valuenow", "2022");
     // The year readout beside the slider shows the selected year.
     await expect(page.getByText("2022", { exact: true }).first())
@@ -110,11 +125,11 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
 
     // Step to the maximum (the latest year, 2024) — the markers re-cut and the URI
     // follows. The energy markers stay attached across the re-tier (the lens never
-    // drops).
-    await slider.press("End");
-    await expect.poll(() => new URL(page.url()).searchParams.get("y"), {
-      timeout: T.action,
-    }).toBe("2024");
+    // drops). Same flap-tolerant retry as the Home step.
+    await expect(async () => {
+      await slider.press("End");
+      expect(new URL(page.url()).searchParams.get("y")).toBe("2024");
+    }).toPass({ timeout: T.poll, intervals: [1_000] });
     await expect(slider).toHaveAttribute("aria-valuenow", "2024");
     await expect(page.locator(".energy-marker").first())
       .toBeAttached({ timeout: T.action });
@@ -136,10 +151,12 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
     // (clampYear keeps it, since 2022 is in the seed's selectable range).
     const slider = page.getByRole("slider", { name: "Energy year" });
     await slider.focus();
-    await slider.press("Home");
-    await expect.poll(() => new URL(page.url()).searchParams.get("y"), {
-      timeout: T.action,
-    }).toBe("2022");
+    // Flap-tolerant Home press (see the sibling test): re-press until the
+    // earliest year (2022) is loaded and committed.
+    await expect(async () => {
+      await slider.press("Home");
+      expect(new URL(page.url()).searchParams.get("y")).toBe("2022");
+    }).toPass({ timeout: T.poll, intervals: [1_000] });
 
     await page.reload();
     // After the reload the URI still carries the year (navigational state lives in

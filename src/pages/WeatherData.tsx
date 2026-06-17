@@ -4,8 +4,9 @@ import { useQuery } from "@tanstack/react-query";
 import {
   fetchNearestStations,
   fetchStationValues,
-  linkedWeatherBase,
   WEATHER_PARAMETERS,
+  weatherStationsUrl,
+  weatherValuesUrl,
 } from "../services/rdf/linkedWeather.ts";
 import {
   Alert,
@@ -33,10 +34,6 @@ interface WeatherDataProps {
   building: BuildingType;
 }
 
-// The linked-wetterdienst wrapper the app dereferences (an absolute, CORS-enabled
-// host). Surfaced as a dev-mode source link so the external data service is
-// inspectable, mirroring the Pod links.
-const WEATHER_SOURCE_URI = linkedWeatherBase();
 
 // Map of parameter dataset paths to their catalog label id (resolved at render).
 const parameterTitles: Record<string, MessageId> = {
@@ -210,7 +207,19 @@ export default function WeatherData({ building }: WeatherDataProps) {
             <Typography variant="body2" color="text.secondary">
               {msg("dataSourceLabel")} Deutscher Wetterdienst (DWD)
             </Typography>
-            <RdfSourceLink href={WEATHER_SOURCE_URI} />
+            {/* Dev-mode source link to the ACTUAL dereferenced wrapper query (the
+                values?… IRI for the shown station, else the near?… stations IRI) —
+                absolute + clickable, mirroring the regional/MaStR sections. */}
+            <RdfSourceLink
+              href={selectedStation
+                ? weatherValuesUrl(selectedStation, selectedParameter)
+                : weatherStationsUrl(
+                  building.lat ?? 0,
+                  building.long ?? 0,
+                  5,
+                  selectedParameter,
+                )}
+            />
 
             <Typography
               variant="caption"

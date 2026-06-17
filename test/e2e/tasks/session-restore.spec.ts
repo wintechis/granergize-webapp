@@ -56,13 +56,15 @@ test.describe("session restore", () => {
 
     // Break the next silent restore: answer the OIDC auth/token endpoints with
     // the IdP's "Unknown client" error so `restorePreviousSession` rejects.
-    const breakOidc = /\/\.oidc\/(auth|token)\b/;
+    // Match BOTH providers' OIDC endpoints — CSS mounts them at `/.oidc/{auth,token}`,
+    // JSS at `/idp/{auth,token}` — so the break works on either Tier-3 server.
+    const breakOidc = /\/(\.oidc|idp)\/(auth|token)\b/;
     await page.route(breakOidc, async (route) => {
       const url = new URL(route.request().url());
       // The silent restore is a prompt=none redirect to the auth endpoint: hand
       // control back to the app's redirect_uri carrying the error + echoed state
       // (exactly what the server does on an unknown client).
-      if (url.pathname.endsWith("/.oidc/auth")) {
+      if (/\/(\.oidc|idp)\/auth$/.test(url.pathname)) {
         const redirectUri = url.searchParams.get("redirect_uri");
         if (redirectUri) {
           const loc = new URL(redirectUri);

@@ -72,18 +72,21 @@ export default function RegionalContextSection(
             </Table>
           </TableContainer>
           <RdfSourceLink href={regionalTableDataUrl(m.table.tableId)} />
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{ display: "block" }}
+          >
+            {t(
+              m.table.grain === "kreis" ? "regGeoCaptionKreis" : "regGeoCaption",
+              { region: m.geoLabel },
+            )}
+          </Typography>
         </Box>
       ))}
 
       <Typography variant="body2" color="text.secondary">
         {t("regDataSource")}
-      </Typography>
-      <Typography
-        variant="caption"
-        color="text.secondary"
-        sx={{ display: "block" }}
-      >
-        {t("regGeoCaption", { region: data.region })}
       </Typography>
     </Stack>
   );

@@ -95,7 +95,9 @@ test.describe("cube space-cut + compare-years (portfolio over time)", () => {
     // Clicking a cell hands off to that building's detail page (the navigation
     // loop — the finder drills to the leaf).
     await valueCells.first().click();
-    await expect(page).toHaveURL(/#\/building/, { timeout: T.action });
+    // The redesign navigates to a real path route (`/building?ref=…`), not the
+    // old hash route (`#/building`) — match the current grammar (cf. uri-state).
+    await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
   });
 
   test("the Compare-years multiples render one panel per year on a shared scale", async () => {
@@ -123,6 +125,7 @@ test.describe("cube space-cut + compare-years (portfolio over time)", () => {
     const bar = page.getByRole("button", { name: /—\s*\d{4}\s*:/ }).first();
     await expect(bar).toBeVisible({ timeout: T.action });
     await bar.click();
-    await expect(page).toHaveURL(/#\/building/, { timeout: T.action });
+    // Real path route (`/building?ref=…`), not the old hash route (cf. :98).
+    await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
   });
 });

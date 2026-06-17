@@ -32,16 +32,14 @@ interface Lane {
   offset: number;
 }
 
-// Port lanes are spaced 20 apart and each task owns one: offset 0 is the hand-driven
-// dev:local stack (dev.ts), 40 is `handbuch`, 60 is `videos`, 80 is the single-lane
-// automated suites (`it`, `e2e:local`). This parallel run needs TWO disjoint lanes at
-// once, so it takes its own pair at 100/110 — clear of every single-lane task, so the
-// matrix can run alongside any of them (including a live dev:local on offset 0). An
-// offset clears all three Tier-3 ports (pod 3456, control 3457, app 4183), so the CSS
-// lane at +100 binds 3556/3557/4283 and the JSS lane at +110 binds 3566/3567/4293.
+// Both lanes share the e2e BASE offset 80; the CSS/JSS split is automatic —
+// localSeed.ts bumps a JSS lane by +10, so CSS binds 3536/3537/4263 and JSS binds
+// 3546/3547/4273 (see the lane map there). Reusing the standard e2e lane means the
+// matrix is not meant to run at the same instant as a single-lane `e2e:local`/`it`
+// (which sit on the same 80/90) — the matrix IS that parallel run.
 const LANES: Lane[] = [
-  { name: "css", backend: "css", offset: 100 },
-  { name: "jss", backend: "jss", offset: 110 },
+  { name: "css", backend: "css", offset: 80 },
+  { name: "jss", backend: "jss", offset: 80 },
 ];
 
 const logPath = (name: string) => `/tmp/e2e-matrix-${name}-${RUN_ID}.log`;
