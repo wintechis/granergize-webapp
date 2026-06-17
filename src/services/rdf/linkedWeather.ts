@@ -153,6 +153,30 @@ export function parseObservations(turtle: string, baseIri: string): WeatherObser
   return out.sort((a, b) => a.date.localeCompare(b.date));
 }
 
+/** The dereferenceable `near?…` query IRI (and the Developer-mode source link)
+ *  for the nearest stations to a coordinate. Absolute (the CORS-enabled host). */
+export function weatherStationsUrl(
+  latitude: number,
+  longitude: number,
+  rank: number,
+  parameters: string,
+): string {
+  return `${linkedWeatherBase()}near?` +
+    new URLSearchParams({
+      latitude: String(latitude),
+      longitude: String(longitude),
+      rank: String(rank),
+      parameters,
+    });
+}
+
+/** The dereferenceable `values?…` query IRI (and the Developer-mode source link)
+ *  for one station + parameter's recent observations. Absolute. */
+export function weatherValuesUrl(stationId: string, parameters: string): string {
+  return `${linkedWeatherBase()}values?` +
+    new URLSearchParams({ station: stationId, parameters, periods: "recent" });
+}
+
 /** Fetch + parse the nearest `rank` stations to a coordinate for a parameter dataset. */
 export async function fetchNearestStations(
   latitude: number,
@@ -160,13 +184,7 @@ export async function fetchNearestStations(
   rank: number,
   parameters: string,
 ): Promise<WeatherStation[]> {
-  const url = `${linkedWeatherBase()}near?` +
-    new URLSearchParams({
-      latitude: String(latitude),
-      longitude: String(longitude),
-      rank: String(rank),
-      parameters,
-    });
+  const url = weatherStationsUrl(latitude, longitude, rank, parameters);
   const res = await trackedFetch(
     url,
     { headers: { Accept: "text/turtle" } },
@@ -181,8 +199,7 @@ export async function fetchStationValues(
   stationId: string,
   parameters: string,
 ): Promise<WeatherObservation[]> {
-  const url = `${linkedWeatherBase()}values?` +
-    new URLSearchParams({ station: stationId, parameters, periods: "recent" });
+  const url = weatherValuesUrl(stationId, parameters);
   const res = await trackedFetch(
     url,
     { headers: { Accept: "text/turtle" } },

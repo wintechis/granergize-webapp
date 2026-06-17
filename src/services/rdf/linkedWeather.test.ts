@@ -1,6 +1,25 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { parseObservations, parseStations } from "./linkedWeather.ts";
+import {
+  parseObservations,
+  parseStations,
+  weatherStationsUrl,
+  weatherValuesUrl,
+} from "./linkedWeather.ts";
+
+// The URL builders back BOTH the fetch and the Developer-mode source link, which
+// must be an ABSOLUTE, dereferenceable wrapper IRI — assert that shape directly.
+Deno.test("weatherStationsUrl / weatherValuesUrl build absolute wrapper IRIs", () => {
+  const near = weatherStationsUrl(49.45, 11.08, 5, "annual/x/temp");
+  assert.match(near, /^https:\/\/[^/]+\/wetterdienst\/near\?/);
+  assert.ok(near.includes("latitude=49.45") && near.includes("rank=5"));
+  // The parameter path's "/" must be percent-encoded inside the query.
+  assert.ok(near.includes("parameters=annual%2Fx%2Ftemp"));
+
+  const values = weatherValuesUrl("03668", "annual/x/temp");
+  assert.match(values, /^https:\/\/[^/]+\/wetterdienst\/values\?/);
+  assert.ok(values.includes("station=03668") && values.includes("periods=recent"));
+});
 
 // A faithful slice of a `near` station collection from linked-wetterdienst: each
 // `dwd:WeatherStation` carries id/name/coords and (ranked) `schema:distance`. The

@@ -448,6 +448,46 @@ export const MESSAGES = {
     de: "Werte für das Bundesland {region}, nicht für dieses Gebäude im Einzelnen.",
     fr: "Valeurs pour le Land de {region}, pas pour ce bâtiment en particulier.",
   },
+  // Kreis-grain regional caption — figures for the district, joined via the
+  // building's location (linked-mastr → nearest unit's AGS).
+  regGeoCaptionKreis: {
+    en: "Figures for the district {region}, not this building specifically.",
+    de: "Werte für den Kreis {region}, nicht für dieses Gebäude im Einzelnen.",
+    fr: "Valeurs pour l'arrondissement {region}, pas pour ce bâtiment en particulier.",
+  },
+  // Kreis-grain industrial renewable-energy use (table 43531, carrier = renewable).
+  regKreisRenewableUse: {
+    en: "Renewable energy use in industry",
+    de: "Energieverbrauch erneuerbarer Energien im Verarbeitenden Gewerbe",
+    fr: "Consommation d'énergies renouvelables dans l'industrie",
+  },
+  // Nearby renewable installations section (linked-mastr — finest grain).
+  niTitle: {
+    en: "Nearby renewable installations",
+    de: "Erneuerbare Anlagen in der Nähe",
+    fr: "Installations renouvelables à proximité",
+  },
+  niSummary: {
+    en: "{count} within {radius} km",
+    de: "{count} im Umkreis von {radius} km",
+    fr: "{count} dans un rayon de {radius} km",
+  },
+  niDistance: { en: "{km} km", de: "{km} km", fr: "{km} km" },
+  niKindSolar: { en: "Solar", de: "Solar", fr: "Solaire" },
+  niKindWind: { en: "Wind", de: "Wind", fr: "Éolien" },
+  niKindHydro: { en: "Hydro", de: "Wasser", fr: "Hydraulique" },
+  niKindBiomass: { en: "Biomass", de: "Biomasse", fr: "Biomasse" },
+  niUnnamed: { en: "(unnamed installation)", de: "(unbenannte Anlage)", fr: "(installation sans nom)" },
+  niCaption: {
+    en: "Individual installations near this building, by location — not its own energy data.",
+    de: "Einzelne Anlagen in der Nähe dieses Gebäudes, nach Standort — nicht seine eigenen Energiedaten.",
+    fr: "Installations individuelles proches de ce bâtiment, par localisation — pas ses propres données énergétiques.",
+  },
+  niDataSource: {
+    en: "Data source: Marktstammdatenregister (Bundesnetzagentur)",
+    de: "Datenquelle: Marktstammdatenregister (Bundesnetzagentur)",
+    fr: "Source des données : Marktstammdatenregister (Bundesnetzagentur)",
+  },
   // Generic "Data source:" prefix (building producer attribution, weather, …).
   dataSourceLabel: {
     en: "Data source:",
