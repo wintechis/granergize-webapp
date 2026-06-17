@@ -2430,6 +2430,108 @@ export const MESSAGES = {
     de: "Energie löschen…",
     fr: "Supprimer l'énergie…",
   },
+  // Additional verb labels for the schema-driven palette param form (the
+  // form-eligible verbs not already surfaced by a per-object menu). The "…"
+  // marks that a form/parameter step follows.
+  intentRevokeBuildingAccess: {
+    en: "Revoke building access…",
+    de: "Gebäudezugriff entziehen…",
+    fr: "Révoquer l'accès au bâtiment…",
+  },
+  intentRevokeAggregationAccess: {
+    en: "Revoke aggregation access…",
+    de: "Aggregationszugriff entziehen…",
+    fr: "Révoquer l'accès à l'agrégation…",
+  },
+  intentRemoveContact: {
+    en: "Remove contact…",
+    de: "Kontakt entfernen…",
+    fr: "Supprimer le contact…",
+  },
+  intentEnterRoom: {
+    en: "Enter data room…",
+    de: "Datenraum betreten…",
+    fr: "Entrer dans la salle de données…",
+  },
+  intentExitRoom: {
+    en: "Leave data room…",
+    de: "Datenraum verlassen…",
+    fr: "Quitter la salle de données…",
+  },
+  intentDeleteRoom: {
+    en: "Delete data room…",
+    de: "Datenraum löschen…",
+    fr: "Supprimer la salle de données…",
+  },
+  intentRemoveBookmark: {
+    en: "Remove data room bookmark…",
+    de: "Datenraum-Lesezeichen entfernen…",
+    fr: "Retirer le marque-page de la salle de données…",
+  },
+  intentAddRoom: {
+    en: "Add a data room…",
+    de: "Datenraum hinzufügen…",
+    fr: "Ajouter une salle de données…",
+  },
+  // Palette labels for the dev demo seeders surfaced as direct-invoke verbs (the
+  // account-menu groups contacts+rooms under one item; the palette surfaces each
+  // verb on its own, so they need distinct wording).
+  intentSeedDemoContacts: {
+    en: "Add example contacts",
+    de: "Beispielkontakte hinzufügen",
+    fr: "Ajouter des contacts d'exemple",
+  },
+  intentSeedDemoRooms: {
+    en: "Add example data rooms",
+    de: "Beispiel-Datenräume hinzufügen",
+    fr: "Ajouter des salles de données d'exemple",
+  },
+  // Per-param field labels for the schema-driven palette form (paramForm.ts /
+  // IntentParamForm.tsx). Keyed by param name where unambiguous; the share-flow
+  // recipient/year fields reuse the existing racLabel/lblYear ids.
+  paramBuilding: { en: "Building", de: "Gebäude", fr: "Bâtiment" },
+  paramAggregation: { en: "Aggregation", de: "Aggregation", fr: "Agrégation" },
+  paramRoom: { en: "Data room", de: "Datenraum", fr: "Salle de données" },
+  paramWebId: { en: "Person (WebID)", de: "Person (WebID)", fr: "Personne (WebID)" },
+  paramIncludeEnergyData: {
+    en: "Include energy data",
+    de: "Energiedaten einbeziehen",
+    fr: "Inclure les données énergétiques",
+  },
+  paramYears: { en: "Years", de: "Jahre", fr: "Années" },
+  paramRoomInput: {
+    en: "Invite link or room URI",
+    de: "Einladungslink oder Datenraum-URI",
+    fr: "Lien d'invitation ou URI de la salle de données",
+  },
+  // Generic param-form chrome.
+  paramFormRequired: {
+    en: "This field is required",
+    de: "Dieses Feld ist erforderlich",
+    fr: "Ce champ est obligatoire",
+  },
+  paramFormSubmit: { en: "Run", de: "Ausführen", fr: "Exécuter" },
+  paramFormSuccess: { en: "Done", de: "Erledigt", fr: "Terminé" },
+  paramYearAdd: {
+    en: "Type a year and press Enter",
+    de: "Jahr eingeben und Enter drücken",
+    fr: "Saisissez une année et appuyez sur Entrée",
+  },
+  paramNoAggregations: {
+    en: "No aggregations yet.",
+    de: "Noch keine Aggregationen.",
+    fr: "Aucune agrégation pour l'instant.",
+  },
+  paramNoRooms: {
+    en: "No data rooms yet.",
+    de: "Noch keine Datenräume.",
+    fr: "Aucune salle de données pour l'instant.",
+  },
+  paramNoBuildings: {
+    en: "No buildings yet.",
+    de: "Noch keine Gebäude.",
+    fr: "Aucun bâtiment pour l'instant.",
+  },
   // A plural exemplar (drives the machinery's `Intl.PluralRules` path; German has
   // the same form for one/other, English/French differ).
   buildingCount: {

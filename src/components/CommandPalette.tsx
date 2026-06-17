@@ -28,6 +28,8 @@ import {
   withAction,
 } from "../routes.ts";
 import type { AggregationDefinition, BuildingType } from "../types.ts";
+import IntentParamForm from "./IntentParamForm.tsx";
+import { useInvokeIntent } from "../hooks/invokeIntent.ts";
 
 /**
  * The global ⌘K command palette (plan-palette §4) — the intent catalog made a
@@ -99,12 +101,16 @@ export default function CommandPalette() {
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");
   const [active, setActive] = useState(0);
+  // The second step: the form-eligible intent whose param form is shown in place
+  // of the command list (null = the command list is shown).
+  const [formIntent, setFormIntent] = useState<string | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const t = useT();
   const devMode = useDevMode();
   const navigate = useNavigate();
   const { focus } = usePaletteFocus();
+  const invokeIntent = useInvokeIntent();
 
   // ⌘K / Ctrl-K toggles the palette. Opening resets the filter + selection in the
   // same updater (no setState-in-effect), so the field starts empty each time.
@@ -116,6 +122,7 @@ export default function CommandPalette() {
           if (!v) {
             setQuery("");
             setActive(0);
+            setFormIntent(null);
           }
           return !v;
         });
@@ -130,6 +137,7 @@ export default function CommandPalette() {
     const onOpen = () => {
       setQuery("");
       setActive(0);
+      setFormIntent(null);
       setOpen(true);
     };
     globalThis.addEventListener(OPEN_PALETTE_EVENT, onOpen);
@@ -165,9 +173,26 @@ export default function CommandPalette() {
     ? 0
     : Math.min(active, filtered.length - 1);
 
-  const close = () => setOpen(false);
+  const close = () => {
+    setOpen(false);
+    setFormIntent(null);
+  };
 
   const run = (cmd: PaletteCommand) => {
+    if (cmd.family === "intent" && cmd.entry && cmd.routesToForm) {
+      // Second step: open the schema-driven param form in place of the list (no
+      // focused object needed). Keep the Modal open; the form invokes on submit.
+      setFormIntent(cmd.entry.name);
+      return;
+    }
+    if (cmd.family === "intent" && cmd.entry && cmd.routesToDirect) {
+      // Param-less write verb: fire it straight away with no params, the same
+      // headless entry + success/error feedback the form uses. Close on success;
+      // a failure has already toasted centrally (none of these is silentError).
+      close();
+      void invokeIntent(cmd.entry.name, {});
+      return;
+    }
     close();
     if (cmd.family === "navigation" && cmd.path) {
       void navigate(cmd.path);
@@ -217,49 +242,67 @@ export default function CommandPalette() {
       dismissable
       maxWidth="sm"
     >
-      <TextField
-        inputRef={inputRef}
-        fullWidth
-        size="small"
-        autoComplete="off"
-        placeholder={t("palettePlaceholder")}
-        value={query}
-        onChange={(e) => setQuery(e.target.value)}
-        onKeyDown={onListKeyDown}
-        aria-label={t("palettePlaceholder")}
-        sx={{ mb: 1 }}
-      />
-      {filtered.length === 0
+      {formIntent
         ? (
-          <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
-            {t("paletteEmpty")}
-          </Typography>
+          <IntentParamForm
+            name={formIntent}
+            onDone={close}
+            onCancel={() => setFormIntent(null)}
+          />
         )
         : (
-          <List dense disablePadding sx={{ maxHeight: 360, overflow: "auto" }}>
-            {filtered.map((cmd, idx) => (
-              <div key={cmd.key}>
-                {hasNav && idx === 0 && (
-                  <ListSubheader disableSticky>
-                    {t("paletteGroupNavigation")}
-                  </ListSubheader>
-                )}
-                {idx === firstIntentIdx && firstIntentIdx > -1 && (
-                  <ListSubheader disableSticky>
-                    {t("paletteGroupActions")}
-                  </ListSubheader>
-                )}
-                <ListItemButton
-                  selected={idx === activeIdx}
-                  onClick={() => run(cmd)}
-                  onMouseEnter={() => setActive(idx)}
-                >
-                  <ListItemText primary={cmd.label} />
-                </ListItemButton>
-              </div>
-            ))}
-          </List>
+          <CommandList />
         )}
     </Modal>
   );
+
+  function CommandList() {
+    return (
+      <>
+        <TextField
+          inputRef={inputRef}
+          fullWidth
+          size="small"
+          autoComplete="off"
+          placeholder={t("palettePlaceholder")}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          onKeyDown={onListKeyDown}
+          aria-label={t("palettePlaceholder")}
+          sx={{ mb: 1 }}
+        />
+        {filtered.length === 0
+          ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+              {t("paletteEmpty")}
+            </Typography>
+          )
+          : (
+            <List dense disablePadding sx={{ maxHeight: 360, overflow: "auto" }}>
+              {filtered.map((cmd, idx) => (
+                <div key={cmd.key}>
+                  {hasNav && idx === 0 && (
+                    <ListSubheader disableSticky>
+                      {t("paletteGroupNavigation")}
+                    </ListSubheader>
+                  )}
+                  {idx === firstIntentIdx && firstIntentIdx > -1 && (
+                    <ListSubheader disableSticky>
+                      {t("paletteGroupActions")}
+                    </ListSubheader>
+                  )}
+                  <ListItemButton
+                    selected={idx === activeIdx}
+                    onClick={() => run(cmd)}
+                    onMouseEnter={() => setActive(idx)}
+                  >
+                    <ListItemText primary={cmd.label} />
+                  </ListItemButton>
+                </div>
+              ))}
+            </List>
+          )}
+      </>
+    );
+  }
 }

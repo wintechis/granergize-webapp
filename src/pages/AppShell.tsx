@@ -541,6 +541,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             gap: 2,
           }}
         >
+          <NetworkActivityIndicator />
           <Tooltip title={t("paletteOpenAria")}>
             <IconButton
               size="small"
@@ -551,7 +552,6 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
               <SearchIcon />
             </IconButton>
           </Tooltip>
-          <NetworkActivityIndicator />
           {orgLogoUrl && (
             <Box
               component="img"

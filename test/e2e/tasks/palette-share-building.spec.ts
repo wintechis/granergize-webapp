@@ -11,30 +11,30 @@ import {
   deleteBuildingRow,
   openBuildingsList,
 } from "../helpers/manage.ts";
-import { openPalette, paletteInput } from "../helpers/palette.ts";
-import { ACTION_PARAM, buildingRoute as appBuildingRoute, withAction } from "../../../src/routes.ts";
+import {
+  openPalette,
+  paletteInput,
+  runPaletteCommand,
+  runPaletteFormCommand,
+  submitPaletteForm,
+} from "../helpers/palette.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
+import { deleteAllOwnedRooms } from "../helpers/rooms.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
  * CT "Share building X (energy 2022–2024) with my investor", driven THROUGH the
- * ⌘K command palette's routing contract (plan-palette §"e2e — anchored in competency
- * tasks"), not the building page's bespoke "Share" button. Two throwaway Pods
- * (mirrors share-building.spec): A adds a building + three annual energy years,
- * invokes Share via the palette, ticks the 2022–2024 years, and shares directly to
- * B's WebID (the simple DUO — A already holds B's WebID, no data room). B logs in
- * fresh, drains the inbox, and sees the building under "Buildings shared with you".
+ * ⌘K command palette's **schema-driven param form** (`IntentParamForm`), not the
+ * building page's bespoke "Share" button and not the old `?action=share` route.
+ * Now that `ShareBuilding` is form-eligible (`lib/paramForm.ts`), selecting it in
+ * the palette opens the form in place of the command list: the form's entity
+ * pickers ARE the object selection (no focused object needed).
  *
- * HOW THE PALETTE DRIVES SHARE (and the residual it reflects): Share is a *rich*
- * focused-object verb (surface ShareBuildingDialog on /building). `CommandPalette`
- * is mounted only in the app-shell (AppShell), NOT on the shell-less /building
- * detail page, so we exercise the palette's exact routing contract: navigate to
- * `withAction(buildingRoute(id), "share")` — the URL `CommandPalette.run()` builds
- * for this verb — which the SharingSection auto-opens (`autoOpenShare`). The spec
- * first asserts the palette opens in the shell and offers its commands, so the ⌘K
- * surface itself is covered; the object-verb leg then rides the `?action=share`
- * contract. (When the palette is later mounted on the focus host, the navigate is
- * replaced by ⌘K → "Share building".)
+ * Two throwaway Pods (mirrors share-building.spec): A adds a building + three
+ * annual energy years, opens ⌘K → "Share building", picks the building, types B's
+ * WebID as recipient, ticks 2022–2024 years, toggles "include energy data", and
+ * submits. B logs in fresh, drains the inbox, and sees the building under
+ * "Buildings shared with you".
  *
  *   # tier 4 (real, interoperating Pods):
  *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/palette-share-building.spec.ts
@@ -52,7 +52,7 @@ const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 test.describe("palette: share building by year across two pods", () => {
   test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
-  test("⌘K-route → Share with the 2022–2024 years; B sees it shared with them", async ({ browser }) => {
+  test("⌘K form → Share with the 2022–2024 years; B sees it shared with them", async ({ browser }) => {
     test.setTimeout(T.testSharing);
     // Keep B's first session open through the share so B's inbox is provisioned
     // (ensureOwnInbox runs async post-login) and A can POST the grant; B then
@@ -64,59 +64,60 @@ test.describe("palette: share building by year across two pods", () => {
     try {
       const bWebId = await webIdOf(b1.page);
 
-      // A adds the building + three annual years (the per-year share picker is
+      // A adds the building + three annual years (the per-year share field is
       // driven by building.energyDatasets — each year must exist before sharing).
       await addBuilding(a.page, STREET);
       await addEnergyYear(a.page, STREET, "2022", "10000");
       await addEnergyYear(a.page, STREET, "2023", "11000");
       await addEnergyYear(a.page, STREET, "2024", "12000");
 
-      // Sanity: the palette opens in the shell and renders its command surface
-      // (the ⌘K surface itself, before we ride its routing contract).
+      // ── Share through the palette's param FORM ──────────────────────────────
       await a.page.goto("/");
       await openBuildingsList(a.page);
+
+      // Sanity: the palette opens in the shell and renders its command surface.
       await openPalette(a.page);
       await expect(a.page.getByText(en("paletteGroupNavigation"))).toBeVisible({
         timeout: T.visible,
       });
-      await a.page.keyboard.press("Escape");
+      // Close it again — press Escape on the focused filter field so the key
+      // reaches the Modal's close-guard (a bare page-level press can miss it).
+      await paletteInput(a.page).press("Escape");
       await expect(paletteInput(a.page)).toBeHidden({ timeout: T.action });
 
-      // Resolve the building id, then ride the palette's Share routing contract:
-      // navigate to the exact `?action=share` URL the palette builds, which
-      // auto-opens the ShareBuildingDialog on the building page.
-      const aRow = a.page.locator("li[data-building-id]", { hasText: STREET })
-        .first();
-      await expect(aRow).toBeVisible({ timeout: T.action });
-      const aId = await buildingIdOf(aRow);
-      if (!aId) throw new Error("palette-share: missing building id");
-      await a.page.goto(withAction(appBuildingRoute(aId), "share"));
-      await expect(a.page).toHaveURL(new RegExp(`${ACTION_PARAM}=share`));
+      // ⌘K → "Share building" → the IntentParamForm opens (its heading is the
+      // verb's intent label). Fill the building, recipient, years + energy toggle.
+      const form = await runPaletteFormCommand(
+        a.page,
+        en("intentShareBuilding"),
+        en("intentShareBuilding"),
+        en("intentShareBuilding"),
+      );
 
-      const dialog = a.page.getByRole("dialog");
-      await expect(dialog).toBeVisible({ timeout: T.action });
+      // Building picker (single MUI Select, labelled "Building").
+      await form.getByLabel(en("paramBuilding")).click();
+      await a.page.getByRole("option", { name: new RegExp(STREET) }).click();
 
-      // Share By WebID, scoped to the specific years 2022–2024.
-      await dialog.getByRole("button", { name: /by webid/i }).click();
-      const recipientInput = dialog.getByLabel(/Recipient WebID/i);
-      await recipientInput.fill(bWebId);
-      await recipientInput.press("Enter");
-      await dialog.getByRole("radio", { name: /specific year/i }).check();
+      // Recipient: a free-solo multi Autocomplete; type B's WebID + Enter → chip.
+      // (Match a substring of the label — "Recipient WebID(s)" has literal parens.)
+      const recipient = form.getByLabel(/Recipient WebID/i);
+      await recipient.fill(bWebId);
+      await recipient.press("Enter");
+
+      // Include energy data (the boolean switch) so the per-year grant is real.
+      await form.getByLabel(en("paramIncludeEnergyData")).check();
+
+      // Years: type a 4-digit year, Enter adds a chip (the YearChips field).
+      const years = form.getByLabel(en("paramYears"));
       for (const year of ["2022", "2023", "2024"]) {
-        await dialog.getByRole("checkbox", { name: year, exact: true }).check();
+        await years.fill(year);
+        await years.press("Enter");
       }
 
-      // Review → confirm (recipient resolution is networked; retry until Confirm).
-      const confirm = dialog.getByRole("button", { name: /confirm share/i });
+      // Submit the form (recipient resolution is networked; retry until it closes).
       await expect(async () => {
-        await dialog.getByRole("button", { name: /review and share/i }).click();
-        await expect(confirm).toBeVisible({ timeout: T.quick });
+        await submitPaletteForm(a.page);
       }).toPass({ timeout: T.poll });
-      await confirm.click();
-      await expect(dialog.getByText(/shared successfully/i)).toBeVisible({
-        timeout: T.action,
-      });
-      await dialog.getByRole("button", { name: /done/i }).click();
       await a.page.goto("/");
 
       await b1.ctx.close(); // inbox provisioned; B re-logs in fresh below
@@ -165,6 +166,48 @@ test.describe("palette: share building by year across two pods", () => {
         await bEnd.ctx.close();
         await a.ctx.close();
       }
+    }
+  });
+});
+
+/**
+ * Solo CT: the palette's **param-less direct-invoke** path. `CreateRoom` ("Host a
+ * data room") has no modelled params, so selecting it in ⌘K fires the core straight
+ * away (no form, no dialog) and the new room appears in the Rooms finder. Covers the
+ * `routesToDirect` leg of the palette.
+ */
+const solo = resolveAccounts({ count: 1 });
+
+test.describe("palette: host a data room (param-less direct invoke)", () => {
+  test.skip(!solo.ok, solo.ok ? "" : solo.reason);
+
+  test("⌘K → Host a data room → a room is created and listed", async ({ browser }) => {
+    test.setTimeout(T.testSolo);
+    const a = await freshPage(browser, A);
+    await assertCleanStart(a.page, "palette-create-room:A");
+    a.page.on("dialog", (d) => d.accept()); // delete-room confirm in cleanup
+    try {
+      await a.page.goto("/");
+      await a.page.getByRole("tab", { name: en("navMeet") }).click();
+
+      // No room yet (empty-state). Host one straight from the palette.
+      const owned = a.page.getByRole("button", { name: en("roomDeleteAria") });
+      const before = await owned.count();
+
+      await runPaletteCommand(a.page, en("roomHostBtn"), en("roomHostBtn"));
+
+      // A newly-hosted room shows the owner-only "Delete data room" action.
+      await expect(owned).toHaveCount(before + 1, { timeout: T.action });
+    } finally {
+      try {
+        if (!a.page.isClosed()) {
+          await a.page.goto("/");
+          await deleteAllOwnedRooms(a.page);
+        }
+      } catch {
+        // best-effort cleanup; never fail the run
+      }
+      await a.ctx.close();
     }
   });
 });

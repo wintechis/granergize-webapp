@@ -2,9 +2,11 @@
 import { strict as assert } from "node:assert";
 import {
   buildCommandList,
+  DIRECT_INVOKE_EXCLUDED,
   filterCommands,
   intentDialogAction,
   intentRoutesToDialog,
+  isDirectInvokeEligible,
   type NavTarget,
 } from "./commandPalette.ts";
 import { withAction } from "../routes.ts";
@@ -145,7 +147,7 @@ Deno.test("navigation commands lead the list, in the given order, even with no o
 
 // ── buildCommandList: focused own building surfaces its verbs ─────────────────
 
-Deno.test("own building: share routes to dialog; hide is excluded (shared-only)", () => {
+Deno.test("own building: share is form-eligible → routes to the param form (not the dialog)", () => {
   const cmds = buildCommandList({
     object: building({ isShared: false }),
     viewer: { devMode: false },
@@ -154,37 +156,27 @@ Deno.test("own building: share routes to dialog; hide is excluded (shared-only)"
     t: echoT,
   });
   const intents = cmds.filter((c) => c.family === "intent").map((c) => c.entry!.name);
-  // Share applies to an own building and routes to its dialog (no handler needed).
+  // Share is form-eligible: it now opens the schema-driven param form (no handler,
+  // no dialog route). The form path supersedes the bespoke dialog for it.
   assert.ok(intents.includes("ShareBuilding"));
   const share = cmds.find((c) => c.entry?.name === "ShareBuilding")!;
-  assert.equal(share.routesToDialog, true);
-  // Hide only applies to a shared building.
-  assert.ok(!intents.includes("ToggleVisibility"));
+  assert.equal(share.routesToForm, true);
+  assert.notEqual(share.routesToDialog, true);
 });
 
-Deno.test("shared building: hide surfaces only when a handler is supplied (direct verb)", () => {
-  const shared = building({ isShared: true });
-  // Without a handler, the param-less hide verb is dropped (nothing to invoke).
-  const without = buildCommandList({
-    object: shared,
+Deno.test("hide (ToggleVisibility) is form-eligible → always surfaces, no handler needed", () => {
+  // ToggleVisibility is form-eligible (buildingUri picker), so it reaches the
+  // palette globally — even with no focused object and no handler — via the form.
+  const cmds = buildCommandList({
+    object: undefined,
     viewer: { devMode: false },
     navTargets: NAV,
     handlers: {},
     t: echoT,
-  }).filter((c) => c.family === "intent").map((c) => c.entry!.name);
-  assert.ok(!without.includes("ToggleVisibility"));
-
-  // With a handler, it surfaces as a direct (non-dialog) command.
-  const cmds = buildCommandList({
-    object: shared,
-    viewer: { devMode: false },
-    navTargets: NAV,
-    handlers: { ToggleVisibility: () => {} },
-    t: echoT,
   });
   const hide = cmds.find((c) => c.entry?.name === "ToggleVisibility")!;
-  assert.ok(hide);
-  assert.equal(hide.routesToDialog, false);
+  assert.ok(hide, "form-eligible hide surfaces without focus/handler");
+  assert.equal(hide.routesToForm, true);
 });
 
 // ── buildCommandList: label resolution via the i18n key map ──────────────────
@@ -225,9 +217,143 @@ Deno.test("filterCommands matches a case-insensitive label substring", () => {
   assert.deepEqual(filterCommands(cmds, "zzz-no-match"), []);
 });
 
+// ── buildCommandList: form-eligible verbs reach the palette without focus ─────
+
+Deno.test("form-eligible verbs surface globally (no focus) and are marked routesToForm", () => {
+  const cmds = buildCommandList({
+    object: undefined,
+    viewer: { devMode: false },
+    navTargets: NAV,
+    handlers: {},
+    t: echoT,
+  });
+  const byName = new Map(cmds.map((c) => [c.entry?.name, c]));
+  for (
+    const name of [
+      "ShareBuilding",
+      "ShareAggregation",
+      "RevokeBuildingAccess",
+      "RemoveContact",
+      "EnterRoom",
+      "DeleteAggregation",
+      // AddRoom's `input` is a genuine XSD_STRING text field → form-eligible.
+      "AddRoom",
+    ]
+  ) {
+    const c = byName.get(name);
+    assert.ok(c, `${name} should surface globally`);
+    assert.equal(c!.routesToForm, true);
+  }
+  // A non-form-eligible rich verb (UpdateBuilding) is NOT surfaced globally — it
+  // needs its focused building (it routes to its bespoke edit dialog).
+  assert.ok(!byName.has("UpdateBuilding"));
+});
+
+Deno.test("a focused object does not duplicate a form-eligible verb (deduped)", () => {
+  const cmds = buildCommandList({
+    object: building({ isShared: false }),
+    viewer: { devMode: false },
+    navTargets: NAV,
+    handlers: {},
+    t: echoT,
+  });
+  const shares = cmds.filter((c) => c.entry?.name === "ShareBuilding");
+  assert.equal(shares.length, 1, "ShareBuilding appears exactly once");
+});
+
+Deno.test("developer-only form-eligible verbs stay hidden outside dev mode", () => {
+  // (None of the v1 form-eligible verbs is developer-gated, so the global pass
+  // never leaks a developer verb when devMode is off — assert the set is clean.)
+  const cmds = buildCommandList({
+    object: undefined,
+    viewer: { devMode: false },
+    navTargets: NAV,
+    handlers: {},
+    t: echoT,
+  });
+  for (const c of cmds) {
+    if (c.routesToForm) {
+      assert.notEqual(c.entry?.exposure, "developer");
+    }
+  }
+});
+
+// ── direct-invoke: param-less write verbs fire straight from the palette ─────
+
+Deno.test("isDirectInvokeEligible: param-less writes qualify; reads / RemoveAppData / param-ful do not", () => {
+  // CreateRoom: param-less write → direct-invoke.
+  assert.equal(isDirectInvokeEligible(findIntent("CreateRoom")!), true);
+  // The dev seeders + inbox-drain + ACL rebuild are param-less writes → qualify
+  // (exposure-gating is applied separately by buildCommandList).
+  for (const n of ["SeedDemoBuildings", "SeedDemoContacts", "SeedDemoRooms", "CheckInbox", "ReissueGrants"]) {
+    assert.equal(isDirectInvokeEligible(findIntent(n)!), true, `${n} qualifies`);
+  }
+  // RemoveAppData is a param-less write but explicitly excluded (destructive).
+  assert.ok(DIRECT_INVOKE_EXCLUDED.has("RemoveAppData"));
+  assert.equal(isDirectInvokeEligible(findIntent("RemoveAppData")!), false);
+  // Param-less READS return a value needing handling → out of scope.
+  assert.equal(isDirectInvokeEligible(findIntent("ExportArchive")!), false);
+  assert.equal(isDirectInvokeEligible(findIntent("AuditGrants")!), false);
+  // A param-ful write is not a direct-invoke (it routes to a form/dialog).
+  assert.equal(isDirectInvokeEligible(findIntent("ShareBuilding")!), false);
+});
+
+Deno.test("CreateRoom surfaces as a direct-invoke command (standard exposure, no focus)", () => {
+  const cmds = buildCommandList({
+    object: undefined,
+    viewer: { devMode: false },
+    navTargets: NAV,
+    handlers: {},
+    t: echoT,
+  });
+  const room = cmds.find((c) => c.entry?.name === "CreateRoom");
+  assert.ok(room, "CreateRoom surfaces even with dev mode off");
+  assert.equal(room!.routesToDirect, true);
+  assert.notEqual(room!.routesToForm, true);
+  assert.notEqual(room!.routesToDialog, true);
+  // Reuses the Rooms-finder host-button wording.
+  assert.equal(room!.label, "t:roomHostBtn");
+});
+
+Deno.test("dev direct-invoke verbs surface only in dev mode; RemoveAppData / reads never", () => {
+  const dev = ["SeedDemoBuildings", "SeedDemoContacts", "SeedDemoRooms", "CheckInbox", "ReissueGrants"];
+
+  const off = buildCommandList({
+    object: undefined,
+    viewer: { devMode: false },
+    navTargets: NAV,
+    handlers: {},
+    t: echoT,
+  });
+  const offNames = new Set(off.map((c) => c.entry?.name));
+  for (const n of dev) assert.ok(!offNames.has(n), `${n} hidden outside dev mode`);
+
+  const on = buildCommandList({
+    object: undefined,
+    viewer: { devMode: true },
+    navTargets: NAV,
+    handlers: {},
+    t: echoT,
+  });
+  const onByName = new Map(on.map((c) => [c.entry?.name, c]));
+  for (const n of dev) {
+    const c = onByName.get(n);
+    assert.ok(c, `${n} surfaces in dev mode`);
+    assert.equal(c!.routesToDirect, true);
+  }
+
+  // Excluded / out-of-scope verbs never surface, in either mode.
+  for (const cmds of [off, on]) {
+    const names = new Set(cmds.map((c) => c.entry?.name));
+    assert.ok(!names.has("RemoveAppData"), "RemoveAppData never one-click");
+    assert.ok(!names.has("ExportArchive"), "ExportArchive (read) not surfaced");
+    assert.ok(!names.has("AuditGrants"), "AuditGrants (read) not surfaced");
+  }
+});
+
 // ── buildCommandList: a non-action object yields navigation only ─────────────
 
-Deno.test("an Account object surfaces no per-object verbs beyond navigation/global", () => {
+Deno.test("an Account object surfaces no AFFORDANCE-GUARDED per-object verb (form-eligible verbs still appear globally)", () => {
   const acct: IntentObject = { kind: "Account" };
   const cmds = buildCommandList({
     object: acct,
@@ -236,8 +362,15 @@ Deno.test("an Account object surfaces no per-object verbs beyond navigation/glob
     handlers: {},
     t: echoT,
   });
-  // No building/aggregation guard passes for an Account → none is a building/agg verb.
-  const intents = cmds.filter((c) => c.family === "intent").map((c) => c.entry!.name);
-  assert.ok(!intents.includes("ShareBuilding"));
-  assert.ok(!intents.includes("RefreshAggregation"));
+  const intents = cmds.filter((c) => c.family === "intent");
+  // The Account passes no building/aggregation affordance guard, so it surfaces no
+  // *focused-object* verb. But form-eligible verbs reach the palette regardless of
+  // focus (the form's pickers ARE the object selection) — ShareBuilding appears as
+  // a form-routed command; RefreshAggregation likewise (also form-eligible).
+  const share = intents.find((c) => c.entry?.name === "ShareBuilding");
+  assert.ok(share);
+  assert.equal(share!.routesToForm, true);
+  const refresh = intents.find((c) => c.entry?.name === "RefreshAggregation");
+  assert.ok(refresh);
+  assert.equal(refresh!.routesToForm, true);
 });

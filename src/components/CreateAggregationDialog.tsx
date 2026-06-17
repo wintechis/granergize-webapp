@@ -1,20 +1,18 @@
 import { msg, type MessageId } from "../lib/messages.ts";
-import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
+import BuildingPicker from "./BuildingPicker.tsx";
 import { useMemo, useState } from "react";
 import {
   Alert,
   Box,
   Button,
   Checkbox,
-  Chip,
   FormControl,
   FormControlLabel,
   FormGroup,
   FormHelperText,
   FormLabel,
   InputLabel,
-  ListItemText,
   MenuItem,
   OutlinedInput,
   Radio,
@@ -49,19 +47,6 @@ interface CreateAggregationDialogProps {
   buildings: BuildingType[];
   onClose: () => void;
 }
-
-const ITEM_HEIGHT = 48;
-const ITEM_PADDING_TOP = 8;
-const MenuProps = {
-  slotProps: {
-    paper: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-        width: 250,
-      },
-    },
-  },
-};
 
 /**
  * An aggregation's *mode* — derived from the data shape, not a role: an annual portfolio
@@ -189,11 +174,6 @@ export default function CreateAggregationDialog({
     onClose();
   };
 
-  const handleBuildingChange = (event: SelectChangeEvent<string[]>) => {
-    const value = event.target.value;
-    setSelectedBuildings(typeof value === "string" ? value.split(",") : value);
-  };
-
   const handleMetricToggle = (metric: string) => {
     setSelectedMetrics((prev) =>
       prev.includes(metric)
@@ -310,46 +290,15 @@ export default function CreateAggregationDialog({
   );
 
   const buildingSelect = (
-    <FormControl fullWidth sx={{ mb: 3 }}>
-      <InputLabel id="buildings-label">{msg("aggSelectBuildings")}</InputLabel>
-      <Select
-        labelId="buildings-label"
-        id="buildings-select"
+    <Box sx={{ mb: 1 }}>
+      <BuildingPicker
         multiple
+        buildings={availableBuildings}
+        label={msg("aggSelectBuildings")}
         value={selectedBuildings}
-        onChange={handleBuildingChange}
-        input={<OutlinedInput label={msg("aggSelectBuildings")} />}
-        renderValue={(selected) => (
-          <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-            {selected.map((uri) => {
-              const building = availableBuildings.find((b) =>
-                b.uri === uri
-              );
-              return (
-                <Chip
-                  key={uri}
-                  label={building ? buildingDisplayName(building) : uri}
-                  size="small"
-                />
-              );
-            })}
-          </Box>
-        )}
-        MenuProps={MenuProps}
-      >
-        {availableBuildings.map((building) => (
-          <MenuItem key={building.uri} value={building.uri}>
-            <Checkbox checked={selectedBuildings.includes(building.uri)} />
-            <ListItemText
-              primary={buildingDisplayName(building)}
-              secondary={building.streetAddress !== buildingDisplayName(building)
-                ? building.streetAddress || building.locality || ""
-                : building.locality || ""}
-            />
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+        onChange={setSelectedBuildings}
+      />
+    </Box>
   );
 
   // One render, used by both branches (was duplicated inline in the monthly

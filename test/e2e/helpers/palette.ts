@@ -9,18 +9,19 @@ import { T } from "./timeouts.ts";
  * so the spec exercises the **registry-driven palette**, not the bespoke dialog's
  * own button. That distinction is the whole point of the palette specs.
  *
- * Architectural note (the residual the specs are designed around): `CommandPalette`
- * is mounted ONCE, in the app-shell (`AppShell.tsx`), so ⌘K is live only on the
- * finder routes (`/buildings`, `/aggregations`, …) — NOT on the shell-less
- * standalone detail pages (`/building`, `/observation`, `/aggregation`), which
- * render as siblings of the shell (`App.tsx`). With no object focused in the shell
- * (`PaletteFocusContext` is set only by those detail pages, which the palette can't
- * see), the palette there offers the **navigation** verbs and the always-applicable
- * **collection-create** verbs (Add building, Create aggregation). The object-scoped
- * rich verbs (Share, Enter energy, Share aggregation) route to a detail page with
- * `?action=…`, which the surface auto-opens — so a CT spec drives the create/share-back
- * legs through the palette directly, and asserts the object-verb legs via the
- * palette's `?action=` routing contract (the same URL `CommandPalette.run()` builds).
+ * Architectural note: `CommandPalette` is mounted ONCE, in the app-shell
+ * (`AppShell.tsx`), so ⌘K is live on the finder routes (`/buildings`,
+ * `/aggregations`, …). A **form-eligible** verb (`ShareBuilding`, `AddRoom`,
+ * `ShareAggregation`, the revoke/remove/room verbs — see `lib/paramForm.ts`)
+ * surfaces in the palette WITHOUT a focused object and, on select, opens the
+ * schema-driven **{@link IntentParamForm}** in place of the command list: the
+ * form's entity pickers ARE the object selection. A **param-less write** verb
+ * (`CreateRoom`, the dev seeders) fires straight away with no params. The remaining
+ * rich verbs that own a bespoke dialog and are NOT form-eligible (Add/Edit building,
+ * Enter energy) still route to a detail page with `?action=…`.
+ *
+ * So a CT spec drives Share through the palette's FORM (open ⌘K → run the verb →
+ * fill the form → submit), not the old `?action=share` route.
  */
 
 /** Open the ⌘K palette via the keyboard shortcut and wait for its filter field. */
@@ -36,10 +37,24 @@ export function paletteInput(page: Page) {
   return page.getByRole("textbox", { name: en("palettePlaceholder") });
 }
 
+/** Select a command in the open palette by its visible (localized) label. */
+async function selectPaletteCommand(
+  page: Page,
+  verb: string,
+  label: string | RegExp,
+): Promise<void> {
+  await paletteInput(page).fill(verb);
+  const item = page.getByRole("button", { name: label }).first();
+  await expect(item).toBeVisible({ timeout: T.visible });
+  await item.click();
+}
+
 /**
  * Open the palette, type `verb` to filter, and select the matching command by its
  * visible label (an exact, case-insensitive match against the localized label).
- * Asserts the palette closes afterward (selecting a command closes it).
+ * Asserts the palette closes afterward (selecting a *navigation / direct-invoke*
+ * command closes the Modal-backed palette). For a form-eligible verb that opens the
+ * second-step form instead, use {@link runPaletteFormCommand}.
  */
 export async function runPaletteCommand(
   page: Page,
@@ -47,10 +62,38 @@ export async function runPaletteCommand(
   label: string | RegExp,
 ): Promise<void> {
   await openPalette(page);
-  await paletteInput(page).fill(verb);
-  const item = page.getByRole("button", { name: label }).first();
-  await expect(item).toBeVisible({ timeout: T.visible });
-  await item.click();
+  await selectPaletteCommand(page, verb, label);
   // Selecting a command closes the Modal-backed palette.
   await expect(paletteInput(page)).toBeHidden({ timeout: T.action });
+}
+
+/**
+ * Open the palette, select a **form-eligible** verb, and wait for its schema-driven
+ * {@link IntentParamForm} to render in place of the command list — keyed on the
+ * form's title (the verb's localized intent label, e.g. "Share building"). The
+ * caller then fills the form fields and submits via {@link submitPaletteForm}.
+ * Returns the Playwright `dialog` locator scoping the open palette Modal.
+ */
+export async function runPaletteFormCommand(
+  page: Page,
+  verb: string,
+  label: string | RegExp,
+  formTitle: string | RegExp,
+) {
+  await openPalette(page);
+  await selectPaletteCommand(page, verb, label);
+  const dialog = page.getByRole("dialog");
+  // The form replaces the filter field; its heading is the verb's intent label.
+  await expect(dialog.getByRole("heading", { name: formTitle })).toBeVisible({
+    timeout: T.visible,
+  });
+  await expect(paletteInput(page)).toBeHidden({ timeout: T.action });
+  return dialog;
+}
+
+/** Click the param-form's submit ("Run") button and wait for the palette to close. */
+export async function submitPaletteForm(page: Page): Promise<void> {
+  await page.getByRole("button", { name: en("paramFormSubmit") }).click();
+  // A successful invoke closes the Modal (onDone → close).
+  await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
 }

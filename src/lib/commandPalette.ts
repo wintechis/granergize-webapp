@@ -27,7 +27,7 @@
  * Kept pure so it is Tier-1 testable: the React component (`CommandPalette.tsx`)
  * layers on `useT()` / `useDevMode()` / `useNavigate()` and the focus context.
  */
-import { type IntentEntry } from "../intents/catalog.ts";
+import { intentExposure, type IntentEntry, INTENTS } from "../intents/catalog.ts";
 import {
   applicableIntents,
   type IntentObject,
@@ -35,6 +35,7 @@ import {
 } from "../intents/applicable.ts";
 import { INTENT_PARAMS } from "../intents/params.ts";
 import { intentLabelKey } from "../intents/labels.ts";
+import { isFormEligible } from "./paramForm.ts";
 import { type MessageId } from "./messages.ts";
 import type { DialogAction } from "../routes.ts";
 import type { TFn } from "../context/I18nProvider.tsx";
@@ -75,6 +76,20 @@ export interface PaletteCommand {
    * (hide/delete/refresh) the palette can fire straight away.
    */
   routesToDialog?: boolean;
+  /**
+   * Intent only: does selecting this verb open the **schema-driven param form**
+   * (`IntentParamForm`) as the palette's second step? `true` for a form-eligible
+   * verb ({@link isFormEligible}) — the form collects every param and `invoke`s with
+   * NO focused object. Takes precedence over `routesToDialog` when both could apply.
+   */
+  routesToForm?: boolean;
+  /**
+   * Intent only: is this a **param-less write verb** the palette fires straight
+   * away ({@link isDirectInvokeEligible}) — no form, no dialog, no focused object?
+   * `true` for the global collection-wide verbs (`CreateRoom`, the dev seeders,
+   * `CheckInbox`, `ReissueGrants`); the component `invoke`s it with `{}` on select.
+   */
+  routesToDirect?: boolean;
 }
 
 /**
@@ -139,6 +154,32 @@ function hasModelledParams(name: string): boolean {
 }
 
 /**
+ * Param-less write verbs the palette must NOT fire as a one-click direct invoke,
+ * even though they qualify by shape. {@link RemoveAppData} is destructive and
+ * owns a bespoke confirm — it is not a ⌘K one-shot.
+ */
+export const DIRECT_INVOKE_EXCLUDED: ReadonlySet<string> = new Set<string>([
+  "RemoveAppData",
+]);
+
+/**
+ * Is this a **param-less write verb** the palette can fire straight away (no form,
+ * no dialog, no focused object)? True iff it is a `write` effect, has NO modelled
+ * params, and is not in {@link DIRECT_INVOKE_EXCLUDED}. Param-less *reads*
+ * (`ExportArchive`/`AuditGrants`) return a value needing handling and are excluded
+ * by the `write`-effect requirement. A pure predicate over the catalog entry.
+ *
+ * The set this yields: `CreateRoom` (standard), and — developer-gated —
+ * `SeedDemoBuildings`, `SeedDemoContacts`, `SeedDemoRooms`, `CheckInbox`,
+ * `ReissueGrants`.
+ */
+export function isDirectInvokeEligible(entry: IntentEntry): boolean {
+  return entry.effect === "write" &&
+    !hasModelledParams(entry.name) &&
+    !DIRECT_INVOKE_EXCLUDED.has(entry.name);
+}
+
+/**
  * Does a verb need parameter capture (→ route to its dialog) or can the palette
  * invoke it directly? A verb routes to a dialog when it both records a bespoke
  * surface to open AND declares ≥1 modelled param. A param-less verb, or one with
@@ -185,21 +226,66 @@ export function buildCommandList(opts: {
     });
   }
 
+  const seen = new Set<string>();
   for (const entry of applicableIntents(object, viewer)) {
-    const routesToDialog = intentRoutesToDialog(entry);
-    // A direct (param-less) verb needs a handler; a dialog-routed verb is opened
-    // by the component, so it may appear without one.
-    if (!routesToDialog && !handlers[entry.name]) continue;
+    const routesToForm = isFormEligible(entry.name);
+    const routesToDialog = !routesToForm && intentRoutesToDialog(entry);
+    // A form-eligible verb is opened by the palette's form step (no handler
+    // needed); a dialog-routed verb is opened by the component; a direct
+    // (param-less) verb needs a handler to fire.
+    if (!routesToForm && !routesToDialog && !handlers[entry.name]) continue;
     // Only surface a verb that has an i18n label key (i.e. one a menu surfaces);
     // verbs with no key are not yet user-facing and are skipped here.
     const key = intentLabelKey(entry.name);
     if (!key) continue;
+    seen.add(entry.name);
     commands.push({
       key: entry.name,
       family: "intent",
       label: t(key as MessageId),
       entry,
       routesToDialog,
+      routesToForm,
+    });
+  }
+
+  // Form-eligible verbs reach the palette WITHOUT a focused object — the entity
+  // pickers in the form ARE the object selection (the real fix for the placement
+  // gap). Surface every form-eligible verb (exposure-gated) not already offered
+  // for the focused object, so e.g. "Share building" is invocable from anywhere.
+  for (const entry of INTENTS) {
+    if (seen.has(entry.name)) continue;
+    if (!isFormEligible(entry.name)) continue;
+    if (intentExposure(entry) === "developer" && !viewer.devMode) continue;
+    const key = intentLabelKey(entry.name);
+    if (!key) continue;
+    seen.add(entry.name);
+    commands.push({
+      key: entry.name,
+      family: "intent",
+      label: t(key as MessageId),
+      entry,
+      routesToForm: true,
+    });
+  }
+
+  // Param-less write verbs reach the palette globally too — there is nothing to
+  // collect, so the component fires them directly with `{}` (no form, no dialog).
+  // Exposure-gated (dev verbs only in dev mode) and deduped against everything
+  // already surfaced.
+  for (const entry of INTENTS) {
+    if (seen.has(entry.name)) continue;
+    if (!isDirectInvokeEligible(entry)) continue;
+    if (intentExposure(entry) === "developer" && !viewer.devMode) continue;
+    const key = intentLabelKey(entry.name);
+    if (!key) continue;
+    seen.add(entry.name);
+    commands.push({
+      key: entry.name,
+      family: "intent",
+      label: t(key as MessageId),
+      entry,
+      routesToDirect: true,
     });
   }
 
