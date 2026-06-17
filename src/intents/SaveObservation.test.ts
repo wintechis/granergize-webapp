@@ -1,5 +1,5 @@
-import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 //
 // Tier-1 proof that the SaveObservation core swallows a failed grant
 // reconciliation: the energy year is the commit, so a reconcile that throws must

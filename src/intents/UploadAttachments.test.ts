@@ -1,5 +1,5 @@
-import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 //
 // Tier-1 proof that the UploadAttachments core uploads sequentially and returns
 // a tally (done/total). Driven headless with a fake offline-fixture Session.

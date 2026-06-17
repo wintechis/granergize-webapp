@@ -1,5 +1,5 @@
-import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 //
 // Tier-1 proof that the RestoreArchive core is callable HEADLESS and COMPOSES its
 // two steps: it imports the archive bodies (writing them back to the Pod) AND

@@ -1,5 +1,5 @@
-import type { PodGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import type { PodGateway } from "../pod/podGateway.ts";
 import { strict as assert } from "node:assert";
 import { resolveAgent, resolveAgentOrg } from "./agentResolver.ts";
 import { _resetProfileCacheForTesting } from "../pod/profileDocument.ts";

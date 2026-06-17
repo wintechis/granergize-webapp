@@ -1,5 +1,5 @@
-import type { PodGateway } from "./podGateway.ts";
 /// <reference lib="deno.ns" />
+import type { PodGateway } from "./podGateway.ts";
 import { strict as assert } from "node:assert";
 import {
   APP_DIR,

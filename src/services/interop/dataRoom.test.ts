@@ -1,5 +1,5 @@
-import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import { type PodGateway, sessionGateway } from "../pod/podGateway.ts";
 import { assert, assertEquals, assertRejects } from "jsr:@std/assert";
 import { FakeTime } from "jsr:@std/testing/time";
 import { Session } from "@inrupt/solid-client-authn-browser";

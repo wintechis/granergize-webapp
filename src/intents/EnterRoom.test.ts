@@ -1,5 +1,5 @@
-import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 //
 // Tier-1 proof that the EnterRoom core is callable HEADLESS, and — the rooms
 // silent-break-mode guard — that it returns EXACTLY `{ room }` (the normalized

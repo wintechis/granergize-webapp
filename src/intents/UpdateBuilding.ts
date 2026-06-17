@@ -31,10 +31,10 @@ export interface UpdateBuildingParams {
  * fire-and-forget auto-remember each WebID-bearing agent field in the address
  * book (mirroring `shareBuildingCore`'s `void rememberAgent`).
  *
- * The address-book *cache priming* (`rememberBuildingAgents`'s
- * `invalidateQueries({contacts})` so an inactive Connect picks up the new
- * contacts) stays in the adapter `onSuccess` — that is a query-cache concern, not
- * a Pod write. The core does only the Pod composition + the remember writes.
+ * The address-book *cache priming* (the adapter's `onSuccess`
+ * `invalidateQueries({contacts})`, so an inactive Connect picks up the new
+ * contacts) is a query-cache concern, not a Pod write, so it stays in the hook.
+ * The core does only the Pod composition + the remember writes.
  */
 export async function updateBuildingCore(
   gateway: PodGateway,

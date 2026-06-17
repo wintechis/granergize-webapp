@@ -1,5 +1,5 @@
-import { type PodGateway, sessionGateway } from "../../src/services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import { type PodGateway, sessionGateway } from "../../src/services/pod/podGateway.ts";
 /**
  * Tier-1 unit test for the room-seeding helper (offline, no CSS/network). The
  * benchmark's D4 dimension scales the data-room read fold + delete against the

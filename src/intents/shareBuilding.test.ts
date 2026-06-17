@@ -1,5 +1,5 @@
-import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 //
 // Tier-1 proof that the ShareBuilding core is callable HEADLESS: it is driven
 // directly with a fake offline-fixture Session — no React, no renderHook, no

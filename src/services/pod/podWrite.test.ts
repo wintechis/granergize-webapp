@@ -1,5 +1,5 @@
-import { sessionGateway } from "./podGateway.ts";
 /// <reference lib="deno.ns" />
+import { sessionGateway } from "./podGateway.ts";
 import { strict as assert } from "node:assert";
 import { DataFactory } from "n3";
 import type { Session } from "@inrupt/solid-client-authn-browser";

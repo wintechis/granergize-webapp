@@ -1,5 +1,5 @@
-import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 //
 // Tier-1 proof that the EntityQuery resolver turns a bare IRI into the typed
 // instance the intent layer's `applies()` guards consume — HEADLESS: driven with

@@ -1,5 +1,5 @@
-import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 /// <reference lib="deno.ns" />
+import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 //
 // Tier-1 proof that the SaveOrganisation core is callable HEADLESS, and that the
 // optional logo upload is part of the core's composition: a logo present runs BOTH
