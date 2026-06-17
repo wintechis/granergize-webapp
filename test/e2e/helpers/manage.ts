@@ -383,9 +383,12 @@ export async function shareAggregationByWebId(
 }
 
 /**
- * The Share-tab "Aggregations shared with you" list (named via the `<ul>`'s aria-label).
- * Present only when at least one aggregation is shared; for the empty state assert the
- * section's "no aggregations shared with you yet…" text on the page directly.
+ * The Aggregations-finder list (named via the `<ul>`'s aria-label) — the unified
+ * collection where BOTH own and received (shared-with-me) aggregations now appear
+ * under the source-tier facet (the standalone "Aggregations shared with you" list
+ * on the Sharing tab was removed in the finder-collection-model Slice 5). To verify
+ * an aggregation was received, open the Aggregations finder (`openAggregations`) and
+ * assert its name within this list.
  */
-export const receivedAggregations = (page: Page) =>
-  page.getByRole("list", { name: /aggregations shared with you/i });
+export const aggregationsList = (page: Page) =>
+  page.getByRole("list", { name: en("navAggregations") });

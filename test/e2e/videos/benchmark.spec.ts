@@ -38,9 +38,11 @@ const BUILDING = "Nordostpark";
 const VIEW_NAME = "Energie-Benchmark";
 /** The "Gebäude <id>" prefix the shared-with-you list shows for a received building. */
 const SHARED_PREFIX = new RegExp(`^${vt("shareBuildingN", { id: "" }).trim()} `);
-/** The "Aggregations shared with you" list (its aria-label is the section heading). */
+/** Received aggregations now live in the Aggregations finder (Shared tier), in its
+ * list (aria-label = the finder heading) — the standalone "Aggregations shared with
+ * you" list moved off the Sharing tab (finder-collection-model Slice 5). */
 const receivedAggs = (page: Page) =>
-  page.getByRole("list", { name: vt("sharedAggregationsHeading") });
+  page.getByRole("list", { name: vt("navAggregations") });
 
 async function controlSeed(path: string): Promise<Response> {
   const res = await fetch(
@@ -326,14 +328,14 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
 
     // ============ Clip payoff: back at A. ============
     await page.reload();
-    await page.getByRole("tab", { name: vt("navSharing") }).click();
+    await page.getByRole("tab", { name: vt("navAggregations") }).click();
     await expect(receivedAggs(page).getByText(VIEW_NAME))
       .toBeVisible({ timeout: 120_000 });
 
     const stageA2 = await page.context().newPage();
     const t0p = Date.now();
     await stageA2.goto("/");
-    await expect(stageA2.getByRole("tab", { name: vt("navSharing") }))
+    await expect(stageA2.getByRole("tab", { name: vt("navAggregations") }))
       .toBeVisible({ timeout: 60_000 });
     await stageA2.waitForLoadState("networkidle").catch(() => {});
     await dismissToasts(stageA2);
@@ -341,9 +343,9 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
 
     await demoP.scene(
       "returned",
-      "Zurück bei A: Die Ansicht von C liegt unter „Mit dir geteilte Aggregationen“",
+      "Zurück bei A: Die Ansicht von C liegt im Aggregationen-Finder unter „Mit mir geteilt“",
     );
-    await demoP.click(stageA2.getByRole("tab", { name: vt("navSharing") }));
+    await demoP.click(stageA2.getByRole("tab", { name: vt("navAggregations") }));
     await expect(receivedAggs(stageA2).getByText(VIEW_NAME))
       .toBeVisible({ timeout: 60_000 });
     await demoP.moveTo(receivedAggs(stageA2).getByText(VIEW_NAME));

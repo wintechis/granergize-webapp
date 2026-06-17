@@ -221,7 +221,11 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
             </Typography>
           )
           : (
-            <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
+            <Box
+              component="ul"
+              aria-label={t("navAggregations")}
+              sx={{ listStyle: "none", pl: 0, m: 0 }}
+            >
               {aggregationPaging.pageItems.map((item) => {
                 if (item.kind === "received") {
                   return (

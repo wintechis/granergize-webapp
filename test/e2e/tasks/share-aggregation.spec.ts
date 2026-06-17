@@ -17,9 +17,9 @@ import {
 } from "../helpers/connect.ts";
 import {
   AGGREGATION_NAME,
+  aggregationsList,
   ensureAggregation,
   openAggregations,
-  receivedAggregations,
   shareAggregationByWebId,
 } from "../helpers/manage.ts";
 import { assertCleanStart, verifyAndResetBoth } from "../helpers/cleanSlate.ts";
@@ -78,8 +78,8 @@ test.describe("aggregation sharing across two pods", () => {
       const b2 = await freshPage(browser, B);
       try {
         await reloadUntil(b2.page, async () => {
-          await b2.page.getByRole("tab", { name: en("navSharing") }).click();
-          await expect(receivedAggregations(b2.page).getByText(AGGREGATION_NAME))
+          await openAggregations(b2.page);
+          await expect(aggregationsList(b2.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.action });
         });
         await b2.page.getByRole("button", { name: /show values/i }).first()
@@ -201,8 +201,8 @@ test.describe("aggregation sharing across two pods", () => {
       //    propagates and folds in, then reads its values — no blind cooldown ──
       try {
         await reloadUntil(b.page, async () => {
-          await b.page.getByRole("tab", { name: en("navSharing") }).click();
-          await expect(receivedAggregations(b.page).getByText(AGGREGATION_NAME))
+          await openAggregations(b.page);
+          await expect(aggregationsList(b.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.action });
         });
         await b.page.getByRole("button", { name: /show values/i }).first()
@@ -230,16 +230,12 @@ test.describe("aggregation sharing across two pods", () => {
       // ── B reloads (cold re-fetch, re-draining the revocation) until the aggregation
       //    folds out — no blind cooldown ──
       try {
-        // Positive empty-state assertion: the section's empty notice is shown
-        // (the list is absent when empty) AND the aggregation is gone.
+        // After the revocation folds out, the aggregation is gone from B's
+        // Aggregations finder (B holds no own aggregations, so the list empties).
         await reloadUntil(b.page, async () => {
-          await b.page.getByRole("tab", { name: en("navSharing") }).click();
-          await expect(
-            b.page.getByText(/no aggregations shared with you yet/i),
-          ).toBeVisible({ timeout: T.action });
-          await expect(receivedAggregations(b.page).getByText(AGGREGATION_NAME)).toHaveCount(
-            0,
-          );
+          await openAggregations(b.page);
+          await expect(aggregationsList(b.page).getByText(AGGREGATION_NAME))
+            .toHaveCount(0, { timeout: T.action });
         });
       } catch (timeout) {
         b.guard.assertNoAppErrors();

@@ -75,14 +75,6 @@ export const MESSAGES = {
     fr:
       "Aucun bâtiment partagé avec vous pour l'instant. Rejoignez une salle de données pour que les propriétaires vous trouvent, ou demandez à un propriétaire de partager avec votre WebID.",
   },
-  sharedAggregationsEmpty: {
-    en:
-      "No aggregations shared with you yet. An aggregation a partner shares appears here.",
-    de:
-      "Noch keine mit dir geteilten Aggregationen. Eine von einem Partner geteilte Aggregation erscheint hier.",
-    fr:
-      "Aucune agrégation partagée avec vous pour l'instant. Une agrégation partagée par un partenaire apparaît ici.",
-  },
   uiLanguage: { en: "Language", de: "Sprache", fr: "Langue" },
   // ⌘K command palette (plan-palette §4).
   palettePlaceholder: {
@@ -132,11 +124,6 @@ export const MESSAGES = {
     en: "Buildings shared with you",
     de: "Mit dir geteilte Gebäude",
     fr: "Bâtiments partagés avec vous",
-  },
-  sharedAggregationsHeading: {
-    en: "Aggregations shared with you",
-    de: "Mit dir geteilte Aggregationen",
-    fr: "Agrégations partagées avec vous",
   },
   headingInbox: {
     en: "Your inbox",
