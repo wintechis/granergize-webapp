@@ -19,7 +19,7 @@ import { Demo } from "./demoPolish.ts";
  * nationwide. The panel is read-only, so this is a pure showcase — no data entry.
  *
  * Same recording discipline as `soll-ist.spec.ts`: noisy setup on the fixture page,
- * scenes on a FRESH page in the same context; `postprocess.sh standort-radar` trims
+ * scenes on a FRESH page in the same context; `postprocess.sh standort-energieprofil` trims
  * the restore head and converts to MP4.
  */
 
@@ -150,8 +150,8 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     // --- Save the stage recording + scene marks (close the page first). ---
     const video = stage.video();
     mkdirSync(OUT, { recursive: true });
-    writeFileSync(`${OUT}/standort-radar.marks.json`, JSON.stringify(demo.marks, null, 2));
+    writeFileSync(`${OUT}/standort-energieprofil.marks.json`, JSON.stringify(demo.marks, null, 2));
     await stage.close();
-    await video?.saveAs(`${OUT}/standort-radar.webm`);
+    await video?.saveAs(`${OUT}/standort-energieprofil.webm`);
   });
 });
