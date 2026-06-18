@@ -3,6 +3,23 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-18]
+- **Intent layer: the callable trinity — type/paste/translate an intent and run it.** The
+  command palette gained a deterministic, headless **callable layer** beneath it: every
+  app action is one of three effects — **mutate** (`invoke`), **query** (`query`), **navigate**
+  (`goTo`) — dispatched by catalog `name` from `src/intents/`. Four user-facing pieces landed:
+  (1) a **paste-and-launch** mode (dev-gated ⌘K): paste a `{name,params}` JSON intent → it runs
+  through the same dispatch the palette uses; (2) **NL→intent translation** (`>` prefix): an
+  OpenAI-compatible LLM (FAU NHR gateway, Qwen3.6-35B-A3B, thinking-off, temp 0.2) turns a
+  natural-language request into that JSON (`services/llm/intentTranslate.ts`, timeout + one
+  retry); (3) the **attribute selector** — a vocab-grounded `field·op·value` query language over
+  `buildingConfig` predicates (`intents/selector.ts`) feeding the first collection query
+  `FindBuildings`; (4) the **navigate arm** — `Show*` catalog intents over the route builders, so
+  the palette's nav, the launcher, and the LLM share one source. Plus the single-entity/relationship
+  **read cores** `GetBuilding`, `GetObservationYear`, `WhoHasAccess`, `SharedWithMe`. All reuse the
+  existing loaders/folds/parsers; React-free with injectable seams. An **eval harness**
+  (`test/eval/`, real-LLM, gnuplot figures via the bench infra) scores NL→intent quality + latency:
+  58 cases, **0 frontier**, ~95% verb accuracy, 100% selector accuracy, ~260 ms median. ~40 new
+  Tier-1 tests; the ⌘K paste/NL flow has a hermetic Tier-3 spec (LLM mocked). Suite green.
 - **Rooftop-PV: per-building "money on your roof" from the LoD2 model.** The building's
   Standort-Energieprofil panel now leads with a per-building rooftop-PV card — installable kWp,
   expected annual yield, value/year (at a configurable self-consumption rate), usable roof area

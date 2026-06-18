@@ -87,6 +87,12 @@ export const FORM_EXCLUDED: ReadonlySet<string> = new Set<string>([
   // FindBuildings.selector is a structured {and:[…]} object (placeholder XSD_STRING),
   // not a free-text field — the attribute facet UI renders it, not the generic form.
   "FindBuildings",
+  // Read verbs: they return a value, not a form-submittable mutation. Their params
+  // are renderable IRIs, but the generic param FORM is a write surface — reads reach
+  // the launcher via the JSON/NL path, not a form.
+  "GetBuilding",
+  "GetObservationYear",
+  "WhoHasAccess",
   // `fileUri` + `subjectUri` derived-IRI bundles.
   "SetEnergyCertificate",
   "DeleteAttachment",

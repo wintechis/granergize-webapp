@@ -96,13 +96,41 @@ export const INTENTS: readonly IntentEntry[] = [
     entity: "building",
     hook: "useToggleVisibility",
   },
-  // ── Queries (reads over the building collection) ─────────────────────────────
+  // ── Queries (reads) ──────────────────────────────────────────────────────────
   {
     name: "FindBuildings",
     action: "", // a read; no meta.action
     effect: "read",
     entity: "building",
     hook: "useFindBuildings",
+  },
+  {
+    name: "GetBuilding",
+    action: "",
+    effect: "read",
+    entity: "building",
+    hook: "useGetBuilding",
+  },
+  {
+    name: "GetObservationYear",
+    action: "",
+    effect: "read",
+    entity: "observation",
+    hook: "useGetObservationYear",
+  },
+  {
+    name: "WhoHasAccess",
+    action: "",
+    effect: "read",
+    entity: "sharing",
+    hook: "useWhoHasAccess",
+  },
+  {
+    name: "SharedWithMe",
+    action: "",
+    effect: "read",
+    entity: "sharing",
+    hook: "useSharedWithMe",
   },
   // ── Energy (observations) ────────────────────────────────────────────────────
   {

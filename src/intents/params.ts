@@ -76,6 +76,18 @@ export const INTENT_PARAMS = {
     // to resolve — modelled as an opaque literal (see selector.ts).
     selector: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
   },
+  GetBuilding: {
+    id: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+  },
+  GetObservationYear: {
+    building: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    year: { nodeKind: "literal", range: XSD_GYEAR, cardinality: "one" },
+  },
+  WhoHasAccess: {
+    buildingUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+  },
+  // Paramless: SharedWithMe folds the viewer's whole shared-in log.
+  SharedWithMe: {},
   // ── Sharing ────────────────────────────────────────────────────────────────
   ShareBuilding: {
     buildingUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
@@ -243,6 +255,10 @@ const _paramKeysMatch: {
   DeleteBuilding: true,
   ToggleVisibility: true,
   FindBuildings: true,
+  GetBuilding: true,
+  GetObservationYear: true,
+  WhoHasAccess: true,
+  SharedWithMe: true,
   ShareBuilding: true,
   ShareAggregation: true,
   RevokeBuildingAccess: true,
