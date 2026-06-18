@@ -1,6 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
+  parseRegionalChoropleth,
   parseRegionalObservations,
   REGIONAL_TABLES,
   regionalGeoUrl,
@@ -105,4 +106,33 @@ Deno.test("regionalGeoUrl: frag-style kreis grain → …/cl/{scheme}#{code}", (
     regionalGeoUrl(kreisTable(), "09564"),
     "https://wunderfacts.com/regionalstatistik/cl/DINSG#09564",
   );
+});
+
+// --- parseRegionalChoropleth: one value per region (the whole-table read) ----
+
+Deno.test("choropleth: ags-style → latest year per region, keyed by AGS", () => {
+  const m = parseRegionalChoropleth(LAND_FIXTURE, LAND_BASE, landTable());
+  assert.equal(m.size, 2);
+  // 09 has 2021 + 2023 → keeps the latest (2023).
+  assert.deepEqual(m.get("09"), { year: 2023, value: 61.5, unit: "Prozent" });
+  assert.deepEqual(m.get("12"), { year: 2023, value: 88.0, unit: "Prozent" });
+});
+
+Deno.test("choropleth: maxYear caps the chosen year per region", () => {
+  const m = parseRegionalChoropleth(LAND_FIXTURE, LAND_BASE, landTable(), 2021);
+  // 09's 2023 is excluded → falls back to 2021; 12 only has 2023 → dropped.
+  assert.deepEqual(m.get("09"), { year: 2021, value: 55.0, unit: "Prozent" });
+  assert.equal(m.has("12"), false);
+});
+
+Deno.test("choropleth: frag-style geo + selector → AGS-keyed, carrier-filtered", () => {
+  const m = parseRegionalChoropleth(KREIS_TTL, KREIS_BASE, kreisTable());
+  // Both Kreise appear with the renewable carrier; the Heizöl row (o2) is excluded.
+  assert.deepEqual(m.get("09564"), { year: 2024, value: 1234, unit: "Tsd. MJ" });
+  assert.deepEqual(m.get("08221"), { year: 2024, value: 5555, unit: "Tsd. MJ" });
+  assert.equal(m.size, 2);
+});
+
+Deno.test("choropleth: no observations → empty map", () => {
+  assert.equal(parseRegionalChoropleth("@prefix x: <urn:x#> .", LAND_BASE, landTable()).size, 0);
 });

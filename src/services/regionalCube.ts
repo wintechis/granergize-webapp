@@ -77,6 +77,61 @@ export const REGIONAL_TABLES: RegionalTable[] = [
     geoCodeStyle: "frag",
     selectors: [{ dimSuffix: "#dim-ENRNW1", valueFrag: "ENRGTRNW4" }],
   },
+  // --- additional GRANERGIZE-relevant tables (verified parse-stable against the
+  // live wrapper; several 862xx tables serve a non-deterministic body and were
+  // rejected). Land grain: ---
+  {
+    // Primärenergieverbrauch — absolute TJ (PEV001A), single carrier "Energie insgesamt".
+    tableId: "86221-Z-01",
+    labelId: "regPrimaryEnergy",
+    grain: "land",
+    selectors: [
+      { dimSuffix: "#dim-ENRGVB1", valueFrag: "ENERGIE01" },
+      { dimSuffix: "#dim-PEV001B", valueFrag: "PEV001A" },
+    ],
+  },
+  {
+    // Fernwärmeerzeugung aus Kraft-Wärme-Kopplung — absolute TJ.
+    tableId: "86251-Z-04",
+    labelId: "regDistrictHeatChp",
+    grain: "land",
+    selectors: [{ dimSuffix: "#dim-PEV009D", valueFrag: "PEV009D" }],
+  },
+  {
+    // Treibhausgasemissionen pro Kopf — all gases (INSGESAMT), absolute t/capita.
+    // Geo dim is a codelist concept (#dim-DLANDU), not #dim-geo.
+    tableId: "86431-Z-02",
+    labelId: "regGhgPerCapita",
+    grain: "land",
+    geoDimSuffix: "#dim-DLANDU",
+    geoCodeStyle: "frag",
+    selectors: [
+      { dimSuffix: "#dim-THG002", valueFrag: "INSGESAMT" },
+      { dimSuffix: "#dim-GAS002B", valueFrag: "GAS002A" },
+    ],
+  },
+  // --- Kreis grain: building permits / completions, multi-family (3+ dwellings),
+  // heat-pump-heated (Umweltthermie, BAUPHE07) — the renewable-heating signal. ---
+  {
+    tableId: "31111-06-01-4",
+    labelId: "regHeatPumpPermits",
+    grain: "kreis",
+    selectors: [
+      { dimSuffix: "#dim-BAUPHE", valueFrag: "BAUPHE07" },
+      { dimSuffix: "#dim-GEBWH1", valueFrag: "WHGZHL03UM" },
+      { dimSuffix: "#dim-WOHN04", valueFrag: "WOHN04" },
+    ],
+  },
+  {
+    tableId: "31121-06-01-4",
+    labelId: "regHeatPumpCompletions",
+    grain: "kreis",
+    selectors: [
+      { dimSuffix: "#dim-BAUPHE", valueFrag: "BAUPHE07" },
+      { dimSuffix: "#dim-GEBWH1", valueFrag: "WHGZHL03UM" },
+      { dimSuffix: "#dim-WOHN04", valueFrag: "WOHN04" },
+    ],
+  },
 ];
 
 /** Base URI of the wrapper (the CORS-enabled host — fetched directly, no dev proxy).
@@ -166,6 +221,80 @@ export async function fetchRegionalObservations(
   );
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching regional table ${table.tableId}`);
   return parseRegionalObservations(await res.text(), url, table, agsCode);
+}
+
+/**
+ * Parse a Data Cube document into ONE value **per region** — the choropleth's
+ * whole-table read (the inverse of {@link parseRegionalObservations}, which filters
+ * to one region across years). Returns a Map keyed by the region's **AGS code**
+ * (extracted from the geo dimension per the table's geo style), each holding the
+ * latest year ≤ `maxYear` (or the overall latest when `maxYear` is omitted). Pure;
+ * the network-free half of {@link fetchRegionalChoropleth}.
+ */
+export function parseRegionalChoropleth(
+  turtle: string,
+  baseIri: string,
+  table: RegionalTable,
+  maxYear?: number,
+): Map<string, RegionalObservation> {
+  const geoDimSuffix = table.geoDimSuffix ?? "#dim-geo";
+  const geoCodeStyle = table.geoCodeStyle ?? "ags";
+  const selectors = table.selectors ?? [];
+
+  const store = parseRdfText(turtle, baseIri);
+  const observations = store.getQuads(null, RDF_TYPE, `${QB_NS}Observation`, null);
+
+  const byAgs = new Map<string, RegionalObservation>();
+  for (const { subject } of observations) {
+    let geo = "";
+    let year: number | null = null;
+    let value: number | null = null;
+    let unit = "";
+    const aux = new Map<string, string>();
+    for (const q of store.getQuads(subject, null, null, null)) {
+      const p = q.predicate.value;
+      if (p.endsWith(geoDimSuffix)) geo = q.object.value;
+      else if (p.endsWith("#dim-TIME_PERIOD")) year = Number.parseInt(q.object.value, 10);
+      else if (p.endsWith("#measure-OBS_VALUE")) value = Number.parseFloat(q.object.value);
+      else if (p.endsWith("#unit")) unit = q.object.value;
+      else for (const s of selectors) if (p.endsWith(s.dimSuffix)) aux.set(s.dimSuffix, q.object.value);
+    }
+    const selMatch = selectors.every((s) =>
+      (aux.get(s.dimSuffix) ?? "").endsWith(`#${s.valueFrag}`)
+    );
+    if (
+      !selMatch || year == null || Number.isNaN(year) ||
+      value == null || Number.isNaN(value)
+    ) continue;
+    if (maxYear != null && year > maxYear) continue;
+    // Extract the AGS code from the geo dimension's object IRI (inverse of the
+    // per-style suffix match in parseRegionalObservations).
+    const ags = geoCodeStyle === "ags"
+      ? (geo.match(/\/ags\/([^/]+)$/)?.[1] ?? "")
+      : (geo.includes("#") ? geo.slice(geo.lastIndexOf("#") + 1) : "");
+    if (!ags) continue;
+    const prev = byAgs.get(ags);
+    if (!prev || year > prev.year) byAgs.set(ags, { year, value, unit });
+  }
+  return byAgs;
+}
+
+/**
+ * Fetch + parse the latest value for every region of a table — one GET serves the
+ * whole choropleth layer. Throws on a non-OK response (the caller's query surfaces it).
+ */
+export async function fetchRegionalChoropleth(
+  table: RegionalTable,
+  maxYear?: number,
+): Promise<Map<string, RegionalObservation>> {
+  const url = regionalTableDataUrl(table.tableId);
+  const res = await trackedFetch(
+    url,
+    { headers: { Accept: "text/turtle" } },
+    `regional choropleth ${table.tableId}`,
+  );
+  if (!res.ok) throw new Error(`HTTP ${res.status} fetching regional table ${table.tableId}`);
+  return parseRegionalChoropleth(await res.text(), url, table, maxYear);
 }
 
 /** The table's dereferenceable **linked-data** IRI — the RDF Data Cube resource we

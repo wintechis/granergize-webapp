@@ -461,6 +461,32 @@ export const MESSAGES = {
     de: "Energieverbrauch erneuerbarer Energien im Verarbeitenden Gewerbe",
     fr: "Consommation d'énergies renouvelables dans l'industrie",
   },
+  // Additional choropleth metrics (GRANERGIZE-relevant regionalstatistik tables).
+  regPrimaryEnergy: {
+    en: "Primary energy consumption",
+    de: "Primärenergieverbrauch",
+    fr: "Consommation d'énergie primaire",
+  },
+  regDistrictHeatChp: {
+    en: "District heat from cogeneration",
+    de: "Fernwärmeerzeugung aus Kraft-Wärme-Kopplung",
+    fr: "Chaleur urbaine issue de la cogénération",
+  },
+  regGhgPerCapita: {
+    en: "Greenhouse-gas emissions per capita",
+    de: "Treibhausgasemissionen pro Kopf",
+    fr: "Émissions de gaz à effet de serre par habitant",
+  },
+  regHeatPumpPermits: {
+    en: "New multi-family buildings permitted with heat pumps",
+    de: "Baugenehmigungen Mehrfamilienhäuser mit Wärmepumpe",
+    fr: "Permis de construire d'immeubles collectifs avec pompe à chaleur",
+  },
+  regHeatPumpCompletions: {
+    en: "New multi-family buildings completed with heat pumps",
+    de: "Baufertigstellungen Mehrfamilienhäuser mit Wärmepumpe",
+    fr: "Immeubles collectifs achevés avec pompe à chaleur",
+  },
   // Nearby renewable installations section (linked-mastr — finest grain).
   niTitle: {
     en: "Nearby renewable installations",
@@ -965,6 +991,47 @@ export const MESSAGES = {
     en: "No data",
     de: "Keine Daten",
     fr: "Aucune donnée",
+  },
+  // Region choropleth — the statistics map shaded by AGS-keyed regionalstatistik.
+  choroplethTitle: {
+    en: "Regional statistics",
+    de: "Regionalstatistik",
+    fr: "Statistiques régionales",
+  },
+  choroplethLevelLand: {
+    en: "Bundesländer",
+    de: "Bundesländer",
+    fr: "Länder",
+  },
+  choroplethLevelKreis: {
+    en: "Kreise",
+    de: "Kreise",
+    fr: "Arrondissements",
+  },
+  choroplethLoading: {
+    en: "Loading regions…",
+    de: "Regionen werden geladen…",
+    fr: "Chargement des régions…",
+  },
+  choroplethLevelGemeinde: {
+    en: "Gemeinden",
+    de: "Gemeinden",
+    fr: "Communes",
+  },
+  choroplethZoomHint: {
+    en: "Zoom in for finer regions",
+    de: "Für feinere Regionen hineinzoomen",
+    fr: "Zoomez pour des régions plus fines",
+  },
+  choroplethGemeindeMetric: {
+    en: "Rooftop-PV build-out (Ausbaugrad)",
+    de: "PV-Dachflächen-Ausbaugrad",
+    fr: "Taux d'équipement PV en toiture",
+  },
+  choroplethGemeindeSource: {
+    en: "Bavaria only · Energie-Atlas Bayern",
+    de: "nur Bayern · Energie-Atlas Bayern",
+    fr: "Bavière uniquement · Energie-Atlas Bayern",
   },
   // Calendar-heatmap view (day × hour) of a building's 15-minute series — the
   // tab label, its short legend captions, and the no-data / no-coverage states.

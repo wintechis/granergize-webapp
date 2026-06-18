@@ -2,6 +2,26 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-18]
+- **Redesign WIP (`feat/region-choropleth`): zoom-driven region choropleth.** A standalone
+  `/choropleth` map (validation surface; permanent home TBD) shading AGS-keyed regions by a
+  regional measure, with the **level of detail following the map zoom** — Bundesland → Kreis →
+  Gemeinde — so the viewport never recenters itself (fixes the earlier fit-to-bounds jumpiness).
+  Bundesland/Kreis polygons come whole from `linked-nuts` (`/geojson?level=1|3&parent=DE`) shaded
+  by a chosen `linked-regionalstatistik` table via a **grain-filtered metric dropdown** (7 verified
+  GRANERGIZE tables: renewable electricity share, primary energy, district-heat CHP, GHG/capita;
+  industrial renewable use, heat-pump permits, heat-pump completions). Gemeinde polygons come from
+  `linked-lau` for the viewport bbox, shaded by **real per-Gemeinde rooftop-PV build-out
+  (Ausbaugrad)** from `linked-energieatlas` (one `area/{ags}` GET per visible Bavarian Gemeinde,
+  cached; Bavaria-only). New services `regionGeometry.ts` (geo client + `RegionScope`) and
+  `energieatlas.ts`, plus `parseRegionalChoropleth`/`fetchRegionalChoropleth` (all-regions read) on
+  `regionalCube.ts`; band/legend reuse `constants/lensBand.ts` + `magnitudeCategoriserFor`. New env
+  `VITE_NUTS_API_URI`/`VITE_LAU_API_URI`/`VITE_ENERGIEATLAS_API_URI`; i18n de/en/fr. **+14 Tier-1
+  tests** (geo-URL/normalise, all-regions parse, energieatlas parse) — full suite **808/0**, build
+  clean. (Component render is e2e-only under MUI; data paths verified live against the wrappers.
+  Needs the `linked-energieatlas` CORS filter registered + redeployed for the Gemeinde layer to
+  fetch in-browser.)
+
 ## [2026-06-17]
 - **Keyword search across the top-level finders.** A shared, URL-backed search seam — `lib/textSearch.ts` (case-insensitive AND-substring matcher), `hooks/useListSearch.ts` (`?q=`/`{key}_q=`, resets paging to page 1 on change, restores across reload), and one `SearchField` component — wired into all seven finder lists (Buildings, Observations, Aggregations, Contacts, Rooms, SharingFinder ×2), each with a "no matches" state and a per-type `searchText` accessor (shared `buildingSearchText`). i18n de/en/fr. Tier-1 +8 (matcher + URL hook); new Tier-3 `search-finder.spec.ts` (filter → URL-backed reload → no-match → clear) green. typecheck + build + lint clean.
 - **Regional-context e2e: named Kreis + bare-AGS fallback.** Extended `regional-context.spec.ts` to use a *Landkreis* (`09574` Roth — a code beyond the wrapper's ~100-concept `cl/geo` page, the case that surfaced the truncation bug): the happy test asserts the Kreis caption resolves to the name ("Roth, Landkreis") with no bare AGS leaking, and a new second test flips the stubbed codelist to omit `09574` (+ a reload to drop the session-cached codelist) and asserts the figure still renders while the caption **degrades to the bare AGS** — pinning graceful degradation. 2 passed (Tier-3 local).

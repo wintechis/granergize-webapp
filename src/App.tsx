@@ -20,6 +20,7 @@ import Energy from "./pages/Energy.tsx";
 import Contact from "./pages/Contact.tsx";
 import Room from "./pages/Room.tsx";
 import Aggregation from "./pages/Aggregation.tsx";
+import { RegionChoropleth } from "./components/RegionChoropleth.tsx";
 import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -268,6 +269,10 @@ function App({ onLogout, session }: AppProps) {
     { path: DETAIL_PATTERNS.aggregation, element: <AggregationWrapper session={session} /> },
     { path: DETAIL_PATTERNS.contact, element: <ContactWrapper /> },
     { path: DETAIL_PATTERNS.room, element: <RoomWrapper session={session} /> },
+    // Temporary standalone validation surface for the region choropleth (Slice 3,
+    // plans/plan-region-choropleth.md) — permanent home (ExplorePage lens vs
+    // Aggregations guise) still TBD.
+    { path: "/choropleth", element: <RegionChoropleth /> },
   ];
 
   // The five FINDER routes share the persistent app chrome (top-nav + header):
