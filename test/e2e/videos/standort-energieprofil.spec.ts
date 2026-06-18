@@ -10,7 +10,9 @@ import { Demo } from "./demoPolish.ts";
  * Records the use-case-#4 video — the **Standort-Potenzial-Radar** walkthrough: a
  * single actor opens her building's detail page and reads the "Standort-Energieprofil"
  * panel, a radar of money/resource opportunities for the location, assembled from open
- * Linked-Data wrappers (`linked-energieatlas` + `linked-mastr`). LOCAL tier only:
+ * Linked-Data wrappers (`linked-energieatlas` + `linked-mastr`), then closes on the region
+ * **choropleth** (`/choropleth`, `linked-nuts`/`linked-lau` geometry shaded by the same
+ * per-Gemeinde Energie-Atlas build-out). LOCAL tier only:
  *
  *   deno task videos
  *
@@ -136,9 +138,41 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     );
     await demo.caption("");
 
+    // --- Scene 6: the regional view — the rooftop Ausbaulücke across the Gemeinden
+    //     of the area, as a choropleth (linked-energieatlas per Gemeinde, shaded by
+    //     build-out degree). Deep-link straight to Nuremberg at Gemeinde grain via the
+    //     RegionChoropleth `?lat&lon&zoom` initial view. ---
+    await demo.scene(
+      "region",
+      "Und im regionalen Bild: die Ausbaulücke über die Gemeinden der Umgebung",
+    );
+    // Navigate CLIENT-SIDE (no reload) the way the app itself does — push the path
+    // and dispatch `popstate`, which BrowserRouter listens to (the same mechanism
+    // Login.tsx's session-restore replay uses). A full `goto` of this deep-link route
+    // hits the unverified restore path and bounces to the finder; this keeps the warm
+    // session AND the demo overlay, and lands squarely on the choropleth.
+    await stage.evaluate(() => {
+      window.history.pushState({}, "", "/choropleth?lat=49.45&lon=11.08&zoom=11");
+      window.dispatchEvent(new PopStateEvent("popstate"));
+    });
+    await expect(stage.getByText(vt("choroplethTitle"))).toBeVisible({ timeout: 60_000 });
+    // Zoom 11 ⇒ Gemeinde grain: Bavarian municipalities shade by rooftop Ausbaugrad.
+    // `exact` so the level label isn't confused with the scene caption (which also
+    // contains the word "Gemeinden").
+    await expect(stage.getByText(vt("choroplethLevelGemeinde"), { exact: true }))
+      .toBeVisible({ timeout: 60_000 });
+    await stage.waitForLoadState("networkidle").catch(() => {});
+    // One Energie-Atlas GET per visible Bavarian Gemeinde resolves the shading — give
+    // them a beat to fill in before the caption.
+    await demo.pause(6_000);
+    await demo.caption(
+      "Hell = wenig erschlossen, dunkel = viel: die Standort-Chance im regionalen Vergleich",
+      4_500,
+    );
+    await demo.caption("");
+
     // --- Payoff. ---
-    await demo.moveTo(profile);
-    await demo.pause(1_000);
+    await demo.pause(800);
     await demo.caption(
       "Standort-Potenzial-Radar: konkrete Chancen aus offenen Daten – ohne eigene Recherche",
       4_000,

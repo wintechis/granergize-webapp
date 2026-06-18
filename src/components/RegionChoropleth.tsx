@@ -22,6 +22,7 @@
  * live wrappers; its permanent home is deferred — see `plans/plan-region-choropleth.md`.
  */
 import { useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import {
   GeoJSON,
   MapContainer,
@@ -121,7 +122,22 @@ function ViewWatch(
 }
 
 export function RegionChoropleth() {
-  const [zoom, setZoom] = useState(6);
+  // Optional deep-link to an initial view: `?lat&lon&zoom` (e.g. a building's radar
+  // → "this Gemeinde in its region"). Absent → the Germany overview. Read once for the
+  // initial mount; the map is user-driven thereafter (it never recenters itself).
+  const [sp] = useSearchParams();
+  const num = (s: string | null): number | null => {
+    const n = s == null ? NaN : Number(s);
+    return Number.isFinite(n) ? n : null;
+  };
+  const latN = num(sp.get("lat"));
+  const lonN = num(sp.get("lon"));
+  const initialZoom = num(sp.get("zoom")) ?? 6;
+  const initialCenter: [number, number] = latN != null && lonN != null
+    ? [latN, lonN]
+    : [51.1, 10.4];
+
+  const [zoom, setZoom] = useState(initialZoom);
   const [bbox, setBbox] = useState<string | null>(null);
   // The user's chosen regionalstatistik metric per value-grain (Land / Kreis).
   const [selectedId, setSelectedId] = useState<Record<string, string>>({});
@@ -265,7 +281,7 @@ export function RegionChoropleth() {
       </Box>
 
       <Box sx={{ flex: 1, minHeight: 0, position: "relative" }}>
-        <MapContainer center={[51.1, 10.4]} zoom={6} style={{ height: "100%" }}>
+        <MapContainer center={initialCenter} zoom={initialZoom} style={{ height: "100%" }}>
           <WMSTileLayer
             url={BASEMAP_DE.url}
             layers={BASEMAP_DE.layers}
