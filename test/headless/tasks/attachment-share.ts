@@ -56,7 +56,7 @@ export async function run(ctx: TaskContext): Promise<void> {
       new File(["hello attachment"], "report.pdf", { type: "application/pdf" }),
       a.session,
     );
-    attachmentUri = ref.url;
+    attachmentUri = ref.uri;
 
     // A shares the building directly with B (no room needed for a known WebID).
     await shareBuildingData(fileUri, b.webId, a.session, {
@@ -72,7 +72,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     );
 
     // The headline: B can actually fetch the attachment binary.
-    const bRead = await b.raw.fetch(`${ref.url}?t=${Date.now()}`);
+    const bRead = await b.raw.fetch(`${ref.uri}?t=${Date.now()}`);
     await bRead.body?.cancel().catch(() => {});
     check(
       "B can READ the shared attachment (ACL via files/ container grant)",
@@ -82,7 +82,7 @@ export async function run(ctx: TaskContext): Promise<void> {
 
     // After revoke, the attachment is no longer readable by B.
     await revokeAccess(fileUri, b.webId, a.session);
-    const bRead2 = await b.raw.fetch(`${ref.url}?t=${Date.now()}`);
+    const bRead2 = await b.raw.fetch(`${ref.uri}?t=${Date.now()}`);
     await bRead2.body?.cancel().catch(() => {});
     check(
       "B can no longer read the attachment after revoke",

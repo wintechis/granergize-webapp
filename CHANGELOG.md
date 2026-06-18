@@ -3,6 +3,22 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-18]
+- **Tests gain a (kind × backend × mode) shape and a working `headless:remote` lane.**
+  Reframed the four linear "Tiers" as orthogonal axes — `unit`/`headless`/`e2e` ×
+  `local`/`remote`, with a `mode` (assert/measure/judge) placing benchmarks and evals —
+  and built the missing `headless:remote` cell: `deno task it:remote` runs the same
+  headless task modules against a real Solid server via a provider-pluggable session
+  source (`test/headless/sessionSource.ts`), reusing the shared account registry.
+  Validated against the Fraunhofer test CSS (50/71 — the failures are real
+  read-after-write / ETag-conflict / ACL-inheritance divergences a hermetic local server
+  can't surface, not app regressions). Relocated the live Wikidata-logo check out of the
+  `unit` glob to `test/headless/contract/` (`deno task it:contract`) so `unit` is provably
+  hermetic (0 ignored). Fixed the headless runner + tasks for the PodGateway flattening
+  (Tier-2 was silently broken) and added a deterministic `contacts` task. Renamed
+  test-account creds from the narrow `E2E_*` prefix to a neutral `WEBID_<slot>_*` scheme
+  shared by e2e, bench and headless:remote (e2e run-mode flags like `E2E_LOCAL` stay);
+  dropped the redundant `.env.it-remote.*` files. CLAUDE.md and `test/README.md` document
+  the grid.
 - **Demo seeding survives a transient write blip.** A one-off `502`/`504` on a single write no
   longer drops it from a demo-seed (the "Added {n} of {total}" partial): `withRetry` now treats
   `502`/`504` as transient and replay-safe alongside `429`/`503` (`500` stays non-retryable), so

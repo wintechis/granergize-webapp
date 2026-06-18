@@ -84,7 +84,7 @@ test.describe("file sharing across two pods", () => {
     a.page.on("dialog", (d) => d.accept());
     try {
       // Discover B's REAL WebID from its logged-in session (the account menu),
-      // rather than deriving it from the username — works without E2E_WEBID_B and
+      // rather than deriving it from the username — works without WEBID_B and
       // regardless of the provider's WebID layout.
       const bWebId = await webIdOf(b1.page);
       await addBuilding(a.page, street);

@@ -23,7 +23,7 @@ const ACC = account("A");
 test.describe("app-chrome i18n: language switcher", () => {
   test.skip(
     !hasAccount(ACC),
-    `Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run the i18n e2e.`,
+    `Set WEBID_A_USERNAME / WEBID_A_PASSWORD (a throwaway Solid Pod) to run the i18n e2e.`,
   );
 
   test("switching the UI language flips a migrated app-chrome string in place", async ({ browser }) => {

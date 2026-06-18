@@ -8,7 +8,7 @@
  * specs read it via `webIdOf`, the headless JSS backend gets it from `POST /.pods`,
  * and the headless CSS backend binds it from its own seed — never one you construct
  * from a username + a server's path convention. Irregular remote accounts supply
- * theirs out-of-band via `E2E_WEBID_*`.
+ * theirs out-of-band via the bare `WEBID_*`.
  *
  * - Tier 2 (headless) ALWAYS uses the `local` provider, constructed at boot.
  * - Tier 4 (browser, remote) selects real providers below.
@@ -57,12 +57,22 @@ export const PROVIDERS: Record<string, PodProvider> = {
   // A second non-Cloudflare host, used as role B for the A+B sharing pair
   // (`test/.env.meisdata.local`). The by-role sharing path discovers B's WebID via
   // room membership; the By-WebID path reads it from B's own session (`webIdOf`) or
-  // `E2E_WEBID_B`. Pair A(solidweb)+B(solidwebme) is heterogeneous → `E2E_INTEROP_OK=1`.
+  // the bare `WEBID_B`. Pair A(solidweb)+B(solidwebme) is heterogeneous → `WEBID_INTEROP_OK=1`.
   solidwebme: {
     id: "solidwebme",
     issuer: "https://solidweb.me",
     kind: "css-v6",
     supportsClientCredentials: false,
+    throttled: false,
+    loginStyle: "browser-oidc",
+  },
+  // Fraunhofer IIS test CSS (modern Community Solid Server: /.oidc/ + DPoP +
+  // client_credentials grant). Not Cloudflare-fronted → not throttled.
+  fraunhofer: {
+    id: "fraunhofer",
+    issuer: "https://solidtest.iis.fraunhofer.de",
+    kind: "css-v6",
+    supportsClientCredentials: true,
     throttled: false,
     loginStyle: "browser-oidc",
   },
@@ -87,7 +97,7 @@ export function localProvider(
   };
 }
 
-/** Map a configured issuer URL back to a provider id (back-compat with E2E_ISSUER_*). */
+/** Map a configured issuer URL back to a provider id (for `WEBID_<slot>_ISSUER`). */
 export function providerIdForIssuer(issuer: string | undefined): string | undefined {
   if (!issuer) return undefined;
   const norm = issuer.replace(/\/$/, "");

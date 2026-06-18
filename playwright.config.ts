@@ -53,10 +53,10 @@ const BACKEND = process.env.LOCAL_POD_SERVER === "jss" ? "jss" : "css";
 // `tier-4-solidweb`) instead of colliding in one `tier-4/` and overwriting each
 // other's traces even when they share a RUN_ID. Resolution mirrors `account()`:
 // explicit `E2E_POD_LABEL` (a friendly name like `meisdata`) wins, else the
-// provider id of `E2E_PROVIDER_A` / `E2E_ISSUER_A`, else bare `tier-4`.
+// provider id of `WEBID_A_PROVIDER` / `WEBID_A_ISSUER`, else bare `tier-4`.
 const TIER4_POD = process.env.E2E_POD_LABEL ||
-  process.env.E2E_PROVIDER_A ||
-  providerIdForIssuer(process.env.E2E_ISSUER_A);
+  process.env.WEBID_A_PROVIDER ||
+  providerIdForIssuer(process.env.WEBID_A_ISSUER);
 const SCOPE = process.env.E2E_BENCH
   ? `bench-${BACKEND}`
   : LOCAL
@@ -79,6 +79,7 @@ if (!LOCAL && !process.env.VITE_POD_APP_DIR) {
 }
 
 const CHROME = { ...devices["Desktop Chrome"] };
+const FIREFOX = { ...devices["Desktop Firefox"] };
 // ── Redesign (2026-06-14): active vs. quarantined specs ──────────────────────
 // During the master-detail redesign we DON'T keep the whole legacy suite green —
 // the surfaces are being rewritten, so most legacy specs reference the old
@@ -120,6 +121,7 @@ const SOLO_SPECS = [
   "**/aggregations-open-tier.spec.ts",
   "**/nearby-installations.spec.ts",
   "**/dev-source-links.spec.ts",
+  "**/seed-demos.spec.ts",
   // Cube UI — CQ-anchored space-time-cube specs (plans/plan-cube-ui.md).
   "**/cube-time-cut.spec.ts",
   "**/cube-space-cut.spec.ts",
@@ -216,6 +218,10 @@ export default defineConfig({
       ? [{ name: "setup", use: CHROME, testMatch: ["**/setup/**/*.setup.ts"] }]
       : []),
     { name: "solo", use: CHROME, testMatch: SOLO_SPECS },
+    // Same solo specs under Firefox — opt-in via `--project=solo-firefox`, never part
+    // of `e2e:remote` (which selects solo/duo/trio). For cross-browser triage of
+    // engine-specific failures (e.g. DPoP-nonce / conditional-PUT timing on a burst).
+    { name: "solo-firefox", use: FIREFOX, testMatch: SOLO_SPECS },
     { name: "duo", use: CHROME, testMatch: DUO_SPECS },
     { name: "trio", use: CHROME, testMatch: TRIO_SPECS },
     { name: "support", use: CHROME, testMatch: ["**/support/**/*.spec.ts"] },

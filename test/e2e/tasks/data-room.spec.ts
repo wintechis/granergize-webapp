@@ -36,7 +36,7 @@ test.describe.configure({ mode: "serial" });
 test.describe("data rooms", () => {
   test.skip(
     !hasAccount(A),
-    `Set E2E_USERNAME_A / E2E_PASSWORD_A (Alice; a throwaway Solid Pod) to run the data-room tests.`,
+    `Set WEBID_A_USERNAME / WEBID_A_PASSWORD (Alice; a throwaway Solid Pod) to run the data-room tests.`,
   );
 
   let page: Page;
