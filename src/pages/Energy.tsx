@@ -16,6 +16,7 @@ import ObservationHeader from "../components/observation/ObservationHeader.tsx";
 import WeatherData from "./WeatherData.tsx";
 import EnergyWeatherOverlay from "../components/EnergyWeatherOverlay.tsx";
 import NearbyInstallationsSection from "../components/observation/NearbyInstallationsSection.tsx";
+import NearbyRooftopsSection from "../components/observation/NearbyRooftopsSection.tsx";
 
 type EnergyProps = {
   building: BuildingType;
@@ -101,6 +102,7 @@ export default function Energy({ building }: EnergyProps) {
         </Typography>
         {weatherSection}
         <NearbyInstallationsSection building={building} />
+        <NearbyRooftopsSection building={building} />
       </Stack>
     );
   }
@@ -147,6 +149,7 @@ export default function Energy({ building }: EnergyProps) {
       />
       {weatherSection}
       <NearbyInstallationsSection building={building} />
+      <NearbyRooftopsSection building={building} />
     </Stack>
   );
 }

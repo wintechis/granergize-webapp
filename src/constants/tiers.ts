@@ -1,4 +1,9 @@
 import type { MessageId } from "../lib/messages.ts";
+import {
+  MARKER_OPEN_COLOR,
+  MARKER_OWNED_COLOR,
+  MARKER_SHARED_COLOR,
+} from "./chartColors.ts";
 
 /**
  * Provenance **source tiers** a finder collection can union (the
@@ -22,4 +27,16 @@ export const TIER_LABEL: Record<Tier, MessageId> = {
   mine: "tierMine",
   shared: "tierShared",
   open: "tierOpen",
+};
+
+/**
+ * Swatch colour per tier — the SAME colours the map markers wear (mine = owned
+ * blue, shared = orange, open = green). The source selector shows these dots so
+ * it doubles as the colour key, replacing the separate map legend that used to
+ * repeat "My buildings / Shared with me".
+ */
+export const TIER_COLOR: Record<Tier, string> = {
+  mine: MARKER_OWNED_COLOR,
+  shared: MARKER_SHARED_COLOR,
+  open: MARKER_OPEN_COLOR,
 };

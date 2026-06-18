@@ -15,6 +15,7 @@ import {
   promoteNext,
   requestClose,
 } from "../lib/notificationQueue.ts";
+import { recordNotification } from "../lib/notificationLog.ts";
 
 type Severity = "error" | "warning" | "info" | "success";
 
@@ -45,6 +46,15 @@ export function NotificationProvider(
       if (severity === "error") console.error(`[notify] ${message}`);
       else if (severity === "warning") console.warn(`[notify] ${message}`);
       keyRef.current += 1;
+      // Record every emitted notice for the dev-mode notification log — including
+      // ones the queue collapses as consecutive duplicates, so the log shows what
+      // the app tried to say, not just what stayed on screen.
+      recordNotification({
+        key: keyRef.current,
+        message,
+        severity,
+        at: Date.now(),
+      });
       setQueue((prev) => enqueue(prev, { key: keyRef.current, message, severity }));
     },
     [],

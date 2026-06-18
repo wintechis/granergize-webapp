@@ -78,14 +78,14 @@ export const MESSAGES = {
   uiLanguage: { en: "Language", de: "Sprache", fr: "Langue" },
   // ⌘K command palette (plan-palette §4).
   palettePlaceholder: {
-    en: "Type a command…",
-    de: "Befehl eingeben…",
-    fr: "Saisir une commande…",
+    en: "Search or type a command…",
+    de: "Suchen oder Befehl eingeben…",
+    fr: "Rechercher ou saisir une commande…",
   },
   paletteEmpty: {
-    en: "No matching commands",
-    de: "Keine passenden Befehle",
-    fr: "Aucune commande correspondante",
+    en: "No matches",
+    de: "Keine Treffer",
+    fr: "Aucun résultat",
   },
   paletteGroupNavigation: { en: "Go to", de: "Gehe zu", fr: "Aller à" },
   paletteGroupActions: { en: "Actions", de: "Aktionen", fr: "Actions" },
@@ -115,9 +115,9 @@ export const MESSAGES = {
     fr: "nouvelle tentative",
   },
   paletteOpenAria: {
-    en: "Open command palette (Ctrl K)",
-    de: "Befehlspalette öffnen (Strg K)",
-    fr: "Ouvrir la palette de commandes (Ctrl K)",
+    en: "Search (Ctrl K)",
+    de: "Suchen (Strg K)",
+    fr: "Rechercher (Ctrl K)",
   },
   // Top-nav finder labels.
   navBuildings: { en: "Buildings", de: "Gebäude", fr: "Bâtiments" },
@@ -437,6 +437,31 @@ export const MESSAGES = {
     de: "{count} Anfrage(n) werden geladen — für das Protokoll klicken",
     fr: "{count} requête(s) en cours — cliquez pour le journal",
   },
+  nlTitle: {
+    en: "Notifications",
+    de: "Benachrichtigungen",
+    fr: "Notifications",
+  },
+  nlShowLog: {
+    en: "Show notification log",
+    de: "Benachrichtigungsprotokoll anzeigen",
+    fr: "Afficher le journal des notifications",
+  },
+  nlShowLogShort: {
+    en: "Show notification log",
+    de: "Benachrichtigungsprotokoll anzeigen",
+    fr: "Afficher le journal",
+  },
+  nlRecent: {
+    en: "{count} recent",
+    de: "{count} aktuelle",
+    fr: "{count} récentes",
+  },
+  nlEmpty: {
+    en: "No notifications yet.",
+    de: "Noch keine Benachrichtigungen.",
+    fr: "Aucune notification pour le moment.",
+  },
   lensAria: {
     en: "Marker colour lens",
     de: "Marker-Farblinse",
@@ -607,6 +632,36 @@ export const MESSAGES = {
     de: "Datenquelle: Marktstammdatenregister (Bundesnetzagentur)",
     fr: "Source des données : Marktstammdatenregister (Bundesnetzagentur)",
   },
+  nrTitle: {
+    en: "Nearby rooftop solar potential",
+    de: "Solar-Dachpotenzial in der Nähe",
+    fr: "Potentiel solaire des toitures à proximité",
+  },
+  nrSummary: {
+    en: "{count} rooftops within {radius} m · ~{kwp} kWp total",
+    de: "{count} Dächer im Umkreis von {radius} m · ~{kwp} kWp gesamt",
+    fr: "{count} toitures dans un rayon de {radius} m · ~{kwp} kWp au total",
+  },
+  nrKwp: { en: "{kwp} kWp", de: "{kwp} kWp", fr: "{kwp} kWp" },
+  nrViewAria: {
+    en: "Nearby rooftops view",
+    de: "Ansicht der Dächer in der Nähe",
+    fr: "Vue des toitures à proximité",
+  },
+  nrCaption: {
+    en:
+      "Estimated rooftop-PV potential of nearby buildings, by location — not their actual energy data.",
+    de:
+      "Geschätztes Dach-PV-Potenzial benachbarter Gebäude, nach Standort — nicht ihre tatsächlichen Energiedaten.",
+    fr:
+      "Potentiel photovoltaïque estimé des toitures voisines, par localisation — pas leurs données énergétiques réelles.",
+  },
+  nrDataSource: {
+    en: "Data source: LoD2 building model (LDBV Bayern), rooftop potential computed in-app",
+    de: "Datenquelle: LoD2-Gebäudemodell (LDBV Bayern), Dachpotenzial in der App berechnet",
+    fr:
+      "Source des données : modèle de bâtiment LoD2 (LDBV Bayern), potentiel de toiture calculé dans l'application",
+  },
   // Generic "Data source:" prefix (building producer attribution, weather, …).
   dataSourceLabel: {
     en: "Data source:",
@@ -746,16 +801,6 @@ export const MESSAGES = {
     en: "No trend yet",
     de: "Noch kein Trend",
     fr: "Pas encore de tendance",
-  },
-  legendMyBuildings: {
-    en: "My buildings",
-    de: "Meine Gebäude",
-    fr: "Mes bâtiments",
-  },
-  legendSharedWithMe: {
-    en: "Shared with me",
-    de: "Mit mir geteilt",
-    fr: "Partagés avec moi",
   },
   // User-energy (sub-hourly electricity series) chart labels.
   uecNoData: {

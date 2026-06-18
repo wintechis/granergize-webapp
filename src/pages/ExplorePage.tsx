@@ -40,8 +40,6 @@ import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import {
   MARKER_NO_DATA_COLOR,
-  MARKER_OWNED_COLOR,
-  MARKER_SHARED_COLOR,
   TREND_FLAT_COLOR,
   TREND_IMPROVING_COLOR,
   TREND_WORSENING_COLOR,
@@ -750,8 +748,9 @@ export default function ExplorePage(
         {/* Swatches for the active lens/view. The energy lens / matrix / compare
             multiples colour by the selected metric's FRAMING — efficiency tiers for
             consumption, a neutral low/mid/high magnitude ramp for generation; the
-            trend lens has its own diverging palette; the ownership swatches are
-            map-only. */}
+            trend lens has its own diverging palette. The OWNERSHIP lens has no swatch
+            row: the colour key for owned/shared is the Mine/Shared tier selector
+            above the map (its dots carry the same marker colours). */}
         {(view === "matrix" || view === "compare" ||
             (view === "map" && lens === "energy")
           ? legendBands(framing).map((b) =>
@@ -764,10 +763,7 @@ export default function ExplorePage(
             [TREND_COLOR.worsening, t("legendWorsening")],
             [TREND_COLOR.unknown, t("legendNoTrend")],
           ] as const)
-          : ([
-            [MARKER_OWNED_COLOR, t("legendMyBuildings")],
-            [MARKER_SHARED_COLOR, t("legendSharedWithMe")],
-          ] as const)).map(([color, label]) => (
+          : ([] as ReadonlyArray<readonly [string, string]>)).map(([color, label]) => (
             <Box key={label} sx={{ display: "flex", alignItems: "center", gap: 0.75 }}>
               <Box
                 sx={{

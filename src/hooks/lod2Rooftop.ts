@@ -11,7 +11,14 @@
  */
 import { useQuery, type UseQueryResult } from "@tanstack/react-query";
 import type { BuildingType } from "../types.ts";
-import { fetchRooftopPotential, type RooftopPotential } from "../services/lod2Rooftop.ts";
+import {
+  fetchNearbyRooftopGeometry,
+  fetchNearbyRooftops,
+  fetchRooftopPotential,
+  type NearbyRooftop,
+  type NearbyRooftopGeometry,
+  type RooftopPotential,
+} from "../services/lod2Rooftop.ts";
 import { logError } from "../lib/logError.ts";
 
 /**
@@ -36,6 +43,62 @@ export function useLod2Rooftop(
         // Best-effort: a down/partial wrapper must not sink the page or toast.
         logError("fetch rooftop-PV potential", err);
         return null;
+      }
+    },
+  });
+}
+
+/**
+ * Rooftop-PV potential of buildings NEAR this one — the neighbourhood sibling of
+ * {@link useLod2Rooftop} (and the rooftop analogue of {@link useNearbyInstallations}). `data`
+ * is `[]` when the building has no coordinates (query disabled), the area is outside the dump
+ * coverage, or the fetch failed. Hour-long `staleTime` — the LoD2 model changes slowly.
+ */
+export function useNearbyRooftops(
+  building: BuildingType,
+): UseQueryResult<NearbyRooftop[]> {
+  const { lat, long } = building;
+  const located = lat != null && long != null;
+  return useQuery<NearbyRooftop[]>({
+    queryKey: ["lod2NearbyRooftops", lat, long],
+    enabled: located,
+    staleTime: 1000 * 60 * 60,
+    queryFn: async () => {
+      if (lat == null || long == null) return [];
+      try {
+        return await fetchNearbyRooftops(lat, long);
+      } catch (err) {
+        // Best-effort: a down/partial wrapper must not sink the page or toast.
+        logError("fetch nearby rooftops", err);
+        return [];
+      }
+    },
+  });
+}
+
+/**
+ * Nearby rooftops WITH footprint geometry — the deref-heavy upgrade of {@link useNearbyRooftops}
+ * (one request per nearby building). Gated by `enabled` so the derefs fire only when the map view
+ * is actually open (the list/summary need just the cheap point summary). `[]` on no-coords/failure.
+ */
+export function useNearbyRooftopGeometry(
+  building: BuildingType,
+  enabled: boolean,
+): UseQueryResult<NearbyRooftopGeometry[]> {
+  const { lat, long } = building;
+  const located = lat != null && long != null;
+  return useQuery<NearbyRooftopGeometry[]>({
+    queryKey: ["lod2NearbyRooftopGeom", lat, long],
+    enabled: enabled && located,
+    staleTime: 1000 * 60 * 60,
+    queryFn: async () => {
+      if (lat == null || long == null) return [];
+      try {
+        return await fetchNearbyRooftopGeometry(lat, long);
+      } catch (err) {
+        // Best-effort: a down/partial wrapper must not sink the page or toast.
+        logError("fetch nearby rooftop geometry", err);
+        return [];
       }
     },
   });

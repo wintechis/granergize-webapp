@@ -31,6 +31,11 @@ export const MARKER_OWNED_COLOR = BRAND_PRIMARY;
  * green/amber/red, so the two lenses can't be read into each other. */
 export const MARKER_SHARED_COLOR = "#ef6c00";
 
+/** Public open-data items (the Aggregations finder's third source tier) — a
+ * green, distinct from the owned blue / shared orange and from the energy
+ * lens's pale tints, so the source selector's colour key reads cleanly. */
+export const MARKER_OPEN_COLOR = "#2e7d32";
+
 /**
  * Heat-map tints for the energy comparison grid (below / above the average),
  * saturated by the deviation via `alpha()`. A deliberately PALE pair (not the

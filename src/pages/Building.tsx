@@ -84,17 +84,17 @@ export default function Building({ building }: BuildingProps) {
       <BuildingHeader building={building} />
       <MasterDataSection building={building} autoOpenEdit={action === "edit"} />
       <EnergySummarySection building={building} />
-      <StandortEnergieprofil building={building} />
-      <RoofPlan building={building} />
-      <NeighbourhoodEnergyMap building={building} />
-      <RegionalContextSection building={building} />
-      <RegionalMetricsSection building={building} />
       <BuildingFilesSection building={building} session={session} />
       <SharingSection
         building={building}
         session={session}
         autoOpenShare={action === "share"}
       />
+      <StandortEnergieprofil building={building} />
+      <RoofPlan building={building} />
+      <NeighbourhoodEnergyMap building={building} />
+      <RegionalContextSection building={building} />
+      <RegionalMetricsSection building={building} />
       <RdfSourceLink href={sourceUri} />
     </Stack>
   );

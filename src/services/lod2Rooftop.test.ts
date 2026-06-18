@@ -1,6 +1,10 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { parseBuildingRoofs, parseNearestBuilding } from "./lod2Rooftop.ts";
+import {
+  parseBuildingRoofs,
+  parseNearbyRooftops,
+  parseNearestBuilding,
+} from "./lod2Rooftop.ts";
 import { computePotential } from "./rooftopPv.ts";
 
 // A `point` summary slice: two RoofPotential buildings with coordinates. The nearest to the
@@ -24,6 +28,34 @@ Deno.test("parseNearestBuilding picks the building closest to the query point", 
 
 Deno.test("parseNearestBuilding returns null for an empty document", () => {
   assert.equal(parseNearestBuilding("", POINT_BASE, 49, 11), null);
+});
+
+Deno.test("parseNearbyRooftops returns ALL buildings with capacity, nearest first", () => {
+  const near = parseNearbyRooftops(POINT_TTL, POINT_BASE, 49.609711, 11.130988);
+  assert.equal(near.length, 2);
+  // A is at the query point, B is ~2 km away → A first.
+  assert.equal(near[0].iri, "https://wunderfacts.com/lod2-by/building/A");
+  assert.equal(near[0].installableKwp, 40.39);
+  assert.equal(near[1].iri, "https://wunderfacts.com/lod2-by/building/B");
+  assert.ok(near[0].distanceKm < near[1].distanceKm);
+});
+
+Deno.test("parseNearbyRooftops skips buildings without an installable-capacity figure", () => {
+  const ttl = `
+@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+<https://wunderfacts.com/lod2-by/building/A> a lod2:RoofPotential ;
+  geo:lat 49.61 ; geo:long 11.13 ; lod2:installableCapacity 22.38 .
+<https://wunderfacts.com/lod2-by/building/X> a lod2:RoofPotential ;
+  geo:lat 49.62 ; geo:long 11.15 .
+`;
+  const near = parseNearbyRooftops(ttl, POINT_BASE, 49.61, 11.13);
+  assert.equal(near.length, 1);
+  assert.equal(near[0].iri, "https://wunderfacts.com/lod2-by/building/A");
+});
+
+Deno.test("parseNearbyRooftops returns [] for an empty document", () => {
+  assert.deepEqual(parseNearbyRooftops("", POINT_BASE, 49, 11), []);
 });
 
 // A faithful slice of building/DEBY_LOD2_3594699 from the live wrapper: the three roof

@@ -6,8 +6,9 @@
  * {@link ./StandortEnergieprofil.tsx}: that card is the building total, this is *where* on
  * the roof the potential sits. Sits under the rooftop content on the building page.
  *
- * Degrades to nothing until the wrapper serves the footprints (no `polygon` → no plan) and
- * outside the LoD2 dump's coverage (the hook returns null), so it's safe to mount now.
+ * The wrapper serves the WKT footprints within the LoD2-BY dump's coverage (currently the
+ * Nuremberg pilot, AGS 09564), so the plan renders there. It degrades to nothing outside that
+ * coverage — the hook returns null, or a building arrives without a `polygon` → no plan.
  */
 import { Box, Stack, Typography } from "@mui/material";
 import GridOnIcon from "@mui/icons-material/GridOn";
@@ -23,14 +24,16 @@ import { bandColor } from "../../constants/lensBand.ts";
 import MagnitudeLegend from "../region/MagnitudeLegend.tsx";
 
 const FRAMING: MetricFraming = "magnitude";
-const W = 320;
-const H = 220;
+// The plan's coordinate canvas; the Box caps display at W px (svg is width:100%), so bumping
+// these enlarges the rendered plan while keeping the same fit. Sized to fill the detail column.
+const W = 640;
+const H = 440;
 const PAD = 6;
 
 export default function RoofPlan({ building }: { building: BuildingType }) {
   const data = useLod2Rooftop(building).data ?? null;
 
-  // Only the surfaces the wrapper served a footprint for (none yet → the plan is omitted).
+  // Only the surfaces the wrapper served a footprint for (outside coverage → none → omitted).
   const surfaces = (data ? evaluateRoofs(data.roofs) : [])
     .map((e) => ({ e, ring: e.surface.polygon }))
     .filter((s): s is { e: RoofEval; ring: [number, number][] } => !!s.ring);

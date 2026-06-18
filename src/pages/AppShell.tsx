@@ -2,6 +2,7 @@ import { type PodGateway, sessionGateway } from "../services/pod/podGateway.ts";
 import { useEffect, useRef, useState } from "react";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
+import SearchIcon from "@mui/icons-material/Search";
 import Menu from "@mui/material/Menu";
 import MenuItem from "@mui/material/MenuItem";
 import Divider from "@mui/material/Divider";
@@ -21,12 +22,12 @@ import { Session } from "@inrupt/solid-client-authn-browser";
 import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import PersonIcon from "@mui/icons-material/Person";
-import SearchIcon from "@mui/icons-material/Search";
 import Footer from "../components/Footer.tsx";
 import { setDevMode, useDevMode } from "../hooks/devMode.ts";
 import { type Lang, setLanguage, useLanguage } from "../hooks/language.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
+import NotificationLogIndicator from "../components/NotificationLogIndicator.tsx";
 import CommandPalette, { OPEN_PALETTE_EVENT } from "../components/CommandPalette.tsx";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
@@ -543,6 +544,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           }}
         >
           <NetworkActivityIndicator />
+          <NotificationLogIndicator />
           <Tooltip title={t("paletteOpenAria")}>
             <IconButton
               size="small"

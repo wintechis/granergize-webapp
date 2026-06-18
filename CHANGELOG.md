@@ -3,6 +3,31 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-18]
+- **Nearby rooftop solar potential — the neighbourhood view of rooftop PV.** A new section on the
+  energy page (beside *Nearby generation*) lists the buildings around this one with their installable
+  rooftop PV (kWp + distance), from `linked-lod2-by`'s `point` summary — no derefs for the list.
+  Switching to the **map** view derefs the ~24 nearest buildings (concurrency-capped at 6) for their
+  `gsp:asWKT` footprints and draws them as **real roof polygons** on the orthophoto, shaded by kWp via
+  the shared magnitude lens (a kWp-sized dot fallback while geometry loads / when none is served).
+  Lazy — the derefs fire only when the map is opened. `useNearbyRooftops` /
+  `useNearbyRooftopGeometry` + a pure `parseNearbyRooftops` (offline-fixture tested). Also **enlarges
+  the building's own `RoofPlan`** (320×220 → 640×440) and freshens the now-stale "wrapper serves no
+  footprints yet" comments — the Nuremberg pilot (AGS 09564) serves `gsp:asWKT` live.
+- **Developer mode: a rolling log of recent toasts.** Mirroring the network-request log, a new bell
+  indicator in the header (dev-mode only) opens the last 100 notifications (severity · message · time),
+  newest first. Every `showNotification` is recorded — including the consecutive duplicates the snackbar
+  queue collapses — so the log shows what the app *tried* to say, not just what stayed on screen.
+  Framework-agnostic store (`lib/notificationLog.ts`) + `useNotificationLog`; offline-tested.
+- **Command palette reads as search.** The ⌘K palette keeps its magnifying-glass icon but its wording
+  now matches it — *Search (Ctrl K)* / *Search or type a command…* / *No matches* (en/de/fr), instead of
+  the "command palette" idiom. Natural-language input still works, just framed as search.
+- **Finder: the ownership legend folded into the source selector.** The map's "My buildings / Shared
+  with me" swatch legend is gone; the `Mine / Shared with me` tier toggles now carry their marker colour
+  as a dot (owned blue · shared orange · open green), so the selector *is* the colour key — one control
+  instead of a toggle plus a redundant legend.
+- **Building detail page: files & sharing surface right after energy.** Reordered the building page so
+  Files and Sharing sit directly below the Energy summary — ahead of the profile / roof / neighbourhood
+  / regional ("statistics") sections — instead of at the bottom of the page.
 - **Rooftop: the actual roof geometry, shaded by PV yield.** The building page now draws the
   building's LoD2 roof surfaces as a top-down plan (`RoofPlan`) — each roof face an SVG polygon
   from `linked-lod2-by`'s `gsp:asWKT` footprint (verified against the live wrapper), shaded by
