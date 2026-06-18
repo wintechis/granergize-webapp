@@ -3,6 +3,15 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-18]
+- **Region choropleth: deep-linkable initial view + Standort-Energieprofil video scene.**
+  `RegionChoropleth` now accepts an optional `?lat`/`?lon`/`?zoom` query (defaults to the Germany
+  overview), so `/choropleth` can open centred on a location at a chosen grain — the hook for a
+  future "this Gemeinde in its region" link from the location-energy panel. The handbuch
+  walkthrough video for the **Standort-Energieprofil** (use case #4,
+  `test/e2e/videos/standort-energieprofil.spec.ts`) gains a closing regional-choropleth scene that
+  drives the deep-link to Nuremberg at Gemeinde grain (rooftop Ausbaugrad shading); it navigates
+  client-side (history `pushState` + `popstate`) to sidestep the unverified BrowserRouter
+  deep-link session-restore replay.
 - **Redesign WIP (`feat/region-choropleth`): zoom-driven region choropleth.** A standalone
   `/choropleth` map (validation surface; permanent home TBD) shading AGS-keyed regions by a
   regional measure, with the **level of detail following the map zoom** — Bundesland → Kreis →
