@@ -4,6 +4,7 @@ import { filterByText } from "../lib/textSearch.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
 import { TIER_VALUES } from "../constants/tiers.ts";
+import { buildingPin } from "../lib/buildingPin.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { buildingRoute } from "../routes.ts";
@@ -103,38 +104,6 @@ const BASEMAP_DE = {
     '&copy; <a href="https://basemap.de/">basemap.de</a> / &copy; <a href="https://www.bkg.bund.de/">BKG</a>',
 } as const;
 
-// Ownership-lens marker: a plain SVG pin tinted by the theme's owned/shared
-// colour (the marker encodes ownership and nothing else; the producer's logo
-// lives in the marker's hover card). A click navigates to the building page —
-// the map is a pure finder, so there is no persistent "selected" marker state.
-//
-// Leaflet icons are CACHED at module level: react-leaflet calls
-// `marker.setIcon()` (replacing the marker's DOM node) whenever the `icon`
-// prop's IDENTITY changes, and every pan/zoom re-renders all markers — a fresh
-// icon object per render meant the whole fleet's DOM was rebuilt on every map
-// move. Stable cached instances make those re-renders no-ops.
-const pinIconCache = new Map<string, L.DivIcon>();
-function createPinIcon(shared: boolean): L.DivIcon {
-  const key = shared ? "s" : "o";
-  const hit = pinIconCache.get(key);
-  if (hit) return hit;
-  const color = shared ? MARKER_SHARED_COLOR : MARKER_OWNED_COLOR;
-  const glow = "filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));";
-  // The ownership is baked into the className (`pin-owned`/`pin-shared`) so
-  // the e2e specs can target a marker by it (the energy-marker precedent).
-  const icon = L.divIcon({
-    className: `pin-marker pin-${shared ? "shared" : "owned"}`,
-    html:
-      `<svg width="25" height="41" viewBox="0 0 25 41" style="${glow}" aria-hidden="true">` +
-      `<path d="M12.5 0.5C5.9 0.5 0.5 5.9 0.5 12.5c0 9 12 27.5 12 27.5s12-18.5 12-27.5C24.5 5.9 19.1 0.5 12.5 0.5z" fill="${color}" stroke="#fff" stroke-width="1"/>` +
-      `<circle cx="12.5" cy="12.5" r="4.5" fill="#fff"/></svg>`,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-    popupAnchor: [1, -34],
-  });
-  pinIconCache.set(key, icon);
-  return icon;
-}
 
 /**
  * Energy-lens marker: a filled circle tinted by the building's energy **band** for
@@ -224,7 +193,7 @@ function BuildingMarker(
     ? createCategoryIcon(band, framing)
     : lens === "trend"
     ? createTrendIcon(trend)
-    : createPinIcon(building.isShared ?? false);
+    : buildingPin(building.isShared ?? false);
   const tooltipOffset: [number, number] = lens === "ownership"
     ? [0, -38]
     : [0, -20];

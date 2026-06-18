@@ -1,8 +1,5 @@
 import { msg } from "../../lib/messages.ts";
 import { Box, Chip, Stack, Typography } from "@mui/material";
-import { MapContainer, Marker, WMSTileLayer } from "react-leaflet";
-import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import DownloadIcon from "@mui/icons-material/Download";
 import type { BuildingType } from "../../types.ts";
@@ -13,7 +10,7 @@ import {
 import { AgentLabel } from "../AgentLabel.tsx";
 import { RefLink } from "../detail/DetailView.tsx";
 import IconAction from "../IconAction.tsx";
-import { MARKER_OWNED_COLOR, MARKER_SHARED_COLOR } from "../../constants/chartColors.ts";
+import LocatorMap from "../LocatorMap.tsx";
 import { getGateway } from "../../hooks/session.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { attachAnnualData } from "../../services/rdf/building/buildingSerializer.ts";
@@ -21,31 +18,6 @@ import { buildingToXlsx } from "../../services/xlsx/buildingWorkbook.ts";
 import { buildingIdStem } from "../../services/rdf/building/buildingId.ts";
 import { downloadXlsx } from "../../lib/download.ts";
 import { formatError } from "../../lib/formatError.ts";
-import { detailBaseLayer } from "../../lib/orthophoto.ts";
-
-/**
- * A plain owned/shared pin for the thumbnail, matching the main map's ownership
- * lens (brand-blue owned / orange shared). A single cached DivIcon per ownership
- * so the thumbnail's marker isn't rebuilt on re-render.
- */
-const pinCache = new Map<string, L.DivIcon>();
-function thumbPin(shared: boolean): L.DivIcon {
-  const key = shared ? "s" : "o";
-  const hit = pinCache.get(key);
-  if (hit) return hit;
-  const color = shared ? MARKER_SHARED_COLOR : MARKER_OWNED_COLOR;
-  const icon = L.divIcon({
-    className: `pin-marker pin-${shared ? "shared" : "owned"}`,
-    html:
-      `<svg width="25" height="41" viewBox="0 0 25 41" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));" aria-hidden="true">` +
-      `<path d="M12.5 0.5C5.9 0.5 0.5 5.9 0.5 12.5c0 9 12 27.5 12 27.5s12-18.5 12-27.5C24.5 5.9 19.1 0.5 12.5 0.5z" fill="${color}" stroke="#fff" stroke-width="1"/>` +
-      `<circle cx="12.5" cy="12.5" r="4.5" fill="#fff"/></svg>`,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-  });
-  pinCache.set(key, icon);
-  return icon;
-}
 
 /**
  * The building page's header: a breadcrumb back to the buildings list, the
@@ -59,9 +31,6 @@ export default function BuildingHeader({ building }: { building: BuildingType })
   const address = buildingAddressLine(building);
   const shared = building.isShared ?? false;
   const hasCoords = building.lat != null && building.long != null;
-  // Pick the locator-thumbnail base layer from the coordinates (orthophoto where
-  // covered, basemap raster otherwise); only read inside the `hasCoords` guard.
-  const base = detailBaseLayer(building.lat ?? 0, building.long ?? 0);
   const { showNotification } = useNotification();
 
   // Export this building as an `.xlsx` workbook (moved here from the buildings
@@ -123,46 +92,14 @@ export default function BuildingHeader({ building }: { building: BuildingType })
           )}
         </Box>
 
-        {/* Locator thumbnail — a non-interactive mini-map of the building's
-            location: the Bavaria DOP20c orthophoto zoomed in where there's
-            coverage (the pilot is in Nürnberg), else the nationwide basemap
-            raster (see lib/orthophoto.ts). Hidden when there are no coordinates. */}
+        {/* Interactive locator map (the shared LocatorMap widget) — hidden when
+            the building has no coordinates. */}
         {hasCoords && (
-          <Box
-            sx={{
-              width: { xs: "100%", sm: 220 },
-              height: 140,
-              flexShrink: 0,
-              borderRadius: 1,
-              overflow: "hidden",
-              border: 1,
-              borderColor: "divider",
-            }}
-          >
-            <MapContainer
-              center={[building.lat as number, building.long as number]}
-              zoom={base.zoom}
-              zoomControl={false}
-              dragging={false}
-              scrollWheelZoom={false}
-              doubleClickZoom={false}
-              attributionControl={false}
-              style={{ height: "100%", width: "100%" }}
-            >
-              <WMSTileLayer
-                url={base.config.url}
-                layers={base.config.layers}
-                format={base.config.format}
-                maxZoom={base.config.maxZoom}
-                transparent={false}
-                attribution={base.config.attribution}
-              />
-              <Marker
-                position={[building.lat as number, building.long as number]}
-                icon={thumbPin(shared)}
-              />
-            </MapContainer>
-          </Box>
+          <LocatorMap
+            lat={building.lat as number}
+            long={building.long as number}
+            shared={shared}
+          />
         )}
       </Stack>
     </Box>
