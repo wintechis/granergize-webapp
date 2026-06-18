@@ -9,6 +9,7 @@ import {
   intentRoutesToDialog,
   isDirectInvokeEligible,
   type NavTarget,
+  resolveBuildingByQuery,
 } from "./commandPalette.ts";
 import { buildingDisplayName } from "./buildingDisplay.ts";
 import { buildingRoute, withAction } from "../routes.ts";
@@ -401,6 +402,27 @@ Deno.test("buildingNavCommands: each building → a navigation command routed by
 
 Deno.test("buildingNavCommands: empty list → no commands", () => {
   assert.deepEqual(buildingNavCommands([]), []);
+});
+
+Deno.test("resolveBuildingByQuery: exact id wins, else name / address / code / locality", () => {
+  const a = building({
+    id: "granergize/buildings/b1.ttl#it",
+    buildingCode: "NOP-84",
+    streetAddress: "Nordostpark 84",
+    locality: "Nürnberg",
+  });
+  const b = building({
+    id: "granergize/buildings/b2.ttl#it",
+    streetAddress: "Hafenstr. 1",
+    locality: "Hamburg",
+  });
+  const set = [a, b];
+  assert.equal(resolveBuildingByQuery(set, "granergize/buildings/b2.ttl#it"), b); // exact id
+  assert.equal(resolveBuildingByQuery(set, "Nordostpark"), a); // by street (the LLM's NL)
+  assert.equal(resolveBuildingByQuery(set, "NOP-84"), a); // by code
+  assert.equal(resolveBuildingByQuery(set, "Hamburg"), b); // by locality
+  assert.equal(resolveBuildingByQuery(set, "nirgendwo"), undefined);
+  assert.equal(resolveBuildingByQuery(set, "   "), undefined);
 });
 
 Deno.test("buildingNavCommands: findable by address even when the label is a code", () => {

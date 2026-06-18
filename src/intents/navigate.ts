@@ -49,7 +49,7 @@ export type NavigateIntentName = keyof typeof NAVIGATE_CORES;
  * take none). Kept here, not in `INTENT_PARAMS` — navigate cores don't take a
  * gateway, so they're outside the write/read param-witness machinery. */
 export const NAVIGATE_PARAM_HINTS: Partial<Record<NavigateIntentName, string>> = {
-  ShowBuilding: "id",
+  ShowBuilding: "id (the building's id, OR its name / address — resolved to the building)",
   ShowObservation: "id",
   ShowAggregation: "id",
   ShowRoom: "uri",

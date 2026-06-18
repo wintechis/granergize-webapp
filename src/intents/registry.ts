@@ -10,6 +10,10 @@
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { shareBuildingCore } from "./shareBuilding.ts";
 import { findBuildingsCore } from "./FindBuildings.ts";
+import { getBuildingCore } from "./GetBuilding.ts";
+import { getObservationYearCore } from "./GetObservationYear.ts";
+import { whoHasAccessCore } from "./WhoHasAccess.ts";
+import { sharedWithMeCore } from "./SharedWithMe.ts";
 import { checkSharingConsistencyCore } from "./checkSharingConsistency.ts";
 import { exportArchiveCore } from "./exportArchive.ts";
 import { addBuildingCore } from "./AddBuilding.ts";
@@ -131,6 +135,14 @@ export const READ_CORES = {
   // The first collection query — narrows the visible buildings by an attribute
   // selector (plan-attribute-facets); returns the matching BuildingType[].
   FindBuildings: findBuildingsCore,
+  // Single-entity + relationship reads (§8 taxonomy).
+  GetBuilding: getBuildingCore,
+  GetObservationYear: getObservationYearCore,
+  WhoHasAccess: whoHasAccessCore,
+  SharedWithMe: (s: PodGateway, p: Record<never, never>) => {
+    void p;
+    return sharedWithMeCore(s);
+  },
 } as const;
 
 /** A catalog name that has an extracted **write** core. */

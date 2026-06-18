@@ -23,7 +23,7 @@ interface SharedBuilding {
   sharedWith: string[];
 }
 
-interface SharedWithMeBuilding {
+export interface SharedWithMeBuilding {
   buildingUri: string;
   buildingId: string;
   sharedBy: string;

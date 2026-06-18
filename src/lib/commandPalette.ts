@@ -222,6 +222,25 @@ export function buildingNavCommands(
   });
 }
 
+/**
+ * Resolve a free-text reference to a building — for the LLM launcher's
+ * `ShowBuilding` navigate, where the model passes the building's *name/address* (it
+ * has no id list) and the palette maps it to the real id before `goTo`. An exact id
+ * match wins; otherwise the first building whose {@link buildingSearchText}
+ * (name / address / company / code) contains the query. `undefined` if none match.
+ * Pure → Tier-1 testable.
+ */
+export function resolveBuildingByQuery(
+  buildings: readonly BuildingType[],
+  query: string,
+): BuildingType | undefined {
+  const q = query.trim().toLowerCase();
+  if (!q) return undefined;
+  const byId = buildings.find((b) => b.id === query);
+  if (byId) return byId;
+  return buildings.find((b) => buildingSearchText(b).toLowerCase().includes(q));
+}
+
 /** Filter a command list by a case-insensitive substring of the label. */
 export function filterCommands(
   commands: PaletteCommand[],

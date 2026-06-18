@@ -40,10 +40,10 @@
   { "nl": "Check my sharing for inconsistencies", "expect": "AuditGrants", "category": "query-scalar" },
   { "nl": "Export an archive of all my data", "expect": "ExportArchive", "category": "query-scalar" },
 
-  { "nl": "What was building X's electricity consumption in 2024?", "expect": ["GetObservationYear", ""], "category": "query-scalar", "note": "pending GetObservationYear read core" },
-  { "nl": "Show me this building's 2023 heat demand", "expect": ["GetObservationYear", ""], "category": "query-scalar", "note": "pending GetObservationYear read core" },
-  { "nl": "Who has access to my Hofgebäude?", "expect": ["WhoHasAccess", ""], "category": "query-scalar", "note": "pending WhoHasAccess read core" },
-  { "nl": "Who produced this figure, and was it measured or estimated?", "expect": ["GetBuilding", ""], "category": "query-scalar", "note": "pending GetBuilding read core" },
+  { "nl": "What was building X's electricity consumption in 2024?", "expect": "GetObservationYear", "category": "query-scalar" },
+  { "nl": "Show me this building's 2023 heat demand", "expect": "GetObservationYear", "category": "query-scalar" },
+  { "nl": "Who has access to my Hofgebäude?", "expect": "WhoHasAccess", "category": "query-scalar" },
+  { "nl": "Who produced this figure, and was it measured or estimated?", "expect": "GetBuilding", "category": "query-scalar" },
 
   { "nl": "Which of my buildings have a heat pump and a hall area over 5000 m²?", "expect": "FindBuildings", "category": "query-collection", "selector": { "and": [{ "field": "hasHeatPump", "op": "eq", "value": true }, { "field": "hallArea", "op": "gt", "value": 5000 }] } },
   { "nl": "Show buildings with a hall area over 5000 m²", "expect": "FindBuildings", "category": "query-collection", "selector": { "and": [{ "field": "hallArea", "op": "gt", "value": 5000 }] } },
@@ -55,7 +55,7 @@
   { "nl": "Buildings located in Fürth or Nürnberg", "expect": "FindBuildings", "category": "query-collection", "selector": { "and": [{ "field": "locality", "op": "in", "value": ["Fürth", "Nürnberg"] }] } },
   { "nl": "Buildings with district heating built after 2015", "expect": "FindBuildings", "category": "query-collection", "selector": { "and": [{ "field": "hasDistrictHeating", "op": "eq", "value": true }, { "field": "yearOfConstruction", "op": "gt", "value": 2015 }] } },
   { "nl": "Gebäude mit Wärmepumpe und mindestens 3 Ladetoren", "expect": "FindBuildings", "category": "query-collection", "selector": { "and": [{ "field": "hasHeatPump", "op": "eq", "value": true }, { "field": "numberOfLoadingDocks", "op": "ge", "value": 3 }] } },
-  { "nl": "What is shared with me?", "expect": ["SharedWithMe", ""], "category": "query-collection", "note": "pending SharedWithMe read core" },
+  { "nl": "What is shared with me?", "expect": "SharedWithMe", "category": "query-collection" },
 
   { "nl": "Open the building Hofgebäude", "expect": "ShowBuilding", "category": "navigation" },
   { "nl": "Go to the benchmarks", "expect": "ShowAggregations", "category": "navigation" },
