@@ -108,6 +108,19 @@ test.describe("nearby installations (linked-mastr)", () => {
     await expect(page.getByText(/Heizkraftwerk Müll/)).toHaveCount(0);
     await expect(page.getByText(en("niDataSource"))).toBeVisible();
 
+    // Map guise: the section's List ⇄ Map toggle swaps the list for a Leaflet map
+    // of the same set; switching back restores the list.
+    const viewToggle = page.getByRole("group", { name: en("niViewAria") });
+    await viewToggle.getByRole("button", { name: en("btnMap") }).click();
+    await expect(page.locator(".leaflet-container")).toBeVisible({
+      timeout: T.action,
+    });
+    await expect(page.getByText(`${en("niKindSolar")} — Solardach Nah`))
+      .toHaveCount(0); // the list rows are gone in map view
+    await viewToggle.getByRole("button", { name: en("btnList") }).click();
+    await expect(page.getByText(`${en("niKindSolar")} — Solardach Nah`))
+      .toBeVisible();
+
     // Cleanup: delete the throwaway building.
     await page.goto("/");
     await openBuildingsList(page);

@@ -127,6 +127,47 @@ Deno.test("buildSharingEventTurtle round-trips a per-year grant's years", () => 
   assert.deepEqual(events[0], e);
 });
 
+Deno.test("buildSharingEventTurtle round-trips a per-attachment grant's URIs", () => {
+  const A1 = "https://alice.example/granergize/buildings/b1/files/plan.pdf";
+  const A2 = "https://alice.example/granergize/buildings/b1/files/lease.pdf";
+  const e: SharingEvent = {
+    type: "grant",
+    owner: OWNER,
+    grantee: BOB,
+    resource: B1,
+    kind: "Building",
+    includesEnergy: false,
+    attachmentUris: [A1, A2],
+    at: "2026-06-04T10:00:00Z",
+  };
+  const ttl = buildSharingEventTurtle(e);
+  assert.ok(ttl.includes(`interop:includesAttachment <${A1}>`));
+  assert.ok(ttl.includes(`interop:includesAttachment <${A2}>`));
+  const events = parseSharingEvents(new Store(new Parser({ baseIRI: B1 }).parse(ttl)));
+  assert.equal(events.length, 1);
+  // attachmentUris parse back sorted; the fixture is already in sorted order? No:
+  // A2 (lease) < A1 (plan) lexically, so assert the parsed set, order-independent.
+  assert.deepEqual([...(events[0].attachmentUris ?? [])].sort(), [A1, A2].sort());
+  assert.equal(events[0].includesEnergy, false);
+});
+
+Deno.test("buildSharingEventTurtle: absence ⇒ no includesAttachment / undefined attachmentUris", () => {
+  const e: SharingEvent = {
+    type: "grant",
+    owner: OWNER,
+    grantee: BOB,
+    resource: B1,
+    kind: "Building",
+    includesEnergy: true,
+    at: "2026-06-04T10:00:00Z",
+  };
+  const ttl = buildSharingEventTurtle(e);
+  assert.ok(!ttl.includes("includesAttachment"), "no attachment triple emitted");
+  const events = parseSharingEvents(new Store(new Parser({ baseIRI: B1 }).parse(ttl)));
+  assert.equal(events.length, 1);
+  assert.equal(events[0].attachmentUris, undefined);
+});
+
 Deno.test("buildSharingEventTurtle round-trips a revocation (no kind/energy)", () => {
   const e: SharingEvent = {
     type: "revocation",

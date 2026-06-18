@@ -46,18 +46,20 @@ const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 
 /** B (a freshly-logged-in recipient page) downloads the shared file. */
 async function downloadSharedFile(page: Page): Promise<void> {
-  // Poll, reloading to re-drain B's inbox each attempt, until the shared file
-  // surfaces — replaces a blind write→read cooldown at the call sites. The download
-  // itself fires once, after the file is confirmed present.
+  // Poll, reloading to re-drain B's inbox each attempt, until the shared building
+  // is listed on the Sharing tab — replaces a blind write→read cooldown. The
+  // recipient's per-file download lives on the building's detail page (the
+  // read-only Files section), so open it from the Sharing-tab row's link.
   await reloadUntil(page, async () => {
     await page.getByRole("tab", { name: en("navSharing") }).click();
-    await expect(page.getByText("sample.pdf")).toBeVisible({
-      timeout: T.action,
-    });
+    await expect(page.getByRole("link", { name: /^Building / }).first())
+      .toBeVisible({ timeout: T.action });
   });
+  await page.getByRole("link", { name: /^Building / }).first().click();
+  const fileRow = page.locator("li", { hasText: "sample.pdf" });
+  await expect(fileRow).toBeVisible({ timeout: T.action });
   const dl = page.waitForEvent("download");
-  await page.getByRole("button", { name: en("btnDownload"), exact: true }).first()
-    .click();
+  await fileRow.getByRole("button", { name: en("btnDownload") }).click();
   const download = await dl;
   expect(download.suggestedFilename()).toBe("sample.pdf");
 }

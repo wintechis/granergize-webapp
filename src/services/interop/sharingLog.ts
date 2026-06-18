@@ -58,6 +58,16 @@ export interface SharingEvent {
    * only in the derived `.acl`. See the "always replayable" sharing principle.
    */
   years?: number[];
+  /**
+   * The granted attachment file IRIs (grant only). Absent/empty ⇒ all attachments
+   * (the `files/` container is granted with `acl:default`, covering current AND
+   * future uploads). A subset names exactly the included files; each is granted
+   * individually and the `files/` container default is withheld, so the unselected
+   * binaries stay unreadable. Recorded so the log is self-sufficient for replay
+   * (`reissueGrants`) — the exact attachment scope lives here, not only in the
+   * derived `.acl`. Mirrors {@link SharingEvent.years}.
+   */
+  attachmentUris?: string[];
 }
 
 /** A currently-active grant: the latest event for its (grantee, resource). */
@@ -80,6 +90,7 @@ const GRANTEE = namedNode(`${INTEROP_NS}grantee`);
 const FOR_RESOURCE = namedNode(`${INTEROP_NS}forResource`);
 const INCLUDES_ENERGY = namedNode(`${INTEROP_NS}includesEnergyData`);
 const INCLUDES_ENERGY_YEAR = namedNode(`${INTEROP_NS}includesEnergyYear`);
+const INCLUDES_ATTACHMENT = namedNode(`${INTEROP_NS}includesAttachment`);
 const WAS_ASSOCIATED_WITH = namedNode(PROV_WAS_ASSOCIATED_WITH);
 const GENERATED_AT = namedNode(PROV_GENERATED_AT_TIME);
 const KIND = namedNode(`${GRAN_NS}kind`);
@@ -108,6 +119,12 @@ export function buildSharingEventTurtle(e: SharingEvent): string {
     // log fully captures a per-year share for faithful replay.
     for (const year of e.years ?? []) {
       triples.push(`interop:includesEnergyYear "${year}"^^xsd:gYear`);
+    }
+    // Per-attachment scope (absent ⇒ all attachments via the files/ container
+    // default). One IRI triple per included file so the log fully captures a
+    // per-attachment share for faithful replay.
+    for (const uri of e.attachmentUris ?? []) {
+      triples.push(`interop:includesAttachment <${uri}>`);
     }
   }
   triples.push(`prov:generatedAtTime "${e.at}"^^xsd:dateTime`);
@@ -165,6 +182,9 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
         .map((o) => parseInt(o.value, 10))
         .filter((y) => Number.isFinite(y))
         .sort((a, b) => a - b);
+      const attachmentUris = store.getObjects(subj, INCLUDES_ATTACHMENT, null)
+        .map((o) => o.value)
+        .sort();
       const event: SharingEvent = {
         type,
         owner,
@@ -175,6 +195,7 @@ export function parseSharingEvents(store: Store): SharingEvent[] {
         includesEnergy: energy === undefined ? undefined : energy === "true",
       };
       if (years.length) event.years = years;
+      if (attachmentUris.length) event.attachmentUris = attachmentUris;
       out.push(event);
     }
   };
@@ -263,6 +284,7 @@ export async function foldSharingLog(
         includesEnergy: e.includesEnergy,
       };
       if (e.years) grant.years = e.years;
+      if (e.attachmentUris) grant.attachmentUris = e.attachmentUris;
       return grant;
     });
 }

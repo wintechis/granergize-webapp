@@ -460,6 +460,23 @@ export const MESSAGES = {
     de: "Datenquelle: Regionalstatistik (Statistische Ämter des Bundes und der Länder)",
     fr: "Source des données : Regionalstatistik (offices statistiques de la Fédération et des Länder)",
   },
+  // The `open` tier of the Aggregations finder — public regionalstatistik datasets.
+  openRegionalMeta: {
+    en: "Public regional statistics",
+    de: "Öffentliche Regionalstatistik",
+    fr: "Statistiques régionales publiques",
+  },
+  regDatasetBack: { en: "← Aggregations", de: "← Aggregationen", fr: "← Agrégations" },
+  regDatasetEmpty: {
+    en: "No figures available for this region.",
+    de: "Keine Werte für diese Region verfügbar.",
+    fr: "Aucune donnée disponible pour cette région.",
+  },
+  regDatasetUnknown: {
+    en: "Unknown dataset.",
+    de: "Unbekannter Datensatz.",
+    fr: "Jeu de données inconnu.",
+  },
   regGeoCaption: {
     en: "Figures for the federal state of {region}, not this building specifically.",
     de: "Werte für das Bundesland {region}, nicht für dieses Gebäude im Einzelnen.",
@@ -516,6 +533,11 @@ export const MESSAGES = {
     fr: "{count} dans un rayon de {radius} km",
   },
   niDistance: { en: "{km} km", de: "{km} km", fr: "{km} km" },
+  niViewAria: {
+    en: "Nearby installations view",
+    de: "Ansicht der Anlagen in der Nähe",
+    fr: "Vue des installations à proximité",
+  },
   niKindSolar: { en: "Solar", de: "Solar", fr: "Solaire" },
   niKindWind: { en: "Wind", de: "Wind", fr: "Éolien" },
   niKindHydro: { en: "Hydro", de: "Wasser", fr: "Hydraulique" },
@@ -1518,6 +1540,7 @@ export const MESSAGES = {
   tierFilterAria: { en: "Filter by source", de: "Nach Quelle filtern", fr: "Filtrer par source" },
   tierMine: { en: "Mine", de: "Meine", fr: "Les miens" },
   tierShared: { en: "Shared with me", de: "Mit mir geteilt", fr: "Partagés avec moi" },
+  tierOpen: { en: "Open data", de: "Offene Daten", fr: "Données ouvertes" },
   filterNoMatch: {
     en: "Nothing matches the current filter.",
     de: "Nichts entspricht dem aktuellen Filter.",
@@ -1973,6 +1996,29 @@ export const MESSAGES = {
     en: "This building has no energy datasets to share by year.",
     de: "Dieses Gebäude hat keine Energiedatensätze, die sich nach Jahr teilen lassen.",
     fr: "Ce bâtiment n'a aucun jeu de données énergétiques à partager par année.",
+  },
+  shareAttachmentsLabel: {
+    en: "Attachments to share",
+    de: "Zu teilende Anhänge",
+    fr: "Pièces jointes à partager",
+  },
+  shareAttachmentsHint: {
+    en:
+      "All attachments are shared by default (including files added later). Uncheck any to withhold it.",
+    de:
+      "Standardmäßig werden alle Anhänge geteilt (auch später hinzugefügte Dateien). Häkchen entfernen, um eine Datei zurückzuhalten.",
+    fr:
+      "Toutes les pièces jointes sont partagées par défaut (y compris les fichiers ajoutés ultérieurement). Décochez pour en retenir une.",
+  },
+  shareAttachmentsAllSummary: {
+    en: "All attachments",
+    de: "Alle Anhänge",
+    fr: "Toutes les pièces jointes",
+  },
+  shareAttachmentsSubsetSummary: {
+    en: "Attachments: {names}",
+    de: "Anhänge: {names}",
+    fr: "Pièces jointes : {names}",
   },
   shareIncludes: { en: "Includes:", de: "Enthält:", fr: "Comprend :" },
   shareConfirmWithRoleCount: {
@@ -2668,6 +2714,7 @@ export const MESSAGES = {
     fr: "Inclure les données énergétiques",
   },
   paramYears: { en: "Years", de: "Jahre", fr: "Années" },
+  paramAttachments: { en: "Attachments", de: "Anhänge", fr: "Pièces jointes" },
   paramRoomInput: {
     en: "Invite link or room URI",
     de: "Einladungslink oder Datenzimmer-URI",

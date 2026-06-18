@@ -1,0 +1,110 @@
+import {
+  Box,
+  Paper,
+  Stack,
+  Table,
+  TableBody,
+  TableCell,
+  TableContainer,
+  TableHead,
+  TableRow,
+  Typography,
+} from "@mui/material";
+import QueryStatsIcon from "@mui/icons-material/QueryStats";
+import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
+import {
+  fetchRegionalObservations,
+  REGIONAL_TABLES,
+  REGIONAL_UNIT_DISPLAY as UNIT_DISPLAY,
+  regionalGeoUrl,
+} from "../services/regionalCube.ts";
+import { bundeslandName } from "../services/region.ts";
+import { FINDERS } from "../routes.ts";
+import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
+import { useT } from "../context/I18nProvider.tsx";
+
+/**
+ * Standalone read-only page for one **public open-data regional dataset** — a
+ * `linked-regionalstatistik` table at one Bundesland (the `open` tier of the
+ * Aggregations finder opens this). It holds only `table` + `ags` (no Pod
+ * resource), fetches the year/value series on mount, and renders it like the
+ * per-building Regional-context section but as its own route. A full-page route
+ * (outside the app shell), so it carries its own back breadcrumb.
+ */
+export default function RegionalDataset() {
+  const t = useT();
+  const [sp] = useSearchParams();
+  const tableId = sp.get("table") ?? "";
+  const ags = sp.get("ags") ?? "";
+  const table = REGIONAL_TABLES.find((tb) => tb.tableId === tableId) ?? null;
+  const region = bundeslandName(ags) ?? ags;
+
+  const { data, isFetching } = useQuery({
+    // `table` is derived 1:1 from `tableId`, but the lint rule wants every value
+    // the queryFn closes over represented in the key.
+    queryKey: ["regionalDataset", tableId, ags, table],
+    enabled: Boolean(table) && Boolean(ags),
+    staleTime: 1000 * 60 * 60,
+    queryFn: () => fetchRegionalObservations(table!, ags),
+  });
+
+  const back = <RefLink to={FINDERS.aggregations}>{t("regDatasetBack")}</RefLink>;
+
+  if (!table) {
+    return (
+      <Stack spacing={2}>
+        {back}
+        <Typography variant="body2">{t("regDatasetUnknown")}</Typography>
+      </Stack>
+    );
+  }
+
+  const observations = data ?? [];
+
+  return (
+    <Stack spacing={2}>
+      {back}
+      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+        <QueryStatsIcon color="action" />
+        <Typography variant="h5">
+          {t(table.labelId)} — {region}
+        </Typography>
+      </Stack>
+
+      {isFetching && observations.length === 0
+        ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
+        : observations.length === 0
+        ? <Typography variant="body2">{t("regDatasetEmpty")}</Typography>
+        : (
+          <TableContainer component={Paper}>
+            <Table size="small">
+              <TableHead>
+                <TableRow>
+                  <TableCell>{t("lblYear")}</TableCell>
+                  <TableCell>{t(table.labelId)}</TableCell>
+                </TableRow>
+              </TableHead>
+              <TableBody>
+                {observations.map((o) => (
+                  <TableRow key={o.year}>
+                    <TableCell>{o.year}</TableCell>
+                    <TableCell>
+                      {o.value} {UNIT_DISPLAY[o.unit] ?? o.unit}
+                    </TableCell>
+                  </TableRow>
+                ))}
+              </TableBody>
+            </Table>
+          </TableContainer>
+        )}
+
+      <Box>
+        <RdfSourceLink href={regionalGeoUrl(table, ags)} />
+        <Typography variant="body2" color="text.secondary">
+          {t("regDataSource")}
+        </Typography>
+      </Box>
+    </Stack>
+  );
+}

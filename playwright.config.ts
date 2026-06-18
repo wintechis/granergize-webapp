@@ -117,6 +117,7 @@ const SOLO_SPECS = [
   "**/map-energy-lens.spec.ts",
   "**/regional-context.spec.ts",
   "**/neighbourhood-energy.spec.ts",
+  "**/aggregations-open-tier.spec.ts",
   "**/nearby-installations.spec.ts",
   "**/dev-source-links.spec.ts",
   // Cube UI — CQ-anchored space-time-cube specs (plans/plan-cube-ui.md).
@@ -137,6 +138,7 @@ const DUO_SPECS: string[] = [
   "**/share-building.spec.ts",
   "**/share-aggregation.spec.ts",
   "**/share-files.spec.ts",
+  "**/share-attachment-subset.spec.ts",
   "**/palette-share-building.spec.ts",
   "**/palette-hide-shared-building.spec.ts",
   "**/palette-benchmark-share.spec.ts",

@@ -70,6 +70,7 @@ export const PARAM_LABEL: Record<string, string> = {
   recipients: "racLabel",
   includeEnergyData: "paramIncludeEnergyData",
   years: "paramYears",
+  attachmentUris: "paramAttachments",
   snapshotUri: "paramAggregation",
   aggregationId: "paramAggregation",
   webId: "paramWebId",

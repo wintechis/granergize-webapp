@@ -13,12 +13,12 @@ import {
 import QueryStatsIcon from "@mui/icons-material/QueryStats";
 import type { BuildingType } from "../../types.ts";
 import { useRegionalContext } from "../../hooks/regional.ts";
-import { regionalTableDataUrl } from "../../services/regionalCube.ts";
+import {
+  REGIONAL_UNIT_DISPLAY as UNIT_DISPLAY,
+  regionalTableDataUrl,
+} from "../../services/regionalCube.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
-
-/** German "Prozent" → the universal symbol; other units pass through as-is. */
-const UNIT_DISPLAY: Record<string, string> = { Prozent: "%" };
 
 /**
  * The building's REGIONAL CONTEXT: official statistics for its Bundesland from

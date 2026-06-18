@@ -25,6 +25,13 @@ export interface BuildingTargetOptions {
    * the revoke side withdraws the building file separately, so it passes false.
    */
   includeBuildingFile?: boolean;
+  /**
+   * Restrict the attachment grant to these specific file IRIs; omit (or empty)
+   * for all attachments. When given, EACH listed file is granted individually
+   * (non-container) and the `files/` container default is NOT granted, so the
+   * unselected binaries stay unreadable. Mirrors {@link years}.
+   */
+  attachmentUris?: string[];
 }
 
 /**
@@ -79,11 +86,23 @@ export function buildingTargetsFromStore(
     includeEnergyData = true,
     years,
     includeBuildingFile = true,
+    attachmentUris,
   } = options;
   const filesContainer = filesContainerFor(buildingFile);
   const targets: GrantTarget[] = [];
   if (includeBuildingFile) targets.push({ uri: buildingFile, isContainer: false });
-  targets.push({ uri: filesContainer, isContainer: true });
+
+  // Attachments: no selection ⇒ grant the files/ container with acl:default,
+  // covering every current AND future upload (the intensional "all"). A subset
+  // grants each chosen file individually and WITHHOLDS the container default, so
+  // the unselected binaries stay unreadable. NB: the building .ttl still lists
+  // every attachment IRI (bldg:hasAttachment), so a recipient sees the metadata
+  // of a withheld file but its binary returns 403 — the accepted tradeoff.
+  if (attachmentUris && attachmentUris.length) {
+    for (const uri of attachmentUris) targets.push({ uri, isContainer: false });
+  } else {
+    targets.push({ uri: filesContainer, isContainer: true });
+  }
 
   // A legacy energy certificate stored OUTSIDE files/ (the old certificates/
   // folder) isn't covered by the container grant, so the file itself is a target.

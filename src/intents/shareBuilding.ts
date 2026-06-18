@@ -19,6 +19,11 @@ export interface ShareBuildingParams {
   includeEnergyData: boolean;
   /** Restrict the energy grant to these years only. Absent = all years. */
   years?: number[];
+  /**
+   * Restrict the attachment grant to these file IRIs only. Absent = all
+   * attachments (the `files/` container, incl. future uploads).
+   */
+  attachmentUris?: string[];
 }
 
 /**
@@ -51,6 +56,7 @@ export async function shareBuildingCore(
     await shareBuildingData(params.buildingUri, recipient, gateway, {
       includeEnergyData: params.includeEnergyData,
       years: params.years,
+      attachmentUris: params.attachmentUris,
     });
     // Auto-remember the recipient in the address book (fire-and-forget).
     void rememberAgent(gateway, recipient);

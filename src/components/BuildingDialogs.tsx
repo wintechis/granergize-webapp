@@ -76,6 +76,18 @@ export function ShareBuildingDialog({
   const [resolving, setResolving] = useState(false);
   const [shareScope, setShareScope] = useState<ShareScope>("all");
   const [selectedYears, setSelectedYears] = useState<number[]>([]);
+  // The building's attachments and which are included in the share. Default =
+  // ALL included (initialized to every attachment URI), mirroring the "all
+  // years" default. A strict subset enumerates the included files; "all"
+  // selected passes attachmentUris: undefined (the intensional "all" case).
+  const attachments = useMemo(
+    () => (building.attachments ?? []) as AttachmentRef[],
+    [building.attachments],
+  );
+  const [selectedAttachments, setSelectedAttachments] = useState<string[]>(
+    () => attachments.map((a) => a.uri),
+  );
+  const allAttachmentsSelected = selectedAttachments.length === attachments.length;
   const [webIdError, setWebIdError] = useState("");
   const [confirmStep, setConfirmStep] = useState(false);
   // The write goes through the (silent) mutation hook: busy/success/error are
@@ -161,6 +173,10 @@ export function ShareBuildingDialog({
         recipients,
         includeEnergyData: shareScope !== "static",
         years: shareScope === "years" ? selectedYears : undefined,
+        // All selected (or no attachments) ⇒ undefined = the intensional "all"
+        // (grant the files/ container, incl. future uploads). A strict subset ⇒
+        // enumerate the included file IRIs.
+        attachmentUris: allAttachmentsSelected ? undefined : selectedAttachments,
       },
       {
         onSuccess: () =>
@@ -361,6 +377,39 @@ export function ShareBuildingDialog({
                   )
               )}
             </FormControl>
+            {attachments.length > 0 && (
+              <FormControl component="fieldset" sx={{ mt: 3 }}>
+                <FormLabel component="legend">
+                  {msg("shareAttachmentsLabel")}
+                </FormLabel>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.5 }}
+                >
+                  {msg("shareAttachmentsHint")}
+                </Typography>
+                <FormGroup sx={{ mt: 1 }}>
+                  {attachments.map((a) => (
+                    <FormControlLabel
+                      key={a.uri}
+                      control={
+                        <Checkbox
+                          checked={selectedAttachments.includes(a.uri)}
+                          onChange={(e) =>
+                            setSelectedAttachments((prev) =>
+                              e.target.checked
+                                ? [...prev, a.uri]
+                                : prev.filter((u) => u !== a.uri)
+                            )}
+                        />
+                      }
+                      label={a.filename}
+                    />
+                  ))}
+                </FormGroup>
+              </FormControl>
+            )}
         </>
       )}
 
@@ -385,6 +434,21 @@ export function ShareBuildingDialog({
                   years: [...selectedYears].sort((a, b) => a - b).join(", "),
                 })}
             </Typography>
+            {attachments.length > 0 && (
+              <Typography variant="body2" sx={{ mt: 1 }}>
+                <strong>{msg("shareAttachmentsLabel")}:</strong>{" "}
+                {allAttachmentsSelected
+                  ? msg("shareAttachmentsAllSummary")
+                  : selectedAttachments.length === 0
+                  ? msg("shareAttachmentsSubsetSummary", { names: "—" })
+                  : msg("shareAttachmentsSubsetSummary", {
+                    names: attachments
+                      .filter((a) => selectedAttachments.includes(a.uri))
+                      .map((a) => a.filename)
+                      .join(", "),
+                  })}
+              </Typography>
+            )}
         </>
       )}
     </Modal>

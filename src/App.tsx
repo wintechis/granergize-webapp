@@ -21,6 +21,7 @@ import Contact from "./pages/Contact.tsx";
 import Room from "./pages/Room.tsx";
 import Aggregation from "./pages/Aggregation.tsx";
 import { RegionChoropleth } from "./components/RegionChoropleth.tsx";
+import RegionalDataset from "./pages/RegionalDataset.tsx";
 import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -141,6 +142,16 @@ function EnergyWrapper() {
 
 function AggregationWrapper({ session }: { session: Session }) {
   return <Aggregation session={session} />;
+}
+
+/** Render the standalone public regional-dataset page (the `open` tier of the
+ *  Aggregations finder); it reads its `?table=`/`?ags=` params itself. */
+function RegionalWrapper() {
+  return (
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      <RegionalDataset />
+    </Container>
+  );
 }
 
 /** Resolve the `?uri=` WebID query param and render the agent detail view. */
@@ -269,6 +280,7 @@ function App({ onLogout, session }: AppProps) {
     { path: DETAIL_PATTERNS.aggregation, element: <AggregationWrapper session={session} /> },
     { path: DETAIL_PATTERNS.contact, element: <ContactWrapper /> },
     { path: DETAIL_PATTERNS.room, element: <RoomWrapper session={session} /> },
+    { path: DETAIL_PATTERNS.regional, element: <RegionalWrapper /> },
     // Temporary standalone validation surface for the region choropleth (Slice 3,
     // plans/plan-region-choropleth.md) — permanent home (ExplorePage lens vs
     // Aggregations guise) still TBD.

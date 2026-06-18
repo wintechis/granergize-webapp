@@ -1,0 +1,67 @@
+/**
+ * The **`open` source tier** of the Aggregations finder: public
+ * `linked-regionalstatistik` datasets, surfaced as browseable aggregation-like
+ * items keyed to the regions of the user's own buildings. Pure + offline — the
+ * derivation is in-memory over already-loaded buildings (no network in the
+ * finder list; the figures themselves load on the detail page).
+ *
+ * Scope: **Bundesland (`land`) grain only** — derivable cheaply from a building's
+ * `region` field via {@link bundeslandToAgs}. Kreis-grain tables need a
+ * reverse-geocode (the nearby-MaStR Kreis), so they stay on the per-building
+ * Regional-context section and are intentionally not listed here.
+ */
+import type { BuildingType } from "../types.ts";
+import type { MessageId } from "../lib/messages.ts";
+import { bundeslandName, bundeslandToAgs } from "./region.ts";
+import { REGIONAL_TABLES } from "./regionalCube.ts";
+
+/** One public regional-statistics dataset = a (table × Bundesland) pair. */
+export interface OpenRegionalItem {
+  /** Stable id `{tableId}__{ags}` — the detail route's key. */
+  id: string;
+  /** GENESIS table id (resolves back to a {@link RegionalTable}). */
+  tableId: string;
+  /** Catalog id for the human metric label. */
+  labelId: MessageId;
+  /** The region's 2-digit Bundesland AGS. */
+  ags: string;
+  /** Canonical Bundesland name (display). */
+  region: string;
+}
+
+/** The `{tableId}__{ags}` id encoding a (table, region) pair. */
+export function openRegionalId(tableId: string, ags: string): string {
+  return `${tableId}__${ags}`;
+}
+
+/**
+ * The `open`-tier datasets for a user: every `land`-grain regional table crossed
+ * with the distinct Bundesländer of their buildings (sorted by AGS, then table
+ * order). Buildings with no recognised German region contribute nothing.
+ */
+export function openRegionalItemsFromBuildings(
+  buildings: BuildingType[],
+): OpenRegionalItem[] {
+  const landTables = REGIONAL_TABLES.filter((t) => t.grain === "land");
+
+  const agsSet = new Set<string>();
+  for (const b of buildings) {
+    const ags = bundeslandToAgs(b.region);
+    if (ags) agsSet.add(ags);
+  }
+
+  const items: OpenRegionalItem[] = [];
+  for (const ags of [...agsSet].sort()) {
+    const region = bundeslandName(ags) ?? ags;
+    for (const table of landTables) {
+      items.push({
+        id: openRegionalId(table.tableId, ags),
+        tableId: table.tableId,
+        labelId: table.labelId,
+        ags,
+        region,
+      });
+    }
+  }
+  return items;
+}

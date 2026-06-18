@@ -62,3 +62,30 @@ export function bundeslandToAgs(region: string | null | undefined): string | nul
   if (!region) return null;
   return BUNDESLAND_AGS[normalise(region)] ?? null;
 }
+
+/** Canonical German Bundesland name keyed by its 2-digit AGS — the reverse of
+ *  {@link bundeslandToAgs}, used to title a region when only its AGS is in hand
+ *  (e.g. the open-data regional dataset page, which holds only `table` + `ags`). */
+const BUNDESLAND_NAME: Record<string, string> = {
+  "01": "Schleswig-Holstein",
+  "02": "Hamburg",
+  "03": "Niedersachsen",
+  "04": "Bremen",
+  "05": "Nordrhein-Westfalen",
+  "06": "Hessen",
+  "07": "Rheinland-Pfalz",
+  "08": "Baden-Württemberg",
+  "09": "Bayern",
+  "10": "Saarland",
+  "11": "Berlin",
+  "12": "Brandenburg",
+  "13": "Mecklenburg-Vorpommern",
+  "14": "Sachsen",
+  "15": "Sachsen-Anhalt",
+  "16": "Thüringen",
+};
+
+/** The canonical Bundesland name for a 2-digit AGS, or `null` if unrecognised. */
+export function bundeslandName(ags: string): string | null {
+  return BUNDESLAND_NAME[ags] ?? null;
+}
