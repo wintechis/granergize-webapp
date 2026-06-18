@@ -132,6 +132,7 @@ const SOLO_SPECS = [
   "**/session-restore.spec.ts",
   "**/i18n.spec.ts",
   "**/palette-add-and-energy.spec.ts",
+  "**/palette-launch-json.spec.ts",
 ];
 // DUO — two pods (A = Alice + B = Bob): the cross-Pod sharing handshakes.
 const DUO_SPECS: string[] = [

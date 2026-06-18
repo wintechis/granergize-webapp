@@ -6,6 +6,7 @@ import {
 import { getGateway } from "./session.ts";
 import { queryKeys } from "./queries.ts";
 import type { ShareBuildingParams } from "../intents/shareBuilding.ts";
+import type { Selector } from "../intents/selector.ts";
 import { invoke, query } from "../intents/registry.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
 import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
@@ -643,6 +644,16 @@ export function useExportArchive() {
  * Deliberately not a `useQuery`: every click must re-read the Pod — a cached
  * audit would report stale consistency. The caller renders the verdict.
  */
+export function useFindBuildings() {
+  return useMutation({
+    // A read (no meta.action, no invalidation): thin adapter over the React-free
+    // FindBuildings core via the registry's query() entry — returns the matching
+    // BuildingType[] for an attribute selector (plan-attribute-facets).
+    mutationFn: (selector?: Selector) =>
+      query("FindBuildings", { selector }, getGateway()),
+  });
+}
+
 export function useAuditGrants() {
   return useMutation({
     meta: { action: "actionCheckSharing" },

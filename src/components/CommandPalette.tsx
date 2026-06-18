@@ -30,6 +30,14 @@ import {
 import type { AggregationDefinition, BuildingType } from "../types.ts";
 import IntentParamForm from "./IntentParamForm.tsx";
 import { useInvokeIntent } from "../hooks/invokeIntent.ts";
+import { useNotification } from "../context/NotificationContext.tsx";
+import { getGateway } from "../hooks/session.ts";
+import { queryByName } from "../intents/registry.ts";
+import { LaunchError, parseLaunch } from "../intents/launch.ts";
+import {
+  translateToIntentJson,
+  TranslateError,
+} from "../services/llm/intentTranslate.ts";
 
 /**
  * The global ⌘K command palette (plan-palette §4) — the intent catalog made a
@@ -104,6 +112,13 @@ export default function CommandPalette() {
   // The second step: the form-eligible intent whose param form is shown in place
   // of the command list (null = the command list is shown).
   const [formIntent, setFormIntent] = useState<string | null>(null);
+  // Dev-mode JSON paste-and-launch (§10): the inline parse/dispatch error, shown
+  // under the field when a pasted `{name,params}` can't be launched.
+  const [launchError, setLaunchError] = useState<string | null>(null);
+  // Dev-mode NL→intent translation in flight (the `>` prefix path).
+  const [translating, setTranslating] = useState(false);
+  // Set while a timed-out translate is being retried — drives the "retry a/of" note.
+  const [translateRetry, setTranslateRetry] = useState<[number, number] | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const t = useT();
@@ -111,6 +126,7 @@ export default function CommandPalette() {
   const navigate = useNavigate();
   const { focus } = usePaletteFocus();
   const invokeIntent = useInvokeIntent();
+  const { showNotification } = useNotification();
 
   // ⌘K / Ctrl-K toggles the palette. Opening resets the filter + selection in the
   // same updater (no setState-in-effect), so the field starts empty each time.
@@ -123,6 +139,7 @@ export default function CommandPalette() {
             setQuery("");
             setActive(0);
             setFormIntent(null);
+            setLaunchError(null);
           }
           return !v;
         });
@@ -138,6 +155,7 @@ export default function CommandPalette() {
       setQuery("");
       setActive(0);
       setFormIntent(null);
+      setLaunchError(null);
       setOpen(true);
     };
     globalThis.addEventListener(OPEN_PALETTE_EVENT, onOpen);
@@ -173,9 +191,89 @@ export default function CommandPalette() {
     ? 0
     : Math.min(active, filtered.length - 1);
 
+  // Dev-mode paste-and-launch (§10): a query that starts with `{` is a pasted JSON
+  // intent, not a filter — the palette becomes the launcher's pre-filled input mode.
+  const jsonMode = devMode && query.trim().startsWith("{");
+  // Dev-mode NL mode (§10 front half): a query starting with `>` is natural language
+  // the LLM translates into intent JSON, which then lands in jsonMode for review.
+  const nlMode = devMode && query.trim().startsWith(">");
+
   const close = () => {
     setOpen(false);
     setFormIntent(null);
+    setLaunchError(null);
+    setTranslating(false);
+    setTranslateRetry(null);
+  };
+
+  /**
+   * Launch a pasted `{ name, params }` (§10): parse + resolve the effect, then
+   * dispatch — a write through the shared {@link useInvokeIntent} effect (central
+   * toast + blanket invalidate, the same as the form/direct-invoke paths), a read
+   * through {@link queryByName} with a "Done" toast. A parse/resolve failure shows
+   * its reason inline. This is the launcher, not an interpreter: the JSON is a
+   * fully-specified invocation, not a language.
+   */
+  const runLaunch = async () => {
+    let parsed;
+    try {
+      parsed = parseLaunch(query);
+    } catch (e) {
+      setLaunchError(
+        e instanceof LaunchError ? e.message : (e as Error).message,
+      );
+      return;
+    }
+    setLaunchError(null);
+    if (parsed.effect === "write") {
+      close();
+      void invokeIntent(parsed.name, parsed.params);
+      return;
+    }
+    if (parsed.effect === "read") {
+      try {
+        await queryByName(parsed.name, parsed.params, getGateway());
+        showNotification(t("paramFormSuccess"), "success");
+        close();
+      } catch (e) {
+        setLaunchError((e as Error).message);
+      }
+      return;
+    }
+    // navigate: no gateway-less goTo arm yet (§7) — surface the launcher's reason.
+    setLaunchError(
+      `"${parsed.name}" is a navigate intent — not launchable yet`,
+    );
+  };
+
+  /**
+   * Translate a `>`-prefixed natural-language request into intent JSON via the LLM
+   * (§10 front half) and drop the result into the field — which flips the palette
+   * into jsonMode, so the user *reviews* the JSON and presses Enter again to launch.
+   * The translator never auto-fires; a wrong guess is caught by the launcher's
+   * validation downstream.
+   */
+  const runTranslate = async () => {
+    const text = query.trim().slice(1).trim(); // drop the leading ">"
+    if (!text) return;
+    setLaunchError(null);
+    setTranslateRetry(null);
+    setTranslating(true);
+    try {
+      const json = await translateToIntentJson(text, {
+        // On a timeout the call retries once; reflect it in the busy hint.
+        onRetry: (a, of) => setTranslateRetry([a, of]),
+      });
+      setQuery(json);
+      inputRef.current?.focus();
+    } catch (e) {
+      setLaunchError(
+        e instanceof TranslateError ? e.message : (e as Error).message,
+      );
+    } finally {
+      setTranslating(false);
+      setTranslateRetry(null);
+    }
   };
 
   const run = (cmd: PaletteCommand) => {
@@ -217,6 +315,22 @@ export default function CommandPalette() {
   };
 
   const onListKeyDown = (e: React.KeyboardEvent) => {
+    if (nlMode) {
+      // Enter translates the NL to JSON (then jsonMode takes over); arrows inert.
+      if (e.key === "Enter") {
+        e.preventDefault();
+        if (!translating) void runTranslate();
+      }
+      return;
+    }
+    if (jsonMode) {
+      // In paste-and-launch mode the list is hidden; Enter launches, arrows inert.
+      if (e.key === "Enter") {
+        e.preventDefault();
+        void runLaunch();
+      }
+      return;
+    }
     if (e.key === "ArrowDown") {
       e.preventDefault();
       setActive(Math.min(activeIdx + 1, filtered.length - 1));
@@ -266,12 +380,45 @@ export default function CommandPalette() {
           autoComplete="off"
           placeholder={t("palettePlaceholder")}
           value={query}
-          onChange={(e) => setQuery(e.target.value)}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            if (launchError) setLaunchError(null);
+          }}
           onKeyDown={onListKeyDown}
           aria-label={t("palettePlaceholder")}
           sx={{ mb: 1 }}
         />
-        {filtered.length === 0
+        {nlMode
+          ? (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+                {translating
+                  ? (translateRetry
+                    ? `${t("paletteNlBusy")} (${t("paletteNlRetry")} ${translateRetry[0]}/${translateRetry[1]})`
+                    : t("paletteNlBusy"))
+                  : t("paletteNlHint")}
+              </Typography>
+              {launchError && (
+                <Typography variant="body2" color="error" sx={{ pb: 1 }}>
+                  {launchError}
+                </Typography>
+              )}
+            </>
+          )
+          : jsonMode
+          ? (
+            <>
+              <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+                {t("paletteLaunchHint")}
+              </Typography>
+              {launchError && (
+                <Typography variant="body2" color="error" sx={{ pb: 1 }}>
+                  {launchError}
+                </Typography>
+              )}
+            </>
+          )
+          : filtered.length === 0
           ? (
             <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
               {t("paletteEmpty")}

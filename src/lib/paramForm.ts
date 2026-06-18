@@ -84,6 +84,9 @@ export const FORM_EXCLUDED: ReadonlySet<string> = new Set<string>([
   "UploadAttachments",
   "SaveContact",
   "RestoreArchive",
+  // FindBuildings.selector is a structured {and:[…]} object (placeholder XSD_STRING),
+  // not a free-text field — the attribute facet UI renders it, not the generic form.
+  "FindBuildings",
   // `fileUri` + `subjectUri` derived-IRI bundles.
   "SetEnergyCertificate",
   "DeleteAttachment",

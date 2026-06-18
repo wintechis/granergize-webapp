@@ -9,6 +9,7 @@
 // `getSession()` straight through.
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { shareBuildingCore } from "./shareBuilding.ts";
+import { findBuildingsCore } from "./FindBuildings.ts";
 import { checkSharingConsistencyCore } from "./checkSharingConsistency.ts";
 import { exportArchiveCore } from "./exportArchive.ts";
 import { addBuildingCore } from "./AddBuilding.ts";
@@ -127,6 +128,9 @@ export const READ_CORES = {
     return checkSharingConsistencyCore(s);
   },
   ExportArchive: exportArchiveCore,
+  // The first collection query — narrows the visible buildings by an attribute
+  // selector (plan-attribute-facets); returns the matching BuildingType[].
+  FindBuildings: findBuildingsCore,
 } as const;
 
 /** A catalog name that has an extracted **write** core. */
@@ -156,8 +160,11 @@ export type ReadValue<N extends ReadIntentName> = Awaited<
  * gap, not a recoverable condition). `kind` says which channel was asked.
  */
 export class IntentNotInvocableError extends Error {
+  // `name` is a plain param (used in the message), NOT a property: a `readonly name`
+  // param-property would shadow `Error.name` and then be overwritten by the
+  // assignment below — pointless, and it trips `noImplicitOverride`.
   constructor(
-    readonly name: string,
+    name: string,
     readonly kind: "write" | "read",
   ) {
     super(`Intent "${name}" has no extracted ${kind} core (not invocable yet)`);
