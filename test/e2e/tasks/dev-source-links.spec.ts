@@ -33,6 +33,13 @@ const ttl = (body: string) => ({
   headers: CORS,
   body,
 });
+// The building page also carries the energieatlas/lau/nuts/lod2 map widgets; stub them
+// empty so the page is hermetic (this spec only asserts the wrappers' dev source links).
+const EMPTY_FC = JSON.stringify({ type: "FeatureCollection", features: [] });
+const PNG_1x1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 const REGIO_TTL = `
 @prefix qb: <http://purl.org/linked-data/cube#> .
@@ -96,6 +103,13 @@ test.describe("dev-mode external source links", () => {
         ttl(url.includes("values?") ? WEATHER_VALUES_TTL : WEATHER_STATIONS_TTL),
       );
     });
+    // The other building-page widgets — stub empty so they don't hit live wrappers.
+    await page.route(/\/(nuts|lau)\/geojson/, (route) =>
+      route.fulfill({ status: 200, contentType: "application/geo+json", headers: CORS, body: EMPTY_FC }));
+    await page.route(/\/(energieatlas\/area|lod2-by)\//, (route) =>
+      route.fulfill({ status: 404, headers: CORS, body: "" }));
+    await page.route(/geodatenzentrum\.de/, (route) =>
+      route.fulfill({ status: 200, contentType: "image/png", body: PNG_1x1 }));
     await login(page, ACC);
     await assertCleanStart(page);
   });
@@ -118,30 +132,38 @@ test.describe("dev-mode external source links", () => {
     const id = await buildingIdOf(row);
     if (!id) throw new Error("dev-source-links: missing building id");
 
-    await page.goto(buildingRoute("observation", id));
-
     // Each section surfaces the ACTUAL dereferenced wrapper IRI (absolute, external).
-    const links = {
-      regionalstatistik: 'a[href^="https://wunderfacts.com/regionalstatistik/data/86251-Z-02"]',
+    // The regionalstatistik figures live on the BUILDING page (its place/statistics
+    // content); weather + nearby-installations stay on the observation (energy) page.
+    const regioLink = 'a[href^="https://wunderfacts.com/regionalstatistik/data/86251-Z-02"]';
+    const onBuilding = { regionalstatistik: regioLink };
+    const onObservation = {
       weather: 'a[href^="https://wunderfacts.com/wetterdienst/values?"]',
       mastr: 'a[href^="https://wunderfacts.com/mastr/bbox?"]',
     };
-    for (const [name, sel] of Object.entries(links)) {
-      const link = page.locator(sel).first();
-      await expect(link, `${name} dev source link visible`).toBeVisible({
-        timeout: T.action,
-      });
-      // Absolute + opens externally (the "blue external URI" affordance).
-      await expect(link).toHaveAttribute("target", "_blank");
-      await expect(link).toHaveAttribute("rel", /noopener/);
-    }
+    const assertLinks = async (where: Record<string, string>) => {
+      for (const [name, sel] of Object.entries(where)) {
+        const link = page.locator(sel).first();
+        await expect(link, `${name} dev source link visible`).toBeVisible({
+          timeout: T.action,
+        });
+        // Absolute + opens externally (the "blue external URI" affordance).
+        await expect(link).toHaveAttribute("target", "_blank");
+        await expect(link).toHaveAttribute("rel", /noopener/);
+      }
+    };
+    await page.goto(buildingRoute("building", id));
+    await assertLinks(onBuilding);
+    await page.goto(buildingRoute("observation", id));
+    await assertLinks(onObservation);
 
     // Sanity: the same links are HIDDEN once dev mode is off (self-hiding affordance).
     await page.goto("/");
     await setDevMode(page, false);
+    await page.goto(buildingRoute("building", id));
+    await expect(page.locator(onBuilding.regionalstatistik)).toHaveCount(0);
     await page.goto(buildingRoute("observation", id));
-    await expect(page.locator(links.regionalstatistik)).toHaveCount(0);
-    await expect(page.locator(links.mastr)).toHaveCount(0);
+    await expect(page.locator(onObservation.mastr)).toHaveCount(0);
 
     // Cleanup.
     await page.goto("/");
