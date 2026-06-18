@@ -2,6 +2,7 @@
 import { strict as assert } from "node:assert";
 import {
   buildCommandList,
+  buildingNavCommands,
   DIRECT_INVOKE_EXCLUDED,
   filterCommands,
   intentDialogAction,
@@ -9,7 +10,8 @@ import {
   isDirectInvokeEligible,
   type NavTarget,
 } from "./commandPalette.ts";
-import { withAction } from "../routes.ts";
+import { buildingDisplayName } from "./buildingDisplay.ts";
+import { buildingRoute, withAction } from "../routes.ts";
 import { findIntent, type IntentObject } from "../intents/applicable.ts";
 import { INTENTS } from "../intents/catalog.ts";
 import type { TFn } from "../context/I18nProvider.tsx";
@@ -373,4 +375,44 @@ Deno.test("an Account object surfaces no AFFORDANCE-GUARDED per-object verb (for
   const refresh = intents.find((c) => c.entry?.name === "RefreshAggregation");
   assert.ok(refresh);
   assert.equal(refresh!.routesToForm, true);
+});
+
+Deno.test("buildingNavCommands: each building → a navigation command routed by buildingRoute", () => {
+  const own = building({
+    id: "granergize/buildings/b1.ttl#it",
+    streetAddress: "Nordostpark 84",
+  });
+  const shared = building({
+    id: "https://bob.example/granergize/buildings/x.ttl#it",
+    isShared: true,
+    streetAddress: "Hafenstr. 1",
+  });
+  const cmds = buildingNavCommands([own, shared]);
+
+  assert.equal(cmds.length, 2);
+  assert.equal(cmds[0].family, "navigation");
+  assert.equal(cmds[0].label, buildingDisplayName(own));
+  assert.equal(cmds[0].path, buildingRoute(own.id));
+  assert.equal(cmds[0].key, buildingRoute(own.id));
+  // Own (relative) id → ?ref=, shared (absolute IRI) id → ?uri= — both jump correctly.
+  assert.match(cmds[0].path!, /\?ref=/);
+  assert.match(cmds[1].path!, /\?uri=/);
+});
+
+Deno.test("buildingNavCommands: empty list → no commands", () => {
+  assert.deepEqual(buildingNavCommands([]), []);
+});
+
+Deno.test("buildingNavCommands: findable by address even when the label is a code", () => {
+  const b = building({
+    id: "granergize/buildings/b1.ttl#it",
+    buildingCode: "NOP-84",
+    streetAddress: "Nordostpark 84",
+    locality: "Nürnberg",
+  });
+  const cmds = buildingNavCommands([b]);
+  assert.equal(cmds[0].label, "NOP-84"); // displays the short name (the code)
+  // …but the filter matches the full search text, so the address finds it too.
+  assert.equal(filterCommands(cmds, "Nordostpark").length, 1);
+  assert.equal(filterCommands(cmds, "NOP").length, 1);
 });

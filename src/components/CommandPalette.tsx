@@ -11,9 +11,11 @@ import { useNavigate } from "react-router-dom";
 import Modal from "./Modal.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
+import { useBuildings } from "../hooks/queries.ts";
 import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
 import {
   buildCommandList,
+  buildingNavCommands,
   filterCommands,
   intentDialogAction,
   type NavTarget,
@@ -127,6 +129,7 @@ export default function CommandPalette() {
   const { focus } = usePaletteFocus();
   const invokeIntent = useInvokeIntent();
   const { showNotification } = useNotification();
+  const buildings = useBuildings();
 
   // ⌘K / Ctrl-K toggles the palette. Opening resets the filter + selection in the
   // same updater (no setState-in-effect), so the field starts empty each time.
@@ -180,10 +183,21 @@ export default function CommandPalette() {
       }),
     [focus.object, focus.handlers, devMode, t],
   );
-  const filtered = useMemo(
-    () => filterCommands(commands, query),
-    [commands, query],
-  );
+  // Search-only "jump to a building" commands: the user's buildings as direct nav
+  // targets (own or shared — `buildingRoute` encodes `?ref=`/`?uri=`). A
+  // quick-switcher surfaced ONLY while filtering, so the default palette stays the
+  // finders + verbs and isn't flooded with every building.
+  const buildingCommands = useMemo<PaletteCommand[]>(() => {
+    const list = Array.isArray(buildings.data)
+      ? []
+      : buildings.data?.buildings ?? [];
+    return buildingNavCommands(list);
+  }, [buildings.data]);
+  const filtered = useMemo(() => {
+    const base = filterCommands(commands, query);
+    if (!query.trim()) return base;
+    return [...base, ...filterCommands(buildingCommands, query)];
+  }, [commands, buildingCommands, query]);
 
   // Clamp the highlighted index into range as the list shrinks under the filter,
   // derived at render rather than synced via setState-in-effect.

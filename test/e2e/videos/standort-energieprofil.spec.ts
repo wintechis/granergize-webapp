@@ -2,7 +2,6 @@ import { expect, type Page, test } from "@playwright/test";
 import { mkdirSync, writeFileSync } from "node:fs";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { vt, VID_LOCALE, VID_OUT } from "./lang.ts";
-import { buildingRoute } from "../helpers/manage.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
 import { Demo } from "./demoPolish.ts";
 
@@ -71,7 +70,10 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     await page.getByRole("button", { name: vt("btnList") }).click();
     const setupRow = page.locator("li", { hasText: BUILDING }).first();
     await expect(setupRow).toBeVisible({ timeout: 60_000 });
-    const buildingId = await setupRow.getAttribute("data-building-id");
+    // The building's display name (the row heading) — its palette label, the text we
+    // type + click to jump to it via the command palette.
+    const buildingName =
+      ((await setupRow.locator("strong").first().textContent()) ?? BUILDING).trim();
 
     // --- The stage: a fresh page (= a fresh recording) in the same context. ---
     const stage = await page.context().newPage();
@@ -91,12 +93,26 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
       },
     ]);
 
-    // --- Scene 1: open the building, land on the Standort-Energieprofil panel. ---
+    // --- Scene 1: reach the building via the ⌘K command palette — type its name,
+    //     jump straight to it (the intent-launcher's building-jump). The palette
+    //     navigates CLIENT-SIDE, so the warm session + demo overlay survive. ---
+    await demo.scene(
+      "palette",
+      "Per Befehlspalette (Strg K) direkt zum Gebäude springen",
+    );
+    await demo.click(stage.getByRole("button", { name: vt("paletteOpenAria") }));
+    const paletteInput = stage.getByRole("textbox", { name: vt("palettePlaceholder") });
+    await expect(paletteInput).toBeVisible({ timeout: 10_000 });
+    await demo.type(paletteInput, buildingName);
+    const hit = stage.getByRole("button", { name: buildingName }).first();
+    await expect(hit).toBeVisible({ timeout: 10_000 });
+    await demo.click(hit);
+
+    // --- Scene 2: the Standort-Energieprofil panel on the building's page. ---
     await demo.scene(
       "radar",
       "Das Standort-Energieprofil bündelt offene Daten zum Standort – Chancen statt Historie",
     );
-    await stage.goto(buildingRoute("building", buildingId));
     const profile = stage.getByText(vt("secStandortProfile")).first();
     // The panel fills after two chained fetches (nearby MaStR → Gemeinde AGS →
     // Energie-Atlas), so give it room to arrive.

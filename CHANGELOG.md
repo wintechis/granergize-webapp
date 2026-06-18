@@ -3,6 +3,13 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-18]
+- **Command palette: jump to a building.** Typing in the ⌘K palette now surfaces the user's
+  buildings as direct navigation targets (own or shared — `buildingRoute` encodes `?ref=`/`?uri=`),
+  found by the full search text (name / address / company / code) while displaying the short name.
+  Search-only, so the default command view stays the finders + verbs. New pure `buildingNavCommands`
+  + an optional `PaletteCommand.searchText` the filter matches against (`lib/commandPalette.ts`, +3
+  Tier-1 tests, suite green); `CommandPalette.tsx` sources the list from `useBuildings`. The
+  handbuch **Standort-Energieprofil** video opens through it (⌘K → type the building → its radar).
 - **Region choropleth: deep-linkable initial view + Standort-Energieprofil video scene.**
   `RegionChoropleth` now accepts an optional `?lat`/`?lon`/`?zoom` query (defaults to the Germany
   overview), so `/choropleth` can open centred on a location at a chosen grain — the hook for a

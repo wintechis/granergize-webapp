@@ -37,7 +37,9 @@ import { INTENT_PARAMS } from "../intents/params.ts";
 import { intentLabelKey } from "../intents/labels.ts";
 import { isFormEligible } from "./paramForm.ts";
 import { type MessageId } from "./messages.ts";
-import type { DialogAction } from "../routes.ts";
+import { buildingRoute, type DialogAction } from "../routes.ts";
+import { buildingDisplayName, buildingSearchText } from "./buildingDisplay.ts";
+import type { BuildingType } from "../types.ts";
 import type { TFn } from "../context/I18nProvider.tsx";
 
 export type { IntentObject, ViewerContext } from "../intents/applicable.ts";
@@ -60,8 +62,14 @@ export interface PaletteCommand {
   key: string;
   /** Command family — drives both grouping and how it is invoked. */
   family: "navigation" | "intent";
-  /** The localised label shown (and matched against the filter). */
+  /** The localised label shown. */
   label: string;
+  /**
+   * Text the filter matches against INSTEAD of the label (defaults to the label).
+   * Lets a building-jump be found by its address / company / code while still
+   * displaying its short name.
+   */
+  searchText?: string;
   /**
    * Navigation only: the route path to push. (Intents carry no path; they invoke
    * through their handler / route to their dialog.)
@@ -189,6 +197,25 @@ export function intentRoutesToDialog(entry: IntentEntry): boolean {
   return DIALOG_SURFACE.has(entry.name) && hasModelledParams(entry.name);
 }
 
+/**
+ * "Jump to a building" navigation commands — the user's buildings as direct nav
+ * targets, labelled by {@link buildingDisplayName} and routed by {@link buildingRoute}
+ * (which encodes `?ref=` for an own id / `?uri=` for a shared IRI, so both kinds
+ * jump correctly). The palette surfaces these only while filtering (a quick-switcher),
+ * so they never flood the default command view. Pure → Tier-1 testable.
+ */
+export function buildingNavCommands(
+  buildings: readonly BuildingType[],
+): PaletteCommand[] {
+  return buildings.map((b) => ({
+    key: buildingRoute(b.id),
+    family: "navigation",
+    label: buildingDisplayName(b),
+    searchText: buildingSearchText(b),
+    path: buildingRoute(b.id),
+  }));
+}
+
 /** Filter a command list by a case-insensitive substring of the label. */
 export function filterCommands(
   commands: PaletteCommand[],
@@ -196,7 +223,7 @@ export function filterCommands(
 ): PaletteCommand[] {
   const q = query.trim().toLowerCase();
   if (!q) return commands;
-  return commands.filter((c) => c.label.toLowerCase().includes(q));
+  return commands.filter((c) => (c.searchText ?? c.label).toLowerCase().includes(q));
 }
 
 /**
