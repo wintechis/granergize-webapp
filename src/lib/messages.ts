@@ -1028,6 +1028,17 @@ export const MESSAGES = {
     de: "PV-Dachflächen-Ausbaugrad",
     fr: "Taux d'équipement PV en toiture",
   },
+  // Neighbourhood energy-profile choropleth on the building's observation page.
+  neighbourhoodTitle: {
+    en: "Location energy profile — neighbourhood",
+    de: "Standort-Energieprofil — Umgebung",
+    fr: "Profil énergétique du site — voisinage",
+  },
+  neighbourhoodSource: {
+    en: "Rooftop-PV build-out per municipality · Energie-Atlas Bayern (Bavaria only)",
+    de: "PV-Dachausbaugrad je Gemeinde · Energie-Atlas Bayern (nur Bayern)",
+    fr: "Taux d'équipement PV par commune · Energie-Atlas Bayern (Bavière)",
+  },
   choroplethGemeindeSource: {
     en: "Bavaria only · Energie-Atlas Bayern",
     de: "nur Bayern · Energie-Atlas Bayern",

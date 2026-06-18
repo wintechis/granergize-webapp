@@ -18,9 +18,20 @@ All notable changes to the Granergize WebApp project will be documented in this 
   `regionalCube.ts`; band/legend reuse `constants/lensBand.ts` + `magnitudeCategoriserFor`. New env
   `VITE_NUTS_API_URI`/`VITE_LAU_API_URI`/`VITE_ENERGIEATLAS_API_URI`; i18n de/en/fr. **+14 Tier-1
   tests** (geo-URL/normalise, all-regions parse, energieatlas parse) — full suite **808/0**, build
-  clean. (Component render is e2e-only under MUI; data paths verified live against the wrappers.
-  Needs the `linked-energieatlas` CORS filter registered + redeployed for the Gemeinde layer to
-  fetch in-browser.)
+  clean. (Component render is e2e-only under MUI; data paths verified live against the wrappers.)
+- **Location energy profile — neighbourhood choropleth on the building's observation page.** A
+  `NeighbourhoodEnergyMap` widget (`components/observation/NeighbourhoodEnergyMap.tsx`, beside the
+  Regional-context section in `Energy.tsx`): for a Bavarian building it renders a small Leaflet map
+  of the neighbour **Gemeinden** (from `linked-lau`, fetched by a bbox around the building's
+  coordinates) shaded by each municipality's real rooftop-PV build-out (Ausbaugrad) from
+  `linked-energieatlas` (`services/energieatlas.ts`, +3 Tier-1 tests). One `area/{ags}` GET per
+  visible Gemeinde (cached); degrades silently off Bavaria / without coordinates — the area-grained
+  sibling of the point-grained nearby-installations. This is the contextual home for the choropleth
+  (the standalone `/choropleth` route stays as a WIP full-map surface but doesn't cold-load
+  cleanly). New `neighbourhood-energy.spec.ts` (Tier-3, on `/observation`) asserts the neighbour
+  Gemeinden render + shade from the (stubbed) Energie-Atlas figures — **green**. The
+  `linked-energieatlas` wrapper needed its CORS filter registered (done + deployed). Build + lint
+  clean, full suite 808/0.
 
 ## [2026-06-17]
 - **Keyword search across the top-level finders.** A shared, URL-backed search seam — `lib/textSearch.ts` (case-insensitive AND-substring matcher), `hooks/useListSearch.ts` (`?q=`/`{key}_q=`, resets paging to page 1 on change, restores across reload), and one `SearchField` component — wired into all seven finder lists (Buildings, Observations, Aggregations, Contacts, Rooms, SharingFinder ×2), each with a "no matches" state and a per-type `searchText` accessor (shared `buildingSearchText`). i18n de/en/fr. Tier-1 +8 (matcher + URL hook); new Tier-3 `search-finder.spec.ts` (filter → URL-backed reload → no-match → clear) green. typecheck + build + lint clean.
