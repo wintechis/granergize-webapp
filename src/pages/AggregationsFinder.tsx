@@ -12,7 +12,7 @@ import VisibilityIcon from "@mui/icons-material/Visibility";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { AggregationDefinition } from "../types.ts";
-import { aggregationRoute } from "../routes.ts";
+import { aggregationRoute, regionalRoute } from "../routes.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
@@ -42,8 +42,12 @@ import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
 import SearchField from "../components/SearchField.tsx";
 import TierFilter from "../components/TierFilter.tsx";
-import { TIER_VALUES } from "../constants/tiers.ts";
+import { AGGREGATION_TIERS } from "../constants/tiers.ts";
 import { filterByText } from "../lib/textSearch.ts";
+import {
+  type OpenRegionalItem,
+  openRegionalItemsFromBuildings,
+} from "../services/openRegional.ts";
 import ReceivedAggregationRow from "../components/aggregation/ReceivedAggregationRow.tsx";
 import type { ReceivedAggregation } from "../services/interop/sharingManager.ts";
 import ShareAggregationDialog from "../components/ShareAggregationDialog.tsx";
@@ -53,16 +57,20 @@ interface AggregationsFinderProps {
   session: Session;
 }
 
-/** A row in the unified Aggregations collection: an own definition (`mine`) or a
- * snapshot shared with me (`shared`). */
+/** A row in the unified Aggregations collection: an own definition (`mine`), a
+ * snapshot shared with me (`shared`), or a public open-data regional dataset
+ * (`open`). */
 type AggItem =
   | { kind: "own"; def: AggregationDefinition }
-  | { kind: "received"; recv: ReceivedAggregation };
+  | { kind: "received"; recv: ReceivedAggregation }
+  | { kind: "open"; open: OpenRegionalItem };
 
 const aggItemSearchText = (it: AggItem): string =>
   it.kind === "own"
     ? `${it.def.name} ${it.def.aggregationType}`
-    : `${it.recv.aggregationId} ${it.recv.sharedBy}`;
+    : it.kind === "received"
+    ? `${it.recv.aggregationId} ${it.recv.sharedBy}`
+    : `${it.open.region} ${it.open.tableId}`;
 
 /**
  * The Aggregations finder (`/aggregations`): the aggregations you build from your
@@ -108,19 +116,26 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
   const aggregationDefinitions = aggregationDefsQuery.data ?? [];
   const receivedAggregationsQuery = useReceivedAggregations();
   const receivedAggregations = receivedAggregationsQuery.data ?? [];
-  const hasReceived = receivedAggregations.length > 0;
-  const totalReachable = aggregationDefinitions.length + receivedAggregations.length;
+  // Public open-data datasets (regionalstatistik), keyed to the regions of my own
+  // buildings — derived in-memory (no network here; figures load on the detail page).
+  const openItems = openRegionalItemsFromBuildings(buildings);
+  const totalReachable = aggregationDefinitions.length +
+    receivedAggregations.length + openItems.length;
 
   const { query, setQuery } = useListSearch();
-  const tierFacet = useListFacet("tiers", TIER_VALUES);
+  const tierFacet = useListFacet("tiers", AGGREGATION_TIERS);
   // Own aggregations are the `mine` tier; received (snapshots shared with me) the
-  // `shared` tier — one collection, the union of the ticked tiers (plan Slice 4).
+  // `shared` tier; public regionalstatistik datasets the `open` tier — one
+  // collection, the union of the ticked tiers (plan Slice 4 / Slice 6-7).
   const items: AggItem[] = [
     ...(tierFacet.isSelected("mine")
       ? aggregationDefinitions.map((def): AggItem => ({ kind: "own", def }))
       : []),
     ...(tierFacet.isSelected("shared")
       ? receivedAggregations.map((recv): AggItem => ({ kind: "received", recv }))
+      : []),
+    ...(tierFacet.isSelected("open")
+      ? openItems.map((open): AggItem => ({ kind: "open", open }))
       : []),
   ];
   const filteredItems = filterByText(items, query, aggItemSearchText);
@@ -201,9 +216,10 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
             sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
           >
             <SearchField value={query} onChange={setQuery} />
-            {/* The tier selector earns its place once an aggregation is shared with
-                me — otherwise there's a single source (my own). */}
-            {hasReceived && <TierFilter facet={tierFacet} />}
+            {/* The tier selector is always offered (whenever there are
+                aggregations), even with a single tier, so the source-tier
+                affordance stays discoverable. */}
+            <TierFilter facet={tierFacet} options={AGGREGATION_TIERS} />
           </Stack>
         )}
         {aggregationDefsQuery.isLoading
@@ -232,6 +248,30 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                     <ReceivedAggregationRow
                       key={item.recv.snapshotUri}
                       aggregation={item.recv}
+                    />
+                  );
+                }
+                if (item.kind === "open") {
+                  const { open } = item;
+                  return (
+                    <ResourceRow
+                      key={open.id}
+                      title={<strong>{t(open.labelId)} — {open.region}</strong>}
+                      subtitle={t("openRegionalMeta")}
+                      actions={
+                        // Public, read-only: the only affordance is opening the
+                        // dataset's standalone figures page.
+                        <Tooltip title={t("aggDetailsAria")}>
+                          <IconButton
+                            size="small"
+                            aria-label={t("aggDetailsAria")}
+                            onClick={() =>
+                              navigate(regionalRoute(open.tableId, open.ags))}
+                          >
+                            <VisibilityIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      }
                     />
                   );
                 }

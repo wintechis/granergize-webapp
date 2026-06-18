@@ -92,6 +92,40 @@ Deno.test("grant vs revoke enumerate the SAME set (the unification invariant)", 
   );
 });
 
+Deno.test("buildingTargetsFromStore: an attachment subset grants each file, NOT the files/ container", () => {
+  const A1 = `${FILES}plan.pdf`;
+  const A2 = `${FILES}lease.pdf`;
+  const targets = buildingTargetsFromStore(store(), BUILDING, {
+    includeEnergyData: false,
+    attachmentUris: [A1, A2],
+  });
+  const set = new Set(targets.map((t) => t.uri));
+  // Each selected attachment is an individual, non-container target.
+  assert.ok(set.has(A1));
+  assert.ok(set.has(A2));
+  assert.strictEqual(targets.find((t) => t.uri === A1)!.isContainer, false);
+  // The files/ container default is WITHHELD so unselected files stay private.
+  assert.ok(!set.has(FILES), "files/ container is not granted for a subset");
+});
+
+Deno.test("buildingTargetsFromStore: absent attachmentUris grants the files/ container (intensional all)", () => {
+  const set = new Set(
+    buildingTargetsFromStore(store(), BUILDING, { includeEnergyData: false })
+      .map((t) => t.uri),
+  );
+  assert.ok(set.has(FILES), "files/ container granted when no subset is given");
+});
+
+Deno.test("buildingTargetsFromStore: empty attachmentUris falls back to the files/ container", () => {
+  const set = new Set(
+    buildingTargetsFromStore(store(), BUILDING, {
+      includeEnergyData: false,
+      attachmentUris: [],
+    }).map((t) => t.uri),
+  );
+  assert.ok(set.has(FILES), "an empty selection is treated as all");
+});
+
 Deno.test("buildingTargetsFromStore: includeEnergyData:false keeps only file + files/", () => {
   const set = new Set(
     buildingTargetsFromStore(store(), BUILDING, { includeEnergyData: false })

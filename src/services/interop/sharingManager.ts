@@ -343,6 +343,7 @@ export async function recordSharing(
   gateway: PodGateway,
   includesEnergy = true,
   years?: number[],
+  attachmentUris?: string[],
 ): Promise<void> {
   const userWebId = gateway.webId;
   if (!userWebId) {
@@ -356,6 +357,7 @@ export async function recordSharing(
     kind: "Building",
     includesEnergy,
     years: years && years.length ? years : undefined,
+    attachmentUris: attachmentUris && attachmentUris.length ? attachmentUris : undefined,
     at: new Date().toISOString(),
   });
 }

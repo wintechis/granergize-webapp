@@ -8,7 +8,6 @@ import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import { useLocation, useSearchParams } from "react-router-dom";
 import {
   Button,
-  Stack,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
@@ -22,7 +21,7 @@ import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
 import SearchField from "../components/SearchField.tsx";
 import TierFilter from "../components/TierFilter.tsx";
-import { TIER_VALUES } from "../constants/tiers.ts";
+import { BUILDING_TIERS } from "../constants/tiers.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { buildingRoute } from "../routes.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
@@ -95,11 +94,10 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   // (Slice 1, plan-finder-collection-model: membership is guise-invariant). `ownedBuildings`
   // is kept only for the own-only "Download all".
   const ownedBuildings = buildings.filter((b) => !b.isShared);
-  const hasShared = buildings.some((b) => b.isShared);
   const { query, setQuery } = useListSearch();
   // Tier source-selector (Slice 2): union the ticked provenance tiers. Default both
   // → the full reachable set (matching the Map). A building's tier is own vs shared.
-  const tierFacet = useListFacet("tiers", TIER_VALUES);
+  const tierFacet = useListFacet("tiers", BUILDING_TIERS);
   const byTier = buildings.filter((b) =>
     tierFacet.isSelected(b.isShared ? "shared" : "mine")
   );
@@ -182,37 +180,86 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
         minHeight: 0,
       }}
     >
-      {/* Shared collection chrome: the view toggle + the collection-level search /
-          tier facet, rendered ONCE here (not per guise) so both Map and List read
-          the same controls — capabilities are collection-level
-          (plan-finder-collection-model). */}
-      <Box
-        sx={{
-          display: "flex",
-          justifyContent: "center",
-          alignItems: "center",
-          flexWrap: "wrap",
-          gap: 1.5,
-          p: 1,
-          flexShrink: 0,
-        }}
-      >
-        <ToggleButtonGroup
-          size="small"
-          exclusive
-          value={buildingsView}
-          onChange={(_e, next) => {
-            if (next) setBuildingsView(next); // ignore deselect of the active button
+      {/* Shared collection chrome: the heading + identity, the collection-level
+          actions (add / autofill / download-all), the view toggle, and the
+          search / tier facet — rendered ONCE here (not per guise) so they show in
+          BOTH Map and List. These are collection-level capabilities
+          (plan-finder-collection-model), so they must not hide inside one view. */}
+      <Box sx={{ p: 1, flexShrink: 0 }}>
+        {/* Heading + identity + actions — left-aligned, visible in both views. */}
+        <Box
+          sx={{
+            display: "flex",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1.5,
+            mb: 1.5,
           }}
-          aria-label={t("bldgsViewAria")}
         >
-          <ToggleButton value="map">{t("btnMap")}</ToggleButton>
-          <ToggleButton value="list">{t("btnList")}</ToggleButton>
-        </ToggleButtonGroup>
-        {buildings.length > 0 && (
-          <SearchField value={query} onChange={setQuery} />
-        )}
-        {hasShared && <TierFilter facet={tierFacet} />}
+          <Typography variant="h6">{t("headingYourBuildings")}</Typography>
+          {rdf && <RdfSourceLink href={rdf.buildings} />}
+          <Box sx={{ flexGrow: 1 }} />
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={() => {
+              setImportMode(false);
+              setAddOpen(true);
+            }}
+          >
+            {t("addBuildingBtn")}
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<UploadFileIcon />}
+            onClick={() => {
+              setImportMode(true);
+              setAddOpen(true);
+            }}
+          >
+            {t("bldgsAutofillFromFile")}
+          </Button>
+          <Button
+            variant="outlined"
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadAll}
+            disabled={ownedBuildings.length === 0}
+          >
+            {t("bldgsDownloadAll")}
+          </Button>
+        </Box>
+        {/* View controls — centered. */}
+        <Box
+          sx={{
+            display: "flex",
+            justifyContent: "center",
+            alignItems: "center",
+            flexWrap: "wrap",
+            gap: 1.5,
+          }}
+        >
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={buildingsView}
+            onChange={(_e, next) => {
+              if (next) setBuildingsView(next); // ignore deselect of the active button
+            }}
+            aria-label={t("bldgsViewAria")}
+          >
+            <ToggleButton value="map">{t("btnMap")}</ToggleButton>
+            <ToggleButton value="list">{t("btnList")}</ToggleButton>
+          </ToggleButtonGroup>
+          {buildings.length > 0 && (
+            <SearchField value={query} onChange={setQuery} />
+          )}
+          {/* The tier selector is always offered (whenever there are buildings),
+              even with a single tier, so the source-tier affordance stays
+              discoverable — ticking "shared" with nothing shared simply shows none. */}
+          {buildings.length > 0 && (
+            <TierFilter facet={tierFacet} options={BUILDING_TIERS} />
+          )}
+        </Box>
       </Box>
       {/* Map: kept mounted whenever Buildings is the finder (only hidden when
           switched to List), preserving ExplorePage's Leaflet instance + map state. */}
@@ -232,43 +279,6 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
       {buildingsView === "list" && (
         <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
           <Box component="section" sx={{ p: 3 }}>
-            <Typography variant="h6" sx={{ mb: 1 }}>{t("headingYourBuildings")}</Typography>
-            {rdf && <RdfSourceLink href={rdf.buildings} />}
-            <Stack
-              direction="row"
-              spacing={1.5}
-              sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
-            >
-              <Button
-                variant="outlined"
-                startIcon={<AddIcon />}
-                onClick={() => {
-                  setImportMode(false);
-                  setAddOpen(true);
-                }}
-              >
-                {t("addBuildingBtn")}
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<UploadFileIcon />}
-                onClick={() => {
-                  setImportMode(true);
-                  setAddOpen(true);
-                }}
-              >
-                {t("bldgsAutofillFromFile")}
-              </Button>
-              <Button
-                variant="outlined"
-                startIcon={<DownloadIcon />}
-                onClick={handleDownloadAll}
-                disabled={ownedBuildings.length === 0}
-              >
-                {t("bldgsDownloadAll")}
-              </Button>
-            </Stack>
-
             {buildingsLoading
               ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
               : buildings.length === 0

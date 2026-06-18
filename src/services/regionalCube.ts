@@ -28,6 +28,10 @@ export interface RegionalObservation {
   unit: string;
 }
 
+/** Display form for a regional figure's unit (the cube reports German unit names;
+ *  e.g. "Prozent" → "%"). Shared by every surface that renders these values. */
+export const REGIONAL_UNIT_DISPLAY: Record<string, string> = { Prozent: "%" };
+
 /** Fixes one auxiliary dimension to a single member, so a multi-dimension table
  *  collapses to one series. Both are matched by suffix/fragment (table-agnostic). */
 export interface DimensionSelector {

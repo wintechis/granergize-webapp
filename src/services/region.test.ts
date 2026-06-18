@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { bundeslandToAgs } from "./region.ts";
+import { bundeslandName, bundeslandToAgs } from "./region.ts";
 
 Deno.test("bundeslandToAgs: canonical German names → 2-digit AGS", () => {
   assert.equal(bundeslandToAgs("Bayern"), "09"); // the pilot region (Nürnberg)
@@ -26,4 +26,15 @@ Deno.test("bundeslandToAgs: empty / unknown / foreign → null", () => {
   assert.equal(bundeslandToAgs(null), null);
   assert.equal(bundeslandToAgs(undefined), null);
   assert.equal(bundeslandToAgs("Île-de-France"), null); // not a German Bundesland
+});
+
+Deno.test("bundeslandName: AGS → canonical German name (reverse of bundeslandToAgs)", () => {
+  assert.equal(bundeslandName("09"), "Bayern");
+  assert.equal(bundeslandName("08"), "Baden-Württemberg");
+  assert.equal(bundeslandName("16"), "Thüringen");
+  assert.equal(bundeslandName("99"), null); // unknown AGS
+  // Round-trips with bundeslandToAgs for every recognised name.
+  for (const name of ["Bayern", "Hessen", "Berlin", "Sachsen-Anhalt"]) {
+    assert.equal(bundeslandName(bundeslandToAgs(name)!), name);
+  }
 });

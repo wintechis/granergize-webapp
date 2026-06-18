@@ -1,6 +1,14 @@
-import { Box, Stack, Typography } from "@mui/material";
+import { useState } from "react";
+import {
+  Box,
+  Stack,
+  ToggleButton,
+  ToggleButtonGroup,
+  Typography,
+} from "@mui/material";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
 import type { BuildingType } from "../../types.ts";
+import NearbyInstallationsMap from "./NearbyInstallationsMap.tsx";
 import { useNearbyInstallations } from "../../hooks/mastrNearby.ts";
 import {
   DEFAULT_RADIUS_KM,
@@ -39,6 +47,8 @@ export default function NearbyInstallationsSection(
   const t = useT();
   const { data } = useNearbyInstallations(building);
   const paging = usePaging(data?.installations ?? [], { key: "ni" });
+  // List ⇄ Map guise of the same nearby set (local, non-URL state; List default).
+  const [view, setView] = useState<"list" | "map">("list");
 
   if (!data || data.installations.length === 0) return null;
 
@@ -51,9 +61,26 @@ export default function NearbyInstallationsSection(
 
   return (
     <Stack spacing={2}>
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: "center", flexWrap: "wrap" }}
+      >
         <SolarPowerIcon color="action" />
         <Typography variant="h6">{t("niTitle")}</Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={view}
+          onChange={(_e, next) => {
+            if (next) setView(next); // ignore deselect of the active button
+          }}
+          aria-label={t("niViewAria")}
+        >
+          <ToggleButton value="list">{t("btnList")}</ToggleButton>
+          <ToggleButton value="map">{t("btnMap")}</ToggleButton>
+        </ToggleButtonGroup>
       </Stack>
 
       <Typography variant="body2" color="text.secondary">
@@ -66,32 +93,46 @@ export default function NearbyInstallationsSection(
         )}
       </Typography>
 
-      <Box component="ul" sx={listStyle}>
-        {paging.pageItems.map((u) => (
-          <Box
-            component="li"
-            key={u.iri}
-            sx={{ display: "flex", flexDirection: "column", py: 0.5 }}
-          >
-            <Box sx={rowStyle}>
-              <Typography variant="body2" sx={{ ...ellipsis, minWidth: 0 }}>
-                {t(KIND_LABEL[u.kind])} — {u.label || t("niUnnamed")}
-              </Typography>
-              <Typography
-                variant="body2"
-                color="text.secondary"
-                sx={{ flexShrink: 0 }}
-              >
-                {t("niDistance", { km: u.distanceKm.toFixed(1) })}
-              </Typography>
+      {view === "map"
+        ? (
+          <NearbyInstallationsMap
+            building={building}
+            installations={data.installations}
+          />
+        )
+        : (
+          <>
+            <Box component="ul" sx={listStyle}>
+              {paging.pageItems.map((u) => (
+                <Box
+                  component="li"
+                  key={u.iri}
+                  sx={{ display: "flex", flexDirection: "column", py: 0.5 }}
+                >
+                  <Box sx={rowStyle}>
+                    <Typography
+                      variant="body2"
+                      sx={{ ...ellipsis, minWidth: 0 }}
+                    >
+                      {t(KIND_LABEL[u.kind])} — {u.label || t("niUnnamed")}
+                    </Typography>
+                    <Typography
+                      variant="body2"
+                      color="text.secondary"
+                      sx={{ flexShrink: 0 }}
+                    >
+                      {t("niDistance", { km: u.distanceKm.toFixed(1) })}
+                    </Typography>
+                  </Box>
+                  {/* Per-unit RDF resource on linked-mastr — the only "detail" a
+                      unit has (there is no in-app unit page); Developer-mode link. */}
+                  <RdfSourceLink href={u.iri} inline />
+                </Box>
+              ))}
             </Box>
-            {/* Per-unit RDF resource on linked-mastr — the only "detail" a unit
-                has (there is no in-app unit page); Developer-mode source link. */}
-            <RdfSourceLink href={u.iri} inline />
-          </Box>
-        ))}
-      </Box>
-      <Pager paging={paging} />
+            <Pager paging={paging} />
+          </>
+        )}
 
       <RdfSourceLink
         href={nearbyInstallationsUrl(building.lat!, building.long!)}

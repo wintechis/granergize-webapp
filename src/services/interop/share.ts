@@ -32,6 +32,13 @@ export interface ShareOptions {
   includeEnergyData: boolean;
   /** Restrict the energy grant to these years only. Absent = all years (today's behavior). */
   years?: number[];
+  /**
+   * Restrict the attachment grant to these file IRIs only. Absent/empty = all
+   * attachments (grant the `files/` container with `acl:default`, today's
+   * behavior, covering current AND future uploads). A subset grants each listed
+   * file individually and withholds the container default. Mirrors {@link years}.
+   */
+  attachmentUris?: string[];
 }
 
 /**
@@ -59,6 +66,7 @@ export async function shareBuildingData(
     gateway,
     options.includeEnergyData,
     options.years,
+    options.attachmentUris,
   );
 
   // Write the WAC grants (the enforcement side — a derived projection).
@@ -146,6 +154,7 @@ export async function buildingGrantTargets(
   return buildingTargetsFromStore(store, buildingFile, {
     includeEnergyData: options.includeEnergyData,
     years: options.years,
+    attachmentUris: options.attachmentUris,
   });
 }
 
@@ -240,6 +249,7 @@ export async function reissueGrants(gateway: PodGateway): Promise<ReissueResult>
       await applyBuildingGrant(resourceFile, e.grantee, gateway, {
         includeEnergyData: e.includesEnergy ?? true,
         years: e.years,
+        attachmentUris: e.attachmentUris,
       });
       result.buildings++;
     }
@@ -286,6 +296,7 @@ export async function reconcileBuildingGrants(
     await applyBuildingGrant(buildingFile, e.grantee, gateway, {
       includeEnergyData: e.includesEnergy ?? true,
       years: e.years,
+      attachmentUris: e.attachmentUris,
     });
   }
   return active.length;
@@ -396,6 +407,7 @@ export async function auditGrants(gateway: PodGateway): Promise<GrantAuditResult
       : await buildingGrantTargets(resourceFile, gateway, {
         includeEnergyData: e.includesEnergy ?? true,
         years: e.years,
+        attachmentUris: e.attachmentUris,
       });
     for (const t of targets) {
       result.checked++;
@@ -456,6 +468,7 @@ async function postToInbox(
     kind: "Building",
     includesEnergy: options.includeEnergyData,
     ...(options.years ? { years: options.years } : {}),
+    ...(options.attachmentUris ? { attachmentUris: options.attachmentUris } : {}),
     at: new Date().toISOString(),
   });
 }

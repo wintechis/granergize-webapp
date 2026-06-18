@@ -217,3 +217,55 @@ Deno.test("the inbox grant event carries the per-year scope (every share dimensi
   assert.ok(inbox?.body?.includes("includesEnergyYear"), "years triple present");
   assert.ok(inbox?.body?.includes('"2024"'), "the granted year is recorded");
 });
+
+const ATTACHMENT = `${BUILDING.replace(/\.ttl$/, "")}/files/plan.pdf`;
+
+Deno.test("a per-attachment grant records includesAttachment in the shared-out/ log + inbox", async () => {
+  // The shared-out/ log is ground truth: a per-attachment scope must be recorded
+  // IN the event (like per-year) so it stays self-sufficient for replay.
+  const { session: s, calls } = sharePod();
+  await shareBuildingData(BUILDING, RECIPIENT, s, {
+    includeEnergyData: false,
+    attachmentUris: [ATTACHMENT],
+  });
+
+  const logAppend = calls.find((c) => c.method === "POST" && c.uri === SHARED_OUT);
+  assert.ok(
+    logAppend?.body?.includes(`interop:includesAttachment <${ATTACHMENT}>`),
+    "shared-out/ event records the selected attachment IRI",
+  );
+  const inbox = calls.find((c) => c.method === "POST" && c.uri === BOB_INBOX);
+  assert.ok(
+    inbox?.body?.includes(`interop:includesAttachment <${ATTACHMENT}>`),
+    "inbox event records the selected attachment IRI",
+  );
+
+  // The selected attachment gets its OWN .acl (granted individually)...
+  assert.ok(
+    calls.some((c) => c.method === "PUT" && c.uri === `${ATTACHMENT}.acl`),
+    "selected attachment granted individually",
+  );
+  // ...and the files/ container default is NOT granted (withheld scope).
+  const filesAcl = `${BUILDING.replace(/\.ttl$/, "")}/files/.acl`;
+  assert.ok(
+    !calls.some((c) => c.method === "PUT" && c.uri === filesAcl),
+    "files/ container default is withheld for a subset selection",
+  );
+});
+
+Deno.test("no attachment selection ⇒ no includesAttachment, files/ container granted", async () => {
+  const { session: s, calls } = sharePod();
+  await shareBuildingData(BUILDING, RECIPIENT, s, { includeEnergyData: false });
+
+  const logAppend = calls.find((c) => c.method === "POST" && c.uri === SHARED_OUT);
+  assert.ok(
+    !logAppend?.body?.includes("includesAttachment"),
+    "no attachment triple when nothing is selected (intensional all)",
+  );
+  // The files/ container is granted (acl:default) covering current + future files.
+  const filesAcl = `${BUILDING.replace(/\.ttl$/, "")}/files/.acl`;
+  assert.ok(
+    calls.some((c) => c.method === "PUT" && c.uri === filesAcl),
+    "files/ container default granted for the all-attachments case",
+  );
+});

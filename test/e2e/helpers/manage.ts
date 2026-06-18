@@ -290,6 +290,7 @@ export async function shareByWebId(
   page: Page,
   street: string,
   webId: string,
+  opts?: { withhold?: string[] },
 ): Promise<void> {
   await openShareDialog(page, street);
 
@@ -304,6 +305,13 @@ export async function shareByWebId(
   // or the WebID fragment as fallback — never the raw IRI (the IRI stays on
   // the chip's title attribute).
   await expect(dialog.getByText(webId, { exact: true })).toHaveCount(0);
+
+  // Per-attachment selection: untick the named attachments to WITHHOLD them
+  // (the dialog's attachment checklist is all-checked by default, so an
+  // untouched share includes every file).
+  for (const filename of opts?.withhold ?? []) {
+    await dialog.getByRole("checkbox", { name: filename }).uncheck();
+  }
 
   await reviewAndConfirmShare(page);
 }

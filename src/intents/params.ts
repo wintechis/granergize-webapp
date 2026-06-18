@@ -76,6 +76,8 @@ export const INTENT_PARAMS = {
     recipients: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "many" },
     includeEnergyData: { nodeKind: "literal", range: XSD_BOOLEAN, cardinality: "one" },
     years: { nodeKind: "literal", range: XSD_GYEAR, cardinality: "many" },
+    // Subset of attachment file IRIs to include; absent ⇒ all attachments.
+    attachmentUris: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "many" },
   },
   ShareAggregation: {
     snapshotUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },

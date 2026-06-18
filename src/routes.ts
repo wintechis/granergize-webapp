@@ -40,6 +40,7 @@ export const DETAIL_PATTERNS = {
   aggregation: "/aggregation",
   room: "/room",
   contact: "/contact",
+  regional: "/regional",
 } as const;
 
 /** The home/dashboard route. */
@@ -69,6 +70,13 @@ export const roomRoute = (uri: string): string =>
 /** A WebID is always an absolute IRI, so a contact always rides in `?uri=`. */
 export const contactRoute = (webId: string): string =>
   `${DETAIL_PATTERNS.contact}?uri=${encodeURIComponent(webId)}`;
+
+/** A public open-data regional dataset, keyed by its GENESIS `table` id + region
+ *  `ags` (both query params — it has no Pod resource of its own). */
+export const regionalRoute = (tableId: string, ags: string): string =>
+  `${DETAIL_PATTERNS.regional}?table=${encodeURIComponent(tableId)}&ags=${
+    encodeURIComponent(ags)
+  }`;
 
 /**
  * The query param a surface reads to **auto-open** a bespoke dialog/editor on
