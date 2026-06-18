@@ -2,7 +2,6 @@ import { msg } from "../../lib/messages.ts";
 import { Box, Chip, Stack, Typography } from "@mui/material";
 import { MapContainer, Marker, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import L from "leaflet";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import DownloadIcon from "@mui/icons-material/Download";
 import type { BuildingType } from "../../types.ts";
@@ -13,7 +12,7 @@ import {
 import { AgentLabel } from "../AgentLabel.tsx";
 import { RefLink } from "../detail/DetailView.tsx";
 import IconAction from "../IconAction.tsx";
-import { MARKER_OWNED_COLOR, MARKER_SHARED_COLOR } from "../../constants/chartColors.ts";
+import { buildingPin } from "./buildingPin.ts";
 import { getGateway } from "../../hooks/session.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { attachAnnualData } from "../../services/rdf/building/buildingSerializer.ts";
@@ -22,30 +21,6 @@ import { buildingIdStem } from "../../services/rdf/building/buildingId.ts";
 import { downloadXlsx } from "../../lib/download.ts";
 import { formatError } from "../../lib/formatError.ts";
 import { detailBaseLayer } from "../../lib/orthophoto.ts";
-
-/**
- * A plain owned/shared pin for the thumbnail, matching the main map's ownership
- * lens (brand-blue owned / orange shared). A single cached DivIcon per ownership
- * so the thumbnail's marker isn't rebuilt on re-render.
- */
-const pinCache = new Map<string, L.DivIcon>();
-function thumbPin(shared: boolean): L.DivIcon {
-  const key = shared ? "s" : "o";
-  const hit = pinCache.get(key);
-  if (hit) return hit;
-  const color = shared ? MARKER_SHARED_COLOR : MARKER_OWNED_COLOR;
-  const icon = L.divIcon({
-    className: `pin-marker pin-${shared ? "shared" : "owned"}`,
-    html:
-      `<svg width="25" height="41" viewBox="0 0 25 41" style="filter:drop-shadow(0 1px 2px rgba(0,0,0,0.4));" aria-hidden="true">` +
-      `<path d="M12.5 0.5C5.9 0.5 0.5 5.9 0.5 12.5c0 9 12 27.5 12 27.5s12-18.5 12-27.5C24.5 5.9 19.1 0.5 12.5 0.5z" fill="${color}" stroke="#fff" stroke-width="1"/>` +
-      `<circle cx="12.5" cy="12.5" r="4.5" fill="#fff"/></svg>`,
-    iconSize: [25, 41],
-    iconAnchor: [12, 41],
-  });
-  pinCache.set(key, icon);
-  return icon;
-}
 
 /**
  * The building page's header: a breadcrumb back to the buildings list, the
@@ -159,7 +134,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
               />
               <Marker
                 position={[building.lat as number, building.long as number]}
-                icon={thumbPin(shared)}
+                icon={buildingPin(shared)}
               />
             </MapContainer>
           </Box>

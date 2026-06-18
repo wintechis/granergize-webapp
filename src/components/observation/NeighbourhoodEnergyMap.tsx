@@ -13,9 +13,9 @@
  */
 import { useEffect, useRef } from "react";
 import {
-  CircleMarker,
   GeoJSON,
   MapContainer,
+  Marker,
   WMSTileLayer,
 } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
@@ -38,6 +38,7 @@ import {
 import { magnitudeCategoriserFor } from "../../services/energy/energyMetric.ts";
 import { bandColor, bandLabelKey, legendBands } from "../../constants/lensBand.ts";
 import { BASEMAP_DE } from "../../lib/orthophoto.ts";
+import { buildingPin } from "../building/buildingPin.ts";
 import { useT } from "../../context/I18nProvider.tsx";
 
 const FRAMING = "magnitude" as const;
@@ -157,12 +158,12 @@ export default function NeighbourhoodEnergyMap(
               onEachFeature={onEachFeature as (f: Feature, l: Layer) => void}
             />
           )}
-          {/* The building's own location. CircleMarker needs no icon image. */}
-          <CircleMarker
-            center={[lat, long]}
-            radius={6}
+          {/* The building's own location — the same owned/shared pin the detail-page
+              header uses, in the marker pane (above the polygons). */}
+          <Marker
+            position={[lat, long]}
+            icon={buildingPin(building.isShared ?? false)}
             interactive={false}
-            pathOptions={{ color: "#fff", weight: 2, fillColor: "#1976d2", fillOpacity: 1 }}
           />
         </MapContainer>
         <Box
