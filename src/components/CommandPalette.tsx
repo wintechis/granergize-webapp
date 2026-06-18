@@ -20,6 +20,7 @@ import {
   intentDialogAction,
   type NavTarget,
   type PaletteCommand,
+  resolveBuildingByQuery,
 } from "../lib/commandPalette.ts";
 import type { IntentEntry, IntentObject } from "../intents/applicable.ts";
 import {
@@ -193,12 +194,14 @@ export default function CommandPalette() {
   // targets (own or shared — `buildingRoute` encodes `?ref=`/`?uri=`). A
   // quick-switcher surfaced ONLY while filtering, so the default palette stays the
   // finders + verbs and isn't flooded with every building.
-  const buildingCommands = useMemo<PaletteCommand[]>(() => {
-    const list = Array.isArray(buildings.data)
-      ? []
-      : buildings.data?.buildings ?? [];
-    return buildingNavCommands(list);
-  }, [buildings.data]);
+  const buildingList = useMemo(
+    () => (Array.isArray(buildings.data) ? [] : buildings.data?.buildings ?? []),
+    [buildings.data],
+  );
+  const buildingCommands = useMemo<PaletteCommand[]>(
+    () => buildingNavCommands(buildingList),
+    [buildingList],
+  );
   const filtered = useMemo(() => {
     const base = filterCommands(commands, query);
     if (!query.trim()) return base;
@@ -263,7 +266,17 @@ export default function CommandPalette() {
     // navigate (§7): resolve the route via the gateway-less goTo arm and push it
     // client-side — same as the palette's own nav commands.
     try {
-      const route = goTo(parsed.name, parsed.params);
+      let params = parsed.params;
+      // The LLM passes a building NAME/address for ShowBuilding (it has no id list) —
+      // resolve it to the real id against the loaded buildings before routing.
+      if (
+        parsed.name === "ShowBuilding" &&
+        typeof (params as { id?: unknown }).id === "string"
+      ) {
+        const b = resolveBuildingByQuery(buildingList, (params as { id: string }).id);
+        if (b) params = { ...params, id: b.id };
+      }
+      const route = goTo(parsed.name, params);
       close();
       void navigate(route);
     } catch (e) {
@@ -390,12 +403,17 @@ export default function CommandPalette() {
           />
         )
         : (
-          <CommandList />
+          renderCommandList()
         )}
     </Modal>
   );
 
-  function CommandList() {
+  // A render HELPER, not a nested component. Rendering it as `<CommandList/>` gave it
+  // a fresh function identity every render, so React remounted the whole subtree —
+  // including the filter `<input>` — on each keystroke, dropping focus after the first
+  // character (the palette only ever kept one typed char). Calling it inlines the JSX,
+  // so the field is reconciled in place and keeps focus through typing.
+  function renderCommandList() {
     return (
       <>
         <TextField

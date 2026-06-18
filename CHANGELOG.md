@@ -3,6 +3,16 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-18]
+- **Command palette: natural-language jump to a named building + input-focus fix.** The LLM
+  launcher can now reach a *specific* building from a phrase like "zeige das Gebäude Nordostpark":
+  it emits a `ShowBuilding` intent carrying the name, and the palette resolves that name → the
+  building's id against the loaded buildings (`resolveBuildingByQuery`, matching
+  name / address / company / code) before routing. Also **fixes a real focus bug**: the filter
+  list was a component defined inside the render (`<CommandList/>`), so React remounted the
+  `<input>` every keystroke and dropped focus after the first character — now a render helper
+  called inline, so typing sticks. `lib/commandPalette.ts` (+1 Tier-1 test),
+  `CommandPalette.tsx`, `intents/navigate.ts` (the `ShowBuilding` LLM hint); the handbuch
+  **Standort-Energieprofil** video opens through the launcher (NL → translate → jump → radar).
 - **Intent layer: the callable trinity — type/paste/translate an intent and run it.** The
   command palette gained a deterministic, headless **callable layer** beneath it: every
   app action is one of three effects — **mutate** (`invoke`), **query** (`query`), **navigate**

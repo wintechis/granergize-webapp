@@ -71,12 +71,16 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     const setupRow = page.locator("li", { hasText: BUILDING }).first();
     await expect(setupRow).toBeVisible({ timeout: 60_000 });
     // The building's display name (the row heading) — its palette label, the text we
-    // type + click to jump to it via the command palette.
-    const buildingName =
-      ((await setupRow.locator("strong").first().textContent()) ?? BUILDING).trim();
-
     // --- The stage: a fresh page (= a fresh recording) in the same context. ---
     const stage = await page.context().newPage();
+    // The LLM launcher (the ">" natural-language path) is a Developer-mode affordance,
+    // and the dev flag is read once at module init — set it BEFORE the stage loads so
+    // the palette accepts NL. addInitScript re-runs on every load, so it always sticks.
+    await stage.addInitScript(() => {
+      try {
+        localStorage.setItem("granergize.devMode", "1");
+      } catch { /* storage disabled — ignore */ }
+    });
     const t0 = Date.now();
     await stage.goto("/");
     await expect(stage.getByRole("tab", { name: vt("navBuildings") }))
@@ -93,20 +97,26 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
       },
     ]);
 
-    // --- Scene 1: reach the building via the ⌘K command palette — type its name,
-    //     jump straight to it (the intent-launcher's building-jump). The palette
-    //     navigates CLIENT-SIDE, so the warm session + demo overlay survive. ---
+    // --- Scene 1: reach the building via the command palette's LLM launcher — type
+    //     the request in natural language; the launcher translates it to a ShowBuilding
+    //     intent and resolves the NAME ("Nordostpark") to the building's id, then jumps
+    //     there. The launch navigates CLIENT-SIDE, so the warm session + demo overlay
+    //     survive. ---
     await demo.scene(
       "palette",
-      "Per Befehlspalette (Strg K) direkt zum Gebäude springen",
+      "Per Befehlspalette in natürlicher Sprache zum Gebäude",
     );
     await demo.click(stage.getByRole("button", { name: vt("paletteOpenAria") }));
     const paletteInput = stage.getByRole("textbox", { name: vt("palettePlaceholder") });
     await expect(paletteInput).toBeVisible({ timeout: 10_000 });
-    await demo.type(paletteInput, buildingName);
-    const hit = stage.getByRole("button", { name: buildingName }).first();
-    await expect(hit).toBeVisible({ timeout: 10_000 });
-    await demo.click(hit);
+    await demo.type(paletteInput, `>zeige das Gebäude ${BUILDING}`);
+    // Enter runs the LLM translation; wait for the reviewed intent JSON to land in the
+    // field (the palette flips to JSON-review mode).
+    await stage.keyboard.press("Enter");
+    await expect(paletteInput).toHaveValue(/ShowBuilding/, { timeout: 60_000 });
+    await demo.pause(1_500);
+    // Enter launches the reviewed intent → resolves the name → navigates to the building.
+    await stage.keyboard.press("Enter");
 
     // --- Scene 2: the Standort-Energieprofil panel on the building's page. ---
     await demo.scene(
@@ -117,6 +127,11 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     // The panel fills after two chained fetches (nearby MaStR → Gemeinde AGS →
     // Energie-Atlas), so give it room to arrive.
     await expect(profile).toBeVisible({ timeout: 90_000 });
+    // The Energie-Atlas rooftop card arrives via the chained fetch (coords → MaStR →
+    // Gemeinde AGS → Energie-Atlas), AFTER the section header (which the faster nearby /
+    // LoD2 cards already paint); wait for it so the rooftop scene's moveTo finds it.
+    await expect(stage.getByText(vt("sepRooftopPv")).first())
+      .toBeVisible({ timeout: 90_000 });
     await stage.waitForLoadState("networkidle").catch(() => {});
     await demo.moveTo(profile);
     await demo.pause(1_500);
