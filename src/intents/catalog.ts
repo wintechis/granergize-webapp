@@ -94,6 +94,14 @@ export const INTENTS: readonly IntentEntry[] = [
     entity: "building",
     hook: "useToggleVisibility",
   },
+  // ── Queries (reads over the building collection) ─────────────────────────────
+  {
+    name: "FindBuildings",
+    action: "", // a read; no meta.action
+    effect: "read",
+    entity: "building",
+    hook: "useFindBuildings",
+  },
   // ── Energy (observations) ────────────────────────────────────────────────────
   {
     name: "SaveObservation", // hook: energy year (rename lands in L-observations)

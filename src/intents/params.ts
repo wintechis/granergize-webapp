@@ -70,6 +70,12 @@ export const INTENT_PARAMS = {
   ToggleVisibility: {
     buildingUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
   },
+  // ── Queries ──────────────────────────────────────────────────────────────────
+  FindBuildings: {
+    // Structured attribute selector (a {and:[{field,op,value}]} object); not an IRI
+    // to resolve — modelled as an opaque literal (see selector.ts).
+    selector: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
+  },
   // ── Sharing ────────────────────────────────────────────────────────────────
   ShareBuilding: {
     buildingUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
@@ -236,6 +242,7 @@ const _paramKeysMatch: {
   UpdateBuilding: true,
   DeleteBuilding: true,
   ToggleVisibility: true,
+  FindBuildings: true,
   ShareBuilding: true,
   ShareAggregation: true,
   RevokeBuildingAccess: true,

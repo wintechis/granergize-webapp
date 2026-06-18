@@ -89,6 +89,31 @@ export const MESSAGES = {
   },
   paletteGroupNavigation: { en: "Go to", de: "Gehe zu", fr: "Aller à" },
   paletteGroupActions: { en: "Actions", de: "Aktionen", fr: "Actions" },
+  // Dev-mode JSON paste-and-launch (plan-intent-core §10): paste a `{name,params}`
+  // intent into the palette and press Enter to launch it.
+  paletteLaunchHint: {
+    en: "Launch JSON intent — press Enter to run",
+    de: "JSON-Intent starten — Enter zum Ausführen",
+    fr: "Lancer l'intention JSON — Entrée pour exécuter",
+  },
+  // Dev-mode NL→intent translation: a query starting with `>` is natural language
+  // the LLM turns into intent JSON (which then lands in the JSON launch mode).
+  paletteNlHint: {
+    en: "Translate to intent — press Enter",
+    de: "In Intent übersetzen — Enter drücken",
+    fr: "Traduire en intention — appuyez sur Entrée",
+  },
+  paletteNlBusy: {
+    en: "Translating…",
+    de: "Übersetze…",
+    fr: "Traduction…",
+  },
+  // Suffix word for the retry indicator, e.g. "Translating… (retry 1/1)".
+  paletteNlRetry: {
+    en: "retry",
+    de: "Wiederholung",
+    fr: "nouvelle tentative",
+  },
   paletteOpenAria: {
     en: "Open command palette (Ctrl K)",
     de: "Befehlspalette öffnen (Strg K)",

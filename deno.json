@@ -7,6 +7,8 @@
     "build": "deno run -A npm:vite build",
     "test": "deno test -A",
     "test:live": "LIVE=1 deno test -A src/services/agents/wikidataLogo.live.test.ts",
+    "eval:intent": "deno run -A --env-file=.env.local test/eval/intent-translation.eval.ts",
+    "eval:sweep": "deno run -A --env-file=.env.local test/eval/sweep.ts",
     "gen:labels": "deno run --allow-env --allow-read --allow-write scripts/genVocabLabels.ts",
     "loc": "deno run --allow-read --allow-run=git test/loc.ts",
     "lint": "deno run -A npm:eslint .",

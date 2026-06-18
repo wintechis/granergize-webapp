@@ -223,6 +223,32 @@ data, re-running the load flow (`storage-layout.md`).
   `AddBuildingDialog`). The energy certificate and per-year energy *are* writable,
   but via the **Manage** tab's row actions, not this pane.
 
+## Sub-widgets as affordance surfaces (intents)
+
+`Building.tsx` composes one sub-widget per aspect of the building, and **each
+sub-widget is an affordance surface for the intent catalog** (`src/intents/`): it
+offers exactly the intents whose `entity` matches its aspect and whose
+`applies(object, viewer)` guard passes (`intents/affordances.ts`). The widget is
+*where* a verb is offered, not the verb's identity — the same intent also surfaces in
+the `ObjectActions` menu and the ⌘K palette (the page registers its focused object via
+`PaletteFocusContext`), so all three are **projections of one catalog**, not
+independent action lists.
+
+Each action-bearing sub-widget maps to its intents:
+
+- `MasterDataSection` → `UpdateBuilding`, `DeleteBuilding`
+- `EnergySummarySection` → `SaveObservation`, `DeleteObservation`
+- `BuildingFilesSection` → `UploadAttachments`, `DeleteAttachment`, `SetEnergyCertificate`
+- `SharingSection` → `ShareBuilding`, `RevokeBuildingAccess`
+- header / focus handler → `ToggleVisibility`
+- `StandortEnergieprofil` (nearby MaStR generation + regional context) → **read-only
+  context, no intents** — it renders public-tier data as cards, with no Pod action.
+
+So every sub-widget that *writes* has a catalog intent; the only intent-less section is
+the read-only open-data context. Adding a sub-widget that acts means adding its
+entity + intent(s); the widget then surfaces them through the same `applies()` filter,
+and the palette gets them for free.
+
 ## Relation to the role/shape model
 
 The card and energy tab dispatch on the data, not a role (the model is owned by
