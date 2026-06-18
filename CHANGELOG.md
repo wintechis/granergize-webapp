@@ -3,6 +3,18 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-18]
+- **Rooftop-PV: per-building "money on your roof" from the LoD2 model.** The building's
+  Standort-Energieprofil panel now leads with a per-building rooftop-PV card — installable kWp,
+  expected annual yield, value/year (at a configurable self-consumption rate), usable roof area
+  and dominant orientation — sitting above the per-Gemeinde Ausbaulücke. The figures are computed
+  **in the app** from `linked-lod2-by`'s served roof geometry (`lod2:RoofSurface` tilt/azimuth/area
+  via `point` → nearest → deref): the kWp/kWh calc (suitability filter + module density + PVGIS
+  specific-yield) is ported out of the wrapper into `services/rooftopPv.ts` + `pvgisGrid.ts` — the
+  app is the data-combination layer. The wrapper still computes for now (live demo unaffected); a
+  **fidelity test proves the app reproduces its served figures exactly** (40.39 kWp / 41 005 kWh for
+  the reference building) — the safety net for a later wrapper slimming to geometry-only. New
+  `lod2Rooftop` service + hook, `VITE_LOD2_API_URI`, de/en/fr strings; +10 Tier-1 tests, suite green.
+  (`linked-energieatlas` is untouched — it only re-publishes the LfU per-Gemeinde figures.)
 - **Command palette: jump to a building.** Typing in the ⌘K palette now surfaces the user's
   buildings as direct navigation targets (own or shared — `buildingRoute` encodes `?ref=`/`?uri=`),
   found by the full search text (name / address / company / code) while displaying the short name.

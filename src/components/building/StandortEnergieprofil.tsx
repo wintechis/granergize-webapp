@@ -1,8 +1,10 @@
-import { Stack, Typography } from "@mui/material";
+import { Link, Stack, Typography } from "@mui/material";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
 import type { BuildingType } from "../../types.ts";
 import { msg, type MessageId } from "../../lib/messages.ts";
 import { useStandortEnergieprofil } from "../../hooks/standortEnergieprofil.ts";
+import { useLod2Rooftop } from "../../hooks/lod2Rooftop.ts";
+import type { RooftopPotential } from "../../services/lod2Rooftop.ts";
 import {
   areaUrl,
   type BiomassCard as BiomassCardData,
@@ -19,6 +21,11 @@ import { RdfSourceLink } from "../detail/DetailView.tsx";
 
 const fmt0 = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 const fmt1 = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
+
+/** Electricity price for the "money on your roof" estimate: a single self-consumption rate
+ *  (avoided purchase ≈ a commercial/industrial roof's own daytime use). Tunable. */
+const PRICE_CT_PER_KWH = 20;
+const PRICE_EUR_PER_KWH = PRICE_CT_PER_KWH / 100;
 
 /** Carrier → message id, shared by the generation mix and the nearby breakdown. */
 const CARRIER_LABEL: Record<MixEntry["carrier"], MessageId> = {
@@ -62,6 +69,33 @@ function PotentialCardView(
       <Typography variant="body2" color="text.secondary">
         {Math.round(data.degreePct)}% {msg("sepBuiltOut")}
       </Typography>
+    </Stack>
+  );
+}
+
+/** The per-building rooftop-PV card: installable kWp + annual yield + value, computed in-app
+ *  over this building's LoD2 roof geometry — the per-building grain above the per-Gemeinde
+ *  rooftop Ausbaulücke. */
+function RooftopBuildingCardView({ data }: { data: RooftopPotential }) {
+  const euroPerYear = data.annualKwh * PRICE_EUR_PER_KWH;
+  return (
+    <Stack spacing={0.5}>
+      <Typography variant="subtitle2">{msg("rpRooftopPotential")}</Typography>
+      <Stack direction="row" spacing={4} useFlexGap sx={{ flexWrap: "wrap" }}>
+        <Figure label={msg("rpInstallable")} value={`${fmt1(data.installableKwp)} kWp`} />
+        <Figure label={msg("rpAnnualYield")} value={`${fmt0(data.annualKwh)} kWh/a`} />
+        <Figure label={msg("rpValuePerYear")} value={`${fmt0(euroPerYear)} €/a`} accent />
+        <Figure label={msg("rpUsableArea")} value={`${fmt0(data.suitableAreaM2)} m²`} />
+        {data.dominantOrientation && (
+          <Figure label={msg("rpOrientation")} value={data.dominantOrientation} />
+        )}
+      </Stack>
+      <Typography variant="body2" color="text.secondary">
+        {msg("rpEstimateCaption", { price: PRICE_CT_PER_KWH })}
+      </Typography>
+      <Link href={`${data.iri}.html`} target="_blank" rel="noopener" variant="body2">
+        {msg("rpViewOnMap")}
+      </Link>
     </Stack>
   );
 }
@@ -141,8 +175,9 @@ export default function StandortEnergieprofil(
   { building }: { building: BuildingType },
 ) {
   const { query, ags, installations } = useStandortEnergieprofil(building);
+  const rooftop = useLod2Rooftop(building).data ?? null;
   const p = query.data ?? null;
-  if (!p && installations.length === 0) return null;
+  if (!p && installations.length === 0 && !rooftop) return null;
   return (
     <Stack spacing={2}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
@@ -153,6 +188,7 @@ export default function StandortEnergieprofil(
         <Typography variant="body2" color="text.secondary">{p.name}</Typography>
       )}
       <Stack spacing={2}>
+        {rooftop && <RooftopBuildingCardView data={rooftop} />}
         {p?.rooftop && <PotentialCardView title={msg("sepRooftopPv")} data={p.rooftop} />}
         {p?.ground && <PotentialCardView title={msg("sepGroundPv")} data={p.ground} />}
         {p?.green && <GreenCardView data={p.green} />}
@@ -160,6 +196,7 @@ export default function StandortEnergieprofil(
         {installations.length > 0 && <NearbyCardView installations={installations} />}
       </Stack>
       {ags && <RdfSourceLink href={areaUrl(ags)} />}
+      {rooftop && <RdfSourceLink href={rooftop.iri} />}
     </Stack>
   );
 }

@@ -9,6 +9,8 @@ interface ImportMetaEnv {
   readonly VITE_MASTR_API_URI?: string;
   /** Base URI of the linked-energieatlas wrapper (see standortEnergieprofil.ts). */
   readonly VITE_LINKED_ENERGIEATLAS_API_URI?: string;
+  /** Base URI of the linked-lod2-by wrapper (see lod2Rooftop.ts). */
+  readonly VITE_LOD2_API_URI?: string;
   /** App collection segment on the Pod; default "granergize". Tier-4 e2e sets
    * "granergize-e2e" so browser tests never touch real data (see solidUtils). */
   readonly VITE_POD_APP_DIR?: string;

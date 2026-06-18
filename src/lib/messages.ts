@@ -171,6 +171,27 @@ export const MESSAGES = {
     fr: "Profil énergétique du site",
   },
   sepRooftopPv: { en: "Rooftop PV", de: "Dach-Photovoltaik", fr: "PV en toiture" },
+  // Per-building rooftop-PV (computed in-app over the LoD2 roof geometry).
+  rpRooftopPotential: {
+    en: "Rooftop PV (this building)",
+    de: "Dach-Photovoltaik (dieses Gebäude)",
+    fr: "PV en toiture (ce bâtiment)",
+  },
+  rpInstallable: { en: "Installable", de: "Installierbar", fr: "Installable" },
+  rpAnnualYield: { en: "Annual yield", de: "Jahresertrag", fr: "Production annuelle" },
+  rpValuePerYear: { en: "Value/year", de: "Wert/Jahr", fr: "Valeur/an" },
+  rpUsableArea: { en: "Usable roof area", de: "Nutzbare Dachfläche", fr: "Surface utile" },
+  rpOrientation: { en: "Orientation", de: "Ausrichtung", fr: "Orientation" },
+  rpEstimateCaption: {
+    en: "Estimate at {price} ct/kWh self-consumption",
+    de: "Schätzung bei {price} ct/kWh Eigenverbrauch",
+    fr: "Estimation à {price} ct/kWh autoconsommation",
+  },
+  rpViewOnMap: {
+    en: "View on the LoD2 map ↗",
+    de: "Auf der LoD2-Karte ansehen ↗",
+    fr: "Voir sur la carte LoD2 ↗",
+  },
   sepPotential: { en: "Potential", de: "Potenzial", fr: "Potentiel" },
   sepInstalled: { en: "Installed", de: "Installiert", fr: "Installé" },
   sepHeadroom: { en: "Untapped", de: "Ausbaulücke", fr: "Inexploité" },
