@@ -35,6 +35,27 @@ Deno.test("withRetry: retries a thrown network error (CORS-blocked 429)", async 
   assert.equal(f.calls, 3);
 });
 
+Deno.test("withRetry: retries a 502 then returns the success", async () => {
+  const f = scriptedFetch([502, 201]);
+  const res = await withRetry(f.fn, FAST)("https://x/", { method: "PUT" });
+  assert.equal(res.status, 201);
+  assert.equal(f.calls, 2);
+});
+
+Deno.test("withRetry: retries a 504 then returns the success", async () => {
+  const f = scriptedFetch([504, 200]);
+  const res = await withRetry(f.fn, FAST)("https://x/");
+  assert.equal(res.status, 200);
+  assert.equal(f.calls, 2);
+});
+
+Deno.test("withRetry: does NOT retry a 500 (can be deterministic)", async () => {
+  const f = scriptedFetch([500, 200]);
+  const res = await withRetry(f.fn, FAST)("https://x/", { method: "PUT" });
+  assert.equal(res.status, 500); // passed straight through, no retry
+  assert.equal(f.calls, 1);
+});
+
 Deno.test("withRetry: gives up after maxRetries and returns the last 429", async () => {
   const f = scriptedFetch([429]);
   const res = await withRetry(f.fn, { baseDelayMs: 0, maxRetries: 2 })("https://x/");

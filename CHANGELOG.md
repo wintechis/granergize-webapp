@@ -3,6 +3,13 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-18]
+- **Demo seeding survives a transient write blip.** A one-off `502`/`504` on a single write no
+  longer drops it from a demo-seed (the "Added {n} of {total}" partial): `withRetry` now treats
+  `502`/`504` as transient and replay-safe alongside `429`/`503` (`500` stays non-retryable), so
+  every idempotent Pod write rides out a momentary upstream/proxy failure. Adds an e2e guard for
+  the dev-menu seed flow (`seed-demos.spec.ts`) and a headless concurrency-burst hunt
+  (`it seed-demos`). Also wires the Fraunhofer test Pod as a provider and fixes `headless:remote`
+  WebID discovery for modern CSS (v7 nests the IRI in `webIdLinks[url].webId`).
 - **Rooftop: the actual roof geometry, shaded by PV yield.** The building page now draws the
   building's LoD2 roof surfaces as a top-down plan (`RoofPlan`) — each roof face an SVG polygon
   from `linked-lod2-by`'s `gsp:asWKT` footprint (verified against the live wrapper), shaded by
