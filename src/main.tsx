@@ -28,6 +28,7 @@ import { queryKeys } from "./hooks/queries.ts";
 import { sessionExpiredMessage } from "./hooks/queryErrors.ts";
 import { msg } from "./lib/messages.ts";
 import { drainInbox, ensureOwnInbox } from "./services/interop/inbox.ts";
+import { clearLocalData } from "./lib/clearLocalData.ts";
 import {
   clearRequestLog,
   instrumentSessionFetch,
@@ -277,6 +278,37 @@ function Root() {
   );
 }
 
-ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
-  <Root />,
-);
+/**
+ * A typeable reset escape hatch: appending `?reset` to the app URL wipes all
+ * client-side auth/session storage for this origin (the same {@link clearLocalData}
+ * the Login screen's "Clear local data" button runs) and reloads into a clean app.
+ *
+ * The "Clear local data" button only lives on the Login screen and has no address;
+ * this works at ANY URL — including when a stale OIDC client registration is
+ * bouncing the silent restore before the login form ever renders, which is exactly
+ * when you need it. It runs BEFORE React mounts (the `BrowserRouter` only mounts
+ * after auth, so a router route can't carry this), so the wipe completes before any
+ * session-restore side effects fire.
+ *
+ * It's a destructive action behind a GET — normally a no-no — but kept as a plain
+ * query flag deliberately, so it can be typed/bookmarked/pasted as a recovery URL.
+ * Returns true if it handled (and is navigating away), so the caller skips mount.
+ */
+async function maybeHandleReset(): Promise<boolean> {
+  if (!new URLSearchParams(window.location.search).has("reset")) return false;
+  await clearLocalData();
+  // Reload to a clean URL: drop the `?reset` flag (and any other query, e.g. a
+  // stale `?error=` OIDC remedy) so the wipe isn't re-triggered on the next load;
+  // keep origin + path + hash so we land back in the same deployed app + route.
+  window.location.replace(
+    window.location.origin + window.location.pathname + window.location.hash,
+  );
+  return true;
+}
+
+const resetting = await maybeHandleReset();
+if (!resetting) {
+  ReactDOM.createRoot(document.getElementById("root") as HTMLElement).render(
+    <Root />,
+  );
+}
