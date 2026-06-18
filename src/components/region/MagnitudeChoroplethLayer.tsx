@@ -8,11 +8,10 @@
  * values finish loading, and the remount key (react-leaflet `GeoJSON` ignores
  * data-prop changes, so geometry/level changes must remount).
  */
-import { useEffect, useRef } from "react";
+import { type ComponentProps, useEffect, useRef } from "react";
 import { GeoJSON } from "react-leaflet";
 import type L from "leaflet";
-import type { Feature, FeatureCollection, Geometry } from "geojson";
-import type { Layer, PathOptions } from "leaflet";
+import type { Layer, PathOptions, StyleFunction } from "leaflet";
 import type { LensBand } from "../../services/energy/energyTimeCut.ts";
 import type { MetricFraming } from "../../services/energy/energyMetric.ts";
 import { bandColor } from "../../constants/lensBand.ts";
@@ -20,6 +19,12 @@ import type {
   RegionFeatureCollection,
   RegionFeatureProps,
 } from "../../services/regionGeometry.ts";
+
+// The only feature shape this layer touches — its joinable properties. The GeoJSON
+// types come from leaflet via react-leaflet's prop types (`geojson` is a phantom dep
+// here; regionGeometry.ts models the collection structurally for the same reason).
+type RegionFeature = { properties: RegionFeatureProps };
+type GeoJSONProps = ComponentProps<typeof GeoJSON>;
 
 interface Props {
   /** The regions to draw (already normalised to carry `ags`). */
@@ -39,9 +44,7 @@ interface Props {
 export default function MagnitudeChoroplethLayer(
   { data, bandOf, tooltip, framing, remountKey, styleVersion }: Props,
 ) {
-  const style = (
-    feature?: Feature<Geometry, RegionFeatureProps>,
-  ): PathOptions => ({
+  const style = (feature?: RegionFeature): PathOptions => ({
     fillColor: bandColor(feature ? bandOf(feature.properties) : "none", framing),
     fillOpacity: 0.7,
     color: "#555",
@@ -57,7 +60,7 @@ export default function MagnitudeChoroplethLayer(
 
   const layerRef = useRef<L.GeoJSON | null>(null);
   useEffect(() => {
-    layerRef.current?.setStyle(style as (f?: Feature) => PathOptions);
+    layerRef.current?.setStyle(style as unknown as StyleFunction);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [styleVersion]);
 
@@ -65,12 +68,12 @@ export default function MagnitudeChoroplethLayer(
     <GeoJSON
       key={remountKey}
       ref={layerRef}
-      data={data as unknown as FeatureCollection}
-      style={style as (f?: Feature) => PathOptions}
-      onEachFeature={((feature: Feature<Geometry, RegionFeatureProps>, layer: Layer) =>
+      data={data as unknown as GeoJSONProps["data"]}
+      style={style as unknown as GeoJSONProps["style"]}
+      onEachFeature={((feature: RegionFeature, layer: Layer) =>
         layer.bindTooltip(() => tipRef.current(feature.properties), {
           sticky: true,
-        })) as (f: Feature, l: Layer) => void}
+        })) as unknown as GeoJSONProps["onEachFeature"]}
     />
   );
 }

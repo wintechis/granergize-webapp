@@ -105,7 +105,7 @@ export default function NearbyInstallationsMap(
           transparent={false}
           attribution={base.config.attribution}
         />
-        <Marker position={[lat, long]} icon={buildingPin(building.isShared)} />
+        <Marker position={[lat, long]} icon={buildingPin(building.isShared ?? false)} />
         {installations.map((u) => (
           <CircleMarker
             key={u.iri}
