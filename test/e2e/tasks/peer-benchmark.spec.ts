@@ -4,10 +4,10 @@ import { account, webIdOf } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import {
+  aggregationsList,
   buildingRoute,
   openAggregations,
   openBuildingsList,
-  receivedAggregations,
   shareByWebId,
 } from "../helpers/manage.ts";
 import { freshPage } from "../helpers/twoPod.ts";
@@ -154,10 +154,10 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     // ── A (fresh login drains its inbox) sees the benchmark on its Energy view ──
     const a2 = await freshPage(browser, A);
     try {
-      // First confirm A actually RECEIVED the benchmark (Share tab) — separates a
-      // receipt failure from an energy-render failure.
-      await a2.page.getByRole("tab", { name: en("navSharing") }).click();
-      await expect(receivedAggregations(a2.page).getByText(BENCH_VIEW))
+      // First confirm A actually RECEIVED the benchmark (Aggregations finder, Shared
+      // tier) — separates a receipt failure from an energy-render failure.
+      await openAggregations(a2.page);
+      await expect(aggregationsList(a2.page).getByText(BENCH_VIEW))
         .toBeVisible({ timeout: T.action });
 
       await openBuildingsList(a2.page);

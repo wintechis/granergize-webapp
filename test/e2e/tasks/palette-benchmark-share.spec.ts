@@ -8,8 +8,8 @@ import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { freshPage, freshPagesParallel } from "../helpers/twoPod.ts";
 import {
   AGGREGATION_NAME,
+  aggregationsList,
   openAggregations,
-  receivedAggregations,
 } from "../helpers/manage.ts";
 import { runPaletteCommand } from "../helpers/palette.ts";
 import { ACTION_PARAM } from "../../../src/routes.ts";
@@ -121,8 +121,8 @@ test.describe("palette: build a benchmark and share it back across two pods", ()
       const b2 = await freshPage(browser, B);
       try {
         await reloadUntil(b2.page, async () => {
-          await b2.page.getByRole("tab", { name: en("navSharing") }).click();
-          await expect(receivedAggregations(b2.page).getByText(AGGREGATION_NAME))
+          await openAggregations(b2.page);
+          await expect(aggregationsList(b2.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.action });
         });
       } catch (timeout) {

@@ -31,14 +31,13 @@ import {
   type RegionFeatureProps,
 } from "../../services/regionGeometry.ts";
 import {
-  BAVARIA_AGS_PREFIX,
-  fetchAreaPotential,
-  type GemeindePotential,
-} from "../../services/energieatlas.ts";
+  type AreaProfile,
+  fetchAreaProfile,
+} from "../../services/standortEnergieprofil.ts";
 import { magnitudeCategoriserFor } from "../../services/energy/energyMetric.ts";
 import { bandColor, bandLabelKey, legendBands } from "../../constants/lensBand.ts";
 import { BASEMAP_DE } from "../../lib/orthophoto.ts";
-import { buildingPin } from "../building/buildingPin.ts";
+import { buildingPin } from "../../lib/buildingPin.ts";
 import { useT } from "../../context/I18nProvider.tsx";
 
 const FRAMING = "magnitude" as const;
@@ -66,34 +65,39 @@ export default function NeighbourhoodEnergyMap(
   });
   const fc = geo.data;
 
-  // One Energie-Atlas resource per Bavarian Gemeinde (cached per AGS).
+  // One Energie-Atlas profile per Bavarian Gemeinde (8-digit AGS, leading 09),
+  // cached per AGS — sharing the `["standortEnergieprofil", ags]` query with the
+  // building's own Standort-Energieprofil panel.
   const bavAgs = fc
-    ? fc.features.map((f) => f.properties.ags).filter((a) => a.startsWith(BAVARIA_AGS_PREFIX))
+    ? fc.features.map((f) => f.properties.ags).filter((a) => a.startsWith("09"))
     : [];
   const eaResults = useQueries({
     queries: bavAgs.map((ags) => ({
-      queryKey: ["energieatlas", ags],
-      queryFn: () => fetchAreaPotential(ags),
+      queryKey: ["standortEnergieprofil", ags],
+      queryFn: () => fetchAreaProfile(ags),
       staleTime: DAY,
     })),
   });
-  const eaByAgs = new Map<string, GemeindePotential>();
+  const eaByAgs = new Map<string, AreaProfile>();
   bavAgs.forEach((ags, i) => {
     const d = eaResults[i]?.data;
     if (d) eaByAgs.set(ags, d);
   });
   const loaded = eaByAgs.size;
 
+  // Shade by the rooftop-PV build-out (Ausbaugrad), classified over the visible set.
   const values = [...eaByAgs.values()]
-    .map((d) => d.developmentDegreePct)
+    .map((d) => d.rooftop?.degreePct)
     .filter((v): v is number => v != null);
   const classify = magnitudeCategoriserFor(values);
 
   const styleFeature = (
     feature?: Feature<Geometry, RegionFeatureProps>,
   ): PathOptions => {
-    const d = feature?.properties?.ags ? eaByAgs.get(feature.properties.ags) : undefined;
-    const band = d?.developmentDegreePct != null ? classify(d.developmentDegreePct) : "none";
+    const pct = feature?.properties?.ags
+      ? eaByAgs.get(feature.properties.ags)?.rooftop?.degreePct
+      : undefined;
+    const band = pct != null ? classify(pct) : "none";
     return { fillColor: bandColor(band, FRAMING), fillOpacity: 0.65, color: "#555", weight: 1 };
   };
 
@@ -104,9 +108,10 @@ export default function NeighbourhoodEnergyMap(
     tipRef.current = (p) => {
       const d = eaByAgs.get(p.ags);
       const name = (d?.name || p.label || p.code || "").toString();
-      if (!d) return `<strong>${name}</strong>`;
-      return `<strong>${name}</strong><br/>${t("choroplethGemeindeMetric")}: ${d.developmentDegreePct ?? "—"} %` +
-        `<br/>${d.installedCapacityMWp ?? "—"} / ${d.pvPotentialCapacityMWp ?? "—"} MWp`;
+      const roof = d?.rooftop;
+      if (!roof) return `<strong>${name}</strong>`;
+      return `<strong>${name}</strong><br/>${t("choroplethGemeindeMetric")}: ${roof.degreePct ?? "—"} %` +
+        `<br/>${roof.installedMWp ?? "—"} / ${roof.potentialMWp ?? "—"} MWp`;
     };
   });
   const onEachFeature = (

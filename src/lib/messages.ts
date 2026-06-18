@@ -75,14 +75,6 @@ export const MESSAGES = {
     fr:
       "Aucun bâtiment partagé avec vous pour l'instant. Rejoignez une salle de données pour que les propriétaires vous trouvent, ou demandez à un propriétaire de partager avec votre WebID.",
   },
-  sharedAggregationsEmpty: {
-    en:
-      "No aggregations shared with you yet. An aggregation a partner shares appears here.",
-    de:
-      "Noch keine mit dir geteilten Aggregationen. Eine von einem Partner geteilte Aggregation erscheint hier.",
-    fr:
-      "Aucune agrégation partagée avec vous pour l'instant. Une agrégation partagée par un partenaire apparaît ici.",
-  },
   uiLanguage: { en: "Language", de: "Sprache", fr: "Langue" },
   // ⌘K command palette (plan-palette §4).
   palettePlaceholder: {
@@ -133,11 +125,6 @@ export const MESSAGES = {
     de: "Mit dir geteilte Gebäude",
     fr: "Bâtiments partagés avec vous",
   },
-  sharedAggregationsHeading: {
-    en: "Aggregations shared with you",
-    de: "Mit dir geteilte Aggregationen",
-    fr: "Agrégations partagées avec vous",
-  },
   headingInbox: {
     en: "Your inbox",
     de: "Dein Posteingang",
@@ -153,6 +140,36 @@ export const MESSAGES = {
   secEnergy: { en: "Energy", de: "Energie", fr: "Énergie" },
   secSharing: { en: "Sharing", de: "Freigabe", fr: "Partage" },
   secWeather: { en: "Weather", de: "Wetter", fr: "Météo" },
+  secStandortProfile: {
+    en: "Location energy profile",
+    de: "Standort-Energieprofil",
+    fr: "Profil énergétique du site",
+  },
+  sepRooftopPv: { en: "Rooftop PV", de: "Dach-Photovoltaik", fr: "PV en toiture" },
+  sepPotential: { en: "Potential", de: "Potenzial", fr: "Potentiel" },
+  sepInstalled: { en: "Installed", de: "Installiert", fr: "Installé" },
+  sepHeadroom: { en: "Untapped", de: "Ausbaulücke", fr: "Inexploité" },
+  sepBuiltOut: { en: "built out", de: "erschlossen", fr: "exploité" },
+  sepGroundPv: { en: "Ground-mounted PV", de: "Freiflächen-Photovoltaik", fr: "PV au sol" },
+  sepGreenElectricity: {
+    en: "Renewable electricity",
+    de: "Erneuerbarer Strom",
+    fr: "Électricité renouvelable",
+  },
+  sepRenewable: { en: "renewable", de: "erneuerbar", fr: "renouvelable" },
+  sepSolar: { en: "Solar", de: "Solar", fr: "Solaire" },
+  sepWind: { en: "Wind", de: "Wind", fr: "Éolien" },
+  sepBiomass: { en: "Biomass", de: "Biomasse", fr: "Biomasse" },
+  sepHydro: { en: "Hydro", de: "Wasser", fr: "Hydraulique" },
+  sepGeothermal: { en: "Geothermal", de: "Geothermie", fr: "Géothermie" },
+  sepBiogasPotential: { en: "Biogas potential", de: "Biogaspotenzial", fr: "Potentiel biogaz" },
+  sepPlants: { en: "plants", de: "Anlagen", fr: "installations" },
+  sepNearbyGeneration: {
+    en: "Nearby generation",
+    de: "Erzeugung in der Nähe",
+    fr: "Production à proximité",
+  },
+  sepWithin: { en: "within", de: "im Umkreis von", fr: "dans un rayon de" },
   secResults: { en: "Results", de: "Ergebnisse", fr: "Résultats" },
   secDetails: { en: "Details", de: "Details", fr: "Détails" },
   secInvite: { en: "Invite", de: "Einladung", fr: "Invitation" },
@@ -1494,6 +1511,17 @@ export const MESSAGES = {
     en: "No matches for “{query}”.",
     de: "Keine Treffer für „{query}“.",
     fr: "Aucun résultat pour « {query} ».",
+  },
+  // Provenance marker on a finder row (a building/aggregation shared with me).
+  provSharedTag: { en: "Shared", de: "Geteilt", fr: "Partagé" },
+  // Tier source-selector (multi-select union: which provenance sources to show).
+  tierFilterAria: { en: "Filter by source", de: "Nach Quelle filtern", fr: "Filtrer par source" },
+  tierMine: { en: "Mine", de: "Meine", fr: "Les miens" },
+  tierShared: { en: "Shared with me", de: "Mit mir geteilt", fr: "Partagés avec moi" },
+  filterNoMatch: {
+    en: "Nothing matches the current filter.",
+    de: "Nichts entspricht dem aktuellen Filter.",
+    fr: "Rien ne correspond au filtre actuel.",
   },
   contactAddToContacts: {
     en: "Add to contacts",

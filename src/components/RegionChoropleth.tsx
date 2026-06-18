@@ -47,10 +47,9 @@ import {
   type RegionalTable,
 } from "../services/regionalCube.ts";
 import {
-  BAVARIA_AGS_PREFIX,
-  fetchAreaPotential,
-  type GemeindePotential,
-} from "../services/energieatlas.ts";
+  type AreaProfile,
+  fetchAreaProfile,
+} from "../services/standortEnergieprofil.ts";
 import { magnitudeCategoriserFor } from "../services/energy/energyMetric.ts";
 import { bandColor, bandLabelKey, legendBands } from "../constants/lensBand.ts";
 import { BASEMAP_DE } from "../lib/orthophoto.ts";
@@ -89,7 +88,7 @@ function bboxParam(bounds: LatLngBounds): string {
  *  viewport scope; its query is disabled until the map reports one. */
 function useRegionGeometry(grain: RegionGrain, scope?: RegionScope) {
   return useQuery({
-    queryKey: ["regionGeometry", grain, scope?.bbox ?? scope?.parent ?? null],
+    queryKey: ["regionGeometry", grain, scope ?? null],
     queryFn: () => fetchRegionGeometry(grain, scope),
     enabled: grain !== "gemeinde" || Boolean(scope?.bbox || scope?.parent),
     staleTime: DAY,
@@ -99,7 +98,7 @@ function useRegionGeometry(grain: RegionGrain, scope?: RegionScope) {
 /** The latest value per region for a regionalstatistik table (one GET, whole layer). */
 function useRegionalChoropleth(table: RegionalTable, enabled: boolean) {
   return useQuery({
-    queryKey: ["regionalChoropleth", table.tableId],
+    queryKey: ["regionalChoropleth", table.tableId, table],
     queryFn: () => fetchRegionalChoropleth(table),
     enabled,
     staleTime: 60 * 60 * 1000,
@@ -145,30 +144,31 @@ export function RegionChoropleth() {
   const bavAgs = isGemeinde && fc
     ? fc.features
       .map((f) => f.properties.ags)
-      .filter((a) => a.startsWith(BAVARIA_AGS_PREFIX))
+      .filter((a) => a.startsWith("09"))
       .slice(0, MAX_GEMEINDE_FETCH)
     : [];
   const eaResults = useQueries({
     queries: bavAgs.map((ags) => ({
-      queryKey: ["energieatlas", ags],
-      queryFn: () => fetchAreaPotential(ags),
+      queryKey: ["standortEnergieprofil", ags],
+      queryFn: () => fetchAreaProfile(ags),
       staleTime: DAY,
     })),
   });
-  const eaByAgs = new Map<string, GemeindePotential>();
+  const eaByAgs = new Map<string, AreaProfile>();
   bavAgs.forEach((ags, i) => {
     const d = eaResults[i]?.data;
     if (d) eaByAgs.set(ags, d);
   });
 
-  // The numeric value a feature shades by, and the full set classified over.
+  // The numeric value a feature shades by (Gemeinde = rooftop-PV Ausbaugrad), and
+  // the full set classified over.
   const valueOf = (props?: RegionFeatureProps): number | null => {
     if (!props?.ags) return null;
-    if (isGemeinde) return eaByAgs.get(props.ags)?.developmentDegreePct ?? null;
+    if (isGemeinde) return eaByAgs.get(props.ags)?.rooftop?.degreePct ?? null;
     return regionalMap.get(props.ags)?.value ?? null;
   };
   const allValues = isGemeinde
-    ? [...eaByAgs.values()].map((d) => d.developmentDegreePct).filter((v): v is number => v != null)
+    ? [...eaByAgs.values()].map((d) => d.rooftop?.degreePct).filter((v): v is number => v != null)
     : [...regionalMap.values()].map((o) => o.value);
   const classify = magnitudeCategoriserFor(allValues);
 
@@ -188,20 +188,21 @@ export function RegionChoropleth() {
   // Tooltip content is resolved lazily (on open) from the latest values, so the
   // Energie-Atlas figures appear as their per-Gemeinde GETs resolve.
   const tooltipRef = useRef<(p: RegionFeatureProps) => string>(() => "");
-  tooltipRef.current = (p) => {
-    const head = `<strong>${p.label || p.code || ""}</strong>`;
-    if (isGemeinde) {
-      const d = eaByAgs.get(p.ags);
-      if (!d) return `${head}<br/>${msg("lensBandNoData")}`;
-      const pct = d.developmentDegreePct;
-      return `${head}<br/>${msg("choroplethGemeindeMetric")}: ${pct != null ? pct + " %" : "—"}` +
-        `<br/>${d.installedCapacityMWp ?? "—"} / ${d.pvPotentialCapacityMWp ?? "—"} MWp`;
-    }
-    const o = regionalMap.get(p.ags);
-    return o
-      ? `${head}<br/>${o.value.toLocaleString("de-DE")} ${o.unit} (${o.year})`
-      : `${head}<br/>${msg("lensBandNoData")}`;
-  };
+  useEffect(() => {
+    tooltipRef.current = (p) => {
+      const head = `<strong>${p.label || p.code || ""}</strong>`;
+      if (isGemeinde) {
+        const roof = eaByAgs.get(p.ags)?.rooftop;
+        if (!roof) return `${head}<br/>${msg("lensBandNoData")}`;
+        return `${head}<br/>${msg("choroplethGemeindeMetric")}: ${roof.degreePct != null ? roof.degreePct + " %" : "—"}` +
+          `<br/>${roof.installedMWp ?? "—"} / ${roof.potentialMWp ?? "—"} MWp`;
+      }
+      const o = regionalMap.get(p.ags);
+      return o
+        ? `${head}<br/>${o.value.toLocaleString("de-DE")} ${o.unit} (${o.year})`
+        : `${head}<br/>${msg("lensBandNoData")}`;
+    };
+  });
 
   const onEachFeature = (
     feature: Feature<Geometry, RegionFeatureProps>,

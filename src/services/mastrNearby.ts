@@ -213,3 +213,30 @@ export function kreisFromInstallations(
   }
   return best;
 }
+
+/**
+ * The building's Gemeinde AGS (8-digit), derived the same way as
+ * {@link kreisFromInstallations} but at municipality grain: the most frequent
+ * 8-digit code among the nearest units (robust to a lone unit just across a
+ * Gemeinde border), or `null` when none are known. The reverse-geocode the
+ * per-Gemeinde Energie-Atlas layer needs — there is no point-in-polygon endpoint.
+ */
+export function gemeindeFromInstallations(
+  installations: readonly NearbyInstallation[],
+): string | null {
+  const counts = new Map<string, number>();
+  for (const u of installations) {
+    if (u.ags.length === 8) {
+      counts.set(u.ags, (counts.get(u.ags) ?? 0) + 1);
+    }
+  }
+  let best: string | null = null;
+  let bestN = 0;
+  for (const [ags, n] of counts) {
+    if (n > bestN) {
+      best = ags;
+      bestN = n;
+    }
+  }
+  return best;
+}

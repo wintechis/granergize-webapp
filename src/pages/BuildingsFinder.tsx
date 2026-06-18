@@ -2,6 +2,7 @@ import { sessionGateway } from "../services/pod/podGateway.ts";
 import { lazy, Suspense, useMemo, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
+import Chip from "@mui/material/Chip";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import { useLocation, useSearchParams } from "react-router-dom";
@@ -18,7 +19,10 @@ import type { BuildingType } from "../types.ts";
 import { buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.ts";
 import { filterByText } from "../lib/textSearch.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
+import { useListFacet } from "../hooks/useListFacet.ts";
 import SearchField from "../components/SearchField.tsx";
+import TierFilter from "../components/TierFilter.tsx";
+import { TIER_VALUES } from "../constants/tiers.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { buildingRoute } from "../routes.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
@@ -87,9 +91,19 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
   const { buildings, isLoading: buildingsLoading } = useSolidData();
+  // The List guise shows the SAME reachable set the Map does — own + shared-with-me
+  // (Slice 1, plan-finder-collection-model: membership is guise-invariant). `ownedBuildings`
+  // is kept only for the own-only "Download all".
   const ownedBuildings = buildings.filter((b) => !b.isShared);
+  const hasShared = buildings.some((b) => b.isShared);
   const { query, setQuery } = useListSearch();
-  const filteredBuildings = filterByText(ownedBuildings, query, buildingSearchText);
+  // Tier source-selector (Slice 2): union the ticked provenance tiers. Default both
+  // → the full reachable set (matching the Map). A building's tier is own vs shared.
+  const tierFacet = useListFacet("tiers", TIER_VALUES);
+  const byTier = buildings.filter((b) =>
+    tierFacet.isSelected(b.isShared ? "shared" : "mine")
+  );
+  const filteredBuildings = filterByText(byTier, query, buildingSearchText);
   const buildingPaging = usePaging(filteredBuildings);
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
   const t = useT();
@@ -168,7 +182,21 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
         minHeight: 0,
       }}
     >
-      <Box sx={{ display: "flex", justifyContent: "center", p: 1, flexShrink: 0 }}>
+      {/* Shared collection chrome: the view toggle + the collection-level search /
+          tier facet, rendered ONCE here (not per guise) so both Map and List read
+          the same controls — capabilities are collection-level
+          (plan-finder-collection-model). */}
+      <Box
+        sx={{
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: 1.5,
+          p: 1,
+          flexShrink: 0,
+        }}
+      >
         <ToggleButtonGroup
           size="small"
           exclusive
@@ -181,6 +209,10 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
           <ToggleButton value="map">{t("btnMap")}</ToggleButton>
           <ToggleButton value="list">{t("btnList")}</ToggleButton>
         </ToggleButtonGroup>
+        {buildings.length > 0 && (
+          <SearchField value={query} onChange={setQuery} />
+        )}
+        {hasShared && <TierFilter facet={tierFacet} />}
       </Box>
       {/* Map: kept mounted whenever Buildings is the finder (only hidden when
           switched to List), preserving ExplorePage's Leaflet instance + map state. */}
@@ -237,15 +269,9 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
               </Button>
             </Stack>
 
-            {ownedBuildings.length > 0 && (
-              <Box sx={{ mb: 1 }}>
-                <SearchField value={query} onChange={setQuery} />
-              </Box>
-            )}
-
             {buildingsLoading
               ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
-              : ownedBuildings.length === 0
+              : buildings.length === 0
               ? (
                 <Typography variant="body2">
                   {t("buildingsEmpty")}
@@ -254,7 +280,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
               : filteredBuildings.length === 0
               ? (
                 <Typography variant="body2">
-                  {t("searchNoMatches", { query })}
+                  {query ? t("searchNoMatches", { query }) : t("filterNoMatch")}
                 </Typography>
               )
               : (
@@ -281,6 +307,17 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                             {b.streetAddress && b.streetAddress !== name
                               ? ` — ${b.streetAddress}`
                               : ""}
+                            {/* Provenance marker (Slice 1): owned is the default
+                                (unmarked); a shared-with-me building carries a tag. */}
+                            {b.isShared && (
+                              <Chip
+                                label={t("provSharedTag")}
+                                size="small"
+                                color="warning"
+                                variant="outlined"
+                                sx={{ ml: 1 }}
+                              />
+                            )}
                             <RdfSourceLink href={b.uri as string} inline />
                           </>
                         }
@@ -303,7 +340,11 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                           />
                         }
                       >
-                        {sharedQuery.isLoading
+                        {/* "Shared with" (recipients) is owner-only — a shared-with-me
+                            building isn't mine to have shared out. */}
+                        {b.isShared
+                          ? null
+                          : sharedQuery.isLoading
                           ? (
                             <Typography variant="caption" color="text.secondary">
                               Shared with: Loading…

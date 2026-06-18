@@ -6,6 +6,7 @@ import {
   buildingIdOf,
   deleteBuildingRow,
   openBuildingsList,
+  openBuildingsMap,
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -107,5 +108,23 @@ test.describe("redesign: finder keyword search", () => {
     await expect(alphaRow).toHaveCount(1, { timeout: T.action });
     await expect(betaRow).toHaveCount(1);
     await expect(page).not.toHaveURL(/[?&]q=/);
+  });
+
+  test("the same search filters the Map markers (one collection-level control)", async () => {
+    test.setTimeout(T.testSolo);
+    // Alpha + Beta (from the previous test, serial) are both located, so the Map
+    // shows two markers. The search box is rendered ONCE in the finder's shared
+    // chrome (not per guise), so the SAME control filters the markers.
+    await page.goto("/");
+    await openBuildingsMap(page);
+    const markers = page.locator(".leaflet-marker-icon");
+    await expect(markers).toHaveCount(2, { timeout: T.action });
+
+    await page.getByPlaceholder(en("searchPlaceholder")).fill("Alpha");
+    await expect(markers).toHaveCount(1, { timeout: T.action });
+    await expect(page).toHaveURL(/[?&]q=Alpha/i);
+
+    await page.getByRole("button", { name: en("searchClear") }).click();
+    await expect(markers).toHaveCount(2, { timeout: T.action });
   });
 });

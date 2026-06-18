@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, login } from "../helpers/login.ts";
-import { receivedAggregations } from "../helpers/manage.ts";
+import { aggregationsList, openAggregations } from "../helpers/manage.ts";
 import { en } from "../helpers/i18n.ts";
 import { freshPage } from "../helpers/twoPod.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
@@ -140,8 +140,8 @@ test.describe("view-roundtrip benchmark", () => {
       const b = await freshPage(browser, B);
       try {
         const t1 = Date.now();
-        await b.page.getByRole("tab", { name: "Sharing" }).click();
-        await expect(receivedAggregations(b.page).getByText(VIEW))
+        await openAggregations(b.page);
+        await expect(aggregationsList(b.page).getByText(VIEW))
           .toBeVisible({ timeout: 120_000 });
         rows.push([n, createMs, shareMs, Date.now() - t1]);
       } finally {

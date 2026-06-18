@@ -1,42 +1,19 @@
 import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useState } from "react";
-import {
-  Box,
-  Button,
-  IconButton,
-  Stack,
-  Switch,
-  Table,
-  TableBody,
-  TableCell,
-  TableRow,
-  Tooltip,
-  Typography,
-} from "@mui/material";
+import { Box, Button, Stack, Switch, Tooltip, Typography } from "@mui/material";
 import DownloadIcon from "@mui/icons-material/Download";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { BuildingType } from "../types.ts";
-import { CHART_COLOR_PALETTE } from "../constants/chartColors.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { logError } from "../lib/logError.ts";
 import { formatError } from "../lib/formatError.ts";
-import {
-  useComputedSnapshot,
-  useReceivedAggregations,
-  useSharedBuildingDetail,
-  useSharedWithMe,
-  useSolidData,
-} from "../hooks/queries.ts";
+import { useSharedWithMe, useSolidData } from "../hooks/queries.ts";
 import { useCheckInbox, useToggleVisibility } from "../hooks/mutations.ts";
 import { loadSharedBuilding } from "../services/interop/sharedBuilding.ts";
 import { attachAnnualData } from "../services/rdf/building/buildingSerializer.ts";
-import {
-  buildingsToXlsx,
-  buildingToXlsx,
-} from "../services/xlsx/buildingWorkbook.ts";
-import { formatNumber } from "../lib/formatNumber.ts";
+import { buildingsToXlsx } from "../services/xlsx/buildingWorkbook.ts";
 import { downloadXlsx } from "../lib/download.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
@@ -48,9 +25,7 @@ import {
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import { msg } from "../lib/messages.ts";
-import FilesSection from "../components/detail/FilesSection.tsx";
 import { useDevMode } from "../hooks/devMode.ts";
-import MetricBarChart from "../components/detail/MetricBarChart.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
@@ -63,120 +38,14 @@ interface SharingFinderProps {
 }
 
 /**
- * One "aggregation shared with you" row. Only the sharer's computed *snapshot* is
- * granted (not the definition), so we fetch it on demand from its URL (we hold
- * Read access) and show the aggregated values — a small table plus the same
- * SVG bar chart the owner sees.
- */
-function ReceivedAggregationRow(
-  { aggregation }: {
-    aggregation: { snapshotUri: string; aggregationId: string; sharedBy: string };
-  },
-) {
-  const [open, setOpen] = useState(false);
-  const t = useT();
-
-  // Recipients hold Read on the snapshot (which carries the aggregation's name) but not
-  // the definition. The query loads it on mount so the row shows the aggregation's NAME
-  // up front instead of the opaque snapshot id; expanding reuses the cached data.
-  const snapQuery = useComputedSnapshot(aggregation.snapshotUri);
-  const snapshot = snapQuery.data ?? null;
-  const loading = snapQuery.isLoading;
-  const error = snapQuery.error
-    ? (snapQuery.error instanceof Error
-      ? snapQuery.error.message
-      : String(snapQuery.error))
-    : snapQuery.isSuccess && snapQuery.data === null
-    ? t("shareSnapshotEmpty")
-    : null;
-
-  const toggle = () => setOpen((prev) => !prev);
-
-  const label = (snapshot?.name && snapshot.name.trim()) || aggregation.aggregationId ||
-    t("shareAggFallbackName");
-  const entries = snapshot ? Object.entries(snapshot.values) : [];
-
-  return (
-    <ResourceRow
-      title={label}
-      subtitle={<>{t("shareSharedBy")} <AgentLabel value={aggregation.sharedBy} /></>}
-      actions={
-        <Button size="small" variant="text" onClick={toggle}>
-          {open ? t("shareHideValues") : t("shareShowValues")}
-        </Button>
-      }
-      expansion={open && (
-        <Box sx={{ mt: 1 }}>
-          {loading && (
-            <Typography variant="body2" color="text.secondary">
-              {t("loadingEllipsis")}
-            </Typography>
-          )}
-          {error && (
-            <Typography variant="body2" color="error">{error}</Typography>
-          )}
-          {snapshot && entries.length === 0 && (
-            <Typography variant="body2" color="text.secondary">
-              {t("shareNoComputedValues")}
-            </Typography>
-          )}
-          {snapshot && entries.length > 0 && (
-            <>
-              <Typography variant="body2" color="text.secondary">
-                {t("shareAcrossBuildings", {
-                  type: snapshot.aggregationType,
-                  count: snapshot.buildingCount,
-                })}
-              </Typography>
-              <Table size="small">
-                <TableBody>
-                  {entries.map(([metric, value]) => (
-                    <TableRow key={metric}>
-                      <TableCell>{metric}</TableCell>
-                      <TableCell align="right">
-                        {formatNumber(value, 2)}
-                      </TableCell>
-                    </TableRow>
-                  ))}
-                </TableBody>
-              </Table>
-              <Box sx={{ mt: 1 }}>
-                <MetricBarChart
-                  data={entries.map(([name, value]) => ({ name, value }))}
-                  bars={[{
-                    key: "value",
-                    name: `${snapshot.aggregationType} value`,
-                    color: CHART_COLOR_PALETTE[0],
-                    palette: CHART_COLOR_PALETTE,
-                  }]}
-                  xKey="name"
-                  hideLegend
-                />
-              </Box>
-            </>
-          )}
-        </Box>
-      )}
-    />
-  );
-}
-
-/**
- * Files attached to a building shared with you: load the building lazily (its
- * attachments aren't in the lightweight shared-list entry) and render the shared
- * FilesSection, whose download fetches each binary with the recipient's own
- * session. Renders nothing while loading or when the building has no files.
- */
-function SharedBuildingFiles(
-  { entry }: { entry: { buildingUri: string; buildingId: string } },
-) {
-  const building = useSharedBuildingDetail(entry).data ?? null;
-  return building ? <FilesSection building={building} /> : null;
-}
-
-/**
- * The SHARE tab: a pure inbox of what others have shared with you. Outgoing
- * sharing (your buildings and aggregations) lives on the MANAGE tab.
+ * The SHARING finder: the **relationship** view of what others have shared with
+ * you — a lean audit of incoming building grants (who shared what, and the
+ * show/hide visibility you control), plus the inbox. The shared content itself is
+ * browsed in its own collection finder: shared *buildings* in the Buildings finder
+ * (Shared tier — open one for its files/download/detail), shared *aggregations* in
+ * the Aggregations finder (Shared tier). This finder is therefore *manage*, not
+ * *browse* (plan-finder-collection-model Slice 5). Outgoing sharing surfaces as the
+ * "Shared with" badges on the Buildings/Aggregations finder rows.
  */
 export default function SharingFinder({ session }: SharingFinderProps) {
   const { showNotification } = useNotification();
@@ -204,18 +73,6 @@ export default function SharingFinder({ session }: SharingFinderProps) {
     buildings.map((b) => [buildingFileUri(b.id), b.id]),
   );
 
-  const receivedAggregationsQuery = useReceivedAggregations();
-  const receivedAggregations = receivedAggregationsQuery.data ?? [];
-  const receivedSearch = useListSearch("received");
-  const filteredReceived = filterByText(
-    receivedAggregations,
-    receivedSearch.query,
-    (a) => `${a.aggregationId} ${a.sharedBy}`,
-  );
-  const receivedAggregationsPaging = usePaging(filteredReceived, {
-    key: "received",
-  });
-
   const toggleVis = useToggleVisibility();
   const checkInbox = useCheckInbox();
   const [bundling, setBundling] = useState(false);
@@ -237,22 +94,9 @@ export default function SharingFinder({ session }: SharingFinderProps) {
   const webId = session.info.webId;
   const collections = webId ? tryPodResources(webId) : null;
 
-  const handleDownloadBuilding = async (entry: {
-    buildingUri: string;
-    buildingId: string;
-  }) => {
-    try {
-      const building = await loadSharedBuilding(entry, sessionGateway(session));
-      if (!building) throw new Error("no building data found in the source file");
-      const [enriched] = await attachAnnualData([building], sessionGateway(session));
-      downloadXlsx(await buildingToXlsx(enriched), `building-${entry.buildingId}.xlsx`);
-    } catch (error) {
-      showNotification(formatError("actionExportBuilding", error), "error");
-    }
-  };
-
   // Bundle every shared building into one multi-sheet workbook. Unreadable ones
-  // (e.g. access revoked since the grant) are skipped, not fatal.
+  // (e.g. access revoked since the grant) are skipped, not fatal. Bulk export of
+  // the incoming set has no per-collection equivalent, so it stays here.
   const handleDownloadAll = async () => {
     if (sharedWithMe.length === 0) return;
     setBundling(true);
@@ -348,34 +192,22 @@ export default function SharingFinder({ session }: SharingFinderProps) {
             {sharedPaging.pageItems.map((building) => {
               const resolvableId = idByFileUri.get(building.buildingUri);
               return (
-              <ResourceRow
-                key={building.buildingUri}
-                title={
-                  <>
-                    {resolvableId
-                      ? (
-                        <RefLink
-                          to={buildingRoute(resolvableId)}
-                        >
-                          {t("shareBuildingN", { id: building.buildingId })}
-                        </RefLink>
-                      )
-                      : <>{t("shareBuildingN", { id: building.buildingId })}</>}
-                    <RdfSourceLink href={building.buildingUri} inline />
-                  </>
-                }
-                subtitle={<>{t("shareSharedBy")} <AgentLabel value={building.sharedBy} /></>}
-                actions={
-                  <>
-                    <Tooltip title={t("shareDownloadBuildingTooltip")}>
-                      <IconButton
-                        size="small"
-                        aria-label={t("shareDownloadBuildingAria")}
-                        onClick={() => handleDownloadBuilding(building)}
-                      >
-                        <DownloadIcon fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
+                <ResourceRow
+                  key={building.buildingUri}
+                  title={
+                    <>
+                      {resolvableId
+                        ? (
+                          <RefLink to={buildingRoute(resolvableId)}>
+                            {t("shareBuildingN", { id: building.buildingId })}
+                          </RefLink>
+                        )
+                        : <>{t("shareBuildingN", { id: building.buildingId })}</>}
+                      <RdfSourceLink href={building.buildingUri} inline />
+                    </>
+                  }
+                  subtitle={<>{t("shareSharedBy")} <AgentLabel value={building.sharedBy} /></>}
+                  actions={
                     <Tooltip title={t("shareVisibilityTooltip")}>
                       <Box
                         component="label"
@@ -393,57 +225,18 @@ export default function SharingFinder({ session }: SharingFinderProps) {
                         {building.isVisible ? t("shareShown") : t("shareHidden")}
                       </Box>
                     </Tooltip>
-                  </>
-                }
-                expansion={<SharedBuildingFiles entry={building} />}
-              />
+                  }
+                />
               );
             })}
           </Box>
         )}
       <Pager paging={sharedPaging} />
 
-      <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>
-        {t("sharedAggregationsHeading")}
-      </Typography>
-      {receivedAggregations.length > 0 && (
-        <Box sx={{ mb: 1 }}>
-          <SearchField
-            value={receivedSearch.query}
-            onChange={receivedSearch.setQuery}
-          />
-        </Box>
-      )}
-      {receivedAggregationsQuery.isLoading
-        ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
-        : receivedAggregations.length === 0
-        ? (
-          <Typography variant="body2">
-            {t("sharedAggregationsEmpty")}
-          </Typography>
-        )
-        : filteredReceived.length === 0
-        ? (
-          <Typography variant="body2">
-            {t("searchNoMatches", { query: receivedSearch.query })}
-          </Typography>
-        )
-        : (
-          <Box
-            component="ul"
-            aria-label={t("sharedAggregationsHeading")}
-            sx={{ listStyle: "none", pl: 0, m: 0 }}
-          >
-            {receivedAggregationsPaging.pageItems.map((aggregation) => (
-              <ReceivedAggregationRow key={aggregation.snapshotUri} aggregation={aggregation} />
-            ))}
-          </Box>
-        )}
-      <Pager paging={receivedAggregationsPaging} />
-
       {/* Your inbox — the receiving endpoint others post to when they share with
-          you. Notices are drained into shared-in/ and surface in the lists above.
-          Developer-mode only: this exposes the raw transport container. */}
+          you. Notices are drained into shared-in/ and surface in the list above
+          and in the Buildings/Aggregations finders' Shared tiers. Developer-mode
+          only: this exposes the raw transport container. */}
       {dev && collections && (
         <>
           <Typography variant="h6" sx={{ mt: 4, mb: 1 }}>{t("headingInbox")}</Typography>
