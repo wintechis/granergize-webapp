@@ -44,7 +44,8 @@ const actions = hookActions(mutationsSrc);
 
 Deno.test("every catalog entry's hook exists as an export in mutations.ts", () => {
   const hookSet = new Set(hooks);
-  const missing = INTENTS.filter((e) => !hookSet.has(e.hook)).map((e) => e.hook);
+  // navigate intents have no hook (pure route builder) — check only where set.
+  const missing = INTENTS.filter((e) => e.hook && !hookSet.has(e.hook)).map((e) => e.hook);
   assert.deepEqual(
     missing,
     [],
@@ -54,6 +55,7 @@ Deno.test("every catalog entry's hook exists as an export in mutations.ts", () =
 
 Deno.test("catalog action matches the hook's meta.action verbatim", () => {
   for (const e of INTENTS) {
+    if (!e.hook) continue; // navigate intents have no hook
     const declared = actions.get(e.hook);
     if (declared == null) continue; // hook declares no meta.action
     assert.equal(

@@ -10,8 +10,13 @@ Deno.test("intent names are unique", () => {
 Deno.test("every entry carries the load-bearing fields", () => {
   for (const i of INTENTS) {
     // `action` is "" for hooks that declare no meta.action (their errors are
-    // handled outside the central toast); identity (name + hook) is required.
-    assert.ok(i.name && i.hook, `incomplete entry: ${i.name}`);
+    // handled outside the central toast). `hook` is required for write/read (the
+    // mutations.ts drift guard); navigate intents have no hook (a pure route-builder
+    // core in navigate.ts) — so identity is `name` always, `hook` for non-navigate.
+    assert.ok(i.name, `incomplete entry: ${i.name}`);
+    if (i.effect !== "navigate") {
+      assert.ok(i.hook, `non-navigate entry missing hook: ${i.name}`);
+    }
     assert.equal(typeof i.action, "string", `missing action: ${i.name}`);
     assert.ok(["write", "read", "navigate"].includes(i.effect));
   }

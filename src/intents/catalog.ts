@@ -48,8 +48,10 @@ export interface IntentEntry {
   readonly silentError?: boolean;
   /** Developer-gated affordance. Defaults to `"standard"`. */
   readonly exposure?: IntentExposure;
-  /** The implementing hook in `src/hooks/mutations.ts`, for the drift guard. */
-  readonly hook: string;
+  /** The implementing hook in `src/hooks/mutations.ts`, for the drift guard.
+   * Absent for `navigate` intents — they have no Pod hook (their core is a pure
+   * route builder, `navigate.ts`); the drift guard checks `hook` only where set. */
+  readonly hook?: string;
 }
 
 /**
@@ -338,6 +340,22 @@ export const INTENTS: readonly IntentEntry[] = [
     exposure: "developer",
     hook: "useExportArchive",
   },
+  // ── Navigation (enter an addressable in-app UI state; no Pod, no hook) ────────
+  // The third effect of the trinity; cores are pure route builders (navigate.ts),
+  // dispatched by `goTo`. Collection verbs take no params; detail verbs take the
+  // resource id/uri/webId.
+  { name: "ShowDashboard", action: "", effect: "navigate" },
+  { name: "ShowBuildings", action: "", effect: "navigate", entity: "building" },
+  { name: "ShowObservations", action: "", effect: "navigate", entity: "observation" },
+  { name: "ShowAggregations", action: "", effect: "navigate", entity: "aggregation" },
+  { name: "ShowRooms", action: "", effect: "navigate", entity: "room" },
+  { name: "ShowContacts", action: "", effect: "navigate", entity: "contact" },
+  { name: "ShowSharing", action: "", effect: "navigate", entity: "sharing" },
+  { name: "ShowBuilding", action: "", effect: "navigate", entity: "building" },
+  { name: "ShowObservation", action: "", effect: "navigate", entity: "observation" },
+  { name: "ShowAggregation", action: "", effect: "navigate", entity: "aggregation" },
+  { name: "ShowRoom", action: "", effect: "navigate", entity: "room" },
+  { name: "ShowContact", action: "", effect: "navigate", entity: "contact" },
 ] as const;
 
 /** Resolve the active exposure (default `"standard"`). */

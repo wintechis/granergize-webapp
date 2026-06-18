@@ -36,6 +36,7 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { getGateway } from "../hooks/session.ts";
 import { queryByName } from "../intents/registry.ts";
 import { LaunchError, parseLaunch } from "../intents/launch.ts";
+import { goTo } from "../intents/navigate.ts";
 import {
   translateToIntentJson,
   TranslateError,
@@ -60,15 +61,20 @@ import {
  * spinner, no raw MUI `Dialog`.
  */
 
-/** The global navigation targets, in top-nav order (mirrors AppShell's NAV). */
-const NAV_TARGETS: NavTarget[] = [
-  { path: FINDERS.buildings, labelKey: "navBuildings" },
-  { path: FINDERS.observations, labelKey: "navObservations" },
-  { path: FINDERS.aggregations, labelKey: "navAggregations" },
-  { path: FINDERS.sharing, labelKey: "navSharing" },
-  { path: FINDERS.contacts, labelKey: "navContacts" },
-  { path: FINDERS.rooms, labelKey: "navMeet" },
-];
+/** The global navigation targets, in top-nav order (mirrors AppShell's NAV). Each
+ * route is resolved through the catalog **navigate** cores (`goTo`) so the palette's
+ * finder nav and the launcher/LLM share one source of truth (the trinity's navigate
+ * arm), rather than the palette duplicating `FINDERS.*`. */
+const NAV_TARGETS: NavTarget[] = (
+  [
+    ["ShowBuildings", "navBuildings"],
+    ["ShowObservations", "navObservations"],
+    ["ShowAggregations", "navAggregations"],
+    ["ShowSharing", "navSharing"],
+    ["ShowContacts", "navContacts"],
+    ["ShowRooms", "navMeet"],
+  ] as const
+).map(([name, labelKey]) => ({ path: goTo(name), labelKey }));
 
 function isBuilding(o: IntentObject): o is BuildingType {
   return !!o && typeof o === "object" && "uri" in o && "id" in o && "type" in o;
@@ -254,10 +260,15 @@ export default function CommandPalette() {
       }
       return;
     }
-    // navigate: no gateway-less goTo arm yet (§7) — surface the launcher's reason.
-    setLaunchError(
-      `"${parsed.name}" is a navigate intent — not launchable yet`,
-    );
+    // navigate (§7): resolve the route via the gateway-less goTo arm and push it
+    // client-side — same as the palette's own nav commands.
+    try {
+      const route = goTo(parsed.name, parsed.params);
+      close();
+      void navigate(route);
+    } catch (e) {
+      setLaunchError((e as Error).message);
+    }
   };
 
   /**

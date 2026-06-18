@@ -14,6 +14,7 @@
  */
 import { INTENTS, type IntentEffect } from "./catalog.ts";
 import { invokeByName, queryByName } from "./registry.ts";
+import { goTo } from "./navigate.ts";
 import type { PodGateway } from "../services/pod/podGateway.ts";
 
 /** A pasted intent that could not be turned into a dispatchable invocation. */
@@ -105,9 +106,8 @@ const DEFAULT_DEPS: LaunchDeps = { invoke: invokeByName, query: queryByName };
 /**
  * Launch a pasted intent: {@link parseLaunch} then dispatch on the derived effect.
  * A `write` routes to `invokeByName` (→ outcome), a `read` to `queryByName`
- * (→ value). `navigate` is not yet launchable — its catalog entries + gateway-less
- * `goTo` arm are pending (`plan-intent-core.md` §7), so it throws a clear
- * {@link LaunchError} rather than guessing a route.
+ * (→ value), a `navigate` to `goTo` (→ the route string to push; the caller
+ * navigates). Gateway-less for navigate (no Pod).
  */
 export function launch(
   text: string,
@@ -128,10 +128,11 @@ export function launch(
     case "read":
       return deps.query(name, params, gateway);
     case "navigate":
-      return Promise.reject(
-        new LaunchError(
-          `"${name}" is a navigate intent — not launchable yet (no navigate arm)`,
-        ),
-      );
+      try {
+        // → the route to push (a value); navigation itself is the caller's job.
+        return Promise.resolve(goTo(name, params));
+      } catch (e) {
+        return Promise.reject(e);
+      }
   }
 }

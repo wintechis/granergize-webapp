@@ -37,7 +37,8 @@ import { INTENT_PARAMS } from "../intents/params.ts";
 import { intentLabelKey } from "../intents/labels.ts";
 import { isFormEligible } from "./paramForm.ts";
 import { type MessageId } from "./messages.ts";
-import { buildingRoute, type DialogAction } from "../routes.ts";
+import { type DialogAction } from "../routes.ts";
+import { goTo } from "../intents/navigate.ts";
 import { buildingDisplayName, buildingSearchText } from "./buildingDisplay.ts";
 import type { BuildingType } from "../types.ts";
 import type { TFn } from "../context/I18nProvider.tsx";
@@ -207,13 +208,18 @@ export function intentRoutesToDialog(entry: IntentEntry): boolean {
 export function buildingNavCommands(
   buildings: readonly BuildingType[],
 ): PaletteCommand[] {
-  return buildings.map((b) => ({
-    key: buildingRoute(b.id),
-    family: "navigation",
-    label: buildingDisplayName(b),
-    searchText: buildingSearchText(b),
-    path: buildingRoute(b.id),
-  }));
+  return buildings.map((b) => {
+    // Route through the catalog navigate core (ShowBuilding) — same string as
+    // buildingRoute(b.id), but via the trinity's navigate arm (one source).
+    const route = goTo("ShowBuilding", { id: b.id });
+    return {
+      key: route,
+      family: "navigation" as const,
+      label: buildingDisplayName(b),
+      searchText: buildingSearchText(b),
+      path: route,
+    };
+  });
 }
 
 /** Filter a command list by a case-insensitive substring of the label. */

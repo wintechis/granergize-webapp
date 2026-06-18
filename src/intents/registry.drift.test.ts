@@ -15,6 +15,7 @@
 import { strict as assert } from "node:assert";
 import { INTENTS } from "./catalog.ts";
 import { READ_CORES, WRITE_CORES } from "./registry.ts";
+import { NAVIGATE_CORES } from "./navigate.ts";
 
 /**
  * Catalog names that do NOT yet have an extracted core. **Empty** — Step 5
@@ -70,6 +71,17 @@ Deno.test("every read catalog entry is queryable (has a READ_CORES key) or allow
       !(extracted && allowed),
       `read intent ${intent.name} is both extracted and allowlisted — drop it from NOT_YET_EXTRACTED`,
     );
+  }
+});
+
+Deno.test("every navigate catalog entry has a NAVIGATE_CORES key (and vice-versa)", () => {
+  const navKeys = new Set(Object.keys(NAVIGATE_CORES));
+  for (const intent of INTENTS) {
+    if (intent.effect !== "navigate") continue;
+    assert.ok(navKeys.has(intent.name), `navigate intent ${intent.name} has no NAVIGATE_CORES key`);
+  }
+  for (const key of navKeys) {
+    assert.ok(CATALOG_NAMES.has(key), `NAVIGATE_CORES key ${key} has no catalog entry`);
   }
 });
 

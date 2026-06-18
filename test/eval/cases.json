@@ -57,9 +57,9 @@
   { "nl": "Gebäude mit Wärmepumpe und mindestens 3 Ladetoren", "expect": "FindBuildings", "category": "query-collection", "selector": { "and": [{ "field": "hasHeatPump", "op": "eq", "value": true }, { "field": "numberOfLoadingDocks", "op": "ge", "value": 3 }] } },
   { "nl": "What is shared with me?", "expect": ["SharedWithMe", ""], "category": "query-collection", "note": "pending SharedWithMe read core" },
 
-  { "nl": "Open the building Hofgebäude", "expect": ["ShowBuilding", ""], "category": "navigation", "note": "pending navigate arm" },
-  { "nl": "Go to the benchmarks", "expect": ["ShowAggregations", ""], "category": "navigation", "note": "pending navigate arm" },
-  { "nl": "Take me to the map", "expect": ["ShowDashboard", "ShowBuildings", ""], "category": "navigation", "note": "pending navigate arm" },
-  { "nl": "Open my data rooms", "expect": ["ShowRooms", ""], "category": "navigation", "note": "pending navigate arm" },
-  { "nl": "Show my contacts", "expect": ["ShowContacts", ""], "category": "navigation", "note": "pending navigate arm" }
+  { "nl": "Open the building Hofgebäude", "expect": "ShowBuilding", "category": "navigation" },
+  { "nl": "Go to the benchmarks", "expect": "ShowAggregations", "category": "navigation" },
+  { "nl": "Take me to the map", "expect": ["ShowDashboard", "ShowBuildings"], "category": "navigation" },
+  { "nl": "Open my data rooms", "expect": "ShowRooms", "category": "navigation" },
+  { "nl": "Show my contacts", "expect": "ShowContacts", "category": "navigation" }
 ]

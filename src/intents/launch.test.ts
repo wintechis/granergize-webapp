@@ -130,6 +130,19 @@ Deno.test("launch: a read intent routes to query and returns its value", async (
   assert.deepEqual(out, { value: 42 });
 });
 
+Deno.test("launch: a navigate intent resolves to a route (no gateway dispatch)", async () => {
+  const { calls, deps } = spyDeps();
+  const collection = await launch(JSON.stringify({ name: "ShowBuildings" }), GW, deps);
+  assert.equal(collection, "/buildings");
+  const detail = await launch(
+    JSON.stringify({ name: "ShowBuilding", params: { id: "buildings/abc.ttl#it" } }),
+    GW,
+    deps,
+  );
+  assert.match(String(detail), /^\/building\?ref=/);
+  assert.equal(calls.length, 0); // navigate never touches invoke/query
+});
+
 Deno.test("launch: a parse failure rejects (never throws synchronously)", async () => {
   const { calls, deps } = spyDeps();
   await assert.rejects(() => launch("garbage", GW, deps), LaunchError);

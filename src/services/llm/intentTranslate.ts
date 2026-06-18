@@ -18,6 +18,7 @@
  */
 import { INTENTS } from "../../intents/catalog.ts";
 import { INTENT_PARAMS } from "../../intents/params.ts";
+import { NAVIGATE_PARAM_HINTS } from "../../intents/navigate.ts";
 import { selectorFieldsSpec } from "../../intents/selector.ts";
 import { trackedFetch } from "../../lib/networkActivity.ts";
 
@@ -73,10 +74,15 @@ export function buildIntentCatalogSpec(): string {
   >;
   return INTENTS.map((e) => {
     const ps = params[e.name];
+    // navigate verbs aren't in INTENT_PARAMS (their cores take no gateway); their
+    // single id/uri param comes from NAVIGATE_PARAM_HINTS instead.
+    const navHint = NAVIGATE_PARAM_HINTS[e.name as keyof typeof NAVIGATE_PARAM_HINTS];
     const paramList = ps
       ? Object.entries(ps)
         .map(([field, spec]) => `${field}(${spec.cardinality})`)
         .join(", ")
+      : navHint
+      ? `${navHint}(one)`
       : "";
     const entity = e.entity ? `, entity=${e.entity}` : "";
     return `- ${e.name} [${e.effect}${entity}]${
