@@ -12,6 +12,10 @@ import BuildingHeader from "../components/building/BuildingHeader.tsx";
 import MasterDataSection from "../components/building/MasterDataSection.tsx";
 import EnergySummarySection from "../components/building/EnergySummarySection.tsx";
 import StandortEnergieprofil from "../components/building/StandortEnergieprofil.tsx";
+import RoofPlan from "../components/building/RoofPlan.tsx";
+import NeighbourhoodEnergyMap from "../components/observation/NeighbourhoodEnergyMap.tsx";
+import RegionalContextSection from "../components/observation/RegionalContextSection.tsx";
+import RegionalMetricsSection from "../components/observation/RegionalMetricsSection.tsx";
 import BuildingFilesSection from "../components/building/BuildingFilesSection.tsx";
 import SharingSection from "../components/building/SharingSection.tsx";
 
@@ -81,6 +85,10 @@ export default function Building({ building }: BuildingProps) {
       <MasterDataSection building={building} autoOpenEdit={action === "edit"} />
       <EnergySummarySection building={building} />
       <StandortEnergieprofil building={building} />
+      <RoofPlan building={building} />
+      <NeighbourhoodEnergyMap building={building} />
+      <RegionalContextSection building={building} />
+      <RegionalMetricsSection building={building} />
       <BuildingFilesSection building={building} session={session} />
       <SharingSection
         building={building}

@@ -155,28 +155,17 @@ test.describe("handbuch video: Standort-Potenzial-Radar", () => {
     await demo.caption("");
 
     // --- Scene 6: the regional view — the rooftop Ausbaulücke across the Gemeinden
-    //     of the area, as a choropleth (linked-energieatlas per Gemeinde, shaded by
-    //     build-out degree). Deep-link straight to Nuremberg at Gemeinde grain via the
-    //     RegionChoropleth `?lat&lon&zoom` initial view. ---
+    //     of the area, as the neighbourhood choropleth on the SAME building page
+    //     (linked-lau geometry + linked-energieatlas per-Gemeinde build-out). ---
     await demo.scene(
       "region",
       "Und im regionalen Bild: die Ausbaulücke über die Gemeinden der Umgebung",
     );
-    // Navigate CLIENT-SIDE (no reload) the way the app itself does — push the path
-    // and dispatch `popstate`, which BrowserRouter listens to (the same mechanism
-    // Login.tsx's session-restore replay uses). A full `goto` of this deep-link route
-    // hits the unverified restore path and bounces to the finder; this keeps the warm
-    // session AND the demo overlay, and lands squarely on the choropleth.
-    await stage.evaluate(() => {
-      window.history.pushState({}, "", "/choropleth?lat=49.45&lon=11.08&zoom=11");
-      window.dispatchEvent(new PopStateEvent("popstate"));
-    });
-    await expect(stage.getByText(vt("choroplethTitle"))).toBeVisible({ timeout: 60_000 });
-    // Zoom 11 ⇒ Gemeinde grain: Bavarian municipalities shade by rooftop Ausbaugrad.
-    // `exact` so the level label isn't confused with the scene caption (which also
-    // contains the word "Gemeinden").
-    await expect(stage.getByText(vt("choroplethLevelGemeinde"), { exact: true }))
-      .toBeVisible({ timeout: 60_000 });
+    // Scroll on down to the neighbourhood map (just below the Standort-Energieprofil
+    // panel — same page, no navigation).
+    const neighbourhood = stage.getByText(vt("neighbourhoodTitle")).first();
+    await demo.moveTo(neighbourhood);
+    await expect(neighbourhood).toBeVisible({ timeout: 60_000 });
     await stage.waitForLoadState("networkidle").catch(() => {});
     // One Energie-Atlas GET per visible Bavarian Gemeinde resolves the shading — give
     // them a beat to fill in before the caption.

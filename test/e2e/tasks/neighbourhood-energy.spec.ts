@@ -93,6 +93,15 @@ test.describe("neighbourhood energy choropleth", () => {
     });
     await page.route(/\/(regionalstatistik|mastr|wetterdienst)\//, (route) =>
       route.fulfill({ status: 404, headers: CORS, body: "" }));
+    // The building page also carries the regional-metrics map (NUTS geometry); stub
+    // it empty so it adds no interactive polygons to the neighbourhood count.
+    await page.route(/\/nuts\/geojson/, (route) =>
+      route.fulfill({
+        status: 200,
+        contentType: "application/geo+json",
+        headers: CORS,
+        body: JSON.stringify({ type: "FeatureCollection", features: [] }),
+      }));
     await page.route(/geodatenzentrum\.de/, (route) =>
       route.fulfill({ status: 200, contentType: "image/png", body: PNG_1x1 }));
     await login(page, ACC);
@@ -104,7 +113,7 @@ test.describe("neighbourhood energy choropleth", () => {
     await page.close();
   });
 
-  test("the observation page shows the neighbour-Gemeinde rooftop-PV choropleth", async () => {
+  test("the building page shows the neighbour-Gemeinde rooftop-PV choropleth", async () => {
     test.setTimeout(T.testSolo);
 
     await addBuilding(page, ADDR); // fills region "Bayern" + Nürnberg coords
@@ -114,7 +123,7 @@ test.describe("neighbourhood energy choropleth", () => {
     if (!buildingId) throw new Error("neighbourhood-energy: missing building id");
     id = buildingId;
 
-    await page.goto(buildingRoute("observation", id));
+    await page.goto(buildingRoute("building", id));
 
     // The widget renders its section title + a Leaflet map of the neighbour Gemeinden.
     await expect(page.getByText(en("neighbourhoodTitle"))).toBeVisible({ timeout: T.action });

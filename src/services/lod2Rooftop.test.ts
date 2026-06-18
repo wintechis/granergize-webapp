@@ -73,3 +73,30 @@ Deno.test("parseBuildingRoofs returns null without roof surfaces", () => {
   const ttl = "@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .";
   assert.equal(parseBuildingRoofs(ttl, BLDG_BASE), null);
 });
+
+// The footprint the wrapper serves (the GeoSPARQL pair, as in linked-inspire) — the per-roof
+// geometry is a NAMED node `<#roof-N-geom>`, exactly as served live. Additive: one surface
+// carries `gsp:hasGeometry → gsp:asWKT`, the other does not.
+const BLDG_GEOM_TTL = `
+@prefix lod2: <https://w3id.org/linked-lod2-by/vocab#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix gsp: <http://www.opengis.net/ont/geosparql#> .
+<#roof-0> a lod2:RoofSurface ; lod2:area 287.5 ; lod2:azimuth 184.5 ; lod2:tilt 38.4 ;
+  gsp:hasGeometry <#roof-0-geom> .
+<#roof-0-geom> a gsp:Geometry ;
+  gsp:asWKT "POLYGON((11.130 49.610, 11.131 49.610, 11.131 49.611, 11.130 49.611, 11.130 49.610))"^^gsp:wktLiteral .
+<#roof-1> a lod2:RoofSurface ; lod2:area 100 ; lod2:azimuth 4.0 ; lod2:tilt 38.0 .
+<> a lod2:RoofPotential ; geo:lat 49.61 ; geo:long 11.13 ;
+  lod2:hasRoofSurface <#roof-0> , <#roof-1> .
+`;
+
+Deno.test("parseBuildingRoofs reads the geo:asWKT footprint into surface.polygon", () => {
+  const b = parseBuildingRoofs(BLDG_GEOM_TTL, BLDG_BASE);
+  assert.ok(b);
+  const withGeom = b.roofs.find((r) => r.polygon);
+  assert.ok(withGeom, "a surface carries a polygon ring");
+  assert.equal(withGeom.polygon?.length, 5);
+  assert.deepEqual(withGeom.polygon?.[0], [11.13, 49.61]);
+  // The other surface simply lacks geometry — additive, the PV calc is unaffected.
+  assert.equal(b.roofs.filter((r) => !r.polygon).length, 1);
+});

@@ -192,6 +192,14 @@ export const MESSAGES = {
     de: "Auf der LoD2-Karte ansehen ↗",
     fr: "Voir sur la carte LoD2 ↗",
   },
+  // The roof-plan: the building's LoD2 roof surfaces, shaded by PV yield.
+  rpRoofPlan: { en: "Roof surfaces", de: "Dachflächen", fr: "Surfaces de toiture" },
+  rpRoofPlanHint: {
+    en: "Each roof face shaded by expected PV yield; grey = unsuitable (north-facing or too steep).",
+    de: "Jede Dachfläche nach erwartetem PV-Ertrag eingefärbt; grau = ungeeignet (nordseitig oder zu steil).",
+    fr: "Chaque pan de toit coloré selon le rendement PV attendu ; gris = inadapté (nord ou trop pentu).",
+  },
+  rpRoofUnsuitable: { en: "unsuitable", de: "ungeeignet", fr: "inadapté" },
   sepPotential: { en: "Potential", de: "Potenzial", fr: "Potentiel" },
   sepInstalled: { en: "Installed", de: "Installiert", fr: "Installé" },
   sepHeadroom: { en: "Untapped", de: "Ausbaulücke", fr: "Inexploité" },

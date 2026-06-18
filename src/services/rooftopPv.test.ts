@@ -1,6 +1,11 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { computePotential, dominantOrientation, type RoofSurface } from "./rooftopPv.ts";
+import {
+  computePotential,
+  dominantOrientation,
+  evaluateRoofs,
+  type RoofSurface,
+} from "./rooftopPv.ts";
 import { lod2ToPvgisAspect, specificYield } from "./pvgisGrid.ts";
 import { PVGIS_GRID } from "./pvgisGridData.ts";
 
@@ -37,6 +42,23 @@ Deno.test("flat roofs are re-tilted to a racked south array with a row-spacing p
   assert.equal(p.suitableAreaM2, 420.0);
   assert.equal(p.installableKwp, 84.0);
   assert.equal(p.dominantOrientation, "N"); // azimuth 0 → nearest compass point
+});
+
+Deno.test("evaluateRoofs reports per-surface suitability + yield (for the roof-plan)", () => {
+  const evals = evaluateRoofs(ROOFS); // [north pitched, south pitched, wall]
+  assert.equal(evals.length, 3);
+  // North-facing pitched roof → excluded, zero yield.
+  assert.equal(evals[0].suitable, false);
+  assert.equal(evals[0].annualKwh, 0);
+  // South pitched roof → suitable, positive yield, orientation "S".
+  assert.equal(evals[1].suitable, true);
+  assert.ok(evals[1].annualKwh > 0);
+  assert.ok(evals[1].kwp > 0);
+  assert.equal(evals[1].orientation, "S");
+  // Wall (tilt > 80) → excluded.
+  assert.equal(evals[2].suitable, false);
+  // The suitable surface's yield sums to the building total.
+  assert.equal(evals[1].annualKwh, computePotential(ROOFS)?.annualKwh);
 });
 
 Deno.test("dominantOrientation maps the azimuth to the nearest compass point", () => {

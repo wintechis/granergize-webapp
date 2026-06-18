@@ -3,6 +3,33 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-18]
+- **Rooftop: the actual roof geometry, shaded by PV yield.** The building page now draws the
+  building's LoD2 roof surfaces as a top-down plan (`RoofPlan`) — each roof face an SVG polygon
+  from `linked-lod2-by`'s `gsp:asWKT` footprint (verified against the live wrapper), shaded by
+  its expected PV yield via the shared magnitude lens (north-facing / too-steep faces greyed),
+  hover for orientation · area · tilt · yield. The geometry sibling of the numeric rooftop card
+  (that's the building total; this is *where* on the roof the potential sits). Adds a tiny
+  WKT-`POLYGON`→ring parser (`services/rdf/wkt.ts` — the app's first `asWKT` consumer; the
+  region path stays GeoJSON) and a per-surface `evaluateRoofs`; offline-fixture tested.
+- **Region maps: de-duplicated + reorganised onto a shared choropleth layer.** Extracted the
+  shared map plumbing into `components/region/` — `MagnitudeChoroplethLayer` (band→colour
+  style, on-hover tooltip via ref, restyle-on-load, remount key), `MagnitudeLegend`, and
+  `ViewWatch` (zoom/bbox reporter) — and rebuilt both maps on it. `NeighbourhoodEnergyMap`
+  (Gemeinde rooftop-PV, Energie-Atlas) is now **interactive** (pan/zoom reloads the visible
+  Gemeinden; gated on in-Bavaria so it stays mounted while panning) with the building's pin.
+  New `RegionalMetricsMap` (Bundesland⇄Kreis zoom-LOD + a metric dropdown over the
+  regionalstatistik tables) — the building-independent region browse now lives on the
+  **`RegionalDataset` page** (Aggregations `open` tier → `/regional`), seeded to the opened
+  dataset's metric; the bespoke standalone `/choropleth` route + `RegionChoropleth` are
+  **deleted**. The regional-metrics map is also embedded on the building page with the
+  building pin. **Information architecture**: the **building detail page** now carries the
+  place/statistics surfaces (Standort-Energieprofil, neighbourhood map, the regionalstatistik
+  figures table + map — all building-anchored), and the **energy page** keeps the building's
+  own concrete energy/units (charts, weather, nearby installations). e2e updated for the move
+  (`regional-context`/`neighbourhood-energy` → `/building`, extra map stubs, table-scoped
+  locators; the `standort-energieprofil` video's Scene 6 scrolls to the on-page neighbourhood
+  map instead of the removed `/choropleth`). Build + lint + unit (874) green; the reorg's
+  affected Tier-3 specs pass (15/15).
 - **Rooftop-PV: per-building "money on your roof" from the LoD2 model.** The building's
   Standort-Energieprofil panel now leads with a per-building rooftop-PV card — installable kWp,
   expected annual yield, value/year (at a configurable self-consumption rate), usable roof area

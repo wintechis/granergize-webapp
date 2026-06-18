@@ -1,27 +1,18 @@
 /**
- * The building's LOCATION ENERGY PROFILE as a small choropleth: the neighbouring
- * **Gemeinden** around the building (from `linked-lau`, fetched for a bbox around its
- * coordinates) shaded by each municipality's real rooftop-PV build-out (Ausbaugrad)
- * from `linked-energieatlas`. A queried, off-Pod observation about the building's
- * *place* — the area-grained sibling of the point-grained nearby-installations and
- * the Bundesland/Kreis figures in {@link ./RegionalContextSection.tsx}.
+ * The building's LOCATION ENERGY PROFILE as an **interactive** neighbourhood
+ * choropleth: the Gemeinden around the building (from `linked-lau`, scoped to the
+ * map's current viewport) shaded by each municipality's real rooftop-PV build-out
+ * (Ausbaugrad) from `linked-energieatlas`. Pan/zoom reloads the visible Gemeinden.
+ * The area-grained sibling of the point-grained nearby-installations and the
+ * Bundesland/Kreis figures in {@link ./RegionalContextSection.tsx}.
  *
- * Energie-Atlas covers Bavaria only and has no bulk endpoint, so this fetches ONE
- * `area/{ags}` resource per visible Bavarian Gemeinde (cached per AGS). Renders
- * nothing for a building outside Bavaria or without coordinates (degrades silently,
- * like the weather/regional sections).
+ * Energie-Atlas covers Bavaria only and has no bulk endpoint, so one `area/{ags}` is
+ * fetched per visible Bavarian Gemeinde (cached per AGS, capped). Shown only for a
+ * building in Bavaria — elsewhere there's no data, so the section is omitted.
  */
-import { useEffect, useRef } from "react";
-import {
-  GeoJSON,
-  MapContainer,
-  Marker,
-  WMSTileLayer,
-} from "react-leaflet";
+import { useState } from "react";
+import { MapContainer, Marker, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
-import type L from "leaflet";
-import type { Feature, FeatureCollection, Geometry } from "geojson";
-import type { Layer, PathOptions } from "leaflet";
 import { useQueries, useQuery } from "@tanstack/react-query";
 import { Box, Stack, Typography } from "@mui/material";
 import SolarPowerIcon from "@mui/icons-material/SolarPower";
@@ -35,18 +26,24 @@ import {
   fetchAreaProfile,
 } from "../../services/standortEnergieprofil.ts";
 import { magnitudeCategoriserFor } from "../../services/energy/energyMetric.ts";
-import { bandColor, bandLabelKey, legendBands } from "../../constants/lensBand.ts";
 import { BASEMAP_DE } from "../../lib/orthophoto.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
+import MagnitudeChoroplethLayer from "../region/MagnitudeChoroplethLayer.tsx";
+import MagnitudeLegend from "../region/MagnitudeLegend.tsx";
+import ViewWatch from "../region/ViewWatch.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
 
 const FRAMING = "magnitude" as const;
 const DAY = 24 * 60 * 60 * 1000;
-const HALF = 0.12; // bbox half-extent (deg) around the building — ≈ 13 km of neighbours
+// Cap the per-Gemeinde Energie-Atlas fan-out (one GET each) as the viewport widens.
+const MAX_GEMEINDE_FETCH = 400;
+// Bavaria's bounding box — Energie-Atlas coverage. A building outside it has no data,
+// so the section is omitted (a stable check, so the map stays mounted for panning).
+const BAVARIA = { w: 8.9, s: 47.2, e: 13.9, n: 50.6 };
 
 function bboxAround(lat: number, long: number): string {
   const r = (n: number) => n.toFixed(2);
-  return `${r(long - HALF)},${r(lat - HALF)},${r(long + HALF)},${r(lat + HALF)}`;
+  return `${r(long - 0.12)},${r(lat - 0.12)},${r(long + 0.12)},${r(lat + 0.12)}`;
 }
 
 export default function NeighbourhoodEnergyMap(
@@ -54,9 +51,15 @@ export default function NeighbourhoodEnergyMap(
 ) {
   const t = useT();
   const { lat, long } = building;
-  const bbox = lat != null && long != null ? bboxAround(lat, long) : null;
+  const inBavaria = lat != null && long != null &&
+    long >= BAVARIA.w && long <= BAVARIA.e && lat >= BAVARIA.s && lat <= BAVARIA.n;
 
-  // Neighbour Gemeinden in the viewport bbox (linked-lau).
+  // The viewport bbox follows pan/zoom (ViewWatch); seeded from the building so the
+  // first fetch fires before the map reports its bounds.
+  const [bbox, setBbox] = useState<string | null>(
+    inBavaria ? bboxAround(lat!, long!) : null,
+  );
+
   const geo = useQuery({
     queryKey: ["regionGeometry", "gemeinde", bbox],
     queryFn: () => fetchRegionGeometry("gemeinde", { bbox: bbox! }),
@@ -65,11 +68,11 @@ export default function NeighbourhoodEnergyMap(
   });
   const fc = geo.data;
 
-  // One Energie-Atlas profile per Bavarian Gemeinde (8-digit AGS, leading 09),
-  // cached per AGS — sharing the `["standortEnergieprofil", ags]` query with the
-  // building's own Standort-Energieprofil panel.
+  // One Energie-Atlas profile per visible Bavarian Gemeinde (shared cache key with
+  // the building's own Standort-Energieprofil panel).
   const bavAgs = fc
-    ? fc.features.map((f) => f.properties.ags).filter((a) => a.startsWith("09"))
+    ? fc.features.map((f) => f.properties.ags)
+      .filter((a) => a.startsWith("09")).slice(0, MAX_GEMEINDE_FETCH)
     : [];
   const eaResults = useQueries({
     queries: bavAgs.map((ags) => ({
@@ -85,52 +88,25 @@ export default function NeighbourhoodEnergyMap(
   });
   const loaded = eaByAgs.size;
 
-  // Shade by the rooftop-PV build-out (Ausbaugrad), classified over the visible set.
-  const values = [...eaByAgs.values()]
-    .map((d) => d.rooftop?.degreePct)
-    .filter((v): v is number => v != null);
-  const classify = magnitudeCategoriserFor(values);
-
-  const styleFeature = (
-    feature?: Feature<Geometry, RegionFeatureProps>,
-  ): PathOptions => {
-    const pct = feature?.properties?.ags
-      ? eaByAgs.get(feature.properties.ags)?.rooftop?.degreePct
-      : undefined;
-    const band = pct != null ? classify(pct) : "none";
-    return { fillColor: bandColor(band, FRAMING), fillOpacity: 0.65, color: "#555", weight: 1 };
+  // Shade by rooftop-PV build-out (Ausbaugrad), classified over the visible set.
+  const classify = magnitudeCategoriserFor(
+    [...eaByAgs.values()].map((d) => d.rooftop?.degreePct)
+      .filter((v): v is number => v != null),
+  );
+  const bandOf = (p: RegionFeatureProps) => {
+    const pct = eaByAgs.get(p.ags)?.rooftop?.degreePct;
+    return pct != null ? classify(pct) : "none";
+  };
+  const tooltip = (p: RegionFeatureProps) => {
+    const profile = eaByAgs.get(p.ags);
+    const name = (profile?.name || p.label || p.code || "").toString();
+    const roof = profile?.rooftop;
+    if (!roof) return `<strong>${name}</strong>`;
+    return `<strong>${name}</strong><br/>${t("choroplethGemeindeMetric")}: ${roof.degreePct ?? "—"} %` +
+      `<br/>${roof.installedMWp ?? "—"} / ${roof.potentialMWp ?? "—"} MWp`;
   };
 
-  // Tooltip resolved lazily (on open) from the latest values, so each Gemeinde's
-  // figure appears as its GET resolves.
-  const tipRef = useRef<(p: RegionFeatureProps) => string>(() => "");
-  useEffect(() => {
-    tipRef.current = (p) => {
-      const d = eaByAgs.get(p.ags);
-      const name = (d?.name || p.label || p.code || "").toString();
-      const roof = d?.rooftop;
-      if (!roof) return `<strong>${name}</strong>`;
-      return `<strong>${name}</strong><br/>${t("choroplethGemeindeMetric")}: ${roof.degreePct ?? "—"} %` +
-        `<br/>${roof.installedMWp ?? "—"} / ${roof.potentialMWp ?? "—"} MWp`;
-    };
-  });
-  const onEachFeature = (
-    feature: Feature<Geometry, RegionFeatureProps>,
-    layer: Layer,
-  ) => {
-    layer.bindTooltip(() => tipRef.current(feature.properties), { sticky: true });
-  };
-
-  const layerRef = useRef<L.GeoJSON | null>(null);
-  useEffect(() => {
-    layerRef.current?.setStyle(styleFeature as (f?: Feature) => PathOptions);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loaded]);
-
-  // Best-effort: render only once we actually have neighbour figures to shade.
-  // No coordinates, off Bavaria, a fetch error, or still loading → render nothing
-  // (like the weather / regional-context sections) — and never a stray empty map.
-  if (lat == null || long == null || loaded === 0) return null;
+  if (!inBavaria) return null;
 
   return (
     <Stack spacing={1}>
@@ -139,62 +115,32 @@ export default function NeighbourhoodEnergyMap(
         <Typography variant="h6">{t("neighbourhoodTitle")}</Typography>
       </Stack>
       <Box sx={{ position: "relative", height: 320, borderRadius: 1, overflow: "hidden" }}>
-        <MapContainer
-          center={[lat, long]}
-          zoom={10}
-          scrollWheelZoom={false}
-          style={{ height: "100%" }}
-        >
+        <MapContainer center={[lat!, long!]} zoom={10} style={{ height: "100%" }}>
           <WMSTileLayer
             url={BASEMAP_DE.url}
             layers={BASEMAP_DE.layers}
             format="image/png"
             attribution={BASEMAP_DE.attribution}
           />
+          <ViewWatch onChange={(_zoom, b) => setBbox(b)} />
           {fc && (
-            <GeoJSON
-              key={`${bbox}|${loaded}`}
-              ref={layerRef}
-              data={fc as unknown as FeatureCollection}
-              style={styleFeature as (f?: Feature) => PathOptions}
-              onEachFeature={onEachFeature as (f: Feature, l: Layer) => void}
+            <MagnitudeChoroplethLayer
+              data={fc}
+              bandOf={bandOf}
+              tooltip={tooltip}
+              framing={FRAMING}
+              remountKey={bbox ?? ""}
+              styleVersion={loaded}
             />
           )}
-          {/* The building's own location — the same owned/shared pin the detail-page
-              header uses, in the marker pane (above the polygons). */}
+          {/* The building's own location — the shared owned/shared pin, marker pane. */}
           <Marker
-            position={[lat, long]}
+            position={[lat!, long!]}
             icon={buildingPin(building.isShared ?? false)}
             interactive={false}
           />
         </MapContainer>
-        <Box
-          sx={{
-            position: "absolute",
-            bottom: 8,
-            right: 8,
-            zIndex: 1000,
-            bgcolor: "background.paper",
-            p: 0.5,
-            borderRadius: 1,
-            boxShadow: 2,
-          }}
-        >
-          {legendBands(FRAMING).map((band) => (
-            <Box key={band} sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
-              <Box
-                sx={{
-                  width: 12,
-                  height: 12,
-                  bgcolor: bandColor(band, FRAMING),
-                  border: "1px solid",
-                  borderColor: "divider",
-                }}
-              />
-              <Typography variant="caption">{t(bandLabelKey(band, FRAMING))}</Typography>
-            </Box>
-          ))}
-        </Box>
+        {loaded > 0 && <MagnitudeLegend framing={FRAMING} />}
       </Box>
       <Typography variant="caption" color="text.secondary">
         {t("neighbourhoodSource")}

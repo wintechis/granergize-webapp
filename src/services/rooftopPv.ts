@@ -28,6 +28,22 @@ export interface RoofSurface {
   tiltDeg: number;
   /** LoD2 `Dachorientierung` (0=N, 90=E, 180=S, 270=W). */
   azimuthDeg: number;
+  /** The surface's 2-D ground-projected footprint (`geo:asWKT`, EPSG:4326 lon/lat ring),
+   *  when the wrapper serves it. Drawn by the roof-plan; the PV calc ignores it. */
+  polygon?: [number, number][];
+}
+
+/** One roof surface's PV screening outcome — for the roof-plan (shade by `annualKwh`,
+ *  grey the unsuitable). The total in {@link computePotential} sums the suitable ones. */
+export interface RoofEval {
+  surface: RoofSurface;
+  /** Passed the suitability screen (not a wall, not strongly north-facing). */
+  suitable: boolean;
+  usableAreaM2: number;
+  kwp: number;
+  annualKwh: number;
+  /** Nearest compass point of the surface azimuth (N/NE/…/NW). */
+  orientation: string;
 }
 
 /** A building's rooftop-PV potential (the modelled estimate over its roof geometry). */
@@ -129,4 +145,23 @@ export function computePotential(roofs: readonly RoofSurface[]): RoofPotential |
     annualKwh: round(sKwh, 0),
     dominantOrientation: haveBest ? dominantOrientation(bestAzimuth) : "",
   };
+}
+
+/**
+ * Per-surface screening for the roof-plan — one {@link RoofEval} per surface, in input
+ * order, so the plan can draw each footprint and shade it by `annualKwh` (unsuitable → grey).
+ * Same screen as {@link computePotential}; pure.
+ */
+export function evaluateRoofs(roofs: readonly RoofSurface[]): RoofEval[] {
+  return roofs.map((surface) => {
+    const ev = evaluateRoof(surface);
+    return {
+      surface,
+      suitable: ev != null,
+      usableAreaM2: ev ? round(ev.usableArea, 1) : 0,
+      kwp: ev ? round(ev.kwp, 2) : 0,
+      annualKwh: ev ? round(ev.kwh, 0) : 0,
+      orientation: dominantOrientation(surface.azimuthDeg),
+    };
+  });
 }

@@ -36,6 +36,14 @@ import { T } from "../helpers/timeouts.ts";
 const ADDR = "Regional Context E2E Strasse 1";
 const ACC = account("A");
 const CORS = { "access-control-allow-origin": "*" };
+// The building page also carries the energieatlas/lau/nuts map widgets; stub them
+// empty so they render hermetically without live calls (this spec only asserts the
+// regionalstatistik figures table).
+const EMPTY_FC = JSON.stringify({ type: "FeatureCollection", features: [] });
+const PNG_1x1 = Buffer.from(
+  "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==",
+  "base64",
+);
 
 // The building's reverse-geocoded Kreis: Landkreis Roth (Bavaria).
 const KREIS_AGS = "09574";
@@ -143,6 +151,14 @@ test.describe("regional context (linked-regionalstatistik)", () => {
         headers: CORS,
         body: MASTR_TTL,
       }));
+    // The building page's other map widgets — stub empty so they don't hit live
+    // wrappers (this spec is about the regionalstatistik figures table).
+    await page.route(/\/(nuts|lau)\/geojson/, (route) =>
+      route.fulfill({ status: 200, contentType: "application/geo+json", headers: CORS, body: EMPTY_FC }));
+    await page.route(/\/energieatlas\/area\//, (route) =>
+      route.fulfill({ status: 404, headers: CORS, body: "" }));
+    await page.route(/geodatenzentrum\.de/, (route) =>
+      route.fulfill({ status: 200, contentType: "image/png", body: PNG_1x1 }));
     await login(page, ACC);
     await assertCleanStart(page);
   });
@@ -164,12 +180,13 @@ test.describe("regional context (linked-regionalstatistik)", () => {
 
     // The observation page renders the standalone Regional-context section even
     // with no energy data (it's about the building's region, like weather).
-    await page.goto(buildingRoute("observation", id));
+    await page.goto(buildingRoute("building", id));
     await expect(page.getByText(en("regContextTitle", { region: "Bayern" })))
       .toBeVisible({ timeout: T.action });
 
     // Bundesland grain: the renewable-share metric + its year/value + attribution.
-    await expect(page.getByText(en("regRenewableShare"))).toBeVisible();
+    await expect(page.getByRole("columnheader", { name: en("regRenewableShare") }))
+      .toBeVisible();
     await expect(page.getByRole("cell", { name: "2023" })).toBeVisible();
     await expect(page.getByRole("cell", { name: /61\.5\s*%/ })).toBeVisible();
     await expect(page.getByText(en("regDataSource"))).toBeVisible();
@@ -178,9 +195,8 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     // (reverse-geocoded from the stubbed MaStR unit → 09574). The decoy carrier row
     // (9999) must NOT appear; the Kreis caption carries the resolved Kreis NAME
     // (the codelist serves 09574 → "Roth, Landkreis").
-    await expect(page.getByText(en("regKreisRenewableUse"))).toBeVisible({
-      timeout: T.action,
-    });
+    await expect(page.getByRole("columnheader", { name: en("regKreisRenewableUse") }))
+      .toBeVisible({ timeout: T.action });
     await expect(page.getByRole("cell", { name: /1234\s*Tsd\. MJ/ })).toBeVisible();
     await expect(page.getByRole("cell", { name: /9999/ })).toHaveCount(0);
     await expect(
@@ -201,13 +217,12 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     // Kreis name against the now-incomplete codelist and gets null.
     geoHasKreis = false;
     await page.reload();
-    await page.goto(buildingRoute("observation", id));
+    await page.goto(buildingRoute("building", id));
 
     // The Kreis metric + figure STILL render — the data join is unaffected, only
     // the name lookup misses…
-    await expect(page.getByText(en("regKreisRenewableUse"))).toBeVisible({
-      timeout: T.action,
-    });
+    await expect(page.getByRole("columnheader", { name: en("regKreisRenewableUse") }))
+      .toBeVisible({ timeout: T.action });
     await expect(page.getByRole("cell", { name: /1234\s*Tsd\. MJ/ })).toBeVisible();
     // …so the caption degrades to the bare AGS, never the (now-unresolvable) name.
     await expect(

@@ -22,6 +22,7 @@ import {
 import { bundeslandName } from "../services/region.ts";
 import { FINDERS } from "../routes.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
+import RegionalMetricsMap from "../components/region/RegionalMetricsMap.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 
 /**
@@ -98,6 +99,12 @@ export default function RegionalDataset() {
             </Table>
           </TableContainer>
         )}
+
+      {/* The same metric across all regions, as a choropleth (zoom in for Kreis
+          detail, or switch metric); the table above is this region's series. */}
+      <Box sx={{ height: 420 }}>
+        <RegionalMetricsMap initialTableId={tableId} />
+      </Box>
 
       <Box>
         <RdfSourceLink href={regionalGeoUrl(table, ags)} />

@@ -19,6 +19,7 @@ import { GEO_LAT, GEO_LONG } from "./rdf/vocabularies.ts";
 import { parseRdfText } from "./rdf/rdfHelpers.ts";
 import { trackedFetch } from "../lib/networkActivity.ts";
 import { computePotential, type RoofSurface } from "./rooftopPv.ts";
+import { parseWktPolygon } from "./rdf/wkt.ts";
 
 const LOD2_NS = "https://w3id.org/linked-lod2-by/vocab#";
 const HAS_ROOF_SURFACE = `${LOD2_NS}hasRoofSurface`;
@@ -26,6 +27,10 @@ const TILT = `${LOD2_NS}tilt`;
 const AZIMUTH = `${LOD2_NS}azimuth`;
 const AREA = `${LOD2_NS}area`;
 const HEIGHT = `${LOD2_NS}buildingHeight`;
+// GeoSPARQL canonical pair — the surface footprint the wrapper adds (linked-inspire style).
+const GEO_NS = "http://www.opengis.net/ont/geosparql#";
+const HAS_GEOMETRY = `${GEO_NS}hasGeometry`;
+const AS_WKT = `${GEO_NS}asWKT`;
 
 /** One building's rooftop-PV potential (computed in-app over its LoD2 roof geometry). */
 export interface RooftopPotential {
@@ -45,6 +50,9 @@ export interface RooftopPotential {
   long: number;
   /** Great-circle distance from the query point [km]. */
   distanceKm: number;
+  /** The building's roof surfaces (with `polygon` when the wrapper serves geometry) — for the
+   *  roof-plan. The PV figures above are the aggregate over the suitable ones. */
+  roofs: RoofSurface[];
 }
 
 /** Half-width of the location search box, in metres (LoD2 vs footprint centroids differ). */
@@ -129,7 +137,13 @@ export function parseBuildingRoofs(turtle: string, baseIri: string): BuildingRoo
     const tiltDeg = Number.parseFloat(tilt.object.value);
     const azimuthDeg = Number.parseFloat(azimuth.object.value);
     if (Number.isNaN(areaM2) || Number.isNaN(tiltDeg) || Number.isNaN(azimuthDeg)) continue;
-    roofs.push({ areaM2, tiltDeg, azimuthDeg });
+    const surface: RoofSurface = { areaM2, tiltDeg, azimuthDeg };
+    // The footprint (`geo:hasGeometry → geo:asWKT`), when the wrapper serves it — additive.
+    const geomNode = store.getQuads(node, HAS_GEOMETRY, null, null)[0]?.object;
+    const wkt = geomNode && store.getQuads(geomNode, AS_WKT, null, null)[0]?.object.value;
+    const ring = wkt ? parseWktPolygon(wkt) : null;
+    if (ring) surface.polygon = ring;
+    roofs.push(surface);
   }
   const num = (p: string): number => {
     const q = store.getQuads(subject, p, null, null)[0];
@@ -184,5 +198,6 @@ export async function fetchRooftopPotential(
     lat: parsed.lat,
     long: parsed.long,
     distanceKm: nearest.distanceKm,
+    roofs: parsed.roofs,
   };
 }
