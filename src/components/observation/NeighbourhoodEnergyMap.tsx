@@ -127,13 +127,10 @@ export default function NeighbourhoodEnergyMap(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loaded]);
 
-  // Degrade silently: no coordinates, or all neighbour fetches done with no Bavarian
-  // figures (the building isn't in Energie-Atlas coverage).
-  if (lat == null || long == null) return null;
-  if (geo.isSuccess && eaResults.length > 0 && eaResults.every((r) => r.isFetched) && loaded === 0) {
-    return null;
-  }
-  if (geo.isSuccess && bavAgs.length === 0) return null;
+  // Best-effort: render only once we actually have neighbour figures to shade.
+  // No coordinates, off Bavaria, a fetch error, or still loading → render nothing
+  // (like the weather / regional-context sections) — and never a stray empty map.
+  if (lat == null || long == null || loaded === 0) return null;
 
   return (
     <Stack spacing={1}>

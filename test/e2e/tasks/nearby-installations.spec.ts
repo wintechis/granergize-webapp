@@ -112,7 +112,9 @@ test.describe("nearby installations (linked-mastr)", () => {
     // of the same set; switching back restores the list.
     const viewToggle = page.getByRole("group", { name: en("niViewAria") });
     await viewToggle.getByRole("button", { name: en("btnMap") }).click();
-    await expect(page.locator(".leaflet-container")).toBeVisible({
+    // The nearby section's map is the LAST leaflet map on the page — the observation
+    // page may also carry the neighbourhood choropleth above it.
+    await expect(page.locator(".leaflet-container").last()).toBeVisible({
       timeout: T.action,
     });
     await expect(page.getByText(`${en("niKindSolar")} — Solardach Nah`))

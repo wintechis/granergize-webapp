@@ -57,7 +57,10 @@ test.describe("redesign: building page", () => {
     // row label (which renders once ownedBy converges) — strict-mode-ambiguous otherwise.
     await expect(page.getByText(en("chipOwned"), { exact: true }))
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByRole("heading", { name: en("secEnergy") })).toBeVisible();
+    // exact:true so "Energy" doesn't also match the "Location energy profile" panel
+    // heading (substring) — strict-mode-ambiguous otherwise.
+    await expect(page.getByRole("heading", { name: en("secEnergy"), exact: true }))
+      .toBeVisible();
     await expect(page.getByRole("heading", { name: en("secFiles") })).toBeVisible();
     await expect(page.getByRole("heading", { name: en("secSharing") })).toBeVisible();
   });
