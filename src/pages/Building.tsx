@@ -11,6 +11,7 @@ import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import BuildingHeader from "../components/building/BuildingHeader.tsx";
 import MasterDataSection from "../components/building/MasterDataSection.tsx";
 import EnergySummarySection from "../components/building/EnergySummarySection.tsx";
+import StandortEnergieprofil from "../components/building/StandortEnergieprofil.tsx";
 import BuildingFilesSection from "../components/building/BuildingFilesSection.tsx";
 import SharingSection from "../components/building/SharingSection.tsx";
 
@@ -79,6 +80,7 @@ export default function Building({ building }: BuildingProps) {
       <BuildingHeader building={building} />
       <MasterDataSection building={building} autoOpenEdit={action === "edit"} />
       <EnergySummarySection building={building} />
+      <StandortEnergieprofil building={building} />
       <BuildingFilesSection building={building} session={session} />
       <SharingSection
         building={building}
