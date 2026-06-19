@@ -1755,6 +1755,12 @@ export const MESSAGES = {
   },
   btnShare: { en: "Share", de: "Teilen", fr: "Partager" },
   btnMap: { en: "Map", de: "Karte", fr: "Carte" },
+  btnTable: { en: "Table", de: "Tabelle", fr: "Tableau" },
+  regStatsViewAria: {
+    en: "Regional statistics view",
+    de: "Ansicht der Regionalstatistik",
+    fr: "Vue des statistiques régionales",
+  },
   btnList: { en: "List", de: "Liste", fr: "Liste" },
   bldgsViewAria: {
     en: "Buildings view",
@@ -1785,6 +1791,11 @@ export const MESSAGES = {
   aggExtentKreis: { en: "District", de: "Kreis", fr: "Arrondissement" },
   aggExtentLand: { en: "State", de: "Bundesland", fr: "Land" },
   aggExtentBund: { en: "Germany", de: "Deutschland", fr: "Allemagne" },
+  aggRegionMapTitle: {
+    en: "Covered region",
+    de: "Abgedeckte Region",
+    fr: "Région couverte",
+  },
   aggMapEmpty: {
     en: "No own aggregations to map yet.",
     de: "Noch keine eigenen Aggregationen für die Karte.",

@@ -45,6 +45,10 @@ function invalidateBuildingData(qc: QueryClient): void {
   qc.invalidateQueries({ queryKey: queryKeys.seriesDays });
   qc.invalidateQueries({ queryKey: queryKeys.dayReadings });
   qc.invalidateQueries({ queryKey: queryKeys.monthReadings });
+  // The fresh-Pod demo offer probes the buildings container; re-probe it whenever the
+  // building set changes so the "add example buildings" banner stands down once any
+  // exist (it was caching "empty" across adds → showing despite buildings present).
+  qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
 }
 
 /**
@@ -85,6 +89,8 @@ export function useDeleteBuilding() {
       qc.invalidateQueries({ queryKey: queryKeys.buildings });
       qc.invalidateQueries({ queryKey: queryKeys.energy });
       qc.invalidateQueries({ queryKey: queryKeys.sharedOutLog });
+      // Deleting the last building re-enables the fresh-Pod demo offer.
+      qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
     },
   });
 }
@@ -566,7 +572,12 @@ export function useSeedDemoBuildings() {
     meta: { action: "actionAddDemoBuildings" },
     mutationFn: () => invoke("SeedDemoBuildings", {}, getGateway()),
     // Energy follows automatically: useEnergy is keyed on the building set.
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.buildings }),
+    onSettled: () => {
+      qc.invalidateQueries({ queryKey: queryKeys.buildings });
+      // Re-probe the demo offer so the banner stands down after seeding (and on the
+      // next reload, where the session-local `demoDismissed` flag has reset).
+      qc.invalidateQueries({ queryKey: queryKeys.demoOffer });
+    },
   });
 }
 

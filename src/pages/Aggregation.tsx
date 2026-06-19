@@ -29,6 +29,7 @@ import AggregationHeader from "../components/aggregation/AggregationHeader.tsx";
 import AggregationDetailsSection from "../components/aggregation/AggregationDetailsSection.tsx";
 import AggregationResultsSection from "../components/aggregation/AggregationResultsSection.tsx";
 import AggregationSharingSection from "../components/aggregation/AggregationSharingSection.tsx";
+import AggregationRegionMap from "../components/aggregation/AggregationRegionMap.tsx";
 
 interface AggregationProps {
   session: Session;
@@ -160,16 +161,21 @@ export default function Aggregation({ session }: AggregationProps) {
       <Stack spacing={3} divider={<Divider />}>
         <AggregationHeader definition={definition} />
         <AggregationDetailsSection definition={definition} snapshot={snapshot} />
-        <AggregationResultsSection
-          definition={definition}
-          snapshot={snapshot}
-          computeError={detail.data?.computeError}
-        />
+        {/* Sharing sits right after the identity/details (who it's shared with is
+            part of the at-a-glance state), ahead of the computed results + map. */}
         <AggregationSharingSection
           aggregation={definition}
           session={session}
           autoOpenShare={action === "share-aggregation"}
         />
+        <AggregationResultsSection
+          definition={definition}
+          snapshot={snapshot}
+          computeError={detail.data?.computeError}
+        />
+        {snapshot?.spatialExtent && (
+          <AggregationRegionMap extent={snapshot.spatialExtent} />
+        )}
         {rdf && (
           <RdfSourceLink href={`${rdf.aggregations}${definition.id}.ttl`} />
         )}

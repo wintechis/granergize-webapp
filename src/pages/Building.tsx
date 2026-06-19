@@ -14,8 +14,7 @@ import EnergySummarySection from "../components/building/EnergySummarySection.ts
 import StandortEnergieprofil from "../components/building/StandortEnergieprofil.tsx";
 import RoofPlan from "../components/building/RoofPlan.tsx";
 import NeighbourhoodEnergyMap from "../components/observation/NeighbourhoodEnergyMap.tsx";
-import RegionalContextSection from "../components/observation/RegionalContextSection.tsx";
-import RegionalMetricsSection from "../components/observation/RegionalMetricsSection.tsx";
+import RegionalStatistics from "../components/observation/RegionalStatistics.tsx";
 import BuildingFilesSection from "../components/building/BuildingFilesSection.tsx";
 import SharingSection from "../components/building/SharingSection.tsx";
 
@@ -93,8 +92,7 @@ export default function Building({ building }: BuildingProps) {
       <StandortEnergieprofil building={building} />
       <RoofPlan building={building} />
       <NeighbourhoodEnergyMap building={building} />
-      <RegionalContextSection building={building} />
-      <RegionalMetricsSection building={building} />
+      <RegionalStatistics building={building} />
       <RdfSourceLink href={sourceUri} />
     </Stack>
   );

@@ -8,10 +8,13 @@ import {
   TableContainer,
   TableHead,
   TableRow,
+  ToggleButton,
+  ToggleButtonGroup,
   Typography,
 } from "@mui/material";
 import QueryStatsIcon from "@mui/icons-material/QueryStats";
 import { useQuery } from "@tanstack/react-query";
+import { useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import {
   fetchRegionalObservations,
@@ -50,6 +53,9 @@ export default function RegionalDataset() {
     queryFn: () => fetchRegionalObservations(table!, ags),
   });
 
+  // Table (this region's year series) ⇄ Map (the metric across all regions). Local state.
+  const [view, setView] = useState<"table" | "map">("table");
+
   const back = <RefLink to={FINDERS.aggregations}>{t("regDatasetBack")}</RefLink>;
 
   if (!table) {
@@ -66,45 +72,64 @@ export default function RegionalDataset() {
   return (
     <Stack spacing={2}>
       {back}
-      <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
+      <Stack
+        direction="row"
+        spacing={1}
+        sx={{ alignItems: "center", flexWrap: "wrap" }}
+      >
         <QueryStatsIcon color="action" />
         <Typography variant="h5">
           {t(table.labelId)} — {region}
         </Typography>
+        <Box sx={{ flexGrow: 1 }} />
+        <ToggleButtonGroup
+          size="small"
+          exclusive
+          value={view}
+          onChange={(_e, next: "table" | "map" | null) => {
+            if (next) setView(next);
+          }}
+          aria-label={t("regStatsViewAria")}
+        >
+          <ToggleButton value="table">{t("btnTable")}</ToggleButton>
+          <ToggleButton value="map">{t("btnMap")}</ToggleButton>
+        </ToggleButtonGroup>
       </Stack>
 
-      {isFetching && observations.length === 0
-        ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
-        : observations.length === 0
-        ? <Typography variant="body2">{t("regDatasetEmpty")}</Typography>
-        : (
-          <TableContainer component={Paper}>
-            <Table size="small">
-              <TableHead>
-                <TableRow>
-                  <TableCell>{t("lblYear")}</TableCell>
-                  <TableCell>{t(table.labelId)}</TableCell>
-                </TableRow>
-              </TableHead>
-              <TableBody>
-                {observations.map((o) => (
-                  <TableRow key={o.year}>
-                    <TableCell>{o.year}</TableCell>
-                    <TableCell>
-                      {o.value} {UNIT_DISPLAY[o.unit] ?? o.unit}
-                    </TableCell>
+      {view === "table"
+        ? (isFetching && observations.length === 0
+          ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
+          : observations.length === 0
+          ? <Typography variant="body2">{t("regDatasetEmpty")}</Typography>
+          : (
+            <TableContainer component={Paper}>
+              <Table size="small">
+                <TableHead>
+                  <TableRow>
+                    <TableCell>{t("lblYear")}</TableCell>
+                    <TableCell>{t(table.labelId)}</TableCell>
                   </TableRow>
-                ))}
-              </TableBody>
-            </Table>
-          </TableContainer>
+                </TableHead>
+                <TableBody>
+                  {observations.map((o) => (
+                    <TableRow key={o.year}>
+                      <TableCell>{o.year}</TableCell>
+                      <TableCell>
+                        {o.value} {UNIT_DISPLAY[o.unit] ?? o.unit}
+                      </TableCell>
+                    </TableRow>
+                  ))}
+                </TableBody>
+              </Table>
+            </TableContainer>
+          ))
+        // The same metric across all regions, as a choropleth (zoom in for Kreis
+        // detail, or switch metric); the table is this region's series.
+        : (
+          <Box sx={{ height: 420 }}>
+            <RegionalMetricsMap initialTableId={tableId} />
+          </Box>
         )}
-
-      {/* The same metric across all regions, as a choropleth (zoom in for Kreis
-          detail, or switch metric); the table above is this region's series. */}
-      <Box sx={{ height: 420 }}>
-        <RegionalMetricsMap initialTableId={tableId} />
-      </Box>
 
       <Box>
         <RdfSourceLink href={regionalGeoUrl(table, ags)} />
