@@ -1,7 +1,12 @@
-import { Box, Typography } from "@mui/material";
+import { Box, IconButton, Tooltip, Typography } from "@mui/material";
+import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import type { BuildingType } from "../types.ts";
 import { observationRoute } from "../routes.ts";
 import { useSolidData } from "../hooks/queries.ts";
+import { useDeleteEnergyYear } from "../hooks/mutations.ts";
+import { useConfirm } from "../context/ConfirmContext.tsx";
+import { useNotification } from "../context/NotificationContext.tsx";
+import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { getSession } from "../hooks/session.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
@@ -51,6 +56,38 @@ export default function ObservationsFinder() {
   const filtered = filterByText(withObservations, query, buildingSearchText);
   const paging = usePaging(filtered);
 
+  // "Clear data" — delete ALL of an owned building's observations (every dataset),
+  // keeping the building. No bulk intent exists, so loop the per-dataset delete over
+  // the building's links; once empty, the building drops out of this finder.
+  const del = useDeleteEnergyYear();
+  const { confirm } = useConfirm();
+  const { showNotification } = useNotification();
+  const handleClearObservations = async (b: BuildingType) => {
+    const refs = b.energyDatasets ?? [];
+    const years = new Set(refs.map((r) => r.year)).size;
+    if (
+      !await confirm({
+        title: t("obsClearTitle"),
+        message: t("obsClearConfirm", { name: buildingDisplayName(b), years }),
+        confirmLabel: t("btnDelete"),
+      })
+    ) return;
+    const fileUri = (b.sourceUri ?? buildingFileUri(b.uri)) as string;
+    for (const r of refs) {
+      await del.mutateAsync({
+        fileUri,
+        subjectUri: b.uri as string,
+        dataset: {
+          year: r.year,
+          granularity: r.granularity,
+          scenario: r.scenario,
+          featureOfInterest: r.featureOfInterest,
+        },
+      }).catch(() => {});
+    }
+    showNotification(t("obsCleared", { name: buildingDisplayName(b) }), "success");
+  };
+
   // Dev-mode-only source link to the backing observations container (self-hides
   // outside dev mode); null until the storage root resolves.
   const webId = getSession().info.webId;
@@ -94,6 +131,19 @@ export default function ObservationsFinder() {
                   </RefLink>
                 }
                 subtitle={datasetSummary(b)}
+                actions={b.isShared ? undefined : (
+                  <Tooltip title={t("obsClearAria")}>
+                    <IconButton
+                      size="small"
+                      color="error"
+                      aria-label={t("obsClearAria")}
+                      disabled={del.isPending}
+                      onClick={() => void handleClearObservations(b)}
+                    >
+                      <DeleteSweepIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
               />
             ))}
           </Box>

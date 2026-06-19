@@ -280,4 +280,27 @@ test.describe("energy entry + Soll-Ist", () => {
       .toBeVisible({ timeout: T.action });
     await page.goto("/");
   });
+
+  // Runs last: the "Clear all data" row action on the Observations finder deletes every
+  // dataset of the building (annual, planned, per-unit), so it drops out of the finder.
+  test("clearing a building's observations removes it from the Observations finder", async () => {
+    test.setTimeout(T.testSolo);
+    // Reload, then retry tab→row until the post-restore building list has painted
+    // (a single click can race the session restore + phase-1 load).
+    await page.goto("/");
+    const row = page.locator("li[data-building-id]", { hasText: ADDR }).first();
+    await expect(async () => {
+      await page.getByRole("tab", { name: en("navObservations") }).click();
+      await expect(row).toBeVisible({ timeout: T.quick });
+    }).toPass({ timeout: T.poll });
+
+    // Clear all its observations (owner-only action), confirm the destructive prompt.
+    await row.getByRole("button", { name: en("obsClearAria") }).click();
+    await confirmDialog(page, "Delete");
+    await expect(page.getByText(/observations cleared/i).first())
+      .toBeVisible({ timeout: T.action });
+
+    // With no datasets left, the building leaves the Observations finder.
+    await expect(row).toBeHidden({ timeout: T.action });
+  });
 });

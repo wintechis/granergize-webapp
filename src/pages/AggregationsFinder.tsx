@@ -15,6 +15,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { AggregationDefinition } from "../types.ts";
 import { aggregationRoute, regionalRoute } from "../routes.ts";
+import { regionalTableDataUrl } from "../services/regionalCube.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import {
@@ -36,6 +37,7 @@ import { useT } from "../context/I18nProvider.tsx";
 import { msg } from "../lib/messages.ts";
 import { useDevMode } from "../hooks/devMode.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
+import TierDot from "../components/TierDot.tsx";
 import ObjectActions from "../components/ObjectActions.tsx";
 import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
@@ -310,7 +312,18 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                   return (
                     <ResourceRow
                       key={open.id}
-                      title={<strong>{t(open.labelId)} — {open.region}</strong>}
+                      title={
+                        <>
+                          <strong>{t(open.labelId)} — {open.region}</strong>
+                          <TierDot tier="open" />
+                          {/* The public regionalstatistik cube doc backing this dataset
+                              (dev-mode only; RdfSourceLink self-hides otherwise). */}
+                          <RdfSourceLink
+                            href={regionalTableDataUrl(open.tableId)}
+                            inline
+                          />
+                        </>
+                      }
                       subtitle={t("openRegionalMeta")}
                       actions={
                         // Public, read-only: the only affordance is opening the
@@ -337,6 +350,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                     title={
                       <>
                         <strong>{aggregation.name}</strong>
+                        <TierDot tier="mine" />
                         {rdf && (
                           <RdfSourceLink
                             href={`${rdf.aggregations}${aggregation.id}.ttl`}

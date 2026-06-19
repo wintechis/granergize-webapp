@@ -8,6 +8,7 @@ import { formatNumber } from "../../lib/formatNumber.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import MetricBarChart from "../detail/MetricBarChart.tsx";
 import ResourceRow from "../ResourceRow.tsx";
+import TierDot from "../TierDot.tsx";
 
 /**
  * One "aggregation shared with you" row. Only the sharer's computed *snapshot* is
@@ -45,7 +46,7 @@ export default function ReceivedAggregationRow(
 
   return (
     <ResourceRow
-      title={label}
+      title={<>{label}<TierDot tier="shared" /></>}
       subtitle={<>{t("shareSharedBy")} <AgentLabel value={aggregation.sharedBy} /></>}
       actions={
         <Button size="small" variant="text" onClick={toggle}>

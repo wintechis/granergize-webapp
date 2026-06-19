@@ -52,6 +52,25 @@ export const MESSAGES = {
     fr:
       "Aucune observation pour l'instant. Ajoutez des données énergétiques sur la page d'observation d'un bâtiment pour les voir ici.",
   },
+  obsClearAria: { en: "Clear all data", de: "Alle Daten löschen", fr: "Effacer toutes les données" },
+  obsClearTitle: {
+    en: "Clear observation data",
+    de: "Beobachtungsdaten löschen",
+    fr: "Effacer les données d'observation",
+  },
+  obsClearConfirm: {
+    en:
+      "Delete all observations ({years} year(s)) for {name}? The building stays; only its energy data is removed. This cannot be undone.",
+    de:
+      "Alle Beobachtungen ({years} Jahr(e)) für {name} löschen? Das Gebäude bleibt; nur die Energiedaten werden entfernt. Dies kann nicht rückgängig gemacht werden.",
+    fr:
+      "Supprimer toutes les observations ({years} année(s)) pour {name} ? Le bâtiment reste ; seules ses données énergétiques sont supprimées. Action irréversible.",
+  },
+  obsCleared: {
+    en: "Observations cleared for {name}",
+    de: "Beobachtungen für {name} gelöscht",
+    fr: "Observations effacées pour {name}",
+  },
   aggregationsEmpty: {
     en:
       "No aggregations yet. Create one to aggregate energy values across buildings.",

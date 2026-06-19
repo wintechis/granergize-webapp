@@ -3,6 +3,13 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Observations finder: clear a building's observation data.** A row action (owner-only) deletes
+  ALL of a building's energy datasets while keeping the building; once cleared, it drops out of the
+  finder. Confirm-guarded; loops the existing per-dataset delete (no new intent).
+- **Aggregations list: source-tier dots + open-dataset source link.** Each row carries a colour-coded
+  tier dot after its title (mine = blue, shared = orange, open = green — the same key the tier filter
+  wears, via a reusable `TierDot`). The open (regionalstatistik) rows now also show their backing
+  cube document's URI in dev mode, like the own rows.
 - **Share is a Buildings-finder row action again.** Re-added Share as a list row action (the Share
   icon, next to Delete), so you can initiate a share for a building straight from the finder —
   owner-only, via the intent registry. It's now available from **both** the finder row and the
