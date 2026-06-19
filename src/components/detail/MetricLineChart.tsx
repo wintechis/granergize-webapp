@@ -8,6 +8,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { CHART_AXIS_TICK_COLOR, CHART_GRID_COLOR } from "../../constants/chartColors.ts";
 
 /**
  * A small SVG line chart (Recharts) — the line sibling of {@link MetricBarChart}
@@ -31,15 +32,26 @@ export default function MetricLineChart(
   { data, lines, xKey = "t", yUnit, height = 260, hideLegend }:
     MetricLineChartProps,
 ) {
+  // Tufte data-ink: faint horizontal reference lines only (no vertical grid), no
+  // axis/tick lines — the line + tick labels carry the data.
+  const tick = { fill: CHART_AXIS_TICK_COLOR };
   return (
     <ResponsiveContainer width="100%" height={height}>
       <LineChart data={data} margin={{ top: 8, right: 16, bottom: 4, left: 8 }}>
-        <CartesianGrid strokeDasharray="3 3" />
-        <XAxis dataKey={xKey} />
+        <CartesianGrid vertical={false} stroke={CHART_GRID_COLOR} />
+        <XAxis dataKey={xKey} axisLine={false} tickLine={false} tick={tick} />
         <YAxis
-          width={70}
+          width={56}
+          axisLine={false}
+          tickLine={false}
+          tick={tick}
           label={yUnit
-            ? { value: yUnit, angle: -90, position: "insideLeft" }
+            ? {
+              value: yUnit,
+              angle: -90,
+              position: "insideLeft",
+              fill: CHART_AXIS_TICK_COLOR,
+            }
             : undefined}
         />
         <Tooltip />

@@ -94,3 +94,12 @@ export const RENEWABLE_COLOR = "rgba(178, 223, 138, 0.9)";
 export const GENERATION_COLOR = "rgba(255, 127, 0, 0.8)";
 // Planned (Soll) figures — one neutral colour across metrics, shown beside actual.
 export const PLANNED_COLOR = "rgba(120, 120, 120, 0.55)";
+
+/**
+ * Chart chrome for the de-cluttered (Tufte data-ink) charts: a faint grid line and
+ * a muted tick colour, matching the MUI light theme's `divider` / `text.secondary`.
+ * Kept here as constants because the chart components are unit-tested under `deno
+ * test`, where MUI (and thus `useTheme`) can't load.
+ */
+export const CHART_GRID_COLOR = "rgba(0, 0, 0, 0.12)";
+export const CHART_AXIS_TICK_COLOR = "rgba(0, 0, 0, 0.6)";

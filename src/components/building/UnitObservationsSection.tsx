@@ -15,6 +15,7 @@ import type { BuildingType, SystemKind, TechnicalSystem } from "../../types.ts";
 import { useAnnualDatasets } from "../../hooks/queries.ts";
 import { ANNUAL_METRICS, annualMetricLabel } from "../../constants/annualMetrics.ts";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
+import Sparkline from "../detail/Sparkline.tsx";
 
 const kindLabel = (kind: SystemKind): string =>
   kind === "battery"
@@ -70,11 +71,22 @@ export default function UnitObservationsSection(
           const metrics = ANNUAL_METRICS.filter((m) =>
             datasets.some((d) => d.metrics?.[m.key] != null)
           );
+          // A sparkline of the unit's primary (first present) metric over the years —
+          // the trend at a glance, beside the exact figures in the table below.
+          const spark = metrics.length > 0
+            ? datasets
+              .map((d) => d.metrics?.[metrics[0].key])
+              .filter((v): v is number => v != null)
+            : [];
           return (
             <Box key={unit.id}>
-              <Typography variant="subtitle2" sx={{ mb: 0.5 }}>
-                {unitTitle(unit)}
-              </Typography>
+              <Stack
+                direction="row"
+                sx={{ alignItems: "center", gap: 1, mb: 0.5 }}
+              >
+                <Typography variant="subtitle2">{unitTitle(unit)}</Typography>
+                <Sparkline values={spark} />
+              </Stack>
               <TableContainer component={Paper} variant="outlined">
                 <Table size="small">
                   <TableHead>

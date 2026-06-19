@@ -3,6 +3,13 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Charts: Tufte data-ink pass + sparklines.** The bar/line charts (`MetricBarChart`/
+  `MetricLineChart`) shed non-data ink — vertical gridlines removed, horizontal grid faint, axis +
+  tick lines dropped, ticks muted; bars keep their honest 0 baseline. Added a reusable axis-less
+  `Sparkline` (word-sized trend line) in two spots: the building's energy summary (the primary
+  metric's trend beside the year count) and per energy unit in the per-unit observations section.
+  The chart components stay MUI-free (the colours are constants in `chartColors.ts`) so they keep
+  rendering under `deno test`.
 - **Building picker: searchable + "Select all".** The shared `BuildingPicker`'s multi-select is now a
   searchable MUI Autocomplete (type to filter by name or address) with a **"Select all (N)" / "Clear
   all"** toggle, replacing the plain checklist dropdown that didn't scale past a few dozen buildings.
