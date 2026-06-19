@@ -613,6 +613,27 @@ export const MESSAGES = {
     de: "Datenquelle:",
     fr: "Source des données :",
   },
+  // Coordinate attribution (geocoded via OpenStreetMap/Nominatim).
+  coordsLabel: {
+    en: "Coordinates:",
+    de: "Koordinaten:",
+    fr: "Coordonnées :",
+  },
+  // Data sources & licences credits page (profile menu + page).
+  menuDataSources: {
+    en: "Data sources & licences",
+    de: "Datenquellen & Lizenzen",
+    fr: "Sources de données et licences",
+  },
+  dsIntro: {
+    en:
+      "The app combines data from these external sources, each shown with its licence. Attribution travels with any building you share.",
+    de:
+      "Die App kombiniert Daten aus diesen externen Quellen, jeweils mit Lizenz. Die Namensnennung wird mit jedem geteilten Gebäude weitergegeben.",
+    fr:
+      "L'application combine des données de ces sources externes, chacune avec sa licence. L'attribution est transmise avec chaque bâtiment partagé.",
+  },
+  dsBack: { en: "← Back", de: "← Zurück", fr: "← Retour" },
   // Building header (back link, ownership badge).
   bhBackBuildings: { en: "← Buildings", de: "← Gebäude", fr: "← Bâtiments" },
   chipOwned: { en: "Owned", de: "Eigentum", fr: "Propriété" },

@@ -2,6 +2,21 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-20]
+- **External-source attribution surfaced in the UI.** The provenance now in the Turtle
+  becomes user-facing, legally-required credit — distinct from the dev-only `RdfSourceLink`
+  (raw IRIs, Developer-mode). A source registry (`constants/dataSources.ts`, one entry per
+  source id mirroring `vocab/<id>.md`: name · homepage · licence) backs a single reusable
+  `SourceNote` widget and a new **"Data sources & licences" credits page**
+  (`/data-sources`, reached from the Account menu in **both** modes — not dev-gated) that
+  lists every external source with its licence link. The building header now shows a
+  `"Coordinates: OpenStreetMap / Nominatim (ODbL)"` line whenever the coordinates were
+  geocoded (gated on `geocodePrecision`, so coords from a file/import/manual entry make no
+  false OSM claim), and the Standort-Energieprofil panel gains a user-facing source footer
+  (LoD2 + PVGIS · Energie-Atlas · MaStR) where it previously had only dev links. Strings are
+  de/en/fr. Tests: `dataSources` registry unit test, and two `e2e:local` specs
+  (`data-sources` credits page; `building-attribution` geocoded-vs-direct coordinate line).
+
 ## [2026-06-19]
 - **External-source registry in `vocab/`: one note per source id.** Documented every
   external source the app touches as its own `vocab/*.md`, in a shared shape (what it

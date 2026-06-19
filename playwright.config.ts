@@ -117,6 +117,8 @@ const SOLO_SPECS = [
   "**/archive-full-load.spec.ts",
   "**/map-energy-lens.spec.ts",
   "**/regional-context.spec.ts",
+  "**/data-sources.spec.ts",
+  "**/building-attribution.spec.ts",
   "**/neighbourhood-energy.spec.ts",
   "**/aggregations-open-tier.spec.ts",
   "**/nearby-installations.spec.ts",
