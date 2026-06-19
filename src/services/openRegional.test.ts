@@ -36,7 +36,17 @@ Deno.test("dedupes regions (name variants → same AGS) and sorts by AGS", () =>
   assert.deepEqual(ags, ["06", "09"]); // deduped + sorted, not 3 entries
 });
 
-Deno.test("buildings with no recognised German region contribute nothing", () => {
-  assert.deepEqual(openRegionalItemsFromBuildings([building(undefined)]), []);
-  assert.deepEqual(openRegionalItemsFromBuildings([building("Texas")]), []);
+Deno.test("no building region → falls back to all 16 Bundesländer (browse without buildings)", () => {
+  // No buildings at all, and buildings with no recognised German region, both yield the
+  // full-country catalog (every land table × all 16 Bundesländer) rather than nothing.
+  for (
+    const items of [
+      openRegionalItemsFromBuildings([]),
+      openRegionalItemsFromBuildings([building(undefined)]),
+      openRegionalItemsFromBuildings([building("Texas")]),
+    ]
+  ) {
+    assert.equal(new Set(items.map((i) => i.ags)).size, 16);
+    assert.equal(items.length, 16 * LAND_TABLES.length);
+  }
 });

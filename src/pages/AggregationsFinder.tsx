@@ -264,8 +264,15 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
             </Typography>
           )
           : guise === "map"
-          // Slice 4: own aggregations on the Kreis choropleth (its own empty/loading states).
-          ? <AggregationsMap definitions={aggregationDefinitions} />
+          // Slice 4: the collection on the choropleth, shaded by a chosen metric. Each tier is
+          // included only when its facet is ticked (its own empty/loading states inside).
+          ? (
+            <AggregationsMap
+              definitions={tierFacet.isSelected("mine") ? aggregationDefinitions : []}
+              received={tierFacet.isSelected("shared") ? receivedAggregations : []}
+              openItems={tierFacet.isSelected("open") ? openItems : []}
+            />
+          )
           : guise === "timeline"
           ? (
             // Slice 5 fills this; until then it names what it will show.

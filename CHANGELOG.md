@@ -3,6 +3,14 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Aggregation map: shade by a chosen metric, fold all tiers, browse open data without buildings.**
+  The open (regionalstatistik) tier now falls back to **all 16 Bundesländer** when no building gives
+  a region, so a fresh/buildingless account can browse the public datasets. The map guise gained a
+  **metric selector** that spans both measure families and shades accordingly: the aggregations'
+  **energy metrics** (own + received, from their snapshots, at **Kreis** grain — several in one
+  Kreis averaged) and the **open regionalstatistik tables** (at **Bundesland** grain, via the cube
+  choropleth). The active metric drives the grain, geometry layer, and value source; each tier is
+  folded in per the tier filter. (Was: own tier only, shaded by building count.)
 - **`dev:local` seeds the demo identities automatically.** The hand-driven local stack now POSTs
   `/seed-profiles` once the Pod is up, so the seeded logins present as Alice Ahlmann · Bob Bauer ·
   Charlie Conrad — names, avatars, and org logos — out of the box, instead of bare WebIDs.

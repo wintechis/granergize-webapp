@@ -89,3 +89,8 @@ const BUNDESLAND_NAME: Record<string, string> = {
 export function bundeslandName(ags: string): string | null {
   return BUNDESLAND_NAME[ags] ?? null;
 }
+
+/** All 16 Bundesland AGS codes (2-digit, sorted) — the catch-all when there's no
+ *  building region to key the open regional datasets to. */
+export const BUNDESLAND_AGS_ALL: readonly string[] = Object.keys(BUNDESLAND_NAME)
+  .sort();

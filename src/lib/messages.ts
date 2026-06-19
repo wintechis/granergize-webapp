@@ -1801,6 +1801,7 @@ export const MESSAGES = {
     de: "Noch keine eigenen Aggregationen für die Karte.",
     fr: "Aucune agrégation propre à cartographier pour le moment.",
   },
+  aggMapMetricLabel: { en: "Shade by", de: "Einfärben nach", fr: "Colorer selon" },
   aggMapTooltip: {
     en: "{aggs} aggregation(s) · {buildings} buildings",
     de: "{aggs} Aggregation(en) · {buildings} Gebäude",

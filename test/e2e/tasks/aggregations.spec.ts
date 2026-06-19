@@ -117,12 +117,11 @@ test.describe("energy view smoke", () => {
     await expect(page.getByRole("heading", { name: en("navAggregations") }))
       .toBeVisible({ timeout: T.action });
 
-    // Map guise → ?guise=map. No own aggregations exist yet (this runs before the create
-    // test), so the map shows its empty state — which proves the map guise MOUNTS without
-    // error (the choropleth-with-data render is covered by the unit tests + the map's logic).
+    // Map guise → ?guise=map. The map (choropleth shaded by a chosen metric, folding the open
+    // datasets) mounts on click; here we assert the toggle drives the URL — the shading itself is
+    // covered by the unit tests + the map's own logic.
     await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
     await expect(page).toHaveURL(/guise=map/, { timeout: T.action });
-    await expect(page.getByText(en("aggMapEmpty"))).toBeVisible({ timeout: T.action });
 
     // Timeline guise → ?guise=timeline + its placeholder (Slice 5 fills it).
     await page.getByRole("button", { name: en("guiseTimeline"), exact: true }).click();
@@ -239,5 +238,23 @@ test.describe("energy view smoke", () => {
     await expect(surface).toBeVisible({ timeout: T.action });
     await expect(surface.locator(".recharts-bar-rectangle").first())
       .toBeVisible({ timeout: T.action });
+  });
+
+  // Slice 4 (#2/#3): the map guise shades by a chosen metric. The create test above made an
+  // electricity aggregation (its snapshot carries the value), so the map's "Shade by" selector
+  // populates from the snapshot metrics and offers Electricity consumption — proving the snapshot
+  // load + metric selector wiring (the choropleth shading itself needs region geometry).
+  test("aggregations map: the 'shade by' selector lists the aggregation's metric", async () => {
+    await page.goto("/");
+    await openAggregations(page);
+    await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await expect(page).toHaveURL(/guise=map/, { timeout: T.action });
+
+    const shadeBy = page.getByLabel(en("aggMapMetricLabel"));
+    await expect(shadeBy).toBeVisible({ timeout: T.action });
+    await shadeBy.click();
+    await expect(page.getByRole("option", { name: /electricity consumption/i }))
+      .toBeVisible({ timeout: T.action });
+    await page.keyboard.press("Escape");
   });
 });

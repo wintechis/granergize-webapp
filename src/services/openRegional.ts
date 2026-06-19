@@ -12,7 +12,7 @@
  */
 import type { BuildingType } from "../types.ts";
 import type { MessageId } from "../lib/messages.ts";
-import { bundeslandName, bundeslandToAgs } from "./region.ts";
+import { BUNDESLAND_AGS_ALL, bundeslandName, bundeslandToAgs } from "./region.ts";
 import { REGIONAL_TABLES } from "./regionalCube.ts";
 
 /** One public regional-statistics dataset = a (table × Bundesland) pair. */
@@ -37,7 +37,9 @@ export function openRegionalId(tableId: string, ags: string): string {
 /**
  * The `open`-tier datasets for a user: every `land`-grain regional table crossed
  * with the distinct Bundesländer of their buildings (sorted by AGS, then table
- * order). Buildings with no recognised German region contribute nothing.
+ * order). When no building yields a recognised German region — a fresh / buildingless
+ * account — it falls back to **all 16 Bundesländer**, so the public datasets are
+ * always browseable without first adding a building.
  */
 export function openRegionalItemsFromBuildings(
   buildings: BuildingType[],
@@ -49,9 +51,11 @@ export function openRegionalItemsFromBuildings(
     const ags = bundeslandToAgs(b.region);
     if (ags) agsSet.add(ags);
   }
+  // Building regions when there are any; otherwise the whole country as a catalog.
+  const agsList = agsSet.size > 0 ? [...agsSet].sort() : [...BUNDESLAND_AGS_ALL];
 
   const items: OpenRegionalItem[] = [];
-  for (const ags of [...agsSet].sort()) {
+  for (const ags of agsList) {
     const region = bundeslandName(ags) ?? ags;
     for (const table of landTables) {
       items.push({
