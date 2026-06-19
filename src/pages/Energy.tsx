@@ -12,6 +12,7 @@ import { splitEnergyDatasets } from "../lib/energyResolution.ts";
 import EnergyResolutionSwitch from "../components/EnergyResolutionSwitch.tsx";
 import SeriesEnergy from "./SeriesEnergy.tsx";
 import AnnualEnergy from "./AnnualEnergy.tsx";
+import UnitObservationsSection from "../components/building/UnitObservationsSection.tsx";
 import ObservationHeader from "../components/observation/ObservationHeader.tsx";
 import WeatherData from "./WeatherData.tsx";
 import EnergyWeatherOverlay from "../components/EnergyWeatherOverlay.tsx";
@@ -147,6 +148,7 @@ export default function Energy({ building }: EnergyProps) {
           ? <SeriesEnergy building={building} />
           : undefined}
       />
+      <UnitObservationsSection building={building} />
       {weatherSection}
       <NearbyInstallationsSection building={building} />
       <NearbyRooftopsSection building={building} />

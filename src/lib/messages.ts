@@ -695,6 +695,11 @@ export const MESSAGES = {
     fr: "Aucun système énergétique.",
   },
   mdSystemOperator: { en: "Operated by", de: "Betreiber", fr: "Exploité par" },
+  unitObsHeading: {
+    en: "Per-unit observations",
+    de: "Beobachtungen je Anlage",
+    fr: "Observations par unité",
+  },
   lblSystemCapacityKW: { en: "Capacity (kW)", de: "Leistung (kW)", fr: "Puissance (kW)" },
   lblSystemCapacityKWh: {
     en: "Capacity (kWh)",

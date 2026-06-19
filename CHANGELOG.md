@@ -3,6 +3,11 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Per-unit observations are now displayed.** The observation page gained a "Per-unit observations"
+  section: for each energy unit (`bldg:hasSystem`) that carries its own `sosa:hasFeatureOfInterest`
+  annual series, a compact year×metric table under that unit — surfacing the figures the building-level
+  views deliberately exclude (so a PV plant's generation is visible, kept apart from the building's
+  totals). Renders nothing when no unit has observations.
 - **Multiple energy units per kind.** A building can now carry several PV plants (or batteries / CHP),
   not one of each. The model moved from fixed `<#pv>`/`<#battery>`/`<#chp>` singletons to a flat
   `systems: TechnicalSystem[]` — each unit its own `bldg:hasSystem` node with a **stable minted id**

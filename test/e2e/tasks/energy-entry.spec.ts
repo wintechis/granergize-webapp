@@ -269,7 +269,15 @@ test.describe("energy entry + Soll-Ist", () => {
     await expect(table.getByRole("row", { name: new RegExp(`\\b${PV_YEAR}\\b`) }))
       .toBeHidden({ timeout: T.action });
 
+    // 6) Close the dialog → the observation page surfaces the per-unit observations
+    // section with the PV's figure (240.000 kWh, de-DE) under its own unit — the
+    // display of what we just entered, kept apart from the building's annual view.
     await page.getByRole("button", { name: "Close" }).click();
+    await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
+    await expect(page.getByRole("heading", { name: en("unitObsHeading") }))
+      .toBeVisible({ timeout: T.action });
+    await expect(page.getByText(/240\.000/).first())
+      .toBeVisible({ timeout: T.action });
     await page.goto("/");
   });
 });
