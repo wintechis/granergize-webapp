@@ -60,3 +60,7 @@ plans/
 # Speculative design sketches — kept local, like plans/; the matter-of-fact
 # notes/ describe the current code, these explore where it might go.
 explore/
+
+# Rendered UX-overview diagrams (generated from notes/ux-overview*.dot)
+notes/ux-overview*.svg
+notes/ux-overview*.png
