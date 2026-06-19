@@ -18,10 +18,18 @@ import {
   GEO_POINT,
   GEOCODE_PRECISION_IRI,
   GRAN_GEOCODE_PRECISION,
+  DCTERMS_LICENSE,
+  DCTERMS_SOURCE,
+  FOAF_NAME,
+  OSM_ATTRIBUTION,
+  OSM_NOMINATIM_SOURCE,
+  OSM_ODBL_LICENSE,
   OWL_SAME_AS,
   PROV_AGENT,
   PROV_ATTRIBUTION,
+  PROV_ENTITY,
   PROV_QUALIFIED_ATTRIBUTION,
+  PROV_WAS_DERIVED_FROM,
   RDF_TYPE as RDF_TYPE_IRI,
   REC_BUILDING,
   REC_NS,
@@ -167,7 +175,29 @@ function addGeoPoint(
       namedNode(GRAN_GEOCODE_PRECISION),
       namedNode(GEOCODE_PRECISION_IRI[precision as GeocodePrecision]),
     );
+    // A geocodePrecision is set ONLY by the Nominatim geocoder (geocodeFields);
+    // coordinates from other sources (a partner file, MaStR/LoD2 import, manual
+    // entry) carry none. So its presence marks OSM-derived coordinates — record
+    // that provenance + the ODbL attribution on the point itself.
+    addGeocodeProvenance(store, point);
   }
+}
+
+/**
+ * Record, on a geocoded `geo:Point`, that its coordinates were derived from
+ * OpenStreetMap via the Nominatim geocoder, with the ODbL licence and the
+ * required attribution — so the obligation travels with shared building data.
+ */
+function addGeocodeProvenance(
+  store: Store,
+  point: ReturnType<typeof blankNode>,
+): void {
+  const src = blankNode("geocodeSource");
+  store.addQuad(point, namedNode(PROV_WAS_DERIVED_FROM), src);
+  store.addQuad(src, namedNode(RDF_TYPE_IRI), namedNode(PROV_ENTITY));
+  store.addQuad(src, namedNode(FOAF_NAME), literal(OSM_ATTRIBUTION));
+  store.addQuad(src, namedNode(DCTERMS_SOURCE), namedNode(OSM_NOMINATIM_SOURCE));
+  store.addQuad(src, namedNode(DCTERMS_LICENSE), namedNode(OSM_ODBL_LICENSE));
 }
 
 /**

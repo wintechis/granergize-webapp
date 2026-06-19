@@ -180,6 +180,58 @@ Deno.test("saveOrganization replaces values and preserves an existing logo", asy
   assert.deepEqual(objectsOf(ttl, ORG, FOAF_HOMEPAGE), []);
 });
 
+const PROV_WAS_DERIVED_FROM = "http://www.w3.org/ns/prov#wasDerivedFrom";
+const DCTERMS_SOURCE = "http://purl.org/dc/terms/source";
+const WIKIDATA = "https://www.wikidata.org/entity/Q42";
+const COMMONS_LOGO =
+  "https://commons.wikimedia.org/wiki/Special:FilePath/Acme_logo.svg";
+
+Deno.test("saveOrganization adopts a Wikidata→Commons logo with provenance when the org has none", async () => {
+  const writes: Write[] = [];
+  const session = makeSession({
+    [PROFILE_DOC]: `
+      @prefix org: <http://www.w3.org/ns/org#> .
+      <${WEBID}> org:memberOf <${ORG}> .
+      <${ORG}> a org:Organization .
+    `,
+    // The Wikidata EntityData JSON the resolver fetches (P154 = logo image).
+    "https://www.wikidata.org/wiki/Special:EntityData/Q42.json": JSON.stringify({
+      entities: { Q42: { claims: { P154: [{ mainsnak: { datavalue: { value: "Acme_logo.svg" } } }] } } },
+    }),
+  }, writes);
+
+  await saveOrganization(session, { name: "ACME", sameAs: WIKIDATA });
+  const ttl = writes[0].body as string;
+
+  // foaf:logo now points at the Commons file, with provenance back to Wikidata.
+  assert.deepEqual(objectsOf(ttl, ORG, FOAF_LOGO), [COMMONS_LOGO]);
+  assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, PROV_WAS_DERIVED_FROM), [WIKIDATA]);
+  assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, DCTERMS_SOURCE), [WIKIDATA]);
+});
+
+Deno.test("saveOrganization does NOT overwrite an existing logo with the Wikidata one", async () => {
+  const writes: Write[] = [];
+  const own = "https://pod.example/profile/logo.svg";
+  const session = makeSession({
+    [PROFILE_DOC]: `
+      @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+      @prefix org: <http://www.w3.org/ns/org#> .
+      <${WEBID}> org:memberOf <${ORG}> .
+      <${ORG}> a org:Organization ; foaf:logo <${own}> .
+    `,
+    "https://www.wikidata.org/wiki/Special:EntityData/Q42.json": JSON.stringify({
+      entities: { Q42: { claims: { P154: [{ mainsnak: { datavalue: { value: "Acme_logo.svg" } } }] } } },
+    }),
+  }, writes);
+
+  await saveOrganization(session, { name: "ACME", sameAs: WIKIDATA });
+  const ttl = writes[0].body as string;
+
+  // The uploaded logo is preserved; the Commons one is not adopted.
+  assert.deepEqual(objectsOf(ttl, ORG, FOAF_LOGO), [own]);
+  assert.deepEqual(objectsOf(ttl, COMMONS_LOGO, PROV_WAS_DERIVED_FROM), []);
+});
+
 Deno.test("uploadOrgLogo stores the image and links foaf:logo on the org node", async () => {
   const writes: Write[] = [];
   const session = makeSession({

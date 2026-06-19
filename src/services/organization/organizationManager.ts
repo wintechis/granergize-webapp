@@ -5,13 +5,17 @@ import { invalidateProfile, loadProfileStore } from "../pod/profileDocument.ts";
 import { getPodBaseUri } from "../pod/solidUtils.ts";
 import { logError } from "../../lib/logError.ts";
 import {
+  DCTERMS_SOURCE,
   FOAF_LOGO,
   FOAF_NS,
   ORG_MEMBER_OF,
   ORG_NS,
   OWL_NS,
+  PROV_ENTITY,
+  PROV_WAS_DERIVED_FROM,
   RDF_TYPE,
 } from "../rdf/vocabularies.ts";
+import { fetchWikidataLogo, wikidataEntityId } from "../agents/wikidataLogo.ts";
 
 /**
  * The organisation the logged-in user works for, stored *inline in the WebID
@@ -274,6 +278,16 @@ export async function saveOrganization(
   const homepage = fields.homepage?.trim();
   const sameAs = fields.sameAs?.trim();
 
+  // When the org links to a Wikidata entity and has no logo of its own, resolve
+  // its logo from Wikidata→Wikimedia Commons and persist it WITH provenance, so
+  // the Commons origin is recorded in the profile Turtle (rather than only being
+  // re-resolved at render time, where it leaves no trace). Best-effort and
+  // network-bound, so it runs before the write; a failed resolve simply skips.
+  let wikidataLogo: string | undefined;
+  if (sameAs && wikidataEntityId(sameAs)) {
+    wikidataLogo = await fetchWikidataLogo(sameAs, gateway.fetch);
+  }
+
   await mutateProfile(docUri, gateway, (store) => {
     ensureOrgMembership(store, webId);
     if (name) setLiteral(store, org, FOAF_NAME, name);
@@ -282,6 +296,24 @@ export async function saveOrganization(
     else clearPredicate(store, org, FOAF_HOMEPAGE);
     if (sameAs) setNamedNode(store, org, OWL_SAME_AS, sameAs);
     else clearPredicate(store, org, OWL_SAME_AS);
+
+    // Only adopt the Wikidata logo when the org carries none of its own — an
+    // uploaded `foaf:logo` (managed by uploadOrgLogo) is always preserved.
+    if (wikidataLogo && !firstObject(store, org, FOAF_LOGO)) {
+      setNamedNode(store, org, FOAF_LOGO, wikidataLogo);
+      const logo = DataFactory.namedNode(wikidataLogo);
+      store.addQuad(logo, DataFactory.namedNode(RDF_TYPE), DataFactory.namedNode(PROV_ENTITY));
+      store.addQuad(
+        logo,
+        DataFactory.namedNode(PROV_WAS_DERIVED_FROM),
+        DataFactory.namedNode(sameAs!),
+      );
+      store.addQuad(
+        logo,
+        DataFactory.namedNode(DCTERMS_SOURCE),
+        DataFactory.namedNode(sameAs!),
+      );
+    }
   });
 }
 
