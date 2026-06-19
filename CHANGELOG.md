@@ -6,9 +6,10 @@ All notable changes to the Granergize WebApp project will be documented in this 
 - **UX overview map (`notes/ux-overview`).** A coarse "surfaces + transitions" map of the app —
   above statechart detail — capturing the app-shell tabs (with each finder's guise sub-states),
   the detail surfaces, and the modal dialogs (with their save/cancel return-edges), plus
-  details-on-demand as two tiers (hover peek vs click→open) and the ⌘K palette overlay. Two Graphviz
-  views (rendered SVG/PNG) — a clean forward-flow overview and a variant adding the dialog
-  return-edges — plus an equivalent Mermaid `stateDiagram`; indexed in `notes/README`.
+  details-on-demand as two tiers (hover peek vs click→open) and the ⌘K palette overlay. Checked-in
+  sources: two Graphviz `.dot` views (a clean forward-flow overview + a variant adding the dialog
+  return-edges) and an equivalent Mermaid `.mmd`; the SVG/PNG bitmaps are generated (gitignored).
+  Indexed in `notes/README`.
 - **Explore map guise is deep-linkable (`?explore=`).** The map's Map / Over-time / Compare toggle
   is now URL-synced (map = the clean default), like the metric (`?m=`), year (`?y=`) and viewport
   beside it — so a matrix/compare view survives a reload and is shareable. Surfaced by a Shneiderman

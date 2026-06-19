@@ -1,0 +1,72 @@
+%% Granergize-App — UX overview (clean forward-flow; mirrors ux-overview.dot).
+%% Mermaid stateDiagram. Render: `mmdc -i ux-overview.mmd -o ux-overview.mmd.svg`,
+%% or paste into a ```mermaid fence (GitHub renders it inline).
+stateDiagram-v2
+  [*] --> Buildings: log in
+
+  state "Buildings finder" as Buildings {
+    [*] --> B_list
+    B_list: list
+    B_map: map (geo · over-time · compare)
+    B_list --> B_map: guise
+    B_map --> B_list: guise
+  }
+  state "Aggregations finder" as Aggregations {
+    [*] --> A_list
+    A_list: list
+    A_map: map (choropleth)
+    A_timeline: timeline
+    A_list --> A_map: guise
+    A_map --> A_timeline: guise
+  }
+  state "Other tabs (list-only)" as Others {
+    Observations
+    Sharing
+    Contacts
+    Meet: Meet / rooms
+  }
+
+  state "Detail surfaces" as Detail {
+    BuildingPage: Building page (master data · systems · sharing)
+    ObservationPage: Observation page (annual | series · per-unit)
+    AggregationPage: Aggregation page
+    RegionalPage: Regional dataset
+    RoomPage: Room page
+  }
+
+  Peek: hover peek (tooltip / hover card)
+
+  %% details-on-demand: hover = in-place peek, click = open the detail page
+  B_map --> Peek: hover marker
+  A_map --> Peek: hover region
+  B_map --> BuildingPage: click open
+  B_list --> BuildingPage: click row open
+  A_list --> AggregationPage: open (own/received)
+  A_timeline --> AggregationPage: open
+  A_list --> RegionalPage: open (open tier)
+  Observations --> ObservationPage: open
+  Sharing --> BuildingPage: open
+  Meet --> RoomPage: open
+  BuildingPage --> ObservationPage: energy
+
+  state "Dialogs (modal · return to caller)" as Dialogs {
+    AddBuilding: Add building
+    EditBuilding: Edit building
+    ShareBuilding: Share
+    EnergySystems: Energy systems (units)
+    EnergyEntry: Energy entry (observe for: building | unit)
+    CreateAgg: Create aggregation
+  }
+
+  B_list --> AddBuilding: add
+  BuildingPage --> EditBuilding: edit
+  BuildingPage --> ShareBuilding: share
+  BuildingPage --> EnergySystems: systems
+  ObservationPage --> EnergyEntry: enter
+  A_list --> CreateAgg: create
+  %% (dialog return-edges omitted here for legibility — see ux-overview-returns.dot)
+
+  note left of Buildings
+    ⌘K command palette (global overlay):
+    navigate to any tab · invoke the focused object's verbs
+  end note
