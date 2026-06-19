@@ -9,8 +9,9 @@
  *
  *   deno task it      (no credentials needed — local CSS, fixed creds)
  */
-import { type LiveSessionLike, type LocalPod, startLocalPod } from "./localPod.ts";
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { LiveSessionLike } from "./localPod.ts";
+import { type SessionSource, sessionSource } from "./sessionSource.ts";
+import { podGateway } from "../../src/services/pod/podGateway.ts";
 import { resolveStorageRoot } from "../../src/services/pod/solidUtils.ts";
 import { ensureOwnInbox } from "../../src/services/interop/inbox.ts";
 import {
@@ -31,6 +32,8 @@ import * as benchmark from "./tasks/benchmark.ts";
 import * as grantProjection from "./tasks/grant-projection.ts";
 import * as roomsIntent from "./tasks/rooms-intent.ts";
 import * as sharingIntent from "./tasks/sharing-intent.ts";
+import * as contacts from "./tasks/contacts.ts";
+import * as seedDemos from "./tasks/seed-demos.ts";
 
 const TASKS: TaskModule[] = [
   dataRoom,
@@ -45,28 +48,35 @@ const TASKS: TaskModule[] = [
   grantProjection,
   roomsIntent,
   sharingIntent,
+  contacts,
+  seedDemos,
 ];
 
 const harness = makeHarness();
-console.log("starting local Pod server…");
-const pod: LocalPod = await startLocalPod().catch((e): never => {
-  console.error(`\x1b[31mFAIL\x1b[0m — could not start local Pod server:\n${e}`);
+console.log("starting session source…");
+const source: SessionSource = await sessionSource().catch((e): never => {
+  console.error(`\x1b[31mFAIL\x1b[0m — could not start session source:\n${e}`);
   return Deno.exit(1);
 });
-console.log(`local Pod up at ${pod.baseUrl}`);
+console.log(`session source up: ${source.label}`);
 
 let sA: LiveSessionLike | undefined;
 let sB: LiveSessionLike | undefined;
 let sC: LiveSessionLike | undefined;
 try {
   [sA, sB, sC] = await Promise.all([
-    pod.liveSession("A"),
-    pod.liveSession("B"),
-    pod.liveSession("C"),
+    source.liveSession("A"),
+    source.liveSession("B"),
+    source.liveSession("C"),
   ]);
-  const sessionA = sA as unknown as Session;
-  const sessionB = sB as unknown as Session;
-  const sessionC = sC as unknown as Session;
+  // Adapt each live session into the flat data-layer port (`{fetch, webId}`); the
+  // raw `LiveSessionLike` is kept on the Actor for direct fetches (snapshot/restore).
+  // The hand-rolled `fetch` only accepts `string | URL` (all the data layer ever
+  // passes), narrower than `typeof globalThis.fetch` — cast at this one boundary.
+  const asFetch = (f: LiveSessionLike["fetch"]) => f as typeof globalThis.fetch;
+  const sessionA = podGateway(asFetch(sA.fetch), sA.info.webId);
+  const sessionB = podGateway(asFetch(sB.fetch), sB.info.webId);
+  const sessionC = podGateway(asFetch(sC.fetch), sC.info.webId);
   // Native storage discovery (pim:Storage-typed root) — no card edit needed.
   await resolveStorageRoot(sessionA);
   await resolveStorageRoot(sessionB);
@@ -78,13 +88,17 @@ try {
   await ensureOwnInbox(sessionB);
   await ensureOwnInbox(sessionC);
 
-  const a: Actor = { slot: "A", webId: sessionA.info.webId!, session: sessionA, raw: sA };
-  const b: Actor = { slot: "B", webId: sessionB.info.webId!, session: sessionB, raw: sB };
-  const c: Actor = { slot: "C", webId: sessionC.info.webId!, session: sessionC, raw: sC };
+  const a: Actor = { slot: "A", webId: sessionA.webId, session: sessionA, raw: sA };
+  const b: Actor = { slot: "B", webId: sessionB.webId, session: sessionB, raw: sB };
+  const c: Actor = { slot: "C", webId: sessionC.webId, session: sessionC, raw: sC };
   console.log(`A = ${a.webId}\nB = ${b.webId}\nC = ${c.webId}`);
   const ctx: TaskContext = { a, b, c, check: harness.check };
 
-  for (const task of TASKS) {
+  // Optional slug filter: `deno task it <slug> [<slug>…]` runs only those task
+  // modules (handy for hunting one task in isolation); no args runs all.
+  const only = new Set(Deno.args);
+  const selected = only.size ? TASKS.filter((t) => only.has(t.name)) : TASKS;
+  for (const task of selected) {
     console.log(`\ntask: ${task.name}`);
     try {
       await task.run(ctx);
@@ -98,7 +112,7 @@ try {
   await sA?.dispose().catch(() => {});
   await sB?.dispose().catch(() => {});
   await sC?.dispose().catch(() => {});
-  await pod.stop();
+  await source.teardown();
   console.log("  done");
 }
 

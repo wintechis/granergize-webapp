@@ -1,70 +1,111 @@
 # Tests
 
-Four tiers, fake → real one axis at a time, so each adjacent pair isolates one
-failure class (data-layer → UI → provider interop):
+Every run is placed by **three orthogonal axes** — the old linear "Tier 1..4" only
+named a diagonal through the first two:
 
-- **Tier 1 — unit** (`deno task test`): hermetic logic + RDF, fake in-memory Pods
-  (`src/**/*.test.ts`).
-- **Tier 2 — headless** (`deno task it`): real data-layer fns over a throwaway local
-  CSS, two actors A/B, no creds (`test/headless/`).
-- **Tier 3 — browser e2e, local** (`deno task e2e:local`): full UI + OIDC against the
-  same local CSS, credential-free, prod build (`E2E_LOCAL=1`).
-- **Tier 4 — browser e2e, remote** (`deno task e2e:remote`): the same specs against
-  real Pods; `source` a `test/.env.e2e.*.local` creds file first.
+- **kind** — how much of the stack runs: `unit` → `headless` → `e2e`.
+- **backend** — where data comes from: `local` (hermetic) vs `remote` (online). The
+  backend has **two independent parts**: the authed **Pod** (Solid server) and the
+  read-only **external sources** (weather, the MaStR/OSM/INSPIRE/NUTS/LAU wrappers,
+  `nominatim`, map tiles, Wikidata/Commons, and — for evals — the chat API). `local`
+  fakes both; `remote` uses both real.
+- **mode** — what the run yields: **assert** (pass/fail, the default), **measure**
+  (benchmark numbers, §Benchmarks), **load** (the stress probe), **judge** (eval
+  score, §Evals).
 
-Three roles, **A = Alice / B = Bob / C = Charlie**, and the catalog specs split by
-pod count: **solo** specs use A; **duo** (cross-Pod sharing) use A + B; **trio** (the
-benchmark-service round-trip) use A + B + C. The
-specs live in `test/e2e/tasks/` (one per feature: login, organisation, add-building,
-energy-entry, aggregations, data-room, share-building, share-aggregation); Tier 2 mirrors a
-subset in `test/headless/tasks/`. Shared config in `test/config/` (`providers.ts`,
-`accounts.ts`, `actors.ts`).
+The lanes (`kind:backend`), each pinned to its current command. (The lane names are the
+conceptual model; the deno tasks keep their historical names — `test`, `it`,
+`e2e:local`/`e2e:remote` — until a planned rename lands, see
+[`../plans/plan-test-lane-naming.md`](../plans/plan-test-lane-naming.md).)
+
+- **`unit:local`** (`deno task test`) — hermetic logic + RDF over in-memory fixtures
+  (`src/**/*.test.ts`). Never does I/O — **provably**: the run reports 0 ignored, with no
+  `LIVE` escape hatch (the old real-network Wikidata cases were relocated to
+  `it:contract`, and the contract dir is `--ignore`d here). **There is no `unit:remote`.**
+- **`headless:local`** (`deno task it`) — real data-layer fns over a throwaway local CSS,
+  actors A/B(/C), no creds (`test/headless/`). `it:jss` runs the same against JSS.
+  *Hermetic on the Pod only:* its base resolvers are `import.meta.env`-only, so any
+  external-source read still hits the real host until the planned `Deno.env` override +
+  local stub land (§External sources).
+- **`headless:remote`** (`deno task it:remote`) — runs the **same task modules**
+  against a **real** Solid server instead of the throwaway local one. Creds come from
+  the **same `WEBID_<slot>_*` registry the e2e/bench lanes use** (`account(slot)`), so
+  you just `source` any creds file (e.g. `test/.env.trio.local`) and run — no separate
+  headless creds. Throwaway accounts only. The flow is account-API client-credentials +
+  DPoP, so the account's provider must support it (`supportsClientCredentials` —
+  solidcommunity, fraunhofer, …); a browser-OIDC-only provider throws a clear error.
+  CSS is only one such server type. This is where the share/benchmark/contacts interop
+  earns *real-provider* assurance (the local lane already proves the logic). Its **second,
+  network-only flavour** is the external-host *contract* check (`deno task it:contract`,
+  `test/headless/contract/`) — no Pod, no actors, a standalone Deno I/O test against a
+  real host (the Wikidata-logo check, relocated out of the unit glob).
+- **`e2e:local`** (`deno task e2e:local`) — full UI + OIDC against the same local CSS,
+  credential-free, prod build (`E2E_LOCAL=1`). Hermetic on the Pod; **external reads are
+  stubbed per-spec** via `page.route` (§External sources).
+- **`e2e:remote`** (`deno task e2e:remote`) — the same specs against real Pods; `source`
+  a `test/.env.e2e.*.local` creds file first.
+
+Adjacent kinds isolate one failure class (data-layer → UI → provider interop). Three
+roles, **A = Alice / B = Bob / C = Charlie**; the catalog specs split by pod count:
+**solo** specs use A; **duo** (cross-Pod sharing) use A + B; **trio** (the
+benchmark-service round-trip) use A + B + C. The specs live in `test/e2e/tasks/` (one per
+feature: login, organisation, add-building, energy-entry, aggregations, data-room,
+share-building, share-aggregation); `headless:local` mirrors a subset in
+`test/headless/tasks/`. Shared config in `test/config/` (`providers.ts`, `accounts.ts`,
+`actors.ts`).
 
 ```
-deno task test                                          # Tier 1
-deno task it                                            # Tier 2 (no creds)
-deno task e2e:local [test/e2e/tasks/<spec>.spec.ts]     # Tier 3 (no creds)
-source test/.env.e2e.local && deno task e2e:remote      # Tier 4 (real Pods)
+deno task test                                          # unit:local
+deno task it                                            # headless:local (no creds)
+deno task e2e:local [test/e2e/tasks/<spec>.spec.ts]     # e2e:local (no creds)
+source test/.env.e2e.local && deno task e2e:remote      # e2e:remote (real Pods)
 ```
 
-Tier-4 writes to a throwaway, **per-run** collection (`granergize-e2e-<uuid>`,
+`e2e:remote` writes to a throwaway, **per-run** collection (`granergize-e2e-<uuid>`,
 generated in `playwright.config.ts`) so leftover/stuck resources from an earlier run
 can't impede a fresh one — there is no reset step. It runs serial (`workers: 1`) and
-aborts on a Cloudflare 1015 rate-limit. Tier 3 has a known
-intermittent **local-CSS JWKS boot race** (a freshly-booted CSS transiently 401s a
+aborts on a Cloudflare 1015 rate-limit. The local-CSS lanes have a known
+intermittent **JWKS boot race** (a freshly-booted CSS transiently 401s a
 DPoP token until its key set warms) — not an app bug; mitigated by a boot warmup and
 bounded retries.
 
-## External queried sources (weather / regionalstatistik)
+## External sources — the second backend, faked per-kind
 
-The two queried external wrappers — `linked-wetterdienst` and
-`linked-regionalstatistik` (see [`../notes/data-deref.md`](../notes/data-deref.md)
-§External wrapper endpoints) — are **not** the Pod. By default a Tier-3/4 build's
-`VITE_WEATHER_API_URI` / `VITE_REGIONALSTATISTIK_API_URI` point at the live
-`wunderfacts.com` hosts (CORS-enabled, fetched directly — no dev proxy), so a spec
-that opens the weather/regional surfaces hits the **real external service** over the
-network.
+External read-only sources (weather `linked-wetterdienst`, `linked-regionalstatistik`
+and the other geo/MaStR wrappers — see [`../notes/data-deref.md`](../notes/data-deref.md)
+§External wrapper endpoints — plus `nominatim`, map tiles, Wikidata/Commons) are **not**
+the Pod. They are the backend's second, independent part, and **each kind makes its
+`local` cell hermetic by a different mechanism**:
 
-That env-var indirection is also the **switch to a fully-local, hermetic run**: a spec
-need not depend on an external source. Two ways, in order of reach:
+- **`unit:local`** — an in-process fake `fetch` serves local fixtures; never any I/O.
+- **`e2e:local`** — **`page.route`** intercepts the wrapper URL inside the spec and
+  fulfills fixed Turtle/GeoJSON — per-spec, no rebuild, deterministic. (A global guard
+  that *fails* on un-stubbed external hosts was considered and declined — stubbing stays
+  per-spec, so a spec that opens an external surface and forgets a stub silently hits the
+  real host.)
+- **`headless:local`** — **the gap.** No browser → no `page.route`, and the base
+  resolvers (`linkedWeatherBase`, `mastrNearby`, `lod2Rooftop`, `regionGeometry`,
+  `regionalCube`) read `import.meta.env` only, which is `undefined` under Deno → they
+  fall back to the real `wunderfacts.com` hosts. Planned fix: make the resolvers
+  `Deno.env`-aware and point them at a shared local stub server — see
+  [`../plans/plan-external-host-test-infra.md`](../plans/plan-external-host-test-infra.md)
+  (slice 0) and [`../plans/plan-test-lane-naming.md`](../plans/plan-test-lane-naming.md).
 
-- **Override the env var** at build time — `VITE_WEATHER_API_URI` /
-  `VITE_REGIONALSTATISTIK_API_URI` → a local fixture host. The *same* indirection
-  prod/dev use, so it flips the entire source local (the wrapper itself can run
-  locally, like the CSS/JSS Pods do).
-- **`page.route`** the wrapper URL inside the spec and fulfill fixed Turtle —
-  per-spec, no rebuild; deterministic assertions on concrete values.
+The same `VITE_*_API_URI` indirection prod/dev use is the build-time switch: unset →
+the live host (`remote`); a local fixture host → hermetic (`local`). It is CORS-enabled
+and fetched directly (no dev proxy).
 
-Current coverage reflects the trade-off: `regional-context.spec.ts` **stubs** via
-`page.route` (deterministic), while `cube-calendar-weather.spec.ts` runs **live and
-tolerant** — it asserts the dereference+parse path resolves to a definite state (a
-values table / chart, or an honest empty/no-overlap notice), not specific
+Current `e2e:local` coverage reflects the per-spec trade-off: `regional-context.spec.ts`
+**stubs** via `page.route` (deterministic), while `cube-calendar-weather.spec.ts` runs
+**live and tolerant** — it asserts the dereference+parse path resolves to a definite
+state (a values table / chart, or an honest empty/no-overlap notice), not specific
 temperatures, so a live-service hiccup can't flake it. Prefer a stub (or the env
 override) when an assertion must pin exact figures.
 
 ## Local ports & parallel lanes
 
-Every Tier-2/3 Pod port derives from a single offset (added to the base ports in
+Every local-CSS Pod port (the `headless:local` / `e2e:local` lanes) derives from a
+single offset (added to the base ports in
 `test/config/localSeed.ts`: CSS `3456`, CSS control `3457`, preview app `4183`).
 A task sets its **CSS base** with `LOCAL_PORT_OFFSET`; the rule is then dead simple:
 
@@ -123,9 +164,11 @@ surfaces as a spec that hangs to its full timeout rather than a clear assertion:
   poll's recovery path a `timeout` + `catch` — an unbounded click on a vanished
   element silently wedges every remaining poll iteration.
 
-## Benchmarks (measure-and-report)
+## Benchmarks (measure mode)
 
-Scalability suite beside the tiers — never gates. Sweeps a size axis, times the real
+The benchmarks are not a new kind — they reuse the correctness substrate in **measure**
+mode instead of assert: `bench` *is* `headless:local`, `bench:ui` *is* `e2e:local`. A
+scalability suite beside the lanes — never gates. Sweeps a size axis, times the real
 code paths, and draws gnuplot graphs (for the paper). Output → a per-run directory
 `test-results/bench/<run-id>/` (gitignored), beside the e2e scopes
 (`test-results/<scope>/<RUN_ID>`): `<name>.dat` + `<name>.gp` + `<name>.png` + an
@@ -139,8 +182,8 @@ to label a run, or to point several invocations at one combined figure set — s
 `test/bench/runId.ts`. `bench:plot` re-renders the latest run dir (or `BENCH_RUN_ID`).
 
 ```
-deno task bench         # Tier 2: data layer (JSS; bench:css for the CSS sweep)
-deno task bench:ui      # Tier 3: browser cold-load renders (JSS; bench:ui:css for CSS)
+deno task bench         # headless:local · measure — data layer (JSS; bench:css for CSS)
+deno task bench:ui      # e2e:local · measure — browser cold-load renders (JSS; bench:ui:css for CSS)
 deno task bench:plot    # re-render PNGs from existing .dat (after installing gnuplot)
 ```
 
@@ -174,3 +217,31 @@ override with `BENCH_SIZES` / `BENCH_SERIES_DAYS` / `BENCH_SHARED_SIZES`, sample
 point with `BENCH_RUNS` (median, default 3). Graphs are PNG (pngcairo). gnuplot is
 optional: `.dat` + `.gp` are always written; PNGs render only when `gnuplot` is on
 PATH (else install it and run `deno task bench:plot`).
+
+## Evals (judge mode)
+
+The LLM evals score model output against a rubric — **judge** mode. They are
+`headless`-shaped (Deno, no browser, real I/O) but `remote`-**only by nature**: an eval
+calls the **real chat API** (that *is* the point), so a stubbed/cached LLM would defeat
+it — there is no hermetic `:local` twin. (The chat API is the eval's external backend,
+the third kind alongside the Pod and the data-wrappers.) They live in `test/eval/`,
+outside the `deno test` unit glob and the Playwright lanes, and never gate.
+
+```
+LLM_API_KEY=… deno task eval:intent    # headless:remote · judge — NL → intent accuracy
+LLM_API_KEY=… deno task eval:sweep      # headless:remote · judge — parameter sweep
+```
+
+`eval:intent` runs each `test/eval/cases.json` request through `translateToIntentJson`
+and scores the resulting `{ name, params }`: **supported** verbs (in `INTENTS` today)
+are scored pass/fail on the name (the headline accuracy); **frontier** verbs (not
+dispatchable yet) are reported, not scored. The runner derives both populations from the
+live catalog, so it tracks the code, not a hardcoded list. See
+[`eval/README.md`](eval/README.md).
+
+## Stress (load mode)
+
+`deno task e2e:stress` / `:jss` — an `e2e:local`-substrate probe in **load** mode (the
+JSS concurrent-login hammer, `login-stress.spec.ts`). Gated on `LOGIN_STRESS` so the
+catalog runs never collect it; a skip that *does* surface is a real capability-gate
+signal.

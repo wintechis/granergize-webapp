@@ -116,6 +116,14 @@ export const PROV_ATTRIBUTION = `${PROV_NS}Attribution`;
 export const PROV_AGENT = `${PROV_NS}agent`;
 export const PROV_WAS_ASSOCIATED_WITH = `${PROV_NS}wasAssociatedWith`;
 export const PROV_GENERATED_AT_TIME = `${PROV_NS}generatedAtTime`;
+export const PROV_ENTITY = `${PROV_NS}Entity`;
+export const PROV_WAS_DERIVED_FROM = `${PROV_NS}wasDerivedFrom`;
+
+/** The OpenStreetMap/Nominatim geocoder, recorded as the source of geocoded
+ * coordinates (ODbL — attribution + share-alike). */
+export const OSM_NOMINATIM_SOURCE = "https://nominatim.openstreetmap.org/";
+export const OSM_ODBL_LICENSE = "https://opendatacommons.org/licenses/odbl/1-0/";
+export const OSM_ATTRIBUTION = "© OpenStreetMap contributors";
 
 // Solid Application Interoperability — the access-grant vocabulary used for the
 // sharing event logs (shared-in/ and shared-out/) and the inbox messages.
@@ -172,3 +180,5 @@ export const SCHEMA_CONTENT_SIZE = `${SCHEMA_NS}contentSize`;
 export const DCTERMS_NS = "http://purl.org/dc/terms/";
 export const DCTERMS_CREATED = `${DCTERMS_NS}created`;
 export const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
+export const DCTERMS_SOURCE = `${DCTERMS_NS}source`;
+export const DCTERMS_LICENSE = `${DCTERMS_NS}license`;

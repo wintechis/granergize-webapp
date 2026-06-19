@@ -411,6 +411,49 @@ Deno.test("serializeBuildingToTurtle writes coordinates as a geo:Point blank nod
   assert.equal(b!.geocodePrecision, "postcode");
 });
 
+Deno.test("geocoded coordinates carry OSM/Nominatim provenance (ODbL) on the geo:Point", () => {
+  const uri = newBuildingUri(WEBID, "b-geo-prov");
+  const store = parse(
+    serializeBuildingToTurtle(
+      { lat: "49.45", long: "11.08", geocodePrecision: "address" },
+      uri,
+    ),
+  );
+  const point = store.getObjects(namedNode(`${uri}#it`), namedNode(GEO_LOCATION), null)[0];
+  assert.ok(point, "geo:Point present");
+  const src = store.getObjects(point, namedNode(`${PROV_NS}wasDerivedFrom`), null)[0];
+  assert.ok(src, "point prov:wasDerivedFrom a source entity");
+  assert.equal(
+    store.getObjects(src, namedNode("http://purl.org/dc/terms/source"), null)[0]?.value,
+    "https://nominatim.openstreetmap.org/",
+    "dcterms:source is Nominatim",
+  );
+  assert.equal(
+    store.getObjects(src, namedNode("http://purl.org/dc/terms/license"), null)[0]?.value,
+    "https://opendatacommons.org/licenses/odbl/1-0/",
+    "dcterms:license is ODbL",
+  );
+  assert.equal(
+    store.getObjects(src, namedNode("http://xmlns.com/foaf/0.1/name"), null)[0]?.value,
+    "© OpenStreetMap contributors",
+    "carries the required OSM attribution string",
+  );
+});
+
+Deno.test("coordinates from a non-geocoded source (no precision) get NO OSM attribution", () => {
+  const uri = newBuildingUri(WEBID, "b-coords-plain");
+  // lat/long present but no geocodePrecision ⇒ not from Nominatim (a partner
+  // file, MaStR/LoD2 import, or manual entry) ⇒ no OSM/ODbL claim.
+  const store = parse(serializeBuildingToTurtle({ lat: "49.45", long: "11.08" }, uri));
+  const point = store.getObjects(namedNode(`${uri}#it`), namedNode(GEO_LOCATION), null)[0];
+  assert.ok(point, "geo:Point present");
+  assert.equal(
+    store.getObjects(point, namedNode(`${PROV_NS}wasDerivedFrom`), null).length,
+    0,
+    "no prov:wasDerivedFrom when coordinates were not geocoded",
+  );
+});
+
 Deno.test("serializeBuildingToTurtle links energy datasets via cons:hasEnergyDataset", () => {
   const uri = newBuildingUri(WEBID, "b-1");
   const root = observationsRootForBuilding(uri);

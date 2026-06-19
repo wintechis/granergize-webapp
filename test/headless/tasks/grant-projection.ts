@@ -41,8 +41,28 @@ import {
   uploadBuilding,
   writeEnergyYear,
 } from "../../../src/services/rdf/building/buildingSerializer.ts";
-import { datasetFileUri } from "../../../src/services/rdf/energyDataset.ts";
+import { findDatasetLink } from "../../../src/services/rdf/energyDataset.ts";
 import { podResources } from "../../../src/services/pod/solidUtils.ts";
+import { Parser, Store } from "n3";
+import type { PodGateway } from "../../../src/services/pod/podGateway.ts";
+
+/**
+ * Discover the dataset file IRI of one annual year by reading the owner's building
+ * file and following its `cons:hasEnergyDataset` link — `writeEnergyYear` now mints
+ * a random dataset id, so the resource IRI is no longer derivable from (root, year).
+ */
+async function datasetUriForYear(
+  gateway: PodGateway,
+  buildingFileUri: string,
+  subjectUri: string,
+  y: number,
+): Promise<string> {
+  const res = await gateway.fetch(`${buildingFileUri}?t=${Date.now()}`);
+  const store = new Store(new Parser({ baseIRI: buildingFileUri }).parse(await res.text()));
+  const node = findDatasetLink(store, subjectUri, y, "P1Y", "actual");
+  if (!node) throw new Error(`no annual dataset link for ${y} in ${buildingFileUri}`);
+  return node.split("#")[0];
+}
 
 import {
   buildingFileUri,
@@ -85,7 +105,7 @@ export async function run(ctx: TaskContext): Promise<void> {
 
     // 1. Projection exact at share time: B reads the building + the 2023
     //    dataset, and the dry-run audit agrees (full pair coverage, not a sample).
-    const ds2023 = datasetFileUri(fileUri, 2023, "P1Y", "actual");
+    const ds2023 = await datasetUriForYear(a.session, fileUri, subjectUri, 2023);
     const bBuilding = await b.raw.fetch(`${fileUri}?t=${Date.now()}`);
     check("B reads the shared building", bBuilding.ok, `HTTP ${bBuilding.status}`);
     const b2023 = await b.raw.fetch(`${ds2023}?t=${Date.now()}`);
@@ -101,7 +121,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     //    year, then reconcile — B reads the new year immediately, no repair.
     await writeEnergyYear(a.session, fileUri, subjectUri, year(2024, 90_000));
     await reconcileBuildingGrants(fileUri, a.session);
-    const ds2024 = datasetFileUri(fileUri, 2024, "P1Y", "actual");
+    const ds2024 = await datasetUriForYear(a.session, fileUri, subjectUri, 2024);
     const b2024 = await b.raw.fetch(`${ds2024}?t=${Date.now()}`);
     check(
       "year written through the app's write path IS readable by B (write-path reconciliation)",
@@ -119,7 +139,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     //    write (= a failed reconcile) still drifts — detected by the audit,
     //    closed by the repair.
     await writeEnergyYear(a.session, fileUri, subjectUri, year(2025, 80_000));
-    const ds2025 = datasetFileUri(fileUri, 2025, "P1Y", "actual");
+    const ds2025 = await datasetUriForYear(a.session, fileUri, subjectUri, 2025);
     const b2025drift = await b.raw.fetch(`${ds2025}?t=${Date.now()}`);
     check(
       "a bare write without the reconcile drifts (B 403s on the new dataset)",

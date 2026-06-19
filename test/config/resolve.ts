@@ -35,14 +35,14 @@ const DEFAULT_SLOTS = ["A", "B", "C"]; // A = Alice, B = Bob, C = Charlie (BSP)
  *  - homogeneous (same `kind`) interoperates — including two accounts on the SAME
  *    provider/server (e.g. two solidcommunity.net Pods), the strongest case;
  *  - heterogeneous (different `kind`, e.g. NSS↔CSS-v5) is NOT assumed to work — it
- *    must be opted in via `E2E_INTEROP_OK=1` once a real pair is verified.
+ *    must be opted in via `WEBID_INTEROP_OK=1` once a real pair is verified.
  */
 function interoperates(a: TestAccount, b: TestAccount): boolean {
   // Same Pod → not a sharing pair. Compared by identity (issuer + user), not WebID,
   // since WebIDs aren't constructed pre-login any more.
   if (a.provider.issuer === b.provider.issuer && a.email === b.email) return false;
   if (a.provider.kind === b.provider.kind) return true; // homogeneous (incl. same server)
-  return getEnv("E2E_INTEROP_OK") === "1"; // heterogeneous: opt-in once verified
+  return getEnv("WEBID_INTEROP_OK") === "1"; // heterogeneous: opt-in once verified
 }
 
 export function resolveAccounts(req: AccountRequirement): Resolution {
@@ -57,7 +57,7 @@ export function resolveAccounts(req: AccountRequirement): Resolution {
     return {
       ok: false,
       reason: `need ${req.count} account(s) (${slots.join("/")}); set ` +
-        `E2E_USERNAME_/PASSWORD_/PROVIDER_ for them in test/.env.e2e.local`,
+        `WEBID_<slot>_USERNAME/_PASSWORD/_PROVIDER for them in your creds file`,
     };
   }
 

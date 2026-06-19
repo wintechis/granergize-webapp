@@ -2,7 +2,8 @@
  * Wrap a `fetch` so it retries transient throttling with exponential backoff.
  *
  * solidcommunity.net sits behind Cloudflare, which rate-limits bursts with HTTP
- * 429 (and 503). Two shapes to handle:
+ * 429 (and 503); a fronting proxy can also fail or time out an upstream with 502
+ * or 504. All four are transient and replay-safe. Two shapes to handle:
  *  - **same-origin / headless:** the 429/503 comes back as a readable Response.
  *  - **cross-origin browser:** Cloudflare's 429 error page carries no
  *    `Access-Control-Allow-Origin`, so the browser blocks it and the underlying
@@ -33,7 +34,12 @@ export interface RetryOptions {
   timeoutMs?: number;
 }
 
-const RETRYABLE_STATUS = new Set([429, 503]);
+// 429/503 are Cloudflare throttling; 502/504 are an upstream/proxy that failed
+// or timed out before applying the request — equally transient and replay-safe
+// (our writes are PUT-whole-file / re-read-then-write / fold-latest append). 500
+// is deliberately EXCLUDED: it can be a deterministic server error, so retrying it
+// just hammers a request that will keep failing.
+const RETRYABLE_STATUS = new Set([429, 502, 503, 504]);
 const DEFAULT_TIMEOUT_MS = 60_000;
 
 /** Caller signal (if any) combined with a per-attempt timeout signal, so either

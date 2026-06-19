@@ -61,9 +61,15 @@ export async function discoverWebId(
   const webIdControl: string | undefined = acct?.controls?.account?.webId;
   if (!webIdControl) throw new Error("CSS account API exposes no webId control");
   const doc = await (await fetch(webIdControl, { headers: auth })).json();
-  const webIds = Object.keys(doc?.webIdLinks ?? {});
-  if (webIds.length === 0) throw new Error(`CSS account ${email} has no linked WebID`);
-  return webIds[0];
+  // `webIdLinks` shape differs by CSS version: newer CSS keys each entry by the
+  // link-RESOURCE URL with the actual IRI in `{ webId }`; older CSS keys it by the
+  // WebID IRI directly. Prefer the nested `webId`, fall back to the key.
+  const entries = Object.entries(
+    (doc?.webIdLinks ?? {}) as Record<string, { webId?: string }>,
+  );
+  if (entries.length === 0) throw new Error(`CSS account ${email} has no linked WebID`);
+  const [linkKey, linkVal] = entries[0];
+  return linkVal?.webId ?? linkKey;
 }
 
 /**
@@ -98,13 +104,27 @@ export async function getLiveSession(
       Authorization: `CSS-Account-Token ${accountToken}`,
       "Content-Type": "application/json",
     },
-    body: JSON.stringify({ name: "granergize-datalayer-it", webId }),
+    body: JSON.stringify({
+      // Unique per mint: CSS rejects a duplicate credential name, so a fixed name
+      // collides when several sessions share one account (or when a prior run
+      // crashed before `dispose` deleted it).
+      name: `granergize-datalayer-it-${crypto.randomUUID().slice(0, 8)}`,
+      webId,
+    }),
   })).json();
   const { id, secret, resource } = cc as {
-    id: string;
-    secret: string;
+    id?: string;
+    secret?: string;
     resource?: string;
   };
+  // Mint can fail (e.g. CSS 403 "webId is not linked to a pod owned by this
+  // account" when the WebID was mis-discovered) — surface that here instead of
+  // letting undefined id/secret reach the token endpoint as an opaque 401.
+  if (!id || !secret) {
+    throw new Error(
+      `client-credentials mint failed for ${webId}: ${JSON.stringify(cc)}`,
+    );
+  }
 
   // 4. Our own extractable ES256 keypair for DPoP proofs.
   const { publicKey, privateKey } = await generateKeyPair("ES256", {

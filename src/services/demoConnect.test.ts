@@ -8,6 +8,7 @@ import {
 import { readContacts } from "./contacts.ts";
 import { getCurrentRoom } from "./interop/dataRoom.ts";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
+import { withRetry } from "./pod/retryFetch.ts";
 import { makeFakeSession } from "./testing/fakeSession.ts";
 
 const ALICE = "https://alice.example/profile/card#me";
@@ -54,6 +55,32 @@ Deno.test("seedDemoContacts tallies a partial failure instead of throwing", asyn
   });
   const { seeded, total } = await seedDemoContacts(session);
   assert.equal(seeded, total - 1);
+});
+
+Deno.test("seedDemoContacts: a transient 502 on one write is retried, not tallied as a miss", async () => {
+  // The user-reported "Added {n} of {total}" partial: a one-off transient failure
+  // on a single write among the ~40 a seed makes. 502/504 are now retryable, so
+  // production's withRetry-wrapped gateway.fetch absorbs the blip. Mirror that
+  // wrapping here (the fake session is the raw transport) and inject ONE 502.
+  let failed502 = false;
+  const { session } = makeFakeSession({
+    webId: ALICE,
+    etags: true,
+    respond: (url, init) => {
+      if (
+        (init?.method ?? "GET").toUpperCase() === "PUT" &&
+        url.endsWith("/bruno-becker.ttl") && !failed502
+      ) {
+        failed502 = true;
+        return new Response(null, { status: 502 });
+      }
+      return undefined;
+    },
+  });
+  const gateway = { ...session, fetch: withRetry(session.fetch, { baseDelayMs: 0 }) };
+  const { seeded, total } = await seedDemoContacts(gateway);
+  assert.ok(failed502, "the transient 502 path was exercised");
+  assert.equal(seeded, total); // retried → full tally, no partial
 });
 
 Deno.test("seedDemoRooms creates the requested rooms on the own Pod, last one current", async () => {

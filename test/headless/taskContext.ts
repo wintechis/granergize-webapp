@@ -6,15 +6,15 @@
  * pass/fail summary across all tasks. `snapshot`/`restore` (and diff-delete in the
  * tasks) keep each task self-cleaning so the local CSS is left as found.
  */
-import type { Session } from "@inrupt/solid-client-authn-browser";
+import type { PodGateway } from "../../src/services/pod/podGateway.ts";
 import type { LiveSessionLike } from "./liveSession.ts";
 
-/** A headless actor: the app `Session` for data-layer calls + the raw handle for
- * direct fetches (snapshot/restore, ACL-enforcement truth checks). */
+/** A headless actor: the app `PodGateway` for data-layer calls + the raw handle
+ * for direct fetches (snapshot/restore, ACL-enforcement truth checks). */
 export interface Actor {
   slot: string;
   webId: string;
-  session: Session;
+  session: PodGateway;
   raw: LiveSessionLike;
 }
 

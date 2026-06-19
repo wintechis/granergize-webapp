@@ -164,6 +164,58 @@ All notable changes to the Granergize WebApp project will be documented in this 
 - **Building detail page: files & sharing surface right after energy.** Reordered the building page so
   Files and Sharing sit directly below the Energy summary — ahead of the profile / roof / neighbourhood
   / regional ("statistics") sections — instead of at the bottom of the page.
+- **External-source registry in `vocab/`: one note per source id.** Documented every
+  external source the app touches as its own `vocab/*.md`, in a shared shape (what it
+  is, its RDF vocabulary/entities, the correspondence to our buildings/aggregations
+  model and where it breaks, the shared LDP/RDF patterns, and its divergence): the
+  `wunderfacts.com` Linked-Data wrappers (`mastr`, `wetterdienst`, `regionalstatistik`,
+  `nuts`, `lau`, `inspire`, `energieatlas`, `lod2-by`), the bundled `pvgis` yield grid,
+  and the non-RDF services (`nominatim`, `basemap`, `bavaria-dop`, `wikidata`,
+  `commons`, `nhr-llm`). Each is self-contained (links only within `vocab/`). Recurring
+  conventions surfaced: subordinate hash-fragment nodes, materialised-projection-when-
+  the-consumer-can't-fold, place modelled twice (owned point vs borrowed SKOS region),
+  PROV/licence chaining, and the org×role caveat that the MaStR operator resource fuses
+  organisation and role.
+- **Provenance of externally-derived data is recorded in the Pod Turtle.** The two
+  runtime cases that bake external data into a user's Pod now cite their source.
+  Nominatim-geocoded coordinates: the building's `geo:Point` gains
+  `prov:wasDerivedFrom` a `prov:Entity` carrying `foaf:name "© OpenStreetMap
+  contributors"`, `dcterms:source` (Nominatim) and `dcterms:license` (ODbL) — gated on
+  `bldg:geocodePrecision`, which only the geocoder sets, so coordinates from a partner
+  file / import / manual entry carry no false OSM claim. Wikidata→Wikimedia-Commons org
+  logos: on `saveOrganization`, when the org has a Wikidata `owl:sameAs` and no logo of
+  its own, the resolved Commons logo is persisted as `foaf:logo` with
+  `prov:wasDerivedFrom`/`dcterms:source` the Wikidata entity (an uploaded logo is always
+  preserved). New PROV/DCTERMS vocabulary constants; offline-fixture tests for both
+  (serializer + organisation manager). Render-only sources (weather, regional stats,
+  energieatlas, NUTS/LAU, the LoD2/PVGIS rooftop estimate) persist nothing, so need no
+  Pod-side provenance; the MaStR/OSM/INSPIRE import's `prov:wasDerivedFrom` is designed
+  and lands when that pipeline ships.
+
+## [2026-06-18]
+- **Tests gain a (kind × backend × mode) shape and a working `headless:remote` lane.**
+  Reframed the four linear "Tiers" as orthogonal axes — `unit`/`headless`/`e2e` ×
+  `local`/`remote`, with a `mode` (assert/measure/judge) placing benchmarks and evals —
+  and built the missing `headless:remote` cell: `deno task it:remote` runs the same
+  headless task modules against a real Solid server via a provider-pluggable session
+  source (`test/headless/sessionSource.ts`), reusing the shared account registry.
+  Validated against the Fraunhofer test CSS (50/71 — the failures are real
+  read-after-write / ETag-conflict / ACL-inheritance divergences a hermetic local server
+  can't surface, not app regressions). Relocated the live Wikidata-logo check out of the
+  `unit` glob to `test/headless/contract/` (`deno task it:contract`) so `unit` is provably
+  hermetic (0 ignored). Fixed the headless runner + tasks for the PodGateway flattening
+  (Tier-2 was silently broken) and added a deterministic `contacts` task. Renamed
+  test-account creds from the narrow `E2E_*` prefix to a neutral `WEBID_<slot>_*` scheme
+  shared by e2e, bench and headless:remote (e2e run-mode flags like `E2E_LOCAL` stay);
+  dropped the redundant `.env.it-remote.*` files. CLAUDE.md and `test/README.md` document
+  the grid.
+- **Demo seeding survives a transient write blip.** A one-off `502`/`504` on a single write no
+  longer drops it from a demo-seed (the "Added {n} of {total}" partial): `withRetry` now treats
+  `502`/`504` as transient and replay-safe alongside `429`/`503` (`500` stays non-retryable), so
+  every idempotent Pod write rides out a momentary upstream/proxy failure. Adds an e2e guard for
+  the dev-menu seed flow (`seed-demos.spec.ts`) and a headless concurrency-burst hunt
+  (`it seed-demos`). Also wires the Fraunhofer test Pod as a provider and fixes `headless:remote`
+  WebID discovery for modern CSS (v7 nests the IRI in `webIdLinks[url].webId`).
 - **Rooftop: the actual roof geometry, shaded by PV yield.** The building page now draws the
   building's LoD2 roof surfaces as a top-down plan (`RoofPlan`) — each roof face an SVG polygon
   from `linked-lod2-by`'s `gsp:asWKT` footprint (verified against the live wrapper), shaded by

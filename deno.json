@@ -5,8 +5,8 @@
     "dev:local": "deno run -A test/e2e-local/dev.ts",
     "dev:local:jss": "LOCAL_POD_SERVER=jss deno task dev:local",
     "build": "deno run -A npm:vite build",
-    "test": "deno test -A",
-    "test:live": "LIVE=1 deno test -A src/services/agents/wikidataLogo.live.test.ts",
+    "test": "deno test -A --ignore=test/headless/contract/",
+    "it:contract": "deno test -A test/headless/contract/",
     "eval:intent": "deno run -A --env-file=.env.local test/eval/intent-translation.eval.ts",
     "eval:sweep": "deno run -A --env-file=.env.local test/eval/sweep.ts",
     "gen:labels": "deno run --allow-env --allow-read --allow-write scripts/genVocabLabels.ts",
@@ -25,6 +25,7 @@
     "e2e:install": "npx playwright install --with-deps chromium",
     "it": "LOCAL_PORT_OFFSET=20 deno run -A --node-modules-dir=auto test/headless/runner.ts",
     "it:jss": "LOCAL_POD_SERVER=jss deno task it",
+    "it:remote": "IT_REMOTE=1 deno run -A --node-modules-dir=auto test/headless/runner.ts",
     "bench": "LOCAL_POD_SERVER=jss LOCAL_PORT_OFFSET=20 deno run -A --node-modules-dir=auto test/bench/runner.ts",
     "bench:css": "LOCAL_POD_SERVER=css LOCAL_PORT_OFFSET=20 deno run -A --node-modules-dir=auto test/bench/runner.ts",
     "bench:ui": "VITE_OIDC_CLIENT_ID= deno task build && LOCAL_POD_SERVER=jss LOCAL_PORT_OFFSET=20 E2E_LOCAL=1 E2E_BENCH=1 npx playwright test --project=bench && deno run -A --node-modules-dir=auto test/bench/plots.ts",
@@ -38,6 +39,9 @@
   "test": {
     // Agent worktrees live INSIDE the repo dir; without this, `deno task test`
     // walks into them and a side worktree's red tests fail the main tree's run.
+    // NB: this `exclude` applies to EVERY `deno test` (even an explicit-path one),
+    // so the network-only contract lane is kept out of the unit run via `--ignore`
+    // on the `test` task instead — `it:contract` passes its path and runs it.
     "exclude": [".claude/"]
   },
   "allowScripts": ["npm:esbuild@0.21.5"]

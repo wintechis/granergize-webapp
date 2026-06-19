@@ -24,8 +24,8 @@ import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
  * spec also runs remotely (canonical solidcommunity.net URIs; no seeding —
  * profiles there are whatever the throwaway accounts carry):
  *
- *   E2E_USERNAME_A=...  E2E_PASSWORD_A=...  [E2E_PROVIDER_A=solidcommunity] \
- *   E2E_USERNAME_B=...  E2E_PASSWORD_B=...  [E2E_PROVIDER_B=...] \
+ *   WEBID_A_USERNAME=...  WEBID_A_PASSWORD=...  [WEBID_A_PROVIDER=solidcommunity] \
+ *   WEBID_B_USERNAME=...  WEBID_B_PASSWORD=...  [WEBID_B_PROVIDER=...] \
  *     deno task e2e:remote:spec test/e2e/support/screenshots.spec.ts
  *
  * Most figures need only account A. The last figure (shared-with-you.png — the
@@ -107,7 +107,7 @@ async function dismissToasts(page: Page) {
 test.describe("handbuch screenshots", () => {
   test.skip(
     !hasAccount(ACC),
-    "Set E2E_USERNAME_A and E2E_PASSWORD_A (a throwaway solidcommunity.net Pod) to capture screenshots.",
+    "Set WEBID_A_USERNAME and WEBID_A_PASSWORD (a throwaway solidcommunity.net Pod) to capture screenshots.",
   );
 
   test("capture", async ({ page, browser }) => {
@@ -580,7 +580,7 @@ test.describe("handbuch screenshots", () => {
     const B = account("B");
     if (!hasAccount(B)) {
       console.warn(
-        "Account B not configured (E2E_USERNAME_B/PASSWORD_B); keeping the " +
+        "Account B not configured (WEBID_B_USERNAME/PASSWORD_B); keeping the " +
           "committed shared-with-you.png and skipping its recapture.",
       );
       return;

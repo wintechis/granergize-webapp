@@ -77,7 +77,7 @@ function systemsArchive(): Uint8Array {
 test.describe("archive import renders battery + CHP system nodes", () => {
   test.skip(
     !hasAccount(ACC),
-    "Set E2E_USERNAME_A / E2E_PASSWORD_A (a throwaway Solid Pod) to run this e2e.",
+    "Set WEBID_A_USERNAME / WEBID_A_PASSWORD (a throwaway Solid Pod) to run this e2e.",
   );
 
   let page: Page;
