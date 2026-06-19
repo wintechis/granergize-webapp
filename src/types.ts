@@ -321,6 +321,19 @@ type EnvironmentalFactor = {
 // Aggregation types
 export type AggregationType = "average" | "sum" | "min" | "max";
 
+/**
+ * The SPATIAL coordinate of an aggregation — the region its members roll up to, distinct from
+ * the ad-hoc `buildingUris` extent. `region` is a NUTS/LAU concept IRI (a `skos:Concept` served
+ * by the geo wrappers, e.g. `…/ags/09564`); `level` names which hierarchy level it sits at
+ * (e.g. "gemeinde", "kreis") — kept general so a non-administrative hierarchy can be named later.
+ * Absent on an aggregation over a heterogeneous building set with no single region — such an
+ * aggregation falls back to point/centroid rendering on the map guise (plan-aggregations Slice 1).
+ */
+export interface SpatialExtent {
+  region: string; // skos:Concept IRI (the region node)
+  level: string; // hierarchy level / which hierarchy
+}
+
 export interface AggregationDefinition {
   id: string;
   name: string;
@@ -335,6 +348,8 @@ export interface AggregationDefinition {
    * strip it. The covered year (metricPeriod) is derived from the data at
    * compute time, not stored. */
   benchmark?: boolean;
+  /** The region this aggregation covers, when its members roll up to one. */
+  spatialExtent?: SpatialExtent;
 }
 
 export interface AggregationSnapshot {
@@ -351,6 +366,9 @@ export interface AggregationSnapshot {
   isBenchmark?: boolean;
   computedBy?: string; // WebID of the computing agent (bench:computedBy)
   metricPeriod?: string; // year the metrics cover (bench:metricPeriod), e.g. "2024"
+  /** The region this snapshot covers, when its members roll up to one — recorded IN the
+   * snapshot Turtle so a shared snapshot stays self-sufficient (replayable by the recipient). */
+  spatialExtent?: SpatialExtent;
 }
 
 export interface SharedAggregation {

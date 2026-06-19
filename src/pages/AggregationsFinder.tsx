@@ -4,6 +4,8 @@ import {
   Button,
   IconButton,
   Stack,
+  ToggleButton,
+  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -52,6 +54,7 @@ import ReceivedAggregationRow from "../components/aggregation/ReceivedAggregatio
 import type { ReceivedAggregation } from "../services/interop/sharingManager.ts";
 import ShareAggregationDialog from "../components/ShareAggregationDialog.tsx";
 import CreateAggregationDialog from "../components/CreateAggregationDialog.tsx";
+import AggregationsMap from "../components/aggregation/AggregationsMap.tsx";
 
 interface AggregationsFinderProps {
   session: Session;
@@ -64,6 +67,10 @@ type AggItem =
   | { kind: "own"; def: AggregationDefinition }
   | { kind: "received"; recv: ReceivedAggregation }
   | { kind: "open"; open: OpenRegionalItem };
+
+/** The finder's collection guises (plan-aggregations Slice 3): the list (today), a region
+ * choropleth (Slice 4), and a cross-year timeline (Slice 5). URL-synced via `?guise=`. */
+type Guise = "list" | "map" | "timeline";
 
 const aggItemSearchText = (it: AggItem): string =>
   it.kind === "own"
@@ -111,6 +118,18 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
       }, { replace: true });
     }
   };
+
+  // Collection guise from the URL (`?guise=map|timeline`; absent → list). Single-select, so a
+  // plain searchParams read/write (mirroring `action` above), not the multi-select listFacet.
+  const rawGuise = searchParams.get("guise");
+  const guise: Guise = rawGuise === "map" || rawGuise === "timeline" ? rawGuise : "list";
+  const setGuise = (g: Guise) =>
+    setSearchParams((prev) => {
+      const sp = new URLSearchParams(prev);
+      if (g === "list") sp.delete("guise"); // keep the default URL clean
+      else sp.set("guise", g);
+      return sp;
+    }, { replace: true });
 
   const aggregationDefsQuery = useAggregationDefinitions();
   const aggregationDefinitions = aggregationDefsQuery.data ?? [];
@@ -220,6 +239,20 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                 aggregations), even with a single tier, so the source-tier
                 affordance stays discoverable. */}
             <TierFilter facet={tierFacet} options={AGGREGATION_TIERS} />
+            <Box sx={{ flexGrow: 1 }} />
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={guise}
+              onChange={(_e, next: Guise | null) => {
+                if (next) setGuise(next); // ignore deselect of the active button
+              }}
+              aria-label={t("aggGuiseAria")}
+            >
+              <ToggleButton value="list">{t("btnList")}</ToggleButton>
+              <ToggleButton value="map">{t("btnMap")}</ToggleButton>
+              <ToggleButton value="timeline">{t("guiseTimeline")}</ToggleButton>
+            </ToggleButtonGroup>
           </Stack>
         )}
         {aggregationDefsQuery.isLoading
@@ -228,6 +261,16 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
           ? (
             <Typography variant="body2">
               {t("aggregationsEmpty")}
+            </Typography>
+          )
+          : guise === "map"
+          // Slice 4: own aggregations on the Kreis choropleth (its own empty/loading states).
+          ? <AggregationsMap definitions={aggregationDefinitions} />
+          : guise === "timeline"
+          ? (
+            // Slice 5 fills this; until then it names what it will show.
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
+              {t("aggGuiseTimelineSoon")}
             </Typography>
           )
           : filteredItems.length === 0
@@ -373,7 +416,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
               })}
             </Box>
           )}
-        <Pager paging={aggregationPaging} />
+        {guise === "list" && <Pager paging={aggregationPaging} />}
       </section>
 
       {/* Outgoing-share log — the append-only record of buildings and aggregations you've

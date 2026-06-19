@@ -16,6 +16,8 @@
  * is split out pure for offline unit-testing.
  */
 import { trackedFetch } from "../lib/networkActivity.ts";
+import { parseRdfText } from "./rdf/rdfHelpers.ts";
+import { SKOS_NS } from "./rdf/vocabularies.ts";
 
 /**
  * Region grain — Bundesland (NUTS-1, 2-digit AGS) and Kreis (NUTS-3, 5-digit AGS)
@@ -142,4 +144,62 @@ export async function fetchRegionGeometry(
     throw new Error(`HTTP ${res.status} fetching region geometry (${grain})`);
   }
   return normalizeRegionGeometry(await res.json());
+}
+
+/**
+ * The point-in-region lookup IRI: `…/contains?lat=&lon=` resolves the region whose polygon
+ * contains the point. We ask **linked-lau** for the Gemeinde (LAU); since the AGS nests by prefix
+ * (Gemeinde → Kreis → Land), that one answer derives every coarser grain, so the NUTS wrapper
+ * isn't needed here.
+ */
+export function regionContainsUrl(lat: number, long: number): string {
+  const base = wrapperBase("VITE_LAU_API_URI", "https://wunderfacts.com/lau/");
+  return `${base}contains?lat=${lat}&lon=${long}`;
+}
+
+/**
+ * The national (NUTS-0 `DE`, "Deutschland") region concept IRI — the catch-all extent for an
+ * aggregation whose members span several Bundesländer (so they share no Land-or-finer AGS). It's a
+ * NUTS concept, not an AGS one: AGS has no national code (it starts at the 2-digit Land), so this
+ * references the linked-nuts `DE` `skos:Concept` rather than the `…/ags/{code}` scheme the finer
+ * levels use. There is no national choropleth polygon, so this never shades on the Kreis/Land map.
+ */
+export function nationalRegionUrl(): string {
+  const base = wrapperBase("VITE_NUTS_API_URI", "https://wunderfacts.com/nuts/");
+  return `${base}nuts/DE#it`;
+}
+
+/**
+ * The 8-digit Gemeinde AGS from a linked-lau `/contains` SKOS response, or `null` when nothing
+ * contains the point. The wrapper returns the containing Gemeinde as a `skos:Concept` whose
+ * `skos:notation` is the AGS prefixed `DE_` (e.g. `"DE_09564000"`); we strip non-digits and keep
+ * the entry that yields exactly 8 (the Gemeinde — coarser NUTS concepts, if present, notate as
+ * `DE25`/`DE254`, which don't). Pure.
+ */
+export function gemeindeAgsFromContains(turtle: string, baseIri: string): string | null {
+  const store = parseRdfText(turtle, baseIri);
+  for (const q of store.getQuads(null, `${SKOS_NS}notation`, null, null)) {
+    const digits = q.object.value.replace(/\D/g, "");
+    if (digits.length === 8) return digits;
+  }
+  return null;
+}
+
+/**
+ * Resolve the 8-digit Gemeinde AGS whose LAU polygon contains (`lat`, `long`), via the wrapper's
+ * `/contains` lookup. Best-effort: `null` outside the layer's coverage / when nothing matches
+ * (the aggregation then declines a region — point/centroid fallback).
+ */
+export async function fetchContainingGemeindeAgs(
+  lat: number,
+  long: number,
+): Promise<string | null> {
+  const url = regionContainsUrl(lat, long);
+  const res = await trackedFetch(
+    url,
+    { headers: { Accept: "text/turtle" } },
+    "region contains (LAU)",
+  );
+  if (!res.ok) return null;
+  return gemeindeAgsFromContains(await res.text(), url);
 }

@@ -1,9 +1,10 @@
 import type { PodGateway } from "../pod/podGateway.ts";
-import { DataFactory, Parser, Store, Writer } from "n3";
+import { DataFactory, Parser, Store, type Term, Writer } from "n3";
 import { podResources } from "../pod/solidUtils.ts";
 import type {
   AggregationDefinition,
   AggregationSnapshot,
+  SpatialExtent,
 } from "../../types.ts";
 import {
   BENCH_COMPUTED_BY,
@@ -30,6 +31,35 @@ import { logError } from "../../lib/logError.ts";
 const { namedNode, literal, quad, blankNode } = DataFactory;
 
 const VOCAB_PREFIX = CONSUMPTION_NS;
+
+const SPATIAL_EXTENT = `${VOCAB_PREFIX}spatialExtent`;
+const EXTENT_LEVEL = `${VOCAB_PREFIX}extentLevel`;
+
+/** Write an aggregation's spatial coordinate (region node + level) onto `node`. */
+function addSpatialExtent(
+  store: Store,
+  node: ReturnType<typeof namedNode>,
+  extent: SpatialExtent,
+): void {
+  store.addQuad(quad(node, namedNode(SPATIAL_EXTENT), namedNode(extent.region)));
+  store.addQuad(quad(node, namedNode(EXTENT_LEVEL), literal(extent.level)));
+}
+
+/** Read an aggregation's spatial coordinate back (a spreadable patch — `{}` when none was
+ *  recorded, mirroring the benchmark-field reads). */
+function readSpatialExtent(
+  store: Store,
+  node: Term,
+): { spatialExtent: SpatialExtent } | Record<never, never> {
+  const region = getQuadValue(store, node, namedNode(SPATIAL_EXTENT));
+  if (!region) return {};
+  return {
+    spatialExtent: {
+      region,
+      level: getQuadValue(store, node, namedNode(EXTENT_LEVEL)) ?? "",
+    },
+  };
+}
 
 /**
  * Standard prefixes for Turtle serialization
@@ -107,9 +137,9 @@ export async function createAggregationDefinition(
   buildingUris: string[],
   aggregationType: AggregationDefinition["aggregationType"],
   metrics: string[],
-  opts: { period?: string; benchmark?: boolean } = {},
+  opts: { period?: string; benchmark?: boolean; spatialExtent?: SpatialExtent } = {},
 ): Promise<AggregationDefinition> {
-  const { period, benchmark } = opts;
+  const { period, benchmark, spatialExtent } = opts;
   if (!gateway.webId) {
     throw new Error("User is not logged in");
   }
@@ -130,6 +160,7 @@ export async function createAggregationDefinition(
     createdAt: now,
     ...(period ? { period } : {}),
     ...(benchmark ? { benchmark } : {}),
+    ...(spatialExtent ? { spatialExtent } : {}),
   };
 
   const aggregationNode = aggregationNodeFor(webId, aggregationId);
@@ -187,6 +218,9 @@ export async function createAggregationDefinition(
       literal(metric),
     ));
   }
+  // The region coordinate (when the member set rolls up to one) — distinct from the
+  // private includesBuilding set; the load-bearing axis for the map/timeline guises.
+  if (spatialExtent) addSpatialExtent(store, aggregationNode, spatialExtent);
 
   const res = await gateway.fetch(definitionUri, {
     method: "PUT",
@@ -237,6 +271,7 @@ function parseAggregationDefinition(store: Store): AggregationDefinition | null 
         "true"
       ? { benchmark: true }
       : {}),
+    ...readSpatialExtent(store, aggregationNode),
   };
 }
 
@@ -385,6 +420,10 @@ export async function storeComputedSnapshot(
       ));
     }
   }
+
+  // The region coordinate, recorded IN the snapshot so a shared copy stays self-sufficient
+  // (the recipient reads it without re-deriving from the private member set).
+  if (snapshot.spatialExtent) addSpatialExtent(store, snapshotNode, snapshot.spatialExtent);
 
   // Add metrics
   for (const metric of snapshot.metrics) {
@@ -623,6 +662,7 @@ export async function loadComputedSnapshot(
     ...(isBenchmark ? { isBenchmark } : {}),
     ...(computedBy ? { computedBy } : {}),
     ...(metricPeriod ? { metricPeriod } : {}),
+    ...readSpatialExtent(store, snapshotNode),
   };
 }
 

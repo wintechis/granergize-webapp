@@ -9,6 +9,7 @@ import type {
 import { QueryClient } from "@tanstack/react-query";
 import {
   computeAggregation,
+  resolveSpatialExtent,
   summarizeContributors,
 } from "./aggregationComputer.ts";
 import { CONSUMPTION_NS } from "../rdf/vocabularies.ts";
@@ -224,6 +225,58 @@ Deno.test("computeAggregation: a metric absent from the data is omitted", async 
   );
   assert.equal(snap.values[METRIC], 100);
   assert.equal("heatConsumption" in snap.values, false);
+});
+
+Deno.test("resolveSpatialExtent: folds members to their finest shared region", async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  qc.setQueryData(["buildings", "me"], {
+    buildings: [
+      { uri: B1, lat: 49.45, long: 11.07 },
+      { uri: B2, lat: 49.46, long: 11.08 },
+    ],
+  });
+  _setAppQueryClient(qc);
+  try {
+    // Both in the same Gemeinde → Gemeinde grain.
+    const gem = await resolveSpatialExtent([B1, B2], () => Promise.resolve("09564000"));
+    assert.equal(gem?.level, "gemeinde");
+    assert.ok(gem?.region.endsWith("/ags/09564000"));
+
+    // Different Gemeinde, same Kreis → Kreis (resolver keyed by latitude).
+    const byLat = (lat: number) =>
+      Promise.resolve(lat === 49.45 ? "09564000" : "09564001");
+    assert.equal((await resolveSpatialExtent([B1, B2], byLat))?.level, "kreis");
+
+    // One member outside the layer (null) → all-or-nothing → no region.
+    const partial = await resolveSpatialExtent(
+      [B1, B2],
+      (lat) => Promise.resolve(lat === 49.45 ? "09564000" : null),
+    );
+    assert.equal(partial, undefined);
+  } finally {
+    _setAppQueryClient(null);
+  }
+});
+
+Deno.test("resolveSpatialExtent: a building without coordinates → no region, no lookup", async () => {
+  const qc = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  qc.setQueryData(["buildings", "me"], { buildings: [{ uri: B1 }] }); // no lat/long
+  _setAppQueryClient(qc);
+  try {
+    let called = false;
+    const r = await resolveSpatialExtent([B1], () => {
+      called = true;
+      return Promise.resolve("09564000");
+    });
+    assert.equal(r, undefined);
+    assert.equal(called, false, "no lookup fires for a building without coordinates");
+  } finally {
+    _setAppQueryClient(null);
+  }
+});
+
+Deno.test("resolveSpatialExtent: empty set → undefined (no lookup)", async () => {
+  assert.equal(await resolveSpatialExtent([]), undefined);
 });
 
 Deno.test("computeAggregation: a benchmark-flagged DEFINITION marks the snapshot (typing survives any recompute)", async () => {

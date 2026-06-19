@@ -26,6 +26,7 @@ import type {
   AggregationType,
   BuildingType,
 } from "../types.ts";
+import type { RegionLevel } from "../services/aggregation/regionRollup.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { monthsFromDays, selectedSeriesRefs } from "./createAggregationMonths.ts";
 import { useSeriesDays, useSharedWithMe } from "../hooks/queries.ts";
@@ -147,6 +148,10 @@ export default function CreateAggregationDialog({
   const creating = create.isPending;
   const [aggregationName, setAggregationName] = useState("");
   const [selectedBuildings, setSelectedBuildings] = useState<string[]>([]);
+  // The region grain to record as the aggregation's spatial extent (Slice 6). "auto" → inferred
+  // at the finest shared region; a chosen level coarsens to that grain (or records none if the
+  // buildings don't share it).
+  const [extentLevel, setExtentLevel] = useState<RegionLevel | "auto">("auto");
   const [aggregationType, setAggregationType] = useState<AggregationType>(
     "average",
   );
@@ -259,6 +264,7 @@ export default function CreateAggregationDialog({
         metrics: mode === "monthly" ? ["electricity"] : selectedMetrics,
         period: mode === "monthly" ? effectivePeriod : undefined,
         benchmark: mode === "benchmark",
+        extentLevel: extentLevel === "auto" ? undefined : extentLevel,
       },
       {
         onSuccess: () => {
@@ -299,6 +305,27 @@ export default function CreateAggregationDialog({
         onChange={setSelectedBuildings}
       />
     </Box>
+  );
+
+  // The region grain the aggregation reports at — a first-class choice (Slice 6) rather than
+  // only the inferred finest. Resolved from the selected buildings at create.
+  const extentSelect = (
+    <FormControl size="small" sx={{ mb: 3, minWidth: 220 }}>
+      <InputLabel id="extent-level-label">{msg("aggExtentLabel")}</InputLabel>
+      <Select
+        labelId="extent-level-label"
+        label={msg("aggExtentLabel")}
+        value={extentLevel}
+        onChange={(e) => setExtentLevel(e.target.value as RegionLevel | "auto")}
+      >
+        <MenuItem value="auto">{msg("aggExtentAuto")}</MenuItem>
+        <MenuItem value="gemeinde">{msg("aggExtentGemeinde")}</MenuItem>
+        <MenuItem value="kreis">{msg("aggExtentKreis")}</MenuItem>
+        <MenuItem value="land">{msg("aggExtentLand")}</MenuItem>
+        <MenuItem value="bund">{msg("aggExtentBund")}</MenuItem>
+      </Select>
+      <FormHelperText>{msg("aggExtentHelp")}</FormHelperText>
+    </FormControl>
   );
 
   // One render, used by both branches (was duplicated inline in the monthly
@@ -412,6 +439,8 @@ export default function CreateAggregationDialog({
               )}
 
               {aggregationRadio(1)}
+
+              {extentSelect}
           </>
         )
         : (
@@ -437,6 +466,8 @@ export default function CreateAggregationDialog({
               />
 
               {buildingSelect}
+
+              {extentSelect}
 
               {aggregationRadio(3)}
 

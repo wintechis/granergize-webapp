@@ -146,6 +146,7 @@ export const INTENT_PARAMS = {
     metrics: { nodeKind: "literal", range: XSD_STRING, cardinality: "many" },
     period: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
     benchmark: { nodeKind: "literal", range: XSD_BOOLEAN, cardinality: "optional" },
+    extentLevel: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
   },
   DeleteAggregation: {
     aggregationId: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },

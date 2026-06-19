@@ -1761,6 +1761,50 @@ export const MESSAGES = {
     de: "Gebäudeansicht",
     fr: "Vue des bâtiments",
   },
+  // Aggregations finder guise toggle (list | map | timeline).
+  guiseTimeline: { en: "Timeline", de: "Zeitverlauf", fr: "Chronologie" },
+  aggGuiseAria: {
+    en: "Aggregations view",
+    de: "Aggregationsansicht",
+    fr: "Vue des agrégations",
+  },
+  aggExtentLabel: {
+    en: "Region level",
+    de: "Regionsebene",
+    fr: "Niveau de région",
+  },
+  aggExtentHelp: {
+    en: "Resolved from the selected buildings; “Automatic” uses the finest region they share.",
+    de:
+      "Aus den gewählten Gebäuden bestimmt; „Automatisch“ nimmt die feinste gemeinsame Region.",
+    fr:
+      "Déterminé d’après les bâtiments sélectionnés ; « Automatique » prend la région commune la plus fine.",
+  },
+  aggExtentAuto: { en: "Automatic", de: "Automatisch", fr: "Automatique" },
+  aggExtentGemeinde: { en: "Municipality", de: "Gemeinde", fr: "Commune" },
+  aggExtentKreis: { en: "District", de: "Kreis", fr: "Arrondissement" },
+  aggExtentLand: { en: "State", de: "Bundesland", fr: "Land" },
+  aggExtentBund: { en: "Germany", de: "Deutschland", fr: "Allemagne" },
+  aggMapEmpty: {
+    en: "No own aggregations to map yet.",
+    de: "Noch keine eigenen Aggregationen für die Karte.",
+    fr: "Aucune agrégation propre à cartographier pour le moment.",
+  },
+  aggMapTooltip: {
+    en: "{aggs} aggregation(s) · {buildings} buildings",
+    de: "{aggs} Aggregation(en) · {buildings} Gebäude",
+    fr: "{aggs} agrégation(s) · {buildings} bâtiments",
+  },
+  aggMapUnplaced: {
+    en: "Not placed ({count}) — no single shared region, or only a Bundesland:",
+    de: "Nicht verortet ({count}) — keine gemeinsame Region oder nur ein Bundesland:",
+    fr: "Non localisées ({count}) — pas de région commune, ou seulement un Land :",
+  },
+  aggGuiseTimelineSoon: {
+    en: "Timeline view — the rollup across years for a region. Coming soon.",
+    de: "Zeitverlauf — die Aggregation über die Jahre für eine Region. In Kürze.",
+    fr: "Vue chronologique — le cumul par année pour une région. Bientôt disponible.",
+  },
   bldgsAutofillFromFile: {
     en: "Autofill from file",
     de: "Aus Datei ausfüllen",

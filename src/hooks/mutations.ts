@@ -12,6 +12,7 @@ import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
 import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
 import type { Organization } from "../services/organization/organizationManager.ts";
 import type { Contact } from "../services/contacts.ts";
+import type { RegionLevel } from "../services/aggregation/regionRollup.ts";
 import type {
   AggregationDefinition,
   AttachmentRef,
@@ -365,6 +366,7 @@ export function useCreateAggregation() {
       metrics: string[];
       period?: string;
       benchmark?: boolean;
+      extentLevel?: RegionLevel;
     }) => invoke("CreateAggregation", vars, getGateway()),
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.aggregationDefinitions }),
   });

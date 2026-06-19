@@ -326,6 +326,16 @@ export function regionalGeoUrl(table: RegionalTable, ags: string): string {
   return `${base}ags/${ags}`;
 }
 
+/**
+ * The canonical `…/ags/{code}` region-concept IRI for a German AGS at ANY grain (2-digit Land /
+ * 5-digit Kreis / 8-digit Gemeinde) — the same geo-dimension value the cube indexes by (the
+ * `"ags"` branch of {@link regionalGeoUrl}, table-independent), used as the spatial coordinate of
+ * an aggregation and the AGS-keyed join into the choropleth.
+ */
+export function agsConceptUrl(ags: string): string {
+  return `${regionalstatistikBase()}ags/${ags}`;
+}
+
 const SKOS_NOTATION = `${SKOS_NS}notation`;
 const SKOS_PREF_LABEL = `${SKOS_NS}prefLabel`;
 

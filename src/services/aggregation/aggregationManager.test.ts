@@ -208,6 +208,74 @@ Deno.test("createAggregationDefinition persists the benchmark flag and round-tri
   assert.equal((await getAggregationDefinition(session, plain.id))?.benchmark, undefined);
 });
 
+Deno.test("spatial extent round-trips on a definition (Turtle + parse)", async () => {
+  const { session, store } = makeSession();
+  const extent = {
+    region: "https://wunderfacts.com/lau/ags/09564",
+    level: "gemeinde",
+  };
+  const v = await createAggregationDefinition(
+    session,
+    "Nürnberg avg",
+    [],
+    "average",
+    ["heatConsumption"],
+    { spatialExtent: extent },
+  );
+  assert.deepEqual(v.spatialExtent, extent);
+
+  // Serialised as a region object-property + a level literal.
+  const s = parse(store[`${AGGREGATIONS}${v.id}.ttl`]);
+  assert.equal(s.getObjects(null, `${CONS}spatialExtent`, null)[0]?.value, extent.region);
+  assert.equal(s.getObjects(null, `${CONS}extentLevel`, null)[0]?.value, extent.level);
+
+  // And parses back.
+  assert.deepEqual((await getAggregationDefinition(session, v.id))?.spatialExtent, extent);
+
+  // A definition without a region carries none (no migration; the field stays optional).
+  const plain = await createAggregationDefinition(session, "P", [], "average", ["water"]);
+  assert.equal((await getAggregationDefinition(session, plain.id))?.spatialExtent, undefined);
+});
+
+Deno.test("spatial extent round-trips on a (self-sufficient) snapshot", async () => {
+  const { session } = makeSession();
+  const extent = {
+    region: "https://wunderfacts.com/lau/ags/09564",
+    level: "gemeinde",
+  };
+  const v = await createAggregationDefinition(session, "A", [], "average", [
+    "heatConsumption",
+  ]);
+  await storeComputedSnapshot(session, {
+    id: v.id,
+    name: "A",
+    aggregationType: "average",
+    computedAt: "2026-06-18T10:00:00Z",
+    buildingCount: 5,
+    metrics: ["heatConsumption"],
+    values: { heatConsumption: 1234.5 },
+    spatialExtent: extent,
+  });
+  const loaded = await loadComputedSnapshot(session, getSnapshotUri(WEBID, v.id));
+  assert.deepEqual(loaded?.spatialExtent, extent);
+
+  // A snapshot without a region carries none.
+  const v2 = await createAggregationDefinition(session, "B", [], "average", ["water"]);
+  await storeComputedSnapshot(session, {
+    id: v2.id,
+    name: "B",
+    aggregationType: "average",
+    computedAt: "2026-06-18T10:00:00Z",
+    buildingCount: 2,
+    metrics: ["water"],
+    values: { water: 3 },
+  });
+  assert.equal(
+    (await loadComputedSnapshot(session, getSnapshotUri(WEBID, v2.id)))?.spatialExtent,
+    undefined,
+  );
+});
+
 Deno.test("loadComputedSnapshot: 404 means absence (null), a transient failure THROWS", async () => {
   // Returning null on ANY failure once made the aggregation page's auto-compute treat
   // a throttled read of an EXISTING snapshot as "no snapshot yet" and fire a

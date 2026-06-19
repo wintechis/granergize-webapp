@@ -2,6 +2,33 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-19]
+- **Aggregations become a cube collection: a region coordinate + a map guise.** An aggregation
+  snapshot now carries a *spatial coordinate* — the NUTS/LAU region its members roll up to — so a
+  collection of aggregations is itself mappable, not just listable.
+  - **Data model.** `SpatialExtent { region (skos:Concept IRI), level }` on
+    `AggregationDefinition`/`AggregationSnapshot`; `cons:spatialExtent` (→ `skos:Concept`) +
+    `cons:extentLevel` defined in `vocab/consumption.ttl` and asserted by `vocab.test.ts`. The
+    extent is recorded **in the snapshot Turtle**, so a shared snapshot stays self-sufficient. No
+    migration (optional → old snapshots fall back to point rendering).
+  - **Computation.** `commonRegion()` folds the members' Gemeinde AGS to the finest region they
+    share — AGS *is* the hierarchy (8-digit Gemeinde → 5-digit Kreis → 2-digit Land → national
+    NUTS-0 `DE` catch-all), so it's the longest common prefix snapped to a boundary; a set spanning
+    several Bundesländer rolls up to Germany, and only a non-German/unresolvable member gets none.
+    Per-building AGS is resolved by a point-in-region lookup against **linked-lau**
+    `/contains?lat=&lon=` (`fetchContainingGemeindeAgs`, reading `skos:notation`); coords come from
+    the warm buildings cache, all-or-nothing.
+  - **Finder guises.** `AggregationsFinder` gained a URL-synced (`?guise=`) **list | map | timeline**
+    toggle. The **map** guise (`AggregationsMap`) shades your own aggregations onto the German Kreis
+    choropleth — via the shared `MagnitudeChoroplethLayer` + magnitude lens — by the number of
+    buildings each aggregates, with no-region / Land-only ones listed as "not placed". (Timeline is
+    deferred — it needs a per-year snapshot history the model doesn't keep yet.)
+  - **Create dialog.** A **Region level** select (Automatic / Municipality / District / State) makes
+    the extent grain a first-class choice (`CreateAggregation`'s new `extentLevel` param → resolve at
+    that grain → recorded on the definition); `computeAggregation` prefers the definition's extent
+    when set, else infers. Offline-fixture tested throughout; the finder guise toggle has an
+    `e2e:local` spec (green).
+
 ## [2026-06-18]
 - **Nearby rooftop solar potential — the neighbourhood view of rooftop PV.** A new section on the
   energy page (beside *Nearby generation*) lists the buildings around this one with their installable

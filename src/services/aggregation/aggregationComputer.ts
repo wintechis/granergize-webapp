@@ -6,8 +6,11 @@ import type {
   BuildingType,
   EnergyCategoryKey,
   EnergyType,
+  SpatialExtent,
 } from "../../types.ts";
 import { getAggregationDefinition, storeComputedSnapshot } from "./aggregationManager.ts";
+import { commonRegion, type RegionLevel } from "./regionRollup.ts";
+import { fetchContainingGemeindeAgs } from "../regionGeometry.ts";
 import { readStoreOrEmpty } from "../pod/podFetch.ts";
 import {
   type EnergyDatasetRef,
@@ -32,7 +35,7 @@ import { mapPooled } from "../../lib/pool.ts";
  * flake that left fresh snapshots empty — so prefer the cache and only fall back to
  * a file read. Identity is the subject IRI (`building.uri`).
  */
-function cachedBuildingRefs(buildingUri: string): EnergyDatasetRef[] | null {
+function cachedBuilding(buildingUri: string): BuildingType | null {
   const qc = getAppQueryClient();
   if (!qc) return null;
   // Prefix-match the "buildings" query root (the WebID/fingerprint tail varies),
@@ -42,9 +45,42 @@ function cachedBuildingRefs(buildingUri: string): EnergyDatasetRef[] | null {
   });
   for (const [, data] of entries) {
     const b = data?.buildings.find((x) => x.uri === buildingUri);
-    if (b) return b.energyDatasets ?? [];
+    if (b) return b;
   }
   return null;
+}
+
+function cachedBuildingRefs(buildingUri: string): EnergyDatasetRef[] | null {
+  const b = cachedBuilding(buildingUri);
+  // `null` = not cached (caller falls back to a file read); a cached building with no
+  // datasets is `[]`, which is a definitive answer (skip the read).
+  return b ? (b.energyDatasets ?? []) : null;
+}
+
+/**
+ * The aggregation's SPATIAL coordinate (plan-aggregations Slice 2): resolve each building's
+ * Gemeinde AGS by a point-in-region lookup against linked-lau (coords from the warm `useBuildings`
+ * cache), then fold to the finest region they ALL share. All-or-nothing — if any member's region
+ * can't be resolved (no coords / outside the layer / nothing cached) the aggregation declines a
+ * region and stays ad-hoc, rather than placing it from a partial set. The AGS resolver is
+ * injectable so the fold is unit-testable without the live wrapper.
+ */
+export async function resolveSpatialExtent(
+  buildingUris: string[],
+  resolveAgs: (lat: number, long: number) => Promise<string | null> =
+    fetchContainingGemeindeAgs,
+  level?: RegionLevel,
+): Promise<SpatialExtent | undefined> {
+  if (buildingUris.length === 0) return undefined;
+  const codes = (await mapPooled(buildingUris, 4, async (uri) => {
+    const b = cachedBuilding(uri);
+    if (b?.lat == null || b?.long == null) return null;
+    return await resolveAgs(b.lat, b.long);
+  })).filter((a): a is string => !!a);
+  // Every member must be placed; a partial set can't be cleanly attributed to one region.
+  if (codes.length !== buildingUris.length) return undefined;
+  // `level` (Slice 6) pins the grain the user chose; omitted → the finest shared region (Slice 2).
+  return commonRegion(codes, level);
 }
 
 /**
@@ -272,6 +308,13 @@ export async function computeAggregation(
       }
       : {};
 
+  // The region the members roll up to. A definition that already carries a spatialExtent — the
+  // user's chosen region level at create (Slice 6) — wins; otherwise infer the finest shared
+  // region (Slice 2). Best-effort: omitted when the set spans regions or can't be placed.
+  const spatialExtent = aggregationDefinition.spatialExtent ??
+    await resolveSpatialExtent(buildingUris);
+  const extentFields = spatialExtent ? { spatialExtent } : {};
+
   // Monthly path (data shape: a sub-hourly series): aggregate the period's
   // electricity totals per building. Bounded concurrency (mapPooled, the
   // Cloudflare-safe pattern aggregationManager uses) instead of strictly serial
@@ -295,6 +338,7 @@ export async function computeAggregation(
         : {},
       // A monthly benchmark's covered period is the month itself.
       ...benchmarkFields(period),
+      ...extentFields,
     };
 
     return snapshot;
@@ -342,6 +386,7 @@ export async function computeAggregation(
     // used (per-building latest, max across buildings) — derived, not stored,
     // so it stays truthful when a building gains a newer year.
     ...benchmarkFields(latestYear === undefined ? undefined : String(latestYear)),
+    ...extentFields,
   };
 
   return snapshot;

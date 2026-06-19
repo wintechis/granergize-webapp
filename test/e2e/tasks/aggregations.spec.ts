@@ -106,6 +106,35 @@ test.describe("energy view smoke", () => {
       .toBeVisible({ timeout: T.action });
   });
 
+  // Slice 3 (plan-aggregations): the finder's list | map | timeline guise toggle is URL-synced
+  // via ?guise=. The toggle is offered whenever the collection is non-empty — the seeded demo
+  // buildings carry regions, so the open-tier (regionalstatistik) items make it visible here,
+  // independent of any own aggregation (kept before the create test, which has flaked on slow
+  // local CSS, so this isn't hostage to it).
+  test("aggregations: the guise toggle syncs ?guise= across list/map/timeline", async () => {
+    await page.goto("/");
+    await openAggregations(page);
+    await expect(page.getByRole("heading", { name: en("navAggregations") }))
+      .toBeVisible({ timeout: T.action });
+
+    // Map guise → ?guise=map. No own aggregations exist yet (this runs before the create
+    // test), so the map shows its empty state — which proves the map guise MOUNTS without
+    // error (the choropleth-with-data render is covered by the unit tests + the map's logic).
+    await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await expect(page).toHaveURL(/guise=map/, { timeout: T.action });
+    await expect(page.getByText(en("aggMapEmpty"))).toBeVisible({ timeout: T.action });
+
+    // Timeline guise → ?guise=timeline + its placeholder (Slice 5 fills it).
+    await page.getByRole("button", { name: en("guiseTimeline"), exact: true }).click();
+    await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
+    await expect(page.getByText(en("aggGuiseTimelineSoon")))
+      .toBeVisible({ timeout: T.action });
+
+    // Back to the list guise clears the param (the default keeps the URL clean).
+    await page.getByRole("button", { name: en("btnList"), exact: true }).click();
+    await expect(page).not.toHaveURL(/guise=/, { timeout: T.action });
+  });
+
   test("the Sharing finder renders (folds the shared-in/ log)", async () => {
     await page.getByRole("tab", { name: en("navSharing") }).click();
     await expect(page.getByRole("heading", { name: en("sharedBuildingsHeading") }))

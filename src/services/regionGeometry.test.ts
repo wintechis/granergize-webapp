@@ -1,8 +1,10 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
+  gemeindeAgsFromContains,
   normalizeRegionGeometry,
   type RegionFeatureCollection,
+  regionContainsUrl,
   regionGeometryUrl,
 } from "./regionGeometry.ts";
 
@@ -103,4 +105,34 @@ Deno.test("normalizeRegionGeometry: empty / malformed input → empty collection
   assert.deepEqual(normalizeRegionGeometry({ type: "FeatureCollection", features: [] }).features, []);
   assert.deepEqual(normalizeRegionGeometry(null).features, []);
   assert.deepEqual(normalizeRegionGeometry({}).features, []);
+});
+
+// --- /contains point-in-region lookup ----------------------------------------
+
+Deno.test("regionContainsUrl: builds the LAU /contains lat/lon query", () => {
+  assert.equal(
+    regionContainsUrl(49.4521, 11.0767),
+    "https://wunderfacts.com/lau/contains?lat=49.4521&lon=11.0767",
+  );
+});
+
+Deno.test("gemeindeAgsFromContains: the containing Gemeinde's AGS from the SKOS response", () => {
+  // The live shape (linked-lau /contains): the containing Gemeinde as a skos:Concept whose
+  // notation is the AGS prefixed `DE_`. We strip non-digits and keep the 8-digit one.
+  const BASE = "https://wunderfacts.com/lau/contains?lat=49.4521&lon=11.0767";
+  const hit = `
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+@prefix geo: <http://www.w3.org/2003/01/geo/wgs84_pos#> .
+@prefix geosparql: <http://www.opengis.net/ont/geosparql#> .
+<lau/DE_09564000#it> a skos:Concept ;
+  skos:notation "DE_09564000" ; skos:prefLabel "Nürnberg"@de .
+[ a geo:Point ; geosparql:sfWithin <lau/DE_09564000#it> ; geo:lat 49.4521 ; geo:long 11.0767 ] .
+`;
+  assert.equal(gemeindeAgsFromContains(hit, BASE), "09564000");
+  // Nothing contains the point → no concept → null.
+  assert.equal(gemeindeAgsFromContains("", BASE), null);
+  // Coarser-only notations (NUTS codes) don't yield 8 digits → null.
+  const nutsOnly =
+    `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n<n> a skos:Concept ; skos:notation "DE254" .`;
+  assert.equal(gemeindeAgsFromContains(nutsOnly, BASE), null);
 });

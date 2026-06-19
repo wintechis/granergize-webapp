@@ -18,6 +18,7 @@
 @prefix sosa: <http://www.w3.org/ns/sosa/> .
 @prefix prov: <http://www.w3.org/ns/prov#> .
 @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
 @prefix xsd:  <http://www.w3.org/2001/XMLSchema#> .
 
 <#> rdf:type owl:Ontology ;
@@ -153,6 +154,18 @@
 :includesMetric rdf:type owl:DatatypeProperty ;
     rdfs:label "includes metric"@en ; rdfs:label "umfasst Kennzahl"@de ; rdfs:label "inclut la métrique"@fr ;
     rdfs:domain :AggregationDefinition ; rdfs:range xsd:string .
+:spatialExtent rdf:type owl:ObjectProperty ;
+    rdfs:label "spatial extent"@en ; rdfs:label "räumliche Ausdehnung"@de ; rdfs:label "étendue spatiale"@fr ;
+    rdfs:comment "The region (a NUTS/LAU concept) this aggregation covers, when its members roll up to one — distinct from the ad-hoc :includesBuilding set."@en ;
+    rdfs:comment "Die Region (ein NUTS/LAU-Konzept), die diese Aggregation abdeckt, wenn ihre Mitglieder zu einer zusammenfallen — getrennt von der ad-hoc :includesBuilding-Menge."@de ;
+    rdfs:comment "La région (un concept NUTS/LAU) couverte par cette agrégation, lorsque ses membres se regroupent en une seule — distincte de l'ensemble ad hoc :includesBuilding."@fr ;
+    rdfs:domain :Aggregation ; rdfs:range skos:Concept .
+:extentLevel rdf:type owl:DatatypeProperty ;
+    rdfs:label "extent level"@en ; rdfs:label "Ausdehnungsebene"@de ; rdfs:label "niveau d'étendue"@fr ;
+    rdfs:comment "Which hierarchy level the :spatialExtent region sits at (e.g. gemeinde, kreis); kept general so a non-administrative hierarchy can be named."@en ;
+    rdfs:comment "Auf welcher Hierarchieebene die :spatialExtent-Region liegt (z. B. Gemeinde, Kreis); allgemein gehalten, damit eine nicht-administrative Hierarchie benannt werden kann."@de ;
+    rdfs:comment "À quel niveau hiérarchique se situe la région :spatialExtent (p. ex. commune, arrondissement) ; gardé général pour pouvoir nommer une hiérarchie non administrative."@fr ;
+    rdfs:domain :Aggregation ; rdfs:range xsd:string .
 :buildingCount rdf:type owl:DatatypeProperty ;
     rdfs:label "building count"@en ; rdfs:label "Gebäudeanzahl"@de ; rdfs:label "nombre de bâtiments"@fr ;
     rdfs:domain :AggregationSnapshot ; rdfs:range xsd:integer .

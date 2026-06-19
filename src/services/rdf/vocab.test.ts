@@ -145,6 +145,8 @@ Deno.test("benchmark + aggregation terms are defined in the consumption vocab", 
       "computedAt",
       "includesBuilding",
       "includesMetric",
+      "spatialExtent",
+      "extentLevel",
       "buildingCount",
       // Snapshot values collapsed into sosa:ObservationCollection members (no
       // per-metric `*Value` properties); the observed properties are the
