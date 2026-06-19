@@ -231,15 +231,14 @@ export async function shareByRole(
 }
 
 /**
- * Open the `ShareBuildingDialog` for the building at `street`, via the redesigned
- * flow: resolve its id from the Buildings list, route to `/building/:id`, click
- * the SharingSection "Share" button. Leaves the dialog open and visible; the
- * page is on the standalone `/building/:id` route.
+ * Open the `ShareBuildingDialog` for the building at `street`: sharing is a
+ * Buildings-list **row action** (the Share icon, next to Delete) — the detail-page
+ * Share button was removed. `findOwnBuildingRow` lands on the Buildings list with the
+ * row located; click its Share action. Leaves the dialog open on the Buildings tab.
  */
 async function openShareDialog(page: Page, street: string): Promise<void> {
-  const { id } = await findOwnBuildingRow(page, street);
-  await page.goto(buildingRoute("building", id));
-  await page.getByRole("button", { name: "Share", exact: true }).click();
+  const { row } = await findOwnBuildingRow(page, street);
+  await row.getByRole("button", { name: en("intentShareBuilding"), exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible({ timeout: T.action });
 }
 

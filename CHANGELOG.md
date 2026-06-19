@@ -3,6 +3,10 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Share is a Buildings-finder row action again.** Re-added Share as a list row action (the Share
+  icon, next to Delete), so you can initiate a share for a building straight from the finder —
+  owner-only, via the intent registry. It's now available from **both** the finder row and the
+  building page's Sharing section (which keeps its Share button + the who-has-access list + Revoke).
 - **UX overview map (`notes/ux-overview`).** A coarse "surfaces + transitions" map of the app —
   above statechart detail — capturing the app-shell tabs (with each finder's guise sub-states),
   the detail surfaces, and the modal dialogs (with their save/cancel return-edges), plus

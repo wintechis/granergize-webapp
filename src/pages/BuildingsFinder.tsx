@@ -49,6 +49,7 @@ import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import AddBuildingDialog from "../components/AddBuildingDialog.tsx";
+import { ShareBuildingDialog } from "../components/BuildingDialogs.tsx";
 
 const ExplorePage = lazy(() => import("./ExplorePage.tsx"));
 
@@ -108,6 +109,8 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
 
   const [addOpen, setAddOpen] = useState(false);
   const [importMode, setImportMode] = useState(false);
+  // The building whose Share dialog is open (a finder-row action, next to delete).
+  const [shareBuilding, setShareBuilding] = useState<BuildingType | null>(null);
 
   // Honour a palette-routed `?action=add` by DERIVING the dialog-open state from
   // the URL (no setState-in-effect): the palette routes the rich create verb to
@@ -332,13 +335,14 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                           </>
                         }
                         actions={
-                          // Registry-driven: the finder row's destructive action
-                          // (delete, owner-only via the registry's `applies()`
-                          // guard) — Edit / Files / energy / Share / Download all
-                          // live on the building page (/building/:id) now.
+                          // Registry-driven, owner-only via the registry's `applies()`
+                          // guard: Share (opens the share dialog for this row) sits
+                          // beside Delete; Edit / Files / energy / Download live on the
+                          // building page (/building/:id).
                           <ObjectActions
                             object={b}
                             handlers={{
+                              ShareBuilding: () => setShareBuilding(b),
                               DeleteBuilding: () => {
                                 void handleDelete(b);
                               },
@@ -385,6 +389,15 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
         autostartImport={importMode}
         onClose={closeAdd}
       />
+      {shareBuilding && (
+        <ShareBuildingDialog
+          open
+          buildingUri={(shareBuilding.sourceUri ?? shareBuilding.uri) as string}
+          building={shareBuilding}
+          session={session}
+          onClose={() => setShareBuilding(null)}
+        />
+      )}
     </Box>
   );
 }
