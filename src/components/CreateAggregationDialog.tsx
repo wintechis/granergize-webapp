@@ -278,7 +278,7 @@ export default function CreateAggregationDialog({
   // Only worth showing when the data supports more than one mode; otherwise the
   // single annual portfolio is implicit.
   const modeDropdown = availableModes.length > 1 && (
-    <FormControl fullWidth sx={{ mb: 3 }}>
+    <FormControl fullWidth size="small" sx={{ mb: 3 }}>
       <InputLabel id="mode-label">{msg("aggTypeLabel")}</InputLabel>
       <Select<AggregationMode>
         labelId="mode-label"
@@ -296,7 +296,7 @@ export default function CreateAggregationDialog({
   );
 
   const buildingSelect = (
-    <Box sx={{ mb: 1 }}>
+    <Box sx={{ mb: 3 }}>
       <BuildingPicker
         multiple
         buildings={availableBuildings}
@@ -310,7 +310,7 @@ export default function CreateAggregationDialog({
   // The region grain the aggregation reports at — a first-class choice (Slice 6) rather than
   // only the inferred finest. Resolved from the selected buildings at create.
   const extentSelect = (
-    <FormControl size="small" sx={{ mb: 3, minWidth: 220 }}>
+    <FormControl fullWidth size="small" sx={{ mb: 3 }}>
       <InputLabel id="extent-level-label">{msg("aggExtentLabel")}</InputLabel>
       <Select
         labelId="extent-level-label"
@@ -391,6 +391,7 @@ export default function CreateAggregationDialog({
                 label={msg("aggNameLabel")}
                 type="text"
                 fullWidth
+                size="small"
                 variant="outlined"
                 value={aggregationName}
                 onChange={(e) => setAggregationName(e.target.value)}
@@ -408,8 +409,9 @@ export default function CreateAggregationDialog({
                   Disabled until the months are knowable; the discovery is a real
                   Pod listing, so it says so instead of sitting empty (heike-5 #2). */}
               <FormControl
+                fullWidth
                 size="small"
-                sx={{ mb: 3, minWidth: 160 }}
+                sx={{ mb: 3 }}
                 disabled={selectedBuildings.length === 0 || monthsLoading}
               >
                 <InputLabel id="aggregation-month-label">{msg("aggMonthLabel")}</InputLabel>
@@ -458,6 +460,7 @@ export default function CreateAggregationDialog({
                 label={msg("aggNameLabel")}
                 type="text"
                 fullWidth
+                size="small"
                 variant="outlined"
                 value={aggregationName}
                 onChange={(e) => setAggregationName(e.target.value)}

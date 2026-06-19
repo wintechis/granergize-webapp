@@ -175,6 +175,7 @@ export default function OrganizationDialog(
             value={name}
             onChange={(e) => setName(e.target.value)}
             fullWidth
+            size="small"
           />
           <TextField
             label={msg("lblHomepageUri")}
@@ -183,6 +184,7 @@ export default function OrganizationDialog(
             value={homepage}
             onChange={(e) => setHomepage(e.target.value)}
             fullWidth
+            size="small"
           />
           <TextField
             label={msg("lblOrgWebId")}
@@ -192,6 +194,7 @@ export default function OrganizationDialog(
             onChange={(e) => setSameAs(e.target.value)}
             helperText={msg("orgWebIdHelp")}
             fullWidth
+            size="small"
           />
         </Box>
     </Modal>

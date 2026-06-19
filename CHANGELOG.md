@@ -3,6 +3,11 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Dialog cleanup: consistent control widths + sizes.** The create-aggregation dialog's Region-level
+  and Month selects were narrower, fixed-width, different-size controls than the rest — now `fullWidth`
+  with matched spacing, so the form stacks at one width. And the form dialogs are normalised to
+  `size="small"` throughout: `CreateAggregationDialog` and `OrganizationDialog` (the two default-size
+  hold-outs) now match the building/energy dialogs.
 - **Aggregations timeline guise: the chosen metric across the years.** The third guise is no longer
   a placeholder. `computeAggregationSeries` computes an aggregation's metric **per year** on the fly
   from its members' annual datasets (no stored per-year history needed), and `AggregationsTimeline`
