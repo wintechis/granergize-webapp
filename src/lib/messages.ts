@@ -678,6 +678,22 @@ export const MESSAGES = {
   },
   // Master-data section heading + inline edit.
   secMasterData: { en: "Master data", de: "Stammdaten", fr: "Données de base" },
+  secEnergySystems: {
+    en: "Energy systems",
+    de: "Energieanlagen",
+    fr: "Systèmes énergétiques",
+  },
+  btnAddSystem: { en: "Add system", de: "Anlage hinzufügen", fr: "Ajouter un système" },
+  energySystemsEmpty: {
+    en: "No energy systems yet. Add a PV plant, battery, or CHP unit.",
+    de: "Noch keine Energieanlagen. Füge eine PV-Anlage, einen Speicher oder ein BHKW hinzu.",
+    fr: "Aucun système énergétique. Ajoutez une centrale PV, une batterie ou une unité de cogénération.",
+  },
+  energySystemsEmptyShared: {
+    en: "No energy systems.",
+    de: "Keine Energieanlagen.",
+    fr: "Aucun système énergétique.",
+  },
   btnEdit: { en: "Edit", de: "Bearbeiten", fr: "Modifier" },
   // Files section (component) — complements the existing filesEmpty (canWrite text).
   filesEmptyReadonly: {

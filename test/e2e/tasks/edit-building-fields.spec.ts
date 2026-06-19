@@ -108,7 +108,7 @@ test.describe("edit building operating costs + certifications", () => {
     await deleteBuildingRow(page, id);
   });
 
-  test("the PV plant persists through an edit and renders as a node summary", async () => {
+  test("a PV unit is added on the building page (not at create) and persists", async () => {
     test.setTimeout(T.testSolo);
     const PV_ADDR = "Edit PV E2E Strasse 1";
 
@@ -118,27 +118,38 @@ test.describe("edit building operating costs + certifications", () => {
     const id = await buildingIdOf(listRow);
     if (!id) throw new Error("edit-building-fields: missing PV building id");
 
-    // Enter PV capacity + commissioning year in the inline editor (the `_pv_*`
-    // fields write the `<#pv>` :PVSystem node, not flat building fields).
+    // Energy systems are managed on the building page now, NOT in the create form. A
+    // freshly added building has none → the section shows its empty state + "Add system".
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("button", { name: /^edit$/i }).first().click();
-    await page.getByLabel(en("lblPvCapacity"), { exact: true }).fill("500");
-    await page.getByLabel(en("lblPvCommissioning"), { exact: true }).fill("2020");
-    await page.getByRole("button", { name: /^save$/i }).click();
+    // The single button in the Energy systems section header (label flips Add → Edit).
+    const sysBtn = page
+      .getByRole("heading", { name: en("secEnergySystems"), exact: true })
+      .locator("xpath=..")
+      .getByRole("button");
+    await expect(page.getByText(en("energySystemsEmpty")))
+      .toBeVisible({ timeout: T.visible });
+
+    // Add a PV unit via the dialog (the `_pv_*` fields write the `<#pv>` :PVSystem node).
+    await sysBtn.click();
+    const dialog = page.getByRole("dialog");
+    await expect(dialog).toBeVisible({ timeout: T.visible });
+    await dialog.getByLabel(en("lblPvCapacity"), { exact: true }).fill("500");
+    await dialog.getByLabel(en("lblPvCommissioning"), { exact: true }).fill("2020");
+    // The Modal's primary action is "Save Changes" (saveChanges) — not the inline editor's "Save".
+    await dialog.getByRole("button", { name: en("saveChanges"), exact: true }).click();
     await expect(page.getByText(/building updated/i))
       .toBeVisible({ timeout: T.action });
 
-    // Read view: the PV plant renders as a single summary row (presence ⇒ has PV).
+    // The section now renders the PV plant as a summary row (presence ⇒ has PV),
+    // parsed back from the `<#pv>` node — proving it persisted through Turtle.
     await expect(page.getByText(/500 kW, since 2020/))
       .toBeVisible({ timeout: T.visible });
 
-    // Re-open the editor: the values round-tripped through the <#pv> node's Turtle.
-    await page.getByRole("button", { name: /^edit$/i }).first().click();
-    await expect(page.getByLabel(en("lblPvCapacity"), { exact: true }))
+    // Re-open (the button is now "Edit"): the value round-tripped into the dialog.
+    await sysBtn.click();
+    await expect(dialog.getByLabel(en("lblPvCapacity"), { exact: true }))
       .toHaveValue("500", { timeout: T.visible });
-    await expect(page.getByLabel(en("lblPvCommissioning"), { exact: true }))
-      .toHaveValue("2020");
-    await page.getByRole("button", { name: /^cancel$/i }).click();
+    await dialog.getByRole("button", { name: /^cancel$/i }).click();
 
     await page.goto("/");
     await openBuildingsList(page);

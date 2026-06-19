@@ -3,6 +3,14 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Energy systems (units) managed on the building page, not in create-building.** The PV / battery /
+  CHP system fields moved out of the create/edit building form into a dedicated **Energy systems**
+  section on the building page, with an Add/Edit dialog (`EnergySystemsDialog`). Each is a
+  `bldg:hasSystem` technical-system node; the section shows them (or a "no systems yet — add one"
+  empty state) and owners can add/edit via the dialog (shared buildings read-only). The display moved
+  from Master data to the new section; saving routes through the existing whole-file building update
+  (`replaceSystems`), so other fields are untouched. Groundwork for per-unit observations (each unit
+  can be a SOSA `featureOfInterest`).
 - **Dialog cleanup: consistent control widths + sizes.** The create-aggregation dialog's Region-level
   and Month selects were narrower, fixed-width, different-size controls than the rest — now `fullWidth`
   with matched spacing, so the form stacks at one width. And the form dialogs are normalised to

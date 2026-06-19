@@ -7,11 +7,8 @@ import {
   Clear as ClearIcon,
 } from "@mui/icons-material";
 import type {
-  BatteryStorage,
   BuildingType,
-  ChpSystem,
   InvestorOperatingCosts,
-  PvSystem,
 } from "../../types.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { useSolidData } from "../../hooks/queries.ts";
@@ -42,31 +39,6 @@ const hasValue = (value: unknown): boolean => {
 const boolIcon = (v: boolean) =>
   v ? <CheckIcon fontSize="small" /> : <ClearIcon fontSize="small" />;
 
-/** One-line summary of the PV plant ("750 kW, since 2018"), or "Yes" when present
- * but undetailed. The operator is shown as its own resolved-agent row. */
-const pvSystemSummary = (pv: PvSystem): string => {
-  const parts: string[] = [];
-  if (pv.capacityKW != null) parts.push(`${pv.capacityKW} kW`);
-  if (pv.commissioningYear != null) parts.push(`since ${pv.commissioningYear}`);
-  return parts.length ? parts.join(", ") : "Yes";
-};
-
-/** One-line summary of the battery ("215.5 kWh, since 2021"), else "Yes". */
-const batterySummary = (b: BatteryStorage): string => {
-  const parts: string[] = [];
-  if (b.capacityKWh != null) parts.push(`${b.capacityKWh} kWh`);
-  if (b.commissioningYear != null) parts.push(`since ${b.commissioningYear}`);
-  return parts.length ? parts.join(", ") : "Yes";
-};
-
-/** One-line summary of the CHP plant ("61 kW el, 126 kW th, since 2017"), else "Yes". */
-const chpSummary = (c: ChpSystem): string => {
-  const parts: string[] = [];
-  if (c.capacityKW != null) parts.push(`${c.capacityKW} kW el`);
-  if (c.thermalCapacityKW != null) parts.push(`${c.thermalCapacityKW} kW th`);
-  if (c.commissioningYear != null) parts.push(`since ${c.commissioningYear}`);
-  return parts.length ? parts.join(", ") : "Yes";
-};
 
 /** The read-first master-data view: every populated master-data field as a row. */
 function ReadView({ building }: { building: BuildingType }) {
@@ -160,37 +132,6 @@ function ReadView({ building }: { building: BuildingType }) {
           value={building.indoorTemperatureClass}
         />
       )}
-      {building.pvSystem && (
-        <DetailRow label={msg("mdPvSystem")} value={pvSystemSummary(building.pvSystem)} />
-      )}
-      {building.pvSystem?.operatedBy && (
-        <DetailRow
-          label={msg("mdPvOperator")}
-          value={<AgentLabel value={building.pvSystem.operatedBy} />}
-        />
-      )}
-      {building.batteryStorage && (
-        <DetailRow
-          label={msg("mdBatteryStorage")}
-          value={batterySummary(building.batteryStorage)}
-        />
-      )}
-      {building.batteryStorage?.operatedBy && (
-        <DetailRow
-          label={msg("mdBatteryOperator")}
-          value={<AgentLabel value={building.batteryStorage.operatedBy} />}
-        />
-      )}
-      {building.chpSystem && (
-        <DetailRow label={msg("mdChpSystem")} value={chpSummary(building.chpSystem)} />
-      )}
-      {building.chpSystem?.operatedBy && (
-        <DetailRow
-          label={msg("mdChpOperator")}
-          value={<AgentLabel value={building.chpSystem.operatedBy} />}
-        />
-      )}
-
       {(building.hasOilBoiler != null ||
         building.hasGasBoiler != null ||
         building.hasElectricBoiler != null ||

@@ -10,6 +10,7 @@ import { useToggleVisibility } from "../hooks/mutations.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import BuildingHeader from "../components/building/BuildingHeader.tsx";
 import MasterDataSection from "../components/building/MasterDataSection.tsx";
+import EnergySystemsSection from "../components/building/EnergySystemsSection.tsx";
 import EnergySummarySection from "../components/building/EnergySummarySection.tsx";
 import StandortEnergieprofil from "../components/building/StandortEnergieprofil.tsx";
 import RoofPlan from "../components/building/RoofPlan.tsx";
@@ -82,6 +83,7 @@ export default function Building({ building }: BuildingProps) {
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
       <BuildingHeader building={building} />
       <MasterDataSection building={building} autoOpenEdit={action === "edit"} />
+      <EnergySystemsSection building={building} />
       <EnergySummarySection building={building} />
       <BuildingFilesSection building={building} session={session} />
       <SharingSection
