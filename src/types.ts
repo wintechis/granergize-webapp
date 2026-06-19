@@ -126,6 +126,10 @@ export interface BuildingType {
   /** An identifier, not a number (leading zeros: "01067"). */
   postalCode?: string;
   region?: string;
+  /** The building's 8-digit Gemeinde AGS, resolved from its coordinates at geocode time
+   * (`dcterms:spatial`). Kreis = first 5 digits, Land = first 2. Drives the regional-statistics
+   * join and the aggregation spatial coordinate without a per-read reverse-geocode. */
+  regionAgs?: string;
   streetAddress?: string;
   buildingArea?: number;
   landArea?: number;

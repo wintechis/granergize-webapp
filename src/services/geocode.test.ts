@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { geocodeFields } from "./geocode.ts";
+import { geocodeFields, geocodeWithRegion } from "./geocode.ts";
 
 /**
  * Stub the global `fetch` (geocode goes through `trackedFetch` → bare `fetch`).
@@ -87,6 +87,51 @@ Deno.test("geocodeFields returns null when no address fields are present", async
   try {
     assert.equal(await geocodeFields({}), null);
     assert.equal(queried.length, 0, "no fields → no request");
+  } finally {
+    restore();
+  }
+});
+
+/** Stub Nominatim (a single hit) + the linked-lau `/contains` lookup (a SKOS reply). */
+function stubGeocodeAndContains(contains: Response) {
+  const orig = globalThis.fetch;
+  globalThis.fetch = ((input: string | URL | Request) => {
+    const url = input.toString();
+    if (url.includes("/contains")) return Promise.resolve(contains.clone());
+    return Promise.resolve(
+      new Response(JSON.stringify([{ lat: "49.45", lon: "11.07" }]), {
+        status: 200,
+        headers: { "content-type": "application/json" },
+      }),
+    );
+  }) as typeof fetch;
+  return () => (globalThis.fetch = orig);
+}
+
+Deno.test("geocodeWithRegion adds the Gemeinde AGS from the /contains lookup", async () => {
+  const restore = stubGeocodeAndContains(
+    new Response(
+      `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+       <r> a skos:Concept ; skos:notation "DE_09564000" .`,
+      { status: 200, headers: { "content-type": "text/turtle" } },
+    ),
+  );
+  try {
+    const got = await geocodeWithRegion({ locality: "Nürnberg" });
+    assert.equal(got?.lat, "49.45");
+    assert.equal(got?.precision, "city");
+    assert.equal(got?.regionAgs, "09564000");
+  } finally {
+    restore();
+  }
+});
+
+Deno.test("geocodeWithRegion: coords still returned when /contains has no region", async () => {
+  const restore = stubGeocodeAndContains(new Response("", { status: 404 }));
+  try {
+    const got = await geocodeWithRegion({ locality: "Nürnberg" });
+    assert.equal(got?.lat, "49.45");
+    assert.equal(got?.regionAgs, undefined);
   } finally {
     restore();
   }

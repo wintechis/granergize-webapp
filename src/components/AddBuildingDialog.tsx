@@ -32,7 +32,7 @@ import {
   detectSpreadsheetFormat,
   parseCsvToFields,
 } from "../services/rdf/building/buildingImport.ts";
-import { geocodeFields } from "../services/geocode.ts";
+import { geocodeWithRegion } from "../services/geocode.ts";
 import { useGeocodeFields } from "../hooks/useGeocodeFields.ts";
 import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
 import {
@@ -250,11 +250,12 @@ export default function AddBuildingDialog(
         }
         if (geocodedOne) await new Promise((r) => setTimeout(r, 1100));
         geocodedOne = true;
-        const coords = await geocodeFields(b);
+        const coords = await geocodeWithRegion(b);
         if (coords) {
           b.lat = coords.lat;
           b.long = coords.long;
           b.geocodePrecision = coords.precision;
+          if (coords.regionAgs) b.regionAgs = coords.regionAgs;
         }
       }
 

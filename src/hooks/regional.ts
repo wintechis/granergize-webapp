@@ -16,7 +16,7 @@
  */
 import { useQuery } from "@tanstack/react-query";
 import type { BuildingType } from "../types.ts";
-import { bundeslandToAgs } from "../services/region.ts";
+import { bundeslandName, bundeslandToAgs } from "../services/region.ts";
 import {
   fetchKreisName,
   fetchRegionalObservations,
@@ -53,15 +53,21 @@ export interface RegionalContext {
  * Hour-long `staleTime` — regional statistics change at most yearly.
  */
 export function useRegionalContext(building: BuildingType) {
+  // Prefer the region resolved at geocode time (`regionAgs` — reliable, no reverse-geocode):
+  // Land = first 2 digits, Kreis = first 5. Fall back to the vcard Bundesland + the nearby-MaStR
+  // Kreis for buildings stored before the region was captured.
+  const storedAgs = building.regionAgs;
   const region = building.region ?? "";
-  const landAgs = bundeslandToAgs(region);
+  const landAgs = storedAgs ? storedAgs.slice(0, 2) : bundeslandToAgs(region);
   // Shares the cached ["mastrNearby", lat, long] query with the nearby-installations
-  // section; we only need its derived Kreis here.
+  // section; only consulted for the Kreis when there's no stored region.
   const { data: nearby } = useNearbyInstallations(building);
-  const kreisAgs = nearby?.kreisAgs ?? null;
+  const kreisAgs = storedAgs ? storedAgs.slice(0, 5) : (nearby?.kreisAgs ?? null);
+  // The section title — the building's vcard region name, else derived from the AGS.
+  const regionName = region || (landAgs ? bundeslandName(landAgs) ?? "" : "");
 
   return useQuery<RegionalContext | null>({
-    queryKey: ["regionalContext", landAgs, kreisAgs, region],
+    queryKey: ["regionalContext", landAgs, kreisAgs, regionName],
     enabled: Boolean(landAgs || kreisAgs),
     staleTime: 1000 * 60 * 60,
     queryFn: async () => {
@@ -87,7 +93,7 @@ export function useRegionalContext(building: BuildingType) {
 
       if (landAgs) {
         for (const table of REGIONAL_TABLES.filter((t) => t.grain === "land")) {
-          await collect(table, landAgs, region);
+          await collect(table, landAgs, regionName);
         }
       }
       if (kreisAgs) {
@@ -97,7 +103,7 @@ export function useRegionalContext(building: BuildingType) {
         }
       }
 
-      return metrics.length ? { region, metrics } : null;
+      return metrics.length ? { region: regionName, metrics } : null;
     },
   });
 }

@@ -31,6 +31,7 @@ import {
   BUILDING_NS,
   CONSUMPTION_NS,
   DCTERMS_CREATED,
+  DCTERMS_SPATIAL,
   GEO_LAT,
   GEO_LOCATION,
   GEO_LONG,
@@ -184,6 +185,14 @@ export function parseBuildings(
       if (obj.termType === "BlankNode") {
         geoPointBuildingMap.set(obj.value, buildingId);
       }
+      return;
+    }
+
+    // Region (dcterms:spatial → a `…/ags/{code}` place): keep the AGS, the join key
+    // everything derives from (Kreis = first 5, Land = first 2).
+    if (pred === DCTERMS_SPATIAL) {
+      const ags = obj.value.match(/\/ags\/(\d+)$/)?.[1];
+      if (ags) building.regionAgs = ags;
       return;
     }
 

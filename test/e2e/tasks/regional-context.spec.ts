@@ -178,9 +178,11 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     if (!buildingId) throw new Error("regional-context: missing building id");
     id = buildingId;
 
-    // The observation page renders the standalone Regional-context section even
-    // with no energy data (it's about the building's region, like weather).
+    // The building page renders the regional-statistics section even with no energy
+    // data (it's about the building's region, like weather). It's map-first now, so
+    // switch to the figures table (the toggle's Table button enables once figures load).
     await page.goto(buildingRoute("building", id));
+    await page.getByRole("button", { name: en("btnTable"), exact: true }).click();
     await expect(page.getByText(en("regContextTitle", { region: "Bayern" })))
       .toBeVisible({ timeout: T.action });
 
@@ -218,6 +220,8 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     geoHasKreis = false;
     await page.reload();
     await page.goto(buildingRoute("building", id));
+    // Map-first section → switch to the figures table.
+    await page.getByRole("button", { name: en("btnTable"), exact: true }).click();
 
     // The Kreis metric + figure STILL render — the data join is unaffected, only
     // the name lookup misses…

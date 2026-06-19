@@ -3,6 +3,23 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **A building's region is resolved once, at geocode time.** Geocoding now also resolves the
+  building's **region** — its 8-digit Gemeinde AGS, via the linked-lau `/contains?lat=&lon=`
+  lookup — and stores it on the building (`dcterms:spatial → …/ags/{code}`, `BuildingType.regionAgs`;
+  Kreis = first 5 digits, Land = first 2). `geocodeFields` stays the pure address→coords function;
+  a new `geocodeWithRegion` wrapper adds the lookup, used by the Geocode button, the XLSX import,
+  and the demo seeder. The regional-statistics **figures table** and the aggregation **spatial
+  extent** now read this stored region — reliable, with no per-read reverse-geocode (the old
+  nearby-MaStR Kreis guess) and no per-compute `/contains` fan-out — falling back to the previous
+  paths for buildings stored before this. No vocab change (`dcterms:spatial` is external); region
+  travels with a shared building.
+- **Regional statistics: a Table | Map toggle; aggregation page gains a region map; demo-offer
+  fix.** The building page's two regional sections fold into one `RegionalStatistics` with a
+  Table | Map toggle (map-first — the choropleth works for any located building, the figures table
+  is the side that can be empty); the `/regional` dataset page gets the same toggle. The aggregation
+  detail page now shows a **region-highlight map** and moves **sharing up** to just after the main
+  info. And the "add example buildings" banner no longer lingers after buildings exist — its
+  storage probe (`demoOffer`) is now invalidated on every building add / seed / delete / import.
 - **Aggregations become a cube collection: a region coordinate + a map guise.** An aggregation
   snapshot now carries a *spatial coordinate* — the NUTS/LAU region its members roll up to — so a
   collection of aggregations is itself mappable, not just listable.

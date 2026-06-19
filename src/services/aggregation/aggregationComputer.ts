@@ -74,6 +74,9 @@ export async function resolveSpatialExtent(
   if (buildingUris.length === 0) return undefined;
   const codes = (await mapPooled(buildingUris, 4, async (uri) => {
     const b = cachedBuilding(uri);
+    // Prefer the region resolved at geocode time; only fall back to a live /contains
+    // lookup for a building stored before the region was captured.
+    if (b?.regionAgs) return b.regionAgs;
     if (b?.lat == null || b?.long == null) return null;
     return await resolveAgs(b.lat, b.long);
   })).filter((a): a is string => !!a);

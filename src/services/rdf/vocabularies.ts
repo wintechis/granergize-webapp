@@ -167,6 +167,8 @@ export const SCHEMA_NAME = `${SCHEMA_NS}name`;
 export const SCHEMA_ENCODING_FORMAT = `${SCHEMA_NS}encodingFormat`;
 export const SCHEMA_CONTENT_SIZE = `${SCHEMA_NS}contentSize`;
 
-/** Dublin Core Terms — `dcterms:created` for an attachment's upload timestamp. */
+/** Dublin Core Terms — `dcterms:created` for an attachment's upload timestamp;
+ *  `dcterms:spatial` links a building to the region (a `…/ags/{code}` place) it sits in. */
 export const DCTERMS_NS = "http://purl.org/dc/terms/";
 export const DCTERMS_CREATED = `${DCTERMS_NS}created`;
+export const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;

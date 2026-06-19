@@ -12,6 +12,7 @@ import {
 import {
   BUILDING_NS,
   CONSUMPTION_NS,
+  DCTERMS_SPATIAL,
   GEO_LAT,
   GEO_LOCATION,
   GEO_LONG,
@@ -53,7 +54,8 @@ import { ensureContainer, readModifyWrite } from "../../pod/podWrite.ts";
 import { logError } from "../../../lib/logError.ts";
 import { mapPooled } from "../../../lib/pool.ts";
 import { listDirectChildren } from "../../pod/podDelete.ts";
-import { geocodeFields } from "../../geocode.ts";
+import { geocodeWithRegion } from "../../geocode.ts";
+import { agsConceptUrl } from "../../regionalCube.ts";
 import { mintLocalIri } from "../rdfHelpers.ts";
 import { buildingFileUri, mintBuildingSubject } from "./buildingId.ts";
 import {
@@ -168,6 +170,22 @@ function addGeoPoint(
       namedNode(GEOCODE_PRECISION_IRI[precision as GeocodePrecision]),
     );
   }
+}
+
+/**
+ * Link the building to its region via `dcterms:spatial` → the `…/ags/{code}` place, from the
+ * 8-digit Gemeinde AGS resolved at geocode time. No-op when unresolved (an unplaced building is
+ * still valid). The region is a derived fact, not a config field — written here, not in the
+ * field→predicate loop (which skips it, like lat/long).
+ */
+function addRegion(
+  store: Store,
+  subject: ReturnType<typeof namedNode>,
+  fields: Record<string, string>,
+): void {
+  const ags = fields.regionAgs?.trim();
+  if (!ags) return;
+  store.addQuad(subject, namedNode(DCTERMS_SPATIAL), namedNode(agsConceptUrl(ags)));
 }
 
 /**
@@ -548,8 +566,10 @@ export function serializeBuildingToTurtle(
     }
   }
 
-  // Coordinates as a geo:Point blank node (carries geocoding precision).
+  // Coordinates as a geo:Point blank node (carries geocoding precision), and the region
+  // (dcterms:spatial) resolved from those coordinates at geocode time.
   addGeoPoint(store, subject, fields);
+  addRegion(store, subject, fields);
 
   // Investor master-data sub-structures (blank nodes), when present.
   addOperatingCosts(store, subject, fields);
@@ -1323,13 +1343,14 @@ export async function seedDemoBuildings(
   let seeded = 0;
   for (const demo of DEMO_BUILDINGS) {
     try {
-      const coords = await geocodeFields(demo.fields);
+      const coords = await geocodeWithRegion(demo.fields);
       let fields: Record<string, string> = coords
         ? {
           ...demo.fields,
           lat: coords.lat,
           long: coords.long,
           geocodePrecision: coords.precision,
+          ...(coords.regionAgs ? { regionAgs: coords.regionAgs } : {}),
         }
         : { ...demo.fields };
       // Attribute the operator/owner to the seeding user (see {@link DemoSpec}'s

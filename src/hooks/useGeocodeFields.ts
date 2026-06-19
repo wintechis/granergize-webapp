@@ -1,6 +1,6 @@
 import { msg } from "../lib/messages.ts";
 import { useState } from "react";
-import { geocodeFields } from "../services/geocode.ts";
+import { geocodeWithRegion } from "../services/geocode.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 
 /**
@@ -21,7 +21,7 @@ export function useGeocodeFields(
   const onGeocode = async () => {
     setBusy(true);
     try {
-      const coords = await geocodeFields(fields);
+      const coords = await geocodeWithRegion(fields);
       if (!coords) {
         showNotification(msg("addressNotFound"), "warning");
         return;
@@ -29,6 +29,8 @@ export function useGeocodeFields(
       setField("lat", coords.lat);
       setField("long", coords.long);
       setField("geocodePrecision", coords.precision);
+      // The region resolved from the new coordinates (empty clears a stale one).
+      setField("regionAgs", coords.regionAgs ?? "");
       showNotification(successMessage, "success");
     } finally {
       setBusy(false);

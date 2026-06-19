@@ -1,5 +1,6 @@
 import { type GeocodePrecision } from "./rdf/vocabularies.ts";
 import { trackedFetch } from "../lib/networkActivity.ts";
+import { fetchContainingGemeindeAgs } from "./regionGeometry.ts";
 import { logError } from "../lib/logError.ts";
 
 /**
@@ -11,6 +12,8 @@ import { logError } from "../lib/logError.ts";
  * a too-precise house number a geocoder can't place still yields an approximate
  * pin. Returns null when nothing resolves. Throttled to Nominatim's ≤1 req/s, but
  * only paid on a miss — a first-try hit (the common case) adds no delay.
+ *
+ * Pure address→coords; {@link geocodeWithRegion} adds the region lookup on top.
  */
 export async function geocodeFields(
   fields: Record<string, string>,
@@ -52,4 +55,27 @@ export async function geocodeFields(
     }
   }
   return null;
+}
+
+/**
+ * {@link geocodeFields} plus the building's **region** (8-digit Gemeinde AGS, via linked-lau
+ * `/contains`) resolved from the fresh coordinates — so the region is captured ONCE at geocode
+ * rather than reverse-geocoded on every later read. Best-effort: `regionAgs` is absent when the
+ * point is outside the wrapper's coverage or the lookup fails. `null` when geocoding itself misses.
+ */
+export async function geocodeWithRegion(
+  fields: Record<string, string>,
+): Promise<
+  { lat: string; long: string; precision: GeocodePrecision; regionAgs?: string } | null
+> {
+  const coords = await geocodeFields(fields);
+  if (!coords) return null;
+  const regionAgs = await fetchContainingGemeindeAgs(
+    parseFloat(coords.lat),
+    parseFloat(coords.long),
+  ).catch((err) => {
+    logError("resolve region at geocode", err);
+    return null;
+  });
+  return { ...coords, ...(regionAgs ? { regionAgs } : {}) };
 }
