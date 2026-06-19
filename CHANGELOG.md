@@ -3,6 +3,11 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Building picker: searchable + "Select all".** The shared `BuildingPicker`'s multi-select is now a
+  searchable MUI Autocomplete (type to filter by name or address) with a **"Select all (N)" / "Clear
+  all"** toggle, replacing the plain checklist dropdown that didn't scale past a few dozen buildings.
+  Used by the create-aggregation roster (and any future multi-building flow). The single-select mode
+  is unchanged.
 - **Per-unit observations are now displayed.** The observation page gained a "Per-unit observations"
   section: for each energy unit (`bldg:hasSystem`) that carries its own `sosa:hasFeatureOfInterest`
   annual series, a compact year×metric table under that unit — surfacing the figures the building-level

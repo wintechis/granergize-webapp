@@ -117,18 +117,22 @@ test.describe("energy view smoke", () => {
     await expect(page.getByRole("heading", { name: en("navAggregations") }))
       .toBeVisible({ timeout: T.action });
 
+    // Scope the guise buttons to the AGGREGATIONS toggle — once buildings exist the page also
+    // carries the Buildings/Explore finders' own "Map" toggles, so an unscoped name is ambiguous.
+    const aggGuise = page.getByLabel(en("aggGuiseAria"));
+
     // Map guise → ?guise=map. The map (choropleth shaded by a chosen metric, folding the open
     // datasets) mounts on click; here we assert the toggle drives the URL — the shading itself is
     // covered by the unit tests + the map's own logic.
-    await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await aggGuise.getByRole("button", { name: en("btnMap"), exact: true }).click();
     await expect(page).toHaveURL(/guise=map/, { timeout: T.action });
 
     // Timeline guise → ?guise=timeline (its trend chart mounts on click; the toggle drives URL).
-    await page.getByRole("button", { name: en("guiseTimeline"), exact: true }).click();
+    await aggGuise.getByRole("button", { name: en("guiseTimeline"), exact: true }).click();
     await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
 
     // Back to the list guise clears the param (the default keeps the URL clean).
-    await page.getByRole("button", { name: en("btnList"), exact: true }).click();
+    await aggGuise.getByRole("button", { name: en("btnList"), exact: true }).click();
     await expect(page).not.toHaveURL(/guise=/, { timeout: T.action });
   });
 
@@ -245,7 +249,11 @@ test.describe("energy view smoke", () => {
   test("aggregations map: the 'shade by' selector lists the aggregation's metric", async () => {
     await page.goto("/");
     await openAggregations(page);
-    await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
+    // Scope to the aggregations toggle (the Buildings/Explore finders also have a "Map" button).
+    await page.getByLabel(en("aggGuiseAria")).getByRole("button", {
+      name: en("btnMap"),
+      exact: true,
+    }).click();
     await expect(page).toHaveURL(/guise=map/, { timeout: T.action });
 
     const shadeBy = page.getByLabel(en("aggMapMetricLabel"));
@@ -261,7 +269,14 @@ test.describe("energy view smoke", () => {
   test("aggregations timeline: charts the aggregation's metric over the years", async () => {
     await page.goto("/");
     await openAggregations(page);
-    await page.getByRole("button", { name: en("guiseTimeline"), exact: true }).click();
+    // Wait for the finder before clicking, and scope to the aggregations toggle (the
+    // Buildings/Explore finders carry their own guise buttons once buildings exist).
+    await expect(page.getByRole("heading", { name: en("navAggregations") }))
+      .toBeVisible({ timeout: T.action });
+    await page.getByLabel(en("aggGuiseAria")).getByRole("button", {
+      name: en("guiseTimeline"),
+      exact: true,
+    }).click();
     await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
 
     await expect(page.getByLabel(en("aggMapMetricLabel"))).toBeVisible({ timeout: T.action });

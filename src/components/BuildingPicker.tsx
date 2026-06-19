@@ -1,17 +1,32 @@
 import {
+  Autocomplete,
   Box,
+  Button,
   Checkbox,
-  Chip,
+  createFilterOptions,
   FormControl,
   InputLabel,
   ListItemText,
   MenuItem,
   OutlinedInput,
   Select,
-  type SelectChangeEvent,
+  TextField,
 } from "@mui/material";
+import { msg } from "../lib/messages.ts";
 import type { BuildingType } from "../types.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
+
+/** Secondary line under a building's name — its street, or locality as fallback. */
+const secondaryText = (b: BuildingType): string =>
+  b.streetAddress !== buildingDisplayName(b)
+    ? b.streetAddress || b.locality || ""
+    : b.locality || "";
+
+/** Search matches the name AND the street/locality, not just the display name. */
+const filterBuildings = createFilterOptions<BuildingType>({
+  stringify: (b) =>
+    `${buildingDisplayName(b)} ${b.streetAddress ?? ""} ${b.locality ?? ""}`,
+});
 
 const ITEM_HEIGHT = 48;
 const ITEM_PADDING_TOP = 8;
@@ -65,48 +80,54 @@ export default function BuildingPicker(props: BuildingPickerProps) {
 
   if (props.multiple) {
     const { value, onChange } = props;
-    const handle = (event: SelectChangeEvent<string[]>) => {
-      const v = event.target.value;
-      onChange(typeof v === "string" ? v.split(",") : v);
-    };
+    // A searchable Autocomplete (type to filter by name/address) scales past the
+    // plain checklist dropdown; a Select-all toggle picks the whole set at once.
+    const selected = buildings.filter((b) => value.includes(b.uri));
+    const allSelected = buildings.length > 0 && selected.length === buildings.length;
+    const toggleAll = () => onChange(allSelected ? [] : buildings.map((b) => b.uri));
     return (
-      <FormControl fullWidth sx={{ mb: 2 }} disabled={disabled}>
-        <InputLabel id={labelId}>{label}</InputLabel>
-        <Select
-          labelId={labelId}
+      <Box sx={{ mb: 2 }}>
+        <Autocomplete<BuildingType, true, false, false>
           multiple
-          value={value}
-          onChange={handle}
-          input={<OutlinedInput label={label} />}
-          renderValue={(selected) => (
-            <Box sx={{ display: "flex", flexWrap: "wrap", gap: 0.5 }}>
-              {selected.map((uri) => {
-                const b = buildings.find((b) => b.uri === uri);
-                return (
-                  <Chip
-                    key={uri}
-                    label={b ? buildingDisplayName(b) : uri}
-                    size="small"
-                  />
-                );
-              })}
-            </Box>
+          disableCloseOnSelect
+          disabled={disabled}
+          options={buildings}
+          value={selected}
+          onChange={(_, next) => onChange(next.map((b) => b.uri))}
+          getOptionLabel={(b) => buildingDisplayName(b)}
+          isOptionEqualToValue={(a, b) => a.uri === b.uri}
+          filterOptions={filterBuildings}
+          renderOption={(optionProps, b, { selected: sel }) => {
+            const { key, ...rest } = optionProps;
+            return (
+              <li key={key} {...rest}>
+                <Checkbox checked={sel} size="small" sx={{ mr: 1 }} />
+                <ListItemText
+                  primary={buildingDisplayName(b)}
+                  secondary={secondaryText(b)}
+                />
+              </li>
+            );
+          }}
+          renderInput={(params) => (
+            <TextField
+              {...params}
+              label={label}
+              placeholder={msg("pickerSearchPlaceholder")}
+            />
           )}
-          MenuProps={MenuProps}
+        />
+        <Button
+          size="small"
+          onClick={toggleAll}
+          disabled={disabled || buildings.length === 0}
+          sx={{ mt: 0.5 }}
         >
-          {buildings.map((b) => (
-            <MenuItem key={b.uri} value={b.uri}>
-              <Checkbox checked={value.includes(b.uri)} />
-              <ListItemText
-                primary={buildingDisplayName(b)}
-                secondary={b.streetAddress !== buildingDisplayName(b)
-                  ? b.streetAddress || b.locality || ""
-                  : b.locality || ""}
-              />
-            </MenuItem>
-          ))}
-        </Select>
-      </FormControl>
+          {allSelected
+            ? msg("pickerClearAll")
+            : msg("pickerSelectAll", { count: buildings.length })}
+        </Button>
+      </Box>
     );
   }
 

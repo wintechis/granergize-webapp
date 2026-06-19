@@ -695,6 +695,13 @@ export const MESSAGES = {
     fr: "Aucun système énergétique.",
   },
   mdSystemOperator: { en: "Operated by", de: "Betreiber", fr: "Exploité par" },
+  pickerSearchPlaceholder: { en: "Search…", de: "Suchen…", fr: "Rechercher…" },
+  pickerSelectAll: {
+    en: "Select all ({count})",
+    de: "Alle auswählen ({count})",
+    fr: "Tout sélectionner ({count})",
+  },
+  pickerClearAll: { en: "Clear all", de: "Auswahl löschen", fr: "Tout effacer" },
   unitObsHeading: {
     en: "Per-unit observations",
     de: "Beobachtungen je Anlage",
