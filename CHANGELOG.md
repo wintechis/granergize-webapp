@@ -3,6 +3,9 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **`dev:local` seeds the demo identities automatically.** The hand-driven local stack now POSTs
+  `/seed-profiles` once the Pod is up, so the seeded logins present as Alice Ahlmann · Bob Bauer ·
+  Charlie Conrad — names, avatars, and org logos — out of the box, instead of bare WebIDs.
 - **A building's region is resolved once, at geocode time.** Geocoding now also resolves the
   building's **region** — its 8-digit Gemeinde AGS, via the linked-lau `/contains?lat=&lon=`
   lookup — and stores it on the building (`dcterms:spatial → …/ags/{code}`, `BuildingType.regionAgs`;

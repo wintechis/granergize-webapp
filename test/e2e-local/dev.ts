@@ -56,6 +56,26 @@ async function waitForPodReady(deadlineMs = 90_000): Promise<void> {
   throw new Error(`local Pod server not ready after ${deadlineMs}ms`);
 }
 
+// Apply the demo IDENTITIES to the seeded accounts (Alice Ahlmann / Bob Bauer /
+// Charlie Conrad — `foaf:name`, avatar, and an organisation with its public-read
+// logo), so a local demo logs in as a full identity rather than a bare WebID. The
+// `/seed-profiles` control route owns the work (PROFILE_SEED in css.ts); this just
+// triggers it once the pod is up. Best-effort — a failure leaves usable bare
+// logins, so we warn and keep the stack running.
+async function seedProfiles(): Promise<boolean> {
+  try {
+    const r = await fetch(
+      `http://localhost:${LOCAL_CSS_CONTROL_PORT}/seed-profiles`,
+      { method: "POST" },
+    );
+    const ok = r.ok;
+    await r.body?.cancel();
+    return ok;
+  } catch {
+    return false;
+  }
+}
+
 // Spawn children via the SAME deno binary running this script, not a bare "deno"
 // on PATH — `deno task` doesn't add deno to PATH, so a name lookup fails when
 // deno lives somewhere unusual (e.g. ~/.deno/bin).
@@ -122,6 +142,9 @@ try {
   await teardown(1);
 }
 
+// Give the demo logins their Alice/Bob/Charlie identities + org logos.
+const profilesSeeded = await seedProfiles();
+
 console.log(
   [
     "",
@@ -132,6 +155,9 @@ console.log(
     ...(["A", "B", "C"] as const).map(
       (s) => `    ${s}: ${LOCAL_SEED[s].email} / ${LOCAL_SEED[s].password}`,
     ),
+    profilesSeeded
+      ? "▶ Demo identities (names + org logos): seeded — Alice Ahlmann · Bob Bauer · Charlie Conrad."
+      : `▶ Demo identities: NOT seeded (POST http://localhost:${LOCAL_CSS_CONTROL_PORT}/seed-profiles to retry).`,
     `▶ App data lands under <pod>/${APP_DIR}/ (throwaway; gone on stop).`,
     "▶ Ctrl+C stops both the app and the Pod server.",
     "",
