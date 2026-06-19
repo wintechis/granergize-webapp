@@ -5,7 +5,7 @@
     "dev:local": "deno run -A test/e2e-local/dev.ts",
     "dev:local:jss": "LOCAL_POD_SERVER=jss deno task dev:local",
     "build": "deno run -A npm:vite build",
-    "test": "deno test -A --ignore=test/headless/contract/",
+    "test": "deno test -A --ignore=test/headless/contract/,.claude/",
     "it:contract": "deno test -A test/headless/contract/",
     "eval:intent": "deno run -A --env-file=.env.local test/eval/intent-translation.eval.ts",
     "eval:sweep": "deno run -A --env-file=.env.local test/eval/sweep.ts",
@@ -37,11 +37,13 @@
   },
   "imports": {},
   "test": {
-    // Agent worktrees live INSIDE the repo dir; without this, `deno task test`
-    // walks into them and a side worktree's red tests fail the main tree's run.
-    // NB: this `exclude` applies to EVERY `deno test` (even an explicit-path one),
-    // so the network-only contract lane is kept out of the unit run via `--ignore`
-    // on the `test` task instead — `it:contract` passes its path and runs it.
+    // Agent worktrees live INSIDE the repo dir; without this, `deno test` walks
+    // into them and a side worktree's red tests fail the main tree's run. This
+    // config `exclude` covers plain `deno test` invocations — BUT a CLI `--ignore`
+    // OVERRIDES it (Deno doesn't merge the two), so the `test` task, which passes
+    // `--ignore` to keep the network-only contract lane out of the unit run, must
+    // ALSO repeat `.claude/` in that `--ignore` (it does). `it:contract` passes an
+    // explicit path with no `--ignore`, so this `exclude` still shields it.
     "exclude": [".claude/"]
   },
   "allowScripts": ["npm:esbuild@0.21.5"]

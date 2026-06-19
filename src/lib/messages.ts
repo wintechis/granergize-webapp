@@ -619,6 +619,12 @@ export const MESSAGES = {
     de: "Koordinaten:",
     fr: "Coordonnées :",
   },
+  // Logo attribution tooltip (org logo resolved from Wikidata → Wikimedia Commons).
+  logoViaCommons: {
+    en: "Logo via Wikimedia Commons (Wikidata)",
+    de: "Logo über Wikimedia Commons (Wikidata)",
+    fr: "Logo via Wikimedia Commons (Wikidata)",
+  },
   // Data sources & licences credits page (profile menu + page).
   menuDataSources: {
     en: "Data sources & licences",

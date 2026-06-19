@@ -229,6 +229,11 @@ function BuildingMarker(
               <img
                 src={logoSrc}
                 alt="Building producer logo"
+                // A Wikidata→Commons logo carries an attribution obligation; a
+                // native title surfaces it (this is a Leaflet tooltip, not MUI).
+                title={org?.logoSource === "commons"
+                  ? msg("logoViaCommons")
+                  : undefined}
                 style={{
                   display: "block",
                   height: 20,

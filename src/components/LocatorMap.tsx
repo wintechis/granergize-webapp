@@ -41,7 +41,6 @@ export default function LocatorMap(
         dragging
         doubleClickZoom
         scrollWheelZoom={false}
-        attributionControl={false}
         style={{ height: "100%", width: "100%" }}
       >
         <WMSTileLayer

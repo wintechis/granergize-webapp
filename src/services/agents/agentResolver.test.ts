@@ -70,6 +70,7 @@ Deno.test("resolveAgentOrg follows org:memberOf → foaf:name + foaf:logo", asyn
   const org = await resolveAgentOrg(WEBID, makeSession(ttl));
   assert.equal(org?.name, "Ahlmann Logistik");
   assert.equal(org?.logoUrl, "https://alice.example/profile/logo.png");
+  assert.equal(org?.logoSource, "uploaded");
 });
 
 Deno.test("resolveAgentOrg returns null without an org, partial fields otherwise", async () => {
@@ -138,6 +139,7 @@ Deno.test("resolveAgentOrg falls back to owl:sameAs → Wikidata logo when no fo
     org?.logoUrl,
     `${COMMONS}${encodeURIComponent("Ahlmann logo.svg")}`,
   );
+  assert.equal(org?.logoSource, "commons");
   assert.equal(fetchFn.called, true);
 });
 

@@ -16,6 +16,17 @@ All notable changes to the Granergize WebApp project will be documented in this 
   (LoD2 + PVGIS · Energie-Atlas · MaStR) where it previously had only dev links. Strings are
   de/en/fr. Tests: `dataSources` registry unit test, and two `e2e:local` specs
   (`data-sources` credits page; `building-attribution` geocoded-vs-direct coordinate line).
+  Follow-ups: the building-detail **locator map now shows its tile attribution**
+  (basemap.de/BKG, or the Bavaria DOP CC BY) — the Leaflet attribution control was
+  previously suppressed there; and a producer logo resolved from **Wikidata → Wikimedia
+  Commons** carries a `"Logo via Wikimedia Commons"` hover note on the map marker (a new
+  `logoSource` on the resolved org distinguishes it from an uploaded `foaf:logo`).
+- **`deno task test` no longer red-fails on a side worktree.** The `test` task passes a CLI
+  `--ignore`, which OVERRIDES the `deno.json` `test.exclude: [".claude/"]` (Deno doesn't
+  merge them) — so when an agent worktree existed under `.claude/worktrees/`, its MUI
+  component `.tsx` tests (which never type-check under `deno test`) failed the main tree's
+  run with ~36 unrelated DOM/React errors. Folded `.claude/` into the task's `--ignore`;
+  the full unit suite (900 tests) again runs green regardless of side worktrees.
 
 ## [2026-06-19]
 - **External-source registry in `vocab/`: one note per source id.** Documented every
