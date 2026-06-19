@@ -3,6 +3,13 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Aggregations timeline guise: the chosen metric across the years.** The third guise is no longer
+  a placeholder. `computeAggregationSeries` computes an aggregation's metric **per year** on the fly
+  from its members' annual datasets (no stored per-year history needed), and `AggregationsTimeline`
+  draws trend lines over a shared year axis: a line per **own** aggregation (its per-year series), a
+  line per **open** region (the regionalstatistik year series), and a single point per **received**
+  aggregation (the shared snapshot is one year). Same metric selector as the map; tiers per the
+  filter. This completes the aggregations-as-cube-collection guises (list · map · timeline).
 - **Aggregation map: shade by a chosen metric, fold all tiers, browse open data without buildings.**
   The open (regionalstatistik) tier now falls back to **all 16 Bundesländer** when no building gives
   a region, so a fresh/buildingless account can browse the public datasets. The map guise gained a

@@ -55,6 +55,7 @@ import type { ReceivedAggregation } from "../services/interop/sharingManager.ts"
 import ShareAggregationDialog from "../components/ShareAggregationDialog.tsx";
 import CreateAggregationDialog from "../components/CreateAggregationDialog.tsx";
 import AggregationsMap from "../components/aggregation/AggregationsMap.tsx";
+import AggregationsTimeline from "../components/aggregation/AggregationsTimeline.tsx";
 
 interface AggregationsFinderProps {
   session: Session;
@@ -274,11 +275,14 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
             />
           )
           : guise === "timeline"
+          // Slice 5: the collection's chosen metric across the years (own computed per-year,
+          // open from regionalstatistik, received a single point). Tiers per the facet.
           ? (
-            // Slice 5 fills this; until then it names what it will show.
-            <Typography variant="body2" color="text.secondary" sx={{ mt: 1 }}>
-              {t("aggGuiseTimelineSoon")}
-            </Typography>
+            <AggregationsTimeline
+              definitions={tierFacet.isSelected("mine") ? aggregationDefinitions : []}
+              received={tierFacet.isSelected("shared") ? receivedAggregations : []}
+              openItems={tierFacet.isSelected("open") ? openItems : []}
+            />
           )
           : filteredItems.length === 0
           ? (

@@ -123,11 +123,9 @@ test.describe("energy view smoke", () => {
     await page.getByRole("button", { name: en("btnMap"), exact: true }).click();
     await expect(page).toHaveURL(/guise=map/, { timeout: T.action });
 
-    // Timeline guise → ?guise=timeline + its placeholder (Slice 5 fills it).
+    // Timeline guise → ?guise=timeline (its trend chart mounts on click; the toggle drives URL).
     await page.getByRole("button", { name: en("guiseTimeline"), exact: true }).click();
     await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
-    await expect(page.getByText(en("aggGuiseTimelineSoon")))
-      .toBeVisible({ timeout: T.action });
 
     // Back to the list guise clears the param (the default keeps the URL clean).
     await page.getByRole("button", { name: en("btnList"), exact: true }).click();
@@ -256,5 +254,19 @@ test.describe("energy view smoke", () => {
     await expect(page.getByRole("option", { name: /electricity consumption/i }))
       .toBeVisible({ timeout: T.action });
     await page.keyboard.press("Escape");
+  });
+
+  // Slice 5: the timeline guise charts the chosen metric over the years — for the own electricity
+  // aggregation, its per-year series (computeAggregationSeries) is drawn as a Recharts line.
+  test("aggregations timeline: charts the aggregation's metric over the years", async () => {
+    await page.goto("/");
+    await openAggregations(page);
+    await page.getByRole("button", { name: en("guiseTimeline"), exact: true }).click();
+    await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
+
+    await expect(page.getByLabel(en("aggMapMetricLabel"))).toBeVisible({ timeout: T.action });
+    // The trend chart renders (Recharts SVG) from the per-year compute.
+    await expect(page.locator("svg.recharts-surface").first())
+      .toBeVisible({ timeout: T.action });
   });
 });

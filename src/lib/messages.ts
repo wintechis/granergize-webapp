@@ -1802,20 +1802,20 @@ export const MESSAGES = {
     fr: "Aucune agrégation propre à cartographier pour le moment.",
   },
   aggMapMetricLabel: { en: "Shade by", de: "Einfärben nach", fr: "Colorer selon" },
-  aggMapTooltip: {
-    en: "{aggs} aggregation(s) · {buildings} buildings",
-    de: "{aggs} Aggregation(en) · {buildings} Gebäude",
-    fr: "{aggs} agrégation(s) · {buildings} bâtiments",
+  aggTimelineEmpty: {
+    en: "No aggregations or datasets to chart yet.",
+    de: "Noch keine Aggregationen oder Datensätze für das Diagramm.",
+    fr: "Aucune agrégation ou jeu de données à tracer pour le moment.",
+  },
+  aggTimelineNoData: {
+    en: "No yearly data for this metric.",
+    de: "Keine Jahresdaten für diese Kennzahl.",
+    fr: "Aucune donnée annuelle pour cette métrique.",
   },
   aggMapUnplaced: {
     en: "Not placed ({count}) — no single shared region, or only a Bundesland:",
     de: "Nicht verortet ({count}) — keine gemeinsame Region oder nur ein Bundesland:",
     fr: "Non localisées ({count}) — pas de région commune, ou seulement un Land :",
-  },
-  aggGuiseTimelineSoon: {
-    en: "Timeline view — the rollup across years for a region. Coming soon.",
-    de: "Zeitverlauf — die Aggregation über die Jahre für eine Region. In Kürze.",
-    fr: "Vue chronologique — le cumul par année pour une région. Bientôt disponible.",
   },
   bldgsAutofillFromFile: {
     en: "Autofill from file",

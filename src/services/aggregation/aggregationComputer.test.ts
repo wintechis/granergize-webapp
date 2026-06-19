@@ -9,6 +9,7 @@ import type {
 import { QueryClient } from "@tanstack/react-query";
 import {
   computeAggregation,
+  computeAggregationSeries,
   resolveSpatialExtent,
   summarizeContributors,
 } from "./aggregationComputer.ts";
@@ -117,6 +118,19 @@ Deno.test("computeAggregation: average over three buildings", async () => {
   assert.equal(snap.values[METRIC], 200);
   assert.equal(snap.buildingCount, 3);
   assert.deepEqual(snap.metrics, [METRIC]);
+});
+
+Deno.test("computeAggregationSeries: one aggregated value per year the members cover", async () => {
+  const session = pod({
+    [B1]: [{ year: 2022, value: 100 }, { year: 2023, value: 200 }],
+    [B2]: [{ year: 2022, value: 300 }, { year: 2023, value: 400 }],
+  });
+  const series = await computeAggregationSeries(session, def([B1, B2], "average"), METRIC);
+  // avg per year: 2022 → (100+300)/2, 2023 → (200+400)/2 — sorted, no stored snapshot needed.
+  assert.deepEqual(series, [
+    { year: 2022, value: 200 },
+    { year: 2023, value: 300 },
+  ]);
 });
 
 Deno.test("computeAggregation: sum / min / max over the same data", async () => {

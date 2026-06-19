@@ -396,6 +396,42 @@ export async function computeAggregation(
 }
 
 /**
+ * The aggregation's chosen metric AS A SERIES — one value per year the members carry annual data
+ * for, aggregated by the definition's type. The timeline guise's data (plan-aggregations Slice 5):
+ * computed on the fly from the members' per-year annual datasets, so it needs no stored per-year
+ * snapshot history (a snapshot is a single point). Years a building lacks simply don't contribute.
+ * @operation query
+ */
+export async function computeAggregationSeries(
+  gateway: PodGateway,
+  definition: AggregationDefinition,
+  metric: string,
+): Promise<{ year: number; value: number }[]> {
+  const perBuilding = await mapPooled(definition.buildingUris, 4, async (uri) => {
+    const refs = (await resolveBuildingRefs(uri, buildingFileUri(uri), gateway))
+      .filter((r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity));
+    if (refs.length === 0) return [] as { year: number; value: number }[];
+    const datasets = await loadEnergyDatasets(refs, gateway.fetch.bind(gateway));
+    return datasets.flatMap((ds) => {
+      const v = (ds.metrics as Record<string, number | undefined> | undefined)?.[metric];
+      return typeof v === "number" ? [{ year: ds.year, value: v }] : [];
+    });
+  });
+  // Aggregate per year across the members that have that year.
+  const byYear = new Map<number, number[]>();
+  for (const list of perBuilding) {
+    for (const { year, value } of list) {
+      const arr = byYear.get(year);
+      if (arr) arr.push(value);
+      else byYear.set(year, [value]);
+    }
+  }
+  return [...byYear.entries()]
+    .map(([year, vals]) => ({ year, value: aggregateValues(vals, definition.aggregationType) }))
+    .sort((a, b) => a.year - b.year);
+}
+
+/**
  * Compute and store a snapshot for an aggregation. Benchmark typing comes from the
  * persisted definition (`benchmark` flag) — there are no call-site options.
  * @operation mutation
