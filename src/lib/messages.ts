@@ -1278,6 +1278,16 @@ export const MESSAGES = {
   },
   // Energy-years dialog.
   eyAction: { en: "Energy years", de: "Energiejahre", fr: "Années énergétiques" },
+  eyObserveFor: {
+    en: "Observe for",
+    de: "Beobachten für",
+    fr: "Observer pour",
+  },
+  eyFoiBuilding: {
+    en: "Building (whole)",
+    de: "Gebäude (gesamt)",
+    fr: "Bâtiment (entier)",
+  },
   eyStoredYears: {
     en: "Stored years",
     de: "Gespeicherte Jahre",

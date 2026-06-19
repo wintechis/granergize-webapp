@@ -341,7 +341,11 @@ export async function loadEnergy(
   for (const building of buildings) {
     const annual = (building.energyDatasets ?? [])
       .filter(
-        (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),
+        (r) =>
+          r.scenario === "actual" && !isSeriesGranularity(r.granularity) &&
+          // Building-level only: per-unit observations (a <#pv>/<#battery>/<#chp>
+          // feature-of-interest) are a separate series, not part of the building total.
+          !r.featureOfInterest,
       )
       .sort((a, b) => b.year - a.year); // newest first
     if (annual.length === 0) continue;

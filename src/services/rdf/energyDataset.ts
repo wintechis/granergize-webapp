@@ -261,6 +261,7 @@ export function parseDatasetLink(
   if (!parsed) return null;
   let granularity = "P1Y";
   let scenario: Scenario = "actual";
+  let featureOfInterest: string | undefined;
   if (store) {
     const node = namedNode(linkUri);
     granularity =
@@ -269,8 +270,10 @@ export function parseDatasetLink(
     const sc = store.getObjects(node, namedNode(`${CONSUMPTION_NS}scenario`), null)[0]
       ?.value;
     if (sc === `${CONSUMPTION_NS}Planned`) scenario = "planned";
+    featureOfInterest = store
+      .getObjects(node, namedNode(`${SOSA_NS}hasFeatureOfInterest`), null)[0]?.value;
   }
-  return { uri: linkUri, year: parsed.year, granularity, scenario };
+  return { uri: linkUri, year: parsed.year, granularity, scenario, featureOfInterest };
 }
 
 /**
@@ -305,11 +308,15 @@ export function findDatasetLink(
   year: number,
   granularity: string,
   scenario: Scenario,
+  featureOfInterest?: string,
 ): string | null {
   for (const ref of parseEnergyDatasetRefs(store, buildingSubjectUri)) {
     if (
       ref.year === year && ref.granularity === granularity &&
-      ref.scenario === scenario
+      ref.scenario === scenario &&
+      // FoI is part of the identity: a per-unit dataset (e.g. the <#pv> series)
+      // must NOT match the building's for the same (year, granularity, scenario).
+      (ref.featureOfInterest ?? "") === (featureOfInterest ?? "")
     ) {
       return ref.uri;
     }
@@ -444,6 +451,8 @@ export function parseEnergyDataset(
     ? "planned"
     : "actual";
   const year = yearOf(store, ds);
+  const featureOfInterest = store
+    .getObjects(ds, namedNode(`${SOSA_NS}hasFeatureOfInterest`), null)[0]?.value;
 
   const location = store.getObjects(
     ds,
@@ -451,7 +460,14 @@ export function parseEnergyDataset(
     null,
   )[0]?.value;
   if (location) {
-    return { building, year, granularity, scenario, datasetLocation: location };
+    return {
+      building,
+      year,
+      granularity,
+      scenario,
+      datasetLocation: location,
+      featureOfInterest,
+    };
   }
 
   const metrics: AnnualMetrics = {};
@@ -468,7 +484,7 @@ export function parseEnergyDataset(
       : undefined;
     if (val !== undefined) metrics[key] = Number(val);
   }
-  return { building, year, granularity, scenario, metrics };
+  return { building, year, granularity, scenario, metrics, featureOfInterest };
 }
 
 export type { ObservationRef };

@@ -494,7 +494,9 @@ export function useAnnualEnergy(building: BuildingType) {
     queryKeys.annualEnergy,
     async () => {
       const refs = (building.energyDatasets ?? []).filter(
-        (r) => !isSeriesGranularity(r.granularity),
+        // Building-level annual only — per-unit (featureOfInterest) series are shown
+        // under their unit, not in the building's annual chart.
+        (r) => !isSeriesGranularity(r.granularity) && !r.featureOfInterest,
       );
       const datasets = await loadEnergyDatasets(refs, freshFetchFn());
       const rows = (scenario: "actual" | "planned") =>
@@ -554,7 +556,9 @@ export function useAnnualEnergyByYear(
       const fetchFn = freshFetchFn();
       await Promise.all((buildings ?? []).map(async (building) => {
         const refs = (building.energyDatasets ?? []).filter(
-          (r) => r.scenario === "actual" && !isSeriesGranularity(r.granularity),
+          (r) =>
+            r.scenario === "actual" && !isSeriesGranularity(r.granularity) &&
+            !r.featureOfInterest, // building-level only (per-unit series excluded)
         );
         if (refs.length === 0) return;
         const datasets = await loadEnergyDatasets(refs, fetchFn);

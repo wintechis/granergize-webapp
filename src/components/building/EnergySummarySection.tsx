@@ -14,7 +14,9 @@ import { observationRoute } from "../../routes.ts";
 export default function EnergySummarySection(
   { building }: { building: BuildingType },
 ) {
-  const datasets = building.energyDatasets ?? [];
+  // Building-level years only — per-unit (featureOfInterest) observations are
+  // summarised under their unit, not in the building's energy summary.
+  const datasets = (building.energyDatasets ?? []).filter((d) => !d.featureOfInterest);
   const years = [...new Set(datasets.map((d) => d.year))].sort((a, b) => a - b);
   const latestYear = years.length > 0 ? years[years.length - 1] : null;
   // The observation page resolves the same :selectedBuilding param the routes encode.

@@ -12,8 +12,12 @@ export interface DeleteObservationParams {
   fileUri: string;
   /** The building subject's IRI (`#b` in the file). */
   subjectUri: string;
-  /** The (year, granularity, scenario) selector of the dataset to delete. */
-  dataset: Pick<EnergyDataset, "year" | "granularity" | "scenario">;
+  /** The (year, granularity, scenario, featureOfInterest) selector of the dataset
+   * to delete — FoI distinguishes a unit's series from the building's. */
+  dataset: Pick<
+    EnergyDataset,
+    "year" | "granularity" | "scenario" | "featureOfInterest"
+  >;
 }
 
 /**

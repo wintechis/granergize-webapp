@@ -3,6 +3,20 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Per-unit observations: an energy unit can carry its own series.** The observation entry
+  (`EnergyYearDialog`) gained an **"Observe for"** selector — the whole building (default) or one of
+  its energy units (the `<#pv>`/`<#battery>`/`<#chp>` `bldg:hasSystem` nodes) — so observations
+  attach to the chosen unit as `sosa:hasFeatureOfInterest`, mirroring MaStR's per-unit model.
+  Feature-of-interest is now part of a dataset's **identity** (parse/find/link/write/delete all carry
+  it), so a unit's per-year series can't collide with the building's for the same (year, granularity,
+  scenario); the dialog's table/edit are scoped to the selected unit. Building-level views (map,
+  annual chart, cube slider, energy summary, peer benchmarks) filter to no-FoI datasets, so per-unit
+  observations don't double-count into building totals.
+- **MaStR modelling-alignment guard.** A new offline conformance test (`mastrAlignment.test.ts`)
+  uses the real parsers on both sides (`parseNearbyInstallations` ↔ `parseBuildings`) to assert a
+  MaStR unit maps **1:1** onto our `:PVSystem` node — unit IRI → `owl:sameAs`, `mastr:Energietraeger`
+  (solar) → `bldg:PVSystem`, geo → geo, `mastr:Bruttoleistung` → `bldg:capacityKW` — so the two
+  registers stay in-line; drift in either model fails the test.
 - **Energy systems (units) managed on the building page, not in create-building.** The PV / battery /
   CHP system fields moved out of the create/edit building form into a dedicated **Energy systems**
   section on the building page, with an Add/Edit dialog (`EnergySystemsDialog`). Each is a

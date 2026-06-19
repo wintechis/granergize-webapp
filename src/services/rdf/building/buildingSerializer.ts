@@ -26,6 +26,7 @@ import {
   RDF_TYPE as RDF_TYPE_IRI,
   REC_BUILDING,
   REC_NS,
+  SOSA_NS,
   type GeocodePrecision,
   XSD_BOOLEAN,
   XSD_DECIMAL,
@@ -543,6 +544,10 @@ export interface EnergyDatasetLink {
   uri: string;
   granularity: string;
   scenario: Scenario;
+  /** The unit the dataset is about (`sosa:hasFeatureOfInterest`), when not the
+   * building as a whole — re-stated on the link so phase-1 + the reuse match can
+   * tell a per-unit series apart from the building's. */
+  featureOfInterest?: string;
 }
 
 export function serializeBuildingToTurtle(
@@ -630,7 +635,17 @@ function linkEnergyDatasetInStore(
   store.removeQuads(
     store.getQuads(node, namedNode(`${CONSUMPTION_NS}scenario`), null, null),
   );
+  store.removeQuads(
+    store.getQuads(node, namedNode(`${SOSA_NS}hasFeatureOfInterest`), null, null),
+  );
   store.addQuad(subject, pred, node);
+  if (link.featureOfInterest) {
+    store.addQuad(
+      node,
+      namedNode(`${SOSA_NS}hasFeatureOfInterest`),
+      namedNode(link.featureOfInterest),
+    );
+  }
   store.addQuad(
     node,
     namedNode(`${CONSUMPTION_NS}granularity`),
@@ -668,7 +683,14 @@ export async function writeEnergyYear(
   // already linked, so a re-save overwrites it rather than orphaning a file.
   const store = await readBuildingStore(gateway, buildingFileUri);
   const reuse = store
-    ? findDatasetLink(store, buildingSubjectUri, ds.year, ds.granularity, ds.scenario)
+    ? findDatasetLink(
+      store,
+      buildingSubjectUri,
+      ds.year,
+      ds.granularity,
+      ds.scenario,
+      ds.featureOfInterest,
+    )
     : null;
   const nodeUri = reuse ??
     datasetNodeUri(datasetFileUri(root, ds.year, mintDatasetId()));
@@ -689,6 +711,7 @@ export async function writeEnergyYear(
       uri: nodeUri,
       granularity: ds.granularity,
       scenario: ds.scenario,
+      featureOfInterest: ds.featureOfInterest,
     });
   });
 }
@@ -719,13 +742,20 @@ export async function deleteEnergyYear(
   gateway: PodGateway,
   buildingFileUri: string,
   buildingSubjectUri: string,
-  ds: Pick<EnergyDataset, "year" | "granularity" | "scenario">,
+  ds: Pick<EnergyDataset, "year" | "granularity" | "scenario" | "featureOfInterest">,
 ): Promise<void> {
-  // Locate the linked dataset by (year, granularity, scenario) — the time-first
+  // Locate the linked dataset by (year, granularity, scenario, FoI) — the time-first
   // path no longer encodes those, so the building's own links are the index.
   const store = await readBuildingStore(gateway, buildingFileUri);
   const nodeUri = store
-    ? findDatasetLink(store, buildingSubjectUri, ds.year, ds.granularity, ds.scenario)
+    ? findDatasetLink(
+      store,
+      buildingSubjectUri,
+      ds.year,
+      ds.granularity,
+      ds.scenario,
+      ds.featureOfInterest,
+    )
     : null;
   if (!nodeUri) return; // nothing linked — already gone
 

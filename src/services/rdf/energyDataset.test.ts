@@ -19,7 +19,7 @@ import {
   seriesDailyFileUri,
   serializeEnergyDataset,
 } from "./energyDataset.ts";
-import { CONSUMPTION_NS } from "./vocabularies.ts";
+import { CONSUMPTION_NS, SOSA_NS } from "./vocabularies.ts";
 
 const B = "https://pod.example/granergize/buildings/b-1.ttl#it";
 const ROOT = "https://pod.example/granergize/observations/";
@@ -82,6 +82,50 @@ Deno.test("findDatasetLink matches an existing link by (year, granularity, scena
   assert.equal(findDatasetLink(store, B, 2024, "PT15M", "actual"), b);
   assert.equal(findDatasetLink(store, B, 2024, "P1Y", "planned"), null);
   assert.equal(findDatasetLink(store, B, 2025, "P1Y", "actual"), null);
+});
+
+Deno.test("findDatasetLink keeps a per-unit (featureOfInterest) dataset distinct from the building's", () => {
+  const file = B.split("#")[0];
+  const pv = `${file}#pv`;
+  const battery = `${file}#battery`;
+  const whole = `${datasetFileUri(ROOT, 2024, "id-whole")}#ds`;
+  const unit = `${datasetFileUri(ROOT, 2024, "id-pv")}#ds`;
+  // Two datasets for the SAME (year, granularity, scenario) — one building-wide,
+  // one observing the <#pv> unit. Per-unit observations must not collide with the
+  // building's (or saving the PV's 2024 would overwrite the building's 2024).
+  const store = parse(
+    `@prefix cons: <${CONSUMPTION_NS}> .\n` +
+      `@prefix sosa: <${SOSA_NS}> .\n` +
+      `<${B}> cons:hasEnergyDataset <${whole}>, <${unit}> .\n` +
+      `<${whole}> cons:granularity "P1Y" ; cons:scenario cons:Actual .\n` +
+      `<${unit}> cons:granularity "P1Y" ; cons:scenario cons:Actual ;\n` +
+      `   sosa:hasFeatureOfInterest <${pv}> .\n`,
+  );
+  assert.equal(findDatasetLink(store, B, 2024, "P1Y", "actual"), whole); // building (no FoI)
+  assert.equal(findDatasetLink(store, B, 2024, "P1Y", "actual", pv), unit); // the PV unit
+  // A FoI with no dataset doesn't fall back to the building's.
+  assert.equal(findDatasetLink(store, B, 2024, "P1Y", "actual", battery), null);
+  // parseDatasetLink surfaces the FoI on the ref.
+  assert.equal(parseDatasetLink(unit, store)!.featureOfInterest, pv);
+  assert.equal(parseDatasetLink(whole, store)!.featureOfInterest, undefined);
+});
+
+Deno.test("featureOfInterest round-trips through serialize → parse", () => {
+  const pv = `${B.split("#")[0]}#pv`;
+  const ds: EnergyDataset = {
+    building: B,
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "actual",
+    metrics: { electricityGeneration: 240000 },
+    featureOfInterest: pv,
+  };
+  const node = `${datasetFileUri(ROOT, 2024, ID)}#ds`;
+  const store = parse(serializeEnergyDataset(ds).replace(/<#ds>/g, `<${node}>`));
+  const back = parseEnergyDataset(store, node);
+  assert.ok(back);
+  assert.equal(back!.featureOfInterest, pv);
+  assert.equal(back!.metrics?.electricityGeneration, 240000);
 });
 
 Deno.test("annual dataset round-trips through serialize → parse", () => {

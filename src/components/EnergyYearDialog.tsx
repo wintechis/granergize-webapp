@@ -98,6 +98,22 @@ export default function EnergyYearDialog(
   const [values, setValues] = useState<Record<string, string>>({});
   const [editingExisting, setEditingExisting] = useState(false);
 
+  // Feature of interest: the whole building (default) or one of its energy units —
+  // each a `bldg:hasSystem` node. Observations entered here attach to the chosen
+  // unit (`sosa:hasFeatureOfInterest`), so a unit accrues its own per-year series,
+  // mirroring MaStR's per-unit model. Only units that exist on the building are offered.
+  const buildingFile = buildingFileUri(building.uri as string);
+  const foiOptions: Array<{ label: string; iri: string }> = [
+    { label: msg("eyFoiBuilding"), iri: "" },
+    ...(building.pvSystem ? [{ label: msg("mdPvSystem"), iri: `${buildingFile}#pv` }] : []),
+    ...(building.batteryStorage
+      ? [{ label: msg("mdBatteryStorage"), iri: `${buildingFile}#battery` }]
+      : []),
+    ...(building.chpSystem ? [{ label: msg("mdChpSystem"), iri: `${buildingFile}#chp` }] : []),
+  ];
+  const [foi, setFoi] = useState(""); // "" = the building as a whole
+  const selectedFoi = foi || undefined;
+
   // The annual (P1Y) datasets stored for this building, with their figures — the
   // source of both the read-back table and the edit pre-fill. Loaded off the Pod
   // by the query hook (keyed on the dataset-link fingerprint, so a year that
@@ -121,10 +137,18 @@ export default function EnergyYearDialog(
   const dirty = year.trim() !== "" ||
     Object.values(values).some((v) => v.trim() !== "");
 
-  // (year, scenario) → stored dataset, for the edit pre-fill lookup.
+  // The datasets for the currently-selected feature of interest (the building or a
+  // unit) — the table, edit pre-fill and read-back are all scoped to it, so a unit's
+  // series is entered/edited apart from the building's.
+  const visible = useMemo(
+    () => datasets.filter((d) => (d.featureOfInterest ?? "") === (selectedFoi ?? "")),
+    [datasets, selectedFoi],
+  );
+
+  // (year, scenario) → stored dataset (within the selected FoI), for the edit pre-fill.
   const existingByKey = useMemo(
-    () => new Map(datasets.map((d) => [dsKey(d.year, d.scenario), d] as const)),
-    [datasets],
+    () => new Map(visible.map((d) => [dsKey(d.year, d.scenario), d] as const)),
+    [visible],
   );
 
   // The (year, scenario) currently reflected in the form from a load, so a
@@ -239,16 +263,20 @@ export default function EnergyYearDialog(
       granularity: "P1Y",
       scenario,
       metrics,
+      featureOfInterest: selectedFoi,
     };
     write.mutate(
       { fileUri: buildingFileUri(subjectUri), subjectUri, dataset },
       {
         onSuccess: () => {
           // Reflect the saved year in the table without a round-trip, then clear
-          // the form so the user can see it land and add/edit another.
+          // the form so the user can see it land and add/edit another. Match on the
+          // FoI too, so a unit's save never clobbers the building's same-year row.
           patchDatasets((prev) => {
             const rest = prev.filter(
-              (d) => dsKey(d.year, d.scenario) !== dsKey(y, scenario),
+              (d) =>
+                !(d.year === y && d.scenario === scenario &&
+                  (d.featureOfInterest ?? "") === (selectedFoi ?? "")),
             );
             return [...rest, dataset];
           });
@@ -279,13 +307,20 @@ export default function EnergyYearDialog(
       {
         fileUri: buildingFileUri(subjectUri),
         subjectUri,
-        dataset: { year: d.year, granularity: "P1Y", scenario: d.scenario },
+        dataset: {
+          year: d.year,
+          granularity: "P1Y",
+          scenario: d.scenario,
+          featureOfInterest: d.featureOfInterest,
+        },
       },
       {
         onSuccess: () => {
           patchDatasets((prev) =>
             prev.filter(
-              (x) => dsKey(x.year, x.scenario) !== dsKey(d.year, d.scenario),
+              (x) =>
+                !(x.year === d.year && x.scenario === d.scenario &&
+                  (x.featureOfInterest ?? "") === (d.featureOfInterest ?? "")),
             )
           );
           // If the deleted year was loaded in the form, clear it.
@@ -296,9 +331,16 @@ export default function EnergyYearDialog(
     );
   };
 
-  const sorted = [...datasets].sort((a, b) =>
+  const sorted = [...visible].sort((a, b) =>
     a.year - b.year || a.scenario.localeCompare(b.scenario)
   );
+
+  // Switching the feature of interest is like opening a different unit's sheet —
+  // clear the in-progress form so a unit's figures don't leak onto another.
+  const changeFoi = (next: string) => {
+    setFoi(next);
+    reset();
+  };
 
   return (
     <Modal
@@ -318,7 +360,23 @@ export default function EnergyYearDialog(
       }
     >
       <Stack spacing={3} sx={{ mt: 1 }}>
-        {/* Read-back of what's stored for this building. */}
+        {/* Feature of interest — the building or one of its energy units. Shown only
+            when the building has units; scopes both the table and the entry form. */}
+        {foiOptions.length > 1 && (
+          <TextField
+            select
+            label={msg("eyObserveFor")}
+            size="small"
+            value={foi}
+            onChange={(e) => changeFoi(e.target.value)}
+            sx={{ alignSelf: "flex-start", minWidth: 240 }}
+          >
+            {foiOptions.map((o) => (
+              <MenuItem key={o.iri} value={o.iri}>{o.label}</MenuItem>
+            ))}
+          </TextField>
+        )}
+        {/* Read-back of what's stored for the selected feature of interest. */}
         <section>
           <Typography variant="h6" sx={{ mb: 1 }}>{msg("eyStoredYears")}</Typography>
           {listLoading

@@ -232,6 +232,11 @@ export interface EnergyDatasetRef {
   year: number;
   granularity: string;
   scenario: Scenario;
+  /** The `sosa:hasFeatureOfInterest` the dataset observes, when a specific unit
+   * (a `bldg:hasSystem` node, e.g. `<#pv>`) rather than the building as a whole.
+   * Part of a dataset's identity, so a per-unit series doesn't collide with the
+   * building's for the same (year, granularity, scenario). */
+  featureOfInterest?: string;
 }
 
 export type EnergyType = {

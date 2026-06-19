@@ -220,4 +220,54 @@ test.describe("energy entry + Soll-Ist", () => {
     await expect(yearRow).toBeHidden({ timeout: T.action });
     await page.getByRole("button", { name: "Close" }).click();
   });
+
+  test("a PV unit records its own per-year observation, separate from the building", async () => {
+    test.setTimeout(T.testSolo);
+    const PV_YEAR = "2095";
+
+    // 1) Add a PV unit on the building page (Energy systems section) — only then does
+    // the energy dialog offer it as a feature of interest.
+    await page.goto(buildingRoute("building", id));
+    const sysBtn = page
+      .getByRole("heading", { name: en("secEnergySystems"), exact: true })
+      .locator("xpath=..")
+      .getByRole("button");
+    await sysBtn.click();
+    const sysDialog = page.getByRole("dialog");
+    await expect(sysDialog).toBeVisible({ timeout: T.visible });
+    await sysDialog.getByLabel(en("lblPvCapacity"), { exact: true }).fill("500");
+    await sysDialog.getByRole("button", { name: en("saveChanges"), exact: true }).click();
+    await expect(page.getByText(/building updated/i)).toBeVisible({ timeout: T.action });
+
+    // 2) Open the energy-year dialog; "Observe for" now offers the PV unit.
+    await page.goto(buildingRoute("observation", id));
+    await page.getByRole("button", { name: "Edit energy years" }).click();
+    const dialog = page.getByRole("dialog");
+    await dialog.getByLabel(en("eyObserveFor")).click();
+    await page.getByRole("option", { name: en("mdPvSystem"), exact: true }).click();
+
+    // 3) Enter a generation figure for PV_YEAR and save — it attaches to <#pv> as the
+    // feature of interest, NOT the building.
+    await dialog.getByRole("spinbutton", { name: en("lblYear"), exact: true }).fill(PV_YEAR);
+    await dialog.getByRole("spinbutton", { name: "Electricity generation (kWh)" })
+      .fill("240000");
+    await dialog.getByRole("button", { name: "Save" }).click();
+    await expect(page.getByText("Energy data saved").first())
+      .toBeVisible({ timeout: T.action });
+
+    // 4) The PV scope lists the year.
+    const table = dialog.getByRole("table");
+    const pvRow = table.getByRole("row", { name: new RegExp(`\\b${PV_YEAR}\\b`) });
+    await expect(pvRow).toBeVisible({ timeout: T.action });
+
+    // 5) Switch "Observe for" back to the building → the PV year is NOT there,
+    // proving per-unit observations are stored apart from the building's own.
+    await dialog.getByLabel(en("eyObserveFor")).click();
+    await page.getByRole("option", { name: en("eyFoiBuilding"), exact: true }).click();
+    await expect(table.getByRole("row", { name: new RegExp(`\\b${PV_YEAR}\\b`) }))
+      .toBeHidden({ timeout: T.action });
+
+    await page.getByRole("button", { name: "Close" }).click();
+    await page.goto("/");
+  });
 });

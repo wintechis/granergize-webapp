@@ -270,7 +270,10 @@ export function useDeleteEnergyYear() {
     mutationFn: (vars: {
       fileUri: string;
       subjectUri: string;
-      dataset: Pick<EnergyDataset, "year" | "granularity" | "scenario">;
+      dataset: Pick<
+        EnergyDataset,
+        "year" | "granularity" | "scenario" | "featureOfInterest"
+      >;
     }) => invoke("DeleteObservation", vars, getGateway()),
     onSettled: () => invalidateBuildingData(qc),
   });
