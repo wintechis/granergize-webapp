@@ -18,10 +18,10 @@ export default function RegionalStatistics(
   { building }: { building: BuildingType },
 ) {
   const t = useT();
-  // Map-first: the choropleth works for any located building (nationwide geometry + cube),
-  // whereas the figures table depends on the building's region resolving — so the map is the
-  // dependable default; `active` snaps to the table only when there are no coordinates.
-  const [view, setView] = useState<"table" | "map">("map");
+  // Table-first: the figures are the primary content, and the region now resolves reliably at
+  // geocode time (so the table isn't the flaky side any more). `active` snaps to the map only
+  // when there are no figures (e.g. a located building outside the statistics' coverage).
+  const [view, setView] = useState<"table" | "map">("table");
   // Same query the table section uses (React Query dedupes), so we can tell whether the
   // table has figures before offering it. The map needs only coordinates.
   const { data } = useRegionalContext(building);
