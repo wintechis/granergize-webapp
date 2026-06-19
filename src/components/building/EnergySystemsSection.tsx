@@ -1,56 +1,45 @@
 import { msg } from "../../lib/messages.ts";
-import { useState } from "react";
+import { Fragment, useState } from "react";
 import { Button, Stack, Typography } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import AddIcon from "@mui/icons-material/Add";
-import type {
-  BatteryStorage,
-  BuildingType,
-  ChpSystem,
-  PvSystem,
-} from "../../types.ts";
+import type { BuildingType, SystemKind, TechnicalSystem } from "../../types.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { DetailRow } from "../detail/DetailView.tsx";
 import EnergySystemsDialog from "./EnergySystemsDialog.tsx";
 
-/** One-line summary of the PV plant ("750 kW, since 2018"), or "Yes" when present
- * but undetailed. The operator is shown as its own resolved-agent row. */
-const pvSystemSummary = (pv: PvSystem): string => {
-  const parts: string[] = [];
-  if (pv.capacityKW != null) parts.push(`${pv.capacityKW} kW`);
-  if (pv.commissioningYear != null) parts.push(`since ${pv.commissioningYear}`);
-  return parts.length ? parts.join(", ") : "Yes";
-};
+/** The unit's kind label ("PV system" / "Battery storage" / "Cogeneration (CHP)"). */
+const kindLabel = (kind: SystemKind): string =>
+  kind === "battery"
+    ? msg("mdBatteryStorage")
+    : kind === "chp"
+    ? msg("mdChpSystem")
+    : msg("mdPvSystem");
 
-/** One-line summary of the battery ("215.5 kWh, since 2021"), else "Yes". */
-const batterySummary = (b: BatteryStorage): string => {
+/** One-line capacity summary ("750 kW, since 2018" / "215.5 kWh" / "61 kW el, 126 kW
+ * th, since 2017"), or "Yes" when present but undetailed. */
+const systemSummary = (s: TechnicalSystem): string => {
   const parts: string[] = [];
-  if (b.capacityKWh != null) parts.push(`${b.capacityKWh} kWh`);
-  if (b.commissioningYear != null) parts.push(`since ${b.commissioningYear}`);
-  return parts.length ? parts.join(", ") : "Yes";
-};
-
-/** One-line summary of the CHP plant ("61 kW el, 126 kW th, since 2017"), else "Yes". */
-const chpSummary = (c: ChpSystem): string => {
-  const parts: string[] = [];
-  if (c.capacityKW != null) parts.push(`${c.capacityKW} kW el`);
-  if (c.thermalCapacityKW != null) parts.push(`${c.thermalCapacityKW} kW th`);
-  if (c.commissioningYear != null) parts.push(`since ${c.commissioningYear}`);
+  if (s.capacityKW != null) parts.push(`${s.capacityKW} kW${s.kind === "chp" ? " el" : ""}`);
+  if (s.storageCapacityKWh != null) parts.push(`${s.storageCapacityKWh} kWh`);
+  if (s.thermalCapacityKW != null) parts.push(`${s.thermalCapacityKW} kW th`);
+  if (s.commissioningYear != null) parts.push(`since ${s.commissioningYear}`);
   return parts.length ? parts.join(", ") : "Yes";
 };
 
 /**
- * The building's energy systems (units) — PV plant, battery storage, CHP — shown on
- * the building page and managed here (NOT in the create-building form), so units are
- * added/edited on the building's own page. Each is a `bldg:hasSystem` technical-system
- * node; an owned building can add them, a shared one is read-only.
+ * The building's energy units (PV plants, batteries, CHP) — shown on the building page
+ * and managed here (NOT in the create-building form). A building may carry several of
+ * a kind; each is a `bldg:hasSystem` node. An owned building can add/edit them, a shared
+ * one is read-only.
  */
 export default function EnergySystemsSection(
   { building }: { building: BuildingType },
 ) {
   const canEdit = !building.isShared;
   const [editing, setEditing] = useState(false);
-  const hasAny = !!(building.pvSystem || building.batteryStorage || building.chpSystem);
+  const systems = (building.systems ?? []) as TechnicalSystem[];
+  const hasAny = systems.length > 0;
 
   return (
     <>
@@ -73,36 +62,17 @@ export default function EnergySystemsSection(
       {hasAny
         ? (
           <Stack spacing={1}>
-            {building.pvSystem && (
-              <DetailRow label={msg("mdPvSystem")} value={pvSystemSummary(building.pvSystem)} />
-            )}
-            {building.pvSystem?.operatedBy && (
-              <DetailRow
-                label={msg("mdPvOperator")}
-                value={<AgentLabel value={building.pvSystem.operatedBy} />}
-              />
-            )}
-            {building.batteryStorage && (
-              <DetailRow
-                label={msg("mdBatteryStorage")}
-                value={batterySummary(building.batteryStorage)}
-              />
-            )}
-            {building.batteryStorage?.operatedBy && (
-              <DetailRow
-                label={msg("mdBatteryOperator")}
-                value={<AgentLabel value={building.batteryStorage.operatedBy} />}
-              />
-            )}
-            {building.chpSystem && (
-              <DetailRow label={msg("mdChpSystem")} value={chpSummary(building.chpSystem)} />
-            )}
-            {building.chpSystem?.operatedBy && (
-              <DetailRow
-                label={msg("mdChpOperator")}
-                value={<AgentLabel value={building.chpSystem.operatedBy} />}
-              />
-            )}
+            {systems.map((s) => (
+              <Fragment key={s.id}>
+                <DetailRow label={kindLabel(s.kind)} value={systemSummary(s)} />
+                {s.operatedBy && (
+                  <DetailRow
+                    label={msg("mdSystemOperator")}
+                    value={<AgentLabel value={s.operatedBy} />}
+                  />
+                )}
+              </Fragment>
+            ))}
           </Stack>
         )
         : (

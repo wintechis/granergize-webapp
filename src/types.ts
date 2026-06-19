@@ -39,47 +39,31 @@ export interface InvestorCertification {
   scope?: string;
 }
 
+/** The kind of energy unit, fixed by the node's `rdf:type` (`:PVSystem` /
+ * `:BatteryStorage` / `:CHPSystem`, all ⊑ `:TechnicalSystem`). */
+export type SystemKind = "pv" | "battery" | "chp";
+
 /**
- * A PV plant as a technical-system component of the building — the typed mirror of
- * the `<…/{id}.ttl#pv>` node (`:PVSystem ⊑ :TechnicalSystem`, linked by
- * `bldg:hasSystem`). Its presence on a building means "has PV"; there is no separate
- * boolean. The plant carries its OWN `rec:operatedBy` (the Anlagenbetreiber, distinct
- * from the building's operator/user) and `owl:sameAs` the external MaStR Einheit.
+ * One energy unit of the building — the typed mirror of a single `bldg:hasSystem`
+ * node. A building may carry SEVERAL (two PV plants, a battery, a CHP, …); each is
+ * its own node with a STABLE hash-fragment `id`, so a per-unit observation's
+ * `sosa:hasFeatureOfInterest` keeps pointing at the same unit across edits. The unit
+ * carries its OWN `rec:operatedBy` (the Anlagenbetreiber, distinct from the building's
+ * operator) and `owl:sameAs` the external MaStR Einheit. Which capacity field applies
+ * depends on `kind`: PV/CHP electrical → `capacityKW`, battery → `storageCapacityKWh`,
+ * CHP heat → `thermalCapacityKW`.
  */
-export interface PvSystem {
-  capacityKW?: number; // :capacityKW (xsd:decimal) — nameplate power
+export interface TechnicalSystem {
+  /** Stable node fragment local-name — the node IRI is `<buildingFile>#{id}`, and the
+   * feature-of-interest a per-unit observation attaches to. */
+  id: string;
+  kind: SystemKind;
+  capacityKW?: number; // :capacityKW (xsd:decimal) — PV/CHP electrical nameplate
+  storageCapacityKWh?: number; // :storageCapacityKWh — battery usable energy
+  thermalCapacityKW?: number; // :thermalCapacityKW — CHP heat output
   commissioningYear?: number; // :commissioningYear (xsd:gYear)
-  /** The PLANT operator's WebID/IRI (`rec:operatedBy`) — not the building's. */
-  operatedBy?: string;
-  /** `owl:sameAs` the external MaStR Einheit IRI. */
-  sameAs?: string;
-}
-
-/**
- * A battery storage installation as a technical-system component — the typed
- * mirror of the `<…/{id}.ttl#battery>` node (`:BatteryStorage ⊑ :TechnicalSystem`,
- * linked by `bldg:hasSystem`). Sibling of {@link PvSystem}; presence ⇒ has battery.
- * Carries usable energy capacity (kWh, distinct from PV's nameplate power kW).
- */
-export interface BatteryStorage {
-  capacityKWh?: number; // :storageCapacityKWh (xsd:decimal) — usable energy
-  commissioningYear?: number;
-  operatedBy?: string;
-  sameAs?: string;
-}
-
-/**
- * A cogeneration plant (CHP / KWK) as a technical-system component — the typed
- * mirror of the `<…/{id}.ttl#chp>` node (`:CHPSystem ⊑ :TechnicalSystem`, linked
- * by `bldg:hasSystem`). Sibling of {@link PvSystem}; presence ⇒ has CHP. Carries
- * both electrical (`:capacityKW`) and thermal (`:thermalCapacityKW`) output.
- */
-export interface ChpSystem {
-  capacityKW?: number; // :capacityKW — electrical output
-  thermalCapacityKW?: number; // :thermalCapacityKW — heat output
-  commissioningYear?: number;
-  operatedBy?: string;
-  sameAs?: string;
+  operatedBy?: string; // rec:operatedBy — the UNIT operator's WebID/IRI
+  sameAs?: string; // owl:sameAs the external MaStR Einheit IRI
 }
 
 export interface BuildingType {
@@ -92,9 +76,7 @@ export interface BuildingType {
     | AnnualData[]
     | InvestorCertification[]
     | InvestorOperatingCosts
-    | PvSystem
-    | BatteryStorage
-    | ChpSystem
+    | TechnicalSystem[]
     | undefined;
   /** The building's identifier IS its subject IRI (see buildingId.ts):
    * storage-root-relative for the user's own buildings
@@ -133,13 +115,9 @@ export interface BuildingType {
   streetAddress?: string;
   buildingArea?: number;
   landArea?: number;
-  /** The PV plant as a technical-system node (presence ⇒ has PV). Replaces the
-   * former flat `hasPVSystem`/`pvCapacityKW`/`pvInstallationYear` fields. */
-  pvSystem?: PvSystem;
-  /** Battery storage as a technical-system node (presence ⇒ has battery). */
-  batteryStorage?: BatteryStorage;
-  /** Cogeneration plant as a technical-system node (presence ⇒ has CHP). */
-  chpSystem?: ChpSystem;
+  /** The building's energy units (`bldg:hasSystem` nodes) — PV plants, batteries,
+   * CHP. A flat list (several of a kind allowed); each carries a stable `id`. */
+  systems?: TechnicalSystem[];
   /** Investor WebID (`bldg:investor`, ranges over foaf:Agent — an agent link like
    * operatedBy, not a free-text label). Legacy literal values tolerated on read. */
   investor?: string;

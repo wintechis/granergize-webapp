@@ -19,7 +19,12 @@ import {
 import EditIcon from "@mui/icons-material/Edit";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import type { BuildingType, Scenario } from "../types.ts";
+import type {
+  BuildingType,
+  Scenario,
+  SystemKind,
+  TechnicalSystem,
+} from "../types.ts";
 import { useQueryClient } from "@tanstack/react-query";
 import {
   type AnnualMetrics,
@@ -103,13 +108,25 @@ export default function EnergyYearDialog(
   // unit (`sosa:hasFeatureOfInterest`), so a unit accrues its own per-year series,
   // mirroring MaStR's per-unit model. Only units that exist on the building are offered.
   const buildingFile = buildingFileUri(building.uri as string);
+  const kindLabel = (kind: SystemKind) =>
+    kind === "battery"
+      ? msg("mdBatteryStorage")
+      : kind === "chp"
+      ? msg("mdChpSystem")
+      : msg("mdPvSystem");
+  // One option per energy unit (its actual node IRI), so an observation can attach to
+  // exactly the unit the user picks — several of a kind disambiguated by the summary.
+  const units = (building.systems ?? []) as TechnicalSystem[];
   const foiOptions: Array<{ label: string; iri: string }> = [
     { label: msg("eyFoiBuilding"), iri: "" },
-    ...(building.pvSystem ? [{ label: msg("mdPvSystem"), iri: `${buildingFile}#pv` }] : []),
-    ...(building.batteryStorage
-      ? [{ label: msg("mdBatteryStorage"), iri: `${buildingFile}#battery` }]
-      : []),
-    ...(building.chpSystem ? [{ label: msg("mdChpSystem"), iri: `${buildingFile}#chp` }] : []),
+    ...units.map((s) => ({
+      label: s.capacityKW != null || s.storageCapacityKWh != null
+        ? `${kindLabel(s.kind)} (${s.capacityKW ?? s.storageCapacityKWh} ${
+          s.kind === "battery" ? "kWh" : "kW"
+        })`
+        : kindLabel(s.kind),
+      iri: `${buildingFile}#${s.id}`,
+    })),
   ];
   const [foi, setFoi] = useState(""); // "" = the building as a whole
   const selectedFoi = foi || undefined;

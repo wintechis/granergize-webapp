@@ -1,6 +1,12 @@
 import type { PodGateway } from "../../pod/podGateway.ts";
 import { DataFactory, Parser, Store, Writer } from "n3";
-import type { AnnualData, BuildingType, Scenario } from "../../../types.ts";
+import type {
+  AnnualData,
+  BuildingType,
+  Scenario,
+  SystemKind,
+  TechnicalSystem,
+} from "../../../types.ts";
 import {
   BOOLEAN_FIELDS,
   DECIMAL_FIELDS,
@@ -264,165 +270,126 @@ function replaceCertifications(
   );
 }
 
-/**
- * Serialize the PV plant as a `<…/{id}.ttl#pv>` `:PVSystem` node linked by
- * `bldg:hasSystem`, from `_pv_<field>` keys (`capacityKW`/`commissioningYear`/
- * `operatedBy`/`sameAs`). A hash-fragment NamedNode (not a blank node) so the plant
- * has its own identity — its `rec:operatedBy` is the Anlagenbetreiber (distinct from
- * the building's operator) and `owl:sameAs` the external MaStR Einheit. No-op when no
- * `_pv_*` keys are present (⇒ no PV). Mirrors {@link buildingParser}'s read.
- */
-function addPvSystem(
-  store: Store,
-  subject: ReturnType<typeof namedNode>,
-  fields: Record<string, string>,
-): void {
-  const capacity = fields._pv_capacityKW?.trim();
-  const year = fields._pv_commissioningYear?.trim();
-  const operatedBy = fields._pv_operatedBy?.trim();
-  const sameAs = fields._pv_sameAs?.trim();
-  // `_pv_present` is the import's bare "PV installed" boolean — write the node even
-  // with no details (presence ⇒ has PV). A falsy/"false"/"nein" value doesn't.
-  const present = normalizeBoolean(fields._pv_present ?? "") === "true";
-  if (!capacity && !year && !operatedBy && !sameAs && !present) return;
-  // The node lives in the same document as the building subject (`<#it>` → `<#pv>`).
-  const pv = namedNode(`${buildingFileUri(subject.value)}#pv`);
-  store.addQuad(subject, namedNode(`${BUILDING_NS}hasSystem`), pv);
-  store.addQuad(pv, namedNode(RDF_TYPE_IRI), namedNode(`${BUILDING_NS}PVSystem`));
-  if (capacity) {
-    store.addQuad(
-      pv,
-      namedNode(`${BUILDING_NS}capacityKW`),
-      literal(capacity, namedNode(XSD_DECIMAL)),
-    );
-  }
-  if (year) {
-    store.addQuad(
-      pv,
-      namedNode(`${BUILDING_NS}commissioningYear`),
-      literal(year, namedNode(XSD_GYEAR)),
-    );
-  }
-  // operatedBy / sameAs are IRI references (the plant operator's WebID, the MaStR
-  // Einheit), so NamedNode — mirror operatedBy on the building.
-  if (operatedBy) store.addQuad(pv, namedNode(`${REC_NS}operatedBy`), namedNode(operatedBy));
-  if (sameAs) store.addQuad(pv, namedNode(OWL_SAME_AS), namedNode(sameAs));
-}
+const SYSTEM_TYPE_IRI: Record<SystemKind, string> = {
+  pv: `${BUILDING_NS}PVSystem`,
+  battery: `${BUILDING_NS}BatteryStorage`,
+  chp: `${BUILDING_NS}CHPSystem`,
+};
 
 /**
- * Serialize battery storage as a `<…/{id}.ttl#battery>` `:BatteryStorage` node,
- * from `_battery_<field>` keys (`capacityKWh`/`commissioningYear`/`operatedBy`/
- * `sameAs`). Sibling of {@link addPvSystem}; capacity is usable energy (kWh) via
- * `:storageCapacityKWh`. No-op when no `_battery_*` keys are present.
+ * Write one energy-unit node `<#{id}>` — its kind's `rdf:type` plus the capacity
+ * (kind-specific), commissioning year, operator and `owl:sameAs` it carries — linked
+ * by `bldg:hasSystem`. A hash-fragment NamedNode in the building document, so the unit
+ * has its own identity: its `rec:operatedBy` is the Anlagenbetreiber (not the
+ * building's operator) and `owl:sameAs` the external MaStR Einheit. Mirrors the parser.
  */
-function addBatterySystem(
+function addSystem(
   store: Store,
   subject: ReturnType<typeof namedNode>,
-  fields: Record<string, string>,
+  system: TechnicalSystem,
 ): void {
-  const capacity = fields._battery_capacityKWh?.trim();
-  const year = fields._battery_commissioningYear?.trim();
-  const operatedBy = fields._battery_operatedBy?.trim();
-  const sameAs = fields._battery_sameAs?.trim();
-  const present = normalizeBoolean(fields._battery_present ?? "") === "true";
-  if (!capacity && !year && !operatedBy && !sameAs && !present) return;
-  const node = namedNode(`${buildingFileUri(subject.value)}#battery`);
+  const node = namedNode(`${buildingFileUri(subject.value)}#${system.id}`);
   store.addQuad(subject, namedNode(`${BUILDING_NS}hasSystem`), node);
-  store.addQuad(
-    node,
-    namedNode(RDF_TYPE_IRI),
-    namedNode(`${BUILDING_NS}BatteryStorage`),
-  );
-  if (capacity) {
-    store.addQuad(
-      node,
-      namedNode(`${BUILDING_NS}storageCapacityKWh`),
-      literal(capacity, namedNode(XSD_DECIMAL)),
-    );
-  }
-  if (year) {
+  store.addQuad(node, namedNode(RDF_TYPE_IRI), namedNode(SYSTEM_TYPE_IRI[system.kind]));
+  const decimal = (pred: string, v: number | undefined) => {
+    if (v != null) {
+      store.addQuad(node, namedNode(pred), literal(String(v), namedNode(XSD_DECIMAL)));
+    }
+  };
+  decimal(`${BUILDING_NS}capacityKW`, system.capacityKW);
+  decimal(`${BUILDING_NS}storageCapacityKWh`, system.storageCapacityKWh);
+  decimal(`${BUILDING_NS}thermalCapacityKW`, system.thermalCapacityKW);
+  if (system.commissioningYear != null) {
     store.addQuad(
       node,
       namedNode(`${BUILDING_NS}commissioningYear`),
-      literal(year, namedNode(XSD_GYEAR)),
+      literal(String(system.commissioningYear), namedNode(XSD_GYEAR)),
     );
   }
-  if (operatedBy) {
-    store.addQuad(node, namedNode(`${REC_NS}operatedBy`), namedNode(operatedBy));
+  if (system.operatedBy) {
+    store.addQuad(node, namedNode(`${REC_NS}operatedBy`), namedNode(system.operatedBy));
   }
-  if (sameAs) store.addQuad(node, namedNode(OWL_SAME_AS), namedNode(sameAs));
+  if (system.sameAs) store.addQuad(node, namedNode(OWL_SAME_AS), namedNode(system.sameAs));
 }
 
-/**
- * Serialize a cogeneration plant as a `<…/{id}.ttl#chp>` `:CHPSystem` node, from
- * `_chp_<field>` keys (`capacityKW` electrical, `thermalCapacityKW` heat,
- * `commissioningYear`/`operatedBy`/`sameAs`). No-op when no `_chp_*` keys present.
- */
-function addChpSystem(
-  store: Store,
-  subject: ReturnType<typeof namedNode>,
-  fields: Record<string, string>,
-): void {
-  const capacity = fields._chp_capacityKW?.trim();
-  const thermal = fields._chp_thermalCapacityKW?.trim();
-  const year = fields._chp_commissioningYear?.trim();
-  const operatedBy = fields._chp_operatedBy?.trim();
-  const sameAs = fields._chp_sameAs?.trim();
-  const present = normalizeBoolean(fields._chp_present ?? "") === "true";
-  if (!capacity && !thermal && !year && !operatedBy && !sameAs && !present) return;
-  const node = namedNode(`${buildingFileUri(subject.value)}#chp`);
-  store.addQuad(subject, namedNode(`${BUILDING_NS}hasSystem`), node);
-  store.addQuad(node, namedNode(RDF_TYPE_IRI), namedNode(`${BUILDING_NS}CHPSystem`));
-  if (capacity) {
-    store.addQuad(
-      node,
-      namedNode(`${BUILDING_NS}capacityKW`),
-      literal(capacity, namedNode(XSD_DECIMAL)),
-    );
-  }
-  if (thermal) {
-    store.addQuad(
-      node,
-      namedNode(`${BUILDING_NS}thermalCapacityKW`),
-      literal(thermal, namedNode(XSD_DECIMAL)),
-    );
-  }
-  if (year) {
-    store.addQuad(
-      node,
-      namedNode(`${BUILDING_NS}commissioningYear`),
-      literal(year, namedNode(XSD_GYEAR)),
-    );
-  }
-  if (operatedBy) {
-    store.addQuad(node, namedNode(`${REC_NS}operatedBy`), namedNode(operatedBy));
-  }
-  if (sameAs) store.addQuad(node, namedNode(OWL_SAME_AS), namedNode(sameAs));
-}
-
-/** Writes every technical-system node (PV, battery, CHP) the fields describe. */
+/** Write every energy unit (PV plants, batteries, CHP) of the building. */
 function addSystems(
   store: Store,
   subject: ReturnType<typeof namedNode>,
-  fields: Record<string, string>,
+  systems: TechnicalSystem[],
 ): void {
-  addPvSystem(store, subject, fields);
-  addBatterySystem(store, subject, fields);
-  addChpSystem(store, subject, fields);
+  for (const system of systems) addSystem(store, subject, system);
 }
 
 /**
- * Replace ALL of the building's technical-system nodes on an EXISTING store (the
- * edit path): drop every `bldg:hasSystem` node, then re-add from `fields`. Call
- * when the edit carries any `_pv_*`/`_battery_*`/`_chp_*` key — replacing them
- * together so editing one system doesn't clobber its siblings.
+ * The energy units described by the legacy single-unit import/create fields
+ * (`_pv_*`/`_battery_*`/`_chp_*`, plus the bare `_<kind>_present` boolean) — one unit
+ * per kind, the kind name as a stable id. The XLSX import and the building-create path
+ * feed these; the per-unit editor passes a {@link TechnicalSystem}[] directly instead.
+ */
+export function systemsFromFields(fields: Record<string, string>): TechnicalSystem[] {
+  const num = (k: string) => {
+    const v = fields[k]?.trim();
+    return v ? Number(v) : undefined;
+  };
+  const text = (k: string) => fields[k]?.trim() || undefined;
+  const present = (kind: string) =>
+    normalizeBoolean(fields[`_${kind}_present`] ?? "") === "true";
+  const nonEmpty = (s: TechnicalSystem) =>
+    s.capacityKW != null || s.storageCapacityKWh != null ||
+    s.thermalCapacityKW != null || s.commissioningYear != null || !!s.operatedBy ||
+    !!s.sameAs;
+
+  const systems: TechnicalSystem[] = [];
+  const pv: TechnicalSystem = {
+    id: "pv",
+    kind: "pv",
+    capacityKW: num("_pv_capacityKW"),
+    commissioningYear: num("_pv_commissioningYear"),
+    operatedBy: text("_pv_operatedBy"),
+    sameAs: text("_pv_sameAs"),
+  };
+  if (present("pv") || nonEmpty(pv)) systems.push(pv);
+  const battery: TechnicalSystem = {
+    id: "battery",
+    kind: "battery",
+    storageCapacityKWh: num("_battery_capacityKWh"),
+    commissioningYear: num("_battery_commissioningYear"),
+    operatedBy: text("_battery_operatedBy"),
+    sameAs: text("_battery_sameAs"),
+  };
+  if (present("battery") || nonEmpty(battery)) systems.push(battery);
+  const chp: TechnicalSystem = {
+    id: "chp",
+    kind: "chp",
+    capacityKW: num("_chp_capacityKW"),
+    thermalCapacityKW: num("_chp_thermalCapacityKW"),
+    commissioningYear: num("_chp_commissioningYear"),
+    operatedBy: text("_chp_operatedBy"),
+    sameAs: text("_chp_sameAs"),
+  };
+  if (present("chp") || nonEmpty(chp)) systems.push(chp);
+  return systems;
+}
+
+/**
+ * Replace ALL of the building's energy-unit nodes on an EXISTING store (the edit
+ * path): drop every `bldg:hasSystem` node, then re-add from `systems`. The per-unit
+ * editor sends the full list, so a removed unit's node disappears and an added one's
+ * (with its minted id) lands — siblings are rebuilt verbatim.
  */
 function replaceSystems(
   store: Store,
   subject: ReturnType<typeof namedNode>,
-  fields: Record<string, string>,
+  systems: TechnicalSystem[],
 ): void {
-  replaceLinkedNodes(store, subject, `${BUILDING_NS}hasSystem`, fields, addSystems);
+  for (
+    const link of store.getQuads(subject, namedNode(`${BUILDING_NS}hasSystem`), null, null)
+  ) {
+    store.removeQuads(store.getQuads(link.object, null, null, null));
+    store.removeQuad(link);
+  }
+  addSystems(store, subject, systems);
 }
 
 /**
@@ -555,6 +522,9 @@ export function serializeBuildingToTurtle(
   buildingUri: string,
   energyDatasets?: EnergyDatasetLink[],
   provenance?: { agent: string },
+  /** The building's energy units. When omitted, derived from the legacy single-unit
+   * import/create fields (`_pv_*`/…) via {@link systemsFromFields}. */
+  systems?: TechnicalSystem[],
 ): string {
   const store = new Store();
   const subject = namedNode(mintBuildingSubject(buildingUri));
@@ -580,9 +550,9 @@ export function serializeBuildingToTurtle(
   addOperatingCosts(store, subject, fields);
   addCertifications(store, subject, fields);
 
-  // Technical-system nodes (PV `<#pv>`, battery `<#battery>`, CHP `<#chp>`), each
-  // linked by bldg:hasSystem, when present.
-  addSystems(store, subject, fields);
+  // Energy-unit nodes (each linked by bldg:hasSystem): the explicit list, or the
+  // single units the legacy import/create fields describe.
+  addSystems(store, subject, systems ?? systemsFromFields(fields));
 
   // Provenance (PROV-O qualified attribution), when provided.
   if (provenance) addProvenance(store, subject, provenance);
@@ -1018,6 +988,10 @@ export async function updateBuilding(
   buildingFileUri: string,
   subjectUri: string,
   updatedFields: Record<string, string>,
+  /** The full energy-unit list to replace the building's with. Pass it from the
+   * per-unit editor; omit it on a plain field edit and the existing units are left
+   * untouched. */
+  systems?: TechnicalSystem[],
 ): Promise<void> {
   const subject = namedNode(subjectUri);
   await readModifyWrite(buildingFileUri, gateway, (store, { created }) => {
@@ -1049,10 +1023,10 @@ export async function updateBuilding(
     if (keys.some((k) => k.startsWith("_cert_"))) {
       replaceCertifications(store, subject, updatedFields);
     }
-    if (keys.some((k) =>
-      k.startsWith("_pv_") || k.startsWith("_battery_") || k.startsWith("_chp_")
-    )) {
-      replaceSystems(store, subject, updatedFields);
+    // Replace the energy units only when the edit carries an explicit list (the
+    // per-unit editor); a plain field edit leaves the building's units intact.
+    if (systems) {
+      replaceSystems(store, subject, systems);
     }
   });
 }

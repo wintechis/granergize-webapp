@@ -62,6 +62,8 @@ export const INTENT_PARAMS = {
     subjectUri: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
     // Opaque edited-field map; not an IRI to resolve.
     fields: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+    // Opaque energy-unit list (the per-unit editor's payload); not palette-fillable.
+    systems: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
   },
   DeleteBuilding: {
     // Opaque BuildingType instance; not an IRI to resolve.

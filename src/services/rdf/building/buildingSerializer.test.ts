@@ -146,13 +146,14 @@ Deno.test("serializeBuildingToTurtle round-trips the PV plant as a <#pv> :PVSyst
   assert.equal(opQuads.length, 1, "plant operator on the <#pv> node");
   assert.equal(opQuads[0].object.value, plantOperator);
 
-  // Parse back: building.pvSystem carries all four; building.operatedBy stays the user.
+  // Parse back: the PV unit carries all four; building.operatedBy stays the user.
   const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
-  assert.ok(b?.pvSystem, "pvSystem parsed back");
-  assert.equal(b!.pvSystem!.capacityKW, 750);
-  assert.equal(b!.pvSystem!.commissioningYear, 2018);
-  assert.equal(b!.pvSystem!.operatedBy, plantOperator);
-  assert.equal(b!.pvSystem!.sameAs, einheit);
+  const pv = b?.systems?.find((s) => s.kind === "pv");
+  assert.ok(pv, "PV unit parsed back");
+  assert.equal(pv!.capacityKW, 750);
+  assert.equal(pv!.commissioningYear, 2018);
+  assert.equal(pv!.operatedBy, plantOperator);
+  assert.equal(pv!.sameAs, einheit);
   assert.equal(b!.operatedBy, buildingOperator, "building operator is NOT the plant operator");
 });
 
@@ -160,15 +161,20 @@ Deno.test("serializeBuildingToTurtle: a bare `_pv_present` writes a PV node with
   const uri = newBuildingUri(WEBID, "b-pvbare");
   const ttl = serializeBuildingToTurtle({ _pv_present: "true" }, uri);
   const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
-  assert.ok(b?.pvSystem, "pvSystem present even with no capacity/year");
-  assert.equal(b!.pvSystem!.capacityKW, undefined);
+  const pv = b?.systems?.find((s) => s.kind === "pv");
+  assert.ok(pv, "PV unit present even with no capacity/year");
+  assert.equal(pv!.capacityKW, undefined);
 });
 
 Deno.test("serializeBuildingToTurtle: no `_pv_*` fields → no PV node", () => {
   const uri = newBuildingUri(WEBID, "b-nopv");
   const ttl = serializeBuildingToTurtle({ streetAddress: "X", _pv_present: "false" }, uri);
   const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
-  assert.equal(b?.pvSystem, undefined, "no pvSystem when PV is absent / not installed");
+  assert.equal(
+    b?.systems?.find((s) => s.kind === "pv"),
+    undefined,
+    "no PV unit when PV is absent / not installed",
+  );
 });
 
 Deno.test("round-trips PV + battery + CHP as distinct <#pv>/<#battery>/<#chp> nodes", () => {
@@ -200,17 +206,47 @@ Deno.test("round-trips PV + battery + CHP as distinct <#pv>/<#battery>/<#chp> no
     "<#chp> is :CHPSystem",
   );
 
-  // Parse back: each system dispatches to its own typed field by rdf:type.
+  // Parse back: each unit lands in `systems`, its kind from rdf:type.
   const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
-  assert.equal(b!.pvSystem!.capacityKW, 750);
-  assert.equal(b!.batteryStorage!.capacityKWh, 215.5);
-  assert.equal(b!.batteryStorage!.commissioningYear, 2021);
-  assert.equal(b!.chpSystem!.capacityKW, 61);
-  assert.equal(b!.chpSystem!.thermalCapacityKW, 126);
-  assert.equal(b!.chpSystem!.commissioningYear, 2017);
+  assert.equal(b!.systems!.length, 3);
+  const pv = b!.systems!.find((s) => s.kind === "pv")!;
+  const battery = b!.systems!.find((s) => s.kind === "battery")!;
+  const chp = b!.systems!.find((s) => s.kind === "chp")!;
+  assert.equal(pv.capacityKW, 750);
+  assert.equal(battery.storageCapacityKWh, 215.5);
+  assert.equal(battery.commissioningYear, 2021);
+  assert.equal(chp.capacityKW, 61);
+  assert.equal(chp.thermalCapacityKW, 126);
+  assert.equal(chp.commissioningYear, 2017);
   // No cross-contamination between the sibling shapes.
-  assert.equal((b!.pvSystem as { capacityKWh?: number }).capacityKWh, undefined);
-  assert.equal((b!.batteryStorage as { capacityKW?: number }).capacityKW, undefined);
+  assert.equal(pv.storageCapacityKWh, undefined);
+  assert.equal(battery.capacityKW, undefined);
+});
+
+Deno.test("round-trips MULTIPLE units of a kind via the systems list (distinct stable ids)", () => {
+  const uri = newBuildingUri(WEBID, "b-multi");
+  // Two PV plants + a battery — the per-unit editor's path (systems passed as a list,
+  // each its own minted id, NOT the legacy one-per-kind `_pv_*` fields).
+  const ttl = serializeBuildingToTurtle({ streetAddress: "X" }, uri, undefined, undefined, [
+    { id: "sys-a", kind: "pv", capacityKW: 500 },
+    { id: "sys-b", kind: "pv", capacityKW: 220 },
+    { id: "sys-c", kind: "battery", storageCapacityKWh: 215.5 },
+  ]);
+  const store = parse(ttl);
+  assert.equal(
+    store.getQuads(namedNode(`${uri}#it`), namedNode(`${BUILDING_NS}hasSystem`), null, null)
+      .length,
+    3,
+    "three distinct hasSystem nodes",
+  );
+
+  const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
+  const pvs = b!.systems!.filter((s) => s.kind === "pv");
+  assert.equal(pvs.length, 2, "BOTH PV plants survive (no clobber)");
+  assert.deepEqual(pvs.map((s) => s.capacityKW).sort((x, y) => x! - y!), [220, 500]);
+  // Each keeps its own stable id (the feature-of-interest a per-unit observation targets).
+  assert.equal(b!.systems!.find((s) => s.id === "sys-a")!.capacityKW, 500);
+  assert.equal(b!.systems!.find((s) => s.id === "sys-c")!.storageCapacityKWh, 215.5);
 });
 
 Deno.test("parseBuildings tolerates a legacy xsd:string operatedBy literal", () => {

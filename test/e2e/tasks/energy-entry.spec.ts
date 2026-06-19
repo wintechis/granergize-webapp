@@ -235,7 +235,8 @@ test.describe("energy entry + Soll-Ist", () => {
     await sysBtn.click();
     const sysDialog = page.getByRole("dialog");
     await expect(sysDialog).toBeVisible({ timeout: T.visible });
-    await sysDialog.getByLabel(en("lblPvCapacity"), { exact: true }).fill("500");
+    await sysDialog.getByRole("button", { name: en("btnAddPv"), exact: true }).click();
+    await sysDialog.getByLabel(en("lblSystemCapacityKW"), { exact: true }).fill("500");
     await sysDialog.getByRole("button", { name: en("saveChanges"), exact: true }).click();
     await expect(page.getByText(/building updated/i)).toBeVisible({ timeout: T.action });
 
@@ -244,7 +245,8 @@ test.describe("energy entry + Soll-Ist", () => {
     await page.getByRole("button", { name: "Edit energy years" }).click();
     const dialog = page.getByRole("dialog");
     await dialog.getByLabel(en("eyObserveFor")).click();
-    await page.getByRole("option", { name: en("mdPvSystem"), exact: true }).click();
+    // The option label carries the capacity to disambiguate units ("PV system (500 kW)").
+    await page.getByRole("option", { name: new RegExp(en("mdPvSystem")) }).click();
 
     // 3) Enter a generation figure for PV_YEAR and save — it attaches to <#pv> as the
     // feature of interest, NOT the building.

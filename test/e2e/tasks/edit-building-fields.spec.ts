@@ -129,25 +129,26 @@ test.describe("edit building operating costs + certifications", () => {
     await expect(page.getByText(en("energySystemsEmpty")))
       .toBeVisible({ timeout: T.visible });
 
-    // Add a PV unit via the dialog (the `_pv_*` fields write the `<#pv>` :PVSystem node).
+    // Add a PV unit via the dialog: it's a list editor, so "Add PV plant" first, then
+    // fill the unit's capacity. The unit becomes a `bldg:hasSystem` :PVSystem node.
     await sysBtn.click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
-    await dialog.getByLabel(en("lblPvCapacity"), { exact: true }).fill("500");
-    await dialog.getByLabel(en("lblPvCommissioning"), { exact: true }).fill("2020");
-    // The Modal's primary action is "Save Changes" (saveChanges) — not the inline editor's "Save".
+    await dialog.getByRole("button", { name: en("btnAddPv"), exact: true }).click();
+    await dialog.getByLabel(en("lblSystemCapacityKW"), { exact: true }).fill("500");
+    await dialog.getByLabel(en("lblCommissioningYear"), { exact: true }).fill("2020");
     await dialog.getByRole("button", { name: en("saveChanges"), exact: true }).click();
     await expect(page.getByText(/building updated/i))
       .toBeVisible({ timeout: T.action });
 
     // The section now renders the PV plant as a summary row (presence ⇒ has PV),
-    // parsed back from the `<#pv>` node — proving it persisted through Turtle.
+    // parsed back from the unit node — proving it persisted through Turtle.
     await expect(page.getByText(/500 kW, since 2020/))
       .toBeVisible({ timeout: T.visible });
 
     // Re-open (the button is now "Edit"): the value round-tripped into the dialog.
     await sysBtn.click();
-    await expect(dialog.getByLabel(en("lblPvCapacity"), { exact: true }))
+    await expect(dialog.getByLabel(en("lblSystemCapacityKW"), { exact: true }))
       .toHaveValue("500", { timeout: T.visible });
     await dialog.getByRole("button", { name: /^cancel$/i }).click();
 

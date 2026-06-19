@@ -12,12 +12,9 @@ import {
   Typography,
 } from "@mui/material";
 import type {
-  BatteryStorage,
   BuildingType,
-  ChpSystem,
   InvestorCertification,
   InvestorOperatingCosts,
-  PvSystem,
 } from "../types.ts";
 import { investorLocalNameLabels } from "../services/rdf/building/buildingConfig.ts";
 import type { MessageId } from "../lib/messages.ts";
@@ -199,41 +196,9 @@ export function buildingToFields(b: BuildingType): Record<string, string> {
     if (c.level) fields[`_cert_${i}_level`] = c.level;
     if (c.scope) fields[`_cert_${i}_scope`] = c.scope;
   });
-  // PV plant → flat `_pv_*` keys (what replacePvSystem expects). Seed sameAs too
-  // (not shown in the form) so a generator-written `owl:sameAs` survives an edit.
-  const pv = b.pvSystem as PvSystem | undefined;
-  if (pv) {
-    if (pv.capacityKW != null) fields._pv_capacityKW = String(pv.capacityKW);
-    if (pv.commissioningYear != null) {
-      fields._pv_commissioningYear = String(pv.commissioningYear);
-    }
-    if (pv.operatedBy) fields._pv_operatedBy = pv.operatedBy;
-    if (pv.sameAs) fields._pv_sameAs = pv.sameAs;
-  }
-  // Battery storage → flat `_battery_*` keys (what replaceSystems expects).
-  const battery = b.batteryStorage as BatteryStorage | undefined;
-  if (battery) {
-    if (battery.capacityKWh != null) {
-      fields._battery_capacityKWh = String(battery.capacityKWh);
-    }
-    if (battery.commissioningYear != null) {
-      fields._battery_commissioningYear = String(battery.commissioningYear);
-    }
-    if (battery.operatedBy) fields._battery_operatedBy = battery.operatedBy;
-    if (battery.sameAs) fields._battery_sameAs = battery.sameAs;
-  }
-  // CHP / cogeneration → flat `_chp_*` keys.
-  const chp = b.chpSystem as ChpSystem | undefined;
-  if (chp) {
-    if (chp.capacityKW != null) fields._chp_capacityKW = String(chp.capacityKW);
-    if (chp.thermalCapacityKW != null) {
-      fields._chp_thermalCapacityKW = String(chp.thermalCapacityKW);
-    }
-    if (chp.commissioningYear != null) {
-      fields._chp_commissioningYear = String(chp.commissioningYear);
-    }
-    if (chp.operatedBy) fields._chp_operatedBy = chp.operatedBy;
-    if (chp.sameAs) fields._chp_sameAs = chp.sameAs;
-  }
+  // Energy units (PV/battery/CHP) are NOT flat fields anymore — they're edited as a
+  // TechnicalSystem[] in the per-unit editor and written via updateBuilding's `systems`
+  // param, so buildingToFields no longer round-trips them (a plain building edit leaves
+  // the units untouched).
   return fields;
 }

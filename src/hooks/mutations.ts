@@ -17,6 +17,7 @@ import type {
   AggregationDefinition,
   AttachmentRef,
   BuildingType,
+  TechnicalSystem,
   UserRole,
 } from "../types.ts";
 
@@ -232,11 +233,13 @@ export function useUpdateBuilding() {
       fileUri: string;
       subjectUri: string;
       fields: Record<string, string>;
+      systems?: TechnicalSystem[];
     }) =>
       invoke("UpdateBuilding", {
         fileUri: vars.fileUri,
         subjectUri: vars.subjectUri,
         fields: vars.fields,
+        systems: vars.systems,
       }, getGateway()),
     // The core auto-remembers WebID agents (Pod writes); prime the inactive
     // contacts query here so Connect picks them up without a reload.

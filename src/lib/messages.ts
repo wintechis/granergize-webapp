@@ -694,6 +694,31 @@ export const MESSAGES = {
     de: "Keine Energieanlagen.",
     fr: "Aucun système énergétique.",
   },
+  mdSystemOperator: { en: "Operated by", de: "Betreiber", fr: "Exploité par" },
+  lblSystemCapacityKW: { en: "Capacity (kW)", de: "Leistung (kW)", fr: "Puissance (kW)" },
+  lblSystemCapacityKWh: {
+    en: "Capacity (kWh)",
+    de: "Kapazität (kWh)",
+    fr: "Capacité (kWh)",
+  },
+  lblSystemThermalKW: {
+    en: "Thermal capacity (kW)",
+    de: "Thermische Leistung (kW)",
+    fr: "Puissance thermique (kW)",
+  },
+  lblCommissioningYear: {
+    en: "Commissioning year",
+    de: "Inbetriebnahmejahr",
+    fr: "Année de mise en service",
+  },
+  lblSystemOperator: {
+    en: "Operator (WebID)",
+    de: "Betreiber (WebID)",
+    fr: "Exploitant (WebID)",
+  },
+  btnAddPv: { en: "Add PV plant", de: "PV-Anlage", fr: "Centrale PV" },
+  btnAddBattery: { en: "Add battery", de: "Speicher", fr: "Batterie" },
+  btnAddChp: { en: "Add CHP", de: "BHKW", fr: "Cogénération" },
   btnEdit: { en: "Edit", de: "Bearbeiten", fr: "Modifier" },
   // Files section (component) — complements the existing filesEmpty (canWrite text).
   filesEmptyReadonly: {

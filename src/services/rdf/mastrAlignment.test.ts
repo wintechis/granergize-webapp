@@ -59,11 +59,12 @@ Deno.test("a MaStR PV unit maps 1:1 onto our :PVSystem node (shape in-line)", ()
     _pv_sameAs: MASTR_UNIT,
   }, uri);
   const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
-  assert.ok(b?.pvSystem, "our parser typed the unit as a PV system");
+  const pv = b?.systems?.find((s) => s.kind === "pv");
+  assert.ok(pv, "our parser typed the unit as a PV system");
 
   // --- The 1:1 mapping ---
   // unit IRI            ↔ owl:sameAs   (the cross-link points at THIS MaStR unit)
-  assert.equal(b!.pvSystem!.sameAs, unit.iri);
+  assert.equal(pv!.sameAs, unit.iri);
   // Energietraeger 2495 ↔ rdf:type :PVSystem  (solar carrier ⇒ a PV system both sides)
   assert.equal(unit.kind, "solar");
   // geo:lat / geo:long  ↔ the building's geo (same location)
@@ -74,5 +75,5 @@ Deno.test("a MaStR PV unit maps 1:1 onto our :PVSystem node (shape in-line)", ()
     new Store(new Parser().parse(mastrTtl))
       .getObjects(namedNode(MASTR_UNIT), namedNode(BRUTTOLEISTUNG), null)[0]?.value,
   );
-  assert.equal(brutto, b!.pvSystem!.capacityKW);
+  assert.equal(brutto, pv!.capacityKW);
 });

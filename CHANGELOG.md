@@ -3,6 +3,14 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Multiple energy units per kind.** A building can now carry several PV plants (or batteries / CHP),
+  not one of each. The model moved from fixed `<#pv>`/`<#battery>`/`<#chp>` singletons to a flat
+  `systems: TechnicalSystem[]` — each unit its own `bldg:hasSystem` node with a **stable minted id**
+  (so a per-unit observation's feature-of-interest survives reorder/delete). Units flow as a **list**
+  through serialize/update (the per-unit editor passes a `TechnicalSystem[]`; the XLSX import converts
+  its `_pv_*` columns into one unit), and `EnergySystemsDialog` became an add/remove list editor.
+  Displays (building page, observation page, FoI selector) iterate the list. A plain building edit
+  leaves the units untouched (no `systems` arg).
 - **Per-unit observations: an energy unit can carry its own series.** The observation entry
   (`EnergyYearDialog`) gained an **"Observe for"** selector — the whole building (default) or one of
   its energy units (the `<#pv>`/`<#battery>`/`<#chp>` `bldg:hasSystem` nodes) — so observations

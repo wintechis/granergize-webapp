@@ -176,3 +176,32 @@ Deno.test("updateBuilding clears an operating-cost field when its edited value i
     "other field kept",
   );
 });
+
+Deno.test("updateBuilding with an explicit `systems` list replaces the building's units", async () => {
+  const initial = serializeBuildingToTurtle({ streetAddress: "S" }, FILE, undefined, undefined, [
+    { id: "sys-old", kind: "pv", capacityKW: 100 },
+  ]);
+  const { session, body } = podWith(initial);
+
+  // The per-unit editor sends the FULL list — the old unit is dropped, two new land.
+  await updateBuilding(session, FILE, SUBJECT, {}, [
+    { id: "sys-1", kind: "pv", capacityKW: 500 },
+    { id: "sys-2", kind: "battery", storageCapacityKWh: 215.5 },
+  ]);
+
+  const store = new Store(new Parser({ baseIRI: FILE }).parse(body()));
+  assert.equal(
+    store.getQuads(null, `${BUILDING_NS}hasSystem`, null, null).length,
+    2,
+    "the list was replaced (old unit gone, two new)",
+  );
+  const capacities = store.getObjects(null, `${BUILDING_NS}capacityKW`, null).map((o) =>
+    o.value
+  );
+  assert.deepEqual(capacities, ["500"], "old 100 kW PV dropped, only the new 500 kW PV");
+  assert.equal(
+    store.getObjects(null, `${BUILDING_NS}storageCapacityKWh`, null)[0]?.value,
+    "215.5",
+    "the new battery landed",
+  );
+});

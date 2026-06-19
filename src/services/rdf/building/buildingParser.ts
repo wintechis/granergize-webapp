@@ -1,20 +1,18 @@
 import type { Quad } from "@rdfjs/types";
 import type {
   AttachmentRef,
-  BatteryStorage,
   BuildingType,
-  ChpSystem,
   EnergyDatasetRef,
   InvestorCertification,
   InvestorOperatingCosts,
-  PvSystem,
+  SystemKind,
 } from "../../../types.ts";
 
 /** Raw props collected off one `bldg:hasSystem` node before dispatch on its type. */
 interface SystemRaw {
   type?: string;
   capacityKW?: number;
-  capacityKWh?: number;
+  storageCapacityKWh?: number;
   thermalCapacityKW?: number;
   commissioningYear?: number;
   operatedBy?: string;
@@ -376,7 +374,7 @@ export function parseBuildings(
       if (pred === RDF_TYPE) s.type = v;
       else if (pred === `${BUILDING_NS}capacityKW`) s.capacityKW = parseFloat(v);
       else if (pred === `${BUILDING_NS}storageCapacityKWh`) {
-        s.capacityKWh = parseFloat(v);
+        s.storageCapacityKWh = parseFloat(v);
       } else if (pred === `${BUILDING_NS}thermalCapacityKW`) {
         s.thermalCapacityKW = parseFloat(v);
       } else if (pred === `${BUILDING_NS}commissioningYear`) {
@@ -469,21 +467,28 @@ export function parseBuildings(
     }
   }
 
-  // Technical-system nodes: dispatch each by rdf:type onto the matching building
-  // field (presence ⇒ has that system). An untyped node defaults to PV (tolerates a
-  // legacy `<#pv>` without an explicit type). Each node only carries its own
-  // predicates, so the leftover props match the target interface.
+  // Technical-system nodes: collect each into the building's `systems` list, its kind
+  // from rdf:type (an untyped node defaults to PV — tolerates a legacy `<#pv>`), its
+  // id the node's hash fragment (the per-unit observation feature-of-interest). Each
+  // node carries only its own predicates, so the leftover props match TechnicalSystem.
+  const kindByType: Record<string, SystemKind> = {
+    [`${BUILDING_NS}BatteryStorage`]: "battery",
+    [`${BUILDING_NS}CHPSystem`]: "chp",
+    [`${BUILDING_NS}PVSystem`]: "pv",
+  };
   for (const [node, buildingId] of systemNodeBuilding.entries()) {
     const building = buildings.get(buildingId);
     if (!building) continue;
     const { type, ...props } = systemData.get(node) ?? {};
-    if (type === `${BUILDING_NS}BatteryStorage`) {
-      building.batteryStorage = props as BatteryStorage;
-    } else if (type === `${BUILDING_NS}CHPSystem`) {
-      building.chpSystem = props as ChpSystem;
-    } else {
-      building.pvSystem = props as PvSystem;
-    }
+    const kind = (type && kindByType[type]) || "pv";
+    const id = node.split("#")[1] ?? node;
+    (building.systems ??= []).push({ id, kind, ...props });
+  }
+  // Stable order (kind, then id) so the list/FoI options don't reshuffle per load.
+  for (const building of buildings.values()) {
+    building.systems?.sort((a, b) =>
+      a.kind.localeCompare(b.kind) || a.id.localeCompare(b.id)
+    );
   }
 
   return buildings;

@@ -21,11 +21,10 @@ import BatteryChargingFullIcon from "@mui/icons-material/BatteryChargingFull";
 import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
 import {
   AnnualData,
-  BatteryStorage,
   BuildingType,
-  ChpSystem,
   InvestorCertification,
-  PvSystem,
+  type SystemKind,
+  type TechnicalSystem,
 } from "../types.ts";
 import {
   ChartBox,
@@ -122,6 +121,34 @@ class ChartErrorBoundary extends React.Component<
  * average) actually carry, and the master-data block renders whichever of its
  * fields the building has.
  */
+/** Master-data row label for an energy unit. */
+const systemRowLabel = (kind: SystemKind): string =>
+  kind === "battery"
+    ? "Battery storage"
+    : kind === "chp"
+    ? "Cogeneration (CHP)"
+    : "PV System";
+
+/** Master-data row icon for an energy unit. */
+const systemRowIcon = (kind: SystemKind) =>
+  kind === "battery"
+    ? <BatteryChargingFullIcon />
+    : kind === "chp"
+    ? <LocalFireDepartmentIcon />
+    : <SolarPowerIcon />;
+
+/** "Yes (750 kW el, 126 kW th, since 2018)" — the unit's capacities + year. */
+const systemChipLabel = (s: TechnicalSystem): string => {
+  const p: string[] = [];
+  if (s.capacityKW != null) {
+    p.push(`${formatNumber(s.capacityKW, 1)} kW${s.kind === "chp" ? " el" : ""}`);
+  }
+  if (s.storageCapacityKWh != null) p.push(`${formatNumber(s.storageCapacityKWh, 1)} kWh`);
+  if (s.thermalCapacityKW != null) p.push(`${formatNumber(s.thermalCapacityKW, 1)} kW th`);
+  if (s.commissioningYear != null) p.push(`since ${s.commissioningYear}`);
+  return p.length ? `Yes (${p.join(", ")})` : "Yes";
+};
+
 export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   // Annual figures are separate cons:EnergyDataset resources, read through the
   // data layer (cached, fingerprint-keyed — see useAnnualEnergy).
@@ -163,9 +190,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const numberOfLoadingDocks = building.numberOfLoadingDocks as
     | number
     | undefined;
-  const pvSystem = building.pvSystem as PvSystem | undefined;
-  const battery = building.batteryStorage as BatteryStorage | undefined;
-  const chp = building.chpSystem as ChpSystem | undefined;
+  const systems = (building.systems ?? []) as TechnicalSystem[];
   const certifications =
     (building.certifications ?? []) as InvestorCertification[];
   const leaseType = building.leaseType as string | undefined;
@@ -176,8 +201,8 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const hasMasterData = Boolean(
     climateControlType || tenancyType || leaseType || tenantIndustry ||
       indoorTemperatureClass || numberOfLoadingDocks != null ||
-      greenLeaseShare != null || pvSystem != null || battery != null ||
-      chp != null || certifications.length > 0,
+      greenLeaseShare != null || systems.length > 0 ||
+      certifications.length > 0,
   );
 
   if (annual.isLoading) {
@@ -270,76 +295,21 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                 value={`${formatNumber(greenLeaseShare, 1)} %`}
               />
             )}
-            {pvSystem && (
+            {systems.map((s) => (
               <DetailRow
-                label="PV System"
+                key={s.id}
+                label={systemRowLabel(s.kind)}
                 value={
                   <Chip
-                    icon={<SolarPowerIcon />}
-                    label={pvSystem.commissioningYear != null
-                      ? `Yes (since ${pvSystem.commissioningYear}${
-                        pvSystem.capacityKW != null
-                          ? `, ${formatNumber(pvSystem.capacityKW, 1)} kW`
-                          : ""
-                      })`
-                      : pvSystem.capacityKW != null
-                      ? `Yes (${formatNumber(pvSystem.capacityKW, 1)} kW)`
-                      : "Yes"}
+                    icon={systemRowIcon(s.kind)}
+                    label={systemChipLabel(s)}
                     size="small"
                     color="success"
                     variant="outlined"
                   />
                 }
               />
-            )}
-            {battery && (
-              <DetailRow
-                label="Battery storage"
-                value={
-                  <Chip
-                    icon={<BatteryChargingFullIcon />}
-                    label={battery.commissioningYear != null
-                      ? `Yes (since ${battery.commissioningYear}${
-                        battery.capacityKWh != null
-                          ? `, ${formatNumber(battery.capacityKWh, 1)} kWh`
-                          : ""
-                      })`
-                      : battery.capacityKWh != null
-                      ? `Yes (${formatNumber(battery.capacityKWh, 1)} kWh)`
-                      : "Yes"}
-                    size="small"
-                    color="success"
-                    variant="outlined"
-                  />
-                }
-              />
-            )}
-            {chp && (
-              <DetailRow
-                label="Cogeneration (CHP)"
-                value={
-                  <Chip
-                    icon={<LocalFireDepartmentIcon />}
-                    label={(() => {
-                      const p: string[] = [];
-                      if (chp.capacityKW != null) {
-                        p.push(`${formatNumber(chp.capacityKW, 1)} kW el`);
-                      }
-                      if (chp.thermalCapacityKW != null) {
-                        p.push(`${formatNumber(chp.thermalCapacityKW, 1)} kW th`);
-                      }
-                      if (chp.commissioningYear != null) {
-                        p.push(`since ${chp.commissioningYear}`);
-                      }
-                      return p.length ? `Yes (${p.join(", ")})` : "Yes";
-                    })()}
-                    size="small"
-                    color="success"
-                    variant="outlined"
-                  />
-                }
-              />
-            )}
+            ))}
             {certifications.length > 0 && (
               <DetailRow
                 label={msg("aeCertifications")}

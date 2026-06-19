@@ -3,6 +3,7 @@
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { updateBuilding } from "../services/rdf/building/buildingSerializer.ts";
 import { rememberAgent } from "../services/contacts.ts";
+import type { TechnicalSystem } from "../types.ts";
 import type { Settled } from "./outcomes.ts";
 
 /** The WebID-bearing master-data fields whose agents get auto-remembered. */
@@ -23,6 +24,9 @@ export interface UpdateBuildingParams {
   subjectUri: string;
   /** The edited master-data field map. */
   fields: Record<string, string>;
+  /** When given, the full energy-unit list to replace the building's with (the
+   * per-unit editor). Omitted on a plain field edit → units left untouched. */
+  systems?: TechnicalSystem[];
 }
 
 /**
@@ -40,7 +44,13 @@ export async function updateBuildingCore(
   gateway: PodGateway,
   params: UpdateBuildingParams,
 ): Promise<Settled> {
-  await updateBuilding(gateway, params.fileUri, params.subjectUri, params.fields);
+  await updateBuilding(
+    gateway,
+    params.fileUri,
+    params.subjectUri,
+    params.fields,
+    params.systems,
+  );
   // Auto-remember each WebID agent in the address book (fire-and-forget; the
   // contacts cache priming is the adapter's concern).
   for (const field of AGENT_FIELDS) {
