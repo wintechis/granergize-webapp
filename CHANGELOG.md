@@ -3,6 +3,10 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-19]
+- **Explore map guise is deep-linkable (`?explore=`).** The map's Map / Over-time / Compare toggle
+  is now URL-synced (map = the clean default), like the metric (`?m=`), year (`?y=`) and viewport
+  beside it — so a matrix/compare view survives a reload and is shareable. Surfaced by a Shneiderman
+  interaction review (the one deep-linking gap; the rest of the review is recorded in the UX plan).
 - **Charts: Tufte data-ink pass + sparklines.** The bar/line charts (`MetricBarChart`/
   `MetricLineChart`) shed non-data ink — vertical gridlines removed, horizontal grid faint, axis +
   tick lines dropped, ticks muted; bars keep their honest 0 baseline. Added a reusable axis-less

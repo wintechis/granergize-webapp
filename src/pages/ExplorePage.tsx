@@ -441,8 +441,20 @@ export default function ExplorePage(
   const [lens, setLens] = useState<MapLens>("ownership");
   // Which collection guise is shown: the geographic map (default) or the
   // cross-building space-cut matrix (buildings × years). Both read the same
-  // building set; the matrix is the temporal finder over it.
-  const [view, setView] = useState<ExploreView>("map");
+  // building set; the matrix is the temporal finder over it. URL-synced (`?explore=`,
+  // map = the clean default) like the metric/year, so a matrix/compare view survives
+  // a reload and is shareable — the deep-linking the other guises already get.
+  const view: ExploreView = ((): ExploreView => {
+    const v = searchParams.get("explore");
+    return v === "matrix" || v === "compare" ? v : "map";
+  })();
+  const setView = (v: ExploreView) =>
+    setSearchParams((prev) => {
+      const sp = new URLSearchParams(prev);
+      if (v === "map") sp.delete("explore");
+      else sp.set("explore", v);
+      return sp;
+    }, { replace: true });
 
   // Buildings currently visible in the map's bounding box (before the first
   // bounds report, treat every located building as visible).
