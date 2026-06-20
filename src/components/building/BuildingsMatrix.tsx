@@ -3,19 +3,19 @@ import { useNavigate } from "react-router-dom";
 import Box from "@mui/material/Box";
 import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
-import { BuildingType } from "../types.ts";
-import { buildingDisplayName } from "../lib/buildingDisplay.ts";
-import { buildingRoute } from "../routes.ts";
-import { type EnergyMetricKey } from "../services/rdf/energyDataset.ts";
-import { DEFAULT_METRIC } from "../services/energy/energyMetric.ts";
+import { BuildingType } from "../../types.ts";
+import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
+import { buildingRoute } from "../../routes.ts";
+import { type EnergyMetricKey } from "../../services/rdf/energyDataset.ts";
+import { DEFAULT_METRIC } from "../../services/energy/energyMetric.ts";
 import {
   buildEnergyMatrix,
   type MatrixCell,
-} from "../services/energy/energyMatrix.ts";
-import { type EnergyByBuildingYear } from "../services/energy/energyTimeCut.ts";
-import { bandColor, bandLabelKey } from "../constants/lensBand.ts";
-import { ellipsis } from "../constants/listStyles.ts";
-import { useT } from "../context/I18nProvider.tsx";
+} from "../../services/energy/energyMatrix.ts";
+import { type EnergyByBuildingYear } from "../../services/energy/energyTimeCut.ts";
+import { bandColor, bandLabelKey } from "../../constants/lensBand.ts";
+import { ellipsis } from "../../constants/listStyles.ts";
+import { useT } from "../../context/I18nProvider.tsx";
 
 /**
  * The **cross-building space-cut panel** (Step 2 of `plans/plan-cube-ui.md`): a
@@ -39,7 +39,7 @@ import { useT } from "../context/I18nProvider.tsx";
 const CELL = 28;
 const NAME_COL = 200;
 
-interface SpaceCutPanelProps {
+interface BuildingsMatrixProps {
   buildings: BuildingType[];
   /** The per-building annual cube (from `useAnnualEnergyByYear`). */
   energyByYear: EnergyByBuildingYear | undefined;
@@ -49,8 +49,8 @@ interface SpaceCutPanelProps {
   metric?: EnergyMetricKey;
 }
 
-export default function SpaceCutPanel(
-  { buildings, energyByYear, visibleIds, metric = DEFAULT_METRIC }: SpaceCutPanelProps,
+export default function BuildingsMatrix(
+  { buildings, energyByYear, visibleIds, metric = DEFAULT_METRIC }: BuildingsMatrixProps,
 ) {
   const navigate = useNavigate();
   const t = useT();

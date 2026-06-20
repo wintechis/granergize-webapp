@@ -785,7 +785,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           {t("onboardBanner")}
         </Alert>
       </Collapse>
-      {/* The active finder renders here. ExplorePage (the Buildings map) is kept
+      {/* The active finder renders here. BuildingsMap (the Buildings map) is kept
           mounted via BuildingsFinder's own display:none trick, so a switch among
           the OTHER finders unmounts the map — returning to /buildings re-inits the
           Leaflet instance (the map's intra-finder Map⇄List toggle preserves it). */}

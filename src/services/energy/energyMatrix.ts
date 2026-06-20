@@ -20,7 +20,7 @@ import {
  *
  * React/MUI-free so the shaping is unit-testable in isolation; the heatmap grid,
  * the cell colours and the (building, year) navigation live in
- * `components/SpaceCutPanel.tsx`. The per-cell value and band come from the SAME
+ * `components/building/BuildingsMatrix.tsx`. The per-cell value and band come from the SAME
  * `energyTimeCut` primitives the map uses (`valuesAtYear` for the value, `yearLens`
  * for the band), so the panel and the map agree cell-for-cell.
  */

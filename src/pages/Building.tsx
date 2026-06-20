@@ -24,7 +24,7 @@ interface BuildingProps {
   /** Retained for the route wrapper's call signature; the building page navigates back
    * via its own breadcrumb, so this is unused. */
   onHide?: () => void;
-  /** Accepted for compatibility with the map detail-pane caller (ExplorePage),
+  /** Accepted for compatibility with the map detail-pane caller (BuildingsMap),
    * which still renders this component embedded; the building page ignores them. */
   embedded?: boolean;
   hideHeader?: boolean;

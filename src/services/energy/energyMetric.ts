@@ -17,7 +17,7 @@ import { type MessageId } from "../../lib/messages.ts";
  *
  * React/MUI-free: the selectable set, the per-(building, year) value extraction and the
  * framing split are pure and unit-testable; the `<Select>` widget and the colour ramp
- * live in `ExplorePage.tsx`.
+ * live in `building/BuildingsMap.tsx`.
  *
  * Two framings, picked by the metric's nature (NOT by a role — see CLAUDE.md):
  * - **consumption** (electricity / heat / water / wastewater) → the existing

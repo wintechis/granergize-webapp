@@ -483,7 +483,6 @@ export const MESSAGES = {
   },
   lensOwnership: { en: "Ownership", de: "Eigentum", fr: "Propriété" },
   lensEnergy: { en: "Energy", de: "Energie", fr: "Énergie" },
-  lensTrend: { en: "Trend", de: "Trend", fr: "Tendance" },
   ucMonth: { en: "Month", de: "Monat", fr: "Mois" },
   ucDayView: { en: "Day View", de: "Tagesansicht", fr: "Vue journalière" },
   ucDailyTotals: { en: "Daily Totals", de: "Tagessummen", fr: "Totaux journaliers" },
@@ -884,23 +883,6 @@ export const MESSAGES = {
     de: "Station {id}: {name}",
     fr: "Station {id} : {name}",
   },
-  // Explore map legends (trend lens + ownership lens).
-  legendImproving: { en: "Improving", de: "Verbessert sich", fr: "En amélioration" },
-  legendLittleChange: {
-    en: "Little change",
-    de: "Kaum Veränderung",
-    fr: "Peu de changement",
-  },
-  legendWorsening: {
-    en: "Worsening",
-    de: "Verschlechtert sich",
-    fr: "En dégradation",
-  },
-  legendNoTrend: {
-    en: "No trend yet",
-    de: "Noch kein Trend",
-    fr: "Pas encore de tendance",
-  },
   // User-energy (sub-hourly electricity series) chart labels.
   uecNoData: {
     en: "No data available for this date.",
@@ -1174,22 +1156,6 @@ export const MESSAGES = {
   },
   // Generic "Loading…" region text (reused wherever a region waits on data).
   loadingEllipsis: { en: "Loading…", de: "Wird geladen…", fr: "Chargement…" },
-  // Explore collection-view toggle (Map | Over time | Compare years) + the
-  // compare-years (small-multiples) empty state.
-  exploreViewAria: {
-    en: "Explore view",
-    de: "Ansicht erkunden",
-    fr: "Vue d'exploration",
-  },
-  exploreViewMap: { en: "Map", de: "Karte", fr: "Carte" },
-  // The cube's Time axis: one sliced year vs. all years as an axis / faceted.
-  timeOneYear: { en: "One year", de: "Ein Jahr", fr: "Une année" },
-  exploreViewOverTime: { en: "Over time", de: "Im Zeitverlauf", fr: "Dans le temps" },
-  exploreViewCompareYears: {
-    en: "Compare years",
-    de: "Jahre vergleichen",
-    fr: "Comparer les années",
-  },
   // Metric selector (the cube's measure axis) — the picker label and the
   // selectable observed properties (consumption set + generation).
   metricSelectLabel: { en: "Metric", de: "Kennzahl", fr: "Indicateur" },

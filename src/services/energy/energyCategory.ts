@@ -6,7 +6,7 @@ import { BuildingType, EnergyType } from "../../types.ts";
  * buildings by energy consumption so a logistics object reads, at a glance, as
  * more or less efficient than its neighbours). No React / Leaflet here so the
  * thresholds are unit-testable in isolation; the colours and the marker live in
- * `ExplorePage.tsx`.
+ * `building/BuildingsMap.tsx`.
  *
  * The comparison is by *intensity* (energy per floor area), not absolute kWh —
  * absolute consumption just tracks building size and would rank a large

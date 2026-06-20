@@ -45,7 +45,14 @@ does not pile up browser-history entries. Slugs are human-readable and reorder-s
 Encoded now:
 
 - `tab` — the active home tab: `explore | manage | share | connect`.
-- `y` — the Explore map's energy time-cut year (the year the energy lens colours
+- `space` / `colour` — the Buildings finder's two orthogonal cube axes:
+  `space` = `map | rows` (the List/heatmap area; absent → map), `colour` =
+  `ownership | energy` (absent → ownership). Together they pick the view — map pins,
+  the energy map, the actionable List, or the over-time heatmap. The retired `view`
+  (`list`) and `explore` (`matrix`/`compare`) params map onto these on read.
+- `m` — the energy metric (the cube's measure axis), shown/written by the metric
+  selector whenever `colour=energy`; every energy surface honours this one choice.
+- `y` — the Buildings map's energy time-cut year (the year the energy colour bands
   by). Clamped on read to the reachable year set; absent → the latest year. Set
   by the year slider (and its play/pause animation) on the Buildings map.
 
@@ -78,14 +85,14 @@ page address.
   visibility is not), the "Remove all app data" wiping flag, and the archive
   import/export busy flags.
 
-### Explore — `src/pages/ExplorePage.tsx`
+### Buildings finder — `src/pages/BuildingsFinder.tsx` (+ `components/building/BuildingsMap.tsx`)
 
-- Navigational: the energy time-cut year → `y` (the energy lens's selected
-  year). A marker click still navigates to `/building/:id` (the map is a finder).
+- Navigational: the two cube axes → `space` / `colour`; the energy metric → `m`;
+  the energy time-cut year → `y`. A marker/row click navigates to `/building/:id`
+  (every surface is a finder).
 - Deferred-navigational: the map bounding box / viewport.
-- Ephemeral: the colour-lens choice (ownership / energy), the drag-local draft
-  year and the play/pause flag, the energy intensities derived per building, the
-  tile-loading token.
+- Ephemeral: the drag-local draft year and the play/pause flag, the energy
+  intensities derived per building, the tile-loading token.
 - Children: `WeatherData` (now a section on the observation page) holds a selected
   parameter and station (deferred
   navigational); `UserEnergyChart` holds a view, a day and a month (deferred

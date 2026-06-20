@@ -17,7 +17,7 @@ import {
  * selector re-cuts it on a *chosen* observed property. Everything here is
  * React/Leaflet-free so the year-range derivation and the per-year categorisation
  * are unit-testable in isolation; the colours, the slider/selector widgets and the
- * animation timer live in `ExplorePage.tsx`.
+ * animation timer live in `building/BuildingsMap.tsx`.
  *
  * The per-(building, year) value is the **selected metric** read off that year's
  * `AnnualMetrics` via `metricValueAtYear` (intensity for consumption, absolute

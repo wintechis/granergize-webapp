@@ -7,7 +7,7 @@ const pinCache = new Map<string, L.DivIcon>();
  * The owned/shared map pin (brand-blue owned / orange shared) as a cached Leaflet
  * `DivIcon` — ONE source for both the Explore map's markers and the detail-page
  * {@link LocatorMap}, so the brand pin can't drift between them (it used to be
- * copied in `ExplorePage` and `BuildingHeader`). The `pin-owned`/`pin-shared`
+ * copied in `BuildingsMap` and `BuildingHeader`). The `pin-owned`/`pin-shared`
  * className is a stable e2e hook. Cached per ownership so a re-render reuses the
  * same icon instance.
  */

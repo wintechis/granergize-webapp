@@ -31,12 +31,14 @@ export interface CubeAxisGroup<V extends string> {
 
 export interface CubeAxisBarProps<
   S extends string = string,
-  T extends string = string,
   C extends string = string,
+  T extends string = string,
 > {
   readonly space: CubeAxisGroup<S>;
-  readonly time: CubeAxisGroup<T>;
   readonly colour: CubeAxisGroup<C>;
+  /** Optional Time axis — Buildings omits it (Time falls out of Space); a second
+   *  cube finder (Aggregations: a timeline) can supply it. */
+  readonly time?: CubeAxisGroup<T>;
   /** Measure selector (e.g. the metric `TextField select`) — shown when the
    *  caller supplies it (i.e. the active Colour encodes a measure). */
   readonly metricSlot?: ReactNode;
@@ -65,17 +67,17 @@ function AxisToggle<V extends string>({ group }: { group: CubeAxisGroup<V> }) {
 
 export default function CubeAxisBar<
   S extends string,
-  T extends string,
   C extends string,
+  T extends string,
 >(
-  { space, time, colour, metricSlot }: CubeAxisBarProps<S, T, C>,
+  { space, colour, time, metricSlot }: CubeAxisBarProps<S, C, T>,
 ) {
   return (
     <Box
       sx={{ display: "flex", alignItems: "center", flexWrap: "wrap", gap: 1.5 }}
     >
       <AxisToggle group={space} />
-      <AxisToggle group={time} />
+      {time && <AxisToggle group={time} />}
       <AxisToggle group={colour} />
       {metricSlot}
     </Box>

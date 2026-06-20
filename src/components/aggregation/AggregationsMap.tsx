@@ -215,8 +215,6 @@ export default function AggregationsMap(
           height: 480,
           borderRadius: 1,
           overflow: "hidden",
-          border: 1,
-          borderColor: "divider",
         }}
       >
         <MapContainer center={[51.1, 10.4]} zoom={6} style={{ height: "100%" }}>
