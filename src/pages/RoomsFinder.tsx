@@ -6,7 +6,6 @@ import {
   Box,
   Button,
   IconButton,
-  Stack,
   TextField,
   Tooltip,
   Typography,
@@ -26,10 +25,11 @@ import {
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
-import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
+import { RefLink } from "../components/detail/DetailView.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import { msg } from "../lib/messages.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
+import FinderHeader from "../components/FinderHeader.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
@@ -207,69 +207,63 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   const hasRooms = activeRoom !== null || knownRooms.length > 0;
 
   return (
-    <Box component="section" sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-      {/* Your data rooms — one ordered list mixing rooms you host and rooms
-          others host. The toolbar above it holds both ways of getting a room
-          into the list: host a new one, or add someone else's by URI / QR.
-          Each row opens the room's detail page (`/room/:uri`, where entering,
-          roles, members and the invite QR live); the trailing action is delete
-          (owned) or remove-from-list. */}
-      <Typography variant="h6" sx={{ mb: 1 }}>{t("headingYourRooms")}</Typography>
-      {rdf && <RdfSourceLink href={rdf.bookmarks} />}
-      <Stack
-        direction="row"
-        spacing={1}
-        sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
-      >
-        <TextField
-          size="small"
-          label={t("roomNameLabel")}
-          value={roomNameInput}
-          onChange={(e) => setRoomNameInput(e.target.value)}
-          sx={{ minWidth: 200 }}
-        />
-        <Button
-          variant="outlined"
-          startIcon={<AddIcon />}
-          onClick={handleCreate}
-          disabled={busy}
-        >
-          {create.isPending ? t("roomHosting") : t("roomHostBtn")}
-        </Button>
-        <TextField
-          size="small"
-          label={t("roomUriLabel")}
-          value={roomInput}
-          onChange={(e) => setRoomInput(e.target.value)}
-          sx={{ minWidth: 320 }}
-        />
-        <Button
-          variant="outlined"
-          disabled={!roomInput.trim() || busy}
-          onClick={() => handleAdd(roomInput)}
-        >
-          {add.isPending ? t("addingEllipsis") : t("btnAdd")}
-        </Button>
-        {/* Opener only — the scanner's own Cancel button (right under the
-            camera view) is the one way to close it. */}
-        <Button
-          variant="outlined"
-          onClick={() => setScanning(true)}
-          disabled={scanning}
-        >
-          {t("scanQrCode")}
-        </Button>
-      </Stack>
+    <FinderHeader
+      title={t("headingYourRooms")}
+      count={rooms.length}
+      source={rdf?.bookmarks}
+      inputs={
+        // Both ways of getting a room into the list: host a new (named) one, or
+        // add someone else's by URI / QR.
+        <>
+          <TextField
+            size="small"
+            label={t("roomNameLabel")}
+            value={roomNameInput}
+            onChange={(e) => setRoomNameInput(e.target.value)}
+            sx={{ minWidth: 200 }}
+          />
+          <Button
+            variant="outlined"
+            startIcon={<AddIcon />}
+            onClick={handleCreate}
+            disabled={busy}
+          >
+            {create.isPending ? t("roomHosting") : t("roomHostBtn")}
+          </Button>
+          <TextField
+            size="small"
+            label={t("roomUriLabel")}
+            value={roomInput}
+            onChange={(e) => setRoomInput(e.target.value)}
+            sx={{ minWidth: 320 }}
+          />
+          <Button
+            variant="outlined"
+            disabled={!roomInput.trim() || busy}
+            onClick={() => handleAdd(roomInput)}
+          >
+            {add.isPending ? t("addingEllipsis") : t("btnAdd")}
+          </Button>
+          {/* Opener only — the scanner's own Cancel button (right under the
+              camera view) is the one way to close it. */}
+          <Button
+            variant="outlined"
+            onClick={() => setScanning(true)}
+            disabled={scanning}
+          >
+            {t("scanQrCode")}
+          </Button>
+        </>
+      }
+      controls={hasRooms && (
+        <SearchField value={query} onChange={setQuery} />
+      )}
+    >
       {scanning && (
         <QrScanner
           onResult={handleRoomScan}
           onCancel={() => setScanning(false)}
         />
-      )}
-      {hasRooms && (
-        <Box sx={{ mb: 1 }}>
-          <SearchField value={query} onChange={setQuery} />
-        </Box>
       )}
       {roomQuery.isLoading
         ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
@@ -304,6 +298,6 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
           </Box>
         )}
       <Pager paging={roomPaging} />
-    </Box>
+    </FinderHeader>
   );
 }

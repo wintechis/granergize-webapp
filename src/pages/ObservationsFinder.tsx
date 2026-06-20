@@ -12,10 +12,10 @@ import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { isSeriesGranularity } from "../services/rdf/durationUtils.ts";
 import { buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.ts";
 import { filterByText } from "../lib/textSearch.ts";
-import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
+import { RefLink } from "../components/detail/DetailView.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
-import TitleCount from "../components/TitleCount.tsx";
+import FinderHeader from "../components/FinderHeader.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
@@ -95,20 +95,14 @@ export default function ObservationsFinder() {
   const rdf = webId ? tryPodResources(webId) : null;
 
   return (
-    <Box
-      component="section"
-      sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}
-    >
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        {t("navObservations")}
-        <TitleCount count={withObservations.length} />
-      </Typography>
-      {rdf && <RdfSourceLink href={rdf.observations} />}
-      {withObservations.length > 0 && (
-        <Box sx={{ mb: 1 }}>
-          <SearchField value={query} onChange={setQuery} />
-        </Box>
+    <FinderHeader
+      title={t("navObservations")}
+      count={withObservations.length}
+      source={rdf?.observations}
+      controls={withObservations.length > 0 && (
+        <SearchField value={query} onChange={setQuery} />
       )}
+    >
       {isLoading
         ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : withObservations.length === 0
@@ -153,6 +147,6 @@ export default function ObservationsFinder() {
           </Box>
         )}
       <Pager paging={paging} />
-    </Box>
+    </FinderHeader>
   );
 }

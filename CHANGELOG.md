@@ -3,6 +3,14 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-20]
+- **Finder shells unified via a shared `FinderHeader`.** All six finders (Buildings, Aggregations,
+  Observations, Contacts, Rooms, Sharing) now render their header through one
+  `src/components/FinderHeader.tsx` — the same title row (`h6` + overview `(n)` count + inline source
+  link + right-grouped actions) and an optional controls row (search · tier filter · view toggle),
+  with uniform spacing. Buildings keeps its full-bleed map (compact, non-scrolling header) and its
+  controls left-align like the rest; Rooms + Sharing gain the title count; the dev-mode RDF source
+  links now sit in one consistent place; the Buildings/Aggregations controls share one order
+  (search → tier → toggle). New `rooms-finder` e2e covers the header + room naming.
 - **Data rooms have a name.** Hosting a room now takes a name, stored as `rdfs:label` in a small
   member-readable resource inside the room — so the Rooms finder shows the name instead of the long
   URI (falling back to the URI when unnamed). It's shared: every member sees the host's name. You can

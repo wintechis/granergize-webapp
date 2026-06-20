@@ -50,6 +50,7 @@ import { usePaging } from "../hooks/usePaging.ts";
 import AddBuildingDialog from "../components/AddBuildingDialog.tsx";
 import { ShareBuildingDialog } from "../components/BuildingDialogs.tsx";
 import TierDot from "../components/TierDot.tsx";
+import FinderHeader from "../components/FinderHeader.tsx";
 
 const ExplorePage = lazy(() => import("./ExplorePage.tsx"));
 
@@ -188,89 +189,77 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
           search / tier facet — rendered ONCE here (not per guise) so they show in
           BOTH Map and List. These are collection-level capabilities
           (plan-finder-collection-model), so they must not hide inside one view. */}
-      <Box sx={{ p: 1, flexShrink: 0 }}>
-        {/* Heading + identity + actions — left-aligned, visible in both views. */}
-        <Box
-          sx={{
-            display: "flex",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 1.5,
-            mb: 1.5,
-          }}
-        >
-          <Typography variant="h6">{t("headingYourBuildings")}</Typography>
-          {rdf && <RdfSourceLink href={rdf.buildings} />}
-          <Box sx={{ flexGrow: 1 }} />
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={() => {
-              setImportMode(false);
-              setAddOpen(true);
-            }}
-          >
-            {t("addBuildingBtn")}
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<UploadFileIcon />}
-            onClick={() => {
-              setImportMode(true);
-              setAddOpen(true);
-            }}
-          >
-            {t("bldgsAutofillFromFile")}
-          </Button>
-          <Button
-            variant="outlined"
-            startIcon={<DownloadIcon />}
-            onClick={handleDownloadAll}
-            disabled={ownedBuildings.length === 0}
-          >
-            {t("bldgsDownloadAll")}
-          </Button>
-        </Box>
-        {/* View controls — centered. */}
-        <Box
-          sx={{
-            display: "flex",
-            justifyContent: "center",
-            alignItems: "center",
-            flexWrap: "wrap",
-            gap: 1.5,
-          }}
-        >
-          <ToggleButtonGroup
-            size="small"
-            exclusive
-            value={buildingsView}
-            onChange={(_e, next) => {
-              if (next) setBuildingsView(next); // ignore deselect of the active button
-            }}
-            aria-label={t("bldgsViewAria")}
-          >
-            <ToggleButton value="map">{t("btnMap")}</ToggleButton>
-            <ToggleButton value="list">{t("btnList")}</ToggleButton>
-          </ToggleButtonGroup>
-          {buildings.length > 0 && (
-            <SearchField value={query} onChange={setQuery} />
-          )}
-          {/* The tier selector is always offered (whenever there are buildings),
-              even with a single tier, so the source-tier affordance stays
-              discoverable — ticking "shared" with nothing shared simply shows none. */}
-          {buildings.length > 0 && (
-            <TierFilter
-              facet={tierFacet}
-              options={BUILDING_TIERS}
-              counts={{
-                mine: ownedBuildings.length,
-                shared: buildings.length - ownedBuildings.length,
+      <FinderHeader
+        dense
+        ownsScroll={false}
+        title={t("headingYourBuildings")}
+        source={rdf?.buildings}
+        actions={
+          <>
+            <Button
+              variant="outlined"
+              startIcon={<AddIcon />}
+              onClick={() => {
+                setImportMode(false);
+                setAddOpen(true);
               }}
-            />
-          )}
-        </Box>
-      </Box>
+            >
+              {t("addBuildingBtn")}
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<UploadFileIcon />}
+              onClick={() => {
+                setImportMode(true);
+                setAddOpen(true);
+              }}
+            >
+              {t("bldgsAutofillFromFile")}
+            </Button>
+            <Button
+              variant="outlined"
+              startIcon={<DownloadIcon />}
+              onClick={handleDownloadAll}
+              disabled={ownedBuildings.length === 0}
+            >
+              {t("bldgsDownloadAll")}
+            </Button>
+          </>
+        }
+        controls={
+          <>
+            {buildings.length > 0 && (
+              <SearchField value={query} onChange={setQuery} />
+            )}
+            {/* The tier selector is always offered (whenever there are buildings),
+                even with a single tier, so the source-tier affordance stays
+                discoverable — ticking "shared" with nothing shared simply shows none. */}
+            {buildings.length > 0 && (
+              <TierFilter
+                facet={tierFacet}
+                options={BUILDING_TIERS}
+                counts={{
+                  mine: ownedBuildings.length,
+                  shared: buildings.length - ownedBuildings.length,
+                }}
+              />
+            )}
+            <Box sx={{ flexGrow: 1 }} />
+            <ToggleButtonGroup
+              size="small"
+              exclusive
+              value={buildingsView}
+              onChange={(_e, next) => {
+                if (next) setBuildingsView(next); // ignore deselect of the active button
+              }}
+              aria-label={t("bldgsViewAria")}
+            >
+              <ToggleButton value="map">{t("btnMap")}</ToggleButton>
+              <ToggleButton value="list">{t("btnList")}</ToggleButton>
+            </ToggleButtonGroup>
+          </>
+        }
+      />
       {/* Map: kept mounted whenever Buildings is the finder (only hidden when
           switched to List), preserving ExplorePage's Leaflet instance + map state. */}
       <Box

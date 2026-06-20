@@ -1,6 +1,7 @@
 import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useState } from "react";
-import { Box, Button, Stack, Switch, Tooltip, Typography } from "@mui/material";
+import { Box, Button, Switch, Tooltip, Typography } from "@mui/material";
+import FinderHeader from "../components/FinderHeader.tsx";
 import DownloadIcon from "@mui/icons-material/Download";
 import VisibilityIcon from "@mui/icons-material/Visibility";
 import VisibilityOffIcon from "@mui/icons-material/VisibilityOff";
@@ -133,42 +134,38 @@ export default function SharingFinder({ session }: SharingFinderProps) {
     toggleVis.mutate(buildingUri);
 
   return (
-    <Box component="section" sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        {t("sharedBuildingsHeading")}
-      </Typography>
-      {collections && <RdfSourceLink href={collections.sharedIn} />}
-      <Stack
-        direction="row"
-        spacing={1.5}
-        sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
-      >
-        {dev && (
+    <FinderHeader
+      title={t("sharedBuildingsHeading")}
+      count={sharedWithMe.length}
+      source={collections?.sharedIn}
+      actions={
+        <>
+          {dev && (
+            <Button
+              variant="outlined"
+              onClick={handleCheckInbox}
+              disabled={checkInbox.isPending}
+            >
+              {checkInbox.isPending ? t("shareChecking") : t("shareCheckForNew")}
+            </Button>
+          )}
           <Button
             variant="outlined"
-            onClick={handleCheckInbox}
-            disabled={checkInbox.isPending}
+            startIcon={<DownloadIcon />}
+            onClick={handleDownloadAll}
+            disabled={bundling || sharedWithMe.length === 0}
           >
-            {checkInbox.isPending ? t("shareChecking") : t("shareCheckForNew")}
+            {bundling ? t("sharePreparing") : t("bldgsDownloadAll")}
           </Button>
-        )}
-        <Button
-          variant="outlined"
-          startIcon={<DownloadIcon />}
-          onClick={handleDownloadAll}
-          disabled={bundling || sharedWithMe.length === 0}
-        >
-          {bundling ? t("sharePreparing") : t("bldgsDownloadAll")}
-        </Button>
-      </Stack>
-      {sharedWithMe.length > 0 && (
-        <Box sx={{ mb: 1 }}>
-          <SearchField
-            value={sharedSearch.query}
-            onChange={sharedSearch.setQuery}
-          />
-        </Box>
+        </>
+      }
+      controls={sharedWithMe.length > 0 && (
+        <SearchField
+          value={sharedSearch.query}
+          onChange={sharedSearch.setQuery}
+        />
       )}
+    >
       {loading
         ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
         : sharedWithMe.length === 0
@@ -243,6 +240,6 @@ export default function SharingFinder({ session }: SharingFinderProps) {
           <RdfSourceLink href={collections.inbox} />
         </>
       )}
-    </Box>
+    </FinderHeader>
   );
 }

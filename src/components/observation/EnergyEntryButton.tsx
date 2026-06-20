@@ -3,6 +3,7 @@ import { Button } from "@mui/material";
 import EditIcon from "@mui/icons-material/Edit";
 import type { BuildingType } from "../../types.ts";
 import { getSession } from "../../hooks/session.ts";
+import { msg } from "../../lib/messages.ts";
 import EnergyYearDialog from "../EnergyYearDialog.tsx";
 
 /**
@@ -49,7 +50,7 @@ export default function EnergyEntryButton(
         startIcon={<EditIcon />}
         onClick={() => setOpen(true)}
       >
-        Edit energy years
+        {msg("btnEditEnergyYears")}
       </Button>
       {open && (
         <EnergyYearDialog

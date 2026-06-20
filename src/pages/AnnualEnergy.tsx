@@ -456,7 +456,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                     gap: 0.5,
                   }}
                 >
-                  Benchmark provided by{" "}
+                  {msg("aeBenchmarkProvidedBy")}{" "}
                   {benchmarkProviders.map((webId) => (
                     <AgentLabel key={webId} value={webId} />
                   ))}

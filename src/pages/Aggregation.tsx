@@ -92,9 +92,8 @@ export default function Aggregation({ session }: AggregationProps) {
             if (
               !await confirm({
                 title: msg("dlgDeleteAggregation"),
-                message:
-                  "Delete this aggregation? This also revokes access for everyone it is shared with.",
-                confirmLabel: "Delete",
+                message: msg("aggDeleteConfirm"),
+                confirmLabel: msg("btnDelete"),
               })
             ) return;
             remove.mutate(id, {

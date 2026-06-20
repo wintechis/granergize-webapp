@@ -4,7 +4,6 @@ import {
   Box,
   Button,
   IconButton,
-  Stack,
   TextField,
   Tooltip,
   Typography,
@@ -18,10 +17,9 @@ import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { resolveAgent, webIdFragment } from "../services/agents/agentResolver.ts";
 import { formatError } from "../lib/formatError.ts";
 import { useT } from "../context/I18nProvider.tsx";
-import { RdfSourceLink } from "../components/detail/DetailView.tsx";
+import FinderHeader from "../components/FinderHeader.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
-import TitleCount from "../components/TitleCount.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
@@ -106,49 +104,47 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
 
   return (
-    <Box component="section" sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-      {/* Contacts — a personal address book of WebID agents. */}
-      <Typography variant="h6" sx={{ mb: 1 }}>
-        {t("navContacts")}
-        <TitleCount count={contacts.length} />
-      </Typography>
-      {rdf && <RdfSourceLink href={rdf.contacts} />}
-      <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 1 }}>
-        <TextField
-          size="small"
-          label={t("lblWebId")}
-          value={contactInput}
-          onChange={(e) => setContactInput(e.target.value)}
-          sx={{ minWidth: 320 }}
-        />
-        <Button
-          variant="outlined"
-          aria-label={t("contactAddAria")}
-          disabled={!contactInput.trim() || saveContact.isPending}
-          onClick={handleAddContact}
-        >
-          {saveContact.isPending ? t("addingEllipsis") : t("btnAdd")}
-        </Button>
-        {/* Opener only — the scanner's own Cancel button (right under the
-            camera view) is the one way to close it. */}
-        <Button
-          variant="outlined"
-          onClick={() => setScanning(true)}
-          disabled={scanning}
-        >
-          {t("scanQrCode")}
-        </Button>
-      </Stack>
+    <FinderHeader
+      title={t("navContacts")}
+      count={contacts.length}
+      source={rdf?.contacts}
+      inputs={
+        <>
+          <TextField
+            size="small"
+            label={t("lblWebId")}
+            value={contactInput}
+            onChange={(e) => setContactInput(e.target.value)}
+            sx={{ minWidth: 320 }}
+          />
+          <Button
+            variant="outlined"
+            aria-label={t("contactAddAria")}
+            disabled={!contactInput.trim() || saveContact.isPending}
+            onClick={handleAddContact}
+          >
+            {saveContact.isPending ? t("addingEllipsis") : t("btnAdd")}
+          </Button>
+          {/* Opener only — the scanner's own Cancel button (right under the
+              camera view) is the one way to close it. */}
+          <Button
+            variant="outlined"
+            onClick={() => setScanning(true)}
+            disabled={scanning}
+          >
+            {t("scanQrCode")}
+          </Button>
+        </>
+      }
+      controls={contacts.length > 0 && (
+        <SearchField value={query} onChange={setQuery} />
+      )}
+    >
       {scanning && (
         <QrScanner
           onResult={handleContactScan}
           onCancel={() => setScanning(false)}
         />
-      )}
-      {contacts.length > 0 && (
-        <Box sx={{ mb: 1 }}>
-          <SearchField value={query} onChange={setQuery} />
-        </Box>
       )}
       {contactsQuery.isLoading
         ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
@@ -188,6 +184,6 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
           </Box>
         )}
       <Pager paging={contactPaging} />
-    </Box>
+    </FinderHeader>
   );
 }

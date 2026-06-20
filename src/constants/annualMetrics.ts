@@ -1,6 +1,7 @@
 import type { EnergyMetricKey } from "../services/rdf/energyDataset.ts";
 import type { MessageId } from "../lib/messages.ts";
 import { label as vocabLabel } from "../services/rdf/vocabLabels.ts";
+import type { Lang } from "../lib/language.ts";
 import { CONSUMPTION_NS } from "../services/rdf/vocabularies.ts";
 
 /**
@@ -41,16 +42,16 @@ export function annualMetricDesc(key: string): AnnualMetricDesc | undefined {
  * active language — e.g. "Electricity consumption". The metric key (camelCase)
  * names its vocab class IRI (PascalCase) under CONSUMPTION_NS; an unknown key
  * resolves to its own local-name fragment (the `vocabLabel` fallback). */
-export function metricLabel(key: string): string {
-  return vocabLabel(`${CONSUMPTION_NS}${key.charAt(0).toUpperCase()}${key.slice(1)}`);
+export function metricLabel(key: string, lang?: Lang): string {
+  return vocabLabel(`${CONSUMPTION_NS}${key.charAt(0).toUpperCase()}${key.slice(1)}`, lang);
 }
 
 /** "Electricity consumption (kWh)" — the labelled form for checklists, headers
  * and rows. Unknown keys (e.g. the monthly view's "electricity" total) fall back
  * to the capitalised key so nothing renders as a raw camelCase identifier. */
-export function annualMetricLabel(key: string): string {
+export function annualMetricLabel(key: string, lang?: Lang): string {
   const d = annualMetricDesc(key);
-  if (d) return `${metricLabel(key)} (${d.unit})`;
+  if (d) return `${metricLabel(key, lang)} (${d.unit})`;
   return key.charAt(0).toUpperCase() + key.slice(1);
 }
 

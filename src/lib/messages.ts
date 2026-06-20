@@ -542,6 +542,11 @@ export const MESSAGES = {
     fr: "Moyenne du portefeuille",
   },
   aeBenchmark: { en: "Benchmark", de: "Benchmark", fr: "Référence" },
+  aeBenchmarkProvidedBy: {
+    en: "Benchmark provided by",
+    de: "Benchmark bereitgestellt von",
+    fr: "Référence fournie par",
+  },
   // Regional-context section (linked-regionalstatistik external observations).
   regContextTitle: {
     en: "Regional context ({region})",
@@ -1624,6 +1629,19 @@ export const MESSAGES = {
   // Login (pre-auth) screen.
   loginLogoAlt: { en: "Logo", de: "Logo", fr: "Logo" },
   loginTitleFallback: { en: "Solid Login", de: "Solid-Login", fr: "Connexion Solid" },
+  loginLede: {
+    en:
+      "Use the Granergize App to browse, compare and share energy consumption data of " +
+      "logistics real estate. With the Granergize App, you keep control over your data.",
+    de:
+      "Mit der Granergize App durchsuchen, vergleichen und teilen Sie Energieverbrauchs" +
+      "daten von Logistikimmobilien. Mit der Granergize App behalten Sie die Kontrolle " +
+      "über Ihre Daten.",
+    fr:
+      "Utilisez la Granergize App pour parcourir, comparer et partager les données de " +
+      "consommation énergétique de l'immobilier logistique. Avec la Granergize App, vous " +
+      "gardez le contrôle de vos données.",
+  },
   loginChooseIdpPrefix: {
     en: "Choose an Identity Provider for this ",
     de: "Wähle einen Identity Provider für diese ",
@@ -1830,6 +1848,8 @@ export const MESSAGES = {
     fr: "Héberger une salle de données",
   },
   roomHosting: { en: "Creating…", de: "Wird erstellt…", fr: "Création…" },
+  roomLeaveBtn: { en: "Leave", de: "Verlassen", fr: "Quitter" },
+  roomLeaving: { en: "Leaving…", de: "Wird verlassen…", fr: "Sortie…" },
   roomUriLabel: {
     en: "Data room URI",
     de: "Datenzimmer-URI",
@@ -2460,6 +2480,16 @@ export const MESSAGES = {
     de: "Organisationslogo",
     fr: "Logo de l'organisation",
   },
+  markerProducerLogoAlt: {
+    en: "Building producer logo",
+    de: "Logo des Gebäudeproduzenten",
+    fr: "Logo du producteur du bâtiment",
+  },
+  markerOperatorLogoAlt: {
+    en: "Building operator logo",
+    de: "Logo des Gebäudebetreibers",
+    fr: "Logo de l'exploitant du bâtiment",
+  },
   lblCompanyName: {
     en: "Company name",
     de: "Firmenname",
@@ -2594,6 +2624,16 @@ export const MESSAGES = {
     en: "Enter at least one figure",
     de: "Gib mindestens einen Wert ein",
     fr: "Saisissez au moins une valeur",
+  },
+  btnEditEnergyYears: {
+    en: "Edit energy years",
+    de: "Energiejahre bearbeiten",
+    fr: "Modifier les années énergétiques",
+  },
+  cubeYearAria: {
+    en: "Energy year",
+    de: "Energiejahr",
+    fr: "Année énergétique",
   },
   energySaved: {
     en: "Energy data saved",

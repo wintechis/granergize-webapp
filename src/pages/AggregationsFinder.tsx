@@ -2,7 +2,6 @@ import { useState } from "react";
 import {
   Box,
   Button,
-  Stack,
   ToggleButton,
   ToggleButtonGroup,
   Typography,
@@ -35,6 +34,7 @@ import { msg } from "../lib/messages.ts";
 import { useDevMode } from "../hooks/devMode.ts";
 import ResourceRow from "../components/ResourceRow.tsx";
 import TierDot from "../components/TierDot.tsx";
+import FinderHeader from "../components/FinderHeader.tsx";
 import ObjectActions from "../components/ObjectActions.tsx";
 import Pager from "../components/Pager.tsx";
 import NestedAgentList from "../components/NestedAgentList.tsx";
@@ -208,60 +208,50 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
   };
 
   return (
-    <Box component="section" sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-      <section>
-        <Typography variant="h6" sx={{ mb: 1 }}>
-          {t("navAggregations")}
-        </Typography>
-        {rdf && <RdfSourceLink href={rdf.aggregations} />}
-        <Stack
-          direction="row"
-          spacing={1.5}
-          sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
+    <FinderHeader
+      title={t("navAggregations")}
+      source={rdf?.aggregations}
+      actions={
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={() => setCreateAggregationOpen(true)}
         >
-          <Button
-            variant="outlined"
-            startIcon={<AddIcon />}
-            onClick={() => setCreateAggregationOpen(true)}
+          {t("aggCreateTitle")}
+        </Button>
+      }
+      controls={totalReachable > 0 && (
+        <>
+          <SearchField value={query} onChange={setQuery} />
+          {/* The tier selector is always offered (whenever there are
+              aggregations), even with a single tier, so the source-tier
+              affordance stays discoverable. */}
+          <TierFilter
+            facet={tierFacet}
+            options={AGGREGATION_TIERS}
+            counts={{
+              mine: aggregationDefinitions.length,
+              shared: receivedAggregations.length,
+              open: openItems.length,
+            }}
+          />
+          <Box sx={{ flexGrow: 1 }} />
+          <ToggleButtonGroup
+            size="small"
+            exclusive
+            value={guise}
+            onChange={(_e, next: Guise | null) => {
+              if (next) setGuise(next); // ignore deselect of the active button
+            }}
+            aria-label={t("aggGuiseAria")}
           >
-            {t("aggCreateTitle")}
-          </Button>
-        </Stack>
-        {totalReachable > 0 && (
-          <Stack
-            direction="row"
-            spacing={1.5}
-            sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
-          >
-            <SearchField value={query} onChange={setQuery} />
-            {/* The tier selector is always offered (whenever there are
-                aggregations), even with a single tier, so the source-tier
-                affordance stays discoverable. */}
-            <TierFilter
-              facet={tierFacet}
-              options={AGGREGATION_TIERS}
-              counts={{
-                mine: aggregationDefinitions.length,
-                shared: receivedAggregations.length,
-                open: openItems.length,
-              }}
-            />
-            <Box sx={{ flexGrow: 1 }} />
-            <ToggleButtonGroup
-              size="small"
-              exclusive
-              value={guise}
-              onChange={(_e, next: Guise | null) => {
-                if (next) setGuise(next); // ignore deselect of the active button
-              }}
-              aria-label={t("aggGuiseAria")}
-            >
-              <ToggleButton value="list">{t("btnList")}</ToggleButton>
-              <ToggleButton value="map">{t("btnMap")}</ToggleButton>
-              <ToggleButton value="timeline">{t("guiseTimeline")}</ToggleButton>
-            </ToggleButtonGroup>
-          </Stack>
-        )}
+            <ToggleButton value="list">{t("btnList")}</ToggleButton>
+            <ToggleButton value="map">{t("btnMap")}</ToggleButton>
+            <ToggleButton value="timeline">{t("guiseTimeline")}</ToggleButton>
+          </ToggleButtonGroup>
+        </>
+      )}
+    >
         {aggregationDefsQuery.isLoading
           ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
           : totalReachable === 0
@@ -424,7 +414,6 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
             </Box>
           )}
         {guise === "list" && <Pager paging={aggregationPaging} />}
-      </section>
 
       {/* Outgoing-share log — the append-only record of buildings and aggregations you've
           shared out (and revoked). It backs the "Shared with" badges across the
@@ -453,6 +442,6 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
         buildings={buildings}
         onClose={closeCreate}
       />
-    </Box>
+    </FinderHeader>
   );
 }

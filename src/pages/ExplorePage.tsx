@@ -226,7 +226,7 @@ function BuildingMarker(
             {logoSrc && (
               <img
                 src={logoSrc}
-                alt="Building producer logo"
+                alt={msg("markerProducerLogoAlt")}
                 // A Wikidata→Commons logo carries an attribution obligation; a
                 // native title surfaces it (this is a Leaflet tooltip, not MUI).
                 title={org?.logoSource === "commons"
@@ -255,7 +255,7 @@ function BuildingMarker(
             {operatorLogoSrc && (
               <img
                 src={operatorLogoSrc}
-                alt="Building operator logo"
+                alt={msg("markerOperatorLogoAlt")}
                 style={{
                   display: "block",
                   height: 20,
@@ -822,7 +822,7 @@ export default function ExplorePage(
             </MuiTooltip>
             <Slider
               size="small"
-              aria-label="Energy year"
+              aria-label={msg("cubeYearAria")}
               value={activeYear ?? years[years.length - 1]}
               min={years[0]}
               max={years[years.length - 1]}

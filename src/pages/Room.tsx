@@ -143,7 +143,7 @@ export default function Room(
           onClick={handleLeave}
           disabled={busy}
         >
-          {exit.isPending ? "Leaving…" : "Leave"}
+          {exit.isPending ? msg("roomLeaving") : msg("roomLeaveBtn")}
         </Button>
         {owned && (
           <Button

@@ -1,4 +1,5 @@
 import type { UserRole } from "../types.ts";
+import type { Lang } from "../lib/language.ts";
 import { GRAN_NS } from "../services/rdf/vocabularies.ts";
 import { optionLabel } from "../services/rdf/vocabLabels.ts";
 
@@ -42,7 +43,7 @@ export const IRI_TO_MEMBERSHIP_ROLE: Record<string, UserRole> = Object.fromEntri
  * `ROLE_LABELS` map. An unknown role string (not a `UserRole`) falls back to
  * itself so call sites can pass raw strings safely.
  */
-export function roleLabel(role: string): string {
+export function roleLabel(role: string, lang?: Lang): string {
   const iri = MEMBERSHIP_ROLE_TO_IRI[role as UserRole];
-  return iri ? optionLabel(iri) : role;
+  return iri ? optionLabel(iri, lang) : role;
 }
