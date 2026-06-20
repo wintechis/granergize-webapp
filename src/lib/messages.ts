@@ -713,14 +713,9 @@ export const MESSAGES = {
       "L'application combine des données de ces sources externes, chacune avec sa licence. L'attribution est transmise avec chaque bâtiment partagé.",
   },
   dsBack: { en: "← Back", de: "← Zurück", fr: "← Retour" },
-  // Building header (back link, ownership badge).
+  // Building header (back link); the ownership badge now uses the shared tier
+  // labels (tierMine / tierShared) via TierBadge.
   bhBackBuildings: { en: "← Buildings", de: "← Gebäude", fr: "← Bâtiments" },
-  chipOwned: { en: "Owned", de: "Eigentum", fr: "Propriété" },
-  chipSharedWithYou: {
-    en: "Shared with you",
-    de: "Mit Ihnen geteilt",
-    fr: "Partagé avec vous",
-  },
   // Master-data section heading + inline edit.
   secMasterData: { en: "Master data", de: "Stammdaten", fr: "Données de base" },
   secEnergySystems: {

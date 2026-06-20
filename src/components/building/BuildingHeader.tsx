@@ -1,5 +1,6 @@
 import { msg } from "../../lib/messages.ts";
-import { Box, Chip, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
+import TierBadge from "../TierBadge.tsx";
 import CorporateFareIcon from "@mui/icons-material/CorporateFare";
 import DownloadIcon from "@mui/icons-material/Download";
 import type { BuildingType } from "../../types.ts";
@@ -66,12 +67,7 @@ export default function BuildingHeader({ building }: { building: BuildingType })
           <Stack direction="row" spacing={1} sx={{ alignItems: "center", mb: 0.5 }}>
             <CorporateFareIcon color="action" />
             <Typography variant="h5">{name}</Typography>
-            <Chip
-              size="small"
-              label={shared ? msg("chipSharedWithYou") : msg("chipOwned")}
-              color={shared ? "warning" : "primary"}
-              variant="outlined"
-            />
+            <TierBadge tier={shared ? "shared" : "mine"} />
             <IconAction
               label={msg("bhDownloadData")}
               icon={<DownloadIcon fontSize="small" />}
