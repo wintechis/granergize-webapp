@@ -128,12 +128,11 @@ test.describe("URI-encoded navigational state survives reload", () => {
     id = await ensureBuilding(page);
 
     await page.goto("/");
-    // Buildings tab lands on the Map view (the former Explore) — markers live
-    // here. The Map/List view is URL state (`?view=list`; Map is the implicit
-    // default), and goto("/") drops the query, so we're already on Map; the
-    // explicit toggle is belt-and-suspenders. Use the shared helper, which scopes
-    // the "Map" toggle to the Buildings-view group (the cube's "Explore view"
-    // selector also has a "Map" button — see plans/stumble.md).
+    // Buildings tab lands on the Map view — markers live here. The cube's Space axis
+    // is URL state (`?space=rows` for the List; Map is the implicit default), and
+    // goto("/") drops the query, so we're already on Map; the explicit toggle is
+    // belt-and-suspenders. Use the shared helper, which scopes the "Map" toggle to
+    // the Buildings Space group (`bldgsViewAria`).
     await openBuildingsMap(page);
 
     // The map is a pure finder: clicking the (only) marker NAVIGATES to the
@@ -157,14 +156,15 @@ test.describe("URI-encoded navigational state survives reload", () => {
     test.setTimeout(T.testSolo);
     if (!id) id = await ensureBuilding(page);
     await page.goto("/buildings");
-    // List is URL state now (?view=list) — switching writes it.
+    // The cube's Space axis is URL state (`?space=rows` for the List; Map is the
+    // implicit default) — switching writes it.
     await page.getByRole("button", { name: t("btnList") }).click();
-    await expect(page).toHaveURL(/view=list/, { timeout: T.action });
+    await expect(page).toHaveURL(/space=rows/, { timeout: T.action });
     await expect(page.getByRole("heading", { name: t("navBuildings") }))
       .toBeVisible({ timeout: T.action });
     // A genuine reload restores List — not the default Map.
     await page.reload();
-    await expect(page).toHaveURL(/view=list/, { timeout: T.action });
+    await expect(page).toHaveURL(/space=rows/, { timeout: T.action });
     await expect(page.getByRole("heading", { name: t("navBuildings") }))
       .toBeVisible({ timeout: T.action });
   });

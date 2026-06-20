@@ -11,9 +11,9 @@ import { T } from "../helpers/timeouts.ts";
  * Competency-question e2e for the cube's **metric selector** — the cross-cutting
  * "metric / observed-property selection" of `plans/plan-cube-ui.md` (NOT optional:
  * the measure axis is first-class, and a real generation-only dataset shows nothing
- * under a consumption lens). Every cube surface (slider, matrix, trend, small
- * multiples) honours ONE selected metric, URI-encoded as `?m=` so the choice is
- * shareable and survives a reload.
+ * under a consumption lens). Every energy surface (the map's bands + slider, the
+ * over-time heatmap) honours ONE selected metric, URI-encoded as `?m=` so the
+ * choice is shareable and survives a reload.
  *
  * This spec proves, against the standard investor demo (`ensureDemoBuildings`):
  *  - the selector appears once a metric-driven surface is active (energy lens);
