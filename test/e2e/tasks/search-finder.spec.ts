@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,
@@ -83,7 +83,7 @@ test.describe("redesign: finder keyword search", () => {
     await expect(betaRow).toHaveCount(1);
 
     // Typing a term filters to the matching row and writes `?q=` to the URL.
-    const search = page.getByPlaceholder(en("searchPlaceholder"));
+    const search = page.getByPlaceholder(t("searchPlaceholder"));
     await search.fill("Alpha");
     await expect(alphaRow).toHaveCount(1, { timeout: T.action });
     await expect(betaRow).toHaveCount(0);
@@ -92,19 +92,20 @@ test.describe("redesign: finder keyword search", () => {
     // The term is URL-backed, so a genuine reload restores both the field value
     // and the filtered view (the silent-restore must preserve the query string).
     await page.reload();
-    await expect(page.getByPlaceholder(en("searchPlaceholder")))
+    await expect(page.getByPlaceholder(t("searchPlaceholder")))
       .toHaveValue("Alpha", { timeout: T.action });
     await expect(alphaRow).toHaveCount(1, { timeout: T.action });
     await expect(betaRow).toHaveCount(0);
 
     // A non-matching term shows the "no matches" state (no rows).
-    await page.getByPlaceholder(en("searchPlaceholder")).fill("zzqqxx");
-    await expect(page.getByText(/no matches/i)).toBeVisible({ timeout: T.action });
+    await page.getByPlaceholder(t("searchPlaceholder")).fill("zzqqxx");
+    await expect(page.getByText(t("searchNoMatches", { query: "zzqqxx" })))
+      .toBeVisible({ timeout: T.action });
     await expect(alphaRow).toHaveCount(0);
     await expect(betaRow).toHaveCount(0);
 
     // Clear (the ✕ button) restores the full list and drops the `?q=` param.
-    await page.getByRole("button", { name: en("searchClear") }).click();
+    await page.getByRole("button", { name: t("searchClear") }).click();
     await expect(alphaRow).toHaveCount(1, { timeout: T.action });
     await expect(betaRow).toHaveCount(1);
     await expect(page).not.toHaveURL(/[?&]q=/);
@@ -120,11 +121,11 @@ test.describe("redesign: finder keyword search", () => {
     const markers = page.locator(".leaflet-marker-icon");
     await expect(markers).toHaveCount(2, { timeout: T.action });
 
-    await page.getByPlaceholder(en("searchPlaceholder")).fill("Alpha");
+    await page.getByPlaceholder(t("searchPlaceholder")).fill("Alpha");
     await expect(markers).toHaveCount(1, { timeout: T.action });
     await expect(page).toHaveURL(/[?&]q=Alpha/i);
 
-    await page.getByRole("button", { name: en("searchClear") }).click();
+    await page.getByRole("button", { name: t("searchClear") }).click();
     await expect(markers).toHaveCount(2, { timeout: T.action });
   });
 });

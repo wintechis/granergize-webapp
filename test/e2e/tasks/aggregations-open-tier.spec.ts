@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,
@@ -91,19 +91,19 @@ test.describe("aggregations open tier (regionalstatistik)", () => {
 
     // The open dataset row — "{renewable-share label} — Bayern" — is shown by
     // default (every tier selected). The tier selector offers an "Open data" tier.
-    const tierFilter = page.getByRole("group", { name: en("tierFilterAria") });
-    await expect(tierFilter.getByRole("button", { name: en("tierOpen") }))
+    const tierFilter = page.getByRole("group", { name: t("tierFilterAria") });
+    await expect(tierFilter.getByRole("button", { name: t("tierOpen") }))
       .toBeVisible({ timeout: T.action });
     const openRow = page.getByText(
-      `${en("regRenewableShare")} — Bayern`,
+      `${t("regRenewableShare")} — Bayern`,
     );
     await expect(openRow).toBeVisible({ timeout: T.action });
 
     // Unticking the "Open data" tier removes the open row (no own/shared
     // aggregations exist, so the collection empties); re-ticking restores it.
-    await tierFilter.getByRole("button", { name: en("tierOpen") }).click();
+    await tierFilter.getByRole("button", { name: t("tierOpen") }).click();
     await expect(openRow).toHaveCount(0);
-    await tierFilter.getByRole("button", { name: en("tierOpen") }).click();
+    await tierFilter.getByRole("button", { name: t("tierOpen") }).click();
     await expect(openRow).toBeVisible();
 
     // Opening the dataset navigates to its standalone read-only page, which fetches
@@ -111,16 +111,16 @@ test.describe("aggregations open tier (regionalstatistik)", () => {
     // own title link — the open tier now lists several regional datasets.
     await page
       .getByRole("listitem")
-      .filter({ hasText: `${en("regRenewableShare")} — Bayern` })
+      .filter({ hasText: `${t("regRenewableShare")} — Bayern` })
       .getByRole("link")
       .first()
       .click();
     await expect(
-      page.getByRole("heading", { name: `${en("regRenewableShare")} — Bayern` }),
+      page.getByRole("heading", { name: `${t("regRenewableShare")} — Bayern` }),
     ).toBeVisible({ timeout: T.action });
     await expect(page.getByRole("cell", { name: "2023" })).toBeVisible();
     await expect(page.getByRole("cell", { name: /61\.5\s*%/ })).toBeVisible();
-    await expect(page.getByText(en("regDataSource"))).toBeVisible();
+    await expect(page.getByText(t("regDataSource"))).toBeVisible();
 
     // Cleanup: delete the throwaway building.
     await page.goto("/");

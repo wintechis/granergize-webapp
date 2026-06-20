@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { buildingIds, buildingRoute, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -105,7 +105,7 @@ test.describe("archive import renders battery + CHP system nodes", () => {
     await setDevMode(page, true);
     await page.locator('input[type="file"][accept*="zip"]').setInputFiles(ARCHIVE_PATH);
     await confirmDialog(page, "Restore");
-    await expect(page.getByText(/Restored \d+ resource\(s\)/)).toBeVisible({
+    await expect(page.getByText(tPattern("devRestoreSuccess"))).toBeVisible({
       timeout: T.action,
     });
 
@@ -123,7 +123,7 @@ test.describe("archive import renders battery + CHP system nodes", () => {
 
     // Battery detail: the :BatteryStorage node renders as the "Battery storage" row.
     await page.goto(buildingRoute("building", batteryId));
-    await expect(page.getByText(en("mdBatteryStorage"))).toBeVisible({
+    await expect(page.getByText(t("mdBatteryStorage"))).toBeVisible({
       timeout: T.action,
     });
     await expect(page.getByText(/215\.5 kWh/)).toBeVisible({ timeout: T.action });
@@ -131,7 +131,7 @@ test.describe("archive import renders battery + CHP system nodes", () => {
     // CHP detail: the :CHPSystem node renders as the "Cogeneration (CHP)" row,
     // with its electrical + thermal output.
     await page.goto(buildingRoute("building", chpId));
-    await expect(page.getByText(en("mdChpSystem"))).toBeVisible({
+    await expect(page.getByText(t("mdChpSystem"))).toBeVisible({
       timeout: T.action,
     });
     await expect(page.getByText(/126 kW th/)).toBeVisible({ timeout: T.action });

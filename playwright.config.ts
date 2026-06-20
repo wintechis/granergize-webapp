@@ -24,6 +24,17 @@ const PORT = LOCAL ? LOCAL_APP_PORT : 4173;
 // capture tasks build into their own dir (and set PREVIEW_OUTDIR to match) so they
 // never race a spec run's `dist/` build — see deno.json.
 const PREVIEW_OUTDIR = process.env.PREVIEW_OUTDIR ?? "dist";
+// The UI language the whole run renders + asserts in, chosen by `E2E_LANG`
+// (`en`|`de`|`fr`, default `en`). The app seeds its active locale from
+// `navigator.languages` (lib/language.ts), so setting the Playwright context locale
+// makes the app render this language; the specs assert via `t(id)` (helpers/i18n.ts),
+// which reads the SAME var, so locators stay in lock-step. Unset ⇒ `en-US` ⇒ the
+// historical behaviour, byte-for-byte.
+const E2E_LOCALE = ({ de: "de-DE", en: "en-US", fr: "fr-FR" } as const)[
+  (process.env.E2E_LANG === "de" || process.env.E2E_LANG === "fr"
+    ? process.env.E2E_LANG
+    : "en")
+];
 
 // Per-run id so successive runs of the SAME tier+backend don't overwrite each
 // other — Playwright wipes a test's output folder at the start of each run, so
@@ -190,14 +201,13 @@ export default defineConfig({
     // always yields a trace, no retry needed (unlike `on-first-retry`, which writes
     // nothing on a retries=0 run).
     trace: "retain-on-failure",
-    // Force the UI locale to English for every spec, regardless of the runner's OS
-    // language (CI vs a German dev machine). The app seeds its active locale from
-    // `navigator.languages` (lib/language.ts) when no override is stored, so this
-    // pins the seed to `en` — keeping every `getByRole(..., { name: "<English>" })`
-    // locator stable once app-chrome (nav/buttons/headings) is translated. A spec
-    // that exercises switching (i18n.spec) still flips at runtime + persists, since
-    // a stored choice wins over this seed.
-    locale: "en-US",
+    // The UI locale every spec renders in — `E2E_LANG`-derived (default `en-US`),
+    // not OS-dependent. The app seeds its active locale from `navigator.languages`
+    // (lib/language.ts) when no override is stored, so this pins the seed; specs
+    // assert via `t(id)` (helpers/i18n.ts) reading the same `E2E_LANG`, so locators
+    // stay in lock-step in any language. A spec that exercises switching (i18n.spec)
+    // still flips at runtime + persists, since a stored choice wins over this seed.
+    locale: E2E_LOCALE,
   },
   /**
    * Catalog specs split by POD COUNT (the roles are A = Alice, B = Bob, C = Charlie);

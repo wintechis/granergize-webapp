@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,
@@ -69,21 +69,21 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
     // Add by ADDRESS only, then geocode via the dialog button — this is the only
     // path that sets geocodePrecision (and writes the prov:wasDerivedFrom).
     await openBuildingsList(page);
-    await page.getByRole("button", { name: /^add building$/i }).first().click();
+    await page.getByRole("button", { name: t("addBuildingBtn") }).first().click();
     const dialog = page.getByRole("dialog");
-    await expect(dialog.getByLabel(/street address/i)).toBeVisible({
+    await expect(dialog.getByLabel(t("lblStreetAddress"))).toBeVisible({
       timeout: T.visible,
     });
-    await dialog.getByLabel(/street address/i).fill(GEOCODED);
-    await dialog.getByLabel(/locality/i).fill("Nürnberg");
-    await dialog.getByLabel(/postal code/i).fill("90451");
-    await dialog.getByLabel(/region/i).fill("Bayern");
+    await dialog.getByLabel(t("lblStreetAddress")).fill(GEOCODED);
+    await dialog.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await dialog.getByLabel(t("lblPostalCode")).fill("90451");
+    await dialog.getByLabel(t("lblRegion")).fill("Bayern");
     // Geocode → the latitude field populates from the stubbed Nominatim response.
-    await dialog.getByRole("button", { name: en("addGetCoordinates") }).click();
-    await expect(dialog.getByLabel(/latitude/i)).not.toHaveValue("", {
+    await dialog.getByRole("button", { name: t("addGetCoordinates") }).click();
+    await expect(dialog.getByLabel(t("lblLatitude"))).not.toHaveValue("", {
       timeout: T.action,
     });
-    await dialog.getByRole("button", { name: /^add building$/i }).click();
+    await dialog.getByRole("button", { name: t("addBuildingBtn") }).click();
     await expect(dialog).toBeHidden({ timeout: T.action });
 
     const row = page.locator("li[data-building-id]", { hasText: GEOCODED })
@@ -94,7 +94,7 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
 
     await page.goto(buildingRoute("building", id));
     // The coordinate attribution: "Coordinates: OpenStreetMap / Nominatim (ODbL)".
-    await expect(page.getByText(en("coordsLabel"))).toBeVisible({
+    await expect(page.getByText(t("coordsLabel"))).toBeVisible({
       timeout: T.action,
     });
     await expect(page.getByRole("link", { name: "OpenStreetMap / Nominatim" }))
@@ -119,10 +119,10 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
     await page.goto(buildingRoute("building", id));
     // The page rendered (ownership chip present) but carries no coordinate
     // attribution — the OSM line and its link are both absent.
-    await expect(page.getByText(en("chipOwned"))).toBeVisible({
+    await expect(page.getByText(t("chipOwned"))).toBeVisible({
       timeout: T.action,
     });
-    await expect(page.getByText(en("coordsLabel"))).toHaveCount(0);
+    await expect(page.getByText(t("coordsLabel"))).toHaveCount(0);
     await expect(page.getByRole("link", { name: "OpenStreetMap / Nominatim" }))
       .toHaveCount(0);
 

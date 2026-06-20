@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -92,18 +92,18 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     const c2 = await freshPage(browser, C);
     try {
       await openAggregations(c2.page);
-      await c2.page.getByRole("button", { name: /create aggregation/i }).click();
+      await c2.page.getByRole("button", { name: t("aggCreateTitle") }).click();
       const dlg = c2.page.getByRole("dialog");
       await expect(dlg).toBeVisible({ timeout: T.action });
 
       // The "Compare shared buildings" aggregation type appears once the dialog has folded
       // in the shared-with-me roster (an async effect); re-open the Aggregation type select
       // until it's offered.
-      const modeSel = dlg.getByLabel(en("aggTypeLabel"));
+      const modeSel = dlg.getByLabel(t("aggTypeLabel"));
       await expect(async () => {
         await modeSel.click();
         const opt = c2.page.getByRole("option", {
-          name: /compare shared buildings/i,
+          name: t("aggModeBenchmark"),
         });
         try {
           await expect(opt).toBeVisible({ timeout: T.visible });
@@ -114,11 +114,11 @@ test.describe("peer benchmark round-trip (BSP)", () => {
         }
       }).toPass({ timeout: T.poll });
 
-      await dlg.getByLabel(en("aggNameLabel")).fill(BENCH_VIEW);
+      await dlg.getByLabel(t("aggNameLabel")).fill(BENCH_VIEW);
 
       // Both owners' buildings must be offered — one shared from A's Pod, one from
       // B's — proving two contributors reached the BSP. Select them all.
-      await dlg.getByLabel(en("aggSelectBuildings")).click();
+      await dlg.getByLabel(t("aggSelectBuildings")).click();
       const options = c2.page.getByRole("option");
       await expect(async () => {
         expect(await options.count()).toBe(2);
@@ -127,26 +127,26 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       for (let i = 0; i < n; i++) await options.nth(i).click();
       await c2.page.keyboard.press("Escape");
 
-      await dlg.getByRole("button", { name: /create aggregation/i }).click();
-      await expect(c2.page.getByText(/aggregation created successfully/i))
+      await dlg.getByRole("button", { name: t("aggCreateTitle") }).click();
+      await expect(c2.page.getByText(t("aggregationCreated")))
         .toBeVisible({ timeout: T.action });
 
       // Share the benchmark back to its contributors (A + B) via the dedicated button.
       const aggregationRow = c2.page.locator("li").filter({ hasText: BENCH_VIEW }).first();
-      await aggregationRow.getByRole("button", { name: en("aggShareAria") }).click();
+      await aggregationRow.getByRole("button", { name: t("aggShareAria") }).click();
       const shareDlg = c2.page.getByRole("dialog");
-      const addAll = shareDlg.getByRole("button", { name: /add all .* contributors/i });
+      const addAll = shareDlg.getByRole("button", { name: tPattern("shareAddAllContributors") });
       await expect(addAll).toBeVisible({ timeout: T.action });
       await addAll.click();
-      const confirm = shareDlg.getByRole("button", { name: /confirm share/i });
+      const confirm = shareDlg.getByRole("button", { name: t("shareConfirmShare") });
       await expect(async () => {
-        await shareDlg.getByRole("button", { name: /review and share/i }).click();
+        await shareDlg.getByRole("button", { name: t("shareReviewAndShare") }).click();
         await expect(confirm).toBeVisible({ timeout: T.quick });
       }).toPass({ timeout: T.poll });
       await confirm.click();
-      await expect(shareDlg.getByText(/shared successfully/i))
+      await expect(shareDlg.getByText(t("shareSuccessWith")))
         .toBeVisible({ timeout: T.action });
-      await shareDlg.getByRole("button", { name: /close/i }).click();
+      await shareDlg.getByRole("button", { name: t("btnClose") }).click();
     } finally {
       await c2.ctx.close();
     }
@@ -172,9 +172,9 @@ test.describe("peer benchmark round-trip (BSP)", () => {
         // columns): the received service-provider benchmark shows as a "Benchmark"
         // row, and the provenance caption names the provider once one is received.
         await expect(
-          a2.page.getByRole("row").filter({ hasText: "Benchmark" }).first(),
+          a2.page.getByRole("row").filter({ hasText: t("aeBenchmark") }).first(),
         ).toBeVisible({ timeout: T.action });
-        await expect(a2.page.getByText(/benchmark provided by/i))
+        await expect(a2.page.getByText(t("aeBenchmarkProvidedBy")))
           .toBeVisible({ timeout: T.action });
       } catch (timeout) {
         a2.guard.assertNoAppErrors();

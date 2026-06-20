@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { addBuildingSubmitRe, buildingsAddedRe, t, tPattern } from "../helpers/i18n.ts";
 import {
   buildingIdOf,
   buildingIds,
@@ -80,7 +80,7 @@ test.describe("excel export", () => {
 
     // "Download all (Excel)" → one workbook for all owned buildings.
     const dlAll = page.waitForEvent("download");
-    await page.getByRole("button", { name: en("bldgsDownloadAll") }).click();
+    await page.getByRole("button", { name: t("bldgsDownloadAll") }).click();
     expect((await dlAll).suggestedFilename()).toBe("buildings-mine.xlsx");
 
     // A single building's workbook export moved to its page header (a direct
@@ -91,7 +91,7 @@ test.describe("excel export", () => {
     const stem = firstId!.split("#")[0].split("/").pop()!.replace(/\.ttl$/, "");
     await page.goto(buildingRoute("building", firstId));
     const dlOne = page.waitForEvent("download");
-    await page.getByRole("button", { name: "Download building data (Excel)" })
+    await page.getByRole("button", { name: t("bhDownloadData") })
       .click();
     expect((await dlOne).suggestedFilename()).toBe(`building-${stem}.xlsx`);
   });
@@ -116,7 +116,7 @@ test.describe("excel export", () => {
 
     // Export every building.
     const dl = page.waitForEvent("download");
-    await page.getByRole("button", { name: en("bldgsDownloadAll") }).click();
+    await page.getByRole("button", { name: t("bldgsDownloadAll") }).click();
     const path = "test-results/roundtrip.xlsx";
     await (await dl).saveAs(path);
 
@@ -131,24 +131,26 @@ test.describe("excel export", () => {
     // Re-import the workbook through the file picker. buildingsToXlsx writes the
     // generic flat shape; uploading it lets the importer auto-detect the generic
     // format and re-parse every row.
-    await page.getByRole("button", { name: en("addBuildingBtn"), exact: true }).first()
+    await page.getByRole("button", { name: t("addBuildingBtn"), exact: true }).first()
       .click();
     const dialog = page.getByRole("dialog");
     await dialog.locator('input[type="file"]').setInputFiles(path);
 
-    const loaded = page.getByText(/Loaded \d+ building\(s\) from file/);
+    const loaded = page.getByText(tPattern("loadedBuildings"));
     await expect(loaded).toBeVisible({ timeout: T.action });
     // All N exported buildings re-parsed from the workbook.
+    // Extract the count language-agnostically (the toast is "Loaded {n}…" / "Chargé
+    // {n}…" — only one number in it), so the parse holds in any E2E_LANG.
     const loadedN = Number(
-      (await loaded.textContent())?.match(/Loaded (\d+)/)?.[1],
+      (await loaded.textContent())?.match(/(\d+)/)?.[1],
     );
     expect(loadedN).toBe(before.size);
 
     // Add succeeds → the required master fields (incl. coordinates) survived the
     // export (an empty/garbled export would fail validation and disable the button).
-    await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
+    await dialog.getByRole("button", { name: addBuildingSubmitRe() })
       .click();
-    await expect(page.getByText(/buildings? added/i).first())
+    await expect(page.getByText(buildingsAddedRe()).first())
       .toBeVisible({ timeout: T.action });
 
     // The same number of buildings are back, with the original address present.

@@ -1,4 +1,4 @@
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -55,47 +55,47 @@ test.describe("redesign: building page", () => {
     // Owned badge in the header, plus the section headings of the scrolling building page.
     // exact:true so the chip ("Owned") doesn't also match the master-data "Owned by"
     // row label (which renders once ownedBy converges) — strict-mode-ambiguous otherwise.
-    await expect(page.getByText(en("chipOwned"), { exact: true }))
+    await expect(page.getByText(t("chipOwned"), { exact: true }))
       .toBeVisible({ timeout: T.action });
     // exact:true so "Energy" doesn't also match the "Location energy profile" panel
     // heading (substring) — strict-mode-ambiguous otherwise.
-    await expect(page.getByRole("heading", { name: en("secEnergy"), exact: true }))
+    await expect(page.getByRole("heading", { name: t("secEnergy"), exact: true }))
       .toBeVisible();
-    await expect(page.getByRole("heading", { name: en("secFiles") })).toBeVisible();
-    await expect(page.getByRole("heading", { name: en("secSharing") })).toBeVisible();
+    await expect(page.getByRole("heading", { name: t("secFiles") })).toBeVisible();
+    await expect(page.getByRole("heading", { name: t("secSharing") })).toBeVisible();
   });
 
   test("master data edits inline on the page (no modal)", async () => {
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("button", { name: /^edit$/i }).first().click();
+    await page.getByRole("button", { name: t("btnEdit") }).first().click();
     // Inline edit: editable fields appear on the page; Save/Cancel present.
     await expect(page.locator("input, textarea").first()).toBeVisible({
       timeout: T.action,
     });
-    await expect(page.getByRole("button", { name: /save/i }).first())
+    await expect(page.getByRole("button", { name: t("btnSave") }).first())
       .toBeVisible();
-    await page.getByRole("button", { name: /cancel/i }).first().click();
+    await page.getByRole("button", { name: t("btnCancel") }).first().click();
   });
 
   test("the building page links to the full observation (energy) page", async () => {
     await page.goto(buildingRoute("building", id));
     // The Energy section is minimal here and links to /observation/:id for full charts.
-    await page.getByRole("link", { name: /energy|observation|details?/i })
+    await page.locator("a[href*=\"observation\"]")
       .first().click();
     await expect(page).toHaveURL(/\/observation\?/, { timeout: T.action });
-    await expect(page.getByRole("button", { name: "Edit energy years" }))
+    await expect(page.getByRole("button", { name: t("btnEditEnergyYears") }))
       .toBeVisible();
   });
 
   test("clicking a building name in the Buildings list opens the building page", async () => {
     await page.goto("/buildings");
     // The Buildings finder lands on Map; switch to the List view to get the rows.
-    await page.getByRole("button", { name: en("btnList") }).click();
+    await page.getByRole("button", { name: t("btnList") }).click();
     const row = page.locator(`li[data-building-id="${id}"]`);
     await expect(row).toBeVisible({ timeout: T.action });
     await row.getByRole("link").first().click();
     await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
-    await expect(page.getByRole("heading", { name: en("secFiles") })).toBeVisible();
+    await expect(page.getByRole("heading", { name: t("secFiles") })).toBeVisible();
   });
 
   test("the list row is a finder — navigate + Delete only (other actions on the page)", async () => {
@@ -105,7 +105,7 @@ test.describe("redesign: building page", () => {
     const row = page.locator(`li[data-building-id="${id}"]`);
     await expect(row).toBeVisible({ timeout: T.action });
     // The one residual per-row action is Delete; per-object actions moved to the page.
-    await expect(row.getByRole("button", { name: en("buildingDeleteAria") })).toBeVisible();
+    await expect(row.getByRole("button", { name: t("buildingDeleteAria") })).toBeVisible();
     for (
       const gone of ["Share building data", "Manage files", "Add or edit energy year"]
     ) {
@@ -116,7 +116,7 @@ test.describe("redesign: building page", () => {
   test("the building page header offers the workbook download", async () => {
     await page.goto(buildingRoute("building", id));
     await expect(
-      page.getByRole("button", { name: "Download building data (Excel)" }),
+      page.getByRole("button", { name: t("bhDownloadData") }),
     ).toBeVisible({ timeout: T.action });
   });
 
@@ -139,7 +139,7 @@ test.describe("redesign: building page", () => {
     try {
       await page.goto(buildingRoute("building", id));
       // exact:true — the chip "Owned" must not also match the "Owned by" row label.
-      await expect(page.getByText(en("chipOwned"), { exact: true }))
+      await expect(page.getByText(t("chipOwned"), { exact: true }))
         .toBeVisible({ timeout: T.action });
       // Leaflet fires the thumbnail's tile requests asynchronously; poll for one.
       await expect.poll(() => requestedDop20c, { timeout: T.action }).toBe(true);

@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { buildingRows, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -56,7 +56,7 @@ test.describe("building deletion", () => {
 
     await openBuildingsList(page);
     const addBtn = page.getByRole("button", {
-      name: en("addBuildingBtn"),
+      name: t("addBuildingBtn"),
       exact: true,
     })
       .first();
@@ -68,14 +68,14 @@ test.describe("building deletion", () => {
     // adding is decoupled from data-room roles.
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await add.getByLabel(/street address/i).fill(ADDR);
-    await add.getByLabel(/locality/i).fill("Nürnberg");
-    await add.getByLabel(/postal code/i).fill("90451");
-    await add.getByLabel(/region/i).fill("Bayern");
-    await add.getByLabel(/latitude/i).fill("49.45");
-    await add.getByLabel(/longitude/i).fill("11.08");
-    await add.getByRole("button", { name: /^Add Building$/ }).click();
-    await expect(page.getByText(/building added/i))
+    await add.getByLabel(t("lblStreetAddress")).fill(ADDR);
+    await add.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await add.getByLabel(t("lblPostalCode")).fill("90451");
+    await add.getByLabel(t("lblRegion")).fill("Bayern");
+    await add.getByLabel(t("lblLatitude")).fill("49.45");
+    await add.getByLabel(t("lblLongitude")).fill("11.08");
+    await add.getByRole("button", { name: t("addBuildingBtn") }).click();
+    await expect(page.getByText(t("addBuildingAddedCount", { count: 1 })))
       .toBeVisible({ timeout: T.action });
 
     // It appears on Manage (closing the dialog refetches the list)…
@@ -83,9 +83,9 @@ test.describe("building deletion", () => {
     await expect(row.first()).toBeVisible({ timeout: T.action });
 
     // …delete it, and the row disappears with the count back to the start.
-    await row.first().getByRole("button", { name: en("buildingDeleteAria") }).click();
+    await row.first().getByRole("button", { name: t("buildingDeleteAria") }).click();
     await confirmDialog(page, "Delete");
-    await expect(page.getByText("Building deleted").first())
+    await expect(page.getByText(t("buildingDeleted")).first())
       .toBeVisible({ timeout: T.action });
     await expect(row).toHaveCount(0, { timeout: T.action });
     await expect(buildingRows(page)).toHaveCount(before);

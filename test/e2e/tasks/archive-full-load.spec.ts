@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { buildingRoute, openBuildingsList, buildingRows } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -167,14 +167,14 @@ test.describe("full logistics archive imports and renders at scale", () => {
 
     // A real battery building renders the "Battery storage" row (capacity in kWh).
     await page.goto(buildingRoute("building", plan.batteryId));
-    await expect(page.getByText(en("mdBatteryStorage"))).toBeVisible({
+    await expect(page.getByText(t("mdBatteryStorage"))).toBeVisible({
       timeout: T.action,
     });
     await expect(page.getByText(/kWh/).first()).toBeVisible({ timeout: T.action });
 
     // A real CHP building renders the "Cogeneration (CHP)" row (thermal output).
     await page.goto(buildingRoute("building", plan.chpId));
-    await expect(page.getByText(en("mdChpSystem"))).toBeVisible({
+    await expect(page.getByText(t("mdChpSystem"))).toBeVisible({
       timeout: T.action,
     });
     await expect(page.getByText(/kW th/).first()).toBeVisible({ timeout: T.action });

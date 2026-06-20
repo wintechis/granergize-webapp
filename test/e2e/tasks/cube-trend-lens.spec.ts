@@ -2,6 +2,7 @@ import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { t } from "../helpers/i18n.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { openBuildingsMap } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -73,7 +74,7 @@ test.describe("cube trend lens (getting better or worse)", () => {
       await expect(page.locator(".leaflet-marker-icon").first())
         .toBeVisible({ timeout: T.action });
       // Switch the colour lens to Trend.
-      await page.getByRole("button", { name: "Trend", exact: true }).click();
+      await page.getByRole("button", { name: t("lensTrend"), exact: true }).click();
       // The markers recolour into trend markers (the trend is baked into the
       // className — `trend-marker trend-<trend>`).
       await expect(page.locator(".trend-marker").first())
@@ -88,7 +89,7 @@ test.describe("cube trend lens (getting better or worse)", () => {
     }).toPass({ timeout: T.setup, intervals: [2_000] });
 
     // The legend followed the active lens — the diverging trend swatches read.
-    await expect(page.getByText("Improving")).toBeVisible({ timeout: T.action });
-    await expect(page.getByText("Worsening")).toBeVisible({ timeout: T.action });
+    await expect(page.getByText(t("legendImproving"))).toBeVisible({ timeout: T.action });
+    await expect(page.getByText(t("legendWorsening"))).toBeVisible({ timeout: T.action });
   });
 });

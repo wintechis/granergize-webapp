@@ -1,4 +1,4 @@
-import { en } from "../helpers/i18n.ts";
+import { metricT, t } from "../helpers/i18n.ts";
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -76,20 +76,20 @@ test.describe("building form + energy entry", () => {
   async function addBuilding(addr: string): Promise<void> {
     await page.goto("/"); // robust if a prior test ended on a standalone detail route
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
+    const addBtn = page.getByRole("button", { name: t("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await expect(add.getByLabel(/street address/i)).toBeVisible({ timeout: T.visible });
-    await add.getByLabel(/street address/i).fill(addr);
-    await add.getByLabel(/locality/i).fill("Nürnberg");
-    await add.getByLabel(/postal code/i).fill("90451");
-    await add.getByLabel(/region/i).fill("Bayern");
-    await add.getByLabel(/latitude/i).fill("49.45");
-    await add.getByLabel(/longitude/i).fill("11.08");
-    await add.getByRole("button", { name: /^Add Building$/ }).click();
-    await expect(page.getByText(/building added/i))
+    await expect(add.getByLabel(t("lblStreetAddress"))).toBeVisible({ timeout: T.visible });
+    await add.getByLabel(t("lblStreetAddress")).fill(addr);
+    await add.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await add.getByLabel(t("lblPostalCode")).fill("90451");
+    await add.getByLabel(t("lblRegion")).fill("Bayern");
+    await add.getByLabel(t("lblLatitude")).fill("49.45");
+    await add.getByLabel(t("lblLongitude")).fill("11.08");
+    await add.getByRole("button", { name: t("addBuildingBtn") }).click();
+    await expect(page.getByText(t("addBuildingAddedCount", { count: 1 })))
       .toBeVisible({ timeout: T.action });
   }
 
@@ -97,28 +97,28 @@ test.describe("building form + energy entry", () => {
     test.setTimeout(T.testSolo);
 
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
+    const addBtn = page.getByRole("button", { name: t("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await expect(add.getByLabel(/street address/i)).toBeVisible({ timeout: T.visible });
+    await expect(add.getByLabel(t("lblStreetAddress"))).toBeVisible({ timeout: T.visible });
 
     // (1)(2) The one generic form always offers the full field set, including the
     // Heating systems section — no role/template gating.
-    await expect(add.getByText(en("secHeatingSystems")))
+    await expect(add.getByText(t("secHeatingSystems")))
       .toBeVisible({ timeout: T.visible });
-    await expect(add.getByLabel(/heat pump/i)).toBeVisible();
+    await expect(add.getByLabel(t("mdHeatPump"))).toBeVisible();
 
     // Finish the add WITHOUT setting heating (the "forgotten field" scenario).
-    await add.getByLabel(/street address/i).fill(ADDR_FIELDS);
-    await add.getByLabel(/locality/i).fill("Nürnberg");
-    await add.getByLabel(/postal code/i).fill("90451");
-    await add.getByLabel(/region/i).fill("Bayern");
-    await add.getByLabel(/latitude/i).fill("49.45");
-    await add.getByLabel(/longitude/i).fill("11.08");
-    await add.getByRole("button", { name: /^Add Building$/ }).click();
-    await expect(page.getByText(/building added/i))
+    await add.getByLabel(t("lblStreetAddress")).fill(ADDR_FIELDS);
+    await add.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await add.getByLabel(t("lblPostalCode")).fill("90451");
+    await add.getByLabel(t("lblRegion")).fill("Bayern");
+    await add.getByLabel(t("lblLatitude")).fill("49.45");
+    await add.getByLabel(t("lblLongitude")).fill("11.08");
+    await add.getByRole("button", { name: t("addBuildingBtn") }).click();
+    await expect(page.getByText(t("addBuildingAddedCount", { count: 1 })))
       .toBeVisible({ timeout: T.action });
 
     // (3) Re-open the building: the heating type offered at Add is still reachable
@@ -130,8 +130,8 @@ test.describe("building form + energy entry", () => {
     const id = await buildingIdOf(row);
     if (!id) throw new Error("building-form: missing building id");
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("button", { name: /^edit$/i }).first().click();
-    await expect(page.getByLabel(/heat pump/i))
+    await page.getByRole("button", { name: t("btnEdit") }).first().click();
+    await expect(page.getByLabel(t("mdHeatPump")))
       .toBeVisible({ timeout: T.visible });
   });
 
@@ -147,7 +147,7 @@ test.describe("building form + energy entry", () => {
     if (!id) throw new Error("building-form: missing building id");
     // The energy-year dialog opens from the building's observation page now.
     await page.goto(buildingRoute("observation", id));
-    await page.getByRole("button", { name: "Edit energy years" }).click();
+    await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
 
@@ -168,19 +168,19 @@ test.describe("building form + energy entry", () => {
     const id = await buildingIdOf(row);
     if (!id) throw new Error("building-form: missing building id");
     await page.goto(buildingRoute("observation", id));
-    await page.getByRole("button", { name: "Edit energy years" }).click();
+    await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
 
-    const year = page.getByRole("spinbutton", { name: en("lblYear"), exact: true });
-    const electricity = page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" });
-    const scenario = page.getByLabel(en("lblScenario"), { exact: true });
+    const year = page.getByRole("spinbutton", { name: t("lblYear"), exact: true });
+    const electricity = page.getByRole("spinbutton", { name: metricT("electricityConsumption") });
+    const scenario = page.getByLabel(t("lblScenario"), { exact: true });
 
     // Save an ACTUAL figure for the year (the dialog stays open, form resets).
     await year.fill("2099");
     await electricity.fill("88888");
-    await dialog.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Energy data saved").first())
+    await dialog.getByRole("button", { name: t("btnSave") }).click();
+    await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
 
     // Re-type the same year: the stored actual dataset prefills the form (sanity).
@@ -190,7 +190,7 @@ test.describe("building form + energy entry", () => {
     // Switch to Planned (Soll) — no planned dataset exists for this year, so the
     // figures clear instead of leaking the actual value.
     await scenario.click();
-    await page.getByRole("option", { name: /^Planned/ }).click();
+    await page.getByRole("option", { name: t("scenarioPlanned") }).click();
     await expect(electricity).toHaveValue("");
   });
 });

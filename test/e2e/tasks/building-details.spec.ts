@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -67,20 +67,20 @@ test.describe("building details", () => {
 
     // --- add a building whose operator is a WebID (User template) ---
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
+    const addBtn = page.getByRole("button", { name: t("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await add.getByLabel(/street address/i).fill(OP_STREET);
-    await add.getByLabel(/locality/i).fill("Nürnberg");
-    await add.getByLabel(/postal code/i).fill("90451");
-    await add.getByLabel(/region/i).fill("Bayern");
-    await add.getByLabel(/latitude/i).fill("49.45");
-    await add.getByLabel(/longitude/i).fill("11.08");
-    await add.getByLabel(/operated by/i).fill(OP_WEBID);
-    await add.getByRole("button", { name: /^Add Building$/ }).click();
-    await expect(page.getByText(/building added/i)).toBeVisible({
+    await add.getByLabel(t("lblStreetAddress")).fill(OP_STREET);
+    await add.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await add.getByLabel(t("lblPostalCode")).fill("90451");
+    await add.getByLabel(t("lblRegion")).fill("Bayern");
+    await add.getByLabel(t("lblLatitude")).fill("49.45");
+    await add.getByLabel(t("lblLongitude")).fill("11.08");
+    await add.getByLabel(t("lblOperatedBy")).fill(OP_WEBID);
+    await add.getByRole("button", { name: t("addBuildingBtn") }).click();
+    await expect(page.getByText(t("addBuildingAddedCount", { count: 1 }))).toBeVisible({
       timeout: T.action,
     });
 
@@ -110,9 +110,9 @@ test.describe("building details", () => {
     await openBuildingsList(page);
     const back = page.locator("li", { hasText: OP_STREET }).first();
     await expect(back).toBeVisible({ timeout: T.action });
-    await back.getByRole("button", { name: en("buildingDeleteAria") }).click();
+    await back.getByRole("button", { name: t("buildingDeleteAria") }).click();
     await confirmDialog(page, "Delete");
-    await expect(page.getByText("Building deleted").first()).toBeVisible({
+    await expect(page.getByText(t("buildingDeleted")).first()).toBeVisible({
       timeout: T.action,
     });
 
@@ -142,10 +142,10 @@ test.describe("building details", () => {
     // (kWh)") with one row per year, plus a "Portfolio average" comparison row
     // (the mean over the user's own buildings).
     await expect(
-      page.locator("th", { hasText: "Electricity (kWh)" }).first(),
+      page.locator("th", { hasText: t("metricShortElectricity") + " (kWh)" }).first(),
     ).toBeVisible({ timeout: T.action });
     await expect(
-      page.getByRole("row").filter({ hasText: en("aePortfolioAvg") }).first(),
+      page.getByRole("row").filter({ hasText: t("aePortfolioAvg") }).first(),
     ).toBeVisible({ timeout: T.action });
     // …and the table has at least one per-year data row.
     await expect(page.locator("tbody tr").first()).toBeVisible({

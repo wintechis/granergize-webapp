@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,
@@ -97,30 +97,30 @@ test.describe("nearby installations (linked-mastr)", () => {
 
     // The section renders with its title and the per-kind summary (3 renewables —
     // the combustion unit is dropped — "within 3 km").
-    await expect(page.getByText(en("niTitle"))).toBeVisible({ timeout: T.action });
-    await expect(page.getByText(en("niSummary", { count: 3, radius: 3 })))
+    await expect(page.getByText(t("niTitle"))).toBeVisible({ timeout: T.action });
+    await expect(page.getByText(t("niSummary", { count: 3, radius: 3 })))
       .toBeVisible();
 
     // The list shows each renewable by "{kind} — {label}"; the combustion unit is
     // absent. (Nearest first, but the list is short enough to assert membership.)
-    await expect(page.getByText(`${en("niKindSolar")} — Solardach Nah`)).toBeVisible();
-    await expect(page.getByText(`${en("niKindWind")} — Windrad Weit`)).toBeVisible();
+    await expect(page.getByText(`${t("niKindSolar")} — Solardach Nah`)).toBeVisible();
+    await expect(page.getByText(`${t("niKindWind")} — Windrad Weit`)).toBeVisible();
     await expect(page.getByText(/Heizkraftwerk Müll/)).toHaveCount(0);
-    await expect(page.getByText(en("niDataSource"))).toBeVisible();
+    await expect(page.getByText(t("niDataSource"))).toBeVisible();
 
     // Map guise: the section's List ⇄ Map toggle swaps the list for a Leaflet map
     // of the same set; switching back restores the list.
-    const viewToggle = page.getByRole("group", { name: en("niViewAria") });
-    await viewToggle.getByRole("button", { name: en("btnMap") }).click();
+    const viewToggle = page.getByRole("group", { name: t("niViewAria") });
+    await viewToggle.getByRole("button", { name: t("btnMap") }).click();
     // The nearby section's map is the LAST leaflet map on the page — the observation
     // page may also carry the neighbourhood choropleth above it.
     await expect(page.locator(".leaflet-container").last()).toBeVisible({
       timeout: T.action,
     });
-    await expect(page.getByText(`${en("niKindSolar")} — Solardach Nah`))
+    await expect(page.getByText(`${t("niKindSolar")} — Solardach Nah`))
       .toHaveCount(0); // the list rows are gone in map view
-    await viewToggle.getByRole("button", { name: en("btnList") }).click();
-    await expect(page.getByText(`${en("niKindSolar")} — Solardach Nah`))
+    await viewToggle.getByRole("button", { name: t("btnList") }).click();
+    await expect(page.getByText(`${t("niKindSolar")} — Solardach Nah`))
       .toBeVisible();
 
     // Cleanup: delete the throwaway building.

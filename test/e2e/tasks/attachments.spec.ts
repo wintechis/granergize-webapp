@@ -1,4 +1,4 @@
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -65,7 +65,7 @@ test.describe("building file attachments", () => {
 
     // Files live in the building page's Files section now (no per-row dialog).
     await page.goto(buildingRoute("building", id));
-    await expect(page.getByRole("heading", { name: en("secFiles") }))
+    await expect(page.getByRole("heading", { name: t("secFiles") }))
       .toBeVisible({ timeout: T.action });
 
     // Upload the fixture (the file input is hidden; set it directly).
@@ -79,17 +79,17 @@ test.describe("building file attachments", () => {
 
     // Download it — the browser download fires with the original filename.
     const downloadPromise = page.waitForEvent("download");
-    await fileRow.getByRole("button", { name: en("btnDownload") }).click();
+    await fileRow.getByRole("button", { name: t("btnDownload") }).click();
     const download = await downloadPromise;
     expect(download.suggestedFilename()).toBe("sample.pdf");
 
     // Flag it as the energy certificate → the badge appears.
-    await fileRow.getByRole("button", { name: en("filesSetCert") }).click();
-    await expect(fileRow.getByText(en("energyCertChip")))
+    await fileRow.getByRole("button", { name: t("filesSetCert") }).click();
+    await expect(fileRow.getByText(t("energyCertChip")))
       .toBeVisible({ timeout: T.action });
 
     // Delete it (the in-app confirm dialog asks first) → it drops off the list.
-    await fileRow.getByRole("button", { name: "Delete sample.pdf" }).click();
+    await fileRow.getByRole("button", { name: t("filesDeleteAria", { filename: "sample.pdf" }) }).click();
     await confirmDialog(page, "Delete");
     await expect(page.getByText("sample.pdf"))
       .toHaveCount(0, { timeout: T.action });

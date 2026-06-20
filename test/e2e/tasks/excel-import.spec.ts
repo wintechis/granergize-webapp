@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { addBuildingSubmitRe, buildingsAddedRe, t, tPattern } from "../helpers/i18n.ts";
 import {
   buildingIds,
   buildingRows,
@@ -37,7 +37,7 @@ async function openAddDialog(page: Page): Promise<void> {
   await openBuildingsList(page);
   // Wait on the Add Building action itself, not a building row — the Pod may have
   // no buildings yet (so the test doesn't depend on demo seeding).
-  const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
+  const addBtn = page.getByRole("button", { name: t("addBuildingBtn"), exact: true })
     .first();
   await expect(addBtn).toBeVisible({ timeout: T.action });
   await addBtn.click();
@@ -99,14 +99,14 @@ test.describe("excel upload", () => {
     await page.getByRole("dialog").locator('input[type="file"]').setInputFiles(
       "test/e2e/fixtures/investor-import.xlsx",
     );
-    await expect(page.getByText(/Loaded \d+ building\(s\) from file/))
+    await expect(page.getByText(tPattern("loadedBuildings")))
       .toBeVisible({ timeout: T.action });
 
     const dialog = page.getByRole("dialog");
-    await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
+    await dialog.getByRole("button", { name: addBuildingSubmitRe() })
       .click();
 
-    await expect(page.getByText(/buildings? added/).first())
+    await expect(page.getByText(buildingsAddedRe()).first())
       .toBeVisible({ timeout: T.action });
 
     // Closing the dialog triggers a refetch of the Manage list (reloadData), so
@@ -145,19 +145,19 @@ test.describe("excel upload", () => {
       "test/e2e/fixtures/lastgang-import.xlsx",
     );
     // The Lastgang parse reports the readings/days it's ready to upload.
-    await expect(page.getByText(/readings.*days.*ready to upload/))
+    await expect(page.getByText(tPattern("addReadingsReady")))
       .toBeVisible({ timeout: T.action });
 
     const dialog = page.getByRole("dialog");
     // The Lastgang file carries only a label + readings (no address), so it can't
     // be geocoded — fill the required location fields manually to enable submit.
     // (Coordinates are irrelevant to what this test checks: the cancel path.)
-    await dialog.getByLabel(/street address/i).fill("Cancel E2E Strasse 1");
-    await dialog.getByLabel(/locality/i).fill("Nürnberg");
-    await dialog.getByLabel(/postal code/i).fill("90451");
-    await dialog.getByLabel(/region/i).fill("Bayern");
-    await dialog.getByLabel(/latitude/i).fill("49.45");
-    await dialog.getByLabel(/longitude/i).fill("11.08");
+    await dialog.getByLabel(t("lblStreetAddress")).fill("Cancel E2E Strasse 1");
+    await dialog.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await dialog.getByLabel(t("lblPostalCode")).fill("90451");
+    await dialog.getByLabel(t("lblRegion")).fill("Bayern");
+    await dialog.getByLabel(t("lblLatitude")).fill("49.45");
+    await dialog.getByLabel(t("lblLongitude")).fill("11.08");
     // Hold each daily energy-file PUT briefly so the upload stays observably
     // in-flight. A month of readings is 32 day-files, but on a fast local server
     // (JSS especially, ~7ms/req) the whole batch can finish in tens of
@@ -174,17 +174,17 @@ test.describe("excel upload", () => {
       await route.continue().catch(() => {});
     });
 
-    await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
+    await dialog.getByRole("button", { name: addBuildingSubmitRe() })
       .click();
 
     // The busy overlay surfaces the live requests and a Cancel control once the
     // per-day energy writes start (a month of readings → 32 day-files). Cancel
     // and assert the abort path.
-    const cancel = page.getByRole("button", { name: "Cancel upload" });
+    const cancel = page.getByRole("button", { name: t("addCancelUpload") });
     await expect(cancel).toBeVisible({ timeout: T.action });
     await cancel.click();
 
-    await expect(page.getByText(/Import cancelled/).first())
+    await expect(page.getByText(t("addImportCancelled")).first())
       .toBeVisible({ timeout: T.action });
   });
 });

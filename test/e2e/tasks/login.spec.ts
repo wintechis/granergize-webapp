@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { t } from "../helpers/i18n.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -23,7 +24,7 @@ test.describe("smoke (no login)", () => {
     await expect(
       page.getByRole("button", { name: /solid\.iis\.fraunhofer\.de/i }),
     ).toBeVisible();
-    await expect(page.getByLabel(/Identity Provider/i)).toBeVisible();
+    await expect(page.getByLabel(t("loginIdpLabel"))).toBeVisible();
   });
 
   test("the login screen explains what the app is (pre-login)", async ({ page }) => {
@@ -33,7 +34,7 @@ test.describe("smoke (no login)", () => {
     // download moved off the login screen into the dev-mode account menu.)
     await page.goto("/");
     await expect(
-      page.getByText(/browse, compare and share energy consumption data/i),
+      page.getByText(t("loginLede")),
     ).toBeVisible({ timeout: T.visible });
   });
 });

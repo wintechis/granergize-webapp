@@ -1,5 +1,6 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { roleT, t } from "../helpers/i18n.ts";
+import { ROOM_ROLE_OPTIONS } from "../../../src/constants/roles.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -49,7 +50,7 @@ test.describe("data rooms", () => {
     page.on("dialog", (d) => d.accept());
     await login(page, A);
     await assertCleanStart(page);
-    await page.getByRole("tab", { name: en("navMeet") }).click();
+    await page.getByRole("tab", { name: t("navMeet") }).click();
   });
 
   test.afterAll(async () => {
@@ -65,7 +66,7 @@ test.describe("data rooms", () => {
   const roomRow = () =>
     page.locator("li").filter({
       has: page.locator(
-        `button[aria-label="${en("roomDeleteAria")}"], button[aria-label="${en("roomRemoveAria")}"]`,
+        `button[aria-label="${t("roomDeleteAria")}"], button[aria-label="${t("roomRemoveAria")}"]`,
       ),
     });
 
@@ -79,7 +80,7 @@ test.describe("data rooms", () => {
    * directly from a room page would never find the tab. */
   async function openConnect() {
     if (/\/room\?/.test(page.url())) await page.goto("/rooms");
-    await page.getByRole("tab", { name: en("navMeet") }).click();
+    await page.getByRole("tab", { name: t("navMeet") }).click();
   }
 
   /**
@@ -90,7 +91,7 @@ test.describe("data rooms", () => {
   async function hostRoom(): Promise<{ row: Locator; uri: string }> {
     await openConnect();
     const before = new Set(await roomUris());
-    await page.getByRole("button", { name: /host a data room/i }).click();
+    await page.getByRole("button", { name: t("roomHostBtn") }).click();
     // Hosting lands on the new room's STANDALONE detail page (no app-shell tabs);
     // return to the shell before reading the Connect list.
     await expect(page).toHaveURL(/\/room\?/, { timeout: SETTLE });
@@ -121,7 +122,7 @@ test.describe("data rooms", () => {
   async function deleteRoom(uri: string) {
     await openConnect();
     const row = page.locator("li").filter({ hasText: uri });
-    await row.getByRole("button", { name: en("roomDeleteAria") }).click();
+    await row.getByRole("button", { name: t("roomDeleteAria") }).click();
     await confirmDialog(page, "Delete");
     await expect(page.locator("li").filter({ hasText: uri }))
       .toHaveCount(0, { timeout: SETTLE });
@@ -135,15 +136,15 @@ test.describe("data rooms", () => {
     // page's openRoom-on-mount). It carries the invite QR, the role selector
     // (we're a member) and the members list.
     await openRoomPage(uri);
-    await expect(page.getByRole("combobox", { name: en("roomMyRoles") }))
+    await expect(page.getByRole("combobox", { name: t("roomMyRoles") }))
       .toBeVisible({ timeout: SETTLE });
-    await expect(page.getByRole("heading", { name: en("secMembers") }))
+    await expect(page.getByRole("heading", { name: t("secMembers") }))
       .toBeVisible();
 
     // Leave from the page footer; on success it navigates back off the room page
     // (the durable signal). The room itself persists (we still host it) — clean
     // it up by deleting from its Connect row.
-    await page.getByRole("button", { name: /^leave$/i }).click();
+    await page.getByRole("button", { name: t("roomLeaveBtn") }).click();
     await expect(page).not.toHaveURL(/\/room\?/, { timeout: SETTLE });
 
     await deleteRoom(uri);
@@ -158,19 +159,13 @@ test.describe("data rooms", () => {
     // the eight ROOM_ROLE_OPTIONS — is offered.
     const { uri } = await hostRoom();
     await openRoomPage(uri);
-    const ROLES = [
-      "Investor",
-      "User",
-      "Benchmark Service Provider",
-      "Facility Manager",
-      "Developer",
-      "Consultant / Broker",
-      "Software Provider",
-      "Energy Provider",
-    ];
-    await page.getByRole("combobox", { name: en("roomMyRoles") }).click();
-    for (const role of ROLES) {
-      await expect(page.getByRole("option", { name: role, exact: true }))
+    // Derive the expected eight from the source of truth (ROOM_ROLE_OPTIONS), each
+    // labelled in the run language via roleT — so the assertion holds in any
+    // E2E_LANG and tracks the role set, not a hardcoded English list.
+    await page.getByRole("combobox", { name: t("roomMyRoles") }).click();
+    expect(ROOM_ROLE_OPTIONS).toHaveLength(8);
+    for (const role of ROOM_ROLE_OPTIONS) {
+      await expect(page.getByRole("option", { name: roleT(role), exact: true }))
         .toBeVisible({ timeout: SETTLE });
     }
     await page.keyboard.press("Escape");
@@ -197,10 +192,10 @@ test.describe("data rooms", () => {
         await openConnect();
         const activeRow = page.locator("li").filter({ hasText: uri });
         const otherRow = page.locator("li").filter({ hasText: other });
-        await expect(activeRow.getByText(/active/i))
+        await expect(activeRow.getByText(t("roomActive")))
           .toBeVisible({ timeout: SETTLE });
         // The other room must NOT be active (left when we entered this one).
-        await expect(otherRow.getByText(/active/i))
+        await expect(otherRow.getByText(t("roomActive")))
           .toBeHidden({ timeout: SETTLE });
       }).toPass({ timeout: T.poll });
     }

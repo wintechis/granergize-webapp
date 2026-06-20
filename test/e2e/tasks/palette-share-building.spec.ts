@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
@@ -77,7 +77,7 @@ test.describe("palette: share building by year across two pods", () => {
 
       // Sanity: the palette opens in the shell and renders its command surface.
       await openPalette(a.page);
-      await expect(a.page.getByText(en("paletteGroupNavigation"))).toBeVisible({
+      await expect(a.page.getByText(t("paletteGroupNavigation"))).toBeVisible({
         timeout: T.visible,
       });
       // Close it again — press Escape on the focused filter field so the key
@@ -89,26 +89,26 @@ test.describe("palette: share building by year across two pods", () => {
       // verb's intent label). Fill the building, recipient, years + energy toggle.
       const form = await runPaletteFormCommand(
         a.page,
-        en("intentShareBuilding"),
-        en("intentShareBuilding"),
-        en("intentShareBuilding"),
+        t("intentShareBuilding"),
+        t("intentShareBuilding"),
+        t("intentShareBuilding"),
       );
 
       // Building picker (single MUI Select, labelled "Building").
-      await form.getByLabel(en("paramBuilding")).click();
+      await form.getByLabel(t("paramBuilding")).click();
       await a.page.getByRole("option", { name: new RegExp(STREET) }).click();
 
       // Recipient: a free-solo multi Autocomplete; type B's WebID + Enter → chip.
       // (Match a substring of the label — "Recipient WebID(s)" has literal parens.)
-      const recipient = form.getByLabel(/Recipient WebID/i);
+      const recipient = form.getByLabel(t("racLabel"));
       await recipient.fill(bWebId);
       await recipient.press("Enter");
 
       // Include energy data (the boolean switch) so the per-year grant is real.
-      await form.getByLabel(en("paramIncludeEnergyData")).check();
+      await form.getByLabel(t("paramIncludeEnergyData")).check();
 
       // Years: type a 4-digit year, Enter adds a chip (the YearChips field).
-      const years = form.getByLabel(en("paramYears"));
+      const years = form.getByLabel(t("paramYears"));
       for (const year of ["2022", "2023", "2024"]) {
         await years.fill(year);
         await years.press("Enter");
@@ -126,11 +126,11 @@ test.describe("palette: share building by year across two pods", () => {
       const b2 = await freshPage(browser, B);
       try {
         const received = b2.page.getByRole("list", {
-          name: /buildings shared with you/i,
+          name: t("sharedBuildingsHeading"),
         });
         try {
           await reloadUntil(b2.page, async () => {
-            await b2.page.getByRole("tab", { name: en("navSharing") }).click();
+            await b2.page.getByRole("tab", { name: t("navSharing") }).click();
             await expect(received.getByText(/^Building /)).toBeVisible({
               timeout: T.action,
             });
@@ -188,13 +188,13 @@ test.describe("palette: host a data room (param-less direct invoke)", () => {
     a.page.on("dialog", (d) => d.accept()); // delete-room confirm in cleanup
     try {
       await a.page.goto("/");
-      await a.page.getByRole("tab", { name: en("navMeet") }).click();
+      await a.page.getByRole("tab", { name: t("navMeet") }).click();
 
       // No room yet (empty-state). Host one straight from the palette.
-      const owned = a.page.getByRole("button", { name: en("roomDeleteAria") });
+      const owned = a.page.getByRole("button", { name: t("roomDeleteAria") });
       const before = await owned.count();
 
-      await runPaletteCommand(a.page, en("roomHostBtn"), en("roomHostBtn"));
+      await runPaletteCommand(a.page, t("roomHostBtn"), t("roomHostBtn"));
 
       // A newly-hosted room shows the owner-only "Delete data room" action.
       await expect(owned).toHaveCount(before + 1, { timeout: T.action });

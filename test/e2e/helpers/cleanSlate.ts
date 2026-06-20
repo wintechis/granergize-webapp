@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "./i18n.ts";
+import { t } from "./i18n.ts";
 import { buildingRows, openBuildingsList } from "./manage.ts";
 import { confirmDialog } from "./confirm.ts";
 import { logRun } from "./consoleLog.ts";
@@ -98,16 +98,16 @@ export async function wipeCollection(
   try {
     // "Remove all app data" lives behind Developer mode, in the Account menu.
     await setDevMode(page, true);
-    await menuAction(page, /Remove all app data/i);
+    await menuAction(page, t("menuRemoveAll"));
     // Confirm via the in-app confirm dialog (replaced the native window.confirm).
     await confirmDialog(page, "Remove all");
-    await expect(page.getByText("All app data removed", { exact: false }))
+    await expect(page.getByText(t("allDataRemoved"), { exact: false }))
       .toBeVisible({ timeout: T.action });
     logRun(`clean-slate wipe [${tag}]: collection removed`);
     if (reload) {
       await page.reload();
       // Wait until logged back in (tabs present) so ensureOwnInbox has re-run.
-      await expect(page.getByRole("tab", { name: en("navBuildings") }))
+      await expect(page.getByRole("tab", { name: t("navBuildings") }))
         .toBeVisible({ timeout: T.action });
       logRun(`clean-slate wipe [${tag}]: reloaded, inbox re-provisioned`);
     }
@@ -130,7 +130,7 @@ export async function wipeCollection(
 async function returnToShell(page: Page): Promise<boolean> {
   if (page.isClosed()) return false;
   await page.goto("/").catch(() => {});
-  return await page.getByRole("tab", { name: en("navBuildings") })
+  return await page.getByRole("tab", { name: t("navBuildings") })
     .waitFor({ state: "visible", timeout: T.action })
     .then(() => true)
     .catch(() => false);

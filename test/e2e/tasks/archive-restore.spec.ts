@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { buildingIds, buildingRows, openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -81,21 +81,21 @@ test.describe("archive backup/restore", () => {
 
     // Export archive → capture the .zip.
     const dl = page.waitForEvent("download");
-    await menuAction(page, /Export archive/);
+    await menuAction(page, t("menuExportArchive"));
     await (await dl).saveAs(ARCHIVE_PATH);
-    await expect(page.getByText(/Archived \d+ resource\(s\)/)).toBeVisible({
+    await expect(page.getByText(tPattern("archived"))).toBeVisible({
       timeout: T.action,
     });
 
     // Wipe the Pod (the in-app confirm dialog asks first).
-    await menuAction(page, /Remove all app data/);
+    await menuAction(page, t("menuRemoveAll"));
     await confirmDialog(page, "Remove all");
-    await expect(page.getByText("All app data removed")).toBeVisible({
+    await expect(page.getByText(t("allDataRemoved"))).toBeVisible({
       timeout: T.action,
     });
     // The buildings are gone (the fresh-Pod "Add examples" offer returns).
     await openManage(page);
-    await expect(page.getByRole("button", { name: en("onboardAddExamples") })).toBeVisible({
+    await expect(page.getByRole("button", { name: t("onboardAddExamples") })).toBeVisible({
       timeout: T.action,
     });
 
@@ -103,7 +103,7 @@ test.describe("archive backup/restore", () => {
     // dialog asks before overwriting.
     await page.locator('input[type="file"][accept*="zip"]').setInputFiles(ARCHIVE_PATH);
     await confirmDialog(page, "Restore");
-    await expect(page.getByText(/Restored \d+ resource\(s\)/)).toBeVisible({
+    await expect(page.getByText(tPattern("devRestoreSuccess"))).toBeVisible({
       timeout: T.action,
     });
 

@@ -2,7 +2,7 @@ import { expect, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { en } from "../helpers/i18n.ts";
+import { E2E_LANG, en } from "../helpers/i18n.ts";
 import { translate } from "../../../src/lib/messages.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -24,6 +24,14 @@ test.describe("app-chrome i18n: language switcher", () => {
   test.skip(
     !hasAccount(ACC),
     `Set WEBID_A_USERNAME / WEBID_A_PASSWORD (a throwaway Solid Pod) to run the i18n e2e.`,
+  );
+  // This spec asserts a SPECIFIC English→German switch from an English start, so it
+  // only makes sense when the run's base language is English. Under `E2E_LANG=fr|de`
+  // the app seeds that language instead, so skip (the switcher itself is exercised by
+  // every other spec running in its configured language).
+  test.skip(
+    E2E_LANG !== "en",
+    `i18n switcher spec assumes an English base; E2E_LANG=${E2E_LANG}.`,
   );
 
   test("switching the UI language flips a migrated app-chrome string in place", async ({ browser }) => {

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -73,8 +73,8 @@ test.describe("cube space-cut + compare-years (portfolio over time)", () => {
     await openMap(page);
 
     // Switch the Explore view to the cross-building over-time matrix. The toggle
-    // label comes from the i18n catalog (en("exploreViewOverTime") = "Over time").
-    await page.getByRole("button", { name: en("exploreViewOverTime") }).click();
+    // label comes from the i18n catalog (t("exploreViewOverTime") = "Over time").
+    await page.getByRole("button", { name: t("exploreViewOverTime") }).click();
 
     // The matrix cells are role=button (each (building, year) cell, with an
     // aria-label "<name> — <year>: …"). The bulk energy cube loads through the
@@ -88,7 +88,7 @@ test.describe("cube space-cut + compare-years (portfolio over time)", () => {
     // matrix → at least one populated cell carrying a numeric value (kWh/m²/a). The
     // "no data" cells carry the lensBandNoData label; assert a real value cell.
     const valueCells = page.getByRole("button", {
-      name: new RegExp(`—\\s*\\d{4}\\s*:.*(?!${en("lensBandNoData")})\\d`),
+      name: new RegExp(`—\\s*\\d{4}\\s*:.*(?!${t("lensBandNoData")})\\d`),
     });
     await expect(valueCells.first()).toBeVisible({ timeout: T.action });
 
@@ -105,7 +105,7 @@ test.describe("cube space-cut + compare-years (portfolio over time)", () => {
     await openMap(page);
 
     // Switch to the year-juxtaposing small multiples.
-    await page.getByRole("button", { name: en("exploreViewCompareYears") }).click();
+    await page.getByRole("button", { name: t("exploreViewCompareYears") }).click();
 
     // Each panel's heading is the year (a Typography h6). The demo set has ≥2
     // years with annual data → ≥2 year-panel headings; retry until the cube loads.

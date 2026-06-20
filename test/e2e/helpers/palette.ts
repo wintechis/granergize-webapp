@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { en } from "./i18n.ts";
+import { t } from "./i18n.ts";
 import { T } from "./timeouts.ts";
 
 /**
@@ -34,7 +34,7 @@ export async function openPalette(page: Page): Promise<void> {
 
 /** The palette's filter TextField (its aria-label is the placeholder message). */
 export function paletteInput(page: Page) {
-  return page.getByRole("textbox", { name: en("palettePlaceholder") });
+  return page.getByRole("textbox", { name: t("palettePlaceholder") });
 }
 
 /** Select a command in the open palette by its visible (localized) label. */
@@ -93,7 +93,7 @@ export async function runPaletteFormCommand(
 
 /** Click the param-form's submit ("Run") button and wait for the palette to close. */
 export async function submitPaletteForm(page: Page): Promise<void> {
-  await page.getByRole("button", { name: en("paramFormSubmit") }).click();
+  await page.getByRole("button", { name: t("paramFormSubmit") }).click();
   // A successful invoke closes the Modal (onDone → close).
   await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
 }

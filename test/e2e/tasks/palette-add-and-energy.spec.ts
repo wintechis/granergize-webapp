@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { metricT, t } from "../helpers/i18n.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { buildingIdOf, openBuildingsList } from "../helpers/manage.ts";
@@ -79,11 +79,11 @@ test.describe("palette: add building + enter energy", () => {
     // Sanity: the palette opens and offers the always-applicable create verb in
     // the shell (no object focused → navigation + collection-create commands).
     await openPalette(page);
-    await expect(page.getByText(en("paletteGroupActions"))).toBeVisible({
+    await expect(page.getByText(t("paletteGroupActions"))).toBeVisible({
       timeout: T.visible,
     });
-    await paletteInput(page).fill("add building");
-    const addCmd = page.getByRole("button", { name: /add building/i }).first();
+    await paletteInput(page).fill(t("addBuildingBtn"));
+    const addCmd = page.getByRole("button", { name: t("addBuildingBtn") }).first();
     await expect(addCmd).toBeVisible({ timeout: T.visible });
     await addCmd.click();
     await expect(paletteInput(page)).toBeHidden({ timeout: T.action });
@@ -91,17 +91,17 @@ test.describe("palette: add building + enter energy", () => {
     // The palette routed to /buildings?action=add, which auto-opens the dialog.
     await expect(page).toHaveURL(new RegExp(`${ACTION_PARAM}=add`));
     const add = page.getByRole("dialog");
-    await expect(add.getByLabel(/street address/i)).toBeVisible({
+    await expect(add.getByLabel(t("lblStreetAddress"))).toBeVisible({
       timeout: T.visible,
     });
-    await add.getByLabel(/street address/i).fill(ADDR);
-    await add.getByLabel(/locality/i).fill("Nürnberg");
-    await add.getByLabel(/postal code/i).fill("90451");
-    await add.getByLabel(/region/i).fill("Bayern");
-    await add.getByLabel(/latitude/i).fill("49.45");
-    await add.getByLabel(/longitude/i).fill("11.08");
-    await add.getByRole("button", { name: /^Add Building$/ }).click();
-    await expect(page.getByText(/building added/i)).toBeVisible({
+    await add.getByLabel(t("lblStreetAddress")).fill(ADDR);
+    await add.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await add.getByLabel(t("lblPostalCode")).fill("90451");
+    await add.getByLabel(t("lblRegion")).fill("Bayern");
+    await add.getByLabel(t("lblLatitude")).fill("49.45");
+    await add.getByLabel(t("lblLongitude")).fill("11.08");
+    await add.getByRole("button", { name: t("addBuildingBtn") }).click();
+    await expect(page.getByText(t("addBuildingAddedCount", { count: 1 }))).toBeVisible({
       timeout: T.action,
     });
 
@@ -125,12 +125,12 @@ test.describe("palette: add building + enter energy", () => {
     await expect(energy.getByRole("heading", { level: 2 }))
       .toContainText(ADDR, { timeout: T.visible });
 
-    await page.getByRole("spinbutton", { name: en("lblYear"), exact: true })
+    await page.getByRole("spinbutton", { name: t("lblYear"), exact: true })
       .fill(YEAR);
-    await page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" })
+    await page.getByRole("spinbutton", { name: metricT("electricityConsumption") })
       .fill(ELECTRICITY);
-    await energy.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Energy data saved").first()).toBeVisible({
+    await energy.getByRole("button", { name: t("btnSave") }).click();
+    await expect(page.getByText(t("energySaved")).first()).toBeVisible({
       timeout: T.action,
     });
 
@@ -139,7 +139,7 @@ test.describe("palette: add building + enter energy", () => {
     await expect(energy.getByText(YEAR).first()).toBeVisible({
       timeout: T.action,
     });
-    await page.getByRole("button", { name: "Close" }).click();
+    await page.getByRole("button", { name: t("btnClose") }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
   });
 });

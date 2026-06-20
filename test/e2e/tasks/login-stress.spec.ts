@@ -1,4 +1,5 @@
 import { expect, test } from "@playwright/test";
+import { t } from "../helpers/i18n.ts";
 import { account } from "../helpers/login.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
 import { freshPagesParallel } from "../helpers/twoPod.ts";
@@ -60,7 +61,7 @@ test.describe("login stress (concurrent two-pod login)", () => {
         // error page, app never reached) fails THIS round with its index.
         for (const s of sessions) {
           await expect(
-            s.page.getByRole("button", { name: /Account menu/ }),
+            s.page.getByRole("button", { name: t("menuAccountAria") }),
             `round ${i}/${ITERATIONS}: app shell after concurrent login`,
           ).toBeVisible({ timeout: T.action });
           s.guard.assertNoAppErrors();

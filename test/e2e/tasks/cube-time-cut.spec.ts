@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -77,12 +78,12 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
       await openBuildingsMap(page);
       await expect(page.locator(".leaflet-marker-icon").first())
         .toBeVisible({ timeout: T.action });
-      await page.getByRole("button", { name: "Energy", exact: true }).click();
+      await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
       // The energy markers paint (the lens recoloured) and the year slider appears
       // once ≥1 reachable year is loaded (≥2 enables the slider/animation).
       await expect(page.locator(".energy-marker").first())
         .toBeAttached({ timeout: T.action });
-      const slider = page.getByRole("slider", { name: "Energy year" });
+      const slider = page.getByRole("slider", { name: t("cubeYearAria") });
       await expect(slider).toBeVisible({ timeout: T.action });
       // The bulk energy load can deliver the EARLIEST seed year (2022) a cycle
       // after the slider first renders with only the later years, leaving the
@@ -103,7 +104,7 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
     test.setTimeout(T.testSolo);
     await openEnergyMapWithSlider(page);
 
-    const slider = page.getByRole("slider", { name: "Energy year" });
+    const slider = page.getByRole("slider", { name: t("cubeYearAria") });
 
     // Step the slider to its minimum (the earliest reachable year, 2022) via the
     // keyboard — keyboard ArrowKeys commit (fire onChangeCommitted), so the year is
@@ -149,7 +150,7 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
 
     // Pin a specific earlier year, then reload cold: ?y= restores the same cut
     // (clampYear keeps it, since 2022 is in the seed's selectable range).
-    const slider = page.getByRole("slider", { name: "Energy year" });
+    const slider = page.getByRole("slider", { name: t("cubeYearAria") });
     await slider.focus();
     // Flap-tolerant Home press (see the sibling test): re-press until the
     // earliest year (2022) is loaded and committed.
@@ -166,10 +167,10 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
     }).toBe("2022");
     // And the restored view re-shows the energy lens at that year: the slider
     // returns at 2022 once the energy cube reloads.
-    await expect(page.getByRole("button", { name: "Energy", exact: true }))
+    await expect(page.getByRole("button", { name: t("lensEnergy"), exact: true }))
       .toBeVisible({ timeout: T.action });
-    await page.getByRole("button", { name: "Energy", exact: true }).click();
-    await expect(page.getByRole("slider", { name: "Energy year" }))
+    await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
+    await expect(page.getByRole("slider", { name: t("cubeYearAria") }))
       .toHaveAttribute("aria-valuenow", "2022", { timeout: T.action });
   });
 });

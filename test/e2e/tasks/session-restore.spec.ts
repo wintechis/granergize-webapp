@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { account, hasAccount, login, LOGIN_HEADING } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { watchAppErrors } from "../helpers/errorGuard.ts";
@@ -49,7 +49,7 @@ test.describe("session restore", () => {
 
     // Establish a real, restorable session.
     await login(page, ACC);
-    await expect(page.getByRole("tab", { name: en("navBuildings") })).toBeVisible({
+    await expect(page.getByRole("tab", { name: t("navBuildings") })).toBeVisible({
       timeout: T.action,
     });
     assertNoAppErrors();
@@ -92,11 +92,11 @@ test.describe("session restore", () => {
     // The remedy appears: the warning alert (with whatever message the IdP gave)
     // and the clear-and-retry action.
     const alert = page.getByRole("alert").filter({
-      hasText: /couldn’t restore your previous session/i,
+      hasText: tPattern("loginRestoreFailed"),
     });
     await expect(alert).toBeVisible({ timeout: T.login });
     const clearBtn = page.getByRole("button", {
-      name: /clear local data & retry/i,
+      name: t("loginClearRetry"),
     });
     await expect(clearBtn).toBeVisible();
 
@@ -136,7 +136,7 @@ test.describe("login escape hatch (no creds)", () => {
         .toBeVisible({ timeout: T.login });
 
       // The always-visible remedy (distinct from the failed-restore Alert above).
-      const clearBtn = page.getByRole("button", { name: /^clear local data$/i });
+      const clearBtn = page.getByRole("button", { name: t("loginClearData") });
       await expect(clearBtn).toBeVisible();
 
       // Seed some local storage, then clear it through the button.

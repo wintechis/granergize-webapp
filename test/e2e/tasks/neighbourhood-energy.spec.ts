@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,
@@ -126,7 +126,7 @@ test.describe("neighbourhood energy choropleth", () => {
     await page.goto(buildingRoute("building", id));
 
     // The widget renders its section title + a Leaflet map of the neighbour Gemeinden.
-    await expect(page.getByText(en("neighbourhoodTitle"))).toBeVisible({ timeout: T.action });
+    await expect(page.getByText(t("neighbourhoodTitle"))).toBeVisible({ timeout: T.action });
     // The Gemeinde polygons (the building's location marker is non-interactive).
     const regions = page.locator("path.leaflet-interactive");
     await expect(regions.first()).toBeVisible({ timeout: T.action });

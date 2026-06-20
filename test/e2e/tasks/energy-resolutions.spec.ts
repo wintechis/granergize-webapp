@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { addBuildingSubmitRe, buildingsAddedRe, t, tPattern } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import {
   addEnergyYear,
@@ -68,7 +68,7 @@ test.describe("energy resolution toggle", () => {
 
     // Import the Lastgang fixture — the building arrives with a PT15M series.
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
+    const addBtn = page.getByRole("button", { name: t("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
@@ -76,21 +76,21 @@ test.describe("energy resolution toggle", () => {
     await dialog.locator('input[type="file"]').setInputFiles(
       "test/e2e/fixtures/lastgang-import.xlsx",
     );
-    await expect(page.getByText(/readings.*days.*ready to upload/))
+    await expect(page.getByText(tPattern("addReadingsReady")))
       .toBeVisible({ timeout: T.action });
     // The Lastgang file carries only a label + readings (no address) — fill the
     // required location fields manually to enable submit.
-    await dialog.getByLabel(/street address/i).fill(ADDR);
-    await dialog.getByLabel(/locality/i).fill("Nürnberg");
-    await dialog.getByLabel(/postal code/i).fill("90451");
-    await dialog.getByLabel(/region/i).fill("Bayern");
-    await dialog.getByLabel(/latitude/i).fill("49.45");
-    await dialog.getByLabel(/longitude/i).fill("11.08");
-    await dialog.getByRole("button", { name: /^Add (Building|\d+ Buildings)$/ })
+    await dialog.getByLabel(t("lblStreetAddress")).fill(ADDR);
+    await dialog.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await dialog.getByLabel(t("lblPostalCode")).fill("90451");
+    await dialog.getByLabel(t("lblRegion")).fill("Bayern");
+    await dialog.getByLabel(t("lblLatitude")).fill("49.45");
+    await dialog.getByLabel(t("lblLongitude")).fill("11.08");
+    await dialog.getByRole("button", { name: addBuildingSubmitRe() })
       .click();
     // The upload PUTs a building plus ~32 daily reading files — long on a real
     // Pod, so wait with the long-operation budget.
-    await expect(page.getByText(/buildings? added/i).first())
+    await expect(page.getByText(buildingsAddedRe()).first())
       .toBeVisible({ timeout: T.longOp });
 
     // Capture its (generated) id from the Manage row's data attribute.
@@ -114,9 +114,9 @@ test.describe("energy resolution toggle", () => {
         await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
-          await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
+          await row.getByRole("button", { name: t("buildingDeleteAria") }).click();
           await confirmDialog(page, "Delete");
-          await expect(page.getByText("Building deleted").first())
+          await expect(page.getByText(t("buildingDeleted")).first())
             .toBeVisible({ timeout: T.action });
         }
       }
@@ -136,16 +136,16 @@ test.describe("energy resolution toggle", () => {
     await expect(page.getByText(/77\.777/).first())
       .toBeVisible({ timeout: T.action });
     // Both resolutions exist, so the toggle renders.
-    const seriesBtn = page.getByRole("button", { name: en("erTimeSeries") });
+    const seriesBtn = page.getByRole("button", { name: t("erTimeSeries") });
     await expect(seriesBtn).toBeVisible({ timeout: T.action });
     // Switching reaches the series chart — its Day-View tab strip renders
     // (this was unreachable while annual data existed).
     await seriesBtn.click();
-    await expect(page.getByRole("tab", { name: en("ucDayView") }))
+    await expect(page.getByRole("tab", { name: t("ucDayView") }))
       .toBeVisible({ timeout: T.action });
     await expect(page.getByText(/77\.777/).first()).toBeHidden();
     // And back: the annual view returns.
-    await page.getByRole("button", { name: en("erAnnual") }).click();
+    await page.getByRole("button", { name: t("erAnnual") }).click();
     await expect(page.getByText(/77\.777/).first())
       .toBeVisible({ timeout: T.action });
   });

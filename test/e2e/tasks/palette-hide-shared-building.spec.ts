@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
@@ -70,17 +70,17 @@ test.describe("palette: hide a shared building across two pods", () => {
       try {
         // Sanity: the palette opens in B's shell and renders its commands.
         await openPalette(b2.page);
-        await expect(b2.page.getByText(en("paletteGroupNavigation")))
+        await expect(b2.page.getByText(t("paletteGroupNavigation")))
           .toBeVisible({ timeout: T.visible });
         await b2.page.keyboard.press("Escape");
         await expect(paletteInput(b2.page)).toBeHidden({ timeout: T.action });
 
         const received = b2.page.getByRole("list", {
-          name: /buildings shared with you/i,
+          name: t("sharedBuildingsHeading"),
         });
         try {
           await reloadUntil(b2.page, async () => {
-            await b2.page.getByRole("tab", { name: en("navSharing") }).click();
+            await b2.page.getByRole("tab", { name: t("navSharing") }).click();
             await expect(received.getByText(/^Building /)).toBeVisible({
               timeout: T.action,
             });
@@ -96,14 +96,14 @@ test.describe("palette: hide a shared building across two pods", () => {
         const sharedRow = received.locator("li")
           .filter({ has: b2.page.getByText(/^Building /) }).first();
         const visToggle = sharedRow.getByRole("switch");
-        await expect(sharedRow.getByText("Shown")).toBeVisible({
+        await expect(sharedRow.getByText(t("shareShown"))).toBeVisible({
           timeout: T.action,
         });
         const markers = b2.page.locator(".leaflet-marker-icon");
 
         // Hide → row reads "Hidden" and B's Map drops to no markers.
         await visToggle.click();
-        await expect(sharedRow.getByText("Hidden")).toBeVisible({
+        await expect(sharedRow.getByText(t("shareHidden"))).toBeVisible({
           timeout: T.action,
         });
         await openBuildingsMap(b2.page);
@@ -112,12 +112,12 @@ test.describe("palette: hide a shared building across two pods", () => {
         }).toPass({ timeout: T.poll });
 
         // Show → row reads "Shown" again and the marker returns.
-        await b2.page.getByRole("tab", { name: en("navSharing") }).click();
-        await expect(sharedRow.getByText("Hidden")).toBeVisible({
+        await b2.page.getByRole("tab", { name: t("navSharing") }).click();
+        await expect(sharedRow.getByText(t("shareHidden"))).toBeVisible({
           timeout: T.action,
         });
         await visToggle.click();
-        await expect(sharedRow.getByText("Shown")).toBeVisible({
+        await expect(sharedRow.getByText(t("shareShown"))).toBeVisible({
           timeout: T.action,
         });
         await openBuildingsMap(b2.page);

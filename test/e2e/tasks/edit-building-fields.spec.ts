@@ -1,4 +1,4 @@
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
@@ -74,33 +74,33 @@ test.describe("edit building operating costs + certifications", () => {
     // Open the inline editor and confirm the investor sections are present (they
     // render for every building — one generic form, no role gating).
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("button", { name: /^edit$/i }).first().click();
-    await expect(page.getByText(en("secOperatingCosts")))
+    await page.getByRole("button", { name: t("btnEdit") }).first().click();
+    await expect(page.getByText(t("secOperatingCosts")))
       .toBeVisible({ timeout: T.visible });
-    await expect(page.getByText(en("secCertifications"))).toBeVisible();
+    await expect(page.getByText(t("secCertifications"))).toBeVisible();
 
     // Fill an operating-cost figure and the first certification, then save.
     // The cert type is a select over the known systems (it mints an IRI local
     // name, so free text is rejected), not a text field.
-    await page.getByLabel(en("lblOpcostInsurance"), { exact: true }).fill("1200");
-    await page.getByLabel(en("lblCertType"), { exact: true }).first().click();
+    await page.getByLabel(t("lblOpcostInsurance"), { exact: true }).fill("1200");
+    await page.getByLabel(t("lblCertType"), { exact: true }).first().click();
     await page.getByRole("option", { name: "LEED" }).click();
-    await page.getByLabel(en("lblCertLevel"), { exact: true }).first().fill("Gold");
-    await page.getByRole("button", { name: /^save$/i }).click();
-    await expect(page.getByText(/building updated/i))
+    await page.getByLabel(t("lblCertLevel"), { exact: true }).first().fill("Gold");
+    await page.getByRole("button", { name: t("btnSave") }).click();
+    await expect(page.getByText(t("buildingUpdated")))
       .toBeVisible({ timeout: T.action });
 
     // Saving closes the editor → read view. Re-open it: the update invalidates +
     // refetches the building from the Pod, so the form now reflects the values
     // that round-tripped through its Turtle.
-    await page.getByRole("button", { name: /^edit$/i }).first().click();
-    await expect(page.getByLabel(en("lblOpcostInsurance"), { exact: true }))
+    await page.getByRole("button", { name: t("btnEdit") }).first().click();
+    await expect(page.getByLabel(t("lblOpcostInsurance"), { exact: true }))
       .toHaveValue("1200", { timeout: T.visible });
-    await expect(page.getByLabel(en("lblCertType"), { exact: true }).first())
+    await expect(page.getByLabel(t("lblCertType"), { exact: true }).first())
       .toHaveText("LEED");
-    await expect(page.getByLabel(en("lblCertLevel"), { exact: true }).first())
+    await expect(page.getByLabel(t("lblCertLevel"), { exact: true }).first())
       .toHaveValue("Gold");
-    await page.getByRole("button", { name: /^cancel$/i }).click();
+    await page.getByRole("button", { name: t("btnCancel") }).click();
 
     // Cleanup: delete the throwaway building from the Buildings list.
     await page.goto("/");
@@ -123,10 +123,10 @@ test.describe("edit building operating costs + certifications", () => {
     await page.goto(buildingRoute("building", id));
     // The single button in the Energy systems section header (label flips Add → Edit).
     const sysBtn = page
-      .getByRole("heading", { name: en("secEnergySystems"), exact: true })
+      .getByRole("heading", { name: t("secEnergySystems"), exact: true })
       .locator("xpath=..")
       .getByRole("button");
-    await expect(page.getByText(en("energySystemsEmpty")))
+    await expect(page.getByText(t("energySystemsEmpty")))
       .toBeVisible({ timeout: T.visible });
 
     // Add a PV unit via the dialog: it's a list editor, so "Add PV plant" first, then
@@ -134,11 +134,11 @@ test.describe("edit building operating costs + certifications", () => {
     await sysBtn.click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
-    await dialog.getByRole("button", { name: en("btnAddPv"), exact: true }).click();
-    await dialog.getByLabel(en("lblSystemCapacityKW"), { exact: true }).fill("500");
-    await dialog.getByLabel(en("lblCommissioningYear"), { exact: true }).fill("2020");
-    await dialog.getByRole("button", { name: en("saveChanges"), exact: true }).click();
-    await expect(page.getByText(/building updated/i))
+    await dialog.getByRole("button", { name: t("btnAddPv"), exact: true }).click();
+    await dialog.getByLabel(t("lblSystemCapacityKW"), { exact: true }).fill("500");
+    await dialog.getByLabel(t("lblCommissioningYear"), { exact: true }).fill("2020");
+    await dialog.getByRole("button", { name: t("saveChanges"), exact: true }).click();
+    await expect(page.getByText(t("buildingUpdated")))
       .toBeVisible({ timeout: T.action });
 
     // The section now renders the PV plant as a summary row (presence ⇒ has PV),
@@ -148,9 +148,9 @@ test.describe("edit building operating costs + certifications", () => {
 
     // Re-open (the button is now "Edit"): the value round-tripped into the dialog.
     await sysBtn.click();
-    await expect(dialog.getByLabel(en("lblSystemCapacityKW"), { exact: true }))
+    await expect(dialog.getByLabel(t("lblSystemCapacityKW"), { exact: true }))
       .toHaveValue("500", { timeout: T.visible });
-    await dialog.getByRole("button", { name: /^cancel$/i }).click();
+    await dialog.getByRole("button", { name: t("btnCancel") }).click();
 
     await page.goto("/");
     await openBuildingsList(page);

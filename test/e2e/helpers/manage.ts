@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { en } from "./i18n.ts";
+import { metricT, roleT, t } from "./i18n.ts";
 import { T } from "./timeouts.ts";
 import { confirmDialog } from "./confirm.ts";
 import {
@@ -29,8 +29,8 @@ export const buildingIdOf = (row: Locator): Promise<string | null> =>
  * reaching the list is now: select the Buildings tab, then toggle to List.
  */
 export async function openBuildingsList(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: en("navBuildings") }).click();
-  await page.getByRole("button", { name: en("btnList") }).click();
+  await page.getByRole("tab", { name: t("navBuildings") }).click();
+  await page.getByRole("button", { name: t("btnList") }).click();
 }
 
 /**
@@ -40,12 +40,12 @@ export async function openBuildingsList(page: Page): Promise<void> {
  * select the tab then the Map toggle explicitly.
  */
 export async function openBuildingsMap(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: en("navBuildings") }).click();
+  await page.getByRole("tab", { name: t("navBuildings") }).click();
   // Scope to the Buildings-view toggle group: the cube's "Explore view" selector also
   // carries a "Map" button, so an unscoped getByRole matches two (see plans/stumble.md).
   await page
-    .getByLabel(en("bldgsViewAria"))
-    .getByRole("button", { name: en("btnMap"), exact: true })
+    .getByLabel(t("bldgsViewAria"))
+    .getByRole("button", { name: t("btnMap"), exact: true })
     .click();
 }
 
@@ -55,7 +55,7 @@ export async function openBuildingsMap(page: Page): Promise<void> {
  * create / share / detail aggregation flows.
  */
 export async function openAggregations(page: Page): Promise<void> {
-  await page.getByRole("tab", { name: en("navAggregations") }).click();
+  await page.getByRole("tab", { name: t("navAggregations") }).click();
 }
 
 /**
@@ -105,7 +105,7 @@ export function buildingRoute(
  */
 export async function deleteBuildingRow(page: Page, id: string): Promise<void> {
   const row = page.locator(`li[data-building-id="${id}"]`).first();
-  await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
+  await row.getByRole("button", { name: t("buildingDeleteAria") }).click();
   await confirmDialog(page, "Delete");
   await expect(row).toHaveCount(0, { timeout: T.action });
 }
@@ -133,26 +133,26 @@ export async function addBuilding(
   opts: { operatedBy?: string } = {},
 ): Promise<void> {
   await openBuildingsList(page);
-  await page.getByRole("button", { name: /^add building$/i }).first().click();
+  await page.getByRole("button", { name: t("addBuildingBtn"), exact: true }).first().click();
   const dialog = page.getByRole("dialog");
-  await expect(dialog.getByLabel(/street address/i)).toBeVisible({
+  await expect(dialog.getByLabel(t("lblStreetAddress"))).toBeVisible({
     timeout: T.visible,
   });
-  await dialog.getByLabel(/street address/i).fill(street);
-  await dialog.getByLabel(/locality/i).fill("Nürnberg");
-  await dialog.getByLabel(/postal code/i).fill("90451");
-  await dialog.getByLabel(/region/i).fill("Bayern");
-  await dialog.getByLabel(/latitude/i).fill("49.45");
-  await dialog.getByLabel(/longitude/i).fill("11.08");
+  await dialog.getByLabel(t("lblStreetAddress")).fill(street);
+  await dialog.getByLabel(t("lblLocality")).fill("Nürnberg");
+  await dialog.getByLabel(t("lblPostalCode")).fill("90451");
+  await dialog.getByLabel(t("lblRegion")).fill("Bayern");
+  await dialog.getByLabel(t("lblLatitude")).fill("49.45");
+  await dialog.getByLabel(t("lblLongitude")).fill("11.08");
   if (opts.operatedBy) {
-    await dialog.getByLabel(/operated by/i).fill(opts.operatedBy);
+    await dialog.getByLabel(t("lblOperatedBy")).fill(opts.operatedBy);
     // "Operated by" is a contacts Autocomplete: once the operator is a remembered
     // contact (e.g. the 2nd building reusing it), a suggestion popup opens and would
     // overlap/intercept the submit click. Escape closes just the popup (MUI consumes
     // it; the dialog stays open).
     await page.keyboard.press("Escape");
   }
-  await dialog.getByRole("button", { name: /^add building$/i }).click();
+  await dialog.getByRole("button", { name: t("addBuildingBtn"), exact: true }).click();
   await expect(dialog).toBeHidden({ timeout: T.action });
 }
 
@@ -168,27 +168,30 @@ export async function addEnergyYear(
   street: string,
   year: string,
   electricity: string,
-  scenario: RegExp = /^Actual$/,
+  scenario: "actual" | "planned" = "actual",
 ): Promise<void> {
   // Self-contained + race-hardened: resolve the row with a fresh-read retry (a
   // caller may be on a standalone detail route, and a just-added building can lag
   // the listing — see findOwnBuildingRow).
   const { id } = await findOwnBuildingRow(page, street);
   await page.goto(buildingRoute("observation", id));
-  await page.getByRole("button", { name: "Edit energy years" }).click();
+  await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
   // The dialog's accessible name contains "year", so target inputs by exact
   // label / role to avoid matching the dialog itself.
-  await page.getByRole("spinbutton", { name: en("lblYear"), exact: true }).fill(year);
-  await page.getByLabel(en("lblScenario"), { exact: true }).click();
-  await page.getByRole("option", { name: scenario }).click();
-  await page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" })
+  await page.getByRole("spinbutton", { name: t("lblYear"), exact: true }).fill(year);
+  await page.getByLabel(t("lblScenario"), { exact: true }).click();
+  await page.getByRole("option", {
+    name: t(scenario === "planned" ? "scenarioPlanned" : "scenarioActual"),
+    exact: true,
+  }).click();
+  await page.getByRole("spinbutton", { name: metricT("electricityConsumption") })
     .fill(electricity);
-  await page.getByRole("button", { name: "Save" }).click();
-  await expect(page.getByText("Energy data saved").first())
+  await page.getByRole("button", { name: t("btnSave") }).click();
+  await expect(page.getByText(t("energySaved")).first())
     .toBeVisible({ timeout: T.action });
   // Saving keeps the dialog open (so the table reflects the new year); close it
   // so each call is self-contained and the next action isn't blocked by the modal.
-  await page.getByRole("button", { name: "Close" }).click();
+  await page.getByRole("button", { name: t("btnClose") }).click();
   await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
   // /observation/:id is a standalone route (no app shell) — return to the shell.
   await page.goto("/");
@@ -214,13 +217,13 @@ export async function shareByRole(
   await openShareDialog(page, street);
 
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: /by role/i }).click();
-  await dialog.getByLabel(en("lblRole")).click();
-  await page.getByRole("option", { name: "User" }).click();
+  await dialog.getByRole("button", { name: t("shareByRole") }).click();
+  await dialog.getByLabel(t("lblRole")).click();
+  await page.getByRole("option", { name: roleT("user"), exact: true }).click();
 
   if (years) {
     // Switch the energy scope to per-year and tick the requested year(s).
-    await dialog.getByRole("radio", { name: /specific year/i }).check();
+    await dialog.getByRole("radio", { name: t("shareScopeYears") }).check();
     for (const year of years) {
       await dialog.getByRole("checkbox", { name: String(year), exact: true })
         .check();
@@ -238,7 +241,7 @@ export async function shareByRole(
  */
 async function openShareDialog(page: Page, street: string): Promise<void> {
   const { row } = await findOwnBuildingRow(page, street);
-  await row.getByRole("button", { name: en("intentShareBuilding"), exact: true }).click();
+  await row.getByRole("button", { name: t("intentShareBuilding"), exact: true }).click();
   await expect(page.getByRole("dialog")).toBeVisible({ timeout: T.action });
 }
 
@@ -250,15 +253,15 @@ async function openShareDialog(page: Page, street: string): Promise<void> {
  */
 async function reviewAndConfirmShare(page: Page): Promise<void> {
   const dialog = page.getByRole("dialog");
-  const confirm = dialog.getByRole("button", { name: /confirm share/i });
+  const confirm = dialog.getByRole("button", { name: t("shareConfirmShare") });
   await expect(async () => {
-    await dialog.getByRole("button", { name: /review and share/i }).click();
+    await dialog.getByRole("button", { name: t("shareReviewAndShare") }).click();
     await expect(confirm).toBeVisible({ timeout: T.quick });
   }).toPass({ timeout: T.poll });
   await confirm.click();
-  await expect(dialog.getByText(/shared successfully/i))
+  await expect(dialog.getByText(t("shareSuccessWith")))
     .toBeVisible({ timeout: T.action });
-  await dialog.getByRole("button", { name: /done/i }).click();
+  await dialog.getByRole("button", { name: t("btnDone") }).click();
   await expect(dialog).toBeHidden({ timeout: T.action });
   // /building/:id is a standalone route (no app shell) — return to the shell.
   await page.goto("/");
@@ -294,10 +297,10 @@ export async function shareByWebId(
   await openShareDialog(page, street);
 
   const dialog = page.getByRole("dialog");
-  await dialog.getByRole("button", { name: /by webid/i }).click();
+  await dialog.getByRole("button", { name: t("shareByWebId") }).click();
   // The recipient field is a multi free-solo Autocomplete: type the WebID and
   // press Enter to commit it as a chip (a plain fill doesn't register it).
-  const recipientInput = dialog.getByLabel(/Recipient WebID/i);
+  const recipientInput = dialog.getByLabel(t("racLabel"));
   await recipientInput.fill(webId);
   await recipientInput.press("Enter");
   // The committed chip renders as a resolved AgentChip — the profile's name,
@@ -324,13 +327,13 @@ export async function ensureAggregation(page: Page): Promise<void> {
   await page.waitForLoadState("networkidle").catch(() => {});
   if (await page.locator("li").filter({ hasText: AGGREGATION_NAME }).count()) return;
 
-  await page.getByRole("button", { name: /create aggregation/i }).click();
+  await page.getByRole("button", { name: t("aggCreateTitle") }).click();
   const dialog = page.getByRole("dialog");
   await expect(dialog).toBeVisible({ timeout: T.quick });
   // Default annual-portfolio mode (no role selection; for an annual-only building
   // set the "Aggregation type" dropdown isn't even shown). Metrics are pre-selected.
-  await dialog.getByLabel(en("aggNameLabel")).fill(AGGREGATION_NAME);
-  await dialog.getByLabel(en("aggSelectBuildings")).click();
+  await dialog.getByLabel(t("aggNameLabel")).fill(AGGREGATION_NAME);
+  await dialog.getByLabel(t("aggSelectBuildings")).click();
   // Fail fast with a clear message if the picker is empty (no buildings to aggregate),
   // rather than hanging on a click that waits out the whole test timeout.
   const firstBuilding = page.getByRole("option").first();
@@ -338,7 +341,7 @@ export async function ensureAggregation(page: Page): Promise<void> {
     .toBeVisible({ timeout: T.visible });
   await firstBuilding.click();
   await page.keyboard.press("Escape");
-  await dialog.getByRole("button", { name: /create aggregation/i }).click();
+  await dialog.getByRole("button", { name: t("aggCreateTitle") }).click();
   // Wait on the durable outcome — the aggregation appears in the Aggregations list
   // and the dialog closes — NOT the transient success toast. The single FIFO
   // snackbar can be mid-showing an earlier notice (e.g. first-time "Set up the
@@ -366,26 +369,26 @@ export async function shareAggregationByWebId(
   await openAggregations(page);
   const row = page.locator("li").filter({ hasText: AGGREGATION_NAME }).first();
   await expect(row).toBeVisible({ timeout: T.action });
-  await row.getByRole("button", { name: en("aggShareAria") }).click();
+  await row.getByRole("button", { name: t("aggShareAria") }).click();
   // Scope to the SHARE dialog by its title (the CreateAggregationDialog's closing
   // ghost can otherwise bind a generic role=dialog locator — see ensureAggregation).
   const dialog = page.getByRole("dialog")
-    .filter({ hasText: `Share "${AGGREGATION_NAME}"` });
+    .filter({ hasText: t("shareAggTitle", { name: AGGREGATION_NAME }) });
   await expect(dialog).toBeVisible({ timeout: T.action });
   // The recipient field is a multi free-solo Autocomplete: type the WebID and
   // press Enter to commit it (a plain fill doesn't register it).
-  const recipientInput = dialog.getByLabel(/Recipient WebID/i);
+  const recipientInput = dialog.getByLabel(t("racLabel"));
   await recipientInput.fill(webId);
   await recipientInput.press("Enter");
-  const confirm = dialog.getByRole("button", { name: /confirm share/i });
+  const confirm = dialog.getByRole("button", { name: t("shareConfirmShare") });
   await expect(async () => {
-    await dialog.getByRole("button", { name: /review and share/i }).click();
+    await dialog.getByRole("button", { name: t("shareReviewAndShare") }).click();
     await expect(confirm).toBeVisible({ timeout: T.quick });
   }).toPass({ timeout: T.poll });
   await confirm.click();
-  await expect(dialog.getByText(/shared successfully/i))
+  await expect(dialog.getByText(t("shareSuccessWith")))
     .toBeVisible({ timeout: T.action });
-  await dialog.getByRole("button", { name: /close/i }).click();
+  await dialog.getByRole("button", { name: t("btnClose") }).click();
   await expect(dialog).toBeHidden({ timeout: T.action });
 }
 
@@ -398,4 +401,4 @@ export async function shareAggregationByWebId(
  * assert its name within this list.
  */
 export const aggregationsList = (page: Page) =>
-  page.getByRole("list", { name: en("navAggregations") });
+  page.getByRole("list", { name: t("navAggregations") });

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -84,7 +84,7 @@ test.describe("map energy lens (Vertriebsunterstützung)", () => {
         .toBeVisible({ timeout: T.action });
       // Switch the colour lens to Energy. (The map is a pure finder — no detail
       // pane, so the "Energy" lens button is the only "Energy" control here.)
-      await page.getByRole("button", { name: en("lensEnergy"), exact: true }).click();
+      await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
       // Across three distinct intensities the terciles give at least one efficient
       // (green) and one inefficient (red) marker — the category is on the className.
       await expect(page.locator(".energy-marker.energy-efficient").first())
@@ -94,7 +94,7 @@ test.describe("map energy lens (Vertriebsunterstützung)", () => {
     }).toPass({ timeout: T.setup, intervals: [2_000] });
 
     // The legend swatches followed the active lens.
-    await expect(page.getByText("More efficient")).toBeVisible({ timeout: T.action });
-    await expect(page.getByText("Less efficient")).toBeVisible({ timeout: T.action });
+    await expect(page.getByText(t("lensTierEfficient"))).toBeVisible({ timeout: T.action });
+    await expect(page.getByText(t("lensTierInefficient"))).toBeVisible({ timeout: T.action });
   });
 });

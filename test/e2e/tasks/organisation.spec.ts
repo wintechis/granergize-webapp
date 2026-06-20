@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { openBuildingsList, openBuildingsMap } from "../helpers/manage.ts";
@@ -29,10 +29,10 @@ const LOGO_ADDR = "Logo Marker E2E Strasse 2"; // building used for the logo-mar
 async function openOrgDialog(page: Page): Promise<Locator> {
   // Bounded clicks: Playwright's default action timeout is 0 (wait forever), so a
   // stuck click here would consume a whole hook budget uncatchably. 15 s is ample.
-  await page.getByRole("button", { name: en("menuAccountAria") }).click({
+  await page.getByRole("button", { name: t("menuAccountAria") }).click({
     timeout: T.visible,
   });
-  await page.getByRole("menuitem", { name: /organisation/i })
+  await page.getByRole("menuitem", { name: t("menuOrganisation") })
     .click({ timeout: T.visible });
   const org = page.getByRole("dialog");
   await expect(org).toBeVisible({ timeout: T.action });
@@ -82,17 +82,17 @@ test.describe("organisation logo", () => {
       buffer: png,
     });
     // The avatar preview picks up the chosen image (the Avatar's <img alt>).
-    await expect(org.getByAltText("Organisation logo"))
+    await expect(org.getByAltText(t("orgLogoAlt")))
       .toBeVisible({ timeout: T.visible });
-    await org.getByRole("button", { name: /^save$/i }).click();
-    await expect(page.getByText(/organisation saved/i))
+    await org.getByRole("button", { name: t("btnSave") }).click();
+    await expect(page.getByText(t("organisationSaved")))
       .toBeVisible({ timeout: T.action });
 
     // Reopen → the logo persisted (the dialog's avatar still shows an image).
     const reopened = await openOrgDialog(page);
-    await expect(reopened.getByAltText("Organisation logo"))
+    await expect(reopened.getByAltText(t("orgLogoAlt")))
       .toBeVisible({ timeout: T.action });
-    await reopened.getByRole("button", { name: /cancel/i }).click();
+    await reopened.getByRole("button", { name: t("btnCancel") }).click();
   });
 
   // heike-2 / Andreas: the top-right avatar is the USER's identity and must never
@@ -102,7 +102,7 @@ test.describe("organisation logo", () => {
   // not leak into the header. (The logo's only home is the building marker, next.)
   test("the header avatar shows the person, never the company logo", async () => {
     test.setTimeout(T.testSolo);
-    const accountBtn = page.getByRole("button", { name: /Account menu/ });
+    const accountBtn = page.getByRole("button", { name: t("menuAccountAria") });
     await expect(accountBtn).toBeVisible({ timeout: T.action });
     // The avatar renders an <img> only when it has an image source. The header is
     // the person's identity, and this throwaway Pod's profile carries no foaf:img,
@@ -123,24 +123,24 @@ test.describe("organisation logo", () => {
     // Add an owned building via the single generic form (no role/template).
     await openBuildingsList(page);
     const addBtn = page.getByRole("button", {
-      name: en("addBuildingBtn"),
+      name: t("addBuildingBtn"),
       exact: true,
     })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await expect(add.getByLabel(/street address/i)).toBeVisible({
+    await expect(add.getByLabel(t("lblStreetAddress"))).toBeVisible({
       timeout: T.visible,
     });
-    await add.getByLabel(/street address/i).fill(LOGO_ADDR);
-    await add.getByLabel(/locality/i).fill("Nürnberg");
-    await add.getByLabel(/postal code/i).fill("90451");
-    await add.getByLabel(/region/i).fill("Bayern");
-    await add.getByLabel(/latitude/i).fill("49.46");
-    await add.getByLabel(/longitude/i).fill("11.09");
-    await add.getByRole("button", { name: /^Add Building$/ }).click();
-    await expect(page.getByText(/building added/i))
+    await add.getByLabel(t("lblStreetAddress")).fill(LOGO_ADDR);
+    await add.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await add.getByLabel(t("lblPostalCode")).fill("90451");
+    await add.getByLabel(t("lblRegion")).fill("Bayern");
+    await add.getByLabel(t("lblLatitude")).fill("49.46");
+    await add.getByLabel(t("lblLongitude")).fill("11.09");
+    await add.getByRole("button", { name: t("addBuildingBtn") }).click();
+    await expect(page.getByText(t("addBuildingAddedCount", { count: 1 })))
       .toBeVisible({ timeout: T.action });
 
     // Confirm it persisted (a row on Manage), then reload so the Explore map loads
@@ -148,7 +148,7 @@ test.describe("organisation logo", () => {
     await expect(page.locator("li", { hasText: LOGO_ADDR }).first())
       .toBeVisible({ timeout: T.action });
     await page.reload();
-    await expect(page.getByRole("tab", { name: en("navBuildings") }))
+    await expect(page.getByRole("tab", { name: t("navBuildings") }))
       .toBeVisible({ timeout: T.action });
 
     // On the map (Buildings tab → Map view), hovering the building's pin opens the
@@ -160,16 +160,16 @@ test.describe("organisation logo", () => {
     const ownedPin = page.locator(".leaflet-marker-icon.pin-owned").first();
     await expect(ownedPin).toBeVisible({ timeout: T.action });
     await ownedPin.hover();
-    await expect(page.getByAltText("Building producer logo").first())
+    await expect(page.getByAltText(t("markerProducerLogoAlt")).first())
       .toBeVisible({ timeout: T.action });
 
     // Clean up the building.
     await openBuildingsList(page);
     const row = page.locator("li", { hasText: LOGO_ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
-    await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
+    await row.getByRole("button", { name: t("buildingDeleteAria") }).click();
     await confirmDialog(page, "Delete");
-    await expect(page.getByText("Building deleted").first())
+    await expect(page.getByText(t("buildingDeleted")).first())
       .toBeVisible({ timeout: T.action });
   });
 });

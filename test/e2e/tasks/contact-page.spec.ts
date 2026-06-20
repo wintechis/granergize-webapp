@@ -1,4 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,
@@ -72,7 +73,7 @@ test.describe("redesign: contact page", () => {
     // Profile section: the WebID row (rendered as an external link).
     await expect(page.getByText(OP_WEBID).first()).toBeVisible();
     // "Appears in": the seeded building, linking back to its building page.
-    await expect(page.getByText("Appears in")).toBeVisible({ timeout: T.action });
+    await expect(page.getByText(t("secAppearsIn"))).toBeVisible({ timeout: T.action });
     const buildingLink = page.getByRole("link", { name: /Contact Page E2E/ });
     await expect(buildingLink).toBeVisible({ timeout: T.action });
     await buildingLink.click();

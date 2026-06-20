@@ -1,5 +1,5 @@
 import { expect, type Page } from "@playwright/test";
-import { en } from "./i18n.ts";
+import { t } from "./i18n.ts";
 import { T } from "./timeouts.ts";
 import { confirmDialog } from "./confirm.ts";
 
@@ -17,11 +17,11 @@ import { confirmDialog } from "./confirm.ts";
  */
 export async function deleteAllOwnedRooms(page: Page): Promise<void> {
   try {
-    const connect = page.getByRole("tab", { name: en("navMeet") });
+    const connect = page.getByRole("tab", { name: t("navMeet") });
     if (await connect.count()) await connect.click();
 
     const deleteButtons = page.getByRole("button", {
-      name: en("roomDeleteAria"),
+      name: t("roomDeleteAria"),
     });
     for (let i = 0; i < 50; i++) {
       const remaining = await deleteButtons.count();
@@ -48,18 +48,18 @@ export async function deleteAllOwnedRooms(page: Page): Promise<void> {
  */
 export async function removeAllBookmarkedRooms(page: Page): Promise<void> {
   try {
-    const connect = page.getByRole("tab", { name: en("navMeet") });
+    const connect = page.getByRole("tab", { name: t("navMeet") });
     if (await connect.count()) await connect.click();
     await page.waitForLoadState("networkidle").catch(() => {});
 
-    const leave = page.getByRole("button", { name: "Leave data room" });
+    const leave = page.getByRole("button", { name: t("intentExitRoom") });
     if (await leave.count()) {
       await leave.first().click();
       await page.waitForLoadState("networkidle").catch(() => {});
     }
 
     const removeButtons = page.getByRole("button", {
-      name: en("roomRemoveAria"),
+      name: t("roomRemoveAria"),
     });
     for (let i = 0; i < 50; i++) {
       const remaining = await removeButtons.count();

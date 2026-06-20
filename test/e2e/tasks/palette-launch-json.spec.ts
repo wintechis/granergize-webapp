@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { openBuildingsList } from "../helpers/manage.ts";
@@ -69,7 +69,7 @@ test.describe("palette: paste-and-launch a JSON intent", () => {
     // A query starting with `{` flips the palette into paste-and-launch mode: the
     // launch hint replaces the command list.
     await paletteInput(page).fill('{"name":"FlyToTheMoon"}');
-    await expect(page.getByText(en("paletteLaunchHint"))).toBeVisible({
+    await expect(page.getByText(t("paletteLaunchHint"))).toBeVisible({
       timeout: T.visible,
     });
 
@@ -91,7 +91,7 @@ test.describe("palette: paste-and-launch a JSON intent", () => {
 
     await openPalette(page);
     await paletteInput(page).fill('{"name":"CreateRoom"}');
-    await expect(page.getByText(en("paletteLaunchHint"))).toBeVisible({
+    await expect(page.getByText(t("paletteLaunchHint"))).toBeVisible({
       timeout: T.visible,
     });
 
@@ -99,7 +99,7 @@ test.describe("palette: paste-and-launch a JSON intent", () => {
     // The write dispatches through the same path the param-less verbs use: the
     // palette closes and the shared success toast ("Done") fires.
     await expect(paletteInput(page)).toBeHidden({ timeout: T.action });
-    await expect(page.getByText(en("paramFormSuccess"))).toBeVisible({
+    await expect(page.getByText(t("paramFormSuccess"))).toBeVisible({
       timeout: T.action,
     });
   });
@@ -125,21 +125,21 @@ test.describe("palette: paste-and-launch a JSON intent", () => {
     await openPalette(page);
     // A `>` prefix is NL mode (dev-gated): the translate hint replaces the list.
     await paletteInput(page).fill("> create a data room");
-    await expect(page.getByText(en("paletteNlHint"))).toBeVisible({
+    await expect(page.getByText(t("paletteNlHint"))).toBeVisible({
       timeout: T.visible,
     });
 
     // Enter translates: the box is filled with the returned JSON, flipping the
     // palette into review (jsonMode) — the translator never auto-fires.
     await paletteInput(page).press("Enter");
-    await expect(page.getByText(en("paletteLaunchHint"))).toBeVisible({
+    await expect(page.getByText(t("paletteLaunchHint"))).toBeVisible({
       timeout: T.action,
     });
 
     // A second Enter launches the reviewed JSON: palette closes + success toast.
     await paletteInput(page).press("Enter");
     await expect(paletteInput(page)).toBeHidden({ timeout: T.action });
-    await expect(page.getByText(en("paramFormSuccess"))).toBeVisible({
+    await expect(page.getByText(t("paramFormSuccess"))).toBeVisible({
       timeout: T.action,
     });
   });

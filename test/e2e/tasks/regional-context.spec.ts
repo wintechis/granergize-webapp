@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,
@@ -182,31 +182,31 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     // data (it's about the building's region, like weather). It's map-first now, so
     // switch to the figures table (the toggle's Table button enables once figures load).
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("button", { name: en("btnTable"), exact: true }).click();
-    await expect(page.getByText(en("regContextTitle", { region: "Bayern" })))
+    await page.getByRole("button", { name: t("btnTable"), exact: true }).click();
+    await expect(page.getByText(t("regContextTitle", { region: "Bayern" })))
       .toBeVisible({ timeout: T.action });
 
     // Bundesland grain: the renewable-share metric + its year/value + attribution.
-    await expect(page.getByRole("columnheader", { name: en("regRenewableShare") }))
+    await expect(page.getByRole("columnheader", { name: t("regRenewableShare") }))
       .toBeVisible();
     await expect(page.getByRole("cell", { name: "2023" })).toBeVisible();
     await expect(page.getByRole("cell", { name: /61\.5\s*%/ })).toBeVisible();
-    await expect(page.getByText(en("regDataSource"))).toBeVisible();
+    await expect(page.getByText(t("regDataSource"))).toBeVisible();
 
     // Kreis grain: the renewable-energy-use metric, joined via the building's Kreis
     // (reverse-geocoded from the stubbed MaStR unit → 09574). The decoy carrier row
     // (9999) must NOT appear; the Kreis caption carries the resolved Kreis NAME
     // (the codelist serves 09574 → "Roth, Landkreis").
-    await expect(page.getByRole("columnheader", { name: en("regKreisRenewableUse") }))
+    await expect(page.getByRole("columnheader", { name: t("regKreisRenewableUse") }))
       .toBeVisible({ timeout: T.action });
     await expect(page.getByRole("cell", { name: /1234\s*Tsd\. MJ/ })).toBeVisible();
     await expect(page.getByRole("cell", { name: /9999/ })).toHaveCount(0);
     await expect(
-      page.getByText(en("regGeoCaptionKreis", { region: KREIS_NAME })),
+      page.getByText(t("regGeoCaptionKreis", { region: KREIS_NAME })),
     ).toBeVisible();
     // The bare AGS must NOT leak into the caption when the name resolved.
     await expect(
-      page.getByText(en("regGeoCaptionKreis", { region: KREIS_AGS })),
+      page.getByText(t("regGeoCaptionKreis", { region: KREIS_AGS })),
     ).toHaveCount(0);
   });
 
@@ -221,19 +221,19 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     await page.reload();
     await page.goto(buildingRoute("building", id));
     // Map-first section → switch to the figures table.
-    await page.getByRole("button", { name: en("btnTable"), exact: true }).click();
+    await page.getByRole("button", { name: t("btnTable"), exact: true }).click();
 
     // The Kreis metric + figure STILL render — the data join is unaffected, only
     // the name lookup misses…
-    await expect(page.getByRole("columnheader", { name: en("regKreisRenewableUse") }))
+    await expect(page.getByRole("columnheader", { name: t("regKreisRenewableUse") }))
       .toBeVisible({ timeout: T.action });
     await expect(page.getByRole("cell", { name: /1234\s*Tsd\. MJ/ })).toBeVisible();
     // …so the caption degrades to the bare AGS, never the (now-unresolvable) name.
     await expect(
-      page.getByText(en("regGeoCaptionKreis", { region: KREIS_AGS })),
+      page.getByText(t("regGeoCaptionKreis", { region: KREIS_AGS })),
     ).toBeVisible();
     await expect(
-      page.getByText(en("regGeoCaptionKreis", { region: KREIS_NAME })),
+      page.getByText(t("regGeoCaptionKreis", { region: KREIS_NAME })),
     ).toHaveCount(0);
 
     // Cleanup: delete the throwaway building (it persisted from the first test).

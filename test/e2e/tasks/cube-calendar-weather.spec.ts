@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -82,26 +82,26 @@ test.describe("cube calendar heatmap + weather overlay", () => {
 
     // The building carries both shapes → the Annual | Time series toggle shows.
     // Switch to the series view (the calendar lives on the series surface).
-    const seriesBtn = page.getByRole("button", { name: "Time series" });
+    const seriesBtn = page.getByRole("button", { name: t("erTimeSeries") });
     await expect(seriesBtn).toBeVisible({ timeout: T.action });
     await seriesBtn.click();
 
     // The series view's tab strip renders; open the Calendar tab.
-    await expect(page.getByRole("tab", { name: "Day View" }))
+    await expect(page.getByRole("tab", { name: t("ucDayView") }))
       .toBeVisible({ timeout: T.action });
-    await page.getByRole("tab", { name: en("calendarTab") }).click();
+    await page.getByRole("tab", { name: t("calendarTab") }).click();
 
     // The month picker auto-defaults to the latest available month (the seed's
     // 2024-06), so the heatmap loads its month of readings and the subtitle renders.
-    await expect(page.getByText(en("calendarSubtitle")))
+    await expect(page.getByText(t("calendarSubtitle")))
       .toBeVisible({ timeout: T.action });
     // The grid carries an hour axis label — the day × hour collapse is on screen.
-    await expect(page.getByText(new RegExp(`${en("calendarAxisHour")}\\s*→`)))
+    await expect(page.getByText(new RegExp(`${t("calendarAxisHour")}\\s*→`)))
       .toBeVisible({ timeout: T.action });
     // …and the Less → More intensity legend.
-    await expect(page.getByText(en("calendarLegendLess")))
+    await expect(page.getByText(t("calendarLegendLess")))
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByText(en("calendarLegendMore")))
+    await expect(page.getByText(t("calendarLegendMore")))
       .toBeVisible({ timeout: T.action });
   });
 
@@ -111,7 +111,7 @@ test.describe("cube calendar heatmap + weather overlay", () => {
 
     // The overlay's toggle sits on the annual view (the default for a both-shapes
     // building). It is enabled because the office has coordinates.
-    const toggle = page.getByLabel(en("weatherOverlayToggle"));
+    const toggle = page.getByLabel(t("weatherOverlayToggle"));
     await expect(toggle).toBeVisible({ timeout: T.action });
     await toggle.check();
 
@@ -120,12 +120,12 @@ test.describe("cube calendar heatmap + weather overlay", () => {
     // caveat (no nearby station / no overlapping year). All three are valid
     // outcomes of the live DWD lookup, so assert the title plus one of them.
     // (Role/heading, not getByText: the no-overlap caveat also contains the phrase.)
-    await expect(page.getByRole("heading", { name: en("weatherOverlayTitle") }))
+    await expect(page.getByRole("heading", { name: t("weatherOverlayTitle") }))
       .toBeVisible({ timeout: T.action });
     await expect(async () => {
       const chart = await page.locator(".recharts-responsive-container").count();
-      const noStation = await page.getByText(en("weatherOverlayNoStation")).count();
-      const noOverlap = await page.getByText(en("weatherOverlayNoOverlap")).count();
+      const noStation = await page.getByText(t("weatherOverlayNoStation")).count();
+      const noOverlap = await page.getByText(t("weatherOverlayNoOverlap")).count();
       expect(chart + noStation + noOverlap).toBeGreaterThan(0);
     }).toPass({ timeout: T.action, intervals: [1_000] });
   });
@@ -136,9 +136,9 @@ test.describe("cube calendar heatmap + weather overlay", () => {
 
     // The Weather panel (WeatherData) renders for a located building: a parameter and
     // a station select. Their presence proves the panel mounted.
-    await expect(page.getByText(en("wdParameter")).first())
+    await expect(page.getByText(t("wdParameter")).first())
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByText(en("wdStation")).first())
+    await expect(page.getByText(t("wdStation")).first())
       .toBeVisible({ timeout: T.visible });
 
     // The live linked-wetterdienst lookup (fetchNearestStations → fetchStationValues,
@@ -147,11 +147,11 @@ test.describe("cube calendar heatmap + weather overlay", () => {
     // dereference+parse path runs end-to-end against the wrapper (specific values
     // depend on a live external service, so are not asserted).
     await expect(async () => {
-      const table = await page.getByText("Recent Weather Data").count();
-      const noStations = await page.getByText("No weather stations found", {
+      const table = await page.getByText(t("wdRecentData")).count();
+      const noStations = await page.getByText(t("wdNoStations"), {
         exact: false,
       }).count();
-      const noData = await page.getByText("No weather data available", {
+      const noData = await page.getByText(t("wdNoData"), {
         exact: false,
       }).count();
       expect(table + noStations + noData).toBeGreaterThan(0);

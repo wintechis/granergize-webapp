@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { metricT, t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -97,12 +97,12 @@ test.describe("energy view smoke", () => {
     // no tabs) — return to the shell before reaching for a tab.
     await page.goto("/");
     await openBuildingsList(page);
-    await expect(page.getByRole("heading", { name: en("headingYourBuildings") }))
+    await expect(page.getByRole("heading", { name: t("navBuildings") }))
       .toBeVisible({ timeout: T.action });
     await expect(page.locator("li[data-building-id]").first())
       .toBeVisible({ timeout: T.action });
     await openAggregations(page);
-    await expect(page.getByRole("heading", { name: en("navAggregations") }))
+    await expect(page.getByRole("heading", { name: t("navAggregations") }))
       .toBeVisible({ timeout: T.action });
   });
 
@@ -114,31 +114,31 @@ test.describe("energy view smoke", () => {
   test("aggregations: the guise toggle syncs ?guise= across list/map/timeline", async () => {
     await page.goto("/");
     await openAggregations(page);
-    await expect(page.getByRole("heading", { name: en("navAggregations") }))
+    await expect(page.getByRole("heading", { name: t("navAggregations") }))
       .toBeVisible({ timeout: T.action });
 
     // Scope the guise buttons to the AGGREGATIONS toggle — once buildings exist the page also
     // carries the Buildings/Explore finders' own "Map" toggles, so an unscoped name is ambiguous.
-    const aggGuise = page.getByLabel(en("aggGuiseAria"));
+    const aggGuise = page.getByLabel(t("aggGuiseAria"));
 
     // Map guise → ?guise=map. The map (choropleth shaded by a chosen metric, folding the open
     // datasets) mounts on click; here we assert the toggle drives the URL — the shading itself is
     // covered by the unit tests + the map's own logic.
-    await aggGuise.getByRole("button", { name: en("btnMap"), exact: true }).click();
+    await aggGuise.getByRole("button", { name: t("btnMap"), exact: true }).click();
     await expect(page).toHaveURL(/guise=map/, { timeout: T.action });
 
     // Timeline guise → ?guise=timeline (its trend chart mounts on click; the toggle drives URL).
-    await aggGuise.getByRole("button", { name: en("guiseTimeline"), exact: true }).click();
+    await aggGuise.getByRole("button", { name: t("guiseTimeline"), exact: true }).click();
     await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
 
     // Back to the list guise clears the param (the default keeps the URL clean).
-    await aggGuise.getByRole("button", { name: en("btnList"), exact: true }).click();
+    await aggGuise.getByRole("button", { name: t("btnList"), exact: true }).click();
     await expect(page).not.toHaveURL(/guise=/, { timeout: T.action });
   });
 
   test("the Sharing finder renders (folds the shared-in/ log)", async () => {
-    await page.getByRole("tab", { name: en("navSharing") }).click();
-    await expect(page.getByRole("heading", { name: en("sharedBuildingsHeading") }))
+    await page.getByRole("tab", { name: t("navSharing") }).click();
+    await expect(page.getByRole("heading", { name: t("sharedBuildingsHeading") }))
       .toBeVisible({ timeout: T.action });
   });
 
@@ -180,7 +180,7 @@ test.describe("energy view smoke", () => {
     // columns derive from the data present (schema order, electricity first) →
     // [label, Electricity] → electricity at cell index 1 (de-DE "2.000").
     const avgRow = page.getByRole("row")
-      .filter({ hasText: en("aeOperatorAvg") }).first();
+      .filter({ hasText: t("aeOperatorAvg") }).first();
     await expect(avgRow).toBeVisible({ timeout: T.action });
     await expect(avgRow.getByRole("cell").nth(1)).toHaveText("2.000");
   });
@@ -203,11 +203,11 @@ test.describe("energy view smoke", () => {
     // 2) Create an annual aggregation selecting ONLY electricity over THAT building.
     // The "Create aggregation" button lives in the Aggregations finder.
     await openAggregations(page);
-    await page.getByRole("button", { name: /create aggregation/i }).click();
+    await page.getByRole("button", { name: t("aggCreateTitle") }).click();
     const dialog = page.getByRole("dialog");
     await expect(dialog).toBeVisible({ timeout: T.visible });
-    await dialog.getByLabel(en("aggNameLabel")).fill(VIEW);
-    await dialog.getByLabel(en("aggSelectBuildings")).click();
+    await dialog.getByLabel(t("aggNameLabel")).fill(VIEW);
+    await dialog.getByLabel(t("aggSelectBuildings")).click();
     await page.getByRole("option").filter({ hasText: ADDR }).first().click();
     await page.keyboard.press("Escape");
     // Default-checked are electricity+heat+water; narrow to just electricity to
@@ -215,13 +215,13 @@ test.describe("energy view smoke", () => {
     // carry the human labels from the shared annual-metric schema (with units),
     // not raw camelCase keys; exact: true keeps "Water consumption (m³)" from also matching
     // "Wastewater (m³)".
-    await dialog.getByRole("checkbox", { name: "Heat consumption (kWh)", exact: true })
+    await dialog.getByRole("checkbox", { name: metricT("heatConsumption"), exact: true })
       .uncheck();
-    await dialog.getByRole("checkbox", { name: "Water consumption (m³)", exact: true })
+    await dialog.getByRole("checkbox", { name: metricT("waterConsumption"), exact: true })
       .uncheck();
-    await dialog.getByRole("checkbox", { name: "Electricity consumption (kWh)", exact: true })
+    await dialog.getByRole("checkbox", { name: metricT("electricityConsumption"), exact: true })
       .check();
-    await dialog.getByRole("button", { name: /create aggregation/i }).click();
+    await dialog.getByRole("button", { name: t("aggCreateTitle") }).click();
     // Assert the durable outcome — the view row appears (step 3) — NOT the
     // transient "aggregation created successfully" toast. The single FIFO snackbar may
     // be mid-showing an earlier notice (here the first-time "Set up the views
@@ -250,16 +250,16 @@ test.describe("energy view smoke", () => {
     await page.goto("/");
     await openAggregations(page);
     // Scope to the aggregations toggle (the Buildings/Explore finders also have a "Map" button).
-    await page.getByLabel(en("aggGuiseAria")).getByRole("button", {
-      name: en("btnMap"),
+    await page.getByLabel(t("aggGuiseAria")).getByRole("button", {
+      name: t("btnMap"),
       exact: true,
     }).click();
     await expect(page).toHaveURL(/guise=map/, { timeout: T.action });
 
-    const shadeBy = page.getByLabel(en("aggMapMetricLabel"));
+    const shadeBy = page.getByLabel(t("aggMapMetricLabel"));
     await expect(shadeBy).toBeVisible({ timeout: T.action });
     await shadeBy.click();
-    await expect(page.getByRole("option", { name: /electricity consumption/i }))
+    await expect(page.getByRole("option", { name: metricT("electricityConsumption") }))
       .toBeVisible({ timeout: T.action });
     await page.keyboard.press("Escape");
   });
@@ -271,15 +271,15 @@ test.describe("energy view smoke", () => {
     await openAggregations(page);
     // Wait for the finder before clicking, and scope to the aggregations toggle (the
     // Buildings/Explore finders carry their own guise buttons once buildings exist).
-    await expect(page.getByRole("heading", { name: en("navAggregations") }))
+    await expect(page.getByRole("heading", { name: t("navAggregations") }))
       .toBeVisible({ timeout: T.action });
-    await page.getByLabel(en("aggGuiseAria")).getByRole("button", {
-      name: en("guiseTimeline"),
+    await page.getByLabel(t("aggGuiseAria")).getByRole("button", {
+      name: t("guiseTimeline"),
       exact: true,
     }).click();
     await expect(page).toHaveURL(/guise=timeline/, { timeout: T.action });
 
-    await expect(page.getByLabel(en("aggMapMetricLabel"))).toBeVisible({ timeout: T.action });
+    await expect(page.getByLabel(t("aggMapMetricLabel"))).toBeVisible({ timeout: T.action });
     // The trend chart renders (Recharts SVG) from the per-year compute.
     await expect(page.locator("svg.recharts-surface").first())
       .toBeVisible({ timeout: T.action });

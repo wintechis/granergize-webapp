@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -51,15 +51,15 @@ async function downloadSharedFile(page: Page): Promise<void> {
   // recipient's per-file download lives on the building's detail page (the
   // read-only Files section), so open it from the Sharing-tab row's link.
   await reloadUntil(page, async () => {
-    await page.getByRole("tab", { name: en("navSharing") }).click();
-    await expect(page.getByRole("link", { name: /^Building / }).first())
+    await page.getByRole("tab", { name: t("navSharing") }).click();
+    await expect(page.getByRole("link", { name: tPattern("shareBuildingN") }).first())
       .toBeVisible({ timeout: T.action });
   });
-  await page.getByRole("link", { name: /^Building / }).first().click();
+  await page.getByRole("link", { name: tPattern("shareBuildingN") }).first().click();
   const fileRow = page.locator("li", { hasText: "sample.pdf" });
   await expect(fileRow).toBeVisible({ timeout: T.action });
   const dl = page.waitForEvent("download");
-  await fileRow.getByRole("button", { name: en("btnDownload") }).click();
+  await fileRow.getByRole("button", { name: t("btnDownload") }).click();
   const download = await dl;
   expect(download.suggestedFilename()).toBe("sample.pdf");
 }
@@ -167,10 +167,10 @@ async function deleteOwnBuilding(page: Page, street: string): Promise<void> {
     await openBuildingsList(page);
     const row = page.locator("li", { hasText: street }).first();
     if (await row.count()) {
-      await row.getByRole("button", { name: en("buildingDeleteAria") })
+      await row.getByRole("button", { name: t("buildingDeleteAria") })
         .click({ timeout: T.visible });
       await confirmDialog(page, "Delete");
-      await expect(page.getByText("Building deleted").first())
+      await expect(page.getByText(t("buildingDeleted")).first())
         .toBeVisible({ timeout: T.action });
     }
   } catch {

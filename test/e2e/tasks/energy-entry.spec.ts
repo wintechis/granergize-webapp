@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { en } from "../helpers/i18n.ts";
+import { metricT, t, tPattern } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import {
   addEnergyYear,
@@ -64,19 +64,19 @@ test.describe("energy entry + Soll-Ist", () => {
 
     // Add a throwaway building to write the year to (deleted in afterAll).
     await openBuildingsList(page);
-    const addBtn = page.getByRole("button", { name: en("addBuildingBtn"), exact: true })
+    const addBtn = page.getByRole("button", { name: t("addBuildingBtn"), exact: true })
       .first();
     await expect(addBtn).toBeVisible({ timeout: T.action });
     await addBtn.click();
     const add = page.getByRole("dialog");
-    await add.getByLabel(/street address/i).fill(ADDR);
-    await add.getByLabel(/locality/i).fill("Nürnberg");
-    await add.getByLabel(/postal code/i).fill("90451");
-    await add.getByLabel(/region/i).fill("Bayern");
-    await add.getByLabel(/latitude/i).fill("49.45");
-    await add.getByLabel(/longitude/i).fill("11.08");
-    await add.getByRole("button", { name: /^Add Building$/ }).click();
-    await expect(page.getByText(/building added/i))
+    await add.getByLabel(t("lblStreetAddress")).fill(ADDR);
+    await add.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await add.getByLabel(t("lblPostalCode")).fill("90451");
+    await add.getByLabel(t("lblRegion")).fill("Bayern");
+    await add.getByLabel(t("lblLatitude")).fill("49.45");
+    await add.getByLabel(t("lblLongitude")).fill("11.08");
+    await add.getByRole("button", { name: t("addBuildingBtn") }).click();
+    await expect(page.getByText(t("addBuildingAddedCount", { count: 1 })))
       .toBeVisible({ timeout: T.action });
 
     // Capture its (generated) id from the Manage row's data attribute.
@@ -101,9 +101,9 @@ test.describe("energy entry + Soll-Ist", () => {
         await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
-          await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
+          await row.getByRole("button", { name: t("buildingDeleteAria") }).click();
           await confirmDialog(page, "Delete");
-          await expect(page.getByText("Building deleted").first())
+          await expect(page.getByText(t("buildingDeleted")).first())
             .toBeVisible({ timeout: T.action });
         }
       }
@@ -117,8 +117,8 @@ test.describe("energy entry + Soll-Ist", () => {
 
   test("enter both an actual and a planned figure for a year", async () => {
     test.setTimeout(T.testSolo);
-    await addEnergyYear(page, ADDR, YEAR, "88888", /^Actual$/);
-    await addEnergyYear(page, ADDR, YEAR, "70000", /^Planned/); // "Planned (Soll)"
+    await addEnergyYear(page, ADDR, YEAR, "88888", "actual");
+    await addEnergyYear(page, ADDR, YEAR, "70000", "planned"); // "Planned (Soll)"
   });
 
   test("the actual figure flows into the building's energy view", async () => {
@@ -158,33 +158,33 @@ test.describe("energy entry + Soll-Ist", () => {
     // ("Edit energy years"), not a finder-row action.
     const openYearDialog = async () => {
       await page.goto(buildingRoute("observation", id));
-      await page.getByRole("button", { name: "Edit energy years" }).click();
-      await page.getByRole("spinbutton", { name: en("lblYear"), exact: true })
+      await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
+      await page.getByRole("spinbutton", { name: t("lblYear"), exact: true })
         .fill(EDIT_YEAR);
     };
 
     // Re-open on that year: the stored electricity is pre-filled (not blank).
     await openYearDialog();
-    await expect(page.getByText(/editing existing figures/i))
+    await expect(page.getByText(tPattern("eyEditingNote")))
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }))
+    await expect(page.getByRole("spinbutton", { name: metricT("electricityConsumption") }))
       .toHaveValue("55555");
     // Add Heat WITHOUT re-typing electricity, then save.
-    await page.getByRole("spinbutton", { name: "Heat consumption (kWh)" }).fill("33333");
-    await page.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Energy data saved").first())
+    await page.getByRole("spinbutton", { name: metricT("heatConsumption") }).fill("33333");
+    await page.getByRole("button", { name: t("btnSave") }).click();
+    await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
     // Saving keeps the dialog open now — close it before navigating away.
-    await page.getByRole("button", { name: "Close" }).click();
+    await page.getByRole("button", { name: t("btnClose") }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
 
     // Re-open once more: BOTH figures persisted — electricity was not zeroed.
     await openYearDialog();
-    await expect(page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }))
+    await expect(page.getByRole("spinbutton", { name: metricT("electricityConsumption") }))
       .toHaveValue("55555");
-    await expect(page.getByRole("spinbutton", { name: "Heat consumption (kWh)" }))
+    await expect(page.getByRole("spinbutton", { name: metricT("heatConsumption") }))
       .toHaveValue("33333");
-    await page.getByRole("button", { name: "Close" }).click();
+    await page.getByRole("button", { name: t("btnClose") }).click();
   });
 
   test("the dialog lists stored years and can delete one", async () => {
@@ -193,7 +193,7 @@ test.describe("energy entry + Soll-Ist", () => {
     // Seed a throwaway year, then re-open: the read-back table shows it.
     await addEnergyYear(page, ADDR, DEL_YEAR, "12345");
     await page.goto(buildingRoute("observation", id));
-    await page.getByRole("button", { name: "Edit energy years" }).click();
+    await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
 
     const table = page.getByRole("dialog").getByRole("table");
     const yearRow = table.getByRole("row", {
@@ -204,21 +204,21 @@ test.describe("energy entry + Soll-Ist", () => {
     // The row's Edit button loads that year's figures into the form (the
     // "edit afterwards" path, like editing a building) — the raw stored values,
     // not the de-DE-formatted table cells.
-    await yearRow.getByRole("button", { name: en("eyEditYear") }).click();
-    await expect(page.getByRole("spinbutton", { name: en("lblYear"), exact: true }))
+    await yearRow.getByRole("button", { name: t("eyEditYear") }).click();
+    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
       .toHaveValue(DEL_YEAR);
-    await expect(page.getByRole("spinbutton", { name: "Electricity consumption (kWh)" }))
+    await expect(page.getByRole("spinbutton", { name: metricT("electricityConsumption") }))
       .toHaveValue("12345");
-    await expect(page.getByText(/editing existing figures/i))
+    await expect(page.getByText(tPattern("eyEditingNote")))
       .toBeVisible({ timeout: T.action });
 
     // Delete it (the in-app confirm dialog asks first) — the row disappears.
-    await yearRow.getByRole("button", { name: en("eyDeleteYear") }).click();
+    await yearRow.getByRole("button", { name: t("eyDeleteYear") }).click();
     await confirmDialog(page, "Delete");
-    await expect(page.getByText("Energy year deleted").first())
+    await expect(page.getByText(t("energyYearDeleted")).first())
       .toBeVisible({ timeout: T.action });
     await expect(yearRow).toBeHidden({ timeout: T.action });
-    await page.getByRole("button", { name: "Close" }).click();
+    await page.getByRole("button", { name: t("btnClose") }).click();
   });
 
   test("a PV unit records its own per-year observation, separate from the building", async () => {
@@ -229,32 +229,32 @@ test.describe("energy entry + Soll-Ist", () => {
     // the energy dialog offer it as a feature of interest.
     await page.goto(buildingRoute("building", id));
     const sysBtn = page
-      .getByRole("heading", { name: en("secEnergySystems"), exact: true })
+      .getByRole("heading", { name: t("secEnergySystems"), exact: true })
       .locator("xpath=..")
       .getByRole("button");
     await sysBtn.click();
     const sysDialog = page.getByRole("dialog");
     await expect(sysDialog).toBeVisible({ timeout: T.visible });
-    await sysDialog.getByRole("button", { name: en("btnAddPv"), exact: true }).click();
-    await sysDialog.getByLabel(en("lblSystemCapacityKW"), { exact: true }).fill("500");
-    await sysDialog.getByRole("button", { name: en("saveChanges"), exact: true }).click();
-    await expect(page.getByText(/building updated/i)).toBeVisible({ timeout: T.action });
+    await sysDialog.getByRole("button", { name: t("btnAddPv"), exact: true }).click();
+    await sysDialog.getByLabel(t("lblSystemCapacityKW"), { exact: true }).fill("500");
+    await sysDialog.getByRole("button", { name: t("saveChanges"), exact: true }).click();
+    await expect(page.getByText(t("buildingUpdated"))).toBeVisible({ timeout: T.action });
 
     // 2) Open the energy-year dialog; "Observe for" now offers the PV unit.
     await page.goto(buildingRoute("observation", id));
-    await page.getByRole("button", { name: "Edit energy years" }).click();
+    await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
     const dialog = page.getByRole("dialog");
-    await dialog.getByLabel(en("eyObserveFor")).click();
+    await dialog.getByLabel(t("eyObserveFor")).click();
     // The option label carries the capacity to disambiguate units ("PV system (500 kW)").
-    await page.getByRole("option", { name: new RegExp(en("mdPvSystem")) }).click();
+    await page.getByRole("option", { name: new RegExp(t("mdPvSystem")) }).click();
 
     // 3) Enter a generation figure for PV_YEAR and save — it attaches to <#pv> as the
     // feature of interest, NOT the building.
-    await dialog.getByRole("spinbutton", { name: en("lblYear"), exact: true }).fill(PV_YEAR);
-    await dialog.getByRole("spinbutton", { name: "Electricity generation (kWh)" })
+    await dialog.getByRole("spinbutton", { name: t("lblYear"), exact: true }).fill(PV_YEAR);
+    await dialog.getByRole("spinbutton", { name: metricT("electricityGeneration") })
       .fill("240000");
-    await dialog.getByRole("button", { name: "Save" }).click();
-    await expect(page.getByText("Energy data saved").first())
+    await dialog.getByRole("button", { name: t("btnSave") }).click();
+    await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
 
     // 4) The PV scope lists the year.
@@ -264,17 +264,17 @@ test.describe("energy entry + Soll-Ist", () => {
 
     // 5) Switch "Observe for" back to the building → the PV year is NOT there,
     // proving per-unit observations are stored apart from the building's own.
-    await dialog.getByLabel(en("eyObserveFor")).click();
-    await page.getByRole("option", { name: en("eyFoiBuilding"), exact: true }).click();
+    await dialog.getByLabel(t("eyObserveFor")).click();
+    await page.getByRole("option", { name: t("eyFoiBuilding"), exact: true }).click();
     await expect(table.getByRole("row", { name: new RegExp(`\\b${PV_YEAR}\\b`) }))
       .toBeHidden({ timeout: T.action });
 
     // 6) Close the dialog → the observation page surfaces the per-unit observations
     // section with the PV's figure (240.000 kWh, de-DE) under its own unit — the
     // display of what we just entered, kept apart from the building's annual view.
-    await page.getByRole("button", { name: "Close" }).click();
+    await page.getByRole("button", { name: t("btnClose") }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
-    await expect(page.getByRole("heading", { name: en("unitObsHeading") }))
+    await expect(page.getByRole("heading", { name: t("unitObsHeading") }))
       .toBeVisible({ timeout: T.action });
     await expect(page.getByText(/240\.000/).first())
       .toBeVisible({ timeout: T.action });
@@ -290,14 +290,14 @@ test.describe("energy entry + Soll-Ist", () => {
     await page.goto("/");
     const row = page.locator("li[data-building-id]", { hasText: ADDR }).first();
     await expect(async () => {
-      await page.getByRole("tab", { name: en("navObservations") }).click();
+      await page.getByRole("tab", { name: t("navObservations") }).click();
       await expect(row).toBeVisible({ timeout: T.quick });
     }).toPass({ timeout: T.poll });
 
     // Clear all its observations (owner-only action), confirm the destructive prompt.
-    await row.getByRole("button", { name: en("obsClearAria") }).click();
+    await row.getByRole("button", { name: t("obsClearAria") }).click();
     await confirmDialog(page, "Delete");
-    await expect(page.getByText(/observations cleared/i).first())
+    await expect(page.getByText(tPattern("obsCleared")).first())
       .toBeVisible({ timeout: T.action });
 
     // With no datasets left, the building leaves the Observations finder.

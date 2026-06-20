@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -42,17 +42,17 @@ async function ensureBuilding(page: Page): Promise<string> {
       await page.keyboard.press("Escape");
       await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.visible });
     }
-    await page.getByRole("button", { name: en("addBuildingBtn"), exact: true }).first()
+    await page.getByRole("button", { name: t("addBuildingBtn"), exact: true }).first()
       .click();
     const add = page.getByRole("dialog");
-    await add.getByLabel(/street address/i).fill(ADDR);
-    await add.getByLabel(/locality/i).fill("Nürnberg");
-    await add.getByLabel(/postal code/i).fill("90451");
-    await add.getByLabel(/region/i).fill("Bayern");
-    await add.getByLabel(/latitude/i).fill("49.45");
-    await add.getByLabel(/longitude/i).fill("11.08");
-    await add.getByRole("button", { name: /^Add Building$/ }).click();
-    await expect(page.getByText(/building added/i))
+    await add.getByLabel(t("lblStreetAddress")).fill(ADDR);
+    await add.getByLabel(t("lblLocality")).fill("Nürnberg");
+    await add.getByLabel(t("lblPostalCode")).fill("90451");
+    await add.getByLabel(t("lblRegion")).fill("Bayern");
+    await add.getByLabel(t("lblLatitude")).fill("49.45");
+    await add.getByLabel(t("lblLongitude")).fill("11.08");
+    await add.getByRole("button", { name: t("addBuildingBtn") }).click();
+    await expect(page.getByText(t("addBuildingAddedCount", { count: 1 })))
       .toBeVisible({ timeout: T.action });
   }).toPass({ timeout: T.poll });
 
@@ -90,9 +90,9 @@ test.describe("URI-encoded navigational state survives reload", () => {
         await openBuildingsList(page);
         const row = page.locator("li", { hasText: ADDR }).first();
         if (await row.count()) {
-          await row.getByRole("button", { name: en("buildingDeleteAria") }).click();
+          await row.getByRole("button", { name: t("buildingDeleteAria") }).click();
           await confirmDialog(page, "Delete");
-          await expect(page.getByText("Building deleted").first())
+          await expect(page.getByText(t("buildingDeleted")).first())
             .toBeVisible({ timeout: T.action });
         }
       }
@@ -108,7 +108,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     test.setTimeout(T.testSolo);
     // Pick a non-default finder (Rooms) — the app lands on /buildings, so
     // restoring Rooms proves the route round-trips, not just the default.
-    const roomsTab = page.getByRole("tab", { name: en("navMeet") });
+    const roomsTab = page.getByRole("tab", { name: t("navMeet") });
     await roomsTab.click();
     await expect(roomsTab).toHaveAttribute("aria-selected", "true", {
       timeout: T.action,
@@ -118,7 +118,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     await page.reload();
 
     // Same finder after reload — not back on the default Buildings finder.
-    await expect(page.getByRole("tab", { name: en("navMeet") }))
+    await expect(page.getByRole("tab", { name: t("navMeet") }))
       .toHaveAttribute("aria-selected", "true", { timeout: T.action });
     expect(page.url()).toContain("/rooms");
   });
@@ -158,14 +158,14 @@ test.describe("URI-encoded navigational state survives reload", () => {
     if (!id) id = await ensureBuilding(page);
     await page.goto("/buildings");
     // List is URL state now (?view=list) — switching writes it.
-    await page.getByRole("button", { name: en("btnList") }).click();
+    await page.getByRole("button", { name: t("btnList") }).click();
     await expect(page).toHaveURL(/view=list/, { timeout: T.action });
-    await expect(page.getByRole("heading", { name: en("headingYourBuildings") }))
+    await expect(page.getByRole("heading", { name: t("navBuildings") }))
       .toBeVisible({ timeout: T.action });
     // A genuine reload restores List — not the default Map.
     await page.reload();
     await expect(page).toHaveURL(/view=list/, { timeout: T.action });
-    await expect(page.getByRole("heading", { name: en("headingYourBuildings") }))
+    await expect(page.getByRole("heading", { name: t("navBuildings") }))
       .toBeVisible({ timeout: T.action });
   });
 
@@ -191,7 +191,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     // because this building has coordinates.
     await page.goto(buildingRoute("observation", id));
     await page.reload();
-    await expect(page.getByRole("heading", { name: "Weather", exact: true }))
+    await expect(page.getByRole("heading", { name: t("secWeather"), exact: true }))
       .toBeVisible({ timeout: T.action });
   });
 });

@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -76,18 +76,18 @@ test.describe("cube metric selector (the measure axis)", () => {
       await openBuildingsMap(page);
       await expect(page.locator(".leaflet-marker-icon").first())
         .toBeVisible({ timeout: T.action });
-      await page.getByRole("button", { name: "Energy", exact: true }).click();
+      await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
       await expect(page.locator(".energy-marker").first())
         .toBeAttached({ timeout: T.action });
       // The selector shows whenever a metric-driven surface is active.
-      await expect(page.getByLabel(en("metricSelectLabel")))
+      await expect(page.getByLabel(t("metricSelectLabel")))
         .toBeVisible({ timeout: T.action });
     }).toPass({ timeout: T.setup, intervals: [2_000] });
   }
 
   /** Choose a metric option from the MUI select (open it, click the option). */
   async function selectMetric(page: Page, optionLabel: string): Promise<void> {
-    await page.getByLabel(en("metricSelectLabel")).click();
+    await page.getByLabel(t("metricSelectLabel")).click();
     await page.getByRole("option", { name: optionLabel, exact: true }).click();
   }
 
@@ -97,18 +97,18 @@ test.describe("cube metric selector (the measure axis)", () => {
 
     // Default is electricity consumption (the consumption framing → efficiency
     // tiers; the legend reads "More efficient" / "Less efficient").
-    await expect(page.getByText(en("lensTierEfficient")))
+    await expect(page.getByText(t("lensTierEfficient")))
       .toBeVisible({ timeout: T.action });
 
     // Switch to Heat: ?m= is rewritten to the heat consumption metric key, the
     // lens stays up (still a tier framing, so the efficiency legend persists).
-    await selectMetric(page, en("metricHeatConsumption"));
+    await selectMetric(page, t("metricHeatConsumption"));
     await expect.poll(() => new URL(page.url()).searchParams.get("m"), {
       timeout: T.action,
     }).toBe("heatConsumption");
     await expect(page.locator(".energy-marker").first())
       .toBeAttached({ timeout: T.action });
-    await expect(page.getByText(en("lensTierEfficient")))
+    await expect(page.getByText(t("lensTierEfficient")))
       .toBeVisible({ timeout: T.action });
   });
 
@@ -116,7 +116,7 @@ test.describe("cube metric selector (the measure axis)", () => {
     test.setTimeout(T.testSolo);
     await openEnergyLens(page);
 
-    await selectMetric(page, en("metricWaterConsumption"));
+    await selectMetric(page, t("metricWaterConsumption"));
     await expect.poll(() => new URL(page.url()).searchParams.get("m"), {
       timeout: T.action,
     }).toBe("waterConsumption");
@@ -128,9 +128,9 @@ test.describe("cube metric selector (the measure axis)", () => {
       timeout: T.action,
     }).toBe("waterConsumption");
     // Re-show the lens — the selector restores the chosen metric.
-    await page.getByRole("button", { name: "Energy", exact: true }).click();
-    await expect(page.getByLabel(en("metricSelectLabel")))
-      .toHaveText(new RegExp(en("metricWaterConsumption")), { timeout: T.action });
+    await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
+    await expect(page.getByLabel(t("metricSelectLabel")))
+      .toHaveText(new RegExp(t("metricWaterConsumption")), { timeout: T.action });
   });
 
   test("switching to generation flips the legend to the neutral magnitude ramp", async () => {
@@ -141,19 +141,19 @@ test.describe("cube metric selector (the measure axis)", () => {
     // the efficiency verdict (efficient/inefficient) to a NEUTRAL low/mid/high
     // ramp — no good/bad labels (the honest caveat: a tier judgement is
     // meaningless for generation).
-    await selectMetric(page, en("metricElectricityGeneration"));
+    await selectMetric(page, t("metricElectricityGeneration"));
     await expect.poll(() => new URL(page.url()).searchParams.get("m"), {
       timeout: T.action,
     }).toBe("electricityGeneration");
 
     // The magnitude band labels show…
-    await expect(page.getByText(en("lensMagnitudeLow")))
+    await expect(page.getByText(t("lensMagnitudeLow")))
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByText(en("lensMagnitudeHigh")))
+    await expect(page.getByText(t("lensMagnitudeHigh")))
       .toBeVisible({ timeout: T.action });
     // …and the efficiency verdict labels are GONE (generation carries no judgement).
-    await expect(page.getByText(en("lensTierEfficient"))).toHaveCount(0);
-    await expect(page.getByText(en("lensTierInefficient"))).toHaveCount(0);
+    await expect(page.getByText(t("lensTierEfficient"))).toHaveCount(0);
+    await expect(page.getByText(t("lensTierInefficient"))).toHaveCount(0);
   });
 
   // The plan's stronger generation claim: switching to generation should surface
@@ -167,7 +167,7 @@ test.describe("cube metric selector (the measure axis)", () => {
     "generation recolours buildings the consumption lens left blank",
     async () => {
       await openEnergyLens(page);
-      await selectMetric(page, en("metricElectricityGeneration"));
+      await selectMetric(page, t("metricElectricityGeneration"));
       // With a generation-bearing seed: at least one marker carries a magnitude
       // band (low/mid/high), not just "none" — the building the consumption lens
       // could not categorise becomes visible under generation.

@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login, logout } from "../helpers/login.ts";
 import { openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -45,10 +45,10 @@ test.describe("logout", () => {
     // shared-out fold on Manage), so the logout-time cache clear has live
     // query observers — the condition that triggered the bug.
     await openBuildingsList(page);
-    await expect(page.getByRole("heading", { name: en("headingYourBuildings") }))
+    await expect(page.getByRole("heading", { name: t("navBuildings") }))
       .toBeVisible({ timeout: T.visible });
-    await page.getByRole("tab", { name: en("navContacts") }).click();
-    await expect(page.getByRole("heading", { name: en("navContacts") }))
+    await page.getByRole("tab", { name: t("navContacts") }).click();
+    await expect(page.getByRole("heading", { name: t("navContacts") }))
       .toBeVisible({ timeout: T.visible });
 
     await logout(page); // waits for the sign-in screen to render

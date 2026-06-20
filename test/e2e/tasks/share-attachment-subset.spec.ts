@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -66,12 +66,12 @@ test.describe("per-attachment share across two pods", () => {
         // Drain B's inbox (reload re-drains) until the shared building is listed
         // on the Sharing tab, then open its detail page.
         await reloadUntil(b2.page, async () => {
-          await b2.page.getByRole("tab", { name: en("navSharing") }).click();
+          await b2.page.getByRole("tab", { name: t("navSharing") }).click();
           await expect(
-            b2.page.getByRole("link", { name: /^Building / }).first(),
+            b2.page.getByRole("link", { name: tPattern("shareBuildingN") }).first(),
           ).toBeVisible({ timeout: T.action });
         });
-        await b2.page.getByRole("link", { name: /^Building / }).first().click();
+        await b2.page.getByRole("link", { name: tPattern("shareBuildingN") }).first().click();
 
         // The building's Files section lists BOTH names (B can read the building
         // TTL, which carries every bldg:hasAttachment link).
@@ -82,14 +82,14 @@ test.describe("per-attachment share across two pods", () => {
 
         // The GRANTED file downloads — B holds a per-file read grant.
         const dl = b2.page.waitForEvent("download");
-        await keepRow.getByRole("button", { name: en("btnDownload") }).click();
+        await keepRow.getByRole("button", { name: t("btnDownload") }).click();
         expect((await dl).suggestedFilename()).toBe(KEEP_NAME);
 
         // The WITHHELD file's binary has no grant → the download 403s and surfaces
         // the standard "Failed to download the file" error toast.
-        await withheldRow.getByRole("button", { name: en("btnDownload") }).click();
+        await withheldRow.getByRole("button", { name: t("btnDownload") }).click();
         await expect(
-          b2.page.getByText(`Failed to ${en("actionDownloadFile")}`),
+          b2.page.getByText(`Failed to ${t("actionDownloadFile")}`),
         ).toBeVisible({ timeout: T.action });
       } finally {
         await b2.ctx.close();
@@ -117,10 +117,10 @@ async function deleteOwnBuilding(page: Page, street: string): Promise<void> {
     await openBuildingsList(page);
     const row = page.locator("li", { hasText: street }).first();
     if (await row.count()) {
-      await row.getByRole("button", { name: en("buildingDeleteAria") })
+      await row.getByRole("button", { name: t("buildingDeleteAria") })
         .click({ timeout: T.visible });
       await confirmDialog(page, "Delete");
-      await expect(page.getByText("Building deleted").first())
+      await expect(page.getByText(t("buildingDeleted")).first())
         .toBeVisible({ timeout: T.action });
     }
   } catch {

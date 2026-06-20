@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { menuAction } from "../helpers/accountMenu.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
@@ -42,9 +42,9 @@ test.describe("data sources & licences (attribution)", () => {
 
     // Reachable from the Account menu (present in both modes — legal attribution
     // is user content, not a Developer-mode affordance).
-    await menuAction(page, /Data sources/);
+    await menuAction(page, t("menuDataSources"));
     await expect(page).toHaveURL(/\/data-sources/);
-    await expect(page.getByRole("heading", { name: en("menuDataSources") }))
+    await expect(page.getByRole("heading", { name: t("menuDataSources") }))
       .toBeVisible({ timeout: T.action });
 
     // Representative sources link out to their homepages…

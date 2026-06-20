@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { en } from "./i18n.ts";
+import { t } from "./i18n.ts";
 import { account as resolveAccount, type TestAccount } from "../../config/accounts.ts";
 import { localProvider } from "../../config/providers.ts";
 import { LOCAL_CSS_CONTROL_PORT } from "../../config/localSeed.ts";
@@ -233,10 +233,10 @@ export async function webIdOf(page: Page): Promise<string> {
 export async function logout(page: Page): Promise<void> {
   // Open the top-right account menu, then Logout. Retry the open in case a click
   // lands while the menu is mid-transition.
-  const menu = page.getByRole("menuitem", { name: /logout/i });
+  const menu = page.getByRole("menuitem", { name: t("menuLogout") });
   await expect(async () => {
     if (!(await menu.isVisible().catch(() => false))) {
-      await page.getByRole("button", { name: en("menuAccountAria") }).click({
+      await page.getByRole("button", { name: t("menuAccountAria") }).click({
         timeout: 2000,
       });
     }

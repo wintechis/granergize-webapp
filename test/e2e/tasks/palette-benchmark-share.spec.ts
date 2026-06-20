@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -77,14 +77,14 @@ test.describe("palette: build a benchmark and share it back across two pods", ()
       );
       const create = a.page.getByRole("dialog");
       await expect(create).toBeVisible({ timeout: T.action });
-      await create.getByLabel(en("aggNameLabel")).fill(AGGREGATION_NAME);
-      await create.getByLabel(en("aggSelectBuildings")).click();
+      await create.getByLabel(t("aggNameLabel")).fill(AGGREGATION_NAME);
+      await create.getByLabel(t("aggSelectBuildings")).click();
       const firstBuilding = a.page.getByRole("option").first();
       await expect(firstBuilding, "a building to add to the aggregation")
         .toBeVisible({ timeout: T.visible });
       await firstBuilding.click();
       await a.page.keyboard.press("Escape");
-      await create.getByRole("button", { name: /create aggregation/i }).click();
+      await create.getByRole("button", { name: t("aggCreateTitle") }).click();
       // The aggregation appears in the list; the dialog closes (don't await the
       // transient toast — the single FIFO snackbar may be mid-showing provisioning).
       const aggRow = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
@@ -95,24 +95,24 @@ test.describe("palette: build a benchmark and share it back across two pods", ()
       // ── Step 2: share it back via the catalog-driven ObjectActions ──
       // The "Share aggregation" row action is the registry's ShareAggregation
       // intent (label intentShareAggregation), whose handler opens the dialog.
-      await aggRow.getByRole("button", { name: en("intentShareAggregation") })
+      await aggRow.getByRole("button", { name: t("intentShareAggregation") })
         .click();
       const share = a.page.getByRole("dialog")
         .filter({ hasText: `Share "${AGGREGATION_NAME}"` });
       await expect(share).toBeVisible({ timeout: T.action });
-      const recipientInput = share.getByLabel(/Recipient WebID/i);
+      const recipientInput = share.getByLabel(t("racLabel"));
       await recipientInput.fill(bWebId);
       await recipientInput.press("Enter");
-      const confirm = share.getByRole("button", { name: /confirm share/i });
+      const confirm = share.getByRole("button", { name: t("shareConfirmShare") });
       await expect(async () => {
-        await share.getByRole("button", { name: /review and share/i }).click();
+        await share.getByRole("button", { name: t("shareReviewAndShare") }).click();
         await expect(confirm).toBeVisible({ timeout: T.quick });
       }).toPass({ timeout: T.poll });
       await confirm.click();
-      await expect(share.getByText(/shared successfully/i)).toBeVisible({
+      await expect(share.getByText(t("shareSuccessWith"))).toBeVisible({
         timeout: T.action,
       });
-      await share.getByRole("button", { name: /close/i }).click();
+      await share.getByRole("button", { name: t("btnClose") }).click();
       await expect(share).toBeHidden({ timeout: T.action });
 
       await b1.ctx.close(); // inbox provisioned; B re-logs in fresh below
@@ -139,12 +139,12 @@ test.describe("palette: build a benchmark and share it back across two pods", ()
           await openAggregations(a.page);
           await a.page.waitForLoadState("networkidle").catch(() => {});
           const del = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
-            .getByRole("button", { name: "Delete aggregation" });
+            .getByRole("button", { name: t("aggDeleteAria") });
           for (let i = 0; i < 10; i++) {
             if (!(await del.count())) break;
             await del.first().click();
             await confirmDialog(a.page, "Delete");
-            await expect(a.page.getByText("Aggregation deleted").first())
+            await expect(a.page.getByText(t("aggregationDeleted")).first())
               .toBeVisible({ timeout: T.action }).catch(() => {});
           }
         }

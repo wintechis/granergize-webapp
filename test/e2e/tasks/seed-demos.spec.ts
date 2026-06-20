@@ -4,7 +4,7 @@ import { menuAction, setDevMode } from "../helpers/accountMenu.ts";
 import { openBuildingsList } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -62,22 +62,22 @@ test.describe("dev-mode demo seeding (buildings + contacts + rooms)", () => {
     // `seedDemoRooms` both read-modify-write `prefs.ttl`, so an overlapping run
     // races the conditional PUT and can drop writes → a "Added {n} of {total}"
     // partial. Each must still seed in full.
-    await menuAction(page, new RegExp(en("menuAddBuildings")));
-    await menuAction(page, new RegExp(en("menuAddContacts")));
+    await menuAction(page, new RegExp(t("menuAddBuildings")));
+    await menuAction(page, new RegExp(t("menuAddContacts")));
 
     // All three success toasts must appear — a partial warning instead means a
     // concurrent write was lost. (The captured console log records which writes
     // failed and their HTTP status.)
     await expect(
-      page.getByText(en("demoBuildingsAdded")),
+      page.getByText(t("demoBuildingsAdded")),
       "buildings seeded in full (no partial warning)",
     ).toBeVisible({ timeout: T.poll });
     await expect(
-      page.getByText(en("demoContactsAdded")),
+      page.getByText(t("demoContactsAdded")),
       "all demo contacts seeded (no partial warning)",
     ).toBeVisible({ timeout: T.poll });
     await expect(
-      page.getByText(en("demoRoomsAdded")),
+      page.getByText(t("demoRoomsAdded")),
       "all demo data rooms seeded (no partial warning)",
     ).toBeVisible({ timeout: T.poll });
 
@@ -87,12 +87,12 @@ test.describe("dev-mode demo seeding (buildings + contacts + rooms)", () => {
     await expect(page.locator("li[data-building-id]").first())
       .toBeVisible({ timeout: T.action });
 
-    await page.getByRole("tab", { name: en("navContacts") }).click();
+    await page.getByRole("tab", { name: t("navContacts") }).click();
     await expect(
-      page.getByRole("list", { name: en("navContacts") }).locator("li").first(),
+      page.getByRole("list", { name: t("navContacts") }).locator("li").first(),
     ).toBeVisible({ timeout: T.action });
 
-    await page.getByRole("tab", { name: en("navMeet") }).click();
+    await page.getByRole("tab", { name: t("navMeet") }).click();
     await expect(page.locator("li").getByRole("link").first())
       .toBeVisible({ timeout: T.action });
   });

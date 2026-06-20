@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { en } from "../helpers/i18n.ts";
+import { t } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -82,7 +82,7 @@ test.describe("aggregation sharing across two pods", () => {
           await expect(aggregationsList(b2.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.action });
         });
-        await b2.page.getByRole("button", { name: /show values/i }).first()
+        await b2.page.getByRole("button", { name: t("shareShowValues") }).first()
           .click();
         await expect(b2.page.locator("svg.recharts-surface").first())
           .toBeVisible({ timeout: T.action });
@@ -100,12 +100,12 @@ test.describe("aggregation sharing across two pods", () => {
           await openAggregations(a.page);
           await a.page.waitForLoadState("networkidle").catch(() => {});
           const del = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
-            .getByRole("button", { name: en("aggDeleteAria") });
+            .getByRole("button", { name: t("aggDeleteAria") });
           for (let i = 0; i < 10; i++) {
             if (!(await del.count())) break;
             await del.first().click();
             await confirmDialog(a.page, "Delete");
-            await expect(a.page.getByText("Aggregation deleted").first())
+            await expect(a.page.getByText(t("aggregationDeleted")).first())
               .toBeVisible({ timeout: T.action }).catch(() => {});
           }
         }
@@ -157,7 +157,7 @@ test.describe("aggregation sharing across two pods", () => {
       // dialog that no longer existed.
       const shareDlg = a.page.getByRole("dialog")
         .filter({ hasText: `Share "${AGGREGATION_NAME}"` });
-      const add = shareDlg.getByRole("button", { name: /^add$/i });
+      const add = shareDlg.getByRole("button", { name: t("btnAdd") });
       // Add B from the room-members list (B joined + took a role above). The
       // dialog loads members ONCE on open, asynchronously, so the "Add" row only
       // appears a moment AFTER the dialog is visible — use a WAITING assertion for
@@ -166,7 +166,7 @@ test.describe("aggregation sharing across two pods", () => {
       // so a member that's still propagating on a remote Pod (Tier 4) is re-read.
       await expect(async () => {
         if (!(await shareDlg.isVisible().catch(() => false))) {
-          await aggregationRow.getByRole("button", { name: en("aggShareAria") }).click();
+          await aggregationRow.getByRole("button", { name: t("aggShareAria") }).click();
           await expect(shareDlg).toBeVisible({ timeout: T.quick });
         }
         try {
@@ -177,7 +177,7 @@ test.describe("aggregation sharing across two pods", () => {
           // members. Bound + tolerate the click: if the dialog vanished since
           // the visibility check, an unbounded click would wedge this and
           // every remaining poll iteration (it did — see the trace notes).
-          await shareDlg.getByRole("button", { name: /close/i })
+          await shareDlg.getByRole("button", { name: t("btnClose") })
             .click({ timeout: T.quick }).catch(() => {});
           await expect(shareDlg).toBeHidden({ timeout: T.quick }).catch(
             () => {},
@@ -186,16 +186,16 @@ test.describe("aggregation sharing across two pods", () => {
         }
       }).toPass({ timeout: T.poll });
       await add.first().click();
-      const confirm = shareDlg.getByRole("button", { name: /confirm share/i });
+      const confirm = shareDlg.getByRole("button", { name: t("shareConfirmShare") });
       await expect(async () => {
-        await shareDlg.getByRole("button", { name: /review and share/i })
+        await shareDlg.getByRole("button", { name: t("shareReviewAndShare") })
           .click();
         await expect(confirm).toBeVisible({ timeout: T.quick });
       }).toPass({ timeout: T.poll });
       await confirm.click();
-      await expect(shareDlg.getByText(/shared successfully/i))
+      await expect(shareDlg.getByText(t("shareSuccessWith")))
         .toBeVisible({ timeout: T.action });
-      await shareDlg.getByRole("button", { name: /close/i }).click();
+      await shareDlg.getByRole("button", { name: t("btnClose") }).click();
 
       // ── B reloads (cold re-fetch, re-draining the inbox) until the shared aggregation
       //    propagates and folds in, then reads its values — no blind cooldown ──
@@ -205,7 +205,7 @@ test.describe("aggregation sharing across two pods", () => {
           await expect(aggregationsList(b.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.action });
         });
-        await b.page.getByRole("button", { name: /show values/i }).first()
+        await b.page.getByRole("button", { name: t("shareShowValues") }).first()
           .click();
         await expect(b.page.locator("svg.recharts-surface").first())
           .toBeVisible({ timeout: T.action });
@@ -218,12 +218,12 @@ test.describe("aggregation sharing across two pods", () => {
       await openAggregations(a.page);
       await a.page.waitForLoadState("networkidle").catch(() => {});
       const del = a.page.locator("li").filter({ hasText: AGGREGATION_NAME })
-        .getByRole("button", { name: en("aggDeleteAria") });
+        .getByRole("button", { name: t("aggDeleteAria") });
       for (let i = 0; i < 10; i++) {
         if (!(await del.count())) break;
         await del.first().click();
         await confirmDialog(a.page, "Delete");
-        await expect(a.page.getByText("Aggregation deleted").first())
+        await expect(a.page.getByText(t("aggregationDeleted")).first())
           .toBeVisible({ timeout: T.action }).catch(() => {});
       }
 
