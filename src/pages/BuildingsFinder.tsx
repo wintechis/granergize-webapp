@@ -176,24 +176,9 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   };
 
   return (
-    <Box
-      sx={{
-        display: "flex",
-        flexDirection: "column",
-        flexGrow: 1,
-        minHeight: 0,
-      }}
-    >
-      {/* Shared collection chrome: the heading + identity, the collection-level
-          actions (add / autofill / download-all), the view toggle, and the
-          search / tier facet — rendered ONCE here (not per guise) so they show in
-          BOTH Map and List. These are collection-level capabilities
-          (plan-finder-collection-model), so they must not hide inside one view. */}
-      <FinderHeader
-        dense
-        ownsScroll={false}
-        title={t("headingYourBuildings")}
-        source={rdf?.buildings}
+    <FinderHeader
+      title={t("navBuildings")}
+      source={rdf?.buildings}
         actions={
           <>
             <Button
@@ -259,26 +244,29 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
             </ToggleButtonGroup>
           </>
         }
-      />
-      {/* Map: kept mounted whenever Buildings is the finder (only hidden when
-          switched to List), preserving ExplorePage's Leaflet instance + map state. */}
-      <Box
-        sx={{
-          display: buildingsView === "map" ? "flex" : "none",
-          flexDirection: "column",
-          flexGrow: 1,
-          minHeight: 0,
-        }}
       >
-        <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
-          <ExplorePage active={onBuildings && buildingsView === "map"} />
-        </Suspense>
-      </Box>
+        {/* Map: a fixed-size element in the scrolling page (same height as the
+            Aggregations map), kept mounted — only hidden when switched to List —
+            to preserve the Leaflet instance + viewport. */}
+        <Box
+          sx={{
+            display: buildingsView === "map" ? "flex" : "none",
+            flexDirection: "column",
+            height: 480,
+            borderRadius: 1,
+            overflow: "hidden",
+            border: 1,
+            borderColor: "divider",
+          }}
+        >
+          <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
+            <ExplorePage active={onBuildings && buildingsView === "map"} />
+          </Suspense>
+        </Box>
       {/* List: mounted only while showing — no costly instance to preserve. */}
       {buildingsView === "list" && (
-        <Box sx={{ flexGrow: 1, minHeight: 0, overflow: "auto" }}>
-          <Box component="section" sx={{ p: 3 }}>
-            {buildingsLoading
+        <>
+          {buildingsLoading
               ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
               : buildings.length === 0
               ? (
@@ -368,9 +356,8 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                   })}
                 </Box>
               )}
-            <Pager paging={buildingPaging} />
-          </Box>
-        </Box>
+          <Pager paging={buildingPaging} />
+        </>
       )}
       <AddBuildingDialog
         open={addOpen || actionIsAdd}
@@ -386,6 +373,6 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
           onClose={() => setShareBuilding(null)}
         />
       )}
-    </Box>
+    </FinderHeader>
   );
 }

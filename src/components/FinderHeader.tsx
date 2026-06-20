@@ -9,13 +9,10 @@ import { RdfSourceLink } from "./detail/DetailView.tsx";
  * **title row** (`h6` title + optional overview-first `(n)` count + dev-mode source
  * link + right-grouped creation `inputs` and `actions`) and an optional **controls
  * row** (search + tier filter + guise toggle). One structure across the six finders
- * (`src/pages/*Finder.tsx`) — extend this rather than hand-rolling a header.
- *
- * Two layout knobs for the Buildings finder, which hosts a full-bleed Leaflet map:
- * - `dense` — `p: 1` instead of `p: 3` (a tighter gutter so the map gets the space).
- * - `ownsScroll` — default `true`: the header IS the scrolling `section` and renders
- *   the list `children` below it. `false` renders only the header chrome
- *   (`flexShrink: 0`); the caller owns the scrolling map/list area beneath.
+ * (`src/pages/*Finder.tsx`) — extend this rather than hand-rolling a header. The
+ * component IS the page's scrolling `section`: it renders the header rows, then the
+ * list `children` below them, and scrolls as one — so every finder (Buildings'
+ * fixed-size map included) scrolls the same way.
  */
 export interface FinderHeaderProps {
   /** Page title (already-resolved string). Rendered as `Typography variant="h6"`. */
@@ -30,11 +27,7 @@ export interface FinderHeaderProps {
   readonly inputs?: ReactNode;
   /** Search + filters + guise toggle — their own row below the title (omitted when falsy). */
   readonly controls?: ReactNode;
-  /** Tighter `p: 1` gutter (the Buildings map). */
-  readonly dense?: boolean;
-  /** When `true` (default) the header is the scrolling section and renders `children`. */
-  readonly ownsScroll?: boolean;
-  /** The list body + `Pager` (rendered below the rows when `ownsScroll`). */
+  /** The list body + `Pager`, rendered below the header rows in the scrolling section. */
   readonly children?: ReactNode;
 }
 
@@ -47,17 +40,7 @@ const ROW_SX = {
 } as const;
 
 export default function FinderHeader(
-  {
-    title,
-    count,
-    source,
-    actions,
-    inputs,
-    controls,
-    dense = false,
-    ownsScroll = true,
-    children,
-  }: FinderHeaderProps,
+  { title, count, source, actions, inputs, controls, children }: FinderHeaderProps,
 ) {
   const rows = (
     <>
@@ -75,14 +58,10 @@ export default function FinderHeader(
     </>
   );
 
-  // Buildings: header-only (the caller renders the full-bleed map/list below).
-  if (!ownsScroll) {
-    return <Box sx={{ p: dense ? 1 : 3, flexShrink: 0 }}>{rows}</Box>;
-  }
   return (
     <Box
       component="section"
-      sx={{ p: dense ? 1 : 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}
+      sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}
     >
       {rows}
       {children}

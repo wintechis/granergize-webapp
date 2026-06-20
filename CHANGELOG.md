@@ -3,6 +3,11 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-20]
+- **Buildings finder: scrolls like every other tab; titled "Buildings".** Dropped Buildings' special
+  full-bleed layout — it now uses the shared `FinderHeader`'s standard scrolling section, with the
+  map as a fixed-size element (480 px, the same height as the Aggregations map) rather than filling
+  the window. The title is now "Buildings" (it lists buildings shared *with* you too, so "Your
+  buildings" was misleading); `FinderHeader` loses its now-unused `dense`/`ownsScroll` props.
 - **Finder shells unified via a shared `FinderHeader`.** All six finders (Buildings, Aggregations,
   Observations, Contacts, Rooms, Sharing) now render their header through one
   `src/components/FinderHeader.tsx` — the same title row (`h6` + overview `(n)` count + inline source

@@ -154,11 +154,6 @@ export const MESSAGES = {
   navContacts: { en: "Contacts", de: "Kontakte", fr: "Contacts" },
   navMeet: { en: "Meet", de: "Treffen", fr: "Rencontrer" },
   // Finder page headings (exact-nav-word headings reuse the nav* ids above).
-  headingYourBuildings: {
-    en: "Your buildings",
-    de: "Deine Gebäude",
-    fr: "Vos bâtiments",
-  },
   headingYourRooms: {
     en: "Your data rooms",
     de: "Deine Datenzimmer",
