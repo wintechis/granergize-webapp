@@ -1182,6 +1182,8 @@ export const MESSAGES = {
     fr: "Vue d'exploration",
   },
   exploreViewMap: { en: "Map", de: "Karte", fr: "Carte" },
+  // The cube's Time axis: one sliced year vs. all years as an axis / faceted.
+  timeOneYear: { en: "One year", de: "Ein Jahr", fr: "Une année" },
   exploreViewOverTime: { en: "Over time", de: "Im Zeitverlauf", fr: "Dans le temps" },
   exploreViewCompareYears: {
     en: "Compare years",

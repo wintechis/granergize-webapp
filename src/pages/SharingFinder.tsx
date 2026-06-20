@@ -56,13 +56,15 @@ export default function SharingFinder({ session }: SharingFinderProps) {
   const sharedWithMeQuery = useSharedWithMe();
   const sharedWithMe = sharedWithMeQuery.data ?? [];
   const loading = sharedWithMeQuery.isLoading;
-  const sharedSearch = useListSearch("shared");
+  // One list on this page → the bare `?q=` / `?offset=` params, like every other
+  // single-list finder (no `shared_`-prefixed key).
+  const sharedSearch = useListSearch();
   const filteredShared = filterByText(
     sharedWithMe,
     sharedSearch.query,
     (b) => `${b.buildingId} ${b.sharedBy}`,
   );
-  const sharedPaging = usePaging(filteredShared, { key: "shared" });
+  const sharedPaging = usePaging(filteredShared);
 
   // The shared-with-me ENTRIES carry only a display stem (`buildingId`) and the
   // building's document URI; the resolvable building id (the absolute subject IRI

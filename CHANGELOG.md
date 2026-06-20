@@ -3,6 +3,11 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-20]
+- **Finder consistency nits.** The Sharing finder's keyword search + paging now use the bare
+  `?q=` / `?offset=` URL params like every other single-list finder (was `?shared_q=` / `?shared_offset=`
+  — a vestige of when the page held several lists). The Buildings finder's "shared with" loading line
+  is now localised (`sharedWithLabel` + `loadingEllipsis`) instead of a hardcoded English string,
+  matching how the Aggregations finder renders the same row.
 - **Buildings finder: scrolls like every other tab; titled "Buildings".** Dropped Buildings' special
   full-bleed layout — it now uses the shared `FinderHeader`'s standard scrolling section, with the
   map as a fixed-size element (480 px, the same height as the Aggregations map) rather than filling

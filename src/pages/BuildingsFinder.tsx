@@ -337,7 +337,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                           : sharedQuery.isLoading
                           ? (
                             <Typography variant="caption" color="text.secondary">
-                              Shared with: Loading…
+                              {t("sharedWithLabel")} {t("loadingEllipsis")}
                             </Typography>
                           )
                           : (
