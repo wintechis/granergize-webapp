@@ -80,3 +80,57 @@ Deno.test("buildingsToXlsx emits one flat row per building keyed by field/interm
   assert.equal(records[0]["_inv_elec_2099"], 22222);
   assert.equal(records[1].id, "b2");
 });
+
+Deno.test("buildingsToXlsx adds an Observations sheet: one row per (building, year), joined on id", async () => {
+  const buildings = [
+    {
+      id: "b1",
+      annualData: [
+        { year: 2098, electricityConsumption: 11111, heatConsumption: 88 },
+        {
+          year: 2099,
+          electricityConsumption: 22222,
+          waterConsumption: 5,
+          renewableSelfGeneratedShare: 12,
+        },
+      ],
+    },
+    { id: "b2", annualData: [{ year: 2099, electricityGeneration: 4000 }] },
+    { id: "b3", streetAddress: "Leer 3" }, // no annualData → no observation rows
+  ] as unknown as BuildingType[];
+
+  const wb = XLSX.read(new Uint8Array(await buildingsToXlsx(buildings)), {
+    type: "array",
+  });
+  // The buildings stay on "Gebäude"; the observations land on a second sheet.
+  assert.deepEqual(wb.SheetNames, ["Gebäude", "Beobachtungen"]);
+
+  const obs = XLSX.utils.sheet_to_json<Record<string, unknown>>(
+    wb.Sheets["Beobachtungen"],
+  );
+  // 2 years for b1 + 1 for b2 = 3 rows; b3 (no annual data) contributes none.
+  assert.equal(obs.length, 3);
+  // Each row joins to the Gebäude sheet on `id`, with the year + metric columns.
+  const b1y99 = obs.find((r) => r.id === "b1" && r.year === 2099);
+  assert.equal(b1y99?.["electricity (kWh)"], 22222);
+  assert.equal(b1y99?.["water (m³)"], 5);
+  assert.equal(b1y99?.["renewable self-generated (%)"], 12);
+  assert.equal(
+    obs.find((r) => r.id === "b1" && r.year === 2098)?.["heat (kWh)"],
+    88,
+  );
+  assert.equal(
+    obs.find((r) => r.id === "b2")?.["electricity generation (kWh)"],
+    4000,
+  );
+});
+
+Deno.test("buildingsToXlsx omits the Observations sheet when no building has annual data", async () => {
+  const buildings = [
+    { id: "b1", streetAddress: "Hauptstr 1" },
+  ] as unknown as BuildingType[];
+  const wb = XLSX.read(new Uint8Array(await buildingsToXlsx(buildings)), {
+    type: "array",
+  });
+  assert.deepEqual(wb.SheetNames, ["Gebäude"]);
+});
