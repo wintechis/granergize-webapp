@@ -18,6 +18,8 @@ import {
   type NearbyInstallation,
 } from "../../services/mastrNearby.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
+import SourceNote from "../SourceNote.tsx";
+import { type DataSource, SOURCES } from "../../constants/dataSources.ts";
 
 const fmt0 = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 const fmt1 = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
@@ -178,6 +180,11 @@ export default function StandortEnergieprofil(
   const rooftop = useLod2Rooftop(building).data ?? null;
   const p = query.data ?? null;
   if (!p && installations.length === 0 && !rooftop) return null;
+  // Attribution for whichever sources actually contributed to this section.
+  const sources: DataSource[] = [];
+  if (rooftop) sources.push(SOURCES.lod2, SOURCES.pvgis);
+  if (p) sources.push(SOURCES.energieatlas);
+  if (installations.length > 0) sources.push(SOURCES.mastr);
   return (
     <Stack spacing={2}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
@@ -195,6 +202,9 @@ export default function StandortEnergieprofil(
         {p?.biomass && <BiomassCardView data={p.biomass} />}
         {installations.length > 0 && <NearbyCardView installations={installations} />}
       </Stack>
+      {/* User-facing attribution for the sources that contributed (legal, not
+          dev-gated); the RdfSourceLinks below are the dev-only raw links. */}
+      {sources.length > 0 && <SourceNote variant="caption" sources={sources} />}
       {ags && <RdfSourceLink href={areaUrl(ags)} />}
       {rooftop && <RdfSourceLink href={rooftop.iri} />}
     </Stack>

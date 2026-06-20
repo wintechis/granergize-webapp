@@ -9,6 +9,8 @@ import {
 } from "../../lib/buildingDisplay.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { RefLink } from "../detail/DetailView.tsx";
+import SourceNote from "../SourceNote.tsx";
+import { SOURCES } from "../../constants/dataSources.ts";
 import IconAction from "../IconAction.tsx";
 import LocatorMap from "../LocatorMap.tsx";
 import { getGateway } from "../../hooks/session.ts";
@@ -89,6 +91,14 @@ export default function BuildingHeader({ building }: { building: BuildingType })
             >
               {msg("dataSourceLabel")} <AgentLabel value={building.attributedTo} />
             </Typography>
+          )}
+          {/* The coordinates were geocoded from OpenStreetMap (Nominatim) iff a
+              precision is set — record the ODbL attribution that travels with the
+              shared building (see the geo:Point prov:wasDerivedFrom in Turtle). */}
+          {building.geocodePrecision && (
+            <Box sx={{ mt: 0.5 }}>
+              <SourceNote sources={SOURCES.osm} label={msg("coordsLabel")} />
+            </Box>
           )}
         </Box>
 

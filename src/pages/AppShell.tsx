@@ -44,7 +44,7 @@ import { formatError } from "../lib/formatError.ts";
 import { type MessageId, msg } from "../lib/messages.ts";
 import { inspectArchive } from "../services/pod/podArchive.ts";
 import { downloadBlob } from "../lib/download.ts";
-import { FINDERS } from "../routes.ts";
+import { DETAIL_PATTERNS, FINDERS } from "../routes.ts";
 import {
   useAuditGrants,
   useExportArchive,
@@ -646,6 +646,18 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             >
               {t("menuDevMode")}
               <Switch edge="end" size="small" checked={devMode} tabIndex={-1} />
+            </MenuItem>
+
+            {/* Data sources & licences — attribution credits, present in both
+                modes (legal attribution is user content, not a dev affordance). */}
+            <Divider />
+            <MenuItem
+              onClick={() => {
+                handleMenuClose();
+                void navigate(DETAIL_PATTERNS.dataSources);
+              }}
+            >
+              {t("menuDataSources")}
             </MenuItem>
 
             {/* Dev: demo fixtures */}

@@ -41,6 +41,7 @@ export const DETAIL_PATTERNS = {
   room: "/room",
   contact: "/contact",
   regional: "/regional",
+  dataSources: "/data-sources",
 } as const;
 
 /** The home/dashboard route. */

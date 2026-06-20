@@ -22,6 +22,30 @@ All notable changes to the Granergize WebApp project will be documented in this 
   now carries a colour-coded tier dot after its title (mine = owned blue, shared = orange) via the
   shared `TierDot`, the same key the tier filter wears — replacing the standalone "Shared" chip, so
   owned and shared read the same way across both finders.
+- **External-source attribution surfaced in the UI.** The provenance now in the Turtle
+  becomes user-facing, legally-required credit — distinct from the dev-only `RdfSourceLink`
+  (raw IRIs, Developer-mode). A source registry (`constants/dataSources.ts`, one entry per
+  source id mirroring `vocab/<id>.md`: name · homepage · licence) backs a single reusable
+  `SourceNote` widget and a new **"Data sources & licences" credits page**
+  (`/data-sources`, reached from the Account menu in **both** modes — not dev-gated) that
+  lists every external source with its licence link. The building header now shows a
+  `"Coordinates: OpenStreetMap / Nominatim (ODbL)"` line whenever the coordinates were
+  geocoded (gated on `geocodePrecision`, so coords from a file/import/manual entry make no
+  false OSM claim), and the Standort-Energieprofil panel gains a user-facing source footer
+  (LoD2 + PVGIS · Energie-Atlas · MaStR) where it previously had only dev links. Strings are
+  de/en/fr. Tests: `dataSources` registry unit test, and two `e2e:local` specs
+  (`data-sources` credits page; `building-attribution` geocoded-vs-direct coordinate line).
+  Follow-ups: the building-detail **locator map now shows its tile attribution**
+  (basemap.de/BKG, or the Bavaria DOP CC BY) — the Leaflet attribution control was
+  previously suppressed there; and a producer logo resolved from **Wikidata → Wikimedia
+  Commons** carries a `"Logo via Wikimedia Commons"` hover note on the map marker (a new
+  `logoSource` on the resolved org distinguishes it from an uploaded `foaf:logo`).
+- **`deno task test` no longer red-fails on a side worktree.** The `test` task passes a CLI
+  `--ignore`, which OVERRIDES the `deno.json` `test.exclude: [".claude/"]` (Deno doesn't
+  merge them) — so when an agent worktree existed under `.claude/worktrees/`, its MUI
+  component `.tsx` tests (which never type-check under `deno test`) failed the main tree's
+  run with ~36 unrelated DOM/React errors. Folded `.claude/` into the task's `--ignore`;
+  the full unit suite (900 tests) again runs green regardless of side worktrees.
 
 ## [2026-06-19]
 - **Observations finder: clear a building's observation data.** A row action (owner-only) deletes

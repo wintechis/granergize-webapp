@@ -21,6 +21,7 @@ import Contact from "./pages/Contact.tsx";
 import Room from "./pages/Room.tsx";
 import Aggregation from "./pages/Aggregation.tsx";
 import RegionalDataset from "./pages/RegionalDataset.tsx";
+import DataSources from "./pages/DataSources.tsx";
 import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -153,6 +154,16 @@ function RegionalWrapper() {
   );
 }
 
+/** The standalone "Data sources & licences" credits/attribution page (reached
+ *  from the profile menu). */
+function DataSourcesWrapper() {
+  return (
+    <Container maxWidth="lg" sx={{ py: 3 }}>
+      <DataSources />
+    </Container>
+  );
+}
+
 /** Resolve the `?uri=` WebID query param and render the agent detail view. */
 function ContactWrapper() {
   const [sp] = useSearchParams();
@@ -280,6 +291,7 @@ function App({ onLogout, session }: AppProps) {
     { path: DETAIL_PATTERNS.contact, element: <ContactWrapper /> },
     { path: DETAIL_PATTERNS.room, element: <RoomWrapper session={session} /> },
     { path: DETAIL_PATTERNS.regional, element: <RegionalWrapper /> },
+    { path: DETAIL_PATTERNS.dataSources, element: <DataSourcesWrapper /> },
   ];
 
   // The five FINDER routes share the persistent app chrome (top-nav + header):

@@ -183,6 +183,9 @@ export async function resolveAgent(
 export interface ResolvedOrg {
   name?: string;
   logoUrl?: string;
+  /** Where the logo came from: `"commons"` (Wikidata → Wikimedia Commons, which
+   *  needs attribution) vs `"uploaded"` (the org's own `foaf:logo`). */
+  logoSource?: "uploaded" | "commons";
 }
 
 /**
@@ -227,5 +230,14 @@ export async function resolveAgentOrg(
       }
     }
   }
-  return { ...(name ? { name } : {}), ...(logoUrl ? { logoUrl } : {}) };
+  // A logo served from Wikimedia Commons (the persisted Commons URL or the
+  // render-time Wikidata fallback) is the attribution-bearing case.
+  const logoSource: ResolvedOrg["logoSource"] = logoUrl
+    ? (logoUrl.includes("commons.wikimedia.org") ? "commons" : "uploaded")
+    : undefined;
+  return {
+    ...(name ? { name } : {}),
+    ...(logoUrl ? { logoUrl } : {}),
+    ...(logoSource ? { logoSource } : {}),
+  };
 }
