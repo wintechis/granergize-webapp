@@ -15,6 +15,7 @@ import { filterByText } from "../lib/textSearch.ts";
 import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
+import TitleCount from "../components/TitleCount.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
@@ -98,7 +99,10 @@ export default function ObservationsFinder() {
       component="section"
       sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}
     >
-      <Typography variant="h6" sx={{ mb: 1 }}>{t("navObservations")}</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        {t("navObservations")}
+        <TitleCount count={withObservations.length} />
+      </Typography>
       {rdf && <RdfSourceLink href={rdf.observations} />}
       {withObservations.length > 0 && (
         <Box sx={{ mb: 1 }}>

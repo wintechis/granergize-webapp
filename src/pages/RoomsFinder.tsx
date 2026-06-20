@@ -16,7 +16,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { ownsRoom } from "../services/interop/dataRoom.ts";
 import { roomRoute } from "../routes.ts";
-import { queryKeys, useRoomState } from "../hooks/queries.ts";
+import { queryKeys, useRoomNames, useRoomState } from "../hooks/queries.ts";
 import {
   useAddRoom,
   useCreateRoom,
@@ -83,6 +83,9 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   const knownRooms = roomQuery.data?.known ?? [];
 
   const [roomInput, setRoomInput] = useState("");
+  // Name for a room you're about to host (its rdfs:label); shared so every member
+  // sees it instead of the raw URI.
+  const [roomNameInput, setRoomNameInput] = useState("");
   // Whether the QR scanner (one camera view) is open: a scanned code adds a data
   // room by invite link.
   const [scanning, setScanning] = useState(false);
@@ -91,8 +94,14 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   const rooms = activeRoom && !knownRooms.includes(activeRoom)
     ? [activeRoom, ...knownRooms]
     : knownRooms;
+  // Each room's human name, for the row title (falls back to the URI when unnamed).
+  const roomNames = useRoomNames(rooms).data ?? {};
   const { query, setQuery } = useListSearch();
-  const filteredRooms = filterByText(rooms, query, (r) => `${r} ${roomHost(r)}`);
+  const filteredRooms = filterByText(
+    rooms,
+    query,
+    (r) => `${roomNames[r] ?? ""} ${r} ${roomHost(r)}`,
+  );
   const roomPaging = usePaging(filteredRooms);
 
   const create = useCreateRoom();
@@ -117,8 +126,9 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
     remove.mutate(room, { onSuccess: ok(msg("removedFromList")) });
 
   const handleCreate = () =>
-    create.mutate(undefined, {
+    create.mutate(roomNameInput.trim() || undefined, {
       onSuccess: ({ room }) => {
+        setRoomNameInput("");
         showNotification(msg("roomCreated"), "success");
         // Land on the new room's page (it enters there on mount).
         void navigate(roomRoute(room));
@@ -211,6 +221,13 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
         spacing={1}
         sx={{ flexWrap: "wrap", alignItems: "center", mb: 1 }}
       >
+        <TextField
+          size="small"
+          label={t("roomNameLabel")}
+          value={roomNameInput}
+          onChange={(e) => setRoomNameInput(e.target.value)}
+          sx={{ minWidth: 200 }}
+        />
         <Button
           variant="outlined"
           startIcon={<AddIcon />}
@@ -275,7 +292,9 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
                 key={r}
                 title={
                   <Box component="span" sx={{ wordBreak: "break-all" }}>
-                    <RefLink to={roomRoute(r)}>{r}</RefLink>
+                    <RefLink to={roomRoute(r)}>
+                      <strong>{roomNames[r] ?? r}</strong>
+                    </RefLink>
                   </Box>
                 }
                 subtitle={roomMeta(r)}

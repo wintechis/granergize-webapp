@@ -21,6 +21,7 @@ import { useT } from "../context/I18nProvider.tsx";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
+import TitleCount from "../components/TitleCount.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
@@ -107,7 +108,10 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
   return (
     <Box component="section" sx={{ p: 3, flexGrow: 1, minHeight: 0, overflow: "auto" }}>
       {/* Contacts — a personal address book of WebID agents. */}
-      <Typography variant="h6" sx={{ mb: 1 }}>{t("navContacts")}</Typography>
+      <Typography variant="h6" sx={{ mb: 1 }}>
+        {t("navContacts")}
+        <TitleCount count={contacts.length} />
+      </Typography>
       {rdf && <RdfSourceLink href={rdf.contacts} />}
       <Stack direction="row" spacing={1} sx={{ flexWrap: "wrap", mb: 1 }}>
         <TextField
@@ -165,7 +169,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
             {contactPaging.pageItems.map((c) => (
               <ResourceRow
                 key={c.webId}
-                title={<AgentLabel value={c.webId} />}
+                title={<strong><AgentLabel value={c.webId} /></strong>}
                 actions={
                   <Tooltip title={t("contactRemoveAria")}>
                     <IconButton

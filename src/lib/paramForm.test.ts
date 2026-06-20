@@ -18,6 +18,7 @@ const V1_FORM_ELIGIBLE = [
   "RemoveContact",
   "DeleteAggregation",
   "RefreshAggregation",
+  "CreateRoom",
   "EnterRoom",
   "ExitRoom",
   "DeleteRoom",
@@ -69,13 +70,17 @@ Deno.test("AddRoom is form-eligible (its XSD_STRING input is a genuine text fiel
   assert.ok(isFormEligible("AddRoom"));
 });
 
+Deno.test("CreateRoom is form-eligible (its optional name is a genuine text field)", () => {
+  assert.ok(isFormEligible("CreateRoom"));
+});
+
 Deno.test("fieldKindFor resolves AddRoom.input (XSD_STRING) to a text field", () => {
   const d = fieldKindFor("AddRoom", "input", INTENT_PARAMS.AddRoom.input);
   assert.deepEqual(d, { kind: "text", multi: false, required: true });
 });
 
 Deno.test("param-less verbs are not form-eligible (nothing to capture)", () => {
-  for (const name of ["CheckInbox", "ReissueGrants", "CreateRoom", "ExportArchive"]) {
+  for (const name of ["CheckInbox", "ReissueGrants", "ExportArchive"]) {
     assert.equal(isFormEligible(name), false, `${name} has no params`);
   }
 });

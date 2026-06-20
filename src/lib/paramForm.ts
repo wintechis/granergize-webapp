@@ -147,9 +147,9 @@ function isRenderableParam(paramName: string, spec: ParamSpec): boolean {
  *
  * The **v1 form-eligible set** this yields: `ShareBuilding`, `ShareAggregation`,
  * `RevokeBuildingAccess`, `RevokeAggregationAccess`, `ToggleVisibility`,
- * `RemoveContact`, `DeleteAggregation`, `RefreshAggregation`, `EnterRoom`,
- * `ExitRoom`, `DeleteRoom`, `RemoveBookmark`, and `AddRoom` (its `input` is a
- * genuine free-text invite-link / room-URI field).
+ * `RemoveContact`, `DeleteAggregation`, `RefreshAggregation`, `CreateRoom` (its
+ * optional `name`), `EnterRoom`, `ExitRoom`, `DeleteRoom`, `RemoveBookmark`, and
+ * `AddRoom` (its `input` is a genuine free-text invite-link / room-URI field).
  */
 export function isFormEligible(name: string): boolean {
   if (FORM_EXCLUDED.has(name)) return false;

@@ -2,16 +2,13 @@ import { useState } from "react";
 import {
   Box,
   Button,
-  IconButton,
   Stack,
   ToggleButton,
   ToggleButtonGroup,
-  Tooltip,
   Typography,
 } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
-import VisibilityIcon from "@mui/icons-material/Visibility";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import type { AggregationDefinition } from "../types.ts";
 import { aggregationRoute, regionalRoute } from "../routes.ts";
@@ -32,7 +29,7 @@ import {
 import { getSnapshotUri } from "../services/aggregation/aggregationManager.ts";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { formatDate } from "../lib/formatDate.ts";
-import { RdfSourceLink } from "../components/detail/DetailView.tsx";
+import { RdfSourceLink, RefLink } from "../components/detail/DetailView.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import { msg } from "../lib/messages.ts";
 import { useDevMode } from "../hooks/devMode.ts";
@@ -94,7 +91,6 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
   const { buildings } = useSolidData();
-  const navigate = useNavigate();
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
   const dev = useDevMode();
   const t = useT();
@@ -241,7 +237,15 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
             {/* The tier selector is always offered (whenever there are
                 aggregations), even with a single tier, so the source-tier
                 affordance stays discoverable. */}
-            <TierFilter facet={tierFacet} options={AGGREGATION_TIERS} />
+            <TierFilter
+              facet={tierFacet}
+              options={AGGREGATION_TIERS}
+              counts={{
+                mine: aggregationDefinitions.length,
+                shared: receivedAggregations.length,
+                open: openItems.length,
+              }}
+            />
             <Box sx={{ flexGrow: 1 }} />
             <ToggleButtonGroup
               size="small"
@@ -314,7 +318,9 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                       key={open.id}
                       title={
                         <>
-                          <strong>{t(open.labelId)} — {open.region}</strong>
+                          <RefLink to={regionalRoute(open.tableId, open.ags)}>
+                            <strong>{t(open.labelId)} — {open.region}</strong>
+                          </RefLink>
                           <TierDot tier="open" />
                           {/* The public regionalstatistik cube doc backing this dataset
                               (dev-mode only; RdfSourceLink self-hides otherwise). */}
@@ -325,20 +331,6 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                         </>
                       }
                       subtitle={t("openRegionalMeta")}
-                      actions={
-                        // Public, read-only: the only affordance is opening the
-                        // dataset's standalone figures page.
-                        <Tooltip title={t("aggDetailsAria")}>
-                          <IconButton
-                            size="small"
-                            aria-label={t("aggDetailsAria")}
-                            onClick={() =>
-                              navigate(regionalRoute(open.tableId, open.ags))}
-                          >
-                            <VisibilityIcon fontSize="small" />
-                          </IconButton>
-                        </Tooltip>
-                      }
                     />
                   );
                 }
@@ -349,7 +341,9 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                     key={aggregation.id}
                     title={
                       <>
-                        <strong>{aggregation.name}</strong>
+                        <RefLink to={aggregationRoute(aggregation.id)}>
+                          <strong>{aggregation.name}</strong>
+                        </RefLink>
                         <TierDot tier="mine" />
                         {rdf && (
                           <RdfSourceLink
@@ -380,7 +374,7 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                       // Registry-driven: which verbs apply (refresh needs a
                       // snapshot, share/delete always) comes from the intent
                       // registry's `applies()` guards, not inline conditionals.
-                      // "Details" is navigation, not a mutation intent → leading.
+                      // Opening is the linked title now — no separate "details" icon.
                       <ObjectActions
                         object={aggregation}
                         handlers={{
@@ -399,18 +393,6 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
                           (name === "DeleteAggregation" &&
                             deleteAggregationMut.isPending &&
                             deleteAggregationMut.variables === aggregation.id)}
-                        leading={
-                          <Tooltip title={t("aggDetailsAria")}>
-                            <IconButton
-                              size="small"
-                              aria-label={t("aggDetailsAria")}
-                              onClick={() =>
-                                navigate(aggregationRoute(aggregation.id))}
-                            >
-                              <VisibilityIcon fontSize="small" />
-                            </IconButton>
-                          </Tooltip>
-                        }
                       />
                     }
                   >

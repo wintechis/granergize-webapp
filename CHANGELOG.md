@@ -2,6 +2,27 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-20]
+- **Data rooms have a name.** Hosting a room now takes a name, stored as `rdfs:label` in a small
+  member-readable resource inside the room — so the Rooms finder shows the name instead of the long
+  URI (falling back to the URI when unnamed). It's shared: every member sees the host's name. You can
+  also set the name when creating a room from the ⌘K palette (CreateRoom is now a form command).
+- **Finder row titles consistently bold.** The Contacts and received-aggregation row titles are now
+  bold like every other finder, so all list items read the same: bold linked title · tier dot · URI.
+- **Aggregations list: linked row titles.** The own and open (regionalstatistik) aggregation rows
+  now link their title to the detail page — like the Buildings and Observations finders — so every
+  navigable finder row reads the same way: linked title · source-tier dot · dev-mode source URI. The
+  now-redundant "open" eye-icon is gone (the title opens the row), so the action slots match too
+  (aggregations carry only refresh/share/delete).
+- **Finders: overview-first counts.** The source-tier filter now shows each tier's item total beside
+  its label (e.g. *Mine (9) · Shared (3) · Open (12)*) on the Buildings and Aggregations finders, and
+  the single-list finders (Observations, Contacts) show a muted *(n)* beside their heading — counts
+  independent of the search box, so you see the shape of each collection at a glance.
+- **Buildings finder: source-tier dots, matching the Aggregations list.** Each Buildings-list row
+  now carries a colour-coded tier dot after its title (mine = owned blue, shared = orange) via the
+  shared `TierDot`, the same key the tier filter wears — replacing the standalone "Shared" chip, so
+  owned and shared read the same way across both finders.
+
 ## [2026-06-19]
 - **Observations finder: clear a building's observation data.** A row action (owner-only) deletes
   ALL of a building's energy datasets while keeping the building; once cleared, it drops out of the

@@ -235,7 +235,7 @@ test.describe("energy view smoke", () => {
     // figure end-to-end.
     const aggregationRow = page.locator("li").filter({ hasText: VIEW }).first();
     await expect(aggregationRow).toBeVisible({ timeout: T.action });
-    await aggregationRow.getByRole("button", { name: en("aggDetailsAria") }).click();
+    await aggregationRow.getByRole("link").first().click();
     const surface = page.locator("svg.recharts-surface").first();
     await expect(surface).toBeVisible({ timeout: T.action });
     await expect(surface.locator(".recharts-bar-rectangle").first())

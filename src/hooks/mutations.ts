@@ -470,7 +470,7 @@ const withRoom = (known: string[], room: string) =>
 export function useCreateRoom() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => invoke("CreateRoom", {}, getGateway()),
+    mutationFn: (name?: string) => invoke("CreateRoom", { name }, getGateway()),
     onSuccess: ({ room }) =>
       patchRooms(qc, (reg) => ({ known: withRoom(reg.known, room), current: room })),
   });

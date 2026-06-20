@@ -127,7 +127,7 @@ Deno.test("useCreateRoom adds the new room to the registry and makes it current"
     const { result } = renderHook(() => useCreateRoom(), { wrapper });
     // The mutation now resolves to the core's RoomOutcome `{ room }`; the cache
     // patch folds in the URI string.
-    const { room } = await result.current.mutateAsync();
+    const { room } = await result.current.mutateAsync(undefined);
     await waitFor(() => assert.equal(rooms(client).current, room));
     assert.deepEqual(rooms(client).known, [room]);
     assert.ok(room.startsWith(`${ORIGIN}granergize/rooms/`));

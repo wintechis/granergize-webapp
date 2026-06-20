@@ -131,6 +131,7 @@ export const INTEROP_NS = "http://www.w3.org/ns/solid/interop#";
 
 export const RDF_TYPE = "http://www.w3.org/1999/02/22-rdf-syntax-ns#type";
 export const RDFS_NS = "http://www.w3.org/2000/01/rdf-schema#";
+export const RDFS_LABEL = `${RDFS_NS}label`;
 export const ACL_NS = "http://www.w3.org/ns/auth/acl#";
 // SKOS — the codelist schemes the statistics/MaStR wrappers publish (notation,
 // prefLabel) for resolving an AGS/carrier code to its human name.

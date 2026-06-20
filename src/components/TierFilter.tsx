@@ -19,10 +19,16 @@ import {
  *
  * Each option carries its tier's marker colour as a dot, so this control doubles
  * as the colour key — it replaces the separate map legend that used to repeat the
- * same "My buildings / Shared with me" swatches.
+ * same "My buildings / Shared with me" swatches. With `counts`, each option also
+ * shows how many items that tier holds (overview-first), independent of search.
  */
 export default function TierFilter(
-  { facet, options = TIER_VALUES }: { facet: ListFacet; options?: readonly Tier[] },
+  { facet, options = TIER_VALUES, counts }: {
+    facet: ListFacet;
+    options?: readonly Tier[];
+    /** Per-tier item totals, shown as "(n)" beside each label. */
+    counts?: Partial<Record<Tier, number>>;
+  },
 ) {
   const t = useT();
   return (
@@ -45,6 +51,7 @@ export default function TierFilter(
             }}
           />
           {t(TIER_LABEL[tier])}
+          {counts?.[tier] != null ? ` (${counts[tier]})` : ""}
         </ToggleButton>
       ))}
     </ToggleButtonGroup>

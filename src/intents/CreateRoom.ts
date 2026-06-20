@@ -20,6 +20,14 @@ export interface RoomOutcome {
  * create a new data room and return its (already-normalized) URI. The adapter's
  * `patchRooms` adds it to `known` and sets it `current`.
  */
-export async function createRoomCore(gateway: PodGateway): Promise<RoomOutcome> {
-  return { room: await createRoom(gateway) };
+export interface CreateRoomParams {
+  /** Optional human name for the room (written as its `rdfs:label`). */
+  readonly name?: string;
+}
+
+export async function createRoomCore(
+  gateway: PodGateway,
+  params: CreateRoomParams,
+): Promise<RoomOutcome> {
+  return { room: await createRoom(gateway, params.name) };
 }

@@ -1667,11 +1667,6 @@ export const MESSAGES = {
     de: "Aggregation teilen",
     fr: "Partager l'agrégation",
   },
-  aggDetailsAria: {
-    en: "Aggregation details",
-    de: "Aggregationsdetails",
-    fr: "Détails de l'agrégation",
-  },
   // Aggregation detail page (Details / Header / Results sections).
   aggDetType: { en: "Type", de: "Typ", fr: "Type" },
   aggDetBuildingsIncluded: {
@@ -1716,7 +1711,6 @@ export const MESSAGES = {
     fr: "Aucun résultat pour « {query} ».",
   },
   // Provenance marker on a finder row (a building/aggregation shared with me).
-  provSharedTag: { en: "Shared", de: "Geteilt", fr: "Partagé" },
   // Tier source-selector (multi-select union: which provenance sources to show).
   tierFilterAria: { en: "Filter by source", de: "Nach Quelle filtern", fr: "Filtrer par source" },
   tierMine: { en: "Mine", de: "Meine", fr: "Les miens" },
@@ -1813,6 +1807,11 @@ export const MESSAGES = {
     en: "Data room URI",
     de: "Datenzimmer-URI",
     fr: "URI de la salle de données",
+  },
+  roomNameLabel: {
+    en: "Room name",
+    de: "Raumname",
+    fr: "Nom de la salle",
   },
   roomHostedByYou: {
     en: "Hosted by you",

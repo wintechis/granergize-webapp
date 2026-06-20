@@ -448,7 +448,7 @@ test.describe("handbuch screenshots", () => {
       await dismissToasts(page);
     }
     await expect(aggregationRow).toBeVisible({ timeout: 30_000 });
-    await aggregationRow.getByRole("button", { name: en("aggDetailsAria") }).click();
+    await aggregationRow.getByRole("link").first().click();
     // The standalone view route: wait for the auto-computed chart to draw.
     await expect(
       page.locator("svg.recharts-surface .recharts-bar-rectangle").first(),

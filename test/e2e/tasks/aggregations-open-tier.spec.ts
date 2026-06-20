@@ -108,11 +108,12 @@ test.describe("aggregations open tier (regionalstatistik)", () => {
 
     // Opening the dataset navigates to its standalone read-only page, which fetches
     // and renders the stubbed Bayern figure (2023 → 61.5 %). Scope to the open row's
-    // own details button — the open tier now lists several regional datasets.
+    // own title link — the open tier now lists several regional datasets.
     await page
       .getByRole("listitem")
       .filter({ hasText: `${en("regRenewableShare")} — Bayern` })
-      .getByRole("button", { name: en("aggDetailsAria") })
+      .getByRole("link")
+      .first()
       .click();
     await expect(
       page.getByRole("heading", { name: `${en("regRenewableShare")} — Bayern` }),

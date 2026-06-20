@@ -33,7 +33,11 @@ import {
   type SharedBuildingEntry,
 } from "../services/interop/sharedBuilding.ts";
 import { refreshSnapshot } from "../services/aggregation/aggregationComputer.ts";
-import { getRoomLogState, readRooms } from "../services/interop/dataRoom.ts";
+import {
+  getRoomLogState,
+  readRoomNames,
+  readRooms,
+} from "../services/interop/dataRoom.ts";
 import { readContacts } from "../services/contacts.ts";
 import {
   resolveAgent,
@@ -432,6 +436,21 @@ export function useRooms() {
   return useWebIdQuery(queryKeys.rooms, (session) => readRooms(session), {
     staleTime: Infinity,
   });
+}
+
+/**
+ * The human names (`rdfs:label`) of the given rooms, keyed by room URI — read from
+ * each room's member-readable name resource so the finder can show a name instead
+ * of the raw IRI. Keyed by the URI set, so hosting/adding a room (which changes the
+ * set) refetches; names are otherwise stable (`staleTime: Infinity`). An empty list
+ * does no fetch.
+ */
+export function useRoomNames(roomUris: readonly string[]) {
+  return useWebIdQuery(
+    queryKeys.rooms,
+    (gateway) => readRoomNames(roomUris, gateway),
+    { extraKey: ["names", ...[...roomUris].sort()], staleTime: Infinity },
+  );
 }
 
 /** Members / my-roles / my-membership for one room, keyed on the current room. */

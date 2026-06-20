@@ -2,7 +2,6 @@ import { sessionGateway } from "../services/pod/podGateway.ts";
 import { lazy, Suspense, useMemo, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
-import Chip from "@mui/material/Chip";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
 import { useLocation, useSearchParams } from "react-router-dom";
@@ -50,6 +49,7 @@ import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import AddBuildingDialog from "../components/AddBuildingDialog.tsx";
 import { ShareBuildingDialog } from "../components/BuildingDialogs.tsx";
+import TierDot from "../components/TierDot.tsx";
 
 const ExplorePage = lazy(() => import("./ExplorePage.tsx"));
 
@@ -260,7 +260,14 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
               even with a single tier, so the source-tier affordance stays
               discoverable — ticking "shared" with nothing shared simply shows none. */}
           {buildings.length > 0 && (
-            <TierFilter facet={tierFacet} options={BUILDING_TIERS} />
+            <TierFilter
+              facet={tierFacet}
+              options={BUILDING_TIERS}
+              counts={{
+                mine: ownedBuildings.length,
+                shared: buildings.length - ownedBuildings.length,
+              }}
+            />
           )}
         </Box>
       </Box>
@@ -320,17 +327,9 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                             {b.streetAddress && b.streetAddress !== name
                               ? ` — ${b.streetAddress}`
                               : ""}
-                            {/* Provenance marker (Slice 1): owned is the default
-                                (unmarked); a shared-with-me building carries a tag. */}
-                            {b.isShared && (
-                              <Chip
-                                label={t("provSharedTag")}
-                                size="small"
-                                color="warning"
-                                variant="outlined"
-                                sx={{ ml: 1 }}
-                              />
-                            )}
+                            {/* Source-tier dot (mine = owned blue, shared = orange) —
+                                the same key the tier filter + Aggregations list wear. */}
+                            <TierDot tier={b.isShared ? "shared" : "mine"} />
                             <RdfSourceLink href={b.uri as string} inline />
                           </>
                         }

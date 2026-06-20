@@ -164,8 +164,11 @@ export const INTENT_PARAMS = {
   // `roomUri`/`room` are room-container IRIs (resolvable). `input` (AddRoom) is a
   // raw URI OR an invite link (not necessarily an IRI) → literal placeholder.
   // `roles` are membership-role labels (a `UserRole` string, not the IRI it maps
-  // to) → literal placeholder. CreateRoom + SeedDemoRooms are paramless.
-  CreateRoom: {},
+  // to) → literal placeholder. SeedDemoRooms is paramless.
+  CreateRoom: {
+    // Optional human name for the room (its rdfs:label).
+    name: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
+  },
   EnterRoom: {
     roomUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },
   },

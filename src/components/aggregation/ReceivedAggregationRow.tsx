@@ -46,7 +46,7 @@ export default function ReceivedAggregationRow(
 
   return (
     <ResourceRow
-      title={<>{label}<TierDot tier="shared" /></>}
+      title={<><strong>{label}</strong><TierDot tier="shared" /></>}
       subtitle={<>{t("shareSharedBy")} <AgentLabel value={aggregation.sharedBy} /></>}
       actions={
         <Button size="small" variant="text" onClick={toggle}>

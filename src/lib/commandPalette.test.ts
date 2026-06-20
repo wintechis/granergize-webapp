@@ -284,8 +284,6 @@ Deno.test("developer-only form-eligible verbs stay hidden outside dev mode", () 
 // ── direct-invoke: param-less write verbs fire straight from the palette ─────
 
 Deno.test("isDirectInvokeEligible: param-less writes qualify; reads / RemoveAppData / param-ful do not", () => {
-  // CreateRoom: param-less write → direct-invoke.
-  assert.equal(isDirectInvokeEligible(findIntent("CreateRoom")!), true);
   // The dev seeders + inbox-drain + ACL rebuild are param-less writes → qualify
   // (exposure-gating is applied separately by buildCommandList).
   for (const n of ["SeedDemoBuildings", "SeedDemoContacts", "SeedDemoRooms", "CheckInbox", "ReissueGrants"]) {
@@ -297,11 +295,13 @@ Deno.test("isDirectInvokeEligible: param-less writes qualify; reads / RemoveAppD
   // Param-less READS return a value needing handling → out of scope.
   assert.equal(isDirectInvokeEligible(findIntent("ExportArchive")!), false);
   assert.equal(isDirectInvokeEligible(findIntent("AuditGrants")!), false);
-  // A param-ful write is not a direct-invoke (it routes to a form/dialog).
+  // Param-ful writes are not direct-invoke (they route to a form/dialog).
   assert.equal(isDirectInvokeEligible(findIntent("ShareBuilding")!), false);
+  // CreateRoom gained an optional name param → form, not direct-invoke.
+  assert.equal(isDirectInvokeEligible(findIntent("CreateRoom")!), false);
 });
 
-Deno.test("CreateRoom surfaces as a direct-invoke command (standard exposure, no focus)", () => {
+Deno.test("CreateRoom surfaces as a form command (standard exposure, no focus)", () => {
   const cmds = buildCommandList({
     object: undefined,
     viewer: { devMode: false },
@@ -311,8 +311,9 @@ Deno.test("CreateRoom surfaces as a direct-invoke command (standard exposure, no
   });
   const room = cmds.find((c) => c.entry?.name === "CreateRoom");
   assert.ok(room, "CreateRoom surfaces even with dev mode off");
-  assert.equal(room!.routesToDirect, true);
-  assert.notEqual(room!.routesToForm, true);
+  // Its optional name routes the palette to the generic param form.
+  assert.equal(room!.routesToForm, true);
+  assert.notEqual(room!.routesToDirect, true);
   assert.notEqual(room!.routesToDialog, true);
   // Reuses the Rooms-finder host-button wording.
   assert.equal(room!.label, "t:roomHostBtn");

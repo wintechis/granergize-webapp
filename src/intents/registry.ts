@@ -84,11 +84,9 @@ export const WRITE_CORES = {
   // ── Rooms ──────────────────────────────────────────────────────────────────
   // The 6 cache-patching cores return the normalized room URI / registry datum
   // the adapter's `patchRooms` race-guard folds into the cache (the reachability/
-  // existence throws stay IN the core). CreateRoom + SeedDemoRooms are paramless.
-  CreateRoom: (s: PodGateway, p: Record<never, never>) => {
-    void p;
-    return createRoomCore(s);
-  },
+  // existence throws stay IN the core). SeedDemoRooms is paramless; CreateRoom
+  // takes an optional room name.
+  CreateRoom: createRoomCore,
   EnterRoom: enterRoomCore,
   ExitRoom: exitRoomCore,
   DeleteRoom: deleteRoomCore,

@@ -7,12 +7,18 @@ import {
   GRAN_NS,
   LDP_CONTAINS as LDP_CONTAINS_IRI,
   RDF_TYPE,
+  RDFS_LABEL,
   SIOC_NS,
   XSD_DATETIME,
 } from "../rdf/vocabularies.ts";
 import { appRoot, getStorageRoot } from "../pod/solidUtils.ts";
 import { fetchFresh, readStoreOrEmpty } from "../pod/podFetch.ts";
-import { appendToContainer, ensureContainer, putAcl } from "../pod/podWrite.ts";
+import {
+  appendToContainer,
+  ensureContainer,
+  putAcl,
+  readModifyWrite,
+} from "../pod/podWrite.ts";
 import { deleteContainerRecursive } from "../pod/podDelete.ts";
 import { mapPooled } from "../../lib/pool.ts";
 import { readPrefs, setCurrentRoom } from "../prefs.ts";
@@ -589,7 +595,10 @@ export function leaveRoom(roomUri: string, gateway: PodGateway): Promise<void> {
  * Returns the new room IRI.
  * @operation mutation
  */
-export async function createRoom(gateway: PodGateway): Promise<string> {
+export async function createRoom(
+  gateway: PodGateway,
+  name?: string,
+): Promise<string> {
   const webId = gateway.webId;
   if (!webId) throw new Error("Not logged in");
   // Provision the rooms/ parent first (announced once, on the first room) so the
@@ -634,7 +643,58 @@ export async function createRoom(gateway: PodGateway): Promise<string> {
 
   // The creator owns the room — enter it (join, bookmark, make current).
   await enterRoom(roomUri, gateway);
+
+  // The room's human name lives in a small member-readable resource inside the
+  // room (an LDP container can't carry user triples under PUT-only). The
+  // container ACL's acl:default grants members Read, so they see the name too.
+  const trimmed = name?.trim();
+  if (trimmed) await writeRoomName(roomUri, trimmed, gateway);
+
   return roomUri;
+}
+
+/** The room's name resource — holds `<room> rdfs:label "name"`. */
+function roomNameUri(roomUri: string): string {
+  return `${roomUri}name`;
+}
+
+/** Write (owner) the room's human name to its name resource. */
+function writeRoomName(
+  roomUri: string,
+  name: string,
+  gateway: PodGateway,
+): Promise<void> {
+  const subject = namedNode(roomUri);
+  const pred = namedNode(RDFS_LABEL);
+  return readModifyWrite(roomNameUri(roomUri), gateway, (store) => {
+    store.removeQuads(store.getQuads(subject, pred, null, null));
+    store.addQuad(subject, pred, literal(name));
+  });
+}
+
+/** A room's human name (`rdfs:label`), or null if unnamed / unreadable. */
+export async function readRoomName(
+  roomUri: string,
+  gateway: PodGateway,
+): Promise<string | null> {
+  const store = await readStoreOrEmpty(roomNameUri(roomUri), gateway);
+  return store.getObjects(namedNode(roomUri), namedNode(RDFS_LABEL), null)[0]
+    ?.value ?? null;
+}
+
+/** Names of several rooms at once (tolerant — an unreadable room contributes none). */
+export async function readRoomNames(
+  roomUris: readonly string[],
+  gateway: PodGateway,
+): Promise<Record<string, string>> {
+  const pairs = await Promise.all(
+    roomUris.map(async (uri) =>
+      [uri, await readRoomName(uri, gateway).catch(() => null)] as const
+    ),
+  );
+  const out: Record<string, string> = {};
+  for (const [uri, name] of pairs) if (name) out[uri] = name;
+  return out;
 }
 
 /** Whether the logged-in user owns `roomUri` (it lives under their own storage). */
