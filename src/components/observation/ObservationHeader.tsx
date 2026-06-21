@@ -1,17 +1,18 @@
-import { Box, Chip, Stack, Typography } from "@mui/material";
+import { Box, Stack, Typography } from "@mui/material";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import type { BuildingType } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
-import { BackLink } from "../detail/DetailView.tsx";
+import { buildingRoute } from "../../routes.ts";
+import { BackLink, RefLink } from "../detail/DetailView.tsx";
 import EnergyEntryButton from "./EnergyEntryButton.tsx";
 
 /**
- * The observation (energy) page's header, matching the building/contact/
- * aggregation/room detail headers: a back link, the building's name + an
- * owned/shared badge (energy belongs to its building, so the page is titled by
- * it), the year the annual view is showing, and — for an owned building — the
- * "Edit energy years" action (the one place energy is entered; self-hidden for a
- * building shared with the user, which is read-only).
+ * The observation (energy) page's header. The observations are kept **independent of
+ * the building**: the page is identified by the building's name but does NOT inherit
+ * its owned/shared badge — instead it LINKS to the building's own page. Carries a
+ * back link, the latest annual year, and — for a building the user owns — the "Edit
+ * energy years" action (the one place energy is entered; self-hidden for a
+ * shared/read-only building).
  */
 export default function ObservationHeader(
   { building, year, autoOpenEntry, onEntryClosed }: {
@@ -42,15 +43,14 @@ export default function ObservationHeader(
           >
             <ElectricBoltIcon color="action" />
             <Typography variant="h5">{buildingDisplayName(building)}</Typography>
-            <Chip
-              size="small"
-              label={shared ? "Shared with you" : "Owned"}
-              color={shared ? "warning" : "primary"}
-              variant="outlined"
-            />
           </Stack>
           <Typography variant="body2" color="text.secondary">
             Energy{year ? ` · latest year ${year}` : ""}
+          </Typography>
+          {/* The observations link OUT to the building rather than inheriting its
+              owned/shared identity — keeping the energy view independent. */}
+          <Typography variant="body2" sx={{ mt: 0.5 }}>
+            <RefLink to={buildingRoute(building.id)}>Building details</RefLink>
           </Typography>
         </Box>
         {!shared && (
