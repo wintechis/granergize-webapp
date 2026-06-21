@@ -1,5 +1,6 @@
 import type { Borders, Fill, Worksheet } from "exceljs";
 import type { AnnualData, BuildingType } from "../../types.ts";
+import { msg, type MessageId } from "../../lib/messages.ts";
 import {
   BSP_FIELD_TO_HEADER,
   certLevelLabel,
@@ -310,7 +311,7 @@ async function newSheet(): Promise<Worksheet> {
   const ExcelJS = await loadExceljs();
   const wb = new ExcelJS.Workbook();
   wb.creator = "Granergize";
-  return wb.addWorksheet("Gebäude");
+  return wb.addWorksheet(msg("xlsxSheetBuildings"));
 }
 
 async function sheetToBytes(ws: Worksheet): Promise<ArrayBuffer> {
@@ -339,36 +340,42 @@ export async function buildingToXlsx(
   return sheetToBytes(ws);
 }
 
-// The annual metric columns for the Observations sheet — readable headers + units.
-// Export-only, so unbound from the importer's machine keys (the years still round-
-// trip through sheet 1's `_inv_*` columns). Order is the sheet's column order.
-const OBS_COLS: ReadonlyArray<{ header: string; field: keyof AnnualData }> = [
-  { header: "electricity (kWh)", field: "electricityConsumption" },
-  { header: "electricity generation (kWh)", field: "electricityGeneration" },
-  { header: "heat (kWh)", field: "heatConsumption" },
-  { header: "water (m³)", field: "waterConsumption" },
-  { header: "wastewater (m³)", field: "wastewaterConsumption" },
-  { header: "renewable self-generated (%)", field: "renewableSelfGeneratedShare" },
+// The annual metric columns for the Observations sheet — localised headers (units
+// baked in) keyed by message id. Export-only, so unbound from the importer's machine
+// keys (the years still round-trip through sheet 1's `_inv_*` columns). Order is the
+// sheet's column order.
+const OBS_COLS: ReadonlyArray<{ header: MessageId; field: keyof AnnualData }> = [
+  { header: "xlsxObsElectricity", field: "electricityConsumption" },
+  { header: "xlsxObsElectricityGeneration", field: "electricityGeneration" },
+  { header: "xlsxObsHeat", field: "heatConsumption" },
+  { header: "xlsxObsWater", field: "waterConsumption" },
+  { header: "xlsxObsWastewater", field: "wastewaterConsumption" },
+  { header: "xlsxObsRenewable", field: "renewableSelfGeneratedShare" },
 ];
 
 /**
  * One row per (building, year) for the **Observations** sheet — the buildings'
- * annual energy unrolled and joined to the Gebäude sheet on `id`. Years ascend;
- * every row carries the full column set (empty where a metric is absent) so the
- * column order is stable, and a year with no metric at all is skipped.
+ * annual energy unrolled and joined to the buildings sheet on `id` (kept as the
+ * literal machine key so it lines up with sheet 1's `id` column). Headers + the
+ * year column localise; years ascend; every row carries the full column set (empty
+ * where a metric is absent) so the column order is stable, and a year with no metric
+ * at all is skipped.
  */
 function observationRecords(
   buildings: BuildingType[],
 ): Record<string, string | number>[] {
+  const yearHeader = msg("xlsxObsYear");
+  const headers = OBS_COLS.map((c) => msg(c.header));
   const rows: Record<string, string | number>[] = [];
   for (const b of buildings) {
     const years = [...(b.annualData ?? [])].sort((a, c) => a.year - c.year);
     for (const y of years) {
       const cells = OBS_COLS.map((c) => cellValue(y[c.field]));
       if (cells.every((v) => v === null)) continue; // no metric this year
-      const rec: Record<string, string | number> = { id: b.id, year: y.year };
-      OBS_COLS.forEach((c, i) => {
-        rec[c.header] = cells[i] ?? "";
+      const rec: Record<string, string | number> = { id: b.id };
+      rec[yearHeader] = y.year;
+      headers.forEach((h, i) => {
+        rec[h] = cells[i] ?? "";
       });
       rows.push(rec);
     }
@@ -377,13 +384,13 @@ function observationRecords(
 }
 
 /**
- * One workbook for all buildings: a "Gebäude" sheet (one wide row per building,
- * see {@link buildingToFlatRecord}) plus an export-only "Beobachtungen" sheet —
- * the annual observations as one row per (building, year), joined on `id`. Mixed-
- * role buildings coexist as sparse columns; the Gebäude row re-imports via the
- * generic path. The importer reads ONLY the first sheet, so the observations sheet
- * is a human-friendly view — no data rides on it (sheet 1 already round-trips every
- * year through its `_inv_*` columns).
+ * One workbook for all buildings: a buildings sheet (one wide row per building,
+ * see {@link buildingToFlatRecord}) plus an export-only observations sheet — the
+ * annual observations as one row per (building, year), joined on `id`. Both sheet
+ * names localise. Mixed-role buildings coexist as sparse columns; the buildings row
+ * re-imports via the generic path. The importer reads ONLY the first sheet, so the
+ * observations sheet is a human-friendly view — no data rides on it (sheet 1 already
+ * round-trips every year through its `_inv_*` columns).
  */
 export async function buildingsToXlsx(
   buildings: BuildingType[],
@@ -392,7 +399,7 @@ export async function buildingsToXlsx(
   writeTableSheet(ws, buildings.map(buildingToFlatRecord));
   const obs = observationRecords(buildings);
   if (obs.length > 0) {
-    writeTableSheet(ws.workbook.addWorksheet("Beobachtungen"), obs);
+    writeTableSheet(ws.workbook.addWorksheet(msg("xlsxSheetObservations")), obs);
   }
   return sheetToBytes(ws);
 }

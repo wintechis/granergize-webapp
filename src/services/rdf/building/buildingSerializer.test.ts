@@ -690,7 +690,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
   );
 });
 
-Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping via generic import", async () => {
+Deno.test("buildingsToXlsx: a buildings sheet (one row per building) + an Observations sheet, round-tripping via generic import", async () => {
   const buildings = [
     {
       id: "1",
@@ -711,13 +711,14 @@ Deno.test("buildingsToXlsx is one sheet, one row per building, round-tripping vi
     },
   ] as unknown as BuildingType[];
 
-  // One sheet, two data rows (one per building).
+  // The buildings sheet has two data rows (one per building); the annual energy also
+  // lands on an export-only Observations sheet (both buildings carry annualData).
   const wb = XLSX.read(new Uint8Array(await buildingsToXlsx(buildings)), {
     type: "array",
   });
-  assert.deepEqual(wb.SheetNames, ["Gebäude"]);
+  assert.deepEqual(wb.SheetNames, ["Buildings", "Observations"]);
   const sheetRows = XLSX.utils.sheet_to_json<Record<string, string>>(
-    wb.Sheets["Gebäude"],
+    wb.Sheets["Buildings"],
     { raw: false, defval: "" },
   );
   assert.equal(sheetRows.length, 2);

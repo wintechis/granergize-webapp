@@ -4,7 +4,7 @@ import * as XLSX from "xlsx";
 import type { BuildingType } from "../../types.ts";
 import { buildingsToXlsx, buildingToXlsx } from "./buildingWorkbook.ts";
 
-/** Read the single "Gebäude" sheet back out of exported `.xlsx` bytes. */
+/** Read the first (buildings) sheet back out of exported `.xlsx` bytes. */
 function readSheet(bytes: ArrayBuffer): XLSX.WorkSheet {
   const wb = XLSX.read(new Uint8Array(bytes), { type: "array" });
   return wb.Sheets[wb.SheetNames[0]];
@@ -102,25 +102,25 @@ Deno.test("buildingsToXlsx adds an Observations sheet: one row per (building, ye
   const wb = XLSX.read(new Uint8Array(await buildingsToXlsx(buildings)), {
     type: "array",
   });
-  // The buildings stay on "Gebäude"; the observations land on a second sheet.
-  assert.deepEqual(wb.SheetNames, ["Gebäude", "Beobachtungen"]);
+  // Default locale is English → the sheet names + headers localise to English.
+  assert.deepEqual(wb.SheetNames, ["Buildings", "Observations"]);
 
   const obs = XLSX.utils.sheet_to_json<Record<string, unknown>>(
-    wb.Sheets["Beobachtungen"],
+    wb.Sheets["Observations"],
   );
   // 2 years for b1 + 1 for b2 = 3 rows; b3 (no annual data) contributes none.
   assert.equal(obs.length, 3);
-  // Each row joins to the Gebäude sheet on `id`, with the year + metric columns.
-  const b1y99 = obs.find((r) => r.id === "b1" && r.year === 2099);
-  assert.equal(b1y99?.["electricity (kWh)"], 22222);
-  assert.equal(b1y99?.["water (m³)"], 5);
-  assert.equal(b1y99?.["renewable self-generated (%)"], 12);
+  // Each row joins to the buildings sheet on `id`, with the year + metric columns.
+  const b1y99 = obs.find((r) => r.id === "b1" && r.Year === 2099);
+  assert.equal(b1y99?.["Electricity (kWh)"], 22222);
+  assert.equal(b1y99?.["Water (m³)"], 5);
+  assert.equal(b1y99?.["Renewable self-generated (%)"], 12);
   assert.equal(
-    obs.find((r) => r.id === "b1" && r.year === 2098)?.["heat (kWh)"],
+    obs.find((r) => r.id === "b1" && r.Year === 2098)?.["Heat (kWh)"],
     88,
   );
   assert.equal(
-    obs.find((r) => r.id === "b2")?.["electricity generation (kWh)"],
+    obs.find((r) => r.id === "b2")?.["Electricity generation (kWh)"],
     4000,
   );
 });
@@ -132,5 +132,5 @@ Deno.test("buildingsToXlsx omits the Observations sheet when no building has ann
   const wb = XLSX.read(new Uint8Array(await buildingsToXlsx(buildings)), {
     type: "array",
   });
-  assert.deepEqual(wb.SheetNames, ["Gebäude"]);
+  assert.deepEqual(wb.SheetNames, ["Buildings"]);
 });

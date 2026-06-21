@@ -1178,6 +1178,39 @@ export const MESSAGES = {
     de: "Stromerzeugung",
     fr: "Production d'électricité",
   },
+  // xlsx export — sheet names + the Observations sheet's column headers. These are
+  // human-facing chrome, so they localise. (The generic round-trip columns are
+  // machine keys, and the investor/benchmark labels are detection-keyed German, so
+  // both of those stay fixed regardless of locale.)
+  xlsxSheetBuildings: { en: "Buildings", de: "Gebäude", fr: "Bâtiments" },
+  xlsxSheetObservations: {
+    en: "Observations",
+    de: "Beobachtungen",
+    fr: "Observations",
+  },
+  xlsxObsYear: { en: "Year", de: "Jahr", fr: "Année" },
+  xlsxObsElectricity: {
+    en: "Electricity (kWh)",
+    de: "Strom (kWh)",
+    fr: "Électricité (kWh)",
+  },
+  xlsxObsElectricityGeneration: {
+    en: "Electricity generation (kWh)",
+    de: "Stromerzeugung (kWh)",
+    fr: "Production d'électricité (kWh)",
+  },
+  xlsxObsHeat: { en: "Heat (kWh)", de: "Wärme (kWh)", fr: "Chaleur (kWh)" },
+  xlsxObsWater: { en: "Water (m³)", de: "Wasser (m³)", fr: "Eau (m³)" },
+  xlsxObsWastewater: {
+    en: "Wastewater (m³)",
+    de: "Abwasser (m³)",
+    fr: "Eaux usées (m³)",
+  },
+  xlsxObsRenewable: {
+    en: "Renewable self-generated (%)",
+    de: "Erneuerbar selbst erzeugt (%)",
+    fr: "Renouvelable autoproduit (%)",
+  },
   // Cube-view band labels — efficiency tiers (consumption framing) and the
   // neutral low/mid/high magnitude buckets (generation framing).
   lensTierEfficient: {
