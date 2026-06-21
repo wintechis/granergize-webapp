@@ -18,11 +18,10 @@ import { ellipsis } from "../../constants/listStyles.ts";
 import { useT } from "../../context/I18nProvider.tsx";
 
 /**
- * The **cross-building space-cut panel** (Step 2 of `plans/plan-cube-ui.md`): a
- * buildings × years heatmap — rows are buildings, columns are the reachable
- * years, each cell coloured by that building-year's efficiency tier. Where the
- * map's time-cut slider shows the whole set at one year, this shows the whole
- * temporal evolution of the set at once (the "cross-building temporal finder").
+ * The Observations finder's **over-time** view: a buildings × years heatmap — rows
+ * are buildings, columns are the reachable years, each cell coloured by that
+ * building-year's efficiency tier. Where the finder's map shows the whole set at one
+ * year (the slider), this shows the whole temporal evolution of the set at once.
  *
  * It is a pure render over `buildEnergyMatrix` (the unit-tested shaping fn) and
  * the same `EnergyByBuildingYear` cube the map's energy lens loads — so the panel
@@ -39,7 +38,7 @@ import { useT } from "../../context/I18nProvider.tsx";
 const CELL = 28;
 const NAME_COL = 200;
 
-interface BuildingsMatrixProps {
+interface ObservationsMatrixProps {
   buildings: BuildingType[];
   /** The per-building annual cube (from `useAnnualEnergyByYear`). */
   energyByYear: EnergyByBuildingYear | undefined;
@@ -49,8 +48,8 @@ interface BuildingsMatrixProps {
   metric?: EnergyMetricKey;
 }
 
-export default function BuildingsMatrix(
-  { buildings, energyByYear, visibleIds, metric = DEFAULT_METRIC }: BuildingsMatrixProps,
+export default function ObservationsMatrix(
+  { buildings, energyByYear, visibleIds, metric = DEFAULT_METRIC }: ObservationsMatrixProps,
 ) {
   const navigate = useNavigate();
   const t = useT();

@@ -35,9 +35,11 @@ export interface CubeAxisBarProps<
   T extends string = string,
 > {
   readonly space: CubeAxisGroup<S>;
-  readonly colour: CubeAxisGroup<C>;
-  /** Optional Time axis — Buildings omits it (Time falls out of Space); a second
-   *  cube finder (Aggregations: a timeline) can supply it. */
+  /** Optional Colour axis — a finder with a single view axis (the Buildings Map/List
+   *  toggle, the Observations View toggle) passes only `space`. */
+  readonly colour?: CubeAxisGroup<C>;
+  /** Optional Time axis — a second cube finder (Aggregations: a timeline) can supply
+   *  it. */
   readonly time?: CubeAxisGroup<T>;
   /** Measure selector (e.g. the metric `TextField select`) — shown when the
    *  caller supplies it (i.e. the active Colour encodes a measure). */
@@ -78,7 +80,7 @@ export default function CubeAxisBar<
     >
       <AxisToggle group={space} />
       {time && <AxisToggle group={time} />}
-      <AxisToggle group={colour} />
+      {colour && <AxisToggle group={colour} />}
       {metricSlot}
     </Box>
   );

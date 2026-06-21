@@ -1,95 +1,44 @@
 /**
- * The Buildings finder's TWO orthogonal view axes. The finder is a cube over
- * **Space** (building) × **Time** (year) × **Measure** (energy metric); a view is
- * a choice on just two user-facing axes — **Time falls out of Space** (a map shows
- * one year, a list shows every year), so it isn't a separate control:
+ * The Buildings finder's single SPATIAL axis. Buildings is the space/identity view
+ * of the building set — the energy cube moved to the Observations finder
+ * (`observationsAxes.ts`) — so this is just Map ⇄ List over the owned/shared set:
  *
- * - **Space** — `map` (geographic Leaflet markers) | `rows` (the list / grid area).
- * - **Colour** — what the mark encodes: `ownership` (owned/shared tier, no measure)
- *   | `energy` (the metric's efficiency/magnitude band).
+ * - `map`  — geographic owned/shared markers;
+ * - `rows` — the actionable building list (tier dots + share/delete).
  *
- * The 2 × 2 is fully orthogonal (every combination is a real view, so there is no
- * cross-axis coercion):
- * - `map` + `ownership` → geographic pins by owner;
- * - `map` + `energy` → pins banded by the metric at one year (+ a year slider);
- * - `rows` + `ownership` → the actionable building list (tier dots + share/delete);
- * - `rows` + `energy` → the efficiency-over-time heatmap (building × year).
- *
- * Pure + React-free so it's Tier-1 testable. (Replaces the old conflated
- * `?view=`/`?explore=` toggle + the map-only ownership/energy/trend "lens"; the
- * trend lens and the compare-years view were dropped.)
+ * Pure + React-free → Tier-1 testable. `?space=map|rows`, map being the implicit
+ * default (omitted from the URL).
  */
 export type Space = "map" | "rows";
-export type Colour = "ownership" | "energy";
 
 export interface CubeAxes {
   readonly space: Space;
-  readonly colour: Colour;
 }
 
 /** The default view (omitted from the URL): the geographic ownership map. */
-export const DEFAULT_AXES: CubeAxes = { space: "map", colour: "ownership" };
+export const DEFAULT_AXES: CubeAxes = { space: "map" };
 
-/** Which surface renders for a resolved pair. */
-export type CubeRenderer = "map" | "list" | "matrix";
+/** Which surface renders for a resolved axis. */
+export type CubeRenderer = "map" | "list";
 
 const SPACES: ReadonlySet<string> = new Set<Space>(["map", "rows"]);
-const COLOURS: ReadonlySet<string> = new Set<Colour>(["ownership", "energy"]);
 
-/**
- * Read the two axes from the URL, applying back-compat for the retired
- * `?view=`/`?explore=` params (the colour was never URL-encoded). Never trusts the
- * URL: unknown values fall back to defaults. The two axes are independent, so
- * there is no coercion.
- */
+/** Read the spatial axis from `?space=`; unknown/absent → the default (the map). */
 export function resolveAxes(params: URLSearchParams): CubeAxes {
-  const rawSpace = params.get("space");
-  const rawColour = params.get("colour");
-  const view = params.get("view"); // legacy: list | (map)
-  const explore = params.get("explore"); // legacy: matrix | compare | (map)
-  const legacyRows = view === "list" || explore === "matrix" ||
-    explore === "compare";
-
-  const space: Space = SPACES.has(rawSpace ?? "")
-    ? (rawSpace as Space)
-    : legacyRows
-    ? "rows"
-    : "map";
-
-  const colour: Colour = COLOURS.has(rawColour ?? "")
-    ? (rawColour as Colour)
-    // The legacy matrix/compare grids both map to the energy heatmap now.
-    : explore === "matrix" || explore === "compare"
-    ? "energy"
-    : "ownership";
-
-  return { space, colour };
+  const raw = params.get("space");
+  return { space: SPACES.has(raw ?? "") ? (raw as Space) : "map" };
 }
 
-/** Serialize axes to URL params, omitting defaults (clean links) and clearing the
- *  retired `?view=`/`?explore=`; unrelated params (`?m=`, `?y=`, `?c=`, `?z=`) on
- *  `prev` survive. */
+/** Serialize to `?space=`, omitting the default and preserving unrelated params
+ *  (the map's `?c=`/`?z=`, the list's `?offset=`). */
 export function toParams(axes: CubeAxes, prev: URLSearchParams): URLSearchParams {
   const sp = new URLSearchParams(prev);
-  sp.delete("view");
-  sp.delete("explore");
-  const set = (k: string, v: string, def: string) =>
-    v === def ? sp.delete(k) : sp.set(k, v);
-  set("space", axes.space, DEFAULT_AXES.space);
-  set("colour", axes.colour, DEFAULT_AXES.colour);
+  if (axes.space === DEFAULT_AXES.space) sp.delete("space");
+  else sp.set("space", axes.space);
   return sp;
 }
 
-/** The renderer a resolved pair selects. */
-export function pickRenderer({ space, colour }: CubeAxes): CubeRenderer {
-  if (space === "map") return "map";
-  return colour === "energy" ? "matrix" : "list";
+/** The renderer a resolved axis selects. */
+export function pickRenderer({ space }: CubeAxes): CubeRenderer {
+  return space === "map" ? "map" : "list";
 }
-
-/** The energy metric selector is shown whenever colour encodes the measure. */
-export const showsMetric = (axes: CubeAxes): boolean => axes.colour === "energy";
-
-/** The year slider is shown only on the map's energy view (a list shows all years
- *  at once as the heatmap, so it needs no year pick). */
-export const showsYearSlider = (axes: CubeAxes): boolean =>
-  axes.space === "map" && axes.colour === "energy";

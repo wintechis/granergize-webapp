@@ -3,12 +3,7 @@ import { lazy, Suspense, useMemo, useState } from "react";
 import CircularProgress from "@mui/material/CircularProgress";
 import Box from "@mui/material/Box";
 import { useLocation, useSearchParams } from "react-router-dom";
-import {
-  Button,
-  MenuItem,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { Button, Typography } from "@mui/material";
 import AddIcon from "@mui/icons-material/Add";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import DownloadIcon from "@mui/icons-material/Download";
@@ -27,24 +22,13 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import { msg } from "../lib/messages.ts";
 import { useConfirm } from "../context/ConfirmContext.tsx";
-import {
-  useAnnualEnergyByYear,
-  useSharedBuildings,
-  useSolidData,
-} from "../hooks/queries.ts";
+import { useSharedBuildings, useSolidData } from "../hooks/queries.ts";
 import {
   type CubeAxes,
   resolveAxes,
-  showsMetric,
   toParams,
 } from "../services/cube/exploreAxes.ts";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
-import BuildingsMatrix from "../components/building/BuildingsMatrix.tsx";
-import {
-  clampMetric,
-  metricLabelKey,
-  SELECTABLE_METRICS,
-} from "../services/energy/energyMetric.ts";
 import {
   useDeleteBuilding,
   useRevokeBuildingAccess,
@@ -76,15 +60,14 @@ interface BuildingsFinderProps {
 }
 
 /**
- * The Buildings finder (`/buildings`): a data cube over the same building set,
- * shown through two orthogonal axes (`?space`/`?colour`, see `services/cube/
- * exploreAxes.ts`). Space = Map ⇄ List; Colour = Ownership ⇄ Energy → four views:
- * the ownership/energy `BuildingsMap` (kept mounted-but-hidden off-map so the
- * Leaflet viewport survives), the actionable List (each row navigates to
- * `/building/:id` — edit / files / energy / share / download — and carries delete +
- * shared-with revoke), and the `BuildingsMatrix` efficiency-over-time heatmap. Every
- * surface's markers/rows navigate to the building page. Aggregations are their OWN
- * finder (`/aggregations`) now, not a section here.
+ * The Buildings finder (`/buildings`): the **space/identity** view of the building
+ * set — Map ⇄ List over owned + shared-with-me buildings (`?space=map|rows`, see
+ * `services/cube/exploreAxes.ts`). The map (`BuildingsMap colour="ownership"`) is kept
+ * mounted-but-hidden off-map so the Leaflet viewport survives; the List row navigates
+ * to `/building/:id` (edit / files / energy / share / download) and carries delete +
+ * shared-with revoke. **Energy moved to the Observations finder** (`/observations`) —
+ * the natural home for the per-building, per-year time-series. Aggregations are their
+ * OWN finder (`/aggregations`).
  */
 export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   // The cube's two orthogonal view axes are URL state (`?space=`/`?colour=`, the
@@ -116,23 +99,6 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   );
   const filteredBuildings = filterByText(byTier, query, buildingSearchText);
   const buildingPaging = usePaging(filteredBuildings);
-  // The energy metric (?m) — the cube's measure axis — shared by the map's bands,
-  // the over-time heatmap, and the (finder-owned) metric selector.
-  const metric = clampMetric(searchParams.get("m"));
-  const setMetric = (m: string) =>
-    setSearchParams((prev) => {
-      const sp = new URLSearchParams(prev);
-      sp.set("m", m);
-      return sp;
-    }, { replace: true });
-  // The over-time heatmap (rows + energy) re-colours over the per-year energy cube,
-  // banded against the filtered set as peers. Loaded only when that view is up.
-  const heatmapOn = axes.space === "rows" && axes.colour === "energy";
-  const { data: energyByYear } = useAnnualEnergyByYear(buildings, heatmapOn);
-  const visibleIds = useMemo(
-    () => new Set(filteredBuildings.map((b) => b.id)),
-    [filteredBuildings],
-  );
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
   const t = useT();
 
@@ -268,40 +234,13 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                   { value: "rows", label: t("btnList") },
                 ],
               }}
-              colour={{
-                value: axes.colour,
-                ariaLabel: msg("lensAria"),
-                onChange: (colour) => setAxes({ colour }),
-                options: [
-                  { value: "ownership", label: msg("lensOwnership") },
-                  { value: "energy", label: msg("lensEnergy") },
-                ],
-              }}
-              metricSlot={showsMetric(axes)
-                ? (
-                  <TextField
-                    select
-                    size="small"
-                    value={metric}
-                    onChange={(e) => setMetric(e.target.value)}
-                    label={t("metricSelectLabel")}
-                    sx={{ minWidth: 160 }}
-                  >
-                    {SELECTABLE_METRICS.map((m) => (
-                      <MenuItem key={m.key} value={m.key}>
-                        {t(metricLabelKey(m.key))}
-                      </MenuItem>
-                    ))}
-                  </TextField>
-                )
-                : undefined}
             />
           </>
         }
       >
-        {/* Space=map: a fixed-size map (same height as the Aggregations map), kept
-            mounted — only hidden on the rows surfaces — to preserve the Leaflet
-            instance + viewport. Its markers colour by the resolved Colour axis. */}
+        {/* Map: a fixed-size map (same height as the Aggregations map), kept mounted
+            — only hidden on the List — to preserve the Leaflet instance + viewport.
+            Owned/shared pins; energy now lives in the Observations finder. */}
         <Box
           sx={{
             display: axes.space === "map" ? "flex" : "none",
@@ -314,24 +253,12 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
           <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
             <BuildingsMap
               active={onBuildings && axes.space === "map"}
-              colour={axes.colour}
+              colour="ownership"
             />
           </Suspense>
         </Box>
-      {/* Space=rows + Colour=energy: the efficiency-over-time heatmap (building ×
-          year), banded against the filtered set. Mounted only while shown. */}
-      {axes.space === "rows" && axes.colour === "energy" && (
-        <Box sx={{ minHeight: 0, overflow: "auto" }}>
-          <BuildingsMatrix
-            buildings={filteredBuildings}
-            energyByYear={energyByYear}
-            visibleIds={visibleIds}
-            metric={metric}
-          />
-        </Box>
-      )}
-      {/* Space=rows + Colour=ownership: the actionable List (tier dots + actions). */}
-      {axes.space === "rows" && axes.colour === "ownership" && (
+      {/* List: the actionable building list (tier dots + share/delete). */}
+      {axes.space === "rows" && (
         <>
           {buildingsLoading
               ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>

@@ -1227,6 +1227,31 @@ export const MESSAGES = {
   lensMagnitudeLow: { en: "Lower", de: "Niedriger", fr: "Plus faible" },
   lensMagnitudeMid: { en: "Medium", de: "Mittel", fr: "Moyen" },
   lensMagnitudeHigh: { en: "Higher", de: "Höher", fr: "Plus élevé" },
+  // Observations finder — the View toggle (Map/List reuse btnMap/btnList) + the
+  // per-building trend labels (the Trend view + each row's direction).
+  obsViewAria: {
+    en: "Observations view",
+    de: "Beobachtungsansicht",
+    fr: "Vue des observations",
+  },
+  obsViewOvertime: { en: "Over time", de: "Im Zeitverlauf", fr: "Dans le temps" },
+  obsViewTrend: { en: "Trend", de: "Trend", fr: "Tendance" },
+  trendImproving: {
+    en: "Improving",
+    de: "Verbessert sich",
+    fr: "En amélioration",
+  },
+  trendFlat: { en: "Little change", de: "Kaum Veränderung", fr: "Peu de changement" },
+  trendWorsening: {
+    en: "Worsening",
+    de: "Verschlechtert sich",
+    fr: "En dégradation",
+  },
+  trendUnknown: {
+    en: "No trend yet",
+    de: "Noch kein Trend",
+    fr: "Pas encore de tendance",
+  },
   lensBandNoData: {
     en: "No data",
     de: "Keine Daten",

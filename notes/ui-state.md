@@ -45,16 +45,18 @@ does not pile up browser-history entries. Slugs are human-readable and reorder-s
 Encoded now:
 
 - `tab` — the active home tab: `explore | manage | share | connect`.
-- `space` / `colour` — the Buildings finder's two orthogonal cube axes:
-  `space` = `map | rows` (the List/heatmap area; absent → map), `colour` =
-  `ownership | energy` (absent → ownership). Together they pick the view — map pins,
-  the energy map, the actionable List, or the over-time heatmap. The retired `view`
-  (`list`) and `explore` (`matrix`/`compare`) params map onto these on read.
+- `space` — the **Buildings** finder's spatial axis: `map | rows` (the List; absent →
+  map). Buildings is space/identity only — owned/shared markers and the actionable
+  List — so it carries no energy params. (`observationsAxes` resolves the energy cube
+  separately; the energy moved there.)
+- `view` — the **Observations** finder's view axis: `map | list | overtime | trend`
+  (absent → map). Observations is the energy cube — geographic energy@year, the
+  per-building summary list, the over-time heatmap, the per-building trend.
 - `m` — the energy metric (the cube's measure axis), shown/written by the metric
-  selector whenever `colour=energy`; every energy surface honours this one choice.
-- `y` — the Buildings map's energy time-cut year (the year the energy colour bands
-  by). Clamped on read to the reachable year set; absent → the latest year. Set
-  by the year slider (and its play/pause animation) on the Buildings map.
+  selector on every Observations energy view (all but the List); one shared choice.
+- `y` — the Observations map's energy time-cut year (the year the energy colour bands
+  by). Clamped on read to the reachable year set; absent → the latest year. Set by the
+  year slider (and its play/pause animation) inside `BuildingsMap`.
 
 The Buildings map is a **pure finder**: a marker click navigates to the building's
 standalone page (`/building/:id`), so there is no selected-building / detail-sub-tab
@@ -87,10 +89,17 @@ page address.
 
 ### Buildings finder — `src/pages/BuildingsFinder.tsx` (+ `components/building/BuildingsMap.tsx`)
 
-- Navigational: the two cube axes → `space` / `colour`; the energy metric → `m`;
-  the energy time-cut year → `y`. A marker/row click navigates to `/building/:id`
-  (every surface is a finder).
+- Navigational: the spatial axis → `space` (Map ⇄ List, owned/shared only). A
+  marker/row click navigates to `/building/:id` (every surface is a finder).
 - Deferred-navigational: the map bounding box / viewport.
+- Ephemeral: the tile-loading token.
+
+### Observations finder — `src/pages/ObservationsFinder.tsx` (+ `BuildingsMap colour="energy"`, `ObservationsMatrix`, `ObservationsTrend`)
+
+- Navigational: the view axis → `view`; the energy metric → `m`; the map's time-cut
+  year → `y`. Every surface (map markers, list rows, heatmap cells, trend rows)
+  navigates to `/building/:id` or `/observation/:id`.
+- Deferred-navigational: the map viewport; the list pager.
 - Ephemeral: the drag-local draft year and the play/pause flag, the energy
   intensities derived per building, the tile-loading token.
 - Children: `WeatherData` (now a section on the observation page) holds a selected
