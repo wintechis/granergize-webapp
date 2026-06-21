@@ -37,7 +37,7 @@ import { INTENT_PARAMS } from "../intents/params.ts";
 import { intentLabelKey } from "../intents/labels.ts";
 import { isFormEligible } from "./paramForm.ts";
 import { type MessageId } from "./messages.ts";
-import { type DialogAction } from "../routes.ts";
+import { type DialogAction, withAction } from "../routes.ts";
 import { goTo } from "../intents/navigate.ts";
 import { buildingDisplayName, buildingSearchText } from "./buildingDisplay.ts";
 import type { BuildingType } from "../types.ts";
@@ -220,6 +220,38 @@ export function buildingNavCommands(
       path: route,
     };
   });
+}
+
+/**
+ * "Add observation to ⟨building⟩" commands — one per OWNED building, routing to its
+ * observation page with the `enter-energy` action so `EnergyYearDialog` auto-opens.
+ * Energy entry is owner-only, so shared-with-me buildings are excluded. Like
+ * {@link buildingNavCommands}, surfaced only while filtering (a quick action), so it
+ * never floods the default view. `label` formats the localised "Add observation to
+ * {name}" string (kept out of this pure module). Pure → Tier-1 testable.
+ */
+export function buildingObservationCommands(
+  buildings: readonly BuildingType[],
+  label: (name: string) => string,
+): PaletteCommand[] {
+  return buildings
+    .filter((b) => !b.isShared)
+    .map((b) => {
+      const text = label(buildingDisplayName(b));
+      const path = withAction(
+        goTo("ShowObservation", { id: b.id }),
+        "enter-energy",
+      );
+      return {
+        key: path,
+        family: "navigation" as const,
+        label: text,
+        // Findable by the action words ("add observation") AND the building's
+        // name / address / company / code.
+        searchText: `${text} ${buildingSearchText(b)}`,
+        path,
+      };
+    });
 }
 
 /**

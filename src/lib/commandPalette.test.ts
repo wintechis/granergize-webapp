@@ -3,6 +3,7 @@ import { strict as assert } from "node:assert";
 import {
   buildCommandList,
   buildingNavCommands,
+  buildingObservationCommands,
   DIRECT_INVOKE_EXCLUDED,
   filterCommands,
   intentDialogAction,
@@ -12,7 +13,7 @@ import {
   resolveBuildingByQuery,
 } from "./commandPalette.ts";
 import { buildingDisplayName } from "./buildingDisplay.ts";
-import { buildingRoute, withAction } from "../routes.ts";
+import { buildingRoute, observationRoute, withAction } from "../routes.ts";
 import { findIntent, type IntentObject } from "../intents/applicable.ts";
 import { INTENTS } from "../intents/catalog.ts";
 import type { TFn } from "../context/I18nProvider.tsx";
@@ -403,6 +404,45 @@ Deno.test("buildingNavCommands: each building → a navigation command routed by
 
 Deno.test("buildingNavCommands: empty list → no commands", () => {
   assert.deepEqual(buildingNavCommands([]), []);
+});
+
+Deno.test("buildingObservationCommands: owned → enter-energy route; shared excluded", () => {
+  const own = building({
+    id: "granergize/buildings/b1.ttl#it",
+    streetAddress: "Nordostpark 84",
+  });
+  const shared = building({
+    id: "https://bob.example/granergize/buildings/x.ttl#it",
+    isShared: true,
+  });
+  const label = (name: string) => `Add observation to ${name}`;
+  const cmds = buildingObservationCommands([own, shared], label);
+
+  // Owner-only: the shared building contributes no command.
+  assert.equal(cmds.length, 1);
+  assert.equal(cmds[0].family, "navigation");
+  assert.equal(cmds[0].label, `Add observation to ${buildingDisplayName(own)}`);
+  // Routes to the observation page with the dialog auto-open action.
+  assert.equal(cmds[0].path, withAction(observationRoute(own.id), "enter-energy"));
+  assert.match(cmds[0].path!, /action=enter-energy/);
+});
+
+Deno.test("buildingObservationCommands: findable by the action words AND the address", () => {
+  const b = building({
+    id: "granergize/buildings/b1.ttl#it",
+    buildingCode: "NOP-84",
+    streetAddress: "Nordostpark 84",
+  });
+  const cmds = buildingObservationCommands(
+    [b],
+    (name) => `Add observation to ${name}`,
+  );
+  assert.equal(filterCommands(cmds, "add observation").length, 1);
+  assert.equal(filterCommands(cmds, "Nordostpark").length, 1);
+});
+
+Deno.test("buildingObservationCommands: empty list → no commands", () => {
+  assert.deepEqual(buildingObservationCommands([], (n) => n), []);
 });
 
 Deno.test("resolveBuildingByQuery: exact id wins, else name / address / code / locality", () => {

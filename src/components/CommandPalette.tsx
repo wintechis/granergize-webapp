@@ -16,6 +16,7 @@ import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
 import {
   buildCommandList,
   buildingNavCommands,
+  buildingObservationCommands,
   filterCommands,
   intentDialogAction,
   type NavTarget,
@@ -202,11 +203,25 @@ export default function CommandPalette() {
     () => buildingNavCommands(buildingList),
     [buildingList],
   );
+  // Search-only "Add observation to <building>" quick actions — one per owned
+  // building, routing to its observation page with the dialog auto-opened.
+  const observationCommands = useMemo<PaletteCommand[]>(
+    () =>
+      buildingObservationCommands(
+        buildingList,
+        (name) => t("paletteAddObservation", { name }),
+      ),
+    [buildingList, t],
+  );
   const filtered = useMemo(() => {
     const base = filterCommands(commands, query);
     if (!query.trim()) return base;
-    return [...base, ...filterCommands(buildingCommands, query)];
-  }, [commands, buildingCommands, query]);
+    return [
+      ...base,
+      ...filterCommands(buildingCommands, query),
+      ...filterCommands(observationCommands, query),
+    ];
+  }, [commands, buildingCommands, observationCommands, query]);
 
   // Clamp the highlighted index into range as the list shrinks under the filter,
   // derived at render rather than synced via setState-in-effect.

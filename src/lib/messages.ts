@@ -108,6 +108,13 @@ export const MESSAGES = {
   },
   paletteGroupNavigation: { en: "Go to", de: "Gehe zu", fr: "Aller à" },
   paletteGroupActions: { en: "Actions", de: "Aktionen", fr: "Actions" },
+  // Per-building quick action: jump to a building's observation page with the
+  // energy-year dialog auto-opened (owner-only buildings).
+  paletteAddObservation: {
+    en: "Add observation to {name}",
+    de: "Beobachtung zu {name} hinzufügen",
+    fr: "Ajouter une observation à {name}",
+  },
   // Dev-mode JSON paste-and-launch (plan-intent-core §10): paste a `{name,params}`
   // intent into the palette and press Enter to launch it.
   paletteLaunchHint: {
