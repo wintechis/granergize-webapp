@@ -81,11 +81,14 @@ test.describe("aggregation sharing across two pods", () => {
           await openAggregations(b2.page);
           await expect(aggregationsList(b2.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.quick });
+          // Show-values + chart render INSIDE the reload loop: B's value fetch is
+          // cross-Pod, so a transient failure under load must re-fetch on the next
+          // reload, not fail a one-shot wait.
+          await b2.page.getByRole("button", { name: t("shareShowValues") }).first()
+            .click();
+          await expect(b2.page.locator("svg.recharts-surface").first())
+            .toBeVisible({ timeout: T.visible });
         });
-        await b2.page.getByRole("button", { name: t("shareShowValues") }).first()
-          .click();
-        await expect(b2.page.locator("svg.recharts-surface").first())
-          .toBeVisible({ timeout: T.action });
       } catch (timeout) {
         b2.guard.assertNoAppErrors();
         throw timeout;
@@ -204,11 +207,14 @@ test.describe("aggregation sharing across two pods", () => {
           await openAggregations(b.page);
           await expect(aggregationsList(b.page).getByText(AGGREGATION_NAME))
             .toBeVisible({ timeout: T.quick });
+          // Show-values + chart render INSIDE the reload loop: B's value fetch is
+          // cross-Pod, so a transient failure under load must re-fetch on the next
+          // reload, not fail a one-shot wait.
+          await b.page.getByRole("button", { name: t("shareShowValues") }).first()
+            .click();
+          await expect(b.page.locator("svg.recharts-surface").first())
+            .toBeVisible({ timeout: T.visible });
         });
-        await b.page.getByRole("button", { name: t("shareShowValues") }).first()
-          .click();
-        await expect(b.page.locator("svg.recharts-surface").first())
-          .toBeVisible({ timeout: T.action });
       } catch (timeout) {
         b.guard.assertNoAppErrors();
         throw timeout;

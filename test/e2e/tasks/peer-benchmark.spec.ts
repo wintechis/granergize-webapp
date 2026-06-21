@@ -11,6 +11,7 @@ import {
   shareByWebId,
 } from "../helpers/manage.ts";
 import { freshPage } from "../helpers/twoPod.ts";
+import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -155,10 +156,14 @@ test.describe("peer benchmark round-trip (BSP)", () => {
     const a2 = await freshPage(browser, A);
     try {
       // First confirm A actually RECEIVED the benchmark (Aggregations finder, Shared
-      // tier) — separates a receipt failure from an energy-render failure.
-      await openAggregations(a2.page);
-      await expect(aggregationsList(a2.page).getByText(BENCH_VIEW))
-        .toBeVisible({ timeout: T.action });
+      // tier) — separates a receipt failure from an energy-render failure. Cross-Pod
+      // receipt: reload (re-drain the inbox) until the BSP's benchmark propagates and
+      // folds in, rather than a one-shot wait that races a late share.
+      await reloadUntil(a2.page, async () => {
+        await openAggregations(a2.page);
+        await expect(aggregationsList(a2.page).getByText(BENCH_VIEW))
+          .toBeVisible({ timeout: T.quick });
+      });
 
       await openBuildingsList(a2.page);
       const row = a2.page.locator("li", { hasText: STREET }).first();

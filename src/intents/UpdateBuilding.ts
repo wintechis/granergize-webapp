@@ -51,12 +51,14 @@ export async function updateBuildingCore(
     params.fields,
     params.systems,
   );
-  // Auto-remember each WebID agent in the address book (fire-and-forget; the
-  // contacts cache priming is the adapter's concern).
+  // Auto-remember each WebID agent. AWAIT the immediate cache write (rememberAgent
+  // settles after it, before its background name-refine) so the adapter's onSuccess
+  // contacts invalidation sees the new entries instead of racing them. Sequentially,
+  // since contacts.ttl's conditional PUT is inert and concurrent writes would clobber.
   for (const field of AGENT_FIELDS) {
     const value = params.fields[field];
     if (typeof value === "string" && /^https?:\/\//.test(value)) {
-      void rememberAgent(gateway, value);
+      await rememberAgent(gateway, value);
     }
   }
   return { ok: true };

@@ -103,12 +103,16 @@ export async function addBuildingCore(
       const ttl = serializeBuildingToTurtle(b, uri, energyLinks, provenance);
       await uploadBuilding(gateway, uri, ttl, webId, signal);
       added.push(subjectUri);
-      // Auto-remember the building's WebID agents (fire-and-forget; the contacts
-      // cache priming is the adapter's concern).
+      // Auto-remember the building's WebID agents. AWAIT the immediate cache write
+      // (rememberAgent settles after it, before its background name-refine) so the
+      // adapter's onSuccess contacts invalidation sees the new entries — a fire-and-
+      // forget write races that refetch and the finder shows a stale empty book.
+      // Sequentially, since contacts.ttl's conditional PUT is inert and concurrent
+      // read-modify-writes would clobber.
       for (const field of AGENT_FIELDS) {
         const value = b[field];
         if (typeof value === "string" && /^https?:\/\//.test(value)) {
-          void rememberAgent(gateway, value);
+          await rememberAgent(gateway, value);
         }
       }
     }
