@@ -53,7 +53,7 @@ async function downloadSharedFile(page: Page): Promise<void> {
   await reloadUntil(page, async () => {
     await page.getByRole("tab", { name: t("navSharing") }).click();
     await expect(page.getByRole("link", { name: tPattern("shareBuildingN") }).first())
-      .toBeVisible({ timeout: T.action });
+      .toBeVisible({ timeout: T.quick });
   });
   await page.getByRole("link", { name: tPattern("shareBuildingN") }).first().click();
   const fileRow = page.locator("li", { hasText: "sample.pdf" });

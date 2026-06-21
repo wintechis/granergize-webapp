@@ -89,8 +89,8 @@ test.describe("sharing across two pods", () => {
           // inbox each attempt, until A's grant propagates and folds in.
           await reloadUntil(b2.page, async () => {
             await b2.page.getByRole("tab", { name: t("navSharing") }).click();
-            await expect(received.getByText(/^Building /))
-              .toBeVisible({ timeout: T.action });
+            await expect(received.getByText(tPattern("shareBuildingN")))
+              .toBeVisible({ timeout: T.quick });
           });
         } catch (timeout) {
           b2.guard.assertNoAppErrors();
@@ -187,10 +187,10 @@ test.describe("sharing across two pods", () => {
       // recipient + its Revoke control appear.
       await reloadUntil(a.page, async () => {
         await expect(a.page.getByText(t("sharedWithLabel")))
-          .toBeVisible({ timeout: T.action });
+          .toBeVisible({ timeout: T.quick });
         await expect(
           a.page.getByRole("button", { name: t("revokeAccess") }).first(),
-        ).toBeVisible({ timeout: T.action });
+        ).toBeVisible({ timeout: T.quick });
       });
       // Back to the shell for the read-side / cleanup tab nav.
       await a.page.goto("/");
@@ -206,8 +206,8 @@ test.describe("sharing across two pods", () => {
           // inbox each attempt, until A's grant propagates and folds in.
           await reloadUntil(b2.page, async () => {
             await b2.page.getByRole("tab", { name: t("navSharing") }).click();
-            await expect(received.getByText(/^Building /))
-              .toBeVisible({ timeout: T.action });
+            await expect(received.getByText(tPattern("shareBuildingN")))
+              .toBeVisible({ timeout: T.quick });
           });
         } catch (timeout) {
           b2.guard.assertNoAppErrors();
@@ -222,7 +222,7 @@ test.describe("sharing across two pods", () => {
         // clean signal that hiding removes it from the map and showing brings it
         // back.
         const sharedRow = received.locator("li")
-          .filter({ has: b2.page.getByText(/^Building /) }).first();
+          .filter({ has: b2.page.getByText(tPattern("shareBuildingN")) }).first();
         const visToggle = sharedRow.getByRole("switch"); // the Shown/Hidden Switch (MUI v9 Switch → role="switch")
         await expect(sharedRow.getByText(t("shareShown"))).toBeVisible({
           timeout: T.action,
@@ -329,7 +329,7 @@ test.describe("sharing across two pods", () => {
         const markers = b2.page.locator(".leaflet-marker-icon");
         await reloadUntil(b2.page, async () => {
           await openBuildingsMap(b2.page);
-          await expect(markers.first()).toBeVisible({ timeout: T.action });
+          await expect(markers.first()).toBeVisible({ timeout: T.quick });
         });
 
         // The map is a pure finder now: a marker click NAVIGATES to the shared
@@ -432,7 +432,7 @@ test.describe("sharing across two pods", () => {
         const received = () =>
           b.page.getByRole("list", { name: t("sharedBuildingsHeading") });
         try {
-          await expect(received().getByText(/^Building /))
+          await expect(received().getByText(tPattern("shareBuildingN")))
             .toBeVisible({ timeout: T.action });
         } catch (timeout) {
           b.guard.assertNoAppErrors();
@@ -454,7 +454,7 @@ test.describe("sharing across two pods", () => {
           // B owned nothing else, so the received list must have no building rows.
           await reloadUntil(b.page, async () => {
             await b.page.getByRole("tab", { name: t("navSharing") }).click();
-            expect(await received().getByText(/^Building /).count()).toBe(0);
+            expect(await received().getByText(tPattern("shareBuildingN")).count()).toBe(0);
           });
         } catch (timeout) {
           b.guard.assertNoAppErrors();

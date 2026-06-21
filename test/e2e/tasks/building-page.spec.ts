@@ -67,14 +67,14 @@ test.describe("redesign: building page", () => {
 
   test("master data edits inline on the page (no modal)", async () => {
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("button", { name: t("btnEdit") }).first().click();
+    await page.getByRole("button", { name: t("btnEdit"), exact: true }).first().click();
     // Inline edit: editable fields appear on the page; Save/Cancel present.
     await expect(page.locator("input, textarea").first()).toBeVisible({
       timeout: T.action,
     });
-    await expect(page.getByRole("button", { name: t("btnSave") }).first())
+    await expect(page.getByRole("button", { name: t("btnSave"), exact: true }).first())
       .toBeVisible();
-    await page.getByRole("button", { name: t("btnCancel") }).first().click();
+    await page.getByRole("button", { name: t("btnCancel"), exact: true }).first().click();
   });
 
   test("the building page links to the full observation (energy) page", async () => {

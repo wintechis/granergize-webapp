@@ -35,6 +35,19 @@ export function t(id: MessageId, params?: MessageParams): string {
 }
 
 /**
+ * The localized `formatError` toast PREFIX — "Failed to {action}" / "Échec de
+ * {action}" — with the trailing ": {detail}" dropped (the detail varies at runtime),
+ * for asserting that a specific error toast surfaced in the run language. Never
+ * hardcode "Failed to …" in a spec: that English template doesn't match de/fr.
+ */
+export function failedTo(action: MessageId): string {
+  return translate(E2E_LANG, "failedTo", {
+    action: translate(E2E_LANG, action),
+    detail: "",
+  }).replace(/\s*:\s*$/, "");
+}
+
+/**
  * The English form of a catalog message, regardless of `E2E_LANG`. Use only when a
  * spec must assert English specifically (e.g. the language switcher's "before"
  * state); locale-agnostic specs use {@link t}.

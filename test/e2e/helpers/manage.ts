@@ -212,12 +212,12 @@ export async function addEnergyYear(
   }).click();
   await page.getByRole("spinbutton", { name: metricT("electricityConsumption") })
     .fill(electricity);
-  await page.getByRole("button", { name: t("btnSave") }).click();
+  await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
   await expect(page.getByText(t("energySaved")).first())
     .toBeVisible({ timeout: T.action });
   // Saving keeps the dialog open (so the table reflects the new year); close it
   // so each call is self-contained and the next action isn't blocked by the modal.
-  await page.getByRole("button", { name: t("btnClose") }).click();
+  await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
   await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
   // /observation/:id is a standalone route (no app shell) — return to the shell.
   await page.goto("/");
@@ -287,7 +287,7 @@ async function reviewAndConfirmShare(page: Page): Promise<void> {
   await confirm.click();
   await expect(dialog.getByText(t("shareSuccessWith")))
     .toBeVisible({ timeout: T.action });
-  await dialog.getByRole("button", { name: t("btnDone") }).click();
+  await dialog.getByRole("button", { name: t("btnDone"), exact: true }).click();
   await expect(dialog).toBeHidden({ timeout: T.action });
   // /building/:id is a standalone route (no app shell) — return to the shell.
   await page.goto("/");
@@ -414,7 +414,7 @@ export async function shareAggregationByWebId(
   await confirm.click();
   await expect(dialog.getByText(t("shareSuccessWith")))
     .toBeVisible({ timeout: T.action });
-  await dialog.getByRole("button", { name: t("btnClose") }).click();
+  await dialog.getByRole("button", { name: t("btnClose"), exact: true }).click();
   await expect(dialog).toBeHidden({ timeout: T.action });
 }
 

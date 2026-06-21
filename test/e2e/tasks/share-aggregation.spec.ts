@@ -80,12 +80,15 @@ test.describe("aggregation sharing across two pods", () => {
         await reloadUntil(b2.page, async () => {
           await openAggregations(b2.page);
           await expect(aggregationsList(b2.page).getByText(AGGREGATION_NAME))
-            .toBeVisible({ timeout: T.action });
+            .toBeVisible({ timeout: T.quick });
+          // Show-values + chart render INSIDE the reload loop: B's value fetch is
+          // cross-Pod, so a transient failure under load must re-fetch on the next
+          // reload, not fail a one-shot wait.
+          await b2.page.getByRole("button", { name: t("shareShowValues") }).first()
+            .click();
+          await expect(b2.page.locator("svg.recharts-surface").first())
+            .toBeVisible({ timeout: T.visible });
         });
-        await b2.page.getByRole("button", { name: t("shareShowValues") }).first()
-          .click();
-        await expect(b2.page.locator("svg.recharts-surface").first())
-          .toBeVisible({ timeout: T.action });
       } catch (timeout) {
         b2.guard.assertNoAppErrors();
         throw timeout;
@@ -156,8 +159,8 @@ test.describe("aggregation sharing across two pods", () => {
       // below skipped its "Share aggregation" click and waited its whole budget on a
       // dialog that no longer existed.
       const shareDlg = a.page.getByRole("dialog")
-        .filter({ hasText: `Share "${AGGREGATION_NAME}"` });
-      const add = shareDlg.getByRole("button", { name: t("btnAdd") });
+        .filter({ hasText: t("shareAggTitle", { name: AGGREGATION_NAME }) });
+      const add = shareDlg.getByRole("button", { name: t("btnAdd"), exact: true });
       // Add B from the room-members list (B joined + took a role above). The
       // dialog loads members ONCE on open, asynchronously, so the "Add" row only
       // appears a moment AFTER the dialog is visible — use a WAITING assertion for
@@ -177,7 +180,7 @@ test.describe("aggregation sharing across two pods", () => {
           // members. Bound + tolerate the click: if the dialog vanished since
           // the visibility check, an unbounded click would wedge this and
           // every remaining poll iteration (it did — see the trace notes).
-          await shareDlg.getByRole("button", { name: t("btnClose") })
+          await shareDlg.getByRole("button", { name: t("btnClose"), exact: true })
             .click({ timeout: T.quick }).catch(() => {});
           await expect(shareDlg).toBeHidden({ timeout: T.quick }).catch(
             () => {},
@@ -195,7 +198,7 @@ test.describe("aggregation sharing across two pods", () => {
       await confirm.click();
       await expect(shareDlg.getByText(t("shareSuccessWith")))
         .toBeVisible({ timeout: T.action });
-      await shareDlg.getByRole("button", { name: t("btnClose") }).click();
+      await shareDlg.getByRole("button", { name: t("btnClose"), exact: true }).click();
 
       // ── B reloads (cold re-fetch, re-draining the inbox) until the shared aggregation
       //    propagates and folds in, then reads its values — no blind cooldown ──
@@ -203,12 +206,15 @@ test.describe("aggregation sharing across two pods", () => {
         await reloadUntil(b.page, async () => {
           await openAggregations(b.page);
           await expect(aggregationsList(b.page).getByText(AGGREGATION_NAME))
-            .toBeVisible({ timeout: T.action });
+            .toBeVisible({ timeout: T.quick });
+          // Show-values + chart render INSIDE the reload loop: B's value fetch is
+          // cross-Pod, so a transient failure under load must re-fetch on the next
+          // reload, not fail a one-shot wait.
+          await b.page.getByRole("button", { name: t("shareShowValues") }).first()
+            .click();
+          await expect(b.page.locator("svg.recharts-surface").first())
+            .toBeVisible({ timeout: T.visible });
         });
-        await b.page.getByRole("button", { name: t("shareShowValues") }).first()
-          .click();
-        await expect(b.page.locator("svg.recharts-surface").first())
-          .toBeVisible({ timeout: T.action });
       } catch (timeout) {
         b.guard.assertNoAppErrors();
         throw timeout;
@@ -235,7 +241,7 @@ test.describe("aggregation sharing across two pods", () => {
         await reloadUntil(b.page, async () => {
           await openAggregations(b.page);
           await expect(aggregationsList(b.page).getByText(AGGREGATION_NAME))
-            .toHaveCount(0, { timeout: T.action });
+            .toHaveCount(0, { timeout: T.quick });
         });
       } catch (timeout) {
         b.guard.assertNoAppErrors();

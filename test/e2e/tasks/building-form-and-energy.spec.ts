@@ -130,7 +130,7 @@ test.describe("building form + energy entry", () => {
     const id = await buildingIdOf(row);
     if (!id) throw new Error("building-form: missing building id");
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("button", { name: t("btnEdit") }).first().click();
+    await page.getByRole("button", { name: t("btnEdit"), exact: true }).first().click();
     await expect(page.getByLabel(t("mdHeatPump")))
       .toBeVisible({ timeout: T.visible });
   });
@@ -179,7 +179,7 @@ test.describe("building form + energy entry", () => {
     // Save an ACTUAL figure for the year (the dialog stays open, form resets).
     await year.fill("2099");
     await electricity.fill("88888");
-    await dialog.getByRole("button", { name: t("btnSave") }).click();
+    await dialog.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
 
