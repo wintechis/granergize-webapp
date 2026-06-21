@@ -483,13 +483,6 @@ export const MESSAGES = {
     de: "Noch keine Benachrichtigungen.",
     fr: "Aucune notification pour le moment.",
   },
-  lensAria: {
-    en: "Marker colour lens",
-    de: "Marker-Farblinse",
-    fr: "Filtre de couleur des marqueurs",
-  },
-  lensOwnership: { en: "Ownership", de: "Eigentum", fr: "Propriété" },
-  lensEnergy: { en: "Energy", de: "Energie", fr: "Énergie" },
   ucMonth: { en: "Month", de: "Monat", fr: "Mois" },
   ucDayView: { en: "Day View", de: "Tagesansicht", fr: "Vue journalière" },
   ucDailyTotals: { en: "Daily Totals", de: "Tagessummen", fr: "Totaux journaliers" },
