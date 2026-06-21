@@ -100,7 +100,7 @@ export async function joinRoomAsUser(
   const row = page.locator("li").filter({ hasText: roomUri });
   if (!(await row.count())) {
     const uriField = page.getByLabel(t("roomUriLabel"));
-    const add = page.getByRole("button", { name: t("btnAdd") });
+    const add = page.getByRole("button", { name: t("btnAdd"), exact: true });
     await expect(async () => {
       if (await row.count()) return;
       await uriField.fill(roomUri);

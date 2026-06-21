@@ -84,7 +84,7 @@ test.describe("organisation logo", () => {
     // The avatar preview picks up the chosen image (the Avatar's <img alt>).
     await expect(org.getByAltText(t("orgLogoAlt")))
       .toBeVisible({ timeout: T.visible });
-    await org.getByRole("button", { name: t("btnSave") }).click();
+    await org.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("organisationSaved")))
       .toBeVisible({ timeout: T.action });
 
@@ -92,7 +92,7 @@ test.describe("organisation logo", () => {
     const reopened = await openOrgDialog(page);
     await expect(reopened.getByAltText(t("orgLogoAlt")))
       .toBeVisible({ timeout: T.action });
-    await reopened.getByRole("button", { name: t("btnCancel") }).click();
+    await reopened.getByRole("button", { name: t("btnCancel"), exact: true }).click();
   });
 
   // heike-2 / Andreas: the top-right avatar is the USER's identity and must never

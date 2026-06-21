@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { t } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { resolveAccounts } from "../../config/resolve.ts";
@@ -131,8 +131,8 @@ test.describe("palette: share building by year across two pods", () => {
         try {
           await reloadUntil(b2.page, async () => {
             await b2.page.getByRole("tab", { name: t("navSharing") }).click();
-            await expect(received.getByText(/^Building /)).toBeVisible({
-              timeout: T.action,
+            await expect(received.getByText(tPattern("shareBuildingN"))).toBeVisible({
+              timeout: T.quick,
             });
           });
         } catch (timeout) {

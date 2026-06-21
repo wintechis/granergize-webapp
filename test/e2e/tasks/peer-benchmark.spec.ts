@@ -146,7 +146,7 @@ test.describe("peer benchmark round-trip (BSP)", () => {
       await confirm.click();
       await expect(shareDlg.getByText(t("shareSuccessWith")))
         .toBeVisible({ timeout: T.action });
-      await shareDlg.getByRole("button", { name: t("btnClose") }).click();
+      await shareDlg.getByRole("button", { name: t("btnClose"), exact: true }).click();
     } finally {
       await c2.ctx.close();
     }

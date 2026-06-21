@@ -1,5 +1,5 @@
 import { expect, test } from "@playwright/test";
-import { t } from "../helpers/i18n.ts";
+import { t, tPattern } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -68,7 +68,7 @@ test.describe("palette: build a benchmark and share it back across two pods", ()
       // ── Step 1: create the aggregation through the ⌘K palette ──
       await a.page.goto("/");
       await openAggregations(a.page);
-      await runPaletteCommand(a.page, "create aggregation", /create aggregation/i);
+      await runPaletteCommand(a.page, t("aggCreateTitle"), tPattern("aggCreateTitle"));
 
       // The palette routed to /aggregations?action=create-aggregation, auto-opening
       // the dialog.
@@ -98,7 +98,7 @@ test.describe("palette: build a benchmark and share it back across two pods", ()
       await aggRow.getByRole("button", { name: t("intentShareAggregation") })
         .click();
       const share = a.page.getByRole("dialog")
-        .filter({ hasText: `Share "${AGGREGATION_NAME}"` });
+        .filter({ hasText: t("shareAggTitle", { name: AGGREGATION_NAME }) });
       await expect(share).toBeVisible({ timeout: T.action });
       const recipientInput = share.getByLabel(t("racLabel"));
       await recipientInput.fill(bWebId);
@@ -112,7 +112,7 @@ test.describe("palette: build a benchmark and share it back across two pods", ()
       await expect(share.getByText(t("shareSuccessWith"))).toBeVisible({
         timeout: T.action,
       });
-      await share.getByRole("button", { name: t("btnClose") }).click();
+      await share.getByRole("button", { name: t("btnClose"), exact: true }).click();
       await expect(share).toBeHidden({ timeout: T.action });
 
       await b1.ctx.close(); // inbox provisioned; B re-logs in fresh below

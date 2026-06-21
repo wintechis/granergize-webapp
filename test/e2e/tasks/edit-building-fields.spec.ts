@@ -74,7 +74,7 @@ test.describe("edit building operating costs + certifications", () => {
     // Open the inline editor and confirm the investor sections are present (they
     // render for every building — one generic form, no role gating).
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("button", { name: t("btnEdit") }).first().click();
+    await page.getByRole("button", { name: t("btnEdit"), exact: true }).first().click();
     await expect(page.getByText(t("secOperatingCosts")))
       .toBeVisible({ timeout: T.visible });
     await expect(page.getByText(t("secCertifications"))).toBeVisible();
@@ -86,21 +86,21 @@ test.describe("edit building operating costs + certifications", () => {
     await page.getByLabel(t("lblCertType"), { exact: true }).first().click();
     await page.getByRole("option", { name: "LEED" }).click();
     await page.getByLabel(t("lblCertLevel"), { exact: true }).first().fill("Gold");
-    await page.getByRole("button", { name: t("btnSave") }).click();
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("buildingUpdated")))
       .toBeVisible({ timeout: T.action });
 
     // Saving closes the editor → read view. Re-open it: the update invalidates +
     // refetches the building from the Pod, so the form now reflects the values
     // that round-tripped through its Turtle.
-    await page.getByRole("button", { name: t("btnEdit") }).first().click();
+    await page.getByRole("button", { name: t("btnEdit"), exact: true }).first().click();
     await expect(page.getByLabel(t("lblOpcostInsurance"), { exact: true }))
       .toHaveValue("1200", { timeout: T.visible });
     await expect(page.getByLabel(t("lblCertType"), { exact: true }).first())
       .toHaveText("LEED");
     await expect(page.getByLabel(t("lblCertLevel"), { exact: true }).first())
       .toHaveValue("Gold");
-    await page.getByRole("button", { name: t("btnCancel") }).click();
+    await page.getByRole("button", { name: t("btnCancel"), exact: true }).click();
 
     // Cleanup: delete the throwaway building from the Buildings list.
     await page.goto("/");
@@ -150,7 +150,7 @@ test.describe("edit building operating costs + certifications", () => {
     await sysBtn.click();
     await expect(dialog.getByLabel(t("lblSystemCapacityKW"), { exact: true }))
       .toHaveValue("500", { timeout: T.visible });
-    await dialog.getByRole("button", { name: t("btnCancel") }).click();
+    await dialog.getByRole("button", { name: t("btnCancel"), exact: true }).click();
 
     await page.goto("/");
     await openBuildingsList(page);

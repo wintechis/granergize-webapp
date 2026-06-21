@@ -1,5 +1,5 @@
 import { expect, type Page, test } from "@playwright/test";
-import { t, tPattern } from "../helpers/i18n.ts";
+import { failedTo, t, tPattern } from "../helpers/i18n.ts";
 import { account, webIdOf } from "../helpers/login.ts";
 import { reloadUntil } from "../helpers/reloadUntil.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -69,7 +69,7 @@ test.describe("per-attachment share across two pods", () => {
           await b2.page.getByRole("tab", { name: t("navSharing") }).click();
           await expect(
             b2.page.getByRole("link", { name: tPattern("shareBuildingN") }).first(),
-          ).toBeVisible({ timeout: T.action });
+          ).toBeVisible({ timeout: T.quick });
         });
         await b2.page.getByRole("link", { name: tPattern("shareBuildingN") }).first().click();
 
@@ -89,7 +89,7 @@ test.describe("per-attachment share across two pods", () => {
         // the standard "Failed to download the file" error toast.
         await withheldRow.getByRole("button", { name: t("btnDownload") }).click();
         await expect(
-          b2.page.getByText(`Failed to ${t("actionDownloadFile")}`),
+          b2.page.getByText(failedTo("actionDownloadFile")),
         ).toBeVisible({ timeout: T.action });
       } finally {
         await b2.ctx.close();

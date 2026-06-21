@@ -2,6 +2,7 @@ import { type Browser, type Page } from "@playwright/test";
 import { appendFileSync } from "node:fs";
 import { account, type SolidAccount } from "./login.ts";
 import { reuseContextOptions } from "./loginReuse.ts";
+import { stubBasemapTiles } from "./stubBasemap.ts";
 
 /**
  * Append a page's console errors/warnings + uncaught page errors to a per-run log
@@ -70,11 +71,13 @@ export async function newCapturedPage(
   if (Object.keys(opts).length === 0) {
     const page = await browser.newPage();
     captureConsole(page, tag);
+    await stubBasemapTiles(page);
     return page;
   }
   const ctx = await browser.newContext(opts);
   const page = await ctx.newPage();
   page.on("close", () => void ctx.close().catch(() => {}));
   captureConsole(page, tag);
+  await stubBasemapTiles(page);
   return page;
 }

@@ -129,7 +129,7 @@ test.describe("palette: add building + enter energy", () => {
       .fill(YEAR);
     await page.getByRole("spinbutton", { name: metricT("electricityConsumption") })
       .fill(ELECTRICITY);
-    await energy.getByRole("button", { name: t("btnSave") }).click();
+    await energy.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("energySaved")).first()).toBeVisible({
       timeout: T.action,
     });
@@ -139,7 +139,7 @@ test.describe("palette: add building + enter energy", () => {
     await expect(energy.getByText(YEAR).first()).toBeVisible({
       timeout: T.action,
     });
-    await page.getByRole("button", { name: t("btnClose") }).click();
+    await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
   });
 });

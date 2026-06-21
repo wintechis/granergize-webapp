@@ -171,11 +171,11 @@ test.describe("energy entry + Soll-Ist", () => {
       .toHaveValue("55555");
     // Add Heat WITHOUT re-typing electricity, then save.
     await page.getByRole("spinbutton", { name: metricT("heatConsumption") }).fill("33333");
-    await page.getByRole("button", { name: t("btnSave") }).click();
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
     // Saving keeps the dialog open now — close it before navigating away.
-    await page.getByRole("button", { name: t("btnClose") }).click();
+    await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
 
     // Re-open once more: BOTH figures persisted — electricity was not zeroed.
@@ -184,7 +184,7 @@ test.describe("energy entry + Soll-Ist", () => {
       .toHaveValue("55555");
     await expect(page.getByRole("spinbutton", { name: metricT("heatConsumption") }))
       .toHaveValue("33333");
-    await page.getByRole("button", { name: t("btnClose") }).click();
+    await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
   });
 
   test("the dialog lists stored years and can delete one", async () => {
@@ -218,7 +218,7 @@ test.describe("energy entry + Soll-Ist", () => {
     await expect(page.getByText(t("energyYearDeleted")).first())
       .toBeVisible({ timeout: T.action });
     await expect(yearRow).toBeHidden({ timeout: T.action });
-    await page.getByRole("button", { name: t("btnClose") }).click();
+    await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
   });
 
   test("a PV unit records its own per-year observation, separate from the building", async () => {
@@ -253,7 +253,7 @@ test.describe("energy entry + Soll-Ist", () => {
     await dialog.getByRole("spinbutton", { name: t("lblYear"), exact: true }).fill(PV_YEAR);
     await dialog.getByRole("spinbutton", { name: metricT("electricityGeneration") })
       .fill("240000");
-    await dialog.getByRole("button", { name: t("btnSave") }).click();
+    await dialog.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
 
@@ -272,7 +272,7 @@ test.describe("energy entry + Soll-Ist", () => {
     // 6) Close the dialog → the observation page surfaces the per-unit observations
     // section with the PV's figure (240.000 kWh, de-DE) under its own unit — the
     // display of what we just entered, kept apart from the building's annual view.
-    await page.getByRole("button", { name: t("btnClose") }).click();
+    await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
     await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
     await expect(page.getByRole("heading", { name: t("unitObsHeading") }))
       .toBeVisible({ timeout: T.action });
