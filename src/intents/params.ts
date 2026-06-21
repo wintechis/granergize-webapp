@@ -28,8 +28,10 @@ import type { CoreParams, ReadIntentName, WriteIntentName } from "./registry.ts"
 /** An RDF node kind: an IRI reference (resolvable to an instance) vs a literal. */
 export type NodeKind = "iri" | "literal";
 
-/** How many values a param takes. */
-export type Cardinality = "one" | "optional" | "many";
+/** How many values a param takes. `one` = required single, `optional` = 0-or-1,
+ *  `many` = required list (≥1), `any` = optional list (0+ — an absent/empty list is
+ *  valid, e.g. a share's attachment subset where absent means "all"). */
+export type Cardinality = "one" | "optional" | "many" | "any";
 
 /** The reified RDF shape of one intent parameter. */
 export interface ParamSpec {
@@ -96,8 +98,10 @@ export const INTENT_PARAMS = {
     recipients: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "many" },
     includeEnergyData: { nodeKind: "literal", range: XSD_BOOLEAN, cardinality: "one" },
     years: { nodeKind: "literal", range: XSD_GYEAR, cardinality: "many" },
-    // Subset of attachment file IRIs to include; absent ⇒ all attachments.
-    attachmentUris: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "many" },
+    // Subset of attachment file IRIs to include; absent ⇒ all attachments. Optional
+    // list (`any`): a building with no attachments must still be shareable, so an
+    // empty value must NOT block the param-form submit.
+    attachmentUris: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "any" },
   },
   ShareAggregation: {
     snapshotUri: { nodeKind: "iri", range: LDP_RESOURCE, cardinality: "one" },

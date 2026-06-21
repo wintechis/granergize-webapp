@@ -180,8 +180,8 @@ export function fieldKindFor(
   paramName: string,
   spec: ParamSpec,
 ): FieldDescriptor {
-  const multi = spec.cardinality === "many";
-  const required = spec.cardinality !== "optional";
+  const multi = spec.cardinality === "many" || spec.cardinality === "any";
+  const required = spec.cardinality === "one" || spec.cardinality === "many";
   const kind = resolveKind(intentName, paramName, spec);
   return { kind, multi, required };
 }

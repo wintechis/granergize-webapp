@@ -14,7 +14,6 @@ import {
 import {
   openPalette,
   paletteInput,
-  runPaletteCommand,
   runPaletteFormCommand,
   submitPaletteForm,
 } from "../helpers/palette.ts";
@@ -172,13 +171,15 @@ test.describe("palette: share building by year across two pods", () => {
 
 /**
  * Solo CT: the palette's **param-less direct-invoke** path. `CreateRoom` ("Host a
- * data room") has no modelled params, so selecting it in ⌘K fires the core straight
- * away (no form, no dialog) and the new room appears in the Rooms finder. Covers the
- * `routesToDirect` leg of the palette.
+ * data room") is a form command carrying an optional name (CreateRoom became
+ * form-eligible when data rooms gained a name), so selecting it in ⌘K opens its
+ * param form; submitting — name optional — creates the room, which then appears in
+ * the Rooms finder. (The `routesToDirect` leg for genuinely param-less verbs is
+ * covered by `paramForm.test.ts`.)
  */
 const solo = resolveAccounts({ count: 1 });
 
-test.describe("palette: host a data room (param-less direct invoke)", () => {
+test.describe("palette: host a data room (form command)", () => {
   test.skip(!solo.ok, solo.ok ? "" : solo.reason);
 
   test("⌘K → Host a data room → a room is created and listed", async ({ browser }) => {
@@ -190,11 +191,18 @@ test.describe("palette: host a data room (param-less direct invoke)", () => {
       await a.page.goto("/");
       await a.page.getByRole("tab", { name: t("navMeet") }).click();
 
-      // No room yet (empty-state). Host one straight from the palette.
+      // No room yet (empty-state). Host one from the palette: CreateRoom is a form
+      // command (optional name), so open its param form and submit it.
       const owned = a.page.getByRole("button", { name: t("roomDeleteAria") });
       const before = await owned.count();
 
-      await runPaletteCommand(a.page, t("roomHostBtn"), t("roomHostBtn"));
+      await runPaletteFormCommand(
+        a.page,
+        t("roomHostBtn"),
+        t("roomHostBtn"),
+        t("roomHostBtn"),
+      );
+      await submitPaletteForm(a.page);
 
       // A newly-hosted room shows the owner-only "Delete data room" action.
       await expect(owned).toHaveCount(before + 1, { timeout: T.action });

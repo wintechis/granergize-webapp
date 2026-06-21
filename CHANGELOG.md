@@ -3,6 +3,12 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-21]
+- **⌘K "Share building" works for buildings with no attachments.** The schema-driven param form
+  marked the optional `attachmentUris` subset (absent ⇒ all attachments) as *required* — its
+  `"many"` cardinality counted as required — so sharing a building that has no attachments left the
+  form's submit button permanently disabled. Added an `"any"` cardinality (optional list, 0+) for
+  such params and used it for `attachmentUris`; `"many"` (recipients, years, files) still requires
+  at least one.
 - **E2E UI suite runs in any configured language (en/fr/de).** The Playwright specs are now
   locale-parametrized: `E2E_LANG` seeds the browser locale (`playwright.config.ts`) and every
   user-facing locator resolves through the message catalog — `t`/`tPattern`/`failedTo`/`roleT`/
