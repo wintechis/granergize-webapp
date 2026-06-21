@@ -4,7 +4,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { openBuildingsMap } from "../helpers/manage.ts";
+import { openObservationsView } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -16,8 +16,8 @@ import { T } from "../helpers/timeouts.ts";
  * choice is shareable and survives a reload.
  *
  * This spec proves, against the standard investor demo (`ensureDemoBuildings`):
- *  - the selector appears once a metric-driven surface is active (energy lens);
- *  - switching the metric (Electricity → Heat) rewrites `?m=` and keeps the lens up;
+ *  - the selector appears on the Observations energy views (Map / Over time / Trend);
+ *  - switching the metric (Electricity → Heat) rewrites `?m=` and keeps the view up;
  *  - `?m=` survives a cold reload (the legend stays in the chosen framing);
  *  - switching to **electricity generation** flips the legend to the NEUTRAL
  *    magnitude ramp ("Lower/Medium/Higher") with no efficient/inefficient verdict.
@@ -68,18 +68,16 @@ test.describe("cube metric selector (the measure axis)", () => {
     await page.close();
   });
 
-  /** Open Map, switch to the Energy lens (a metric-driven surface), and wait until
-   * the markers + the metric selector have rendered. */
-  async function openEnergyLens(page: Page): Promise<void> {
+  /** Open the Observations energy map and wait until the markers + the metric
+   * selector have rendered (the selector shows on every energy view). */
+  async function openEnergyMap(page: Page): Promise<void> {
     await expect(async () => {
       await page.goto("/");
-      await openBuildingsMap(page);
+      await openObservationsView(page, "map");
       await expect(page.locator(".leaflet-marker-icon").first())
         .toBeVisible({ timeout: T.action });
-      await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
       await expect(page.locator(".energy-marker").first())
         .toBeAttached({ timeout: T.action });
-      // The selector shows whenever a metric-driven surface is active.
       await expect(page.getByLabel(t("metricSelectLabel")))
         .toBeVisible({ timeout: T.action });
     }).toPass({ timeout: T.setup, intervals: [2_000] });
@@ -91,9 +89,9 @@ test.describe("cube metric selector (the measure axis)", () => {
     await page.getByRole("option", { name: optionLabel, exact: true }).click();
   }
 
-  test("switching the metric rewrites ?m= and keeps the lens up", async () => {
+  test("switching the metric rewrites ?m= and keeps the energy view up", async () => {
     test.setTimeout(T.testSolo);
-    await openEnergyLens(page);
+    await openEnergyMap(page);
 
     // Default is electricity consumption (the consumption framing → efficiency
     // tiers; the legend reads "More efficient" / "Less efficient").
@@ -114,7 +112,7 @@ test.describe("cube metric selector (the measure axis)", () => {
 
   test("?m= survives a cold reload", async () => {
     test.setTimeout(T.testSolo);
-    await openEnergyLens(page);
+    await openEnergyMap(page);
 
     await selectMetric(page, t("metricWaterConsumption"));
     await expect.poll(() => new URL(page.url()).searchParams.get("m"), {
@@ -127,15 +125,15 @@ test.describe("cube metric selector (the measure axis)", () => {
     await expect.poll(() => new URL(page.url()).searchParams.get("m"), {
       timeout: T.action,
     }).toBe("waterConsumption");
-    // Re-show the lens — the selector restores the chosen metric.
-    await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
+    // The reload restores the Observations Map view; the selector restores the
+    // chosen metric from ?m= (no lens toggle — the map is always the energy map).
     await expect(page.getByLabel(t("metricSelectLabel")))
       .toHaveText(new RegExp(t("metricWaterConsumption")), { timeout: T.action });
   });
 
   test("switching to generation flips the legend to the neutral magnitude ramp", async () => {
     test.setTimeout(T.testSolo);
-    await openEnergyLens(page);
+    await openEnergyMap(page);
 
     // Electricity generation is magnitude-framed: the legend swatches change from
     // the efficiency verdict (efficient/inefficient) to a NEUTRAL low/mid/high
@@ -166,7 +164,7 @@ test.describe("cube metric selector (the measure axis)", () => {
   test.fixme(
     "generation recolours buildings the consumption lens left blank",
     async () => {
-      await openEnergyLens(page);
+      await openEnergyMap(page);
       await selectMetric(page, t("metricElectricityGeneration"));
       // With a generation-bearing seed: at least one marker carries a magnitude
       // band (low/mid/high), not just "none" — the building the consumption lens

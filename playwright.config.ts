@@ -138,7 +138,7 @@ const SOLO_SPECS = [
   // Cube UI — CQ-anchored space-time-cube specs (plans/plan-cube-ui.md).
   "**/cube-time-cut.spec.ts",
   "**/cube-space-cut.spec.ts",
-  "**/cube-trend-lens.spec.ts",
+  "**/cube-trend.spec.ts",
   "**/cube-metric-selector.spec.ts",
   "**/cube-calendar-weather.spec.ts",
   "**/organisation.spec.ts",

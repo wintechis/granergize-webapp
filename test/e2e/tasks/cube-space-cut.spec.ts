@@ -4,18 +4,19 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
+import { openObservationsView } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
  * Competency-question e2e for the cross-building over-time guise of the cube: the
- * **efficiency-over-time heatmap** — the Buildings finder's List coloured by Energy
- * (Space=rows + Colour=energy in the 2×2; `src/services/cube/exploreAxes.ts`).
+ * **efficiency-over-time heatmap** — the Observations finder's "Over time" view
+ * (`?view=overtime`; `src/services/cube/observationsAxes.ts`). Energy lives in the
+ * Observations finder now; Buildings is space/identity only.
  *
  * CQ "How does the whole portfolio compare over time?" → the heatmap renders a
  * buildings × years grid, one cell per (building, year), and a cell navigates to that
- * building's page (the navigation loop). (The old map "Over time"/"Compare years"
- * view toggle is gone: Time now falls out of Space — a list shows every year as this
- * grid — and the compare-years small multiples were dropped.)
+ * building's page (the navigation loop). (Compare-years was dropped; the over-time
+ * grid is the surviving cross-building temporal view, alongside Trend.)
  *
  * Seed: the standard investor demo (`ensureDemoBuildings`) — multi-year annual buildings
  * (2022-2024) plus the office (2023-2024), so the matrix has several rows × ≥2 year
@@ -62,10 +63,10 @@ test.describe("cube over-time heatmap (portfolio over time)", () => {
     test.setTimeout(T.testSolo);
     await page.goto("/");
 
-    // The heatmap is the List coloured by Energy (Space=rows + Colour=energy): switch
-    // to List, then Energy. The buildings × years matrix renders over the filtered set.
-    await page.getByRole("button", { name: t("btnList") }).click();
-    await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
+    // The over-time heatmap is the Observations finder's "Over time" view (energy
+    // moved out of Buildings). The buildings × years matrix renders over the
+    // filtered set of buildings-with-energy.
+    await openObservationsView(page, "overtime");
 
     // The matrix cells are role=button (each (building, year) cell, with an
     // aria-label "<name> — <year>: …"). The bulk energy cube loads through the

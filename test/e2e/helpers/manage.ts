@@ -50,6 +50,32 @@ export async function openBuildingsMap(page: Page): Promise<void> {
 }
 
 /**
+ * Open the **Observations** finder (`/observations`) and select a cube View — `map`
+ * (the geographic energy map + year slider, the default), `list` (the per-building
+ * summary), `overtime` (the buildings × years heatmap) or `trend` (per-building
+ * direction). Energy lives here now (Buildings is space/identity only). The View
+ * toggle is scoped to `obsViewAria` (a building's own detail page carries a separate
+ * "Map" toggle).
+ */
+export async function openObservationsView(
+  page: Page,
+  view: "map" | "list" | "overtime" | "trend",
+): Promise<void> {
+  await page.getByRole("tab", { name: t("navObservations") }).click();
+  const label = view === "map"
+    ? t("btnMap")
+    : view === "list"
+    ? t("btnList")
+    : view === "overtime"
+    ? t("obsViewOvertime")
+    : t("obsViewTrend");
+  await page
+    .getByLabel(t("obsViewAria"))
+    .getByRole("button", { name: label, exact: true })
+    .click();
+}
+
+/**
  * Open the **Aggregations** finder (`/aggregations`) — the redesign split it out
  * of the old Buildings/Manage list into its own top-nav finder. Used by the
  * create / share / detail aggregation flows.

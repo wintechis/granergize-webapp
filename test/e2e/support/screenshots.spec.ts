@@ -482,24 +482,20 @@ test.describe("handbuch screenshots", () => {
     await page.evaluate(() => globalThis.scrollTo(0, 0));
     await shot(page, "map-tabs.png");
 
-    // --- Energy lens (energy-lens.png): switch the map's colour lens from
-    //     Ownership to Energy so the markers are tinted by energy intensity, and
-    //     the legend shows the efficiency categories. The annual demo buildings
-    //     carry areas + energy years, so their intensities are computable and the
-    //     markers are tinted. Phase-2 energy must have landed for the tint, so
-    //     allow it to settle before the shot. ---
-    const energyLens = page.getByRole("button", { name: en("lensEnergy"), exact: true });
-    if (await energyLens.count()) {
-      await energyLens.click({ force: true }).catch(() => {});
-      await page.waitForLoadState("networkidle").catch(() => {});
-      await waitForMapTiles(page);
-      await page.waitForTimeout(1200);
-      await page.evaluate(() => globalThis.scrollTo(0, 0));
-      await shot(page, "energy-lens.png");
-      // Restore the default lens so it can't bleed into a later re-run's shots.
-      await page.getByRole("button", { name: en("lensOwnership"), exact: true })
-        .click({ force: true }).catch(() => {});
-    }
+    // --- Energy map (energy-lens.png): energy moved out of Buildings into the
+    //     Observations finder; its Map view IS the energy map — markers tinted by
+    //     energy intensity, the legend showing the efficiency categories. The annual
+    //     demo buildings carry areas + energy years, so their intensities are
+    //     computable. Phase-2 energy must have landed for the tint, so allow it to
+    //     settle before the shot. ---
+    await page.getByRole("tab", { name: "Observations" }).click();
+    await page.getByRole("button", { name: en("btnMap"), exact: true })
+      .click({ force: true }).catch(() => {});
+    await page.waitForLoadState("networkidle").catch(() => {});
+    await waitForMapTiles(page);
+    await page.waitForTimeout(1200);
+    await page.evaluate(() => globalThis.scrollTo(0, 0));
+    await shot(page, "energy-lens.png");
 
     // --- Energy with the operator average (energy-data-tab.png): the
     //     Nordostpark demo's observation page (`/observation/:id`) — the energy

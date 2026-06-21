@@ -4,7 +4,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
-import { openBuildingsMap } from "../helpers/manage.ts";
+import { openObservationsView } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -75,12 +75,13 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
   async function openEnergyMapWithSlider(page: Page): Promise<void> {
     await expect(async () => {
       await page.goto("/");
-      await openBuildingsMap(page);
+      // The Observations Map view IS the energy map (no lens toggle); the markers
+      // paint by energy band and the year slider appears with the cube.
+      await openObservationsView(page, "map");
       await expect(page.locator(".leaflet-marker-icon").first())
         .toBeVisible({ timeout: T.action });
-      await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
-      // The energy markers paint (the lens recoloured) and the year slider appears
-      // once ≥1 reachable year is loaded (≥2 enables the slider/animation).
+      // The energy markers paint and the year slider appears once ≥1 reachable year
+      // is loaded (≥2 enables the slider/animation).
       await expect(page.locator(".energy-marker").first())
         .toBeAttached({ timeout: T.action });
       const slider = page.getByRole("slider", { name: t("cubeYearAria") });
@@ -165,11 +166,11 @@ test.describe("cube time-cut slider (track consumption over the years)", () => {
     await expect.poll(() => new URL(page.url()).searchParams.get("y"), {
       timeout: T.action,
     }).toBe("2022");
-    // And the restored view re-shows the energy lens at that year: the slider
-    // returns at 2022 once the energy cube reloads.
-    await expect(page.getByRole("button", { name: t("lensEnergy"), exact: true }))
-      .toBeVisible({ timeout: T.action });
-    await page.getByRole("button", { name: t("lensEnergy"), exact: true }).click();
+    // And the restored Observations Map view re-shows the slider at that year: it
+    // returns at 2022 once the energy cube reloads (no lens toggle — the map is
+    // always the energy map).
+    await expect(page.getByRole("slider", { name: t("cubeYearAria") }))
+      .toBeVisible({ timeout: T.setup });
     await expect(page.getByRole("slider", { name: t("cubeYearAria") }))
       .toHaveAttribute("aria-valuenow", "2022", { timeout: T.action });
   });
