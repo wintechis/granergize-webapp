@@ -197,7 +197,11 @@ export default function ObservationsFinder() {
         }}
       >
         <Suspense fallback={<CircularProgress sx={{ mt: 4, ml: 4 }} />}>
-          <BuildingsMap active={onObservations && view === "map"} colour="energy" />
+          <BuildingsMap
+            active={onObservations && view === "map"}
+            colour="energy"
+            target="observation"
+          />
         </Suspense>
       </Box>
 

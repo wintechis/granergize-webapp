@@ -7,7 +7,7 @@ import { TIER_VALUES } from "../../constants/tiers.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
-import { buildingRoute } from "../../routes.ts";
+import { buildingRoute, observationRoute } from "../../routes.ts";
 import { BuildingType } from "../../types.ts";
 import {
   MapContainer,
@@ -334,10 +334,14 @@ interface BuildingsMapProps {
   active?: boolean;
   /** The finder's resolved Colour axis — owned/shared pins vs energy-band pins. */
   colour: MapLens;
+  /** Where a marker click drills to: the building page (`/building/:id`, default,
+   *  the Buildings finder) or the observation page (`/observation/:id`, the
+   *  Observations finder — its map is about the energy, so it opens the energy). */
+  target?: "building" | "observation";
 }
 
 export default function BuildingsMap(
-  { active = true, colour }: BuildingsMapProps,
+  { active = true, colour, target = "building" }: BuildingsMapProps,
 ) {
   const { buildings, error } = useSolidData();
   const navigate = useNavigate();
@@ -490,7 +494,8 @@ export default function BuildingsMap(
 
   // Navigate to a building's detail page — the map is a pure finder, so a
   // marker click leaves the map for `/building/:id` (the same as a List row).
-  const openBuilding = (id: string) => navigate(buildingRoute(id));
+  const openBuilding = (id: string) =>
+    navigate(target === "observation" ? observationRoute(id) : buildingRoute(id));
 
   return (
     // No padding: the map fills the finder's fixed 480px frame flush, matching
