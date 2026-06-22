@@ -254,14 +254,19 @@ export function useWriteEnergyYear() {
   const qc = useQueryClient();
   return useMutation({
     meta: { action: "actionSaveEnergy" },
-    // The core writes the year then best-effort reconciles the building's
-    // sharing grants (domain logic — a failed reconcile must not fail the save).
+    // The core writes the year then best-effort reconciles the building's sharing
+    // grants (domain logic — a failed reconcile must not fail the save). Omitting
+    // fileUri/subjectUri writes a building-less observation (no building yet).
     mutationFn: (vars: {
-      fileUri: string;
-      subjectUri: string;
+      fileUri?: string;
+      subjectUri?: string;
       dataset: EnergyDataset;
     }) => invoke("SaveObservation", vars, getGateway()),
-    onSettled: () => invalidateBuildingData(qc),
+    onSettled: () => {
+      invalidateBuildingData(qc);
+      // A building-less save adds a loose observation to that list.
+      qc.invalidateQueries({ queryKey: queryKeys.buildinglessObservations });
+    },
   });
 }
 
@@ -271,14 +276,39 @@ export function useDeleteEnergyYear() {
   return useMutation({
     meta: { action: "actionDeleteEnergy" },
     mutationFn: (vars: {
-      fileUri: string;
-      subjectUri: string;
-      dataset: Pick<
+      fileUri?: string;
+      subjectUri?: string;
+      dataset?: Pick<
         EnergyDataset,
         "year" | "granularity" | "scenario" | "featureOfInterest"
       >;
+      observationUri?: string;
     }) => invoke("DeleteObservation", vars, getGateway()),
-    onSettled: () => invalidateBuildingData(qc),
+    onSettled: () => {
+      invalidateBuildingData(qc);
+      // A building-less delete removes a loose observation from that list.
+      qc.invalidateQueries({ queryKey: queryKeys.buildinglessObservations });
+    },
+  });
+}
+
+/** Bind a building-less observation to a building (late FoI binding, in place). */
+export function useLinkObservationToBuilding() {
+  const qc = useQueryClient();
+  return useMutation({
+    meta: { action: "actionLinkObservation" },
+    mutationFn: (vars: {
+      observationUri: string;
+      buildingFileUri: string;
+      buildingSubjectUri: string;
+      granularity: string;
+      scenario: EnergyDataset["scenario"];
+    }) => invoke("LinkObservationToBuilding", vars, getGateway()),
+    onSettled: () => {
+      // The bound dataset joins the building's energy; it also leaves the loose list.
+      invalidateBuildingData(qc);
+      qc.invalidateQueries({ queryKey: queryKeys.buildinglessObservations });
+    },
   });
 }
 

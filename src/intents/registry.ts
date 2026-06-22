@@ -22,6 +22,7 @@ import { deleteBuildingCore } from "./DeleteBuilding.ts";
 import { toggleVisibilityCore } from "./ToggleVisibility.ts";
 import { saveObservationCore } from "./SaveObservation.ts";
 import { deleteObservationCore } from "./DeleteObservation.ts";
+import { linkObservationToBuildingCore } from "./LinkObservationToBuilding.ts";
 import { uploadAttachmentsCore } from "./UploadAttachments.ts";
 import { deleteAttachmentCore } from "./DeleteAttachment.ts";
 import { setEnergyCertificateCore } from "./SetEnergyCertificate.ts";
@@ -62,6 +63,7 @@ export const WRITE_CORES = {
   ShareBuilding: shareBuildingCore,
   SaveObservation: saveObservationCore,
   DeleteObservation: deleteObservationCore,
+  LinkObservationToBuilding: linkObservationToBuildingCore,
   UploadAttachments: uploadAttachmentsCore,
   DeleteAttachment: deleteAttachmentCore,
   SetEnergyCertificate: setEnergyCertificateCore,

@@ -166,6 +166,25 @@ Deno.test("annual dataset round-trips through serialize → parse", () => {
   );
 });
 
+Deno.test("building-less observation: omits cons:ofBuilding, round-trips with building=''", () => {
+  // An unbound observation (no building yet — to be linked later) must NOT emit
+  // `cons:ofBuilding <>` (an empty IRI is invalid Turtle); the parser reads it back as "".
+  const ds: EnergyDataset = {
+    building: "",
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "actual",
+    metrics: { electricityConsumption: 5000 },
+  };
+  const ttl = serializeEnergyDataset(ds);
+  assert.equal(/cons:ofBuilding/.test(ttl), false, "no ofBuilding triple when unbound");
+  const node = `${datasetFileUri(ROOT, 2024, ID)}#ds`;
+  const back = parseEnergyDataset(parse(ttl.replace(/<#ds>/g, `<${node}>`)), node);
+  assert.ok(back);
+  assert.equal(back!.building, "");
+  assert.equal(back!.metrics?.electricityConsumption, 5000);
+});
+
 Deno.test("featureOfInterest emits sosa:hasFeatureOfInterest on the dataset node", () => {
   // Generation observations are about the building's <#pv> plant, not the building.
   const ds: EnergyDataset = {

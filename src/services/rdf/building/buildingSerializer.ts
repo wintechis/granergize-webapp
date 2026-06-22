@@ -692,28 +692,142 @@ export async function writeEnergyYear(
       ds.featureOfInterest,
     )
     : null;
-  const nodeUri = reuse ??
-    datasetNodeUri(datasetFileUri(root, ds.year, mintDatasetId()));
-  const fileUri = nodeUri.split("#")[0];
+  const nodeUri = await putObservationDataset(
+    gateway,
+    root,
+    { ...ds, building: buildingSubjectUri },
+    reuse,
+  );
+  await linkBuildingToObservation(
+    gateway,
+    buildingFileUri,
+    buildingSubjectUri,
+    nodeUri,
+    ds,
+  );
+}
 
+/**
+ * Write (PUT) one `cons:EnergyDataset` resource under `observationsRoot` — minting an
+ * id, or overwriting `reuseNodeUri` when given. Building-agnostic: `ds.building` decides
+ * whether `cons:ofBuilding` is emitted (the serializer omits it when empty). Returns the
+ * dataset node IRI. The shared write step behind both the building-linked
+ * {@link writeEnergyYear} and the building-less {@link writeBuildinglessObservation}.
+ */
+async function putObservationDataset(
+  gateway: PodGateway,
+  observationsRoot: string,
+  ds: EnergyDataset,
+  reuseNodeUri?: string | null,
+): Promise<string> {
+  const nodeUri = reuseNodeUri ??
+    datasetNodeUri(datasetFileUri(observationsRoot, ds.year, mintDatasetId()));
+  const fileUri = nodeUri.split("#")[0];
   const put = await gateway.fetch(fileUri, {
     method: "PUT",
     headers: { "Content-Type": "text/turtle" },
-    body: serializeEnergyDataset({ ...ds, building: buildingSubjectUri }),
+    body: serializeEnergyDataset(ds),
   });
   if (!put.ok) {
     throw new Error(`Failed to write energy dataset: ${put.status} ${put.statusText}`);
   }
+  return nodeUri;
+}
 
+/**
+ * Add the building's `cons:hasEnergyDataset` link to a dataset (the building file must
+ * already exist). The binding step shared by {@link writeEnergyYear} and the
+ * link-an-unbound-observation flow.
+ * @operation mutation
+ */
+export async function linkBuildingToObservation(
+  gateway: PodGateway,
+  buildingFileUri: string,
+  buildingSubjectUri: string,
+  datasetUri: string,
+  ds: EnergyDataset,
+): Promise<void> {
   await readModifyWrite(buildingFileUri, gateway, (s, { created }) => {
     if (created) return false; // the building file must already exist
     linkEnergyDatasetInStore(s, buildingSubjectUri, {
-      uri: nodeUri,
+      uri: datasetUri,
       granularity: ds.granularity,
       scenario: ds.scenario,
       featureOfInterest: ds.featureOfInterest,
     });
   });
+}
+
+/**
+ * Write a **building-less** observation (no `cons:ofBuilding`, no building link) under
+ * the user's own `observations/` root — an unbound reading to be linked to a building
+ * later. Returns the dataset node IRI.
+ * @operation mutation
+ */
+export async function writeBuildinglessObservation(
+  gateway: PodGateway,
+  observationsRoot: string,
+  ds: EnergyDataset,
+): Promise<string> {
+  return await putObservationDataset(gateway, observationsRoot, {
+    ...ds,
+    building: "",
+  });
+}
+
+/**
+ * Delete a **building-less** observation by its node IRI — just remove the resource
+ * (+ its per-resource ACL, best-effort); there's no building link to unlink.
+ * @operation mutation
+ */
+export async function deleteBuildinglessObservation(
+  gateway: PodGateway,
+  observationUri: string,
+): Promise<void> {
+  const fileUri = observationUri.split("#")[0];
+  const del = await gateway.fetch(fileUri, { method: "DELETE" });
+  if (!del.ok && del.status !== 404) {
+    throw new Error(
+      `Failed to delete observation: ${del.status} ${del.statusText}`,
+    );
+  }
+  await gateway.fetch(`${fileUri}.acl`, { method: "DELETE" }).catch((err) =>
+    logError("delete observation ACL", err)
+  );
+}
+
+/**
+ * Bind a building-less observation to a building (late FoI binding): add
+ * `cons:ofBuilding` to the dataset **in place** (the IRI never changes), then add the
+ * building's `cons:hasEnergyDataset` link. `link` carries the dataset's
+ * granularity/scenario for the building-side ref. The observation file must exist.
+ * @operation mutation
+ */
+export async function bindObservationToBuilding(
+  gateway: PodGateway,
+  observationUri: string,
+  buildingFileUri: string,
+  buildingSubjectUri: string,
+  link: { granularity: string; scenario: Scenario; featureOfInterest?: string },
+): Promise<void> {
+  const obsFileUri = observationUri.split("#")[0];
+  // 1. Record the building on the dataset (the late FoI binding) — in place.
+  await readModifyWrite(obsFileUri, gateway, (s, { created }) => {
+    if (created) return false; // the observation must already exist
+    s.addQuad(
+      DataFactory.namedNode(observationUri),
+      DataFactory.namedNode(`${CONSUMPTION_NS}ofBuilding`),
+      DataFactory.namedNode(buildingSubjectUri),
+    );
+  });
+  // 2. Link the building to the now-bound dataset.
+  await linkBuildingToObservation(
+    gateway,
+    buildingFileUri,
+    buildingSubjectUri,
+    observationUri,
+    { building: buildingSubjectUri, year: 0, ...link },
+  );
 }
 
 /** Fetch + parse the building file into a store, or null if missing/unreadable. */

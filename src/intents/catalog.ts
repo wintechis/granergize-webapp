@@ -147,6 +147,13 @@ export const INTENTS: readonly IntentEntry[] = [
     entity: "observation",
     hook: "useDeleteEnergyYear",
   },
+  {
+    name: "LinkObservationToBuilding", // bind a building-less observation to a building
+    action: "actionLinkObservation",
+    effect: "write",
+    entity: "observation",
+    hook: "useLinkObservationToBuilding",
+  },
   // ── Attachments ──────────────────────────────────────────────────────────────
   {
     name: "UploadAttachments",

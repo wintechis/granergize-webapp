@@ -107,15 +107,14 @@ export default function EnergyYearDialog(
   const busy = write.isPending || del.isPending;
 
   // The building these observations are FOR (the FeatureOfInterest). Fixed in
-  // observation-page mode; in create mode it's a required pick that defaults to the
-  // first owned building (the Select below changes it), so the rest of the dialog
-  // always has a concrete building.
+  // observation-page mode; in create mode it's picked below — defaulting to the first
+  // owned building, but **clearable**: an empty pick writes a building-less (unbound)
+  // observation, to be linked to a building later.
   const [pickedUri, setPickedUri] = useState(
     (createFrom?.[0]?.uri as string | undefined) ?? "",
   );
   const selectedBuilding: BuildingType | null = building ??
-    createFrom?.find((b) => (b.uri as string) === pickedUri) ??
-    createFrom?.[0] ?? null;
+    createFrom?.find((b) => (b.uri as string) === pickedUri) ?? null;
 
   const [year, setYear] = useState("");
   const [scenario, setScenario] = useState<Scenario>("actual");
@@ -299,7 +298,22 @@ export default function EnergyYearDialog(
       showNotification(msg("enterFigure"), "error");
       return;
     }
-    if (!selectedBuilding) return;
+    // Building-less: write an UNBOUND observation (no building → no FoI). It surfaces
+    // via the building-less observations list; there's no per-building cache to patch.
+    if (!selectedBuilding) {
+      write.mutate(
+        { dataset: { building: "", year: y, granularity: "P1Y", scenario, metrics } },
+        {
+          onSuccess: () => {
+            showNotification(msg("energySaved"), "success");
+            const keep = scenario;
+            reset();
+            setScenario(keep);
+          },
+        },
+      );
+      return;
+    }
 
     const subjectUri = selectedBuilding.uri as string;
     const dataset = {
@@ -412,7 +426,7 @@ export default function EnergyYearDialog(
           <Button
             variant="contained"
             onClick={handleSave}
-            disabled={busy || !selectedBuilding}
+            disabled={busy}
           >
             {busy ? msg("btnSaving") : msg("btnSave")}
           </Button>
@@ -423,7 +437,7 @@ export default function EnergyYearDialog(
         {/* Create mode: pick the building (the FeatureOfInterest) these observations
             are about — a searchable picker. Hidden in observation-page mode (the
             building is fixed). */}
-        {createFrom && (
+        {createFrom && createFrom.length > 0 && (
           <BuildingPicker
             buildings={createFrom}
             label={msg("eyBuildingLabel")}
@@ -432,15 +446,16 @@ export default function EnergyYearDialog(
             disabled={busy}
           />
         )}
-        {!selectedBuilding
-          ? (
-            <Typography color="text.secondary">{msg("eyPickBuilding")}</Typography>
-          )
-          : (
-            <>
-        {/* Feature of interest — the building or one of its energy units. Shown only
-            when the building has units; scopes both the table and the entry form. */}
-        {foiOptions.length > 1 && (
+        {/* Building-less (create mode, no building picked) — an unbound observation,
+            to be linked to a building later. */}
+        {createFrom && !selectedBuilding && (
+          <Typography variant="body2" color="text.secondary">
+            {msg("eyBuildinglessHint")}
+          </Typography>
+        )}
+        {/* Feature of interest — the building or one of its energy units; only when a
+            building with units is selected. */}
+        {selectedBuilding && foiOptions.length > 1 && (
           <TextField
             select
             label={msg("eyObserveFor")}
@@ -454,9 +469,11 @@ export default function EnergyYearDialog(
             ))}
           </TextField>
         )}
-        {/* Read-back of what's stored for the selected feature of interest. */}
-        <section>
-          <Typography variant="h6" sx={{ mb: 1 }}>{msg("eyStoredYears")}</Typography>
+        {/* Read-back of what's stored — only for a bound building (a building-less
+            observation has no prior years to list). */}
+        {selectedBuilding && (
+          <section>
+            <Typography variant="h6" sx={{ mb: 1 }}>{msg("eyStoredYears")}</Typography>
           {listLoading
             ? <Typography color="text.secondary">{msg("loadingEllipsis")}</Typography>
             : sorted.length === 0
@@ -523,6 +540,7 @@ export default function EnergyYearDialog(
               </TableContainer>
             )}
         </section>
+        )}
 
         {/* Add / edit one year. */}
         <section>
@@ -565,8 +583,6 @@ export default function EnergyYearDialog(
             ))}
           </Stack>
         </section>
-            </>
-          )}
       </Stack>
     </Modal>
   );

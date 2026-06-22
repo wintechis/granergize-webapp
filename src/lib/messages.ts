@@ -66,6 +66,14 @@ export const MESSAGES = {
     fr:
       "Supprimer toutes les observations ({years} année(s)) pour {name} ? Le bâtiment reste ; seules ses données énergétiques sont supprimées. Action irréversible.",
   },
+  obsDeleteLooseConfirm: {
+    en:
+      "Delete the building-less observation for {year}? This cannot be undone.",
+    de:
+      "Die gebäudelose Beobachtung für {year} löschen? Dies kann nicht rückgängig gemacht werden.",
+    fr:
+      "Supprimer l'observation sans bâtiment pour {year} ? Action irréversible.",
+  },
   obsCleared: {
     en: "Observations cleared for {name}",
     de: "Beobachtungen für {name} gelöscht",
@@ -1228,6 +1236,24 @@ export const MESSAGES = {
     fr: "Vue des observations",
   },
   obsViewOvertime: { en: "Over time", de: "Im Zeitverlauf", fr: "Dans le temps" },
+  obsWithoutBuilding: {
+    en: "Without a building",
+    de: "Ohne Gebäude",
+    fr: "Sans bâtiment",
+  },
+  obsLooseOnlyHint: {
+    en:
+      "{count} observation(s) aren't linked to a building yet — link them in the List to compare them here.",
+    de:
+      "{count} Beobachtung(en) sind noch keinem Gebäude zugeordnet — verknüpfen Sie sie in der Liste, um sie hier zu vergleichen.",
+    fr:
+      "{count} observation(s) ne sont pas encore associées à un bâtiment — associez-les dans la liste pour les comparer ici.",
+  },
+  obsLinkToBuilding: {
+    en: "Link to a building",
+    de: "Mit Gebäude verknüpfen",
+    fr: "Associer à un bâtiment",
+  },
   obsViewOveryears: { en: "Over years", de: "Über die Jahre", fr: "Au fil des ans" },
   obsViewTrend: { en: "Trend", de: "Trend", fr: "Tendance" },
   trendImproving: {
@@ -1386,10 +1412,10 @@ export const MESSAGES = {
   // Create mode (Observations finder → "Add observation"): the required building
   // picker (the FeatureOfInterest) and the placeholder before one is chosen.
   eyBuildingLabel: { en: "Building", de: "Gebäude", fr: "Bâtiment" },
-  eyPickBuilding: {
-    en: "Select a building to add observations.",
-    de: "Wählen Sie ein Gebäude, um Beobachtungen hinzuzufügen.",
-    fr: "Sélectionnez un bâtiment pour ajouter des observations.",
+  eyBuildinglessHint: {
+    en: "No building selected — this observation will be unbound. Link it to a building later.",
+    de: "Kein Gebäude gewählt — diese Beobachtung bleibt ungebunden. Verknüpfen Sie sie später mit einem Gebäude.",
+    fr: "Aucun bâtiment sélectionné — cette observation restera non liée. Associez-la à un bâtiment plus tard.",
   },
   eyAddObservation: {
     en: "Add observation",
@@ -2796,6 +2822,11 @@ export const MESSAGES = {
     en: "delete energy data",
     de: "Löschen der Energiedaten",
     fr: "la suppression des données énergétiques",
+  },
+  actionLinkObservation: {
+    en: "link the observation to a building",
+    de: "Verknüpfen der Beobachtung mit einem Gebäude",
+    fr: "l'association de l'observation à un bâtiment",
   },
   actionUploadFile: {
     en: "upload the file",

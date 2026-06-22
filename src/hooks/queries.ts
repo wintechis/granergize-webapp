@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { getGateway, getSession } from "./session.ts";
 import {
+  loadBuildinglessObservations,
   loadBuildings,
   loadEnergy,
   sharedBuildingSourcesFromGrants,
@@ -559,6 +560,34 @@ export function useAnnualDatasets(
 }
 
 /**
+ * The user's **building-less** observations — unbound annual datasets in their own
+ * `observations/` that no building links. Discovered by listing the container and
+ * subtracting the building-linked datasets (so a newly-bound observation drops out:
+ * the `energyKeyFor` fingerprint re-runs this when a building's links change). Own-Pod
+ * only; gated on the buildings being loaded (needed to compute the bound set).
+ */
+export function useBuildinglessObservations(
+  buildings: BuildingType[] | undefined,
+  enabled = true,
+) {
+  return useWebIdQuery(
+    queryKeys.buildinglessObservations,
+    (gateway, webId) => {
+      const bound = new Set(
+        (buildings ?? []).flatMap((b) =>
+          (b.energyDatasets ?? []).map((d) => d.uri.split("#")[0])
+        ),
+      );
+      return loadBuildinglessObservations(gateway, webId, bound);
+    },
+    {
+      extraKey: [energyKeyFor(buildings)],
+      enabled: enabled && buildings != null,
+    },
+  );
+}
+
+/**
  * Every reachable annual energy figure across the building set, keyed by building
  * id and the year it covers — the per-year cube the map's interactive time-cut
  * slider (`plans/plan-cube-ui.md` §1) re-colours over. `useEnergy`/`loadEnergy`
@@ -764,6 +793,8 @@ export const queryKeys = {
   annualDatasets: ["annualDatasets"] as const,
   /** Every reachable annual figure across the set, keyed by set fingerprint (the time-cut slider). */
   annualEnergyByYear: ["annualEnergyByYear"] as const,
+  /** The user's building-less (unbound) observations, keyed by the building-link fingerprint. */
+  buildinglessObservations: ["buildinglessObservations"] as const,
   /** The fresh-Pod demo-buildings offer (own container empty + not declined). */
   demoOffer: ["demoOffer"] as const,
   /** Day files behind a set of 15-min series descriptors, keyed by ref URLs. */

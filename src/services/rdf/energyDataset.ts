@@ -133,6 +133,14 @@ export interface EnergyDataset {
   featureOfInterest?: string;
 }
 
+/** A discovered **building-less** observation — an annual dataset in the user's own
+ *  `observations/` that no building links (`building === ""`), carrying its node IRI
+ *  for the finder row + the "link to a building" action. */
+export interface BuildinglessObservation extends EnergyDataset {
+  /** The dataset node IRI (`#ds` in its file). */
+  uri: string;
+}
+
 /** Mint a fresh dataset id (UUID stem) for a new observation collection. */
 export function mintDatasetId(): string {
   return crypto.randomUUID();
@@ -351,10 +359,16 @@ export function serializeEnergyDataset(ds: EnergyDataset): string {
     ? `   sosa:hasFeatureOfInterest <${ds.featureOfInterest}> ;\n`
     : "";
 
+  // The building this observation is about — OMITTED when unbound (a building-less
+  // observation, to be linked to a building later); emitting `<>` would be invalid.
+  const ofBuilding = ds.building
+    ? `   cons:ofBuilding <${ds.building}> ;\n`
+    : "";
+
   if (ds.datasetLocation) {
     return header +
       `<#ds> a cons:EnergyDataset ;\n` +
-      `   cons:ofBuilding <${ds.building}> ;\n` +
+      ofBuilding +
       foi +
       `   cons:granularity "${ds.granularity}" ;\n` +
       `   cons:scenario ${scenarioIri} ;\n` +
@@ -374,7 +388,7 @@ export function serializeEnergyDataset(ds: EnergyDataset): string {
 
   return header +
     `<#ds> a cons:EnergyDataset , sosa:ObservationCollection ;\n` +
-    `   cons:ofBuilding <${ds.building}> ;\n` +
+    ofBuilding +
     foi +
     `   cons:granularity "${ds.granularity}" ;\n` +
     `   cons:scenario ${scenarioIri} ;\n` +

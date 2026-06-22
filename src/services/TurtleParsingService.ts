@@ -12,7 +12,10 @@ import { getStorageRoot, podResources } from "./pod/solidUtils.ts";
 import { fetchFresh } from "./pod/podFetch.ts";
 import { listDirectChildren } from "./pod/podDelete.ts";
 import { mapPooled } from "../lib/pool.ts";
-import { parseEnergyDataset } from "./rdf/energyDataset.ts";
+import {
+  type BuildinglessObservation,
+  parseEnergyDataset,
+} from "./rdf/energyDataset.ts";
 import { readPrefs } from "./prefs.ts";
 import {
   type ActiveGrant,
@@ -445,6 +448,48 @@ export async function loadEnergy(
     portfolioAverages,
     operatorAverages,
   };
+}
+
+/**
+ * Discover the user's **building-less** observations — annual datasets in their own
+ * `observations/` container that NO building links (no `cons:ofBuilding`), surfaced as
+ * loose rows in the Observations finder. Lists the year-nested container, skips the
+ * dataset files already reached via a building's links (`boundDatasetFiles`), and
+ * parses the remainder, keeping only the unbound ones. Own-Pod only; best-effort (a
+ * missing container or an unreadable file just yields fewer rows, never throws).
+ * @operation query
+ */
+export async function loadBuildinglessObservations(
+  gateway: PodGateway,
+  webId: string,
+  boundDatasetFiles: ReadonlySet<string>,
+): Promise<BuildinglessObservation[]> {
+  const root = podResources(webId).observations;
+  const years = (await listDirectChildren(root, gateway)) ?? [];
+  const files: string[] = [];
+  for (const year of years) {
+    if (!year.endsWith("/")) continue; // the year sub-containers (observations/{year}/)
+    const children = (await listDirectChildren(year, gateway)) ?? [];
+    files.push(
+      ...children.filter((u) => u.endsWith(".ttl") && !boundDatasetFiles.has(u)),
+    );
+  }
+  const parsed = await mapPooled(files, 6, async (file) => {
+    try {
+      const res = await fetchFresh(file, gateway);
+      if (!res.ok) return null;
+      const store = new Store(
+        new Parser({ baseIRI: file }).parse(await res.text()),
+      );
+      const ds = parseEnergyDataset(store, `${file}#ds`);
+      // Unbound only: a dataset WITH a building is already reached via its links.
+      return ds && !ds.building ? { uri: `${file}#ds`, ...ds } : null;
+    } catch (error) {
+      console.error(`Failed to parse observation ${file}:`, error);
+      return null;
+    }
+  });
+  return parsed.filter((x): x is BuildinglessObservation => x != null);
 }
 
 /**
