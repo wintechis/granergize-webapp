@@ -3,6 +3,7 @@ import type { PodGateway } from "./pod/podGateway.ts";
 import { strict as assert } from "node:assert";
 import type { Session } from "@inrupt/solid-client-authn-browser";
 import {
+  diffObservationLinks,
   fetchAndParseData,
   loadBuildings,
   SessionExpiredError,
@@ -322,4 +323,48 @@ Deno.test("loadEnergy falls back to the next-newest accessible year when the lat
     "older year's figure used",
   );
   assert.equal(b1.year, 2023, "the year reflects the fallback");
+});
+
+// ── diffObservationLinks (the dev-mode observation-link audit core) ─────────────
+Deno.test("diffObservationLinks: detects each link drift kind, ignores the consistent", () => {
+  const B1 = "https://pod.example/granergize/buildings/b1.ttl#b";
+  const B2 = "https://pod.example/granergize/buildings/b2.ttl#b";
+  const D = (n: number) => `https://pod.example/granergize/observations/2024/o${n}.ttl#ds`;
+
+  const drift = diffObservationLinks(
+    [
+      // B1 links o1 + o4 (both consistent) and o3 (dangling: no such observation).
+      { uri: B1, energyDatasets: [{ uri: D(1) }, { uri: D(4) }, { uri: D(3) }] },
+      // B2 also links o4, but o4 attributes itself to B1 (backref mismatch for B2).
+      { uri: B2, energyDatasets: [{ uri: D(4) }] },
+    ],
+    [
+      { uri: D(1), building: B1 }, // consistent — linked + attributed both ways
+      { uri: D(2), building: B1 }, // orphan: attributed to B1 but B1 doesn't link it
+      { uri: D(4), building: B1 }, // consistent with B1; B2's link to it is the mismatch
+      { uri: D(5), building: "" }, // unbound — no attribution, no drift
+    ],
+  );
+
+  const byKind = (k: string) => drift.filter((d) => d.kind === k);
+  assert.equal(drift.length, 3, "exactly the three drifted pairs");
+  assert.deepEqual(byKind("orphanAttribution"), [
+    { kind: "orphanAttribution", dataset: D(2), building: B1 },
+  ]);
+  assert.deepEqual(byKind("danglingLink"), [
+    { kind: "danglingLink", dataset: D(3), building: B1 },
+  ]);
+  assert.deepEqual(byKind("backrefMismatch"), [
+    { kind: "backrefMismatch", dataset: D(4), building: B2 },
+  ]);
+});
+
+Deno.test("diffObservationLinks: a fully consistent set has no drift", () => {
+  const B = "https://pod.example/granergize/buildings/b.ttl#b";
+  const D = "https://pod.example/granergize/observations/2024/o.ttl#ds";
+  const drift = diffObservationLinks(
+    [{ uri: B, energyDatasets: [{ uri: D }] }],
+    [{ uri: D, building: B }, { uri: D + "x", building: "" }],
+  );
+  assert.deepEqual(drift, []);
 });

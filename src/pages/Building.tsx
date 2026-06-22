@@ -3,11 +3,9 @@ import { Divider, Stack } from "@mui/material";
 import { useSearchParams } from "react-router-dom";
 import type { BuildingType } from "../types.ts";
 import { getSession } from "../hooks/session.ts";
-import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
 import { ACTION_PARAM } from "../routes.ts";
 import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
 import { useToggleVisibility } from "../hooks/mutations.ts";
-import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import BuildingHeader from "../components/building/BuildingHeader.tsx";
 import MasterDataSection from "../components/building/MasterDataSection.tsx";
 import EnergySystemsSection from "../components/building/EnergySystemsSection.tsx";
@@ -72,13 +70,6 @@ export default function Building({ building }: BuildingProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [building]);
 
-  // The dereferenceable backing resource: the building's document URI. Both
-  // `uri` (the subject IRI) and `sourceUri` (its source document) are stored
-  // ABSOLUTE by the parser for owned AND shared buildings — only the app-level
-  // `id` is relativized — so this href is absolute either way. Dev-mode only
-  // (RdfSourceLink self-hides outside it).
-  const sourceUri = buildingFileUri(building.sourceUri ?? building.uri);
-
   return (
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
       <BuildingHeader building={building} />
@@ -95,7 +86,6 @@ export default function Building({ building }: BuildingProps) {
       <RoofPlan building={building} />
       <NeighbourhoodEnergyMap building={building} />
       <RegionalStatistics building={building} />
-      <RdfSourceLink href={sourceUri} />
     </Stack>
   );
 }

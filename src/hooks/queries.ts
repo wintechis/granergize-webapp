@@ -3,6 +3,7 @@ import { useMemo } from "react";
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { getGateway, getSession } from "./session.ts";
 import {
+  loadBuildinglessObservations,
   loadBuildings,
   loadEnergy,
   sharedBuildingSourcesFromGrants,
@@ -539,16 +540,50 @@ export function useAnnualEnergy(building: BuildingType) {
  * refetch with the still-stale building prop would clobber the optimistic row).
  * `enabled` gates it to the open dialog.
  */
-export function useAnnualDatasets(building: BuildingType, enabled = true) {
+export function useAnnualDatasets(
+  building: BuildingType | null,
+  enabled = true,
+) {
   return useWebIdQuery(
     queryKeys.annualDatasets,
     () => {
-      const refs = (building.energyDatasets ?? []).filter(
+      const refs = (building?.energyDatasets ?? []).filter(
         (r) => r.granularity === "P1Y",
       );
       return loadEnergyDatasets(refs, freshFetchFn());
     },
-    { extraKey: [building.id, energyKeyFor([building])], enabled },
+    {
+      extraKey: [building?.id ?? "", building ? energyKeyFor([building]) : ""],
+      enabled: enabled && building != null,
+    },
+  );
+}
+
+/**
+ * The user's **building-less** observations — unbound annual datasets in their own
+ * `observations/` that no building links. Discovered by listing the container and
+ * subtracting the building-linked datasets (so a newly-bound observation drops out:
+ * the `energyKeyFor` fingerprint re-runs this when a building's links change). Own-Pod
+ * only; gated on the buildings being loaded (needed to compute the bound set).
+ */
+export function useBuildinglessObservations(
+  buildings: BuildingType[] | undefined,
+  enabled = true,
+) {
+  return useWebIdQuery(
+    queryKeys.buildinglessObservations,
+    (gateway, webId) => {
+      const bound = new Set(
+        (buildings ?? []).flatMap((b) =>
+          (b.energyDatasets ?? []).map((d) => d.uri.split("#")[0])
+        ),
+      );
+      return loadBuildinglessObservations(gateway, webId, bound);
+    },
+    {
+      extraKey: [energyKeyFor(buildings)],
+      enabled: enabled && buildings != null,
+    },
   );
 }
 
@@ -758,6 +793,8 @@ export const queryKeys = {
   annualDatasets: ["annualDatasets"] as const,
   /** Every reachable annual figure across the set, keyed by set fingerprint (the time-cut slider). */
   annualEnergyByYear: ["annualEnergyByYear"] as const,
+  /** The user's building-less (unbound) observations, keyed by the building-link fingerprint. */
+  buildinglessObservations: ["buildinglessObservations"] as const,
   /** The fresh-Pod demo-buildings offer (own container empty + not declined). */
   demoOffer: ["demoOffer"] as const,
   /** Day files behind a set of 15-min series descriptors, keyed by ref URLs. */

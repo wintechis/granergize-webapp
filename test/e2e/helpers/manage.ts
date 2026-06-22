@@ -59,7 +59,7 @@ export async function openBuildingsMap(page: Page): Promise<void> {
  */
 export async function openObservationsView(
   page: Page,
-  view: "map" | "list" | "overtime" | "trend",
+  view: "map" | "list" | "overtime" | "overyears",
 ): Promise<void> {
   await page.getByRole("tab", { name: t("navObservations") }).click();
   const label = view === "map"
@@ -68,7 +68,7 @@ export async function openObservationsView(
     ? t("btnList")
     : view === "overtime"
     ? t("obsViewOvertime")
-    : t("obsViewTrend");
+    : t("obsViewOveryears");
   await page
     .getByLabel(t("obsViewAria"))
     .getByRole("button", { name: label, exact: true })

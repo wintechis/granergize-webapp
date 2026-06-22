@@ -9,7 +9,7 @@ import {
   buildingDisplayName,
 } from "../../lib/buildingDisplay.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
-import { RefLink } from "../detail/DetailView.tsx";
+import { RdfSourceLink, RefLink } from "../detail/DetailView.tsx";
 import SourceNote from "../SourceNote.tsx";
 import { SOURCES } from "../../constants/dataSources.ts";
 import IconAction from "../IconAction.tsx";
@@ -18,7 +18,10 @@ import { getGateway } from "../../hooks/session.ts";
 import { useNotification } from "../../context/NotificationContext.tsx";
 import { attachAnnualData } from "../../services/rdf/building/buildingSerializer.ts";
 import { buildingToXlsx } from "../../services/xlsx/buildingWorkbook.ts";
-import { buildingIdStem } from "../../services/rdf/building/buildingId.ts";
+import {
+  buildingFileUri,
+  buildingIdStem,
+} from "../../services/rdf/building/buildingId.ts";
 import { downloadXlsx } from "../../lib/download.ts";
 import { formatError } from "../../lib/formatError.ts";
 
@@ -33,6 +36,10 @@ export default function BuildingHeader({ building }: { building: BuildingType })
   const name = buildingDisplayName(building);
   const address = buildingAddressLine(building);
   const shared = building.isShared ?? false;
+  // The building's source document (its backing Pod resource) — shown inline in the
+  // title row as a dev-only source link (RdfSourceLink self-hides outside dev mode),
+  // the same place the finders surface their container URI.
+  const sourceUri = buildingFileUri(building.sourceUri ?? building.uri);
   const hasCoords = building.lat != null && building.long != null;
   const { showNotification } = useNotification();
 
@@ -79,6 +86,11 @@ export default function BuildingHeader({ building }: { building: BuildingType })
               {address}
             </Typography>
           )}
+          {/* The building's backing document (dev-only; RdfSourceLink self-hides) —
+              after the address, before the coordinate provenance below. */}
+          <Box sx={{ mt: 0.5 }}>
+            <RdfSourceLink href={sourceUri} />
+          </Box>
           {building.attributedTo && (
             <Typography
               variant="body2"

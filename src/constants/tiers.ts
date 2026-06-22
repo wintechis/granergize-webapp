@@ -16,8 +16,18 @@ import {
 export const TIER_VALUES = ["mine", "shared", "open"] as const;
 export type Tier = typeof TIER_VALUES[number];
 
-/** The Buildings finder's tiers — own + shared-with-me (no open source yet). */
-export const BUILDING_TIERS: readonly Tier[] = ["mine", "shared"];
+/** The Buildings finder's tiers — own + shared-with-me + public open data (LoD2
+ *  buildings via `linked-lod2-by`, fetched by map viewport). Open data is the
+ *  Nürnberg/Bavaria pilot dump, so the tier is empty outside that coverage. */
+export const BUILDING_TIERS: readonly Tier[] = ["mine", "shared", "open"];
+
+/** The Observations finder's tiers — own + shared-with-me + open, for parity with the
+ *  other finders. `open` is currently **empty**: the collection is the user's owned +
+ *  shared buildings and no open observation source is wired in yet. (Open per-installation
+ *  energy DOES exist — e.g. netztransparenz generation time-series — and could populate
+ *  this tier later; see explore-observation-model.) The tier stays offered so the
+ *  affordance is consistent and ready when an open source lands. */
+export const OBSERVATION_TIERS: readonly Tier[] = ["mine", "shared", "open"];
 
 /** The Aggregations finder's tiers — own + shared-with-me + public open data. */
 export const AGGREGATION_TIERS: readonly Tier[] = ["mine", "shared", "open"];

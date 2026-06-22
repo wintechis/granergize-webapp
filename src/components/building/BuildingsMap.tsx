@@ -3,6 +3,8 @@ import { buildingDisplayName, buildingSearchText } from "../../lib/buildingDispl
 import { filterByText } from "../../lib/textSearch.ts";
 import { useListSearch } from "../../hooks/useListSearch.ts";
 import { useListFacet } from "../../hooks/useListFacet.ts";
+import { useOpenBuildings } from "../../hooks/openBuildings.ts";
+import { openViewport } from "../../services/openBuildings.ts";
 import { TIER_VALUES } from "../../constants/tiers.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -355,6 +357,19 @@ export default function BuildingsMap(
   const { query } = useListSearch();
   const tierFacet = useListFacet("tiers", TIER_VALUES);
   const tierKey = tierFacet.selected.join(",");
+  // Open tier: a read-only green-marker layer of public open buildings (LoD2),
+  // fetched around the map viewport centre (`?c`) only when `open` is ticked — same
+  // query key as the finder's count/list, so React Query dedups the one fetch.
+  const openOn = tierFacet.isSelected("open");
+  const { centre: openCentre, radiusM: openRadius } = useMemo(
+    () => openViewport(searchParams),
+    [searchParams],
+  );
+  const { data: openBuildings = [] } = useOpenBuildings(
+    openCentre,
+    openRadius,
+    openOn,
+  );
   const shownBuildings = useMemo(
     () =>
       filterByText(
@@ -567,6 +582,29 @@ export default function BuildingsMap(
               framing={framing}
               onClick={() => openBuilding(building.id)}
             />
+          )
+        ))}
+        {/* Open-data (LoD2) buildings — a read-only green-marker layer, shown only when
+            the `open` tier is ticked. Off-Pod, viewport-fetched; no drill yet (P3 adds
+            source navigation). */}
+        {openOn && openBuildings.map((b) => (
+          b.lat != null && b.long != null && (
+            <Marker
+              key={b.uri}
+              position={[b.lat, b.long]}
+              icon={buildingPin(false, true)}
+              eventHandlers={{
+                // Read-only open data: a click opens the LoD2 source document (no
+                // in-app detail page — it's not a Pod resource).
+                click: () =>
+                  globalThis.open(b.uri, "_blank", "noopener,noreferrer"),
+              }}
+            >
+              <Tooltip direction="top" offset={[0, -38]}>
+                {t("openBuildingLabel")}
+                {b.openKwp != null ? ` — ${Math.round(b.openKwp)} kWp` : ""}
+              </Tooltip>
+            </Marker>
           )
         ))}
       </MapContainer>

@@ -1,6 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import {
   Box,
+  Button,
   CircularProgress,
   IconButton,
   MenuItem,
@@ -8,12 +9,26 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
+import LinkIcon from "@mui/icons-material/Link";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
+import DeleteIcon from "@mui/icons-material/Delete";
+import EnergyYearDialog from "../components/EnergyYearDialog.tsx";
+import Modal from "../components/Modal.tsx";
+import BuildingPicker from "../components/BuildingPicker.tsx";
 import { useLocation, useSearchParams } from "react-router-dom";
 import type { BuildingType } from "../types.ts";
+import type { BuildinglessObservation } from "../services/rdf/energyDataset.ts";
 import { observationRoute } from "../routes.ts";
-import { useAnnualEnergyByYear, useSolidData } from "../hooks/queries.ts";
-import { useDeleteEnergyYear } from "../hooks/mutations.ts";
+import {
+  useAnnualEnergyByYear,
+  useBuildinglessObservations,
+  useSolidData,
+} from "../hooks/queries.ts";
+import {
+  useDeleteEnergyYear,
+  useLinkObservationToBuilding,
+} from "../hooks/mutations.ts";
 import { useConfirm } from "../context/ConfirmContext.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
@@ -29,10 +44,14 @@ import FinderHeader from "../components/FinderHeader.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
+import { useListFacet } from "../hooks/useListFacet.ts";
 import SearchField from "../components/SearchField.tsx";
+import TierFilter from "../components/TierFilter.tsx";
+import TierDot from "../components/TierDot.tsx";
+import { OBSERVATION_TIERS } from "../constants/tiers.ts";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
 import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx";
-import ObservationsTrend from "../components/observation/ObservationsTrend.tsx";
+import ObservationsOverYears from "../components/observation/ObservationsOverYears.tsx";
 import {
   resolveView,
   showsMetric,
@@ -43,6 +62,7 @@ import {
   metricLabelKey,
   SELECTABLE_METRICS,
 } from "../services/energy/energyMetric.ts";
+import { metricLabel } from "../constants/annualMetrics.ts";
 
 // The energy map (geographic markers + year slider) — lazy-loaded; kept
 // mounted-but-hidden off the Map view to preserve its Leaflet viewport, exactly as
@@ -70,8 +90,10 @@ function datasetSummary(b: BuildingType): string {
  * - **Map** — geographic energy markers banded at the chosen year (+ a year slider);
  * - **List** — the per-building observation summary (each row opens `/observation/:id`,
  *   where years are entered/edited; owners can clear all of a building's data);
- * - **Over time** — the buildings × years efficiency heatmap (`ObservationsMatrix`);
- * - **Trend** — each building's year-over-year direction (`ObservationsTrend`).
+ * - **Over time** — the buildings × years efficiency heatmap, with a trailing column
+ *   flagging each building's year-over-year direction (`ObservationsMatrix`);
+ * - **Over years** — the metric's figures over the years, a line per building
+ *   (fact-first temporal; `ObservationsOverYears`).
  *
  * The energy views share one `?m=` metric; the year `?y=` lives inside `BuildingsMap`.
  */
@@ -95,13 +117,38 @@ export default function ObservationsFinder() {
   const withObservations = buildings.filter(
     (b) => (b.energyDatasets?.length ?? 0) > 0,
   );
+  // Building-less (unbound) observations — own-Pod readings not yet linked to a
+  // building; shown as their own loose rows in the List, with a "Link to a building"
+  // action. Loaded only on the finder (a container listing).
+  const { data: looseObs = [] } = useBuildinglessObservations(
+    buildings,
+    onObservations,
+  );
+  // "Add observation" opens the create dialog over ALL owned buildings (including ones
+  // with no observations yet, so a building's FIRST year can be entered). The building
+  // is optional — clearing it (or having none) writes a building-less observation — so
+  // the action is offered even with no owned buildings.
+  const ownedBuildings = buildings.filter((b) => !b.isShared);
+  const [createOpen, setCreateOpen] = useState(false);
+  // The building-less observation being linked (the link dialog) + the picked target.
+  const [linkObs, setLinkObs] = useState<BuildinglessObservation | null>(null);
+  const [linkTarget, setLinkTarget] = useState("");
   const { query, setQuery } = useListSearch();
-  const filtered = filterByText(withObservations, query, buildingSearchText);
+  // Source-tier selector (the finder collection model): union the ticked tiers — a
+  // building's tier is own (`mine`) vs shared-with-me. `open` is offered for parity but
+  // currently matches nothing (no per-building open energy observations — see
+  // OBSERVATION_TIERS). Filters every non-map view; the map reads the full set itself.
+  const tierFacet = useListFacet("tiers", OBSERVATION_TIERS);
+  const byTier = withObservations.filter((b) =>
+    tierFacet.isSelected(b.isShared ? "shared" : "mine")
+  );
+  const filtered = filterByText(byTier, query, buildingSearchText);
   const paging = usePaging(filtered);
-  // The over-time heatmap + trend re-colour over the per-year energy cube, banded
-  // against the filtered set as peers. Loaded only when those views are up — the Map
-  // view's `BuildingsMap` owns its own (React-Query-deduped) load.
-  const energyOn = view === "overtime" || view === "trend";
+  // The over-time heatmap (now carrying the trend column) + the over-years chart
+  // re-shape the per-year energy cube, banded against the filtered set as peers.
+  // Loaded only when those views are up — the Map view's `BuildingsMap` owns its own
+  // (React-Query-deduped) load.
+  const energyOn = view === "overtime" || view === "overyears";
   const { data: energyByYear } = useAnnualEnergyByYear(withObservations, energyOn);
   const visibleIds = new Set(filtered.map((b) => b.id));
 
@@ -109,6 +156,11 @@ export default function ObservationsFinder() {
   // keeping the building. No bulk intent exists, so loop the per-dataset delete over
   // the building's links; once empty, the building drops out of this finder.
   const del = useDeleteEnergyYear();
+  const linkMut = useLinkObservationToBuilding();
+  const closeLink = () => {
+    setLinkObs(null);
+    setLinkTarget("");
+  };
   const { confirm } = useConfirm();
   const { showNotification } = useNotification();
   const handleClearObservations = async (b: BuildingType) => {
@@ -137,6 +189,18 @@ export default function ObservationsFinder() {
     showNotification(t("obsCleared", { name: buildingDisplayName(b) }), "success");
   };
 
+  // Delete a single building-less observation (it's the user's own, unbound data).
+  const handleDeleteLoose = async (o: BuildinglessObservation) => {
+    if (
+      !await confirm({
+        title: t("obsClearTitle"),
+        message: t("obsDeleteLooseConfirm", { year: o.year }),
+        confirmLabel: t("btnDelete"),
+      })
+    ) return;
+    del.mutate({ observationUri: o.uri });
+  };
+
   // Dev-mode-only source link to the backing observations container (self-hides
   // outside dev mode); null until the storage root resolves.
   const webId = getSession().info.webId;
@@ -145,11 +209,50 @@ export default function ObservationsFinder() {
   return (
     <FinderHeader
       title={t("navObservations")}
-      count={withObservations.length}
       source={rdf?.observations}
-      controls={withObservations.length > 0 && (
+      actions={(
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={() => setCreateOpen(true)}
+        >
+          {t("eyAddObservation")}
+        </Button>
+      )}
+      controls={(
         <>
           <SearchField value={query} onChange={setQuery} />
+          {/* Per-tier counts (overview-first, independent of search), consistent with
+              the Buildings + Aggregations finders. `open` is 0 — no open observations
+              yet — which the (0) makes explicit. */}
+          <TierFilter
+            facet={tierFacet}
+            options={OBSERVATION_TIERS}
+            counts={{
+              mine: withObservations.filter((b) => !b.isShared).length,
+              shared: withObservations.filter((b) => b.isShared).length,
+              open: 0,
+            }}
+          />
+          {/* The metric (electricity / heat / …) is a query/filter, not a view
+              control, so it sits on the LEFT with search + tier — and shows on every
+              view incl. the map (to compare metrics there), i.e. all but the List. */}
+          {showsMetric(view) && (
+            <TextField
+              select
+              size="small"
+              value={metric}
+              onChange={(e) => setMetric(e.target.value)}
+              label={t("metricSelectLabel")}
+              sx={{ minWidth: 160 }}
+            >
+              {SELECTABLE_METRICS.map((m) => (
+                <MenuItem key={m.key} value={m.key}>
+                  {t(metricLabelKey(m.key))}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <Box sx={{ flexGrow: 1 }} />
           <CubeAxisBar
             space={{
@@ -160,27 +263,9 @@ export default function ObservationsFinder() {
                 { value: "map", label: t("btnMap") },
                 { value: "list", label: t("btnList") },
                 { value: "overtime", label: t("obsViewOvertime") },
-                { value: "trend", label: t("obsViewTrend") },
+                { value: "overyears", label: t("obsViewOveryears") },
               ],
             }}
-            metricSlot={showsMetric(view)
-              ? (
-                <TextField
-                  select
-                  size="small"
-                  value={metric}
-                  onChange={(e) => setMetric(e.target.value)}
-                  label={t("metricSelectLabel")}
-                  sx={{ minWidth: 160 }}
-                >
-                  {SELECTABLE_METRICS.map((m) => (
-                    <MenuItem key={m.key} value={m.key}>
-                      {t(metricLabelKey(m.key))}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              )
-              : undefined}
           />
         </>
       )}
@@ -191,7 +276,7 @@ export default function ObservationsFinder() {
         sx={{
           display: view === "map" ? "flex" : "none",
           flexDirection: "column",
-          height: 480,
+          aspectRatio: "16 / 9",
           borderRadius: 1,
           overflow: "hidden",
         }}
@@ -205,20 +290,32 @@ export default function ObservationsFinder() {
         </Suspense>
       </Box>
 
-      {/* The rows views (List · Over time · Trend) share the loading/empty states. */}
+      {/* The non-map views (List · Over time · Over years) share loading/empty states. */}
       {view !== "map" && (
-        isLoading
-          ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
-          : withObservations.length === 0
-          ? <Typography variant="body2">{t("observationsEmpty")}</Typography>
-          : filtered.length === 0
-          ? (
+        <>
+          {isLoading && (
+            <Typography variant="body2">{t("loadingEllipsis")}</Typography>
+          )}
+          {/* Nothing at all: no buildings with energy AND no loose observations. */}
+          {!isLoading && withObservations.length === 0 && looseObs.length === 0 && (
+            <Typography variant="body2">{t("observationsEmpty")}</Typography>
+          )}
+          {/* Over time / Over years compare BUILDINGS over time, so building-less
+              observations can't appear there (no building row, no per-m² area). When
+              they're all there is, point to the List rather than a misleading empty. */}
+          {!isLoading && view !== "list" && withObservations.length === 0 &&
+            looseObs.length > 0 && (
+            <Typography variant="body2" color="text.secondary">
+              {t("obsLooseOnlyHint", { count: looseObs.length })}
+            </Typography>
+          )}
+          {/* Buildings exist but the search filtered them all out. */}
+          {!isLoading && withObservations.length > 0 && filtered.length === 0 && (
             <Typography variant="body2">
               {t("searchNoMatches", { query })}
             </Typography>
-          )
-          : view === "overtime"
-          ? (
+          )}
+          {!isLoading && view === "overtime" && filtered.length > 0 && (
             <Box sx={{ minHeight: 0, overflow: "auto" }}>
               <ObservationsMatrix
                 buildings={filtered}
@@ -227,16 +324,20 @@ export default function ObservationsFinder() {
                 metric={metric}
               />
             </Box>
-          )
-          : view === "trend"
-          ? (
-            <ObservationsTrend
-              buildings={filtered}
-              energyByYear={energyByYear}
-              metric={metric}
-            />
-          )
-          : (
+          )}
+          {!isLoading && view === "overyears" && filtered.length > 0 && (
+            // One line per building gets unreadable past a handful, so page the chart
+            // (20/page, shared with the List's pager + `?offset=`).
+            <>
+              <ObservationsOverYears
+                buildings={paging.pageItems}
+                energyByYear={energyByYear}
+                metric={metric}
+              />
+              <Pager paging={paging} />
+            </>
+          )}
+          {!isLoading && view === "list" && filtered.length > 0 && (
             <>
               <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
                 {paging.pageItems.map((b) => (
@@ -244,9 +345,13 @@ export default function ObservationsFinder() {
                     key={b.uri}
                     buildingId={b.id}
                     title={
-                      <RefLink to={observationRoute(b.id)}>
-                        <strong>{buildingDisplayName(b)}</strong>
-                      </RefLink>
+                      <>
+                        <RefLink to={observationRoute(b.id)}>
+                          <strong>{buildingDisplayName(b)}</strong>
+                        </RefLink>
+                        {/* Source-tier dot (mine = owned blue, shared = orange). */}
+                        <TierDot tier={b.isShared ? "shared" : "mine"} />
+                      </>
                     }
                     subtitle={datasetSummary(b)}
                     actions={b.isShared ? undefined : (
@@ -267,7 +372,111 @@ export default function ObservationsFinder() {
               </Box>
               <Pager paging={paging} />
             </>
-          )
+          )}
+          {/* Building-less observations — in the List, regardless of buildings. */}
+          {!isLoading && view === "list" && looseObs.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                {t("obsWithoutBuilding")}
+              </Typography>
+              <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
+                {looseObs.map((o) => (
+                  <ResourceRow
+                    key={o.uri}
+                    title={
+                      <>
+                        <strong>{o.year}</strong>
+                        <TierDot tier="mine" />
+                      </>
+                    }
+                    subtitle={Object.keys(o.metrics ?? {})
+                      .map((k) => metricLabel(k))
+                      .join(" · ")}
+                    actions={
+                      <Box sx={{ display: "flex", alignItems: "center", gap: 0.5 }}>
+                        {ownedBuildings.length > 0 && (
+                          <Button
+                            size="small"
+                            startIcon={<LinkIcon />}
+                            onClick={() => setLinkObs(o)}
+                          >
+                            {t("obsLinkToBuilding")}
+                          </Button>
+                        )}
+                        <Tooltip title={t("btnDelete")}>
+                          <IconButton
+                            size="small"
+                            color="error"
+                            aria-label={t("btnDelete")}
+                            disabled={del.isPending}
+                            onClick={() => void handleDeleteLoose(o)}
+                          >
+                            <DeleteIcon fontSize="small" />
+                          </IconButton>
+                        </Tooltip>
+                      </Box>
+                    }
+                  />
+                ))}
+              </Box>
+            </Box>
+          )}
+        </>
+      )}
+
+      {/* Create observations from the finder: the entry dialog with an OPTIONAL
+          building picker — clearing it (or owning none) writes a building-less
+          observation, to be linked to a building later. */}
+      {createOpen && (
+        <EnergyYearDialog
+          open
+          createFrom={ownedBuildings}
+          session={getSession()}
+          onClose={() => setCreateOpen(false)}
+        />
+      )}
+
+      {/* Link a building-less observation to a building (late FoI binding). */}
+      {linkObs && (
+        <Modal
+          open
+          onClose={closeLink}
+          title={t("obsLinkToBuilding")}
+          busy={linkMut.isPending}
+          actions={
+            <>
+              <Button
+                variant="text"
+                onClick={closeLink}
+                disabled={linkMut.isPending}
+              >
+                {t("btnCancel")}
+              </Button>
+              <Button
+                variant="contained"
+                disabled={linkMut.isPending || !linkTarget}
+                onClick={() =>
+                  linkMut.mutate({
+                    observationUri: linkObs.uri,
+                    buildingFileUri: buildingFileUri(linkTarget),
+                    buildingSubjectUri: linkTarget,
+                    granularity: linkObs.granularity,
+                    scenario: linkObs.scenario,
+                  }, { onSuccess: closeLink })}
+              >
+                {linkMut.isPending ? t("btnSaving") : t("obsLinkToBuilding")}
+              </Button>
+            </>
+          }
+        >
+          <BuildingPicker
+            buildings={ownedBuildings}
+            label={t("eyBuildingLabel")}
+            value={linkTarget}
+            onChange={setLinkTarget}
+            disabled={linkMut.isPending}
+          />
+        </Modal>
       )}
     </FinderHeader>
   );

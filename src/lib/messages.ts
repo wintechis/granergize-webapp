@@ -66,6 +66,14 @@ export const MESSAGES = {
     fr:
       "Supprimer toutes les observations ({years} année(s)) pour {name} ? Le bâtiment reste ; seules ses données énergétiques sont supprimées. Action irréversible.",
   },
+  obsDeleteLooseConfirm: {
+    en:
+      "Delete the building-less observation for {year}? This cannot be undone.",
+    de:
+      "Die gebäudelose Beobachtung für {year} löschen? Dies kann nicht rückgängig gemacht werden.",
+    fr:
+      "Supprimer l'observation sans bâtiment pour {year} ? Action irréversible.",
+  },
   obsCleared: {
     en: "Observations cleared for {name}",
     de: "Beobachtungen für {name} gelöscht",
@@ -1228,6 +1236,25 @@ export const MESSAGES = {
     fr: "Vue des observations",
   },
   obsViewOvertime: { en: "Over time", de: "Im Zeitverlauf", fr: "Dans le temps" },
+  obsWithoutBuilding: {
+    en: "Without a building",
+    de: "Ohne Gebäude",
+    fr: "Sans bâtiment",
+  },
+  obsLooseOnlyHint: {
+    en:
+      "{count} observation(s) aren't linked to a building yet — link them in the List to compare them here.",
+    de:
+      "{count} Beobachtung(en) sind noch keinem Gebäude zugeordnet — verknüpfen Sie sie in der Liste, um sie hier zu vergleichen.",
+    fr:
+      "{count} observation(s) ne sont pas encore associées à un bâtiment — associez-les dans la liste pour les comparer ici.",
+  },
+  obsLinkToBuilding: {
+    en: "Link to a building",
+    de: "Mit Gebäude verknüpfen",
+    fr: "Associer à un bâtiment",
+  },
+  obsViewOveryears: { en: "Over years", de: "Über die Jahre", fr: "Au fil des ans" },
   obsViewTrend: { en: "Trend", de: "Trend", fr: "Tendance" },
   trendImproving: {
     en: "Improving",
@@ -1382,6 +1409,19 @@ export const MESSAGES = {
   },
   // Energy-years dialog.
   eyAction: { en: "Energy years", de: "Energiejahre", fr: "Années énergétiques" },
+  // Create mode (Observations finder → "Add observation"): the required building
+  // picker (the FeatureOfInterest) and the placeholder before one is chosen.
+  eyBuildingLabel: { en: "Building", de: "Gebäude", fr: "Bâtiment" },
+  eyBuildinglessHint: {
+    en: "No building selected — this observation will be unbound. Link it to a building later.",
+    de: "Kein Gebäude gewählt — diese Beobachtung bleibt ungebunden. Verknüpfen Sie sie später mit einem Gebäude.",
+    fr: "Aucun bâtiment sélectionné — cette observation restera non liée. Associez-la à un bâtiment plus tard.",
+  },
+  eyAddObservation: {
+    en: "Add observation",
+    de: "Beobachtung hinzufügen",
+    fr: "Ajouter une observation",
+  },
   eyObserveFor: {
     en: "Observe for",
     de: "Beobachten für",
@@ -1586,6 +1626,26 @@ export const MESSAGES = {
     de: "Freigabe-Konsistenz prüfen",
     fr: "Vérifier la cohérence du partage",
   },
+  menuCheckObsLinks: {
+    en: "Check observation links",
+    de: "Beobachtungs-Verknüpfungen prüfen",
+    fr: "Vérifier les liens d'observation",
+  },
+  devObsLinksConsistent: {
+    en: "Observation links consistent: {checked} observation(s) match their buildings",
+    de:
+      "Beobachtungs-Verknüpfungen konsistent: {checked} Beobachtung(en) stimmen mit ihren Gebäuden überein",
+    fr:
+      "Liens d'observation cohérents : {checked} observation(s) correspondent à leurs bâtiments",
+  },
+  devObsLinksDrift: {
+    en:
+      "Observation-link drift: {drift} of {checked} observation(s) are out of sync with their buildings (see the console)",
+    de:
+      "Verknüpfungs-Abweichung: {drift} von {checked} Beobachtung(en) sind nicht mit ihren Gebäuden synchron (siehe Konsole)",
+    fr:
+      "Dérive des liens : {drift} sur {checked} observation(s) ne sont pas synchronisées avec leurs bâtiments (voir la console)",
+  },
   menuRebuildSharing: {
     en: "Rebuild sharing from log",
     de: "Freigaben aus Log neu aufbauen",
@@ -1777,6 +1837,16 @@ export const MESSAGES = {
   tierMine: { en: "Mine", de: "Meine", fr: "Les miens" },
   tierShared: { en: "Shared with me", de: "Mit mir geteilt", fr: "Partagés avec moi" },
   tierOpen: { en: "Open data", de: "Offene Daten", fr: "Données ouvertes" },
+  openBuildingLabel: {
+    en: "Open building",
+    de: "Offenes Gebäude",
+    fr: "Bâtiment ouvert",
+  },
+  openBuildingsPanHint: {
+    en: "Open data loads from the map view — switch to Map and pan to an area to load open buildings there.",
+    de: "Offene Daten werden aus der Kartenansicht geladen — zur Karte wechseln und zu einem Gebiet schwenken, um dort offene Gebäude zu laden.",
+    fr: "Les données ouvertes se chargent depuis la carte — passez à la carte et déplacez-vous vers une zone pour y charger les bâtiments ouverts.",
+  },
   filterNoMatch: {
     en: "Nothing matches the current filter.",
     de: "Nichts entspricht dem aktuellen Filter.",
@@ -2773,6 +2843,11 @@ export const MESSAGES = {
     de: "Löschen der Energiedaten",
     fr: "la suppression des données énergétiques",
   },
+  actionLinkObservation: {
+    en: "link the observation to a building",
+    de: "Verknüpfen der Beobachtung mit einem Gebäude",
+    fr: "l'association de l'observation à un bâtiment",
+  },
   actionUploadFile: {
     en: "upload the file",
     de: "Hochladen der Datei",
@@ -2847,6 +2922,11 @@ export const MESSAGES = {
     en: "check sharing consistency",
     de: "Prüfen der Freigabe-Konsistenz",
     fr: "la vérification de la cohérence des partages",
+  },
+  actionCheckObsLinks: {
+    en: "check observation links",
+    de: "Prüfen der Beobachtungs-Verknüpfungen",
+    fr: "la vérification des liens d'observation",
   },
   actionReadInbox: {
     en: "read your inbox",

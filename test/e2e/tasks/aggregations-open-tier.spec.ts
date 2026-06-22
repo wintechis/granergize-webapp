@@ -89,21 +89,24 @@ test.describe("aggregations open tier (regionalstatistik)", () => {
 
     await openAggregations(page);
 
-    // The open dataset row — "{renewable-share label} — Bayern" — is shown by
-    // default (every tier selected). The tier selector offers an "Open data" tier.
+    // Open data is **opt-in** (off by default): the tier selector offers an "Open
+    // data" tier, but no open row shows until it's ticked.
     const tierFilter = page.getByRole("group", { name: t("tierFilterAria") });
-    await expect(tierFilter.getByRole("button", { name: t("tierOpen") }))
-      .toBeVisible({ timeout: T.action });
+    const openTier = tierFilter.getByRole("button", { name: t("tierOpen") });
+    await expect(openTier).toBeVisible({ timeout: T.action });
     const openRow = page.getByText(
       `${t("regRenewableShare")} — Bayern`,
     );
-    await expect(openRow).toBeVisible({ timeout: T.action });
-
-    // Unticking the "Open data" tier removes the open row (no own/shared
-    // aggregations exist, so the collection empties); re-ticking restores it.
-    await tierFilter.getByRole("button", { name: t("tierOpen") }).click();
     await expect(openRow).toHaveCount(0);
-    await tierFilter.getByRole("button", { name: t("tierOpen") }).click();
+
+    // Ticking "Open data" surfaces the open dataset row; unticking removes it again
+    // (no own/shared aggregations exist, so the collection empties).
+    await openTier.click();
+    await expect(openRow).toBeVisible({ timeout: T.action });
+    await openTier.click();
+    await expect(openRow).toHaveCount(0);
+    // Re-tick so the rest of the test (opening the dataset) has the row.
+    await openTier.click();
     await expect(openRow).toBeVisible();
 
     // Opening the dataset navigates to its standalone read-only page, which fetches

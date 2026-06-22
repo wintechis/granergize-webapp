@@ -2,6 +2,33 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-22]
+- **Building-less observations — capture readings before a building exists, link (or delete) later.**
+  Observations are first-class resources (`granergize/observations/{year}/{id}.ttl`), so a
+  "building-less" one is just a `cons:EnergyDataset` with no `cons:ofBuilding`; the serializer omits
+  the triple, the IRI is stable. The Observations finder's **Add observation** dialog now has an
+  *optional* building — clear the picker (or own none) to create an unbound reading. Unbound
+  observations show in the List under a **"Without a building"** section, each with **"Link to a
+  building"** (the new `LinkObservationToBuilding` intent adds `cons:ofBuilding` + the
+  `cons:hasEnergyDataset` link in place) and a delete action. Discovery (`useBuildinglessObservations`)
+  lists the `observations/` container and subtracts the building-linked datasets. **Over time** and
+  **Over years** stay building-comparison views — they don't plot unbound observations (no building
+  row, no per-m² area), and when only loose observations exist they show a hint pointing to the List
+  instead of a misleading "no observations yet". Own-Pod only. Covered by the
+  `buildingless-observations` e2e (create → List → link → moved; create → delete → gone; the
+  `?view=list` deep link). `writeEnergyYear` was split into reusable
+  `putObservationDataset`/`linkBuildingToObservation` steps; `SaveObservation`/`DeleteObservation`
+  handle the no-building case.
+- **Dev-mode "Check observation links".** A read-only consistency check (in the profile menu, next
+  to "Check sharing consistency") that diffs each observation's `cons:ofBuilding` against the
+  building's `cons:hasEnergyDataset` link, own-Pod — reporting **orphan attributions** (a dataset
+  attributed to a building that doesn't link it back, so the building's link-following load can't see
+  it), **dangling links** (a building links a dataset that no longer exists), and **back-reference
+  mismatches** (a building links a dataset whose `ofBuilding` points elsewhere). It's the diffing
+  twin of the sharing audit — a check, not yet a repair. New `CheckObservationLinks` read intent +
+  `auditObservationLinks`; the pure `diffObservationLinks` is unit-tested across the three drift
+  kinds.
+
 ## [2026-06-21]
 - **⌘K "Share building" works for buildings with no attachments.** The schema-driven param form
   marked the optional `attachmentUris` subset (absent ⇒ all attachments) as *required* — its

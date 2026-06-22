@@ -168,7 +168,7 @@ test.describe("URI-encoded navigational state survives reload", () => {
     await expect(page.getByRole("heading", { name: t("navBuildings") }))
       .toBeVisible({ timeout: T.action });
   });
-  // (The Observations `?view=` round-trip is covered by cube-trend.spec.ts, which
+  // (The Observations `?view=` round-trip is covered by cube-space-cut.spec.ts, which
   // seeds energy via ensureDemoBuildings so the View toggle is present.)
 
   test("the map viewport (centre+zoom) is written to the URL", async () => {

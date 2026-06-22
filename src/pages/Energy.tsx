@@ -117,7 +117,9 @@ export default function Energy({ building }: EnergyProps) {
       <Box>
         {dev && (
           <>
-            <RdfSourceLink href={aggregates[0].uri} />
+            {/* Every annual dataset (one resource per year), not just the first —
+                the series view lists all of its datasets the same way. */}
+            {aggregates.map((d) => <RdfSourceLink key={d.uri} href={d.uri} />)}
             <Divider />
           </>
         )}

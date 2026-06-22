@@ -15,6 +15,7 @@ import { getObservationYearCore } from "./GetObservationYear.ts";
 import { whoHasAccessCore } from "./WhoHasAccess.ts";
 import { sharedWithMeCore } from "./SharedWithMe.ts";
 import { checkSharingConsistencyCore } from "./checkSharingConsistency.ts";
+import { checkObservationLinksCore } from "./checkObservationLinks.ts";
 import { exportArchiveCore } from "./exportArchive.ts";
 import { addBuildingCore } from "./AddBuilding.ts";
 import { updateBuildingCore } from "./UpdateBuilding.ts";
@@ -22,6 +23,7 @@ import { deleteBuildingCore } from "./DeleteBuilding.ts";
 import { toggleVisibilityCore } from "./ToggleVisibility.ts";
 import { saveObservationCore } from "./SaveObservation.ts";
 import { deleteObservationCore } from "./DeleteObservation.ts";
+import { linkObservationToBuildingCore } from "./LinkObservationToBuilding.ts";
 import { uploadAttachmentsCore } from "./UploadAttachments.ts";
 import { deleteAttachmentCore } from "./DeleteAttachment.ts";
 import { setEnergyCertificateCore } from "./SetEnergyCertificate.ts";
@@ -62,6 +64,7 @@ export const WRITE_CORES = {
   ShareBuilding: shareBuildingCore,
   SaveObservation: saveObservationCore,
   DeleteObservation: deleteObservationCore,
+  LinkObservationToBuilding: linkObservationToBuildingCore,
   UploadAttachments: uploadAttachmentsCore,
   DeleteAttachment: deleteAttachmentCore,
   SetEnergyCertificate: setEnergyCertificateCore,
@@ -130,6 +133,13 @@ export const READ_CORES = {
     return checkSharingConsistencyCore(s);
   },
   ExportArchive: exportArchiveCore,
+  // Dev-mode: dry-run diff of observation `ofBuilding` ↔ building `hasEnergyDataset`
+  // links (own-Pod). Collection-wide, so paramless — the `(s, _p)` wrapper keeps the
+  // `(gateway, params)` arity uniform, like AuditGrants above.
+  CheckObservationLinks: (s: PodGateway, p: Record<never, never>) => {
+    void p;
+    return checkObservationLinksCore(s);
+  },
   // The first collection query — narrows the visible buildings by an attribute
   // selector (plan-attribute-facets); returns the matching BuildingType[].
   FindBuildings: findBuildingsCore,

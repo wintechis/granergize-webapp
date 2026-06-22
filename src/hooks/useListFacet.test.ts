@@ -68,3 +68,33 @@ Deno.test("useListFacet: junk values are dropped, key namespaces the param", () 
   act(() => result.current.facet.replace(["mine"]));
   assert.equal(result.current.params.get("l_tiers"), "mine");
 });
+
+// `open` is opt-in: a facet that offers it must NOT select it by default.
+const OPEN_TIERS = ["mine", "shared", "open"] as const;
+function useOpenProbe() {
+  const facet = useListFacet("tiers", OPEN_TIERS);
+  const [params] = useSearchParams();
+  return { facet, params };
+}
+
+Deno.test("useListFacet: `open` is opt-in — absent param defaults to mine+shared only", () => {
+  const { result } = renderHook(() => useOpenProbe(), { wrapper: wrapperAt("/") });
+  assert.deepEqual(result.current.facet.selected, ["mine", "shared"]);
+  assert.equal(result.current.facet.isSelected("open"), false);
+});
+
+Deno.test("useListFacet: ticking ALL (incl. open) writes ?tiers so it persists (not the default)", () => {
+  const { result } = renderHook(() => useOpenProbe(), { wrapper: wrapperAt("/") });
+  act(() => result.current.facet.replace(["mine", "shared", "open"]));
+  assert.equal(result.current.params.get("tiers"), "mine,shared,open");
+  assert.equal(result.current.facet.isSelected("open"), true);
+});
+
+Deno.test("useListFacet: replace to the default (mine+shared) clears ?tiers", () => {
+  const { result } = renderHook(() => useOpenProbe(), {
+    wrapper: wrapperAt("/?tiers=mine,shared,open"),
+  });
+  act(() => result.current.facet.replace(["mine", "shared"]));
+  assert.equal(result.current.params.get("tiers"), null, "the default → clean URL");
+  assert.equal(result.current.facet.isSelected("open"), false);
+});

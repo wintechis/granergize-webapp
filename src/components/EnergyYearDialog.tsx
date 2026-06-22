@@ -32,6 +32,7 @@ import {
   type EnergyMetricKey,
 } from "../services/rdf/energyDataset.ts";
 import { buildingFileUri } from "../services/rdf/building/buildingId.ts";
+import BuildingPicker from "./BuildingPicker.tsx";
 import {
   useDeleteEnergyYear,
   useWriteEnergyYear,
@@ -72,9 +73,14 @@ const dsKey = (year: number, scenario: Scenario): string => `${year}|${scenario}
 
 interface EnergyYearDialogProps {
   open: boolean;
-  building: BuildingType;
   session: Session;
   onClose: () => void;
+  /** Observation-page mode: the fixed building these observations are about. */
+  building?: BuildingType;
+  /** Create mode (from the Observations finder): owned buildings to pick from,
+   *  so the building (the FeatureOfInterest) is chosen IN the dialog. Exactly one
+   *  of `building` / `createFrom` is given; `createFrom` must be non-empty. */
+  createFrom?: BuildingType[];
 }
 
 /**
@@ -84,10 +90,12 @@ interface EnergyYearDialogProps {
  * the others (#5). A table at the top lists the years already stored (the
  * read-back of what you entered); a row's Edit loads it back into the form, and
  * Delete removes that year. Saving keeps the dialog open so the table reflects
- * the change immediately.
+ * the change immediately. Opened either for a fixed `building` (the observation
+ * page) or with `createFrom` (the finder's "Add observation"), where a required
+ * building Select at the top names the FeatureOfInterest.
  */
 export default function EnergyYearDialog(
-  { open, building, session, onClose }: EnergyYearDialogProps,
+  { open, session, onClose, building, createFrom }: EnergyYearDialogProps,
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
@@ -98,6 +106,16 @@ export default function EnergyYearDialog(
   const del = useDeleteEnergyYear();
   const busy = write.isPending || del.isPending;
 
+  // The building these observations are FOR (the FeatureOfInterest). Fixed in
+  // observation-page mode; in create mode it's picked below — defaulting to the first
+  // owned building, but **clearable**: an empty pick writes a building-less (unbound)
+  // observation, to be linked to a building later.
+  const [pickedUri, setPickedUri] = useState(
+    (createFrom?.[0]?.uri as string | undefined) ?? "",
+  );
+  const selectedBuilding: BuildingType | null = building ??
+    createFrom?.find((b) => (b.uri as string) === pickedUri) ?? null;
+
   const [year, setYear] = useState("");
   const [scenario, setScenario] = useState<Scenario>("actual");
   const [values, setValues] = useState<Record<string, string>>({});
@@ -107,7 +125,9 @@ export default function EnergyYearDialog(
   // each a `bldg:hasSystem` node. Observations entered here attach to the chosen
   // unit (`sosa:hasFeatureOfInterest`), so a unit accrues its own per-year series,
   // mirroring MaStR's per-unit model. Only units that exist on the building are offered.
-  const buildingFile = buildingFileUri(building.uri as string);
+  const buildingFile = selectedBuilding
+    ? buildingFileUri(selectedBuilding.uri as string)
+    : "";
   const kindLabel = (kind: SystemKind) =>
     kind === "battery"
       ? msg("mdBatteryStorage")
@@ -116,7 +136,7 @@ export default function EnergyYearDialog(
       : msg("mdPvSystem");
   // One option per energy unit (its actual node IRI), so an observation can attach to
   // exactly the unit the user picks — several of a kind disambiguated by the summary.
-  const units = (building.systems ?? []) as TechnicalSystem[];
+  const units = (selectedBuilding?.systems ?? []) as TechnicalSystem[];
   const foiOptions: Array<{ label: string; iri: string }> = [
     { label: msg("eyFoiBuilding"), iri: "" },
     ...units.map((s) => ({
@@ -136,7 +156,7 @@ export default function EnergyYearDialog(
   // by the query hook (keyed on the dataset-link fingerprint, so a year that
   // landed via a buildings refetch shows up too); save/delete patch this cache
   // optimistically below so the table updates without waiting for a round-trip.
-  const datasetsQuery = useAnnualDatasets(building, open);
+  const datasetsQuery = useAnnualDatasets(selectedBuilding, open);
   const datasets = useMemo(
     () => datasetsQuery.data ?? [],
     [datasetsQuery.data],
@@ -147,7 +167,13 @@ export default function EnergyYearDialog(
   // link-fingerprint key variants for this building) — the optimistic read-back.
   const patchDatasets = (fn: (prev: EnergyDataset[]) => EnergyDataset[]) =>
     qc.setQueriesData<EnergyDataset[]>(
-      { queryKey: [...queryKeys.annualDatasets, session.info.webId, building.id] },
+      {
+        queryKey: [
+          ...queryKeys.annualDatasets,
+          session.info.webId,
+          selectedBuilding?.id ?? "",
+        ],
+      },
       (prev) => fn(prev ?? []),
     );
 
@@ -272,8 +298,24 @@ export default function EnergyYearDialog(
       showNotification(msg("enterFigure"), "error");
       return;
     }
+    // Building-less: write an UNBOUND observation (no building → no FoI). It surfaces
+    // via the building-less observations list; there's no per-building cache to patch.
+    if (!selectedBuilding) {
+      write.mutate(
+        { dataset: { building: "", year: y, granularity: "P1Y", scenario, metrics } },
+        {
+          onSuccess: () => {
+            showNotification(msg("energySaved"), "success");
+            const keep = scenario;
+            reset();
+            setScenario(keep);
+          },
+        },
+      );
+      return;
+    }
 
-    const subjectUri = building.uri as string;
+    const subjectUri = selectedBuilding.uri as string;
     const dataset = {
       building: subjectUri,
       year: y,
@@ -319,7 +361,8 @@ export default function EnergyYearDialog(
         confirmLabel: msg("btnDelete"),
       })
     ) return;
-    const subjectUri = building.uri as string;
+    if (!selectedBuilding) return;
+    const subjectUri = selectedBuilding.uri as string;
     del.mutate(
       {
         fileUri: buildingFileUri(subjectUri),
@@ -359,27 +402,60 @@ export default function EnergyYearDialog(
     reset();
   };
 
+  // Switching the building (create mode) is like opening a different sheet — clear
+  // the in-progress form and reset the FoI to the new building's whole.
+  const changeBuilding = (uri: string) => {
+    setPickedUri(uri);
+    setFoi("");
+    reset();
+  };
+
   return (
     <Modal
       open={open}
       onClose={close}
-      title={<BuildingDialogTitle building={building} action={msg("eyAction")} />}
+      title={selectedBuilding
+        ? <BuildingDialogTitle building={selectedBuilding} action={msg("eyAction")} />
+        : msg("eyAction")}
       maxWidth="md"
       dirty={dirty}
       busy={busy}
       actions={
         <>
           <Button variant="text" onClick={close} disabled={busy}>{msg("btnClose")}</Button>
-          <Button variant="contained" onClick={handleSave} disabled={busy}>
+          <Button
+            variant="contained"
+            onClick={handleSave}
+            disabled={busy}
+          >
             {busy ? msg("btnSaving") : msg("btnSave")}
           </Button>
         </>
       }
     >
       <Stack spacing={3} sx={{ mt: 1 }}>
-        {/* Feature of interest — the building or one of its energy units. Shown only
-            when the building has units; scopes both the table and the entry form. */}
-        {foiOptions.length > 1 && (
+        {/* Create mode: pick the building (the FeatureOfInterest) these observations
+            are about — a searchable picker. Hidden in observation-page mode (the
+            building is fixed). */}
+        {createFrom && createFrom.length > 0 && (
+          <BuildingPicker
+            buildings={createFrom}
+            label={msg("eyBuildingLabel")}
+            value={pickedUri}
+            onChange={changeBuilding}
+            disabled={busy}
+          />
+        )}
+        {/* Building-less (create mode, no building picked) — an unbound observation,
+            to be linked to a building later. */}
+        {createFrom && !selectedBuilding && (
+          <Typography variant="body2" color="text.secondary">
+            {msg("eyBuildinglessHint")}
+          </Typography>
+        )}
+        {/* Feature of interest — the building or one of its energy units; only when a
+            building with units is selected. */}
+        {selectedBuilding && foiOptions.length > 1 && (
           <TextField
             select
             label={msg("eyObserveFor")}
@@ -393,9 +469,11 @@ export default function EnergyYearDialog(
             ))}
           </TextField>
         )}
-        {/* Read-back of what's stored for the selected feature of interest. */}
-        <section>
-          <Typography variant="h6" sx={{ mb: 1 }}>{msg("eyStoredYears")}</Typography>
+        {/* Read-back of what's stored — only for a bound building (a building-less
+            observation has no prior years to list). */}
+        {selectedBuilding && (
+          <section>
+            <Typography variant="h6" sx={{ mb: 1 }}>{msg("eyStoredYears")}</Typography>
           {listLoading
             ? <Typography color="text.secondary">{msg("loadingEllipsis")}</Typography>
             : sorted.length === 0
@@ -462,6 +540,7 @@ export default function EnergyYearDialog(
               </TableContainer>
             )}
         </section>
+        )}
 
         {/* Add / edit one year. */}
         <section>

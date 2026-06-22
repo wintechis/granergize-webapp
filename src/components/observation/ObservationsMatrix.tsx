@@ -5,7 +5,7 @@ import Tooltip from "@mui/material/Tooltip";
 import Typography from "@mui/material/Typography";
 import { BuildingType } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
-import { buildingRoute } from "../../routes.ts";
+import { observationRoute } from "../../routes.ts";
 import { type EnergyMetricKey } from "../../services/rdf/energyDataset.ts";
 import { DEFAULT_METRIC } from "../../services/energy/energyMetric.ts";
 import {
@@ -13,22 +13,37 @@ import {
   type MatrixCell,
 } from "../../services/energy/energyMatrix.ts";
 import { type EnergyByBuildingYear } from "../../services/energy/energyTimeCut.ts";
+import {
+  type EnergyTrend,
+  trendForBuildings,
+} from "../../services/energy/energyTrend.ts";
 import { bandColor, bandLabelKey } from "../../constants/lensBand.ts";
+import {
+  MARKER_NO_DATA_COLOR,
+  TREND_FLAT_COLOR,
+  TREND_IMPROVING_COLOR,
+  TREND_WORSENING_COLOR,
+} from "../../constants/chartColors.ts";
 import { ellipsis } from "../../constants/listStyles.ts";
+import { type MessageId } from "../../lib/messages.ts";
+import { RefLink } from "../detail/DetailView.tsx";
 import { useT } from "../../context/I18nProvider.tsx";
 
 /**
  * The Observations finder's **over-time** view: a buildings × years heatmap — rows
  * are buildings, columns are the reachable years, each cell coloured by that
- * building-year's efficiency tier. Where the finder's map shows the whole set at one
- * year (the slider), this shows the whole temporal evolution of the set at once.
+ * building-year's efficiency tier — plus a trailing **Trend** column flagging each
+ * building's year-over-year direction (improving / flat / worsening). Where the
+ * finder's map shows the whole set at one year (the slider), this shows the whole
+ * temporal evolution at once: the per-year state (cells) AND the overall direction
+ * (trend) side by side — folding in what was a separate Trend view.
  *
- * It is a pure render over `buildEnergyMatrix` (the unit-tested shaping fn) and
- * the same `EnergyByBuildingYear` cube the map's energy lens loads — so the panel
- * and the map colour identically at a shared (building, year). A cell click
- * leaves for `/building/:id` (the map's navigation loop — the finder hands off to
- * the detail page); the panel is a finder, it doesn't own selection state. The
- * tier colours reuse the map energy-lens palette so the two surfaces read in step.
+ * A pure render over `buildEnergyMatrix` + `trendForBuildings` (both unit-tested) and
+ * the same `EnergyByBuildingYear` cube the map's energy lens loads — so the panel and
+ * the map colour identically at a shared (building, year). The building name and each
+ * cell navigate to `/observation/:id` (the energy detail — the finder hands off to the
+ * observation leaf, consistent with the map markers); the panel is a finder, it
+ * doesn't own selection state. Tier + trend colours reuse the shared palettes.
  *
  * Loading is the header indicator's job (CLAUDE.md): the panel shows a plain
  * "Loading…" / empty-state line while the cube is in flight or empty — no
@@ -37,6 +52,15 @@ import { useT } from "../../context/I18nProvider.tsx";
 
 const CELL = 28;
 const NAME_COL = 200;
+const TREND_COL = 130;
+
+/** Trend → its colour (the colourblind-safe diverging palette) + i18n label key. */
+const TREND_META: Record<EnergyTrend, { color: string; label: MessageId }> = {
+  improving: { color: TREND_IMPROVING_COLOR, label: "trendImproving" },
+  flat: { color: TREND_FLAT_COLOR, label: "trendFlat" },
+  worsening: { color: TREND_WORSENING_COLOR, label: "trendWorsening" },
+  unknown: { color: MARKER_NO_DATA_COLOR, label: "trendUnknown" },
+};
 
 interface ObservationsMatrixProps {
   buildings: BuildingType[];
@@ -59,6 +83,13 @@ export default function ObservationsMatrix(
         ? buildEnergyMatrix(buildings, energyByYear, visibleIds, metric)
         : null,
     [buildings, energyByYear, visibleIds, metric],
+  );
+  // The folded-in trend column: each building's year-over-year direction on the same
+  // metric (the distiller is unit-tested; here it just colours a dot + label).
+  const trends = useMemo(
+    () =>
+      energyByYear ? trendForBuildings(buildings, energyByYear, metric) : null,
+    [buildings, energyByYear, metric],
   );
 
   // The cell value unit follows the framing: consumption is a per-m² intensity, a
@@ -93,13 +124,14 @@ export default function ObservationsMatrix(
       <Box
         sx={{
           display: "grid",
-          gridTemplateColumns: `${NAME_COL}px repeat(${years.length}, ${CELL}px)`,
+          gridTemplateColumns:
+            `${NAME_COL}px repeat(${years.length}, ${CELL}px) ${TREND_COL}px`,
           alignItems: "center",
           gap: 0.25,
           width: "max-content",
         }}
       >
-        {/* Header row: a blank corner, then the year columns. */}
+        {/* Header row: a blank corner, the year columns, then the Trend column. */}
         <Box />
         {years.map((y) => (
           <Typography
@@ -110,52 +142,92 @@ export default function ObservationsMatrix(
             {String(y).slice(-2)}
           </Typography>
         ))}
+        <Typography
+          variant="caption"
+          sx={{ pl: 1, color: "text.secondary" }}
+        >
+          {t("obsViewTrend")}
+        </Typography>
 
-        {/* One row per building: the name, then a cell per year. */}
-        {rows.map((row) => (
-          <Box key={row.building.id} sx={{ display: "contents" }}>
-            <Typography
-              variant="body2"
-              title={buildingDisplayName(row.building)}
-              sx={{ ...ellipsis, pr: 1, maxWidth: NAME_COL }}
-            >
-              {buildingDisplayName(row.building)}
-            </Typography>
-            {row.cells.map((cell) => {
-              const has = cell.value != null;
-              const title = cellTitle(buildingDisplayName(row.building), cell);
-              return (
-                <Tooltip key={cell.year} title={title} arrow>
-                  <Box
-                    role="button"
-                    tabIndex={has ? 0 : -1}
-                    aria-label={title}
-                    onClick={() => void navigate(buildingRoute(row.building.id))}
-                    onKeyDown={(e) => {
-                      if (e.key === "Enter" || e.key === " ") {
-                        e.preventDefault();
-                        void navigate(buildingRoute(row.building.id));
-                      }
-                    }}
-                    sx={{
-                      height: CELL,
-                      borderRadius: 0.5,
-                      cursor: "pointer",
-                      backgroundColor: bandColor(cell.band, framing),
-                      border: has ? "none" : "1px dashed",
-                      borderColor: "divider",
-                      "&:focus-visible": {
-                        outline: "2px solid",
-                        outlineColor: "primary.main",
-                        outlineOffset: 1,
-                      },
-                    }}
-                  />
-                </Tooltip>
-              );
-            })}
-          </Box>
-        ))}
+        {/* One row per building: the name, a cell per year, then the trend. */}
+        {rows.map((row) => {
+          const trendMeta = TREND_META[trends?.get(row.building.id) ?? "unknown"];
+          return (
+            <Box key={row.building.id} sx={{ display: "contents" }}>
+              <Typography
+                variant="body2"
+                title={buildingDisplayName(row.building)}
+                sx={{ ...ellipsis, pr: 1, maxWidth: NAME_COL }}
+              >
+                <RefLink to={observationRoute(row.building.id)}>
+                  {buildingDisplayName(row.building)}
+                </RefLink>
+              </Typography>
+              {row.cells.map((cell) => {
+                const has = cell.value != null;
+                const title = cellTitle(buildingDisplayName(row.building), cell);
+                return (
+                  <Tooltip key={cell.year} title={title} arrow>
+                    <Box
+                      role="button"
+                      tabIndex={has ? 0 : -1}
+                      aria-label={title}
+                      onClick={() =>
+                        void navigate(observationRoute(row.building.id))}
+                      onKeyDown={(e) => {
+                        if (e.key === "Enter" || e.key === " ") {
+                          e.preventDefault();
+                          void navigate(observationRoute(row.building.id));
+                        }
+                      }}
+                      sx={{
+                        height: CELL,
+                        borderRadius: 0.5,
+                        cursor: "pointer",
+                        backgroundColor: bandColor(cell.band, framing),
+                        border: has ? "none" : "1px dashed",
+                        borderColor: "divider",
+                        "&:focus-visible": {
+                          outline: "2px solid",
+                          outlineColor: "primary.main",
+                          outlineOffset: 1,
+                        },
+                      }}
+                    />
+                  </Tooltip>
+                );
+              })}
+              {/* Trend: this building's year-over-year direction (the folded-in
+                  Trend view) — a colour-coded dot + label. */}
+              <Box
+                sx={{
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 0.75,
+                  pl: 1,
+                  minWidth: 0,
+                }}
+              >
+                <Box
+                  sx={{
+                    width: 10,
+                    height: 10,
+                    borderRadius: "50%",
+                    backgroundColor: trendMeta.color,
+                    flexShrink: 0,
+                  }}
+                />
+                <Typography
+                  variant="caption"
+                  color="text.secondary"
+                  sx={ellipsis}
+                >
+                  {t(trendMeta.label)}
+                </Typography>
+              </Box>
+            </Box>
+          );
+        })}
       </Box>
     </Box>
   );

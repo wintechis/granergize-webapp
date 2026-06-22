@@ -222,6 +222,7 @@ export const INTENT_PARAMS = {
   },
   ExportArchive: {},
   AuditGrants: {},
+  CheckObservationLinks: {},
 } as const satisfies Record<string, ParamSchema>;
 
 /** A catalog name with a reified param schema. */
@@ -233,8 +234,9 @@ export type ParamIntentName = keyof typeof INTENT_PARAMS;
 // gaining/renaming a param. We do NOT attempt full structural value-typing — TS
 // can't express IRI-ness, so the rigour wouldn't pay.
 
-/** Param keys that are runtime-only handles, never modelled in the schema. */
-type RuntimeOnlyKey = "signal" | "onProgress" | "onUploaded";
+/** Param keys supplied at runtime (callbacks, or a runtime-provided selector like the
+ *  building-less delete's `observationUri`), never modelled in the param-form schema. */
+type RuntimeOnlyKey = "signal" | "onProgress" | "onUploaded" | "observationUri";
 
 /** The modelled key set of a core's param object (runtime-only keys stripped). */
 type ModelledCoreKeys<N extends ParamIntentName> = N extends
@@ -300,5 +302,6 @@ const _paramKeysMatch: {
   RestoreArchive: true,
   ExportArchive: true,
   AuditGrants: true,
+  CheckObservationLinks: true,
 };
 void _paramKeysMatch;

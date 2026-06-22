@@ -145,6 +145,13 @@ export interface BuildingType {
    */
   energyDatasets?: EnergyDatasetRef[];
   isShared?: boolean;
+  /** Source tier: a public open-data building (LoD2 / `linked-lod2-by`), NOT a Pod
+   *  resource — read-only (no share/edit/delete), shown under the finder's `open`
+   *  tier. `isShared` and `isOpen` are mutually exclusive; neither set → owned
+   *  (`mine`). */
+  isOpen?: boolean;
+  /** Open-tier only: the LoD2 installable rooftop-PV capacity [kWp] (display-only). */
+  openKwp?: number;
   logisticsFunction?: string;
   climateControlType?: string;
   greenLeaseShare?: number; // %
