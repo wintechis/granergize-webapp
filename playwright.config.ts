@@ -132,6 +132,7 @@ const SOLO_SPECS = [
   "**/building-attribution.spec.ts",
   "**/neighbourhood-energy.spec.ts",
   "**/aggregations-open-tier.spec.ts",
+  "**/buildings-open-tier.spec.ts",
   "**/nearby-installations.spec.ts",
   "**/dev-source-links.spec.ts",
   "**/seed-demos.spec.ts",

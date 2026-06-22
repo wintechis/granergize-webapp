@@ -1,4 +1,3 @@
-import { type ReactNode } from "react";
 import Box from "@mui/material/Box";
 import ToggleButton from "@mui/material/ToggleButton";
 import ToggleButtonGroup from "@mui/material/ToggleButtonGroup";
@@ -41,9 +40,6 @@ export interface CubeAxisBarProps<
   /** Optional Time axis — a second cube finder (Aggregations: a timeline) can supply
    *  it. */
   readonly time?: CubeAxisGroup<T>;
-  /** Measure selector (e.g. the metric `TextField select`) — shown when the
-   *  caller supplies it (i.e. the active Colour encodes a measure). */
-  readonly metricSlot?: ReactNode;
 }
 
 function AxisToggle<V extends string>({ group }: { group: CubeAxisGroup<V> }) {
@@ -72,7 +68,7 @@ export default function CubeAxisBar<
   C extends string,
   T extends string,
 >(
-  { space, colour, time, metricSlot }: CubeAxisBarProps<S, C, T>,
+  { space, colour, time }: CubeAxisBarProps<S, C, T>,
 ) {
   return (
     <Box
@@ -81,7 +77,6 @@ export default function CubeAxisBar<
       <AxisToggle group={space} />
       {time && <AxisToggle group={time} />}
       {colour && <AxisToggle group={colour} />}
-      {metricSlot}
     </Box>
   );
 }

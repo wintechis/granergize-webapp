@@ -178,7 +178,7 @@ export default function ObservationsFinder() {
           {t("eyAddObservation")}
         </Button>
       )}
-      controls={withObservations.length > 0 && (
+      controls={(
         <>
           <SearchField value={query} onChange={setQuery} />
           {/* Per-tier counts (overview-first, independent of search), consistent with
@@ -193,6 +193,25 @@ export default function ObservationsFinder() {
               open: 0,
             }}
           />
+          {/* The metric (electricity / heat / …) is a query/filter, not a view
+              control, so it sits on the LEFT with search + tier — and shows on every
+              view incl. the map (to compare metrics there), i.e. all but the List. */}
+          {showsMetric(view) && (
+            <TextField
+              select
+              size="small"
+              value={metric}
+              onChange={(e) => setMetric(e.target.value)}
+              label={t("metricSelectLabel")}
+              sx={{ minWidth: 160 }}
+            >
+              {SELECTABLE_METRICS.map((m) => (
+                <MenuItem key={m.key} value={m.key}>
+                  {t(metricLabelKey(m.key))}
+                </MenuItem>
+              ))}
+            </TextField>
+          )}
           <Box sx={{ flexGrow: 1 }} />
           <CubeAxisBar
             space={{
@@ -206,24 +225,6 @@ export default function ObservationsFinder() {
                 { value: "overyears", label: t("obsViewOveryears") },
               ],
             }}
-            metricSlot={showsMetric(view)
-              ? (
-                <TextField
-                  select
-                  size="small"
-                  value={metric}
-                  onChange={(e) => setMetric(e.target.value)}
-                  label={t("metricSelectLabel")}
-                  sx={{ minWidth: 160 }}
-                >
-                  {SELECTABLE_METRICS.map((m) => (
-                    <MenuItem key={m.key} value={m.key}>
-                      {t(metricLabelKey(m.key))}
-                    </MenuItem>
-                  ))}
-                </TextField>
-              )
-              : undefined}
           />
         </>
       )}

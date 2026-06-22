@@ -13,6 +13,8 @@ import { buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.
 import { filterByText } from "../lib/textSearch.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
+import { useOpenBuildings } from "../hooks/openBuildings.ts";
+import { openViewport } from "../services/openBuildings.ts";
 import SearchField from "../components/SearchField.tsx";
 import TierFilter from "../components/TierFilter.tsx";
 import { BUILDING_TIERS } from "../constants/tiers.ts";
@@ -94,9 +96,25 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   // Tier source-selector (Slice 2): union the ticked provenance tiers. Default both
   // → the full reachable set (matching the Map). A building's tier is own vs shared.
   const tierFacet = useListFacet("tiers", BUILDING_TIERS);
-  const byTier = buildings.filter((b) =>
-    tierFacet.isSelected(b.isShared ? "shared" : "mine")
+  // Open tier (LoD2): public open buildings fetched around the map viewport centre
+  // (`?c`), ONLY when the open tier is ticked, then unioned in. Read-only, off-Pod,
+  // Bavaria-only (empty elsewhere). The map (P2) renders them as its own marker layer.
+  const openOn = tierFacet.isSelected("open");
+  const { centre: openCentre, radiusM: openRadius } = useMemo(
+    () => openViewport(searchParams),
+    [searchParams],
   );
+  const { data: openBuildings = [] } = useOpenBuildings(
+    openCentre,
+    openRadius,
+    openOn,
+  );
+  const byTier = [
+    ...buildings.filter((b) =>
+      tierFacet.isSelected(b.isShared ? "shared" : "mine")
+    ),
+    ...(openOn ? openBuildings : []),
+  ];
   const filteredBuildings = filterByText(byTier, query, buildingSearchText);
   const buildingPaging = usePaging(filteredBuildings);
   const rdf = session.info.webId ? tryPodResources(session.info.webId) : null;
@@ -207,22 +225,20 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
         }
         controls={
           <>
-            {buildings.length > 0 && (
-              <SearchField value={query} onChange={setQuery} />
-            )}
-            {/* The tier selector is always offered (whenever there are buildings),
-                even with a single tier, so the source-tier affordance stays
-                discoverable — ticking "shared" with nothing shared simply shows none. */}
-            {buildings.length > 0 && (
-              <TierFilter
-                facet={tierFacet}
-                options={BUILDING_TIERS}
-                counts={{
-                  mine: ownedBuildings.length,
-                  shared: buildings.length - ownedBuildings.length,
-                }}
-              />
-            )}
+            <SearchField value={query} onChange={setQuery} />
+            {/* The tier selector is ALWAYS offered, even when the owned/shared set is
+                empty, so the source-tier affordance stays discoverable AND the `open`
+                tier is reachable without owning anything — ticking a tier with nothing
+                in it simply shows none. */}
+            <TierFilter
+              facet={tierFacet}
+              options={BUILDING_TIERS}
+              counts={{
+                mine: ownedBuildings.length,
+                shared: buildings.length - ownedBuildings.length,
+                open: openBuildings.length,
+              }}
+            />
             <Box sx={{ flexGrow: 1 }} />
             <CubeAxisBar
               space={{
@@ -260,6 +276,17 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
       {/* List: the actionable building list (tier dots + share/delete). */}
       {axes.space === "rows" && (
         <>
+          {/* Open data is viewport-fetched; with no map viewport yet there's nothing
+              to load it around — point the user at the Map. */}
+          {openOn && !openCentre && (
+            <Typography
+              variant="body2"
+              color="text.secondary"
+              sx={{ mb: 1 }}
+            >
+              {t("openBuildingsPanHint")}
+            </Typography>
+          )}
           {buildingsLoading
               ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
               : buildings.length === 0
@@ -277,6 +304,27 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
               : (
                 <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
                   {buildingPaging.pageItems.map((b) => {
+                    // Open-data (LoD2) buildings are read-only and nameless: a green
+                    // tier dot, the installable kWp, a dev-mode source link, and NO
+                    // actions (can't share/edit/delete public data). The map markers
+                    // are the spatial view; these rows are the textual count.
+                    if (b.isOpen) {
+                      return (
+                        <ResourceRow
+                          key={b.uri}
+                          title={
+                            <>
+                              <strong>{t("openBuildingLabel")}</strong>
+                              {b.openKwp != null
+                                ? ` — ${Math.round(b.openKwp)} kWp`
+                                : ""}
+                              <TierDot tier="open" />
+                              <RdfSourceLink href={b.uri} inline />
+                            </>
+                          }
+                        />
+                      );
+                    }
                     const fileUri = buildingFileUri(b.sourceUri ?? b.uri);
                     const sharedWith = recipients[fileUri] ?? recipients[b.uri] ??
                       [];

@@ -1791,6 +1791,16 @@ export const MESSAGES = {
   tierMine: { en: "Mine", de: "Meine", fr: "Les miens" },
   tierShared: { en: "Shared with me", de: "Mit mir geteilt", fr: "Partagés avec moi" },
   tierOpen: { en: "Open data", de: "Offene Daten", fr: "Données ouvertes" },
+  openBuildingLabel: {
+    en: "Open building",
+    de: "Offenes Gebäude",
+    fr: "Bâtiment ouvert",
+  },
+  openBuildingsPanHint: {
+    en: "Open data loads from the map view — switch to Map and pan to an area to load open buildings there.",
+    de: "Offene Daten werden aus der Kartenansicht geladen — zur Karte wechseln und zu einem Gebiet schwenken, um dort offene Gebäude zu laden.",
+    fr: "Les données ouvertes se chargent depuis la carte — passez à la carte et déplacez-vous vers une zone pour y charger les bâtiments ouverts.",
+  },
   filterNoMatch: {
     en: "Nothing matches the current filter.",
     de: "Nichts entspricht dem aktuellen Filter.",
