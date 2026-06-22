@@ -212,7 +212,7 @@ export default function AggregationsMap(
       <Box
         sx={{
           position: "relative",
-          height: 480,
+          aspectRatio: "16 / 9",
           borderRadius: 1,
           overflow: "hidden",
         }}

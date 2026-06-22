@@ -93,8 +93,9 @@ test.describe("palette: share building by year across two pods", () => {
         t("intentShareBuilding"),
       );
 
-      // Building picker (single MUI Select, labelled "Building").
-      await form.getByLabel(t("paramBuilding")).click();
+      // Building picker (a searchable Autocomplete, labelled "Building") — type to
+      // filter to the building, then pick its option.
+      await form.getByLabel(t("paramBuilding")).fill(STREET);
       await a.page.getByRole("option", { name: new RegExp(STREET) }).click();
 
       // Recipient: a free-solo multi Autocomplete; type B's WebID + Enter → chip.

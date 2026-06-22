@@ -6,6 +6,7 @@ import {
   addEnergyYear,
   buildingRoute,
   openBuildingsList,
+  openObservationsView,
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -290,7 +291,9 @@ test.describe("energy entry + Soll-Ist", () => {
     await page.goto("/");
     const row = page.locator("li[data-building-id]", { hasText: ADDR }).first();
     await expect(async () => {
-      await page.getByRole("tab", { name: t("navObservations") }).click();
+      // The Observations finder defaults to the Map view (energy moved here); the
+      // building rows + the clear-data action live in the List view.
+      await openObservationsView(page, "list");
       await expect(row).toBeVisible({ timeout: T.quick });
     }).toPass({ timeout: T.poll });
 

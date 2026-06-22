@@ -245,7 +245,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
           sx={{
             display: axes.space === "map" ? "flex" : "none",
             flexDirection: "column",
-            height: 480,
+            aspectRatio: "16 / 9",
             borderRadius: 1,
             overflow: "hidden",
           }}

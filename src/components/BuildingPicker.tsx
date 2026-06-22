@@ -4,12 +4,7 @@ import {
   Button,
   Checkbox,
   createFilterOptions,
-  FormControl,
-  InputLabel,
   ListItemText,
-  MenuItem,
-  OutlinedInput,
-  Select,
   TextField,
 } from "@mui/material";
 import { msg } from "../lib/messages.ts";
@@ -27,19 +22,6 @@ const filterBuildings = createFilterOptions<BuildingType>({
   stringify: (b) =>
     `${buildingDisplayName(b)} ${b.streetAddress ?? ""} ${b.locality ?? ""}`,
 });
-
-const ITEM_HEIGHT = 48;
-const ITEM_PADDING_TOP = 8;
-const MenuProps = {
-  slotProps: {
-    paper: {
-      style: {
-        maxHeight: ITEM_HEIGHT * 4.5 + ITEM_PADDING_TOP,
-        width: 250,
-      },
-    },
-  },
-};
 
 interface BaseProps {
   /** The buildings to choose from. */
@@ -67,16 +49,16 @@ interface SingleProps extends BaseProps {
 export type BuildingPickerProps = MultiProps | SingleProps;
 
 /**
- * The shared building picker — a MUI `Select` over {@link BuildingType}s keyed by
- * `building.uri` and labelled via {@link buildingDisplayName}. Supports both a
- * **multi**-select (chips + checklist, the aggregation roster) and a **single**
- * select (one building, the palette's share/visibility/revoke param form).
- * Extracted from `CreateAggregationDialog`'s inline multi-select so the two
- * surfaces render the same control.
+ * The shared building picker — a searchable MUI `Autocomplete` over
+ * {@link BuildingType}s keyed by `building.uri`, labelled via
+ * {@link buildingDisplayName} and filterable by name / street / locality. Supports
+ * both a **multi**-select (chips + checklist + Select-all, the aggregation roster)
+ * and a **single** select (one building — the palette param form, the
+ * "Add observation" dialog). Both type-to-filter so they scale past a handful of
+ * buildings. Extracted from `CreateAggregationDialog`'s inline multi-select.
  */
 export default function BuildingPicker(props: BuildingPickerProps) {
   const { buildings, label, disabled } = props;
-  const labelId = "building-picker-label";
 
   if (props.multiple) {
     const { value, onChange } = props;
@@ -132,27 +114,38 @@ export default function BuildingPicker(props: BuildingPickerProps) {
   }
 
   const { value, onChange } = props;
+  // A searchable Autocomplete (type to filter by name/address), matching the
+  // multi-select above — the plain Select didn't scale past a handful of buildings.
+  const selected = buildings.find((b) => b.uri === value) ?? null;
   return (
-    <FormControl fullWidth sx={{ mb: 2 }} disabled={disabled}>
-      <InputLabel id={labelId}>{label}</InputLabel>
-      <Select
-        labelId={labelId}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        input={<OutlinedInput label={label} />}
-        MenuProps={MenuProps}
-      >
-        {buildings.map((b) => (
-          <MenuItem key={b.uri} value={b.uri}>
-            <ListItemText
-              primary={buildingDisplayName(b)}
-              secondary={b.streetAddress !== buildingDisplayName(b)
-                ? b.streetAddress || b.locality || ""
-                : b.locality || ""}
-            />
-          </MenuItem>
-        ))}
-      </Select>
-    </FormControl>
+    <Box sx={{ mb: 2 }}>
+      <Autocomplete<BuildingType, false, false, false>
+        disabled={disabled}
+        options={buildings}
+        value={selected}
+        onChange={(_, next) => onChange(next?.uri ?? "")}
+        getOptionLabel={(b) => buildingDisplayName(b)}
+        isOptionEqualToValue={(a, b) => a.uri === b.uri}
+        filterOptions={filterBuildings}
+        renderOption={(optionProps, b) => {
+          const { key, ...rest } = optionProps;
+          return (
+            <li key={key} {...rest}>
+              <ListItemText
+                primary={buildingDisplayName(b)}
+                secondary={secondaryText(b)}
+              />
+            </li>
+          );
+        }}
+        renderInput={(params) => (
+          <TextField
+            {...params}
+            label={label}
+            placeholder={msg("pickerSearchPlaceholder")}
+          />
+        )}
+      />
+    </Box>
   );
 }

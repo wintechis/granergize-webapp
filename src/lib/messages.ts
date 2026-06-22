@@ -1228,6 +1228,7 @@ export const MESSAGES = {
     fr: "Vue des observations",
   },
   obsViewOvertime: { en: "Over time", de: "Im Zeitverlauf", fr: "Dans le temps" },
+  obsViewOveryears: { en: "Over years", de: "Über die Jahre", fr: "Au fil des ans" },
   obsViewTrend: { en: "Trend", de: "Trend", fr: "Tendance" },
   trendImproving: {
     en: "Improving",
@@ -1382,6 +1383,19 @@ export const MESSAGES = {
   },
   // Energy-years dialog.
   eyAction: { en: "Energy years", de: "Energiejahre", fr: "Années énergétiques" },
+  // Create mode (Observations finder → "Add observation"): the required building
+  // picker (the FeatureOfInterest) and the placeholder before one is chosen.
+  eyBuildingLabel: { en: "Building", de: "Gebäude", fr: "Bâtiment" },
+  eyPickBuilding: {
+    en: "Select a building to add observations.",
+    de: "Wählen Sie ein Gebäude, um Beobachtungen hinzuzufügen.",
+    fr: "Sélectionnez un bâtiment pour ajouter des observations.",
+  },
+  eyAddObservation: {
+    en: "Add observation",
+    de: "Beobachtung hinzufügen",
+    fr: "Ajouter une observation",
+  },
   eyObserveFor: {
     en: "Observe for",
     de: "Beobachten für",

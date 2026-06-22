@@ -539,16 +539,22 @@ export function useAnnualEnergy(building: BuildingType) {
  * refetch with the still-stale building prop would clobber the optimistic row).
  * `enabled` gates it to the open dialog.
  */
-export function useAnnualDatasets(building: BuildingType, enabled = true) {
+export function useAnnualDatasets(
+  building: BuildingType | null,
+  enabled = true,
+) {
   return useWebIdQuery(
     queryKeys.annualDatasets,
     () => {
-      const refs = (building.energyDatasets ?? []).filter(
+      const refs = (building?.energyDatasets ?? []).filter(
         (r) => r.granularity === "P1Y",
       );
       return loadEnergyDatasets(refs, freshFetchFn());
     },
-    { extraKey: [building.id, energyKeyFor([building])], enabled },
+    {
+      extraKey: [building?.id ?? "", building ? energyKeyFor([building]) : ""],
+      enabled: enabled && building != null,
+    },
   );
 }
 

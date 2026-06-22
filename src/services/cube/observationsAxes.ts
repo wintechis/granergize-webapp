@@ -4,16 +4,18 @@
  * don't factor into a clean orthogonal grid (three are rows-shaped, one is a map),
  * so it's a flat view selector rather than a Space × Colour cube:
  *
- * - `map`      — geographic energy markers banded at the chosen year (+ a year slider);
- * - `list`     — the per-building observation summary (year count, range, granularity);
- * - `overtime` — the buildings × years efficiency heatmap;
- * - `trend`    — each building's year-over-year direction (improving/flat/worsening).
+ * - `map`       — geographic energy markers banded at the chosen year (+ a year slider);
+ * - `list`      — the per-building observation summary (year count, range, granularity);
+ * - `overtime`  — the buildings × years efficiency heatmap;
+ * - `overyears` — the metric's raw figures over the years, one line per building
+ *                 (fact-first: time on the x-axis, the building a series);
+ * - `trend`     — each building's year-over-year direction (improving/flat/worsening).
  *
  * Pure + React-free → Tier-1 testable. Shares `?m=` (metric) and `?y=` (year, read
  * inside `BuildingsMap`) with the energy views; the map viewport (`?c=`/`?z=`) and the
  * list pager (`?offset=`) ride along untouched.
  */
-export type ObsView = "map" | "list" | "overtime" | "trend";
+export type ObsView = "map" | "list" | "overtime" | "overyears" | "trend";
 
 /** The default view (omitted from the URL): the geographic energy map. */
 export const DEFAULT_VIEW: ObsView = "map";
@@ -22,6 +24,7 @@ const VIEWS: ReadonlySet<string> = new Set<ObsView>([
   "map",
   "list",
   "overtime",
+  "overyears",
   "trend",
 ]);
 

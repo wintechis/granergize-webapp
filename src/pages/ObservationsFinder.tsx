@@ -1,6 +1,7 @@
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useState } from "react";
 import {
   Box,
+  Button,
   CircularProgress,
   IconButton,
   MenuItem,
@@ -8,7 +9,9 @@ import {
   Tooltip,
   Typography,
 } from "@mui/material";
+import AddIcon from "@mui/icons-material/Add";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
+import EnergyYearDialog from "../components/EnergyYearDialog.tsx";
 import { useLocation, useSearchParams } from "react-router-dom";
 import type { BuildingType } from "../types.ts";
 import { observationRoute } from "../routes.ts";
@@ -32,6 +35,7 @@ import { useListSearch } from "../hooks/useListSearch.ts";
 import SearchField from "../components/SearchField.tsx";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
 import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx";
+import ObservationsOverYears from "../components/observation/ObservationsOverYears.tsx";
 import ObservationsTrend from "../components/observation/ObservationsTrend.tsx";
 import {
   resolveView,
@@ -71,6 +75,8 @@ function datasetSummary(b: BuildingType): string {
  * - **List** — the per-building observation summary (each row opens `/observation/:id`,
  *   where years are entered/edited; owners can clear all of a building's data);
  * - **Over time** — the buildings × years efficiency heatmap (`ObservationsMatrix`);
+ * - **Over years** — the metric's figures over the years, a line per building
+ *   (fact-first temporal; `ObservationsOverYears`);
  * - **Trend** — each building's year-over-year direction (`ObservationsTrend`).
  *
  * The energy views share one `?m=` metric; the year `?y=` lives inside `BuildingsMap`.
@@ -95,13 +101,19 @@ export default function ObservationsFinder() {
   const withObservations = buildings.filter(
     (b) => (b.energyDatasets?.length ?? 0) > 0,
   );
+  // "Add observation" is owner-only (energy entry is); the create dialog picks among
+  // ALL owned buildings — including ones with no observations yet, so a building's
+  // FIRST year can be entered (after which it joins the list above).
+  const ownedBuildings = buildings.filter((b) => !b.isShared);
+  const [createOpen, setCreateOpen] = useState(false);
   const { query, setQuery } = useListSearch();
   const filtered = filterByText(withObservations, query, buildingSearchText);
   const paging = usePaging(filtered);
   // The over-time heatmap + trend re-colour over the per-year energy cube, banded
   // against the filtered set as peers. Loaded only when those views are up — the Map
   // view's `BuildingsMap` owns its own (React-Query-deduped) load.
-  const energyOn = view === "overtime" || view === "trend";
+  const energyOn = view === "overtime" || view === "overyears" ||
+    view === "trend";
   const { data: energyByYear } = useAnnualEnergyByYear(withObservations, energyOn);
   const visibleIds = new Set(filtered.map((b) => b.id));
 
@@ -147,6 +159,15 @@ export default function ObservationsFinder() {
       title={t("navObservations")}
       count={withObservations.length}
       source={rdf?.observations}
+      actions={ownedBuildings.length > 0 && (
+        <Button
+          variant="outlined"
+          startIcon={<AddIcon />}
+          onClick={() => setCreateOpen(true)}
+        >
+          {t("eyAddObservation")}
+        </Button>
+      )}
       controls={withObservations.length > 0 && (
         <>
           <SearchField value={query} onChange={setQuery} />
@@ -160,6 +181,7 @@ export default function ObservationsFinder() {
                 { value: "map", label: t("btnMap") },
                 { value: "list", label: t("btnList") },
                 { value: "overtime", label: t("obsViewOvertime") },
+                { value: "overyears", label: t("obsViewOveryears") },
                 { value: "trend", label: t("obsViewTrend") },
               ],
             }}
@@ -191,7 +213,7 @@ export default function ObservationsFinder() {
         sx={{
           display: view === "map" ? "flex" : "none",
           flexDirection: "column",
-          height: 480,
+          aspectRatio: "16 / 9",
           borderRadius: 1,
           overflow: "hidden",
         }}
@@ -227,6 +249,14 @@ export default function ObservationsFinder() {
                 metric={metric}
               />
             </Box>
+          )
+          : view === "overyears"
+          ? (
+            <ObservationsOverYears
+              buildings={filtered}
+              energyByYear={energyByYear}
+              metric={metric}
+            />
           )
           : view === "trend"
           ? (
@@ -268,6 +298,17 @@ export default function ObservationsFinder() {
               <Pager paging={paging} />
             </>
           )
+      )}
+
+      {/* Create observations from the finder: the entry dialog with a required
+          building picker (the FeatureOfInterest) — energy can't exist without one. */}
+      {createOpen && (
+        <EnergyYearDialog
+          open
+          createFrom={ownedBuildings}
+          session={getSession()}
+          onClose={() => setCreateOpen(false)}
+        />
       )}
     </FinderHeader>
   );

@@ -17,7 +17,7 @@ Deno.test("resolveView: empty / unknown → the default (map)", () => {
 });
 
 Deno.test("resolveView: each known view passes through", () => {
-  for (const v of ["map", "list", "overtime", "trend"] as ObsView[]) {
+  for (const v of ["map", "list", "overtime", "overyears", "trend"] as ObsView[]) {
     assert.equal(resolveView(p(`view=${v}`)), v);
   }
 });
@@ -39,6 +39,7 @@ Deno.test("showsMetric: everything but the plain List", () => {
   assert.equal(showsMetric("list"), false);
   assert.equal(showsMetric("map"), true);
   assert.equal(showsMetric("overtime"), true);
+  assert.equal(showsMetric("overyears"), true);
   assert.equal(showsMetric("trend"), true);
 });
 
