@@ -253,6 +253,14 @@ export const INTENTS: readonly IntentEntry[] = [
     exposure: "developer",
     hook: "useAuditGrants",
   },
+  {
+    name: "CheckObservationLinks",
+    action: "actionCheckObsLinks",
+    effect: "read",
+    entity: "observation",
+    exposure: "developer",
+    hook: "useCheckObservationLinks",
+  },
   // ── Organisation ─────────────────────────────────────────────────────────────
   {
     name: "SaveOrganisation",

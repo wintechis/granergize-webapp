@@ -19,6 +19,15 @@ All notable changes to the Granergize WebApp project will be documented in this 
   `?view=list` deep link). `writeEnergyYear` was split into reusable
   `putObservationDataset`/`linkBuildingToObservation` steps; `SaveObservation`/`DeleteObservation`
   handle the no-building case.
+- **Dev-mode "Check observation links".** A read-only consistency check (in the profile menu, next
+  to "Check sharing consistency") that diffs each observation's `cons:ofBuilding` against the
+  building's `cons:hasEnergyDataset` link, own-Pod — reporting **orphan attributions** (a dataset
+  attributed to a building that doesn't link it back, so the building's link-following load can't see
+  it), **dangling links** (a building links a dataset that no longer exists), and **back-reference
+  mismatches** (a building links a dataset whose `ofBuilding` points elsewhere). It's the diffing
+  twin of the sharing audit — a check, not yet a repair. New `CheckObservationLinks` read intent +
+  `auditObservationLinks`; the pure `diffObservationLinks` is unit-tested across the three drift
+  kinds.
 
 ## [2026-06-21]
 - **⌘K "Share building" works for buildings with no attachments.** The schema-driven param form

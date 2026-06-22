@@ -741,3 +741,13 @@ export function useAuditGrants() {
     mutationFn: () => query("AuditGrants", {}, getGateway()),
   });
 }
+
+/** Dev-mode read: dry-run diff of observation `ofBuilding` ↔ building
+ *  `hasEnergyDataset` links (own-Pod). Same thin-adapter shape as useAuditGrants —
+ *  the core (src/intents/checkObservationLinks.ts) returns the drift report. */
+export function useCheckObservationLinks() {
+  return useMutation({
+    meta: { action: "actionCheckObsLinks" },
+    mutationFn: () => query("CheckObservationLinks", {}, getGateway()),
+  });
+}

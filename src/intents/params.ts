@@ -222,6 +222,7 @@ export const INTENT_PARAMS = {
   },
   ExportArchive: {},
   AuditGrants: {},
+  CheckObservationLinks: {},
 } as const satisfies Record<string, ParamSchema>;
 
 /** A catalog name with a reified param schema. */
@@ -301,5 +302,6 @@ const _paramKeysMatch: {
   RestoreArchive: true,
   ExportArchive: true,
   AuditGrants: true,
+  CheckObservationLinks: true,
 };
 void _paramKeysMatch;

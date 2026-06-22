@@ -1626,6 +1626,26 @@ export const MESSAGES = {
     de: "Freigabe-Konsistenz prüfen",
     fr: "Vérifier la cohérence du partage",
   },
+  menuCheckObsLinks: {
+    en: "Check observation links",
+    de: "Beobachtungs-Verknüpfungen prüfen",
+    fr: "Vérifier les liens d'observation",
+  },
+  devObsLinksConsistent: {
+    en: "Observation links consistent: {checked} observation(s) match their buildings",
+    de:
+      "Beobachtungs-Verknüpfungen konsistent: {checked} Beobachtung(en) stimmen mit ihren Gebäuden überein",
+    fr:
+      "Liens d'observation cohérents : {checked} observation(s) correspondent à leurs bâtiments",
+  },
+  devObsLinksDrift: {
+    en:
+      "Observation-link drift: {drift} of {checked} observation(s) are out of sync with their buildings (see the console)",
+    de:
+      "Verknüpfungs-Abweichung: {drift} von {checked} Beobachtung(en) sind nicht mit ihren Gebäuden synchron (siehe Konsole)",
+    fr:
+      "Dérive des liens : {drift} sur {checked} observation(s) ne sont pas synchronisées avec leurs bâtiments (voir la console)",
+  },
   menuRebuildSharing: {
     en: "Rebuild sharing from log",
     de: "Freigaben aus Log neu aufbauen",
@@ -2902,6 +2922,11 @@ export const MESSAGES = {
     en: "check sharing consistency",
     de: "Prüfen der Freigabe-Konsistenz",
     fr: "la vérification de la cohérence des partages",
+  },
+  actionCheckObsLinks: {
+    en: "check observation links",
+    de: "Prüfen der Beobachtungs-Verknüpfungen",
+    fr: "la vérification des liens d'observation",
   },
   actionReadInbox: {
     en: "read your inbox",

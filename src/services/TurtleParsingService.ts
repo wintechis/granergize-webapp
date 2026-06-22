@@ -464,16 +464,8 @@ export async function loadBuildinglessObservations(
   webId: string,
   boundDatasetFiles: ReadonlySet<string>,
 ): Promise<BuildinglessObservation[]> {
-  const root = podResources(webId).observations;
-  const years = (await listDirectChildren(root, gateway)) ?? [];
-  const files: string[] = [];
-  for (const year of years) {
-    if (!year.endsWith("/")) continue; // the year sub-containers (observations/{year}/)
-    const children = (await listDirectChildren(year, gateway)) ?? [];
-    files.push(
-      ...children.filter((u) => u.endsWith(".ttl") && !boundDatasetFiles.has(u)),
-    );
-  }
+  const files = (await listObservationFiles(gateway, webId))
+    .filter((u) => !boundDatasetFiles.has(u));
   const parsed = await mapPooled(files, 6, async (file) => {
     try {
       const res = await fetchFresh(file, gateway);
@@ -490,6 +482,117 @@ export async function loadBuildinglessObservations(
     }
   });
   return parsed.filter((x): x is BuildinglessObservation => x != null);
+}
+
+/** List every observation file under the own `observations/` container (year-nested).
+ *  Shared by the loose-observation scan and the dev-mode link audit. */
+async function listObservationFiles(
+  gateway: PodGateway,
+  webId: string,
+): Promise<string[]> {
+  const root = podResources(webId).observations;
+  const years = (await listDirectChildren(root, gateway)) ?? [];
+  const files: string[] = [];
+  for (const year of years) {
+    if (!year.endsWith("/")) continue; // year sub-containers (observations/{year}/)
+    const children = (await listDirectChildren(year, gateway)) ?? [];
+    files.push(...children.filter((u) => u.endsWith(".ttl")));
+  }
+  return files;
+}
+
+/** One drift between an observation's `cons:ofBuilding` and a building's
+ *  `cons:hasEnergyDataset` link — the two halves of the same relationship. */
+export interface ObservationLinkDrift {
+  /** `orphanAttribution`: a dataset attributes itself to an own building that does NOT
+   *  link it back → invisible to the building's link-following load. `danglingLink`: a
+   *  building links a dataset that no longer exists. `backrefMismatch`: a building links
+   *  a dataset whose `ofBuilding` points elsewhere/nowhere. */
+  kind: "orphanAttribution" | "danglingLink" | "backrefMismatch";
+  dataset: string;
+  building: string;
+}
+
+export interface ObservationLinkAuditResult {
+  /** Observation datasets scanned. */
+  checked: number;
+  drift: ObservationLinkDrift[];
+}
+
+/** Pure diff of the two link halves — `buildings` (with their `cons:hasEnergyDataset`
+ *  targets) against `observations` (each with its `cons:ofBuilding`). The I/O-free core
+ *  of {@link auditObservationLinks}, unit-tested directly. */
+export function diffObservationLinks(
+  buildings: ReadonlyArray<
+    { uri: string; energyDatasets?: ReadonlyArray<{ uri: string }> }
+  >,
+  observations: ReadonlyArray<{ uri: string; building: string }>,
+): ObservationLinkDrift[] {
+  const ownBuildingUris = new Set(buildings.map((b) => b.uri));
+  const linksByBuilding = new Map(
+    buildings.map(
+      (b) => [b.uri, new Set((b.energyDatasets ?? []).map((r) => r.uri))],
+    ),
+  );
+  const obsByUri = new Map(observations.map((o) => [o.uri, o.building]));
+  const drift: ObservationLinkDrift[] = [];
+  // `ofBuilding` set on an own building, but no matching forward link → invisible.
+  for (const o of observations) {
+    if (
+      o.building && ownBuildingUris.has(o.building) &&
+      !linksByBuilding.get(o.building)?.has(o.uri)
+    ) {
+      drift.push({ kind: "orphanAttribution", dataset: o.uri, building: o.building });
+    }
+  }
+  // Forward link with no (matching) back-reference.
+  for (const b of buildings) {
+    for (const r of b.energyDatasets ?? []) {
+      if (!obsByUri.has(r.uri)) {
+        drift.push({ kind: "danglingLink", dataset: r.uri, building: b.uri });
+      } else if (obsByUri.get(r.uri) !== b.uri) {
+        drift.push({ kind: "backrefMismatch", dataset: r.uri, building: b.uri });
+      }
+    }
+  }
+  return drift;
+}
+
+/**
+ * Dev-mode consistency check of own-Pod observation links: every observation's
+ * `cons:ofBuilding` should be mirrored by that building's `cons:hasEnergyDataset` link,
+ * and vice-versa. Read-only — reports drift, repairs nothing (the diffing twin of a
+ * future reconciliation, mirroring `auditGrants` for sharing). Own-Pod only: a foreign
+ * (shared) container isn't listable, so the audit scopes to the user's own buildings +
+ * observations.
+ */
+export async function auditObservationLinks(
+  gateway: PodGateway,
+): Promise<ObservationLinkAuditResult> {
+  const webId = gateway.webId;
+  if (!webId) throw new Error("No WebID found.");
+
+  // Own buildings + their forward-link targets (no shared sources, none hidden).
+  const { buildings } = await loadBuildings(gateway, [], new Set());
+
+  // Every observation dataset + the building it attributes itself to (`ofBuilding`).
+  const files = await listObservationFiles(gateway, webId);
+  const obs = (await mapPooled(files, 6, async (file) => {
+    try {
+      const res = await fetchFresh(file, gateway);
+      if (!res.ok) return null;
+      const store = new Store(
+        new Parser({ baseIRI: file }).parse(await res.text()),
+      );
+      const ds = parseEnergyDataset(store, `${file}#ds`);
+      return ds ? { uri: `${file}#ds`, building: ds.building } : null;
+    } catch (error) {
+      console.error(`Failed to parse observation ${file}:`, error);
+      return null;
+    }
+  })).filter((x): x is { uri: string; building: string } => x != null);
+
+  return { checked: obs.length, drift: diffObservationLinks(buildings, obs) };
 }
 
 /**

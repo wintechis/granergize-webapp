@@ -47,6 +47,7 @@ import { downloadBlob } from "../lib/download.ts";
 import { DETAIL_PATTERNS, FINDERS } from "../routes.ts";
 import {
   useAuditGrants,
+  useCheckObservationLinks,
   useExportArchive,
   useReissueGrants,
   useRemoveAppData,
@@ -189,9 +190,10 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   const exportMut = useExportArchive();
   const restoreMut = useRestoreArchive();
   const auditMut = useAuditGrants();
+  const obsLinksMut = useCheckObservationLinks();
   const reissueMut = useReissueGrants();
   const accountBusy = exportMut.isPending || restoreMut.isPending ||
-    auditMut.isPending || reissueMut.isPending;
+    auditMut.isPending || obsLinksMut.isPending || reissueMut.isPending;
   const archiveInput = useRef<HTMLInputElement | null>(null);
 
   /**
@@ -351,6 +353,28 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
           );
           showNotification(
             msg("devAuditDrift", { drift: drift.length, checked, tail }),
+            "warning",
+          );
+        }
+      },
+    });
+
+  /** Dev-mode: dry-run diff of each observation's `ofBuilding` against the building's
+   * `hasEnergyDataset` link — read-only drift detection (own-Pod), the observation-link
+   * twin of "Check sharing consistency". */
+  const handleCheckObsLinks = () =>
+    obsLinksMut.mutate(undefined, {
+      onSuccess: ({ checked, drift }) => {
+        if (drift.length === 0) {
+          showNotification(msg("devObsLinksConsistent", { checked }), "success");
+        } else {
+          // Name each drifted pair on the console (the toast only carries the count).
+          console.warn(
+            "Observation-link drift:",
+            drift.map((d) => `${d.kind} ${d.dataset} ↔ ${d.building}`),
+          );
+          showNotification(
+            msg("devObsLinksDrift", { drift: drift.length, checked }),
             "warning",
           );
         }
@@ -704,6 +728,11 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             {devMode && (
               <MenuItem onClick={handleAuditGrants} disabled={accountBusy}>
                 {t("menuCheckConsistency")}
+              </MenuItem>
+            )}
+            {devMode && (
+              <MenuItem onClick={handleCheckObsLinks} disabled={accountBusy}>
+                {t("menuCheckObsLinks")}
               </MenuItem>
             )}
             {devMode && (
