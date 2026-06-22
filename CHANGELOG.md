@@ -9,9 +9,11 @@ All notable changes to the Granergize WebApp project will be documented in this 
   year. The app joins it to the existing MaStR nearby layer — a unit's `mastr:EegMaStRNummer`
   dereferences straight into the wrapper's `eeg/{number}` scheme — and renders the settled kWh as
   annual `electricityGeneration`. Two surfaces: the Observations finder's **`open` tier** shows a
-  read-only "Open generation (nearby)" List section (viewport-driven, opt-in, cached, best-effort),
-  and the building page's **StandortEnergieprofil** nearby card gains an "actually generated: N kWh
-  (year)" line. Settlements are summed per year across disposal forms; a plant in MaStR but absent
+  read-only "Open generation (nearby)" List section + green map markers (viewport-driven, opt-in,
+  cached, best-effort), and the building page's **StandortEnergieprofil** nearby card gains an
+  "actually generated: N kWh (year)" line. The shared map's open layer is now **target-aware** —
+  generation observations on the Observations map, LoD2 rooftop buildings (a building *potential*,
+  not an observation) on the Buildings map — so the map matches the finder's open count. Settlements are summed per year across disposal forms; a plant in MaStR but absent
   from the settled dump (404) is tolerated. New `netztransparenz.ts` client + pure parser,
   `mastrNearby.fetchEegNumber`, `openObservations.ts` + `useOpenObservations`/`useNearbyGeneration`;
   `VITE_NETZTRANSPARENZ_API_URI` in both env files. e2e (`open-observations.spec.ts`) stubs the

@@ -713,8 +713,8 @@ export const MESSAGES = {
   },
   // Data sources & licences credits page (profile menu + page).
   menuDataSources: {
-    en: "Data sources & licences",
-    de: "Datenquellen & Lizenzen",
+    en: "Data sources and licences",
+    de: "Datenquellen und Lizenzen",
     fr: "Sources de données et licences",
   },
   dsIntro: {

@@ -4,6 +4,7 @@ import { filterByText } from "../../lib/textSearch.ts";
 import { useListSearch } from "../../hooks/useListSearch.ts";
 import { useListFacet } from "../../hooks/useListFacet.ts";
 import { useOpenBuildings } from "../../hooks/openBuildings.ts";
+import { useOpenObservations } from "../../hooks/openObservations.ts";
 import { openViewport } from "../../services/openBuildings.ts";
 import { TIER_VALUES } from "../../constants/tiers.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
@@ -357,10 +358,15 @@ export default function BuildingsMap(
   const { query } = useListSearch();
   const tierFacet = useListFacet("tiers", TIER_VALUES);
   const tierKey = tierFacet.selected.join(",");
-  // Open tier: a read-only green-marker layer of public open buildings (LoD2),
-  // fetched around the map viewport centre (`?c`) only when `open` is ticked — same
-  // query key as the finder's count/list, so React Query dedups the one fetch.
+  // Open tier: a read-only green-marker layer, fetched around the map viewport centre
+  // (`?c`) only when `open` is ticked — same query key as the finder's count/list, so
+  // React Query dedups the one fetch. WHAT counts as "open" depends on the target: on
+  // the Buildings map it's open *buildings* (LoD2 rooftop potential — building data);
+  // on the Observations map it's open *observations* (netztransparenz settled
+  // generation). Only the target's layer is enabled, so the map matches the finder's
+  // open count + list.
   const openOn = tierFacet.isSelected("open");
+  const onObservation = target === "observation";
   const { centre: openCentre, radiusM: openRadius } = useMemo(
     () => openViewport(searchParams),
     [searchParams],
@@ -368,7 +374,12 @@ export default function BuildingsMap(
   const { data: openBuildings = [] } = useOpenBuildings(
     openCentre,
     openRadius,
-    openOn,
+    openOn && !onObservation,
+  );
+  const { data: openObservations = [] } = useOpenObservations(
+    openCentre,
+    openRadius,
+    openOn && onObservation,
   );
   const shownBuildings = useMemo(
     () =>
@@ -607,6 +618,28 @@ export default function BuildingsMap(
             </Marker>
           )
         ))}
+        {/* Open observations — nearby installations' settled generation
+            (netztransparenz), the Observations map's open layer. Read-only green
+            markers; a click opens the source unit. */}
+        {openOn && openObservations.map((o) => {
+          const latest = Math.max(...o.byYear.keys());
+          return (
+            <Marker
+              key={o.iri}
+              position={[o.lat, o.long]}
+              icon={buildingPin(false, true)}
+              eventHandlers={{
+                click: () =>
+                  globalThis.open(o.iri, "_blank", "noopener,noreferrer"),
+              }}
+            >
+              <Tooltip direction="top" offset={[0, -38]}>
+                {o.label || t("obsOpenFallback")}
+                {` — ${(o.byYear.get(latest) ?? 0).toLocaleString()} kWh (${latest})`}
+              </Tooltip>
+            </Marker>
+          );
+        })}
       </MapContainer>
         {/* Energy band legend — overlaid in the map's bottom-left corner. Ownership
             needs no swatch: the Mine/Shared tier dots above carry that colour key. */}
