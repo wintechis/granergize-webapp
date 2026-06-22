@@ -33,11 +33,15 @@ All notable changes to the Granergize WebApp project will be documented in this 
   `mastrNearby.fetchEegNumber`, `openObservations.ts` + `useOpenObservations`/`useNearbyGeneration`;
   `VITE_NETZTRANSPARENZ_API_URI` in both env files. e2e (`open-observations.spec.ts`) stubs the
   full `bbox → see → netztransparenz` join.
-- **Account menu caps its height and scrolls.** In Developer mode the menu had grown taller than a
-  short viewport, and its `overflow: visible` (for the drop-shadow) meant it didn't scroll — leaving
-  the last item ("Remove all app data") unreachable below the fold. Capped to `calc(100vh - 96px)`
-  with `overflowY: auto` (the filter still renders the shadow), so every item is reachable on short
-  windows.
+- **Account menu scrolls when it's taller than the viewport.** The dev-mode entries grew the
+  account menu past shorter window heights, and an `overflow: visible` on its Paper disabled
+  scrolling — so the bottom items (e.g. "Remove all data") sat off-screen and unreachable, with
+  clicks never landing. The menu Paper now uses `overflowY: auto` + a viewport-bounded `maxHeight`,
+  so every entry is reachable on any window size. Surfaced by the e2e suite, where the teardown's
+  "Remove all data" action hung on the off-screen item. Also stubbed the open-data/enrichment hosts
+  (the `wunderfacts.com` wrappers — mastr/lod2-by/energieatlas/regionalstatistik/nuts/lau —
+  Nominatim, and Wikidata) in the `e2e:local` lane, so the suite stays hermetic and its teardown
+  isn't starved by dozens of slow real GETs per map load.
 - **Building-less observations — capture readings before a building exists, link (or delete) later.**
   Observations are first-class resources (`granergize/observations/{year}/{id}.ttl`), so a
   "building-less" one is just a `cons:EnergyDataset` with no `cons:ofBuilding`; the serializer omits
