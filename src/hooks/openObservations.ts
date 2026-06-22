@@ -13,10 +13,36 @@ import type { MapCentre } from "../services/openBuildings.ts";
 import {
   fetchNearbyGenerationTotal,
   fetchNearbyOpenObservations,
+  fetchOpenObservation,
   OPEN_OBSERVATIONS_LIMIT,
   type OpenObservation,
+  type OpenObservationDetail,
 } from "../services/openObservations.ts";
+import type { UseQueryResult } from "@tanstack/react-query";
 import { logError } from "../lib/logError.ts";
+
+/**
+ * Resolve a single open observation BY ITS MaStR unit IRI — the in-app detail drilled to
+ * from the Observations `open` tier (`/observation?uri=<mastr-iri>`). Off-Pod, read-only,
+ * best-effort: a down wrapper degrades to `null` (the page shows "not available").
+ */
+export function useOpenObservationDetail(
+  iri: string,
+): UseQueryResult<OpenObservationDetail | null> {
+  return useQuery<OpenObservationDetail | null>({
+    queryKey: ["openObservationDetail", iri],
+    enabled: Boolean(iri),
+    staleTime: 1000 * 60 * 60,
+    queryFn: async () => {
+      try {
+        return await fetchOpenObservation(iri);
+      } catch (err) {
+        logError("fetch open observation (MaStR/netztransparenz)", err);
+        return null;
+      }
+    },
+  });
+}
 
 export function useOpenObservations(
   centre: MapCentre | null,

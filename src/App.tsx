@@ -16,6 +16,10 @@ import RoomsFinder from "./pages/RoomsFinder.tsx";
 import ContactsFinder from "./pages/ContactsFinder.tsx";
 import SharingFinder from "./pages/SharingFinder.tsx";
 import Building from "./pages/Building.tsx";
+import OpenBuildingDetail from "./components/building/OpenBuildingDetail.tsx";
+import OpenObservationDetail from "./components/building/OpenObservationDetail.tsx";
+import { isOpenBuildingIri } from "./services/lod2Rooftop.ts";
+import { isOpenObservationIri } from "./services/openObservations.ts";
 import Energy from "./pages/Energy.tsx";
 import Contact from "./pages/Contact.tsx";
 import Room from "./pages/Room.tsx";
@@ -111,6 +115,17 @@ function BuildingRouteGuard(
 
 function BuildingWrapper() {
   const navigate = useNavigate();
+  const [sp] = useSearchParams();
+  // An open (LoD2) building isn't a Pod resource (not in `useSolidData`), so the guard
+  // would say "not found". Render its read-only in-app detail directly instead.
+  const uri = sp.get("uri") ?? sp.get("ref") ?? "";
+  if (isOpenBuildingIri(uri)) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 3 }}>
+        <OpenBuildingDetail iri={uri} />
+      </Container>
+    );
+  }
   return (
     <BuildingRouteGuard>
       {(building) => (
@@ -126,6 +141,17 @@ function BuildingWrapper() {
 }
 
 function EnergyWrapper() {
+  const [sp] = useSearchParams();
+  // An open observation is a renewable PLANT (a MaStR unit), not a Pod building — so the
+  // guard would say "not found". Render its read-only in-app plant detail directly.
+  const uri = sp.get("uri") ?? sp.get("ref") ?? "";
+  if (isOpenObservationIri(uri)) {
+    return (
+      <Container maxWidth="lg" sx={{ py: 3 }}>
+        <OpenObservationDetail iri={uri} />
+      </Container>
+    );
+  }
   return (
     <BuildingRouteGuard>
       {(building) => (

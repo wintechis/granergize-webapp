@@ -314,7 +314,11 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                           key={b.uri}
                           title={
                             <>
-                              <strong>{t("openBuildingLabel")}</strong>
+                              {/* Drill to the in-app read-only detail, not the upstream
+                                  doc; the dev source link still points at the raw RDF. */}
+                              <RefLink to={buildingRoute(b.uri)}>
+                                <strong>{t("openBuildingLabel")}</strong>
+                              </RefLink>
                               {b.openKwp != null
                                 ? ` — ${Math.round(b.openKwp)} kWp`
                                 : ""}

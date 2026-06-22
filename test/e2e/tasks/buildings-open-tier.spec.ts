@@ -114,5 +114,9 @@ test.describe("buildings open tier (LoD2)", () => {
       .first();
     await expect(openRow).toBeVisible({ timeout: T.action });
     expect(await openRow.getByRole("button").count()).toBe(0);
+    // The row label is now an in-app drill (a link to `/building?uri=`, the read-only
+    // rooftop detail) rather than the upstream-doc click-out — the drill itself is
+    // exercised end-to-end by open-observations.spec.ts (same off-Pod resolution).
+    await expect(openRow.getByRole("link").first()).toBeVisible({ timeout: T.action });
   });
 });

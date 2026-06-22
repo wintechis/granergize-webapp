@@ -457,7 +457,11 @@ export default function ObservationsFinder() {
                       key={o.iri}
                       title={
                         <>
-                          <strong>{o.label || t("obsOpenFallback")}</strong>
+                          {/* Drill to the in-app read-only plant detail, not the
+                              upstream unit doc; the dev source link keeps the raw IRI. */}
+                          <RefLink to={observationRoute(o.iri)}>
+                            <strong>{o.label || t("obsOpenFallback")}</strong>
+                          </RefLink>
                           <TierDot tier="open" />
                           <RdfSourceLink href={o.iri} inline />
                         </>

@@ -3,6 +3,21 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-22]
+- **Open data opens IN-APP, read-only — no more bounce-out to the wrapper.** Open buildings (LoD2
+  rooftop potential) and open observations (netztransparenz generation) were only finder rows/markers
+  that linked OUT to the upstream document (the detail routes resolve ids only against the Pod cache,
+  and open data is off-Pod). Now a drill from the open-tier row/marker opens an in-app **read-only
+  detail**: `/building?uri=<lod2-iri>` resolves the LoD2 building (`fetchOpenBuilding`, reusing
+  `parseBuildingRoofs` + `computePotential`) and shows its rooftop-PV potential via the same
+  `RooftopBuildingCardView` an owned building uses; `/observation?uri=<mastr-iri>` resolves the MaStR
+  unit (`fetchOpenObservation` → master data) joined to its netztransparenz settled generation and
+  shows a **plant** detail (capacity/locality + an annual generation bar chart). Both use the standard
+  `DetailView` chrome (`Stack`-divider, `BackLink`, `DetailCard`/`SectionTitle`/`ChartBox`) so they
+  read like the Pod-backed detail pages, with LDBV/PVGIS / MaStR+netztransparenz attribution (the raw
+  wrapper IRI stays only as the dev-mode source link). Off-Pod resolution lives in the route wrappers
+  (`isOpenBuildingIri`/`isOpenObservationIri` → fetch-by-IRI on a cache miss); `SOURCES.netztransparenz`
+  added. e2e: `open-observations` drills into the plant detail (read-only, no edit/share);
+  `buildings-open-tier` asserts the in-app link.
 - **Open observations — the Observations `open` tier now carries real generation data.** The
   `linked-netztransparenz` wrapper (CORS-enabled at `wunderfacts.com/netztransparenz/`) serves the
   German TSOs' EEG annual settlement: actually-settled generation (kWh) per renewable plant, per

@@ -1,11 +1,23 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
+  isOpenBuildingIri,
   parseBuildingRoofs,
   parseNearbyRooftops,
   parseNearestBuilding,
 } from "./lod2Rooftop.ts";
 import { computePotential } from "./rooftopPv.ts";
+
+Deno.test("isOpenBuildingIri: a lod2-by building IRI vs anything else", () => {
+  assert.equal(
+    isOpenBuildingIri("https://wunderfacts.com/lod2-by/building/DEBY_LOD2_3334563"),
+    true,
+  );
+  // A Pod building, a MaStR unit, and a bare ref are NOT open buildings.
+  assert.equal(isOpenBuildingIri("https://pod.example/granergize/buildings/b.ttl#it"), false);
+  assert.equal(isOpenBuildingIri("https://wunderfacts.com/mastr/see/100#it"), false);
+  assert.equal(isOpenBuildingIri("granergize/buildings/b.ttl#it"), false);
+});
 
 // A `point` summary slice: two RoofPotential buildings with coordinates. The nearest to the
 // query point wins (the granergize building's centroid vs the LoD2 centroid differ slightly).

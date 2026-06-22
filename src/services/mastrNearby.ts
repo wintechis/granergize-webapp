@@ -32,6 +32,15 @@ const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
 /** Matched by suffix so it is independent of the (configurable) wrapper base. */
 const ENERGIETRAEGER_SUFFIX = "#Energietraeger";
 const EEG_MASTR_NR_SUFFIX = "#EegMaStRNummer";
+const BRUTTOLEISTUNG_SUFFIX = "#Bruttoleistung";
+const GEMEINDE_SUFFIX = "#Gemeinde";
+
+/** The renewable kind for an Energieträger value — a bare code (`"2495"`, the lean bbox)
+ *  or a catalog IRI (`…/cl/148#2495`, the per-unit deref); null if not a renewable. */
+function carrierKind(value: string): InstallationKind | null {
+  const code = value.includes("#") ? value.split("#").pop()! : value;
+  return RENEWABLE_CARRIER[code] ?? null;
+}
 
 /** A renewable generation technology. */
 export type InstallationKind = "solar" | "wind" | "hydro" | "biomass";
@@ -207,6 +216,40 @@ export function parseEegNumber(turtle: string, baseIri: string): string | null {
     }
   }
   return null;
+}
+
+/** A renewable unit's master data, parsed from its dereferenced `…/see/{id}` document —
+ *  for the open-observation detail (richer than the lean bbox listing). */
+export interface UnitDetail {
+  label: string;
+  kind: InstallationKind | null;
+  /** Gross capacity [kW] (`mastr:Bruttoleistung`), or null. */
+  capacityKw: number | null;
+  /** Municipality (`mastr:Gemeinde`), or "". */
+  locality: string;
+  /** The EEG plant number (`mastr:EegMaStRNummer`) for the netztransparenz join, or null. */
+  eegNumber: string | null;
+}
+
+/** Pure: parse a unit document's master data (label, capacity, kind, locality, EEG
+ *  number). One pass over the quads; missing fields default. */
+export function parseUnitDetail(turtle: string, baseIri: string): UnitDetail {
+  const store = parseRdfText(turtle, baseIri);
+  let label = "", locality = "", capacityKw: number | null = null;
+  let kind: InstallationKind | null = null, eegNumber: string | null = null;
+  for (const q of store.getQuads(null, null, null, null)) {
+    const p = q.predicate.value;
+    if (p === RDFS_LABEL) label = q.object.value;
+    else if (p.endsWith(BRUTTOLEISTUNG_SUFFIX)) {
+      const n = Number.parseFloat(q.object.value);
+      if (!Number.isNaN(n)) capacityKw = n;
+    } else if (p.endsWith(GEMEINDE_SUFFIX)) locality = q.object.value;
+    else if (p.endsWith(ENERGIETRAEGER_SUFFIX)) kind = carrierKind(q.object.value);
+    else if (p.endsWith(EEG_MASTR_NR_SUFFIX)) {
+      eegNumber = eegNumberFromIri(q.object.value);
+    }
+  }
+  return { label, kind, capacityKw, locality, eegNumber };
 }
 
 /**

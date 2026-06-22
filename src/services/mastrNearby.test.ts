@@ -5,6 +5,7 @@ import {
   kreisFromInstallations,
   parseEegNumber,
   parseNearbyInstallations,
+  parseUnitDetail,
 } from "./mastrNearby.ts";
 
 // A faithful slice of a linked-mastr `bbox` listing (Nürnberg): one resource per
@@ -106,4 +107,22 @@ Deno.test("parseEegNumber: a renewable unit yields its EEG number", () => {
 
 Deno.test("parseEegNumber: a non-EEG (combustion) unit → null", () => {
   assert.equal(parseEegNumber(SEE_COMBUSTION, SEE_BASE), null);
+});
+
+Deno.test("parseUnitDetail: master data from a unit /see doc", () => {
+  const full = `
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+@prefix mastr: <https://wunderfacts.com/mastr/mastr#> .
+<#it> rdfs:label "PV Roof X" ;
+  mastr:Bruttoleistung 249.750 ;
+  mastr:Gemeinde "Nürnberg" ;
+  mastr:EegMaStRNummer <../eeg/926794091751#it> ;
+  mastr:Energietraeger <../cl/148#2495> .
+`;
+  const d = parseUnitDetail(full, SEE_BASE);
+  assert.equal(d.label, "PV Roof X");
+  assert.equal(d.capacityKw, 249.75);
+  assert.equal(d.kind, "solar"); // carrier 2495, from the catalog IRI fragment
+  assert.equal(d.locality, "Nürnberg");
+  assert.equal(d.eegNumber, "926794091751");
 });

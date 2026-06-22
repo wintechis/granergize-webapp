@@ -34,9 +34,12 @@ const MASTR_BBOX = `
   mastr:Energietraeger "2495" .
 `;
 const MASTR_SEE = `
+@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
 @prefix mastr: <https://wunderfacts.com/mastr/mastr#> .
 <https://wunderfacts.com/mastr/see/E2E1#it>
+  rdfs:label "E2E Solar Plant" ;
   mastr:Bruttoleistung 156.330 ;
+  mastr:Gemeinde "Nürnberg" ;
   mastr:EegMaStRNummer <https://wunderfacts.com/mastr/eeg/999000111#it> ;
   mastr:Energietraeger <https://wunderfacts.com/mastr/cl/148#2495> .
 `;
@@ -114,5 +117,14 @@ test.describe("open observations (netztransparenz)", () => {
     await expect(openRow).toBeVisible({ timeout: T.action });
     await expect(openRow).toContainText("2024");
     await expect(openRow).toContainText("kWh");
+
+    // Drilling the row opens the in-app READ-ONLY plant detail (not the upstream doc):
+    // the unit master data + the settled-generation chart, no edit/share.
+    await openRow.getByText("E2E Solar Plant").click();
+    await expect(page).toHaveURL(/\/observation\?uri=/, { timeout: T.action });
+    await expect(page.getByRole("heading", { name: "E2E Solar Plant" }))
+      .toBeVisible({ timeout: T.action });
+    await expect(page.getByText("156.33 kW")).toBeVisible({ timeout: T.action });
+    await expect(page.getByRole("button", { name: /share|edit/i })).toHaveCount(0);
   });
 });

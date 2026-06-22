@@ -14,6 +14,7 @@ import type { BuildingType } from "../types.ts";
 import {
   fetchNearbyRooftopGeometry,
   fetchNearbyRooftops,
+  fetchOpenBuilding,
   fetchRooftopPotential,
   type NearbyRooftop,
   type NearbyRooftopGeometry,
@@ -26,6 +27,30 @@ import { logError } from "../lib/logError.ts";
  * (the query stays disabled), the location is outside the dump coverage, or the fetch failed.
  * Hour-long `staleTime` — the LoD2 model changes slowly.
  */
+/**
+ * Resolve a single open (LoD2) building BY ITS IRI — the in-app open-building detail
+ * drilled to from the finder/map (`/building?uri=<lod2-iri>`). Off-Pod, read-only,
+ * best-effort: a down/uncovered wrapper degrades to `null` (the page shows "not
+ * available") rather than throwing. Hour-long `staleTime`.
+ */
+export function useOpenBuildingDetail(
+  iri: string,
+): UseQueryResult<RooftopPotential | null> {
+  return useQuery<RooftopPotential | null>({
+    queryKey: ["openBuildingDetail", iri],
+    enabled: Boolean(iri),
+    staleTime: 1000 * 60 * 60,
+    queryFn: async () => {
+      try {
+        return await fetchOpenBuilding(iri);
+      } catch (err) {
+        logError("fetch open building (LoD2-BY)", err);
+        return null;
+      }
+    },
+  });
+}
+
 export function useLod2Rooftop(
   building: BuildingType,
 ): UseQueryResult<RooftopPotential | null> {

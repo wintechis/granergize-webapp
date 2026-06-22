@@ -1259,6 +1259,16 @@ export const MESSAGES = {
     de: "Offene Erzeugung (in der Nähe)",
     fr: "Production ouverte (à proximité)",
   },
+  openObsUnavailable: {
+    en: "This open observation's data couldn't be loaded.",
+    de: "Die Daten dieser offenen Beobachtung konnten nicht geladen werden.",
+    fr: "Les données de cette observation ouverte n'ont pas pu être chargées.",
+  },
+  openObsNoGeneration: {
+    en: "No settled generation reported for this plant.",
+    de: "Für diese Anlage ist keine abgerechnete Erzeugung gemeldet.",
+    fr: "Aucune production réglée déclarée pour cette installation.",
+  },
   obsOpenFallback: {
     en: "Renewable installation",
     de: "Erneuerbare-Anlage",
@@ -1861,6 +1871,16 @@ export const MESSAGES = {
     en: "Open building",
     de: "Offenes Gebäude",
     fr: "Bâtiment ouvert",
+  },
+  openBuildingDetailTitle: {
+    en: "Open building — rooftop potential",
+    de: "Offenes Gebäude — Dachpotenzial",
+    fr: "Bâtiment ouvert — potentiel de toiture",
+  },
+  openBuildingUnavailable: {
+    en: "This open building's data couldn't be loaded.",
+    de: "Die Daten dieses offenen Gebäudes konnten nicht geladen werden.",
+    fr: "Les données de ce bâtiment ouvert n'ont pas pu être chargées.",
   },
   openBuildingsPanHint: {
     en: "Open data loads from the map view — switch to Map and pan to an area to load open buildings there.",

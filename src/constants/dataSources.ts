@@ -46,6 +46,14 @@ export const SOURCES = {
     licenseHref: DL_DE_BY,
     note: "Nearby energy installations (via linked-mastr).",
   },
+  netztransparenz: {
+    id: "netztransparenz",
+    name: "Netztransparenz (EEG-Jahresabrechnung)",
+    homepage: "https://www.netztransparenz.de/",
+    license: "dl-de/by-2.0",
+    licenseHref: DL_DE_BY,
+    note: "Actually-settled renewable generation per plant (via linked-netztransparenz).",
+  },
   dwd: {
     id: "dwd",
     name: "Deutscher Wetterdienst (DWD)",

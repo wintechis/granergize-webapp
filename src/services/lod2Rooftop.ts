@@ -255,6 +255,44 @@ export async function fetchRooftopPotential(
   };
 }
 
+/** Whether an IRI is an open lod2-by building (the `open` Buildings tier's items) — used to
+ *  route a drill into the in-app open-building detail vs the Pod-backed building page.
+ *  Matched by path so it's independent of the (configurable) wrapper host. */
+export function isOpenBuildingIri(iri: string): boolean {
+  return /\/lod2-by\/building\//.test(iri);
+}
+
+/**
+ * Fetch the rooftop-PV potential of a SPECIFIC lod2-by building BY ITS IRI — the open-tier
+ * detail drilled from the finder/map, vs {@link fetchRooftopPotential}'s by-coordinate
+ * lookup. Reuses the same deref + {@link parseBuildingRoofs} + {@link computePotential}.
+ * `null` on a non-OK response or a building with no suitable roof. `distanceKm` is 0 (it IS
+ * the building, not a neighbour).
+ */
+export async function fetchOpenBuilding(
+  iri: string,
+): Promise<RooftopPotential | null> {
+  const res = await trackedFetch(
+    iri,
+    { headers: { Accept: "text/turtle" } },
+    "open building (LoD2-BY)",
+  );
+  if (!res.ok) return null;
+  const parsed = parseBuildingRoofs(await res.text(), iri);
+  if (!parsed) return null;
+  const potential = computePotential(parsed.roofs);
+  if (!potential) return null;
+  return {
+    iri: parsed.iri,
+    ...potential,
+    buildingHeightM: parsed.buildingHeightM,
+    lat: parsed.lat,
+    long: parsed.long,
+    distanceKm: 0,
+    roofs: parsed.roofs,
+  };
+}
+
 /**
  * Fetch the rooftop-PV potential of buildings NEAR (`lat`, `long`) — a single `point` query,
  * no per-building derefs (the summary already carries each building's installable kWp). Nearest

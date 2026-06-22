@@ -14,9 +14,11 @@ import {
   fetchEegNumber,
   fetchNearbyInstallations,
   type InstallationKind,
+  parseUnitDetail,
 } from "./mastrNearby.ts";
 import { fetchPlantGenerationByYear } from "./netztransparenz.ts";
 import { mapPooled } from "../lib/pool.ts";
+import { trackedFetch } from "../lib/networkActivity.ts";
 import { logError } from "../lib/logError.ts";
 
 /** A nearby renewable installation's open settled generation (fetched, never stored). */
@@ -29,6 +31,56 @@ export interface OpenObservation {
   long: number;
   /** Settled generation (kWh) per year, summed across disposal forms. */
   byYear: Map<number, number>;
+}
+
+/** A single open observation's full detail — the unit's master data + its settled
+ *  generation per year — for the in-app read-only plant detail. */
+export interface OpenObservationDetail {
+  iri: string;
+  label: string;
+  kind: InstallationKind | null;
+  capacityKw: number | null;
+  locality: string;
+  /** The EEG number (for the netztransparenz source link), or null if not EEG-registered. */
+  eegNumber: string | null;
+  byYear: Map<number, number>;
+}
+
+/** Whether an IRI is an open MaStR installation (the Observations `open` tier's items) —
+ *  routes a drill into the in-app open-observation detail. */
+export function isOpenObservationIri(iri: string): boolean {
+  return /\/mastr\/see\//.test(iri);
+}
+
+/**
+ * Resolve a single open observation BY ITS MaStR unit IRI — the in-app detail drilled
+ * from the Observations `open` tier (`/observation?uri=<mastr-iri>`). Fetches the unit's
+ * master data and (if EEG-registered) its netztransparenz settled generation. Best-effort:
+ * a non-OK unit fetch → null; no/empty generation → master data with an empty `byYear`.
+ */
+export async function fetchOpenObservation(
+  iri: string,
+): Promise<OpenObservationDetail | null> {
+  const docUri = iri.split("#")[0];
+  const res = await trackedFetch(
+    docUri,
+    { headers: { Accept: "text/turtle" } },
+    "open observation unit (MaStR)",
+  );
+  if (!res.ok) return null;
+  const detail = parseUnitDetail(await res.text(), docUri);
+  const byYear = detail.eegNumber
+    ? await fetchPlantGenerationByYear(detail.eegNumber)
+    : new Map<number, number>();
+  return {
+    iri,
+    label: detail.label,
+    kind: detail.kind,
+    capacityKw: detail.capacityKw,
+    locality: detail.locality,
+    eegNumber: detail.eegNumber,
+    byYear,
+  };
 }
 
 /** How many nearby installations to resolve per viewport. Each costs TWO derefs, so

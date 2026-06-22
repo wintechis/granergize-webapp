@@ -596,8 +596,8 @@ export default function BuildingsMap(
           )
         ))}
         {/* Open-data (LoD2) buildings — a read-only green-marker layer, shown only when
-            the `open` tier is ticked. Off-Pod, viewport-fetched; no drill yet (P3 adds
-            source navigation). */}
+            the `open` tier is ticked. Off-Pod, viewport-fetched; a click drills to the
+            in-app read-only detail (`/building?uri=`), not the upstream document. */}
         {openOn && openBuildings.map((b) => (
           b.lat != null && b.long != null && (
             <Marker
@@ -605,10 +605,9 @@ export default function BuildingsMap(
               position={[b.lat, b.long]}
               icon={buildingPin(false, true)}
               eventHandlers={{
-                // Read-only open data: a click opens the LoD2 source document (no
-                // in-app detail page — it's not a Pod resource).
-                click: () =>
-                  globalThis.open(b.uri, "_blank", "noopener,noreferrer"),
+                click: () => {
+                  void navigate(buildingRoute(b.uri));
+                },
               }}
             >
               <Tooltip direction="top" offset={[0, -38]}>
@@ -629,8 +628,9 @@ export default function BuildingsMap(
               position={[o.lat, o.long]}
               icon={buildingPin(false, true)}
               eventHandlers={{
-                click: () =>
-                  globalThis.open(o.iri, "_blank", "noopener,noreferrer"),
+                click: () => {
+                  void navigate(observationRoute(o.iri));
+                },
               }}
             >
               <Tooltip direction="top" offset={[0, -38]}>

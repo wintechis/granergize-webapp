@@ -79,7 +79,7 @@ function PotentialCardView(
 /** The per-building rooftop-PV card: installable kWp + annual yield + value, computed in-app
  *  over this building's LoD2 roof geometry — the per-building grain above the per-Gemeinde
  *  rooftop Ausbaulücke. */
-function RooftopBuildingCardView({ data }: { data: RooftopPotential }) {
+export function RooftopBuildingCardView({ data }: { data: RooftopPotential }) {
   const euroPerYear = data.annualKwh * PRICE_EUR_PER_KWH;
   return (
     <Stack spacing={0.5}>
