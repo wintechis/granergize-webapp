@@ -618,7 +618,12 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
               paper: {
                 elevation: 0,
                 sx: {
-                  overflow: "visible",
+                  // Scroll when the menu is taller than the viewport. The dev-mode
+                  // items make it long enough to exceed shorter windows; a plain
+                  // `overflow: visible` left the bottom entries (e.g. "Remove all
+                  // data") off-screen and unreachable — clicks never landed.
+                  overflowY: "auto",
+                  maxHeight: "calc(100vh - 80px)",
                   filter: "drop-shadow(0px 2px 8px rgba(0,0,0,0.32))",
                   mt: 1.5,
                   minWidth: 180,

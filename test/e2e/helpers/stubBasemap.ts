@@ -23,3 +23,30 @@ export async function stubBasemapTiles(page: Page): Promise<void> {
   await page.route(/geodatenzentrum\.de/, (route) =>
     route.fulfill({ status: 200, contentType: "image/png", body: PNG_1x1 }));
 }
+
+/** CORS headers so a stubbed cross-origin GET resolves like the real wrapper would. */
+const CORS = {
+  "Access-Control-Allow-Origin": "*",
+  "Access-Control-Allow-Methods": "GET, OPTIONS",
+  "Access-Control-Allow-Headers": "*",
+};
+
+/**
+ * Stub the EXTERNAL open-data / enrichment hosts the app fetches around the map — the
+ * regional + open-data tiers the redesign added: the linked-data wrappers on
+ * `wunderfacts.com` (mastr / lod2-by / energieatlas / regionalstatistik / nuts / lau /
+ * wetterdienst), Nominatim geocoding, and Wikidata/Commons logos. Every map visit fires
+ * dozens of slow REAL cross-internet GETs that no spec asserts; left un-stubbed they keep
+ * the app busy and hang the network-gated teardown (`afterAll` timeout across specs).
+ * A 404 lets the app fall back (every enrichment is best-effort) and completes instantly.
+ *
+ * Applied at page creation alongside {@link stubBasemapTiles}. A spec that asserts a
+ * specific source (e.g. the open-tier specs stubbing `/lod2-by/` or `/regionalstatistik/`)
+ * registers its own `page.route` AFTERWARDS — a later handler wins in Playwright.
+ */
+export async function stubExternalData(page: Page): Promise<void> {
+  await page.route(
+    /wunderfacts\.com|nominatim\.openstreetmap\.org|wikidata\.org|commons\.wikimedia\.org/,
+    (route) => route.fulfill({ status: 404, headers: CORS, body: "" }),
+  );
+}

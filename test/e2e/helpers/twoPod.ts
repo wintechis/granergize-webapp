@@ -2,7 +2,7 @@ import { type Browser, type Page } from "@playwright/test";
 import { login, type SolidAccount } from "./login.ts";
 import { watchAppErrors } from "./errorGuard.ts";
 import { captureConsole } from "./consoleLog.ts";
-import { stubBasemapTiles } from "./stubBasemap.ts";
+import { stubBasemapTiles, stubExternalData } from "./stubBasemap.ts";
 import { reuseContextOptions } from "./loginReuse.ts";
 
 /** A fresh isolated browser context logged into one account. */
@@ -27,6 +27,7 @@ async function newSession(
   const guard = watchAppErrors(page); // attach before login to catch login errors
   captureConsole(page, acc?.slot ?? ""); // mirror the console stream to the per-run log file
   await stubBasemapTiles(page); // background map tiles only — stub to avoid external load
+  await stubExternalData(page); // open-data/enrichment hosts — stub so teardown is not starved
   return { ctx, page, guard };
 }
 
