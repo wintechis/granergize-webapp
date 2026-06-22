@@ -4,6 +4,7 @@ import type { BuildingType } from "../../types.ts";
 import { msg, type MessageId } from "../../lib/messages.ts";
 import { useStandortEnergieprofil } from "../../hooks/standortEnergieprofil.ts";
 import { useLod2Rooftop } from "../../hooks/lod2Rooftop.ts";
+import { useNearbyGeneration } from "../../hooks/openObservations.ts";
 import type { RooftopPotential } from "../../services/lod2Rooftop.ts";
 import {
   areaUrl,
@@ -139,7 +140,8 @@ function BiomassCardView({ data }: { data: BiomassCardData }) {
   );
 }
 
-/** The nearby-generation card: actual renewable installations near the building. */
+/** The nearby-generation card: actual renewable installations near the building, plus
+ *  their actually-settled generation (netztransparenz, joined via the units' EEG number). */
 function NearbyCardView({ installations }: { installations: NearbyInstallation[] }) {
   const counts = new Map<InstallationKind, number>();
   for (const u of installations) counts.set(u.kind, (counts.get(u.kind) ?? 0) + 1);
@@ -148,6 +150,9 @@ function NearbyCardView({ installations }: { installations: NearbyInstallation[]
     .map(([kind, n]) => `${msg(CARRIER_LABEL[kind])} ${n}`)
     .join(" · ");
   const within = `${msg("sepWithin")} ${DEFAULT_RADIUS_KM} km`;
+  // Actually-settled generation of the nearby plants (best-effort; absent off-pilot or
+  // until netztransparenz resolves) — capacity is what's nearby, this is what they made.
+  const { data: gen } = useNearbyGeneration(installations.map((u) => u.iri));
   return (
     <Stack spacing={0.5}>
       <Typography variant="subtitle2">{msg("sepNearbyGeneration")}</Typography>
@@ -157,6 +162,14 @@ function NearbyCardView({ installations }: { installations: NearbyInstallation[]
       <Typography variant="body2" color="text.secondary">
         {breakdown ? `${breakdown} · ${within}` : within}
       </Typography>
+      {gen && (
+        <Typography variant="body2" color="text.secondary">
+          {msg("sepActualGeneration", {
+            kwh: gen.kwh.toLocaleString(),
+            year: gen.year,
+          })}
+        </Typography>
+      )}
     </Stack>
   );
 }

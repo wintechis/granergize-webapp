@@ -252,6 +252,11 @@ export const MESSAGES = {
     de: "Erzeugung in der Nähe",
     fr: "Production à proximité",
   },
+  sepActualGeneration: {
+    en: "{kwh} kWh actually generated ({year})",
+    de: "{kwh} kWh tatsächlich erzeugt ({year})",
+    fr: "{kwh} kWh réellement produits ({year})",
+  },
   sepWithin: { en: "within", de: "im Umkreis von", fr: "dans un rayon de" },
   secResults: { en: "Results", de: "Ergebnisse", fr: "Résultats" },
   secDetails: { en: "Details", de: "Details", fr: "Détails" },
@@ -1248,6 +1253,21 @@ export const MESSAGES = {
       "{count} Beobachtung(en) sind noch keinem Gebäude zugeordnet — verknüpfen Sie sie in der Liste, um sie hier zu vergleichen.",
     fr:
       "{count} observation(s) ne sont pas encore associées à un bâtiment — associez-les dans la liste pour les comparer ici.",
+  },
+  obsOpenSection: {
+    en: "Open generation (nearby)",
+    de: "Offene Erzeugung (in der Nähe)",
+    fr: "Production ouverte (à proximité)",
+  },
+  obsOpenFallback: {
+    en: "Renewable installation",
+    de: "Erneuerbare-Anlage",
+    fr: "Installation renouvelable",
+  },
+  obsOpenGenerationRow: {
+    en: "{kwh} kWh generated ({year})",
+    de: "{kwh} kWh erzeugt ({year})",
+    fr: "{kwh} kWh produits ({year})",
   },
   obsLinkToBuilding: {
     en: "Link to a building",

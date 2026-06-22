@@ -3,6 +3,24 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-22]
+- **Open observations — the Observations `open` tier now carries real generation data.** The
+  `linked-netztransparenz` wrapper (CORS-enabled at `wunderfacts.com/netztransparenz/`) serves the
+  German TSOs' EEG annual settlement: actually-settled generation (kWh) per renewable plant, per
+  year. The app joins it to the existing MaStR nearby layer — a unit's `mastr:EegMaStRNummer`
+  dereferences straight into the wrapper's `eeg/{number}` scheme — and renders the settled kWh as
+  annual `electricityGeneration`. Two surfaces: the Observations finder's **`open` tier** shows a
+  read-only "Open generation (nearby)" List section (viewport-driven, opt-in, cached, best-effort),
+  and the building page's **StandortEnergieprofil** nearby card gains an "actually generated: N kWh
+  (year)" line. Settlements are summed per year across disposal forms; a plant in MaStR but absent
+  from the settled dump (404) is tolerated. New `netztransparenz.ts` client + pure parser,
+  `mastrNearby.fetchEegNumber`, `openObservations.ts` + `useOpenObservations`/`useNearbyGeneration`;
+  `VITE_NETZTRANSPARENZ_API_URI` in both env files. e2e (`open-observations.spec.ts`) stubs the
+  full `bbox → see → netztransparenz` join.
+- **Account menu caps its height and scrolls.** In Developer mode the menu had grown taller than a
+  short viewport, and its `overflow: visible` (for the drop-shadow) meant it didn't scroll — leaving
+  the last item ("Remove all app data") unreachable below the fold. Capped to `calc(100vh - 96px)`
+  with `overflowY: auto` (the filter still renders the shadow), so every item is reachable on short
+  windows.
 - **Building-less observations — capture readings before a building exists, link (or delete) later.**
   Observations are first-class resources (`granergize/observations/{year}/{id}.ttl`), so a
   "building-less" one is just a `cons:EnergyDataset` with no `cons:ofBuilding`; the serializer omits

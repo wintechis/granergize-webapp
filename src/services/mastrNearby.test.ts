@@ -1,7 +1,9 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
+  eegNumberFromIri,
   kreisFromInstallations,
+  parseEegNumber,
   parseNearbyInstallations,
 } from "./mastrNearby.ts";
 
@@ -71,4 +73,37 @@ Deno.test("kreisFromInstallations: majority 5-digit prefix wins over a lone bord
 
 Deno.test("kreisFromInstallations: nothing known → null", () => {
   assert.equal(kreisFromInstallations([]), null);
+});
+
+// ── EEG-number join (the netztransparenz key) ──────────────────────────────────
+// A `/see/{id}` unit deref. The renewable unit carries `mastr:EegMaStRNummer` as a
+// RELATIVE `../eeg/{number}#it` IRI (resolves to the mastr host); the combustion unit
+// omits it. We extract only the number, to build the netztransparenz URL.
+const SEE_BASE = "https://wunderfacts.com/mastr/see/900009825478";
+const SEE_RENEWABLE = `
+@prefix mastr: <https://wunderfacts.com/mastr/mastr#> .
+<#it> mastr:Bruttoleistung 156.330 ;
+  mastr:EegMaStRNummer <../eeg/934354845027#it> ;
+  mastr:Energietraeger <../cl/148#2495> .
+`;
+const SEE_COMBUSTION = `
+@prefix mastr: <https://wunderfacts.com/mastr/mastr#> .
+<#it> mastr:Bruttoleistung 26280.000 ;
+  mastr:Energietraeger <../cl/133#2413> .
+`;
+
+Deno.test("eegNumberFromIri: trailing number from an eeg/{number} IRI", () => {
+  assert.equal(
+    eegNumberFromIri("https://wunderfacts.com/mastr/eeg/934354845027#it"),
+    "934354845027",
+  );
+  assert.equal(eegNumberFromIri("https://x/see/1#it"), null);
+});
+
+Deno.test("parseEegNumber: a renewable unit yields its EEG number", () => {
+  assert.equal(parseEegNumber(SEE_RENEWABLE, SEE_BASE), "934354845027");
+});
+
+Deno.test("parseEegNumber: a non-EEG (combustion) unit → null", () => {
+  assert.equal(parseEegNumber(SEE_COMBUSTION, SEE_BASE), null);
 });

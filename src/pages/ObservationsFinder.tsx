@@ -49,6 +49,9 @@ import SearchField from "../components/SearchField.tsx";
 import TierFilter from "../components/TierFilter.tsx";
 import TierDot from "../components/TierDot.tsx";
 import { OBSERVATION_TIERS } from "../constants/tiers.ts";
+import { useOpenObservations } from "../hooks/openObservations.ts";
+import { openViewport } from "../services/openBuildings.ts";
+import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
 import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx";
 import ObservationsOverYears from "../components/observation/ObservationsOverYears.tsx";
@@ -142,6 +145,13 @@ export default function ObservationsFinder() {
   const byTier = withObservations.filter((b) =>
     tierFacet.isSelected(b.isShared ? "shared" : "mine")
   );
+  // Open tier: nearby renewable installations' actually-settled generation
+  // (netztransparenz, joined via MaStR), viewport-fetched only when `open` is ticked.
+  // Read-only, and a SEPARATE List section (not the building-keyed cube) — like the
+  // building-less loose section — so it needs the map panned to set `?c`/`?z`.
+  const openOn = tierFacet.isSelected("open");
+  const { centre: openCentre, radiusM: openRadius } = openViewport(searchParams);
+  const { data: openObs = [] } = useOpenObservations(openCentre, openRadius, openOn);
   const filtered = filterByText(byTier, query, buildingSearchText);
   const paging = usePaging(filtered);
   // The over-time heatmap (now carrying the trend column) + the over-years chart
@@ -223,15 +233,16 @@ export default function ObservationsFinder() {
         <>
           <SearchField value={query} onChange={setQuery} />
           {/* Per-tier counts (overview-first, independent of search), consistent with
-              the Buildings + Aggregations finders. `open` is 0 — no open observations
-              yet — which the (0) makes explicit. */}
+              the Buildings + Aggregations finders. `open` counts the nearby settled-
+              generation installations for the current viewport (0 until the map is
+              panned, or outside the netztransparenz pilot). */}
           <TierFilter
             facet={tierFacet}
             options={OBSERVATION_TIERS}
             counts={{
               mine: withObservations.filter((b) => !b.isShared).length,
               shared: withObservations.filter((b) => b.isShared).length,
-              open: 0,
+              open: openObs.length,
             }}
           />
           {/* The metric (electricity / heat / …) is a query/filter, not a view
@@ -296,8 +307,10 @@ export default function ObservationsFinder() {
           {isLoading && (
             <Typography variant="body2">{t("loadingEllipsis")}</Typography>
           )}
-          {/* Nothing at all: no buildings with energy AND no loose observations. */}
-          {!isLoading && withObservations.length === 0 && looseObs.length === 0 && (
+          {/* Nothing at all: no buildings with energy AND no loose observations (and,
+              in the List, no open generation either). */}
+          {!isLoading && withObservations.length === 0 && looseObs.length === 0 &&
+            !(view === "list" && openObs.length > 0) && (
             <Typography variant="body2">{t("observationsEmpty")}</Typography>
           )}
           {/* Over time / Over years compare BUILDINGS over time, so building-less
@@ -418,6 +431,44 @@ export default function ObservationsFinder() {
                     }
                   />
                 ))}
+              </Box>
+            </Box>
+          )}
+          {/* Open generation (nearby) — read-only settled generation of renewable
+              installations near the viewport (netztransparenz via MaStR). Viewport-
+              driven, so it needs the map panned; a separate section like the loose one,
+              and List-only (the building-comparison views don't plot it). */}
+          {!isLoading && view === "list" && openOn && !openCentre && (
+            <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
+              {t("openBuildingsPanHint")}
+            </Typography>
+          )}
+          {!isLoading && view === "list" && openObs.length > 0 && (
+            <Box sx={{ mt: 3 }}>
+              <Typography variant="h6" sx={{ mb: 1 }}>
+                {t("obsOpenSection")}
+              </Typography>
+              <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
+                {openObs.map((o) => {
+                  const latest = Math.max(...o.byYear.keys());
+                  const kwh = o.byYear.get(latest) ?? 0;
+                  return (
+                    <ResourceRow
+                      key={o.iri}
+                      title={
+                        <>
+                          <strong>{o.label || t("obsOpenFallback")}</strong>
+                          <TierDot tier="open" />
+                          <RdfSourceLink href={o.iri} inline />
+                        </>
+                      }
+                      subtitle={t("obsOpenGenerationRow", {
+                        kwh: kwh.toLocaleString(),
+                        year: latest,
+                      })}
+                    />
+                  );
+                })}
               </Box>
             </Box>
           )}

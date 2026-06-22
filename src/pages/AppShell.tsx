@@ -618,7 +618,12 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
               paper: {
                 elevation: 0,
                 sx: {
-                  overflow: "visible",
+                  // Cap to the viewport and scroll when the menu (long in Developer
+                  // mode) would otherwise overflow below the fold — leaving its last
+                  // items unreachable on a short window. The drop-shadow filter still
+                  // renders outside the box, so no `overflow: visible` is needed.
+                  maxHeight: "calc(100vh - 96px)",
+                  overflowY: "auto",
                   filter: "drop-shadow(0px 2px 8px rgba(0,0,0,0.32))",
                   mt: 1.5,
                   minWidth: 180,

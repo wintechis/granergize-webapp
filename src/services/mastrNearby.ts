@@ -31,6 +31,7 @@ const RDFS_LABEL = `${RDFS_NS}label`;
 const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
 /** Matched by suffix so it is independent of the (configurable) wrapper base. */
 const ENERGIETRAEGER_SUFFIX = "#Energietraeger";
+const EEG_MASTR_NR_SUFFIX = "#EegMaStRNummer";
 
 /** A renewable generation technology. */
 export type InstallationKind = "solar" | "wind" | "hydro" | "biomass";
@@ -185,6 +186,46 @@ export async function fetchNearbyInstallations(
   if (!res.ok) throw new Error(`HTTP ${res.status} fetching nearby installations`);
   const all = parseNearbyInstallations(await res.text(), url, lat, long);
   return all.slice(0, limit);
+}
+
+/** The trailing plant number from a `…/eeg/{number}#it` IRI (the netztransparenz key),
+ *  or null. The IRI is relative to the MaStR host — we want only the number, to build
+ *  the netztransparenz URL, NOT follow it to the mastr host. */
+export function eegNumberFromIri(iri: string): string | null {
+  const m = iri.match(/\/eeg\/(\d+)/);
+  return m ? m[1] : null;
+}
+
+/** Pure: the EEG plant number a unit document declares via `mastr:EegMaStRNummer`, or
+ *  null — non-EEG units (e.g. combustion) omit the predicate. The network-free half of
+ *  {@link fetchEegNumber}, unit-tested with a fixture. */
+export function parseEegNumber(turtle: string, baseIri: string): string | null {
+  const store = parseRdfText(turtle, baseIri);
+  for (const q of store.getQuads(null, null, null, null)) {
+    if (q.predicate.value.endsWith(EEG_MASTR_NR_SUFFIX)) {
+      return eegNumberFromIri(q.object.value);
+    }
+  }
+  return null;
+}
+
+/**
+ * Dereference a unit (`…/see/{id}#it`) and read its EEG plant number — the key that
+ * joins into `linked-netztransparenz` for the plant's settled generation. Best-effort:
+ * a non-OK response, or a non-EEG unit, → null (the open layer degrades quietly). This
+ * is the second deref of the join (after the bbox listing), accepted per the plan.
+ */
+export async function fetchEegNumber(
+  installationIri: string,
+): Promise<string | null> {
+  const docUri = installationIri.split("#")[0]; // …/see/{id}
+  const res = await trackedFetch(
+    docUri,
+    { headers: { Accept: "text/turtle" } },
+    "installation detail (MaStR)",
+  );
+  if (!res.ok) return null;
+  return parseEegNumber(await res.text(), docUri);
 }
 
 /**
