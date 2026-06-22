@@ -65,7 +65,8 @@ sections on the building's observation page (`/observation/:id`), reached by rou
 
 Reserved for later increments (named here so they land consistently):
 
-- `full` — Explore detail fullscreen; and the map viewport (zoom/center).
+- `full` — Explore detail fullscreen. (The map viewport is *not* reserved here — it is
+  preserved component state, see below, not a URL param.)
 - Manage deep-link dialogs that target a resource: edit / files / energy / share a
   building, and share a view.
 - list paging across Manage, Share and Connect.
@@ -76,6 +77,46 @@ Pod-persistent state (`gran:currentRoom` in `prefs.ttl`, mirrored in memory by
 `activeRoom`) and is entered through the `#/room/:uri` deep-link, which records it
 and lands on Connect. The room you are in is a property of your account, not of the
 page address.
+
+## Preserved component state — the map viewport
+
+Between navigational and ephemeral sits a third kind of view state: worthless to a
+*reload* or a *shared link* (so not navigational), yet it should survive *in-session*
+navigation — drilling into a detail page and coming back. The **map viewport**
+(zoom/center) is the case in point: re-framing the map every time you return from a
+building's page is jarring, but the exact view is not worth a bookmarkable param.
+
+The home for it is a **module-level store** (`src/lib/mapViewport.ts`, mirroring
+`networkActivity`/`devMode`): the map writes the viewport on every pan/zoom settle and
+reads it once on (re-)mount to restore it. Because the singleton outlives the finder's
+unmount, returning from a detail page restores the *exact* view — with nothing to
+encode, and correctly lost on a reload (an in-session view isn't navigational). It
+replaces the old, fragile serialize-and-restore: the standalone detail routes render
+shell-less, so they **unmount the finder**, and a fresh map could clobber/race the saved
+`?c`/`?z` with its own default-centre move — snapping back to the all-buildings fit
+(`FitToBuildings`).
+
+**Why not keep it in the URL, like the navigational state?** Because the viewport is not
+navigational. The exact float centre/zoom is worthless to a *reload* (re-fitting a fresh
+load is fine) and to a *shared link* (nobody bookmarks "centre 50.0, zoom 14"); forcing
+it into the address would *grant* it reload-survival and shareability it should not have,
+and rewrite the URL on every pan/zoom (high churn, no value). The snap-to-fit bug was the
+symptom of that mis-classification: a URL-backed value must round-trip — serialize → URL →
+re-read → re-apply on re-mount — and the re-apply raced the fresh map's default-centre
+move. A module store is a direct read of a live value: no round-trip, no race, and it
+dies on a reload (correct). (The race is fixable with a guard, but that is machinery to
+keep a non-navigational value in a navigational place.)
+
+The `?c`/`?z` URL params stay, but only as an optional **deep-link seed** (a shared map
+URL, or an e2e wanting a specific viewport) and the input the open-data fetch
+(`openViewport`) keys on — a different role from the in-session live view the store owns.
+On restore the store wins; the params seed a fresh map that has no stored viewport yet,
+and `FitToBuildings` stands down for either.
+
+Purer future direction (deferred): render the detail pages *inside the mounted shell* (a
+nested/overlay route) rather than as shell-less standalone routes, so the finder is never
+torn down at all — which would preserve the list scroll and pager for free too, and let
+the `?c`/`?z` restore code go entirely. That is a routing refactor for its own pass.
 
 ## Inventory
 
@@ -91,7 +132,8 @@ page address.
 
 - Navigational: the spatial axis → `space` (Map ⇄ List, owned/shared only). A
   marker/row click navigates to `/building/:id` (every surface is a finder).
-- Deferred-navigational: the map bounding box / viewport.
+- Preserved component state (see §Preserved component state): the map viewport — held in
+  the `mapViewport` module store (survives the finder's unmount), not URL-encoded.
 - Ephemeral: the tile-loading token.
 
 ### Observations finder — `src/pages/ObservationsFinder.tsx` (+ `BuildingsMap colour="energy"`, `ObservationsMatrix`, `ObservationsTrend`)
@@ -99,7 +141,8 @@ page address.
 - Navigational: the view axis → `view`; the energy metric → `m`; the map's time-cut
   year → `y`. Every surface (map markers, list rows, heatmap cells, trend rows)
   navigates to `/building/:id` or `/observation/:id`.
-- Deferred-navigational: the map viewport; the list pager.
+- Preserved component state (see §Preserved component state): the map viewport.
+  Deferred-navigational: the list pager.
 - Ephemeral: the drag-local draft year and the play/pause flag, the energy
   intensities derived per building, the tile-loading token.
 - Children: `WeatherData` (now a section on the observation page) holds a selected

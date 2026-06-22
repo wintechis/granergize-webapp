@@ -3,6 +3,18 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-22]
+- **The map keeps its viewport when you drill into a detail and come back.** The standalone
+  detail routes render shell-less, so they unmount the finder; the old `?c`/`?z`-restore raced a
+  fresh map's default-centre move and lost, snapping the map back to the all-buildings fit on every
+  return. The viewport (centre+zoom) is now **preserved component state** in a module singleton
+  (`src/lib/mapViewport.ts`, mirroring `networkActivity`/`devMode`): written on each pan/zoom settle,
+  read on (re-)mount to restore the exact view — it outlives the unmount, so there's nothing to
+  encode and it's correctly *not* shareable/reload-surviving. `?c`/`?z` stays as the deep-link seed
+  and the open-data-fetch input (`openViewport`), not the in-session restore. Recorded in
+  `notes/ui-state.md` §Preserved component state (incl. *why not the URL* — the viewport isn't
+  navigational), which also notes the purer future direction (render details inside the mounted shell
+  so the finder is never torn down). A `map-viewport` e2e isolates the store: it returns to the finder
+  via a URL with no `?c`/`?z`, so only the surviving store can restore the view.
 - **Open data opens IN-APP, read-only — no more bounce-out to the wrapper.** Open buildings (LoD2
   rooftop potential) and open observations (netztransparenz generation) were only finder rows/markers
   that linked OUT to the upstream document (the detail routes resolve ids only against the Pod cache,

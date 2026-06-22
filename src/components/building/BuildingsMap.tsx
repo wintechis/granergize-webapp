@@ -6,6 +6,7 @@ import { useListFacet } from "../../hooks/useListFacet.ts";
 import { useOpenBuildings } from "../../hooks/openBuildings.ts";
 import { useOpenObservations } from "../../hooks/openObservations.ts";
 import { openViewport } from "../../services/openBuildings.ts";
+import { getStoredViewport, setStoredViewport } from "../../lib/mapViewport.ts";
 import { TIER_VALUES } from "../../constants/tiers.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
@@ -247,10 +248,10 @@ function FitToBuildings(
   const [searchParams] = useSearchParams();
   useEffect(() => {
     if (done.current || !active) return;
-    // A viewport in the URL (?c=&z=) wins over the auto-fit — a shared or
-    // back-restored map view shouldn't be reframed to the markers. ViewportUrlSync
-    // applies it; we just stand down.
-    if (searchParams.get("c") && searchParams.get("z")) {
+    // A remembered viewport (the in-session store, surviving a detail drill) or one
+    // seeded in the URL (?c=&z=, a shared/deep link) wins over the auto-fit — the map
+    // shouldn't be reframed to the markers. ViewportUrlSync applies it; we stand down.
+    if (getStoredViewport() || (searchParams.get("c") && searchParams.get("z"))) {
       done.current = true;
       return;
     }
@@ -272,6 +273,10 @@ function writeViewport(
   setSearchParams: ReturnType<typeof useSearchParams>[1],
 ) {
   const c = map.getCenter();
+  // Preserved component state: remember the viewport so a re-mount (after a detail
+  // drill) restores it, independent of the URL. The `?c`/`?z` write below stays for the
+  // open-data fetch + deep-link seed.
+  setStoredViewport({ lat: c.lat, long: c.lng }, map.getZoom());
   setSearchParams((prev) => {
     const sp = new URLSearchParams(prev);
     sp.set("c", `${c.lat.toFixed(5)},${c.lng.toFixed(5)}`);
@@ -296,6 +301,17 @@ function ViewportUrlSync() {
   useEffect(() => {
     if (applied.current) return;
     applied.current = true; // apply at most once (and never re-fire on our own write)
+    // Preferred: the in-session stored viewport — it survives the finder's unmount on a
+    // detail drill, so coming back restores the exact view (no snap-to-fit). Falls back
+    // to `?c`/`?z` for a fresh deep link / shared map URL.
+    const stored = getStoredViewport();
+    if (stored) {
+      setTimeout(
+        () => map.setView([stored.centre.lat, stored.centre.long], stored.zoom),
+        0,
+      );
+      return;
+    }
     const c = searchParams.get("c");
     const z = searchParams.get("z");
     if (!c || !z) return;

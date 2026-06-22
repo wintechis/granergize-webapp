@@ -135,6 +135,7 @@ const SOLO_SPECS = [
   "**/buildings-open-tier.spec.ts",
   "**/buildingless-observations.spec.ts",
   "**/open-observations.spec.ts",
+  "**/map-viewport.spec.ts",
   "**/nearby-installations.spec.ts",
   "**/dev-source-links.spec.ts",
   "**/seed-demos.spec.ts",
