@@ -1,21 +1,21 @@
 /**
  * The Observations finder's single VIEW axis. Observations are the per-building,
- * per-year energy time-series, so this finder IS the energy cube; its four views
- * don't factor into a clean orthogonal grid (three are rows-shaped, one is a map),
- * so it's a flat view selector rather than a Space × Colour cube:
+ * per-year energy time-series, so this finder IS the energy cube; its views don't
+ * factor into a clean orthogonal grid (some are rows-shaped, one is a map), so it's a
+ * flat view selector rather than a Space × Colour cube:
  *
  * - `map`       — geographic energy markers banded at the chosen year (+ a year slider);
  * - `list`      — the per-building observation summary (year count, range, granularity);
- * - `overtime`  — the buildings × years efficiency heatmap;
+ * - `overtime`  — the buildings × years efficiency heatmap, with a trailing trend
+ *                 column (year-over-year direction — the folded-in Trend view);
  * - `overyears` — the metric's raw figures over the years, one line per building
- *                 (fact-first: time on the x-axis, the building a series);
- * - `trend`     — each building's year-over-year direction (improving/flat/worsening).
+ *                 (fact-first: time on the x-axis, the building a series).
  *
  * Pure + React-free → Tier-1 testable. Shares `?m=` (metric) and `?y=` (year, read
  * inside `BuildingsMap`) with the energy views; the map viewport (`?c=`/`?z=`) and the
  * list pager (`?offset=`) ride along untouched.
  */
-export type ObsView = "map" | "list" | "overtime" | "overyears" | "trend";
+export type ObsView = "map" | "list" | "overtime" | "overyears";
 
 /** The default view (omitted from the URL): the geographic energy map. */
 export const DEFAULT_VIEW: ObsView = "map";
@@ -25,7 +25,6 @@ const VIEWS: ReadonlySet<string> = new Set<ObsView>([
   "list",
   "overtime",
   "overyears",
-  "trend",
 ]);
 
 /** Read the view from `?view=`; unknown/absent → the default (the geographic map). */
@@ -50,6 +49,6 @@ export function viewToParams(
 /** The metric selector shows on every energy view — i.e. all but the plain List. */
 export const showsMetric = (view: ObsView): boolean => view !== "list";
 
-/** The year slider shows only on the map (the heatmap + trend span every year at
+/** The year slider shows only on the map (the heatmap + over-years span every year at
  *  once). The slider itself lives inside `BuildingsMap`; this just documents the rule. */
 export const showsYearSlider = (view: ObsView): boolean => view === "map";

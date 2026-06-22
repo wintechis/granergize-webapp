@@ -19,6 +19,13 @@ export type Tier = typeof TIER_VALUES[number];
 /** The Buildings finder's tiers — own + shared-with-me (no open source yet). */
 export const BUILDING_TIERS: readonly Tier[] = ["mine", "shared"];
 
+/** The Observations finder's tiers — own + shared-with-me + open, for parity with the
+ *  other finders. `open` is currently **empty**: the collection is the user's owned +
+ *  shared buildings, and open/MaStR buildings carry no Pod energy observations yet
+ *  (open energy is otherwise region-level → the Aggregations finder). The tier stays
+ *  offered so the affordance is consistent and ready if per-building open energy lands. */
+export const OBSERVATION_TIERS: readonly Tier[] = ["mine", "shared", "open"];
+
 /** The Aggregations finder's tiers — own + shared-with-me + public open data. */
 export const AGGREGATION_TIERS: readonly Tier[] = ["mine", "shared", "open"];
 

@@ -32,11 +32,14 @@ import FinderHeader from "../components/FinderHeader.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
+import { useListFacet } from "../hooks/useListFacet.ts";
 import SearchField from "../components/SearchField.tsx";
+import TierFilter from "../components/TierFilter.tsx";
+import TierDot from "../components/TierDot.tsx";
+import { OBSERVATION_TIERS } from "../constants/tiers.ts";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
 import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx";
 import ObservationsOverYears from "../components/observation/ObservationsOverYears.tsx";
-import ObservationsTrend from "../components/observation/ObservationsTrend.tsx";
 import {
   resolveView,
   showsMetric,
@@ -74,10 +77,10 @@ function datasetSummary(b: BuildingType): string {
  * - **Map** — geographic energy markers banded at the chosen year (+ a year slider);
  * - **List** — the per-building observation summary (each row opens `/observation/:id`,
  *   where years are entered/edited; owners can clear all of a building's data);
- * - **Over time** — the buildings × years efficiency heatmap (`ObservationsMatrix`);
+ * - **Over time** — the buildings × years efficiency heatmap, with a trailing column
+ *   flagging each building's year-over-year direction (`ObservationsMatrix`);
  * - **Over years** — the metric's figures over the years, a line per building
- *   (fact-first temporal; `ObservationsOverYears`);
- * - **Trend** — each building's year-over-year direction (`ObservationsTrend`).
+ *   (fact-first temporal; `ObservationsOverYears`).
  *
  * The energy views share one `?m=` metric; the year `?y=` lives inside `BuildingsMap`.
  */
@@ -107,13 +110,21 @@ export default function ObservationsFinder() {
   const ownedBuildings = buildings.filter((b) => !b.isShared);
   const [createOpen, setCreateOpen] = useState(false);
   const { query, setQuery } = useListSearch();
-  const filtered = filterByText(withObservations, query, buildingSearchText);
+  // Source-tier selector (the finder collection model): union the ticked tiers — a
+  // building's tier is own (`mine`) vs shared-with-me. `open` is offered for parity but
+  // currently matches nothing (no per-building open energy observations — see
+  // OBSERVATION_TIERS). Filters every non-map view; the map reads the full set itself.
+  const tierFacet = useListFacet("tiers", OBSERVATION_TIERS);
+  const byTier = withObservations.filter((b) =>
+    tierFacet.isSelected(b.isShared ? "shared" : "mine")
+  );
+  const filtered = filterByText(byTier, query, buildingSearchText);
   const paging = usePaging(filtered);
-  // The over-time heatmap + trend re-colour over the per-year energy cube, banded
-  // against the filtered set as peers. Loaded only when those views are up — the Map
-  // view's `BuildingsMap` owns its own (React-Query-deduped) load.
-  const energyOn = view === "overtime" || view === "overyears" ||
-    view === "trend";
+  // The over-time heatmap (now carrying the trend column) + the over-years chart
+  // re-shape the per-year energy cube, banded against the filtered set as peers.
+  // Loaded only when those views are up — the Map view's `BuildingsMap` owns its own
+  // (React-Query-deduped) load.
+  const energyOn = view === "overtime" || view === "overyears";
   const { data: energyByYear } = useAnnualEnergyByYear(withObservations, energyOn);
   const visibleIds = new Set(filtered.map((b) => b.id));
 
@@ -157,7 +168,6 @@ export default function ObservationsFinder() {
   return (
     <FinderHeader
       title={t("navObservations")}
-      count={withObservations.length}
       source={rdf?.observations}
       actions={ownedBuildings.length > 0 && (
         <Button
@@ -171,6 +181,18 @@ export default function ObservationsFinder() {
       controls={withObservations.length > 0 && (
         <>
           <SearchField value={query} onChange={setQuery} />
+          {/* Per-tier counts (overview-first, independent of search), consistent with
+              the Buildings + Aggregations finders. `open` is 0 — no open observations
+              yet — which the (0) makes explicit. */}
+          <TierFilter
+            facet={tierFacet}
+            options={OBSERVATION_TIERS}
+            counts={{
+              mine: withObservations.filter((b) => !b.isShared).length,
+              shared: withObservations.filter((b) => b.isShared).length,
+              open: 0,
+            }}
+          />
           <Box sx={{ flexGrow: 1 }} />
           <CubeAxisBar
             space={{
@@ -182,7 +204,6 @@ export default function ObservationsFinder() {
                 { value: "list", label: t("btnList") },
                 { value: "overtime", label: t("obsViewOvertime") },
                 { value: "overyears", label: t("obsViewOveryears") },
-                { value: "trend", label: t("obsViewTrend") },
               ],
             }}
             metricSlot={showsMetric(view)
@@ -227,7 +248,7 @@ export default function ObservationsFinder() {
         </Suspense>
       </Box>
 
-      {/* The rows views (List · Over time · Trend) share the loading/empty states. */}
+      {/* The non-map views (List · Over time · Over years) share loading/empty states. */}
       {view !== "map" && (
         isLoading
           ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
@@ -252,19 +273,17 @@ export default function ObservationsFinder() {
           )
           : view === "overyears"
           ? (
-            <ObservationsOverYears
-              buildings={filtered}
-              energyByYear={energyByYear}
-              metric={metric}
-            />
-          )
-          : view === "trend"
-          ? (
-            <ObservationsTrend
-              buildings={filtered}
-              energyByYear={energyByYear}
-              metric={metric}
-            />
+            // One line per building gets unreadable past a handful, so page the
+            // chart (20/page, shared with the List's pager + `?offset=`); search
+            // narrows first. Each page is its own legible set of trajectories.
+            <>
+              <ObservationsOverYears
+                buildings={paging.pageItems}
+                energyByYear={energyByYear}
+                metric={metric}
+              />
+              <Pager paging={paging} />
+            </>
           )
           : (
             <>
@@ -274,9 +293,14 @@ export default function ObservationsFinder() {
                     key={b.uri}
                     buildingId={b.id}
                     title={
-                      <RefLink to={observationRoute(b.id)}>
-                        <strong>{buildingDisplayName(b)}</strong>
-                      </RefLink>
+                      <>
+                        <RefLink to={observationRoute(b.id)}>
+                          <strong>{buildingDisplayName(b)}</strong>
+                        </RefLink>
+                        {/* Source-tier dot (mine = owned blue, shared = orange) —
+                            the same key the tier filter wears. */}
+                        <TierDot tier={b.isShared ? "shared" : "mine"} />
+                      </>
                     }
                     subtitle={datasetSummary(b)}
                     actions={b.isShared ? undefined : (

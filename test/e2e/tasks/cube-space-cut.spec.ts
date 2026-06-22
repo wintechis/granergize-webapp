@@ -14,9 +14,10 @@ import { T } from "../helpers/timeouts.ts";
  * Observations finder now; Buildings is space/identity only.
  *
  * CQ "How does the whole portfolio compare over time?" → the heatmap renders a
- * buildings × years grid, one cell per (building, year), and a cell navigates to that
- * building's page (the navigation loop). (Compare-years was dropped; the over-time
- * grid is the surviving cross-building temporal view, alongside Trend.)
+ * buildings × years grid, one cell per (building, year), plus a trailing Trend column
+ * (the year-over-year direction — the formerly separate Trend view, now folded in);
+ * a cell navigates to that building's `/observation` (energy) page, consistent with
+ * the map markers. (Compare-years was dropped.)
  *
  * Seed: the standard investor demo (`ensureDemoBuildings`) — multi-year annual buildings
  * (2022-2024) plus the office (2023-2024), so the matrix has several rows × ≥2 year
@@ -59,7 +60,7 @@ test.describe("cube over-time heatmap (portfolio over time)", () => {
     await page.close();
   });
 
-  test("the over-time heatmap renders a buildings × years grid and a cell drills in", async () => {
+  test("the over-time heatmap renders a grid + trend column, and a cell drills into the observation", async () => {
     test.setTimeout(T.testSolo);
     await page.goto("/");
 
@@ -84,11 +85,21 @@ test.describe("cube over-time heatmap (portfolio over time)", () => {
     });
     await expect(valueCells.first()).toBeVisible({ timeout: T.action });
 
-    // Clicking a cell hands off to that building's detail page (the navigation
-    // loop — the finder drills to the leaf).
+    // The heatmap carries a trailing Trend column (the folded-in Trend view): each
+    // building shows its year-over-year direction. The multi-year demo yields ≥1
+    // building with a real (non-"unknown") trend.
+    const trendLabel = page.getByText(
+      new RegExp(
+        `${t("trendImproving")}|${t("trendFlat")}|${t("trendWorsening")}`,
+      ),
+    );
+    await expect(trendLabel.first()).toBeVisible({ timeout: T.action });
+
+    // Clicking a cell hands off to that building's OBSERVATION (energy) detail — the
+    // finder drills to the observation leaf, consistent with the map markers.
     await valueCells.first().click();
-    // The redesign navigates to a real path route (`/building?ref=…`), not the
-    // old hash route (`#/building`) — match the current grammar (cf. uri-state).
-    await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
+    // A real path route (`/observation?ref=…`), not the old hash route — match the
+    // current grammar (cf. uri-state).
+    await expect(page).toHaveURL(/\/observation\?/, { timeout: T.action });
   });
 });
