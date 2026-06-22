@@ -119,7 +119,7 @@ test.describe("building coordinate attribution (OSM / Nominatim)", () => {
     await page.goto(buildingRoute("building", id));
     // The page rendered (ownership chip present) but carries no coordinate
     // attribution — the OSM line and its link are both absent.
-    await expect(page.getByText(t("chipOwned"))).toBeVisible({
+    await expect(page.getByText(t("tierMine"))).toBeVisible({
       timeout: T.action,
     });
     await expect(page.getByText(t("coordsLabel"))).toHaveCount(0);

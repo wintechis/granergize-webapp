@@ -7,6 +7,7 @@ import {
   buildingIdOf,
   deleteBuildingRow,
   openBuildingsList,
+  openObservationsView,
 } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
@@ -60,7 +61,7 @@ test.describe("redesign: observations finder", () => {
     await addEnergyYear(page, ADDR, YEAR, "12345");
 
     // The Observations finder lists buildings that carry energy data.
-    await page.getByRole("tab", { name: t("navObservations") }).click();
+    await openObservationsView(page, "list");
     const row = page.locator("li[data-building-id]", { hasText: ADDR }).first();
     await expect(row).toBeVisible({ timeout: T.action });
     const id = await buildingIdOf(row);

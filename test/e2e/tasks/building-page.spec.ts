@@ -55,7 +55,7 @@ test.describe("redesign: building page", () => {
     // Owned badge in the header, plus the section headings of the scrolling building page.
     // exact:true so the chip ("Owned") doesn't also match the master-data "Owned by"
     // row label (which renders once ownedBy converges) — strict-mode-ambiguous otherwise.
-    await expect(page.getByText(t("chipOwned"), { exact: true }))
+    await expect(page.getByText(t("tierMine"), { exact: true }))
       .toBeVisible({ timeout: T.action });
     // exact:true so "Energy" doesn't also match the "Location energy profile" panel
     // heading (substring) — strict-mode-ambiguous otherwise.
@@ -139,7 +139,7 @@ test.describe("redesign: building page", () => {
     try {
       await page.goto(buildingRoute("building", id));
       // exact:true — the chip "Owned" must not also match the "Owned by" row label.
-      await expect(page.getByText(t("chipOwned"), { exact: true }))
+      await expect(page.getByText(t("tierMine"), { exact: true }))
         .toBeVisible({ timeout: T.action });
       // Leaflet fires the thumbnail's tile requests asynchronously; poll for one.
       await expect.poll(() => requestedDop20c, { timeout: T.action }).toBe(true);

@@ -40,7 +40,12 @@ import type {
  * listings/readings likewise pick up freshly imported day files.
  */
 function invalidateBuildingData(qc: QueryClient): void {
-  qc.invalidateQueries({ queryKey: queryKeys.buildings });
+  // `refetchType: "all"` (not the default "active"): with `refetchOnMount: false`,
+  // an INACTIVE buildings query (e.g. the Observations finder, unmounted while energy
+  // is entered on a building's observation page) would otherwise only be marked stale
+  // and then serve that stale cache on its next mount — so a building's freshly-added
+  // energyDatasets never appears in the finder. Refetch it now so any later mount is fresh.
+  qc.invalidateQueries({ queryKey: queryKeys.buildings, refetchType: "all" });
   qc.invalidateQueries({ queryKey: queryKeys.energy });
   qc.invalidateQueries({ queryKey: queryKeys.annualEnergy });
   qc.invalidateQueries({ queryKey: queryKeys.seriesDays });

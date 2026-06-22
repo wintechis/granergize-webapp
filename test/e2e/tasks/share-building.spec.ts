@@ -105,10 +105,10 @@ test.describe("sharing across two pods", () => {
         await received.getByRole("link", { name: tPattern("shareBuildingN") }).first().click();
         await expect(b2.page).toHaveURL(/\/building\?/);
         // Exact match: the detail page's ownership chip is exactly "Shared with you"
-        // (chipSharedWithYou), whereas SharingFinder's "Buildings/Aggregations shared
+        // (tierShared), whereas SharingFinder's "Buildings/Aggregations shared
         // with you" headings would make a substring locator strict-mode-ambiguous.
         await expect(
-          b2.page.getByText(t("chipSharedWithYou"), { exact: true }),
+          b2.page.getByText(t("tierShared"), { exact: true }),
         ).toBeVisible({ timeout: T.action });
       } finally {
         await b2.ctx.close();
