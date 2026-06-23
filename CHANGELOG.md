@@ -18,7 +18,12 @@ All notable changes to the Granergize WebApp project will be documented in this 
   energy-model models, and enforced the project's URI/IRI-not-URL wording throughout. Filled
   one doc gap with a new present-state `notes/open-data.md` (the `open`/ungated source tier —
   LoD2 rooftop-PV, MaStR + netztransparenz generation, regional statistics, and their in-app
-  read-only details), the one shipped feature the corpus had covered only piecemeal. Finally
+  read-only details), the one shipped feature the corpus had covered only piecemeal — then
+  wired it across the corpus (six notes cross-reference it) and deep-re-audited the
+  early-reviewed notes against current code, catching a few things the rename-sweep missed:
+  the open-tier object shapes + `isOpen`/`TechnicalSystem[]` on `BuildingType`
+  (`object-model.md`), the building-less-observation operations + a non-Pod read category
+  (`queries-mutations.md`), and a stale "Manage"-tab "Shared with" badge reference. Finally
   reconciled the (git-ignored) `explore/` sketches with what shipped: deleted the four fully
   graduated ones — their present state now lives in `notes/` (i18n → `i18n.md`, the intent/action
   profile → `object-model.md`, the external-observation layers → `open-data.md`, the test-tier

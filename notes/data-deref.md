@@ -136,12 +136,15 @@ the UI first, then streams energy in.
 
 ## External wrapper endpoints
 
-Beyond the Pod, the app reads a few **queried external sources** — third-party
+Beyond the Pod, the app reads **queried external sources** — third-party
 Linked Data wrappers and a geocoder — over plain (non-Solid, non-DPoP) HTTP through
 `trackedFetch` (`networkActivity.ts`: records the request in the activity indicator
-**and** retries transient throttling), never the authed session. These are the only
-hard-coded third-party links. Both wrappers are **CORS-enabled, so they are fetched
-directly** (no dev proxy); the base is an env var only so it stays overridable:
+**and** retries transient throttling), never the authed session. They are
+**CORS-enabled, so fetched directly** (no dev proxy); each base is an env var only so it
+stays overridable. The three below are reached on the normal load/edit path; the full
+roster of `open`-tier public sources (LoD2 rooftop-PV, MaStR, netztransparenz,
+Energie-Atlas, NUTS/LAU) and how they surface is owned by
+[`open-data.md`](./open-data.md):
 
 - **`linked-wetterdienst`** — weather (SOSA/QUDT). `VITE_WEATHER_API_URI`, default
   `https://wunderfacts.com/wetterdienst/`. Dereferenced as Turtle by
@@ -156,8 +159,9 @@ directly** (no dev proxy); the base is an env var only so it stays overridable:
 
 Each wrapper client reads its base lazily and parses the response pure
 (`parseRdfText` → typed objects), so the parser half is unit-testable offline.
-Both wrappers are siblings of the `linked-*` family (`~/projects/linked-*`); the
-weather one is documented end-to-end in `~/projects/linked-wetterdienst`.
+These wrappers (and the `open`-tier ones in [`open-data.md`](./open-data.md)) are all
+siblings of the `linked-*` family (`~/projects/linked-*`); the weather one is documented
+end-to-end in `~/projects/linked-wetterdienst`.
 
 The env-var base is also the **hermetic-e2e switch**: an `e2e:local` build can point
 `VITE_*_API_URI` at a local fixture host (or a spec can `page.route` the wrapper URI)

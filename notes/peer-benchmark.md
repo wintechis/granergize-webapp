@@ -113,5 +113,6 @@ The benchmark exposes only aggregate values and a contributor count, so a recipi
 cannot reconstruct another owner's building from it; this is the same
 definition/snapshot split the aggregation feature enforces, and it is preserved.
 Replay of the sharing log stays same-Pod, as elsewhere. The regional/district
-energy-mix breakdown by generation source, its administrative data files and backend,
-and the query-service surface are separate from benchmarking and out of scope here.
+energy-mix and public-statistics layer (generation by source, regional figures, area
+profiles) has since shipped as the `open` source tier — separate from benchmarking and
+owned by [`open-data.md`](./open-data.md).

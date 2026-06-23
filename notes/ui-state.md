@@ -88,7 +88,8 @@ Encoded now:
 - `q` / `offset` — a finder's keyword search and list-pager position
   (`useListSearch` / `usePaging`); every single-list finder uses the bare names.
 - `tiers` — a finder's multi-select source-tier facet (`useListFacet`): owned (`mine`),
-  received (`shared`), public (`open`).
+  received (`shared`), public (`open`) — the provenance ladder owned by
+  [`open-data.md`](./open-data.md).
 - `action` — a palette-routed dialog opener on a finder/detail (e.g. `add`,
   `create-aggregation`, `share-aggregation`), so the command palette and deep links can
   open a dialog by URI.

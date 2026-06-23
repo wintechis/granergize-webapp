@@ -24,9 +24,11 @@ types beside the domain, composites one layer up.
    by everything). The entities a screen renders, plus their nested sub-shapes:
    - `BuildingType` — the building, a flat bag of optional master-data fields
      (the deep dive is [`data-schema.md`](./data-schema.md)). Nests `AnnualData`,
-     `InvestorOperatingCosts`, `InvestorCertification`, `AttachmentRef[]`
+     `InvestorOperatingCosts`, `InvestorCertification`, `TechnicalSystem[]`
+     (PV / battery / CHP energy systems), `AttachmentRef[]`
      ([`attachments.md`](./attachments.md)), and `EnergyDatasetRef[]` (the
-     self-describing links to its energy resources).
+     self-describing links to its energy resources); plus derived tier flags
+     `isShared` / `isOpen` (owned vs shared-in vs open — [`open-data.md`](./open-data.md)).
    - `EnergyType` — the dashboard's energy object: per-building figures bucketed
      into the seven `EnergyCategoryKey` groups (`energyNeed`, `energyGeneration`, …).
      Within a group the figures are keyed by the **canonical** `EnergyMetricKey`
@@ -51,6 +53,11 @@ types beside the domain, composites one layer up.
      `DataRoomMember`.
    - weather (`services/linkedWeather.ts`, `services/energy/energyWeather.ts`) —
      `WeatherStation`, `WeatherObservation`, `WeatherAnnualValue`.
+   - open data (`services/lod2Rooftop.ts`, `mastrNearby.ts`, `regionalCube.ts`,
+     `standortEnergieprofil.ts`, `openObservations.ts`, `openRegional.ts`) —
+     `RooftopPotential`, `NearbyInstallation`, `RegionalObservation` / `RegionalTable`,
+     `AreaProfile`, `OpenObservationDetail`, `OpenRegionalItem` (the `open` tier —
+     [`open-data.md`](./open-data.md)).
    - organization — `Organization`; contacts — `Contact`; prefs — `Preferences`.
    - aggregation — `PickedBenchmark`, `Contributors`.
 
@@ -118,7 +125,8 @@ bespoke fetch. The shape has four parts:
 - *identity of the read* — a query key led by the object kind and **namespaced by
   WebID** (`buildings · <webId> · …`), so a re-login can't serve another user's
   cache.
-- *transport* — the authed session singleton; the caller passes no `fetch`.
+- *transport* — the authed `PodGateway` (`getGateway()`, wrapping the `getSession()`
+  singleton); the caller passes no transport.
 - *gate* — the read stays disabled until its inputs resolve (for buildings: the
   shared-in fold + prefs, whose results also fingerprint the key).
 - *result* — the typed object(s) **and** the load state together: the list as
