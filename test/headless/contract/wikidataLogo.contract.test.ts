@@ -6,7 +6,7 @@
  * `www.wikidata.org` + Wikimedia Commons, so it is **not** in the hermetic `unit`
  * glob (excluded in `deno.json`) and runs only on demand:
  *
- *   deno task it:contract
+ *   deno task headless:remote:contract
  *
  * No Pod, no actors — a standalone Deno I/O test, the network-only flavour of
  * `headless:remote` (distinct from the runner-based `it:remote`). The lane IS the

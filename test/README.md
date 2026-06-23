@@ -18,16 +18,16 @@ conceptual model; the deno tasks keep their historical names — `test`, `it`,
 `e2e:local`/`e2e:remote` — until a planned rename lands, see
 [`../plans/plan-test-lane-naming.md`](../plans/plan-test-lane-naming.md).)
 
-- **`unit:local`** (`deno task test`) — hermetic logic + RDF over in-memory fixtures
+- **`unit:local`** (`deno task unit:local`) — hermetic logic + RDF over in-memory fixtures
   (`src/**/*.test.ts`). Never does I/O — **provably**: the run reports 0 ignored, with no
   `LIVE` escape hatch (the old real-network Wikidata cases were relocated to
   `it:contract`, and the contract dir is `--ignore`d here). **There is no `unit:remote`.**
-- **`headless:local`** (`deno task it`) — real data-layer fns over a throwaway local CSS,
+- **`headless:local`** (`deno task headless:local`) — real data-layer fns over a throwaway local CSS,
   actors A/B(/C), no creds (`test/headless/`). `it:jss` runs the same against JSS.
   *Hermetic on the Pod only:* its base resolvers are `import.meta.env`-only, so any
   external-source read still hits the real host until the planned `Deno.env` override +
   local stub land (§External sources).
-- **`headless:remote`** (`deno task it:remote`) — runs the **same task modules**
+- **`headless:remote`** (`deno task headless:remote`) — runs the **same task modules**
   against a **real** Solid server instead of the throwaway local one. Creds come from
   the **same `WEBID_<slot>_*` registry the e2e/bench lanes use** (`account(slot)`), so
   you just `source` any creds file (e.g. `test/.env.trio.local`) and run — no separate
@@ -36,7 +36,7 @@ conceptual model; the deno tasks keep their historical names — `test`, `it`,
   solidcommunity, fraunhofer, …); a browser-OIDC-only provider throws a clear error.
   CSS is only one such server type. This is where the share/benchmark/contacts interop
   earns *real-provider* assurance (the local lane already proves the logic). Its **second,
-  network-only flavour** is the external-host *contract* check (`deno task it:contract`,
+  network-only flavour** is the external-host *contract* check (`deno task headless:remote:contract`,
   `test/headless/contract/`) — no Pod, no actors, a standalone Deno I/O test against a
   real host (the Wikidata-logo check, relocated out of the unit glob).
 - **`e2e:local`** (`deno task e2e:local`) — full UI + OIDC against the same local CSS,
@@ -55,8 +55,8 @@ share-building, share-aggregation); `headless:local` mirrors a subset in
 `actors.ts`).
 
 ```
-deno task test                                          # unit:local
-deno task it                                            # headless:local (no creds)
+deno task unit:local                                          # unit:local
+deno task headless:local                                            # headless:local (no creds)
 deno task e2e:local [test/e2e/tasks/<spec>.spec.ts]     # e2e:local (no creds)
 source test/.env.e2e.local && deno task e2e:remote      # e2e:remote (real Pods)
 ```

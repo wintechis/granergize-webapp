@@ -143,4 +143,30 @@ test.describe("palette: paste-and-launch a JSON intent", () => {
       timeout: T.action,
     });
   });
+
+  test("a valid read (FindRegionalStatistics) → result renders inline, palette stays open", async () => {
+    test.setTimeout(T.testSolo);
+    await page.goto("/");
+    await openBuildingsList(page);
+
+    await openPalette(page);
+    // An explicit Bundesland keeps the read hermetic (the static land-table
+    // catalogue, no wrapper call). Unlike a write, a read renders its value IN PLACE
+    // and the palette stays open.
+    await paletteInput(page).fill(
+      '{"name":"FindRegionalStatistics","params":{"region":"Bayern"}}',
+    );
+    await expect(page.getByText(t("paletteLaunchHint"))).toBeVisible({
+      timeout: T.visible,
+    });
+
+    await paletteInput(page).press("Enter");
+    // The result list replaces the launch hint: the composed title ("N regional
+    // datasets") with a "Bayern" row per land-grain dataset; the palette stays open.
+    await expect(page.getByText(/regional datasets?/i)).toBeVisible({
+      timeout: T.action,
+    });
+    await expect(page.getByText("Bayern").first()).toBeVisible();
+    await expect(paletteInput(page)).toBeVisible();
+  });
 });

@@ -208,11 +208,14 @@ was removed).
 - **Edit** (inline in `MasterDataSection` → `useUpdateBuilding` → `updateBuilding`):
   PUTs the building file, patching scalar fields via inverse
   `predicateMap`/`objectPropertyMap`; blank-node structures preserved. Scope:
-  address, lat/long (+ Nominatim geocode), areas, year, `operatedBy` (raw WebID),
-  `hasPVSystem`, and the investor/benchmark block by its provenance category.
-  `SKIP_FIELDS` (shown but
-  not editable): `customer`, `investor`, `type`, `naceCode`, `energyCertificate`,
-  and the array/object fields.
+  address, lat/long (+ Nominatim geocode), areas, year, the agent links
+  (`operatedBy`/`ownedBy`/`investor`/…, raw WebIDs), `customer`, `naceCode`,
+  `hasPVSystem`, and the investor/benchmark block. The seed (`buildingToFields`,
+  the pure `buildingFormSeed.ts`) and its `SKIP_FIELDS` keep only the structural /
+  derived keys out of the form: `type` (the building's `rdf:type`, always
+  `rec:Building`), `id`/`uri`/`sourceUri`/`isShared`, `energyCertificate` (set via
+  the Files section), and the array/object substructures (seeded as `_opcost_*` /
+  `_cert_*` instead).
 - **Files / energy certificate** (inline in `BuildingFilesSection` →
   `uploadAttachment` / `setEnergyCertificate`, `attachmentManager.ts`): PUTs each file
   to the per-building `files/` container, then PUTs the building file with the refreshed
@@ -279,10 +282,11 @@ Still open:
 - **REC-aligned labels.** Where master-data predicates map to REC
   (`data-schema.md` "Relation to REC"), the row labels/links could point at the REC
   term, making the page's external links (`UriLink`) resolve to a real ontology.
-- **§3c gaps.** The certificate upload and per-year energy entry are now wired inline
-  on the page. Still open: either make the read-only rows
-  (`customer`/`investor`/`type`/`naceCode`) editable or mark them explicitly
-  read-only rather than silently un-editable.
+- **§3c.** The certificate upload and per-year energy entry are wired inline on the
+  page; `customer` and `naceCode` are now editable master-data fields (a form field
+  and a read row), and `investor` already was (an agent link). `type` is the
+  building's `rdf:type` (always `rec:Building`) — structural, not master data, so it
+  stays un-editable by design (no longer "silently un-editable").
 
 > Open: no faithful "raw RDF for this building" view exists — the page is the
 > whitelisted projection above.

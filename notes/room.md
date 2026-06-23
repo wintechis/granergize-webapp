@@ -136,7 +136,7 @@ room-independent — see [sharing.md](sharing.md).
 ## Tests
 
 Offline tests in `dataRoom.test.ts`
-(`deno task test`): latest-wins folding, concurrent members not clobbering, the two
+(`deno task unit:local`): latest-wins folding, concurrent members not clobbering, the two
 axes independent, join→leave, role-without-join ≠ member, role→WebID resolution,
 `createRoom` (bookmark + current + single membership), `addKnownRoom` bookmark-without-join
 vs `enterRoom`, leaving keeps the bookmark / `removeKnownRoom` forgets it, `roomExists`,

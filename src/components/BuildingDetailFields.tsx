@@ -110,6 +110,8 @@ export function BuildingDetailFields(
       {tf(fieldLabel("buildingCode"), "buildingCode", buildingCode)}
       {tf(msg("lblLabelName"), "label")}
       {tf(fieldLabel("companyName"), "companyName")}
+      {tf(msg("mdCustomer"), "customer")}
+      {tf(msg("mdNaceCode"), "naceCode")}
       {tf(fieldLabel("hallArea"), "hallArea", { type: "number" })}
       {tf(fieldLabel("officeSocialArea"), "officeSocialArea", { type: "number" })}
       {tf(fieldLabel("buildingHeight"), "buildingHeight", { type: "number" })}

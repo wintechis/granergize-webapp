@@ -93,15 +93,24 @@ Encoded now:
 - `action` — a palette-routed dialog opener on a finder/detail (e.g. `add`,
   `create-aggregation`, `share-aggregation`), so the command palette and deep links can
   open a dialog by URI.
+- `wp` / `ws` — the observation page's **Weather** sub-state: the selected weather
+  parameter (`wp`, default mean temperature omitted) and station (`ws`, absent → the
+  nearest, auto-seeded from the fetched list). Owned by `weatherParams.ts`; changing the
+  parameter clears `ws` so the nearest re-seeds for the new parameter's station list.
+- `tab` / `day` / `month` — the observation page's **user-energy (Lastgang) chart**
+  sub-state: the view tab (`tab` = `day`|`totals`|`profile`|`calendar`, default `day`
+  omitted) and the day/month pickers (`day` = `YYYY-MM-DD`, `month` = `YYYY-MM`, each
+  absent → the first day / latest month). Owned by `seriesChartParams.ts`.
 
 The Buildings map is a **pure finder**: a marker click navigates to the building's
 standalone page (`/building`), so there is no selected-building / detail-sub-tab query
 state to encode (the former `b`/`dt` params are gone). Energy and weather are sections
 on the building's observation page (`/observation`), reached by route.
 
-Not yet URI-encoded (named here so later increments land consistently): the
-map-fullscreen flag; Observations' Weather sub-state (selected parameter, station) and
-the user-energy chart's (view, day, month).
+The named observation-page sub-states are now URI-encoded: the Weather parameter/
+station (`wp`/`ws`) and the user-energy chart's view/day/month (`tab`/`day`/`month`),
+both listed above. (An earlier draft of this paragraph also named a "map-fullscreen
+flag" — no such control exists in the map components.)
 
 One deliberate exception: the active data room is *not* a query param. It is
 Pod-persistent state (`gran:currentRoom` in `prefs.ttl`, mirrored in memory by
@@ -134,10 +143,10 @@ on Rooms. The room you are in is a property of your account, not of the page add
 - Deferred-navigational: the map viewport (`c`/`z`).
 - Ephemeral: the drag-local draft year and the play/pause flag, the energy intensities
   derived per building, the tile-loading token.
-- Children: `WeatherData` (a section on the observation page) holds a selected
-  parameter and station (deferred navigational); `UserEnergyChart` holds a view, a day
-  and a month (deferred navigational); `Building`, `Energy` and `AnnualEnergy` hold
-  only fetched and derived data.
+- Children: `WeatherData` (a section on the observation page) encodes its selected
+  parameter and station in the URI (`wp`/`ws`, `weatherParams.ts`); `UserEnergyChart`
+  encodes its view, day and month (`tab`/`day`/`month`, `seriesChartParams.ts`);
+  `Building`, `Energy` and `AnnualEnergy` hold only fetched and derived data.
 
 ### Aggregations finder — `src/pages/AggregationsFinder.tsx`
 

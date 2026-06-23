@@ -2,7 +2,44 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-24]
+- **Test lanes renamed by (kind × backend), dropping the `test`/`it` names (plan-test-lane-naming
+  work-item-1).** The task names now read off the grid the docs already use: `test`→`unit:local`,
+  `it`→`headless:local`, `it:jss`→`headless:local:jss`, `it:remote`→`headless:remote`,
+  `it:contract`→`headless:remote:contract` (`e2e:local`/`e2e:remote` were already correct). Naming
+  only — same servers, specs, hermeticity. Callers swept in one pass: the CI workflow
+  (`run: deno task unit:local`), `CLAUDE.md`, `test/README.md`, `playwright.config.ts`, the
+  headless runner/sessionSource/contract comments, `notes/room.md`, `test/eval/README.md`. Clean
+  rename, no aliases; `deno task unit:local` verified (982 passed).
+- **Deep-links: the observation page's Weather + user-energy chart sub-state is now in the URI.**
+  Two pieces of view state reset on reload and couldn't be shared as a link; encoded both per the
+  `ui-state.md` scheme (pure resolvers, omit-default, preserve-rest, `replace: true`). Weather:
+  `?wp` (parameter) + `?ws` (station) via `weatherParams.ts` — changing the parameter clears the
+  station so the nearest re-seeds. User-energy (Lastgang) chart: `?tab` (view) + `?day` + `?month`
+  via `seriesChartParams.ts`. Both replace the prior local `useState` + during-render auto-seed
+  with derived values (URI choice when valid, else first day / latest / nearest), so a reload or
+  shared link restores the view. (The `ui-state.md` "Not yet URI-encoded" list also named a
+  map-fullscreen flag — no such control exists; dropped.) Tier-1 resolver tests for each.
+- **Building master-data: `customer` and `naceCode` are now editable.** They were real
+  master-data fields with data but neither displayed nor editable (silently dropped from the
+  Add/Edit form via `SKIP_FIELDS`). Made them first-class: a form field in the shared
+  `BuildingDetailFields` and a read row in `MasterDataSection`, round-tripping through
+  `updateBuilding` like every other scalar. (`investor` was already editable as an agent link;
+  `type` is the building's structural `rdf:type` and stays un-editable by design.) Extracted the
+  pure form seed `buildingToFields` into `buildingFormSeed.ts` (out of the MUI-bound
+  `buildingFields.tsx`) so it's unit-testable under Deno, with a Tier-1 test.
+
 ## [2026-06-23]
+- **Command palette renders launched read results inline.** The palette's launcher
+  (Developer-mode `{`/`>` field modes) dispatched read intents but discarded the value —
+  it just toasted "Done". Completed the read branch: the returned value is summarised
+  (`summarizeReadResult`) and rendered in place as a titled result list — first-class rows for
+  `FindNearbyInstallations` (label · carrier · distance) and `FindRegionalStatistics` (metric ·
+  region), a best-effort label per item for any other read. A `building` param passed by name
+  (the LLM has no id list) is resolved to its subject IRI before the query, so
+  `> PV installations near my Hofgebäude` works end-to-end. Editing the field clears the result.
+  Covered by a Tier-1 unit test for the summariser plus a hermetic e2e case
+  (`FindRegionalStatistics` for Bayern — the static catalogue, no wrapper call).
 - **Open-tier query intents — `FindNearbyInstallations` + `FindRegionalStatistics`
   (plan-open-tier-intents Slice 1).** The `open` (public-data) tier had UI + services but no
   *intent* face, so it was unreachable from the command box / launcher / LLM. Added the two

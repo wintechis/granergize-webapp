@@ -1,6 +1,15 @@
 import { msg } from "../lib/messages.ts";
 import { annualMetricLabel } from "../constants/annualMetrics.ts";
-import { useMemo, useState } from "react";
+import { useMemo } from "react";
+import { useSearchParams } from "react-router-dom";
+import {
+  resolveSeriesDay,
+  resolveSeriesMonth,
+  resolveSeriesTabIndex,
+  seriesDayToParams,
+  seriesMonthToParams,
+  seriesTabToParams,
+} from "../services/seriesChartParams.ts";
 import { Box, TextField, Typography } from "@mui/material";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
@@ -39,32 +48,33 @@ export default function UserEnergyChart(
     [dateEntries],
   );
 
-  // ── Tab 0: Day View ──────────────────────────────────────────────────────
-  const [activeTab, setActiveTab] = useState<0 | 1 | 2 | 3>(0);
-  const [selectedDay, setSelectedDay] = useState<string>("");
+  // ── View tab + day/month pickers — all in the URI (deep-linkable, ui-state.md
+  //    → seriesChartParams.ts) ──────────────────────────────────────────────────
+  const [searchParams, setSearchParams] = useSearchParams();
+  const activeTab = resolveSeriesTabIndex(searchParams);
+  const setActiveTab = (index: number) =>
+    setSearchParams((prev) => seriesTabToParams(index, prev), { replace: true });
+
+  // The day/month: the URI's choice when it's still in the listing, else the first
+  // day / latest month — derived, so a fresh listing re-defaults with no during-render
+  // reset. An absent ?day/?month → the auto-seed.
+  const urlDay = resolveSeriesDay(searchParams);
+  const selectedDay = urlDay && dateEntries.some((d) => d.day === urlDay)
+    ? urlDay
+    : (dateEntries[0]?.day ?? "");
+  const setSelectedDay = (day: string) =>
+    setSearchParams((prev) => seriesDayToParams(day, prev), { replace: true });
+
+  const urlMonth = resolveSeriesMonth(searchParams);
+  const selectedMonth = urlMonth && availableMonths.includes(urlMonth)
+    ? urlMonth
+    : (availableMonths[availableMonths.length - 1] ?? "");
+  const setSelectedMonth = (month: string) =>
+    setSearchParams((prev) => seriesMonthToParams(month, prev), { replace: true });
+
   const selectedEntry = dateEntries.find((d) => d.day === selectedDay);
   const dayQuery = useDayReadings(selectedEntry?.uri);
   const readings = useMemo(() => dayQuery.data ?? [], [dayQuery.data]);
-
-  // ── Tabs 1 & 2: Monthly bulk fetch ───────────────────────────────────────
-  const [selectedMonth, setSelectedMonth] = useState<string>("");
-
-  // Once the daily files are listed, default the pickers to the first day /
-  // latest month (the listing arrives async, after the initial render). The
-  // during-render reset keyed on the list identity (vs an effect) reseeds only
-  // when the listing actually changes — no cascading second render.
-  const [seededFor, setSeededFor] = useState(dateEntries);
-  if (dateEntries !== seededFor) {
-    setSeededFor(dateEntries);
-    if (dateEntries.length > 0) {
-      if (!dateEntries.find((d) => d.day === selectedDay)) {
-        setSelectedDay(dateEntries[0].day);
-      }
-      if (!availableMonths.includes(selectedMonth)) {
-        setSelectedMonth(availableMonths[availableMonths.length - 1]);
-      }
-    }
-  }
 
   const monthEntries = useMemo(
     () => dateEntries.filter((d) => d.day.startsWith(selectedMonth)),
@@ -162,7 +172,7 @@ export default function UserEnergyChart(
     <Box>
       <Tabs
         value={activeTab}
-        onChange={(_e, v) => setActiveTab(v as 0 | 1 | 2 | 3)}
+        onChange={(_e, v) => setActiveTab(v as number)}
         sx={{ mb: 2, borderBottom: 1, borderColor: "divider" }}
       >
         <Tab label={msg("ucDayView")} />

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
   List,
+  ListItem,
   ListItemButton,
   ListItemText,
   ListSubheader,
@@ -34,7 +35,6 @@ import {
 import type { AggregationDefinition, BuildingType } from "../types.ts";
 import IntentParamForm from "./IntentParamForm.tsx";
 import { useInvokeIntent } from "../hooks/invokeIntent.ts";
-import { useNotification } from "../context/NotificationContext.tsx";
 import { getGateway } from "../hooks/session.ts";
 import { queryByName } from "../intents/registry.ts";
 import { LaunchError, parseLaunch } from "../intents/launch.ts";
@@ -43,6 +43,10 @@ import {
   translateToIntentJson,
   TranslateError,
 } from "../services/llm/intentTranslate.ts";
+import {
+  type ReadResultView,
+  summarizeReadResult,
+} from "../lib/paletteResult.ts";
 
 /**
  * The global ⌘K command palette (plan-palette §4) — the intent catalog made a
@@ -125,6 +129,9 @@ export default function CommandPalette() {
   // Dev-mode JSON paste-and-launch (§10): the inline parse/dispatch error, shown
   // under the field when a pasted `{name,params}` can't be launched.
   const [launchError, setLaunchError] = useState<string | null>(null);
+  // A launched READ's result, rendered inline in place of the command list (the
+  // launcher's read branch). Cleared on close or when the field is edited.
+  const [result, setResult] = useState<ReadResultView | null>(null);
   // Dev-mode NL→intent translation in flight (the `>` prefix path).
   const [translating, setTranslating] = useState(false);
   // Set while a timed-out translate is being retried — drives the "retry a/of" note.
@@ -136,7 +143,6 @@ export default function CommandPalette() {
   const navigate = useNavigate();
   const { focus } = usePaletteFocus();
   const invokeIntent = useInvokeIntent();
-  const { showNotification } = useNotification();
   const buildings = useBuildings();
 
   // ⌘K / Ctrl-K toggles the palette. Opening resets the filter + selection in the
@@ -240,8 +246,26 @@ export default function CommandPalette() {
     setOpen(false);
     setFormIntent(null);
     setLaunchError(null);
+    setResult(null);
     setTranslating(false);
     setTranslateRetry(null);
+  };
+
+  /**
+   * Resolve a read intent's `building` param when the launcher passed a name/address
+   * (the LLM has no id list) instead of an IRI — to the building's subject IRI, so
+   * the read's EntityQuery resolution finds it. A pass-through for IRIs and reads
+   * with no `building` param.
+   */
+  const resolveReadParams = (
+    params: Record<string, unknown>,
+  ): Record<string, unknown> => {
+    const b = params.building;
+    if (typeof b === "string" && !b.includes("://")) {
+      const match = resolveBuildingByQuery(buildingList, b);
+      if (match) return { ...params, building: match.uri };
+    }
+    return params;
   };
 
   /**
@@ -270,9 +294,12 @@ export default function CommandPalette() {
     }
     if (parsed.effect === "read") {
       try {
-        await queryByName(parsed.name, parsed.params, getGateway());
-        showNotification(t("paramFormSuccess"), "success");
-        close();
+        // The LLM passes a building NAME/address for a `building` param (it has no
+        // id list) — resolve it to the real subject IRI before the query, mirroring
+        // the ShowBuilding navigate path below.
+        const params = resolveReadParams(parsed.params);
+        const value = await queryByName(parsed.name, params, getGateway());
+        setResult(summarizeReadResult(parsed.name, value, t));
       } catch (e) {
         setLaunchError((e as Error).message);
       }
@@ -409,7 +436,11 @@ export default function CommandPalette() {
       dismissable
       maxWidth="sm"
     >
-      {formIntent
+      {result
+        ? (
+          renderResult()
+        )
+        : formIntent
         ? (
           <IntentParamForm
             name={formIntent}
@@ -422,6 +453,48 @@ export default function CommandPalette() {
         )}
     </Modal>
   );
+
+  // A render HELPER (not a nested component, like renderCommandList) for a launched
+  // read's result: the title + rows from {@link summarizeReadResult}, with the filter
+  // field kept above so editing it clears the result and returns to the launcher.
+  function renderResult() {
+    return (
+      <>
+        <TextField
+          inputRef={inputRef}
+          fullWidth
+          size="small"
+          autoComplete="off"
+          placeholder={t("palettePlaceholder")}
+          value={query}
+          onChange={(e) => {
+            setQuery(e.target.value);
+            setResult(null);
+            if (launchError) setLaunchError(null);
+          }}
+          onKeyDown={onListKeyDown}
+          aria-label={t("palettePlaceholder")}
+          sx={{ mb: 1 }}
+        />
+        <Typography variant="h6" sx={{ mb: 1 }}>{result!.title}</Typography>
+        {result!.rows.length === 0
+          ? (
+            <Typography variant="body2" color="text.secondary" sx={{ py: 1 }}>
+              {t("paletteEmpty")}
+            </Typography>
+          )
+          : (
+            <List dense disablePadding sx={{ maxHeight: 360, overflow: "auto" }}>
+              {result!.rows.map((r, i) => (
+                <ListItem key={i}>
+                  <ListItemText primary={r.primary} secondary={r.secondary} />
+                </ListItem>
+              ))}
+            </List>
+          )}
+      </>
+    );
+  }
 
   // A render HELPER, not a nested component. Rendering it as `<CommandList/>` gave it
   // a fresh function identity every render, so React remounted the whole subtree —

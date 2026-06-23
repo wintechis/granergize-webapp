@@ -7,11 +7,8 @@ import { INVESTOR_CERT_SYSTEMS } from "../services/xlsx/buildingTemplates.ts";
 import { useGeocodeFields } from "../hooks/useGeocodeFields.ts";
 import { useSolidData } from "../hooks/queries.ts";
 import { useUpdateBuilding } from "../hooks/mutations.ts";
-import {
-  buildingToFields,
-  makeBuildingFields,
-  OPCOST_FIELDS,
-} from "./buildingFields.tsx";
+import { makeBuildingFields, OPCOST_FIELDS } from "./buildingFields.tsx";
+import { buildingToFields } from "./buildingFormSeed.ts";
 import Modal from "./Modal.tsx";
 import { BuildingDialogTitle } from "./BuildingDialogTitle.tsx";
 import {

@@ -8,7 +8,7 @@ import { providerIdForIssuer } from "./test/config/providers.ts";
  * (`deno task e2e:remote`, or `e2e:remote:spec` for one spec); Tier 3 reuses the same
  * specs against a throwaway local CSS, credential-free (`deno task e2e:local`, the
  * `local` project, E2E_LOCAL=1). Tiers 1
- * (deno test) and 2 (deno task it) are separate. `login.spec.ts` runs with no creds;
+ * (deno test) and 2 (deno task headless:local) are separate. `login.spec.ts` runs with no creds;
  * credentialed (Tier-4) specs self-skip.
  */
 // Tier 3 (browser × local CSS): boot a throwaway CSS and run the specs against it,
