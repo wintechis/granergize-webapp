@@ -57,6 +57,13 @@
   { "nl": "Gebäude mit Wärmepumpe und mindestens 3 Ladetoren", "expect": "FindBuildings", "category": "query-collection", "selector": { "and": [{ "field": "hasHeatPump", "op": "eq", "value": true }, { "field": "numberOfLoadingDocks", "op": "ge", "value": 3 }] } },
   { "nl": "What is shared with me?", "expect": "SharedWithMe", "category": "query-collection" },
 
+  { "nl": "PV installations near my Hofgebäude", "expect": "FindNearbyInstallations", "category": "query-collection" },
+  { "nl": "Show wind turbines within 5 km of this building", "expect": "FindNearbyInstallations", "category": "query-collection" },
+  { "nl": "Welche Solaranlagen liegen in der Nähe meines Gebäudes?", "expect": "FindNearbyInstallations", "category": "query-collection" },
+  { "nl": "Public regional statistics for Bavaria", "expect": "FindRegionalStatistics", "category": "query-collection" },
+  { "nl": "Regional renewable-energy figures for my building's region", "expect": "FindRegionalStatistics", "category": "query-collection" },
+  { "nl": "Öffentliche Regionaldaten für Hessen", "expect": "FindRegionalStatistics", "category": "query-collection" },
+
   { "nl": "Open the building Hofgebäude", "expect": "ShowBuilding", "category": "navigation" },
   { "nl": "Go to the benchmarks", "expect": "ShowAggregations", "category": "navigation" },
   { "nl": "Take me to the map", "expect": ["ShowDashboard", "ShowBuildings"], "category": "navigation" },

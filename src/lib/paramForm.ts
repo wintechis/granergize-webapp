@@ -93,6 +93,9 @@ export const FORM_EXCLUDED: ReadonlySet<string> = new Set<string>([
   "GetBuilding",
   "GetObservationYear",
   "WhoHasAccess",
+  // Open-tier federated reads (MaStR nearby / regionalstatistik) — reads too.
+  "FindNearbyInstallations",
+  "FindRegionalStatistics",
   // `fileUri` + `subjectUri` derived-IRI bundles.
   "SetEnergyCertificate",
   "DeleteAttachment",

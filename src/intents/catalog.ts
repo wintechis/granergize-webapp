@@ -24,6 +24,7 @@ export type IntentEntity =
   | "building"
   | "observation"
   | "aggregation"
+  | "installation" // a public generation unit (the `open` tier, MaStR); not Pod-backed
   | "room"
   | "contact"
   | "organisation"
@@ -103,6 +104,20 @@ export const INTENTS: readonly IntentEntry[] = [
     effect: "read",
     entity: "building",
     hook: "useFindBuildings",
+  },
+  {
+    name: "FindNearbyInstallations", // open tier: MaStR generation units near a building
+    action: "", // a federated read; no meta.action
+    effect: "read",
+    entity: "installation",
+    hook: "useFindNearbyInstallations",
+  },
+  {
+    name: "FindRegionalStatistics", // open tier: public regionalstatistik datasets for a region
+    action: "", // a read; no meta.action
+    effect: "read",
+    entity: "aggregation",
+    hook: "useFindRegionalStatistics",
   },
   {
     name: "GetBuilding",

@@ -3,6 +3,19 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-23]
+- **Open-tier query intents — `FindNearbyInstallations` + `FindRegionalStatistics`
+  (plan-open-tier-intents Slice 1).** The `open` (public-data) tier had UI + services but no
+  *intent* face, so it was unreachable from the command box / launcher / LLM. Added the two
+  open-tier **query** verticals as exact replicas of the `FindBuildings` template:
+  `FindNearbyInstallations` (a new `installation` `IntentEntity`; resolves a building → coords →
+  the MaStR `linked-mastr` nearby query, optional carrier `kind` filter) and
+  `FindRegionalStatistics` (rides the `aggregation` entity; lists the public regionalstatistik
+  datasets for an explicit Bundesland, a building's region, or the whole portfolio). Each is a
+  full vertical — catalog entry, `INTENT_PARAMS` schema + compile-time key witness, React-free
+  core, `READ_CORES` registration, a `use*` adapter in `mutations.ts`, a `FORM_EXCLUDED` entry
+  (reads aren't palette-form verbs), Tier-1 fake-fetch tests (7 cases), and LLM eval cases. The
+  open tier is now callable headless via `query("FindNearbyInstallations", …)` /
+  `query("FindRegionalStatistics", …)`.
 - **Annotated n3 quad callbacks so the logistik dataset generator typechecks (cross-repo).** The
   generator (`../logistikimmobilien`) imports webapp modules and ran everything under
   `deno run --no-check` because dropping it surfaced implicit-`any` errors — n3's `Store` methods

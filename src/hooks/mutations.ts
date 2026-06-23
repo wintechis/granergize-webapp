@@ -6,6 +6,8 @@ import {
 import { getGateway } from "./session.ts";
 import { queryKeys } from "./queries.ts";
 import type { ShareBuildingParams } from "../intents/shareBuilding.ts";
+import type { FindNearbyInstallationsParams } from "../intents/FindNearbyInstallations.ts";
+import type { FindRegionalStatisticsParams } from "../intents/FindRegionalStatistics.ts";
 import type { Selector } from "../intents/selector.ts";
 import { invoke, query } from "../intents/registry.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
@@ -705,6 +707,24 @@ export function useFindBuildings() {
     // BuildingType[] for an attribute selector (plan-attribute-facets).
     mutationFn: (selector?: Selector) =>
       query("FindBuildings", { selector }, getGateway()),
+  });
+}
+
+export function useFindNearbyInstallations() {
+  return useMutation({
+    // Open tier: federated read of MaStR generation units near a building (off-Pod);
+    // thin adapter over the FindNearbyInstallations core via query().
+    mutationFn: (p: FindNearbyInstallationsParams) =>
+      query("FindNearbyInstallations", p, getGateway()),
+  });
+}
+
+export function useFindRegionalStatistics() {
+  return useMutation({
+    // Open tier: the public regionalstatistik datasets for a region; thin adapter
+    // over the FindRegionalStatistics core via query().
+    mutationFn: (p: FindRegionalStatisticsParams) =>
+      query("FindRegionalStatistics", p, getGateway()),
   });
 }
 

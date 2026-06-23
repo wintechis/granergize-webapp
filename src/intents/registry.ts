@@ -10,6 +10,8 @@
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { shareBuildingCore } from "./shareBuilding.ts";
 import { findBuildingsCore } from "./FindBuildings.ts";
+import { findNearbyInstallationsCore } from "./FindNearbyInstallations.ts";
+import { findRegionalStatisticsCore } from "./FindRegionalStatistics.ts";
 import { getBuildingCore } from "./GetBuilding.ts";
 import { getObservationYearCore } from "./GetObservationYear.ts";
 import { whoHasAccessCore } from "./WhoHasAccess.ts";
@@ -143,6 +145,10 @@ export const READ_CORES = {
   // The first collection query — narrows the visible buildings by an attribute
   // selector (plan-attribute-facets); returns the matching BuildingType[].
   FindBuildings: findBuildingsCore,
+  // Open tier: federated read of MaStR generation units near a building (off-Pod).
+  FindNearbyInstallations: findNearbyInstallationsCore,
+  // Open tier: the public regionalstatistik datasets available for a region.
+  FindRegionalStatistics: findRegionalStatisticsCore,
   // Single-entity + relationship reads (§8 taxonomy).
   GetBuilding: getBuildingCore,
   GetObservationYear: getObservationYearCore,
