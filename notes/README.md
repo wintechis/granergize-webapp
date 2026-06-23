@@ -52,6 +52,7 @@ actions on it.
 - [attachments.md](./attachments.md) — arbitrary files attached to a building (the energy certificate is one of them).
 - [building-detail.md](./building-detail.md) — what hangs off a building IRI and how the detail page projects it.
 - [weather.md](./weather.md) — the external, live, read-only DWD weather layer (nearest-station proximity join), outside the Pod data path.
+- [open-data.md](./open-data.md) — the `open` source tier: public, ungated, off-Pod Linked Data (LoD2 rooftop-PV, MaStR + netztransparenz generation, regional statistics) and its in-app read-only details.
 - [ui-state.md](./ui-state.md) — which UI state is navigational (encoded in the URI — the BrowserRouter path + query params) vs. ephemeral.
 - [ux-overview.md](./ux-overview.md) — a coarse map of the UX surfaces (tabs · detail pages · dialogs) and the transitions between them, as a Graphviz/Mermaid overview above statechart detail.
 - [i18n.md](./i18n.md) — the de/en/fr paths (build-time vocab labels vs. the in-app chrome catalog), the rolled-in-house `Intl`-based message layer, and why no i18n library.

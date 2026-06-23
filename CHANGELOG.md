@@ -15,7 +15,15 @@ All notable changes to the Granergize WebApp project will be documented in this 
   and the **`session`→`PodGateway`** transport (`getGateway()`, `resolveStorageRoot(gateway)`, …).
   Also rewrote the `ux-overview` Graphviz/Mermaid diagrams (Observations promoted to a 4-guise
   energy cube; the Buildings map is geo-only), refreshed the building-detail / data-schema /
-  energy-model models, and enforced the project's URI/IRI-not-URL wording throughout.
+  energy-model models, and enforced the project's URI/IRI-not-URL wording throughout. Filled
+  one doc gap with a new present-state `notes/open-data.md` (the `open`/ungated source tier —
+  LoD2 rooftop-PV, MaStR + netztransparenz generation, regional statistics, and their in-app
+  read-only details), the one shipped feature the corpus had covered only piecemeal. Finally
+  reconciled the (git-ignored) `explore/` sketches with what shipped: deleted the four fully
+  graduated ones — their present state now lives in `notes/` (i18n → `i18n.md`, the intent/action
+  profile → `object-model.md`, the external-observation layers → `open-data.md`, the test-tier
+  matrix → `CLAUDE.md`/`test/README.md`) — repointing their ~17 inbound references into `notes/`,
+  and left a `Status` banner on the partly-shipped sketches; `explore/` now holds only speculation.
 - **E2E hermeticity + flake fixes (test-only).** The redesign's regional/open-data tiers fire many
   external GETs per map load that no spec asserts; the `e2e:local` lane now stubs them at page
   creation (`stubExternalData`/`stubBasemapTiles`): the `wunderfacts.com` open-data wrappers
