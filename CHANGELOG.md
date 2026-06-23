@@ -2,6 +2,21 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-23]
+- **E2E hermeticity + flake fixes (test-only).** The redesign's regional/open-data tiers fire many
+  external GETs per map load that no spec asserts; the `e2e:local` lane now stubs them at page
+  creation (`stubExternalData`/`stubBasemapTiles`): the `wunderfacts.com` open-data wrappers
+  (mastr/lod2-by/energieatlas/regionalstatistik/nuts/lau/netztransparenz) and Wikidata/Commons logos
+  → 404 (best-effort, the app falls back); **Nominatim → deterministic fake coords** (geocoded
+  buildings need coordinates to paint a marker — a 404 would leave them markerless); the Bavaria
+  orthophoto WMS (`geoservices.bayern.de`) → a 1×1 PNG like the basemap tiles. `/wetterdienst/` is
+  left live (cube-calendar-weather asserts the real DWD adapter). Two flakes hardened: `uri-state`'s
+  buildings-map marker click now retries through the single-building auto-fit zoom animation, and the
+  `share-aggregation` cross-Pod chart wait uses `T.action` (network-backed compute), not `T.visible`.
+  Net: both backends run green (CSS + JSS, 104/1, accepted `archive-full-load` only). The remaining
+  JSS-only failures were diagnosed as **environmental** (the test machine's OOM killer reaping Chrome
+  under memory pressure — vanish with RAM headroom), documented in `plans/flakes.md`.
+
 ## [2026-06-22]
 - **Open data opens IN-APP, read-only — no more bounce-out to the wrapper.** Open buildings (LoD2
   rooftop potential) and open observations (netztransparenz generation) were only finder rows/markers
