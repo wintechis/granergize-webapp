@@ -1,5 +1,6 @@
 import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Parser, Store } from "n3";
+import type { Term } from "n3";
 import {
   CONSUMPTION_NS,
   RDF_TYPE,
@@ -300,8 +301,8 @@ export function parseEnergyDatasetRefs(
       namedNode(`${CONSUMPTION_NS}hasEnergyDataset`),
       null,
     )
-    .map((o) => parseDatasetLink(o.value, store))
-    .filter((r): r is EnergyDatasetRef => r !== null);
+    .map((o: Term) => parseDatasetLink(o.value, store))
+    .filter((r: EnergyDatasetRef | null): r is EnergyDatasetRef => r !== null);
 }
 
 /**

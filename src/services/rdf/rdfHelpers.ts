@@ -120,7 +120,7 @@ export function getQuadValues(
   subject: Term | null,
   predicate: Term | null,
 ): string[] {
-  return store.getQuads(subject, predicate, null, null).map((q) =>
+  return store.getQuads(subject, predicate, null, null).map((q: Quad) =>
     q.object.value
   );
 }

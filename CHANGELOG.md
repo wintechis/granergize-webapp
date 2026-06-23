@@ -3,6 +3,14 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-23]
+- **Annotated n3 quad callbacks so the logistik dataset generator typechecks (cross-repo).** The
+  generator (`../logistikimmobilien`) imports webapp modules and ran everything under
+  `deno run --no-check` because dropping it surfaced implicit-`any` errors — n3's `Store` methods
+  resolve typed under the webapp's `tsc` but as `any` under the generator's Deno `npm:n3`
+  resolution. Added explicit `Term`/`Quad` annotations on the quad callbacks in
+  `podDelete.ts` / `energyDataset.ts` / `rdfHelpers.ts` (no-op for the webapp's own check), which
+  let the generator drop `--no-check` and add a `check` task — so a webapp API rename now fails the
+  generator's build at typecheck time, not just the runtime smoke test.
 - **Removed dead `FilesDialog` + corrected the typecheck docs (hygiene).** The redesign moved
   building-file management inline (`BuildingFilesSection`), leaving `FilesDialog`
   (`components/BuildingDialogs.tsx`) with zero usages; deleted it + its now-unused imports and
