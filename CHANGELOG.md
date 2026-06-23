@@ -2,6 +2,20 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-23]
+- **Variable units per building — a building's energy can be stored/displayed in MWh, etc.** The
+  model pinned one canonical unit per metric and the parser IGNORED the per-observation
+  `ssn:hasUnit`, so a foreign dataset in MWh read as kWh — a silent 1000× error. Now the parser
+  reads `ssn:hasUnit` and **normalises to the canonical unit** (5 MWh → 5000 kWh), recording the
+  original unit on `EnergyDataset.units`; an unrecognised unit is **skipped** rather than shown as a
+  wrong number. The numeric layer stays canonical, so every calculation (per-m² intensity, the cube
+  terciles, trend, aggregation) is untouched; a small `src/services/energy/units.ts` holds the
+  conversion factors + labels (kWh/MWh/GWh/Wh, m³/L, %). The per-building **AnnualEnergy** table +
+  charts now show the building's own unit (converting the canonical figures); cross-building views
+  (the cube, aggregations, the map) stay canonical so a comparison never mixes units. The xlsx
+  export keeps canonical (it round-trips with the import). Deferred: series-reading units and a
+  unit picker in the entry dialog.
+
 ## [2026-06-22]
 - **The map keeps its viewport when you drill into a detail and come back.** The standalone
   detail routes render shell-less, so they unmount the finder; the old `?c`/`?z`-restore raced a

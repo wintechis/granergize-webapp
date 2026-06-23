@@ -19,7 +19,7 @@ import {
   seriesDailyFileUri,
   serializeEnergyDataset,
 } from "./energyDataset.ts";
-import { CONSUMPTION_NS, SOSA_NS } from "./vocabularies.ts";
+import { CONSUMPTION_NS, SOSA_NS, UNIT_NS } from "./vocabularies.ts";
 
 const B = "https://pod.example/granergize/buildings/b-1.ttl#it";
 const ROOT = "https://pod.example/granergize/observations/";
@@ -28,6 +28,42 @@ const ID = "abc";
 function parse(ttl: string): Store {
   return new Store(new Parser().parse(ttl));
 }
+
+// A foreign dataset whose energy is stored in a NON-canonical unit (MWh): serialize a
+// canonical (kWh) dataset, then swap the unit IRI to simulate it.
+Deno.test("parseEnergyDataset normalises a non-canonical unit (MWh → kWh) + records it", () => {
+  const node = `${datasetFileUri(ROOT, 2024, ID)}#ds`;
+  const ds: EnergyDataset = {
+    building: B,
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "actual",
+    metrics: { electricityConsumption: 5 },
+  };
+  const ttl = serializeEnergyDataset(ds)
+    .replace(/<#ds>/g, `<${node}>`)
+    .replace("KiloW-HR", "MegaW-HR"); // the stored value 5 now means 5 MWh
+  const back = parseEnergyDataset(parse(ttl), node);
+  assert.equal(back!.metrics!.electricityConsumption, 5000); // 5 MWh → 5000 kWh (canonical)
+  assert.equal(back!.units!.electricityConsumption, `${UNIT_NS}MegaW-HR`);
+});
+
+Deno.test("parseEnergyDataset skips an unrecognised unit (no silently-wrong number)", () => {
+  const node = `${datasetFileUri(ROOT, 2024, ID)}#ds`;
+  const ds: EnergyDataset = {
+    building: B,
+    year: 2024,
+    granularity: "P1Y",
+    scenario: "actual",
+    metrics: { electricityConsumption: 5 },
+  };
+  const ttl = serializeEnergyDataset(ds)
+    .replace(/<#ds>/g, `<${node}>`)
+    .replace("KiloW-HR", "BTU");
+  const back = parseEnergyDataset(parse(ttl), node);
+  assert.equal(back!.metrics!.electricityConsumption, undefined); // skipped, not a wrong 5
+  assert.equal(back!.units, undefined);
+});
 
 Deno.test("observationsRootForBuilding derives the sibling observations/ root", () => {
   assert.equal(observationsRootForBuilding(B), ROOT);

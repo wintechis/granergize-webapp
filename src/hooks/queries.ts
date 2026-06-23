@@ -46,6 +46,7 @@ import {
 } from "../services/agents/agentResolver.ts";
 import {
   type EnergyDatasetRef,
+  type EnergyMetricKey,
   listSeriesDays,
   loadEnergyDatasets,
 } from "../services/rdf/energyDataset.ts";
@@ -524,7 +525,16 @@ export function useAnnualEnergy(building: BuildingType) {
           .filter((d) => d.scenario === scenario && d.metrics)
           .map((d) => ({ year: d.year, ...d.metrics }) as AnnualData)
           .sort((a, b) => a.year - b.year);
-      return { actual: rows("actual"), planned: rows("planned") };
+      // The building's ORIGINAL (non-canonical) unit per metric, when it has one — the
+      // numeric rows stay canonical (kWh/m³/%); this drives the per-building display +
+      // export to show e.g. MWh. Last dataset wins (a building's metric is one unit).
+      const units: Partial<Record<EnergyMetricKey, string>> = {};
+      for (const d of datasets) {
+        for (const [k, u] of Object.entries(d.units ?? {})) {
+          units[k as EnergyMetricKey] = u;
+        }
+      }
+      return { actual: rows("actual"), planned: rows("planned"), units };
     },
     { extraKey: [building.id, energyKeyFor([building])] },
   );

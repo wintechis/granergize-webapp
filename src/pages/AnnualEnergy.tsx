@@ -46,7 +46,11 @@ import {
   ANNUAL_METRICS,
   metricLabel,
 } from "../constants/annualMetrics.ts";
-import type { EnergyMetricKey } from "../services/rdf/energyDataset.ts";
+import {
+  ENERGY_METRICS,
+  type EnergyMetricKey,
+} from "../services/rdf/energyDataset.ts";
+import { fromCanonical, unitLabel } from "../services/energy/units.ts";
 import {
   ELECTRICITY_COLOR,
   HEAT_COLOR,
@@ -78,14 +82,15 @@ const METRIC_ICONS: Partial<Record<EnergyMetricKey, React.ReactElement>> = {
 };
 
 /** Column-header form: "Electricity (kWh)" / "Renewable %" (unit already in the
- * "%" abbreviation). The compact label is a catalog id; the unit stays as-is. */
-const headerOf = (m: AnnualMetricDesc) =>
-  m.unit === "%" ? msg(m.shortId) : `${msg(m.shortId)} (${m.unit})`;
+ * "%" abbreviation). `unit` is the building's display unit for this metric (canonical,
+ * e.g. "kWh", or its own "MWh"). */
+const headerOf = (m: AnnualMetricDesc, unit: string) =>
+  unit === "%" ? msg(m.shortId) : `${msg(m.shortId)} (${unit})`;
 
 /** Chart-section title from the vocab full label + unit: "Electricity
  * consumption (kWh/year)" / "Renewable self-generated share (%)". */
-const chartTitleOf = (m: AnnualMetricDesc) =>
-  `${metricLabel(m.key)} (${m.unit === "%" ? "%" : `${m.unit}/year`})`;
+const chartTitleOf = (m: AnnualMetricDesc, unit: string) =>
+  `${metricLabel(m.key)} (${unit === "%" ? "%" : `${unit}/year`})`;
 
 class ChartErrorBoundary extends React.Component<
   { children: React.ReactNode },
@@ -155,6 +160,15 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const annual = useAnnualEnergy(building);
   const actual = annual.data?.actual ?? [];
   const planned = annual.data?.planned ?? [];
+  // This building's own (non-canonical) unit per metric, when it has one — the figures
+  // stay canonical, so the table/chart convert to + label with the building's unit.
+  const units = annual.data?.units ?? {};
+  const displayUnit = (m: AnnualMetricDesc): string =>
+    units[m.key] ? unitLabel(units[m.key]!) : m.unit;
+  const toDisplay = (m: AnnualMetricDesc, v: number | undefined) =>
+    v == null || !units[m.key]
+      ? v
+      : fromCanonical(v, units[m.key]!, ENERGY_METRICS[m.key].unit);
   // The Betreiber-Durchschnitt (heike-4): per-metric mean across all buildings
   // sharing this building's operator (`operatedBy`), each contributing its
   // latest actual year (computed in loadEnergy; keyed by the canonical metric
@@ -255,7 +269,9 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   const cells = (d: AnnualData) =>
     visibleMetrics.map((m) => (
       <TableCell key={m.key} align="right">
-        {d[m.key] != null ? formatNumber(d[m.key] as number, m.decimals) : "—"}
+        {d[m.key] != null
+          ? formatNumber(toDisplay(m, d[m.key]) as number, m.decimals)
+          : "—"}
       </TableCell>
     ));
 
@@ -352,7 +368,7 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                       </TableCell>
                       {visibleMetrics.map((m) => (
                         <TableCell key={m.key} align="right">
-                          <strong>{headerOf(m)}</strong>
+                          <strong>{headerOf(m, displayUnit(m))}</strong>
                         </TableCell>
                       ))}
                     </TableRow>
@@ -471,13 +487,16 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
                 .map((m) => (
                   <React.Fragment key={m.key}>
                     <SectionTitle divider icon={METRIC_ICONS[m.key]}>
-                      {chartTitleOf(m)}
+                      {chartTitleOf(m, displayUnit(m))}
                     </SectionTitle>
                     <ChartBox>
                       <MetricBarChart
-                        data={metricData((d) => d[m.key])}
-                        bars={metricBars(headerOf(m), METRIC_COLORS[m.key])}
-                        yUnit={m.unit}
+                        data={metricData((d) => toDisplay(m, d[m.key]))}
+                        bars={metricBars(
+                          headerOf(m, displayUnit(m)),
+                          METRIC_COLORS[m.key],
+                        )}
+                        yUnit={displayUnit(m)}
                       />
                     </ChartBox>
                   </React.Fragment>

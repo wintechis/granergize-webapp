@@ -9,6 +9,7 @@ import {
   UNIT_NS,
 } from "./vocabularies.ts";
 import type { EnergyDatasetRef, Scenario } from "../../types.ts";
+import { sameUnit, toCanonical } from "../energy/units.ts";
 import {
   observationContainer,
   type ObservationRef,
@@ -119,8 +120,14 @@ export interface EnergyDataset {
   /** xsd:duration: "P1Y" annual, "PT15M" sub-hourly series, … */
   granularity: string;
   scenario: Scenario;
-  /** Annual aggregate: the inline observations. */
+  /** Annual aggregate: the inline observations. Values are ALWAYS canonical (kWh / m³ /
+   *  %) — a non-canonical `ssn:hasUnit` is normalised on read (see {@link units}). */
   metrics?: AnnualMetrics;
+  /** The ORIGINAL unit IRI per metric, recorded only when it differed from the metric's
+   *  canonical unit (e.g. a building whose energy is in MWh). Drives the display/export to
+   *  show the building's own unit; the numeric `metrics` stay canonical so the maths is
+   *  unaffected. Absent ⇒ everything is canonical. */
+  units?: Partial<Record<EnergyMetricKey, string>>;
   /** Series: the container IRI the daily chunk files are located under. */
   datasetLocation?: string;
   /**
@@ -485,6 +492,7 @@ export function parseEnergyDataset(
   }
 
   const metrics: AnnualMetrics = {};
+  const units: Partial<Record<EnergyMetricKey, string>> = {};
   for (const member of store.getObjects(ds, namedNode(`${SOSA_NS}hasMember`), null)) {
     const prop =
       store.getObjects(member, namedNode(`${SOSA_NS}observedProperty`), null)[0]
@@ -492,13 +500,34 @@ export function parseEnergyDataset(
     const key = prop ? PROP_TO_METRIC[prop] : undefined;
     if (!key) continue;
     const result = store.getObjects(member, namedNode(`${SOSA_NS}hasResult`), null)[0];
-    const val = result
-      ? store.getObjects(result, namedNode(`${SOSA_NS}hasSimpleResult`), null)[0]
-        ?.value
-      : undefined;
-    if (val !== undefined) metrics[key] = Number(val);
+    if (!result) continue;
+    const val = store.getObjects(result, namedNode(`${SOSA_NS}hasSimpleResult`), null)[0]
+      ?.value;
+    if (val === undefined) continue;
+    const unitIri = store.getObjects(result, namedNode(`${SSN_NS}hasUnit`), null)[0]
+      ?.value;
+    const canonical = ENERGY_METRICS[key].unit;
+    // Normalise to the canonical unit so every downstream calculation is unit-safe; an
+    // unrecognised unit is SKIPPED rather than shown as a silently-wrong number.
+    const value = toCanonical(Number(val), unitIri, canonical);
+    if (value === null) {
+      console.warn(`Skipping ${key}: unrecognised unit ${unitIri ?? "(none)"}`);
+      continue;
+    }
+    metrics[key] = value;
+    // Keep the original unit only when non-canonical, to display the building's own unit.
+    if (unitIri && !sameUnit(unitIri, canonical)) units[key] = unitIri;
   }
-  return { building, year, granularity, scenario, metrics, featureOfInterest };
+  const hasUnits = Object.keys(units).length > 0;
+  return {
+    building,
+    year,
+    granularity,
+    scenario,
+    metrics,
+    ...(hasUnits ? { units } : {}),
+    featureOfInterest,
+  };
 }
 
 export type { ObservationRef };
