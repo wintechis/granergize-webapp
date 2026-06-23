@@ -3,6 +3,13 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-23]
+- **Removed dead `FilesDialog` + corrected the typecheck docs (hygiene).** The redesign moved
+  building-file management inline (`BuildingFilesSection`), leaving `FilesDialog`
+  (`components/BuildingDialogs.tsx`) with zero usages; deleted it + its now-unused imports and
+  scrubbed the stale "manage FilesDialog" comments in `AttachmentInfo`/`BuildingFilesSection`/
+  `useAttachmentDownload`. Also fixed `CLAUDE.md`, which claimed "no configured lint/typecheck
+  task" — there is `deno task check` (`tsc --noEmit`, `tsconfig.check.json`) and `deno task lint`,
+  both CI-gated and gating deploy. `check` / `lint` / `test` (962) all green.
 - **Design notes + `CLAUDE.md` swept current with the redesign (docs-only, no code change).**
   Brought the whole `notes/` corpus and `CLAUDE.md` back in line with the code, resolving four
   systemic drifts the redesign had left in the docs: the **view→aggregation** rename (incl.

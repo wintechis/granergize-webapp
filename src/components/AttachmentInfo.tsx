@@ -5,8 +5,8 @@ import { formatBytes } from "../lib/download.ts";
 
 /**
  * The shared attachment-row info block — filename, the energy-certificate chip, and
- * the mediaType/size caption — rendered by both the read-only FilesSection and the
- * manage FilesDialog (which differ only in the action buttons beside it).
+ * the mediaType/size caption — rendered by both the read-only `FilesSection` and the
+ * editable `BuildingFilesSection` (they differ only in the action buttons beside it).
  */
 export default function AttachmentInfo({ a }: { a: AttachmentRef }) {
   return (

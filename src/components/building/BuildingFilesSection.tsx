@@ -17,16 +17,16 @@ import { listStyle, rowStyle } from "../../constants/listStyles.ts";
 import AttachmentInfo from "../AttachmentInfo.tsx";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
 
-// Soft caps — warned, not enforced (mirrors the manage FilesDialog).
+// Soft caps — warned, not enforced (Pods have quotas, but we don't hard-block).
 const MAX_FILE_BYTES = 25 * 1024 * 1024;
 const MAX_FILES = 20;
 
 /**
  * The building page's Files section: the building's attachments, inline on the page, with
  * upload, download, set/unset energy-certificate, and delete. Reuses the same
- * attachment mutation hooks + {@link AttachmentInfo} the manage FilesDialog uses,
- * so there's one file-handling behaviour — just no modal. A shared building is
- * read-only (download only); the recipient can't write the owner's container.
+ * attachment mutation hooks + {@link AttachmentInfo} as the read-only `FilesSection`,
+ * so there's one file-handling behaviour — inline on the page, no modal. A shared
+ * building is read-only (download only); the recipient can't write the owner's container.
  */
 export default function BuildingFilesSection(
   { building, session }: { building: BuildingType; session: Session },
