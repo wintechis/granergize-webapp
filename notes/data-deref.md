@@ -16,22 +16,24 @@ registry document — says *which* documents to fetch; the app fetches them
 concurrently, parses each into a provenance-tagged graph, and resolves the
 references between them in memory.
 
-## The dereferencing primitive: `session.fetch`
+## The dereferencing primitive: the authed `fetch`
 
 Every read/write goes through the authenticated `fetch` from
 `@inrupt/solid-client-authn-browser` — a drop-in `fetch` that attaches a
 **DPoP-bound OAuth access token + a per-request DPoP proof**, so the Solid server
 authorises against the user's WebID. Public resources work unauthenticated;
 private ones need the token; cross-origin reads (a source on another Pod) also
-need that server's CORS + ACL to permit you.
+need that server's CORS + ACL to permit you. The data layer never touches the inrupt
+session object directly — it receives a flat `PodGateway` (`{ fetch, webId }`, the
+session's authed `fetch` plus the WebID) and calls `gateway.fetch`.
 
-One thin wrapper sits on top: `fetchFresh(url, session)`
+One thin wrapper sits on top: `fetchFresh(uri, gateway)`
 (`src/services/pod/podFetch.ts`) — sets `cache: "no-cache"` (revalidate), so
 read-modify-write cycles see current state while a conditional `If-None-Match`
 can still come back `304` with no body. There is **no `?t=` cache-buster**: the
 URI stays stable so the HTTP cache / React Query can key on it.
 
-All Pod requests are funnelled through `session.fetch`, wrapped once at login
+All Pod requests are funnelled through this authed `fetch`, wrapped once at login
 (`instrumentSessionFetch`, `networkActivity.ts`) so every dereference shows up in
 the header activity indicator.
 
@@ -39,7 +41,7 @@ the header activity indicator.
 
 Resolved once per session, then cached:
 
-1. **WebID → storage root.** `resolveStorageRoot(session)`
+1. **WebID → storage root.** `resolveStorageRoot(gateway)`
    (`src/services/pod/solidUtils.ts`) GETs the WebID profile document, parses it
    with n3, and reads `<webId> pim:storage <root>`. Throws if absent — there is no
    WebID string-munge fallback. Cached so the many synchronous callers stay simple.
@@ -47,12 +49,12 @@ Resolved once per session, then cached:
    `<root>granergize/…` (layout owned by [`storage-layout.md`](./storage-layout.md)). One
    tree; no per-call base munging.
 3. **Discover source URIs.** Own and shared buildings are discovered separately
-   (`loadBuildingsAndAgents`, `src/services/TurtleParsingService.ts`):
+   (`loadBuildings` / `fetchAndParseData`, `src/services/TurtleParsingService.ts`):
    - *Own buildings* — `discoverOwnBuildings` **LISTS** the `buildings/` container
      and keeps the top-level `*.ttl` files (no registry: adding a building is a
      single PUT, so the listing can't desync). `listDirectChildren` returning `null`
      (404) means a *fresh* Pod vs `[]` for an *empty* one; demo buildings aren't
-     auto-seeded — the UI *offers* them via a banner (`useDemoSeedPrompt` /
+     auto-seeded — the UI *offers* them via a banner (`useDemoOffer` /
      `seedDemoBuildings`), so a fresh Pod loads empty until the user chooses.
    - *Shared buildings* — `listSharedBuildingSources` folds the `shared-in/` event
      log for `gran:kind rec:Building` grants (log owned by [`sharing.md`](./sharing.md)).
@@ -70,7 +72,7 @@ log* to discover the document set to dereference.
 
 For every fetched Turtle file (`loadTtlFromMultipleSources`):
 
-- Parse with `new Parser({ baseIRI: url })` — **relative IRIs resolve against the
+- Parse with `new Parser({ baseIRI: uri })` — **relative IRIs resolve against the
   file's own URI**, the standard RDF dereference semantic.
 - Rewrite each quad so its **named graph = the source URI** — provenance: which
   file each triple came from.
@@ -90,7 +92,7 @@ merged graph — the app does not re-dereference each IRI it encounters**:
 
 - `parseBuildings` (`src/services/rdf/building/buildingParser.ts`) walks the quads into a
   `Map<id, BuildingType>`. The **building id** comes from the subject IRI via
-  `extractBuildingIdStrict` (the `#fragment`, or the `…/buildings/<id>` path
+  `buildingIdFor` (`buildingId.ts` — the `#fragment`, or the `…/buildings/<id>` path
   segment). Blank-node sub-structures (energy datasets, operating costs,
   certifications, SOSA observations) are stitched back to their building through
   blank-node→building maps built during the walk.
@@ -129,8 +131,8 @@ Data source such as wunderfacts does not, so the label falls back to the fragmen
 document stays reachable via `UriLink` / the dev-mode source link, which opens it in a
 new tab, a top-level navigation CORS does not gate.
 
-A two-phase load (`fetchAndParseData`'s `onBuildingsAndAgents` callback) hands
-buildings + agents to the UI first, then streams energy in.
+A two-phase load (`fetchAndParseData`'s `onBuildings` callback) hands buildings to
+the UI first, then streams energy in.
 
 ## External wrapper endpoints
 
@@ -157,8 +159,8 @@ Each wrapper client reads its base lazily and parses the response pure
 Both wrappers are siblings of the `linked-*` family (`~/projects/linked-*`); the
 weather one is documented end-to-end in `~/projects/linked-wetterdienst`.
 
-The env-var base is also the **hermetic-e2e switch**: a Tier-3 build can point
-`VITE_*_API_URI` at a local fixture host (or a spec can `page.route` the wrapper URL)
+The env-var base is also the **hermetic-e2e switch**: an `e2e:local` build can point
+`VITE_*_API_URI` at a local fixture host (or a spec can `page.route` the wrapper URI)
 so a test never depends on the live external service — see
 [`../test/README.md`](../test/README.md) §External queried sources.
 
@@ -193,11 +195,12 @@ LDP `POST` to a container (race-free by construction) instead of rewriting a fil
   `fetchFresh` revalidates the *HTTP* cache for the underlying GETs (`cache:
   "no-cache"`, so a `304` serves the stored body), keying on a stable URI; React
   Query caches the *parsed result* in memory and refetches on invalidation. The
-  two-phase load is two queries: `useBuildingsAndAgents` (map paints) → dependent
+  two-phase load is two queries: `useBuildings` (map paints) → dependent
   `useEnergy`. Writes go through `useMutation` hooks (`src/hooks/mutations.ts`) that
   reuse the service functions (incl. `readModifyWrite`'s ETag locking) as
   `mutationFn` and `invalidateQueries` on settle. `useSolidData()` survives as a
-  thin RQ-backed selector returning the legacy shape. Two deliberate exceptions stay
-  on their own state: **`ConnectPage`** (a self-contained single-room state machine,
-  not a shared cached list) and the **org/logo** dialog+avatar (one-shot form
-  prefill + object-URL lifecycle).
+  thin RQ-backed selector composing the two. Two deliberate exceptions stay on their
+  own state: the **rooms registry** (`useRooms`, `staleTime: Infinity` + optimistic
+  patches from the room mutations — not a shared cached list, so a background refetch
+  can't revert an in-flight room switch) and the **org/logo** dialog+avatar (one-shot
+  form prefill + object-URL lifecycle).

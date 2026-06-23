@@ -2,7 +2,7 @@
 
 The Pod is ground truth; the app only ever holds a **cached, derived projection**
 of it — the React Query cache of parsed RDF (buildings, energy, shares, rooms,
-views), joined and shaped in memory. Every freshness question reduces to one thing:
+aggregations), joined and shaped in memory. Every freshness question reduces to one thing:
 **when the Pod changes, does the projection that depends on it refetch?** This note
 collects the mechanisms the app relies on for that, and the one structural place
 the contract currently leaks. The same staleness class also exists on the *write*
@@ -86,11 +86,13 @@ projection can drift out of sync. Applying it to the query hooks (`queries.ts`):
   but the room IRI is the right *identity* and the log's event content changes are
   covered by direct invalidation — every room mutation invalidates `queryKeys.roomLog`
   (`mutations.ts`). Keyed correctly, content via invalidation. Not the trap.
-- The top-level reads — `sharedWithMe`, `sharedBuildings`, `viewDefinitions`,
-  `sharedViews`, `receivedViews`, `contacts` — use a constant `["name", webId]` key.
-  They don't derive a key from upstream data, so the key can't under-cover; freshness
-  is `staleTime: 0` refetch-on-observe plus mutation invalidation. Sound, different
-  model.
+- The top-level reads — `aggregationDefinitions`, `contacts`, `prefs`, and the two
+  log folds `sharedInLog` / `sharedOutLog` — use a constant `["name", webId]` key.
+  (Every "shared with/by me" and shared-aggregation list is a pure in-memory
+  derivation of those two folds, not a separate query, so there is no extra key to
+  under-cover.) They don't derive a key from upstream data, so the key can't
+  under-cover; freshness is `staleTime: 0` refetch-on-observe plus mutation
+  invalidation. Sound, different model.
 - **`useRooms`** is deliberately `staleTime: Infinity` and patched optimistically by
   the room mutations (a background refetch could revert an in-flight room switch).
   Intentionally outside the auto-refetch model.
@@ -99,8 +101,8 @@ The audit also surfaced **`useReceivedBenchmarks`** — a gap of the same *famil
 started in a different mechanism and was ultimately closed by the same construction as
 energy. It folds the received snapshots (loads each one off the shared-in log and keeps
 the benchmark ones), and first showed an *invalidation-coverage* gap: it was
-constant-keyed, and the inbox drain (`useCheckInbox`) invalidated `sharedWithMe`,
-`receivedViews` and `buildings` but **not** `receivedBenchmarks`, so a benchmark snapshot
+constant-keyed, and the inbox drain (`useCheckInbox`) invalidated `sharedInLog`
+and `buildings` but **not** `receivedBenchmarks`, so a benchmark snapshot
 newly archived into `shared-in/` could be missing from the energy view's Benchmark column
 until that query was otherwise remounted. It is now **derived-keyed** like energy: the key
 is `[receivedBenchmarks, webId, fingerprint]` where the fingerprint is the sorted set of
@@ -174,7 +176,7 @@ because freshness is server-driven (`staleTime: 0`, conditional GET) there is no
 
 The **archive restore** is the worst case, and a useful one to name. `useRestoreArchive`
 runs `importArchive` (a **sequential** PUT per archived resource — buildings, energy
-datasets, logs, prefs, views, rooms, attachments), then `reissueGrants` (fold the
+datasets, logs, prefs, aggregations, rooms, attachments), then `reissueGrants` (fold the
 `shared-out/` log, rewrite an `.acl` per building), before anything settles; only then
 does `onSettled` fire — and it calls **`qc.invalidateQueries()` with no key**, because
 the restore "may have replaced anything under the app collection." That invalidates

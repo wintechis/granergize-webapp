@@ -40,8 +40,8 @@ Its facets — the storage-side decisions — are orthogonal but coupled:
 
 The couplings: a thing's volume/granularity drives its partitioning (an annual
 figure inline, a 15-minute series split per day); a relationship is realised as
-containment *or* a link (a building's energy hangs in its subtree; its agents are
-linked IRIs); the writer/concurrency situation picks the storage model
+containment *or* a link (a building's attachment files hang in its `files/` subtree;
+its energy datasets and agents are linked IRIs); the writer/concurrency situation picks the storage model
 (single-writer files vs. multi-writer append-only logs). The *Tree* and
 *Rationale* below record the current profiles; companion:
 [`building-detail.md`](./building-detail.md) (what hangs off a building URI).
@@ -52,15 +52,15 @@ The partitioning shape is also the storage-side of the presentation profile's
 parent document** — a hash (fragment) URI (`<…/buildings/{id}.ttl#pv>`) or a blank
 node, both fetched/PUT with the parent — or as a contained child renders
 subordinate (no page); one linked as a standalone document the user navigates to is
-first-class. Coupled but not identical — a contained child can have its own URI yet
-stay subordinate (the energy observation collections), and a subordinate fragment
-can be `owl:sameAs` a first-class resource elsewhere (the PV-system node ≡ its MaStR
-Einheit).
+first-class. Coupled but not identical — a resource can have its own URI (even a
+linked, top-level one) yet stay subordinate (the energy observation collections under
+`observations/`), and a subordinate fragment can be `owl:sameAs` a first-class resource
+elsewhere (the PV-system node ≡ its MaStR Einheit).
 
 ## One root
 
 The storage root is resolved **once at login** from `pim:storage` on the WebID
-(`resolveStorageRoot(session)` in `solidUtils.ts`; throws if the profile declares
+(`resolveStorageRoot(gateway)` in `solidUtils.ts`; throws if the profile declares
 none — no string-munge fallback). All app data then hangs off a single
 `<storageRoot>granergize/` tree via `podResources(webId)`, the one source of truth
 for paths. The lone exception is the organisation logo, which is **profile** data
@@ -76,11 +76,12 @@ and stays under `profile/`.
 └── granergize/                                       ← podResources(): the single app root
     ├── prefs.ttl                personal UI state: currentRoom, hiddenBuilding(s), demoSeedDeclined
     ├── bookmarks.ttl            gran:knownRoom — external room bookmarks ("Your rooms")
-    ├── buildings/<id>.ttl       subject <…/buildings/<id>.ttl#<id>> (discovered by LISTING — no registry)
-    │   └── …/<id>/energy/<year>-<granularity>[-planned].ttl   one EnergyDataset per (year, granularity, scenario)
-    │       └── …/<year>-PT15M/<date>.ttl                      series: descriptor .ttl + daily files in the folder
-    ├── views/
-    │   ├── <id>.ttl             one view-definition resource (discovered by listing)
+    ├── buildings/<uuid>.ttl     subject <…/buildings/<uuid>.ttl#it> (discovered by LISTING — no registry)
+    ├── observations/            energy datasets — first-class, time-first (Phase-0 C2)
+    │   ├── <year>/<id>.ttl      annual aggregate (inline obs) / PT15M series descriptor; <id> = UUID stem
+    │   └── <year>/<month>/<day>/<id>.ttl   series daily 15-min reading files (same <id>, one level deeper)
+    ├── aggregations/
+    │   ├── <id>.ttl             one aggregation-definition resource (discovered by listing)
     │   └── snapshots/<id>.ttl   shareable computed snapshots
     ├── shared-out/<event>       append-only log: sharing performed (POST-minted child URIs)
     ├── shared-in/<event>        append-only log: sharing received (folded to "shared with me")
@@ -88,8 +89,8 @@ and stays under `profile/`.
     └── inbox                    LDP inbox (sharing notifications)
 ```
 
-No registries. Each list is derived from the Pod's own structure: own buildings
-and view definitions by **listing** their container; the active room, hidden
+No registries. Each list is derived from the Pod's own structure: own buildings,
+observations, and aggregation definitions by **listing** their container; the active room, hidden
 buildings, and demo-offer state from **`prefs.ttl`**; external room bookmarks from
 **`bookmarks.ttl`**; what's shared in/out by **folding** the append-only event
 logs (`shared-in/`, `shared-out/`). The old `dataSources.ttl` /
@@ -97,12 +98,16 @@ logs (`shared-in/`, `shared-out/`). The old `dataSources.ttl` /
 `views/viewDefinitions.ttl` / `views/computed/` / `hiddenBuildings.ttl` /
 `rooms.ttl` registries are gone (see *Rationale* below).
 
-**Energy file layout.** Each building links its datasets with
-`cons:hasEnergyDataset`; the link slug `<year>-<granularity>[-planned]` is
-self-describing, so year/granularity/scenario are known **without** fetching the
-file. An annual aggregate (`P1Y`) holds inline SOSA observations in one
-`<year>-P1Y.ttl`; a 15-minute series (`PT15M`) is a descriptor `<year>-PT15M.ttl`
-plus per-day reading files under `<year>-PT15M/`. (Load phasing: see
+**Energy file layout.** Datasets are **first-class and time-first** under
+`observations/` (not nested in a building's subtree). Each building links its datasets
+with `cons:hasEnergyDataset` → `observations/{year}/<id>.ttl#ds` — the link is the
+discovery path, and the year/granularity/scenario are **re-stated in the building file**
+about each dataset node (read without fetching the dataset), since the opaque `<id>`
+path no longer encodes them. An annual aggregate (`P1Y`) holds inline SOSA observations in
+`observations/{year}/<id>.ttl`; a 15-minute series (`PT15M`) is a descriptor at the
+same path plus per-day reading files at `observations/{year}/{month}/{day}/<id>.ttl`
+(the **same** `<id>`). A reading bound to no building lives under `observations/`
+unlinked. (Model: [`energy-model.md`](./energy-model.md); load phasing:
 [`data-deref.md`](./data-deref.md).)
 
 **Sharing logs (no registry).** `shared-out/` and `shared-in/` are symmetric,
@@ -113,32 +118,34 @@ recipient learns of a grant. Event model and grant/revocation folding: see
 [`sharing.md`](./sharing.md).
 
 **Demo buildings (offered, not auto-seeded).** A fresh Pod (no `buildings/`
-container at all) is *offered* the demos via a dismissible banner
-(`useDemoSeedPrompt` in `index.tsx`); choosing "Add examples" calls
-`seedDemoBuildings(session, webId)`, which writes two real, *user-owned* demo
-buildings through the normal pipeline (Nordostpark 84 and Lange Gasse 20, Nürnberg;
-coordinates geocoded at seed time via Nominatim). The two carry energy at
-**different granularities** so a new user sees both loader shapes: Nordostpark has
-an inline annual (`P1Y`) SOSA aggregate; Lange Gasse a 15-minute (`PT15M`)
-load-profile series. Declining persists in `prefs.ttl` as `gran:demoSeedDeclined`,
+container at all) is *offered* the demos via a dismissible banner (`useDemoOffer`
+in `queries.ts`); choosing "Add examples" calls `seedDemoBuildings(gateway, webId)`,
+which writes four real, *user-owned* demo buildings through the normal pipeline (all
+in Nürnberg, coordinates geocoded at seed time via Nominatim). The set spans every
+loader shape and panel state a new user should see: **Nordostpark 84** — an inline
+annual (`P1Y`) SOSA aggregate, self-operated, the full investor panel;
+**Hafenstraße 12** — annual but *not* self-operated, so no investor panel;
+**Lange Gasse 20** — *both* shapes (annual + a 15-minute `PT15M` series → the
+Annual | Time series toggle); **Pirckheimerstraße 68** — a `PT15M` series only (no
+annual, no toggle). Declining persists in `prefs.ttl` as `gran:demoSeedDeclined`,
 so the banner doesn't nag on every login. Nothing is seeded silently.
 
 Origins (all via `podResources(webId)` unless noted): prefs `prefs.ts`; bookmarks
 `bookmarks.ts`; buildings/energy `buildingSerializer.ts`; own-building discovery +
-shared-fold `TurtleParsingService.ts`; views `viewManager.ts`; rooms `dataRoom.ts`;
+shared-fold `TurtleParsingService.ts`; aggregations `aggregationManager.ts`; rooms `dataRoom.ts`;
 sharing logs `sharingLog.ts` / `sharingManager.ts` / `inbox.ts`; org node + logo
 (`profile/`) `organizationManager.ts`.
 
-**Removal.** Two levels, both in the building pane / account menu:
+**Removal.** Two levels, both on the building page / account menu:
 - *Hide* (`toggleHiddenBuilding`) — adds/removes a `gran:hiddenBuilding` entry in
   `prefs.ttl`; non-destructive. The only option for a building *shared from another
   pod* (you can't delete someone else's resource).
-- *Delete* (`deleteBuilding`, owned buildings only) — recursively deletes its
-  `buildings/<id>/…` energy subtree, then the building file. No registry to update —
-  the container listing reflects the deletion immediately. Guards against touching
-  anything outside the user's own storage root.
+- *Delete* (`deleteBuilding`, owned buildings only) — deletes each linked observation
+  dataset (and a series' daily chunks) under `observations/`, then the building file.
+  No registry to update — the container listing reflects the deletion immediately.
+  Guards against touching anything outside the user's own storage root.
 - *Remove all app data* (`removeAppData`) — `deleteContainerRecursive` over the whole
-  `granergize/` tree (buildings, energy, views, sharing logs, rooms, prefs). It
+  `granergize/` tree (buildings, observations, aggregations, sharing logs, rooms, prefs). It
   **stays logged in**, leaving a fresh, empty `granergize/`: the app resets its query
   caches, re-hydrates the (now absent) active room, and re-offers the demo buildings.
   `profile/` (incl. the org logo) is outside the tree and kept. Container deletion is
@@ -176,9 +183,11 @@ that node is the only one we can write (holds name/logo/homepage); a supplied or
 WebID is recorded as `owl:sameAs`.
 
 Distinct from **building agents** (`bldg:investor` / `rec:operatedBy` /
-`schema:customer` → agent IRIs), which the building parser dereferences for
-`schema:name` only. There is no separate agent data source on the Pod (the old
-unused `agents.ttl` registry source is gone).
+`schema:customer` → agent IRIs), which are dereferenced **on demand** by the agent
+resolver (`resolveAgent` / `resolveAgentOrg`) for a name, logo and contact details —
+driving the producer/operator org name + logo in the map marker's hover card. There
+is no separate agent data source on the Pod (the old unused `agents.ttl` registry
+source is gone).
 
 ## Load flow
 
@@ -202,13 +211,6 @@ city only). The parser prefers this point but still reads a legacy *flat*
 `geo:lat`/`geo:long` on the building subject as a fallback (and `buildingSerializer`
 migrates the flat form to the point on edit).
 
-## Known gaps
-
-- **Org logo read authenticated**: the avatar fetches `foaf:logo` as the logged-in
-  user. Other users / map markers would need a public-read ACL — not set today.
-- **Agents minimal**: only `schema:name` is parsed. The user's `#org` is the first
-  real org node; building agents need the same treatment to drive marker logos.
-
 ## Rationale
 
 **One root.** All app data hangs off a single `<storageRoot>granergize/` tree via
@@ -226,7 +228,7 @@ PUT adds a building, so a listing can't lag. See the *Tree* above and the storag
 rationale in [`queries-mutations.md`](./queries-mutations.md).
 
 **Storage root the Solid way.** The root is resolved from `<webId> pim:storage <root>`
-in the WebID doc (`resolveStorageRoot(session)`, once at login, cached), not by
+in the WebID doc (`resolveStorageRoot(gateway)`, once at login, cached), not by
 string-munging the WebID origin up to `/profile/` — that munge breaks for
 off-`/profile/` or separately-hosted WebIDs. It throws if the profile declares no
 `pim:storage` (no fallback). Scope is the storage *root* only — within-Pod paths stay

@@ -4,15 +4,17 @@ Two layers: §1 the RDF graph dangling off the building IRI on the Pod; §2 the
 typed projection the detail renders (a whitelist, not a triple browser). §3 maps each
 row/action back to its Pod file, keyed against
 [`storage-layout.md`](./storage-layout.md). Source: `buildingParser.ts`,
-`config/buildingConfig.ts`. The same projection backs both the standalone
-`/building/:id` detail page and the map's embedded detail pane.
+`config/buildingConfig.ts`. The same projection backs the standalone `/building`
+detail page (`Building.tsx`); the map and List are pure finders that navigate here —
+there is no embedded detail pane.
 
 ## Subordinate resources (no detail page of their own)
 
 Not every resource that hangs off a building is **first-class** in the UI. A
-first-class resource has its own route/detail page — the building (`/building/:id`),
-an agent (`/agent/:hash`), an aggregated view (`/view/:id`), a data room
-(`/room/:uri`). A **subordinate resource** has none: it is always rendered
+first-class resource has its own route/detail page — the building (`/building`),
+an agent (`/contact`), an aggregation (`/aggregation`), a data room (`/room`), each
+carrying its resource id as a `?ref=`/`?uri=` query param. A **subordinate
+resource** has none: it is always rendered
 *attached to its parent* (here, inside the building detail), never navigated to on
 its own.
 
@@ -45,8 +47,9 @@ Subordinate to the building:
   (blank nodes, or fragment URIs `<…#oc>`/`<…#cert1>` if an addressable identity is
   wanted).
 - **Energy observation collections** — first-class resources at top-level
-  `observations/{year}/…` (their own URIs), but the UI renders them only as the
-  building's energy tab/charts; there is no observation page.
+  `observations/{year}/…` (their own URIs), rendered only on the building's
+  observation/energy page (`/observation`); an individual observation collection
+  has no page of its own.
 
 Rule of thumb: if it describes *part of* a building rather than a standalone thing a
 user would navigate to and act on, model it as a component/attachment and render it
@@ -60,20 +63,21 @@ schema and the profiles that dance around it are framed in
 
 "View" / "projection" here is the **UI** sense — a live, render-time projection
 recomputed from the in-memory parsed triples on every render, persisted nowhere. It is
-**not** a materialised view. The app's materialised views — persisted, point-in-time
-computed snapshots that are recomputed explicitly — are the unrelated **aggregated
-views** feature in [`aggregated-views.md`](./aggregated-views.md), which merely shares the word.
+**not** a materialised view. The app's materialised projections — persisted,
+point-in-time computed snapshots that are recomputed explicitly — are the unrelated
+**aggregations** feature in [`aggregations.md`](./aggregations.md).
 
 ## 0. The root
 
 `building.uri` = the marker's RDF subject (`buildingParser.ts` Pass 1,
 `quad.subject.value`). `building.sourceUri` = the source file URI
 (`quad.graph.value`). `building.id` is derived from the IRI tail (not a triple).
-`building.provenance` / `attributedTo` (from the file's PROV qualified attribution,
-read in `buildingParser.ts`) and `building.isShared` (set in
-`TurtleParsingService.ts` — own buildings live under the storage root, shared ones
-don't) are derived during parsing, not surfaced as graph rows. The URI shows
-verbatim atop the pane; everything below is processed.
+`building.attributedTo` (from the file's PROV qualified attribution, read in
+`buildingParser.ts`) and `building.isShared` (set in `TurtleParsingService.ts` — own
+buildings live under the storage root, shared ones don't) are derived during parsing,
+not surfaced as graph rows. The backing-document URI shows atop the page as a dev-only
+source link (`RdfSourceLink`, self-hiding outside Developer mode); everything below is
+processed.
 
 ## 1. RDF graph off the building URI
 
@@ -93,10 +97,11 @@ verbatim atop the pane; everything below is processed.
 │     companyName; hasOil/Gas/Electric/HeatPump/DistrictHeating (bool)
 ├── building-vocab IRI-valued (objectPropertyMap → relabelled local name)
 │     shiftRegime, tenancyType, indoorTemperatureClass  (e.g. #OneShift→"1-Shift")
-├── cons:hasEnergyDataset → <energy/<year>-<gran>[-planned].ttl#ds>  (repeatable)
+├── cons:hasEnergyDataset → <../observations/<year>/<id>.ttl#ds>  (repeatable)
 │     One `cons:EnergyDataset` per (building, year, granularity, scenario), each its
-│     own file; the slug is self-describing, so `parseDatasetSlug` derives
-│     {year, granularity, scenario} from the URI WITHOUT fetching (model: see
+│     own first-class resource under observations/; the link IRI is opaque, so the
+│     building file **re-states** {year, granularity, scenario} about each dataset node
+│     and `parseEnergyDatasetRefs` reads them WITHOUT fetching the dataset (model: see
 │     `energy-model.md`). ⇒ building.energyDatasets[] (EnergyDatasetRef[]); phase 1
 │     reads only the links, bodies fetched in phase 2 (annual) / lazily on click (series).
 ├── bldg:hasOperatingCosts → _:oc  ⇒ building.operatingCosts
@@ -115,42 +120,47 @@ inline `sosa:ObservationCollection` observations, a series (PT15M) points at dai
 files. Full dataset body model in `energy-model.md`.
 
 Any predicate not in `predicateMap`/`objectPropertyMap` (or any unhandled
-blank-node shape) is parsed by n3 but never attached — it never reaches the pane.
+blank-node shape) is parsed by n3 but never attached — it never reaches the page.
 
-## 1b. Pane container (`ExplorePage.tsx` right grid)
+## 1b. The building page (`Building.tsx`)
 
-Clicking a marker calls `focusBuilding(id)`, resetting a **focus trail** (nav
-stack). The right grid renders the last entry:
-
-```
-└── currentBuilding →
-      identity header (persistent across tabs): icon, "Building {id}",
-        streetAddress / postalCode locality, region, <building URI> (UriLink),
-        enlarge/shrink toggle
-      Tabs: [Building data] [Energy data] [Weather data]
-        tab 0 → <Building embedded hideHeader>  (§2)
-        tab 1 → by data shape: annual datasets present → <AnnualEnergy> (its
-                 columns/charts/master-data block derive from the data carried);
-                 declared series / selected energy → <Energy>; else "No energy data"
-        tab 2 → <WeatherData>
-```
-
-An agent reference (`onNavigateAgent`) pushes an agent entry onto the trail;
-selecting a new marker replaces it. `hideHeader` makes the card drop its own header
-+ URI line (shown here instead); the card renders them only on the standalone
-`/building/:id` route. Pane height is flex-driven (`IndexPage` 100vh column; tab
-bar/footer `flexShrink:0`; content `flexGrow:1; minHeight:0`; right cell `height:
-100%; overflow:auto`) — fills leftover height, scrolls internally.
-
-## 2. View model (BuildingType) → card
-
-`Building.tsx`, using `detail/DetailView.tsx` primitives. Order:
+Reached at `/building?ref=…` (own) / `?uri=…` (shared) — the map and List finders
+navigate here on a marker/row click. The page is a single scrolling column of
+sections (`Stack` with dividers), each a sub-widget for one aspect of the building:
 
 ```
-header (unless hideHeader): icon, "Building {id}", streetAddress / locality
-<building URI>   (UriLink; only when !hideHeader)
-Source: <sourceUri>   (UriLink; when present)
-Customer / Operated By / Investor   (agent RefLink → /agent/<hash>)
+└── Building.tsx
+      BuildingHeader            breadcrumb back to the list, name + address, the
+                                producing-org attribution (`attributedTo`), an
+                                owned/shared badge, a locator thumbnail, and the
+                                backing-document URI as a dev-only source link
+      MasterDataSection         §2 — read-first master data + inline Edit
+      EnergySystemsSection      PV / battery / CHP technical systems
+      EnergySummarySection      compact energy summary + sparkline → the full
+                                energy page (`/observation`)
+      BuildingFilesSection      files: inline upload / download / mark-as-certificate
+      SharingSection            who it's shared with + revoke + a Share dialog
+      StandortEnergieprofil ·   nearby MaStR generation + regional context, the roof
+        RoofPlan ·              plan and neighbourhood/regional open-data context
+        NeighbourhoodEnergyMap ·   (read-only, no Pod action)
+        RegionalStatistics
+```
+
+Every action is **inline on the page**; modals survive only for Share and for
+destructive confirmations (revoke / file delete). Energy and weather are **not** tabs
+here — they live on the building's observation page (`/observation`, the `Energy` /
+`AnnualEnergy` + `WeatherData` surfaces), which `EnergySummarySection` links to. A
+palette-routed `?action=edit|share` opens the matching section's editor/dialog on
+mount.
+
+## 2. Master-data card (BuildingType → `MasterDataSection`)
+
+`MasterDataSection`, using `detail/DetailView.tsx` primitives. Order:
+
+```
+(the identity header — icon, name, address, URI — is BuildingHeader's, §1b)
+Source: <sourceUri>   (backing-document link; when present)
+Customer / Operated By / Investor   (agent RefLink → `/contact?uri=<webid>`)
 Type (UriLink); Coordinates (→ OpenStreetMap); Building/Land/Office Area (m²);
 Has PV System (✓/✗); Year of Construction; NACE Code (→ nacecode.de);
 Energy Certificate (→ "pdf")
@@ -159,9 +169,10 @@ if investor/benchmark predicates present (hasInvestorDetails, not role):
 ```
 
 Rows are conditional (`hasValue` / `!= null`) — absent fields don't render.
-`energyDatasets`/`annualData` drive the chart tabs, not this card. The card itself
-is now **view-only** — it carries no Edit/Share/upload buttons; those owner-only
-actions live on the **Manage** tab (`ManagePage.tsx`).
+`energyDatasets`/`annualData` drive the energy summary + the `/observation` page, not
+this card. The card has an **inline Edit** (`useUpdateBuilding`, no modal); the other
+owner actions (files, share, hide) live in the sibling sections of the same page —
+there is no separate Manage tab.
 
 ## 3. Row ↔ file ↔ action
 
@@ -182,17 +193,19 @@ core datatypes, investor/benchmark blocks   same building file
 Energy Certificate / Files         link in building file; bytes in <dir>/files/ container
 §Certifications / §Operating Costs blank nodes in the building file
 energy charts (energyDatasets)     one cons:EnergyDataset file per (building, year,
-                                   granularity, scenario) under buildings/<id>/energy/
-                                   (slug + bodies: see energy-model.md)
+                                   granularity, scenario), time-first under
+                                   observations/<year>/<id>.ttl (model: energy-model.md)
 ```
 
-Agent rows render only the IRI fragment + a `RefLink`; the legacy agents data
-source in `dataSources.ttl` was removed, so agent attributes (`schema:name`) no
-longer load (the field is kept empty for the back-compat return shape).
+Agent rows show the resolved agent name (the IRI fragment as fallback) + a `RefLink`
+to `/contact`; the agent is resolved **lazily** from its own profile by the agent
+resolver (name + logo, `resolveAgent`/`resolveAgentOrg`), not from any building-local
+triple — there is no separate agents source on the Pod (the legacy `dataSources.ttl`
+was removed).
 
 ### 3b. Actions (all fetch-fresh → patch n3 Store → PUT whole file; owner-only)
 
-- **Edit** (`EditBuildingDialog` → `updateBuilding`, `buildingSerializer.ts:529`):
+- **Edit** (inline in `MasterDataSection` → `useUpdateBuilding` → `updateBuilding`):
   PUTs the building file, patching scalar fields via inverse
   `predicateMap`/`objectPropertyMap`; blank-node structures preserved. Scope:
   address, lat/long (+ Nominatim geocode), areas, year, `operatedBy` (raw WebID),
@@ -200,28 +213,28 @@ longer load (the field is kept empty for the back-compat return shape).
   `SKIP_FIELDS` (shown but
   not editable): `customer`, `investor`, `type`, `naceCode`, `energyCertificate`,
   and the array/object fields.
-- **Files / energy certificate** (`FilesDialog` → `uploadAttachment` /
-  `setEnergyCertificate`, `attachmentManager.ts`): PUTs each file to the per-building
-  `files/` container, then PUTs the building file with the refreshed
-  `bldg:hasAttachment` / `bldg:hasEnergyCertificate` link (see `attachments.md`). This
-  and the per-year **Add / edit energy year** action (`EnergyYearDialog`) are
-  per-building row actions on the **Manage** tab (`ManagePage.tsx`) — the map's detail
-  pane is view-only.
+- **Files / energy certificate** (inline in `BuildingFilesSection` →
+  `uploadAttachment` / `setEnergyCertificate`, `attachmentManager.ts`): PUTs each file
+  to the per-building `files/` container, then PUTs the building file with the refreshed
+  `bldg:hasAttachment` / `bldg:hasEnergyCertificate` link (see `attachments.md`). The
+  per-year **Add / edit energy year** action (`EnergyYearDialog`, the `SaveObservation`
+  intent) is likewise inline on the page via `EnergySummarySection` — there is no
+  separate Manage tab.
 - **Share** (`ShareBuildingDialog`): doesn't change building data — grants ACL read
   (`.acl`) and writes append-only `shared-out/`/`shared-in/` event logs
   (`interop/sharingLog.ts`). Event-log model (fold, revocation): see `sharing.md`.
 - **Hide**: the persistent list is `gran:hiddenBuilding` in `prefs.ttl`
   (`prefs.ts`, `toggleHiddenBuilding`), folded into `readPrefs().hiddenBuildings`.
 
-After Edit / certificate upload / energy-year edit the card invalidates the building
-data, re-running the load flow (`storage-layout.md`).
+After Edit / certificate upload / energy-year edit the mutation invalidates the
+building data, re-running the load flow (`storage-layout.md`).
 
 ### 3c. Gaps
 
 - **Read ⊋ write**: agent links, `type`, `naceCode`, certifications, operating costs
-  render in the pane but aren't editable here (only authored via XLSX import,
-  `AddBuildingDialog`). The energy certificate and per-year energy *are* writable,
-  but via the **Manage** tab's row actions, not this pane.
+  render on the page but aren't editable here (only authored via XLSX import,
+  `AddBuildingDialog`). The energy certificate and per-year energy *are* writable
+  inline on the page.
 
 ## Sub-widgets as affordance surfaces (intents)
 
@@ -251,24 +264,25 @@ and the palette gets them for free.
 
 ## Relation to the role/shape model
 
-The card and energy tab dispatch on the data, not a role (the model is owned by
-[`data-schema.md`](./data-schema.md)): `Building.tsx` renders whatever predicates are
-present (`hasInvestorDetails`) — "the fields this building has," not a per-role block —
-and the energy tab dispatches on the dataset's declared shape (`annualData` /
-`cons:granularity`), so one building can show both a PT15M time-series and a P1Y annual
-chart. Provenance (`building.provenance` / `attributedTo`) is deliberately **not** shown
-as a UI badge and the map marker no longer varies by it — it lives in the data, not the
-chrome.
+The card and energy surfaces dispatch on the data, not a role (the model is owned by
+[`data-schema.md`](./data-schema.md)): `MasterDataSection` renders whatever predicates
+are present (`hasInvestorDetails`) — "the fields this building has," not a per-role
+block — and the energy surfaces dispatch on the dataset's declared shape (`annualData`
+/ `cons:granularity`), so one building can show both a PT15M time-series and a P1Y
+annual chart. Provenance (`building.attributedTo`) is the producing agent only (no
+role): it surfaces as the producer-org name + logo in the header and the map marker's
+hover card (the "Data source" row), but it drives no role badge and the marker's
+owned/shared distinction does not vary by it.
 
 Still open:
 
 - **REC-aligned labels.** Where master-data predicates map to REC
   (`data-schema.md` "Relation to REC"), the row labels/links could point at the REC
-  term, making the pane's external links (`UriLink`) resolve to a real ontology.
-- **§3c gaps.** The certificate upload and per-year energy entry are now wired (on
-  the Manage tab). Still open: either make the pane's read-only rows
+  term, making the page's external links (`UriLink`) resolve to a real ontology.
+- **§3c gaps.** The certificate upload and per-year energy entry are now wired inline
+  on the page. Still open: either make the read-only rows
   (`customer`/`investor`/`type`/`naceCode`) editable or mark them explicitly
   read-only rather than silently un-editable.
 
-> Open: no faithful "raw RDF for this building" view exists — the pane is the
+> Open: no faithful "raw RDF for this building" view exists — the page is the
 > whitelisted projection above.

@@ -3,6 +3,19 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-23]
+- **Design notes + `CLAUDE.md` swept current with the redesign (docs-only, no code change).**
+  Brought the whole `notes/` corpus and `CLAUDE.md` back in line with the code, resolving four
+  systemic drifts the redesign had left in the docs: the **view→aggregation** rename (incl.
+  `notes/aggregated-views.md` → `aggregations.md` + every inbound link); the **UI redesign**
+  (`HashRouter`→`BrowserRouter` under a `basename`; the 4-tab shell → six finder routes;
+  `ManagePage`/`SharePage`/`ConnectPage`/`ExplorePage` gone; the map detail-pane → standalone
+  `/building`·`/observation`·`/aggregation` pages carrying the id as `?ref=`/`?uri=`); the
+  **time-first observations** storage (`buildings/<id>/energy/<year>-<g>.ttl` →
+  `observations/{year}/<id>.ttl` + daily chunks, metadata re-stated in the building's links);
+  and the **`session`→`PodGateway`** transport (`getGateway()`, `resolveStorageRoot(gateway)`, …).
+  Also rewrote the `ux-overview` Graphviz/Mermaid diagrams (Observations promoted to a 4-guise
+  energy cube; the Buildings map is geo-only), refreshed the building-detail / data-schema /
+  energy-model models, and enforced the project's URI/IRI-not-URL wording throughout.
 - **E2E hermeticity + flake fixes (test-only).** The redesign's regional/open-data tiers fire many
   external GETs per map load that no spec asserts; the `e2e:local` lane now stubs them at page
   creation (`stubExternalData`/`stubBasemapTiles`): the `wunderfacts.com` open-data wrappers

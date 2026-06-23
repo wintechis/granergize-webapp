@@ -37,14 +37,15 @@ constants and types.
 
 **Entry & providers.** `main.tsx` mounts the provider stack
 (`NotificationProvider` → `QueryProvider` → app) and wraps the session's `fetch` at
-login; `App.tsx` owns the `HashRouter` routes and the session gate; `theme.ts` holds the
-MUI theme. The auth/login flow these set up is described in CLAUDE.md (Data flow §1).
+login; `App.tsx` owns the `BrowserRouter` routes (under a subpath `basename`) and the
+session gate; `theme.ts` holds the MUI theme. The auth/login flow these set up is described in CLAUDE.md (Data flow §1).
 
-**Pages** (`src/pages/`). One route-driven screen each — the tab shell (`index.tsx`),
-the map (`ExplorePage`), the energy and building detail routes (`Energy`, `Building`),
-sharing/manage/connect. Pages compose hooks and components; they never import each other.
-Navigational state (which tab, which building) is URI-encoded — see
-[`ui-state.md`](./ui-state.md).
+**Pages** (`src/pages/`). One route-driven screen each — the app shell
+(`AppShell.tsx`), the collection finders (`BuildingsFinder`, `ObservationsFinder`,
+`AggregationsFinder`, `SharingFinder`, `ContactsFinder`, `RoomsFinder`), and the
+standalone detail pages (`Building`, `Energy`, `Aggregation`, …). Pages compose hooks
+and components; they never import each other. Navigational state (which finder, which
+building) is URI-encoded — see [`ui-state.md`](./ui-state.md).
 
 **Components** (`src/components/`, `src/components/detail/`). Reusable, mostly stateless
 widgets, deliberately a small shared vocabulary rather than one-offs: the `Modal` dialog
@@ -55,7 +56,8 @@ typography) are the UI-conventions section of CLAUDE.md.
 **Data-access layer** (`src/hooks/`, `src/context/`). React Query is the seam between UI
 and services: read hooks in `queries.ts`, write hooks in `mutations.ts`, the single
 `QueryClient` and central error routing in `context/QueryProvider.tsx`, and the
-`getSession()` singleton the hooks read their transport from. This is the boundary the
+`getGateway()` transport the hooks hand to services (a flat `PodGateway` wrapping the
+`getSession()` session singleton). This is the boundary the
 query/mutation split is named for — see [`queries-mutations.md`](./queries-mutations.md). UI gets Pod
 data only through this layer. React Query caches by an app-chosen *query key* (not by
 resource IRI) and is transport-agnostic — it neither tracks Pod resources nor observes
@@ -64,14 +66,14 @@ affects.
 
 **Services** (`src/services/`). The domain logic the hooks call. The multi-file domains
 keep a **folder** — `interop/` (sharing, data rooms, inbox), `aggregation/` (computes and
-persists views), `organization/` (org node + avatar), `agents/` (WebID→identity resolution
+persists aggregations), `organization/` (org node + avatar), `agents/` (WebID→identity resolution
 and cross-building appearances) — while single-resource units are **flat modules** beside
 `TurtleParsingService` (the root load-and-parse orchestrator): `contacts`, `bookmarks`,
 `prefs`, `attachmentManager`, `buildingActions` (the delete-orchestration helper), and
 `geocode` (external geocoding). A folder marks a sub-domain with several collaborating
 files, not a one-file-per-Pod-resource mirror; a single owned resource is just a module.
 The storage models and projection disciplines live here — see [`queries-mutations.md`](./queries-mutations.md),
-[`sharing.md`](./sharing.md), [`room.md`](./room.md), and [`aggregated-views.md`](./aggregated-views.md). These
+[`sharing.md`](./sharing.md), [`room.md`](./room.md), and [`aggregations.md`](./aggregations.md). These
 domains are siblings: none imports another — cross-domain composition happens a layer up,
 in hooks or pages — and all rest on the Pod I/O and RDF layers below. The one sanctioned
 cross-service edge is `buildingActions`, which composes `interop/` to revoke a building's
@@ -126,8 +128,9 @@ subset of that server state is really *application* state that is stored **on th
 Pod** because it is a property of the account, not of any page or device: `prefs.ttl`
 (active room, hidden buildings, banner dismissal) and `bookmarks.ttl`. It flows
 through the same cache and mutation hooks as any other Pod resource, but it outlives
-the tab, the browser and the machine. Durable *navigational* state (which tab, which
-building) is encoded in the **URI hash** so it survives a reload and is shareable.
+the tab, the browser and the machine. Durable *navigational* state (which finder, which
+building) is encoded in the **URI** — the `BrowserRouter` path plus its query params —
+so it survives a reload and is shareable.
 **Module-level client stores** sit outside React entirely and live for the tab:
 the session singleton (`getSession()`), the active-room mirror (`dataRoom.ts`), the
 per-WebID storage-root and profile caches, and the network-activity store; the
@@ -182,8 +185,8 @@ easy to violate:
 - **`interop/` and `aggregation/` stay independent.** Cross-domain composition happens a
   layer up (in hooks or pages), not by one service package importing the other.
 
-The single structural exception is the pair of queries that hide a mutation
-(`loadBuildings`, `drainInbox`) — documented as seams in
+The single structural exception is the queries that hide a mutation
+(`loadBuildings`, `drainInbox`, `useAggregationDetail`) — documented as seams in
 [`queries-mutations.md`](./queries-mutations.md) (§Seams), not repeated here.
 
 ## Packages & runtime
@@ -202,12 +205,13 @@ map live in `deno.json`. The external packages, by the role they play:
 - **`xlsx`** — XLSX import/export of building data.
 
 The build is **Vite**; because the app is served from a host subpath, `vite.config.ts`
-sets `base: "./"` and routing uses `HashRouter` (CLAUDE.md, Deployment). Versions are
-intentionally omitted here — `deno.json` is their source of truth.
+sets `base: "./"` (relative asset URIs) and routing uses `BrowserRouter` under a
+`basename`. Versions are intentionally omitted here — `deno.json` is their source of truth.
 
 ## Tests
 
-Tests sit alongside this structure rather than in it: a four-tier ladder from a hermetic
-unit suite up to real-Pod browser specs, documented in [`test/README.md`](../test/README.md).
-Tier-1 unit tests live next to the code they cover (`src/**/*.test.ts`); the higher tiers
-live under `test/`.
+Tests sit alongside this structure rather than in it: a foundation placed on three
+orthogonal axes (kind × backend × mode), from a hermetic unit suite up to real-Pod
+browser specs, documented in [`test/README.md`](../test/README.md). The `unit:local`
+tests live next to the code they cover (`src/**/*.test.ts`); the higher kinds
+(`headless`, `e2e`) live under `test/`.

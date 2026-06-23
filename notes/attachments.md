@@ -44,7 +44,7 @@ directly on the race-safe `readModifyWrite` (`podWrite.ts`):
 - `deleteAttachment` — DELETE the binary; drop the link + metadata (and clear the
   cert flag if it pointed there).
 - `setEnergyCertificate` — set/clear `bldg:hasEnergyCertificate` (one file at a time).
-- `fetchAttachmentBlob` — authed `session.fetch` → `Blob` (works for recipients too).
+- `fetchAttachmentBlob` — authed `gateway.fetch` → `Blob` (works for recipients too).
 
 Parsing (`buildingParser.ts`) reads `bldg:hasAttachment` + metadata into
 `BuildingType.attachments` (`AttachmentRef[]`), flags the certificate, and
@@ -70,20 +70,23 @@ intact — no change there.
 
 ## UI
 
-- `FilesDialog` (in `BuildingDialogs.tsx`, replaces the energy-certificate dialog):
+- `BuildingFilesSection` (`components/building/`): the files section on the building
+  **detail page** (`Building.tsx`), where management is **inline** (no dialog) —
   multi-file upload, download, delete, mark-as-certificate; soft-cap **warnings**
-  (~25 MB/file, ~20 files) — not hard limits. Opened from the Manage row **Files**
-  action.
-- `components/detail/FilesSection.tsx`: read-only list + authenticated blob
-  download (the recipient's own session via `getSession()`, so it works cross-Pod).
-  Used in the building detail pane AND on the **Share tab** — each shared-building
-  row lazily loads the building (`SharedBuildingFiles` in `SharePage.tsx`) and
-  renders the section, so a recipient downloads shared files directly from there.
+  (~25 MB/file, ~20 files), not hard limits. For a recipient (a shared building) it is
+  read-only (download only — the recipient can't write the owner's container). The
+  finder rows route here via `?action=…` (Edit / Files / energy / share / download all
+  open the detail page).
+- `components/detail/FilesSection.tsx`: the read-only list + authenticated blob-download
+  primitive (the authed transport via `getGateway()`, so it works cross-Pod), composed
+  by `AttachmentInfo` / `BuildingFilesSection`. A recipient downloads shared files from
+  the shared building's own detail page (reached from the Sharing / Buildings finder
+  rows), not from a separate list.
 
 ## Out of scope / deferred
 
-Inline image/PDF previews; attachment versioning; attachments on shared **views**;
-removing the legacy `buildings/certificates/` folder. **Contributor uploads**
+Inline image/PDF previews; attachment versioning; attachments on shared
+**aggregations**; removing the legacy `buildings/certificates/` folder. **Contributor uploads**
 (others adding files, not just the owner) are deferred — they'd need an append-only
 contributions container (the data-room/inbox `acl:Append` + list-to-discover
 pattern), since others can't write the owner's single-writer building TTL.

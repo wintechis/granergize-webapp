@@ -123,8 +123,8 @@ State is re-derived from the Pod on every read, so it survives restarts.
 
 Open self-enrollment is an **ACL property of the container**, not app logic; restrict
 by narrowing the ACL (out-of-band). The log is member-writable, so `as:actor` is a
-**claim** the app sets to `session.info.webId` but cannot enforce — acceptable while
-roles are low-stakes; gate admission if a role ever gates real data.
+**claim** the app sets to the caller's `gateway.webId` but cannot enforce — acceptable
+while roles are low-stakes; gate admission if a role ever gates real data.
 
 ## Relationship to sharing
 
