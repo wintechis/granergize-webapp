@@ -118,4 +118,44 @@ test.describe("redesign: contact page", () => {
     await expect(page.getByRole("heading", { name: NEW_NAME }))
       .toBeVisible({ timeout: T.action });
   });
+
+  test("classify a contact as an organisation and edit its org fields", async () => {
+    test.setTimeout(T.testSolo);
+    const ORG_WEBID = "https://contact-org-e2e.example/profile/card#Acme";
+    const ORG_NAME = "ACME Logistik GmbH";
+    const ORG_HOMEPAGE = "https://acme-logistik.example/";
+
+    // Add the agent (defaults to a person — the .example profile is unreachable, so no
+    // rdf:type resolves), then open the inline editor.
+    await page.goto(contactRoute(ORG_WEBID));
+    await page.getByRole("button", { name: t("contactAddToContacts"), exact: true })
+      .click();
+    const editBtn = page.getByRole("button", { name: t("btnEdit"), exact: true });
+    await expect(editBtn).toBeVisible({ timeout: T.action });
+    await editBtn.click();
+
+    // Re-classify as an organisation → the name field becomes "Company name" and the
+    // org-only homepage / cross-reference fields appear.
+    await page.getByRole("button", { name: t("contactKindOrganisation"), exact: true })
+      .click();
+    await page.getByLabel(t("lblCompanyName"), { exact: true }).fill(ORG_NAME);
+    await page.getByLabel(t("lblHomepageUri"), { exact: true }).fill(ORG_HOMEPAGE);
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
+
+    // The org view: the company name as the heading + the curated homepage row.
+    await expect(page.getByRole("heading", { name: ORG_NAME }))
+      .toBeVisible({ timeout: T.action });
+    await expect(page.getByText(ORG_HOMEPAGE).first()).toBeVisible();
+
+    // Re-open → kind + name + homepage round-trip from the local record in contacts.ttl.
+    await page.goto("/");
+    await page.goto(contactRoute(ORG_WEBID));
+    await expect(page.getByRole("heading", { name: ORG_NAME }))
+      .toBeVisible({ timeout: T.action });
+    await expect(page.getByText(ORG_HOMEPAGE).first()).toBeVisible();
+    // It stayed an organisation: re-editing opens with the org-only fields present.
+    await page.getByRole("button", { name: t("btnEdit"), exact: true }).click();
+    await expect(page.getByLabel(t("lblHomepageUri"), { exact: true }))
+      .toBeVisible({ timeout: T.action });
+  });
 });

@@ -12,6 +12,7 @@ import {
   FOAF_NAME,
   ORG_MEMBER_OF,
   OWL_SAME_AS,
+  RDF_TYPE,
   VCARD_COUNTRY_NAME,
   VCARD_FN,
   VCARD_HAS_ADDRESS,
@@ -38,6 +39,16 @@ export interface ResolvedAgent {
   webId: string;
   name?: string;
   avatarUrl?: string;
+  /**
+   * Whether the agent's own profile types it as a person or an organisation
+   * (read from `rdf:type`: `foaf:Person`/`vcard:Individual` → person,
+   * `foaf:Organization`/`vcard:Organization`/`org:Organization` → organisation).
+   * Undefined when the profile is unreachable or states no recognised type — the
+   * caller treats that as a person (correctable via a local contact record).
+   */
+  kind?: "person" | "organisation";
+  /** An organisation agent's own `foaf:logo`, distinct from a person's `avatarUrl`. */
+  logoUrl?: string;
   /** One-line postal address assembled from the `vcard:hasAddress` node. */
   address?: string;
   email?: string;
@@ -115,6 +126,27 @@ function readAddress(store: Store, subject: string): string | undefined {
   return parts.length > 0 ? parts.join(", ") : undefined;
 }
 
+/**
+ * Classify an agent as person vs organisation from its `rdf:type` values. An
+ * organisation type (`…Organization`/`…Organisation`) wins over a person type
+ * (`…Person`/`…Individual`); a profile carrying neither — but a `foaf:logo` — is
+ * treated as an organisation. Returns undefined when nothing distinguishes it, so
+ * the caller can apply its own default (person).
+ */
+function resolveKind(
+  store: Store,
+  webId: string,
+): ResolvedAgent["kind"] {
+  const types = objects(store, webId, RDF_TYPE);
+  const isOrg = (t: string) =>
+    t.endsWith("Organization") || t.endsWith("Organisation");
+  const isPerson = (t: string) => t.endsWith("Person") || t.endsWith("Individual");
+  if (types.some(isOrg)) return "organisation";
+  if (types.some(isPerson)) return "person";
+  if (firstObject(store, webId, FOAF_LOGO)) return "organisation";
+  return undefined;
+}
+
 /** The local name of a WebID (fragment after `#`, else the last path segment). */
 export function webIdFragment(webId: string): string {
   const hash = webId.split("#")[1];
@@ -149,6 +181,8 @@ export async function resolveAgent(
     firstObject(store, webId, VCARD_FN) ?? fallbackName;
   const avatarUrl = firstObject(store, webId, FOAF_IMG) ??
     firstObject(store, webId, VCARD_HAS_PHOTO);
+  const kind = resolveKind(store, webId);
+  const logoUrl = firstObject(store, webId, FOAF_LOGO);
 
   // Contact facts: standard vCard/FOAF first, then the MaStR wrapper's own
   // predicates as a fallback (it emits #Email/#Telefon/#Webseite, not vcard:*).
@@ -167,7 +201,9 @@ export async function resolveAgent(
   return {
     webId,
     name,
+    ...(kind ? { kind } : {}),
     ...(avatarUrl ? { avatarUrl } : {}),
+    ...(logoUrl ? { logoUrl } : {}),
     ...(address ? { address } : {}),
     ...(email ? { email } : {}),
     ...(phone ? { phone } : {}),

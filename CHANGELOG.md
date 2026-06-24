@@ -3,6 +3,17 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-24]
+- **Contacts distinguish people from organisations, and org-contacts are editable.** A contact
+  was a flat `{ webId, name?, avatarUrl? }` — nothing said whether the agent was a person or an
+  organisation, and only the stored name could be edited. The address-book member now carries a
+  `kind` (`rdf:type` `vcard:Individual` vs `vcard:Organization`), defaulted from the agent's own
+  profile (`foaf:Person`/`foaf:Organization` → `ResolvedAgent.kind`, with a `foaf:logo` heuristic)
+  and re-classifiable in the contact page's inline editor. For an **organisation** the editor adds
+  a homepage (`vcard:hasURL`) and a cross-reference (`owl:sameAs`, e.g. a Wikidata entity), and the
+  page shows the org icon, the resolved `foaf:logo`, and those fields. Because an agent's own
+  profile is read-only, these edits are stored as a **local record under the agent's URI in the
+  user's own `contacts.ttl`** — the local record takes precedence over the canonical profile on
+  display. (Local logo upload is a later refinement; the resolved profile logo is shown for now.)
 - **Heat generation is a technical system, not a checkbox.** A building's heat generators
   (heat pump / gas-, oil- and electric boiler / district heating) were five boolean flags;
   they're now first-class `:TechnicalSystem` nodes (`bldg:hasSystem`) like PV / battery / CHP,

@@ -33,6 +33,8 @@ export const VCARD_NS = "http://www.w3.org/2006/vcard/ns#";
 export const VCARD_FN = `${VCARD_NS}fn`;
 export const VCARD_HAS_PHOTO = `${VCARD_NS}hasPhoto`;
 export const VCARD_INDIVIDUAL = `${VCARD_NS}Individual`;
+/** vcard:Organization — a contact that is an organisation, not a person. */
+export const VCARD_ORGANIZATION = `${VCARD_NS}Organization`;
 export const VCARD_ADDRESS_BOOK = `${VCARD_NS}AddressBook`;
 export const VCARD_HAS_MEMBER = `${VCARD_NS}hasMember`;
 export const VCARD_HAS_ADDRESS = `${VCARD_NS}hasAddress`;

@@ -1862,6 +1862,14 @@ export const MESSAGES = {
     fr: "Ajouter aux contacts",
   },
   contactName: { en: "Name", de: "Name", fr: "Nom" },
+  // Contact kind toggle: a contact is a person or an organisation.
+  contactKind: { en: "Type", de: "Art", fr: "Type" },
+  contactKindPerson: { en: "Person", de: "Person", fr: "Personne" },
+  contactKindOrganisation: {
+    en: "Organisation",
+    de: "Organisation",
+    fr: "Organisation",
+  },
   // Detail FilesSection (read-only shared files).
   fileDownloading: { en: "Downloading…", de: "Wird heruntergeladen…", fr: "Téléchargement…" },
   // Room detail sections.

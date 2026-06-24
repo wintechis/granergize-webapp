@@ -31,7 +31,39 @@ Deno.test("addContact → readContacts round-trips WebID, name and avatar", asyn
     webId: BOB,
     name: "Bob Builder",
     avatarUrl: "https://bob.example/avatar.png",
+    // No explicit kind → defaults to a person (vcard:Individual).
+    kind: "person",
   });
+});
+
+Deno.test("an organisation contact round-trips kind, homepage and sameAs", async () => {
+  const { session } = makeSession();
+  const ACME = "https://acme.example/org#it";
+  await addContact(session, {
+    webId: ACME,
+    name: "ACME GmbH",
+    kind: "organisation",
+    homepage: "https://acme.example/",
+    sameAs: ["http://www.wikidata.org/entity/Q42"],
+  });
+  const contacts = await readContacts(session);
+  assert.equal(contacts.length, 1);
+  assert.deepEqual(contacts[0], {
+    webId: ACME,
+    name: "ACME GmbH",
+    kind: "organisation",
+    homepage: "https://acme.example/",
+    sameAs: ["http://www.wikidata.org/entity/Q42"],
+  });
+});
+
+Deno.test("re-saving a contact as a person clears the prior organisation type", async () => {
+  const { session } = makeSession();
+  await addContact(session, { webId: BOB, name: "Bob", kind: "organisation" });
+  await addContact(session, { webId: BOB, name: "Bob", kind: "person" });
+  const contacts = await readContacts(session);
+  assert.equal(contacts.length, 1);
+  assert.equal(contacts[0].kind, "person", "no stale organisation type left behind");
 });
 
 Deno.test("readContacts on a missing file yields an empty list", async () => {

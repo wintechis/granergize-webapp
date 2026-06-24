@@ -58,6 +58,45 @@ Deno.test("resolveAgent prefers foaf:name over vcard:fn when both are present", 
   assert.equal(agent.name, "FOAF Name");
 });
 
+Deno.test("resolveAgent classifies a foaf:Person as a person", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${WEBID}> a foaf:Person ; foaf:name "Alice" .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.kind, "person");
+  assert.equal(agent.logoUrl, undefined);
+});
+
+Deno.test("resolveAgent classifies a foaf:Organization (+ logo) as an organisation", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${WEBID}> a foaf:Organization ; foaf:name "ACME GmbH" ;
+      foaf:logo <https://acme.example/logo.svg> .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.kind, "organisation");
+  assert.equal(agent.logoUrl, "https://acme.example/logo.svg");
+});
+
+Deno.test("resolveAgent infers organisation from a foaf:logo even without a typed org", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${WEBID}> foaf:name "Untyped Co" ; foaf:logo <https://co.example/logo.png> .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.kind, "organisation", "a logo with no person/org type reads as an org");
+});
+
+Deno.test("resolveAgent leaves kind undefined for an untyped, logo-less profile", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${WEBID}> foaf:name "Mystery" .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.kind, undefined, "caller defaults an unrecognised agent to a person");
+});
+
 Deno.test("resolveAgentOrg follows org:memberOf → foaf:name + foaf:logo", async () => {
   _resetProfileCacheForTesting();
   const ttl = `

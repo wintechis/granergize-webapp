@@ -1,12 +1,15 @@
 import type { PodGateway } from "./pod/podGateway.ts";
 import { DataFactory, Store } from "n3";
 import {
+  OWL_SAME_AS,
   RDF_TYPE,
   VCARD_ADDRESS_BOOK,
   VCARD_FN,
   VCARD_HAS_MEMBER,
   VCARD_HAS_PHOTO,
+  VCARD_HAS_URL,
   VCARD_INDIVIDUAL,
+  VCARD_ORGANIZATION,
 } from "./rdf/vocabularies.ts";
 import { podResources } from "./pod/solidUtils.ts";
 import { readStoreOrEmpty } from "./pod/podFetch.ts";
@@ -19,19 +22,34 @@ const { namedNode, literal } = DataFactory;
 const RDF_TYPE_NODE = namedNode(RDF_TYPE);
 const ADDRESS_BOOK = namedNode(VCARD_ADDRESS_BOOK);
 const INDIVIDUAL = namedNode(VCARD_INDIVIDUAL);
+const ORGANIZATION = namedNode(VCARD_ORGANIZATION);
 const HAS_MEMBER = namedNode(VCARD_HAS_MEMBER);
 const FN = namedNode(VCARD_FN);
 const HAS_PHOTO = namedNode(VCARD_HAS_PHOTO);
+const HAS_URL = namedNode(VCARD_HAS_URL);
+const SAME_AS = namedNode(OWL_SAME_AS);
 
 /**
  * A locally-remembered agent. The address book is a *cache*, not the source of
  * truth — `name`/`avatarUrl` are the agent's own profile values snapshotted at
  * remember-time (re-resolved live by {@link resolveAgent} where freshness matters).
+ *
+ * `kind` distinguishes a person (`vcard:Individual`) from an organisation
+ * (`vcard:Organization`). For an organisation the user may *override* the
+ * canonical profile locally — the agent's own profile isn't ours to edit — so the
+ * book also caches the org's editable `homepage` (`vcard:hasURL`) and `sameAs`
+ * (`owl:sameAs`, e.g. a Wikidata entity the logo derives from). The local record
+ * wins over the resolved profile (see {@link resolveAgent}).
  */
 export interface Contact {
   webId: string;
   name?: string;
   avatarUrl?: string;
+  kind?: "person" | "organisation";
+  /** An organisation's website (`vcard:hasURL`). */
+  homepage?: string;
+  /** Cross-references (`owl:sameAs`), e.g. a Wikidata entity for logo derivation. */
+  sameAs?: string[];
 }
 
 /** `<storageRoot><APP_DIR>/contacts.ttl` — the personal vCard address book. */
@@ -59,10 +77,21 @@ export async function readContacts(gateway: PodGateway): Promise<Contact[]> {
       const subject = namedNode(m.value);
       const name = store.getObjects(subject, FN, null)[0]?.value;
       const avatarUrl = store.getObjects(subject, HAS_PHOTO, null)[0]?.value;
+      const types = store.getObjects(subject, RDF_TYPE_NODE, null).map((t) => t.value);
+      const kind: Contact["kind"] = types.includes(VCARD_ORGANIZATION)
+        ? "organisation"
+        : types.includes(VCARD_INDIVIDUAL)
+        ? "person"
+        : undefined;
+      const homepage = store.getObjects(subject, HAS_URL, null)[0]?.value;
+      const sameAs = store.getObjects(subject, SAME_AS, null).map((s) => s.value);
       return {
         webId: m.value,
         ...(name ? { name } : {}),
         ...(avatarUrl ? { avatarUrl } : {}),
+        ...(kind ? { kind } : {}),
+        ...(homepage ? { homepage } : {}),
+        ...(sameAs.length > 0 ? { sameAs } : {}),
       };
     });
 }
@@ -95,12 +124,29 @@ export function addContact(
   const subject = namedNode(contact.webId);
   return mutateContacts(gateway, (store, book) => {
     store.addQuad(book, HAS_MEMBER, subject);
-    store.addQuad(subject, RDF_TYPE_NODE, INDIVIDUAL);
+    // Member type follows the contact's kind (default person), so the org/person
+    // distinction round-trips. Clear both so a re-classification doesn't leave a
+    // stale type behind.
+    store.removeQuads(store.getQuads(subject, RDF_TYPE_NODE, INDIVIDUAL, null));
+    store.removeQuads(store.getQuads(subject, RDF_TYPE_NODE, ORGANIZATION, null));
+    store.addQuad(
+      subject,
+      RDF_TYPE_NODE,
+      contact.kind === "organisation" ? ORGANIZATION : INDIVIDUAL,
+    );
     store.removeQuads(store.getQuads(subject, FN, null, null));
     if (contact.name) store.addQuad(subject, FN, literal(contact.name));
     store.removeQuads(store.getQuads(subject, HAS_PHOTO, null, null));
     if (contact.avatarUrl) {
       store.addQuad(subject, HAS_PHOTO, namedNode(contact.avatarUrl));
+    }
+    store.removeQuads(store.getQuads(subject, HAS_URL, null, null));
+    if (contact.homepage) {
+      store.addQuad(subject, HAS_URL, namedNode(contact.homepage));
+    }
+    store.removeQuads(store.getQuads(subject, SAME_AS, null, null));
+    for (const ref of contact.sameAs ?? []) {
+      store.addQuad(subject, SAME_AS, namedNode(ref));
     }
   });
 }
