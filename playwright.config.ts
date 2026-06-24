@@ -107,7 +107,7 @@ const FIREFOX = { ...devices["Desktop Firefox"] };
 // SOLO — one pod (Alice): single-account specs.
 const SOLO_SPECS = [
   "**/building-page.spec.ts",
-  "**/contact-page.spec.ts",
+  "**/agent-page.spec.ts",
   "**/observations-finder.spec.ts",
   "**/search-finder.spec.ts",
   "**/uri-state.spec.ts",

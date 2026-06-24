@@ -1,6 +1,7 @@
 import type { PodGateway } from "./pod/podGateway.ts";
 import { DataFactory, Store } from "n3";
 import {
+  ORG_MEMBER_OF,
   OWL_SAME_AS,
   RDF_TYPE,
   VCARD_ADDRESS_BOOK,
@@ -9,6 +10,7 @@ import {
   VCARD_HAS_PHOTO,
   VCARD_HAS_URL,
   VCARD_INDIVIDUAL,
+  VCARD_LOGO,
   VCARD_ORGANIZATION,
 } from "./rdf/vocabularies.ts";
 import { podResources } from "./pod/solidUtils.ts";
@@ -27,7 +29,9 @@ const HAS_MEMBER = namedNode(VCARD_HAS_MEMBER);
 const FN = namedNode(VCARD_FN);
 const HAS_PHOTO = namedNode(VCARD_HAS_PHOTO);
 const HAS_URL = namedNode(VCARD_HAS_URL);
+const LOGO = namedNode(VCARD_LOGO);
 const SAME_AS = namedNode(OWL_SAME_AS);
+const MEMBER_OF = namedNode(ORG_MEMBER_OF);
 
 /**
  * A locally-remembered agent. The address book is a *cache*, not the source of
@@ -46,10 +50,20 @@ export interface Contact {
   name?: string;
   avatarUrl?: string;
   kind?: "person" | "organisation";
+  /** An organisation contact's logo image (`vcard:logo`), uploaded to the user's own
+   *  Pod — the local-record counterpart of the own-org `foaf:logo`. */
+  logoUrl?: string;
   /** An organisation's website (`vcard:hasURL`). */
   homepage?: string;
   /** Cross-references (`owl:sameAs`), e.g. a Wikidata entity for logo derivation. */
   sameAs?: string[];
+  /**
+   * A locally-asserted "works for" edge (`org:memberOf`) to the WebID of an
+   * organisation the user also keeps as a contact. Independent of the agent's own
+   * profile — the user records the affiliation they know of; this local edge wins
+   * over any `org:memberOf` the agent's own profile publishes (see resolveAgentOrg).
+   */
+  memberOf?: string;
 }
 
 /** `<storageRoot><APP_DIR>/contacts.ttl` — the personal vCard address book. */
@@ -84,14 +98,18 @@ export async function readContacts(gateway: PodGateway): Promise<Contact[]> {
         ? "person"
         : undefined;
       const homepage = store.getObjects(subject, HAS_URL, null)[0]?.value;
+      const logoUrl = store.getObjects(subject, LOGO, null)[0]?.value;
       const sameAs = store.getObjects(subject, SAME_AS, null).map((s) => s.value);
+      const memberOf = store.getObjects(subject, MEMBER_OF, null)[0]?.value;
       return {
         webId: m.value,
         ...(name ? { name } : {}),
         ...(avatarUrl ? { avatarUrl } : {}),
         ...(kind ? { kind } : {}),
+        ...(logoUrl ? { logoUrl } : {}),
         ...(homepage ? { homepage } : {}),
         ...(sameAs.length > 0 ? { sameAs } : {}),
+        ...(memberOf ? { memberOf } : {}),
       };
     });
 }
@@ -144,9 +162,17 @@ export function addContact(
     if (contact.homepage) {
       store.addQuad(subject, HAS_URL, namedNode(contact.homepage));
     }
+    store.removeQuads(store.getQuads(subject, LOGO, null, null));
+    if (contact.logoUrl) {
+      store.addQuad(subject, LOGO, namedNode(contact.logoUrl));
+    }
     store.removeQuads(store.getQuads(subject, SAME_AS, null, null));
     for (const ref of contact.sameAs ?? []) {
       store.addQuad(subject, SAME_AS, namedNode(ref));
+    }
+    store.removeQuads(store.getQuads(subject, MEMBER_OF, null, null));
+    if (contact.memberOf) {
+      store.addQuad(subject, MEMBER_OF, namedNode(contact.memberOf));
     }
   });
 }

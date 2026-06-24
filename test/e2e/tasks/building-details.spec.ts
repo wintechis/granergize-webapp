@@ -89,8 +89,8 @@ test.describe("building details", () => {
     const id = await row.getAttribute("data-building-id");
     expect(id, "the new building's id on Manage").toBeTruthy();
 
-    // --- view the building: the operator renders as a link to its in-app contact
-    // detail view (/contact?uri=<webid>), labelled by the agent's name — the WebID's
+    // --- view the building: the operator renders as a link to its in-app agent
+    // detail view (/agent?uri=<webid>), labelled by the agent's name — the WebID's
     // #fragment until a profile name resolves (AgentLabel → RefLink) ---
     await page.goto(buildingRoute("building", id));
     // The operator is master data now (not a create-form basic) — set it INLINE via the
@@ -108,12 +108,12 @@ test.describe("building details", () => {
     const opLink = page.locator(`a[href$="${encodeURIComponent(OP_WEBID)}"]`);
     await expect(opLink).toBeVisible({ timeout: T.action });
     await expect(opLink).toHaveText(OP_HASH); // shows the agent name (the IRI's #fragment)
-    // The contact route stays inside the app (real-path BrowserRouter route, under
+    // The agent route stays inside the app (real-path BrowserRouter route, under
     // the app base), not an external WebID link — assert by suffix so a non-root
     // deploy base doesn't break it.
     await expect(opLink).toHaveAttribute(
       "href",
-      new RegExp(`/contact\\?uri=${escapeRegExp(encodeURIComponent(OP_WEBID))}$`),
+      new RegExp(`/agent\\?uri=${escapeRegExp(encodeURIComponent(OP_WEBID))}$`),
     );
 
     // --- self-clean: delete the throwaway building ---

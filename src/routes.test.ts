@@ -2,8 +2,8 @@
 import { strict as assert } from "node:assert";
 import {
   aggregationRoute,
+  agentRoute,
   buildingRoute,
-  contactRoute,
   DETAIL_PATTERNS,
   FINDERS,
   observationRoute,
@@ -36,10 +36,10 @@ Deno.test("an absolute (foreign) id rides in ?uri=, percent-encoded", () => {
   );
 });
 
-Deno.test("contact builder always uses ?uri= (a WebID is absolute)", () => {
+Deno.test("agent builder always uses ?uri= (a WebID is absolute)", () => {
   assert.equal(
-    contactRoute("https://bob.example/profile/card#me"),
-    "/contact?uri=https%3A%2F%2Fbob.example%2Fprofile%2Fcard%23me",
+    agentRoute("https://bob.example/profile/card#me"),
+    "/agent?uri=https%3A%2F%2Fbob.example%2Fprofile%2Fcard%23me",
   );
 });
 

@@ -195,10 +195,11 @@ export const INTENT_PARAMS = {
   SeedDemoRooms: {},
   // ── Contacts ─────────────────────────────────────────────────────────────────
   // `contact` is an opaque Contact instance (not an IRI to resolve) → placeholder;
-  // `webId` is a removable contact's WebID → IRI reference. SeedDemoContacts is
-  // paramless (collection-wide).
+  // `logo` an opaque File (an org contact's logo image, optional); `webId` is a
+  // removable contact's WebID → IRI reference. SeedDemoContacts is paramless.
   SaveContact: {
     contact: { nodeKind: "literal", range: XSD_STRING, cardinality: "one" },
+    logo: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
   },
   RemoveContact: {
     webId: { nodeKind: "iri", range: FOAF_AGENT, cardinality: "one" },

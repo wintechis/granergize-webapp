@@ -1,6 +1,7 @@
 import {
   Box,
   Button,
+  MenuItem,
   Stack,
   TextField,
   ToggleButton,
@@ -17,7 +18,10 @@ import {
   useResolveOrg,
 } from "../../hooks/queries.ts";
 import { useSaveContact } from "../../hooks/mutations.ts";
-import { BackLink, DetailRow, UriLink } from "../detail/DetailView.tsx";
+import { BackLink, DetailRow, RefLink } from "../detail/DetailView.tsx";
+import { AgentLabel } from "../AgentLabel.tsx";
+import { OrgEditor, OrgReadView } from "./OrgDetail.tsx";
+import { agentRoute } from "../../routes.ts";
 import { msg } from "../../lib/messages.ts";
 import type { Contact } from "../../services/contacts.ts";
 
@@ -31,11 +35,14 @@ import type { Contact } from "../../services/contacts.ts";
  * for a KNOWN contact it's an inline `[Edit]`. The edits write a **local record** in
  * the user's own `contacts.ttl` (the agent's own profile is read-only, not ours to
  * own) via {@link useSaveContact} (re-saving the same WebID updates in place): a
- * person's stored name; an organisation's name + homepage + cross-reference. The
- * organisation logo shown is the resolved profile's (`foaf:logo`); a local logo
- * upload is a later refinement (see plan-contact-person-org.md).
+ * person's stored name + a "works for" edge (`org:memberOf`) to an org contact; an
+ * organisation's name + homepage + cross-reference + a logo (uploaded to the user's
+ * own Pod as `vcard:logo`). The organisation read/edit body reuses the shared
+ * {@link OrgEditor}/{@link OrgReadView} with the Organisation page; this header adds
+ * only the contact-specific chrome (the kind toggle, add-to-contacts, and the
+ * person "works for" edge).
  */
-export default function ContactHeader({ webId }: { webId: string }) {
+export default function AgentHeader({ webId }: { webId: string }) {
   const { data: agent } = useResolveAgent(webId);
   const { data: org } = useResolveOrg(webId);
   const contacts = useContacts();
@@ -50,18 +57,30 @@ export default function ContactHeader({ webId }: { webId: string }) {
   // A known contact shows its STORED label (what the user can edit); otherwise the
   // resolved profile name, falling back to the WebID until a name resolves.
   const displayName = (known ? contact!.name : agent?.name) || webId;
-  const logoUrl = agent?.logoUrl ?? org?.logoUrl;
+  // Logo precedence: the user's local record wins, then the resolved profile.
+  const logoUrl = contact?.logoUrl ?? agent?.logoUrl ?? org?.logoUrl;
   // The header's org rows are the user's *curated* record only — the canonical
   // profile's website/etc. stay in AgentProfileSection, so nothing shows twice.
   // Editing still seeds from the canonical value (precedence: local over profile).
   const homepage = contact?.homepage;
   const sameAs = contact?.sameAs ?? [];
+  const memberOf = contact?.memberOf;
+  // Org contacts the user already keeps — the "works for" edge can only point at one
+  // (excluding this contact itself).
+  const orgOptions = (contacts.data ?? []).filter(
+    (c) => c.kind === "organisation" && c.webId !== webId,
+  );
+  // The "works for" target's curated name (the edge points at an org contact); the
+  // user's stored label wins over the resolved profile, so prefer it over AgentLabel.
+  const memberOrgName = (contacts.data ?? []).find((c) => c.webId === memberOf)?.name;
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
   const [kindDraft, setKindDraft] = useState<Contact["kind"]>("person");
   const [homepageDraft, setHomepageDraft] = useState("");
   const [sameAsDraft, setSameAsDraft] = useState("");
+  const [memberOfDraft, setMemberOfDraft] = useState("");
+  const [pickedLogo, setPickedLogo] = useState<File | null>(null);
   const saving = saveContact.isPending;
   // The user can re-classify a contact in the editor (the resolved profile rarely
   // types unreachable agents) — the draft kind drives the form while editing.
@@ -72,24 +91,38 @@ export default function ContactHeader({ webId }: { webId: string }) {
     setKindDraft(kind);
     setHomepageDraft(contact?.homepage ?? agent?.website ?? "");
     setSameAsDraft(sameAs[0] ?? "");
+    setMemberOfDraft(memberOf ?? "");
+    setPickedLogo(null);
     setEditing(true);
   };
 
-  // Persist as the drafted kind. A person keeps its avatar; an org carries
-  // homepage + the single cross-reference the editor exposes (and drops the avatar).
+  // Persist as the drafted kind. A person keeps its avatar + any "works for" edge;
+  // an org carries homepage + the single cross-reference + an optional uploaded logo
+  // (and drops the avatar).
   const handleSave = () => {
     const trimmed = name.trim() || undefined;
     const base = { webId, kind: kindDraft, name: trimmed };
-    const onSuccess = () => setEditing(false);
+    const onSuccess = () => {
+      setPickedLogo(null);
+      setEditing(false);
+    };
     if (editingOrg) {
       const ref = sameAsDraft.trim();
       saveContact.mutate({
-        ...base,
-        homepage: homepageDraft.trim() || undefined,
-        sameAs: ref ? [ref] : undefined,
+        contact: {
+          ...base,
+          homepage: homepageDraft.trim() || undefined,
+          sameAs: ref ? [ref] : undefined,
+          logoUrl: contact?.logoUrl,
+        },
+        logo: pickedLogo,
       }, { onSuccess });
     } else {
-      saveContact.mutate({ ...base, avatarUrl: agent?.avatarUrl }, { onSuccess });
+      saveContact.mutate({
+        ...base,
+        avatarUrl: agent?.avatarUrl,
+        memberOf: memberOfDraft || undefined,
+      }, { onSuccess });
     }
   };
 
@@ -170,54 +203,55 @@ export default function ContactHeader({ webId }: { webId: string }) {
         </ToggleButtonGroup>
       )}
 
-      {/* Organisation extras: logo, plus the editable homepage / cross-reference. */}
-      {isOrg && logoUrl && !editing && (
-        <Box
-          component="img"
-          src={logoUrl}
-          alt={displayName}
-          title={displayName}
-          sx={{ mt: 1, maxHeight: 48, maxWidth: 200, objectFit: "contain" }}
-        />
+      {/* Person extra: the local "works for" edge to an org contact (editor: a
+          dropdown of org contacts; read view: the linked org). Independent of the
+          person's own profile — see contacts.ts memberOf. */}
+      {!editingOrg && editing && orgOptions.length > 0 && (
+        <TextField
+          select
+          size="small"
+          label={msg("contactWorksFor")}
+          value={memberOfDraft}
+          onChange={(e) => setMemberOfDraft(e.target.value)}
+          sx={{ mt: 2, minWidth: 260 }}
+        >
+          <MenuItem value="">{msg("contactWorksForNone")}</MenuItem>
+          {orgOptions.map((o) => (
+            <MenuItem key={o.webId} value={o.webId}>
+              {o.name ?? o.webId}
+            </MenuItem>
+          ))}
+        </TextField>
       )}
+      {!isOrg && !editing && memberOf && (
+        <Box sx={{ mt: 1 }}>
+          <DetailRow
+            label={msg("contactWorksFor")}
+            value={memberOrgName
+              ? <RefLink to={agentRoute(memberOf)}>{memberOrgName}</RefLink>
+              : <AgentLabel value={memberOf} />}
+          />
+        </Box>
+      )}
+
+      {/* Organisation body — the shared editor / read view (logo + homepage +
+          cross-reference). The name lives in the header heading above (showName off). */}
       {editingOrg && editing && (
-        <Stack spacing={2} sx={{ mt: 2 }}>
-          <TextField
-            size="small"
-            label={msg("lblHomepageUri")}
-            type="url"
-            placeholder="https://example.com/"
-            value={homepageDraft}
-            onChange={(e) => setHomepageDraft(e.target.value)}
-            fullWidth
+        <Box sx={{ mt: 2 }}>
+          <OrgEditor
+            homepage={homepageDraft}
+            onHomepage={setHomepageDraft}
+            sameAs={sameAsDraft}
+            onSameAs={setSameAsDraft}
+            logoUrl={logoUrl}
+            onPickLogo={setPickedLogo}
           />
-          <TextField
-            size="small"
-            label={msg("lblOrgWebId")}
-            type="url"
-            placeholder="https://example.com/profile/card#me"
-            value={sameAsDraft}
-            onChange={(e) => setSameAsDraft(e.target.value)}
-            helperText={msg("orgWebIdHelp")}
-            fullWidth
-          />
-        </Stack>
+        </Box>
       )}
-      {isOrg && !editing && (homepage || sameAs.length > 0) && (
-        <Stack spacing={1} sx={{ mt: 1 }}>
-          {homepage && (
-            <DetailRow
-              label={msg("lblHomepageUri")}
-              value={<UriLink href={homepage}>{homepage}</UriLink>}
-            />
-          )}
-          {sameAs[0] && (
-            <DetailRow
-              label={msg("lblOrgWebId")}
-              value={<UriLink href={sameAs[0]}>{sameAs[0]}</UriLink>}
-            />
-          )}
-        </Stack>
+      {isOrg && !editing && (logoUrl || homepage || sameAs.length > 0) && (
+        <Box sx={{ mt: 1 }}>
+          <OrgReadView logoUrl={logoUrl} homepage={homepage} sameAs={sameAs[0]} />
+        </Box>
       )}
     </Box>
   );

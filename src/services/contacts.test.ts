@@ -57,6 +57,43 @@ Deno.test("an organisation contact round-trips kind, homepage and sameAs", async
   });
 });
 
+Deno.test("an organisation contact's logo (vcard:logo) round-trips and clears", async () => {
+  const { session } = makeSession();
+  const ACME = "https://acme.example/org#it";
+  const LOGO = "https://a.example/granergize/contacts/logos/acme.png";
+  await addContact(session, {
+    webId: ACME,
+    name: "ACME GmbH",
+    kind: "organisation",
+    logoUrl: LOGO,
+  });
+  assert.equal(
+    (await readContacts(session)).find((c) => c.webId === ACME)?.logoUrl,
+    LOGO,
+  );
+  // Re-saving without a logoUrl clears it.
+  await addContact(session, { webId: ACME, name: "ACME GmbH", kind: "organisation" });
+  assert.equal(
+    (await readContacts(session)).find((c) => c.webId === ACME)?.logoUrl,
+    undefined,
+  );
+});
+
+Deno.test("a local 'works for' edge (org:memberOf) round-trips and clears", async () => {
+  const { session } = makeSession();
+  const ACME = "https://acme.example/org#it";
+  await addContact(session, { webId: ACME, name: "ACME GmbH", kind: "organisation" });
+  await addContact(session, { webId: BOB, name: "Bob", memberOf: ACME });
+
+  const bob = (await readContacts(session)).find((c) => c.webId === BOB);
+  assert.equal(bob?.memberOf, ACME, "the works-for edge reads back");
+
+  // Re-saving without a memberOf clears the edge (no stale affiliation lingers).
+  await addContact(session, { webId: BOB, name: "Bob" });
+  const cleared = (await readContacts(session)).find((c) => c.webId === BOB);
+  assert.equal(cleared?.memberOf, undefined, "edge dropped when omitted");
+});
+
 Deno.test("re-saving a contact as a person clears the prior organisation type", async () => {
   const { session } = makeSession();
   await addContact(session, { webId: BOB, name: "Bob", kind: "organisation" });

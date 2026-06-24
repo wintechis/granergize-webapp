@@ -129,6 +129,22 @@ Data source such as wunderfacts does not, so the label falls back to the fragmen
 document stays reachable via `UriLink` / the dev-mode source link, which opens it in a
 new tab, a top-level navigation CORS does not gate.
 
+**Local annotations override the resolved profile.** An agent's own document is
+read-only — it lives on its Pod or a wrapper, not ours. The user can still curate a
+referenced agent: the address book (`contacts.ttl`, `contacts.ts`) holds a **local
+record keyed by the agent IRI** — a person's stored name and an optional "works for"
+edge (`org:memberOf` to an org contact), or an organisation's name, homepage
+(`vcard:hasURL`), cross-reference (`owl:sameAs`) and logo (`vcard:logo`). Resolution is
+**local-record-wins**: the agent detail page (`/agent?uri=`, `AgentHeader`) prefers the
+contact record over `resolveAgent`/`resolveAgentOrg`, and `AgentProfileSection` drops the
+canonical organisation row when a local "works for" edge exists, so an affiliation shows
+once. `resolveAgent` also classifies the agent as **person vs organisation**
+(`ResolvedAgent.kind`): a standard `rdf:type` (`foaf:Person`/`vcard:Individual` vs
+`…Organization`) first, else the MaStR shape (`mastr:Personenart` "Juristische" →
+organisation / "Natuerliche" → person, else a `vocab:Operator`/`:MarketActor` type →
+organisation), else a `foaf:logo` heuristic; with no signal the caller defaults to a
+person, correctable in the editor (a local `kind` overrides the resolved one).
+
 A two-phase load (`fetchAndParseData`'s `onBuildingsAndAgents` callback) hands
 buildings + agents to the UI first, then streams energy in.
 
@@ -169,6 +185,20 @@ the `ETag`) → mutate the n3 Store → PUT guarded by `If-Match` (or `If-None-M
 for a create), retrying on `412` — optimistic locking, so a concurrent writer can't
 be silently clobbered. The data-room event log is the exception: it appends with
 LDP `POST` to a container (race-free by construction) instead of rewriting a file.
+
+**Write authority decides where org edits land.** Editing an organisation routes by
+who owns the document, not by data shape (the fields are identical either way). The
+user's **own** organisation is a `<#org>` node *inside their own WebID profile*, so
+`organizationManager` edits it in place — they hold `acl:Write` on it. A **referenced**
+organisation's authoritative document is on its Pod / a wrapper, where the user has no
+write access; the same fields are therefore stored as the local record in `contacts.ttl`
+(`SaveContact`) — an annotation on the user's own Pod, not a write to the agent's. One
+shared editor (`components/agent/OrgDetail.tsx`), two save paths. The logo follows the
+document it belongs to: the own-org logo is `foaf:logo` → `profile/logo.<ext>` (profile
+data); a referenced-org logo is `vcard:logo` → `<appRoot>contacts/logos/<stem>.<ext>`.
+Both are published world-readable via the shared `logoImage.uploadPublicLogo` (image
+`PUT` + a public-read `.acl`), since markers and the agent page load them with plain,
+unauthenticated `<img>` requests.
 
 ## Failure modes
 

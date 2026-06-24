@@ -1,12 +1,12 @@
 import { Avatar, Box, Chip, type ChipProps } from "@mui/material";
 import { useResolveAgent } from "../hooks/queries.ts";
-import { contactRoute } from "../routes.ts";
+import { agentRoute } from "../routes.ts";
 import { RefLink } from "./detail/DetailView.tsx";
 
 /**
  * Render a referenced agent. `value` is either a WebID IRI — resolved (name +
- * avatar) and shown as an avatar + a link to its in-app contact detail view
- * (`/contact/:webId`) — or a free-text name (e.g. a `customer`/`investor` that
+ * avatar) and shown as an avatar + a link to its in-app agent detail view
+ * (`/agent?uri=<webId>`) — or a free-text name (e.g. a `customer`/`investor` that
  * holds a plain name rather than a WebID), shown as plain text. This is the one way
  * the app surfaces an agent reference; it replaces the old `createAgentLink`, which
  * crashed (`new URL(value)`) on a non-URL name.
@@ -36,7 +36,7 @@ export function AgentLabel({ value }: { value: string }) {
       >
         {avatarUrl ? null : initials(name)}
       </Avatar>
-      <RefLink to={contactRoute(value)}>{name}</RefLink>
+      <RefLink to={agentRoute(value)}>{name}</RefLink>
     </Box>
   );
 }

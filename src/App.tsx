@@ -21,7 +21,7 @@ import OpenObservationDetail from "./components/building/OpenObservationDetail.t
 import { isOpenBuildingIri } from "./services/lod2Rooftop.ts";
 import { isOpenObservationIri } from "./services/openObservations.ts";
 import Energy from "./pages/Energy.tsx";
-import Contact from "./pages/Contact.tsx";
+import Agent from "./pages/Agent.tsx";
 import Room from "./pages/Room.tsx";
 import Aggregation from "./pages/Aggregation.tsx";
 import RegionalDataset from "./pages/RegionalDataset.tsx";
@@ -192,7 +192,7 @@ function DataSourcesWrapper() {
 }
 
 /** Resolve the `?uri=` WebID query param and render the agent detail view. */
-function ContactWrapper() {
+function AgentWrapper() {
   const [sp] = useSearchParams();
   const webId = sp.get("uri") ?? "";
   if (!webId) {
@@ -200,7 +200,7 @@ function ContactWrapper() {
   }
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
-      <Contact webId={webId} />
+      <Agent webId={webId} />
     </Container>
   );
 }
@@ -315,7 +315,7 @@ function App({ onLogout, session }: AppProps) {
     { path: DETAIL_PATTERNS.building, element: <BuildingWrapper /> },
     { path: DETAIL_PATTERNS.observation, element: <EnergyWrapper /> },
     { path: DETAIL_PATTERNS.aggregation, element: <AggregationWrapper session={session} /> },
-    { path: DETAIL_PATTERNS.contact, element: <ContactWrapper /> },
+    { path: DETAIL_PATTERNS.agent, element: <AgentWrapper /> },
     { path: DETAIL_PATTERNS.room, element: <RoomWrapper session={session} /> },
     { path: DETAIL_PATTERNS.regional, element: <RegionalWrapper /> },
     { path: DETAIL_PATTERNS.dataSources, element: <DataSourcesWrapper /> },

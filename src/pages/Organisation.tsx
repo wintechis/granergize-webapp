@@ -1,12 +1,5 @@
-import { useEffect, useRef, useState } from "react";
-import {
-  Avatar,
-  Box,
-  Button,
-  Stack,
-  TextField,
-  Typography,
-} from "@mui/material";
+import { useEffect, useState } from "react";
+import { Box, Button, Stack, Typography } from "@mui/material";
 import ApartmentIcon from "@mui/icons-material/Apartment";
 import EditIcon from "@mui/icons-material/Edit";
 import { msg } from "../lib/messages.ts";
@@ -16,66 +9,22 @@ import { useNotification } from "../context/NotificationContext.tsx";
 import { useSaveOrganization } from "../hooks/mutations.ts";
 import {
   getOrganization,
-  isSupportedLogoType,
   type Organization,
 } from "../services/organization/organizationManager.ts";
-import {
-  BackLink,
-  DetailCard,
-  DetailRow,
-  UriLink,
-} from "../components/detail/DetailView.tsx";
+import { BackLink, DetailCard } from "../components/detail/DetailView.tsx";
+import { OrgEditor, OrgReadView } from "../components/agent/OrgDetail.tsx";
 import { logError } from "../lib/logError.ts";
 import { bumpAvatar } from "../lib/avatarRefresh.ts";
 
-const ACCEPT = "image/png,image/jpeg,image/svg+xml,image/webp,image/gif";
-
-/** The org logo lockup (landscape → contain, not crop). Public-read, so the URL renders
- *  directly; in the editor a picked file's object URL previews the pending upload. */
-function LogoAvatar({ src }: { src?: string }) {
-  return (
-    <Avatar
-      src={src}
-      alt={msg("orgLogoAlt")}
-      variant="rounded"
-      sx={{
-        width: 160,
-        height: 48,
-        "& .MuiAvatar-img": { objectFit: "contain" },
-      }}
-    />
-  );
-}
-
-/** The inline editor — the same fields the old OrganizationDialog offered, on the page. */
+/** The inline editor — the shared org fields + logo upload, saved to the WebID profile. */
 function EditView({ org, onDone }: { org: Organization; onDone: () => void }) {
   const { showNotification } = useNotification();
   const [name, setName] = useState(org.name ?? "");
   const [homepage, setHomepage] = useState(org.homepage ?? "");
   const [sameAs, setSameAs] = useState(org.sameAs ?? "");
   const [pickedFile, setPickedFile] = useState<File | null>(null);
-  const [pickedPreview, setPickedPreview] = useState<string | null>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
   const save = useSaveOrganization();
   const saving = save.isPending;
-
-  // Revoke the object URL of a previewed-but-unsaved logo on unmount.
-  useEffect(() => () => {
-    if (pickedPreview) URL.revokeObjectURL(pickedPreview);
-  }, [pickedPreview]);
-
-  const handlePickFile = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    e.target.value = "";
-    if (!file) return;
-    if (!isSupportedLogoType(file)) {
-      showNotification(msg("chooseImageType"), "warning");
-      return;
-    }
-    if (pickedPreview) URL.revokeObjectURL(pickedPreview);
-    setPickedFile(file);
-    setPickedPreview(URL.createObjectURL(file));
-  };
 
   const handleSave = () =>
     save.mutate(
@@ -91,53 +40,16 @@ function EditView({ org, onDone }: { org: Organization; onDone: () => void }) {
 
   return (
     <Stack spacing={2}>
-      <Box sx={{ display: "flex", alignItems: "center", gap: 2 }}>
-        <LogoAvatar src={pickedPreview ?? org.logoUrl ?? undefined} />
-        <Box>
-          <Button onClick={() => fileInputRef.current?.click()}>
-            {msg("orgChooseLogo")}
-          </Button>
-          <Typography
-            variant="caption"
-            color="text.secondary"
-            sx={{ display: "block" }}
-          >
-            {msg("orgLogoFormats")}
-          </Typography>
-        </Box>
-        <input
-          ref={fileInputRef}
-          type="file"
-          accept={ACCEPT}
-          style={{ display: "none" }}
-          onChange={handlePickFile}
-        />
-      </Box>
-      <TextField
-        label={msg("lblCompanyName")}
-        value={name}
-        onChange={(e) => setName(e.target.value)}
-        fullWidth
-        size="small"
-      />
-      <TextField
-        label={msg("lblHomepageUri")}
-        type="url"
-        placeholder="https://example.com/"
-        value={homepage}
-        onChange={(e) => setHomepage(e.target.value)}
-        fullWidth
-        size="small"
-      />
-      <TextField
-        label={msg("lblOrgWebId")}
-        type="url"
-        placeholder="https://example.com/profile/card#me"
-        value={sameAs}
-        onChange={(e) => setSameAs(e.target.value)}
-        helperText={msg("orgWebIdHelp")}
-        fullWidth
-        size="small"
+      <OrgEditor
+        showName
+        name={name}
+        onName={setName}
+        homepage={homepage}
+        onHomepage={setHomepage}
+        sameAs={sameAs}
+        onSameAs={setSameAs}
+        logoUrl={org.logoUrl ?? undefined}
+        onPickLogo={setPickedFile}
       />
       <Stack direction="row" spacing={1}>
         <Button onClick={onDone} disabled={saving}>{msg("btnCancel")}</Button>
@@ -160,22 +72,13 @@ function ReadView({ org }: { org: Organization }) {
     );
   }
   return (
-    <Stack spacing={1}>
-      {org.logoUrl && <LogoAvatar src={org.logoUrl} />}
-      {org.name && <DetailRow label={msg("lblCompanyName")} value={org.name} />}
-      {org.homepage && (
-        <DetailRow
-          label={msg("lblHomepageUri")}
-          value={<UriLink href={org.homepage}>{org.homepage}</UriLink>}
-        />
-      )}
-      {org.sameAs && (
-        <DetailRow
-          label={msg("lblOrgWebId")}
-          value={<UriLink href={org.sameAs}>{org.sameAs}</UriLink>}
-        />
-      )}
-    </Stack>
+    <OrgReadView
+      showName
+      logoUrl={org.logoUrl ?? undefined}
+      name={org.name}
+      homepage={org.homepage}
+      sameAs={org.sameAs}
+    />
   );
 }
 

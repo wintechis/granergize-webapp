@@ -32,6 +32,8 @@ export const FOAF_HOMEPAGE = `${FOAF_NS}homepage`;
 export const VCARD_NS = "http://www.w3.org/2006/vcard/ns#";
 export const VCARD_FN = `${VCARD_NS}fn`;
 export const VCARD_HAS_PHOTO = `${VCARD_NS}hasPhoto`;
+/** vcard:logo — an organisation contact's logo image. */
+export const VCARD_LOGO = `${VCARD_NS}logo`;
 export const VCARD_INDIVIDUAL = `${VCARD_NS}Individual`;
 /** vcard:Organization — a contact that is an organisation, not a person. */
 export const VCARD_ORGANIZATION = `${VCARD_NS}Organization`;

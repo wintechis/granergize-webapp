@@ -1,6 +1,6 @@
 import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Store } from "n3";
-import { putAcl, readModifyWrite } from "../pod/podWrite.ts";
+import { readModifyWrite } from "../pod/podWrite.ts";
 import { invalidateProfile, loadProfileStore } from "../pod/profileDocument.ts";
 import { getPodBaseUri } from "../pod/solidUtils.ts";
 import { logError } from "../../lib/logError.ts";
@@ -16,6 +16,9 @@ import {
   RDF_TYPE,
 } from "../rdf/vocabularies.ts";
 import { fetchWikidataLogo, wikidataEntityId } from "../agents/wikidataLogo.ts";
+import { EXT_BY_MIME, uploadPublicLogo } from "../pod/logoImage.ts";
+
+export { isSupportedLogoType } from "../pod/logoImage.ts";
 
 /**
  * The organisation the logged-in user works for, stored *inline in the WebID
@@ -67,18 +70,6 @@ export interface Organization {
   sameAs?: string;
 }
 
-/** image/* MIME → file extension for the stored logo. */
-const EXT_BY_MIME: Record<string, string> = {
-  "image/png": "png",
-  "image/jpeg": "jpg",
-  "image/svg+xml": "svg",
-  "image/webp": "webp",
-  "image/gif": "gif",
-};
-
-export function isSupportedLogoType(file: File): boolean {
-  return file.type in EXT_BY_MIME;
-}
 
 /** The WebID document URL (the WebID without its `#me` fragment). */
 function profileDocUri(webId: string): string {
@@ -335,36 +326,18 @@ export async function uploadOrgLogo(
     throw new Error(`Unsupported image type: ${file.type || "unknown"}`);
   }
 
-  // 1. Store the image in the profile folder, alongside the WebID document — the
+  // 1+2. Store the image in the profile folder, alongside the WebID document — the
   //    org is part of the profile (the inline <#org> node in card), so its logo
-  //    lives in profile/, not under the app's granergize/ tree.
-  const logoUrl = `${getPodBaseUri(webId)}logo.${ext}`;
-  const put = await gateway.fetch(logoUrl, {
-    method: "PUT",
-    headers: { "Content-Type": file.type },
-    body: file,
-  });
-  if (!put.ok) {
-    throw new Error(`Failed to upload logo to ${logoUrl}: ${put.statusText}`);
-  }
-
-  // 2. Make the logo world-readable via its own `.acl`: the logo is consumed
-  //    cross-agent by plain `<img>` loads — the map's producer-logo markers
-  //    resolve it on OTHER users' maps (and even the owner's own marker `<img>`
-  //    goes out unauthenticated). Without this, a default-private Pod serves
-  //    the logo only to its owner's authed fetches and every marker falls back
-  //    to the default pin. Best-effort: a non-WAC pod rejects the `.acl` PUT
-  //    without breaking the upload; there the provider's profile-folder
-  //    defaults decide visibility.
-  const acl = `@prefix acl: <http://www.w3.org/ns/auth/acl#>.
-@prefix foaf: <http://xmlns.com/foaf/0.1/>.
-<#public> a acl:Authorization; acl:accessTo <${logoUrl}>;
-  acl:agentClass foaf:Agent; acl:mode acl:Read.
-<#owner> a acl:Authorization; acl:accessTo <${logoUrl}>;
-  acl:agent <${webId}>; acl:mode acl:Read, acl:Write, acl:Control.
-`;
-  await putAcl(`${logoUrl}.acl`, acl, gateway)
-    .catch((err) => logError("publish org logo ACL", err));
+  //    lives in profile/, not under the app's granergize/ tree — and publish its
+  //    public-read `.acl` (the logo is consumed cross-agent by plain `<img>` loads:
+  //    map markers on OTHER users' maps, the contact page). Shared with the contact
+  //    logo path via uploadPublicLogo.
+  const logoUrl = await uploadPublicLogo(
+    file,
+    `${getPodBaseUri(webId)}logo.${ext}`,
+    webId,
+    gateway,
+  );
 
   // 3. Link it as foaf:logo on the org node (conditional GET → rewrite → PUT).
   const docUri = profileDocUri(webId);

@@ -127,11 +127,22 @@ function readAddress(store: Store, subject: string): string | undefined {
 }
 
 /**
- * Classify an agent as person vs organisation from its `rdf:type` values. An
- * organisation type (`…Organization`/`…Organisation`) wins over a person type
- * (`…Person`/`…Individual`); a profile carrying neither — but a `foaf:logo` — is
- * treated as an organisation. Returns undefined when nothing distinguishes it, so
- * the caller can apply its own default (person).
+ * Classify an agent as person vs organisation. A standard `rdf:type`
+ * (`…Organization`/`…Organisation` → org, `…Person`/`…Individual` → person) wins.
+ *
+ * Failing that, recognise the **MaStR wrapper** shape: its market actors aren't
+ * typed foaf/vcard — they're `vocab:Operator` / `:GridOperator` / `:MarketActor`,
+ * and the natural-vs-legal distinction lives in `mastr:Personenart`
+ * ("Juristische Person" = a legal entity → organisation; "Natuerliche Person" →
+ * person). `Personenart` is authoritative, so it's read first; absent it, an
+ * actor/operator type is taken as an organisation (a kept MaStR operator carries a
+ * Firmenname → a company, per the wrapper's regional-filter model). Suffix matches
+ * keep this independent of the wrapper's host/namespace (mirrors the contact-fact
+ * reads below).
+ *
+ * Last, a profile carrying none of these — but a `foaf:logo` — is an organisation.
+ * Returns undefined when nothing distinguishes it, so the caller applies its own
+ * default (person, correctable).
  */
 function resolveKind(
   store: Store,
@@ -143,6 +154,16 @@ function resolveKind(
   const isPerson = (t: string) => t.endsWith("Person") || t.endsWith("Individual");
   if (types.some(isOrg)) return "organisation";
   if (types.some(isPerson)) return "person";
+
+  const personenart = firstObjectBySuffix(store, webId, "Personenart");
+  if (personenart) {
+    if (/juristische/i.test(personenart)) return "organisation";
+    if (/nat(ue|ü)rliche/i.test(personenart)) return "person";
+  }
+  const isMarketActor = (t: string) =>
+    t.endsWith("Operator") || t.endsWith("MarketActor") || t.endsWith("Marktakteur");
+  if (types.some(isMarketActor)) return "organisation";
+
   if (firstObject(store, webId, FOAF_LOGO)) return "organisation";
   return undefined;
 }

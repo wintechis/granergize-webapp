@@ -14,8 +14,8 @@
  */
 import {
   aggregationRoute,
+  agentRoute,
   buildingRoute,
-  contactRoute,
   FINDERS,
   HOME,
   observationRoute,
@@ -39,7 +39,7 @@ export const NAVIGATE_CORES = {
   ShowObservation: (p: { id: string }) => observationRoute(p.id),
   ShowAggregation: (p: { id: string }) => aggregationRoute(p.id),
   ShowRoom: (p: { uri: string }) => roomRoute(p.uri),
-  ShowContact: (p: { webId: string }) => contactRoute(p.webId),
+  ShowContact: (p: { webId: string }) => agentRoute(p.webId),
 } as const;
 
 /** A catalog name with a navigate core. */

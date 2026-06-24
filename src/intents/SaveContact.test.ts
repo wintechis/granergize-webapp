@@ -40,6 +40,31 @@ Deno.test("saveContactCore writes a contact via a bare PodGateway (no Session)",
   assert.ok(methods.includes("PUT"), "expected a PUT to contacts.ttl");
 });
 
+Deno.test("saveContactCore uploads an org logo, sets a public ACL, links vcard:logo", async () => {
+  _setStorageRootForTesting(OWNER, "https://a.example/");
+  const { session, store } = makeFakeSession({ webId: OWNER });
+  const gateway = podGateway(session.fetch, OWNER);
+
+  const logo = new File([new Uint8Array([1, 2, 3])], "logo.png", { type: "image/png" });
+  await saveContactCore(gateway, {
+    contact: { webId: FRIEND, name: "ACME GmbH", kind: "organisation" },
+    logo,
+  });
+
+  // The image landed under the user's own app tree, keyed by the contact's WebID.
+  const logoUri =
+    "https://a.example/granergize/contacts/logos/friend-example-profile-card-me.png";
+  assert.ok(store[logoUri] !== undefined, "logo image should have been uploaded");
+  // A public-read ACL was published next to it.
+  const acl = store[`${logoUri}.acl`];
+  assert.ok(acl, "logo .acl should have been written");
+  assert.match(acl, /acl:agentClass\s+foaf:Agent/);
+  assert.match(acl, /acl:Read/);
+  // The contact links the uploaded logo via vcard:logo.
+  assert.match(store[CONTACTS], new RegExp(logoUri.replace(/[.]/g, "\\.")));
+  assert.match(store[CONTACTS], /logo/);
+});
+
 Deno.test("saveContactCore is idempotent: re-adding the same WebID updates in place", async () => {
   _setStorageRootForTesting(OWNER, "https://a.example/");
   const { session, store } = makeFakeSession({ webId: OWNER, etags: true });

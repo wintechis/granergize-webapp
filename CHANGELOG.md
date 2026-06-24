@@ -3,6 +3,19 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-24]
+- **The contact detail page is now the "agent" page; the two org surfaces are unified.**
+  The per-agent detail page (reached from any referenced WebID — a building's operator/owner/
+  investor/attributedTo, a saved contact) was named "Contact"; it's renamed to **Agent**
+  (`/contact`→`/agent`, `contactRoute`→`agentRoute`, `Contact.tsx`→`Agent.tsx`,
+  `ContactHeader`→`AgentHeader`, `components/contact/`→`components/agent/`). The address-book
+  domain stays "contacts" (a contact = a *saved* agent: the `Contact` type, `contacts.ttl`,
+  ContactsFinder, "Add to contacts"). The organisation read/edit body — logo + name + homepage +
+  cross-reference — is now ONE shared component (`OrgDetail`: `OrgReadView`/`OrgEditor`) used by
+  both the Organisation page (your own org, on your profile) and the agent page's org branch (a
+  referenced org, a local record). **Full logo parity:** a referenced org's logo can now be
+  uploaded too, stored as `vcard:logo` under the user's own app tree
+  (`<appRoot>contacts/logos/<stem>.<ext>`) with a public-read ACL — the local-record counterpart
+  of the own-org `foaf:logo`; the upload + ACL plumbing is shared (`logoImage.ts`).
 - **Contacts distinguish people from organisations, and org-contacts are editable.** A contact
   was a flat `{ webId, name?, avatarUrl? }` — nothing said whether the agent was a person or an
   organisation, and only the stored name could be edited. The address-book member now carries a
@@ -14,6 +27,18 @@ All notable changes to the Granergize WebApp project will be documented in this 
   profile is read-only, these edits are stored as a **local record under the agent's URI in the
   user's own `contacts.ttl`** — the local record takes precedence over the canonical profile on
   display. (Local logo upload is a later refinement; the resolved profile logo is shown for now.)
+- **A local "works for" edge between contacts.** A person contact can now be linked to an
+  organisation contact the user also keeps — a locally-asserted `org:memberOf` edge stored in the
+  user's own `contacts.ttl`, independent of (and taking precedence over) whatever the person's own
+  profile publishes. The person editor offers a dropdown of the user's org contacts; the contact
+  page shows a linked "Works for" row, and the canonical profile organisation is suppressed when a
+  local edge exists (so the affiliation shows once).
+- **MaStR operators resolve as organisations.** The MaStR wrapper types market actors as
+  `vocab:Operator`/`:GridOperator`/`:MarketActor` (never foaf/vcard), so an imported building's
+  operator used to default to a person on its contact page. `resolveKind` now recognises the MaStR
+  shape: `mastr:Personenart` is authoritative ("Juristische Person" → organisation, "Natuerliche
+  Person" → person), and absent it an actor/operator type resolves to an organisation (a kept MaStR
+  operator carries a Firmenname → a company). Host/namespace-independent (suffix matches).
 - **Heat generation is a technical system, not a checkbox.** A building's heat generators
   (heat pump / gas-, oil- and electric boiler / district heating) were five boolean flags;
   they're now first-class `:TechnicalSystem` nodes (`bldg:hasSystem`) like PV / battery / CHP,

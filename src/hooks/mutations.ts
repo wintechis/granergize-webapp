@@ -442,11 +442,15 @@ export function useSaveOrganization() {
 
 // ── Contacts (address book) ──────────────────────────────────────────────────
 
-/** Save (or update) a contact in the address book. */
+/** Save (or update) a contact in the address book. Accepts a bare {@link Contact}
+ *  or `{ contact, logo }` when an org contact's logo image is being uploaded. */
 export function useSaveContact() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (contact: Contact) => invoke("SaveContact", { contact }, getGateway()),
+    mutationFn: (vars: Contact | { contact: Contact; logo?: File | null }) => {
+      const params = "contact" in vars ? vars : { contact: vars };
+      return invoke("SaveContact", params, getGateway());
+    },
     onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
   });
 }

@@ -1870,6 +1870,9 @@ export const MESSAGES = {
     de: "Organisation",
     fr: "Organisation",
   },
+  // A locally-asserted "works for" edge from a person contact to an org contact.
+  contactWorksFor: { en: "Works for", de: "Arbeitet für", fr: "Travaille pour" },
+  contactWorksForNone: { en: "— none —", de: "— keine —", fr: "— aucune —" },
   // Detail FilesSection (read-only shared files).
   fileDownloading: { en: "Downloading…", de: "Wird heruntergeladen…", fr: "Téléchargement…" },
   // Room detail sections.

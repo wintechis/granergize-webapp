@@ -88,6 +88,40 @@ Deno.test("resolveAgent infers organisation from a foaf:logo even without a type
   assert.equal(agent.kind, "organisation", "a logo with no person/org type reads as an org");
 });
 
+Deno.test("resolveAgent: a MaStR operator with Personenart 'Juristische' is an organisation", async () => {
+  _resetProfileCacheForTesting();
+  // The MaStR wrapper types operators as vocab:Operator (not foaf/vcard) and carries
+  // the natural-vs-legal flag as mastr:Personenart.
+  const ttl = `
+    @prefix vocab: <https://wunderfacts.com/mastr/vocab#> .
+    @prefix mastr: <https://wunderfacts.com/mastr/mastr#> .
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${WEBID}> a vocab:Operator ; foaf:name "Windpark Kreuzstein GmbH & Co. KG" ;
+      mastr:Personenart "Juristische Person" .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.kind, "organisation");
+});
+
+Deno.test("resolveAgent: a MaStR operator with Personenart 'Natuerliche' is a person", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix vocab: <https://wunderfacts.com/mastr/vocab#> .
+    @prefix mastr: <https://wunderfacts.com/mastr/mastr#> .
+    <${WEBID}> a vocab:Operator ; mastr:Personenart "Natuerliche Person" .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.kind, "person", "Personenart overrides the operator-type default");
+});
+
+Deno.test("resolveAgent: a MaStR operator without Personenart defaults to an organisation", async () => {
+  _resetProfileCacheForTesting();
+  const ttl = `
+    @prefix vocab: <https://wunderfacts.com/mastr/vocab#> .
+    @prefix foaf: <http://xmlns.com/foaf/0.1/> .
+    <${WEBID}> a vocab:GridOperator ; foaf:name "Städtische Werke Netz+Service GmbH" .`;
+  const agent = await resolveAgent(WEBID, makeSession(ttl));
+  assert.equal(agent.kind, "organisation", "a kept operator carries a Firmenname → a company");
+});
+
 Deno.test("resolveAgent leaves kind undefined for an untyped, logo-less profile", async () => {
   _resetProfileCacheForTesting();
   const ttl = `

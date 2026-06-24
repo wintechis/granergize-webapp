@@ -29,8 +29,8 @@ const ACC = account("A");
 
 /**
  * The seeded synthetic member rows in the room PAGE's Members section. A member
- * row renders as an AgentLabel — the WebID is the contact-detail link's HREF
- * (`/contact/<url-encoded-webid>`, which still contains the un-escaped
+ * row renders as an AgentLabel — the WebID is the agent-detail link's HREF
+ * (`/agent?uri=<url-encoded-webid>`, which still contains the un-escaped
  * `bench.example` host marker), while the visible text is the resolved name (for
  * these unresolvable synthetic WebIDs, the `#me` fragment fallback) — so the
  * bench marker is matched in the href, not the text. Counts exactly the N seeded

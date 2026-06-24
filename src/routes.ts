@@ -39,7 +39,7 @@ export const DETAIL_PATTERNS = {
   observation: "/observation",
   aggregation: "/aggregation",
   room: "/room",
-  contact: "/contact",
+  agent: "/agent",
   regional: "/regional",
   dataSources: "/data-sources",
   organisation: "/organisation",
@@ -69,9 +69,10 @@ export const aggregationRoute = (id: string): string =>
   detailRoute(DETAIL_PATTERNS.aggregation, id);
 export const roomRoute = (uri: string): string =>
   detailRoute(DETAIL_PATTERNS.room, uri);
-/** A WebID is always an absolute IRI, so a contact always rides in `?uri=`. */
-export const contactRoute = (webId: string): string =>
-  `${DETAIL_PATTERNS.contact}?uri=${encodeURIComponent(webId)}`;
+/** The agent (person/organisation) detail page. A WebID is always an absolute IRI,
+ *  so an agent always rides in `?uri=`. */
+export const agentRoute = (webId: string): string =>
+  `${DETAIL_PATTERNS.agent}?uri=${encodeURIComponent(webId)}`;
 
 /** A public open-data regional dataset, keyed by its GENESIS `table` id + region
  *  `ags` (both query params — it has no Pod resource of its own). */

@@ -76,6 +76,8 @@ and stays under `profile/`.
 └── granergize/                                       ← podResources(): the single app root
     ├── prefs.ttl                personal UI state: currentRoom, hiddenBuilding(s), demoSeedDeclined
     ├── bookmarks.ttl            gran:knownRoom — external room bookmarks ("Your rooms")
+    ├── contacts.ttl            vCard address book: saved agents + local annotations (kind, org fields, "works for")
+    ├── contacts/logos/<stem>.<ext>   referenced-org logos (vcard:logo, public-read; own-org logo is profile/logo.<ext>)
     ├── buildings/<id>.ttl       subject <…/buildings/<id>.ttl#<id>> (discovered by LISTING — no registry)
     │   └── …/<id>/energy/<year>-<granularity>[-planned].ttl   one EnergyDataset per (year, granularity, scenario)
     │       └── …/<year>-PT15M/<date>.ttl                      series: descriptor .ttl + daily files in the folder
