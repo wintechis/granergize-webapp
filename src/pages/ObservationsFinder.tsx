@@ -13,7 +13,7 @@ import AddIcon from "@mui/icons-material/Add";
 import LinkIcon from "@mui/icons-material/Link";
 import DeleteSweepIcon from "@mui/icons-material/DeleteSweep";
 import DeleteIcon from "@mui/icons-material/Delete";
-import EnergyYearDialog from "../components/EnergyYearDialog.tsx";
+import EnergyYearEditor from "../components/EnergyYearEditor.tsx";
 import Modal from "../components/Modal.tsx";
 import BuildingPicker from "../components/BuildingPicker.tsx";
 import { useLocation, useSearchParams } from "react-router-dom";
@@ -479,11 +479,11 @@ export default function ObservationsFinder() {
         </>
       )}
 
-      {/* Create observations from the finder: the entry dialog with an OPTIONAL
-          building picker — clearing it (or owning none) writes a building-less
-          observation, to be linked to a building later. */}
+      {/* Create observations from the finder: binding is OPTIONAL — the picker defaults
+          to UNBOUND (a building-less series, linked to a building later), and you may bind
+          it to a building (then a subsystem) if you want. */}
       {createOpen && (
-        <EnergyYearDialog
+        <EnergyYearEditor
           open
           createFrom={ownedBuildings}
           session={getSession()}

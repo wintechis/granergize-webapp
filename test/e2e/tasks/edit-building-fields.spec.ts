@@ -129,15 +129,16 @@ test.describe("edit building operating costs + certifications", () => {
     await expect(page.getByText(t("energySystemsEmpty")))
       .toBeVisible({ timeout: T.visible });
 
-    // Add a PV unit via the dialog: it's a list editor, so "Add PV plant" first, then
-    // fill the unit's capacity. The unit becomes a `bldg:hasSystem` :PVSystem node.
+    // Add a PV unit via the INLINE editor (no dialog now): it's a list editor, so
+    // "Add PV plant" first, then fill the unit's capacity. The unit becomes a
+    // `bldg:hasSystem` :PVSystem node.
     await sysBtn.click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible({ timeout: T.visible });
-    await dialog.getByRole("button", { name: t("btnAddPv"), exact: true }).click();
-    await dialog.getByLabel(t("lblSystemCapacityKW"), { exact: true }).fill("500");
-    await dialog.getByLabel(t("lblCommissioningYear"), { exact: true }).fill("2020");
-    await dialog.getByRole("button", { name: t("saveChanges"), exact: true }).click();
+    const addPv = page.getByRole("button", { name: t("btnAddPv"), exact: true });
+    await expect(addPv).toBeVisible({ timeout: T.visible });
+    await addPv.click();
+    await page.getByLabel(t("lblSystemCapacityKW"), { exact: true }).fill("500");
+    await page.getByLabel(t("lblCommissioningYear"), { exact: true }).fill("2020");
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("buildingUpdated")))
       .toBeVisible({ timeout: T.action });
 
@@ -146,11 +147,11 @@ test.describe("edit building operating costs + certifications", () => {
     await expect(page.getByText(/500 kW, since 2020/))
       .toBeVisible({ timeout: T.visible });
 
-    // Re-open (the button is now "Edit"): the value round-tripped into the dialog.
+    // Re-open (the button is now "Edit"): the value round-tripped into the inline editor.
     await sysBtn.click();
-    await expect(dialog.getByLabel(t("lblSystemCapacityKW"), { exact: true }))
+    await expect(page.getByLabel(t("lblSystemCapacityKW"), { exact: true }))
       .toHaveValue("500", { timeout: T.visible });
-    await dialog.getByRole("button", { name: t("btnCancel"), exact: true }).click();
+    await page.getByRole("button", { name: t("btnCancel"), exact: true }).click();
 
     await page.goto("/");
     await openBuildingsList(page);

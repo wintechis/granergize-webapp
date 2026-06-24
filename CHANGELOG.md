@@ -3,6 +3,32 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-24]
+- **One edit gesture — inline detail editing; modals shrink to confirms + share.** The same
+  "edit a detail" action used three different widgets on the building/observation pages (inline
+  master data, an energy-systems pop-up, an energy-years dialog). Now **energy systems** and
+  **energy years** are edited **inline on the page** too — a read ↔ in-place-editor flip
+  mirroring master data, saving through the same mutation hooks. `EnergyYearDialog` became
+  `EnergyYearEditor` (an inline mode that replaces the charts while open, still seeded by the
+  palette's `?action=enter-energy`); the `EnergySystemsDialog`, the long-dead `EditBuildingDialog`
+  and the energy-systems pop-up are gone. The only modals left on those pages are Share +
+  destructive confirms.
+- **Create collects the basics; the details are added inline.** The Add-building dialog now asks
+  only for the address + coordinates (`basicsOnly`); everything else (areas, every agent incl. the
+  operator, building code, heating, certifications) is filled in on the building page's inline
+  editors afterward — so the create modal stops duplicating the full field set.
+- **A saved contact can be renamed inline** on its contact page (`[Edit]` on the header, saved
+  idempotently — re-saving the same WebID updates in place). Distinguishing people from
+  organisations, and making org-contacts richly editable, is specced for next.
+- **"Add observation" binds to a building optionally.** The finder's create now defaults to an
+  **unbound** observation series (it used to pre-select the first owned building); binding it to a
+  building — then optionally a subsystem — is opt-in, so an unbound series is always creatable and
+  linked to a building later.
+- **Your organisation is a page, not a pop-up.** A new `/organisation` page shows the org (name,
+  logo, homepage, WebID) read-first with an inline `[Edit]`, replacing `OrganizationDialog`; the
+  profile menu navigates there. Because that page is a shell-less route (it unmounts the header),
+  the header avatar + org-logo cache-buster moved from shell state into a module store
+  (`src/lib/avatarRefresh.ts`, mirroring `mapViewport`/`networkActivity`) so a save on the page
+  still refreshes the header.
 - **Building and observation pages no longer mix — they only link.** Building info stays on the
   building page, energy/observation info on the observation page, and each links to the other.
   The building page's energy *summary* (years + sparkline) is now just a "View energy charts →"

@@ -19,10 +19,7 @@ import CloseIcon from "@mui/icons-material/Close";
 import UploadFileIcon from "@mui/icons-material/UploadFile";
 import Modal from "./Modal.tsx";
 import { makeBuildingFields } from "./buildingFields.tsx";
-import {
-  BuildingAddressFields,
-  BuildingDetailFields,
-} from "./BuildingDetailFields.tsx";
+import { BuildingAddressFields } from "./BuildingDetailFields.tsx";
 import { ADDRESS_FIELDS } from "../constants/addressFields.ts";
 import RequestActivityList from "./RequestActivityList.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
@@ -157,8 +154,6 @@ export default function AddBuildingDialog(
     );
 
   const isDuplicate = buildingsList.some(isBuildingDuplicate) || hasCrossFileDuplicate;
-
-  const currentIsDuplicate = isBuildingDuplicate(fields);
 
   const setField = (key: string, val: string) =>
     setBuildingsList((prev) => {
@@ -505,28 +500,23 @@ export default function AddBuildingDialog(
           </Box>
         )}
 
-        {/* Common fields — one shared block with the Edit dialog (no drift). */}
+        {/* Create collects only the BASICS — address + coordinates. The rest of the
+            master data (areas, every agent incl. the operator, codes, heating, certs, …)
+            is added inline on the building page afterward: the create modal mints the
+            building, the inline editor fleshes it out (plan-inline-edit-consistency).
+            Energy figures are entered on the observation page. */}
         <BuildingAddressFields
           f={{ tf, check, enumSelect, sectionHeader }}
           fields={fields}
           setField={setField}
           isRequired={isRequired}
+          basicsOnly
           geocode={{
             onClick: onGeocode,
             busy: geocoding,
             disabled: !["streetAddress", "postalCode", "locality", "region"]
               .some((f) => fields[f]?.trim()),
             label: msg("addGetCoordinates"),
-          }}
-        />
-
-        {/* One generic field set, shared with the Edit dialog (no per-role gating).
-            Annual energy figures are entered later via the per-year Energy dialog. */}
-        <BuildingDetailFields
-          f={{ tf, check, enumSelect, sectionHeader }}
-          buildingCode={{
-            error: currentIsDuplicate,
-            helperText: currentIsDuplicate ? msg("buildingCodeExists") : undefined,
           }}
         />
       </Box>

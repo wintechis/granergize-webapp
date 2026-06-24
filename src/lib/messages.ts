@@ -1849,6 +1849,7 @@ export const MESSAGES = {
     de: "Zu Kontakten hinzufügen",
     fr: "Ajouter aux contacts",
   },
+  contactName: { en: "Name", de: "Name", fr: "Nom" },
   // Detail FilesSection (read-only shared files).
   fileDownloading: { en: "Downloading…", de: "Wird heruntergeladen…", fr: "Téléchargement…" },
   // Room detail sections.
@@ -2046,11 +2047,6 @@ export const MESSAGES = {
   },
   btnRestore: { en: "Restore", de: "Wiederherstellen", fr: "Restaurer" },
   btnRemoveAll: { en: "Remove all", de: "Alle entfernen", fr: "Tout supprimer" },
-  saveChanges: {
-    en: "Save Changes",
-    de: "Änderungen speichern",
-    fr: "Enregistrer les modifications",
-  },
   saveRoles: { en: "Save roles", de: "Rollen speichern", fr: "Enregistrer les rôles" },
   btnDownload: { en: "Download", de: "Herunterladen", fr: "Télécharger" },
   // Files dialog (per-building attachments).
@@ -2546,6 +2542,11 @@ export const MESSAGES = {
     en: "Your organisation",
     de: "Deine Organisation",
     fr: "Votre organisation",
+  },
+  orgEmpty: {
+    en: "No organisation yet. Add your organisation's name and logo.",
+    de: "Noch keine Organisation. Füge Name und Logo deiner Organisation hinzu.",
+    fr: "Aucune organisation. Ajoutez le nom et le logo de votre organisation.",
   },
   orgChooseLogo: { en: "Choose logo…", de: "Logo wählen…", fr: "Choisir un logo…" },
   orgLogoFormats: {

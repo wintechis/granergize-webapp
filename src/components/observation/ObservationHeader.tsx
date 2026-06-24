@@ -15,13 +15,11 @@ import EnergyEntryButton from "./EnergyEntryButton.tsx";
  * shared/read-only building).
  */
 export default function ObservationHeader(
-  { building, year, autoOpenEntry, onEntryClosed }: {
+  { building, year, onEdit }: {
     building: BuildingType;
     year?: number;
-    /** Open the energy-year dialog on mount (palette `?action=enter-energy`). */
-    autoOpenEntry?: boolean;
-    /** Called after the energy-year dialog closes (page strips `?action=`). */
-    onEntryClosed?: () => void;
+    /** Open the inline energy-year editor (which lives on the page — `Energy.tsx`). */
+    onEdit: () => void;
   },
 ) {
   const shared = building.isShared ?? false;
@@ -55,11 +53,7 @@ export default function ObservationHeader(
         </Box>
         {!shared && (
           <Box sx={{ flexShrink: 0 }}>
-            <EnergyEntryButton
-              building={building}
-              autoOpen={autoOpenEntry}
-              onClosed={onEntryClosed}
-            />
+            <EnergyEntryButton building={building} onEdit={onEdit} />
           </Box>
         )}
       </Stack>

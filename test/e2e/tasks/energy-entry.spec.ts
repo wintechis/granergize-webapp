@@ -175,9 +175,10 @@ test.describe("energy entry + Soll-Ist", () => {
     await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
-    // Saving keeps the dialog open now — close it before navigating away.
+    // Saving keeps the editor open now — close it (Close flips back to the charts view).
     await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
+    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
+      .toBeHidden({ timeout: T.action });
 
     // Re-open once more: BOTH figures persisted — electricity was not zeroed.
     await openYearDialog();
@@ -196,7 +197,9 @@ test.describe("energy entry + Soll-Ist", () => {
     await page.goto(buildingRoute("observation", id));
     await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
 
-    const table = page.getByRole("dialog").getByRole("table");
+    // The editor is inline now and replaces the charts while open, so its stored-years
+    // table is the only table on the page.
+    const table = page.getByRole("table");
     const yearRow = table.getByRole("row", {
       name: new RegExp(`\\b${DEL_YEAR}\\b`),
     });
@@ -234,47 +237,48 @@ test.describe("energy entry + Soll-Ist", () => {
       .locator("xpath=..")
       .getByRole("button");
     await sysBtn.click();
-    const sysDialog = page.getByRole("dialog");
-    await expect(sysDialog).toBeVisible({ timeout: T.visible });
-    await sysDialog.getByRole("button", { name: t("btnAddPv"), exact: true }).click();
-    await sysDialog.getByLabel(t("lblSystemCapacityKW"), { exact: true }).fill("500");
-    await sysDialog.getByRole("button", { name: t("saveChanges"), exact: true }).click();
+    // The energy-systems editor is inline on the page now (no dialog).
+    const addPv = page.getByRole("button", { name: t("btnAddPv"), exact: true });
+    await expect(addPv).toBeVisible({ timeout: T.visible });
+    await addPv.click();
+    await page.getByLabel(t("lblSystemCapacityKW"), { exact: true }).fill("500");
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("buildingUpdated"))).toBeVisible({ timeout: T.action });
 
     // 2) Open the energy-year dialog; "Observe for" now offers the PV unit.
     await page.goto(buildingRoute("observation", id));
     await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
-    const dialog = page.getByRole("dialog");
-    await dialog.getByLabel(t("eyObserveFor")).click();
+    // The energy-year editor is inline on the observation page now (no dialog).
+    await page.getByLabel(t("eyObserveFor")).click();
     // The option label carries the capacity to disambiguate units ("PV system (500 kW)").
     await page.getByRole("option", { name: new RegExp(t("mdPvSystem")) }).click();
 
     // 3) Enter a generation figure for PV_YEAR and save — it attaches to <#pv> as the
     // feature of interest, NOT the building.
-    await dialog.getByRole("spinbutton", { name: t("lblYear"), exact: true }).fill(PV_YEAR);
-    await dialog.getByRole("spinbutton", { name: metricT("electricityGeneration") })
+    await page.getByRole("spinbutton", { name: t("lblYear"), exact: true }).fill(PV_YEAR);
+    await page.getByRole("spinbutton", { name: metricT("electricityGeneration") })
       .fill("240000");
-    await dialog.getByRole("button", { name: t("btnSave"), exact: true }).click();
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
 
-    // 4) The PV scope lists the year.
-    const table = dialog.getByRole("table");
+    // 4) The PV scope lists the year (the editor's table is the only one on the page).
+    const table = page.getByRole("table");
     const pvRow = table.getByRole("row", { name: new RegExp(`\\b${PV_YEAR}\\b`) });
     await expect(pvRow).toBeVisible({ timeout: T.action });
 
     // 5) Switch "Observe for" back to the building → the PV year is NOT there,
     // proving per-unit observations are stored apart from the building's own.
-    await dialog.getByLabel(t("eyObserveFor")).click();
+    await page.getByLabel(t("eyObserveFor")).click();
     await page.getByRole("option", { name: t("eyFoiBuilding"), exact: true }).click();
     await expect(table.getByRole("row", { name: new RegExp(`\\b${PV_YEAR}\\b`) }))
       .toBeHidden({ timeout: T.action });
 
-    // 6) Close the dialog → the observation page surfaces the per-unit observations
-    // section with the PV's figure (240.000 kWh, de-DE) under its own unit — the
-    // display of what we just entered, kept apart from the building's annual view.
+    // 6) Close the editor → the observation page surfaces the per-unit observations
+    // section with the PV's figure (240.000 kWh, de-DE) under its own unit.
     await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
+    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
+      .toBeHidden({ timeout: T.action });
     await expect(page.getByRole("heading", { name: t("unitObsHeading") }))
       .toBeVisible({ timeout: T.action });
     await expect(page.getByText(/240\.000/).first())

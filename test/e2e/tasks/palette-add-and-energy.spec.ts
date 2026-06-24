@@ -18,7 +18,7 @@ import { T } from "../helpers/timeouts.ts";
  *      submit the generic building form.
  *   2. On the new building's observation page, the palette's "Enter energy…" rich
  *      verb routes to `/observation?...&action=enter-energy`, which auto-opens the
- *      EnergyYearDialog; enter the 2024 figure and save.
+ *      EnergyYearEditor; enter the 2024 figure and save.
  *
  * KNOWN RESIDUAL (plan-palette §"Open questions"): the palette does NOT auto-chain
  * add → enter-energy — it acts on the *currently-focused* object, and a just-added
@@ -116,30 +116,34 @@ test.describe("palette: add building + enter energy", () => {
 
     // ── Step 2: enter energy through the palette's rich-verb routing contract ──
     // The "Enter energy…" verb is a focused-object rich verb (surface
-    // EnergyYearDialog on /observation). The palette routes it to
+    // EnergyYearEditor on /observation). The palette routes it to
     // withAction(observationRoute(id), "enter-energy"); since CommandPalette isn't
     // mounted on the shell-less observation page, drive that exact route here.
     await page.goto(withAction(observationRoute(id), "enter-energy"));
-    const energy = page.getByRole("dialog");
-    await expect(energy).toBeVisible({ timeout: T.visible });
-    await expect(energy.getByRole("heading", { level: 2 }))
+    // The editor is inline on the observation page now (no dialog) — its year input
+    // appearing means it auto-opened from `?action=enter-energy`. The building is named
+    // by the observation page's own header (h5).
+    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
+      .toBeVisible({ timeout: T.visible });
+    await expect(page.getByRole("heading", { level: 5 }).first())
       .toContainText(ADDR, { timeout: T.visible });
 
     await page.getByRole("spinbutton", { name: t("lblYear"), exact: true })
       .fill(YEAR);
     await page.getByRole("spinbutton", { name: metricT("electricityConsumption") })
       .fill(ELECTRICITY);
-    await energy.getByRole("button", { name: t("btnSave"), exact: true }).click();
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("energySaved")).first()).toBeVisible({
       timeout: T.action,
     });
 
-    // The saved year reads back into the dialog's year table — proof the figure
-    // landed (the dialog stays open after save so the table reflects it).
-    await expect(energy.getByText(YEAR).first()).toBeVisible({
+    // The saved year reads back into the editor's year table — proof the figure
+    // landed (the editor stays open after save so the table reflects it).
+    await expect(page.getByText(YEAR).first()).toBeVisible({
       timeout: T.action,
     });
     await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
-    await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
+    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
+      .toBeHidden({ timeout: T.action });
   });
 });

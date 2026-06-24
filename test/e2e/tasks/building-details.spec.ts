@@ -78,7 +78,6 @@ test.describe("building details", () => {
     await add.getByLabel(t("lblRegion")).fill("Bayern");
     await add.getByLabel(t("lblLatitude")).fill("49.45");
     await add.getByLabel(t("lblLongitude")).fill("11.08");
-    await add.getByLabel(t("lblOperatedBy")).fill(OP_WEBID);
     await add.getByRole("button", { name: t("addBuildingBtn") }).click();
     await expect(page.getByText(t("addBuildingAddedCount", { count: 1 }))).toBeVisible({
       timeout: T.action,
@@ -94,6 +93,18 @@ test.describe("building details", () => {
     // detail view (/contact?uri=<webid>), labelled by the agent's name — the WebID's
     // #fragment until a profile name resolves (AgentLabel → RefLink) ---
     await page.goto(buildingRoute("building", id));
+    // The operator is master data now (not a create-form basic) — set it INLINE via the
+    // master-data editor (the create modal minted only address + coordinates).
+    await page.getByRole("heading", { name: t("secMasterData"), exact: true })
+      .locator("xpath=..")
+      .getByRole("button")
+      .click();
+    await page.getByLabel(t("lblOperatedBy")).fill(OP_WEBID);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
+    await expect(page.getByText(t("buildingUpdated")))
+      .toBeVisible({ timeout: T.action });
+
     const opLink = page.locator(`a[href$="${encodeURIComponent(OP_WEBID)}"]`);
     await expect(opLink).toBeVisible({ timeout: T.action });
     await expect(opLink).toHaveText(OP_HASH); // shows the agent name (the IRI's #fragment)

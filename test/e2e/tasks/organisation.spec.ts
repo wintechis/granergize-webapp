@@ -1,4 +1,4 @@
-import { expect, type Locator, type Page, test } from "@playwright/test";
+import { expect, type Page, test } from "@playwright/test";
 import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
@@ -25,8 +25,8 @@ import { T } from "../helpers/timeouts.ts";
 
 const LOGO_ADDR = "Logo Marker E2E Strasse 2"; // building used for the logo-marker check
 
-/** Open the avatar-menu Organisation dialog. */
-async function openOrgDialog(page: Page): Promise<Locator> {
+/** Open the avatar-menu → the Organisation page (lands on the read view). */
+async function openOrgPage(page: Page): Promise<void> {
   // Bounded clicks: Playwright's default action timeout is 0 (wait forever), so a
   // stuck click here would consume a whole hook budget uncatchably. 15 s is ample.
   await page.getByRole("button", { name: t("menuAccountAria") }).click({
@@ -34,10 +34,16 @@ async function openOrgDialog(page: Page): Promise<Locator> {
   });
   await page.getByRole("menuitem", { name: t("menuOrganisation") })
     .click({ timeout: T.visible });
-  const org = page.getByRole("dialog");
-  await expect(org).toBeVisible({ timeout: T.action });
+  // The read view's [Edit] confirms we've landed on the Organisation page.
+  await expect(page.getByRole("button", { name: t("btnEdit"), exact: true }))
+    .toBeVisible({ timeout: T.action });
+}
+
+/** Open the Organisation page and flip to its inline editor. */
+async function openOrgEditor(page: Page): Promise<void> {
+  await openOrgPage(page);
+  await page.getByRole("button", { name: t("btnEdit"), exact: true }).click();
   await page.waitForLoadState("networkidle").catch(() => {}); // fields load async
-  return org;
 }
 
 const ACC = account("A"); // Alice -- solo specs use one account
@@ -68,31 +74,36 @@ test.describe("organisation logo", () => {
 
   // Upload a company logo in the Organisation dialog. Throwaway Pod: the logo
   // persists (no remove-logo UI to reverse it), which is fine.
-  test("upload a company logo in the Organisation dialog", async () => {
+  test("upload a company logo on the Organisation page", async () => {
     test.setTimeout(T.testSolo);
     // A minimal 1×1 PNG, inline — no fixture file needed.
     const png = Buffer.from(
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAAC0lEQVR42mNk+M9QDwADhgGAWjR9awAAAABJRU5ErkJggg==",
       "base64",
     );
-    const org = await openOrgDialog(page);
-    await org.locator('input[type="file"]').setInputFiles({
+    await openOrgEditor(page);
+    await page.locator('input[type="file"]').setInputFiles({
       name: "logo.png",
       mimeType: "image/png",
       buffer: png,
     });
     // The avatar preview picks up the chosen image (the Avatar's <img alt>).
-    await expect(org.getByAltText(t("orgLogoAlt")))
+    await expect(page.getByAltText(t("orgLogoAlt")))
       .toBeVisible({ timeout: T.visible });
-    await org.getByRole("button", { name: t("btnSave"), exact: true }).click();
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("organisationSaved")))
       .toBeVisible({ timeout: T.action });
-
-    // Reopen → the logo persisted (the dialog's avatar still shows an image).
-    const reopened = await openOrgDialog(page);
-    await expect(reopened.getByAltText(t("orgLogoAlt")))
+    // The page flips back to the read view, still showing the saved logo.
+    await expect(page.getByAltText(t("orgLogoAlt")))
       .toBeVisible({ timeout: T.action });
-    await reopened.getByRole("button", { name: t("btnCancel"), exact: true }).click();
+
+    // Reopen from a fresh load → the logo persisted (the read view shows it).
+    await page.goto("/");
+    await openOrgPage(page);
+    await expect(page.getByAltText(t("orgLogoAlt")))
+      .toBeVisible({ timeout: T.action });
+    // Leave on the shell (not the shell-less Organisation page) for the next serial test.
+    await page.goto("/");
   });
 
   // heike-2 / Andreas: the top-right avatar is the USER's identity and must never

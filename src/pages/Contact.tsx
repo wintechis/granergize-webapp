@@ -8,10 +8,11 @@ import AppearsInSection from "../components/contact/AppearsInSection.tsx";
  * building's operatedBy / ownedBy / investor / attributedTo / …). Reached by
  * clicking an agent anywhere it's surfaced ({@link AgentLabel} → /contact/:webId),
  * routing through contacts rather than opening the raw WebID off-app. Read-first
- * scrolling sections in the building-page master-detail style; a contact is
- * someone else's WebID, so every section is read-only. As a standalone full-page
- * route it carries its own plain "Loading…" text (the header activity indicator
- * isn't mounted here — see the loading-spinner policy).
+ * scrolling sections in the building-page master-detail style. A contact is someone
+ * else's WebID, so the profile / appears-in sections are read-only — but the header's
+ * stored label is yours to edit (an inline `[Edit]`), the one thing the user owns. As a
+ * standalone full-page route it carries its own plain "Loading…" text (the header
+ * activity indicator isn't mounted here — see the loading-spinner policy).
  */
 export default function Contact({ webId }: { webId: string }) {
   return (

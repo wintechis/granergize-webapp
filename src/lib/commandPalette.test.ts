@@ -77,13 +77,13 @@ Deno.test("intentDialogAction maps each wired rich verb to its surface token", (
     intentDialogAction(findIntent("ShareAggregation")!),
     "share-aggregation",
   );
-  // SaveObservation is a rich verb whose surface (EnergyYearDialog) lives on the
+  // SaveObservation is a rich verb whose surface (EnergyYearEditor) lives on the
   // /observation page — it auto-opens from `?action=enter-energy`.
   assert.equal(intentDialogAction(findIntent("SaveObservation")!), "enter-energy");
 });
 
 Deno.test("SaveObservation routes to a dialog; DeleteObservation routes (no auto-open token)", () => {
-  // Both observation verbs declare params AND a bespoke surface (EnergyYearDialog) →
+  // Both observation verbs declare params AND a bespoke surface (EnergyYearEditor) →
   // both route to that dialog rather than firing directly.
   assert.equal(intentRoutesToDialog(findIntent("SaveObservation")!), true);
   assert.equal(intentRoutesToDialog(findIntent("DeleteObservation")!), true);

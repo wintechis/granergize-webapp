@@ -26,6 +26,7 @@ import Room from "./pages/Room.tsx";
 import Aggregation from "./pages/Aggregation.tsx";
 import RegionalDataset from "./pages/RegionalDataset.tsx";
 import DataSources from "./pages/DataSources.tsx";
+import Organisation from "./pages/Organisation.tsx";
 import ActivityScreen from "./components/ActivityScreen.tsx";
 import "./App.css";
 import CircularProgress from "@mui/material/CircularProgress";
@@ -318,6 +319,7 @@ function App({ onLogout, session }: AppProps) {
     { path: DETAIL_PATTERNS.room, element: <RoomWrapper session={session} /> },
     { path: DETAIL_PATTERNS.regional, element: <RegionalWrapper /> },
     { path: DETAIL_PATTERNS.dataSources, element: <DataSourcesWrapper /> },
+    { path: DETAIL_PATTERNS.organisation, element: <Organisation /> },
   ];
 
   // The five FINDER routes share the persistent app chrome (top-nav + header):

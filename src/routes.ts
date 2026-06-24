@@ -42,6 +42,7 @@ export const DETAIL_PATTERNS = {
   contact: "/contact",
   regional: "/regional",
   dataSources: "/data-sources",
+  organisation: "/organisation",
 } as const;
 
 /** The home/dashboard route. */

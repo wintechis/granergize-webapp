@@ -33,7 +33,7 @@ import ActivityScreen from "../components/ActivityScreen.tsx";
 import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { getAvatarObjectUrl } from "../services/organization/logoManager.ts";
 import { getOrgLogoObjectUrl } from "../services/organization/organizationManager.ts";
-import OrganizationDialog from "../components/OrganizationDialog.tsx";
+import { useAvatarRefresh } from "../lib/avatarRefresh.ts";
 import Alert from "@mui/material/Alert";
 import Button from "@mui/material/Button";
 import Collapse from "@mui/material/Collapse";
@@ -148,11 +148,10 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   // Header images, top-right: the organisation logo (foaf:logo on the <#org>
   // node) when one is set, then the person's own avatar (foaf:img /
   // vcard:hasPhoto) if set, else a PersonIcon. The avatar is always the user's
-  // identity; the logo is the organisation's. Both re-load when
-  // `avatarVersion` is bumped (after the organisation dialog saves).
-  const [orgOpen, setOrgOpen] = useState(false);
-  const [avatarVersion, setAvatarVersion] = useState(0);
-  const loadAvatar = () => setAvatarVersion((v) => v + 1);
+  // identity; the logo is the organisation's. Both re-load when `avatarVersion`
+  // bumps — set from the Organisation page on save via a module store (that page is
+  // a shell-less route, so it can't bump shell state directly — see avatarRefresh.ts).
+  const avatarVersion = useAvatarRefresh();
   const avatarUrl = useProfileImageUrl(
     session,
     avatarVersion,
@@ -400,7 +399,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
 
   const handleOrganisation = () => {
     handleMenuClose();
-    setOrgOpen(true);
+    void navigate(DETAIL_PATTERNS.organisation);
   };
 
   // Load the current-room pointer from the Pod into memory once after login, so
@@ -827,14 +826,6 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
       <Box sx={{ flexShrink: 0 }}>
         <Footer />
       </Box>
-      <OrganizationDialog
-        open={orgOpen}
-        session={session}
-        onClose={() => setOrgOpen(false)}
-        onSaved={() => {
-          loadAvatar();
-        }}
-      />
       {/* The global ⌘K command palette — reads the intent registry, scoped to the
           focused object (via PaletteFocusProvider) plus the navigation verbs. */}
       <CommandPalette />

@@ -148,12 +148,13 @@ test.describe("building form + energy entry", () => {
     // The energy-year dialog opens from the building's observation page now.
     await page.goto(buildingRoute("observation", id));
     await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible({ timeout: T.visible });
+    // The editor is inline on the observation page now (no dialog).
+    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
+      .toBeVisible({ timeout: T.visible });
 
-    // The header carries the building's address so the user knows which building
-    // they're entering figures for (the dialog title is "Energy years — <name>").
-    await expect(dialog.getByRole("heading", { level: 2 }))
+    // The observation page's own header names the building (h5) so the user knows
+    // which building they're entering figures for.
+    await expect(page.getByRole("heading", { level: 5 }).first())
       .toContainText(ADDR_HEADER, { timeout: T.visible });
   });
 
@@ -169,17 +170,18 @@ test.describe("building form + energy entry", () => {
     if (!id) throw new Error("building-form: missing building id");
     await page.goto(buildingRoute("observation", id));
     await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
-    const dialog = page.getByRole("dialog");
-    await expect(dialog).toBeVisible({ timeout: T.visible });
+    // The editor is inline on the observation page now (no dialog).
+    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
+      .toBeVisible({ timeout: T.visible });
 
     const year = page.getByRole("spinbutton", { name: t("lblYear"), exact: true });
     const electricity = page.getByRole("spinbutton", { name: metricT("electricityConsumption") });
     const scenario = page.getByLabel(t("lblScenario"), { exact: true });
 
-    // Save an ACTUAL figure for the year (the dialog stays open, form resets).
+    // Save an ACTUAL figure for the year (the editor stays open, form resets).
     await year.fill("2099");
     await electricity.fill("88888");
-    await dialog.getByRole("button", { name: t("btnSave"), exact: true }).click();
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
 

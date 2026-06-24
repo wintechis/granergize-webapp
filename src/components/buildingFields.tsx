@@ -109,7 +109,7 @@ export function makeBuildingFields(
 
 /** Investor operating-cost categories rendered as `_opcost_<key>` form rows (mirrors
  * OPCOST_FIELDS in buildingSerializer). One boolean; the rest free-text currency
- * values. Shared by the EditBuildingDialog AND the building page's inline editor. */
+ * values. Shared by the building page's inline editors (master data + energy systems). */
 export const OPCOST_FIELDS: { key: string; labelId: MessageId; bool?: boolean }[] = [
   { key: "wasteDisposal", labelId: "lblOpcostWasteDisposal" },
   { key: "insurance", labelId: "lblOpcostInsurance" },
@@ -164,8 +164,8 @@ const labelToLocalName: Record<string, string> = Object.fromEntries(
  * serializer's field convention, so the form round-trips through `updateBuilding`.
  * Scalars go in by key; the nested investor operating-costs / certifications and the
  * PV-system node are flattened to the `_opcost_*` / `_cert_<i>_*` / `_pv_*` keys those
- * write/replace helpers expect. Shared by the EditBuildingDialog AND the building
- * page's inline editor (the single source — was duplicated in both).
+ * write/replace helpers expect. Shared by the building page's inline editors (master
+ * data + energy systems) — the single source.
  */
 export function buildingToFields(b: BuildingType): Record<string, string> {
   const fields: Record<string, string> = {};

@@ -12,8 +12,9 @@ import { T } from "../helpers/timeouts.ts";
  * bind it to a building later. With no buildings yet, "Add observation" writes a
  * building-less observation (the picker is hidden), which shows under a "Without a
  * building" section in the List; once a building exists, "Link to a building" binds it
- * in place (the observation IRI is stable) and it moves under that building.
- * Self-cleaning; Alice (account A).
+ * in place (the observation IRI is stable) and it moves under that building. Binding is
+ * OPTIONAL: even with buildings present the create picker defaults to UNBOUND, so an
+ * unbound series is always creatable. Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/tasks/buildingless-observations.spec.ts
  */
@@ -127,5 +128,41 @@ test.describe("building-less observations", () => {
     }).toPass({ timeout: T.poll });
     await expect(page.getByRole("heading", { name: t("obsWithoutBuilding") }))
       .toHaveCount(0);
+  });
+
+  test("with a building present, Add observation still defaults to unbound (binding optional)", async () => {
+    test.setTimeout(T.testSolo);
+
+    // A building exists now (from the previous test). The finder's "Add observation"
+    // still defaults to UNBOUND — the picker is present but NOT pre-selected, so binding
+    // is optional. Create a building-less series without touching it.
+    await page.getByRole("tab", { name: t("navObservations") }).click();
+    await page.getByRole("button", { name: t("eyAddObservation") }).click();
+    const dialog = page.getByRole("dialog");
+    // The optional building picker IS shown (a building exists to bind to) ...
+    await expect(dialog.getByLabel(t("eyBuildingLabel")))
+      .toBeVisible({ timeout: T.action });
+    // ... but nothing is bound by default → the building-less hint shows.
+    await expect(dialog.getByText(t("eyBuildinglessHint")))
+      .toBeVisible({ timeout: T.action });
+
+    // Save WITHOUT binding (leave the picker unbound).
+    await dialog.getByRole("spinbutton", { name: t("lblYear"), exact: true })
+      .fill("2017");
+    await dialog.getByRole("spinbutton", { name: metricT("electricityConsumption") })
+      .fill("4000");
+    await dialog.getByRole("button", { name: t("btnSave"), exact: true }).click();
+    await expect(page.getByText(t("energySaved")).first())
+      .toBeVisible({ timeout: T.action });
+    await dialog.getByRole("button", { name: t("btnClose"), exact: true }).click();
+    await expect(dialog).toBeHidden({ timeout: T.action });
+
+    // The new series lands under "Without a building" — it stayed unbound despite a
+    // building existing (binding is optional, not forced). verifyAndReset cleans up.
+    await openObservationsView(page, "list");
+    await expect(page.getByRole("heading", { name: t("obsWithoutBuilding") }))
+      .toBeVisible({ timeout: T.action });
+    await expect(page.locator("li", { hasText: "2017" }).first())
+      .toBeVisible({ timeout: T.action });
   });
 });

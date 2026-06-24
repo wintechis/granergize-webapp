@@ -1,4 +1,4 @@
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useSearchParams } from "react-router-dom";
 import { msg } from "../lib/messages.ts";
 import { BuildingType } from "../types.ts";
@@ -7,6 +7,8 @@ import { useSolidData } from "../hooks/queries.ts";
 import { ACTION_PARAM } from "../routes.ts";
 import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
+import EnergyYearEditor from "../components/EnergyYearEditor.tsx";
+import { getSession } from "../hooks/session.ts";
 import { useDevMode } from "../hooks/devMode.ts";
 import { splitEnergyDatasets } from "../lib/energyResolution.ts";
 import EnergyResolutionSwitch from "../components/EnergyResolutionSwitch.tsx";
@@ -38,10 +40,10 @@ export default function Energy({ building }: EnergyProps) {
   // Register the building this page is showing as the ⌘K palette's focused
   // object — the observation surface is titled by its building, and energy
   // belongs to that building. The energy verbs (SaveEnergyYear /
-  // DeleteEnergyYear) are RICH (a dialog-routed surface, EnergyYearDialog), so
-  // they need no direct handler — the palette routes here `?action=enter-energy`
-  // and the header's EnergyEntryButton opens the dialog (mirroring Building.tsx /
-  // Aggregation.tsx). Clearing on unmount returns the palette to navigation-only.
+  // DeleteEnergyYear) are RICH (a routed surface — the inline EnergyYearEditor),
+  // so they need no direct handler — the palette routes here `?action=enter-energy`
+  // and the header's EnergyEntryButton toggles the editor open (mirroring
+  // Building.tsx). Clearing on unmount returns the palette to navigation-only.
   const { setFocus, clearFocus } = usePaletteFocus();
   useEffect(() => {
     setFocus({ object: building, handlers: {} });
@@ -50,9 +52,9 @@ export default function Energy({ building }: EnergyProps) {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [building]);
 
-  // A palette-routed energy entry arrives with `?action=enter-energy`, which the
-  // header's EnergyEntryButton seeds open from (plan-palette §5). The close
-  // handler strips the param so a reload / re-focus doesn't reopen the dialog.
+  // A palette-routed energy entry arrives with `?action=enter-energy`, which seeds
+  // the inline editor open (`entering` below). The close handler strips the param
+  // so a reload / re-focus doesn't reopen the editor.
   const [sp, setSp] = useSearchParams();
   const autoOpenEntry = sp.get(ACTION_PARAM) === "enter-energy";
   const onEntryClosed = () => {
@@ -61,6 +63,17 @@ export default function Energy({ building }: EnergyProps) {
       next.delete(ACTION_PARAM);
       return next;
     }, { replace: true });
+  };
+
+  // The energy-year editor is INLINE on this page now (not a modal). The header's
+  // "Edit energy years" button toggles it; the palette's `?action=enter-energy` seeds it
+  // open. Owned here so it renders in the page body below the header.
+  const [entering, setEntering] = useState(
+    autoOpenEntry && !building.isShared,
+  );
+  const closeEntry = () => {
+    setEntering(false);
+    onEntryClosed();
   };
 
   // While the global load is in flight, stay blank — the header spinner is the
@@ -100,12 +113,22 @@ export default function Energy({ building }: EnergyProps) {
       <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
         <ObservationHeader
           building={building}
-          autoOpenEntry={autoOpenEntry}
-          onEntryClosed={onEntryClosed}
+          onEdit={() => setEntering(true)}
         />
-        <Typography color="text.secondary">
-          {building.isShared ? msg("energyNoneShared") : msg("energyNoneOwn")}
-        </Typography>
+        {entering
+          ? (
+            <EnergyYearEditor
+              inline
+              building={building}
+              session={getSession()}
+              onClose={closeEntry}
+            />
+          )
+          : (
+            <Typography color="text.secondary">
+              {building.isShared ? msg("energyNoneShared") : msg("energyNoneOwn")}
+            </Typography>
+          )}
         {weatherSection}
         <NearbyInstallationsSection building={building} />
         <NearbyRooftopsSection building={building} />
@@ -149,15 +172,25 @@ export default function Energy({ building }: EnergyProps) {
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
       <ObservationHeader
         building={building}
-        autoOpenEntry={autoOpenEntry}
-        onEntryClosed={onEntryClosed}
+        onEdit={() => setEntering(true)}
       />
-      <EnergyResolutionSwitch
-        annual={annualView}
-        series={series.length > 0
-          ? <SeriesEnergy building={building} />
-          : undefined}
-      />
+      {entering
+        ? (
+          <EnergyYearEditor
+            inline
+            building={building}
+            session={getSession()}
+            onClose={closeEntry}
+          />
+        )
+        : (
+          <EnergyResolutionSwitch
+            annual={annualView}
+            series={series.length > 0
+              ? <SeriesEnergy building={building} />
+              : undefined}
+          />
+        )}
       <UnitObservationsSection building={building} />
       {weatherSection}
       <NearbyInstallationsSection building={building} />

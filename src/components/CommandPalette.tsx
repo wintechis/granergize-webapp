@@ -98,7 +98,7 @@ function dialogRoute(
 ): string | null {
   if (isBuilding(object)) {
     // Energy entry lives on the OBSERVATION surface, not the building page — its
-    // dialog (EnergyYearDialog) is reached via /observation, where it auto-opens
+    // dialog (EnergyYearEditor) is reached via /observation, where it auto-opens
     // from `?action=enter-energy`. Every other building verb stays on /building.
     return entry.entity === "observation"
       ? observationRoute(object.id)

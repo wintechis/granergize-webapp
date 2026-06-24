@@ -170,16 +170,31 @@ export async function addBuilding(
   await dialog.getByLabel(t("lblRegion")).fill("Bayern");
   await dialog.getByLabel(t("lblLatitude")).fill("49.45");
   await dialog.getByLabel(t("lblLongitude")).fill("11.08");
-  if (opts.operatedBy) {
-    await dialog.getByLabel(t("lblOperatedBy")).fill(opts.operatedBy);
-    // "Operated by" is a contacts Autocomplete: once the operator is a remembered
-    // contact (e.g. the 2nd building reusing it), a suggestion popup opens and would
-    // overlap/intercept the submit click. Escape closes just the popup (MUI consumes
-    // it; the dialog stays open).
-    await page.keyboard.press("Escape");
-  }
   await dialog.getByRole("button", { name: t("addBuildingBtn"), exact: true }).click();
   await expect(dialog).toBeHidden({ timeout: T.action });
+
+  // The operator is master data now, not a create-form basic — the create modal mints
+  // only the basics (address + coordinates). Set "Operated by" INLINE on the new
+  // building's page via the master-data editor (the inline flesh-out). It's a contacts
+  // Autocomplete, so Escape closes the suggestion popup before Save.
+  if (opts.operatedBy) {
+    const { id } = await findOwnBuildingRow(page, street);
+    await page.goto(buildingRoute("building", id));
+    await page.getByRole("heading", { name: t("secMasterData"), exact: true })
+      .locator("xpath=..")
+      .getByRole("button")
+      .click();
+    await page.getByLabel(t("lblOperatedBy")).fill(opts.operatedBy);
+    await page.keyboard.press("Escape");
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
+    await expect(page.getByText(t("buildingUpdated")))
+      .toBeVisible({ timeout: T.action });
+    // Return to the Buildings list so callers still find the new row. The inline-operator
+    // detour left us on the building detail page, which is shell-less (no tabs), so go back
+    // to the shell FIRST, then switch to the list.
+    await page.goto("/");
+    await openBuildingsList(page);
+  }
 }
 
 /**
@@ -202,8 +217,8 @@ export async function addEnergyYear(
   const { id } = await findOwnBuildingRow(page, street);
   await page.goto(buildingRoute("observation", id));
   await page.getByRole("button", { name: t("btnEditEnergyYears") }).click();
-  // The dialog's accessible name contains "year", so target inputs by exact
-  // label / role to avoid matching the dialog itself.
+  // The energy-year editor is INLINE on the observation page now (it replaces the
+  // charts view while open) — target inputs by exact label / role.
   await page.getByRole("spinbutton", { name: t("lblYear"), exact: true }).fill(year);
   await page.getByLabel(t("lblScenario"), { exact: true }).click();
   await page.getByRole("option", {
@@ -215,10 +230,11 @@ export async function addEnergyYear(
   await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
   await expect(page.getByText(t("energySaved")).first())
     .toBeVisible({ timeout: T.action });
-  // Saving keeps the dialog open (so the table reflects the new year); close it
-  // so each call is self-contained and the next action isn't blocked by the modal.
+  // Saving keeps the editor open (so its table reflects the new year); close it so
+  // each call is self-contained (Close flips back to the charts view).
   await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
-  await expect(page.getByRole("dialog")).toBeHidden({ timeout: T.action });
+  await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
+    .toBeHidden({ timeout: T.action });
   // /observation/:id is a standalone route (no app shell) — return to the shell.
   await page.goto("/");
 }

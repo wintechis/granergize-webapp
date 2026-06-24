@@ -13,7 +13,7 @@ import { BUILDING_NS } from "../services/rdf/vocabularies.ts";
  * blocks). Renders above {@link BuildingDetailFields}.
  */
 export function BuildingAddressFields(
-  { f, fields, setField, isRequired, geocode }: {
+  { f, fields, setField, isRequired, geocode, basicsOnly }: {
     f: BuildingFieldHelpers;
     fields: Record<string, string>;
     setField: (key: string, val: string) => void;
@@ -28,6 +28,10 @@ export function BuildingAddressFields(
       disabled?: boolean;
       label: string;
     };
+    /** Create form: render only the BASICS — address + coordinates. All the rest of the
+     *  master data (areas, every agent incl. the operator, and all of
+     *  {@link BuildingDetailFields}) is added inline on the building page afterward. */
+    basicsOnly?: boolean;
   },
 ) {
   const { tf, sectionHeader } = f;
@@ -51,39 +55,43 @@ export function BuildingAddressFields(
       </Button>
       {tf(msg("lblLatitude"), "lat", { type: "number", required: isRequired("lat") })}
       {tf(msg("lblLongitude"), "long", { type: "number", required: isRequired("long") })}
-      {tf(fieldLabel("buildingArea"), "buildingArea", { type: "number" })}
-      {tf(fieldLabel("landArea"), "landArea", { type: "number" })}
-      {tf(fieldLabel("yearOfConstruction"), "yearOfConstruction", { type: "number" })}
-      <AgentField
-        label={msg("lblOperatedBy")}
-        value={fields.operatedBy ?? ""}
-        onChange={(v) => setField("operatedBy", v)}
-      />
-      <AgentField
-        label={msg("lblOwnedBy")}
-        value={fields.ownedBy ?? ""}
-        onChange={(v) => setField("ownedBy", v)}
-      />
-      <AgentField
-        label={msg("lblInvestor")}
-        value={fields.investor ?? ""}
-        onChange={(v) => setField("investor", v)}
-      />
-      <AgentField
-        label={msg("lblFacilityManager")}
-        value={fields.facilityManagedBy ?? ""}
-        onChange={(v) => setField("facilityManagedBy", v)}
-      />
-      <AgentField
-        label={msg("lblDevelopedBy")}
-        value={fields.developedBy ?? ""}
-        onChange={(v) => setField("developedBy", v)}
-      />
-      <AgentField
-        label={msg("lblConsultant")}
-        value={fields.consultedBy ?? ""}
-        onChange={(v) => setField("consultedBy", v)}
-      />
+      {!basicsOnly && (
+        <>
+          {tf(fieldLabel("buildingArea"), "buildingArea", { type: "number" })}
+          {tf(fieldLabel("landArea"), "landArea", { type: "number" })}
+          {tf(fieldLabel("yearOfConstruction"), "yearOfConstruction", { type: "number" })}
+          <AgentField
+            label={msg("lblOperatedBy")}
+            value={fields.operatedBy ?? ""}
+            onChange={(v) => setField("operatedBy", v)}
+          />
+          <AgentField
+            label={msg("lblOwnedBy")}
+            value={fields.ownedBy ?? ""}
+            onChange={(v) => setField("ownedBy", v)}
+          />
+          <AgentField
+            label={msg("lblInvestor")}
+            value={fields.investor ?? ""}
+            onChange={(v) => setField("investor", v)}
+          />
+          <AgentField
+            label={msg("lblFacilityManager")}
+            value={fields.facilityManagedBy ?? ""}
+            onChange={(v) => setField("facilityManagedBy", v)}
+          />
+          <AgentField
+            label={msg("lblDevelopedBy")}
+            value={fields.developedBy ?? ""}
+            onChange={(v) => setField("developedBy", v)}
+          />
+          <AgentField
+            label={msg("lblConsultant")}
+            value={fields.consultedBy ?? ""}
+            onChange={(v) => setField("consultedBy", v)}
+          />
+        </>
+      )}
     </>
   );
 }

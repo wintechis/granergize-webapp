@@ -224,7 +224,7 @@ export function buildingNavCommands(
 
 /**
  * "Add observation to ⟨building⟩" commands — one per OWNED building, routing to its
- * observation page with the `enter-energy` action so `EnergyYearDialog` auto-opens.
+ * observation page with the `enter-energy` action so `EnergyYearEditor` auto-opens.
  * Energy entry is owner-only, so shared-with-me buildings are excluded. Like
  * {@link buildingNavCommands}, surfaced only while filtering (a quick action), so it
  * never floods the default view. `label` formats the localised "Add observation to

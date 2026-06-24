@@ -84,4 +84,38 @@ test.describe("redesign: contact page", () => {
     await openBuildingsList(page);
     await deleteBuildingRow(page, id);
   });
+
+  test("add a contact, then edit its stored name inline", async () => {
+    test.setTimeout(T.testSolo);
+    const EDIT_WEBID = "https://contact-edit-e2e.example/profile/card#Editable";
+    const FRAGMENT = "Editable"; // the resolved name is the WebID fragment
+    const NEW_NAME = "My Renamed Contact";
+
+    // Any agent's contact page offers "Add to contacts"; the name is the WebID fragment
+    // until a profile resolves.
+    await page.goto(contactRoute(EDIT_WEBID));
+    await expect(page.getByRole("heading", { name: FRAGMENT }))
+      .toBeVisible({ timeout: T.action });
+    await page.getByRole("button", { name: t("contactAddToContacts"), exact: true })
+      .click();
+
+    // Now a known contact → the inline [Edit] appears. Rename the stored label.
+    const editBtn = page.getByRole("button", { name: t("btnEdit"), exact: true });
+    await expect(editBtn).toBeVisible({ timeout: T.action });
+    await editBtn.click();
+    const nameField = page.getByLabel(t("contactName"), { exact: true });
+    await expect(nameField).toBeVisible({ timeout: T.action });
+    await nameField.fill(NEW_NAME);
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
+
+    // The header shows the user's label, persisted via the idempotent SaveContact.
+    await expect(page.getByRole("heading", { name: NEW_NAME }))
+      .toBeVisible({ timeout: T.action });
+
+    // Re-open → the renamed label round-trips (read back from the contacts log).
+    await page.goto("/");
+    await page.goto(contactRoute(EDIT_WEBID));
+    await expect(page.getByRole("heading", { name: NEW_NAME }))
+      .toBeVisible({ timeout: T.action });
+  });
 });

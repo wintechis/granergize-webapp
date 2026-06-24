@@ -1,6 +1,7 @@
 import { msg } from "../lib/messages.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import {
+  Box,
   Button,
   IconButton,
   MenuItem,
@@ -71,16 +72,21 @@ const scenarioLabel = (s: Scenario): string =>
 /** Stable key for one (year, scenario) annual dataset. */
 const dsKey = (year: number, scenario: Scenario): string => `${year}|${scenario}`;
 
-interface EnergyYearDialogProps {
-  open: boolean;
+interface EnergyYearEditorProps {
+  /** Modal mode only (the finder's create flow); ignored when `inline`. */
+  open?: boolean;
   session: Session;
   onClose: () => void;
-  /** Observation-page mode: the fixed building these observations are about. */
+  /** Observation-page (inline) mode: the fixed building these observations are about. */
   building?: BuildingType;
-  /** Create mode (from the Observations finder): owned buildings to pick from,
-   *  so the building (the FeatureOfInterest) is chosen IN the dialog. Exactly one
-   *  of `building` / `createFrom` is given; `createFrom` must be non-empty. */
+  /** Finder create mode: owned buildings you MAY optionally bind the new observation
+   *  series to (a building, then optionally a subsystem of it). Binding is OPTIONAL —
+   *  the picker defaults to UNBOUND, so a building-less series is the baseline, to be
+   *  linked to a building later. */
   createFrom?: BuildingType[];
+  /** Render inline on the page (observation page) instead of in a Modal (the finder's
+   *  create flow). Inline only mounts when shown, so its datasets query stays enabled. */
+  inline?: boolean;
 }
 
 /**
@@ -91,11 +97,13 @@ interface EnergyYearDialogProps {
  * read-back of what you entered); a row's Edit loads it back into the form, and
  * Delete removes that year. Saving keeps the dialog open so the table reflects
  * the change immediately. Opened either for a fixed `building` (the observation
- * page) or with `createFrom` (the finder's "Add observation"), where a required
- * building Select at the top names the FeatureOfInterest.
+ * page, inline) or with `createFrom` (the finder's "Add observation", a modal) — there
+ * the building (and its subsystem) is OPTIONAL: the default is an UNBOUND series, with a
+ * picker to bind it to a building / subsystem if you want, else it's linked to a building
+ * later.
  */
-export default function EnergyYearDialog(
-  { open, session, onClose, building, createFrom }: EnergyYearDialogProps,
+export default function EnergyYearEditor(
+  { open, session, onClose, building, createFrom, inline }: EnergyYearEditorProps,
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
@@ -106,13 +114,11 @@ export default function EnergyYearDialog(
   const del = useDeleteEnergyYear();
   const busy = write.isPending || del.isPending;
 
-  // The building these observations are FOR (the FeatureOfInterest). Fixed in
-  // observation-page mode; in create mode it's picked below — defaulting to the first
-  // owned building, but **clearable**: an empty pick writes a building-less (unbound)
-  // observation, to be linked to a building later.
-  const [pickedUri, setPickedUri] = useState(
-    (createFrom?.[0]?.uri as string | undefined) ?? "",
-  );
+  // The building these observations are FOR (the FeatureOfInterest). Fixed in the
+  // observation-page (inline) mode; in the finder's create mode it's OPTIONAL — the
+  // picker defaults to UNBOUND ("") so a building-less series is the baseline, and
+  // binding to a building (then a subsystem) is opt-in.
+  const [pickedUri, setPickedUri] = useState("");
   const selectedBuilding: BuildingType | null = building ??
     createFrom?.find((b) => (b.uri as string) === pickedUri) ?? null;
 
@@ -156,7 +162,7 @@ export default function EnergyYearDialog(
   // by the query hook (keyed on the dataset-link fingerprint, so a year that
   // landed via a buildings refetch shows up too); save/delete patch this cache
   // optimistically below so the table updates without waiting for a round-trip.
-  const datasetsQuery = useAnnualDatasets(selectedBuilding, open);
+  const datasetsQuery = useAnnualDatasets(selectedBuilding, inline || open);
   const datasets = useMemo(
     () => datasetsQuery.data ?? [],
     [datasetsQuery.data],
@@ -402,41 +408,31 @@ export default function EnergyYearDialog(
     reset();
   };
 
-  // Switching the building (create mode) is like opening a different sheet — clear
-  // the in-progress form and reset the FoI to the new building's whole.
+  // Switching the bound building (create mode) is like opening a different sheet —
+  // clear the in-progress form and reset the FoI to the new building's whole.
   const changeBuilding = (uri: string) => {
     setPickedUri(uri);
     setFoi("");
     reset();
   };
 
-  return (
-    <Modal
-      open={open}
-      onClose={close}
-      title={selectedBuilding
-        ? <BuildingDialogTitle building={selectedBuilding} action={msg("eyAction")} />
-        : msg("eyAction")}
-      maxWidth="md"
-      dirty={dirty}
-      busy={busy}
-      actions={
-        <>
-          <Button variant="text" onClick={close} disabled={busy}>{msg("btnClose")}</Button>
-          <Button
-            variant="contained"
-            onClick={handleSave}
-            disabled={busy}
-          >
-            {busy ? msg("btnSaving") : msg("btnSave")}
-          </Button>
-        </>
-      }
-    >
+  const actions = (
+    <>
+      <Button variant="text" onClick={close} disabled={busy}>{msg("btnClose")}</Button>
+      <Button variant="contained" onClick={handleSave} disabled={busy}>
+        {busy ? msg("btnSaving") : msg("btnSave")}
+      </Button>
+    </>
+  );
+  const titleNode = selectedBuilding
+    ? <BuildingDialogTitle building={selectedBuilding} action={msg("eyAction")} />
+    : msg("eyAction");
+  const content = (
       <Stack spacing={3} sx={{ mt: 1 }}>
-        {/* Create mode: pick the building (the FeatureOfInterest) these observations
-            are about — a searchable picker. Hidden in observation-page mode (the
-            building is fixed). */}
+        {/* Finder create mode: OPTIONALLY bind the new series to a building (then a
+            subsystem, via the FoI selector below). The picker defaults to unbound; leave
+            it empty for a building-less series, linked to a building later. Shown only
+            when you own buildings to bind to; hidden in the observation-page mode. */}
         {createFrom && createFrom.length > 0 && (
           <BuildingPicker
             buildings={createFrom}
@@ -446,8 +442,8 @@ export default function EnergyYearDialog(
             disabled={busy}
           />
         )}
-        {/* Building-less (create mode, no building picked) — an unbound observation,
-            to be linked to a building later. */}
+        {/* Unbound (create mode, no building bound) — a building-less observation, to be
+            linked to a building later. */}
         {createFrom && !selectedBuilding && (
           <Typography variant="body2" color="text.secondary">
             {msg("eyBuildinglessHint")}
@@ -584,6 +580,35 @@ export default function EnergyYearDialog(
           </Stack>
         </section>
       </Stack>
+  );
+
+  // Observation page: render inline on the page (the editor only mounts while editing).
+  if (inline) {
+    return (
+      <Box>
+        {content}
+        <Stack
+          direction="row"
+          spacing={1}
+          sx={{ justifyContent: "flex-end", mt: 2 }}
+        >
+          {actions}
+        </Stack>
+      </Box>
+    );
+  }
+  // Finder create flow: the same editor in a Modal (a building picker at the top).
+  return (
+    <Modal
+      open={open ?? false}
+      onClose={close}
+      title={titleNode}
+      maxWidth="md"
+      dirty={dirty}
+      busy={busy}
+      actions={actions}
+    >
+      {content}
     </Modal>
   );
 }
