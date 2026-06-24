@@ -82,11 +82,9 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   { field: "yearOfRenovation", iri: `${BUILDING_NS}yearOfRenovation`, range: XSD_INTEGER },
   { field: "leaseType", iri: `${BUILDING_NS}leaseType` },
   { field: "tenantIndustry", iri: `${BUILDING_NS}tenantIndustry` },
-  { field: "hasOilBoiler", iri: `${BUILDING_NS}hasOilBoiler`, range: XSD_BOOLEAN },
-  { field: "hasGasBoiler", iri: `${BUILDING_NS}hasGasBoiler`, range: XSD_BOOLEAN },
-  { field: "hasElectricBoiler", iri: `${BUILDING_NS}hasElectricBoiler`, range: XSD_BOOLEAN },
-  { field: "hasHeatPump", iri: `${BUILDING_NS}hasHeatPump`, range: XSD_BOOLEAN },
-  { field: "hasDistrictHeating", iri: `${BUILDING_NS}hasDistrictHeating`, range: XSD_BOOLEAN },
+  // Heat generators (oil/gas/electric boiler, heat pump, district heating) are NOT flat
+  // fields — they're :TechnicalSystem nodes (bldg:hasSystem), parsed/serialised by kind
+  // like PV/battery/CHP and edited in the "Heat generation" section.
   // Object properties (controlled vocabulary — range is the value's class).
   { field: "shiftRegime", iri: `${BUILDING_NS}shiftRegime`, range: `${BUILDING_NS}ShiftRegime` },
   { field: "tenancyType", iri: `${BUILDING_NS}tenancyType`, range: `${BUILDING_NS}TenancyType` },

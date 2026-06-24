@@ -277,11 +277,6 @@ export const MESSAGES = {
     de: "Gebäudedetails",
     fr: "Détails du bâtiment",
   },
-  secHeatingSystems: {
-    en: "Heating systems",
-    de: "Heizsysteme",
-    fr: "Systèmes de chauffage",
-  },
   secHeatGeneration: {
     en: "Heat generation",
     de: "Wärmeerzeugung",
@@ -760,6 +755,23 @@ export const MESSAGES = {
   btnAddPv: { en: "Add PV plant", de: "PV-Anlage", fr: "Centrale PV" },
   btnAddBattery: { en: "Add battery", de: "Speicher", fr: "Batterie" },
   btnAddChp: { en: "Add CHP", de: "BHKW", fr: "Cogénération" },
+  // Heat-generation section — heat generators are :TechnicalSystem nodes too.
+  btnAddHeatGenerator: { en: "Add heat generator", de: "Wärmeerzeuger", fr: "Générateur de chaleur" },
+  btnAddHeatPump: { en: "Add heat pump", de: "Wärmepumpe", fr: "Pompe à chaleur" },
+  btnAddGasBoiler: { en: "Add gas boiler", de: "Gaskessel", fr: "Chaudière à gaz" },
+  btnAddDistrictHeating: { en: "Add district heating", de: "Fernwärme", fr: "Chauffage urbain" },
+  btnAddOilBoiler: { en: "Add oil boiler", de: "Ölkessel", fr: "Chaudière à fioul" },
+  btnAddElectricBoiler: { en: "Add electric boiler", de: "Elektrokessel", fr: "Chaudière électrique" },
+  heatGenerationEmpty: {
+    en: "No heat generators yet. Add a heat pump, boiler or district-heating connection.",
+    de: "Noch keine Wärmeerzeuger. Füge eine Wärmepumpe, einen Kessel oder Fernwärme hinzu.",
+    fr: "Aucun générateur de chaleur. Ajoutez une pompe à chaleur, une chaudière ou le chauffage urbain.",
+  },
+  heatGenerationEmptyShared: {
+    en: "No heat generators recorded for this building.",
+    de: "Für dieses Gebäude sind keine Wärmeerzeuger erfasst.",
+    fr: "Aucun générateur de chaleur enregistré pour ce bâtiment.",
+  },
   btnEdit: { en: "Edit", de: "Bearbeiten", fr: "Modifier" },
   // Files section (component) — complements the existing filesEmpty (canWrite text).
   filesEmptyReadonly: {

@@ -111,7 +111,7 @@ export function BuildingDetailFields(
     buildingCode?: { error?: boolean; helperText?: string };
   },
 ) {
-  const { tf, check, enumSelect, sectionHeader } = f;
+  const { tf, enumSelect, sectionHeader } = f;
   return (
     <>
       {sectionHeader(msg("secBuildingDetails"))}
@@ -128,9 +128,9 @@ export function BuildingDetailFields(
       {tf(fieldLabel("logisticsFunction"), "logisticsFunction")}
       {tf(fieldLabel("climateControlType"), "climateControlType")}
       {tf(fieldLabel("greenLeaseShare"), "greenLeaseShare", { type: "number" })}
-      {/* Energy systems (PV / battery / CHP, the bldg:hasSystem nodes) are NOT here —
-          they're added/edited on the building page via EnergySystemsSection, not while
-          creating the building. */}
+      {/* Technical systems (PV / battery / CHP and the heat generators, all bldg:hasSystem
+          nodes) are NOT here — they're added/edited on the building page via the Energy
+          systems / Heat generation sections, not while creating the building. */}
       {enumSelect(fieldLabel("shiftRegime"), "shiftRegime", [
         { value: "OneShift", label: optionLabel(`${BUILDING_NS}OneShift`) },
         { value: "TwoShift", label: optionLabel(`${BUILDING_NS}TwoShift`) },
@@ -144,12 +144,9 @@ export function BuildingDetailFields(
         { value: "MaxTwelveDegrees", label: optionLabel(`${BUILDING_NS}MaxTwelveDegrees`) },
         { value: "MaxEighteenDegrees", label: optionLabel(`${BUILDING_NS}MaxEighteenDegrees`) },
       ])}
-      {sectionHeader(msg("secHeatingSystems"))}
-      {check(fieldLabel("hasOilBoiler"), "hasOilBoiler")}
-      {check(fieldLabel("hasGasBoiler"), "hasGasBoiler")}
-      {check(fieldLabel("hasElectricBoiler"), "hasElectricBoiler")}
-      {check(fieldLabel("hasHeatPump"), "hasHeatPump")}
-      {check(fieldLabel("hasDistrictHeating"), "hasDistrictHeating")}
+      {/* Heat generators (heat pump / boilers / district heating) are NOT here — like PV /
+          battery / CHP they're :TechnicalSystem nodes, added/edited on the building page in
+          the "Heat generation" section with thermal capacity + commissioning year. */}
     </>
   );
 }

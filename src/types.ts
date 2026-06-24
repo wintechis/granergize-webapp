@@ -22,7 +22,7 @@ export interface AnnualData {
 export interface InvestorOperatingCosts {
   wasteDisposal?: string;
   insurance?: string;
-  operationInspectionAndMaintenance?: boolean;
+  operationInspectionAndMaintenance?: string;
   routineCleaningOffice?: string;
   routineCleaningWarehouse?: string;
   glassCleaning?: string;
@@ -39,9 +39,34 @@ export interface InvestorCertification {
   scope?: string;
 }
 
-/** The kind of energy unit, fixed by the node's `rdf:type` (`:PVSystem` /
- * `:BatteryStorage` / `:CHPSystem`, all ⊑ `:TechnicalSystem`). */
-export type SystemKind = "pv" | "battery" | "chp";
+/** The kind of energy / heat unit, fixed by the node's `rdf:type` (all ⊑
+ * `:TechnicalSystem`). Energy: `:PVSystem` / `:BatteryStorage` / `:CHPSystem`. Heat
+ * generation: `:HeatPump` / `:GasBoiler` / `:DistrictHeating` / `:OilBoiler` /
+ * `:ElectricBoiler`. The building's one `bldg:hasSystem` list holds both; the UI splits
+ * them into the "Energy systems" and "Heat generation" sections (see {@link HEAT_KINDS}). */
+export type SystemKind =
+  | "pv"
+  | "battery"
+  | "chp"
+  | "heatpump"
+  | "gasboiler"
+  | "districtheating"
+  | "oilboiler"
+  | "electricboiler";
+
+/** The heat-generation kinds (the "Heat generation" section); the rest are energy systems.
+ * Heat generators carry a thermal nameplate (`thermalCapacityKW`) + `commissioningYear`. */
+export const HEAT_KINDS = [
+  "heatpump",
+  "gasboiler",
+  "districtheating",
+  "oilboiler",
+  "electricboiler",
+] as const satisfies readonly SystemKind[];
+
+/** Whether a system kind belongs to the Heat-generation group (vs. Energy systems). */
+export const isHeatKind = (k: SystemKind): boolean =>
+  (HEAT_KINDS as readonly SystemKind[]).includes(k);
 
 /**
  * One energy unit of the building — the typed mirror of a single `bldg:hasSystem`
@@ -169,11 +194,9 @@ export interface BuildingType {
   leaseType?: string;
   tenantIndustry?: string;
   indoorTemperatureClass?: string;
-  hasOilBoiler?: boolean;
-  hasGasBoiler?: boolean;
-  hasElectricBoiler?: boolean;
-  hasHeatPump?: boolean;
-  hasDistrictHeating?: boolean;
+  // Heat generators (oil/gas/electric boiler, heat pump, district heating) are no longer
+  // booleans — they're :TechnicalSystem nodes in `systems` (the "Heat generation" section),
+  // carrying thermalCapacityKW + commissioningYear like PV/battery/CHP.
   certifications?: InvestorCertification[];
   annualData?: AnnualData[];
   operatingCosts?: InvestorOperatingCosts;

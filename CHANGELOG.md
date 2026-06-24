@@ -3,6 +3,20 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-24]
+- **Heat generation is a technical system, not a checkbox.** A building's heat generators
+  (heat pump / gas-, oil- and electric boiler / district heating) were five boolean flags;
+  they're now first-class `:TechnicalSystem` nodes (`bldg:hasSystem`) like PV / battery / CHP,
+  each carrying a thermal nameplate (`:thermalCapacityKW`) and commissioning year. A new
+  **"Heat generation"** section on the building page adds/edits them inline — the energy-systems
+  inline editor was generalised into a shared `SystemListSection`, rendered once for Energy
+  systems (PV/battery/CHP) and once for Heat generation over the one `bldg:hasSystem` list (each
+  section preserves the other's nodes on save). The five boolean predicates are gone from the
+  vocab + schema; five Brick-aligned `:TechnicalSystem` subclasses replace them, and
+  `:thermalCapacityKW` widened from CHP-only to any system. The XLSX import maps the heating
+  columns to system presence. No data migration — old boolean Pod data is re-created.
+- **"Operation, inspection & maintenance" is a service level, not a yes/no.** It was the lone
+  `xsd:boolean` among the operating-cost categories (the rest are `:ServiceLevel` — Low / Medium
+  / High / …); now it matches them.
 - **One edit gesture — inline detail editing; modals shrink to confirms + share.** The same
   "edit a detail" action used three different widgets on the building/observation pages (inline
   master data, an energy-systems pop-up, an energy-years dialog). Now **energy systems** and

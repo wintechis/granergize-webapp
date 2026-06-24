@@ -8,7 +8,7 @@ import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
 import { useToggleVisibility } from "../hooks/mutations.ts";
 import BuildingHeader from "../components/building/BuildingHeader.tsx";
 import MasterDataSection from "../components/building/MasterDataSection.tsx";
-import EnergySystemsSection from "../components/building/EnergySystemsSection.tsx";
+import SystemListSection from "../components/building/SystemListSection.tsx";
 import ObservationsLink from "../components/building/ObservationsLink.tsx";
 import RoofPlan from "../components/building/RoofPlan.tsx";
 import RooftopPotentialSection from "../components/building/RooftopPotentialSection.tsx";
@@ -73,7 +73,8 @@ export default function Building({ building }: BuildingProps) {
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
       <BuildingHeader building={building} />
       <MasterDataSection building={building} autoOpenEdit={action === "edit"} />
-      <EnergySystemsSection building={building} />
+      <SystemListSection building={building} group="energy" />
+      <SystemListSection building={building} group="heat" />
       <ObservationsLink building={building} />
       <BuildingFilesSection building={building} session={session} />
       <SharingSection

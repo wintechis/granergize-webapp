@@ -146,10 +146,7 @@ export async function parseCsvToFields(
         if (cell?.v == null) continue;
         const raw = String(cell.v).trim();
         if (!raw) continue;
-        const value = field === "operationInspectionAndMaintenance"
-          ? normalizeBoolean(raw)
-          : raw;
-        if (value) result[`_opcost_${field}`] = value;
+        result[`_opcost_${field}`] = raw;
       }
 
       // Certifications: one block per system (BREEAM/DGNB/LEED) whose yes/no row

@@ -7,6 +7,7 @@ import type {
   SystemKind,
   TechnicalSystem,
 } from "../../../types.ts";
+import { HEAT_KINDS } from "../../../types.ts";
 import {
   BOOLEAN_FIELDS,
   DECIMAL_FIELDS,
@@ -83,7 +84,6 @@ import {
   INVESTOR_CERT_SYSTEMS,
   MAX_CERTS,
   normalizeBoolean,
-  OPCOST_BOOLEAN_FIELDS,
   OPCOST_FIELDS,
   yearsIn,
 } from "../../xlsx/buildingTemplates.ts";
@@ -304,6 +304,11 @@ const SYSTEM_TYPE_IRI: Record<SystemKind, string> = {
   pv: `${BUILDING_NS}PVSystem`,
   battery: `${BUILDING_NS}BatteryStorage`,
   chp: `${BUILDING_NS}CHPSystem`,
+  heatpump: `${BUILDING_NS}HeatPump`,
+  gasboiler: `${BUILDING_NS}GasBoiler`,
+  districtheating: `${BUILDING_NS}DistrictHeating`,
+  oilboiler: `${BUILDING_NS}OilBoiler`,
+  electricboiler: `${BUILDING_NS}ElectricBoiler`,
 };
 
 /**
@@ -399,6 +404,19 @@ export function systemsFromFields(fields: Record<string, string>): TechnicalSyst
     sameAs: text("_chp_sameAs"),
   };
   if (present("chp") || nonEmpty(chp)) systems.push(chp);
+  // Heat generators — presence-only from the XLSX import (a yes/no column), or with thermal
+  // capacity / commissioning year when given; each becomes a :TechnicalSystem of its kind.
+  for (const kind of HEAT_KINDS) {
+    const sys: TechnicalSystem = {
+      id: kind,
+      kind,
+      thermalCapacityKW: num(`_${kind}_thermalCapacityKW`),
+      commissioningYear: num(`_${kind}_commissioningYear`),
+      operatedBy: text(`_${kind}_operatedBy`),
+      sameAs: text(`_${kind}_sameAs`),
+    };
+    if (present(kind) || nonEmpty(sys)) systems.push(sys);
+  }
   return systems;
 }
 
@@ -424,11 +442,10 @@ function replaceSystems(
 
 /**
  * Serialize investor operating costs as a single `investor:hasOperatingCosts`
- * blank node, from `_opcost_<field>` keys. The boolean category is typed
- * `xsd:boolean`; the rest are plain literals of the (already human-readable)
- * value — which is exactly what `buildingParser` reads back (its controlled-vocab
- * label lookup is a no-op for values that are already labels). No-op when no
- * `_opcost_*` keys are present.
+ * blank node, from `_opcost_<field>` keys. Every category is a plain-literal amount
+ * (already human-readable) — which is exactly what `buildingParser` reads back (its
+ * controlled-vocab label lookup is a no-op for values that are already labels). No-op
+ * when no `_opcost_*` keys are present.
  */
 function addOperatingCosts(
   store: Store,
@@ -441,15 +458,7 @@ function addOperatingCosts(
   store.addQuad(subject, namedNode(`${BUILDING_NS}hasOperatingCosts`), oc);
   for (const f of present) {
     const v = fields[`_opcost_${f}`].trim();
-    if (OPCOST_BOOLEAN_FIELDS.has(f)) {
-      store.addQuad(
-        oc,
-        namedNode(`${BUILDING_NS}${f}`),
-        literal(normalizeBoolean(v) || "false", namedNode(XSD_BOOLEAN)),
-      );
-    } else {
-      store.addQuad(oc, namedNode(`${BUILDING_NS}${f}`), literal(v));
-    }
+    store.addQuad(oc, namedNode(`${BUILDING_NS}${f}`), literal(v));
   }
 }
 
@@ -1318,9 +1327,14 @@ const DEMO_INVESTOR: DemoSpec = {
     shiftRegime: "TwoShift", // investor:ShiftRegime → "2-Shift"
     tenancyType: "MultiTenant", // investor:TenancyType → "Multi Tenant"
     indoorTemperatureClass: "MaxEighteenDegrees", // → "≤18 °C"
-    hasGasBoiler: "true",
-    hasHeatPump: "true",
-    hasDistrictHeating: "false",
+    // Heat generation: a gas boiler + a heat pump, each a :TechnicalSystem with a thermal
+    // nameplate + commissioning year (district heating absent).
+    _gasboiler_present: "true",
+    _gasboiler_thermalCapacityKW: "320",
+    _gasboiler_commissioningYear: "2008",
+    _heatpump_present: "true",
+    _heatpump_thermalCapacityKW: "120",
+    _heatpump_commissioningYear: "2019",
     // One certification (type drives investor:<Type>Certification).
     _cert_0_type: "DGNB",
     _cert_0_level: "Gold",
@@ -1328,7 +1342,7 @@ const DEMO_INVESTOR: DemoSpec = {
     // A few operating-cost categories (one investor:hasOperatingCosts node).
     _opcost_propertyManagement: "Medium",
     _opcost_security: "High",
-    _opcost_operationInspectionAndMaintenance: "true",
+    _opcost_operationInspectionAndMaintenance: "High",
   },
   energy: "annual",
   selfOperated: true,
@@ -1377,14 +1391,15 @@ const DEMO_INVESTOR_2: DemoSpec = {
     shiftRegime: "ThreeShift",
     tenancyType: "SingleTenant",
     indoorTemperatureClass: "MaxTwelveDegrees",
-    hasGasBoiler: "false",
-    hasHeatPump: "true",
-    hasDistrictHeating: "false",
+    // Heat generation: a heat pump (cold store — electric-driven heat).
+    _heatpump_present: "true",
+    _heatpump_thermalCapacityKW: "90",
+    _heatpump_commissioningYear: "2018",
     _cert_0_type: "LEED",
     _cert_0_level: "Silver",
     _cert_0_scope: "New construction",
     _opcost_propertyManagement: "Medium",
-    _opcost_operationInspectionAndMaintenance: "true",
+    _opcost_operationInspectionAndMaintenance: "Medium",
   },
   // Deliberately NOT self-operated: the cold store stays outside the operator
   // group, so the demo set also shows a building WITHOUT the Betreiber benchmark.

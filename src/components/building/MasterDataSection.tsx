@@ -132,36 +132,8 @@ function ReadView({ building }: { building: BuildingType }) {
           value={building.indoorTemperatureClass}
         />
       )}
-      {(building.hasOilBoiler != null ||
-        building.hasGasBoiler != null ||
-        building.hasElectricBoiler != null ||
-        building.hasHeatPump != null ||
-        building.hasDistrictHeating != null) && (
-        <>
-          <SectionTitle divider>{msg("secHeatGeneration")}</SectionTitle>
-          {building.hasDistrictHeating != null && (
-            <DetailRow
-              label={msg("mdDistrictHeating")}
-              value={boolIcon(building.hasDistrictHeating)}
-            />
-          )}
-          {building.hasHeatPump != null && (
-            <DetailRow label={msg("mdHeatPump")} value={boolIcon(building.hasHeatPump)} />
-          )}
-          {building.hasGasBoiler != null && (
-            <DetailRow label={msg("mdGasBoiler")} value={boolIcon(building.hasGasBoiler)} />
-          )}
-          {building.hasOilBoiler != null && (
-            <DetailRow label={msg("mdOilBoiler")} value={boolIcon(building.hasOilBoiler)} />
-          )}
-          {building.hasElectricBoiler != null && (
-            <DetailRow
-              label={msg("mdElectricBoiler")}
-              value={boolIcon(building.hasElectricBoiler)}
-            />
-          )}
-        </>
-      )}
+      {/* Heat generators moved out of master data — they're :TechnicalSystem nodes shown +
+          edited in the "Heat generation" section (like PV/battery/CHP in Energy systems). */}
 
       {Array.isArray(building.certifications) &&
         building.certifications.length > 0 && (
@@ -284,11 +256,9 @@ function EditView(
       />
 
       {sectionHeader(msg("secOperatingCosts"))}
-      {OPCOST_FIELDS.map((f) =>
-        f.bool
-          ? <Box key={f.key}>{check(msg(f.labelId), `_opcost_${f.key}`)}</Box>
-          : <Box key={f.key}>{tf(msg(f.labelId), `_opcost_${f.key}`)}</Box>
-      )}
+      {OPCOST_FIELDS.map((f) => (
+        <Box key={f.key}>{tf(msg(f.labelId), `_opcost_${f.key}`)}</Box>
+      ))}
 
       {sectionHeader(msg("secCertifications"))}
       {Array.from({ length: certCount }, (_, i) => (

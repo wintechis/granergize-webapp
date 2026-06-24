@@ -61,7 +61,8 @@ Deno.test("filter narrows a set", () => {
 Deno.test("fieldsByKind derives kinds from the building schema", () => {
   const g = fieldsByKind();
   assert.ok(g.numeric.includes("hallArea"));
-  assert.ok(g.boolean.includes("hasHeatPump"));
+  // No boolean building fields remain — heat generators became :TechnicalSystem nodes.
+  assert.equal(g.boolean.length, 0);
   assert.ok(g.text.includes("locality"));
 });
 

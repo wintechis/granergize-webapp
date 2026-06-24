@@ -40,9 +40,6 @@ export const OPCOST_FIELDS = [
   "caretaker",
   "repairAndMaintenance",
 ] as const;
-export const OPCOST_BOOLEAN_FIELDS = new Set<string>([
-  "operationInspectionAndMaintenance",
-]);
 
 // Upper bound on certifications scanned per building (`_cert_<i>_*` keys).
 export const MAX_CERTS = 10;
@@ -100,11 +97,11 @@ export const INVESTOR_ROW_MAP: Record<string, string> = {
   "Mietvertragsart": "leaseType",
   "Innenraumtemperatur": "indoorTemperatureClass",
   "PV-Anlage installiert": "_pv_present",
-  "Ölkessel": "hasOilBoiler",
-  "Gaskessel": "hasGasBoiler",
-  "Stromkessel": "hasElectricBoiler",
-  "Wärmepumpe": "hasHeatPump",
-  "Fernwärme": "hasDistrictHeating",
+  "Ölkessel": "_oilboiler_present",
+  "Gaskessel": "_gasboiler_present",
+  "Stromkessel": "_electricboiler_present",
+  "Wärmepumpe": "_heatpump_present",
+  "Fernwärme": "_districtheating_present",
   "Hauptindustrie des Mieters / Nutzers (Branche)": "tenantIndustry",
 };
 

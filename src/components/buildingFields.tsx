@@ -108,15 +108,14 @@ export function makeBuildingFields(
 }
 
 /** Investor operating-cost categories rendered as `_opcost_<key>` form rows (mirrors
- * OPCOST_FIELDS in buildingSerializer). One boolean; the rest free-text currency
- * values. Shared by the building page's inline editors (master data + energy systems). */
-export const OPCOST_FIELDS: { key: string; labelId: MessageId; bool?: boolean }[] = [
+ * OPCOST_FIELDS in buildingSerializer). All are free-text currency amounts. Shared by the
+ * building page's inline editors (master data + energy systems). */
+export const OPCOST_FIELDS: { key: string; labelId: MessageId }[] = [
   { key: "wasteDisposal", labelId: "lblOpcostWasteDisposal" },
   { key: "insurance", labelId: "lblOpcostInsurance" },
   {
     key: "operationInspectionAndMaintenance",
     labelId: "lblOpcostOperationInspectionAndMaintenance",
-    bool: true,
   },
   { key: "routineCleaningOffice", labelId: "lblOpcostRoutineCleaningOffice" },
   { key: "routineCleaningWarehouse", labelId: "lblOpcostRoutineCleaningWarehouse" },
@@ -185,9 +184,7 @@ export function buildingToFields(b: BuildingType): Record<string, string> {
   if (oc) {
     for (const [k, v] of Object.entries(oc)) {
       if (v == null) continue;
-      fields[`_opcost_${k}`] = typeof v === "boolean"
-        ? (v ? "true" : "false")
-        : String(v);
+      fields[`_opcost_${k}`] = String(v);
     }
   }
   const certs = b.certifications as InvestorCertification[] | undefined;

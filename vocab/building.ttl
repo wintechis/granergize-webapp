@@ -202,39 +202,40 @@
     rdfs:label "Usable storage capacity (kWh)"@en ; rdfs:label "Nutzbare Speicherkapazität (kWh)"@de ; rdfs:label "Capacité de stockage utile (kWh)"@fr ;
     rdfs:domain :BatteryStorage ; rdfs:range xsd:decimal .
 
-# Thermal output (kW) of a cogeneration node — its heat side, distinct from the
-# electrical :capacityKW. Domain is the :CHPSystem node.
+# Thermal output (kW) of a CHP or a heat generator (heat pump / boiler / district-heating)
+# node — its heat side, distinct from the electrical :capacityKW.
 :thermalCapacityKW rdf:type owl:DatatypeProperty ;
     rdfs:label "Thermal output (kW)"@en ; rdfs:label "Thermische Nutzleistung (kW)"@de ; rdfs:label "Puissance thermique (kW)"@fr ;
-    rdfs:domain :CHPSystem ; rdfs:range xsd:decimal .
+    rdfs:domain :TechnicalSystem ; rdfs:range xsd:decimal .
 
 ############################
-###   Heating systems    ###
+###   Heat generation    ###
 ############################
 
-# Boolean presence flags. Brick models these as equipment instances (with
-# feeds-topology) — a different shape, so no formal relation is asserted; the
-# equipment-as-entity alignment (brick:Equipment) rides on the technical-system
-# component nodes, not these flat flags.
-:hasOilBoiler rdf:type owl:DatatypeProperty ;
-    rdfs:label "has oil boiler"@en ; rdfs:label "Hat Ölkessel"@de ; rdfs:label "possède une chaudière au fioul"@fr ;
-    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+# Heat generators are :TechnicalSystem component nodes (bldg:hasSystem), like PV / battery
+# / CHP — each carrying :thermalCapacityKW + :commissioningYear — NOT boolean flags on the
+# building. Aligned to Brick equipment classes where the shape matches.
+:HeatPump rdf:type rdfs:Class ;
+    rdfs:label "Heat pump"@en ; rdfs:label "Wärmepumpe"@de ; rdfs:label "Pompe à chaleur"@fr ;
+    rdfs:subClassOf :TechnicalSystem , brick:Heat_Pump .
 
-:hasGasBoiler rdf:type owl:DatatypeProperty ;
-    rdfs:label "has gas boiler"@en ; rdfs:label "Hat Gaskessel"@de ; rdfs:label "possède une chaudière au gaz"@fr ;
-    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+:GasBoiler rdf:type rdfs:Class ;
+    rdfs:label "Gas boiler"@en ; rdfs:label "Gaskessel"@de ; rdfs:label "Chaudière à gaz"@fr ;
+    rdfs:subClassOf :TechnicalSystem , brick:Boiler .
 
-:hasElectricBoiler rdf:type owl:DatatypeProperty ;
-    rdfs:label "has electric boiler"@en ; rdfs:label "Hat Elektrokessel"@de ; rdfs:label "possède une chaudière électrique"@fr ;
-    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+:OilBoiler rdf:type rdfs:Class ;
+    rdfs:label "Oil boiler"@en ; rdfs:label "Ölkessel"@de ; rdfs:label "Chaudière à fioul"@fr ;
+    rdfs:subClassOf :TechnicalSystem , brick:Boiler .
 
-:hasHeatPump rdf:type owl:DatatypeProperty ;
-    rdfs:label "has heat pump"@en ; rdfs:label "Hat Wärmepumpe"@de ; rdfs:label "possède une pompe à chaleur"@fr ;
-    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+:ElectricBoiler rdf:type rdfs:Class ;
+    rdfs:label "Electric boiler"@en ; rdfs:label "Elektrokessel"@de ; rdfs:label "Chaudière électrique"@fr ;
+    rdfs:subClassOf :TechnicalSystem , brick:Boiler .
 
-:hasDistrictHeating rdf:type owl:DatatypeProperty ;
-    rdfs:label "has district heating"@en ; rdfs:label "Hat Fernwärme"@de ; rdfs:label "raccordé au chauffage urbain"@fr ;
-    rdfs:domain rec:Building ; rdfs:range xsd:boolean .
+# A district-heating connection (grid supply, not on-site equipment), so no Brick
+# equipment subsumption — just a :TechnicalSystem node carrying its thermal capacity.
+:DistrictHeating rdf:type rdfs:Class ;
+    rdfs:label "District heating"@en ; rdfs:label "Fernwärme"@de ; rdfs:label "Chauffage urbain"@fr ;
+    rdfs:subClassOf :TechnicalSystem .
 
 ############################
 ###   Controlled vocab   ###
@@ -282,8 +283,8 @@
     rdfs:label "waste disposal"@en ; rdfs:label "Abfallentsorgung"@de ; rdfs:label "élimination des déchets"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :insurance rdf:type owl:ObjectProperty ;
     rdfs:label "insurance"@en ; rdfs:label "Versicherung"@de ; rdfs:label "assurance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
-:operationInspectionAndMaintenance rdf:type owl:DatatypeProperty ;
-    rdfs:label "operation, inspection & maintenance"@en ; rdfs:label "Betrieb, Inspektion und Wartung"@de ; rdfs:label "exploitation, inspection et maintenance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range xsd:boolean .
+:operationInspectionAndMaintenance rdf:type owl:ObjectProperty ;
+    rdfs:label "operation, inspection & maintenance"@en ; rdfs:label "Betrieb, Inspektion und Wartung"@de ; rdfs:label "exploitation, inspection et maintenance"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :routineCleaningOffice rdf:type owl:ObjectProperty ;
     rdfs:label "routine cleaning (office)"@en ; rdfs:label "Unterhaltsreinigung (Büro)"@de ; rdfs:label "nettoyage courant (bureaux)"@fr ; rdfs:domain :OperatingCosts ; rdfs:range :ServiceLevel .
 :routineCleaningWarehouse rdf:type owl:ObjectProperty ;

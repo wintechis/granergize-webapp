@@ -93,7 +93,7 @@ test.describe("building form + energy entry", () => {
       .toBeVisible({ timeout: T.action });
   }
 
-  test("(1)(2)(3) a field shown when adding stays editable afterwards", async () => {
+  test("(1)(2)(3) heat generation is added inline as a system after a basics-only create", async () => {
     test.setTimeout(T.testSolo);
 
     await openBuildingsList(page);
@@ -104,13 +104,8 @@ test.describe("building form + energy entry", () => {
     const add = page.getByRole("dialog");
     await expect(add.getByLabel(t("lblStreetAddress"))).toBeVisible({ timeout: T.visible });
 
-    // (1)(2) The one generic form always offers the full field set, including the
-    // Heating systems section — no role/template gating.
-    await expect(add.getByText(t("secHeatingSystems")))
-      .toBeVisible({ timeout: T.visible });
-    await expect(add.getByLabel(t("mdHeatPump"))).toBeVisible();
-
-    // Finish the add WITHOUT setting heating (the "forgotten field" scenario).
+    // The create form is basics-only (address + coordinates) — the rich master data and
+    // heat generation are added on the building page afterwards, not in the dialog.
     await add.getByLabel(t("lblStreetAddress")).fill(ADDR_FIELDS);
     await add.getByLabel(t("lblLocality")).fill("Nürnberg");
     await add.getByLabel(t("lblPostalCode")).fill("90451");
@@ -121,18 +116,28 @@ test.describe("building form + energy entry", () => {
     await expect(page.getByText(t("addBuildingAddedCount", { count: 1 })))
       .toBeVisible({ timeout: T.action });
 
-    // (3) Re-open the building: the heating type offered at Add is still reachable
-    // on the building page's inline editor (Add and Edit render the same generic
-    // field set; editing is inline on /building/:id now, no per-row dialog).
+    // (1)(2)(3) On the building page, the Heat generation section adds a heat pump as a
+    // :TechnicalSystem (thermal capacity + commissioning year) — heat generators are
+    // systems now, not booleans, added/edited inline here.
     const row = page.locator("li[data-building-id]", { hasText: ADDR_FIELDS })
       .first();
     await expect(row).toBeVisible({ timeout: T.action });
     const id = await buildingIdOf(row);
     if (!id) throw new Error("building-form: missing building id");
     await page.goto(buildingRoute("building", id));
-    await page.getByRole("button", { name: t("btnEdit"), exact: true }).first().click();
-    await expect(page.getByLabel(t("mdHeatPump")))
-      .toBeVisible({ timeout: T.visible });
+    // The Heat generation section's [Add] flips to its inline list editor.
+    await page.getByRole("heading", { name: t("secHeatGeneration"), exact: true })
+      .locator("xpath=..")
+      .getByRole("button")
+      .click();
+    await page.getByRole("button", { name: t("btnAddHeatPump"), exact: true }).click();
+    await page.getByLabel(t("lblSystemThermalKW")).fill("120");
+    await page.getByLabel(t("lblCommissioningYear")).fill("2019");
+    await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
+    await expect(page.getByText(t("buildingUpdated"))).toBeVisible({ timeout: T.action });
+    // It renders in the section's read view (the "Heat pump" kind row).
+    await expect(page.getByText(t("mdHeatPump")).first())
+      .toBeVisible({ timeout: T.action });
   });
 
   test("(4) the energy-year dialog names the building it edits", async () => {

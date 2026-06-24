@@ -512,7 +512,7 @@ Deno.test("serializeBuildingToTurtle round-trips investor operating costs", () =
     streetAddress: "X",
     _opcost_wasteDisposal: "Landlord",
     _opcost_security: "All-Risk",
-    _opcost_operationInspectionAndMaintenance: "true",
+    _opcost_operationInspectionAndMaintenance: "High",
   }, uri);
 
   // Raw shape: one investor:hasOperatingCosts blank node carries the categories.
@@ -523,13 +523,13 @@ Deno.test("serializeBuildingToTurtle round-trips investor operating costs", () =
     1,
   );
 
-  // Parsed shape: the values land on building.operatingCosts (boolean coerced).
+  // Parsed shape: the values land on building.operatingCosts (every category an amount).
   const b = parseBuildings(new Parser().parse(ttl)).get(`${uri}#it`);
   assert.ok(b);
   assert.ok(b!.operatingCosts);
   assert.equal(b!.operatingCosts!.wasteDisposal, "Landlord");
   assert.equal(b!.operatingCosts!.security, "All-Risk");
-  assert.equal(b!.operatingCosts!.operationInspectionAndMaintenance, true);
+  assert.equal(b!.operatingCosts!.operationInspectionAndMaintenance, "High");
 });
 
 Deno.test("serializeBuildingToTurtle round-trips multiple building certifications", () => {
@@ -608,7 +608,7 @@ Deno.test("parseCsvToFields extracts investor operating costs + certification, e
     ["", "Gebäude-Code", "", "INV-1"],
     ["", "Straße", "", "Teststraße 1"],
     ["", "Entsorgung", "", "Mittel"],
-    ["", "Bedienung, Inspektion und Wartung", "", "ja"],
+    ["", "Bedienung, Inspektion und Wartung", "", "Hoch"],
     ["", "BREEAM", "", "Ja"],
     ["", "BREEAM Zertifizierungsstufe", "", "Very Good"],
     ["", "DGNB", "", "Nein"],
@@ -623,7 +623,7 @@ Deno.test("parseCsvToFields extracts investor operating costs + certification, e
   assert.equal(parsed.length, 1);
   const f = parsed[0];
   assert.equal(f._opcost_wasteDisposal, "Mittel");
-  assert.equal(f._opcost_operationInspectionAndMaintenance, "true");
+  assert.equal(f._opcost_operationInspectionAndMaintenance, "Hoch");
   assert.equal(f._cert_0_type, "BREEAM");
   assert.equal(f._cert_0_level, "Very Good");
   // DGNB row is "Nein" → no second certification.
@@ -635,7 +635,7 @@ Deno.test("parseCsvToFields extracts investor operating costs + certification, e
     .get(`${uri}#it`);
   assert.ok(b);
   assert.equal(b!.operatingCosts!.wasteDisposal, "Mittel");
-  assert.equal(b!.operatingCosts!.operationInspectionAndMaintenance, true);
+  assert.equal(b!.operatingCosts!.operationInspectionAndMaintenance, "Hoch");
   assert.equal(b!.certifications!.length, 1);
   assert.equal(b!.certifications![0].type, "BREEAM");
   assert.equal(b!.certifications![0].level, "Very Good");
@@ -654,7 +654,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
     ],
     operatingCosts: {
       wasteDisposal: "Landlord",
-      operationInspectionAndMaintenance: true,
+      operationInspectionAndMaintenance: "Hoch",
     },
     certifications: [{ type: "BREEAM", level: "Very Good", scope: "WholeBuilding" }],
   } as unknown as BuildingType;
@@ -669,7 +669,7 @@ Deno.test("buildingToXlsx → investor Excel re-imports and round-trips the buil
   assert.equal(f.shiftRegime, "OneShift");
   assert.equal(f._inv_elec_2023, "121500");
   assert.equal(f._opcost_wasteDisposal, "Landlord");
-  assert.equal(f._opcost_operationInspectionAndMaintenance, "true");
+  assert.equal(f._opcost_operationInspectionAndMaintenance, "Hoch");
   assert.equal(f._cert_0_type, "BREEAM");
 
   // …and serialize → parse reproduces the building's modelled data.
@@ -1045,14 +1045,22 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.equal(inv.shiftRegime, "2-Shift"); // controlled vocab → label
   assert.equal(inv.tenancyType, "Multi Tenant");
   assert.equal(inv.indoorTemperatureClass, "≤18 °C");
-  assert.equal(inv.hasHeatPump, true);
+  // Heat generation is a :TechnicalSystem now (thermal capacity + commissioning year),
+  // not a boolean — the demo investor carries a gas boiler + a heat pump.
+  const hp = (inv.systems ?? []).find((s) => s.kind === "heatpump");
+  assert.ok(hp, "investor demo has a heat-pump system");
+  assert.equal(hp!.thermalCapacityKW, 120);
+  assert.ok(
+    (inv.systems ?? []).some((s) => s.kind === "gasboiler"),
+    "investor demo has a gas-boiler system",
+  );
   const certs = inv.certifications as Array<{ type?: string; level?: string }>;
   assert.equal(certs?.length, 1, "one certification");
   assert.equal(certs[0].type, "DGNB");
   assert.equal(certs[0].level, "Gold");
   const opcosts = inv.operatingCosts as Record<string, unknown> | undefined;
   assert.equal(opcosts?.propertyManagement, "Medium");
-  assert.equal(opcosts?.operationInspectionAndMaintenance, true);
+  assert.equal(opcosts?.operationInspectionAndMaintenance, "High");
 
   // The user demo building attributes its operator to the seeding user (WEBID),
   // so the agent-link → contact path resolves out of the box.

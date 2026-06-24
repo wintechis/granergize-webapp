@@ -282,7 +282,7 @@ export function parseBuildings(
       } else if (pred === `${BUILDING_NS}insurance`) {
         oc.insurance = investorLocalNameLabels[ln] ?? ln;
       } else if (pred === `${BUILDING_NS}operationInspectionAndMaintenance`) {
-        oc.operationInspectionAndMaintenance = objVal.toLowerCase() === "true";
+        oc.operationInspectionAndMaintenance = investorLocalNameLabels[ln] ?? ln;
       } else if (pred === `${BUILDING_NS}routineCleaningOffice`) {
         oc.routineCleaningOffice = investorLocalNameLabels[ln] ?? ln;
       } else if (pred === `${BUILDING_NS}routineCleaningWarehouse`) {
@@ -475,6 +475,11 @@ export function parseBuildings(
     [`${BUILDING_NS}BatteryStorage`]: "battery",
     [`${BUILDING_NS}CHPSystem`]: "chp",
     [`${BUILDING_NS}PVSystem`]: "pv",
+    [`${BUILDING_NS}HeatPump`]: "heatpump",
+    [`${BUILDING_NS}GasBoiler`]: "gasboiler",
+    [`${BUILDING_NS}DistrictHeating`]: "districtheating",
+    [`${BUILDING_NS}OilBoiler`]: "oilboiler",
+    [`${BUILDING_NS}ElectricBoiler`]: "electricboiler",
   };
   for (const [node, buildingId] of systemNodeBuilding.entries()) {
     const building = buildings.get(buildingId);
