@@ -270,7 +270,9 @@
     rdfs:label "has operating costs"@en ; rdfs:label "Hat Betriebskosten"@de ; rdfs:label "possède des coûts d'exploitation"@fr ; rdfs:domain rec:Building ; rdfs:range :OperatingCosts .
 :OperatingCosts rdf:type rdfs:Class ; rdfs:label "Operating costs"@en ; rdfs:label "Betriebskosten"@de ; rdfs:label "Coûts d'exploitation"@fr .
 
-# Service-level categories used by the operating-cost properties below.
+# Service-level categories used by the operating-cost properties below. These values are
+# service levels (Low/Medium/High/…) today, but the same categories could instead carry a
+# monetary amount (e.g. €/a) — a future model may prefer figures over service levels.
 :ServiceLevel rdf:type rdfs:Class ; rdfs:label "Service level"@en ; rdfs:label "Serviceniveau"@de ; rdfs:label "Niveau de service"@fr .
 :Low                  rdf:type :ServiceLevel ; rdfs:label "Low"@en ; rdfs:label "Niedrig"@de ; rdfs:label "Faible"@fr .
 :Simple               rdf:type :ServiceLevel ; rdfs:label "Simple"@en ; rdfs:label "Einfach"@de ; rdfs:label "Simple"@fr .
