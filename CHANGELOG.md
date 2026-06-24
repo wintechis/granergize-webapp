@@ -3,6 +3,15 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-24]
+- **Deep-linking/reload on every route works; a drift guard keeps it that way.** `index.html`'s
+  runtime base-href detection enumerates each route's first path segment (`KNOWN_ROUTE_SEGMENTS`)
+  to find the app root under any deploy subpath — but the list is hand-maintained and not
+  type-checked, so a missing segment silently makes a deep link / reload on that route
+  mis-detect the base (assets 404, redirect to home). It was missing `agent` (surfaced by the
+  Contact→Agent rename) **and** `regional`, `data-sources`, `organisation` (latently broken the
+  same way). All added, and a new `routes.test.ts` guard asserts the list exactly equals the
+  `FINDERS` + `DETAIL_PATTERNS` route table, so a future route rename/addition that forgets
+  `index.html` fails the unit suite instead of breaking at runtime.
 - **The contact detail page is now the "agent" page; the two org surfaces are unified.**
   The per-agent detail page (reached from any referenced WebID — a building's operator/owner/
   investor/attributedTo, a saved contact) was named "Contact"; it's renamed to **Agent**

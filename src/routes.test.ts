@@ -43,6 +43,36 @@ Deno.test("agent builder always uses ?uri= (a WebID is absolute)", () => {
   );
 });
 
+// Drift guard: index.html's runtime base-href detection enumerates the first path
+// segment of every app route in a hand-written KNOWN_ROUTE_SEGMENTS list (it can't
+// import routes.ts — it runs before the bundle). If that list misses a route segment,
+// a deep link / reload on that route mis-detects the app base (basename = the segment,
+// assets 404, redirect to home) — a silent break TypeScript can't catch, only e2e.
+// This asserts the list exactly equals the route table, so a rename/addition that
+// forgets index.html fails the unit suite instead.
+Deno.test("index.html KNOWN_ROUTE_SEGMENTS exactly mirrors the route table", async () => {
+  const html = await Deno.readTextFile(new URL("../index.html", import.meta.url));
+  const block = html.match(/KNOWN_ROUTE_SEGMENTS\s*=\s*\[([^\]]*)\]/);
+  assert.ok(block, "KNOWN_ROUTE_SEGMENTS array not found in index.html");
+  const listed = [...block![1].matchAll(/"([^"]+)"/g)].map((m) => m[1]).sort();
+
+  // The first path segment of every finder + detail route (HOME "/" has none).
+  const firstSegment = (p: string) => p.replace(/^\//, "").split("/")[0];
+  const expected = [
+    ...new Set(
+      [...Object.values(FINDERS), ...Object.values(DETAIL_PATTERNS)]
+        .map(firstSegment)
+        .filter((s) => s.length > 0),
+    ),
+  ].sort();
+
+  assert.deepEqual(
+    listed,
+    expected,
+    "index.html KNOWN_ROUTE_SEGMENTS is out of sync with routes.ts (FINDERS + DETAIL_PATTERNS)",
+  );
+});
+
 Deno.test("a builder output matches its bare detail pattern", () => {
   // The builder prefixes the declared bare path, then the query param — guards
   // the two from drifting apart.

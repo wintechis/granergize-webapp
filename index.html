@@ -29,13 +29,17 @@
     -->
     <script>
       (function () {
-        // Keep in sync with src/routes.ts (FINDERS + DETAIL_PATTERNS + sharing).
+        // The first path segment of every app route — keep in sync with
+        // src/routes.ts (FINDERS + DETAIL_PATTERNS). Guarded by routes.test.ts so a
+        // route rename/addition that forgets this list fails the unit suite (a missing
+        // segment makes a deep link / reload on that route mis-detect the app base).
         var KNOWN_ROUTE_SEGMENTS = [
           "building", "buildings",
           "observation", "observations",
           "aggregation", "aggregations",
           "agent", "contacts",
           "room", "rooms",
+          "regional", "data-sources", "organisation",
           "sharing"
         ];
         var path = window.location.pathname;
