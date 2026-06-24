@@ -44,11 +44,13 @@ history; the resource *is* the state. Right wherever the data has a single write
 owns it:
 
 - building master data and energy datasets (`uploadBuilding`, `updateBuilding`,
-  `writeEnergyYear`, `deleteBuilding`, attachments).
+  `writeEnergyYear`, `deleteBuilding`, attachments; plus building-less observations —
+  readings under `observations/` linked to no building — via
+  `writeBuildinglessObservation` / `deleteBuildinglessObservation`).
 - personal state files: `prefs.ttl`, `bookmarks.ttl`, `contacts.ttl`
   (`toggleHiddenBuilding`, `setCurrentRoom`, `addBookmark`, `addContact`, …).
-- view definitions and computed snapshots (`createViewDefinition`,
-  `storeComputedSnapshot`, `deleteView`).
+- aggregation definitions and computed snapshots (`createAggregationDefinition`,
+  `storeComputedSnapshot`, `deleteAggregation`).
 - the WebID profile / org node (`saveOrganization`, `uploadOrgLogo`) — these GET-mutate-PUT
   the whole document rather than going through `readModifyWrite`, a minor variant of the
   same model.
@@ -61,8 +63,8 @@ replay). Immutable events POSTed to an LDP container (the server mints each chil
 URI, so concurrent appends never clobber), never updated in place. The log is ground
 truth; current state is always derived through a projection (next section).
 
-- `shared-out/` — building & view grants/revocations the user issued (`recordSharing`,
-  `recordViewSharing`).
+- `shared-out/` — building & aggregation grants/revocations the user issued (`recordSharing`,
+  `recordAggregationSharing`).
 - `shared-in/` — grants received, archived from the inbox (`appendSharingEvent`).
 - `rooms/<id>/` — data-room membership (`setMembership`) and role (`setMyRole`) events.
 - the inbox — cross-Pod notification events (`postSharingEventToInbox`).
@@ -109,7 +111,7 @@ room's `as:Join`/`as:Update`), where a unique server-minted child per append is 
 what's wanted and a retry duplicate folds away harmlessly. Rule of thumb: resources you
 must *address later* get client URIs; resources you only *accumulate* get POST.
 
-Resource **paths** are lowercase / kebab-case (`shared-in/`, `views/snapshots/`,
+Resource **paths** are lowercase / kebab-case (`shared-in/`, `aggregations/snapshots/`,
 `prefs.ttl`); camelCase appears only in `gran:` vocab local-names
 (`gran:hiddenBuilding`, `gran:currentRoom`), which is RDF-conventional.
 
@@ -139,8 +141,8 @@ restore. This split is deliberate and must stay replayable — see
 [`sharing.md`](./sharing.md).
 
 **Read authority differs by direction.** Outgoing "shared with whom" reads the `.acl`
-directly (you can read your own ACLs; the Manage "Shared with" badge is N parallel
-acl-GETs), with `shared-out/` as the history. Incoming "shared with me" has no cheaper
+directly (you can read your own ACLs; the Buildings/Aggregations finder's "Shared with"
+badge is N parallel acl-GETs), with `shared-out/` as the history. Incoming "shared with me" has no cheaper
 authority than your own record, so it folds `shared-in/`; a missed revocation self-heals
 because the building `403`s on load and is pruned. Discovery is N+1 reads (list, then GET
 each member) rather than one registry read — fine for realistic counts; cache only if a
@@ -173,15 +175,19 @@ to make a projection match reality.
 Read-only operations group by *how* they read, which mirrors the write side:
 
 - **Direct GET / container LISTING** — read state written in place. Per-resource GETs
-  (`getViewDefinition`, `resolveAgent`, `readPrefs`) and container listings
-  (`discoverOwnBuildings`, `getViewDefinitions`). The phase-2 energy reads are this kind:
+  (`getAggregationDefinition`, `resolveAgent`, `readPrefs`) and container listings
+  (`discoverOwnBuildings`, `getAggregationDefinitions`). The phase-2 energy reads are this kind:
   `loadEnergyDatasets` (`energyDataset.ts`) fetches the annual datasets a building links,
   and `parseTtlReadings` (`userEnergyParser.ts`) fetches one daily file of a 15-minute
   series — both keyed off refs parsed in phase 1, and both taking the authed transport as
-  a `fetchFn` argument rather than a `Session` (load phasing in
+  a `fetchFn` argument rather than the `PodGateway` (load phasing in
   [`data-deref.md`](./data-deref.md)).
 - **Log fold** — the fold-on-read projection of an event log (`foldSharingLog`,
-  `getRoomLogState`, `getSharedWithMe`, `getReceivedViews`).
+  `getRoomLogState`, `getSharedWithMe`, `getReceivedAggregations`).
+- **External (non-Pod) read** — the `open`-tier and weather sources are queried over plain
+  HTTP (`trackedFetch`, not the authed transport, and **not** WebID-keyed since they're
+  public); read-only render context, owned by [`open-data.md`](./open-data.md) and
+  [`weather.md`](./weather.md).
 
 A query is otherwise pure. Freshness is server-driven via `fetchFresh` (revalidating GET);
 React Query owns caching and invalidation.
@@ -270,10 +276,10 @@ step:
 - `drainInbox` (`inbox.ts`) drains the inbox: copies each message into `shared-in/`, then
   DELETEs it. Named and called like a refresh, it is in fact a destructive move — and
   unlike the prune it writes on every call that finds messages.
-- `useViewDetail` (`queries.ts`) — the standalone view page's query —
+- `useAggregationDetail` (`queries.ts`) — the standalone aggregation page's query —
   **auto-materialises a missing snapshot** (`refreshSnapshot`) when the definition
-  exists but no snapshot does, so a freshly created view renders its chart on first
-  open instead of an empty "Refresh Snapshot" prompt. Like the prune it is
+  exists but no snapshot does, so a freshly created aggregation renders its chart on
+  first open instead of an empty "Refresh Snapshot" prompt. Like the prune it is
   exceptional, not per-call: a present snapshot keeps the read pure (absence is a
   definitive 404 — a transient read failure throws and can never trigger the write),
   and it is best-effort (a failed compute degrades to a definition-only result

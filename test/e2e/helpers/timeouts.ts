@@ -44,6 +44,12 @@ const LOCAL_JSS = !REMOTE && ENV?.LOCAL_POD_SERVER === "jss";
  * Scale a best-case LOCAL-CSS budget for the run's backend: ×2 for the remote tier
  * (network + Cloudflare), ×1.75 for local JSS (heavier multi-round-trip orchestration
  * — see the file header), ×1 for the fast local CSS baseline.
+ *
+ * NB: a ×2.5 experiment (2026-06-23) did NOT reduce the full-JSS-suite flakes — the
+ * flaky victims just rotated (aggregations:114 → cube-time-cut:148) and the count
+ * stayed within run-to-run noise, while adding ~7min. The back-half flakes are random
+ * transient hangs under cumulative load, not slow-but-progressing renders, so more
+ * per-action headroom can't fix them; reverted. See plans/flakes.md.
  */
 const t = (localMs: number): number =>
   REMOTE ? localMs * 2 : LOCAL_JSS ? Math.round(localMs * 1.75) : localMs;

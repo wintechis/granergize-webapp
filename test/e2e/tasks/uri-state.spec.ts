@@ -140,8 +140,14 @@ test.describe("URI-encoded navigational state survives reload", () => {
     // building's id is storage-relative, so it rides in `?ref=`).
     const marker = page.locator(".leaflet-marker-icon").first();
     await expect(marker).toBeVisible({ timeout: T.action });
-    await marker.click({ force: true });
-    await page.waitForURL(/\/building\?/, { timeout: T.action });
+    // The single-building auto-fit zooms hard (to z=18); a click can race that zoom
+    // animation while the marker is still settling, so Leaflet swallows it and no nav
+    // fires. Retry click→nav until the map has settled and the click lands. Use
+    // toHaveURL (polls), not waitForURL (a BrowserRouter pushState nav fires no "load").
+    await expect(async () => {
+      await marker.click({ force: true });
+      await expect(page).toHaveURL(/\/building\?/, { timeout: 2_000 });
+    }).toPass({ timeout: T.action, intervals: [500] });
     expect(page.url()).toContain(`/building?ref=${encodeURIComponent(id)}`);
 
     // The route is a genuine path + query, so a reload restores it (the

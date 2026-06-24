@@ -1,7 +1,7 @@
 # test/eval/ — model evals
 
 Measures a **model's** behaviour, so it calls a **real LLM endpoint** (unlike the
-hermetic test tiers). Not run by `deno task test` or Playwright.
+hermetic test tiers). Not run by `deno task unit:local` or Playwright.
 
 ## intent-translation
 

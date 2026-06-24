@@ -1,6 +1,6 @@
 import { msg, type MessageId } from "../lib/messages.ts";
-import { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { useSearchParams } from "react-router-dom";
 import {
   fetchNearestStations,
   fetchStationValues,
@@ -8,6 +8,12 @@ import {
   weatherStationsUrl,
   weatherValuesUrl,
 } from "../services/linkedWeather.ts";
+import {
+  resolveWeatherParameter,
+  resolveWeatherStation,
+  weatherParameterToParams,
+  weatherStationToParams,
+} from "../services/weatherParams.ts";
 import {
   Alert,
   Box,
@@ -76,27 +82,32 @@ function useWeatherValues(station: string | null, parameter: string) {
 }
 
 export default function WeatherData({ building }: WeatherDataProps) {
-  const [selectedParameter, setSelectedParameter] = useState<string>(
-    WEATHER_PARAMETERS.TEMPERATURE_MEAN_ANNUAL,
-  );
-  const [selectedStation, setSelectedStation] = useState<string | null>(null);
+  // Navigational sub-state (deep-linkable, survives reload): the parameter (?wp) and
+  // station (?ws) live in the URI (ui-state.md → weatherParams.ts).
+  const [searchParams, setSearchParams] = useSearchParams();
+  const selectedParameter = resolveWeatherParameter(searchParams);
+  const setSelectedParameter = (parameter: string) =>
+    setSearchParams((prev) => weatherParameterToParams(parameter, prev), {
+      replace: true,
+    });
 
   const stationsQuery = useWeatherStations(building, selectedParameter);
   const stations = stationsQuery.data ?? [];
   const isLoadingStations = stationsQuery.isFetching;
 
-  // Default to the closest station (the adapter returns them rank-sorted) once a
-  // fresh station list arrives — a during-render reset keyed on the list identity
-  // (building/parameter change refetches → new list → re-default), not an effect.
-  const [seededStations, setSeededStations] = useState(stationsQuery.data);
-  if (stationsQuery.data !== seededStations) {
-    setSeededStations(stationsQuery.data);
-    setSelectedStation(
-      stationsQuery.data && stationsQuery.data.length > 0
-        ? stationsQuery.data[0].station_id
-        : null,
-    );
-  }
+  // The selected station: the URI's choice when it's still in the current list,
+  // otherwise the closest (the adapter returns them rank-sorted) — derived, so a
+  // building/parameter change that refetches a different list re-defaults with no
+  // during-render reset. An absent ?ws → the nearest.
+  const urlStation = resolveWeatherStation(searchParams);
+  const selectedStation =
+    urlStation && stations.some((s) => s.station_id === urlStation)
+      ? urlStation
+      : (stations[0]?.station_id ?? null);
+  const setSelectedStation = (station: string | null) =>
+    setSearchParams((prev) => weatherStationToParams(station, prev), {
+      replace: true,
+    });
 
   const valuesQuery = useWeatherValues(selectedStation, selectedParameter);
   const values = valuesQuery.data ?? null;

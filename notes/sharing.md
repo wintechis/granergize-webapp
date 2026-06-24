@@ -1,13 +1,13 @@
 # Bilateral Sharing
 
-Direct WebID-to-WebID sharing of a **building** or **aggregated view**, Pod-to-Pod. A
+Direct WebID-to-WebID sharing of a **building** or **aggregation**, Pod-to-Pod. A
 share grants the recipient read access and notifies them; the data stays in the owner's
 Pod (no copy).
 
 Companion to [`queries-mutations.md`](./queries-mutations.md) (the event-log storage
 model and PUT/POST rationale), [`room.md`](./room.md) (rooms as a share-by-role
 directory), and
-[`aggregated-views.md`](./aggregated-views.md) (the view snapshots that get shared).
+[`aggregations.md`](./aggregations.md) (the aggregation snapshots that get shared).
 
 ## Model — two append-only event logs
 
@@ -77,7 +77,7 @@ blank nodes):
    interop:grantee        <recipient> ;
    interop:forResource    <resource> ;
    interop:accessMode     acl:Read ;        # grant only
-   gran:kind              rec:Building ;     # grant only: the shared class (rec:Building | cons:View)
+   gran:kind              rec:Building ;     # grant only: the shared class (rec:Building | cons:Aggregation)
    interop:includesEnergyData "true"^^xsd:boolean ;   # grant only, optional
    interop:includesEnergyYear "2024"^^xsd:gYear ;     # grant only, one per granted year (absent ⇒ all)
    prov:generatedAtTime   "…"^^xsd:dateTime .
@@ -86,7 +86,7 @@ blank nodes):
 A revocation is `a interop:AccessRevocation` with the same `(grantee, resource)` and a
 later time, and no `accessMode`/`kind`/`includesEnergyData`.
 
-## Building — `shareBuildingData(buildingUri, webId, session, options)`
+## Building — `shareBuildingData(buildingUri, webId, gateway, options)`
 
 Records the grant event first, then `grantReadAccess` grants the static building file;
 if `includeEnergyData`, also each `cons:hasEnergyDataset` resource (annual file / series
@@ -95,34 +95,36 @@ descriptor), plus — for a sub-hourly series — its daily-files container with
 inbox notify. The grant event carries every share dimension (incl. the per-year scope),
 on both the owner's `shared-out/` copy and the inbox/`shared-in/` copy.
 
-## Revoke — `revokeAccess(buildingUri, webId, session)`
+## Revoke — `revokeAccess(buildingUri, webId, gateway)`
 
 Append a revocation to `shared-out/`, remove the ACL authorization (building + any energy
 targets), then `notifyAccessRevoked` POSTs a revocation event to the recipient's inbox so
 their next `drainInbox` folds it out of `shared-in/`. Notification is best-effort — the
 revocation succeeds even if it fails.
 
-## Aggregated views — `shareAggregatedView(snapshotUri, webId, session)`
+## Aggregations — `shareAggregation(snapshotUri, webId, gateway)`
 
 Same flow on the computed **snapshot only** (recipient sees aggregate values, not the
-source buildings); the grant event carries `gran:kind cons:View`. Recorded in
-`shared-out/`; the viewId is recoverable from the snapshot URI
-(`views/snapshots/<viewId>.ttl`), so it isn't stored separately. The view model itself
-(definition vs. snapshot, computation) is owned by [`aggregated-views.md`](./aggregated-views.md).
+source buildings); the grant event carries `gran:kind cons:Aggregation`. Recorded in
+`shared-out/`; the aggregation id is recoverable from the snapshot URI
+(`aggregations/snapshots/<aggregation-id>.ttl`), so it isn't stored separately. The
+aggregation model itself (definition vs. snapshot, computation) is owned by
+[`aggregations.md`](./aggregations.md).
 
-Views have a **recipient side** too (previously view sharing was sender-only):
+Aggregations have a **recipient side** too:
 
-- `getReceivedViews` folds `shared-in/` for `gran:kind cons:View`, surfaced in a "Views
-  shared with you" section on the Share tab and rendered via `loadComputedSnapshot`.
-- `getSharedViews` folds `shared-out/` for the sender's "shared with" list.
-- `revokeViewAccess` logs a revocation, withdraws the snapshot's `.acl`, and notifies the
-  recipient (resource-neutral `notifyAccessRevoked`) so the view drops off their "Views
-  shared with you" on their next inbox drain.
-- **Deleting** a shared view first calls `revokeAllViewRecipients`, which loops every
-  current recipient through `revokeViewAccess` — so the snapshot doesn't linger on anyone's
-  list after it's gone.
+- `getReceivedAggregations` folds `shared-in/` for `gran:kind cons:Aggregation`,
+  surfaced as the **shared** tier of the Aggregations finder and rendered via
+  `loadComputedSnapshot`.
+- `getSharedAggregations` folds `shared-out/` for the sender's "shared with" list.
+- `revokeAggregationAccess` logs a revocation, withdraws the snapshot's `.acl`, and
+  notifies the recipient (resource-neutral `notifyAccessRevoked`) so the aggregation
+  drops off the Aggregations finder's shared tier on their next inbox drain.
+- **Deleting** a shared aggregation first calls `revokeAllAggregationRecipients`, which
+  loops every current recipient through `revokeAggregationAccess` — so the snapshot
+  doesn't linger on anyone's list after it's gone.
 
-## Local visibility — `toggleBuildingVisibility(buildingUri, session)`
+## Local visibility — `toggleBuildingVisibility(buildingUri, gateway)`
 
 Recipient hides a shared building via `gran:hiddenBuilding` in `prefs.ttl`
 (`toggleHiddenBuilding`); owner unaffected. `getSharedWithMe` reads the same prefs to mark
@@ -176,5 +178,5 @@ role-targeted shares — the role is an addressing device, not a standing group 
   provenance — the producing agent only, no `prov:hadRole` — in the building file.
 - **acl** — `acl:Read` / `acl:default` on `.acl` resources.
 - **ldp** — `ldp:inbox`, `ldp:contains`.
-- **gran** — `gran:kind` (`rec:Building` | `cons:View`, the event routing hint) and
+- **gran** — `gran:kind` (`rec:Building` | `cons:Aggregation`, the event routing hint) and
   `gran:hiddenBuilding` (local visibility, in `prefs.ttl`).

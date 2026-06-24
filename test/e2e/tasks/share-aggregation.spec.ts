@@ -86,8 +86,11 @@ test.describe("aggregation sharing across two pods", () => {
           // reload, not fail a one-shot wait.
           await b2.page.getByRole("button", { name: t("shareShowValues") }).first()
             .click();
+          // T.action (network-backed), not T.visible: the chart paints only after the
+          // aggregation computes from B's cross-Pod shared data, which is slow under
+          // JSS load — a too-tight visible budget flaked here (share-aggregation:58).
           await expect(b2.page.locator("svg.recharts-surface").first())
-            .toBeVisible({ timeout: T.visible });
+            .toBeVisible({ timeout: T.action });
         });
       } catch (timeout) {
         b2.guard.assertNoAppErrors();
@@ -212,8 +215,9 @@ test.describe("aggregation sharing across two pods", () => {
           // reload, not fail a one-shot wait.
           await b.page.getByRole("button", { name: t("shareShowValues") }).first()
             .click();
+          // T.action (network-backed compute), not T.visible — see :58 note above.
           await expect(b.page.locator("svg.recharts-surface").first())
-            .toBeVisible({ timeout: T.visible });
+            .toBeVisible({ timeout: T.action });
         });
       } catch (timeout) {
         b.guard.assertNoAppErrors();

@@ -20,8 +20,13 @@ const PNG_1x1 = Buffer.from(
  * for `geodatenzentrum.de` afterwards — a later handler takes precedence in Playwright.
  */
 export async function stubBasemapTiles(page: Page): Promise<void> {
-  await page.route(/geodatenzentrum\.de/, (route) =>
-    route.fulfill({ status: 200, contentType: "image/png", body: PNG_1x1 }));
+  // basemap.de WMS (every map) + the Bavaria orthophoto WMS (the building-detail
+  // locator thumbnail's base layer) — both pure background imagery no spec asserts.
+  await page.route(
+    /geodatenzentrum\.de|geoservices\.bayern\.de/,
+    (route) =>
+      route.fulfill({ status: 200, contentType: "image/png", body: PNG_1x1 }),
+  );
 }
 
 /** CORS headers so a stubbed cross-origin GET resolves like the real wrapper would. */
@@ -35,18 +40,51 @@ const CORS = {
  * Stub the EXTERNAL open-data / enrichment hosts the app fetches around the map — the
  * regional + open-data tiers the redesign added: the linked-data wrappers on
  * `wunderfacts.com` (mastr / lod2-by / energieatlas / regionalstatistik / nuts / lau /
- * wetterdienst), Nominatim geocoding, and Wikidata/Commons logos. Every map visit fires
- * dozens of slow REAL cross-internet GETs that no spec asserts; left un-stubbed they keep
- * the app busy and hang the network-gated teardown (`afterAll` timeout across specs).
- * A 404 lets the app fall back (every enrichment is best-effort) and completes instantly.
+ * wetterdienst) and Wikidata/Commons logos. Every map visit fires dozens of slow REAL
+ * cross-internet GETs that no spec asserts; left un-stubbed they keep the app busy and
+ * starve the lane. A 404 lets the app fall back (every enrichment is best-effort).
+ *
+ * **Nominatim geocoding is the exception** — it is NOT best-effort: building add / demo
+ * seed geocode the address to coordinates, and a building with no coords paints no map
+ * marker. So Nominatim is stubbed with deterministic FAKE coords (Nuremberg area, spread
+ * by a hash of the query so distinct addresses don't stack), keeping the lane hermetic
+ * *and* giving every seeded/added building a point.
  *
  * Applied at page creation alongside {@link stubBasemapTiles}. A spec that asserts a
- * specific source (e.g. the open-tier specs stubbing `/lod2-by/` or `/regionalstatistik/`)
- * registers its own `page.route` AFTERWARDS — a later handler wins in Playwright.
+ * specific source (e.g. the open-tier specs stubbing `/lod2-by/` or `/regionalstatistik/`,
+ * or the geocode specs stubbing Nominatim with real-address coords) registers its own
+ * `page.route` AFTERWARDS — a later handler wins in Playwright.
  */
 export async function stubExternalData(page: Page): Promise<void> {
+  // Nominatim → fake but valid coords so geocoded buildings get a marker.
+  await page.route(/nominatim\.openstreetmap\.org/, (route) => {
+    const q = decodeURIComponent(
+      route.request().url().match(/[?&]q=([^&]*)/)?.[1] ?? "",
+    );
+    let h = 0;
+    for (let i = 0; i < q.length; i++) h = (h * 31 + q.charCodeAt(i)) >>> 0;
+    const lat = (49.40 + (h % 100) / 1000).toFixed(6); // ~49.40–49.50
+    const lon = (11.00 + (Math.floor(h / 100) % 100) / 1000).toFixed(6); // ~11.00–11.10
+    return route.fulfill({
+      status: 200,
+      headers: { ...CORS, "Content-Type": "application/json" },
+      body: JSON.stringify([{ lat, lon }]),
+    });
+  });
+  // The open-data / regional wrappers + logos → 404 (best-effort enrichment; the app
+  // falls back). Scoped to the specific wrapper PATHS, NOT the whole `wunderfacts.com`
+  // host — `/wetterdienst/` is deliberately left live (cube-calendar-weather asserts the
+  // real DWD adapter's outcome), and per-spec stubs (`/mastr/`, `/lod2-by/`, …) register
+  // later and win where a spec wants fixture data.
+  //
+  // NB: `*.example` (seed/demo WebIDs like `operator.example` / `contact-page-e2e.example`)
+  // is deliberately NOT stubbed here. Stubbing it 404 broke contact-page (the agent
+  // name-resolution falls back to the IRI fragment on a network error but NOT on a 404),
+  // and it didn't reduce the JSS crashes anyway. So the `*.example` DNS-fail retry noise
+  // is left as-is (documented in plans/flakes.md); fixing it cleanly would mean the app
+  // falling back to the fragment on a 404 too — out of scope here.
   await page.route(
-    /wunderfacts\.com|nominatim\.openstreetmap\.org|wikidata\.org|commons\.wikimedia\.org/,
+    /wunderfacts\.com\/(mastr|lod2-by|energieatlas|regionalstatistik|nuts|lau|netztransparenz)\/|wikidata\.org|commons\.wikimedia\.org/,
     (route) => route.fulfill({ status: 404, headers: CORS, body: "" }),
   );
 }

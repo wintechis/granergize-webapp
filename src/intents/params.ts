@@ -20,6 +20,7 @@ import {
   LDP_RESOURCE,
   REC_BUILDING,
   XSD_BOOLEAN,
+  XSD_DECIMAL,
   XSD_GYEAR,
   XSD_STRING,
 } from "../services/rdf/vocabularies.ts";
@@ -82,6 +83,17 @@ export const INTENT_PARAMS = {
   },
   GetBuilding: {
     id: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+  },
+  FindNearbyInstallations: {
+    // The building is resolved to its coordinates; kind/radiusKm are literal scope.
+    building: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
+    kind: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
+    radiusKm: { nodeKind: "literal", range: XSD_DECIMAL, cardinality: "optional" },
+  },
+  FindRegionalStatistics: {
+    // A Bundesland (name or AGS) literal, or a building resolved to its region.
+    region: { nodeKind: "literal", range: XSD_STRING, cardinality: "optional" },
+    building: { nodeKind: "iri", range: REC_BUILDING, cardinality: "optional" },
   },
   GetObservationYear: {
     building: { nodeKind: "iri", range: REC_BUILDING, cardinality: "one" },
@@ -268,6 +280,8 @@ const _paramKeysMatch: {
   DeleteBuilding: true,
   ToggleVisibility: true,
   FindBuildings: true,
+  FindNearbyInstallations: true,
+  FindRegionalStatistics: true,
   GetBuilding: true,
   GetObservationYear: true,
   WhoHasAccess: true,

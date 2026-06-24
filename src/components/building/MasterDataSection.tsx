@@ -14,11 +14,8 @@ import { useNotification } from "../../context/NotificationContext.tsx";
 import { useSolidData } from "../../hooks/queries.ts";
 import { useUpdateBuilding } from "../../hooks/mutations.ts";
 import { useGeocodeFields } from "../../hooks/useGeocodeFields.ts";
-import {
-  buildingToFields,
-  makeBuildingFields,
-  OPCOST_FIELDS,
-} from "../buildingFields.tsx";
+import { makeBuildingFields, OPCOST_FIELDS } from "../buildingFields.tsx";
+import { buildingToFields } from "../buildingFormSeed.ts";
 import {
   BuildingAddressFields,
   BuildingDetailFields,
@@ -125,6 +122,12 @@ function ReadView({ building }: { building: BuildingType }) {
       )}
       {hasValue(building.tenantIndustry) && (
         <DetailRow label={msg("mdTenantIndustry")} value={building.tenantIndustry} />
+      )}
+      {hasValue(building.customer) && (
+        <DetailRow label={msg("mdCustomer")} value={building.customer} />
+      )}
+      {hasValue(building.naceCode) && (
+        <DetailRow label={msg("mdNaceCode")} value={building.naceCode} />
       )}
       {hasValue(building.indoorTemperatureClass) && (
         <DetailRow

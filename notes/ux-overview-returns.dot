@@ -32,8 +32,18 @@ digraph ux {
   subgraph cluster_buildings {
     label="Buildings finder"; style="dashed"; color="#9e9e9e"; fontsize=10;
     B_list [label="list"];
-    B_map  [label="map\ngeo · over-time · compare"];
+    B_map  [label="map\ngeographic (ownership)"];
     B_list -> B_map [dir=both, style=dotted, label="guise"];
+  }
+  subgraph cluster_obs {
+    label="Observations finder (energy cube)"; style="dashed"; color="#9e9e9e"; fontsize=10;
+    O_map       [label="map\nenergy @ year"];
+    O_list      [label="list"];
+    O_overtime  [label="over-time\n(heatmap)"];
+    O_overyears [label="over-years\n(lines)"];
+    O_map -> O_list           [dir=both, style=dotted, label="guise"];
+    O_list -> O_overtime      [dir=both, style=dotted];
+    O_overtime -> O_overyears [dir=both, style=dotted];
   }
   subgraph cluster_agg {
     label="Aggregations finder"; style="dashed"; color="#9e9e9e"; fontsize=10;
@@ -45,7 +55,6 @@ digraph ux {
   }
   subgraph cluster_singletabs {
     label="App shell — other tabs (list-only)"; style="dashed"; color="#9e9e9e"; fontsize=10;
-    Observations [label="Observations finder"];
     Sharing      [label="Sharing finder"];
     Contacts     [label="Contacts"];
     Meet         [label="Meet / rooms"];
@@ -78,12 +87,14 @@ digraph ux {
   // ── Details-on-demand: hover = in-place peek, click = open the detail page ──
   B_map  -> Peek            [style=dashed, color="#43a047", label="hover marker"];
   A_map  -> Peek            [style=dashed, color="#43a047", label="hover region"];
+  O_map  -> Peek            [style=dashed, color="#43a047", label="hover marker"];
   B_map  -> BuildingPage    [label="click marker → open"];
   B_list -> BuildingPage    [label="click row → open"];
   A_list -> AggregationPage [label="open (own/received)"];
   A_timeline -> AggregationPage [label="open"];
   A_list -> RegionalPage    [label="open (open tier)"];
-  Observations -> ObservationPage [label="open"];
+  O_map  -> ObservationPage [label="open"];
+  O_list -> ObservationPage [label="open"];
   Sharing      -> BuildingPage    [label="open"];
   Meet         -> RoomPage        [label="open"];
 

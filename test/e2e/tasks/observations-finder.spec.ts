@@ -1,5 +1,4 @@
 import { expect, type Page, test } from "@playwright/test";
-import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import {
   addBuilding,

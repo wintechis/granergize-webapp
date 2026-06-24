@@ -9,7 +9,10 @@ import tseslint from "typescript-eslint";
 export default tseslint.config(
   // e2e/ and the Playwright config run under Node (Playwright), not the browser
   // app — exclude them from this browser-globals lint config.
-  { ignores: ["dist", "e2e", "playwright.config.ts"] },
+  // `dist-*` are alternate build outputs (dist-jss / dist-handbuch / dist-videos);
+  // `.claude` holds sibling worktrees + session state — both local-only artifacts CI
+  // never sees, but `eslint .` would otherwise walk (and choke on) them.
+  { ignores: ["dist", "dist-*", ".claude", "e2e", "playwright.config.ts"] },
   // React Query discipline: query-key exhaustiveness (a key omitting a value the
   // queryFn closes over → stale reads), stable QueryClient, no rest-destructuring
   // of query results. The data layer is entirely React Query, so this is on-domain.

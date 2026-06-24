@@ -123,8 +123,8 @@ State is re-derived from the Pod on every read, so it survives restarts.
 
 Open self-enrollment is an **ACL property of the container**, not app logic; restrict
 by narrowing the ACL (out-of-band). The log is member-writable, so `as:actor` is a
-**claim** the app sets to `session.info.webId` but cannot enforce — acceptable while
-roles are low-stakes; gate admission if a role ever gates real data.
+**claim** the app sets to the caller's `gateway.webId` but cannot enforce — acceptable
+while roles are low-stakes; gate admission if a role ever gates real data.
 
 ## Relationship to sharing
 
@@ -136,7 +136,7 @@ room-independent — see [sharing.md](sharing.md).
 ## Tests
 
 Offline tests in `dataRoom.test.ts`
-(`deno task test`): latest-wins folding, concurrent members not clobbering, the two
+(`deno task unit:local`): latest-wins folding, concurrent members not clobbering, the two
 axes independent, join→leave, role-without-join ≠ member, role→WebID resolution,
 `createRoom` (bookmark + current + single membership), `addKnownRoom` bookmark-without-join
 vs `enterRoom`, leaving keeps the bookmark / `removeKnownRoom` forgets it, `roomExists`,

@@ -53,7 +53,7 @@ for offline unit-testing (`linkedWeather.test.ts`).
 
 ## What it shows
 
-A **Weather** section on the building's observation page (`/observation/:id`,
+A **Weather** section on the building's observation page (`/observation`,
 `Energy.tsx`), shown whenever the building has coordinates — energy and weather
 are the building's two observation layers (one owned on the Pod, one queried
 live). Two selects — **parameter** and
@@ -69,6 +69,6 @@ station/parameter") use inline `<Alert>`.
 
 - **Not stored, not owned, not shared.** Purely a live read — no Pod write, no
   persistence, no grant. Distinct both from the building's own energy (owned) and from
-  buildings/views shared *with* the user (granted, reached via `shared-in/`).
+  buildings/aggregations shared *with* the user (granted, reached via `shared-in/`).
 - **Not joined to energy.** It is a sibling section on the observation page;
   weather and consumption sit side by side but are not aligned or compared today.

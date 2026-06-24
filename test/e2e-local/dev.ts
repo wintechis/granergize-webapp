@@ -3,7 +3,7 @@
  * Interactive fully-local dev stack: a throwaway local Pod server that doubles as
  * the OIDC identity provider, plus the Vite dev server pointed at it — so you can
  * click through the real app with credential-free logins and never touch a remote
- * Pod. The automated tiers (`deno task it` / `e2e:local`) cover the same stack for
+ * Pod. The automated tiers (`deno task headless:local` / `e2e:local`) cover the same stack for
  * tests; this is the by-hand counterpart, driven by `deno task dev:local`.
  *
  * It spawns two children and ties their lifecycles together:

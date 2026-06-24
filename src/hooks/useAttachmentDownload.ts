@@ -9,7 +9,7 @@ import { formatError } from "../lib/formatError.ts";
 /**
  * Download a building attachment with the authenticated session (works for the owner
  * AND a share recipient) and save it as a blob — the shared "Download" behaviour
- * behind the read-only FilesSection and the manage FilesDialog. A download is a READ,
+ * behind the read-only `FilesSection` and the editable `BuildingFilesSection`. A download is a READ,
  * so it owns its busy flag: `downloadingUrl` is the in-flight attachment's URL, or
  * null when idle.
  */

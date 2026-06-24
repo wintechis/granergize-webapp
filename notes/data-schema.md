@@ -51,8 +51,9 @@ stored role. The app reads them all without ever asking "what role produced this
 - **Energy load + render** — keyed on the dataset's declared `cons:granularity`
   (`isSeriesGranularity()`, `durationUtils.ts`) and the presence of `annualData`,
   never on a role: the prefetch-skip in `TurtleParsingService.ts` keys purely on the
-  declared period (series ⇒ lazy), and `ExplorePage.tsx` / `Energy.tsx` pick the
-  time-series vs. annual chart the same way.
+  declared period (series ⇒ lazy), and `Energy.tsx` / `ObservationsFinder.tsx` pick the
+  time-series vs. annual chart the same way (`isSeriesGranularity`,
+  `EnergyResolutionSwitch`).
 
 The shapes aren't formally specified — they're whatever the imperative parsers
 read/write (`buildingConfig.ts`, `buildingParser.ts`, `energyDataset.ts`,
@@ -82,28 +83,34 @@ The building schema therefore lives across four artifacts that must agree:
 
 - **RDF vocabulary** — predicate IRIs in
   [`vocabularies.ts`](../src/services/rdf/vocabularies.ts).
-- **App object type** — `BuildingType` (and `EnergyType`, the view types) in
+- **App object type** — `BuildingType` (and `EnergyType`, the aggregation types) in
   `src/types.ts`; the agent shape is now `ResolvedAgent`/`ResolvedOrg`
   (`services/agents/agentResolver.ts`), resolved on demand. The whole object layer
   is inventoried in [`object-model.md`](./object-model.md).
-- **Predicate ⇄ field mapping** — `predicateMap` / `objectPropertyMap` in
-  [`buildingConfig.ts`](../src/services/rdf/building/buildingConfig.ts).
+- **Predicate ⇄ field mapping** — `predicateMap` / `objectPropertyMap` /
+  `iriPropertyMap` in
+  [`buildingConfig.ts`](../src/services/rdf/building/buildingConfig.ts) (literals /
+  controlled-vocab objects / agent IRIs).
 - **Datatype/coercion** — `parsingFunctions` (read: literal → JS) in
-  `buildingConfig.ts`, and separately `INTEGER_FIELDS`/`DECIMAL_FIELDS`/
-  `BOOLEAN_FIELDS` + `xsdType()` (write: JS → typed literal) in
+  `buildingConfig.ts`, and `INTEGER_FIELDS`/`DECIMAL_FIELDS`/`BOOLEAN_FIELDS` +
+  `xsdType()` (write: JS → typed literal) in
   [`buildingSerializer.ts`](../src/services/rdf/building/buildingSerializer.ts).
 
-What's single-sourced vs. duplicated:
+One descriptor table single-sources it all:
 
-- **Predicate ⇄ field is single-sourced.** The serializer doesn't keep its own
-  copy — it *inverts* `predicateMap`/`objectPropertyMap` at runtime
-  (`fieldToPredicate = Object.fromEntries(...)`). Read and write share one table.
-- **Field names are type-checked.** `predicateMap` is typed
-  `{ [iri]: keyof BuildingType }`, so a value that isn't a real `BuildingType` key
-  (or a rename) is a compile error — keeps the type and the map from drifting on
-  names.
-- **Datatypes are duplicated.** Read coercion (`parsingFunctions`) and the
-  write-side datatype sets must agree, but nothing enforces it.
+- **`BUILDING_FIELDS` is the source.** One row per field (`{ field, iri, range }`,
+  where `range` is the `rdfs:range` — an XSD datatype, `foaf:Agent`, or a
+  controlled-vocab class). Classifying that range derives all three predicate maps
+  (`predicateMap` literals / `objectPropertyMap` controlled-vocab objects /
+  `iriPropertyMap` agent IRIs), the read coercions (`parsingFunctions`), and the
+  serializer's write-side datatype sets
+  (`INTEGER_FIELDS`/`DECIMAL_FIELDS`/`BOOLEAN_FIELDS`). Read and write share one table.
+- **The serializer keeps no copy** — it inverts the three maps at runtime
+  (`fieldToPredicate` / `fieldToObjectPredicate` / `fieldToIriPredicate =
+  Object.fromEntries(...)`).
+- **Field names are type-checked.** `field` is `keyof BuildingType` (compile-checked),
+  so a value that isn't a real key (or a rename) is a compile error — the type and the
+  maps can't drift on names.
 - **Coordinates are the one structured exception to the flat map.** `lat` / `long`
   appear in `predicateMap` (so a *legacy* flat `geo:lat` / `geo:long` still parses), but
   are no longer written or normally read that way. The current shape is a `geo:Point`
@@ -118,22 +125,18 @@ What's single-sourced vs. duplicated:
 
 Consequences:
 
-- Adding a displayed/persisted field touches ~3 spots: `BuildingType`,
-  `predicateMap` (+ a `parsingFunction` and the write-side datatype set if
-  numeric/boolean).
+- Adding a displayed/persisted field touches **two** spots: a `BuildingType` key and
+  one `BUILDING_FIELDS` row — the maps, coercions, and datatype sets all fall out of
+  its `range`.
 - **Unmapped predicates are invisible** — the parser only copies predicates present
   in the maps; anything else in the Turtle is dropped on read and never written
   back. The RDF may legitimately carry more than the object model knows about.
-- Drift between the four is otherwise silent.
+- The one agreement nothing in the code enforces is `BuildingType`/`BUILDING_FIELDS`
+  ⇄ the published `vocab/` ontology (a field with no vocab term, or vice-versa) —
+  guarded instead by `vocab.test.ts`.
 
-A single descriptor table closes the datatype gap: `BUILDING_FIELDS` in
-[`buildingConfig.ts`](../src/services/rdf/building/buildingConfig.ts) is the
-source — one row per field (`{ field, iri, kind, type }`), from which
-`predicateMap`, `objectPropertyMap`, `parsingFunctions`, and the serializer's
-`INTEGER_FIELDS`/`DECIMAL_FIELDS`/`BOOLEAN_FIELDS` are all derived. `field` is
-`keyof BuildingType` (compile-checked). Heavier consolidations (generate
-`BuildingType` from SHACL/ShEx, or an RDF-object mapper like LDO/LDkit) stay out of
-scope.
+Heavier consolidations (generate `BuildingType` from SHACL/ShEx, or an RDF-object
+mapper like LDO/LDkit) stay out of scope.
 
 ## Rejected: shape detection as the discriminator
 
@@ -188,19 +191,20 @@ estate. Here it's used **thinly** — a veneer over the project's own `gran:` vo
 - `rec:Building` — the building `rdf:type` (both serializer and parser use the
   `REC_BUILDING` constant).
 - `rec:operatedBy`, `rec:nace-code` — two core predicates (`buildingConfig.ts`).
-  Caveats: `rec:operatedBy` *is* a real REC term (a property on `rec:Architecture`,
-  range an `Agent` — a WebID IRI), but we currently store it as an `xsd:string`
-  **literal** (`kind: "literal"`), not as an IRI-valued object, so it doesn't match
-  REC's range. `rec:nace-code` is **not confirmed** as a published REC term (REC 4.0
-  uses camelCase, not `nace-code`); treat that IRI as likely non-standard /
-  non-dereferenceable rather than canonical REC.
-- `rec#agent` — the agent type string (`agentParser.ts`).
+  `rec:operatedBy` *is* a real REC term (a property on `rec:Architecture`, range an
+  `Agent` — a WebID IRI), and we now store it that way: its `BUILDING_FIELDS` row has
+  `range: FOAF_AGENT`, so it serializes as an **IRI-valued** object (via
+  `iriPropertyMap`), matching REC's range. Caveat: `rec:nace-code` is **not confirmed**
+  as a published REC term (REC 4.0 uses camelCase, not `nace-code`); treat that IRI as
+  likely non-standard / non-dereferenceable rather than canonical REC.
+- Agents are typed `foaf:Agent` / `org:Organization` and resolved from their own
+  profiles (`agentResolver.ts`), **not** via a REC agent type.
 - Everything else — areas, investor/benchmark fields, the whole energy model — is
   `gran:`/`bldg:`/`cons:`/SOSA, **not** REC.
 
-So REC supplies the top-level building/agent **type + two identifiers**; `gran:`
-carries the actual domain data. REC is barely load-bearing, and not dereferenced
-(same as `gran:`).
+So REC supplies the top-level building **type** plus `rec:operatedBy` (and, loosely,
+`rec:nace-code`); `gran:`/`bldg:` carry the actual domain data and agents are FOAF.
+REC is barely load-bearing, and not dereferenced (same as `gran:`).
 
 REC bears on the role/schema design above: it is the natural home for the
 "self-describing master data, parse on predicate presence" direction, but only for what
@@ -224,7 +228,7 @@ and the app would still work. They are *not* "static files" the app loads:
 - `building.ttl#` (`BUILDING_NS`) — building master data (`bldg:hasBuildingArea`,
   `bldg:shiftRegime`, …); a RealEstateCore extension profile.
 - `consumption.ttl#` (`CONSUMPTION_NS`) — energy observations and what's derived
-  from them (`cons:hasEnergyDataset`, `cons:granularity`, views, benchmarks).
+  from them (`cons:hasEnergyDataset`, `cons:granularity`, aggregations, benchmarks).
 
 These are a **shared contract**: changing a prefix only matters because producers
 serialize the same IRIs (`buildingSerializer.ts`) and the parser matches them
@@ -240,9 +244,9 @@ the public `gra/` base) are a publish target; the app never fetches them at runt
 ### B. Demo data — offered, not auto-seeded
 
 A fresh Pod loads empty — nothing is silently seeded. Instead the UI **offers** demo
-data via a banner (`useDemoSeedPrompt`); on accept, `seedDemoBuildings`
-(`buildingSerializer.ts`) writes two real owned buildings (Nordostpark 84 and Lange
-Gasse 20, Nürnberg) carrying energy at *different granularities* (one annual aggregate,
-one PT15M series) so a new user immediately sees both shapes the app dispatches on. Pod
-layout, own-building discovery, and the banner mechanics are owned by
+data via a banner (`useDemoOffer`); on accept, `seedDemoBuildings`
+(`buildingSerializer.ts`) writes four real owned buildings in Nürnberg spanning every
+loader shape the app dispatches on — annual aggregate, 15-minute `PT15M` series, and
+one carrying *both* — so a new user immediately sees them. Pod layout, own-building
+discovery, the exact demo set, and the banner mechanics are owned by
 [`storage-layout.md`](./storage-layout.md).

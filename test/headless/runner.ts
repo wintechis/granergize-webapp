@@ -1,13 +1,13 @@
 /// <reference lib="deno.ns" />
 /**
- * Tier-2 headless runner (`deno task it`). Boots ONE throwaway local CSS with two
+ * Tier-2 headless runner (`deno task headless:local`). Boots ONE throwaway local CSS with two
  * seeded accounts, sets up the A/B actors (concurrently — the same actor model the
  * browser tier uses), then runs each per-slug task module in `tasks/`. A failure
  * here is an app-LOGIC bug ("in principle"); the same task failing in the browser
  * tier ("in practice") points at server interop. Self-cleaning: each task tidies
  * its own resources, and the whole CSS + temp dir is torn down at the end.
  *
- *   deno task it      (no credentials needed — local CSS, fixed creds)
+ *   deno task headless:local      (no credentials needed — local CSS, fixed creds)
  */
 import type { LiveSessionLike } from "./localPod.ts";
 import { type SessionSource, sessionSource } from "./sessionSource.ts";
@@ -94,7 +94,7 @@ try {
   console.log(`A = ${a.webId}\nB = ${b.webId}\nC = ${c.webId}`);
   const ctx: TaskContext = { a, b, c, check: harness.check };
 
-  // Optional slug filter: `deno task it <slug> [<slug>…]` runs only those task
+  // Optional slug filter: `deno task headless:local <slug> [<slug>…]` runs only those task
   // modules (handy for hunting one task in isolation); no args runs all.
   const only = new Set(Deno.args);
   const selected = only.size ? TASKS.filter((t) => only.has(t.name)) : TASKS;

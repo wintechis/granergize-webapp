@@ -1,5 +1,6 @@
 import type { PodGateway } from "./podGateway.ts";
 import { DataFactory, Parser, Store } from "n3";
+import type { Term } from "n3";
 import { fetchFresh, fetchUncached, readStoreOrEmpty } from "./podFetch.ts";
 import { appRoot } from "./solidUtils.ts";
 import { LDP_CONTAINS as LDP_CONTAINS_IRI } from "../rdf/vocabularies.ts";
@@ -83,12 +84,12 @@ export async function deleteContainerRecursive(
       );
       const children = store
         .getObjects(DataFactory.namedNode(container), LDP_CONTAINS, null)
-        .map((o) => o.value);
+        .map((o: Term) => o.value);
       // Children are independent and the container can only be removed once they're
       // ALL gone, so kick them all off and let the shared `limit` meter the actual
       // requests; the container is deleted below, after they settle. A sub-container
       // recurses (and fully empties) before its own delete.
-      await Promise.all(children.map(async (child) => {
+      await Promise.all(children.map(async (child: string) => {
         signal?.throwIfAborted();
         if (child.endsWith("/")) {
           await deleteContainerRecursive(child, gateway, signal, limit);
@@ -151,7 +152,7 @@ export async function listContainedResources(
   const store = await readStoreOrEmpty(container, gateway);
   const children = store
     .getObjects(DataFactory.namedNode(container), LDP_CONTAINS, null)
-    .map((o) => o.value)
+    .map((o: Term) => o.value)
     .sort();
   for (const child of children) {
     out.push(child);
@@ -183,7 +184,7 @@ export async function listDirectChildren(
   );
   return store
     .getObjects(DataFactory.namedNode(container), LDP_CONTAINS, null)
-    .map((o) => o.value);
+    .map((o: Term) => o.value);
 }
 
 /**

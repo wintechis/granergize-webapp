@@ -18,13 +18,13 @@ returned figures alongside their own.
 
 ## Design
 
-The benchmark is an aggregated-view snapshot the BSP computes over the buildings
+The benchmark is an aggregation snapshot the BSP computes over the buildings
 shared to it and shares back. This reuses the existing aggregation and sharing
 machinery rather than introducing a parallel subsystem, and it inherits exactly the
 privacy property a benchmark needs: a snapshot carries only the computed values and
-a building count, never the list of contributing buildings. The view *definition*
-(which holds the building IRIs) stays private to the BSP; only the *snapshot*
-travels.
+a building count, never the list of contributing buildings. The aggregation
+*definition* (which holds the building IRIs) stays private to the BSP; only the
+*snapshot* travels.
 
 The round-trip has four movements, each resting on existing machinery.
 
@@ -35,25 +35,26 @@ to specific years; the BSP is simply a recipient WebID.
 The BSP computes the benchmark. The aggregation engine averages a chosen metric
 across a set of buildings; the BSP metrics are annual electricity, heat, water and
 wastewater consumption. The benchmark's building list is populated from the roster
-of buildings shared *to* the BSP, so the BSP's create-view flow sources its
+of buildings shared *to* the BSP, so the BSP's create-aggregation flow sources its
 candidates from the shared-with-me fold rather than from owned buildings (received
 buildings carry the *sharer's* provenance, not a benchmark-provider one). The result
 is persisted as a snapshot, additionally typed as a benchmark result that records
 the computing agent and the period covered.
 
-The BSP shares the snapshot back to each contributing owner. The view-sharing path —
-grant read access, post an inbox event, append to the outgoing log under the view
-kind — does this, fanned out to every contributor in one step.
+The BSP shares the snapshot back to each contributing owner. The aggregation-sharing
+path — grant read access, post an inbox event, append to the outgoing log under the
+`cons:Aggregation` kind — does this, fanned out to every contributor in one step.
 
-The owner consumes the returned benchmark. The energy view prefers a received BSP
-benchmark for the comparison figure when one is available for the metric, then the
-operator average when same-operator figures exist, and otherwise falls back to the
-portfolio mean. The annual energy table shows the building's own (Ist) figure, the
-portfolio average, the operator average, and a benchmark column that stays blank
-until a benchmark has been received; only the four annual-consumption metrics can
-carry a benchmark, so the other rows leave the benchmark cell empty. The computing
-BSP is surfaced as an agent reference, routed through the in-app contact detail
-view.
+The owner consumes the returned benchmark. The annual energy table lays the metrics
+out as columns; beneath the building's own per-year (Ist) figures it adds a row for
+the operator average, a row for the portfolio average, and — once a benchmark
+snapshot has been received — a benchmark row. Each comparison row is populated
+independently: all that apply are shown together, not collapsed into a single
+preferred figure. For each metric the benchmark cell takes the value from the newest
+received snapshot that carries it (`pickBenchmark`); only the four annual-consumption
+metrics can carry a benchmark, so the remaining columns show an em-dash. The
+computing BSP is surfaced as an agent reference, routed through the in-app contact
+detail view.
 
 ## Three comparison cases
 
@@ -80,16 +81,18 @@ much sharing machinery the figure needs:
 
 So the operator benchmark is a variant of the peer benchmark distinguished by data
 acquisition — the operator holds the numbers already, the BSP has to collect them.
-Both cross-agent forms return their result the same way (an aggregated-view
-snapshot shared by WebID, see [`aggregated-views.md`](./aggregated-views.md)); the
-energy view's preference order (benchmark, then operator average, then portfolio
-mean) ranks them by how far outside the user's own data the peer set reaches.
+Both cross-agent forms return their result the same way (an aggregation
+snapshot shared by WebID, see [`aggregations.md`](./aggregations.md)). The
+energy table shows whichever of the three comparisons it has data for side by side
+rather than choosing one; conceptually they line up by how far outside the user's
+own data the peer set reaches — portfolio (own buildings), operator, then the
+external BSP benchmark.
 
 ## Vocabulary
 
-A returned snapshot is self-describing as a benchmark rather than a generic view: the
+A returned snapshot is self-describing as a benchmark rather than a generic aggregation: the
 benchmark vocabulary carries a benchmark-result class (a specialisation of the
-aggregated-view snapshot), a predicate naming the computing agent, and a predicate
+aggregation snapshot), a predicate naming the computing agent, and a predicate
 for the metric period. These are owned terms, so the versioned vocabulary and its
 conformance test move together with the code, keeping the published vocabulary and
 the app in step.
@@ -100,9 +103,9 @@ The round-trip is verified at the integration tier (the real data-layer function
 over three client-credential sessions: two owners share energy, the BSP computes and
 shares back, an owner reads the returned averages) and end-to-end in the browser tier
 as its own benchmarking spec (two owners contribute, the BSP's picker offers both,
-the share-back fans out, and the owner sees the benchmark column). The
-shared-with-me→building-list helper and the prefer-benchmark-over-local selector
-each carry offline-fixture unit tests.
+the share-back fans out, and the owner sees the benchmark row). The
+shared-with-me→building-list helper (`summarizeContributors`) and the
+newest-benchmark selector (`pickBenchmark`) each carry offline-fixture unit tests.
 
 ## Boundaries
 
@@ -110,5 +113,6 @@ The benchmark exposes only aggregate values and a contributor count, so a recipi
 cannot reconstruct another owner's building from it; this is the same
 definition/snapshot split the aggregation feature enforces, and it is preserved.
 Replay of the sharing log stays same-Pod, as elsewhere. The regional/district
-energy-mix breakdown by generation source, its administrative data files and backend,
-and the query-service surface are separate from benchmarking and out of scope here.
+energy-mix and public-statistics layer (generation by source, regional figures, area
+profiles) has since shipped as the `open` source tier — separate from benchmarking and
+owned by [`open-data.md`](./open-data.md).

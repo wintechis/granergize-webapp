@@ -131,6 +131,32 @@ All notable changes to the Granergize WebApp project will be documented in this 
 - **"Data sources and licences" sits with Logout** at the foot of the profile menu, so the credits
   stay next to Logout in developer mode too (they were buried above the dev sections).
 
+- **Test lanes renamed by (kind × backend), dropping the `test`/`it` names (plan-test-lane-naming
+  work-item-1).** The task names now read off the grid the docs already use: `test`→`unit:local`,
+  `it`→`headless:local`, `it:jss`→`headless:local:jss`, `it:remote`→`headless:remote`,
+  `it:contract`→`headless:remote:contract` (`e2e:local`/`e2e:remote` were already correct). Naming
+  only — same servers, specs, hermeticity. Callers swept in one pass: the CI workflow
+  (`run: deno task unit:local`), `CLAUDE.md`, `test/README.md`, `playwright.config.ts`, the
+  headless runner/sessionSource/contract comments, `notes/room.md`, `test/eval/README.md`. Clean
+  rename, no aliases; `deno task unit:local` verified (982 passed).
+- **Deep-links: the observation page's Weather + user-energy chart sub-state is now in the URI.**
+  Two pieces of view state reset on reload and couldn't be shared as a link; encoded both per the
+  `ui-state.md` scheme (pure resolvers, omit-default, preserve-rest, `replace: true`). Weather:
+  `?wp` (parameter) + `?ws` (station) via `weatherParams.ts` — changing the parameter clears the
+  station so the nearest re-seeds. User-energy (Lastgang) chart: `?tab` (view) + `?day` + `?month`
+  via `seriesChartParams.ts`. Both replace the prior local `useState` + during-render auto-seed
+  with derived values (URI choice when valid, else first day / latest / nearest), so a reload or
+  shared link restores the view. (The `ui-state.md` "Not yet URI-encoded" list also named a
+  map-fullscreen flag — no such control exists; dropped.) Tier-1 resolver tests for each.
+- **Building master-data: `customer` and `naceCode` are now editable.** They were real
+  master-data fields with data but neither displayed nor editable (silently dropped from the
+  Add/Edit form via `SKIP_FIELDS`). Made them first-class: a form field in the shared
+  `BuildingDetailFields` and a read row in `MasterDataSection`, round-tripping through
+  `updateBuilding` like every other scalar. (`investor` was already editable as an agent link;
+  `type` is the building's structural `rdf:type` and stays un-editable by design.) Extracted the
+  pure form seed `buildingToFields` into `buildingFormSeed.ts` (out of the MUI-bound
+  `buildingFields.tsx`) so it's unit-testable under Deno, with a Tier-1 test.
+
 ## [2026-06-23]
 - **Variable units per building — a building's energy can be stored/displayed in MWh, etc.** The
   model pinned one canonical unit per metric and the parser IGNORED the per-observation
@@ -144,6 +170,83 @@ All notable changes to the Granergize WebApp project will be documented in this 
   (the cube, aggregations, the map) stay canonical so a comparison never mixes units. The xlsx
   export keeps canonical (it round-trips with the import). Deferred: series-reading units and a
   unit picker in the entry dialog.
+- **Command palette renders launched read results inline.** The palette's launcher
+  (Developer-mode `{`/`>` field modes) dispatched read intents but discarded the value —
+  it just toasted "Done". Completed the read branch: the returned value is summarised
+  (`summarizeReadResult`) and rendered in place as a titled result list — first-class rows for
+  `FindNearbyInstallations` (label · carrier · distance) and `FindRegionalStatistics` (metric ·
+  region), a best-effort label per item for any other read. A `building` param passed by name
+  (the LLM has no id list) is resolved to its subject IRI before the query, so
+  `> PV installations near my Hofgebäude` works end-to-end. Editing the field clears the result.
+  Covered by a Tier-1 unit test for the summariser plus a hermetic e2e case
+  (`FindRegionalStatistics` for Bayern — the static catalogue, no wrapper call).
+- **Open-tier query intents — `FindNearbyInstallations` + `FindRegionalStatistics`
+  (plan-open-tier-intents Slice 1).** The `open` (public-data) tier had UI + services but no
+  *intent* face, so it was unreachable from the command box / launcher / LLM. Added the two
+  open-tier **query** verticals as exact replicas of the `FindBuildings` template:
+  `FindNearbyInstallations` (a new `installation` `IntentEntity`; resolves a building → coords →
+  the MaStR `linked-mastr` nearby query, optional carrier `kind` filter) and
+  `FindRegionalStatistics` (rides the `aggregation` entity; lists the public regionalstatistik
+  datasets for an explicit Bundesland, a building's region, or the whole portfolio). Each is a
+  full vertical — catalog entry, `INTENT_PARAMS` schema + compile-time key witness, React-free
+  core, `READ_CORES` registration, a `use*` adapter in `mutations.ts`, a `FORM_EXCLUDED` entry
+  (reads aren't palette-form verbs), Tier-1 fake-fetch tests (7 cases), and LLM eval cases. The
+  open tier is now callable headless via `query("FindNearbyInstallations", …)` /
+  `query("FindRegionalStatistics", …)`.
+- **Annotated n3 quad callbacks so the logistik dataset generator typechecks (cross-repo).** The
+  generator (`../logistikimmobilien`) imports webapp modules and ran everything under
+  `deno run --no-check` because dropping it surfaced implicit-`any` errors — n3's `Store` methods
+  resolve typed under the webapp's `tsc` but as `any` under the generator's Deno `npm:n3`
+  resolution. Added explicit `Term`/`Quad` annotations on the quad callbacks in
+  `podDelete.ts` / `energyDataset.ts` / `rdfHelpers.ts` (no-op for the webapp's own check), which
+  let the generator drop `--no-check` and add a `check` task — so a webapp API rename now fails the
+  generator's build at typecheck time, not just the runtime smoke test.
+- **Removed dead `FilesDialog` + corrected the typecheck docs (hygiene).** The redesign moved
+  building-file management inline (`BuildingFilesSection`), leaving `FilesDialog`
+  (`components/BuildingDialogs.tsx`) with zero usages; deleted it + its now-unused imports and
+  scrubbed the stale "manage FilesDialog" comments in `AttachmentInfo`/`BuildingFilesSection`/
+  `useAttachmentDownload`. Also fixed `CLAUDE.md`, which claimed "no configured lint/typecheck
+  task" — there is `deno task check` (`tsc --noEmit`, `tsconfig.check.json`) and `deno task lint`,
+  both CI-gated and gating deploy. `check` / `lint` / `test` (962) all green.
+- **Design notes + `CLAUDE.md` swept current with the redesign (docs-only, no code change).**
+  Brought the whole `notes/` corpus and `CLAUDE.md` back in line with the code, resolving four
+  systemic drifts the redesign had left in the docs: the **view→aggregation** rename (incl.
+  `notes/aggregated-views.md` → `aggregations.md` + every inbound link); the **UI redesign**
+  (`HashRouter`→`BrowserRouter` under a `basename`; the 4-tab shell → six finder routes;
+  `ManagePage`/`SharePage`/`ConnectPage`/`ExplorePage` gone; the map detail-pane → standalone
+  `/building`·`/observation`·`/aggregation` pages carrying the id as `?ref=`/`?uri=`); the
+  **time-first observations** storage (`buildings/<id>/energy/<year>-<g>.ttl` →
+  `observations/{year}/<id>.ttl` + daily chunks, metadata re-stated in the building's links);
+  and the **`session`→`PodGateway`** transport (`getGateway()`, `resolveStorageRoot(gateway)`, …).
+  Also rewrote the `ux-overview` Graphviz/Mermaid diagrams (Observations promoted to a 4-guise
+  energy cube; the Buildings map is geo-only), refreshed the building-detail / data-schema /
+  energy-model models, and enforced the project's URI/IRI-not-URL wording throughout. Filled
+  one doc gap with a new present-state `notes/open-data.md` (the `open`/ungated source tier —
+  LoD2 rooftop-PV, MaStR + netztransparenz generation, regional statistics, and their in-app
+  read-only details), the one shipped feature the corpus had covered only piecemeal — then
+  wired it across the corpus (six notes cross-reference it) and deep-re-audited the
+  early-reviewed notes against current code, catching a few things the rename-sweep missed:
+  the open-tier object shapes + `isOpen`/`TechnicalSystem[]` on `BuildingType`
+  (`object-model.md`), the building-less-observation operations + a non-Pod read category
+  (`queries-mutations.md`), and a stale "Manage"-tab "Shared with" badge reference. Finally
+  reconciled the (git-ignored) `explore/` sketches with what shipped: deleted the four fully
+  graduated ones — their present state now lives in `notes/` (i18n → `i18n.md`, the intent/action
+  profile → `object-model.md`, the external-observation layers → `open-data.md`, the test-tier
+  matrix → `CLAUDE.md`/`test/README.md`) — repointing their ~17 inbound references into `notes/`,
+  and left a `Status` banner on the partly-shipped sketches; `explore/` now holds only speculation.
+- **E2E hermeticity + flake fixes (test-only).** The redesign's regional/open-data tiers fire many
+  external GETs per map load that no spec asserts; the `e2e:local` lane now stubs them at page
+  creation (`stubExternalData`/`stubBasemapTiles`): the `wunderfacts.com` open-data wrappers
+  (mastr/lod2-by/energieatlas/regionalstatistik/nuts/lau/netztransparenz) and Wikidata/Commons logos
+  → 404 (best-effort, the app falls back); **Nominatim → deterministic fake coords** (geocoded
+  buildings need coordinates to paint a marker — a 404 would leave them markerless); the Bavaria
+  orthophoto WMS (`geoservices.bayern.de`) → a 1×1 PNG like the basemap tiles. `/wetterdienst/` is
+  left live (cube-calendar-weather asserts the real DWD adapter). Two flakes hardened: `uri-state`'s
+  buildings-map marker click now retries through the single-building auto-fit zoom animation, and the
+  `share-aggregation` cross-Pod chart wait uses `T.action` (network-backed compute), not `T.visible`.
+  Net: both backends run green (CSS + JSS, 104/1, accepted `archive-full-load` only). The remaining
+  JSS-only failures were diagnosed as **environmental** (the test machine's OOM killer reaping Chrome
+  under memory pressure — vanish with RAM headroom), documented in `plans/flakes.md`.
 
 ## [2026-06-22]
 - **The map keeps its viewport when you drill into a detail and come back.** The standalone

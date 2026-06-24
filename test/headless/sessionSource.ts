@@ -3,9 +3,9 @@
  * Where the headless runner's authenticated sessions come from — the seam between
  * `headless:local` and `headless:remote`.
  *
- * - **local** (default, `deno task it`): boot a throwaway local Pod (CSS/JSS) and
+ * - **local** (default, `deno task headless:local`): boot a throwaway local Pod (CSS/JSS) and
  *   take its seeded A/B/C sessions. Hermetic; teardown stops the server.
- * - **remote** (`IT_REMOTE=1`, `deno task it:remote`): connect to a REAL Solid server
+ * - **remote** (`IT_REMOTE=1`, `deno task headless:remote`): connect to a REAL Solid server
  *   using the SAME account creds the browser/e2e + bench lanes read — `account(slot)`
  *   from `test/config/accounts.ts` (`WEBID_<slot>_USERNAME`/`_PASSWORD`/`_PROVIDER`,
  *   sourced from a creds file; throwaway accounts only — the tasks self-clean but do
@@ -30,7 +30,7 @@ export interface SessionSource {
   teardown(): Promise<void>;
 }
 
-/** Hermetic source: a throwaway local CSS/JSS (the default `deno task it`). */
+/** Hermetic source: a throwaway local CSS/JSS (the default `deno task headless:local`). */
 export async function localSessionSource(): Promise<SessionSource> {
   const pod = await startLocalPod();
   return {

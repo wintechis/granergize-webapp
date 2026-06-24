@@ -976,6 +976,8 @@ export const MESSAGES = {
     de: "Branche des Mieters",
     fr: "Secteur du locataire",
   },
+  mdCustomer: { en: "Customer", de: "Kunde", fr: "Client" },
+  mdNaceCode: { en: "NACE code", de: "NACE-Code", fr: "Code NACE" },
   mdIndoorTemp: {
     en: "Indoor temperature",
     de: "Innentemperatur",

@@ -55,7 +55,7 @@ const STREET = "Teilenstraße 7";
 
 // Cross-Pod sharing needs an INTEROPERATING provider pair. NSS↔CSS-v5 (the current
 // A/B) don't interoperate, so this SKIPs with a reason; the logic is covered "in
-// principle" by the Tier-2 headless `share-building` task (deno task it).
+// principle" by the Tier-2 headless `share-building` task (deno task headless:local).
 const pair = resolveAccounts({ count: 2, interoperatingPair: true });
 
 test.describe("sharing across two pods", () => {

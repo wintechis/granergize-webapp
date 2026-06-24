@@ -8,7 +8,7 @@ object↔RDF mapping (the four artifacts that must agree, the predicate→field
 table), this note is the breadth view — *which* objects exist across the whole app
 and how they are organised. The per-resource graph shapes are owned by the storage
 notes ([`storage-layout.md`](./storage-layout.md), [`energy-model.md`](./energy-model.md),
-[`sharing.md`](./sharing.md), [`room.md`](./room.md), [`aggregated-views.md`](./aggregated-views.md)).
+[`sharing.md`](./sharing.md), [`room.md`](./room.md), [`aggregations.md`](./aggregations.md)).
 
 The objects are plain data — `interface`/`type`, no methods; behaviour lives in the
 services that produce and consume them, and the verbs on them are a separate axis
@@ -24,20 +24,22 @@ types beside the domain, composites one layer up.
    by everything). The entities a screen renders, plus their nested sub-shapes:
    - `BuildingType` — the building, a flat bag of optional master-data fields
      (the deep dive is [`data-schema.md`](./data-schema.md)). Nests `AnnualData`,
-     `InvestorOperatingCosts`, `InvestorCertification`, `AttachmentRef[]`
+     `InvestorOperatingCosts`, `InvestorCertification`, `TechnicalSystem[]`
+     (PV / battery / CHP energy systems), `AttachmentRef[]`
      ([`attachments.md`](./attachments.md)), and `EnergyDatasetRef[]` (the
-     self-describing links to its energy resources).
+     self-describing links to its energy resources); plus derived tier flags
+     `isShared` / `isOpen` (owned vs shared-in vs open — [`open-data.md`](./open-data.md)).
    - `EnergyType` — the dashboard's energy object: per-building figures bucketed
      into the seven `EnergyCategoryKey` groups (`energyNeed`, `energyGeneration`, …).
      Within a group the figures are keyed by the **canonical** `EnergyMetricKey`
      (`electricityConsumption`, … — the same key space as the `cons:*` IRIs and the
-     view snapshots); display labels are derived at render (`ANNUAL_METRICS`), not
+     aggregation snapshots); display labels are derived at render (`ANNUAL_METRICS`), not
      baked in. So the only residual reshaping vs the stored data is the category
      bucketing — it is otherwise a composite over several `EnergyDataset` resources
      (each building's latest actual year), not a mirror of one.
-   - `WeatherType`, `Scenario` (`actual`|`planned`).
-   - The aggregated-view trio: `AggregatedViewDefinition`,
-     `AggregatedViewSnapshot`, `SharedAggregatedView` (+ `AggregationType`).
+   - `Scenario` (`actual`|`planned`).
+   - The aggregation trio: `AggregationDefinition`,
+     `AggregationSnapshot`, `SharedAggregation` (+ `AggregationType`).
    - `UserRole` — the data-room membership role, and nothing else
      ([`data-schema.md`](./data-schema.md) §`UserRole`).
 
@@ -47,8 +49,15 @@ types beside the domain, composites one layer up.
      `EnergyMetricKey` (the canonical metric key space).
    - agents (`services/agents/`) — `ResolvedAgent`, `ResolvedOrg`, `Appearance`.
    - interop/sharing (`services/interop/`) — `SharingEvent`, `ActiveGrant`,
-     `SharingKind`, `SharedBuildingEntry`, `ReceivedView`, `GrantTarget`,
+     `SharingKind`, `SharedBuildingEntry`, `ReceivedAggregation`, `GrantTarget`,
      `DataRoomMember`.
+   - weather (`services/linkedWeather.ts`, `services/energy/energyWeather.ts`) —
+     `WeatherStation`, `WeatherObservation`, `WeatherAnnualValue`.
+   - open data (`services/lod2Rooftop.ts`, `mastrNearby.ts`, `regionalCube.ts`,
+     `standortEnergieprofil.ts`, `openObservations.ts`, `openRegional.ts`) —
+     `RooftopPotential`, `NearbyInstallation`, `RegionalObservation` / `RegionalTable`,
+     `AreaProfile`, `OpenObservationDetail`, `OpenRegionalItem` (the `open` tier —
+     [`open-data.md`](./open-data.md)).
    - organization — `Organization`; contacts — `Contact`; prefs — `Preferences`.
    - aggregation — `PickedBenchmark`, `Contributors`.
 
@@ -56,7 +65,7 @@ types beside the domain, composites one layer up.
    hooks (`src/hooks/queries.ts`), not parsed from any single resource:
    - `SolidData` — the dashboard bundle (`buildings` + `energyNeed` +
      portfolio/operator averages + loading/error), returned by `useSolidData`.
-   - `ViewDetail` — one view's standalone-page data (definition + snapshot).
+   - `AggregationDetail` — one aggregation's standalone-page data (definition + snapshot).
 
 ## The organising axis — object shape follows storage model
 
@@ -67,13 +76,13 @@ which tracks the storage-model taxonomy of
 - **Resource objects** — a typed mirror of one *in-place* resource (GET → object →
   PUT). `BuildingType` ⇄ a building file, `EnergyDataset` ⇄ a dataset file,
   `Organization` ⇄ the org node, `Preferences` ⇄ `prefs.ttl`, `Contact` (entries)
-  ⇄ `contacts.ttl`, `AggregatedViewDefinition`/`AggregatedViewSnapshot` ⇄ the view
+  ⇄ `contacts.ttl`, `AggregationDefinition`/`AggregationSnapshot` ⇄ the aggregation
   definition/snapshot files. One writer owns it; the object is the state.
 
 - **Event & projection objects** — for an *event-sourced log*, two object kinds: the
   immutable **event** appended to the log, and the in-memory **projection** a fold
   derives from it. Sharing: `SharingEvent` (the event) → `ActiveGrant` /
-  `SharedBuildingEntry` / `ReceivedView` (folds). Rooms: per-event `RoleEvent` /
+  `SharedBuildingEntry` / `ReceivedAggregation` (folds). Rooms: per-event `RoleEvent` /
   `MembershipEvent` (module-private in `dataRoom.ts`) → `DataRoomMember` (fold). The
   projection is never persisted (the one exception, the materialised `.acl`, is the
   `acl-projection` of [`queries-mutations.md`](./queries-mutations.md)).
@@ -83,7 +92,7 @@ which tracks the storage-model taxonomy of
   reference renders with a name/logo — never a held map; resolution never throws),
   `Appearance` (a pure selector over already-loaded buildings), `PickedBenchmark` /
   `Contributors` (aggregation folds), `GrantTarget` (ACL-planning intermediate), and
-  the hook composites `SolidData` / `ViewDetail`.
+  the hook composites `SolidData` / `AggregationDetail`.
 
 This is why a "where is the object for X?" question resolves quickly: an in-place
 resource has exactly one resource object; a log has an event type plus its fold(s);
@@ -116,7 +125,8 @@ bespoke fetch. The shape has four parts:
 - *identity of the read* — a query key led by the object kind and **namespaced by
   WebID** (`buildings · <webId> · …`), so a re-login can't serve another user's
   cache.
-- *transport* — the authed session singleton; the caller passes no `fetch`.
+- *transport* — the authed `PodGateway` (`getGateway()`, wrapping the `getSession()`
+  singleton); the caller passes no transport.
 - *gate* — the read stays disabled until its inputs resolve (for buildings: the
   shared-in fold + prefs, whose results also fingerprint the key).
 - *result* — the typed object(s) **and** the load state together: the list as
@@ -152,8 +162,8 @@ That per-object set is enumerable today as those hooks; the taxonomy behind the 
 Cross-entity links are kept as **IRIs on the holder**, not as nested objects: a
 building's agent fields (`operatedBy`, `ownedBy`, `investor`, `facilityManagedBy`,
 `developedBy`, `consultedBy`, `customer`, `attributedTo`) are WebID strings, and its
-`energyDatasets` are `EnergyDatasetRef` links whose self-describing slug carries
-year/granularity/scenario *without* fetching the body. The app resolves a reference
+`energyDatasets` are `EnergyDatasetRef` links whose year/granularity/scenario the
+building file **re-states** about each link, read *without* fetching the body. The app resolves a reference
 to displayable data **in memory or on demand**, never by following every IRI eagerly
 ([`data-deref.md`](./data-deref.md) §Resolving references): agent IRIs become
 `ResolvedAgent`/`ResolvedOrg` lazily; dataset links are fetched only when a chart or

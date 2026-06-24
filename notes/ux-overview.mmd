@@ -7,9 +7,19 @@ stateDiagram-v2
   state "Buildings finder" as Buildings {
     [*] --> B_list
     B_list: list
-    B_map: map (geo · over-time · compare)
+    B_map: map (geographic · ownership)
     B_list --> B_map: guise
     B_map --> B_list: guise
+  }
+  state "Observations finder (energy cube)" as Observations {
+    [*] --> O_map
+    O_map: map (energy @ year)
+    O_list: list
+    O_overtime: over-time (heatmap)
+    O_overyears: over-years (lines)
+    O_map --> O_list: guise
+    O_list --> O_overtime: guise
+    O_overtime --> O_overyears: guise
   }
   state "Aggregations finder" as Aggregations {
     [*] --> A_list
@@ -20,7 +30,6 @@ stateDiagram-v2
     A_map --> A_timeline: guise
   }
   state "Other tabs (list-only)" as Others {
-    Observations
     Sharing
     Contacts
     Meet: Meet / rooms
@@ -39,12 +48,14 @@ stateDiagram-v2
   %% details-on-demand: hover = in-place peek, click = open the detail page
   B_map --> Peek: hover marker
   A_map --> Peek: hover region
+  O_map --> Peek: hover marker
   B_map --> BuildingPage: click open
   B_list --> BuildingPage: click row open
   A_list --> AggregationPage: open (own/received)
   A_timeline --> AggregationPage: open
   A_list --> RegionalPage: open (open tier)
-  Observations --> ObservationPage: open
+  O_map --> ObservationPage: open
+  O_list --> ObservationPage: open
   Sharing --> BuildingPage: open
   Meet --> RoomPage: open
   BuildingPage --> ObservationPage: energy

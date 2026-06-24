@@ -32,8 +32,8 @@ the RDF layer (read and write); [data-deref.md](./data-deref.md) traces the
 storage→object read translation; [object-model.md](./object-model.md) inventories
 the typed objects **and** their verbs; [queries-mutations.md](./queries-mutations.md)
 owns the verbs (the query/mutation taxonomy — the read/write split);
-[building-detail.md](./building-detail.md) shows the object→UI projection and its row
-actions.
+[building-detail.md](./building-detail.md) shows the object→UI projection and the
+actions on it.
 
 ## Present-state notes
 
@@ -45,13 +45,14 @@ actions.
 - [energy-model.md](./energy-model.md) — the unified `cons:EnergyDataset`, one per (building, year, granularity).
 - [data-deref.md](./data-deref.md) — how a WebID becomes in-memory objects: what's fetched, in what order, joined in memory.
 - [app-pod-state-sync.md](./app-pod-state-sync.md) — keeping React-Query caches fresh against Pod writes (the query-key coverage hazard).
-- [sharing.md](./sharing.md) — bilateral WebID-to-WebID building/view sharing over append-only event logs.
+- [sharing.md](./sharing.md) — bilateral WebID-to-WebID building/aggregation sharing over append-only event logs.
 - [room.md](./room.md) — data rooms: event-sourced membership + roles, used as a sharing directory.
-- [aggregated-views.md](./aggregated-views.md) — saved aggregations: a private definition plus a shareable computed snapshot.
+- [aggregations.md](./aggregations.md) — saved aggregations: a private definition plus a shareable computed snapshot.
 - [peer-benchmark.md](./peer-benchmark.md) — the benchmark-snapshot round-trip back to contributing owners.
 - [attachments.md](./attachments.md) — arbitrary files attached to a building (the energy certificate is one of them).
-- [building-detail.md](./building-detail.md) — what hangs off a building IRI and how the detail pane projects it.
+- [building-detail.md](./building-detail.md) — what hangs off a building IRI and how the detail page projects it.
 - [weather.md](./weather.md) — the external, live, read-only DWD weather layer (nearest-station proximity join), outside the Pod data path.
-- [ui-state.md](./ui-state.md) — which UI state is navigational (encoded in the URI hash) vs. ephemeral.
+- [open-data.md](./open-data.md) — the `open` source tier: public, ungated, off-Pod Linked Data (LoD2 rooftop-PV, MaStR + netztransparenz generation, regional statistics) and its in-app read-only details.
+- [ui-state.md](./ui-state.md) — which UI state is navigational (encoded in the URI — the BrowserRouter path + query params) vs. ephemeral.
 - [ux-overview.md](./ux-overview.md) — a coarse map of the UX surfaces (tabs · detail pages · dialogs) and the transitions between them, as a Graphviz/Mermaid overview above statechart detail.
 - [i18n.md](./i18n.md) — the de/en/fr paths (build-time vocab labels vs. the in-app chrome catalog), the rolled-in-house `Intl`-based message layer, and why no i18n library.
