@@ -3,8 +3,6 @@ import SolarPowerIcon from "@mui/icons-material/SolarPower";
 import type { BuildingType } from "../../types.ts";
 import { msg, type MessageId } from "../../lib/messages.ts";
 import { useStandortEnergieprofil } from "../../hooks/standortEnergieprofil.ts";
-import { useLod2Rooftop } from "../../hooks/lod2Rooftop.ts";
-import { useNearbyGeneration } from "../../hooks/openObservations.ts";
 import type { RooftopPotential } from "../../services/lod2Rooftop.ts";
 import {
   areaUrl,
@@ -13,14 +11,9 @@ import {
   type MixEntry,
   type PotentialCard as PotentialCardData,
 } from "../../services/standortEnergieprofil.ts";
-import {
-  DEFAULT_RADIUS_KM,
-  type InstallationKind,
-  type NearbyInstallation,
-} from "../../services/mastrNearby.ts";
 import { RdfSourceLink } from "../detail/DetailView.tsx";
 import SourceNote from "../SourceNote.tsx";
-import { type DataSource, SOURCES } from "../../constants/dataSources.ts";
+import { SOURCES } from "../../constants/dataSources.ts";
 
 const fmt0 = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 0 });
 const fmt1 = (n: number) => n.toLocaleString(undefined, { maximumFractionDigits: 1 });
@@ -140,86 +133,39 @@ function BiomassCardView({ data }: { data: BiomassCardData }) {
   );
 }
 
-/** The nearby-generation card: actual renewable installations near the building, plus
- *  their actually-settled generation (netztransparenz, joined via the units' EEG number). */
-function NearbyCardView({ installations }: { installations: NearbyInstallation[] }) {
-  const counts = new Map<InstallationKind, number>();
-  for (const u of installations) counts.set(u.kind, (counts.get(u.kind) ?? 0) + 1);
-  const breakdown = [...counts.entries()]
-    .sort((a, b) => b[1] - a[1])
-    .map(([kind, n]) => `${msg(CARRIER_LABEL[kind])} ${n}`)
-    .join(" · ");
-  const within = `${msg("sepWithin")} ${DEFAULT_RADIUS_KM} km`;
-  // Actually-settled generation of the nearby plants (best-effort; absent off-pilot or
-  // until netztransparenz resolves) — capacity is what's nearby, this is what they made.
-  const { data: gen } = useNearbyGeneration(installations.map((u) => u.iri));
-  return (
-    <Stack spacing={0.5}>
-      <Typography variant="subtitle2">{msg("sepNearbyGeneration")}</Typography>
-      <Typography variant="h6">
-        {installations.length} {msg("sepPlants")}
-      </Typography>
-      <Typography variant="body2" color="text.secondary">
-        {breakdown ? `${breakdown} · ${within}` : within}
-      </Typography>
-      {gen && (
-        <Typography variant="body2" color="text.secondary">
-          {msg("sepActualGeneration", {
-            kwh: gen.kwh.toLocaleString(),
-            year: gen.year,
-          })}
-        </Typography>
-      )}
-    </Stack>
-  );
-}
-
 /**
- * The "Standort-Energieprofil" panel on the building detail page — the seed of the
- * fourth scenario (the Standort-Potenzial-Radar). It folds two sources into one
- * radar for the building's location: the per-Gemeinde Energie-Atlas profile
- * (rooftop- and Freiflächen-PV Ausbaulücke, the renewable share + generation mix,
- * biomass — `linked-energieatlas`, Bavaria-only) and the actual renewable
- * installations nearby (`linked-mastr`, nationwide).
- *
- * Renders only when there is something to show — an Energie-Atlas profile OR nearby
- * units — so off-pilot it collapses to just the nearby-generation card, and where
- * nothing resolves the section does not appear.
+ * The "Standort-Energieprofil" — the building's location energy CONTEXT, shown on the
+ * OBSERVATION page. (The building page keeps only the building's own rooftop potential —
+ * {@link RooftopPotentialSection} — and the actual nearby installations live in the
+ * observation page's `NearbyInstallationsSection`; this is the de-mix that keeps building
+ * info on the building and observation/context on the observation.) It renders the
+ * per-Gemeinde Energie-Atlas profile: rooftop- and Freiflächen-PV Ausbaulücke, the
+ * renewable share + generation mix, and biomass (`linked-energieatlas`, Bavaria-only).
+ * Renders nothing where no Energie-Atlas profile resolves (off-pilot).
  */
 export default function StandortEnergieprofil(
   { building }: { building: BuildingType },
 ) {
-  const { query, ags, installations } = useStandortEnergieprofil(building);
-  const rooftop = useLod2Rooftop(building).data ?? null;
+  const { query, ags } = useStandortEnergieprofil(building);
   const p = query.data ?? null;
-  if (!p && installations.length === 0 && !rooftop) return null;
-  // Attribution for whichever sources actually contributed to this section.
-  const sources: DataSource[] = [];
-  if (rooftop) sources.push(SOURCES.lod2, SOURCES.pvgis);
-  if (p) sources.push(SOURCES.energieatlas);
-  if (installations.length > 0) sources.push(SOURCES.mastr);
+  if (!p) return null;
   return (
     <Stack spacing={2}>
       <Stack direction="row" spacing={1} sx={{ alignItems: "center" }}>
         <SolarPowerIcon color="action" />
         <Typography variant="h6">{msg("secStandortProfile")}</Typography>
       </Stack>
-      {p?.name && (
+      {p.name && (
         <Typography variant="body2" color="text.secondary">{p.name}</Typography>
       )}
       <Stack spacing={2}>
-        {rooftop && <RooftopBuildingCardView data={rooftop} />}
-        {p?.rooftop && <PotentialCardView title={msg("sepRooftopPv")} data={p.rooftop} />}
-        {p?.ground && <PotentialCardView title={msg("sepGroundPv")} data={p.ground} />}
-        {p?.green && <GreenCardView data={p.green} />}
-        {p?.biomass && <BiomassCardView data={p.biomass} />}
-        {installations.length > 0 && <NearbyCardView installations={installations} />}
+        {p.rooftop && <PotentialCardView title={msg("sepRooftopPv")} data={p.rooftop} />}
+        {p.ground && <PotentialCardView title={msg("sepGroundPv")} data={p.ground} />}
+        {p.green && <GreenCardView data={p.green} />}
+        {p.biomass && <BiomassCardView data={p.biomass} />}
       </Stack>
-      {/* User-facing attribution for the sources that contributed (legal, not
-          dev-gated); the RdfSourceLinks below are the dev-only raw links. */}
-      {sources.length > 0 && <SourceNote variant="caption" sources={sources} />}
+      <SourceNote variant="caption" sources={[SOURCES.energieatlas]} />
       {ags && <RdfSourceLink href={areaUrl(ags)} />}
-      {rooftop && <RdfSourceLink href={rooftop.iri} />}
     </Stack>
   );
 }

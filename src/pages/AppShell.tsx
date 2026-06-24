@@ -677,18 +677,6 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
               <Switch edge="end" size="small" checked={devMode} tabIndex={-1} />
             </MenuItem>
 
-            {/* Data sources & licences — attribution credits, present in both
-                modes (legal attribution is user content, not a dev affordance). */}
-            <Divider />
-            <MenuItem
-              onClick={() => {
-                handleMenuClose();
-                void navigate(DETAIL_PATTERNS.dataSources);
-              }}
-            >
-              {t("menuDataSources")}
-            </MenuItem>
-
             {/* Dev: demo fixtures */}
             {devMode && <Divider />}
             {devMode && (
@@ -768,8 +756,18 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
               </MenuItem>
             )}
 
-            {/* Logout */}
+            {/* Data sources & licences (credits, both modes) sit with Logout at the
+                foot of the menu, so the credits stay next to Logout in dev mode too
+                rather than being buried above the dev sections. */}
             <Divider />
+            <MenuItem
+              onClick={() => {
+                handleMenuClose();
+                void navigate(DETAIL_PATTERNS.dataSources);
+              }}
+            >
+              {t("menuDataSources")}
+            </MenuItem>
             {devMode && (
               <MenuItem onClick={handleChangeAccount}>
                 {t("menuChangeAccount")}

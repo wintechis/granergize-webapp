@@ -2,9 +2,7 @@ import { msg } from "../lib/messages.ts";
 import { buildingDisplayName } from "../lib/buildingDisplay.ts";
 import React from "react";
 import {
-  Chip,
   Paper,
-  Stack,
   Table,
   TableBody,
   TableCell,
@@ -16,20 +14,10 @@ import {
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import LocalFireDepartmentIcon from "@mui/icons-material/LocalFireDepartment";
 import WaterDropIcon from "@mui/icons-material/WaterDrop";
-import SolarPowerIcon from "@mui/icons-material/SolarPower";
-import BatteryChargingFullIcon from "@mui/icons-material/BatteryChargingFull";
-import WorkspacePremiumIcon from "@mui/icons-material/WorkspacePremium";
-import {
-  AnnualData,
-  BuildingType,
-  InvestorCertification,
-  type SystemKind,
-  type TechnicalSystem,
-} from "../types.ts";
+import { AnnualData, BuildingType } from "../types.ts";
 import {
   ChartBox,
   DetailCard,
-  DetailRow,
   SectionTitle,
 } from "../components/detail/DetailView.tsx";
 import MetricBarChart from "../components/detail/MetricBarChart.tsx";
@@ -122,38 +110,11 @@ class ChartErrorBoundary extends React.Component<
  * The detail pane's annual-energy view — ONE component for every building with
  * annual (non-series) datasets, replacing the role-named Investor/Bsp pair.
  * Everything it shows derives from the data present: metric columns and charts
- * come from `ANNUAL_METRICS` filtered to what the years (or the operator
- * average) actually carry, and the master-data block renders whichever of its
- * fields the building has.
+ * come from `ANNUAL_METRICS` filtered to what the years (or the operator average)
+ * actually carry. Building master data is NOT shown here — it lives on the building
+ * page; the observation header links back (building info on the building, observation
+ * info on the observation).
  */
-/** Master-data row label for an energy unit. */
-const systemRowLabel = (kind: SystemKind): string =>
-  kind === "battery"
-    ? "Battery storage"
-    : kind === "chp"
-    ? "Cogeneration (CHP)"
-    : "PV System";
-
-/** Master-data row icon for an energy unit. */
-const systemRowIcon = (kind: SystemKind) =>
-  kind === "battery"
-    ? <BatteryChargingFullIcon />
-    : kind === "chp"
-    ? <LocalFireDepartmentIcon />
-    : <SolarPowerIcon />;
-
-/** "Yes (750 kW el, 126 kW th, since 2018)" — the unit's capacities + year. */
-const systemChipLabel = (s: TechnicalSystem): string => {
-  const p: string[] = [];
-  if (s.capacityKW != null) {
-    p.push(`${formatNumber(s.capacityKW, 1)} kW${s.kind === "chp" ? " el" : ""}`);
-  }
-  if (s.storageCapacityKWh != null) p.push(`${formatNumber(s.storageCapacityKWh, 1)} kWh`);
-  if (s.thermalCapacityKW != null) p.push(`${formatNumber(s.thermalCapacityKW, 1)} kW th`);
-  if (s.commissioningYear != null) p.push(`since ${s.commissioningYear}`);
-  return p.length ? `Yes (${p.join(", ")})` : "Yes";
-};
-
 export default function AnnualEnergy({ building }: AnnualEnergyProps) {
   // Annual figures are separate cons:EnergyDataset resources, read through the
   // data layer (cached, fingerprint-keyed — see useAnnualEnergy).
@@ -193,31 +154,6 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
       ),
     ),
   ];
-
-  // Master data shown above the table — whichever fields this building carries
-  // (one generic building shape; the block is not tied to any producer kind).
-  const companyName = building.companyName as string | undefined;
-  const logisticsFunction = building.logisticsFunction as string | undefined;
-  const climateControlType = building.climateControlType as string | undefined;
-  const greenLeaseShare = building.greenLeaseShare as number | undefined;
-  const tenancyType = building.tenancyType as string | undefined;
-  const numberOfLoadingDocks = building.numberOfLoadingDocks as
-    | number
-    | undefined;
-  const systems = (building.systems ?? []) as TechnicalSystem[];
-  const certifications =
-    (building.certifications ?? []) as InvestorCertification[];
-  const leaseType = building.leaseType as string | undefined;
-  const tenantIndustry = building.tenantIndustry as string | undefined;
-  const indoorTemperatureClass = building.indoorTemperatureClass as
-    | string
-    | undefined;
-  const hasMasterData = Boolean(
-    climateControlType || tenancyType || leaseType || tenantIndustry ||
-      indoorTemperatureClass || numberOfLoadingDocks != null ||
-      greenLeaseShare != null || systems.length > 0 ||
-      certifications.length > 0,
-  );
 
   if (annual.isLoading) {
     return <Typography color="text.secondary">Loading…</Typography>;
@@ -280,76 +216,8 @@ export default function AnnualEnergy({ building }: AnnualEnergyProps) {
       <DetailCard
         icon={<ElectricBoltIcon />}
         title={`Annual Energy and Water — ${buildingDisplayName(building)}`}
-        subheader={[companyName, logisticsFunction].filter(Boolean).join(" · ") ||
-          undefined}
         spacing={2}
       >
-        {hasMasterData && (
-          <Stack spacing={0.5}>
-            {climateControlType && (
-              <DetailRow label={msg("aeClimateControl")} value={climateControlType} />
-            )}
-            {tenancyType && (
-              <DetailRow label={msg("aeTenancyType")} value={tenancyType} />
-            )}
-            {leaseType && <DetailRow label={msg("aeLeaseType")} value={leaseType} />}
-            {tenantIndustry && (
-              <DetailRow label={msg("aeTenantIndustry")} value={tenantIndustry} />
-            )}
-            {indoorTemperatureClass && (
-              <DetailRow
-                label={msg("aeIndoorTemp")}
-                value={indoorTemperatureClass}
-              />
-            )}
-            {numberOfLoadingDocks != null && (
-              <DetailRow label={msg("aeLoadingDocks")} value={numberOfLoadingDocks} />
-            )}
-            {greenLeaseShare != null && (
-              <DetailRow
-                label={msg("aeGreenLease")}
-                value={`${formatNumber(greenLeaseShare, 1)} %`}
-              />
-            )}
-            {systems.map((s) => (
-              <DetailRow
-                key={s.id}
-                label={systemRowLabel(s.kind)}
-                value={
-                  <Chip
-                    icon={systemRowIcon(s.kind)}
-                    label={systemChipLabel(s)}
-                    size="small"
-                    color="success"
-                    variant="outlined"
-                  />
-                }
-              />
-            ))}
-            {certifications.length > 0 && (
-              <DetailRow
-                label={msg("aeCertifications")}
-                value={
-                  <Stack direction="row" spacing={0.5} sx={{ flexWrap: "wrap" }}>
-                    {certifications.map((cert, i) => (
-                      <Chip
-                        key={i}
-                        icon={<WorkspacePremiumIcon />}
-                        label={[cert.type, cert.level, cert.scope]
-                          .filter(Boolean)
-                          .join(" · ")}
-                        size="small"
-                        color="primary"
-                        variant="outlined"
-                      />
-                    ))}
-                  </Stack>
-                }
-              />
-            )}
-          </Stack>
-        )}
-
         {yearsNum.length === 0
           ? (
             <Typography color="text.secondary">

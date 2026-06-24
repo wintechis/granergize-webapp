@@ -514,30 +514,6 @@ export const MESSAGES = {
   },
   wdValue: { en: "Value", de: "Wert", fr: "Valeur" },
   wdQuality: { en: "Quality", de: "Qualität", fr: "Qualité" },
-  aeClimateControl: {
-    en: "Climate Control",
-    de: "Klimatisierung",
-    fr: "Climatisation",
-  },
-  aeTenancyType: { en: "Tenancy Type", de: "Mietverhältnis", fr: "Type de location" },
-  aeLeaseType: { en: "Lease Type", de: "Pachtart", fr: "Type de bail" },
-  aeTenantIndustry: {
-    en: "Tenant Industry",
-    de: "Branche des Mieters",
-    fr: "Secteur du locataire",
-  },
-  aeIndoorTemp: {
-    en: "Indoor Temp. Class",
-    de: "Innentemperatur-Klasse",
-    fr: "Classe de température intérieure",
-  },
-  aeLoadingDocks: { en: "Loading Docks", de: "Laderampen", fr: "Quais de chargement" },
-  aeGreenLease: {
-    en: "Green Lease Share",
-    de: "Green-Lease-Anteil",
-    fr: "Part de bail vert",
-  },
-  aeCertifications: { en: "Certifications", de: "Zertifizierungen", fr: "Certifications" },
   aeOperatorAvg: {
     en: "Operator average",
     de: "Betreiber-Durchschnitt",
@@ -803,34 +779,10 @@ export const MESSAGES = {
     fr: "Ajouter des fichiers",
   },
   // Energy summary on the building page.
-  essNoData: {
-    en: "No energy data yet.",
-    de: "Noch keine Energiedaten.",
-    fr: "Pas encore de données énergétiques.",
-  },
-  essOpenEnergyPage: {
-    en: "Open the energy page to add a year",
-    de: "Energieseite öffnen, um ein Jahr hinzuzufügen",
-    fr: "Ouvrir la page d'énergie pour ajouter une année",
-  },
   essViewCharts: {
     en: "View energy charts →",
     de: "Energiediagramme ansehen →",
     fr: "Voir les graphiques d'énergie →",
-  },
-  essYearsSummary: {
-    en: {
-      one: "{count} year of energy data (latest: {year})",
-      other: "{count} years of energy data (latest: {year})",
-    },
-    de: {
-      one: "{count} Jahr Energiedaten (aktuellstes: {year})",
-      other: "{count} Jahre Energiedaten (aktuellstes: {year})",
-    },
-    fr: {
-      one: "{count} année de données énergétiques (dernière : {year})",
-      other: "{count} années de données énergétiques (dernière : {year})",
-    },
   },
   // Compact metric column-header abbreviations — UI chrome (the full metric
   // display labels come from the vocab via annualMetricLabel).

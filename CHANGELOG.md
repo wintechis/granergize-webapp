@@ -2,6 +2,20 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-24]
+- **Building and observation pages no longer mix — they only link.** Building info stays on the
+  building page, energy/observation info on the observation page, and each links to the other.
+  The building page's energy *summary* (years + sparkline) is now just a "View energy charts →"
+  link; the building's own rooftop-PV potential stays (new `RooftopPotentialSection`, beside the
+  roof plan); the neighbourhood-energy map, regional statistics, and the location renewable
+  context (`StandortEnergieprofil`, now Energie-Atlas-only) moved to the observation page. The
+  observation page's building master-data block (climate/tenancy/lease/systems/certs) was removed
+  — that's building info; the observation header already links back. `StandortEnergieprofil` lost
+  its nearby-generation card (the observation page's `NearbyInstallationsSection` already covers
+  it — a pre-existing duplication, now gone).
+- **"Data sources and licences" sits with Logout** at the foot of the profile menu, so the credits
+  stay next to Logout in developer mode too (they were buried above the dev sections).
+
 ## [2026-06-23]
 - **Variable units per building — a building's energy can be stored/displayed in MWh, etc.** The
   model pinned one canonical unit per metric and the parser IGNORED the per-observation
