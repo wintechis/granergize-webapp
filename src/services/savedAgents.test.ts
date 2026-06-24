@@ -1,11 +1,12 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
-  addContact,
-  contactsUri,
-  readContacts,
-  removeContact,
-} from "./contacts.ts";
+  readAgents,
+  removeAgent,
+  saveAgent,
+  saveAgents,
+  savedAgentsUri,
+} from "./savedAgents.ts";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
 import { makeFakeSession } from "./testing/fakeSession.ts";
 
@@ -18,14 +19,14 @@ _setStorageRootForTesting(ALICE, "https://alice.example/");
 /** In-memory Pod with ETags, so the If-Match read-modify-write path runs. */
 const makeSession = () => makeFakeSession({ webId: ALICE, etags: true });
 
-Deno.test("addContact → readContacts round-trips WebID, name and avatar", async () => {
+Deno.test("saveAgent → readAgents round-trips WebID, name and avatar", async () => {
   const { session } = makeSession();
-  await addContact(session, {
+  await saveAgent(session, {
     webId: BOB,
     name: "Bob Builder",
     avatarUrl: "https://bob.example/avatar.png",
   });
-  const contacts = await readContacts(session);
+  const contacts = await readAgents(session);
   assert.equal(contacts.length, 1);
   assert.deepEqual(contacts[0], {
     webId: BOB,
@@ -39,14 +40,14 @@ Deno.test("addContact → readContacts round-trips WebID, name and avatar", asyn
 Deno.test("an organisation contact round-trips kind, homepage and sameAs", async () => {
   const { session } = makeSession();
   const ACME = "https://acme.example/org#it";
-  await addContact(session, {
+  await saveAgent(session, {
     webId: ACME,
     name: "ACME GmbH",
     kind: "organisation",
     homepage: "https://acme.example/",
     sameAs: ["http://www.wikidata.org/entity/Q42"],
   });
-  const contacts = await readContacts(session);
+  const contacts = await readAgents(session);
   assert.equal(contacts.length, 1);
   assert.deepEqual(contacts[0], {
     webId: ACME,
@@ -60,21 +61,21 @@ Deno.test("an organisation contact round-trips kind, homepage and sameAs", async
 Deno.test("an organisation contact's logo (vcard:logo) round-trips and clears", async () => {
   const { session } = makeSession();
   const ACME = "https://acme.example/org#it";
-  const LOGO = "https://a.example/granergize/contacts/logos/acme.png";
-  await addContact(session, {
+  const LOGO = "https://a.example/granergize/agents/logos/acme.png";
+  await saveAgent(session, {
     webId: ACME,
     name: "ACME GmbH",
     kind: "organisation",
     logoUrl: LOGO,
   });
   assert.equal(
-    (await readContacts(session)).find((c) => c.webId === ACME)?.logoUrl,
+    (await readAgents(session)).find((c) => c.webId === ACME)?.logoUrl,
     LOGO,
   );
   // Re-saving without a logoUrl clears it.
-  await addContact(session, { webId: ACME, name: "ACME GmbH", kind: "organisation" });
+  await saveAgent(session, { webId: ACME, name: "ACME GmbH", kind: "organisation" });
   assert.equal(
-    (await readContacts(session)).find((c) => c.webId === ACME)?.logoUrl,
+    (await readAgents(session)).find((c) => c.webId === ACME)?.logoUrl,
     undefined,
   );
 });
@@ -82,49 +83,63 @@ Deno.test("an organisation contact's logo (vcard:logo) round-trips and clears", 
 Deno.test("a local 'works for' edge (org:memberOf) round-trips and clears", async () => {
   const { session } = makeSession();
   const ACME = "https://acme.example/org#it";
-  await addContact(session, { webId: ACME, name: "ACME GmbH", kind: "organisation" });
-  await addContact(session, { webId: BOB, name: "Bob", memberOf: ACME });
+  await saveAgent(session, { webId: ACME, name: "ACME GmbH", kind: "organisation" });
+  await saveAgent(session, { webId: BOB, name: "Bob", memberOf: ACME });
 
-  const bob = (await readContacts(session)).find((c) => c.webId === BOB);
+  const bob = (await readAgents(session)).find((c) => c.webId === BOB);
   assert.equal(bob?.memberOf, ACME, "the works-for edge reads back");
 
   // Re-saving without a memberOf clears the edge (no stale affiliation lingers).
-  await addContact(session, { webId: BOB, name: "Bob" });
-  const cleared = (await readContacts(session)).find((c) => c.webId === BOB);
+  await saveAgent(session, { webId: BOB, name: "Bob" });
+  const cleared = (await readAgents(session)).find((c) => c.webId === BOB);
   assert.equal(cleared?.memberOf, undefined, "edge dropped when omitted");
 });
 
 Deno.test("re-saving a contact as a person clears the prior organisation type", async () => {
   const { session } = makeSession();
-  await addContact(session, { webId: BOB, name: "Bob", kind: "organisation" });
-  await addContact(session, { webId: BOB, name: "Bob", kind: "person" });
-  const contacts = await readContacts(session);
+  await saveAgent(session, { webId: BOB, name: "Bob", kind: "organisation" });
+  await saveAgent(session, { webId: BOB, name: "Bob", kind: "person" });
+  const contacts = await readAgents(session);
   assert.equal(contacts.length, 1);
   assert.equal(contacts[0].kind, "person", "no stale organisation type left behind");
 });
 
-Deno.test("readContacts on a missing file yields an empty list", async () => {
-  const { session } = makeSession();
-  assert.deepEqual(await readContacts(session), []);
+Deno.test("saveAgents writes many agents in a single read-modify-write", async () => {
+  const { session, calls } = makeSession();
+  await saveAgents(session, [
+    { webId: BOB, name: "Bob" },
+    { webId: CARL, name: "Carl", kind: "organisation" },
+  ]);
+  const agents = await readAgents(session);
+  assert.deepEqual(agents.map((a) => a.webId).sort(), [BOB, CARL].sort());
+  assert.equal(agents.find((a) => a.webId === CARL)?.kind, "organisation");
+  // ONE PUT for the whole batch (not one per agent) — the point of the bulk write.
+  const puts = calls.filter((c) => c.url === savedAgentsUri(ALICE) && c.method === "PUT");
+  assert.equal(puts.length, 1, "the batch is a single conditional PUT");
 });
 
-Deno.test("addContact is idempotent — re-adding updates name, doesn't duplicate", async () => {
+Deno.test("readAgents on a missing file yields an empty list", async () => {
   const { session } = makeSession();
-  await addContact(session, { webId: BOB, name: "Bob" });
-  await addContact(session, { webId: BOB, name: "Bob Builder" });
-  const contacts = await readContacts(session);
+  assert.deepEqual(await readAgents(session), []);
+});
+
+Deno.test("saveAgent is idempotent — re-adding updates name, doesn't duplicate", async () => {
+  const { session } = makeSession();
+  await saveAgent(session, { webId: BOB, name: "Bob" });
+  await saveAgent(session, { webId: BOB, name: "Bob Builder" });
+  const contacts = await readAgents(session);
   assert.equal(contacts.length, 1, "no duplicate member");
   assert.equal(contacts[0].name, "Bob Builder", "name updated in place");
 });
 
-Deno.test("removeContact drops the member and its cached fields", async () => {
+Deno.test("removeAgent drops the member and its cached fields", async () => {
   const { session, store } = makeSession();
-  await addContact(session, { webId: BOB, name: "Bob" });
-  await addContact(session, { webId: CARL, name: "Carl" });
-  await removeContact(session, BOB);
+  await saveAgent(session, { webId: BOB, name: "Bob" });
+  await saveAgent(session, { webId: CARL, name: "Carl" });
+  await removeAgent(session, BOB);
 
-  const contacts = await readContacts(session);
+  const contacts = await readAgents(session);
   assert.deepEqual(contacts.map((c) => c.webId), [CARL]);
   // Bob's vCard fields are gone from the document, not just the membership.
-  assert.ok(!store[contactsUri(ALICE)].includes("Bob"));
+  assert.ok(!store[savedAgentsUri(ALICE)].includes("Bob"));
 });

@@ -1,11 +1,11 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
-  DEMO_CONTACT_NAMES,
-  seedDemoContacts,
+  DEMO_AGENT_NAMES,
+  seedDemoAgents,
   seedDemoRooms,
 } from "./demoConnect.ts";
-import { readContacts } from "./contacts.ts";
+import { readAgents } from "./savedAgents.ts";
 import { getCurrentRoom } from "./interop/dataRoom.ts";
 import { _setStorageRootForTesting } from "./pod/solidUtils.ts";
 import { withRetry } from "./pod/retryFetch.ts";
@@ -17,14 +17,14 @@ _setStorageRootForTesting(ALICE, "https://alice.example/");
 
 const makeSession = () => makeFakeSession({ webId: ALICE, etags: true });
 
-Deno.test("seedDemoContacts writes a resolvable profile per contact and fills the address book", async () => {
+Deno.test("seedDemoAgents writes a resolvable profile per contact and fills the address book", async () => {
   const { session, store } = makeSession();
-  const { seeded, total } = await seedDemoContacts(session);
-  assert.equal(seeded, DEMO_CONTACT_NAMES.length);
-  assert.equal(total, DEMO_CONTACT_NAMES.length);
+  const { seeded, total } = await seedDemoAgents(session);
+  assert.equal(seeded, DEMO_AGENT_NAMES.length);
+  assert.equal(total, DEMO_AGENT_NAMES.length);
 
-  const contacts = await readContacts(session);
-  assert.equal(contacts.length, DEMO_CONTACT_NAMES.length);
+  const contacts = await readAgents(session);
+  assert.equal(contacts.length, DEMO_AGENT_NAMES.length);
   // Every contact's WebID points at a fixture profile document that carries its
   // name — what AgentLabel's live resolution reads.
   for (const c of contacts) {
@@ -36,14 +36,14 @@ Deno.test("seedDemoContacts writes a resolvable profile per contact and fills th
   }
 });
 
-Deno.test("seedDemoContacts is idempotent — a second run doesn't duplicate", async () => {
+Deno.test("seedDemoAgents is idempotent — a second run doesn't duplicate", async () => {
   const { session } = makeSession();
-  await seedDemoContacts(session);
-  await seedDemoContacts(session);
-  assert.equal((await readContacts(session)).length, DEMO_CONTACT_NAMES.length);
+  await seedDemoAgents(session);
+  await seedDemoAgents(session);
+  assert.equal((await readAgents(session)).length, DEMO_AGENT_NAMES.length);
 });
 
-Deno.test("seedDemoContacts tallies a partial failure instead of throwing", async () => {
+Deno.test("seedDemoAgents tallies a partial failure instead of throwing", async () => {
   const { session } = makeFakeSession({
     webId: ALICE,
     etags: true,
@@ -53,11 +53,11 @@ Deno.test("seedDemoContacts tallies a partial failure instead of throwing", asyn
         ? new Response(null, { status: 500 })
         : undefined,
   });
-  const { seeded, total } = await seedDemoContacts(session);
+  const { seeded, total } = await seedDemoAgents(session);
   assert.equal(seeded, total - 1);
 });
 
-Deno.test("seedDemoContacts: a transient 502 on one write is retried, not tallied as a miss", async () => {
+Deno.test("seedDemoAgents: a transient 502 on one write is retried, not tallied as a miss", async () => {
   // The user-reported "Added {n} of {total}" partial: a one-off transient failure
   // on a single write among the ~40 a seed makes. 502/504 are now retryable, so
   // production's withRetry-wrapped gateway.fetch absorbs the blip. Mirror that
@@ -78,7 +78,7 @@ Deno.test("seedDemoContacts: a transient 502 on one write is retried, not tallie
     },
   });
   const gateway = { ...session, fetch: withRetry(session.fetch, { baseDelayMs: 0 }) };
-  const { seeded, total } = await seedDemoContacts(gateway);
+  const { seeded, total } = await seedDemoAgents(gateway);
   assert.ok(failed502, "the transient 502 path was exercised");
   assert.equal(seeded, total); // retried → full tally, no partial
 });

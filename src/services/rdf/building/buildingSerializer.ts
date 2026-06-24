@@ -1416,7 +1416,7 @@ const DEMO_INVESTOR_2: DemoSpec = {
  * PLUS a couple of annual years — the one demo carrying BOTH energy shapes, so
  * the Annual | Time series toggle shows on the demo data out of the box.
  * Light metadata otherwise — the shape an end user produces. Self-operated, so
- * the agent-link → contact path resolves out of the box.
+ * the agent-link → agent path resolves out of the box.
  */
 const DEMO_USER: DemoSpec = {
   fields: {

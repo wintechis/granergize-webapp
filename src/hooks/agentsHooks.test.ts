@@ -5,14 +5,14 @@ import * as React from "react";
 import { renderHook, waitFor } from "@testing-library/react";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import type { Session } from "@inrupt/solid-client-authn-browser";
-import { useContacts, useResolveAgent } from "./queries.ts";
+import { useAgents, useResolveAgent } from "./queries.ts";
 import { _setSessionForTesting } from "./session.ts";
 import { _setStorageRootForTesting } from "../services/pod/solidUtils.ts";
 import { _resetProfileCacheForTesting } from "../services/pod/profileDocument.ts";
 import { makeFakeSession } from "../services/testing/fakeSession.ts";
 
 const WEBID = "https://pod.example/profile/card#me";
-const CONTACTS = "https://pod.example/granergize/contacts.ttl";
+const CONTACTS = "https://pod.example/granergize/agents.ttl";
 const BOB = "https://bob.example/profile/card#me";
 const BOB_DOC = "https://bob.example/profile/card";
 
@@ -38,12 +38,12 @@ function makeWrapper() {
   return { client, wrapper };
 }
 
-Deno.test("useContacts reads the address book from the session", async () => {
+Deno.test("useAgents reads the address book from the session", async () => {
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fakeSession());
   const { wrapper } = makeWrapper();
   try {
-    const { result } = renderHook(() => useContacts(), { wrapper });
+    const { result } = renderHook(() => useAgents(), { wrapper });
     await waitFor(() => assert.ok(result.current.isSuccess));
     assert.equal(result.current.data?.length, 1);
     assert.equal(result.current.data?.[0].webId, BOB);

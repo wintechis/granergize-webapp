@@ -15,7 +15,7 @@ const V1_FORM_ELIGIBLE = [
   "RevokeBuildingAccess",
   "RevokeAggregationAccess",
   "ToggleVisibility",
-  "RemoveContact",
+  "RemoveAgent",
   "DeleteAggregation",
   "RefreshAggregation",
   "CreateRoom",
@@ -47,7 +47,7 @@ Deno.test("opaque / rich-dialog verbs are excluded", () => {
       "CreateAggregation",
       "SaveOrganisation",
       "UploadAttachments",
-      "SaveContact",
+      "SaveAgent",
       "RestoreArchive",
       "DeleteBuilding",
     ]

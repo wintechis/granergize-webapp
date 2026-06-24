@@ -43,9 +43,9 @@ import { addRoomCore } from "./AddRoom.ts";
 import { removeBookmarkCore } from "./RemoveBookmark.ts";
 import { saveRolesCore } from "./SaveRoles.ts";
 import { seedDemoRoomsCore } from "./SeedDemoRooms.ts";
-import { saveContactCore } from "./SaveContact.ts";
-import { removeContactCore } from "./RemoveContact.ts";
-import { seedDemoContactsCore } from "./SeedDemoContacts.ts";
+import { saveContactCore } from "./SaveAgent.ts";
+import { removeAgentCore } from "./RemoveAgent.ts";
+import { seedDemoAgentsCore } from "./SeedDemoAgents.ts";
 import { saveOrganisationCore } from "./SaveOrganisation.ts";
 import { seedDemoBuildingsCore } from "./SeedDemoBuildings.ts";
 import { removeAppDataCore } from "./RemoveAppData.ts";
@@ -101,11 +101,11 @@ export const WRITE_CORES = {
     return seedDemoRoomsCore(s);
   },
   // ── Contacts ─────────────────────────────────────────────────────────────────
-  SaveContact: saveContactCore,
-  RemoveContact: removeContactCore,
-  SeedDemoContacts: (s: PodGateway, p: Record<never, never>) => {
+  SaveAgent: saveContactCore,
+  RemoveAgent: removeAgentCore,
+  SeedDemoAgents: (s: PodGateway, p: Record<never, never>) => {
     void p;
-    return seedDemoContactsCore(s);
+    return seedDemoAgentsCore(s);
   },
   // ── Organisation ─────────────────────────────────────────────────────────────
   SaveOrganisation: saveOrganisationCore,

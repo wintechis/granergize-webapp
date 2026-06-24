@@ -11,7 +11,7 @@ import { T } from "../helpers/timeouts.ts";
  * The dev-mode demo-seed menu flow, end to end on a real Pod: log in, then drive
  * the two Account-menu items a developer clicks to populate a fresh Pod —
  *   1. "Add example buildings and energy data"  (seedDemoBuildings)
- *   2. "Add example contacts and rooms"          (seedDemoContacts + seedDemoRooms)
+ *   2. "Add example contacts and rooms"          (seedDemoAgents + seedDemoRooms)
  * — and assert each seeds in FULL, i.e. the success notification rather than the
  * "Added {n} of {total}" partial warning.
  *
@@ -63,37 +63,42 @@ test.describe("dev-mode demo seeding (buildings + contacts + rooms)", () => {
     // races the conditional PUT and can drop writes → a "Added {n} of {total}"
     // partial. Each must still seed in full.
     await menuAction(page, new RegExp(t("menuAddBuildings")));
-    await menuAction(page, new RegExp(t("menuAddContacts")));
+    await menuAction(page, new RegExp(t("menuAddAgents")));
 
-    // All three success toasts must appear — a partial warning instead means a
-    // concurrent write was lost. (The captured console log records which writes
-    // failed and their HTTP status.)
-    await expect(
-      page.getByText(t("demoBuildingsAdded")),
-      "buildings seeded in full (no partial warning)",
-    ).toBeVisible({ timeout: T.poll });
-    await expect(
-      page.getByText(t("demoContactsAdded")),
-      "all demo contacts seeded (no partial warning)",
-    ).toBeVisible({ timeout: T.poll });
-    await expect(
-      page.getByText(t("demoRoomsAdded")),
-      "all demo data rooms seeded (no partial warning)",
-    ).toBeVisible({ timeout: T.poll });
-
-    // …and the data actually lands: buildings on the list, contacts + rooms in
-    // their finders (first page; full count guarded by the toasts above).
+    // The data actually lands: buildings on the list, agents + rooms in their
+    // finders. These also wait out the concurrent seeders before we read the log.
     await openBuildingsList(page);
     await expect(page.locator("li[data-building-id]").first())
       .toBeVisible({ timeout: T.action });
 
-    await page.getByRole("tab", { name: t("navContacts") }).click();
+    await page.getByRole("tab", { name: t("navAgents") }).click();
     await expect(
-      page.getByRole("list", { name: t("navContacts") }).locator("li").first(),
+      page.getByRole("list", { name: t("navAgents") }).locator("li").first(),
     ).toBeVisible({ timeout: T.action });
 
     await page.getByRole("tab", { name: t("navMeet") }).click();
     await expect(page.locator("li").getByRole("link").first())
       .toBeVisible({ timeout: T.action });
+
+    // "Seeded in full" (no partial): each seeder emits a SUCCESS toast (seeded ==
+    // total) or a "{n} of {total}" PARTIAL. Assert via the persistent notification
+    // LOG, not the 6 s auto-hide snackbar — the snackbar shows toasts one at a time
+    // in completion order, so a fixed-order point-in-time check races the concurrent
+    // seeders (the faster seeder's toast can come and go before the check). The log
+    // keeps all three regardless of order/timing (see notes: assert outcomes, not toasts).
+    await page.getByRole("button", { name: t("nlShowLog") }).click();
+    const log = page.getByRole("dialog");
+    await expect(
+      log.getByText(t("demoBuildingsAdded")),
+      "buildings seeded in full (no partial warning)",
+    ).toBeVisible({ timeout: T.action });
+    await expect(
+      log.getByText(t("demoAgentsAdded")),
+      "all demo agents seeded (no partial warning)",
+    ).toBeVisible();
+    await expect(
+      log.getByText(t("demoRoomsAdded")),
+      "all demo data rooms seeded (no partial warning)",
+    ).toBeVisible();
   });
 });

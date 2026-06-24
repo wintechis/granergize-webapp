@@ -47,8 +47,8 @@ test.describe("logout", () => {
     await openBuildingsList(page);
     await expect(page.getByRole("heading", { name: t("navBuildings") }))
       .toBeVisible({ timeout: T.visible });
-    await page.getByRole("tab", { name: t("navContacts") }).click();
-    await expect(page.getByRole("heading", { name: t("navContacts") }))
+    await page.getByRole("tab", { name: t("navAgents") }).click();
+    await expect(page.getByRole("heading", { name: t("navAgents") }))
       .toBeVisible({ timeout: T.visible });
 
     await logout(page); // waits for the sign-in screen to render

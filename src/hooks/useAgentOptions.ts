@@ -1,4 +1,4 @@
-import { useContacts, useRoomState } from "./queries.ts";
+import { useAgents, useRoomState } from "./queries.ts";
 
 /**
  * Unique WebID suggestions for agent entry: the personal address book plus the
@@ -6,7 +6,7 @@ import { useContacts, useRoomState } from "./queries.ts";
  * adds no fetch. Used by `<AgentField>` and the share dialog's recipient picker.
  */
 export function useAgentOptions(): string[] {
-  const contacts = useContacts().data ?? [];
+  const contacts = useAgents().data ?? [];
   const members = useRoomState().data?.members ?? [];
   return [
     ...new Set([

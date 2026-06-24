@@ -25,7 +25,7 @@ export type IntentEntity =
   | "observation"
   | "aggregation"
   | "room"
-  | "contact"
+  | "agent"
   | "organisation"
   | "attachment"
   | "sharing"
@@ -269,28 +269,28 @@ export const INTENTS: readonly IntentEntry[] = [
     entity: "organisation",
     hook: "useSaveOrganization",
   },
-  // ── Contacts ─────────────────────────────────────────────────────────────────
+  // ── Agents ─────────────────────────────────────────────────────────────────
   {
-    name: "SaveContact",
+    name: "SaveAgent",
     action: "", // hook declares no meta.action
     effect: "write",
-    entity: "contact",
-    hook: "useSaveContact",
+    entity: "agent",
+    hook: "useSaveAgent",
   },
   {
-    name: "RemoveContact",
+    name: "RemoveAgent",
     action: "", // hook declares no meta.action
     effect: "write",
-    entity: "contact",
-    hook: "useRemoveContact",
+    entity: "agent",
+    hook: "useRemoveAgent",
   },
   {
-    name: "SeedDemoContacts",
-    action: "actionAddDemoContacts",
+    name: "SeedDemoAgents",
+    action: "actionAddDemoAgents",
     effect: "write",
-    entity: "contact",
+    entity: "agent",
     exposure: "developer",
-    hook: "useSeedDemoContacts",
+    hook: "useSeedDemoAgents",
   },
   // ── Data rooms ───────────────────────────────────────────────────────────────
   {
@@ -392,13 +392,13 @@ export const INTENTS: readonly IntentEntry[] = [
   { name: "ShowObservations", action: "", effect: "navigate", entity: "observation" },
   { name: "ShowAggregations", action: "", effect: "navigate", entity: "aggregation" },
   { name: "ShowRooms", action: "", effect: "navigate", entity: "room" },
-  { name: "ShowContacts", action: "", effect: "navigate", entity: "contact" },
+  { name: "ShowAgents", action: "", effect: "navigate", entity: "agent" },
   { name: "ShowSharing", action: "", effect: "navigate", entity: "sharing" },
   { name: "ShowBuilding", action: "", effect: "navigate", entity: "building" },
   { name: "ShowObservation", action: "", effect: "navigate", entity: "observation" },
   { name: "ShowAggregation", action: "", effect: "navigate", entity: "aggregation" },
   { name: "ShowRoom", action: "", effect: "navigate", entity: "room" },
-  { name: "ShowContact", action: "", effect: "navigate", entity: "contact" },
+  { name: "ShowAgent", action: "", effect: "navigate", entity: "agent" },
 ] as const;
 
 /** Resolve the active exposure (default `"standard"`). */

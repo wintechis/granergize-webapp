@@ -10,8 +10,8 @@ import {
 } from "@mui/material";
 import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { useContacts } from "../hooks/queries.ts";
-import { useRemoveContact, useSaveContact } from "../hooks/mutations.ts";
+import { useAgents } from "../hooks/queries.ts";
+import { useRemoveAgent, useSaveAgent } from "../hooks/mutations.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { resolveAgent, webIdFragment } from "../services/agents/agentResolver.ts";
@@ -28,25 +28,25 @@ import { filterByText } from "../lib/textSearch.ts";
 import QrScanner from "../components/QrScanner.tsx";
 import { logError } from "../lib/logError.ts";
 
-interface ContactsFinderProps {
+interface AgentsFinderProps {
   session: Session;
 }
 
 /**
- * The Contacts finder (`/contacts`): a personal address book of WebID agents.
+ * The Agents finder (`/agents`): a personal address book of WebID agents.
  * Referenced agents (share recipients, building operators) are auto-remembered
  * here; you can also add or remove one by hand. Names/avatars are resolved live
  * from each agent's own profile. Split out of the former Connect page (rooms +
  * contacts).
  */
-export default function ContactsFinder({ session }: ContactsFinderProps) {
+export default function AgentsFinder({ session }: AgentsFinderProps) {
   const { showNotification } = useNotification();
   const t = useT();
 
-  const contactsQuery = useContacts();
+  const contactsQuery = useAgents();
   const contacts = contactsQuery.data ?? [];
-  const saveContact = useSaveContact();
-  const removeContact = useRemoveContact();
+  const saveContact = useSaveAgent();
+  const removeAgent = useRemoveAgent();
   const [contactInput, setContactInput] = useState("");
   const { query, setQuery } = useListSearch();
   const filteredContacts = filterByText(
@@ -60,7 +60,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
   const [scanning, setScanning] = useState(false);
 
   /** Add a contact: resolve the WebID's name/avatar, then persist it. */
-  const addContact = async (webId: string) => {
+  const saveAgent = async (webId: string) => {
     if (!/^https?:\/\//i.test(webId)) {
       showNotification(t("enterWebId"), "error");
       return;
@@ -72,16 +72,16 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
       // resolve reads the agent's own profile, which can retry for many seconds).
       await saveContact.mutateAsync({ webId, name: webIdFragment(webId) });
       setContactInput("");
-      showNotification(t("contactAdded"), "success");
+      showNotification(t("agentAdded"), "success");
       void resolveAgent(webId, sessionGateway(session))
         .then((agent) => saveContact.mutateAsync(agent))
         .catch((e) => logError("upgrade added contact profile", e));
     } catch (e) {
-      showNotification(formatError("actionAddContact", e), "error");
+      showNotification(formatError("actionAddAgent", e), "error");
     }
   };
 
-  const handleAddContact = () => addContact(contactInput.trim());
+  const handleAddContact = () => saveAgent(contactInput.trim());
 
   // A scanned WebID QR (e.g. the one on a solidcommunity.net profile page)
   // is added directly; the input keeps the value so a failed resolve stays
@@ -90,14 +90,14 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
     setScanning(false);
     const webId = text.trim();
     setContactInput(webId);
-    // addContact catches its own errors (notifies on failure), so its promise
+    // saveAgent catches its own errors (notifies on failure), so its promise
     // never rejects — float it intentionally.
-    void addContact(webId);
+    void saveAgent(webId);
   };
 
-  const handleRemoveContact = (webId: string) =>
-    removeContact.mutate(webId, {
-      onSuccess: () => showNotification(t("contactRemoved"), "success"),
+  const handleRemoveAgent = (webId: string) =>
+    removeAgent.mutate(webId, {
+      onSuccess: () => showNotification(t("agentRemoved"), "success"),
     });
 
   // Backing RDF resource (the contacts), linked so storage is inspectable.
@@ -105,9 +105,9 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
 
   return (
     <FinderHeader
-      title={t("navContacts")}
+      title={t("navAgents")}
       count={contacts.length}
-      source={rdf?.contacts}
+      source={rdf?.savedAgents}
       inputs={
         <>
           <TextField
@@ -119,7 +119,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
           />
           <Button
             variant="outlined"
-            aria-label={t("contactAddAria")}
+            aria-label={t("agentAddAria")}
             disabled={!contactInput.trim() || saveContact.isPending}
             onClick={handleAddContact}
           >
@@ -151,7 +151,7 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
         : contacts.length === 0
         ? (
           <Typography variant="body2">
-            {t("contactsEmpty")}
+            {t("agentsEmpty")}
           </Typography>
         )
         : filteredContacts.length === 0
@@ -161,19 +161,19 @@ export default function ContactsFinder({ session }: ContactsFinderProps) {
           </Typography>
         )
         : (
-          <Box component="ul" aria-label={t("navContacts")} sx={{ listStyle: "none", pl: 0, m: 0 }}>
+          <Box component="ul" aria-label={t("navAgents")} sx={{ listStyle: "none", pl: 0, m: 0 }}>
             {contactPaging.pageItems.map((c) => (
               <ResourceRow
                 key={c.webId}
                 title={<strong><AgentLabel value={c.webId} /></strong>}
                 actions={
-                  <Tooltip title={t("contactRemoveAria")}>
+                  <Tooltip title={t("agentRemoveAria")}>
                     <IconButton
                       size="small"
                       color="error"
-                      aria-label={t("contactRemoveAria")}
-                      onClick={() => handleRemoveContact(c.webId)}
-                      disabled={removeContact.isPending}
+                      aria-label={t("agentRemoveAria")}
+                      onClick={() => handleRemoveAgent(c.webId)}
+                      disabled={removeAgent.isPending}
                     >
                       <DeleteIcon fontSize="small" />
                     </IconButton>

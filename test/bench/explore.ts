@@ -31,7 +31,7 @@ import {
 } from "../../src/services/pod/solidUtils.ts";
 import { drainInbox, ensureOwnInbox } from "../../src/services/interop/inbox.ts";
 import { ensureContainer } from "../../src/services/pod/podWrite.ts";
-import { addContact } from "../../src/services/contacts.ts";
+import { saveAgent } from "../../src/services/savedAgents.ts";
 import { createRoom } from "../../src/services/interop/dataRoom.ts";
 import {
   type BenchActor,
@@ -74,10 +74,10 @@ if (CONTACTS > 0) {
       method: "PUT",
       headers: { "Content-Type": "text/turtle" },
       body: `<#me> a <http://xmlns.com/foaf/0.1/Person> ;\n` +
-        `  <http://xmlns.com/foaf/0.1/name> "Contact ${nn}" .\n`,
+        `  <http://xmlns.com/foaf/0.1/name> "SavedAgent ${nn}" .\n`,
     });
     if (!res.ok) throw new Error(`PUT ${doc}: HTTP ${res.status}`);
-    await addContact(sessionA, { webId: `${doc}#me`, name: `Contact ${nn}` });
+    await saveAgent(sessionA, { webId: `${doc}#me`, name: `SavedAgent ${nn}` });
   }
 }
 

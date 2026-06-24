@@ -13,7 +13,7 @@ import BuildingsFinder from "./pages/BuildingsFinder.tsx";
 import ObservationsFinder from "./pages/ObservationsFinder.tsx";
 import AggregationsFinder from "./pages/AggregationsFinder.tsx";
 import RoomsFinder from "./pages/RoomsFinder.tsx";
-import ContactsFinder from "./pages/ContactsFinder.tsx";
+import AgentsFinder from "./pages/AgentsFinder.tsx";
 import SharingFinder from "./pages/SharingFinder.tsx";
 import Building from "./pages/Building.tsx";
 import OpenBuildingDetail from "./components/building/OpenBuildingDetail.tsx";
@@ -330,7 +330,7 @@ function App({ onLogout, session }: AppProps) {
     { path: FINDERS.observations, element: <ObservationsFinder /> },
     { path: FINDERS.aggregations, element: <AggregationsFinder session={session} /> },
     { path: FINDERS.rooms, element: <RoomsFinder session={session} /> },
-    { path: FINDERS.contacts, element: <ContactsFinder session={session} /> },
+    { path: FINDERS.agents, element: <AgentsFinder session={session} /> },
     { path: FINDERS.sharing, element: <SharingFinder session={session} /> },
   ];
 

@@ -1,7 +1,7 @@
 import { msg } from "../../lib/messages.ts";
 import { Box } from "@mui/material";
 import {
-  useContacts,
+  useAgents,
   useResolveAgent,
   useResolveOrg,
 } from "../../hooks/queries.ts";
@@ -26,7 +26,7 @@ import {
 export default function AgentProfileSection({ webId }: { webId: string }) {
   const { data: agent } = useResolveAgent(webId);
   const { data: org } = useResolveOrg(webId);
-  const contacts = useContacts();
+  const contacts = useAgents();
   // A local "works for" edge wins over the canonical org and is shown in the header,
   // so don't also surface the profile's org here (no confusing double).
   const hasLocalMemberOf = (contacts.data ?? []).some(

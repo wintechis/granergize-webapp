@@ -191,9 +191,9 @@ export const INTENT_AFFORDANCES: Record<string, IntentAffordance> = {
   // ── Organisation ─────────────────────────────────────────────────────────────
   SaveOrganisation: { applies: always },
   // ── Contacts ─────────────────────────────────────────────────────────────────
-  SaveContact: { applies: always },
-  RemoveContact: { applies: always },
-  SeedDemoContacts: { applies: devOnly },
+  SaveAgent: { applies: always },
+  RemoveAgent: { applies: always },
+  SeedDemoAgents: { applies: devOnly },
   // ── Account-scope ────────────────────────────────────────────────────────────
   SeedDemoBuildings: { applies: always },
   RemoveAppData: { applies: devOnly },

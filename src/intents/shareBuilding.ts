@@ -2,7 +2,7 @@
 // core/adapter split and the write→outcome / read→value convention.
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { shareBuildingData } from "../services/interop/share.ts";
-import { rememberAgent } from "../services/contacts.ts";
+import { rememberAgent } from "../services/savedAgents.ts";
 
 /**
  * Parameters of the ShareBuilding intent. Mirrors the event-side signature in

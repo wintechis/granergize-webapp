@@ -42,9 +42,9 @@ test.describe("app-chrome i18n: language switcher", () => {
     try {
       // Contacts is empty on a clean start → its migrated empty-state shows. Assert
       // against the CATALOG (en form), not a hardcoded copy, so the spec can't drift
-      // from the message — `en("contactsEmpty")` is the single source of truth.
-      await page.getByRole("tab", { name: en("navContacts") }).click();
-      const englishEmpty = page.getByText(en("contactsEmpty"));
+      // from the message — `en("agentsEmpty")` is the single source of truth.
+      await page.getByRole("tab", { name: en("navAgents") }).click();
+      const englishEmpty = page.getByText(en("agentsEmpty"));
       await expect(englishEmpty).toBeVisible({ timeout: T.action });
 
       // Switch the UI language to German via the Account-menu switcher.
@@ -56,7 +56,7 @@ test.describe("app-chrome i18n: language switcher", () => {
       // The empty state re-renders in German — no reload (context re-render). The
       // German form also comes from the catalog (`translate("de", …)`), so the
       // assertion follows any future copy edit.
-      const germanEmpty = page.getByText(translate("de", "contactsEmpty"));
+      const germanEmpty = page.getByText(translate("de", "agentsEmpty"));
       await expect(germanEmpty).toBeVisible({ timeout: T.action });
       await expect(englishEmpty).toHaveCount(0);
 
@@ -71,8 +71,8 @@ test.describe("app-chrome i18n: language switcher", () => {
       await page.reload();
       // The locale persisted as German, so the NAV labels are German too now —
       // click the Contacts tab by its German label (`Kontakte`), not the en form.
-      await page.getByRole("tab", { name: translate("de", "navContacts") }).click();
-      await expect(page.getByText(translate("de", "contactsEmpty")))
+      await page.getByRole("tab", { name: translate("de", "navAgents") }).click();
+      await expect(page.getByText(translate("de", "agentsEmpty")))
         .toBeVisible({ timeout: T.login }); // reload re-runs the session restore
     } finally {
       // Reset the persisted locale so it can't bleed into other specs.

@@ -22,7 +22,7 @@ export const E2E_LANG: Lang = ((): Lang => {
  * for spec assertions on app-chrome strings, so a catalog edit can never drift from
  * the specs AND the same spec runs in any supported language. Reuses the app's own
  * `translate` (handles named params + plurals), so a spec asserts
- * `getByText(t("contactsEmpty"))` instead of a hardcoded, English-only copy.
+ * `getByText(t("agentsEmpty"))` instead of a hardcoded, English-only copy.
  *
  * This checks the WIRING (the right message id is used at the right place, and the
  * spec stays in lock-step with the catalog) — not the translation's correctness,

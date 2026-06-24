@@ -73,7 +73,7 @@ const NAV_TARGETS: NavTarget[] = (
     ["ShowObservations", "navObservations"],
     ["ShowAggregations", "navAggregations"],
     ["ShowSharing", "navSharing"],
-    ["ShowContacts", "navContacts"],
+    ["ShowAgents", "navAgents"],
     ["ShowRooms", "navMeet"],
   ] as const
 ).map(([name, labelKey]) => ({ path: goTo(name), labelKey }));

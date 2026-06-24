@@ -2,7 +2,7 @@
 // core/adapter split and the write→outcome convention.
 import type { PodGateway } from "../services/pod/podGateway.ts";
 import { updateBuilding } from "../services/rdf/building/buildingSerializer.ts";
-import { rememberAgent } from "../services/contacts.ts";
+import { rememberAgent } from "../services/savedAgents.ts";
 import type { TechnicalSystem } from "../types.ts";
 import type { Settled } from "./outcomes.ts";
 
@@ -54,7 +54,7 @@ export async function updateBuildingCore(
   // Auto-remember each WebID agent. AWAIT the immediate cache write (rememberAgent
   // settles after it, before its background name-refine) so the adapter's onSuccess
   // contacts invalidation sees the new entries instead of racing them. Sequentially,
-  // since contacts.ttl's conditional PUT is inert and concurrent writes would clobber.
+  // since agents.ttl's conditional PUT is inert and concurrent writes would clobber.
   for (const field of AGENT_FIELDS) {
     const value = params.fields[field];
     if (typeof value === "string" && /^https?:\/\//.test(value)) {

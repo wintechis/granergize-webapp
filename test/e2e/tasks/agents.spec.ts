@@ -32,7 +32,7 @@ const CONTACT = "https://contacts-e2e.example/profile/card#DirectCarol";
 const OPERATOR = "https://contacts-e2e.example/profile/card#OperatorBob";
 
 /** The aria-labelled contacts list on Connect (added for this disambiguation). */
-const contactsList = (page: Page) => page.getByRole("list", { name: t("navContacts") });
+const contactsList = (page: Page) => page.getByRole("list", { name: t("navAgents") });
 
 test.describe.configure({ mode: "serial" });
 
@@ -74,16 +74,16 @@ test.describe("contacts address book + auto-remember", () => {
 
   test("a contact can be added by WebID and removed", async () => {
     test.setTimeout(T.testSolo);
-    await page.getByRole("tab", { name: t("navContacts") }).click();
+    await page.getByRole("tab", { name: t("navAgents") }).click();
 
     await page.getByLabel("WebID", { exact: true }).fill(CONTACT);
-    await page.getByRole("button", { name: t("contactAddAria") }).click();
-    await expect(page.getByText(t("contactAdded"))).toBeVisible({ timeout: T.action });
+    await page.getByRole("button", { name: t("agentAddAria") }).click();
+    await expect(page.getByText(t("agentAdded"))).toBeVisible({ timeout: T.action });
 
     const row = contactsList(page).locator("li", { hasText: "DirectCarol" });
     await expect(row).toBeVisible({ timeout: T.action });
 
-    await row.getByRole("button", { name: t("contactRemoveAria") }).click();
+    await row.getByRole("button", { name: t("agentRemoveAria") }).click();
     await expect(row).toHaveCount(0, { timeout: T.action });
   });
 
@@ -102,14 +102,14 @@ test.describe("contacts address book + auto-remember", () => {
     // forget resolve+write, so poll by re-opening the finder until it lands).
     await expect(async () => {
       await page.getByRole("tab", { name: t("navBuildings") }).click();
-      await page.getByRole("tab", { name: t("navContacts") }).click();
+      await page.getByRole("tab", { name: t("navAgents") }).click();
       await expect(contactsList(page).locator("li", { hasText: "OperatorBob" }))
         .toBeVisible({ timeout: T.quick });
     }).toPass({ timeout: T.poll });
 
     // Remove the auto-remembered contact (the building is torn down in afterAll).
     await contactsList(page).locator("li", { hasText: "OperatorBob" })
-      .getByRole("button", { name: t("contactRemoveAria") }).click();
+      .getByRole("button", { name: t("agentRemoveAria") }).click();
     await expect(contactsList(page).locator("li", { hasText: "OperatorBob" }))
       .toHaveCount(0, { timeout: T.action });
   });

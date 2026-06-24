@@ -32,7 +32,7 @@ import {
  * unreachable, or simply doesn't state it.
  *
  * `name`/`avatarUrl` are the identity; `address`/`email`/`phone`/`website` are the
- * read-only **contact facts** the contact page surfaces so the profile shows what
+ * read-only **contact facts** the agent page surfaces so the profile shows what
  * the dereferenced document actually holds, rather than only an opaque IRI.
  */
 export interface ResolvedAgent {
@@ -205,7 +205,7 @@ export async function resolveAgent(
   const kind = resolveKind(store, webId);
   const logoUrl = firstObject(store, webId, FOAF_LOGO);
 
-  // Contact facts: standard vCard/FOAF first, then the MaStR wrapper's own
+  // SavedAgent facts: standard vCard/FOAF first, then the MaStR wrapper's own
   // predicates as a fallback (it emits #Email/#Telefon/#Webseite, not vcard:*).
   const address = readAddress(store, webId);
   const email = bareEmail(

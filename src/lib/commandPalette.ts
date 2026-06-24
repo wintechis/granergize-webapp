@@ -179,7 +179,7 @@ export const DIRECT_INVOKE_EXCLUDED: ReadonlySet<string> = new Set<string>([
  * by the `write`-effect requirement. A pure predicate over the catalog entry.
  *
  * The set this yields: `CreateRoom` (standard), and — developer-gated —
- * `SeedDemoBuildings`, `SeedDemoContacts`, `SeedDemoRooms`, `CheckInbox`,
+ * `SeedDemoBuildings`, `SeedDemoAgents`, `SeedDemoRooms`, `CheckInbox`,
  * `ReissueGrants`.
  */
 export function isDirectInvokeEligible(entry: IntentEntry): boolean {

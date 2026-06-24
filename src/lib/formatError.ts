@@ -8,7 +8,7 @@ import { type MessageId, translate } from "./messages.ts";
  * the message catalog in the active UI language, so every error toast reads the
  * same way and translates at once (UI-conventions: one small message vocabulary).
  *
- *   showNotification(formatError("actionAddContact", err), "error");
+ *   showNotification(formatError("actionAddAgent", err), "error");
  *
  * Pure (reads the active locale from the `language` store, no React) so it works
  * in services and the central mutation-error handler alike. `err` is unwrapped to

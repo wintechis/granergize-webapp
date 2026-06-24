@@ -1,8 +1,8 @@
 // Shared logo-image plumbing for the two org logo surfaces — the user's OWN
 // organisation (`foaf:logo` at `profile/logo.<ext>`, organizationManager) and a
-// referenced organisation CONTACT (`vcard:logo` under the app tree, contactLogo).
+// referenced organisation CONTACT (`vcard:logo` under the app tree, agentLogo).
 // Both upload a small image and publish a public-read `.acl` so plain cross-agent
-// `<img>` loads (map markers, the contact page) resolve it; the only difference is
+// `<img>` loads (map markers, the agent page) resolve it; the only difference is
 // the target URI. Centralised here so the MIME table and ACL shape can't drift.
 import type { PodGateway } from "./podGateway.ts";
 import { putAcl } from "./podWrite.ts";

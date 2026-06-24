@@ -45,7 +45,7 @@ const MEMBER_OF = namedNode(ORG_MEMBER_OF);
  * (`owl:sameAs`, e.g. a Wikidata entity the logo derives from). The local record
  * wins over the resolved profile (see {@link resolveAgent}).
  */
-export interface Contact {
+export interface SavedAgent {
   webId: string;
   name?: string;
   avatarUrl?: string;
@@ -66,9 +66,9 @@ export interface Contact {
   memberOf?: string;
 }
 
-/** `<storageRoot><APP_DIR>/contacts.ttl` — the personal vCard address book. */
-export function contactsUri(webId: string): string {
-  return podResources(webId).contacts;
+/** `<storageRoot><APP_DIR>/agents.ttl` — the personal vCard address book. */
+export function savedAgentsUri(webId: string): string {
+  return podResources(webId).savedAgents;
 }
 
 /** The `vcard:AddressBook` subject node within the contacts document. */
@@ -77,13 +77,13 @@ const bookNode = (uri: string) => namedNode(`${uri}#book`);
 /**
  * Read the address book. Folds `vcard:hasMember` (the WebIDs) with each member's
  * cached `vcard:fn`/`vcard:hasPhoto`. A missing file yields an empty list (created
- * on first {@link addContact}), exactly like {@link readPrefs}.
+ * on first {@link saveAgent}), exactly like {@link readPrefs}.
  * @operation query
  */
-export async function readContacts(gateway: PodGateway): Promise<Contact[]> {
+export async function readAgents(gateway: PodGateway): Promise<SavedAgent[]> {
   const webId = gateway.webId;
   if (!webId) return [];
-  const uri = contactsUri(webId);
+  const uri = savedAgentsUri(webId);
   const store = await readStoreOrEmpty(uri, gateway);
   return store.getObjects(bookNode(uri), HAS_MEMBER, null)
     .filter((m) => m.termType === "NamedNode")
@@ -92,7 +92,7 @@ export async function readContacts(gateway: PodGateway): Promise<Contact[]> {
       const name = store.getObjects(subject, FN, null)[0]?.value;
       const avatarUrl = store.getObjects(subject, HAS_PHOTO, null)[0]?.value;
       const types = store.getObjects(subject, RDF_TYPE_NODE, null).map((t) => t.value);
-      const kind: Contact["kind"] = types.includes(VCARD_ORGANIZATION)
+      const kind: SavedAgent["kind"] = types.includes(VCARD_ORGANIZATION)
         ? "organisation"
         : types.includes(VCARD_INDIVIDUAL)
         ? "person"
@@ -115,14 +115,14 @@ export async function readContacts(gateway: PodGateway): Promise<Contact[]> {
 }
 
 /**
- * Atomic read-modify-write of `contacts.ttl`. `mutate` touches only the address
+ * Atomic read-modify-write of `agents.ttl`. `mutate` touches only the address
  * book + the one member it concerns, leaving other contacts intact.
  */
-function mutateContacts(
+function mutateSavedAgents(
   gateway: PodGateway,
   mutate: (store: Store, book: ReturnType<typeof namedNode>) => void,
 ): Promise<void> {
-  const uri = contactsUri(gateway.webId!);
+  const uri = savedAgentsUri(gateway.webId!);
   const book = bookNode(uri);
   return readModifyWrite(uri, gateway, (store) => {
     store.addQuad(book, RDF_TYPE_NODE, ADDRESS_BOOK);
@@ -130,50 +130,75 @@ function mutateContacts(
   });
 }
 
+/** Write one agent's membership + cached fields into an open store (the shared body
+ *  of {@link saveAgent} and {@link saveAgents}). */
+function writeAgentInto(
+  store: Store,
+  book: ReturnType<typeof namedNode>,
+  agent: SavedAgent,
+): void {
+  const subject = namedNode(agent.webId);
+  store.addQuad(book, HAS_MEMBER, subject);
+  // Member type follows the agent's kind (default person), so the org/person
+  // distinction round-trips. Clear both so a re-classification doesn't leave a
+  // stale type behind.
+  store.removeQuads(store.getQuads(subject, RDF_TYPE_NODE, INDIVIDUAL, null));
+  store.removeQuads(store.getQuads(subject, RDF_TYPE_NODE, ORGANIZATION, null));
+  store.addQuad(
+    subject,
+    RDF_TYPE_NODE,
+    agent.kind === "organisation" ? ORGANIZATION : INDIVIDUAL,
+  );
+  store.removeQuads(store.getQuads(subject, FN, null, null));
+  if (agent.name) store.addQuad(subject, FN, literal(agent.name));
+  store.removeQuads(store.getQuads(subject, HAS_PHOTO, null, null));
+  if (agent.avatarUrl) {
+    store.addQuad(subject, HAS_PHOTO, namedNode(agent.avatarUrl));
+  }
+  store.removeQuads(store.getQuads(subject, HAS_URL, null, null));
+  if (agent.homepage) {
+    store.addQuad(subject, HAS_URL, namedNode(agent.homepage));
+  }
+  store.removeQuads(store.getQuads(subject, LOGO, null, null));
+  if (agent.logoUrl) {
+    store.addQuad(subject, LOGO, namedNode(agent.logoUrl));
+  }
+  store.removeQuads(store.getQuads(subject, SAME_AS, null, null));
+  for (const ref of agent.sameAs ?? []) {
+    store.addQuad(subject, SAME_AS, namedNode(ref));
+  }
+  store.removeQuads(store.getQuads(subject, MEMBER_OF, null, null));
+  if (agent.memberOf) {
+    store.addQuad(subject, MEMBER_OF, namedNode(agent.memberOf));
+  }
+}
+
 /**
- * Add (or update) a contact. Idempotent: re-adding the same WebID replaces its
+ * Add (or update) a saved agent. Idempotent: re-adding the same WebID replaces its
  * cached name/photo rather than duplicating — so auto-remember can fire freely.
  * @operation mutation
  */
-export function addContact(
+export function saveAgent(
   gateway: PodGateway,
-  contact: Contact,
+  agent: SavedAgent,
 ): Promise<void> {
-  const subject = namedNode(contact.webId);
-  return mutateContacts(gateway, (store, book) => {
-    store.addQuad(book, HAS_MEMBER, subject);
-    // Member type follows the contact's kind (default person), so the org/person
-    // distinction round-trips. Clear both so a re-classification doesn't leave a
-    // stale type behind.
-    store.removeQuads(store.getQuads(subject, RDF_TYPE_NODE, INDIVIDUAL, null));
-    store.removeQuads(store.getQuads(subject, RDF_TYPE_NODE, ORGANIZATION, null));
-    store.addQuad(
-      subject,
-      RDF_TYPE_NODE,
-      contact.kind === "organisation" ? ORGANIZATION : INDIVIDUAL,
-    );
-    store.removeQuads(store.getQuads(subject, FN, null, null));
-    if (contact.name) store.addQuad(subject, FN, literal(contact.name));
-    store.removeQuads(store.getQuads(subject, HAS_PHOTO, null, null));
-    if (contact.avatarUrl) {
-      store.addQuad(subject, HAS_PHOTO, namedNode(contact.avatarUrl));
-    }
-    store.removeQuads(store.getQuads(subject, HAS_URL, null, null));
-    if (contact.homepage) {
-      store.addQuad(subject, HAS_URL, namedNode(contact.homepage));
-    }
-    store.removeQuads(store.getQuads(subject, LOGO, null, null));
-    if (contact.logoUrl) {
-      store.addQuad(subject, LOGO, namedNode(contact.logoUrl));
-    }
-    store.removeQuads(store.getQuads(subject, SAME_AS, null, null));
-    for (const ref of contact.sameAs ?? []) {
-      store.addQuad(subject, SAME_AS, namedNode(ref));
-    }
-    store.removeQuads(store.getQuads(subject, MEMBER_OF, null, null));
-    if (contact.memberOf) {
-      store.addQuad(subject, MEMBER_OF, namedNode(contact.memberOf));
-    }
+  return mutateSavedAgents(gateway, (store, book) => writeAgentInto(store, book, agent));
+}
+
+/**
+ * Add (or update) MANY saved agents in ONE read-modify-write. A bulk seeder (or any
+ * batch) must not write the book once per agent: each per-agent conditional PUT
+ * races every other writer of `agents.ttl` (notably the `rememberAgent` calls a
+ * concurrent building import fires), so N serial writes lose N× as often and drop
+ * entries. One RMW collapses that to a single conditional PUT.
+ * @operation mutation
+ */
+export function saveAgents(
+  gateway: PodGateway,
+  agents: SavedAgent[],
+): Promise<void> {
+  return mutateSavedAgents(gateway, (store, book) => {
+    for (const agent of agents) writeAgentInto(store, book, agent);
   });
 }
 
@@ -181,12 +206,12 @@ export function addContact(
  * Remove a contact: drops its membership and cached vCard fields.
  * @operation mutation
  */
-export function removeContact(
+export function removeAgent(
   gateway: PodGateway,
   webId: string,
 ): Promise<void> {
   const subject = namedNode(webId);
-  return mutateContacts(gateway, (store, book) => {
+  return mutateSavedAgents(gateway, (store, book) => {
     store.removeQuads(store.getQuads(book, HAS_MEMBER, subject, null));
     store.removeQuads(store.getQuads(subject, null, null, null));
   });
@@ -206,7 +231,7 @@ export function removeContact(
  * (upsert by WebID), so it can fire-and-forget after every share / operatedBy save.
  * A non-IRI value (a free-text operator name, not a WebID) is ignored. The returned
  * promise settles after the immediate write, NOT the background upgrade — so a
- * caller can invalidate its contacts query and see the entry right away.
+ * caller can invalidate its saved-agents query and see the entry right away.
  * @operation mutation
  */
 export async function rememberAgent(
@@ -215,13 +240,13 @@ export async function rememberAgent(
 ): Promise<void> {
   if (!/^https?:\/\//.test(webId)) return;
   try {
-    await addContact(gateway, { webId, name: webIdFragment(webId) });
+    await saveAgent(gateway, { webId, name: webIdFragment(webId) });
   } catch (err) {
-    logError("remember agent in contacts cache", err);
+    logError("remember agent in saved-agents cache", err);
     return; // couldn't even write the cache entry — nothing to upgrade
   }
   // Background: refine the name/avatar from the agent's profile if it resolves.
   void resolveAgent(webId, gateway)
-    .then((resolved) => addContact(gateway, resolved))
+    .then((resolved) => saveAgent(gateway, resolved))
     .catch((err) => logError("upgrade remembered agent profile", err));
 }

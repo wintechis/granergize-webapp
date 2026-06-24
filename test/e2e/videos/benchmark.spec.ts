@@ -143,13 +143,13 @@ test.describe("handbuch video: Energieverbrauchsbenchmark", () => {
 
     // C into A's address book OFF camera (the share dialog then offers
     // "Charlie Conrad" as a suggestion on camera).
-    await page.getByRole("tab", { name: vt("navContacts") }).click();
+    await page.getByRole("tab", { name: vt("navAgents") }).click();
     const webIdField = page.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await webIdField.fill(cWebId);
-    await page.getByRole("button", { name: vt("contactAddAria") }).click();
+    await page.getByRole("button", { name: vt("agentAddAria") }).click();
     await expect(
-      page.getByRole("list", { name: vt("navContacts") }).getByText("Charlie Conrad"),
+      page.getByRole("list", { name: vt("navAgents") }).getByText("Charlie Conrad"),
     ).toBeVisible({ timeout: 30_000 });
 
     // ============ Clip A: Alice contributes her hall. ============

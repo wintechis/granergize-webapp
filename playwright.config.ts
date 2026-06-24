@@ -115,7 +115,7 @@ const SOLO_SPECS = [
   "**/aggregations.spec.ts",
   "**/energy-entry.spec.ts",
   "**/energy-resolutions.spec.ts",
-  "**/contacts.spec.ts",
+  "**/agents.spec.ts",
   "**/edit-building-fields.spec.ts",
   "**/attachments.spec.ts",
   "**/excel-export.spec.ts",

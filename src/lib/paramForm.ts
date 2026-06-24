@@ -57,7 +57,7 @@ export interface FieldDescriptor {
  * Verbs the generic form must NOT cover even though some of their params look
  * renderable:
  * - **Opaque/rich verbs** — a param stands in for a `File` / edited-field map /
- *   `EnergyDataset` / `Contact` / fields object (a placeholder `XSD_STRING`), or
+ *   `EnergyDataset` / `SavedAgent` / fields object (a placeholder `XSD_STRING`), or
  *   the verb owns a rich bespoke dialog the palette routes to instead.
  * - **`fileUri`+`subjectUri` bundle verbs** — two internal IRIs of the *same*
  *   building that a single picker can't split into two distinct user picks.
@@ -82,7 +82,7 @@ export const FORM_EXCLUDED: ReadonlySet<string> = new Set<string>([
   "CreateAggregation",
   "SaveOrganisation",
   "UploadAttachments",
-  "SaveContact",
+  "SaveAgent",
   "RestoreArchive",
   // FindBuildings.selector is a structured {and:[…]} object (placeholder XSD_STRING),
   // not a free-text field — the attribute facet UI renders it, not the generic form.
@@ -147,7 +147,7 @@ function isRenderableParam(paramName: string, spec: ParamSpec): boolean {
  *
  * The **v1 form-eligible set** this yields: `ShareBuilding`, `ShareAggregation`,
  * `RevokeBuildingAccess`, `RevokeAggregationAccess`, `ToggleVisibility`,
- * `RemoveContact`, `DeleteAggregation`, `RefreshAggregation`, `CreateRoom` (its
+ * `RemoveAgent`, `DeleteAggregation`, `RefreshAggregation`, `CreateRoom` (its
  * optional `name`), `EnterRoom`, `ExitRoom`, `DeleteRoom`, `RemoveBookmark`, and
  * `AddRoom` (its `input` is a genuine free-text invite-link / room-URI field).
  */

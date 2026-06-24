@@ -305,7 +305,7 @@ test.describe("handbuch screenshots", () => {
       // (the app's reload drain archives the received grant), then return to
       // the Connect tab the next section expects.
       await page.reload();
-      const connectTab = page.getByRole("tab", { name: en("navContacts") });
+      const connectTab = page.getByRole("tab", { name: en("navAgents") });
       await expect(connectTab).toBeVisible({ timeout: 60_000 });
       await connectTab.click();
     }
@@ -319,10 +319,10 @@ test.describe("handbuch screenshots", () => {
     const webIdField = page.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await webIdField.fill(contactWebId, { timeout: 15_000 });
-    const addContact = page.getByRole("button", { name: en("contactAddAria") });
-    await expect(addContact).toBeEnabled({ timeout: 10_000 });
-    await addContact.click();
-    await expect(page.getByRole("list", { name: en("navContacts") }))
+    const saveAgent = page.getByRole("button", { name: en("agentAddAria") });
+    await expect(saveAgent).toBeEnabled({ timeout: 10_000 });
+    await saveAgent.click();
+    await expect(page.getByRole("list", { name: en("navAgents") }))
       .toBeVisible({ timeout: 30_000 }).catch(() => {});
     await dismissToasts(page);
     await page.waitForTimeout(1000);

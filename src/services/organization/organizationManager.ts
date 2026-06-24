@@ -330,7 +330,7 @@ export async function uploadOrgLogo(
   //    org is part of the profile (the inline <#org> node in card), so its logo
   //    lives in profile/, not under the app's granergize/ tree — and publish its
   //    public-read `.acl` (the logo is consumed cross-agent by plain `<img>` loads:
-  //    map markers on OTHER users' maps, the contact page). Shared with the contact
+  //    map markers on OTHER users' maps, the agent page). Shared with the contact
   //    logo path via uploadPublicLogo.
   const logoUrl = await uploadPublicLogo(
     file,

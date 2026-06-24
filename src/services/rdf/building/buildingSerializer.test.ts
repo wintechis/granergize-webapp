@@ -1063,7 +1063,7 @@ Deno.test("seedDemoBuildings seeds two buildings with different granularities", 
   assert.equal(opcosts?.operationInspectionAndMaintenance, "High");
 
   // The user demo building attributes its operator to the seeding user (WEBID),
-  // so the agent-link → contact path resolves out of the box.
+  // so the agent-link → agent path resolves out of the box.
   const userBody = bodies.find((b) => b.includes("PT15M")) ?? "";
   const usr = [...parseBuildings(new Parser().parse(userBody)).values()][0];
   assert.equal(usr.operatedBy, WEBID, "user demo building operatedBy = seeder");

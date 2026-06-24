@@ -237,7 +237,7 @@ Deno.test("form-eligible verbs surface globally (no focus) and are marked routes
       "ShareBuilding",
       "ShareAggregation",
       "RevokeBuildingAccess",
-      "RemoveContact",
+      "RemoveAgent",
       "EnterRoom",
       "DeleteAggregation",
       // AddRoom's `input` is a genuine XSD_STRING text field → form-eligible.
@@ -287,7 +287,7 @@ Deno.test("developer-only form-eligible verbs stay hidden outside dev mode", () 
 Deno.test("isDirectInvokeEligible: param-less writes qualify; reads / RemoveAppData / param-ful do not", () => {
   // The dev seeders + inbox-drain + ACL rebuild are param-less writes → qualify
   // (exposure-gating is applied separately by buildCommandList).
-  for (const n of ["SeedDemoBuildings", "SeedDemoContacts", "SeedDemoRooms", "CheckInbox", "ReissueGrants"]) {
+  for (const n of ["SeedDemoBuildings", "SeedDemoAgents", "SeedDemoRooms", "CheckInbox", "ReissueGrants"]) {
     assert.equal(isDirectInvokeEligible(findIntent(n)!), true, `${n} qualifies`);
   }
   // RemoveAppData is a param-less write but explicitly excluded (destructive).
@@ -321,7 +321,7 @@ Deno.test("CreateRoom surfaces as a form command (standard exposure, no focus)",
 });
 
 Deno.test("dev direct-invoke verbs surface only in dev mode; RemoveAppData / reads never", () => {
-  const dev = ["SeedDemoBuildings", "SeedDemoContacts", "SeedDemoRooms", "CheckInbox", "ReissueGrants"];
+  const dev = ["SeedDemoBuildings", "SeedDemoAgents", "SeedDemoRooms", "CheckInbox", "ReissueGrants"];
 
   const off = buildCommandList({
     object: undefined,

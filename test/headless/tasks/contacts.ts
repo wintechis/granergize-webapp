@@ -15,16 +15,16 @@
  *      fires `rememberAgent` (un-awaited, `void`), so we poll the book briefly. No
  *      browser, no Cloudflare, local Pod → the immediate write lands in ms.
  *
- * Self-cleaning: A's `contacts.ttl` is snapshotted and restored, and the seeded
+ * Self-cleaning: A's `agents.ttl` is snapshotted and restored, and the seeded
  * building is deleted.
  */
 import { restore, snapshot, type TaskContext } from "../taskContext.ts";
 import { invoke } from "../../../src/intents/registry.ts";
 import {
-  contactsUri,
-  readContacts,
+  savedAgentsUri,
+  readAgents,
   rememberAgent,
-} from "../../../src/services/contacts.ts";
+} from "../../../src/services/savedAgents.ts";
 import { webIdFragment } from "../../../src/services/agents/agentResolver.ts";
 import { deleteBuilding } from "../../../src/services/rdf/building/buildingSerializer.ts";
 
@@ -36,14 +36,14 @@ const OP_VIA_BUILDING = "https://contacts-it.example/profile/card#OperatorBuildi
 
 export async function run(ctx: TaskContext): Promise<void> {
   const { a, check } = ctx;
-  const contacts = contactsUri(a.webId);
+  const contacts = savedAgentsUri(a.webId);
   const contactsSnap = await snapshot(a.raw, contacts);
 
   let buildingUri = "";
   try {
     // ── 1. rememberAgent directly (AWAITED) — deterministic presence + label ──
     await rememberAgent(a.session, OP_DIRECT);
-    const afterRemember = await readContacts(a.session);
+    const afterRemember = await readAgents(a.session);
     const direct = afterRemember.find((c) => c.webId === OP_DIRECT);
     check(
       "rememberAgent writes the agent into the address book",
@@ -79,7 +79,7 @@ export async function run(ctx: TaskContext): Promise<void> {
     // local Pod; a bounded loop keeps it deterministic without assuming ordering).
     let remembered = false;
     for (let i = 0; i < 25 && !remembered; i++) {
-      const list = await readContacts(a.session);
+      const list = await readAgents(a.session);
       remembered = list.some((c) => c.webId === OP_VIA_BUILDING);
       if (!remembered) await new Promise((r) => setTimeout(r, 200));
     }

@@ -12,7 +12,7 @@ Deno.test("goTo: collection verbs resolve to finder routes (no params)", () => {
   assert.equal(goTo("ShowDashboard"), HOME);
   assert.equal(goTo("ShowBuildings"), FINDERS.buildings);
   assert.equal(goTo("ShowAggregations"), FINDERS.aggregations);
-  assert.equal(goTo("ShowContacts"), FINDERS.contacts);
+  assert.equal(goTo("ShowAgents"), FINDERS.agents);
 });
 
 Deno.test("goTo: detail verbs encode the id (own → ?ref=, absolute → ?uri=)", () => {

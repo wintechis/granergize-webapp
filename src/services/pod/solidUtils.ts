@@ -204,7 +204,7 @@ export function podResources(webId: string): {
   inbox: string;
   prefs: string;
   bookmarks: string;
-  contacts: string;
+  savedAgents: string;
 } {
   const app = appRoot(webId);
   return {
@@ -221,7 +221,7 @@ export function podResources(webId: string): {
     inbox: `${app}inbox/`, // default location; the actual one is discoverable (see inbox.ts)
     prefs: `${app}prefs.ttl`,
     bookmarks: `${app}bookmarks.ttl`,
-    contacts: `${app}contacts.ttl`,
+    savedAgents: `${app}agents.ttl`,
   };
 }
 

@@ -8,7 +8,7 @@ import {
   writeBuildingEnergy,
 } from "../services/rdf/building/buildingSerializer.ts";
 import { mintBuildingSubject } from "../services/rdf/building/buildingId.ts";
-import { rememberAgent } from "../services/contacts.ts";
+import { rememberAgent } from "../services/savedAgents.ts";
 import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
 import type { Aborted } from "./outcomes.ts";
 
@@ -47,7 +47,7 @@ export interface AddBuildingOutcome extends Aborted {
  * fire-and-forget auto-remember each WebID agent. A user cancel is an OUTCOME,
  * not an error — the core resolves with `aborted: true` and the buildings
  * already written; a real failure throws. The adapter owns the building-data
- * invalidation + the contacts cache priming.
+ * invalidation + the saved-agents cache priming.
  */
 export async function addBuildingCore(
   gateway: PodGateway,
@@ -107,7 +107,7 @@ export async function addBuildingCore(
       // (rememberAgent settles after it, before its background name-refine) so the
       // adapter's onSuccess contacts invalidation sees the new entries — a fire-and-
       // forget write races that refetch and the finder shows a stale empty book.
-      // Sequentially, since contacts.ttl's conditional PUT is inert and concurrent
+      // Sequentially, since agents.ttl's conditional PUT is inert and concurrent
       // read-modify-writes would clobber.
       for (const field of AGENT_FIELDS) {
         const value = b[field];

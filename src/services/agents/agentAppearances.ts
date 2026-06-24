@@ -5,7 +5,7 @@ import type { BuildingType } from "../../types.ts";
  * full set of `foaf:Agent`-valued roles from `buildingConfig` (ownedBy /
  * operatedBy / facilityManagedBy / developedBy / consultedBy / investor /
  * customer), plus the provenance `attributedTo`. These are the surfaces an agent
- * appears on, and what the contact detail view lists — kept in step with the
+ * appears on, and what the agent detail view lists — kept in step with the
  * agent-valued fields so a party referenced in any role is found here.
  */
 export const AGENT_ROLES: Array<{ field: keyof BuildingType; label: string }> = [

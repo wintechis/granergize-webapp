@@ -32,14 +32,14 @@ export const NAVIGATE_CORES = {
   ShowObservations: () => FINDERS.observations,
   ShowAggregations: () => FINDERS.aggregations,
   ShowRooms: () => FINDERS.rooms,
-  ShowContacts: () => FINDERS.contacts,
+  ShowAgents: () => FINDERS.agents,
   ShowSharing: () => FINDERS.sharing,
   // ── Detail (one id/uri/webId) ────────────────────────────────────────────────
   ShowBuilding: (p: { id: string }) => buildingRoute(p.id),
   ShowObservation: (p: { id: string }) => observationRoute(p.id),
   ShowAggregation: (p: { id: string }) => aggregationRoute(p.id),
   ShowRoom: (p: { uri: string }) => roomRoute(p.uri),
-  ShowContact: (p: { webId: string }) => agentRoute(p.webId),
+  ShowAgent: (p: { webId: string }) => agentRoute(p.webId),
 } as const;
 
 /** A catalog name with a navigate core. */
@@ -53,7 +53,7 @@ export const NAVIGATE_PARAM_HINTS: Partial<Record<NavigateIntentName, string>> =
   ShowObservation: "id",
   ShowAggregation: "id",
   ShowRoom: "uri",
-  ShowContact: "webId",
+  ShowAgent: "webId",
 };
 
 /** Thrown by {@link goTo} for a name with no navigate core. */

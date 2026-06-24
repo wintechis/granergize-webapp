@@ -28,9 +28,9 @@ import { agentRoute } from "../../../src/routes.ts";
  * Runs against Alice (account A); skipped when account env vars are absent.
  */
 const ACC = account("A");
-const ADDR = "Contact Page E2E Strasse 1";
+const ADDR = "SavedAgent Page E2E Strasse 1";
 const OP_WEBID = "https://contact-page-e2e.example/profile/card#OpAgent";
-const OP_FRAGMENT = "OpAgent"; // the contact page shows the IRI fragment as the name
+const OP_FRAGMENT = "OpAgent"; // the agent page shows the IRI fragment as the name
 
 test.describe.configure({ mode: "serial" });
 
@@ -64,7 +64,7 @@ test.describe("redesign: agent page", () => {
     await addBuilding(page, ADDR, { operatedBy: OP_WEBID });
     const { id } = await findOwnBuildingRow(page, ADDR);
 
-    // Open the operator's contact page (the same target AgentLabel links to).
+    // Open the operator's agent page (the same target AgentLabel links to).
     await page.goto(agentRoute(OP_WEBID));
 
     // Header identity: the WebID fragment stands in for the unreachable profile.
@@ -74,7 +74,7 @@ test.describe("redesign: agent page", () => {
     await expect(page.getByText(OP_WEBID).first()).toBeVisible();
     // "Appears in": the seeded building, linking back to its building page.
     await expect(page.getByText(t("secAppearsIn"))).toBeVisible({ timeout: T.action });
-    const buildingLink = page.getByRole("link", { name: /Contact Page E2E/ });
+    const buildingLink = page.getByRole("link", { name: /SavedAgent Page E2E/ });
     await expect(buildingLink).toBeVisible({ timeout: T.action });
     await buildingLink.click();
     await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
@@ -89,26 +89,26 @@ test.describe("redesign: agent page", () => {
     test.setTimeout(T.testSolo);
     const EDIT_WEBID = "https://contact-edit-e2e.example/profile/card#Editable";
     const FRAGMENT = "Editable"; // the resolved name is the WebID fragment
-    const NEW_NAME = "My Renamed Contact";
+    const NEW_NAME = "My Renamed SavedAgent";
 
-    // Any agent's contact page offers "Add to contacts"; the name is the WebID fragment
+    // Any agent's agent page offers "Add to agents"; the name is the WebID fragment
     // until a profile resolves.
     await page.goto(agentRoute(EDIT_WEBID));
     await expect(page.getByRole("heading", { name: FRAGMENT }))
       .toBeVisible({ timeout: T.action });
-    await page.getByRole("button", { name: t("contactAddToContacts"), exact: true })
+    await page.getByRole("button", { name: t("agentAddToBook"), exact: true })
       .click();
 
     // Now a known contact → the inline [Edit] appears. Rename the stored label.
     const editBtn = page.getByRole("button", { name: t("btnEdit"), exact: true });
     await expect(editBtn).toBeVisible({ timeout: T.action });
     await editBtn.click();
-    const nameField = page.getByLabel(t("contactName"), { exact: true });
+    const nameField = page.getByLabel(t("agentName"), { exact: true });
     await expect(nameField).toBeVisible({ timeout: T.action });
     await nameField.fill(NEW_NAME);
     await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
 
-    // The header shows the user's label, persisted via the idempotent SaveContact.
+    // The header shows the user's label, persisted via the idempotent SaveAgent.
     await expect(page.getByRole("heading", { name: NEW_NAME }))
       .toBeVisible({ timeout: T.action });
 
@@ -128,7 +128,7 @@ test.describe("redesign: agent page", () => {
     // Add the agent (defaults to a person — the .example profile is unreachable, so no
     // rdf:type resolves), then open the inline editor.
     await page.goto(agentRoute(ORG_WEBID));
-    await page.getByRole("button", { name: t("contactAddToContacts"), exact: true })
+    await page.getByRole("button", { name: t("agentAddToBook"), exact: true })
       .click();
     const editBtn = page.getByRole("button", { name: t("btnEdit"), exact: true });
     await expect(editBtn).toBeVisible({ timeout: T.action });
@@ -136,14 +136,14 @@ test.describe("redesign: agent page", () => {
 
     // Re-classify as an organisation → the name field becomes "Company name" and the
     // org-only homepage / cross-reference fields appear.
-    await page.getByRole("button", { name: t("contactKindOrganisation"), exact: true })
+    await page.getByRole("button", { name: t("agentKindOrganisation"), exact: true })
       .click();
     await page.getByLabel(t("lblCompanyName"), { exact: true }).fill(ORG_NAME);
     await page.getByLabel(t("lblHomepageUri"), { exact: true }).fill(ORG_HOMEPAGE);
 
     // Upload a logo via the shared org editor (same component as the Organisation
     // page). A 1×1 PNG is enough; the picker shows an immediate object-URL preview.
-    // Persistence (vcard:logo + public ACL) is covered by the SaveContact unit test.
+    // Persistence (vcard:logo + public ACL) is covered by the SaveAgent unit test.
     const PNG_1x1 =
       "iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAQAAAC1HAwCAAAAC0lEQVR42mNk+M8AAAMBAQDJ/pLvAAAAAElFTkSuQmCC";
     await page.locator('input[type="file"]').setInputFiles({
@@ -160,7 +160,7 @@ test.describe("redesign: agent page", () => {
       .toBeVisible({ timeout: T.action });
     await expect(page.getByText(ORG_HOMEPAGE).first()).toBeVisible();
 
-    // Re-open → kind + name + homepage round-trip from the local record in contacts.ttl.
+    // Re-open → kind + name + homepage round-trip from the local record in agents.ttl.
     await page.goto("/");
     await page.goto(agentRoute(ORG_WEBID));
     await expect(page.getByRole("heading", { name: ORG_NAME }))
@@ -181,10 +181,10 @@ test.describe("redesign: agent page", () => {
 
     // An org contact must exist first so the person's "works for" dropdown has a target.
     await page.goto(agentRoute(EMP_ORG_WEBID));
-    await page.getByRole("button", { name: t("contactAddToContacts"), exact: true })
+    await page.getByRole("button", { name: t("agentAddToBook"), exact: true })
       .click();
     await page.getByRole("button", { name: t("btnEdit"), exact: true }).click();
-    await page.getByRole("button", { name: t("contactKindOrganisation"), exact: true })
+    await page.getByRole("button", { name: t("agentKindOrganisation"), exact: true })
       .click();
     await page.getByLabel(t("lblCompanyName"), { exact: true }).fill(EMP_ORG_NAME);
     await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
@@ -193,16 +193,16 @@ test.describe("redesign: agent page", () => {
 
     // Add the person, then edit → pick the org in the "Works for" dropdown.
     await page.goto(agentRoute(PERSON_WEBID));
-    await page.getByRole("button", { name: t("contactAddToContacts"), exact: true })
+    await page.getByRole("button", { name: t("agentAddToBook"), exact: true })
       .click();
     await page.getByRole("button", { name: t("btnEdit"), exact: true }).click();
-    await page.getByLabel(t("contactName"), { exact: true }).fill(PERSON_NAME);
+    await page.getByLabel(t("agentName"), { exact: true }).fill(PERSON_NAME);
     // Open the MUI select and choose the org by its name.
-    await page.getByLabel(t("contactWorksFor"), { exact: true }).click();
+    await page.getByLabel(t("agentWorksFor"), { exact: true }).click();
     await page.getByRole("option", { name: EMP_ORG_NAME }).click();
     await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
 
-    // Read view: a "Works for" row links to the org's contact page.
+    // Read view: a "Works for" row links to the org's agent page.
     const worksForLink = page.getByRole("link", { name: EMP_ORG_NAME });
     await expect(worksForLink).toBeVisible({ timeout: T.action });
 

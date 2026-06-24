@@ -25,7 +25,7 @@ export const FINDERS = {
   observations: "/observations",
   aggregations: "/aggregations",
   rooms: "/rooms",
-  contacts: "/contacts",
+  agents: "/agents",
   sharing: "/sharing",
 } as const;
 

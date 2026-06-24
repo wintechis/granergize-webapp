@@ -53,7 +53,7 @@ import {
   useRemoveAppData,
   useRestoreArchive,
   useSeedDemoBuildings,
-  useSeedDemoContacts,
+  useSeedDemoAgents,
   useSeedDemoRooms,
 } from "../hooks/mutations.ts";
 
@@ -74,9 +74,9 @@ interface AppShellProps {
 const NAV: { labelId: MessageId; path: string }[] = [
   { labelId: "navBuildings", path: FINDERS.buildings },
   { labelId: "navObservations", path: FINDERS.observations },
+  { labelId: "navAgents", path: FINDERS.agents },
   { labelId: "navAggregations", path: FINDERS.aggregations },
   { labelId: "navSharing", path: FINDERS.sharing },
-  { labelId: "navContacts", path: FINDERS.contacts },
   { labelId: "navMeet", path: FINDERS.rooms },
 ];
 
@@ -229,15 +229,15 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
 
   // Dev-mode Connect-tab demo data — the contacts/rooms counterpart of
   // `seedDemos` (the seeders tally partial success the same way).
-  const seedContactsMut = useSeedDemoContacts();
+  const seedContactsMut = useSeedDemoAgents();
   const seedRoomsMut = useSeedDemoRooms();
-  const seedDemoContactsClick = () =>
+  const seedDemoAgentsClick = () =>
     seedContactsMut.mutate(undefined, {
       onSuccess: ({ done: seeded, total }) =>
         showNotification(
           seeded === total
-            ? msg("demoContactsAdded")
-            : msg("demoContactsPartial", { seeded, total }),
+            ? msg("demoAgentsAdded")
+            : msg("demoAgentsPartial", { seeded, total }),
           seeded === total ? "success" : "warning",
         ),
     });
@@ -688,14 +688,14 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
             {devMode && (
               <MenuItem
                 onClick={() => {
-                  seedDemoContactsClick();
+                  seedDemoAgentsClick();
                   seedDemoRoomsClick();
                 }}
                 disabled={seedContactsMut.isPending || seedRoomsMut.isPending}
               >
                 {seedContactsMut.isPending || seedRoomsMut.isPending
                   ? t("addingEllipsis")
-                  : t("menuAddContacts")}
+                  : t("menuAddAgents")}
               </MenuItem>
             )}
 

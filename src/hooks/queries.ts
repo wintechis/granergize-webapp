@@ -39,7 +39,7 @@ import {
   readRoomNames,
   readRooms,
 } from "../services/interop/dataRoom.ts";
-import { readContacts } from "../services/contacts.ts";
+import { readAgents } from "../services/savedAgents.ts";
 import {
   resolveAgent,
   resolveAgentOrg,
@@ -731,9 +731,9 @@ export function useMonthReadings(
   );
 }
 
-/** The personal contacts address book (folds contacts.ttl). */
-export function useContacts() {
-  return useWebIdQuery(queryKeys.contacts, (session) => readContacts(session));
+/** The personal contacts address book (folds agents.ttl). */
+export function useAgents() {
+  return useWebIdQuery(queryKeys.agents, (session) => readAgents(session));
 }
 
 /**
@@ -791,8 +791,8 @@ export const queryKeys = {
   rooms: ["rooms"] as const,
   /** A room's log (members + roles), keyed by room. Invalidated on role saves. */
   roomLog: ["roomLog"] as const,
-  /** The contacts address book. Invalidated on save/remove. */
-  contacts: ["contacts"] as const,
+  /** The saved-agents address book. Invalidated on save/remove. */
+  agents: ["savedAgents"] as const,
   /** A single resolved agent (name/avatar), keyed by WebID. */
   agent: ["agent"] as const,
   /** A single resolved agent's organisation (name + logo IRI), keyed by WebID. */

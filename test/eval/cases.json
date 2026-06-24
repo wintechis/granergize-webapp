@@ -17,8 +17,8 @@
   { "nl": "Stop sharing this benchmark with them", "expect": "RevokeAggregationAccess", "category": "mutation" },
   { "nl": "Revoke this person's access to my building", "expect": "RevokeBuildingAccess", "category": "mutation" },
   { "nl": "Save my organisation profile", "expect": "SaveOrganisation", "category": "mutation" },
-  { "nl": "Add a contact", "expect": "SaveContact", "category": "mutation" },
-  { "nl": "Remove this contact", "expect": "RemoveContact", "category": "mutation" },
+  { "nl": "Add a contact", "expect": "SaveAgent", "category": "mutation" },
+  { "nl": "Remove this contact", "expect": "RemoveAgent", "category": "mutation" },
   { "nl": "Create a data room", "expect": "CreateRoom", "category": "mutation" },
   { "nl": "Join this data room", "expect": "EnterRoom", "category": "mutation" },
   { "nl": "Leave this data room", "expect": "ExitRoom", "category": "mutation" },
@@ -61,5 +61,5 @@
   { "nl": "Go to the benchmarks", "expect": "ShowAggregations", "category": "navigation" },
   { "nl": "Take me to the map", "expect": ["ShowDashboard", "ShowBuildings"], "category": "navigation" },
   { "nl": "Open my data rooms", "expect": "ShowRooms", "category": "navigation" },
-  { "nl": "Show my contacts", "expect": "ShowContacts", "category": "navigation" }
+  { "nl": "Show my contacts", "expect": "ShowAgents", "category": "navigation" }
 ]

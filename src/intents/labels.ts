@@ -28,7 +28,7 @@ export const INTENT_LABEL_KEY = {
   // menu surfaces these yet — they reach the user only through the ⌘K form).
   RevokeBuildingAccess: "intentRevokeBuildingAccess",
   RevokeAggregationAccess: "intentRevokeAggregationAccess",
-  RemoveContact: "intentRemoveContact",
+  RemoveAgent: "intentRemoveAgent",
   EnterRoom: "intentEnterRoom",
   ExitRoom: "intentExitRoom",
   DeleteRoom: "intentDeleteRoom",
@@ -40,7 +40,7 @@ export const INTENT_LABEL_KEY = {
   // account-menu / share-tab labels.
   CreateRoom: "roomHostBtn",
   SeedDemoBuildings: "menuAddBuildings",
-  SeedDemoContacts: "intentSeedDemoContacts",
+  SeedDemoAgents: "intentSeedDemoAgents",
   SeedDemoRooms: "intentSeedDemoRooms",
   CheckInbox: "shareCheckForNew",
   ReissueGrants: "menuRebuildSharing",

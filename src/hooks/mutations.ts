@@ -11,7 +11,7 @@ import { invoke, query } from "../intents/registry.ts";
 import type { EnergyDataset } from "../services/rdf/energyDataset.ts";
 import type { LastgangReading } from "../services/xlsx/energySeriesXlsx.ts";
 import type { Organization } from "../services/organization/organizationManager.ts";
-import type { Contact } from "../services/contacts.ts";
+import type { SavedAgent } from "../services/savedAgents.ts";
 import type { RegionLevel } from "../services/aggregation/regionRollup.ts";
 import type {
   AggregationDefinition,
@@ -221,10 +221,10 @@ export function useUploadBuildings() {
         onProgress: vars.onProgress,
       }, getGateway()),
     // The core auto-remembers each building's WebID agents (Pod writes); prime
-    // the inactive contacts query here so Connect picks them up without a reload
+    // the inactive saved-agents query here so Connect picks them up without a reload
     // (the cache concern that stays in the adapter).
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: queryKeys.contacts, refetchType: "all" }),
+      qc.invalidateQueries({ queryKey: queryKeys.agents, refetchType: "all" }),
     onSettled: () => invalidateBuildingData(qc),
   });
 }
@@ -247,9 +247,9 @@ export function useUpdateBuilding() {
         systems: vars.systems,
       }, getGateway()),
     // The core auto-remembers WebID agents (Pod writes); prime the inactive
-    // contacts query here so Connect picks them up without a reload.
+    // saved-agents query here so Connect picks them up without a reload.
     onSuccess: () =>
-      qc.invalidateQueries({ queryKey: queryKeys.contacts, refetchType: "all" }),
+      qc.invalidateQueries({ queryKey: queryKeys.agents, refetchType: "all" }),
     onSettled: () => invalidateBuildingData(qc),
   });
 }
@@ -442,35 +442,35 @@ export function useSaveOrganization() {
 
 // ── Contacts (address book) ──────────────────────────────────────────────────
 
-/** Save (or update) a contact in the address book. Accepts a bare {@link Contact}
+/** Save (or update) a contact in the address book. Accepts a bare {@link SavedAgent}
  *  or `{ contact, logo }` when an org contact's logo image is being uploaded. */
-export function useSaveContact() {
+export function useSaveAgent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (vars: Contact | { contact: Contact; logo?: File | null }) => {
+    mutationFn: (vars: SavedAgent | { contact: SavedAgent; logo?: File | null }) => {
       const params = "contact" in vars ? vars : { contact: vars };
-      return invoke("SaveContact", params, getGateway());
+      return invoke("SaveAgent", params, getGateway());
     },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.agents }),
   });
 }
 
 /** Remove a contact from the address book. */
-export function useRemoveContact() {
+export function useRemoveAgent() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (webId: string) => invoke("RemoveContact", { webId }, getGateway()),
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
+    mutationFn: (webId: string) => invoke("RemoveAgent", { webId }, getGateway()),
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.agents }),
   });
 }
 
-/** Dev-mode: seed the demo contacts (see the SeedDemoContacts core). */
-export function useSeedDemoContacts() {
+/** Dev-mode: seed the demo contacts (see the SeedDemoAgents core). */
+export function useSeedDemoAgents() {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: () => invoke("SeedDemoContacts", {}, getGateway()),
-    meta: { action: "actionAddDemoContacts" },
-    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.contacts }),
+    mutationFn: () => invoke("SeedDemoAgents", {}, getGateway()),
+    meta: { action: "actionAddDemoAgents" },
+    onSettled: () => qc.invalidateQueries({ queryKey: queryKeys.agents }),
   });
 }
 

@@ -13,28 +13,28 @@ import PersonIcon from "@mui/icons-material/Person";
 import ApartmentIcon from "@mui/icons-material/Apartment";
 import { useState } from "react";
 import {
-  useContacts,
+  useAgents,
   useResolveAgent,
   useResolveOrg,
 } from "../../hooks/queries.ts";
-import { useSaveContact } from "../../hooks/mutations.ts";
+import { useSaveAgent } from "../../hooks/mutations.ts";
 import { BackLink, DetailRow, RefLink } from "../detail/DetailView.tsx";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { OrgEditor, OrgReadView } from "./OrgDetail.tsx";
 import { agentRoute } from "../../routes.ts";
 import { msg } from "../../lib/messages.ts";
-import type { Contact } from "../../services/contacts.ts";
+import type { SavedAgent } from "../../services/savedAgents.ts";
 
 /**
- * The contact page's header (mirrors BuildingHeader): a back link, the agent's
+ * The agent page's header (mirrors BuildingHeader): a back link, the agent's
  * identity, the page's one action, and — for an organisation — its logo/homepage.
  *
  * The agent is rendered as a **person** or an **organisation** (the `kind`: the
  * user's local override wins over the resolved profile's `rdf:type`, defaulting to a
- * person). For an agent NOT yet in the address book the action is "Add to contacts";
- * for a KNOWN contact it's an inline `[Edit]`. The edits write a **local record** in
- * the user's own `contacts.ttl` (the agent's own profile is read-only, not ours to
- * own) via {@link useSaveContact} (re-saving the same WebID updates in place): a
+ * person). For an agent NOT yet in the address book the action is "Add to agents";
+ * for a KNOWN agent it's an inline `[Edit]`. The edits write a **local record** in
+ * the user's own `agents.ttl` (the agent's own profile is read-only, not ours to
+ * own) via {@link useSaveAgent} (re-saving the same WebID updates in place): a
  * person's stored name + a "works for" edge (`org:memberOf`) to an org contact; an
  * organisation's name + homepage + cross-reference + a logo (uploaded to the user's
  * own Pod as `vcard:logo`). The organisation read/edit body reuses the shared
@@ -45,8 +45,8 @@ import type { Contact } from "../../services/contacts.ts";
 export default function AgentHeader({ webId }: { webId: string }) {
   const { data: agent } = useResolveAgent(webId);
   const { data: org } = useResolveOrg(webId);
-  const contacts = useContacts();
-  const saveContact = useSaveContact();
+  const contacts = useAgents();
+  const saveContact = useSaveAgent();
 
   const contact = (contacts.data ?? []).find((c) => c.webId === webId);
   const known = contact != null;
@@ -76,7 +76,7 @@ export default function AgentHeader({ webId }: { webId: string }) {
 
   const [editing, setEditing] = useState(false);
   const [name, setName] = useState("");
-  const [kindDraft, setKindDraft] = useState<Contact["kind"]>("person");
+  const [kindDraft, setKindDraft] = useState<SavedAgent["kind"]>("person");
   const [homepageDraft, setHomepageDraft] = useState("");
   const [sameAsDraft, setSameAsDraft] = useState("");
   const [memberOfDraft, setMemberOfDraft] = useState("");
@@ -150,7 +150,7 @@ export default function AgentHeader({ webId }: { webId: string }) {
           ...(isOrg && agent?.website ? { homepage: agent.website } : {}),
         })}
     >
-      {saving ? msg("addingEllipsis") : msg("contactAddToContacts")}
+      {saving ? msg("addingEllipsis") : msg("agentAddToBook")}
     </Button>
   );
   const saveCancel = (
@@ -175,7 +175,7 @@ export default function AgentHeader({ webId }: { webId: string }) {
           ? (
             <TextField
               size="small"
-              label={editingOrg ? msg("lblCompanyName") : msg("contactName")}
+              label={editingOrg ? msg("lblCompanyName") : msg("agentName")}
               value={name}
               onChange={(e) => setName(e.target.value)}
               sx={{ flexGrow: 1 }}
@@ -193,12 +193,12 @@ export default function AgentHeader({ webId }: { webId: string }) {
           exclusive
           value={kindDraft}
           onChange={(_e, next) => next && setKindDraft(next)}
-          aria-label={msg("contactKind")}
+          aria-label={msg("agentKind")}
           sx={{ mt: 2 }}
         >
-          <ToggleButton value="person">{msg("contactKindPerson")}</ToggleButton>
+          <ToggleButton value="person">{msg("agentKindPerson")}</ToggleButton>
           <ToggleButton value="organisation">
-            {msg("contactKindOrganisation")}
+            {msg("agentKindOrganisation")}
           </ToggleButton>
         </ToggleButtonGroup>
       )}
@@ -210,12 +210,12 @@ export default function AgentHeader({ webId }: { webId: string }) {
         <TextField
           select
           size="small"
-          label={msg("contactWorksFor")}
+          label={msg("agentWorksFor")}
           value={memberOfDraft}
           onChange={(e) => setMemberOfDraft(e.target.value)}
           sx={{ mt: 2, minWidth: 260 }}
         >
-          <MenuItem value="">{msg("contactWorksForNone")}</MenuItem>
+          <MenuItem value="">{msg("agentWorksForNone")}</MenuItem>
           {orgOptions.map((o) => (
             <MenuItem key={o.webId} value={o.webId}>
               {o.name ?? o.webId}
@@ -226,7 +226,7 @@ export default function AgentHeader({ webId }: { webId: string }) {
       {!isOrg && !editing && memberOf && (
         <Box sx={{ mt: 1 }}>
           <DetailRow
-            label={msg("contactWorksFor")}
+            label={msg("agentWorksFor")}
             value={memberOrgName
               ? <RefLink to={agentRoute(memberOf)}>{memberOrgName}</RefLink>
               : <AgentLabel value={memberOf} />}

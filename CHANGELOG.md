@@ -3,6 +3,16 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-24]
+- **"Contacts" is now "Agents" — a first-class type, not a saved-only subset; menu reordered.**
+  The address book only ever surfaced *saved* references, hiding that your own Profile and
+  Organisation are the **"mine" tier of the same type** — so it's renamed **Agents** (the entity:
+  person/org), with the saved address book as the *referenced* tier. Swept throughout: the tab
+  label, `/contacts`→`/agents`, `ContactsFinder`→`AgentsFinder`, `useContacts`→`useAgents`, the
+  `Contact` type→`SavedAgent`, `contacts.ts`→`savedAgents.ts`, the Save/Remove/SeedDemo intents,
+  query keys, and the Pod file `contacts.ttl`→`agents.ttl` (+ `demo-agents/`, `agents/logos/`); no
+  migration (old Pod data re-created). Standard RDF vocab (`vcard:AddressBook`/`vcard:hasMember`/
+  the "contact facts" address/email/phone) stays. Top-nav reordered to
+  **Buildings · Observations · Agents · Aggregations · Sharing · Meet**.
 - **Deep-linking/reload on every route works; a drift guard keeps it that way.** `index.html`'s
   runtime base-href detection enumerates each route's first path segment (`KNOWN_ROUTE_SEGMENTS`)
   to find the app root under any deploy subpath — but the list is hand-maintained and not

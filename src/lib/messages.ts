@@ -33,10 +33,10 @@ export type MessageParams = Record<string, string | number>;
 export const MESSAGES = {
   // Finder empty states — the highest-value app-chrome prose to translate (each is
   // a self-contained `"No X yet. <how to get one>"` per the UI conventions).
-  contactsEmpty: {
-    en: "No contacts yet. Add one by WebID or QR code.",
-    de: "Noch keine Kontakte. Füge einen per WebID oder QR-Code hinzu.",
-    fr: "Aucun contact pour l'instant. Ajoutez-en un par WebID ou QR code.",
+  agentsEmpty: {
+    en: "No agents yet. Add one by WebID or QR code.",
+    de: "Noch keine Agenten. Füge einen per WebID oder QR-Code hinzu.",
+    fr: "Aucun agent pour l'instant. Ajoutez-en un par WebID ou QR code.",
   },
   buildingsEmpty: {
     en: "No buildings yet. Add one, or autofill it from a file.",
@@ -166,7 +166,7 @@ export const MESSAGES = {
     fr: "Agrégations",
   },
   navSharing: { en: "Sharing", de: "Freigaben", fr: "Partages" },
-  navContacts: { en: "Contacts", de: "Kontakte", fr: "Contacts" },
+  navAgents: { en: "Agents", de: "Agenten", fr: "Agents" },
   navMeet: { en: "Meet", de: "Treffen", fr: "Rencontrer" },
   // Finder page headings (exact-nav-word headings reuse the nav* ids above).
   headingYourRooms: {
@@ -1600,10 +1600,10 @@ export const MESSAGES = {
     de: "Beispielgebäude und Energiedaten hinzufügen",
     fr: "Ajouter des bâtiments et données d'exemple",
   },
-  menuAddContacts: {
-    en: "Add example contacts and rooms",
-    de: "Beispielkontakte und -datenräume hinzufügen",
-    fr: "Ajouter des contacts et salles d'exemple",
+  menuAddAgents: {
+    en: "Add example agents and rooms",
+    de: "Beispielagenten und -datenräume hinzufügen",
+    fr: "Ajouter des agents et salles d'exemple",
   },
   menuExportArchive: {
     en: "Export archive",
@@ -1673,15 +1673,15 @@ export const MESSAGES = {
     de: "Noch keine Gebäude — ein paar Beispielgebäude (mit Energiedaten) zum Erkunden hinzufügen?",
     fr: "Aucun bâtiment — ajouter quelques bâtiments d'exemple (avec données énergétiques) à explorer ?",
   },
-  demoContactsAdded: {
-    en: "Demo contacts added",
-    de: "Demo-Kontakte hinzugefügt",
-    fr: "Contacts de démonstration ajoutés",
+  demoAgentsAdded: {
+    en: "Demo agents added",
+    de: "Demo-Agenten hinzugefügt",
+    fr: "Agents de démonstration ajoutés",
   },
-  demoContactsPartial: {
-    en: "Added {seeded} of {total} demo contacts",
-    de: "{seeded} von {total} Demo-Kontakten hinzugefügt",
-    fr: "{seeded} sur {total} contacts de démonstration ajoutés",
+  demoAgentsPartial: {
+    en: "Added {seeded} of {total} demo agents",
+    de: "{seeded} von {total} Demo-Agenten hinzugefügt",
+    fr: "{seeded} sur {total} agents de démonstration ajoutés",
   },
   demoRoomsAdded: {
     en: "Demo data rooms added",
@@ -1810,7 +1810,7 @@ export const MESSAGES = {
     de: "Noch kein Snapshot berechnet. Klicke „Aktualisieren“, um die aggregierten Werte zu berechnen.",
     fr: "Aucun instantané calculé. Cliquez sur « Actualiser » pour calculer les valeurs agrégées.",
   },
-  // Contact detail page.
+  // Agent detail page.
   lblOrganisation: { en: "Organisation", de: "Organisation", fr: "Organisation" },
   lblAddress: { en: "Address", de: "Adresse", fr: "Adresse" },
   lblEmail: { en: "E-mail", de: "E-Mail", fr: "E-mail" },
@@ -1856,23 +1856,23 @@ export const MESSAGES = {
     de: "Nichts entspricht dem aktuellen Filter.",
     fr: "Rien ne correspond au filtre actuel.",
   },
-  contactAddToContacts: {
-    en: "Add to contacts",
-    de: "Zu Kontakten hinzufügen",
-    fr: "Ajouter aux contacts",
+  agentAddToBook: {
+    en: "Add to agents",
+    de: "Zu Agenten hinzufügen",
+    fr: "Ajouter aux agents",
   },
-  contactName: { en: "Name", de: "Name", fr: "Nom" },
-  // Contact kind toggle: a contact is a person or an organisation.
-  contactKind: { en: "Type", de: "Art", fr: "Type" },
-  contactKindPerson: { en: "Person", de: "Person", fr: "Personne" },
-  contactKindOrganisation: {
+  agentName: { en: "Name", de: "Name", fr: "Nom" },
+  // Agent kind toggle: an agent is a person or an organisation.
+  agentKind: { en: "Type", de: "Art", fr: "Type" },
+  agentKindPerson: { en: "Person", de: "Person", fr: "Personne" },
+  agentKindOrganisation: {
     en: "Organisation",
     de: "Organisation",
     fr: "Organisation",
   },
-  // A locally-asserted "works for" edge from a person contact to an org contact.
-  contactWorksFor: { en: "Works for", de: "Arbeitet für", fr: "Travaille pour" },
-  contactWorksForNone: { en: "— none —", de: "— keine —", fr: "— aucune —" },
+  // A locally-asserted "works for" edge from a person agent to an org agent.
+  agentWorksFor: { en: "Works for", de: "Arbeitet für", fr: "Travaille pour" },
+  agentWorksForNone: { en: "— none —", de: "— keine —", fr: "— aucune —" },
   // Detail FilesSection (read-only shared files).
   fileDownloading: { en: "Downloading…", de: "Wird heruntergeladen…", fr: "Téléchargement…" },
   // Room detail sections.
@@ -1926,17 +1926,17 @@ export const MESSAGES = {
   },
   noRole: { en: "no role", de: "keine Rolle", fr: "aucun rôle" },
   lblWebId: { en: "WebID", de: "WebID", fr: "WebID" },
-  contactAddAria: {
-    en: "Add contact",
-    de: "Kontakt hinzufügen",
-    fr: "Ajouter un contact",
+  agentAddAria: {
+    en: "Add agent",
+    de: "Agent hinzufügen",
+    fr: "Ajouter un agent",
   },
-  contactRemoveAria: {
-    en: "Remove contact",
-    de: "Kontakt entfernen",
-    fr: "Retirer le contact",
+  agentRemoveAria: {
+    en: "Remove agent",
+    de: "Agent entfernen",
+    fr: "Retirer le agent",
   },
-  // Generic affordances reused by the Contacts + Rooms finders.
+  // Generic affordances reused by the Agents + Rooms finders.
   addingEllipsis: { en: "Adding…", de: "Wird hinzugefügt…", fr: "Ajout…" },
   scanQrCode: {
     en: "Scan QR code",
@@ -2293,9 +2293,9 @@ export const MESSAGES = {
     fr: "WebID(s) du/des destinataire(s)",
   },
   racHelp: {
-    en: "Pick a contact/member, or type a WebID and press Enter",
-    de: "Kontakt/Mitglied wählen oder eine WebID eingeben und Enter drücken",
-    fr: "Choisissez un contact/membre, ou saisissez une WebID et appuyez sur Entrée",
+    en: "Pick an agent/member, or type a WebID and press Enter",
+    de: "Agent/Mitglied wählen oder eine WebID eingeben und Enter drücken",
+    fr: "Choisissez un agent/membre, ou saisissez une WebID et appuyez sur Entrée",
   },
   // Share-building dialog.
   shareBuildingTitle: {
@@ -2329,13 +2329,13 @@ export const MESSAGES = {
   shareByRole: { en: "By role", de: "Nach Rolle", fr: "Par rôle" },
   shareWebIdHint: {
     en:
-      "Choose recipients from your contacts and data room members, or type a WebID " +
+      "Choose recipients from your agents and data room members, or type a WebID " +
       "and press Enter to add it.",
     de:
-      "Wähle Empfänger aus deinen Kontakten und Datenzimmer-Mitgliedern, oder gib eine " +
+      "Wähle Empfänger aus deinen Agenten und Datenzimmer-Mitgliedern, oder gib eine " +
       "WebID ein und drücke Enter, um sie hinzuzufügen.",
     fr:
-      "Choisissez des destinataires parmi vos contacts et membres de la salle de " +
+      "Choisissez des destinataires parmi vos agents et membres de la salle de " +
       "données, ou saisissez une WebID et appuyez sur Entrée pour l'ajouter.",
   },
   shareRoleHint: {
@@ -2899,10 +2899,10 @@ export const MESSAGES = {
     de: "Speichern deiner Organisation",
     fr: "l'enregistrement de votre organisation",
   },
-  actionAddDemoContacts: {
-    en: "add demo contacts",
-    de: "Hinzufügen der Beispielkontakte",
-    fr: "l'ajout des contacts de démonstration",
+  actionAddDemoAgents: {
+    en: "add demo agents",
+    de: "Hinzufügen der Beispielagenten",
+    fr: "l'ajout des agents de démonstration",
   },
   actionAddDemoRooms: {
     en: "add demo data rooms",
@@ -2984,23 +2984,23 @@ export const MESSAGES = {
     de: "Herunterladen der Datei",
     fr: "le téléchargement du fichier",
   },
-  actionAddContact: {
-    en: "add contact",
-    de: "Hinzufügen des Kontakts",
-    fr: "l'ajout du contact",
+  actionAddAgent: {
+    en: "add agent",
+    de: "Hinzufügen des Agenten",
+    fr: "l'ajout du agent",
   },
-  // Contacts flow notifications (the `showNotification` vocabulary — migrated per
+  // Agents flow notifications (the `showNotification` vocabulary — migrated per
   // area; the add-failure toast still goes through `formatError`, a later slice).
   enterWebId: {
     en: "Enter a WebID (an http(s) URI)",
     de: "Gib eine WebID ein (eine http(s)-URI)",
     fr: "Saisissez un WebID (une URI http(s))",
   },
-  contactAdded: { en: "Contact added", de: "Kontakt hinzugefügt", fr: "Contact ajouté" },
-  contactRemoved: {
-    en: "Contact removed",
-    de: "Kontakt entfernt",
-    fr: "Contact supprimé",
+  agentAdded: { en: "Agent added", de: "Agent hinzugefügt", fr: "Agent ajouté" },
+  agentRemoved: {
+    en: "Agent removed",
+    de: "Agent entfernt",
+    fr: "Agent supprimé",
   },
   // Per-object action-menu verb labels (the intent-registry-driven row/section
   // actions — plan-palette §3). One id per registry descriptor whose verb is
@@ -3073,10 +3073,10 @@ export const MESSAGES = {
     de: "Aggregationszugriff entziehen…",
     fr: "Révoquer l'accès à l'agrégation…",
   },
-  intentRemoveContact: {
-    en: "Remove contact…",
-    de: "Kontakt entfernen…",
-    fr: "Supprimer le contact…",
+  intentRemoveAgent: {
+    en: "Remove agent…",
+    de: "Agent entfernen…",
+    fr: "Supprimer le agent…",
   },
   intentEnterRoom: {
     en: "Enter data room…",
@@ -3104,12 +3104,12 @@ export const MESSAGES = {
     fr: "Ajouter une salle de données…",
   },
   // Palette labels for the dev demo seeders surfaced as direct-invoke verbs (the
-  // account-menu groups contacts+rooms under one item; the palette surfaces each
+  // account-menu groups agents+rooms under one item; the palette surfaces each
   // verb on its own, so they need distinct wording).
-  intentSeedDemoContacts: {
-    en: "Add example contacts",
-    de: "Beispielkontakte hinzufügen",
-    fr: "Ajouter des contacts d'exemple",
+  intentSeedDemoAgents: {
+    en: "Add example agents",
+    de: "Beispielagenten hinzufügen",
+    fr: "Ajouter des agents d'exemple",
   },
   intentSeedDemoRooms: {
     en: "Add example data rooms",

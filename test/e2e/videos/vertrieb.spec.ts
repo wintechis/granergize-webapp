@@ -133,16 +133,16 @@ test.describe("handbuch video: Vertriebsunterstützung", () => {
       "contact",
       "B's WebID hat A von ihm selbst – wie eine E-Mail-Adresse. Einmal ins Adressbuch:",
     );
-    await demoA.click(stageA.getByRole("tab", { name: vt("navContacts") }));
+    await demoA.click(stageA.getByRole("tab", { name: vt("navAgents") }));
     const webIdField = stageA.getByRole("textbox", { name: "WebID" });
     await webIdField.waitFor({ state: "visible", timeout: 30_000 });
     await demoA.type(webIdField, bWebId);
-    await demoA.click(stageA.getByRole("button", { name: vt("contactAddAria") }));
+    await demoA.click(stageA.getByRole("button", { name: vt("agentAddAria") }));
     // The entry resolves to the person: name + avatar, no raw IRI.
     await expect(
-      stageA.getByRole("list", { name: vt("navContacts") }).getByText("Bob Bauer"),
+      stageA.getByRole("list", { name: vt("navAgents") }).getByText("Bob Bauer"),
     ).toBeVisible({ timeout: 30_000 });
-    await demoA.moveTo(stageA.getByRole("list", { name: vt("navContacts") }));
+    await demoA.moveTo(stageA.getByRole("list", { name: vt("navAgents") }));
     await demoA.pause(2_000);
     await dismissToasts(stageA);
 
