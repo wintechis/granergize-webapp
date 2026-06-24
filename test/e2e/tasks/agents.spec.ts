@@ -8,10 +8,13 @@ import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Agent management e2e — the contacts address book + auto-remember. MUI page
- * render isn't unit-testable under Deno, so this covers the UI half:
- *  1. add a contact by WebID on Connect → it lists (via <AgentLabel>) → remove it;
- *  2. a building saved with an `operatedBy` WebID is auto-remembered as a contact.
+ * Agents finder e2e — the address book (saved tier) + auto-remember + the derived
+ * REFERENCED tier. MUI page render isn't unit-testable under Deno, so this covers the
+ * UI half:
+ *  1. add an agent by WebID → it lists (via <AgentLabel>) → remove it;
+ *  2. a building saved with an `operatedBy` WebID is auto-remembered (saved); removing
+ *     the saved record leaves it in the finder as a REFERENCED agent (it still appears
+ *     on the building) with a save-to-agents action.
  *
  * WebIDs use a distinctive `#fragment` on an unresolvable host: <AgentLabel> shows
  * the fragment as the name immediately (resolution falls back to it for an
@@ -32,11 +35,11 @@ const CONTACT = "https://contacts-e2e.example/profile/card#DirectCarol";
 const OPERATOR = "https://contacts-e2e.example/profile/card#OperatorBob";
 
 /** The aria-labelled contacts list on Connect (added for this disambiguation). */
-const contactsList = (page: Page) => page.getByRole("list", { name: t("navAgents") });
+const agentsList = (page: Page) => page.getByRole("list", { name: t("navAgents") });
 
 test.describe.configure({ mode: "serial" });
 
-test.describe("contacts address book + auto-remember", () => {
+test.describe("agents address book + auto-remember", () => {
   test.skip(
     !hasAccount(ACC),
     `Set WEBID_A_USERNAME / WEBID_A_PASSWORD (a throwaway Solid Pod) to run the contacts e2e.`,
@@ -80,7 +83,7 @@ test.describe("contacts address book + auto-remember", () => {
     await page.getByRole("button", { name: t("agentAddAria") }).click();
     await expect(page.getByText(t("agentAdded"))).toBeVisible({ timeout: T.action });
 
-    const row = contactsList(page).locator("li", { hasText: "DirectCarol" });
+    const row = agentsList(page).locator("li", { hasText: "DirectCarol" });
     await expect(row).toBeVisible({ timeout: T.action });
 
     await row.getByRole("button", { name: t("agentRemoveAria") }).click();
@@ -103,14 +106,18 @@ test.describe("contacts address book + auto-remember", () => {
     await expect(async () => {
       await page.getByRole("tab", { name: t("navBuildings") }).click();
       await page.getByRole("tab", { name: t("navAgents") }).click();
-      await expect(contactsList(page).locator("li", { hasText: "OperatorBob" }))
+      await expect(agentsList(page).locator("li", { hasText: "OperatorBob" }))
         .toBeVisible({ timeout: T.quick });
     }).toPass({ timeout: T.poll });
 
-    // Remove the auto-remembered contact (the building is torn down in afterAll).
-    await contactsList(page).locator("li", { hasText: "OperatorBob" })
-      .getByRole("button", { name: t("agentRemoveAria") }).click();
-    await expect(contactsList(page).locator("li", { hasText: "OperatorBob" }))
-      .toHaveCount(0, { timeout: T.action });
+    // Auto-remember made it a SAVED agent (a remove action). Removing the saved
+    // record does NOT hide it: the building still references it, so it falls back to
+    // the REFERENCED tier — a "save to agents" action replaces the remove. (The
+    // referenced tier surfaces a portfolio's operators even before they're saved.)
+    const operatorRow = () =>
+      agentsList(page).locator("li", { hasText: "OperatorBob" });
+    await operatorRow().getByRole("button", { name: t("agentRemoveAria") }).click();
+    await expect(operatorRow().getByRole("button", { name: t("agentSaveToBookAria") }))
+      .toBeVisible({ timeout: T.action });
   });
 });

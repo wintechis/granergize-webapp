@@ -1,7 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { BuildingType } from "../../types.ts";
-import { appearancesOf } from "./agentAppearances.ts";
+import { appearancesOf, referencedAgentWebIds } from "./agentAppearances.ts";
 
 const ALICE = "https://alice.example/profile/card#me";
 const BOB = "https://bob.example/profile/card#me";
@@ -38,6 +38,22 @@ Deno.test("appearancesOf covers the full agent-role set (ownedBy/managed/develop
   ];
   const roles = appearancesOf(ALICE, buildings).flatMap((a) => a.roles);
   assert.deepEqual(roles.sort(), ["Consulted by", "Developed by", "Facility management", "Owned by"]);
+});
+
+Deno.test("referencedAgentWebIds collects distinct WebID agents, skips free-text names", () => {
+  const buildings = [
+    building("1", { operatedBy: ALICE, ownedBy: BOB }),
+    building("2", { operatedBy: ALICE, attributedTo: "https://acme.example/org#it" }),
+    // A free-text operator name (not a WebID) is NOT a resolvable agent → excluded.
+    building("3", { operatedBy: "Müller Logistik GmbH" }),
+  ];
+  const ids = referencedAgentWebIds(buildings).sort();
+  assert.deepEqual(ids, [ALICE, "https://acme.example/org#it", BOB].sort());
+});
+
+Deno.test("referencedAgentWebIds is empty when no building references a WebID", () => {
+  assert.deepEqual(referencedAgentWebIds([building("1", { operatedBy: "ACME" })]), []);
+  assert.deepEqual(referencedAgentWebIds([]), []);
 });
 
 Deno.test("appearancesOf matches attributedTo (provenance) and returns [] when unseen", () => {

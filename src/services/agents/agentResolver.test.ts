@@ -122,6 +122,46 @@ Deno.test("resolveAgent: a MaStR operator without Personenart defaults to an org
   assert.equal(agent.kind, "organisation", "a kept operator carries a Firmenname → a company");
 });
 
+Deno.test("resolveAgent resolves a Wikidata entity (label + P154 logo) as an organisation", async () => {
+  _resetProfileCacheForTesting();
+  // A Wikidata entity IRI — served as CORS-open Turtle using rdfs:label/schema:name/
+  // skos:prefLabel + wdt:P154 (logo → Commons FilePath), NOT foaf:/vcard:. Captured
+  // shape of Q2220179 (Sanacorp Pharmahandel). The http entity IRI 301s to https
+  // WITHOUT CORS, so resolveAgent must fetch the EntityData .ttl endpoint with a
+  // PLAIN fetch — assert that's the URL it hits, not the raw IRI / the gateway.
+  const WD = "http://www.wikidata.org/entity/Q2220179";
+  const ttl = `
+    @prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .
+    @prefix schema: <http://schema.org/> .
+    @prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+    @prefix wdt: <http://www.wikidata.org/prop/direct/> .
+    <${WD}> rdfs:label "Sanacorp Pharmahandel"@de , "Sanacorp Pharmahandel"@en ;
+      schema:name "Sanacorp Pharmahandel"@en ;
+      skos:prefLabel "Sanacorp Pharmahandel"@en ;
+      wdt:P154 <http://commons.wikimedia.org/wiki/Special:FilePath/Sanacorp%20Logo.jpg> .`;
+  let fetched = "";
+  const fetchFn = ((url: string) => {
+    fetched = url;
+    return Promise.resolve(new Response(ttl, { status: 200 }));
+  }) as unknown as typeof fetch;
+
+  // The gateway is unused for the Wikidata path (a plain fetch is used instead).
+  const agent = await resolveAgent(WD, makeSession(undefined), fetchFn);
+  assert.equal(
+    fetched,
+    "https://www.wikidata.org/wiki/Special:EntityData/Q2220179.ttl",
+    "fetches the CORS-open EntityData .ttl endpoint, not the http IRI",
+  );
+  assert.equal(agent.webId, WD);
+  assert.equal(agent.name, "Sanacorp Pharmahandel", "label resolves the name");
+  assert.equal(agent.kind, "organisation", "a P154 logo marks an organisation");
+  assert.equal(
+    agent.logoUrl,
+    "https://commons.wikimedia.org/wiki/Special:FilePath/Sanacorp%20Logo.jpg",
+    "P154 → Commons logo, upgraded to https",
+  );
+});
+
 Deno.test("resolveAgent leaves kind undefined for an untyped, logo-less profile", async () => {
   _resetProfileCacheForTesting();
   const ttl = `

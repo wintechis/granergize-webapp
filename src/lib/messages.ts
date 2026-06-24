@@ -38,6 +38,21 @@ export const MESSAGES = {
     de: "Noch keine Agenten. Füge einen per WebID oder QR-Code hinzu.",
     fr: "Aucun agent pour l'instant. Ajoutez-en un par WebID ou QR code.",
   },
+  // Agents finder source facet: saved (in the address book) vs referenced (appears
+  // in your data — a building's operator/owner/… — but not yet saved).
+  agentTierSaved: { en: "Saved", de: "Gespeichert", fr: "Enregistrés" },
+  agentTierReferenced: { en: "Referenced", de: "Referenziert", fr: "Référencés" },
+  agentTierFacetAria: {
+    en: "Filter agents by source",
+    de: "Agenten nach Quelle filtern",
+    fr: "Filtrer les agents par source",
+  },
+  agentReferencedHint: {
+    en: "Referenced in your buildings — not yet saved",
+    de: "In deinen Gebäuden referenziert — noch nicht gespeichert",
+    fr: "Référencé dans vos bâtiments — pas encore enregistré",
+  },
+  agentSaveToBookAria: { en: "Save to agents", de: "Zu Agenten speichern", fr: "Enregistrer dans les agents" },
   buildingsEmpty: {
     en: "No buildings yet. Add one, or autofill it from a file.",
     de: "Noch keine Gebäude. Füge eines hinzu oder fülle es automatisch aus einer Datei.",

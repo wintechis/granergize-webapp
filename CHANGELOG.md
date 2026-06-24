@@ -3,6 +3,26 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-24]
+- **A Wikidata entity IRI resolves as a first-class agent.** Opening `/agent?uri=<wikidata>`
+  showed just the bare id, on two counts. (1) **Fetch:** the `http://…/entity/Q…` IRI 301-redirects
+  to https *without* CORS on the redirect (the browser blocks it), and `resolveAgent` used the
+  authed Pod transport (whose `Authorization`/DPoP also trips a preflight) — for a public resource.
+  It now fetches the CORS-open `Special:EntityData/Q….ttl` endpoint with a **plain** fetch (mirroring
+  the existing `owl:sameAs`→Commons-logo path). (2) **Vocabulary:** it read only Solid `foaf:`/`vcard:`
+  terms, so even with the data in hand it found no name. It now also reads name from
+  `rdfs:label`/`schema:name`/`skos:prefLabel` (language-preferring en→de), the org logo from `wdt:P154`
+  (generic image `wdt:P18` as the avatar) via the Commons `Special:FilePath` IRI (upgraded to https),
+  and classifies an entity with a `P154` logo as an organisation. So Q2220179/Q1497233 now render
+  "Sanacorp Pharmahandel" / "Gebrüder Weiss" + logo as organisations.
+- **The Agents finder shows referenced agents, not just saved ones.** It listed only the saved
+  address book (`agents.ttl`), so a bulk-imported portfolio's operators/owners never appeared
+  (they're referenced on buildings but only app-mediated writes auto-remember them). The finder
+  now unions two **source tiers** — **saved** (the address book) and **referenced** (every WebID
+  on a loaded building's `operatedBy`/`ownedBy`/`attributedTo`/… that isn't saved yet) — behind a
+  Saved/Referenced facet (the agent-world analogue of the Buildings finder's mine/shared/open).
+  A referenced agent shows a "save to agents" action (one click to persist); removing a saved
+  agent that's still referenced leaves it visible in the referenced tier. Pure selector
+  (`referencedAgentWebIds`), no new fetch.
 - **"Contacts" is now "Agents" — a first-class type, not a saved-only subset; menu reordered.**
   The address book only ever surfaced *saved* references, hiding that your own Profile and
   Organisation are the **"mine" tier of the same type** — so it's renamed **Agents** (the entity:

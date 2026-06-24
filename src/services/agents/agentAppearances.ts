@@ -42,3 +42,21 @@ export function appearancesOf(
   }
   return out;
 }
+
+/**
+ * Distinct **WebID-valued** agents referenced across the loaded buildings — the union
+ * of every {@link AGENT_ROLES} field that holds an IRI (a free-text operator name is
+ * not a resolvable agent, so it's excluded). This is the "referenced" tier of the
+ * Agents finder: parties that appear in your data but aren't (yet) in your address
+ * book. A pure selector over already-loaded buildings — no fetch.
+ */
+export function referencedAgentWebIds(buildings: BuildingType[]): string[] {
+  const seen = new Set<string>();
+  for (const building of buildings) {
+    for (const { field } of AGENT_ROLES) {
+      const value = building[field];
+      if (typeof value === "string" && /^https?:\/\//i.test(value)) seen.add(value);
+    }
+  }
+  return [...seen];
+}

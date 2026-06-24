@@ -140,6 +140,16 @@ export const ACL_NS = "http://www.w3.org/ns/auth/acl#";
 // SKOS — the codelist schemes the statistics/MaStR wrappers publish (notation,
 // prefLabel) for resolving an AGS/carrier code to its human name.
 export const SKOS_NS = "http://www.w3.org/2004/02/skos/core#";
+export const SKOS_PREF_LABEL = `${SKOS_NS}prefLabel`;
+
+// Wikidata — a Wikidata entity is a legitimate (stable, dereferenceable) agent
+// identity. Its served RDF uses these *direct-claim* (`wdt:`) properties instead of
+// FOAF/vCard: a name via rdfs:label/schema:name/skos:prefLabel, the org logo via
+// `wdt:P154` (else the generic image `wdt:P18`) whose object is already a Commons
+// `Special:FilePath` IRI usable as an `<img src>`. See agentResolver's Wikidata fallback.
+export const WIKIDATA_DIRECT_NS = "http://www.wikidata.org/prop/direct/";
+export const WD_LOGO = `${WIKIDATA_DIRECT_NS}P154`;
+export const WD_IMAGE = `${WIKIDATA_DIRECT_NS}P18`;
 
 export const XSD_NS = "http://www.w3.org/2001/XMLSchema#";
 export const XSD_DATETIME = `${XSD_NS}dateTime`;

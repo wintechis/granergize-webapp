@@ -1,9 +1,9 @@
 import type { PodGateway } from "../pod/podGateway.ts";
-import { DataFactory, Store } from "n3";
+import { DataFactory, Parser, Store } from "n3";
 import { loadProfileStoreFor } from "../pod/profileDocument.ts";
 import { logError } from "../../lib/logError.ts";
 import { trackedFetch } from "../../lib/networkActivity.ts";
-import { fetchWikidataLogo } from "./wikidataLogo.ts";
+import { fetchWikidataLogo, wikidataEntityId } from "./wikidataLogo.ts";
 import {
   FOAF_HOMEPAGE,
   FOAF_IMG,
@@ -13,6 +13,9 @@ import {
   ORG_MEMBER_OF,
   OWL_SAME_AS,
   RDF_TYPE,
+  RDFS_LABEL,
+  SCHEMA_NAME,
+  SKOS_PREF_LABEL,
   VCARD_COUNTRY_NAME,
   VCARD_FN,
   VCARD_HAS_ADDRESS,
@@ -23,6 +26,8 @@ import {
   VCARD_LOCALITY,
   VCARD_POSTAL_CODE,
   VCARD_STREET_ADDRESS,
+  WD_IMAGE,
+  WD_LOGO,
 } from "../rdf/vocabularies.ts";
 
 /**
@@ -78,6 +83,37 @@ function objects(store: Store, subject: string, predicate: string): string[] {
   return store
     .getQuads(namedNode(subject), namedNode(predicate), null, null)
     .map((q) => q.object.value);
+}
+
+/**
+ * First label across `predicates` (in order), preferring the language tag `en`, then
+ * `de`, then any. For Wikidata-style RDF whose `rdfs:label`/`schema:name`/
+ * `skos:prefLabel` are `@lang`-tagged (the app chrome is English, so `en` first).
+ */
+function firstLabel(
+  store: Store,
+  subject: string,
+  predicates: string[],
+): string | undefined {
+  const cands: { value: string; lang: string }[] = [];
+  for (const p of predicates) {
+    for (const q of store.getQuads(namedNode(subject), namedNode(p), null, null)) {
+      const lang = q.object.termType === "Literal" ? q.object.language : "";
+      cands.push({ value: q.object.value, lang });
+    }
+  }
+  if (cands.length === 0) return undefined;
+  const byLang = (l: string) => cands.find((c) => c.lang === l)?.value;
+  return byLang("en") ?? byLang("de") ?? cands[0].value;
+}
+
+/**
+ * A Wikidata logo/image IRI is a Commons `Special:FilePath` URL served over `http`
+ * in Wikidata's RDF; upgrade to `https` so a deployed (https) app's `<img>` doesn't
+ * hit mixed-content blocking.
+ */
+function commonsHttps(uri?: string): string | undefined {
+  return uri?.replace(/^http:\/\/commons\.wikimedia\.org/, "https://commons.wikimedia.org");
 }
 
 /**
@@ -164,7 +200,11 @@ function resolveKind(
     t.endsWith("Operator") || t.endsWith("MarketActor") || t.endsWith("Marktakteur");
   if (types.some(isMarketActor)) return "organisation";
 
-  if (firstObject(store, webId, FOAF_LOGO)) return "organisation";
+  // A logo (own `foaf:logo` OR a Wikidata `wdt:P154` "logo image") marks an org.
+  // P18 (generic image) is NOT a kind signal — a person entity can carry one.
+  if (firstObject(store, webId, FOAF_LOGO) ?? firstObject(store, webId, WD_LOGO)) {
+    return "organisation";
+  }
   return undefined;
 }
 
@@ -178,46 +218,89 @@ export function webIdFragment(webId: string): string {
 
 /**
  * Resolve a WebID to a display name + avatar by reading the agent's own profile.
- * Name = `foaf:name` (preferred) or `vcard:fn`, falling back to the WebID fragment
- * (today's bare-`#me` behaviour). Avatar = `foaf:img` or `vcard:hasPhoto`.
- * Unreachable/private profiles resolve to `{ webId }` (with the fragment name) —
- * resolution never throws, so callers can render references unconditionally.
+ * Name = `foaf:name` (preferred) or `vcard:fn`, then the Wikidata-style labels
+ * (`rdfs:label`/`schema:name`/`skos:prefLabel`), falling back to the WebID fragment.
+ * Avatar = `foaf:img` or `vcard:hasPhoto` (or the Wikidata generic image `wdt:P18`);
+ * an org logo is `foaf:logo` or the Wikidata "logo image" `wdt:P154`. This lets a
+ * Wikidata entity IRI (e.g. `…/entity/Q…`, served as CORS-open Turtle) resolve as a
+ * first-class agent, not just a `foaf:`/`vcard:` Solid profile. Unreachable/private
+ * profiles resolve to `{ webId }` (with the fragment name) — resolution never throws,
+ * so callers can render references unconditionally.
  * @operation query
  */
+/**
+ * Fetch + parse an agent's RDF into a Store. A **Wikidata** entity (`qid` set) is a
+ * PUBLIC resource whose `http://…/entity/Q…` IRI 301-redirects to https WITHOUT CORS
+ * headers on the redirect (the browser blocks it) — so fetch the CORS-open
+ * `Special:EntityData/Q….ttl` endpoint with a PLAIN (non-authed) fetch, not the Pod
+ * transport (whose `Authorization`/DPoP would also trip a preflight). Any other agent
+ * is a Solid profile read over the authed gateway. Never throws → null on any failure.
+ */
+async function loadAgentStore(
+  webId: string,
+  qid: string | undefined,
+  gateway: PodGateway,
+  fetchFn: typeof fetch,
+): Promise<Store | null> {
+  if (qid) {
+    try {
+      const res = await fetchFn(
+        `https://www.wikidata.org/wiki/Special:EntityData/${qid}.ttl`,
+      );
+      if (!res.ok) return null;
+      return new Store(new Parser({ format: "text/turtle" }).parse(await res.text()));
+    } catch (err) {
+      logError("fetch Wikidata entity for resolution", err);
+      return null;
+    }
+  }
+  try {
+    return await loadProfileStoreFor(webId, gateway);
+  } catch (err) {
+    logError("load agent profile for resolution", err);
+    return null;
+  }
+}
+
 export async function resolveAgent(
   webId: string,
   gateway: PodGateway,
+  fetchFn: typeof fetch = trackedFetch,
 ): Promise<ResolvedAgent> {
   const fallbackName = webIdFragment(webId);
-  let store: Store | null;
-  try {
-    store = await loadProfileStoreFor(webId, gateway);
-  } catch (err) {
-    logError("load agent profile for resolution", err);
-    store = null;
-  }
+  const qid = wikidataEntityId(webId);
+  const store = await loadAgentStore(webId, qid, gateway, fetchFn);
   if (!store) return { webId, name: fallbackName };
 
-  const name = firstObject(store, webId, FOAF_NAME) ??
-    firstObject(store, webId, VCARD_FN) ?? fallbackName;
-  const avatarUrl = firstObject(store, webId, FOAF_IMG) ??
-    firstObject(store, webId, VCARD_HAS_PHOTO);
-  const kind = resolveKind(store, webId);
-  const logoUrl = firstObject(store, webId, FOAF_LOGO);
+  // For a Wikidata entity the store's subject is the CANONICAL `…/entity/Q…` IRI
+  // (always `http`, however the doc was served / whatever form the caller passed),
+  // so query by that, not the raw input.
+  const subject = qid ? `http://www.wikidata.org/entity/${qid}` : webId;
+
+  const name = firstObject(store, subject, FOAF_NAME) ??
+    firstObject(store, subject, VCARD_FN) ??
+    firstLabel(store, subject, [RDFS_LABEL, SCHEMA_NAME, SKOS_PREF_LABEL]) ??
+    fallbackName;
+  const avatarUrl = firstObject(store, subject, FOAF_IMG) ??
+    firstObject(store, subject, VCARD_HAS_PHOTO) ??
+    commonsHttps(firstObject(store, subject, WD_IMAGE));
+  const kind = resolveKind(store, subject);
+  const logoUrl = firstObject(store, subject, FOAF_LOGO) ??
+    commonsHttps(firstObject(store, subject, WD_LOGO));
 
   // SavedAgent facts: standard vCard/FOAF first, then the MaStR wrapper's own
   // predicates as a fallback (it emits #Email/#Telefon/#Webseite, not vcard:*).
-  const address = readAddress(store, webId);
+  const address = readAddress(store, subject);
   const email = bareEmail(
-    firstObject(store, webId, VCARD_HAS_EMAIL) ??
-      firstObject(store, webId, FOAF_MBOX) ??
-      firstObjectBySuffix(store, webId, "#Email"),
+    firstObject(store, subject, VCARD_HAS_EMAIL) ??
+      firstObject(store, subject, FOAF_MBOX) ??
+      firstObjectBySuffix(store, subject, "#Email"),
   );
-  const phone = firstObject(store, webId, VCARD_HAS_TELEPHONE) ??
-    firstObjectBySuffix(store, webId, "#Telefon");
-  const website = firstObject(store, webId, FOAF_HOMEPAGE) ??
-    firstObject(store, webId, VCARD_HAS_URL) ??
-    firstObjectBySuffix(store, webId, "#Webseite");
+  const phone = firstObject(store, subject, VCARD_HAS_TELEPHONE) ??
+    firstObjectBySuffix(store, subject, "#Telefon");
+  const website = firstObject(store, subject, FOAF_HOMEPAGE) ??
+    firstObject(store, subject, VCARD_HAS_URL) ??
+    firstObjectBySuffix(store, subject, "#Webseite");
 
   return {
     webId,
