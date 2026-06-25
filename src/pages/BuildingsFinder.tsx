@@ -15,7 +15,7 @@ import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
 import { rememberedValue, rememberValue } from "../lib/facetMemory.ts";
 import { useOpenBuildings } from "../hooks/openBuildings.ts";
-import { openViewport } from "../services/openBuildings.ts";
+import { ownDataAnchor } from "../services/openBuildings.ts";
 import SearchField from "../components/SearchField.tsx";
 import TierFilter from "../components/TierFilter.tsx";
 import { BUILDING_TIERS } from "../constants/tiers.ts";
@@ -101,13 +101,15 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   // Tier source-selector (Slice 2): union the ticked provenance tiers. Default both
   // → the full reachable set (matching the Map). A building's tier is own vs shared.
   const tierFacet = useListFacet("tiers", BUILDING_TIERS);
-  // Open tier (LoD2): public open buildings fetched around the map viewport centre
-  // (`?c`), ONLY when the open tier is ticked, then unioned in. Read-only, off-Pod,
-  // Bavaria-only (empty elsewhere). The map (P2) renders them as its own marker layer.
+  // Open tier (LoD2): public open buildings fetched around the user's OWN buildings
+  // (the concentric ring), ONLY when the open tier is ticked, then unioned in. Read-only,
+  // off-Pod, Bavaria-only (empty elsewhere). The map renders them as its own marker layer.
   const openOn = tierFacet.isSelected("open");
+  // Open data is fetched as context around the user's OWN buildings (the concentric
+  // ring), not the free map viewport — see `ownDataAnchor` / notes/open-data.md.
   const { centre: openCentre, radiusM: openRadius } = useMemo(
-    () => openViewport(searchParams),
-    [searchParams],
+    () => ownDataAnchor(buildings),
+    [buildings],
   );
   const { data: openBuildings = [] } = useOpenBuildings(
     openCentre,
@@ -289,7 +291,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
               color="text.secondary"
               sx={{ mb: 1 }}
             >
-              {t("openBuildingsPanHint")}
+              {t("openNeedsOwnBuilding")}
             </Typography>
           )}
           {buildingsLoading

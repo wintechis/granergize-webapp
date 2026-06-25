@@ -7,34 +7,58 @@ export interface MapCentre {
   long: number;
 }
 
-/** Fallback fetch half-width (m) when the URL carries no zoom. */
+/** Floor for the own-data anchor radius (m): even a single building pulls in open
+ *  context within ~2 km. */
 export const OPEN_BUILDINGS_RADIUS_M = 2000;
 
-/** The open-data fetch radius (m) for a Leaflet zoom — wider view → bigger box, closer
- *  view → smaller — so the fetch tracks how much map is shown. Clamped to a sane band
- *  (the wrapper caps dense results anyway). */
-export function openRadiusForZoom(zoom: number): number {
-  return Math.round(Math.min(20000, Math.max(500, 40_000_000 / 2 ** zoom)));
-}
+/** Ceiling for the own-data anchor radius (m): a spread portfolio fetches at most a
+ *  ~20 km region around its centre (the wrapper caps dense results anyway). */
+const OPEN_BUILDINGS_RADIUS_MAX_M = 20000;
 
-/** What the open layer fetches for the current map URL state (`?c` centre, `?z` zoom):
- *  the centre **snapped to a ~110 m grid** so micro-pans reuse the cached fetch (a
- *  coarse debounce on top of `moveend`), and the zoom-scaled radius. `centre` is null
- *  when no viewport is in the URL yet (the finder then shows a "pan the map" hint).
- *  Shared by the finder + the map so both derive the SAME query key → one fetch. */
-export function openViewport(
-  params: URLSearchParams,
+/**
+ * The **own-data anchor** for the open tier: a centre + radius covering the user's own
+ * (and shared) buildings, so open data is fetched as *context around your data* (the
+ * concentric `mine`→`open` ring), NOT around the free map viewport. The centre is the
+ * bounding-box centre of the buildings that carry coordinates; the radius is the
+ * half-diagonal to a bbox corner (+ a ~1 km margin), clamped to
+ * `[{@link OPEN_BUILDINGS_RADIUS_M}, OPEN_BUILDINGS_RADIUS_MAX_M]`. `centre` is **null**
+ * when no building has coordinates (no own data → no open context to anchor to).
+ *
+ * The centre is snapped to a ~110 m grid so small portfolio changes reuse the cached
+ * fetch. Shared by the finders + the map (all pass `useSolidData().buildings`), so all
+ * derive the SAME `{centre, radiusM}` → the SAME query key → one fetch.
+ *
+ * (A widely-spread portfolio is covered only out to the radius ceiling around its bbox
+ * centre — multi-region/free browsing is a separate, future exploration mode.)
+ */
+export function ownDataAnchor(
+  buildings: ReadonlyArray<{ lat?: number; long?: number }>,
 ): { centre: MapCentre | null; radiusM: number } {
-  const z = Number(params.get("z"));
-  const radiusM = Number.isFinite(z) && z > 0
-    ? openRadiusForZoom(z)
-    : OPEN_BUILDINGS_RADIUS_M;
-  const c = params.get("c");
-  if (!c) return { centre: null, radiusM };
-  const [lat, long] = c.split(",").map(Number);
-  if (!Number.isFinite(lat) || !Number.isFinite(long)) {
-    return { centre: null, radiusM };
+  const pts = buildings.filter(
+    (b): b is { lat: number; long: number } =>
+      typeof b.lat === "number" && typeof b.long === "number",
+  );
+  if (pts.length === 0) return { centre: null, radiusM: OPEN_BUILDINGS_RADIUS_M };
+
+  let minLat = Infinity, maxLat = -Infinity, minLong = Infinity, maxLong = -Infinity;
+  for (const p of pts) {
+    minLat = Math.min(minLat, p.lat);
+    maxLat = Math.max(maxLat, p.lat);
+    minLong = Math.min(minLong, p.long);
+    maxLong = Math.max(maxLong, p.long);
   }
+  const lat = (minLat + maxLat) / 2;
+  const long = (minLong + maxLong) / 2;
+  // Half-diagonal of the bbox in metres (equirectangular approximation), + a 1 km margin.
+  const latM = ((maxLat - minLat) / 2) * 111_320;
+  const longM = ((maxLong - minLong) / 2) * 111_320 * Math.cos((lat * Math.PI) / 180);
+  const halfDiagM = Math.sqrt(latM * latM + longM * longM);
+  const radiusM = Math.round(
+    Math.min(
+      OPEN_BUILDINGS_RADIUS_MAX_M,
+      Math.max(OPEN_BUILDINGS_RADIUS_M, halfDiagM + 1000),
+    ),
+  );
   const snap = (n: number) => Math.round(n * 1000) / 1000;
   return { centre: { lat: snap(lat), long: snap(long) }, radiusM };
 }

@@ -12,10 +12,10 @@ import { T } from "../helpers/timeouts.ts";
 
 /**
  * The Buildings finder's `open` source tier — public open-data buildings from LoD2
- * (`linked-lod2-by`), fetched around the map viewport. The wrapper is an EXTERNAL host,
- * so this STUBS its `…/lod2-by/point` response (mirroring nearby-installations /
- * aggregations-open-tier). An owned building in Nürnberg/Bayern frames the map over LoD2
- * coverage, so the viewport (`?c`) is set and the open fetch fires; the stub returns two
+ * (`linked-lod2-by`), fetched around the user's OWN buildings (`ownDataAnchor`). The
+ * wrapper is an EXTERNAL host, so this STUBS its `…/lod2-by/point` response (mirroring
+ * nearby-installations / aggregations-open-tier). An owned building in Nürnberg/Bayern
+ * (with coordinates) anchors the open fetch over LoD2 coverage; the stub returns two
  * rooftops. The test asserts the open tier populates — green (`pin-open`) markers on the
  * map + the Open count — and that the open buildings are read-only (a List row with no
  * action buttons). Self-cleaning; Alice (account A).

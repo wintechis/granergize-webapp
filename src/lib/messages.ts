@@ -1856,10 +1856,10 @@ export const MESSAGES = {
     de: "Die Daten dieses offenen Gebäudes konnten nicht geladen werden.",
     fr: "Les données de ce bâtiment ouvert n'ont pas pu être chargées.",
   },
-  openBuildingsPanHint: {
-    en: "Open data loads from the map view — switch to Map and pan to an area to load open buildings there.",
-    de: "Offene Daten werden aus der Kartenansicht geladen — zur Karte wechseln und zu einem Gebiet schwenken, um dort offene Gebäude zu laden.",
-    fr: "Les données ouvertes se chargent depuis la carte — passez à la carte et déplacez-vous vers une zone pour y charger les bâtiments ouverts.",
+  openNeedsOwnBuilding: {
+    en: "Open data shows around your own buildings — add one with a location to see it.",
+    de: "Offene Daten erscheinen rund um Ihre eigenen Gebäude — fügen Sie eines mit Standort hinzu, um sie zu sehen.",
+    fr: "Les données ouvertes apparaissent autour de vos propres bâtiments — ajoutez-en un avec une localisation pour les voir.",
   },
   filterNoMatch: {
     en: "Nothing matches the current filter.",

@@ -3,6 +3,18 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-25]
+- **The open tier's map layers anchor to your own buildings (concentric), not the free
+  map viewport.** The Buildings/Observations finders' `open` layers (LoD2 rooftops, MaStR/
+  netztransparenz plants) fetched by the map viewport (`?c`/`?z`) — so panning to a city
+  you owned nothing in still showed open rows, breaking the `mine`→`open` concentric model
+  the rest of the open tier already follows (regional stats + the building-page context
+  sections derive from your own data). They now anchor to `ownDataAnchor(buildings)` — a
+  centre + radius covering your own (+ shared) buildings' bounding box — so open data is
+  always *context around your data*. Consequences (the rings semantics): panning elsewhere
+  shows no open rows, and with no located building the open tier is empty (no own data → no
+  context). Free-viewport *exploration* (browsing open data beyond your extent) is deferred
+  to an opt-in mode driven by the wrappers' server-side `/search` / `/bbox`. Removed the now-
+  unused `openViewport`/`openRadiusForZoom`.
 - **The Agents finder adopts the standard mine/shared/open source-tier facet.** It used
   a bespoke Saved/Referenced toggle (a one-off `ToggleButtonGroup`) that looked and
   behaved unlike the other finders. It now wears the shared `TierFilter` (mine/shared/open

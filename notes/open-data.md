@@ -55,17 +55,18 @@ The outer ring is **transitive**: once an external resource is dereferenced, *it
 links onward (a MaStR unit → its operator → its EEG plant in netztransparenz), so the
 ring keeps expanding one hop at a time.
 
-**Anchoring — not every discovery centres on *your* data (yet).** The
-*discovered-from-a-value* path is genuinely concentric only when the value comes from your
-own data — which holds for the Aggregations regional tier (`openRegionalItemsFromBuildings`
-— only Bundesländer where you own buildings) and the building page's
+**Anchoring — every discovery centres on *your* data.** The *discovered-from-a-value*
+path always takes the value from the user's own (+ shared) data, so the open ring is
+uniformly concentric: the Aggregations regional tier (`openRegionalItemsFromBuildings` —
+only Bundesländer where you own buildings) and the building page's
 `StandortEnergieprofil`/`RegionalStatistics`/`NeighbourhoodEnergyMap`/weather sections
-(keyed to *that building's* coordinates/region). But the map's **open buildings**
-(`useOpenBuildings`) and **open observations** (`useOpenObservations`) layers currently
-discover from the **map viewport** (`openViewport`, `?c=`/`?z=`) — "what's near where
-you're *looking*", independent of what you own (pan to a city you own nothing in, tick
-`open`, and rows appear). Re-anchoring those to your own buildings' extent — so the open
-ring is uniformly concentric — is planned.
+(keyed to *that building's* coordinates/region); and the map's **open buildings**
+(`useOpenBuildings`) + **open observations** (`useOpenObservations`) layers anchor to
+`ownDataAnchor(buildings)` — a centre + radius covering the user's own buildings' bounding
+box, NOT the free map viewport. Panning to a city you own nothing in shows no open rows;
+with no located building, the open tier is empty (no own data → no context). Free-viewport
+*exploration* (browsing open data beyond your own extent) is a separate, opt-in mode driven
+by the wrappers' server-side `/search` / `/bbox` — not built; a direction only.
 
 The **Agents** finder reads the same facet via the shared `TierFilter`, but an agent
 isn't a Pod resource with a ring of its own, so its ring is *derived* from where it

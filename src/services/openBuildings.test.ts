@@ -1,9 +1,9 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import {
-  openRadiusForZoom,
+  OPEN_BUILDINGS_RADIUS_M,
+  ownDataAnchor,
   openRooftopToBuilding,
-  openViewport,
 } from "./openBuildings.ts";
 import { type NearbyRooftop } from "./lod2Rooftop.ts";
 
@@ -34,28 +34,36 @@ Deno.test("openRooftopToBuilding: sets no label — display is the renderer's jo
   assert.equal(b.streetAddress, undefined);
 });
 
-Deno.test("openRadiusForZoom: wider view → bigger radius, clamped to [500, 20000]", () => {
-  assert.equal(openRadiusForZoom(6), 20000, "country view clamps to the max");
-  assert.equal(openRadiusForZoom(20), 500, "street view clamps to the min");
-  // A city-scale zoom sits inside the band and shrinks as you zoom in.
-  assert.ok(openRadiusForZoom(13) > openRadiusForZoom(15));
-  assert.ok(openRadiusForZoom(13) > 500 && openRadiusForZoom(13) < 20000);
-});
-
-Deno.test("openViewport: snaps the centre to a ~110 m grid + zoom radius", () => {
-  const { centre, radiusM } = openViewport(
-    new URLSearchParams("c=49.45123,11.08456&z=13"),
+Deno.test("ownDataAnchor: no located buildings → null centre (no own data to anchor to)", () => {
+  assert.deepEqual(ownDataAnchor([]), { centre: null, radiusM: OPEN_BUILDINGS_RADIUS_M });
+  assert.deepEqual(
+    ownDataAnchor([{ lat: undefined, long: undefined }, {}]),
+    { centre: null, radiusM: OPEN_BUILDINGS_RADIUS_M },
   );
-  assert.deepEqual(centre, { lat: 49.451, long: 11.085 }, "snapped to 3 decimals");
-  assert.equal(radiusM, openRadiusForZoom(13));
 });
 
-Deno.test("openViewport: no centre → null (the finder shows a 'pan the map' hint)", () => {
-  const noC = openViewport(new URLSearchParams("z=13"));
-  assert.equal(noC.centre, null);
-  assert.equal(noC.radiusM, openRadiusForZoom(13));
-  // No zoom → the fallback radius.
-  const noZ = openViewport(new URLSearchParams(""));
-  assert.equal(noZ.centre, null);
-  assert.equal(noZ.radiusM, 2000);
+Deno.test("ownDataAnchor: a single building → its point, radius floored at 2 km", () => {
+  const { centre, radiusM } = ownDataAnchor([{ lat: 49.45123, long: 11.08456 }]);
+  assert.deepEqual(centre, { lat: 49.451, long: 11.085 }, "centre snapped to 3 decimals");
+  assert.equal(radiusM, OPEN_BUILDINGS_RADIUS_M, "a zero-extent bbox floors at the minimum");
+});
+
+Deno.test("ownDataAnchor: clustered buildings → bbox centre + a covering radius", () => {
+  const { centre, radiusM } = ownDataAnchor([
+    { lat: 49.40, long: 11.00 },
+    { lat: 49.50, long: 11.10 },
+    { lat: 49.45, long: 11.05 },
+  ]);
+  assert.deepEqual(centre, { lat: 49.45, long: 11.05 }, "centre is the bbox midpoint");
+  // ~5.5 km half-diagonal → above the floor, below the ceiling.
+  assert.ok(radiusM > OPEN_BUILDINGS_RADIUS_M && radiusM < 20000);
+});
+
+Deno.test("ownDataAnchor: a spread portfolio clamps the radius to the 20 km ceiling", () => {
+  // Nürnberg + Berlin → a huge bbox; the radius caps rather than fetching all of Germany.
+  const { radiusM } = ownDataAnchor([
+    { lat: 49.45, long: 11.08 },
+    { lat: 52.52, long: 13.40 },
+  ]);
+  assert.equal(radiusM, 20000);
 });

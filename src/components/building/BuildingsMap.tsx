@@ -5,7 +5,7 @@ import { useListSearch } from "../../hooks/useListSearch.ts";
 import { useListFacet } from "../../hooks/useListFacet.ts";
 import { useOpenBuildings } from "../../hooks/openBuildings.ts";
 import { useOpenObservations } from "../../hooks/openObservations.ts";
-import { openViewport } from "../../services/openBuildings.ts";
+import { ownDataAnchor } from "../../services/openBuildings.ts";
 import { getStoredViewport, setStoredViewport } from "../../lib/mapViewport.ts";
 import { TIER_VALUES } from "../../constants/tiers.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
@@ -387,9 +387,11 @@ export default function BuildingsMap(
   // open count + list.
   const openOn = tierFacet.isSelected("open");
   const onObservation = target === "observation";
+  // Open layers are anchored to the user's OWN buildings (the concentric ring), not the
+  // free map viewport — so panning to a city you own nothing in shows no open rows.
   const { centre: openCentre, radiusM: openRadius } = useMemo(
-    () => openViewport(searchParams),
-    [searchParams],
+    () => ownDataAnchor(buildings),
+    [buildings],
   );
   const { data: openBuildings = [] } = useOpenBuildings(
     openCentre,

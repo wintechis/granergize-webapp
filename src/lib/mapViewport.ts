@@ -6,10 +6,11 @@
  * reload or a shared link). A module singleton, mirroring `networkActivity`/`devMode`.
  *
  * Read once on the map's (re-)mount to restore; written on every pan/zoom settle. The
- * `?c`/`?z` URL params stay, but only as an optional deep-link SEED and the input the
- * open-data fetch (`openViewport`) keys on — not as the in-session restore mechanism,
- * which was fragile (a fresh map's default-centre move could clobber/race the saved
- * params, snapping back to the all-buildings fit).
+ * `?c`/`?z` URL params stay, but only as an optional deep-link SEED — not as the
+ * in-session restore mechanism, which was fragile (a fresh map's default-centre move
+ * could clobber/race the saved params, snapping back to the all-buildings fit). The
+ * open-data fetch no longer keys on them — it anchors to the user's own buildings
+ * (`ownDataAnchor`, the concentric ring; see notes/open-data.md).
  */
 import type { MapCentre } from "../services/openBuildings.ts";
 

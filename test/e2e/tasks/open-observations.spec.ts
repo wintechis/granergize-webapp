@@ -1,6 +1,7 @@
 import { expect, type Page, test } from "@playwright/test";
 import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
+import { addBuilding } from "../helpers/manage.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -10,14 +11,16 @@ import { T } from "../helpers/timeouts.ts";
  * renewable installations (netztransparenz, joined to MaStR via the unit's EEG number).
  * EXTERNAL hosts, so this STUBS the three-step join: `mastr/bbox` (a nearby solar unit) →
  * `mastr/see/{id}` (its `EegMaStRNummer`) → `netztransparenz/eeg/{number}` (the settled
- * kWh/year). An owned building frames the Observations map → `?c`, so the open fetch
- * fires once the tier is ticked. Asserts the "Open generation (nearby)" row surfaces the
+ * kWh/year). The open tier is **context around your own buildings** (`ownDataAnchor`), so
+ * an owned building with coordinates near the stubbed plant anchors the open fetch once
+ * the tier is ticked. Asserts the "Open generation (nearby)" row surfaces the
  * plant + its settled kWh. Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/tasks/open-observations.spec.ts
  */
 
 const ACC = account("A");
+const ADDR = "Open Obs E2E Strasse 1";
 const CORS = { "access-control-allow-origin": "*" };
 
 // The three join hops, stubbed. A renewable (solar, carrier 2495) unit in the bbox →
@@ -105,11 +108,13 @@ test.describe("open observations (netztransparenz)", () => {
   test("the open tier surfaces nearby settled generation in the List", async () => {
     test.setTimeout(T.testSolo);
 
-    // The open tier is viewport-driven and opt-in — no owned building needed (keeping
-    // the slate clean for teardown). Preset both in the URL: a centre near the stubbed
-    // installation (`?c`) + the open tier ticked (`?tiers`), so the join fetch fires on
-    // load (bbox → see → netztransparenz, all through the stubs).
-    await page.goto("/observations?view=list&c=49.451,11.081&z=14&tiers=mine,shared,open");
+    // The open tier anchors to the user's OWN buildings (`ownDataAnchor`) — context around
+    // your data, not the free viewport. Seed one with coordinates (49.45/11.08, ~the
+    // stubbed plant at 49.451/11.081), then open the List with the open tier ticked
+    // (`?tiers`): the join fetch fires around that building (bbox → see → netztransparenz,
+    // all through the stubs).
+    await addBuilding(page, ADDR);
+    await page.goto("/observations?view=list&tiers=mine,shared,open");
 
     await expect(page.getByRole("heading", { name: t("obsOpenSection") }))
       .toBeVisible({ timeout: T.poll });

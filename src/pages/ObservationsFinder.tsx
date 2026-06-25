@@ -51,7 +51,7 @@ import TierFilter from "../components/TierFilter.tsx";
 import TierDot from "../components/TierDot.tsx";
 import { OBSERVATION_TIERS } from "../constants/tiers.ts";
 import { useOpenObservations } from "../hooks/openObservations.ts";
-import { openViewport } from "../services/openBuildings.ts";
+import { ownDataAnchor } from "../services/openBuildings.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
 import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx";
@@ -151,11 +151,13 @@ export default function ObservationsFinder() {
     tierFacet.isSelected(b.isShared ? "shared" : "mine")
   );
   // Open tier: nearby renewable installations' actually-settled generation
-  // (netztransparenz, joined via MaStR), viewport-fetched only when `open` is ticked.
+  // (netztransparenz, joined via MaStR), fetched around the user's OWN buildings (the
+  // concentric ring) only when `open` is ticked.
   // Read-only, and a SEPARATE List section (not the building-keyed cube) — like the
-  // building-less loose section — so it needs the map panned to set `?c`/`?z`.
+  // building-less loose section. Anchored to the user's OWN buildings (the concentric
+  // ring), not the free map viewport — see `ownDataAnchor`.
   const openOn = tierFacet.isSelected("open");
-  const { centre: openCentre, radiusM: openRadius } = openViewport(searchParams);
+  const { centre: openCentre, radiusM: openRadius } = ownDataAnchor(buildings);
   const { data: openObs = [] } = useOpenObservations(openCentre, openRadius, openOn);
   const filtered = filterByText(byTier, query, buildingSearchText);
   const paging = usePaging(filtered);
@@ -457,7 +459,7 @@ export default function ObservationsFinder() {
               and List-only (the building-comparison views don't plot it). */}
           {!isLoading && view === "list" && openOn && !openCentre && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
-              {t("openBuildingsPanHint")}
+              {t("openNeedsOwnBuilding")}
             </Typography>
           )}
           {!isLoading && view === "list" && openObs.length > 0 && (
