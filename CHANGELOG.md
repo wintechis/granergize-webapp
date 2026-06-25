@@ -2,6 +2,22 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-25]
+- **External-data-source notes moved out of `vocab/` into a new `sources/` directory, with
+  an overview.** The 15 per-source model-correspondence notes (`mastr.md`, `wetterdienst.md`,
+  `nuts.md`, …) had been squatting in `vocab/`, whose README declares it the source of truth
+  for **our own** three Granergize `.ttl` vocabularies — a different subject. They're now
+  `sources/<id>.md` (intra-set cross-links unaffected — they moved together), and `vocab/`
+  holds only `building.ttl`/`consumption.ttl`/`vocab.ttl` + its README. New `sources/README.md`
+  is the cross-cutting overview: every source grouped by how the app consumes it (what it
+  provides · client module · source tier · access modes), plus the access contract — every
+  source is **dereferenceable** and that (with discover-then-bulk-fetch) is the *only* mode the
+  app uses; `/sparql` is a **per-wrapper** capability (present on linked-nuts/lau/inspire/
+  regionalstatistik/osm, absent on linked-mastr/wetterdienst/lod2-by/energieatlas/netztransparenz)
+  that the app never exploits. Added a `sources/netztransparenz.md` stub (the one app source
+  that previously lacked a note). `src/constants/dataSources.ts`'s attribution registry now
+  references `sources/<id>.md` instead of the old `vocab/<id>.md` path (comment-only).
+
 ## [2026-06-24]
 - **A Wikidata entity IRI resolves as a first-class agent.** Opening `/agent?uri=<wikidata>`
   showed just the bare id, on two counts. (1) **Fetch:** the `http://…/entity/Q…` IRI 301-redirects
