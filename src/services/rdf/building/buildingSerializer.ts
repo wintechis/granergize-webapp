@@ -971,6 +971,13 @@ export function annualDatasetsFromFields(
     }
     const renew = num(fields[`_inv_renew_${year}`]);
     if (renew !== undefined) metrics.renewableSelfGeneratedShare = renew;
+    // Electricity generated/fed in that year. Like `_inv_renew`, a serializer-only
+    // field — NOT an `INV_YEAR_ROW_STEMS` row, so it stays out of the partner XLSX
+    // import/export. It joins the SAME per-year actual dataset as consumption (the
+    // cube reads `electricityGeneration` off the year as a selectable measure axis;
+    // a separate dataset would clash on `byYear.set(year, …)` in useAnnualEnergyByYear).
+    const gen = num(fields[`_inv_gen_${year}`]);
+    if (gen !== undefined) metrics.electricityGeneration = gen;
     annual(year, metrics);
   }
 
@@ -1408,6 +1415,11 @@ const DEMO_INVESTOR_2: DemoSpec = {
     _inv_elec_2022: "210000", _inv_elec_2023: "205000", _inv_elec_2024: "198000",
     _inv_heat_2022: "60000", _inv_heat_2023: "58000", _inv_heat_2024: "55000",
     _inv_water_2022: "640", _inv_water_2023: "660", _inv_water_2024: "650",
+    // The 480 kWp rooftop PV's annual yield (commissioned 2019): the one demo
+    // building carrying electricity GENERATION, so the map's generation lens
+    // (`metricElectricityGeneration`, magnitude-framed) has data to colour — a
+    // building the consumption lens leaves blank surfaces under generation.
+    _inv_gen_2022: "452000", _inv_gen_2023: "458000", _inv_gen_2024: "449000",
   },
 };
 

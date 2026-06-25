@@ -506,6 +506,30 @@ Deno.test("annualDatasetsFromFields converts _inv_*/_bsp_* fields to annual P1Y 
   assert.equal(y2024!.metrics!.waterConsumption, 1500);
 });
 
+Deno.test("annualDatasetsFromFields folds _inv_gen into the SAME year's actual dataset (electricityGeneration)", () => {
+  const subj = `${newBuildingUri(WEBID, "b-1")}#b-1`;
+  const ds = annualDatasetsFromFields(subj, {
+    _inv_elec_2024: "198000",
+    _inv_gen_2024: "449000",
+  });
+
+  // One actual P1Y dataset for 2024 carrying BOTH consumption and generation —
+  // a separate dataset would clash on `byYear.set(year, …)` in useAnnualEnergyByYear,
+  // so the generation lens needs them merged on the one year.
+  const y2024 = ds.filter((d) => d.year === 2024 && d.scenario === "actual");
+  assert.equal(y2024.length, 1, "exactly one actual 2024 dataset");
+  assert.equal(y2024[0].metrics!.electricityConsumption, 198000);
+  assert.equal(y2024[0].metrics!.electricityGeneration, 449000);
+});
+
+Deno.test("annualDatasetsFromFields: a year with ONLY _inv_gen still yields a generation dataset", () => {
+  const subj = `${newBuildingUri(WEBID, "b-1")}#b-1`;
+  const ds = annualDatasetsFromFields(subj, { _inv_gen_2023: "452000" });
+  const y2023 = ds.find((d) => d.year === 2023);
+  assert.ok(y2023, "a _inv_gen-only year is still picked up");
+  assert.equal(y2023!.metrics!.electricityGeneration, 452000);
+});
+
 Deno.test("serializeBuildingToTurtle round-trips investor operating costs", () => {
   const uri = newBuildingUri(WEBID, "b-1");
   const ttl = serializeBuildingToTurtle({
