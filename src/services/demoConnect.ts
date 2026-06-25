@@ -104,7 +104,10 @@ export async function seedDemoRooms(
   const rooms: string[] = [];
   for (let i = 0; i < count; i++) {
     try {
-      rooms.push(await createRoom(gateway));
+      // makeCurrent=false: a bulk seed must not make each room "current" — that
+      // rewrites the single-valued prefs.ttl pointer per room, racing the
+      // concurrent buildings seed's prefs write and dropping rooms (a partial).
+      rooms.push(await createRoom(gateway, undefined, false));
     } catch (err) {
       logError("seed demo data room", err);
     }

@@ -98,10 +98,13 @@ test.describe("cube calendar heatmap + weather overlay", () => {
     // The grid carries an hour axis label — the day × hour collapse is on screen.
     await expect(page.getByText(new RegExp(`${t("calendarAxisHour")}\\s*→`)))
       .toBeVisible({ timeout: T.action });
-    // …and the Less → More intensity legend.
-    await expect(page.getByText(t("calendarLegendLess")))
+    // …and the Less → More intensity legend. `exact` is required: the observation
+    // page also carries the energy-band legend ("Plus faible"/"Plus élevé") and the
+    // regional zoom hint ("…régions plus fines"), so a substring "Plus" now matches
+    // four nodes — the calendar caption is the one that reads exactly "Plus".
+    await expect(page.getByText(t("calendarLegendLess"), { exact: true }))
       .toBeVisible({ timeout: T.action });
-    await expect(page.getByText(t("calendarLegendMore")))
+    await expect(page.getByText(t("calendarLegendMore"), { exact: true }))
       .toBeVisible({ timeout: T.action });
   });
 

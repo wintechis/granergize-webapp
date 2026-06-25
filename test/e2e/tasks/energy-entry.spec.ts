@@ -262,8 +262,10 @@ test.describe("energy entry + Soll-Ist", () => {
     await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
 
-    // 4) The PV scope lists the year (the editor's table is the only one on the page).
-    const table = page.getByRole("table");
+    // 4) The PV scope lists the year. The editor's table is the FIRST table on the page;
+    // the per-unit observations section (which also surfaces this PV figure) renders a
+    // second table below it, so scope to `.first()` to avoid a strict-mode match.
+    const table = page.getByRole("table").first();
     const pvRow = table.getByRole("row", { name: new RegExp(`\\b${PV_YEAR}\\b`) });
     await expect(pvRow).toBeVisible({ timeout: T.action });
 

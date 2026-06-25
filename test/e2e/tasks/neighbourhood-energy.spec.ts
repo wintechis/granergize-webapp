@@ -113,7 +113,7 @@ test.describe("neighbourhood energy choropleth", () => {
     await page.close();
   });
 
-  test("the building page shows the neighbour-Gemeinde rooftop-PV choropleth", async () => {
+  test("the observation page shows the neighbour-Gemeinde rooftop-PV choropleth", async () => {
     test.setTimeout(T.testSolo);
 
     await addBuilding(page, ADDR); // fills region "Bayern" + Nürnberg coords
@@ -123,7 +123,9 @@ test.describe("neighbourhood energy choropleth", () => {
     if (!buildingId) throw new Error("neighbourhood-energy: missing building id");
     id = buildingId;
 
-    await page.goto(buildingRoute("building", id));
+    // The neighbourhood choropleth is a building-location context layer on the observation
+    // surface (sibling to weather + regional stats), not the bare master-data /building page.
+    await page.goto(buildingRoute("observation", id));
 
     // The widget renders its section title + a Leaflet map of the neighbour Gemeinden.
     await expect(page.getByText(t("neighbourhoodTitle"))).toBeVisible({ timeout: T.action });

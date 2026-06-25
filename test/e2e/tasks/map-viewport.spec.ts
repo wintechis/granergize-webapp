@@ -3,18 +3,23 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
+import { t } from "../helpers/i18n.ts";
 
 /**
  * The map viewport is PRESERVED COMPONENT STATE (notes/ui-state.md §Preserved component
- * state): drilling into a standalone, shell-less detail route unmounts the finder, but
- * the `mapViewport` module store outlives it, so returning restores the exact view
- * instead of snapping to the all-buildings fit.
+ * state): navigating away from the Buildings finder unmounts the map, but the in-memory
+ * `mapViewport` module store outlives the unmount, so returning restores the exact view
+ * instead of snapping to the all-buildings fit. (A standalone detail drill is one such
+ * unmount; switching finders is the same in-memory case, and simpler to isolate.)
  *
- * This test ISOLATES the store: it returns to the finder via a URL with NO `?c`/`?z`, so
- * the only thing that can restore the viewport is the surviving store — not the URL
- * params (the old, fragile mechanism). The map writes its centre with 5 decimals
- * (`toFixed(5)`), distinct from the seed's `50.0`, so the assertion waits for the MAP's
- * own write, not the goto. Self-cleaning; Alice (account A).
+ * The away-and-back MUST be CLIENT-SIDE (react-router `navigate`, here via tab clicks),
+ * never `page.goto` — a `page.goto` reloads the document and resets the module singleton,
+ * which is exactly the in-memory state under test (it is NOT persisted, so it must not
+ * survive a reload). This test ISOLATES the store: it returns to the finder via a URL with
+ * NO `?c`/`?z`, so the only thing that can restore the viewport is the surviving store —
+ * not the URL params (the old, fragile mechanism). The map writes its centre with 5
+ * decimals (`toFixed(5)`), distinct from the seed's `50.0`, so the assertion waits for the
+ * MAP's own write, not the goto. Self-cleaning; Alice (account A).
  *
  *   deno task e2e:local test/e2e/tasks/map-viewport.spec.ts
  */
@@ -47,7 +52,7 @@ test.describe("map viewport preservation", () => {
     await page.close();
   });
 
-  test("the map restores its viewport from the store after a detail drill", async () => {
+  test("the map restores its viewport from the store after navigating away and back", async () => {
     test.setTimeout(T.testSolo);
 
     // 1. Seed a distinct viewport on the Buildings map. The map applies it and writes the
@@ -56,14 +61,19 @@ test.describe("map viewport preservation", () => {
     await page.goto("/buildings?c=50.0,11.5&z=14");
     await expect(page).toHaveURL(SEEDED, { timeout: T.poll });
 
-    // 2. Drill into a standalone, shell-less detail route — this UNMOUNTS the finder + map.
-    await page.goto("/building?ref=map-viewport-e2e");
-    await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
+    // 2. Navigate away CLIENT-SIDE (a tab click → react-router `navigate`, NOT a
+    //    `page.goto`) so the finder + map UNMOUNT while the in-memory `mapViewport` store
+    //    survives. A `page.goto` would RELOAD the document and reset the module singleton —
+    //    defeating the very in-memory preservation under test (the store is preserved
+    //    component state, not persisted storage, so it must NOT outlive a reload).
+    await page.getByRole("tab", { name: t("navObservations") }).click();
+    await expect(page).toHaveURL(/\/observations/, { timeout: T.action });
 
-    // 3. Return to the finder via a URL with NO `?c`/`?z`. The map re-mounts; only the
-    //    surviving store can restore the viewport, which the map then writes back.
-    //    Without the store, the map would default to Germany / fit the markers — never 50.0.
-    await page.goto("/buildings?space=map");
+    // 3. Return to the Buildings finder via the tab → `/buildings` with NO `?c`/`?z`, so the
+    //    only thing that can restore the viewport is the surviving store, not URL params.
+    //    The map re-mounts and writes the restored centre back. Without the store, the map
+    //    would default to Germany / fit the markers — never 50.0.
+    await page.getByRole("tab", { name: t("navBuildings") }).click();
     await expect(page).toHaveURL(SEEDED, { timeout: T.poll });
   });
 });

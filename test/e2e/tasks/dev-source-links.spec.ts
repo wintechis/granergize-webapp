@@ -11,6 +11,7 @@ import { setDevMode } from "../helpers/accountMenu.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
+import { t } from "../helpers/i18n.ts";
 
 /**
  * Developer-mode source links for the THREE external observation wrappers
@@ -133,13 +134,15 @@ test.describe("dev-mode external source links", () => {
     if (!id) throw new Error("dev-source-links: missing building id");
 
     // Each section surfaces the ACTUAL dereferenced wrapper IRI (absolute, external).
-    // The regionalstatistik figures live on the BUILDING page (its place/statistics
-    // content); weather + nearby-installations stay on the observation (energy) page.
+    // The building's location-context layers — regional statistics, weather, nearby
+    // installations — ALL live on the observation (energy) page now; the bare master-data
+    // /building page carries no dereferenced wrapper IRIs. The regional figures are
+    // map-first, so switch to the figures table to surface its source link.
     const regioLink = 'a[href^="https://wunderfacts.com/regionalstatistik/data/86251-Z-02"]';
-    const onBuilding = { regionalstatistik: regioLink };
     const onObservation = {
       weather: 'a[href^="https://wunderfacts.com/wetterdienst/values?"]',
       mastr: 'a[href^="https://wunderfacts.com/mastr/bbox?"]',
+      regionalstatistik: regioLink,
     };
     const assertLinks = async (where: Record<string, string>) => {
       for (const [name, sel] of Object.entries(where)) {
@@ -152,18 +155,20 @@ test.describe("dev-mode external source links", () => {
         await expect(link).toHaveAttribute("rel", /noopener/);
       }
     };
-    await page.goto(buildingRoute("building", id));
-    await assertLinks(onBuilding);
+    // Reveal the regional figures table (map-first) so its dev source link renders.
+    const showRegionalTable = () =>
+      page.getByRole("button", { name: t("btnTable"), exact: true }).click();
     await page.goto(buildingRoute("observation", id));
+    await showRegionalTable();
     await assertLinks(onObservation);
 
     // Sanity: the same links are HIDDEN once dev mode is off (self-hiding affordance).
     await page.goto("/");
     await setDevMode(page, false);
-    await page.goto(buildingRoute("building", id));
-    await expect(page.locator(onBuilding.regionalstatistik)).toHaveCount(0);
     await page.goto(buildingRoute("observation", id));
+    await showRegionalTable();
     await expect(page.locator(onObservation.mastr)).toHaveCount(0);
+    await expect(page.locator(onObservation.regionalstatistik)).toHaveCount(0);
 
     // Cleanup.
     await page.goto("/");
