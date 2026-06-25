@@ -9,6 +9,34 @@ path it shares), [`weather.md`](./weather.md) (one such queried source),
 and [`building-detail.md`](./building-detail.md) (the building page's open-context
 sections).
 
+## The concentric model
+
+The three tiers are concentric rings around the user, ordered by **write-authority then
+gate**:
+
+- **Center (`mine`)** — the user's own Pod data; they authored it and may write it.
+- **Next ring (`shared`)** — data on *other* Pods, WAC-gated and addressed *to them*
+  through the `shared-in/` log; read-only but still private (someone granted it).
+- **Outer ring (`open`)** — public, ungated, off-Pod Linked Data, pulled in only as
+  context; never owned, never written.
+
+The outer ring is reached from the inner two **two ways** — only the first is literally
+"linked from" your data:
+
+- **Followed links** — an IRI that sits *in* the Pod (or shared) graph: `rec:operatedBy`
+  / `rec:ownedBy` / `owl:sameAs` → an agent profile, a Wikidata entity. You follow the
+  edge (see [`data-deref.md`](./data-deref.md) §"Resolving references").
+- **Discovered/constructed from a value** — the nearby MaStR plants, LoD2 rooftops, the
+  weather station, the regional-statistics table. Not linked from your data; found from a
+  *value* in it — the building's coordinates (`/bbox` / `/point` / `/contains`) or its AGS
+  (constructible `data/{tableId}`). The Pod supplies the value; discovery or a URI
+  template mints the IRI (the access modes are catalogued in
+  [`../sources/README.md`](../sources/README.md) §"Capability vocabulary").
+
+The outer ring is **transitive**: once an external resource is dereferenced, *its* graph
+carries links onward (a MaStR unit → its operator → its EEG plant in netztransparenz), so
+the ring keeps expanding one hop at a time through links in external data.
+
 ## The source-tier ladder
 
 Every collection finder filters its rows by a multi-select **source tier**

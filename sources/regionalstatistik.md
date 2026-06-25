@@ -8,6 +8,22 @@ Turtle). The app reads it through `src/services/regionalCube.ts` (with
 shares the LDP/RDF patterns catalogued in `mastr.md`; this note records the
 cube-specific part and the convergence with our SOSA model.
 
+## Access path
+
+**Curated catalogue + constructible deref** — no discovery call, no SPARQL (the wrapper
+exposes `/sparql`, but the app never uses it; see `README.md` §"Capability vocabulary").
+The app holds a hardcoded table registry (`REGIONAL_TABLES` in `regionalCube.ts`:
+`{tableId, dimensions, geo style, unit}`), so the table IRIs are known up front;
+`regionalTableDataUrl(tableId)` builds the constructible path **`<base>data/{tableId}`**
+and GETs the whole table as Turtle (`trackedFetch`, CORS-direct). *Which* region to show
+is derived **from the user's buildings** — their coordinates → AGS — at no network cost
+(`openRegional.ts` / `regional.ts`). Two reads, both whole-table deref + in-memory
+projection: `fetchRegionalObservations(table, ags)` filters one region's **year-series**
+(building-page panel), `fetchRegionalChoropleth(table)` takes the **latest value per
+region** (the Aggregations map choropleth). Region identity is itself constructible —
+`…/ags/{code}` or `…/cl/{scheme}#{code}` (`regionalGeoUrl`) — with `cl/geo` fetched once
+to resolve AGS → Kreis name.
+
 ## Entities and vocabulary (Data Cube)
 
 - **`qb:DataSet`** per table (`data/{tableId}`), with `qb:structure` →
