@@ -14,7 +14,8 @@ import OpenInNewIcon from "@mui/icons-material/OpenInNew";
 import type { SxProps, Theme } from "@mui/material/styles";
 import { safeHref } from "../../lib/safeHref.ts";
 import { useDevMode } from "../../hooks/devMode.ts";
-import { useBackNavigation } from "../../hooks/backNavigation.ts";
+import { useNavTrail, useTrailState } from "../../hooks/navTrail.ts";
+import { backTarget, HOME } from "../../routes.ts";
 
 /**
  * Shared building blocks for detail views (buildings, agents, energy, weather)
@@ -123,15 +124,26 @@ interface RefLinkProps {
   to?: string;
   /** In-place navigation handler; renders the link as a button instead. */
   onClick?: () => void;
+  /**
+   * Whether to record the current location on the destination's navigation trail
+   * (only when `to` is a detail route — see {@link useTrailState}). Default `true`,
+   * so a finder/detail link lets the target's back affordance return here. A back
+   * link sets it `false`: a back navigation manages the trail itself.
+   */
+  stamp?: boolean;
   children: ReactNode;
 }
 
 /**
  * A link to a relative reference that stays inside the app. Navigates via the
  * client-side router (or an in-place handler) and carries the default link
- * style — no external marker, because it never leaves the app.
+ * style — no external marker, because it never leaves the app. A link to a detail
+ * page records the current location on the destination's navigation trail (in
+ * history state, not the URL) so its back affordance returns here (see
+ * {@link useTrailState}, {@link BackLink}).
  */
-export function RefLink({ to, onClick, children }: RefLinkProps) {
+export function RefLink({ to, onClick, children, stamp = true }: RefLinkProps) {
+  const trailState = useTrailState();
   if (onClick) {
     return (
       <Link
@@ -144,17 +156,35 @@ export function RefLink({ to, onClick, children }: RefLinkProps) {
       </Link>
     );
   }
+  const state = to && stamp ? trailState(to) : undefined;
   return (
-    <Link component={RouterLink} to={to ?? ""}>
+    <Link component={RouterLink} to={to ?? ""} state={state}>
       {children}
     </Link>
   );
 }
 
-/** The detail pages' standard back link — see {@link useBackNavigation}. */
-export function BackLink() {
-  const goBack = useBackNavigation();
-  return <RefLink onClick={goBack}>🠠 Back</RefLink>;
+/**
+ * The detail pages' standard back link: a real relative reference back to the most
+ * recent location on the navigation trail (carried in history state — so it returns
+ * to where the user actually came from), falling back to the page's collection
+ * finder for a deep link / fresh tab / shared URL with no trail. Pressing back
+ * repeatedly walks the chain by handing the destination the remaining trail. See
+ * {@link backTarget}.
+ */
+export function BackLink({ fallback = HOME }: { fallback?: string }) {
+  const trail = useNavTrail();
+  const target = backTarget(trail, fallback);
+  const rest = trail.slice(0, -1);
+  return (
+    <Link
+      component={RouterLink}
+      to={target}
+      state={rest.length ? { trail: rest } : undefined}
+    >
+      🠠 Back
+    </Link>
+  );
 }
 
 /**

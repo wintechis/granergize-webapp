@@ -27,10 +27,19 @@ const VIEWS: ReadonlySet<string> = new Set<ObsView>([
   "overyears",
 ]);
 
-/** Read the view from `?view=`; unknown/absent → the default (the geographic map). */
-export function resolveView(params: URLSearchParams): ObsView {
+/**
+ * Read the view from `?view=`; when absent, fall back to `fallback` (the
+ * session-remembered view) if it is a known view, else the default (the geographic
+ * map). An unknown URL value is ignored either way.
+ */
+export function resolveView(
+  params: URLSearchParams,
+  fallback?: string | null,
+): ObsView {
   const raw = params.get("view");
-  return VIEWS.has(raw ?? "") ? (raw as ObsView) : DEFAULT_VIEW;
+  if (VIEWS.has(raw ?? "")) return raw as ObsView;
+  if (fallback && VIEWS.has(fallback)) return fallback as ObsView;
+  return DEFAULT_VIEW;
 }
 
 /** Serialize the view to `?view=`, omitting the default (clean links) and preserving

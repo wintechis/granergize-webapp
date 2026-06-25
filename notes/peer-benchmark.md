@@ -53,7 +53,7 @@ independently: all that apply are shown together, not collapsed into a single
 preferred figure. For each metric the benchmark cell takes the value from the newest
 received snapshot that carries it (`pickBenchmark`); only the four annual-consumption
 metrics can carry a benchmark, so the remaining columns show an em-dash. The
-computing BSP is surfaced as an agent reference, routed through the in-app contact
+computing BSP is surfaced as an agent reference, routed through the in-app agent
 detail view.
 
 ## Three comparison cases

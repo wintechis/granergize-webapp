@@ -54,6 +54,25 @@ export async function assertCleanStart(page: Page, tag = ""): Promise<void> {
   ).toBe(0);
 }
 
+/**
+ * Clear the finder view/tier **session memory** (`granergize.facet.*` in
+ * `sessionStorage` — see `src/lib/facetMemory.ts`) so each test starts from the
+ * hardcoded defaults (Map; own + shared). The sticky facet/view otherwise leaks a
+ * sibling test's choice within a serial spec's shared context — e.g. one test leaving
+ * `?space=rows` makes a later `goto("/buildings")` open the List, not the Map. Clears
+ * ONLY our keys: inrupt's auth session also lives in `sessionStorage`, so a blanket
+ * `sessionStorage.clear()` would log the page out. Wire it as a `test.beforeEach` in
+ * any serial spec that toggles a view/tier. No-op on a closed page / before navigation.
+ */
+export async function clearFinderMemory(page: Page): Promise<void> {
+  if (page.isClosed()) return;
+  await page.evaluate(() => {
+    for (const k of Object.keys(globalThis.sessionStorage ?? {})) {
+      if (k.startsWith("granergize.facet.")) sessionStorage.removeItem(k);
+    }
+  }).catch(() => {});
+}
+
 /** Count what the logged-in account's collection currently surfaces, and log it. */
 export async function logCollectionState(
   page: Page,

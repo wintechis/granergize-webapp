@@ -146,8 +146,8 @@ escalation:
 - **Direct (By WebID)** — the default. The sharer enters the WebID; discovery
   happened *out-of-band* (the recipient told them). Simple and infrastructure-free,
   but limited to agents already known, and addressing a group means enumerating it
-  by hand. Contacts smooth this path without being a discovery model of their own:
-  `contacts.ttl` caches agents *already* discovered (manual saves plus the
+  by hand. Saved agents smooth this path without being a discovery model of their own:
+  `agents.ttl` caches agents *already* discovered (manual saves plus the
   auto-remember of agents referenced in building data); it never finds new ones.
 - **Data room (By role)** — the escalation, when the counterparties aren't known
   pairwise or the target is a group. Discovery moves *in-band*: a room

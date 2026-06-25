@@ -1,4 +1,9 @@
 import { useSearchParams } from "react-router-dom";
+import {
+  effectiveFacetDefault,
+  rememberedFacet,
+  rememberFacet,
+} from "../lib/facetMemory.ts";
 
 export interface ListFacet {
   /** The currently-selected values (a subset of `allValues`, order preserved). */
@@ -32,24 +37,34 @@ export function useListFacet(
   const facetParam = key ? `${key}_${param}` : param;
   const offsetParam = key ? `${key}_offset` : "offset";
 
-  // The default selection: every source EXCEPT `open` (opt-in). If a facet has only
+  // The hardcoded default: every source EXCEPT `open` (opt-in). If a facet has only
   // `open`, fall back to it so the union is never empty.
   const withoutOpen = allValues.filter((v) => v !== "open");
   const baseDefault = withoutOpen.length > 0 ? withoutOpen : [...allValues];
+  // When the URL says nothing, fall back to the LAST activated set (remembered for
+  // this session — facetMemory.ts) instead of the hardcoded default, so re-entering a
+  // finder via its nav tab restores the buttons you had. A deep link / Back (URL
+  // present) still wins below.
+  const effectiveDefault = effectiveFacetDefault(
+    rememberedFacet(facetParam),
+    baseDefault,
+    allValues,
+  );
 
   const raw = searchParams.get(facetParam);
-  // Absent (or no recognised value) → the default. Otherwise the stated subset,
-  // intersected with the known values (a hand-edited junk value is dropped).
+  // Absent (or no recognised value) → the remembered/default. Otherwise the stated
+  // subset, intersected with the known values (a hand-edited junk value is dropped).
   const fromUrl = raw
     ? raw.split(",").filter((v) => allValues.includes(v))
     : [];
   const selected = fromUrl.length > 0
     ? allValues.filter((v) => fromUrl.includes(v))
-    : baseDefault;
+    : effectiveDefault;
 
   const replace = (values: string[]) => {
     const next = allValues.filter((v) => values.includes(v));
     if (next.length === 0) return; // guard: never empty the union
+    rememberFacet(facetParam, next); // remember the activated set for the next visit
     setSearchParams((prev) => {
       const sp = new URLSearchParams(prev);
       // Clean URL only when `next` IS the default (open off, the rest on); otherwise

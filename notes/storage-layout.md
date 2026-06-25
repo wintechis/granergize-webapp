@@ -187,9 +187,16 @@ WebID is recorded as `owl:sameAs`.
 Distinct from **building agents** (`bldg:investor` / `rec:operatedBy` /
 `schema:customer` → agent IRIs), which are dereferenced **on demand** by the agent
 resolver (`resolveAgent` / `resolveAgentOrg`) for a name, logo and contact details —
-driving the producer/operator org name + logo in the map marker's hover card. There
-is no separate agent data source on the Pod (the old unused `agents.ttl` registry
-source is gone).
+driving the producer/operator org name + logo in the map marker's hover card. An
+app-created building's agents are WebIDs (resolved from their own profile). A **bulk
+importer** (the logistik generator) instead **mints** each operator as a shared
+`agents/<slug>.ttl` doc (`foaf:Organization` + `foaf:name` + `owl:sameAs` its
+Wikidata/MaStR identity + a basic `vcard:hasAddress` snapshotted from the operator's
+MaStR record) and points `rec:operatedBy` at it via a relative reference, so
+the same operator dedups across buildings and resolves from local Pod data without a
+CORS-blocked external fetch — mirroring how energy datasets are minted under
+`observations/`. (The old unused `agents.ttl` *registry* source is gone — separate from
+the `agents.ttl` address-book file above.)
 
 ## Load flow
 

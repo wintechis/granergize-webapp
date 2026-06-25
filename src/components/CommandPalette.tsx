@@ -39,6 +39,7 @@ import { getGateway } from "../hooks/session.ts";
 import { queryByName } from "../intents/registry.ts";
 import { LaunchError, parseLaunch } from "../intents/launch.ts";
 import { goTo } from "../intents/navigate.ts";
+import { useTrailState } from "../hooks/navTrail.ts";
 import {
   translateToIntentJson,
   TranslateError,
@@ -141,6 +142,10 @@ export default function CommandPalette() {
   const t = useT();
   const devMode = useDevMode();
   const navigate = useNavigate();
+  const trailState = useTrailState();
+  // Navigate, recording the location the palette was opened from as the back trail
+  // (history state) when the target is a detail page — same as a finder row / marker.
+  const go = (route: string) => navigate(route, { state: trailState(route) });
   const { focus } = usePaletteFocus();
   const invokeIntent = useInvokeIntent();
   const buildings = useBuildings();
@@ -320,7 +325,7 @@ export default function CommandPalette() {
       }
       const route = goTo(parsed.name, params);
       close();
-      void navigate(route);
+      void go(route);
     } catch (e) {
       setLaunchError((e as Error).message);
     }
@@ -373,7 +378,7 @@ export default function CommandPalette() {
     }
     close();
     if (cmd.family === "navigation" && cmd.path) {
-      void navigate(cmd.path);
+      void go(cmd.path);
       return;
     }
     if (cmd.family === "intent" && cmd.entry) {
@@ -386,7 +391,7 @@ export default function CommandPalette() {
         const route = dialogRoute(cmd.entry, focus.object);
         if (!route) return;
         const action = intentDialogAction(cmd.entry);
-        void navigate(action ? withAction(route, action) : route);
+        void go(action ? withAction(route, action) : route);
         return;
       }
       // Param-less verb: fire the surface's registered handler directly.

@@ -5,7 +5,7 @@ import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { setDevMode } from "../helpers/accountMenu.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
 import { buildingIds, buildingRoute, openBuildingsList } from "../helpers/manage.ts";
-import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, clearFinderMemory, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -43,6 +43,12 @@ test.describe("redesign: building page", () => {
     const ids = await buildingIds(page);
     id = ids[0] ?? "";
     expect(id, "a demo building exists after seeding").toBeTruthy();
+  });
+
+  test.beforeEach(async () => {
+    // The finder view/tier session memory is sticky; reset it so each test starts from
+    // the hardcoded defaults (a sibling test's toggle must not leak in).
+    await clearFinderMemory(page);
   });
 
   test.afterAll(async () => {

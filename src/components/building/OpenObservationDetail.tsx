@@ -17,6 +17,7 @@ import {
   RdfSourceLink,
   SectionTitle,
 } from "../detail/DetailView.tsx";
+import { FINDERS } from "../../routes.ts";
 
 /**
  * The in-app, READ-ONLY detail for an open observation — a renewable PLANT drilled to
@@ -46,7 +47,7 @@ export default function OpenObservationDetail({ iri }: { iri: string }) {
     : [SOURCES.mastr];
   return (
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
-      <BackLink />
+      <BackLink fallback={FINDERS.observations} />
       {isLoading && (
         <Typography variant="body2">{t("loadingEllipsis")}</Typography>
       )}

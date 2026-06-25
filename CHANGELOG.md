@@ -2,6 +2,45 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-25]
+- **The Agents finder adopts the standard mine/shared/open source-tier facet.** It used
+  a bespoke Saved/Referenced toggle (a one-off `ToggleButtonGroup`) that looked and
+  behaved unlike the other finders. It now wears the shared `TierFilter` (mine/shared/open
+  with the tier-colour dots + counts), so the tab matches Buildings/Observations/
+  Aggregations. An agent has no Pod resource of its own, so its tier is **derived**
+  (`referencedAgentTiers`): in the address book or referenced by an OWN building → `mine`,
+  only on a building shared WITH you → `shared` (an agent can be both); `open` empty for
+  now. The referenced set now also includes a building's **technical-system operators**
+  (`<#pv>`/`<#chp>` `rec:operatedBy`, the Anlagenbetreiber distinct from the building's),
+  so bulk-imported plant operators surface — not just building-level roles. Save/remove
+  stays a per-row action (curation, orthogonal to tier). (Supersedes the 2026-06-24
+  Saved/Referenced facet.)
+- **Detail-page Back returns to where you came from, via a navigation trail — not a
+  history pop.** A detail page either hard-linked to its collection (the building page's
+  "← Buildings" always went to `/buildings`) or used `navigate(-1)` (an opaque pop):
+  following an agent's `operatedBy` into a building, then Back, landed on the Buildings
+  finder, not the agent. Each in-app navigation now records where it came from as a
+  **trail in History API state** (`location.state`, not the URL); the back link returns
+  to the most recent entry — the real referrer — falling back to the page's finder for a
+  deep link / fresh tab, and walking the full chain on repeated Back. It survives a reload
+  (history state persists) and a copied/shared link carries no trail (so its Back goes to
+  the finder, not a stranger's path). Replaces `useBackNavigation`/`navigate(-1)`.
+- **Finder view selectors persist for the browsing session.** The source-tier facet
+  (mine/shared/open) and the view axis (Buildings map/list; Observations map/list/
+  over-time/over-years; Aggregations list/map/timeline) reset to their default every time
+  you re-entered a finder via its nav tab, because they live only in the URL (absent =
+  default). They're now remembered per session in `sessionStorage` (`facetMemory.ts`),
+  read **URL > remembered > default** — so a deep link / Back still wins, but a bare
+  nav-tab re-entry restores your last choice. `sessionStorage` (per-tab, cleared on close)
+  is deliberate: not a module variable (lost on reload), not `localStorage` (kept
+  forever), not `prefs.ttl` (cross-device); a convenience for this session.
+- **Observations List rows expose their backing dataset IRIs in Developer mode.** The
+  Buildings finder showed each row's building IRI as a dev-mode source link; the
+  Observations finder's rows showed none. Each building-linked row now lists its energy
+  dataset IRI(s) (`observations/{year}/{id}.ttl#ds`) and each building-less row its
+  dataset IRI, via the self-hiding `RdfSourceLink` — matching the Buildings finder
+  (Developer mode only; nothing changes in the normal UI).
+
 ## [2026-06-24]
 - **A Wikidata entity IRI resolves as a first-class agent.** Opening `/agent?uri=<wikidata>`
   showed just the bare id, on two counts. (1) **Fetch:** the `http://…/entity/Q…` IRI 301-redirects

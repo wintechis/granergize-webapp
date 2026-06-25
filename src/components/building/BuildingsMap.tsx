@@ -12,6 +12,7 @@ import { buildingPin } from "../../lib/buildingPin.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { buildingRoute, observationRoute } from "../../routes.ts";
+import { useTrailState } from "../../hooks/navTrail.ts";
 import { BuildingType } from "../../types.ts";
 import {
   MapContainer,
@@ -364,6 +365,9 @@ export default function BuildingsMap(
 ) {
   const { buildings, error } = useSolidData();
   const navigate = useNavigate();
+  const trailState = useTrailState();
+  // Drill into a detail page, recording the map as the back trail (history state).
+  const go = (route: string) => navigate(route, { state: trailState(route) });
   const t = useT();
   const [searchParams, setSearchParams] = useSearchParams();
   // Search + tier facet are collection-level: the CONTROLS live once in
@@ -537,7 +541,7 @@ export default function BuildingsMap(
   // Navigate to a building's detail page — the map is a pure finder, so a
   // marker click leaves the map for `/building/:id` (the same as a List row).
   const openBuilding = (id: string) =>
-    navigate(target === "observation" ? observationRoute(id) : buildingRoute(id));
+    go(target === "observation" ? observationRoute(id) : buildingRoute(id));
 
   return (
     // No padding: the map fills the finder's fixed 480px frame flush, matching
@@ -622,7 +626,7 @@ export default function BuildingsMap(
               icon={buildingPin(false, true)}
               eventHandlers={{
                 click: () => {
-                  void navigate(buildingRoute(b.uri));
+                  void go(buildingRoute(b.uri));
                 },
               }}
             >
@@ -645,7 +649,7 @@ export default function BuildingsMap(
               icon={buildingPin(false, true)}
               eventHandlers={{
                 click: () => {
-                  void navigate(observationRoute(o.iri));
+                  void go(observationRoute(o.iri));
                 },
               }}
             >

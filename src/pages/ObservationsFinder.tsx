@@ -45,6 +45,7 @@ import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
+import { rememberedValue, rememberValue } from "../lib/facetMemory.ts";
 import SearchField from "../components/SearchField.tsx";
 import TierFilter from "../components/TierFilter.tsx";
 import TierDot from "../components/TierDot.tsx";
@@ -104,9 +105,13 @@ export default function ObservationsFinder() {
   const { buildings, isLoading } = useSolidData();
   const t = useT();
   const [searchParams, setSearchParams] = useSearchParams();
-  const view = resolveView(searchParams);
-  const setView = (next: typeof view) =>
+  // The view axis sticks for the session (like the tier facet): URL > remembered >
+  // default. A nav-tab re-entry (bare URL) restores the last map/list/… you chose.
+  const view = resolveView(searchParams, rememberedValue("view"));
+  const setView = (next: typeof view) => {
+    rememberValue("view", next);
     setSearchParams((prev) => viewToParams(next, prev));
+  };
   const metric = clampMetric(searchParams.get("m"));
   const setMetric = (m: string) =>
     setSearchParams((prev) => {
@@ -353,7 +358,13 @@ export default function ObservationsFinder() {
           {!isLoading && view === "list" && filtered.length > 0 && (
             <>
               <Box component="ul" sx={{ listStyle: "none", pl: 0, m: 0 }}>
-                {paging.pageItems.map((b) => (
+                {paging.pageItems.map((b) => {
+                  // The backing observation resources (dev-only source links, like the
+                  // building IRI in the Buildings finder): one per energy dataset
+                  // (`observations/{year}/{id}.ttl#ds`). RdfSourceLink self-hides
+                  // outside Developer mode.
+                  const refs = b.energyDatasets ?? [];
+                  return (
                   <ResourceRow
                     key={b.uri}
                     buildingId={b.id}
@@ -364,6 +375,9 @@ export default function ObservationsFinder() {
                         </RefLink>
                         {/* Source-tier dot (mine = owned blue, shared = orange). */}
                         <TierDot tier={b.isShared ? "shared" : "mine"} />
+                        {refs.map((d) => (
+                          <RdfSourceLink key={d.uri} href={d.uri} inline />
+                        ))}
                       </>
                     }
                     subtitle={datasetSummary(b)}
@@ -381,7 +395,8 @@ export default function ObservationsFinder() {
                       </Tooltip>
                     )}
                   />
-                ))}
+                  );
+                })}
               </Box>
               <Pager paging={paging} />
             </>
@@ -400,6 +415,8 @@ export default function ObservationsFinder() {
                       <>
                         <strong>{o.year}</strong>
                         <TierDot tier="mine" />
+                        {/* The dataset node IRI (dev-only source link). */}
+                        <RdfSourceLink href={o.uri} inline />
                       </>
                     }
                     subtitle={Object.keys(o.metrics ?? {})

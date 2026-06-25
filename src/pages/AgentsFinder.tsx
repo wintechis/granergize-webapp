@@ -5,8 +5,6 @@ import {
   Button,
   IconButton,
   TextField,
-  ToggleButton,
-  ToggleButtonGroup,
   Tooltip,
   Typography,
 } from "@mui/material";
@@ -18,11 +16,13 @@ import { useRemoveAgent, useSaveAgent } from "../hooks/mutations.ts";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { tryPodResources } from "../services/pod/solidUtils.ts";
 import { resolveAgent, webIdFragment } from "../services/agents/agentResolver.ts";
-import { referencedAgentWebIds } from "../services/agents/agentAppearances.ts";
+import { referencedAgentTiers } from "../services/agents/agentAppearances.ts";
 import type { SavedAgent } from "../services/savedAgents.ts";
 import { formatError } from "../lib/formatError.ts";
 import { useT } from "../context/I18nProvider.tsx";
 import { useListFacet } from "../hooks/useListFacet.ts";
+import { AGENT_TIERS, type Tier } from "../constants/tiers.ts";
+import TierFilter from "../components/TierFilter.tsx";
 import FinderHeader from "../components/FinderHeader.tsx";
 import { AgentLabel } from "../components/AgentLabel.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
@@ -38,16 +38,12 @@ interface AgentsFinderProps {
   session: Session;
 }
 
-/** The finder's two source tiers (the agent-world analogue of the buildings
- *  own/shared/open facet): `saved` = in your address book; `referenced` = a party
- *  that appears in your data (a building's operator/owner/…) but isn't saved yet. */
-const AGENT_TIERS = ["saved", "referenced"] as const;
-
-/** One finder row: a WebID with its tier membership (an agent can be both). */
+/** One finder row: a WebID with its provenance tier(s) and address-book record (an
+ *  agent can hold several tiers — saved AND referenced by an own + a shared building). */
 interface AgentRow {
   webId: string;
   saved?: SavedAgent;
-  referenced: boolean;
+  tiers: Set<Tier>;
 }
 
 /**
@@ -71,27 +67,27 @@ export default function AgentsFinder({ session }: AgentsFinderProps) {
   const [webIdInput, setWebIdInput] = useState("");
   const [scanning, setScanning] = useState(false);
   const { query, setQuery } = useListSearch();
-  const facet = useListFacet("tier", AGENT_TIERS);
+  const facet = useListFacet("tiers", AGENT_TIERS);
 
-  // Union the two tiers by WebID: a saved agent carries its record; a referenced one
-  // is flagged. An agent that is both keeps its saved record + the referenced flag.
+  // Union by WebID into provenance tiers (mine/shared/open — the same source facet the
+  // other finders wear): a saved agent is `mine` (your address book); a referenced one
+  // takes the tier(s) of the buildings it appears in (referencedAgentTiers). An agent
+  // both saved AND referenced in a shared building holds `mine` + `shared`.
+  const tierOf = referencedAgentTiers(buildings);
   const byId = new Map<string, AgentRow>();
   for (const a of savedQuery.data ?? []) {
-    byId.set(a.webId, { webId: a.webId, saved: a, referenced: false });
+    byId.set(a.webId, { webId: a.webId, saved: a, tiers: new Set<Tier>(["mine"]) });
   }
-  for (const webId of referencedAgentWebIds(buildings)) {
-    const existing = byId.get(webId);
-    if (existing) existing.referenced = true;
-    else byId.set(webId, { webId, referenced: true });
+  for (const [webId, tiers] of tierOf) {
+    const row = byId.get(webId) ?? { webId, tiers: new Set<Tier>() };
+    for (const t of tiers) row.tiers.add(t);
+    byId.set(webId, row);
   }
   const agents = [...byId.values()];
-  const savedCount = agents.filter((a) => a.saved).length;
-  const referencedCount = agents.filter((a) => a.referenced).length;
+  const tierCount = (t: Tier) => agents.filter((a) => a.tiers.has(t)).length;
 
   // Filter by the ticked tiers (union), then by the free-text search.
-  const inFacet = (a: AgentRow) =>
-    (a.saved != null && facet.isSelected("saved")) ||
-    (a.referenced && facet.isSelected("referenced"));
+  const inFacet = (a: AgentRow) => [...a.tiers].some((t) => facet.isSelected(t));
   const visible = filterByText(
     agents.filter(inFacet),
     query,
@@ -180,20 +176,16 @@ export default function AgentsFinder({ session }: AgentsFinderProps) {
       }
       controls={agents.length > 0 && (
         <>
-          <ToggleButtonGroup
-            size="small"
-            value={facet.selected}
-            onChange={(_, values: string[]) => facet.replace(values)}
-            aria-label={t("agentTierFacetAria")}
-          >
-            <ToggleButton value="saved">
-              {t("agentTierSaved")} ({savedCount})
-            </ToggleButton>
-            <ToggleButton value="referenced">
-              {t("agentTierReferenced")} ({referencedCount})
-            </ToggleButton>
-          </ToggleButtonGroup>
           <SearchField value={query} onChange={setQuery} />
+          <TierFilter
+            facet={facet}
+            options={AGENT_TIERS}
+            counts={{
+              mine: tierCount("mine"),
+              shared: tierCount("shared"),
+              open: tierCount("open"),
+            }}
+          />
         </>
       )}
     >

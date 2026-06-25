@@ -114,3 +114,56 @@ export const withAction = (route: string, action: DialogAction): string =>
   route.includes("?")
     ? `${route}&${ACTION_PARAM}=${action}`
     : `${route}?${ACTION_PARAM}=${action}`;
+
+/** The bare detail-page paths (the values of {@link DETAIL_PATTERNS}). */
+const DETAIL_BASES = new Set<string>(Object.values(DETAIL_PATTERNS));
+
+/**
+ * Does this route target a detail page (the surfaces that carry a back affordance,
+ * so the only ones worth recording a referrer for)? Compares the bare path before
+ * the query string. A finder/collection route returns false — back links *to* a
+ * finder don't need a referrer.
+ */
+export const isDetailRoute = (route: string): boolean =>
+  DETAIL_BASES.has(route.split("?")[0]);
+
+/**
+ * The **navigation trail** — a breadcrumb of in-app locations (each `pathname+search`,
+ * newest last) carried in the browser's History API state (react-router's
+ * `location.state`), NOT in the URL. A navigation INTO a detail page pushes the
+ * location it was reached *from*, so the page's back affordance returns to the actual
+ * referrer (and pressing back repeatedly walks the real chain) — without the old
+ * `navigate(-1)` history pop and without polluting the URL.
+ *
+ * History state is per-entry, session-scoped, and survives a reload; a copied/shared
+ * link simply arrives with no trail, so its back falls to the collection finder.
+ */
+export interface NavState {
+  trail?: string[];
+}
+
+/** Cap the trail so a long session can't grow history state without bound. */
+const TRAIL_MAX = 20;
+
+/**
+ * The trail for navigating INTO `target`: the inbound `trail` plus the `current`
+ * location (capped to the most recent {@link TRAIL_MAX}). Only detail routes carry a
+ * back affordance, so a non-detail target returns the trail unchanged (the caller
+ * attaches no state for it).
+ */
+export const pushTrail = (
+  trail: string[],
+  current: string,
+  target: string,
+): string[] =>
+  isDetailRoute(target) ? [...trail, current].slice(-TRAIL_MAX) : trail;
+
+/**
+ * A detail page's back target: the newest trail entry (the real referrer) when the
+ * trail is non-empty, else the page's `fallback` finder (a deep link / fresh tab /
+ * shared URL arrives with no trail).
+ */
+export const backTarget = (
+  trail: string[] | undefined,
+  fallback: string,
+): string => (trail && trail.length > 0 ? trail[trail.length - 1] : fallback);

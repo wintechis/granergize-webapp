@@ -3,7 +3,7 @@ import { t } from "../helpers/i18n.ts";
 import { account, hasAccount, login } from "../helpers/login.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
-import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, clearFinderMemory, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { buildingRoute, openBuildingsList, openBuildingsMap } from "../helpers/manage.ts";
 import { T } from "../helpers/timeouts.ts";
 
@@ -80,6 +80,12 @@ test.describe("URI-encoded navigational state survives reload", () => {
     page.on("dialog", (d) => d.accept().catch(() => {}));
     await login(page, ACC);
     await assertCleanStart(page);
+  });
+
+  test.beforeEach(async () => {
+    // The finder view/tier session memory is sticky; reset it so each test starts from
+    // the hardcoded defaults (a sibling test's toggle must not leak in).
+    await clearFinderMemory(page);
   });
 
   test.afterAll(async () => {

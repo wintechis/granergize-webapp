@@ -3,7 +3,7 @@
 A coarse "surfaces + transitions" map of the app — one level above a full statechart.
 Three layers: the app-shell **tabs** (each multi-guise finder carries its guise
 sub-states — Buildings *list|map*, Observations *map|list|over-time|over-years* (the
-energy cube), Aggregations *list|map|timeline*; Sharing/Contacts/Meet are list-only),
+energy cube), Aggregations *list|map|timeline*; Sharing/Agents/Meet are list-only),
 the **detail surfaces** you drill into, and the modal **dialogs**.
 Details-on-demand is two tiers — a **hover peek** (tooltip / hover card) vs **click →
 open** (the detail page); the **⌘K palette** is a global overlay (navigate any tab ·

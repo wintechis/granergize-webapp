@@ -1,28 +1,66 @@
-# Open data — the third (ungated) tier
+# Open data — the outer (ungated) ring
 
 Beyond the user's own Pod (`mine`) and what others share with them (`shared`), the app
-reads a third class of data: **open** — public, off-Pod, ungated Linked Data anyone can
-fetch, shown to give the user's own figures context. It is never written, never owned,
+reads an outer ring of data: **open** — public, off-Pod, ungated Linked Data anyone can
+fetch, shown to give the user's own figures context (§The concentric model). It is never written, never owned,
 never shared. Companion to [`data-deref.md`](./data-deref.md) (the external-wrapper read
 path it shares), [`weather.md`](./weather.md) (one such queried source),
 [`aggregations.md`](./aggregations.md) (where open regional datasets appear as a tier),
 and [`building-detail.md`](./building-detail.md) (the building page's open-context
 sections).
 
-## The source-tier ladder
+## The concentric model
 
 Every collection finder filters its rows by a multi-select **source tier**
 (`useListFacet("tiers", …)`, `constants/tiers.ts`): `TIER_VALUES = ["mine", "shared",
-"open"]`, read as provenance — *where the resource lives and what gatekeeps it*:
+"open"]`. Read the three not as a flat list but as **concentric rings centred on the
+user's Pod** — each outer ring a strictly larger world the user has less say over:
 
-- **`mine`** — on the user's own Pod (storage-root-keyed); the user authored it and may write it.
-- **`shared`** — granted to the user through the interop `shared-in/` log: a foreign Pod, WAC-gated, addressed *to them* (read-only).
-- **`open`** — public, ungated, off-Pod: fetched as one of anyone, no auth (read-only).
+- **`mine`** (centre) — on the user's own Pod (storage-root-keyed); authored, owned, and
+  the only **writable** ring.
+- **`shared`** (middle) — on *another* Pod, WAC-granted through the interop `shared-in/`
+  log and addressed *to them*; read-only, theirs to see but not own.
+- **`open`** (outer) — public, ungated, off-Pod Linked Data addressed to *no one in
+  particular*; fetched as anyone, no auth, read-only — pure context.
 
-Each finder picks the tiers that fit its collection (`BUILDING_TIERS` /
-`OBSERVATION_TIERS` / `AGGREGATION_TIERS` — all three; the open tier is simply empty
-outside a source's coverage). Two behaviours track this ladder: only `mine` is writable,
-and (with the carve-out below) `mine`/`shared` resources earn an in-app detail page.
+Outward, several axes move together — what "concentric" captures and a flat ladder
+doesn't: **ownership/control** falls (only the centre is writable), **breadth** grows
+(each ring is a larger set), how specifically-**addressed-to-you** it is fades (mine *is*
+yours → shared is *for* you → open is for everyone), and **gatekeeping** loosens (own auth
+→ a WAC grant → none). The facet unions outward from the centre: `mine` + `shared` are on
+by default, `open` is opt-in.
+
+Each finder offers the rings that fit its collection (`BUILDING_TIERS` /
+`OBSERVATION_TIERS` / `AGGREGATION_TIERS` / `AGENT_TIERS` — all three; the open ring is
+simply empty outside a source's coverage). Two behaviours track the model: only `mine`
+is writable, and (with the carve-out below) `mine`/`shared` resources earn an in-app
+detail page.
+
+**Provenance vs anchoring — the rings describe *who controls* the data, not *what it is
+centred on spatially*.** That control axis is uniform. But which open data the app
+actually fetches has **two anchoring modes**, and only one is centred on the user:
+
+- *Own-data-anchored* (genuinely concentric): the Aggregations regional tier
+  (`openRegionalItemsFromBuildings` — only Bundesländer where the user owns buildings)
+  and the building page's `StandortEnergieprofil`/`RegionalStatistics`/
+  `NeighbourhoodEnergyMap`/weather sections (each keyed to *that building's*
+  coordinates/region).
+- *Viewport-anchored* (independent of the on-Pod buildings): the map's **open buildings**
+  (`useOpenBuildings`) and **open observations** (`useOpenObservations`) layers key on
+  `openViewport(searchParams)` (`?c=`/`?z=`) → "what's near where you're *looking*", not
+  what you own. Pan to a city you own nothing in, tick `open`, and rows appear.
+
+So `open` is one provenance ring but two query modes: context-around-your-data, and free
+viewport exploration. The map layers are deliberately exploratory; the rest is concentric
+context.
+
+The **Agents** finder reads the same facet via the shared `TierFilter`, but an agent
+isn't a Pod resource with a ring of its own, so its ring is *derived* from where it
+appears (`referencedAgentTiers`): an agent in the address book (`agents.ttl`) or
+referenced by an OWN building — incl. a building's technical-system operator — is `mine`;
+one that appears only in a building shared WITH the user is `shared` (an agent can be
+both). `open` is empty for now (operators of open/public buildings could populate it once
+the open ring is scanned for agents).
 
 ## The open sources
 

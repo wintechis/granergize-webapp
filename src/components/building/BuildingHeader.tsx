@@ -9,7 +9,8 @@ import {
   buildingDisplayName,
 } from "../../lib/buildingDisplay.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
-import { RdfSourceLink, RefLink } from "../detail/DetailView.tsx";
+import { BackLink, RdfSourceLink } from "../detail/DetailView.tsx";
+import { FINDERS } from "../../routes.ts";
 import SourceNote from "../SourceNote.tsx";
 import { SOURCES } from "../../constants/dataSources.ts";
 import IconAction from "../IconAction.tsx";
@@ -61,9 +62,10 @@ export default function BuildingHeader({ building }: { building: BuildingType })
 
   return (
     <Box>
-      {/* Breadcrumb back to the buildings list (the Home tab). */}
+      {/* Back to wherever the user arrived from (an agent's buildings, the map, a
+          finder), falling back to the buildings finder for a deep link. */}
       <Box sx={{ mb: 1 }}>
-        <RefLink to="/">{msg("bhBackBuildings")}</RefLink>
+        <BackLink fallback={FINDERS.buildings} />
       </Box>
       <Stack
         direction={{ xs: "column", sm: "row" }}

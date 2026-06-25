@@ -12,7 +12,7 @@ there is no embedded detail pane.
 
 Not every resource that hangs off a building is **first-class** in the UI. A
 first-class resource has its own route/detail page — the building (`/building`),
-an agent (`/contact`), an aggregation (`/aggregation`), a data room (`/room`), each
+an agent (`/agent`), an aggregation (`/aggregation`), a data room (`/room`), each
 carrying its resource id as a `?ref=`/`?uri=` query param. A **subordinate
 resource** has none: it is always rendered
 *attached to its parent* (here, inside the building detail), never navigated to on
@@ -160,7 +160,7 @@ mount.
 ```
 (the identity header — icon, name, address, URI — is BuildingHeader's, §1b)
 Source: <sourceUri>   (backing-document link; when present)
-Customer / Operated By / Investor   (agent RefLink → `/contact?uri=<webid>`)
+Customer / Operated By / Investor   (agent RefLink → `/agent?uri=<webid>`)
 Type (UriLink); Coordinates (→ OpenStreetMap); Building/Land/Office Area (m²);
 Has PV System (✓/✗); Year of Construction; NACE Code (→ nacecode.de);
 Energy Certificate (→ "pdf")
@@ -188,7 +188,7 @@ file — see [`attachments.md`](./attachments.md)). Per-row file map below.
 
 ```
 <building URI>, Source            granergize/buildings/<id>.ttl  (subject / graph IRI)
-Customer/Operated By/Investor      agent IRI (no separate agents source any more)
+Customer/Operated By/Investor      agent IRI (a WebID, or a minted agents/<slug>.ttl doc)
 core datatypes, investor/benchmark blocks   same building file
 Energy Certificate / Files         link in building file; bytes in <dir>/files/ container
 §Certifications / §Operating Costs blank nodes in the building file
@@ -198,10 +198,15 @@ energy charts (energyDatasets)     one cons:EnergyDataset file per (building, ye
 ```
 
 Agent rows show the resolved agent name (the IRI fragment as fallback) + a `RefLink`
-to `/contact`; the agent is resolved **lazily** from its own profile by the agent
-resolver (name + logo, `resolveAgent`/`resolveAgentOrg`), not from any building-local
-triple — there is no separate agents source on the Pod (the legacy `dataSources.ttl`
-was removed).
+to `/agent`; the agent is resolved **lazily** by the agent resolver (name + logo,
+`resolveAgent`/`resolveAgentOrg`) from whatever its IRI dereferences to — a WebID
+profile, or a **minted `agents/<slug>.ttl` doc** for a bulk-imported operator (a
+`foaf:Organization` with `foaf:name` + `owl:sameAs` its Wikidata/MaStR identity + a basic
+`vcard:hasAddress`, so it resolves to a name + address from local Pod data without a
+CORS-blocked external fetch). A building's
+technical-system operator (`<#pv>`/`<#chp>` `rec:operatedBy`, the Anlagenbetreiber
+distinct from the building's) is the same kind of reference, and surfaces in the Agents
+finder's referenced set alongside the building-level roles (`referencedAgentWebIds`).
 
 ### 3b. Actions (all fetch-fresh → patch n3 Store → PUT whole file; owner-only)
 

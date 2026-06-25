@@ -10,7 +10,7 @@ import {
   openAggregations,
   openBuildingsList,
 } from "../helpers/manage.ts";
-import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
+import { assertCleanStart, clearFinderMemory, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -52,6 +52,12 @@ test.describe("energy view smoke", () => {
     // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the
     // investor demo is the annual "Nordostpark" building this test renders).
     await ensureDemoBuildings(page);
+  });
+
+  test.beforeEach(async () => {
+    // The finder view/tier session memory is sticky; reset it so each test starts from
+    // the hardcoded defaults (a sibling test's toggle must not leak in).
+    await clearFinderMemory(page);
   });
 
   test.afterAll(async () => {

@@ -79,6 +79,14 @@ test.describe("redesign: agent page", () => {
     await buildingLink.click();
     await expect(page).toHaveURL(/\/building\?/, { timeout: T.action });
 
+    // Back returns to the AGENT we came from (the trail carried in history state),
+    // not the Buildings finder — the building was reached by following the agent's
+    // operatedBy edge. This is the back-consistency the navigation trail guarantees.
+    await page.getByRole("link", { name: /Back/ }).click();
+    await expect(page).toHaveURL(/\/agent\?/, { timeout: T.action });
+    await expect(page.getByRole("heading", { name: OP_FRAGMENT }))
+      .toBeVisible({ timeout: T.action });
+
     // Cleanup: delete the throwaway building from the Buildings list (fresh-read
     // retry re-opens the List and waits for the row before deleting).
     await findOwnBuildingRow(page, ADDR);

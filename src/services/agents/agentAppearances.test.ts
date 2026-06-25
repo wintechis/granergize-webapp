@@ -1,7 +1,11 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import type { BuildingType } from "../../types.ts";
-import { appearancesOf, referencedAgentWebIds } from "./agentAppearances.ts";
+import {
+  appearancesOf,
+  referencedAgentTiers,
+  referencedAgentWebIds,
+} from "./agentAppearances.ts";
 
 const ALICE = "https://alice.example/profile/card#me";
 const BOB = "https://bob.example/profile/card#me";
@@ -54,6 +58,45 @@ Deno.test("referencedAgentWebIds collects distinct WebID agents, skips free-text
 Deno.test("referencedAgentWebIds is empty when no building references a WebID", () => {
   assert.deepEqual(referencedAgentWebIds([building("1", { operatedBy: "ACME" })]), []);
   assert.deepEqual(referencedAgentWebIds([]), []);
+});
+
+Deno.test("referencedAgentWebIds + appearancesOf include technical-system operators", () => {
+  // The bulk-imported plant operators live on the building's system nodes
+  // (rec:operatedBy on <#pv>/<#chp>), not the building's own operatedBy.
+  const buildings = [
+    building("1", {
+      systems: [
+        { id: "pv", kind: "pv", operatedBy: ALICE },
+        { id: "chp", kind: "chp", operatedBy: BOB },
+      ],
+    }),
+    // Alice also operates this one's PV and owns the building.
+    building("2", { ownedBy: ALICE, systems: [{ id: "pv", kind: "pv", operatedBy: ALICE }] }),
+  ];
+  // Both plant operators surface as referenced agents (deduped).
+  assert.deepEqual(referencedAgentWebIds(buildings).sort(), [ALICE, BOB].sort());
+  // The agent detail "appears in" lists the system-operator role per building.
+  const alice = appearancesOf(ALICE, buildings);
+  assert.equal(alice.length, 2);
+  assert.deepEqual(alice.find((a) => a.building.id === "1")?.roles, ["PV operator"]);
+  assert.deepEqual(
+    alice.find((a) => a.building.id === "2")?.roles,
+    ["Owned by", "PV operator"],
+  );
+  assert.deepEqual(appearancesOf(BOB, buildings)[0]?.roles, ["CHP operator"]);
+});
+
+Deno.test("referencedAgentTiers: own building → mine, shared building → shared, both → both", () => {
+  const buildings = [
+    building("1", { operatedBy: ALICE }), // own (isShared falsy) → mine
+    building("2", { isShared: true, ownedBy: ALICE, operatedBy: BOB }), // shared
+    building("3", { isShared: true, systems: [{ id: "pv", kind: "pv", operatedBy: ALICE }] }),
+  ];
+  const tiers = referencedAgentTiers(buildings);
+  // Alice: own building (mine) + shared buildings (shared) → both.
+  assert.deepEqual([...(tiers.get(ALICE) ?? [])].sort(), ["mine", "shared"]);
+  // Bob: only a shared building → shared.
+  assert.deepEqual([...(tiers.get(BOB) ?? [])], ["shared"]);
 });
 
 Deno.test("appearancesOf matches attributedTo (provenance) and returns [] when unseen", () => {

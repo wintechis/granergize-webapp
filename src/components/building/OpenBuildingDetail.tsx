@@ -8,6 +8,7 @@ import { RooftopBuildingCardView } from "./StandortEnergieprofil.tsx";
 import SourceNote from "../SourceNote.tsx";
 import { SOURCES } from "../../constants/dataSources.ts";
 import { BackLink, DetailCard, RdfSourceLink } from "../detail/DetailView.tsx";
+import { FINDERS } from "../../routes.ts";
 
 /**
  * The in-app, READ-ONLY detail for an open (LoD2) building — drilled to from the
@@ -24,7 +25,7 @@ export default function OpenBuildingDetail({ iri }: { iri: string }) {
   const { data, isLoading } = useOpenBuildingDetail(iri);
   return (
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
-      <BackLink />
+      <BackLink fallback={FINDERS.buildings} />
       {isLoading && (
         <Typography variant="body2">{t("loadingEllipsis")}</Typography>
       )}

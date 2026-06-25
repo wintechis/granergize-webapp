@@ -86,7 +86,7 @@ projection can drift out of sync. Applying it to the query hooks (`queries.ts`):
   but the room IRI is the right *identity* and the log's event content changes are
   covered by direct invalidation — every room mutation invalidates `queryKeys.roomLog`
   (`mutations.ts`). Keyed correctly, content via invalidation. Not the trap.
-- The top-level reads — `aggregationDefinitions`, `contacts`, `prefs`, and the two
+- The top-level reads — `aggregationDefinitions`, `agents`, `prefs`, and the two
   log folds `sharedInLog` / `sharedOutLog` — use a constant `["name", webId]` key.
   (Every "shared with/by me" and shared-aggregation list is a pure in-memory
   derivation of those two folds, not a separate query, so there is no extra key to

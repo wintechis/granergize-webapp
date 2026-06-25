@@ -12,6 +12,7 @@ import {
   type Organization,
 } from "../services/organization/organizationManager.ts";
 import { BackLink, DetailCard } from "../components/detail/DetailView.tsx";
+import { FINDERS } from "../routes.ts";
 import { OrgEditor, OrgReadView } from "../components/agent/OrgDetail.tsx";
 import { logError } from "../lib/logError.ts";
 import { bumpAvatar } from "../lib/avatarRefresh.ts";
@@ -119,7 +120,7 @@ export default function Organisation() {
   return (
     <Box>
       <Box sx={{ mb: 1 }}>
-        <BackLink />
+        <BackLink fallback={FINDERS.agents} />
       </Box>
       <DetailCard
         icon={<ApartmentIcon />}

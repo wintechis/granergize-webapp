@@ -42,7 +42,7 @@ session gate; `theme.ts` holds the MUI theme. The auth/login flow these set up i
 
 **Pages** (`src/pages/`). One route-driven screen each — the app shell
 (`AppShell.tsx`), the collection finders (`BuildingsFinder`, `ObservationsFinder`,
-`AggregationsFinder`, `SharingFinder`, `ContactsFinder`, `RoomsFinder`), and the
+`AggregationsFinder`, `SharingFinder`, `AgentsFinder`, `RoomsFinder`), and the
 standalone detail pages (`Building`, `Energy`, `Aggregation`, …). Pages compose hooks
 and components; they never import each other. Navigational state (which finder, which
 building) is URI-encoded — see [`ui-state.md`](./ui-state.md).
@@ -68,7 +68,7 @@ affects.
 keep a **folder** — `interop/` (sharing, data rooms, inbox), `aggregation/` (computes and
 persists aggregations), `organization/` (org node + avatar), `agents/` (WebID→identity resolution
 and cross-building appearances) — while single-resource units are **flat modules** beside
-`TurtleParsingService` (the root load-and-parse orchestrator): `contacts`, `bookmarks`,
+`TurtleParsingService` (the root load-and-parse orchestrator): `savedAgents`, `bookmarks`,
 `prefs`, `attachmentManager`, `buildingActions` (the delete-orchestration helper), and
 `geocode` (external geocoding). A folder marks a sub-domain with several collaborating
 files, not a one-file-per-Pod-resource mirror; a single owned resource is just a module.

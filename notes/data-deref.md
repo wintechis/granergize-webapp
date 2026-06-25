@@ -199,11 +199,11 @@ who owns the document, not by data shape (the fields are identical either way). 
 user's **own** organisation is a `<#org>` node *inside their own WebID profile*, so
 `organizationManager` edits it in place — they hold `acl:Write` on it. A **referenced**
 organisation's authoritative document is on its Pod / a wrapper, where the user has no
-write access; the same fields are therefore stored as the local record in `contacts.ttl`
-(`SaveContact`) — an annotation on the user's own Pod, not a write to the agent's. One
+write access; the same fields are therefore stored as the local record in `agents.ttl`
+(`SaveAgent`) — an annotation on the user's own Pod, not a write to the agent's. One
 shared editor (`components/agent/OrgDetail.tsx`), two save paths. The logo follows the
 document it belongs to: the own-org logo is `foaf:logo` → `profile/logo.<ext>` (profile
-data); a referenced-org logo is `vcard:logo` → `<appRoot>contacts/logos/<stem>.<ext>`.
+data); a referenced-org logo is `vcard:logo` → `<appRoot>agents/logos/<stem>.<ext>`.
 Both are published world-readable via the shared `logoImage.uploadPublicLogo` (image
 `PUT` + a public-read `.acl`), since markers and the agent page load them with plain,
 unauthenticated `<img>` requests.

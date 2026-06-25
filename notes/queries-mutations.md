@@ -47,8 +47,8 @@ owns it:
   `writeEnergyYear`, `deleteBuilding`, attachments; plus building-less observations —
   readings under `observations/` linked to no building — via
   `writeBuildinglessObservation` / `deleteBuildinglessObservation`).
-- personal state files: `prefs.ttl`, `bookmarks.ttl`, `contacts.ttl`
-  (`toggleHiddenBuilding`, `setCurrentRoom`, `addBookmark`, `addContact`, …).
+- personal state files: `prefs.ttl`, `bookmarks.ttl`, `agents.ttl`
+  (`toggleHiddenBuilding`, `setCurrentRoom`, `addBookmark`, `saveAgent`, …).
 - aggregation definitions and computed snapshots (`createAggregationDefinition`,
   `storeComputedSnapshot`, `deleteAggregation`).
 - the WebID profile / org node (`saveOrganization`, `uploadOrgLogo`) — these GET-mutate-PUT
@@ -211,7 +211,7 @@ Queries split by *consumption shape*, which decides their hook home:
 The dashboard's account actions cover whole-collection ground the per-entity catalog
 doesn't, but they classify with the same axes — no third storage model is needed:
 
-- **Demo seeding** (`seedDemoBuildings`, `seedDemoContacts`, `seedDemoRooms`) —
+- **Demo seeding** (`seedDemoBuildings`, `seedDemoAgents`, `seedDemoRooms`) —
   user-intent in-place bulk creates. Integrity is ordering, not transactions: per
   building, datasets first and the discoverable building file LAST (the commit
   point), so a failure leaves only inert orphans and a retry mints fresh UUIDs.

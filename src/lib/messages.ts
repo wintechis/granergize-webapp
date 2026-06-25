@@ -38,15 +38,9 @@ export const MESSAGES = {
     de: "Noch keine Agenten. Füge einen per WebID oder QR-Code hinzu.",
     fr: "Aucun agent pour l'instant. Ajoutez-en un par WebID ou QR code.",
   },
-  // Agents finder source facet: saved (in the address book) vs referenced (appears
-  // in your data — a building's operator/owner/… — but not yet saved).
-  agentTierSaved: { en: "Saved", de: "Gespeichert", fr: "Enregistrés" },
-  agentTierReferenced: { en: "Referenced", de: "Referenziert", fr: "Référencés" },
-  agentTierFacetAria: {
-    en: "Filter agents by source",
-    de: "Agenten nach Quelle filtern",
-    fr: "Filtrer les agents par source",
-  },
+  // Agents finder: the source-tier facet now reuses the shared TierFilter (mine/
+  // shared/open, tierMine/tierShared/tierOpen), so a per-row hint marks the ones
+  // referenced-but-not-saved.
   agentReferencedHint: {
     en: "Referenced in your buildings — not yet saved",
     de: "In deinen Gebäuden referenziert — noch nicht gespeichert",
@@ -712,9 +706,8 @@ export const MESSAGES = {
       "L'application combine des données de ces sources externes, chacune avec sa licence. L'attribution est transmise avec chaque bâtiment partagé.",
   },
   dsBack: { en: "← Back", de: "← Zurück", fr: "← Retour" },
-  // Building header (back link); the ownership badge now uses the shared tier
-  // labels (tierMine / tierShared) via TierBadge.
-  bhBackBuildings: { en: "← Buildings", de: "← Gebäude", fr: "← Bâtiments" },
+  // Building header: the ownership badge uses the shared tier labels
+  // (tierMine / tierShared) via TierBadge.
   // Master-data section heading + inline edit.
   secMasterData: { en: "Master data", de: "Stammdaten", fr: "Données de base" },
   secEnergySystems: {

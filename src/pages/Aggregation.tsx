@@ -1,6 +1,5 @@
 import { useEffect } from "react";
-import { useSearchParams } from "react-router-dom";
-import { useBackNavigation } from "../hooks/backNavigation.ts";
+import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import {
   Box,
   Button,
@@ -12,7 +11,7 @@ import {
 } from "@mui/material";
 import ArrowBackIcon from "@mui/icons-material/ArrowBack";
 import { Session } from "@inrupt/solid-client-authn-browser";
-import { ACTION_PARAM } from "../routes.ts";
+import { ACTION_PARAM, backTarget, FINDERS, type NavState } from "../routes.ts";
 import { usePaletteFocus } from "../context/PaletteFocusContext.tsx";
 import { useNotification } from "../context/NotificationContext.tsx";
 import { useConfirm } from "../context/ConfirmContext.tsx";
@@ -49,9 +48,18 @@ export default function Aggregation({ session }: AggregationProps) {
   const [searchParams] = useSearchParams();
   const aggregationId = searchParams.get("uri") ?? searchParams.get("ref") ??
     undefined;
-  // Back = the in-app location the user came from (Manage, Share, …), falling
-  // back to the overview for a deep link — see useBackNavigation.
-  const goBack = useBackNavigation();
+  // Back = the newest location on the navigation trail (Manage, Share, …) carried in
+  // history state, falling back to the aggregations finder for a deep link — see
+  // backTarget. Hand the remaining trail forward so back keeps walking the chain.
+  const navigate = useNavigate();
+  const location = useLocation();
+  const goBack = () => {
+    const trail = (location.state as NavState | null)?.trail ?? [];
+    const rest = trail.slice(0, -1);
+    void navigate(backTarget(trail, FINDERS.aggregations), {
+      state: rest.length ? { trail: rest } : undefined,
+    });
+  };
 
   // Reads go through the aggregationDetail query (definition + snapshot; a missing
   // snapshot is auto-materialised in the queryFn — see useAggregationDetail), so the

@@ -2,7 +2,7 @@ import { Box, Stack, Typography } from "@mui/material";
 import ElectricBoltIcon from "@mui/icons-material/ElectricBolt";
 import type { BuildingType } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
-import { buildingRoute } from "../../routes.ts";
+import { buildingRoute, FINDERS } from "../../routes.ts";
 import { BackLink, RefLink } from "../detail/DetailView.tsx";
 import EnergyEntryButton from "./EnergyEntryButton.tsx";
 
@@ -26,7 +26,7 @@ export default function ObservationHeader(
   return (
     <Box>
       <Box sx={{ mb: 1 }}>
-        <BackLink />
+        <BackLink fallback={FINDERS.observations} />
       </Box>
       <Stack
         direction={{ xs: "column", sm: "row" }}

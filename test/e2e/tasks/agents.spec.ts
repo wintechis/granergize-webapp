@@ -8,23 +8,25 @@ import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
- * Agents finder e2e — the address book (saved tier) + auto-remember + the derived
- * REFERENCED tier. MUI page render isn't unit-testable under Deno, so this covers the
- * UI half:
+ * Agents finder e2e — the address book + auto-remember + the standard source-tier
+ * facet (`mine`/`shared`/`open` via the shared `TierFilter`, like the Buildings and
+ * Observations finders). MUI page render isn't unit-testable under Deno, so this
+ * covers the UI half:
  *  1. add an agent by WebID → it lists (via <AgentLabel>) → remove it;
- *  2. a building saved with an `operatedBy` WebID is auto-remembered (saved); removing
- *     the saved record leaves it in the finder as a REFERENCED agent (it still appears
- *     on the building) with a save-to-agents action.
+ *  2. a building saved with an `operatedBy` WebID is auto-remembered; removing the
+ *     saved record leaves it in the finder (the building still references it — an
+ *     own-building operator is the `mine` tier) with a save-to-agents action, and the
+ *     standard tier filter is shown.
  *
  * WebIDs use a distinctive `#fragment` on an unresolvable host: <AgentLabel> shows
  * the fragment as the name immediately (resolution falls back to it for an
  * unreachable profile, per the loading policy), so assertions don't depend on any
- * profile being readable. Self-cleaning — removes its contacts and its building.
+ * profile being readable. Self-cleaning — removes its agents and its building.
  *
- *   # tier 3 (local CSS, no creds):
- *   deno task e2e:local test/e2e/tasks/contacts.spec.ts
- *   # tier 4 (real Pods):
- *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/contacts.spec.ts
+ *   # e2e:local (local CSS, no creds):
+ *   deno task e2e:local test/e2e/tasks/agents.spec.ts
+ *   # e2e:remote (real Pods):
+ *   source test/.env.e2e.local && deno task e2e:remote:spec test/e2e/tasks/agents.spec.ts
  *
  * Runs against Alice (account A). Skipped when account env vars are absent.
  */
@@ -110,10 +112,16 @@ test.describe("agents address book + auto-remember", () => {
         .toBeVisible({ timeout: T.quick });
     }).toPass({ timeout: T.poll });
 
+    // The finder wears the standard source-tier facet (mine/shared/open via TierFilter,
+    // the same control Buildings/Observations use) — not the old bespoke saved/
+    // referenced toggle.
+    await expect(page.getByRole("group", { name: t("tierFilterAria") }))
+      .toBeVisible({ timeout: T.action });
+
     // Auto-remember made it a SAVED agent (a remove action). Removing the saved
-    // record does NOT hide it: the building still references it, so it falls back to
-    // the REFERENCED tier — a "save to agents" action replaces the remove. (The
-    // referenced tier surfaces a portfolio's operators even before they're saved.)
+    // record does NOT hide it: the building still references it (an own-building
+    // operator stays in the `mine` tier), so a "save to agents" action replaces the
+    // remove — surfacing a portfolio's operators even before they're saved.
     const operatorRow = () =>
       agentsList(page).locator("li", { hasText: "OperatorBob" });
     await operatorRow().getByRole("button", { name: t("agentRemoveAria") }).click();

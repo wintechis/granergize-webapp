@@ -15,6 +15,7 @@ import DeleteIcon from "@mui/icons-material/Delete";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { ownsRoom } from "../services/interop/dataRoom.ts";
 import { roomRoute } from "../routes.ts";
+import { useTrailState } from "../hooks/navTrail.ts";
 import { queryKeys, useRoomNames, useRoomState } from "../hooks/queries.ts";
 import {
   useAddRoom,
@@ -64,6 +65,7 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
   const navigate = useNavigate();
+  const trailState = useTrailState();
 
   const roomQuery = useRoomState();
   const t = useT();
@@ -130,8 +132,9 @@ export default function RoomsFinder({ session }: RoomsFinderProps) {
       onSuccess: ({ room }) => {
         setRoomNameInput("");
         showNotification(msg("roomCreated"), "success");
-        // Land on the new room's page (it enters there on mount).
-        void navigate(roomRoute(room));
+        // Land on the new room's page (it enters there on mount), recording the
+        // rooms finder as the back trail.
+        void navigate(roomRoute(room), { state: trailState(roomRoute(room)) });
       },
     });
 

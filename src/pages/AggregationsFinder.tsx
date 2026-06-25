@@ -41,6 +41,7 @@ import NestedAgentList from "../components/NestedAgentList.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
+import { rememberedValue, rememberValue } from "../lib/facetMemory.ts";
 import SearchField from "../components/SearchField.tsx";
 import TierFilter from "../components/TierFilter.tsx";
 import { AGGREGATION_TIERS } from "../constants/tiers.ts";
@@ -118,17 +119,27 @@ export default function AggregationsFinder({ session }: AggregationsFinderProps)
     }
   };
 
-  // Collection guise from the URL (`?guise=map|timeline`; absent → list). Single-select, so a
-  // plain searchParams read/write (mirroring `action` above), not the multi-select listFacet.
+  // Collection guise from the URL (`?guise=map|timeline`; absent → the session-remembered
+  // guise, else list). Single-select, so a plain searchParams read/write (mirroring `action`
+  // above), not the multi-select listFacet; sticks for the session like the other view axes.
+  const isGuise = (g: string | null): g is Guise =>
+    g === "map" || g === "timeline" || g === "list";
   const rawGuise = searchParams.get("guise");
-  const guise: Guise = rawGuise === "map" || rawGuise === "timeline" ? rawGuise : "list";
-  const setGuise = (g: Guise) =>
+  const remembered = rememberedValue("guise");
+  const guise: Guise = isGuise(rawGuise)
+    ? rawGuise
+    : isGuise(remembered)
+    ? remembered
+    : "list";
+  const setGuise = (g: Guise) => {
+    rememberValue("guise", g);
     setSearchParams((prev) => {
       const sp = new URLSearchParams(prev);
       if (g === "list") sp.delete("guise"); // keep the default URL clean
       else sp.set("guise", g);
       return sp;
     }, { replace: true });
+  };
 
   const aggregationDefsQuery = useAggregationDefinitions();
   const aggregationDefinitions = aggregationDefsQuery.data ?? [];

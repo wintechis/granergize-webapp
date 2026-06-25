@@ -13,6 +13,7 @@ import { buildingDisplayName, buildingSearchText } from "../lib/buildingDisplay.
 import { filterByText } from "../lib/textSearch.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
+import { rememberedValue, rememberValue } from "../lib/facetMemory.ts";
 import { useOpenBuildings } from "../hooks/openBuildings.ts";
 import { openViewport } from "../services/openBuildings.ts";
 import SearchField from "../components/SearchField.tsx";
@@ -77,9 +78,13 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   // view. Map and List carry their own orthogonal params (the map's ?c=&z=, the
   // list's ?offset=, the energy ?m=&y=).
   const [searchParams, setSearchParams] = useSearchParams();
-  const axes = resolveAxes(searchParams);
-  const setAxes = (next: Partial<CubeAxes>) =>
-    setSearchParams((prev) => toParams({ ...axes, ...next }, prev));
+  // The spatial axis (map/list) sticks for the session: URL > remembered > default.
+  const axes = resolveAxes(searchParams, rememberedValue("space"));
+  const setAxes = (next: Partial<CubeAxes>) => {
+    const merged = { ...axes, ...next };
+    rememberValue("space", merged.space);
+    setSearchParams((prev) => toParams(merged, prev));
+  };
   // The finder only renders on /buildings (the shell unmounts it otherwise), so
   // the map is "active" whenever Space=map; the pathname guard keeps the prop
   // honest even if a parent kept us mounted.

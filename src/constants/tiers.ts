@@ -32,6 +32,14 @@ export const OBSERVATION_TIERS: readonly Tier[] = ["mine", "shared", "open"];
 /** The Aggregations finder's tiers — own + shared-with-me + public open data. */
 export const AGGREGATION_TIERS: readonly Tier[] = ["mine", "shared", "open"];
 
+/** The Agents finder's tiers — own + shared-with-me + open, for parity with the other
+ *  finders. An agent is `mine` when it's in your address book or referenced by one of
+ *  your OWN buildings (incl. a building's technical-system operator), `shared` when it
+ *  only appears in a building shared WITH you. `open` is currently **empty** (operators
+ *  of open/public buildings could populate it once the open tier is scanned for agents);
+ *  the tier stays offered so the affordance matches the other finders. */
+export const AGENT_TIERS: readonly Tier[] = ["mine", "shared", "open"];
+
 /** i18n label per tier (the multi-select source selector). */
 export const TIER_LABEL: Record<Tier, MessageId> = {
   mine: "tierMine",

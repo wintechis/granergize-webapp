@@ -21,7 +21,7 @@ import { useSaveAgent } from "../../hooks/mutations.ts";
 import { BackLink, DetailRow, RefLink } from "../detail/DetailView.tsx";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { OrgEditor, OrgReadView } from "./OrgDetail.tsx";
-import { agentRoute } from "../../routes.ts";
+import { agentRoute, FINDERS } from "../../routes.ts";
 import { msg } from "../../lib/messages.ts";
 import type { SavedAgent } from "../../services/savedAgents.ts";
 
@@ -166,7 +166,7 @@ export default function AgentHeader({ webId }: { webId: string }) {
 
   return (
     <Box>
-      <BackLink />
+      <BackLink fallback={FINDERS.agents} />
       <Stack direction="row" spacing={1} sx={{ mt: 1, alignItems: "center" }}>
         {(editing ? editingOrg : isOrg)
           ? <ApartmentIcon color="action" />

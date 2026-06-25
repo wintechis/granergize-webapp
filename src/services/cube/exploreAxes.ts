@@ -23,10 +23,19 @@ export type CubeRenderer = "map" | "list";
 
 const SPACES: ReadonlySet<string> = new Set<Space>(["map", "rows"]);
 
-/** Read the spatial axis from `?space=`; unknown/absent → the default (the map). */
-export function resolveAxes(params: URLSearchParams): CubeAxes {
+/**
+ * Read the spatial axis from `?space=`; when absent, fall back to `fallback` (the
+ * session-remembered space) if it is a known value, else the default (the map). An
+ * unknown URL value is ignored either way.
+ */
+export function resolveAxes(
+  params: URLSearchParams,
+  fallback?: string | null,
+): CubeAxes {
   const raw = params.get("space");
-  return { space: SPACES.has(raw ?? "") ? (raw as Space) : "map" };
+  if (SPACES.has(raw ?? "")) return { space: raw as Space };
+  if (fallback && SPACES.has(fallback)) return { space: fallback as Space };
+  return { space: "map" };
 }
 
 /** Serialize to `?space=`, omitting the default and preserving unrelated params

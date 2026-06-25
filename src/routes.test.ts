@@ -3,10 +3,12 @@ import { strict as assert } from "node:assert";
 import {
   aggregationRoute,
   agentRoute,
+  backTarget,
   buildingRoute,
   DETAIL_PATTERNS,
   FINDERS,
   observationRoute,
+  pushTrail,
   roomRoute,
 } from "./routes.ts";
 
@@ -71,6 +73,31 @@ Deno.test("index.html KNOWN_ROUTE_SEGMENTS exactly mirrors the route table", asy
     expected,
     "index.html KNOWN_ROUTE_SEGMENTS is out of sync with routes.ts (FINDERS + DETAIL_PATTERNS)",
   );
+});
+
+Deno.test("pushTrail records the referrer only when entering a detail page", () => {
+  // agents finder → agent detail: the agents location joins the trail.
+  assert.deepEqual(
+    pushTrail([], "/agents", agentRoute("https://x/#me")),
+    ["/agents"],
+  );
+  // agent → building: the chain grows (back will walk agent then agents).
+  assert.deepEqual(
+    pushTrail(["/agents"], "/agent?uri=https%3A%2F%2Fx%2F%23me", buildingRoute("v1")),
+    ["/agents", "/agent?uri=https%3A%2F%2Fx%2F%23me"],
+  );
+  // A non-detail target (a finder) carries no back affordance → trail unchanged.
+  assert.deepEqual(pushTrail(["/agents"], "/agent?uri=x", FINDERS.buildings), ["/agents"]);
+});
+
+Deno.test("backTarget pops the newest trail entry, else the fallback finder", () => {
+  assert.equal(
+    backTarget(["/agents", "/agent?uri=x"], FINDERS.buildings),
+    "/agent?uri=x",
+  );
+  // No trail (deep link / fresh tab / shared URL) → the page's fallback finder.
+  assert.equal(backTarget([], FINDERS.buildings), "/buildings");
+  assert.equal(backTarget(undefined, FINDERS.agents), "/agents");
 });
 
 Deno.test("a builder output matches its bare detail pattern", () => {

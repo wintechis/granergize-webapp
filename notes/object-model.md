@@ -58,7 +58,7 @@ types beside the domain, composites one layer up.
      `RooftopPotential`, `NearbyInstallation`, `RegionalObservation` / `RegionalTable`,
      `AreaProfile`, `OpenObservationDetail`, `OpenRegionalItem` (the `open` tier —
      [`open-data.md`](./open-data.md)).
-   - organization — `Organization`; contacts — `Contact`; prefs — `Preferences`.
+   - organization — `Organization`; agents — `SavedAgent`; prefs — `Preferences`.
    - aggregation — `PickedBenchmark`, `Contributors`.
 
 3. **Composite / selector shapes** — assembled one layer up in the data-access
@@ -75,8 +75,8 @@ which tracks the storage-model taxonomy of
 
 - **Resource objects** — a typed mirror of one *in-place* resource (GET → object →
   PUT). `BuildingType` ⇄ a building file, `EnergyDataset` ⇄ a dataset file,
-  `Organization` ⇄ the org node, `Preferences` ⇄ `prefs.ttl`, `Contact` (entries)
-  ⇄ `contacts.ttl`, `AggregationDefinition`/`AggregationSnapshot` ⇄ the aggregation
+  `Organization` ⇄ the org node, `Preferences` ⇄ `prefs.ttl`, `SavedAgent` (entries)
+  ⇄ `agents.ttl`, `AggregationDefinition`/`AggregationSnapshot` ⇄ the aggregation
   definition/snapshot files. One writer owns it; the object is the state.
 
 - **Event & projection objects** — for an *event-sourced log*, two object kinds: the

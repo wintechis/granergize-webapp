@@ -56,7 +56,7 @@ digraph ux {
   subgraph cluster_singletabs {
     label="App shell — other tabs (list-only)"; style="dashed"; color="#9e9e9e"; fontsize=10;
     Sharing      [label="Sharing finder"];
-    Contacts     [label="Contacts"];
+    Agents       [label="Agents"];
     Meet         [label="Meet / rooms"];
   }
 

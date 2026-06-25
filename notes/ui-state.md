@@ -23,7 +23,7 @@ the app works under the subpath it is deployed at. The **route IS the active fin
 - `/observations` — the energy cube (geographic energy, summary list, heatmap, trend)
 - `/aggregations` — saved aggregations (own / shared / open regional datasets)
 - `/sharing` — a lean audit of incoming building grants + the inbox
-- `/contacts` — the address book
+- `/agents` — the address book + referenced agents
 - `/rooms` — data rooms
 
 The standalone full-page detail routes carry the resource id **as a query param** —
@@ -35,7 +35,7 @@ The standalone full-page detail routes carry the resource id **as a query param*
 - `/observation` — a building's energy/observations (Energy/AnnualEnergy + weather)
 - `/aggregation` — one aggregation's definition + computed snapshot
 - `/room` — a data-room deep link (records the room as active, lands on Rooms)
-- `/contact` — a contact (always `?uri=` — a WebID is absolute)
+- `/agent` — an agent (always `?uri=` — a WebID is absolute)
 - `/regional` — a public open-data regional dataset (`?table=` + `?ags=`)
 - `/data-sources` — the data-source catalogue
 
@@ -88,7 +88,7 @@ Encoded now:
 - `q` / `offset` — a finder's keyword search and list-pager position
   (`useListSearch` / `usePaging`); every single-list finder uses the bare names.
 - `tiers` — a finder's multi-select source-tier facet (`useListFacet`): owned (`mine`),
-  received (`shared`), public (`open`) — the provenance ladder owned by
+  received (`shared`), public (`open`) — the concentric provenance model owned by
   [`open-data.md`](./open-data.md).
 - `action` — a palette-routed dialog opener on a finder/detail (e.g. `add`,
   `create-aggregation`, `share-aggregation`), so the command palette and deep links can
@@ -101,6 +101,31 @@ Encoded now:
   sub-state: the view tab (`tab` = `day`|`totals`|`profile`|`calendar`, default `day`
   omitted) and the day/month pickers (`day` = `YYYY-MM-DD`, `month` = `YYYY-MM`, each
   absent → the first day / latest month). Owned by `seriesChartParams.ts`.
+
+**A param's *value* lives in the URL; the *default* it falls back to varies.** Every
+param above is *navigational* — it lives only in the finder's URL, and the default is
+encoded as *absence* (a clean link), so a selection survives a reload and a Back into the
+same history entry. Re-entering a finder through its nav tab routes to the bare path (no
+query), so what shows then is whatever the param's default is.
+
+The **finder view selectors are remembered for the browsing session** (`sessionStorage`,
+`src/lib/facetMemory.ts`): the source-tier facet (`tiers`) and the view axis (`view` on
+Observations, `space` on Buildings, `guise` on Aggregations). These are the buttons a user
+expects to stick — "show me shared + open, in the list, while I work" — as they move
+between finders. Read precedence is **URL > remembered > hardcoded default**: a deep link
+/ Back that carries the param still wins (sharing a specific view is unaffected), but a
+bare nav-tab re-entry restores what you last picked rather than the hardcoded default
+(own + shared; map). The remaining params (`m`/`y` and the search box) are *not* remembered
+— they stay per-visit, because a metric/year/query is about the moment, not a standing
+preference.
+
+`sessionStorage` is chosen deliberately along the persistence spectrum: not a module
+variable (lost on reload — too brief), not `localStorage` (kept forever, across tabs — too
+permanent; that one *is* right for Developer mode, `src/lib/devMode.ts`), not `prefs.ttl`
+(account state, synced across devices — too heavy). It survives reloads and in-app
+navigation but is wiped when the tab closes and is not shared across tabs — a convenience
+for *this* session, contrasting the active-room exception below, which *is* Pod-persistent
+because the room you are in is a property of your account.
 
 The Buildings map is a **pure finder**: a marker click navigates to the building's
 standalone page (`/building`), so there is no selected-building / detail-sub-tab query
@@ -157,6 +182,40 @@ nested/overlay route) rather than as shell-less standalone routes, so the finder
 torn down at all — which would preserve the list scroll and pager for free too, and let
 the `?c`/`?z` restore code go entirely. That is a routing refactor for its own pass.
 
+## Back navigation — the history-state trail
+
+Every standalone detail page carries a back affordance (`BackLink`, or the imperative
+`goBack` on the pages that navigate away after a delete). It returns to **where the user
+actually came from**, not to a fixed parent: following an agent's `operatedBy` edge into a
+building, then pressing Back, returns to that agent — not to the Buildings finder.
+
+The referrer is a fourth kind of state, distinct from the three above. It is *navigational*
+in spirit (it defines a relationship between what you are looking at and how you got there)
+but it must **not** live in the URI: baking it into the address would make a copied/shared
+building link replay the sender's private browsing path, and grant the referrer
+bookmark/shareability it should not have — the same mis-classification argument as the map
+viewport. So it lives in the browser's **History API state** (React Router's
+`location.state`), as a `trail: string[]` of in-app locations (each `pathname+search`,
+newest last — `NavState` in `src/routes.ts`). A navigation *into* a detail page pushes the
+location it was reached from (`pushTrail`); the back affordance pops the newest entry
+(`backTarget`) and hands the remainder forward, so pressing Back repeatedly walks the real
+chain. With no trail — a deep link, a fresh tab, a *shared* URL — Back falls to the page's
+own collection finder (the `fallback`).
+
+Unlike the map viewport (a module store, deliberately lost on reload), the trail is keyed to
+its history entry, so it **survives a reload** of the same entry while staying invisible to
+the URL and absent from a fresh link — exactly the lifetime a referrer wants. This is *not*
+the browser's `history.back()`/`navigate(-1)` (an opaque pop that can leave the app);
+`BackLink` renders a real `<Link>` to a known in-app location, just with the location read
+from session state rather than the query string.
+
+The recording happens once at the navigation seams so every entry point is consistent:
+`RefLink` stamps the trail on any `to` that targets a detail route (so finder rows, the
+agent's "appears in" links, etc. all feed it), and the imperative `navigate()` sites
+(`BuildingsMap` markers, `ObservationsMatrix` cells, the rooms-create flow, the command
+palette) do the same through `useTrailState()` (`src/hooks/navTrail.ts`). Finder/collection
+targets carry no back affordance, so they are never stamped (`isDetailRoute`).
+
 ## Inventory
 
 ### Shell — `src/pages/AppShell.tsx`
@@ -206,10 +265,12 @@ the `?c`/`?z` restore code go entirely. That is a routing refactor for its own p
   its own finder — buildings in Buildings, aggregations in Aggregations — at the
   `shared` tier; this finder is the relationship audit.)
 
-### Contacts finder — `src/pages/ContactsFinder.tsx`
+### Agents finder — `src/pages/AgentsFinder.tsx`
 
-- Navigational: search + the list-pager position → `q`/`offset`.
-- Ephemeral: the contact input fields inside the add/edit flow.
+- Navigational: search + the list-pager position → `q`/`offset`; the source-tier facet
+  → `tiers` (`mine`/`shared`/`open` via the shared `TierFilter`, session-remembered —
+  an agent's tier is derived from where it appears, see [`open-data.md`](./open-data.md)).
+- Ephemeral: the WebID / QR-scan input fields.
 
 ### Rooms finder — `src/pages/RoomsFinder.tsx`
 

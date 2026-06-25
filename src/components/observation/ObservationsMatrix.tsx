@@ -6,6 +6,7 @@ import Typography from "@mui/material/Typography";
 import { BuildingType } from "../../types.ts";
 import { buildingDisplayName } from "../../lib/buildingDisplay.ts";
 import { observationRoute } from "../../routes.ts";
+import { useTrailState } from "../../hooks/navTrail.ts";
 import { type EnergyMetricKey } from "../../services/rdf/energyDataset.ts";
 import { DEFAULT_METRIC } from "../../services/energy/energyMetric.ts";
 import {
@@ -76,6 +77,9 @@ export default function ObservationsMatrix(
   { buildings, energyByYear, visibleIds, metric = DEFAULT_METRIC }: ObservationsMatrixProps,
 ) {
   const navigate = useNavigate();
+  const trailState = useTrailState();
+  // Drill into the observation page, recording the matrix as the back trail.
+  const go = (route: string) => navigate(route, { state: trailState(route) });
   const t = useT();
   const matrix = useMemo(
     () =>
@@ -172,12 +176,11 @@ export default function ObservationsMatrix(
                       role="button"
                       tabIndex={has ? 0 : -1}
                       aria-label={title}
-                      onClick={() =>
-                        void navigate(observationRoute(row.building.id))}
+                      onClick={() => void go(observationRoute(row.building.id))}
                       onKeyDown={(e) => {
                         if (e.key === "Enter" || e.key === " ") {
                           e.preventDefault();
-                          void navigate(observationRoute(row.building.id));
+                          void go(observationRoute(row.building.id));
                         }
                       }}
                       sx={{

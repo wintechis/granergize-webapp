@@ -1,5 +1,6 @@
 import { sessionGateway } from "../services/pod/podGateway.ts";
 import { useEffect, useRef } from "react";
+import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Button, Chip, Divider, Stack, Typography } from "@mui/material";
 import { Session } from "@inrupt/solid-client-authn-browser";
 import { normalizeRoomUri, ownsRoom } from "../services/interop/dataRoom.ts";
@@ -8,7 +9,7 @@ import { useDeleteRoom, useEnterRoom, useExitRoom } from "../hooks/mutations.ts"
 import { useNotification } from "../context/NotificationContext.tsx";
 import { msg } from "../lib/messages.ts";
 import { useConfirm } from "../context/ConfirmContext.tsx";
-import { useBackNavigation } from "../hooks/backNavigation.ts";
+import { backTarget, FINDERS, type NavState } from "../routes.ts";
 import { BackLink, RdfSourceLink } from "../components/detail/DetailView.tsx";
 import RoomInviteSection from "../components/room/RoomInviteSection.tsx";
 import RoomRolesSection from "../components/room/RoomRolesSection.tsx";
@@ -43,7 +44,18 @@ export default function Room(
 ) {
   const { showNotification } = useNotification();
   const { confirm } = useConfirm();
-  const goBack = useBackNavigation();
+  // Back/leave = the newest location on the navigation trail (Connect, a member
+  // list, …) carried in history state, falling back to the rooms finder for a deep
+  // link / invite link — see backTarget.
+  const navigate = useNavigate();
+  const location = useLocation();
+  const goBack = () => {
+    const trail = (location.state as NavState | null)?.trail ?? [];
+    const rest = trail.slice(0, -1);
+    void navigate(backTarget(trail, FINDERS.rooms), {
+      state: rest.length ? { trail: rest } : undefined,
+    });
+  };
 
   const room = normalizeRoomUri(roomUri);
   const owned = ownsRoom(room, sessionGateway(session));
@@ -106,7 +118,7 @@ export default function Room(
     <Stack spacing={3} divider={<Divider />} sx={{ width: "100%" }}>
       {/* Header: back link, the room URI, and a host badge. */}
       <Box>
-        <BackLink />
+        <BackLink fallback={FINDERS.rooms} />
         <Stack
           direction="row"
           spacing={1}
