@@ -22,6 +22,7 @@ import {
 } from "./taskContext.ts";
 import * as dataRoom from "./tasks/data-room.ts";
 import * as shareBuilding from "./tasks/share-building.ts";
+import * as shareBuildingByYear from "./tasks/share-building-by-year.ts";
 import * as shareAggregation from "./tasks/share-aggregation.ts";
 import * as addBuilding from "./tasks/add-building.ts";
 import * as excelRoundtrip from "./tasks/excel-roundtrip.ts";
@@ -38,6 +39,7 @@ import * as seedDemos from "./tasks/seed-demos.ts";
 const TASKS: TaskModule[] = [
   dataRoom,
   shareBuilding,
+  shareBuildingByYear,
   shareAggregation,
   addBuilding,
   excelRoundtrip,
