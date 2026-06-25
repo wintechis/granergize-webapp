@@ -25,14 +25,21 @@ engine (see `notes/data-deref.md` §"What this is NOT").
 
 Some wrappers *additionally* expose query endpoints on top of deref. Two kinds appear:
 
-- **`/sparql`** — a full SPARQL endpoint over the wrapper's dump. Present on
+- **`/sparql`** — a SPARQL endpoint, but **not a triplestore over the whole dump**. It
+  requires at least one `FROM` / `FROM NAMED` clause (a query with none → 400); each named
+  graph must be under the wrapper base (external → 400) and is **fetched/dereferenced on
+  demand** (content-negotiated to N-Triples), the `FROM` clauses are then stripped and the
+  query runs against *only those loaded documents*. So it is **SPARQL over the deref
+  surface** — a join/projection across a handful of documents whose IRIs you already hold —
+  with no whole-dataset query and no global index; because you must already know the
+  document IRIs, it does **not** replace discovery (you deref/list first). Present on
   `linked-nuts`, `linked-lau`, `linked-inspire`, `linked-regionalstatistik`,
   `linked-osm` (and `linked-eurostat`, `linked-mastr-store` — neither wired into the
   app). **Absent** on the wrappers the app leans on most: `linked-mastr` (the *store*
   variant has one, the served wrapper does not), `linked-wetterdienst`,
   `linked-lod2-by`, `linked-energieatlas`, `linked-netztransparenz`. So `/sparql`
   availability is per-wrapper, not a family guarantee — and the app exploits none of
-  it; it's there for ad-hoc exploration.
+  it; it's there for ad-hoc joins over known documents, not dataset-wide exploration.
 - **Lookup endpoints** — the discovery capabilities below, used to find the IRI set
   before dereferencing. These *are* on the app's load path.
 
@@ -44,9 +51,15 @@ must match the shape, so a reader can predict an endpoint's contract from its na
 alone.
 
 - **`/search?q=`** — **keyword** lookup: free text in, matching resources out. The
-  textual discovery shape. (`linked-mastr`; `linked-inspire`'s `/names?q=` is the
-  gazetteer-scoped variant; `linked-osm`'s `/nominatim/search` is API-compat with
-  upstream Nominatim.)
+  textual discovery shape. (`linked-mastr` over unit/actor/location names; `linked-nuts` and
+  `linked-lau` over region code + name, returning the matching SKOS region concept(s);
+  `linked-osm`'s `/nominatim/search` is API-compat with upstream Nominatim.)
+  `linked-inspire`'s `/names?q=` is a *gazetteer-scoped,
+  best-effort* variant — **not robust**: `NamesServlet` proxies an upstream **WFS**
+  `PropertyIsLike` wildcard filter (case-insensitive substring on one configured name
+  property), only where that service declares a `nameSearch` capability, scoped to named
+  features, with no ranking / fuzzy / multi-field matching. Treat it as a thin place-name
+  lookup, not a general keyword index.
 - **`/bbox?bbox=W,S,E,N`** — **spatial, area**: resources within a bounding rectangle.
   (`linked-mastr`, `linked-lod2-by`.)
 - **`/point?lon=&lat=&r=`** — **spatial, point + radius**: resources within `r` of a
@@ -57,7 +70,12 @@ alone.
   falls *inside*. (`linked-nuts`, `linked-lau`.) Distinct from `/point`: not "what's near"
   but "what contains me".
 - **`/filter?<attrs>`** — **structured by-attribute selection** over a listing (exact
-  facet matches, not free text). (`linked-netztransparenz`: `plz`/`source`/`minkw`.)
+  facet matches, not free text). (`linked-mastr`: `ags` (an AGS *prefix* — Land/Kreis/
+  Gemeinde grain — so a region's `skos:notation` drops straight in) + `carrier`
+  (Energieträger codes); `linked-netztransparenz`: `plz`/`source`/`minkw`.) The pairing
+  is the point: a geo wrapper's `/search` resolves a place name to a region, and
+  `linked-mastr /filter?ags=<notation>` then lists every unit inside it — exact municipal
+  containment, no bounding-box slop.
 
 The discovery shapes above *find* IRIs you don't yet hold. Separately, the wrappers expose
 **constructible deref paths** — path-based URI templates keyed by a meaningful external
@@ -68,8 +86,9 @@ no discovery round-trip: `/ags/{ags}` (`linked-mastr`, `linked-lod2-by`), `/eeg/
 space, not discovery — the app reaches netztransparenz purely this way
 (`plantUrl(eegNumber)` → `eeg/{number}`).
 
-Two capabilities sit *outside* this vocabulary entirely: **`/sparql`** (a full query
-surface, per-wrapper — see above) and **`/geojson`** (bulk choropleth export, AGS-keyed,
+Two capabilities sit *outside* this vocabulary entirely: **`/sparql`** (FROM-scoped query
+over the deref surface, not a whole-dump triplestore, per-wrapper — see above) and
+**`/geojson`** (bulk choropleth export, AGS-keyed,
 `linked-nuts`/`linked-lau`). Anything that doesn't fit a shape above must not borrow its
 name — e.g. netztransparenz's attribute selection is `/filter`, **not** `/search`
 (keyword search would need a `?q=`).
@@ -83,7 +102,7 @@ Grouped by how the app consumes them. Each lists: what it provides · the client
 
 - **MaStR** (`mastr.md`, `linked-mastr`) — nearby renewable generation units (carrier,
   capacity, EEG number). `mastrNearby.ts`; also the Logistikimmobilien import. `open`
-  tier. Deref + `bbox`/`search`; no `/sparql`.
+  tier. Deref + `bbox`/`search`/`filter` (`filter?ags=`/`carrier=`); no `/sparql`.
 - **Netztransparenz** (`netztransparenz.md`, `linked-netztransparenz`) — a plant's
   actually-settled kWh per year, joined to a MaStR unit by EEG number.
   `netztransparenz.ts`. `open`. App reaches it by **deref** (EEG-number-addressed); the
@@ -102,9 +121,10 @@ Grouped by how the app consumes them. Each lists: what it provides · the client
   `/bbox` for discovery, then deref (`/building/{id}`, `/ags/{ags}`).
 - **NUTS regions** (`nuts.md`, `linked-nuts`) — EU statistical regions as SKOS +
   GeoSPARQL geometry. `regionGeometry.ts`. Choropleths / place-by-AGS. Deref +
-  `geojson`/`contains` + `/sparql`.
+  `geojson`/`contains`/`search` (keyword over code+name) + `/sparql`.
 - **LAU regions** (`lau.md`, `linked-lau`) — the leaf (Gemeinde) level of the same
-  hierarchy. `regionGeometry.ts`. Deref + `geojson`/`contains` + `/sparql`.
+  hierarchy. `regionGeometry.ts`. Deref + `geojson`/`contains`/`search` (keyword, the JSON
+  variant carries the AGS) + `/sparql`.
 - **INSPIRE / ALKIS** (`inspire.md`, `linked-inspire`) — cadastral parcels/geometry; a
   MaStR-import join wrapper. Deref + `/sparql`.
 
