@@ -6,7 +6,10 @@ TSOs' EEG-Jahresabrechnung — a plant's **actually-settled** renewable generati
 per year. The app reads it through `src/services/netztransparenz.ts`
 (`fetchPlantGenerationByYear` / `parsePlantSettlements`) and shows it as an annual
 bar chart on the open observation detail. Shares the LDP/RDF patterns catalogued in
-`mastr.md`; deref-only (no `/sparql`), CORS-enabled, fetched directly.
+`mastr.md`; CORS-enabled, fetched directly. The app reaches it purely by **deref** of
+`eeg/{number}`; the wrapper also exposes `/filter?plz=&source=&minkw=` (attribute
+selection over the plant index — *not* keyword `/search`; see `README.md`
+§"Capability vocabulary"), which the app does not use. No `/sparql`.
 
 ## Entities and vocabulary
 
