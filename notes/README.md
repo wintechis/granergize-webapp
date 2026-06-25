@@ -35,6 +35,10 @@ owns the verbs (the query/mutation taxonomy — the read/write split);
 [building-detail.md](./building-detail.md) shows the object→UI projection and the
 actions on it.
 
+Orthogonal to this pipeline runs the **provenance** lens — the concentric
+`mine`/`shared`/`open` rings (where data comes from and who controls it), the
+data-architecture entry point: [data-architecture.md](./data-architecture.md).
+
 ## Present-state notes
 
 - [architecture.md](./architecture.md) — how `src/` is sliced into layers and which way imports flow; and the storage→typed-objects→UI data-shape pipeline.
@@ -52,7 +56,7 @@ actions on it.
 - [attachments.md](./attachments.md) — arbitrary files attached to a building (the energy certificate is one of them).
 - [building-detail.md](./building-detail.md) — what hangs off a building IRI and how the detail page projects it.
 - [weather.md](./weather.md) — the external, live, read-only DWD weather layer (nearest-station proximity join), outside the Pod data path.
-- [open-data.md](./open-data.md) — the `open` source tier: public, ungated, off-Pod Linked Data (LoD2 rooftop-PV, MaStR + netztransparenz generation, regional statistics) and its in-app read-only details.
+- [data-architecture.md](./data-architecture.md) — the **data-architecture entry point**: the concentric `mine`/`shared`/`open` provenance model (where data comes from and who controls it), routing to the per-ring deep notes; plus the open ring in full — its sources, in-app read-only details, and the precise discovery-query joins (`/point` · `/bbox` · constructed AGS IRIs, with numbers).
 - [ui-state.md](./ui-state.md) — which UI state is navigational (encoded in the URI — the BrowserRouter path + query params) vs. ephemeral.
 - [ux-overview.md](./ux-overview.md) — a coarse map of the UX surfaces (tabs · detail pages · dialogs) and the transitions between them, as a Graphviz/Mermaid overview above statechart detail.
 - [i18n.md](./i18n.md) — the de/en/fr paths (build-time vocab labels vs. the in-app chrome catalog), the rolled-in-house `Intl`-based message layer, and why no i18n library.

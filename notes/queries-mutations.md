@@ -186,7 +186,7 @@ Read-only operations group by *how* they read, which mirrors the write side:
   `getRoomLogState`, `getSharedWithMe`, `getReceivedAggregations`).
 - **External (non-Pod) read** — the `open`-tier and weather sources are queried over plain
   HTTP (`trackedFetch`, not the authed transport, and **not** WebID-keyed since they're
-  public); read-only render context, owned by [`open-data.md`](./open-data.md) and
+  public); read-only render context, owned by [`data-architecture.md`](./data-architecture.md) and
   [`weather.md`](./weather.md).
 
 A query is otherwise pure. Freshness is server-driven via `fetchFresh` (revalidating GET);

@@ -13,7 +13,7 @@ Three sibling artefacts describe adjacent concerns, not this one:
 - `src/constants/dataSources.ts` (`SOURCES`) — the in-app **attribution** registry
   (name, homepage, licence) surfaced on `/data-sources` and in `SourceNote`. One entry
   per id, mirroring a `sources/<id>.md` note.
-- `notes/data-deref.md` + `notes/open-data.md` — the **read path**: the deref
+- `notes/data-deref.md` + `notes/data-architecture.md` — the **read path**: the deref
   primitive, discover-then-bulk-fetch, and where each `open`-tier source surfaces.
 
 ## The access contract
@@ -64,7 +64,9 @@ The discovery shapes above *find* IRIs you don't yet hold. Separately, the wrapp
 code, so a client that already holds the code can build the IRI and dereference directly,
 no discovery round-trip: `/ags/{ags}` (`linked-mastr`, `linked-lod2-by`), `/eeg/{number}`
 (`linked-mastr`, `linked-netztransparenz`), `/see/{mastr-nr}` / `/building/{id}`,
-`/area/{ags}` (`linked-energieatlas`). These are part of the dereferenceable resource
+`/area/{ags}` (`linked-energieatlas`), `data/{tableId}` + `/ags/{ags}`
+(`linked-regionalstatistik` — the curated table catalogue, no discovery call). These are
+part of the dereferenceable resource
 space, not discovery — the app reaches netztransparenz purely this way
 (`plantUrl(eegNumber)` → `eeg/{number}`).
 
@@ -77,7 +79,7 @@ name — e.g. netztransparenz's attribute selection is `/filter`, **not** `/sear
 ## The sources
 
 Grouped by how the app consumes them. Each lists: what it provides · the client module
-· the source tier it feeds (see `notes/open-data.md`).
+· the source tier it feeds (see `notes/data-architecture.md`).
 
 ### Ontologycentral `linked-*` RDF wrappers
 

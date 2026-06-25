@@ -162,7 +162,7 @@ Linked Data wrappers and a geocoder — over plain (non-Solid, non-DPoP) HTTP th
 stays overridable. The three below are reached on the normal load/edit path; the full
 roster of `open`-tier public sources (LoD2 rooftop-PV, MaStR, netztransparenz,
 Energie-Atlas, NUTS/LAU) and how they surface is owned by
-[`open-data.md`](./open-data.md):
+[`data-architecture.md`](./data-architecture.md):
 
 - **`linked-wetterdienst`** — weather (SOSA/QUDT). `VITE_WEATHER_API_URI`, default
   `https://wunderfacts.com/wetterdienst/`. Dereferenced as Turtle by
@@ -177,7 +177,7 @@ Energie-Atlas, NUTS/LAU) and how they surface is owned by
 
 Each wrapper client reads its base lazily and parses the response pure
 (`parseRdfText` → typed objects), so the parser half is unit-testable offline.
-These wrappers (and the `open`-tier ones in [`open-data.md`](./open-data.md)) are all
+These wrappers (and the `open`-tier ones in [`data-architecture.md`](./data-architecture.md)) are all
 siblings of the `linked-*` family (`~/projects/linked-*`); the weather one is documented
 end-to-end in `~/projects/linked-wetterdienst`.
 

@@ -28,7 +28,7 @@ types beside the domain, composites one layer up.
      (PV / battery / CHP energy systems), `AttachmentRef[]`
      ([`attachments.md`](./attachments.md)), and `EnergyDatasetRef[]` (the
      self-describing links to its energy resources); plus derived tier flags
-     `isShared` / `isOpen` (owned vs shared-in vs open — [`open-data.md`](./open-data.md)).
+     `isShared` / `isOpen` (owned vs shared-in vs open — [`data-architecture.md`](./data-architecture.md)).
    - `EnergyType` — the dashboard's energy object: per-building figures bucketed
      into the seven `EnergyCategoryKey` groups (`energyNeed`, `energyGeneration`, …).
      Within a group the figures are keyed by the **canonical** `EnergyMetricKey`
@@ -57,7 +57,7 @@ types beside the domain, composites one layer up.
      `standortEnergieprofil.ts`, `openObservations.ts`, `openRegional.ts`) —
      `RooftopPotential`, `NearbyInstallation`, `RegionalObservation` / `RegionalTable`,
      `AreaProfile`, `OpenObservationDetail`, `OpenRegionalItem` (the `open` tier —
-     [`open-data.md`](./open-data.md)).
+     [`data-architecture.md`](./data-architecture.md)).
    - organization — `Organization`; agents — `SavedAgent`; prefs — `Preferences`.
    - aggregation — `PickedBenchmark`, `Contributors`.
 

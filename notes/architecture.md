@@ -142,6 +142,10 @@ navigational/ephemeral split and the full inventory are
 
 ## The data-shape pipeline
 
+This pipeline is the *how-it-translates* axis; orthogonal to it is the *provenance*
+axis — the concentric `mine`/`shared`/`open` rings (where data comes from / who controls
+it), the data-architecture entry point [`data-architecture.md`](./data-architecture.md).
+
 Orthogonal to the import-direction layering above runs the **data-shape** pipeline —
 the same data in three forms, each translating to its neighbour in **both
 directions**:

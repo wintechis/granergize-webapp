@@ -266,7 +266,7 @@ Each action-bearing sub-widget maps to its intents:
   context, no intents** — it renders public-tier data as cards, with no Pod action.
 
 So every sub-widget that *writes* has a catalog intent; the only intent-less section is
-the read-only open-data context ([`open-data.md`](./open-data.md)). Adding a sub-widget that acts means adding its
+the read-only open-data context ([`data-architecture.md`](./data-architecture.md)). Adding a sub-widget that acts means adding its
 entity + intent(s); the widget then surfaces them through the same `applies()` filter,
 and the palette gets them for free.
 

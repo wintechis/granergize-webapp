@@ -106,7 +106,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   // off-Pod, Bavaria-only (empty elsewhere). The map renders them as its own marker layer.
   const openOn = tierFacet.isSelected("open");
   // Open data is fetched as context around the user's OWN buildings (the concentric
-  // ring), not the free map viewport — see `ownDataAnchor` / notes/open-data.md.
+  // ring), not the free map viewport — see `ownDataAnchor` / notes/data-architecture.md.
   const { centre: openCentre, radiusM: openRadius } = useMemo(
     () => ownDataAnchor(buildings),
     [buildings],

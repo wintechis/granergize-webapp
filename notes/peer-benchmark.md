@@ -115,4 +115,4 @@ definition/snapshot split the aggregation feature enforces, and it is preserved.
 Replay of the sharing log stays same-Pod, as elsewhere. The regional/district
 energy-mix and public-statistics layer (generation by source, regional figures, area
 profiles) has since shipped as the `open` source tier — separate from benchmarking and
-owned by [`open-data.md`](./open-data.md).
+owned by [`data-architecture.md`](./data-architecture.md).

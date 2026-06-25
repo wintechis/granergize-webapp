@@ -10,7 +10,7 @@
  * in-session restore mechanism, which was fragile (a fresh map's default-centre move
  * could clobber/race the saved params, snapping back to the all-buildings fit). The
  * open-data fetch no longer keys on them — it anchors to the user's own buildings
- * (`ownDataAnchor`, the concentric ring; see notes/open-data.md).
+ * (`ownDataAnchor`, the concentric ring; see notes/data-architecture.md).
  */
 import type { MapCentre } from "../services/openBuildings.ts";
 

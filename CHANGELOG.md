@@ -3,6 +3,15 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-25]
+- **Docs: `notes/open-data.md` → `notes/data-architecture.md`, the data-architecture
+  entry point.** The concentric `mine`/`shared`/`open` provenance model is now the spine
+  of a whole-architecture entry note (broadened from open-only): a section per ring routing
+  to the deep notes (`mine` → storage-layout/queries-mutations/object-model; `shared` →
+  sharing/room; `open` kept in full). §Reaching the outer ring now states the discovery-query
+  joins precisely with numbers — LoD2 `/point?…&r=` (metres), MaStR `/bbox` (`dLat=r/111`,
+  `dLon=r/(111·cosφ)`), the `ownDataAnchor` 1 km margin + [2 km, 20 km] clamp, and the
+  regional `data/{tableId}` + `ags/{ags}` construction. README + architecture.md keep their
+  pipeline (how-it-translates) spine and cross-link the provenance lens; ~15 references swept.
 - **The open tier's map layers anchor to your own buildings (concentric), not the free
   map viewport.** The Buildings/Observations finders' `open` layers (LoD2 rooftops, MaStR/
   netztransparenz plants) fetched by the map viewport (`?c`/`?z`) — so panning to a city

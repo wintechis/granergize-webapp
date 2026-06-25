@@ -144,7 +144,7 @@ Aggregation sharing is the building-sharing flow applied to the **snapshot only*
   (`AGGREGATION_TIERS` = `mine` / `shared` / `open`): own definitions are `mine`,
   aggregations **shared with you** (received snapshots, `useSharedAggregations`) are
   `shared`, and public regional-statistics datasets are `open` (the open tier and the
-  `mine`/`shared`/`open` ladder are owned by [`open-data.md`](./open-data.md)). It offers three
+  `mine`/`shared`/`open` ladder are owned by [`data-architecture.md`](./data-architecture.md)). It offers three
   URI-synced guises (`?guise=`): the **list** (default), a region **map** choropleth,
   and a cross-year **timeline** — the latter two keyed on the `spatialExtent` recorded
   above. (The Sharing finder itself is only a lean audit of incoming *building* grants —

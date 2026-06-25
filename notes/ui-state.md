@@ -89,7 +89,7 @@ Encoded now:
   (`useListSearch` / `usePaging`); every single-list finder uses the bare names.
 - `tiers` — a finder's multi-select source-tier facet (`useListFacet`): owned (`mine`),
   received (`shared`), public (`open`) — the concentric provenance model owned by
-  [`open-data.md`](./open-data.md).
+  [`data-architecture.md`](./data-architecture.md).
 - `action` — a palette-routed dialog opener on a finder/detail (e.g. `add`,
   `create-aggregation`, `share-aggregation`), so the command palette and deep links can
   open a dialog by URI.
@@ -269,7 +269,7 @@ targets carry no back affordance, so they are never stamped (`isDetailRoute`).
 
 - Navigational: search + the list-pager position → `q`/`offset`; the source-tier facet
   → `tiers` (`mine`/`shared`/`open` via the shared `TierFilter`, session-remembered —
-  an agent's tier is derived from where it appears, see [`open-data.md`](./open-data.md)).
+  an agent's tier is derived from where it appears, see [`data-architecture.md`](./data-architecture.md)).
 - Ephemeral: the WebID / QR-scan input fields.
 
 ### Rooms finder — `src/pages/RoomsFinder.tsx`
