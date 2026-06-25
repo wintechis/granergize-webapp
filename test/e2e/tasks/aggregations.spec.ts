@@ -47,6 +47,23 @@ test.describe("energy view smoke", () => {
   test.beforeAll(async ({ browser }) => {
     test.setTimeout(T.setup); // login (IdP + consent) can be slow / retried
     page = await newCapturedPage(browser, "aggregations");
+    // The Betreiber-benchmark test sets operatedBy to an unreachable demo operator
+    // WebID (operator.example). Resolving it for the operator name is a cross-origin
+    // GET that fails DNS, and `retryFetch` treats that as transient → a retry storm
+    // that hangs the operator-average render to the test timeout. Stub it to a minimal
+    // profile so the resolution returns fast (the name isn't asserted — the row label
+    // is the fixed aeOperatorAvg).
+    await page.route(/operator\.example\/profile\/card/, (route) =>
+      route.fulfill({
+        status: 200,
+        headers: {
+          "Access-Control-Allow-Origin": "*",
+          "Content-Type": "text/turtle",
+        },
+        body:
+          "@prefix foaf: <http://xmlns.com/foaf/0.1/> .\n" +
+          '<https://operator.example/profile/card#me> a foaf:Agent ; foaf:name "Demo Operator" .\n',
+      }));
     await login(page, ACC);
     await assertCleanStart(page);
     // Self-seed an empty Pod so the test doesn't assume a pre-seeded one (the
@@ -161,7 +178,12 @@ test.describe("energy view smoke", () => {
   // annual view (AnnualEnergy), whose summary table carries the operator /
   // portfolio / benchmark comparisons as ROWS beneath the per-year rows.
   test("the energy view shows the operator-average (Betreiber) benchmark", async () => {
-    test.setTimeout(T.testSolo);
+    // The longer (sharing-tier) budget: this is the heaviest solo test — it adds TWO
+    // buildings via the master-data operator editor and then renders a cross-building
+    // operator average that only materialises once BOTH buildings' energy has loaded
+    // (the figures load incrementally). With the testSolo budget the slow setup left
+    // too little time for the (correct, but late) operator-average row to appear.
+    test.setTimeout(T.testSharing);
     const OP = "https://operator.example/profile/card#me";
     const A = "Betreiber Strasse 1";
     const B = "Betreiber Strasse 2";

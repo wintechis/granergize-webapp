@@ -198,26 +198,37 @@ export async function removeKnownRoom(
 export async function enterRoom(
   roomUri: string,
   gateway: PodGateway,
+  makeCurrent: boolean = true,
 ): Promise<void> {
   const room = normalizeRoomUri(roomUri);
-  const previous = await getCurrentRoom(gateway);
-  if (previous && previous !== room) {
-    // Best-effort: leaving the previous room must not block joining the new one.
-    // The old room may be deleted or no longer writable (e.g. access revoked),
-    // which would 403/404 here and otherwise strand the user unable to switch.
-    await setMembership(previous, false, gateway).catch((err) =>
-      logError("leave previous data room", err)
-    );
+  // `makeCurrent` governs the single-valued "current room" pointer in prefs.ttl.
+  // A BULK creation (the demo seed) must pass false: making each of N rooms current
+  // rewrites prefs.ttl N times — concurrently with the buildings seed also writing
+  // prefs.ttl — which races the conditional PUT past its retry budget and silently
+  // drops rooms (an "Added n of total" partial). Joining + bookmarking each room is
+  // enough for it to appear; only an interactive single enter sets the pointer.
+  if (makeCurrent) {
+    const previous = await getCurrentRoom(gateway);
+    if (previous && previous !== room) {
+      // Best-effort: leaving the previous room must not block joining the new one.
+      // The old room may be deleted or no longer writable (e.g. access revoked),
+      // which would 403/404 here and otherwise strand the user unable to switch.
+      await setMembership(previous, false, gateway).catch((err) =>
+        logError("leave previous data room", err)
+      );
+    }
   }
   if (!(await getMyMembership(room, gateway))) {
     await setMembership(room, true, gateway);
   }
-  // Ensure it's bookmarked and make it current. The current pointer is owned by
-  // the room mutations and set authoritatively in the React Query cache, so a
-  // slow/stale read-back can't revert a switch.
+  // Ensure it's bookmarked (so it appears in "Your rooms"). The current pointer is
+  // owned by the room mutations and set authoritatively in the React Query cache,
+  // so a slow/stale read-back can't revert a switch.
   await addBookmark(gateway, room);
-  await setCurrentRoom(gateway, room);
-  activeRoom = room;
+  if (makeCurrent) {
+    await setCurrentRoom(gateway, room);
+    activeRoom = room;
+  }
 }
 
 /**
@@ -598,6 +609,7 @@ export function leaveRoom(roomUri: string, gateway: PodGateway): Promise<void> {
 export async function createRoom(
   gateway: PodGateway,
   name?: string,
+  makeCurrent: boolean = true,
 ): Promise<string> {
   const webId = gateway.webId;
   if (!webId) throw new Error("Not logged in");
@@ -642,7 +654,7 @@ export async function createRoom(
   }
 
   // The creator owns the room — enter it (join, bookmark, make current).
-  await enterRoom(roomUri, gateway);
+  await enterRoom(roomUri, gateway, makeCurrent);
 
   // The room's human name lives in a small member-readable resource inside the
   // room (an LDP container can't carry user triples under PUT-only). The

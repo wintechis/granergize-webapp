@@ -89,12 +89,13 @@ export async function seedDemoAgents(
 }
 
 /**
- * Seed {@link DEMO_ROOM_COUNT} demo data rooms on the user's own Pod. Each
- * `createRoom` enters the new room (so the last one created ends up current,
- * all of them bookmarked). NOT idempotent — rooms are identified by fresh
- * UUIDs, so re-running adds another batch. Best-effort per room; only a total
- * failure throws. Returns the created room IRIs so the caller can patch the
- * room-registry cache (which is owned by mutations, never invalidated).
+ * Seed {@link DEMO_ROOM_COUNT} demo data rooms on the user's own Pod. Each room is
+ * joined + bookmarked but NOT made current (`makeCurrent=false`) — a bulk seed must not
+ * rewrite the single-valued prefs current-room pointer per room (it races the concurrent
+ * buildings seed's prefs write and drops rooms); so the current pointer is left untouched.
+ * NOT idempotent — rooms are identified by fresh UUIDs, so re-running adds another batch.
+ * Best-effort per room; only a total failure throws. Returns the created room IRIs so the
+ * caller can patch the room-registry cache (which is owned by mutations, never invalidated).
  * @operation mutation
  */
 export async function seedDemoRooms(
@@ -104,7 +105,10 @@ export async function seedDemoRooms(
   const rooms: string[] = [];
   for (let i = 0; i < count; i++) {
     try {
-      rooms.push(await createRoom(gateway));
+      // makeCurrent=false: a bulk seed must not make each room "current" — that
+      // rewrites the single-valued prefs.ttl pointer per room, racing the
+      // concurrent buildings seed's prefs write and dropping rooms (a partial).
+      rooms.push(await createRoom(gateway, undefined, false));
     } catch (err) {
       logError("seed demo data room", err);
     }

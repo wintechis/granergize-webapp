@@ -40,6 +40,54 @@ All notable changes to the Granergize WebApp project will be documented in this 
   dataset IRI(s) (`observations/{year}/{id}.ttl#ds`) and each building-less row its
   dataset IRI, via the self-hiding `RdfSourceLink` — matching the Buildings finder
   (Developer mode only; nothing changes in the normal UI).
+- **External-data-source notes moved out of `vocab/` into a new `sources/` directory, with
+  an overview.** The 15 per-source model-correspondence notes (`mastr.md`, `wetterdienst.md`,
+  `nuts.md`, …) had been squatting in `vocab/`, whose README declares it the source of truth
+  for **our own** three Granergize `.ttl` vocabularies — a different subject. They're now
+  `sources/<id>.md` (intra-set cross-links unaffected — they moved together), and `vocab/`
+  holds only `building.ttl`/`consumption.ttl`/`vocab.ttl` + its README. New `sources/README.md`
+  is the cross-cutting overview: every source grouped by how the app consumes it (what it
+  provides · client module · source tier · access modes), plus the access contract — every
+  source is **dereferenceable** and that (with discover-then-bulk-fetch) is the *only* mode the
+  app uses; `/sparql` is a **per-wrapper** capability (present on linked-nuts/lau/inspire/
+  regionalstatistik/osm, absent on linked-mastr/wetterdienst/lod2-by/energieatlas/netztransparenz)
+  that the app never exploits. Added a `sources/netztransparenz.md` stub (the one app source
+  that previously lacked a note). `src/constants/dataSources.ts`'s attribution registry now
+  references `sources/<id>.md` instead of the old `vocab/<id>.md` path (comment-only).
+- **`sources/README.md` now defines the `linked-*` capability vocabulary, and a misnamed
+  wrapper endpoint was corrected.** The family uses fixed endpoint names with one meaning
+  each: `/search?q=` (keyword), `/bbox` (spatial area), `/contains` (spatial point),
+  `/filter` (structured by-attribute selection); `/sparql` and `/geojson` sit outside that
+  discovery set. Auditing the sources against this surfaced that `linked-netztransparenz`'s
+  plant-discovery endpoint — `plz`/`source`/`minkw` attribute filtering, no `?q=` — was
+  misnamed `/search`; it is renamed **`/search` → `/filter`** in that wrapper repo
+  (`SearchServlet`→`FilterServlet`, `PlantIndex.search()`→`filter()`, `web.xml` mappings,
+  docs). No webapp client change — the app reaches netztransparenz only by dereferencing
+  `eeg/{number}`.
+- **`e2e:local` specs reconciled to the agents-rename + observation-page merge (7 specs).** The
+  merge (Contacts→Agents, the `KNOWN_ROUTE_SEGMENTS` routing completion, and relocating the
+  building's location-context layers — regional statistics, weather, nearby installations,
+  neighbourhood choropleth — onto the observation page) regressed several specs. Three test-only
+  classes plus one real app fix:
+  - *Section moved to the observation page:* `regional-context`, `neighbourhood-energy`, and the
+    `dev-source-links` regionalstatistik link now navigate to `/observation` (the regional figures
+    are map-first now, so they also switch to the figures table) instead of the bare `/building`
+    master-data page.
+  - *New content created locator ambiguity:* `cube-calendar-weather`'s calendar "Plus" legend uses
+    `{ exact: true }` (the observation page now also carries the energy-band "Plus faible/élevé"
+    legend + a regional "…régions plus fines" hint, so a substring match resolved to four nodes);
+    `energy-entry`'s editor-table assertion scopes to `.first()` (the per-unit observations section
+    renders a second table).
+  - *In-memory viewport store can't survive a reload:* `map-viewport` now drills away via a
+    client-side tab switch rather than `page.goto` — a full reload reset the `mapViewport`
+    module-singleton the feature relies on, so the test could never pass as written.
+  - *Concurrent demo-seed dropped data rooms (app fix — `createRoom`/`enterRoom`/`seedDemoRooms`):*
+    the bulk demo-room seed entered all 21 rooms as "current", rewriting the single-valued
+    `prefs.ttl` current-room pointer 21× concurrently with the demo-buildings seed also writing
+    `prefs.ttl` — racing the conditional PUT past its retry budget and silently dropping ~2 rooms
+    (an "added n of total" partial). `createRoom`/`enterRoom` gain a `makeCurrent` flag (default
+    `true`); `seedDemoRooms` passes `false`, so each room is joined + bookmarked without touching
+    the current pointer (you can't be "in" all 21 demo rooms at once anyway).
 
 ## [2026-06-24]
 - **A Wikidata entity IRI resolves as a first-class agent.** Opening `/agent?uri=<wikidata>`

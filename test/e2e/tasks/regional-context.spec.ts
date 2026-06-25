@@ -178,10 +178,12 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     if (!buildingId) throw new Error("regional-context: missing building id");
     id = buildingId;
 
-    // The building page renders the regional-statistics section even with no energy
-    // data (it's about the building's region, like weather). It's map-first now, so
-    // switch to the figures table (the toggle's Table button enables once figures load).
-    await page.goto(buildingRoute("building", id));
+    // The observation page renders the regional-statistics section even with no energy
+    // data (it's a building-location context layer, sibling to the weather panel — both
+    // live on the observation surface, not the bare master-data /building page). It's
+    // map-first now, so switch to the figures table (the Table button enables once figures
+    // load).
+    await page.goto(buildingRoute("observation", id));
     await page.getByRole("button", { name: t("btnTable"), exact: true }).click();
     await expect(page.getByText(t("regContextTitle", { region: "Bayern" })))
       .toBeVisible({ timeout: T.action });
@@ -219,7 +221,7 @@ test.describe("regional context (linked-regionalstatistik)", () => {
     // Kreis name against the now-incomplete codelist and gets null.
     geoHasKreis = false;
     await page.reload();
-    await page.goto(buildingRoute("building", id));
+    await page.goto(buildingRoute("observation", id));
     // Map-first section → switch to the figures table.
     await page.getByRole("button", { name: t("btnTable"), exact: true }).click();
 

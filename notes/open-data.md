@@ -11,48 +11,61 @@ sections).
 
 ## The concentric model
 
+The three source tiers are **concentric rings** around the user, ordered by
+write-authority then gate — each outer ring a strictly larger world the user has less say
+over:
+
+- **Centre (`mine`)** — the user's own Pod (storage-root-keyed); authored, owned, and the
+  only **writable** ring.
+- **Middle (`shared`)** — on *other* Pods, WAC-gated and addressed *to them* through the
+  `shared-in/` log; read-only but still private (someone granted it).
+- **Outer (`open`)** — public, ungated, off-Pod Linked Data, pulled in only as context;
+  never owned, never written, addressed to *no one in particular*.
+
+Outward, several axes move together — what "concentric" captures and a flat list doesn't:
+**ownership/control** falls (only the centre is writable), **breadth** grows, how
+specifically-**addressed-to-you** it is fades (mine *is* yours → shared is *for* you →
+open is for everyone), and **gatekeeping** loosens (own auth → a WAC grant → none).
+
 Every collection finder filters its rows by a multi-select **source tier**
 (`useListFacet("tiers", …)`, `constants/tiers.ts`): `TIER_VALUES = ["mine", "shared",
-"open"]`. Read the three not as a flat list but as **concentric rings centred on the
-user's Pod** — each outer ring a strictly larger world the user has less say over:
-
-- **`mine`** (centre) — on the user's own Pod (storage-root-keyed); authored, owned, and
-  the only **writable** ring.
-- **`shared`** (middle) — on *another* Pod, WAC-granted through the interop `shared-in/`
-  log and addressed *to them*; read-only, theirs to see but not own.
-- **`open`** (outer) — public, ungated, off-Pod Linked Data addressed to *no one in
-  particular*; fetched as anyone, no auth, read-only — pure context.
-
-Outward, several axes move together — what "concentric" captures and a flat ladder
-doesn't: **ownership/control** falls (only the centre is writable), **breadth** grows
-(each ring is a larger set), how specifically-**addressed-to-you** it is fades (mine *is*
-yours → shared is *for* you → open is for everyone), and **gatekeeping** loosens (own auth
-→ a WAC grant → none). The facet unions outward from the centre: `mine` + `shared` are on
-by default, `open` is opt-in.
-
-Each finder offers the rings that fit its collection (`BUILDING_TIERS` /
+"open"]`. Each finder offers the rings that fit its collection (`BUILDING_TIERS` /
 `OBSERVATION_TIERS` / `AGGREGATION_TIERS` / `AGENT_TIERS` — all three; the open ring is
-simply empty outside a source's coverage). Two behaviours track the model: only `mine`
-is writable, and (with the carve-out below) `mine`/`shared` resources earn an in-app
-detail page.
+simply empty outside a source's coverage). The facet unions outward from the centre:
+`mine` + `shared` are on by default, `open` is opt-in. Two behaviours track the model:
+only `mine` is writable, and (with the carve-out below) `mine`/`shared` resources earn an
+in-app detail page.
 
-**Provenance vs anchoring — the rings describe *who controls* the data, not *what it is
-centred on spatially*.** That control axis is uniform. But which open data the app
-actually fetches has **two anchoring modes**, and only one is centred on the user:
+### Reaching the outer ring
 
-- *Own-data-anchored* (genuinely concentric): the Aggregations regional tier
-  (`openRegionalItemsFromBuildings` — only Bundesländer where the user owns buildings)
-  and the building page's `StandortEnergieprofil`/`RegionalStatistics`/
-  `NeighbourhoodEnergyMap`/weather sections (each keyed to *that building's*
-  coordinates/region).
-- *Viewport-anchored* (independent of the on-Pod buildings): the map's **open buildings**
-  (`useOpenBuildings`) and **open observations** (`useOpenObservations`) layers key on
-  `openViewport(searchParams)` (`?c=`/`?z=`) → "what's near where you're *looking*", not
-  what you own. Pan to a city you own nothing in, tick `open`, and rows appear.
+The outer ring is reached from the inner two **two ways** — only the first is literally
+"linked from" your data:
 
-So `open` is one provenance ring but two query modes: context-around-your-data, and free
-viewport exploration. The map layers are deliberately exploratory; the rest is concentric
-context.
+- **Followed links** — an IRI that sits *in* the Pod (or shared) graph: `rec:operatedBy`
+  / `rec:ownedBy` / `owl:sameAs` → an agent profile, a Wikidata entity. You follow the
+  edge (see [`data-deref.md`](./data-deref.md) §"Resolving references").
+- **Discovered/constructed from a value** — the nearby MaStR plants, LoD2 rooftops, the
+  weather station, the regional-statistics table. Not linked from your data; found from a
+  *value* in it — coordinates (`/bbox` / `/point` / `/contains`) or an AGS (constructible
+  `data/{tableId}`). The graph supplies the value; discovery or a URI template mints the
+  IRI (access modes catalogued in [`../sources/README.md`](../sources/README.md)
+  §"Capability vocabulary").
+
+The outer ring is **transitive**: once an external resource is dereferenced, *its* graph
+links onward (a MaStR unit → its operator → its EEG plant in netztransparenz), so the
+ring keeps expanding one hop at a time.
+
+**Anchoring — not every discovery centres on *your* data (yet).** The
+*discovered-from-a-value* path is genuinely concentric only when the value comes from your
+own data — which holds for the Aggregations regional tier (`openRegionalItemsFromBuildings`
+— only Bundesländer where you own buildings) and the building page's
+`StandortEnergieprofil`/`RegionalStatistics`/`NeighbourhoodEnergyMap`/weather sections
+(keyed to *that building's* coordinates/region). But the map's **open buildings**
+(`useOpenBuildings`) and **open observations** (`useOpenObservations`) layers currently
+discover from the **map viewport** (`openViewport`, `?c=`/`?z=`) — "what's near where
+you're *looking*", independent of what you own (pan to a city you own nothing in, tick
+`open`, and rows appear). Re-anchoring those to your own buildings' extent — so the open
+ring is uniformly concentric — is planned.
 
 The **Agents** finder reads the same facet via the shared `TierFilter`, but an agent
 isn't a Pod resource with a ring of its own, so its ring is *derived* from where it

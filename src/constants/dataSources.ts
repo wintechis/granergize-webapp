@@ -3,7 +3,7 @@
  * truth for user-facing **attribution**: the credits page (`pages/DataSources`)
  * lists them all, and `components/SourceNote` cites individual ones under the
  * panels/figures that use them. One entry per source id, mirroring the
- * `vocab/<id>.md` notes.
+ * `sources/<id>.md` notes (overview in `sources/README.md`).
  *
  * Names + licence tokens are proper nouns / short identifiers, not translated;
  * the surrounding chrome ("Data source:", page title) goes through the message
@@ -11,7 +11,7 @@
  * (the dev-only raw-RDF links are `RdfSourceLink`, a separate concern).
  */
 export interface DataSource {
-  /** Stable id (matches the `vocab/<id>.md` note). */
+  /** Stable id (matches the `sources/<id>.md` note). */
   id: string;
   /** Display name (proper noun). */
   name: string;

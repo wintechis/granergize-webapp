@@ -83,7 +83,7 @@ Deno.test("seedDemoAgents: a transient 502 on one write is retried, not tallied 
   assert.equal(seeded, total); // retried → full tally, no partial
 });
 
-Deno.test("seedDemoRooms creates the requested rooms on the own Pod, last one current", async () => {
+Deno.test("seedDemoRooms creates the requested rooms on the own Pod, none made current", async () => {
   const { session } = makeSession();
   const { rooms, total } = await seedDemoRooms(session, 3);
   assert.equal(rooms.length, 3);
@@ -94,5 +94,7 @@ Deno.test("seedDemoRooms creates the requested rooms on the own Pod, last one cu
       `${r} lives under the user's rooms/ collection`,
     );
   }
-  assert.equal(await getCurrentRoom(session), rooms[2]);
+  // makeCurrent=false: a bulk seed leaves the single-valued current-room pointer
+  // untouched (it would otherwise race the concurrent buildings-seed prefs write).
+  assert.equal(await getCurrentRoom(session), null);
 });
