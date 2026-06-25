@@ -16,10 +16,12 @@
     "npm:@mui/material@^9.1.1": "9.1.1_@emotion+react@11.14.0__react@19.2.7_@emotion+styled@11.14.1__@emotion+react@11.14.0___react@19.2.7__react@19.2.7_@types+react@19.2.17_react@19.2.7_react-dom@19.2.7__react@19.2.7",
     "npm:@playwright/test@^1.60.0": "1.60.0",
     "npm:@rdfjs/types@^1.1.2": "1.1.2",
+    "npm:@react-leaflet/core@3": "3.0.0_leaflet@1.9.4_react@19.2.7_react-dom@19.2.7__react@19.2.7",
     "npm:@tanstack/eslint-plugin-query@5": "5.101.0_eslint@10.5.0_typescript@6.0.3",
     "npm:@tanstack/react-query@^5.101.0": "5.101.0_react@19.2.7",
     "npm:@testing-library/dom@^10.4.1": "10.4.1",
     "npm:@testing-library/react@^16.3.2": "16.3.2_@testing-library+dom@10.4.1_@types+react@19.2.17_@types+react-dom@19.2.3__@types+react@19.2.17_react@19.2.7_react-dom@19.2.7__react@19.2.7",
+    "npm:@types/leaflet.markercluster@^1.5.5": "1.5.6",
     "npm:@types/leaflet@^1.9.21": "1.9.21",
     "npm:@types/n3@^1.26.1": "1.26.1",
     "npm:@types/react-dom@^19.2.3": "19.2.3_@types+react@19.2.17",
@@ -34,6 +36,7 @@
     "npm:globals@^17.6.0": "17.6.0",
     "npm:html5-qrcode@^2.3.8": "2.3.8",
     "npm:jose@4": "4.15.9",
+    "npm:leaflet.markercluster@^1.5.3": "1.5.3_leaflet@1.9.4",
     "npm:leaflet@^1.9.4": "1.9.4",
     "npm:n3@^2.0.3": "2.0.3",
     "npm:qrcode.react@^4.2.0": "4.2.0_react@19.2.7",
@@ -808,6 +811,12 @@
     },
     "@types/json-schema@7.0.15": {
       "integrity": "sha512-5+fP8P8MFNC+AyZCDxrB2pkZFPGzqQWUzpSeuuVLvm8VMcorNYavBqoFcxK8bQz4Qsbn4oUEEem4wDLfcysGHA=="
+    },
+    "@types/leaflet.markercluster@1.5.6": {
+      "integrity": "sha512-I7hZjO2+isVXGYWzKxBp8PsCzAYCJBc29qBdFpquOCkS7zFDqUsUvkEOyQHedsk/Cy5tocQzf+Ndorm5W9YKTQ==",
+      "dependencies": [
+        "@types/leaflet"
+      ]
     },
     "@types/leaflet@1.9.21": {
       "integrity": "sha512-TbAd9DaPGSnzp6QvtYngntMZgcRk+igFELwR2N99XZn7RXUdKgsXMR+28bUO0rPsWp8MIu/f47luLIQuSLYv/w==",
@@ -1712,6 +1721,12 @@
         "readable-stream@2.3.8"
       ]
     },
+    "leaflet.markercluster@1.5.3_leaflet@1.9.4": {
+      "integrity": "sha512-vPTw/Bndq7eQHjLBVlWpnGeLa3t+3zGiuM7fJwCkiMFq+nmRuG3RI3f7f4N4TDX7T4NpbAXpR2+NTRSEGfCSeA==",
+      "dependencies": [
+        "leaflet"
+      ]
+    },
     "leaflet@1.9.4": {
       "integrity": "sha512-nxS1ynzJOmOlHp+iL3FyWqK89GtNL8U8rvlMOsQdTTssxZwCXh8N2NB3GDQOL+YR3XnWyZAxwQixURb+FA74PA=="
     },
@@ -2513,10 +2528,12 @@
         "npm:@mui/material@^9.1.1",
         "npm:@playwright/test@^1.60.0",
         "npm:@rdfjs/types@^1.1.2",
+        "npm:@react-leaflet/core@3",
         "npm:@tanstack/eslint-plugin-query@5",
         "npm:@tanstack/react-query@^5.101.0",
         "npm:@testing-library/dom@^10.4.1",
         "npm:@testing-library/react@^16.3.2",
+        "npm:@types/leaflet.markercluster@^1.5.5",
         "npm:@types/leaflet@^1.9.21",
         "npm:@types/n3@^1.26.1",
         "npm:@types/react-dom@^19.2.3",
@@ -2530,6 +2547,7 @@
         "npm:exceljs@^4.4.0",
         "npm:globals@^17.6.0",
         "npm:html5-qrcode@^2.3.8",
+        "npm:leaflet.markercluster@^1.5.3",
         "npm:leaflet@^1.9.4",
         "npm:n3@^2.0.3",
         "npm:qrcode.react@^4.2.0",

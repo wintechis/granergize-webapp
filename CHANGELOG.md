@@ -3,6 +3,14 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-25]
+- **Buildings map: marker clustering.** Dense pins (the ~370-building import + the open
+  layers) collapse into count bubbles that expand on zoom (`leaflet.markercluster` via a
+  small `@react-leaflet/core` layer, `MarkerClusterGroup.tsx`, so the existing
+  `<BuildingMarker>` children keep their icon/tooltip/click/hooks). In the energy lens a
+  cluster is **tinted by its children's dominant/worst band** (`markerClusterTint.ts`, pure
+  + unit-tested) — a mini regional energy summary; ownership clusters are a neutral bubble,
+  open clusters stay green in their own group. Clustering disables at street zoom
+  (`disableClusteringAtZoom: 16`). New `map-clustering` e2e.
 - **Docs: `notes/open-data.md` → `notes/data-architecture.md`, the data-architecture
   entry point.** The concentric `mine`/`shared`/`open` provenance model is now the spine
   of a whole-architecture entry note (broadened from open-only): a section per ring routing

@@ -156,7 +156,7 @@ export async function buildingIds(page: Page): Promise<string[]> {
 export async function addBuilding(
   page: Page,
   street: string,
-  opts: { operatedBy?: string } = {},
+  opts: { operatedBy?: string; lat?: number; long?: number } = {},
 ): Promise<void> {
   await openBuildingsList(page);
   await page.getByRole("button", { name: t("addBuildingBtn"), exact: true }).first().click();
@@ -168,8 +168,10 @@ export async function addBuilding(
   await dialog.getByLabel(t("lblLocality")).fill("Nürnberg");
   await dialog.getByLabel(t("lblPostalCode")).fill("90451");
   await dialog.getByLabel(t("lblRegion")).fill("Bayern");
-  await dialog.getByLabel(t("lblLatitude")).fill("49.45");
-  await dialog.getByLabel(t("lblLongitude")).fill("11.08");
+  // Default to the fixed Nürnberg test coordinate; callers that need DISTINCT points
+  // (e.g. the map-clustering spec) pass their own lat/long.
+  await dialog.getByLabel(t("lblLatitude")).fill(String(opts.lat ?? 49.45));
+  await dialog.getByLabel(t("lblLongitude")).fill(String(opts.long ?? 11.08));
   await dialog.getByRole("button", { name: t("addBuildingBtn"), exact: true }).click();
   await expect(dialog).toBeHidden({ timeout: T.action });
 

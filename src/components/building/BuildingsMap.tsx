@@ -14,6 +14,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { buildingRoute, observationRoute } from "../../routes.ts";
 import { useTrailState } from "../../hooks/navTrail.ts";
 import { BuildingType } from "../../types.ts";
+import MarkerClusterGroup from "./MarkerClusterGroup.tsx";
 import {
   MapContainer,
   Marker,
@@ -494,6 +495,14 @@ export default function BuildingsMap(
   const [draftYear, setDraftYear] = useState<number | null>(null);
   const activeYear = draftYear ?? selectedYear;
 
+  // Markers update their icon in place on a lens / metric-framing / year change; the
+  // cluster bubbles are tinted from those icons, so tell the group to recompute them
+  // (otherwise a year tick leaves the clusters showing the previous band's colour).
+  const buildingClusterRef = useRef<L.MarkerClusterGroup | null>(null);
+  useEffect(() => {
+    buildingClusterRef.current?.refreshClusters();
+  }, [lens, framing, activeYear]);
+
   // Animation play/pause state — declared here so the URI writers can stop it.
   const [playing, setPlaying] = useState(false);
 
@@ -604,64 +613,69 @@ export default function BuildingsMap(
         <FitToBuildings active={active} buildings={shownBuildings} />
         <ViewportUrlSync />
         <BoundsWatcher active={active} onChange={setBbox} />
-        {shownBuildings.map((building) => (
-          building.lat != null && building.long != null && (
-            <BuildingMarker
-              key={building.id}
-              building={building}
-              position={[building.lat, building.long]}
-              lens={lens}
-              band={bandFor(building.id)}
-              framing={framing}
-              onClick={() => openBuilding(building.id)}
-            />
-          )
-        ))}
-        {/* Open-data (LoD2) buildings — a read-only green-marker layer, shown only when
-            the `open` tier is ticked. Off-Pod, viewport-fetched; a click drills to the
-            in-app read-only detail (`/building?uri=`), not the upstream document. */}
-        {openOn && openBuildings.map((b) => (
-          b.lat != null && b.long != null && (
-            <Marker
-              key={b.uri}
-              position={[b.lat, b.long]}
-              icon={buildingPin(false, true)}
-              eventHandlers={{
-                click: () => {
-                  void go(buildingRoute(b.uri));
-                },
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -38]}>
-                {t("openBuildingLabel")}
-                {b.openKwp != null ? ` — ${Math.round(b.openKwp)} kWp` : ""}
-              </Tooltip>
-            </Marker>
-          )
-        ))}
-        {/* Open observations — nearby installations' settled generation
-            (netztransparenz), the Observations map's open layer. Read-only green
-            markers; a click opens the source unit. */}
-        {openOn && openObservations.map((o) => {
-          const latest = Math.max(...o.byYear.keys());
-          return (
-            <Marker
-              key={o.iri}
-              position={[o.lat, o.long]}
-              icon={buildingPin(false, true)}
-              eventHandlers={{
-                click: () => {
-                  void go(observationRoute(o.iri));
-                },
-              }}
-            >
-              <Tooltip direction="top" offset={[0, -38]}>
-                {o.label || t("obsOpenFallback")}
-                {` — ${(o.byYear.get(latest) ?? 0).toLocaleString()} kWh (${latest})`}
-              </Tooltip>
-            </Marker>
-          );
-        })}
+        <MarkerClusterGroup ref={buildingClusterRef}>
+          {shownBuildings.map((building) => (
+            building.lat != null && building.long != null && (
+              <BuildingMarker
+                key={building.id}
+                building={building}
+                position={[building.lat, building.long]}
+                lens={lens}
+                band={bandFor(building.id)}
+                framing={framing}
+                onClick={() => openBuilding(building.id)}
+              />
+            )
+          ))}
+        </MarkerClusterGroup>
+        {/* Open-data layers (LoD2 buildings + nearby settled-generation observations) —
+            read-only green markers, shown only when the `open` tier is ticked. Off-Pod,
+            anchored to the user's own buildings; a click drills to the in-app read-only
+            detail (`/building?uri=` / `/observation?uri=`), not the upstream document.
+            Clustered in their OWN group so the green stays distinct from owned/shared. */}
+        {openOn && (
+          <MarkerClusterGroup>
+            {openBuildings.map((b) => (
+              b.lat != null && b.long != null && (
+                <Marker
+                  key={b.uri}
+                  position={[b.lat, b.long]}
+                  icon={buildingPin(false, true)}
+                  eventHandlers={{
+                    click: () => {
+                      void go(buildingRoute(b.uri));
+                    },
+                  }}
+                >
+                  <Tooltip direction="top" offset={[0, -38]}>
+                    {t("openBuildingLabel")}
+                    {b.openKwp != null ? ` — ${Math.round(b.openKwp)} kWp` : ""}
+                  </Tooltip>
+                </Marker>
+              )
+            ))}
+            {openObservations.map((o) => {
+              const latest = Math.max(...o.byYear.keys());
+              return (
+                <Marker
+                  key={o.iri}
+                  position={[o.lat, o.long]}
+                  icon={buildingPin(false, true)}
+                  eventHandlers={{
+                    click: () => {
+                      void go(observationRoute(o.iri));
+                    },
+                  }}
+                >
+                  <Tooltip direction="top" offset={[0, -38]}>
+                    {o.label || t("obsOpenFallback")}
+                    {` — ${(o.byYear.get(latest) ?? 0).toLocaleString()} kWh (${latest})`}
+                  </Tooltip>
+                </Marker>
+              );
+            })}
+          </MarkerClusterGroup>
+        )}
       </MapContainer>
         {/* Energy band legend — overlaid in the map's bottom-left corner. Ownership
             needs no swatch: the Mine/Shared tier dots above carry that colour key. */}
