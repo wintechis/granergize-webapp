@@ -88,6 +88,21 @@ All notable changes to the Granergize WebApp project will be documented in this 
     (an "added n of total" partial). `createRoom`/`enterRoom` gain a `makeCurrent` flag (default
     `true`); `seedDemoRooms` passes `false`, so each room is joined + bookmarked without touching
     the current pointer (you can't be "in" all 21 demo rooms at once anyway).
+- **Full `e2e:local` run finished the merge reconciliation: a "Close" locator collision + the
+  weather host dependency (test-only).** Running the whole local suite (the 7-spec pass above was
+  partial) surfaced two more classes, both test-layer — no app regression:
+  - *Inline editor + snackbar both answer to "Close":* the observation page's energy-year editor is
+    inline now, so its text "Close" Button co-exists on screen with the success snackbar's icon-only
+    Alert "Close" X — `getByRole("button", { name: "Close" })` matched both (strict-mode violation).
+    Disambiguated to the editor's via `.filter({ hasText: t("btnClose") })` (the X's accessible name
+    is its `aria-label`, with no text node). Fixed once in the `addEnergyYear` helper (covering the
+    six specs that route through it) plus five inline copies in `energy-entry`/`palette-add-and-energy`.
+  - *Weather no longer needs the live host:* `cube-calendar-weather` dereferenced live
+    linked-wetterdienst (`wunderfacts.com`), so a host outage timed out the weather-panel test.
+    Stubbed per-spec via `page.route` (one nearby `dwd:WeatherStation` + 2023–24 annual means that
+    overlap the demo office's energy years, so the overlay aligns) and 404'd the sibling
+    `mastr`/`regionalstatistik` wrappers on the same host — the spec is now hermetic on weather like
+    its `nearby-installations`/`neighbourhood-energy` siblings.
 
 ## [2026-06-24]
 - **A Wikidata entity IRI resolves as a first-class agent.** Opening `/agent?uri=<wikidata>`

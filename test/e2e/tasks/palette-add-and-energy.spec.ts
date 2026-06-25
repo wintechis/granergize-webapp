@@ -142,7 +142,8 @@ test.describe("palette: add building + enter energy", () => {
     await expect(page.getByText(YEAR).first()).toBeVisible({
       timeout: T.action,
     });
-    await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
+    await page.getByRole("button", { name: t("btnClose"), exact: true })
+      .filter({ hasText: t("btnClose") }).click();
     await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
       .toBeHidden({ timeout: T.action });
   });

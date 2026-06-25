@@ -231,8 +231,12 @@ export async function addEnergyYear(
   await expect(page.getByText(t("energySaved")).first())
     .toBeVisible({ timeout: T.action });
   // Saving keeps the editor open (so its table reflects the new year); close it so
-  // each call is self-contained (Close flips back to the charts view).
-  await page.getByRole("button", { name: t("btnClose"), exact: true }).click();
+  // each call is self-contained (Close flips back to the charts view). Two controls
+  // answer to "Close" right now — the editor's text Button and the success snackbar's
+  // icon-only Alert X (the `energySaved` toast we just awaited). Disambiguate to the
+  // editor's: it's the only one carrying the visible text (the X's name is its aria-label).
+  await page.getByRole("button", { name: t("btnClose"), exact: true })
+    .filter({ hasText: t("btnClose") }).click();
   await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
     .toBeHidden({ timeout: T.action });
   // /observation/:id is a standalone route (no app shell) — return to the shell.
