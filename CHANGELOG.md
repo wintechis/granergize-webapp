@@ -30,6 +30,11 @@ All notable changes to the Granergize WebApp project will be documented in this 
   - *One back-link.* `DetailView.BackLink` renders an MUI `ArrowBackIcon` + `btnBack` instead
     of a raw `🠠` glyph; `DataSources` reuses `<BackLink>` (dropping the bespoke `dsBack`
     "← Back" glyph-in-copy entry).
+  - *Decompose `AppShell.tsx` (831 → 656 lines).* The ~170-line account dropdown moved to a
+    presentational `AccountMenu.tsx` (it reads/toggles the locale + dev-mode signals itself;
+    every action is a prop owned by the shell), and the fresh-Pod demo banner to
+    `OnboardingBanner.tsx`. No logic moved — pure presentational extraction, prop wiring
+    verified by `noUnusedLocals` typecheck.
   - *Decompose `BuildingsMap.tsx` (903 → 599 lines).* Two pure extractions: the marker
     component + its icon cache + the `MapLens` type → `BuildingMarker.tsx`, and the six
     non-rendering Leaflet viewport/sync helpers (`InvalidateOnActive`, `FitToBuildings`,

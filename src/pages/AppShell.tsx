@@ -3,11 +3,6 @@ import { useEffect, useRef, useState } from "react";
 import Avatar from "@mui/material/Avatar";
 import Box from "@mui/material/Box";
 import SearchIcon from "@mui/icons-material/Search";
-import Menu from "@mui/material/Menu";
-import MenuItem from "@mui/material/MenuItem";
-import Divider from "@mui/material/Divider";
-import Select from "@mui/material/Select";
-import Switch from "@mui/material/Switch";
 import Tabs from "@mui/material/Tabs";
 import Tab from "@mui/material/Tab";
 import { Outlet, useLocation, useNavigate } from "react-router-dom";
@@ -23,8 +18,8 @@ import IconButton from "@mui/material/IconButton";
 import Tooltip from "@mui/material/Tooltip";
 import PersonIcon from "@mui/icons-material/Person";
 import Footer from "../components/Footer.tsx";
-import { setDevMode, useDevMode } from "../hooks/devMode.ts";
-import { type Lang, setLanguage, useLanguage } from "../hooks/language.ts";
+import AccountMenu from "../components/AccountMenu.tsx";
+import OnboardingBanner from "../components/OnboardingBanner.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import NetworkActivityIndicator from "../components/NetworkActivityIndicator.tsx";
 import NotificationLogIndicator from "../components/NotificationLogIndicator.tsx";
@@ -34,9 +29,6 @@ import { hydrateActiveRoom } from "../services/interop/dataRoom.ts";
 import { getAvatarObjectUrl } from "../services/organization/logoManager.ts";
 import { getOrgLogoObjectUrl } from "../services/organization/organizationManager.ts";
 import { useAvatarRefresh } from "../lib/avatarRefresh.ts";
-import Alert from "@mui/material/Alert";
-import Button from "@mui/material/Button";
-import Collapse from "@mui/material/Collapse";
 import { useDemoOffer, useSharedWithMe } from "../hooks/queries.ts";
 import { setDemoSeedDeclined } from "../services/prefs.ts";
 import { logError } from "../lib/logError.ts";
@@ -133,9 +125,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
   const activePath =
     NAV.find((n) => location.pathname === n.path)?.path ?? FINDERS.buildings;
 
-  const devMode = useDevMode();
   const t = useT();
-  const language = useLanguage();
   const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
   // "Remove all app data" — while the mutation is pending the page renders a
   // full-page activity screen with the live deletion requests and a Cancel
@@ -603,176 +593,33 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
               </Avatar>
             </IconButton>
           </Tooltip>
-          <Menu
+          <AccountMenu
             anchorEl={anchorEl}
             open={menuOpen}
             onClose={handleMenuClose}
-            onClick={handleMenuClose}
-            transformOrigin={{ horizontal: "right", vertical: "top" }}
-            anchorOrigin={{ horizontal: "right", vertical: "bottom" }}
-            slotProps={{
-              paper: {
-                elevation: 0,
-                sx: {
-                  // Cap to the viewport and scroll when the menu (long in Developer
-                  // mode) would otherwise overflow below the fold — leaving its last
-                  // items unreachable on a short window. The drop-shadow filter still
-                  // renders outside the box, so no `overflow: visible` is needed.
-                  maxHeight: "calc(100vh - 96px)",
-                  overflowY: "auto",
-                  filter: "drop-shadow(0px 2px 8px rgba(0,0,0,0.32))",
-                  mt: 1.5,
-                  minWidth: 180,
-                },
-              },
+            onProfile={handleProfile}
+            onOrganisation={handleOrganisation}
+            onSeedBuildings={seedDemos}
+            seedBuildingsBusy={seedBuildingsMut.isPending}
+            onSeedConnect={() => {
+              seedDemoAgentsClick();
+              seedDemoRoomsClick();
             }}
-          >
-            {/* Identity */}
-            <MenuItem onClick={handleProfile}>
-              {t("menuProfile")}
-            </MenuItem>
-            <MenuItem onClick={handleOrganisation}>
-              {t("menuOrganisation")}
-            </MenuItem>
-
-            {/* Language switcher — a fixed entry (the one active-locale signal also
-                drives the vocab labels). Keep the menu open while choosing. */}
-            <Divider />
-            <MenuItem
-              onClick={(e) => e.stopPropagation()}
-              disableRipple
-              sx={{ justifyContent: "space-between", gap: 2 }}
-            >
-              {t("uiLanguage")}
-              <Select
-                size="small"
-                value={language}
-                onChange={(e) => setLanguage(e.target.value as Lang)}
-                onClick={(e) => e.stopPropagation()}
-                aria-label={t("uiLanguage")}
-                sx={{ minWidth: 130 }}
-              >
-                <MenuItem value="de">Deutsch</MenuItem>
-                <MenuItem value="en">English</MenuItem>
-                <MenuItem value="fr">Français</MenuItem>
-              </Select>
-            </MenuItem>
-
-            {/* Developer-mode toggle — fixed third entry, present in both modes */}
-            <Divider />
-            <MenuItem
-              // Keep the menu open and flip the switch in place — this toggles a
-              // setting rather than running an action, so don't dismiss.
-              onClick={(e) => {
-                e.stopPropagation();
-                setDevMode(!devMode);
-              }}
-              sx={{ justifyContent: "space-between", gap: 2 }}
-            >
-              {t("menuDevMode")}
-              <Switch edge="end" size="small" checked={devMode} tabIndex={-1} />
-            </MenuItem>
-
-            {/* Dev: demo fixtures */}
-            {devMode && <Divider />}
-            {devMode && (
-              <MenuItem onClick={seedDemos} disabled={seedBuildingsMut.isPending}>
-                {seedBuildingsMut.isPending
-                  ? t("addingEllipsis")
-                  : t("menuAddBuildings")}
-              </MenuItem>
-            )}
-            {devMode && (
-              <MenuItem
-                onClick={() => {
-                  seedDemoAgentsClick();
-                  seedDemoRoomsClick();
-                }}
-                disabled={seedContactsMut.isPending || seedRoomsMut.isPending}
-              >
-                {seedContactsMut.isPending || seedRoomsMut.isPending
-                  ? t("addingEllipsis")
-                  : t("menuAddAgents")}
-              </MenuItem>
-            )}
-
-            {/* Dev: archive */}
-            {devMode && <Divider />}
-            {devMode && (
-              <MenuItem onClick={handleDownloadArchive} disabled={accountBusy}>
-                {accountBusy ? t("filesWorking") : t("menuExportArchive")}
-              </MenuItem>
-            )}
-            {devMode && (
-              <MenuItem
-                onClick={() => archiveInput.current?.click()}
-                disabled={accountBusy}
-              >
-                {t("menuImportArchive")}
-              </MenuItem>
-            )}
-
-            {/* Dev: sharing maintenance */}
-            {devMode && <Divider />}
-            {devMode && (
-              <MenuItem onClick={handleAuditGrants} disabled={accountBusy}>
-                {t("menuCheckConsistency")}
-              </MenuItem>
-            )}
-            {devMode && (
-              <MenuItem onClick={handleCheckObsLinks} disabled={accountBusy}>
-                {t("menuCheckObsLinks")}
-              </MenuItem>
-            )}
-            {devMode && (
-              <MenuItem onClick={handleReissueGrants} disabled={accountBusy}>
-                {t("menuRebuildSharing")}
-              </MenuItem>
-            )}
-
-            {/* Dev: documentation */}
-            {devMode && <Divider />}
-            {devMode && (
-              <MenuItem
-                component="a"
-                href={`${import.meta.env.BASE_URL}granergize-handbuch.docx`}
-              >
-                {t("menuHandbuch")}
-              </MenuItem>
-            )}
-
-            {/* Dev: destructive */}
-            {devMode && <Divider />}
-            {devMode && (
-              <MenuItem
-                onClick={handleRemoveAppData}
-                sx={{ color: "error.main" }}
-              >
-                {t("menuRemoveAll")}
-              </MenuItem>
-            )}
-
-            {/* Data sources & licences (credits, both modes) sit with Logout at the
-                foot of the menu, so the credits stay next to Logout in dev mode too
-                rather than being buried above the dev sections. */}
-            <Divider />
-            <MenuItem
-              onClick={() => {
-                handleMenuClose();
-                void navigate(DETAIL_PATTERNS.dataSources);
-              }}
-            >
-              {t("menuDataSources")}
-            </MenuItem>
-            {devMode && (
-              <MenuItem onClick={handleChangeAccount}>
-                {t("menuChangeAccount")}
-              </MenuItem>
-            )}
-            <MenuItem onClick={handleLogout}>
-              {t("menuLogout")}
-            </MenuItem>
-          </Menu>
+            seedConnectBusy={seedContactsMut.isPending || seedRoomsMut.isPending}
+            onDownloadArchive={handleDownloadArchive}
+            onImportArchive={() => archiveInput.current?.click()}
+            onAuditGrants={handleAuditGrants}
+            onCheckObsLinks={handleCheckObsLinks}
+            onReissueGrants={handleReissueGrants}
+            accountBusy={accountBusy}
+            onRemoveAppData={handleRemoveAppData}
+            onDataSources={() => {
+              handleMenuClose();
+              void navigate(DETAIL_PATTERNS.dataSources);
+            }}
+            onChangeAccount={handleChangeAccount}
+            onLogout={handleLogout}
+          />
         </Box>
       </Box>
       {/* Hidden picker for the dev-mode "Import archive…" menu item. */}
@@ -785,34 +632,12 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
       />
       {/* Fresh-Pod onboarding: offer the demo buildings instead of writing them
           silently. Non-blocking (the app stays usable); dismissing it persists. */}
-      <Collapse in={demoShow && nothingShared} sx={{ flexShrink: 0 }}>
-        <Alert
-          severity="info"
-          sx={{ borderRadius: 0 }}
-          action={
-            <Box sx={{ display: "flex", gap: 1, alignItems: "center" }}>
-              <Button
-                color="inherit"
-                size="small"
-                onClick={seedDemos}
-                disabled={seedBuildingsMut.isPending}
-              >
-                {seedBuildingsMut.isPending ? t("addingEllipsis") : t("onboardAddExamples")}
-              </Button>
-              <Button
-                color="inherit"
-                size="small"
-                onClick={declineDemos}
-                disabled={seedBuildingsMut.isPending}
-              >
-                {t("btnNoThanks")}
-              </Button>
-            </Box>
-          }
-        >
-          {t("onboardBanner")}
-        </Alert>
-      </Collapse>
+      <OnboardingBanner
+        show={demoShow && nothingShared}
+        busy={seedBuildingsMut.isPending}
+        onSeed={seedDemos}
+        onDecline={declineDemos}
+      />
       {/* The active finder renders here. BuildingsMap (the Buildings map) is kept
           mounted via BuildingsFinder's own display:none trick, so a switch among
           the OTHER finders unmounts the map — returning to /buildings re-inits the
