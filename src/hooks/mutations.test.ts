@@ -228,7 +228,35 @@ import {
 } from "./mutations.ts";
 import { classifyMutationError } from "./queryErrors.ts";
 import { makeFakeSession } from "../services/testing/fakeSession.ts";
+import { makeFakeSourceGateway } from "../services/testing/fakeSourceGateway.ts";
+import { _setSourceGatewayForTesting } from "../services/sources/sourceGateway.ts";
 import { GRAN_NS, REC_BUILDING } from "../services/rdf/vocabularies.ts";
+
+/** A fake external-source gateway for the demo-seed geocoding path: the seed
+ * resolves each demo address to coords (Nominatim) and then its Gemeinde region
+ * (linked-lau `/contains`). Without this the reads fall through to the real
+ * network, breaking the unit lane's no-I/O invariant. Returns a fixed point so
+ * the seed runs deterministically offline. */
+function fakeSeedSources() {
+  return makeFakeSourceGateway({
+    respond: (url) => {
+      if (url.includes("nominatim") || url.includes("/search")) {
+        return new Response(JSON.stringify([{ lat: "49.45", lon: "11.08" }]), {
+          status: 200,
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+      if (url.includes("/lau/contains")) {
+        return new Response(
+          `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n` +
+            `<https://wunderfacts.com/lau/DE_09564000#it> skos:notation "DE_09564000" .`,
+          { status: 200, headers: { "Content-Type": "text/turtle" } },
+        );
+      }
+      return undefined; // fall through to 404
+    },
+  }).gateway;
+}
 
 /** A wrapper whose client records every invalidated key prefix
  * (a keyless invalidate-everything call is recorded as `"*"`). */
@@ -522,6 +550,7 @@ Deno.test("useSeedDemoBuildings seeds the full demo set and invalidates the buil
   const fake = makeFakeSession({ webId: WEBID, listContainers: true });
   _setStorageRootForTesting(WEBID, "https://pod.example/");
   _setSessionForTesting(fake.session);
+  _setSourceGatewayForTesting(fakeSeedSources());
   const { wrapper, invalidated } = makeSpyWrapper();
   try {
     const { result } = renderHook(() => useSeedDemoBuildings(), { wrapper });
@@ -531,6 +560,7 @@ Deno.test("useSeedDemoBuildings seeds the full demo set and invalidates the buil
     assert.ok(invalidated.includes("buildings"));
   } finally {
     _setSessionForTesting(null);
+    _setSourceGatewayForTesting(null);
   }
 });
 
