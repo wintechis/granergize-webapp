@@ -300,16 +300,17 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
           )}
           {buildingsLoading
               ? <Typography variant="body2">{t("loadingEllipsis")}</Typography>
-              : buildings.length === 0
-              ? (
-                <Typography variant="body2">
-                  {t("buildingsEmpty")}
-                </Typography>
-              )
               : filteredBuildings.length === 0
+              // Nothing to list: "add a building" when you own none, else a no-match
+              // notice. `filteredBuildings` already includes any open rows (exploration
+              // mode can list open data with no own buildings), so check IT, not `buildings`.
               ? (
                 <Typography variant="body2">
-                  {query ? t("searchNoMatches", { query }) : t("filterNoMatch")}
+                  {buildings.length === 0
+                    ? t("buildingsEmpty")
+                    : query
+                    ? t("searchNoMatches", { query })
+                    : t("filterNoMatch")}
                 </Typography>
               )
               : (
