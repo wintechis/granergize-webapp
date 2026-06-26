@@ -155,13 +155,11 @@ test.describe("cube metric selector (the measure axis)", () => {
   });
 
   // The plan's stronger generation claim: switching to generation should surface
-  // buildings the consumption lens left blank (recolour them by the magnitude
-  // ramp). The STANDARD demo seed carries no electricity-generation energy (only
-  // consumption + PV capacity metadata), so under this metric every building reads
-  // "No data" and none can be surfaced. Needs a seed building with annual
-  // `electricityGeneration` figures (a generation fixture, or the Nuremberg
-  // logistik archive). Authored as a fixme so the gap is explicit, not silent.
-  test.fixme(
+  // buildings the consumption lens left blank (recolour them by the magnitude ramp).
+  // The demo seed's cold store (Hafenstraße 12) carries annual `electricityGeneration`
+  // from its 480 kWp rooftop PV, so under this metric it gets a magnitude band where a
+  // pure-consumption building reads "none".
+  test(
     "generation recolours buildings the consumption lens left blank",
     async () => {
       await openEnergyMap(page);

@@ -41,7 +41,7 @@ export function summarizeReadResult(
       title: plural(items.length, "nearby installation"),
       rows: items.map((i) => ({
         primary: i.label,
-        secondary: `${i.kind} · ${km(i.distanceKm)}`,
+        secondary: `${i.kind} · ${km(i.distanceKm ?? 0)}`,
       })),
     };
   }

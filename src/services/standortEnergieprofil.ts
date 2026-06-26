@@ -14,9 +14,11 @@
  * simply does not appear off-pilot. Off-Pod and queried; reached through
  * {@link trackedFetch}. The parse is split out pure for offline unit-testing.
  */
+import type { Store } from "n3";
 import { RDF_TYPE } from "./rdf/vocabularies.ts";
-import { parseRdfText } from "./rdf/rdfHelpers.ts";
-import { trackedFetch } from "../lib/networkActivity.ts";
+import { sourceBase } from "../constants/dataSources.ts";
+import { getSourceGateway } from "./sources/sourceGateway.ts";
+import { deref } from "./sources/capabilities.ts";
 
 /** A potential-vs-installed card (rooftop or ground-mounted PV). */
 export interface PotentialCard {
@@ -62,14 +64,9 @@ export interface AreaProfile {
   biomass?: BiomassCard;
 }
 
-/** Base URI of the linked-energieatlas wrapper (CORS-enabled; fetched directly).
- *  Read lazily so importing this module for the pure parser test never touches
- *  `import.meta.env` (same pattern as {@link ./mastrNearby}). */
+/** Base IRI of linked-energieatlas — delegates to the registry resolver (env-overridable). */
 export function linkedEnergieatlasBase(): string {
-  const env =
-    (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.VITE_LINKED_ENERGIEATLAS_API_URI ||
-    "https://wunderfacts.com/energieatlas/";
+  return sourceBase("energieatlas");
 }
 
 /** The dereferenceable `area/{ags}` IRI (and the Developer-mode source link). */
@@ -90,11 +87,7 @@ function vocabNs(): string {
  * remaining-headroom / degree of a PV card are derived when not pre-computed.
  * Returns `null` when no `vocab:AreaPotential` thing or no card metric is present.
  */
-export function parseAreaProfile(
-  turtle: string,
-  baseIri: string,
-): AreaProfile | null {
-  const store = parseRdfText(turtle, baseIri);
+export function parseAreaProfile(store: Store): AreaProfile | null {
   const v = vocabNs();
   let subject = null;
   for (const q of store.getQuads(null, RDF_TYPE, `${v}AreaPotential`, null)) {
@@ -180,12 +173,14 @@ export function parseAreaProfile(
  * so the panel degrades gracefully rather than erroring.
  */
 export async function fetchAreaProfile(ags: string): Promise<AreaProfile | null> {
-  const url = areaUrl(ags);
-  const res = await trackedFetch(
-    url,
-    { headers: { Accept: "text/turtle" } },
-    "location energy profile",
-  );
-  if (!res.ok) return null;
-  return parseAreaProfile(await res.text(), url);
+  try {
+    const store = await deref(
+      getSourceGateway(),
+      areaUrl(ags),
+      "location energy profile",
+    );
+    return parseAreaProfile(store);
+  } catch {
+    return null; // outside Bavaria → 404; the panel simply doesn't appear
+  }
 }

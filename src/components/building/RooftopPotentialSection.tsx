@@ -20,7 +20,7 @@ export default function RooftopPotentialSection(
   return (
     <Stack spacing={2}>
       <RooftopBuildingCardView data={rooftop} />
-      <SourceNote variant="caption" sources={[SOURCES.lod2, SOURCES.pvgis]} />
+      <SourceNote variant="caption" sources={[SOURCES["lod2-by"], SOURCES.pvgis]} />
       <RdfSourceLink href={rooftop.iri} />
     </Stack>
   );

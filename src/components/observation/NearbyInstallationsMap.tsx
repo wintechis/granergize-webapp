@@ -120,7 +120,7 @@ export default function NearbyInstallationsMap(
           >
             <Tooltip direction="top" offset={[0, -4]}>
               {t(KIND_LABEL[u.kind])} — {u.label || t("niUnnamed")} —{" "}
-              {t("niDistance", { km: u.distanceKm.toFixed(1) })}
+              {t("niDistance", { km: (u.distanceKm ?? 0).toFixed(1) })}
             </Tooltip>
           </CircleMarker>
         ))}

@@ -29,7 +29,8 @@ import {
   SOSA_NS,
 } from "./rdf/vocabularies.ts";
 import { parseRdfText } from "./rdf/rdfHelpers.ts";
-import { trackedFetch } from "../lib/networkActivity.ts";
+import { sourceBase } from "../constants/dataSources.ts";
+import { getSourceGateway } from "./sources/sourceGateway.ts";
 import type { WeatherAnnualValue } from "./energy/energyWeather.ts";
 
 const { namedNode } = DataFactory;
@@ -58,15 +59,9 @@ export interface WeatherObservation extends WeatherAnnualValue {
   quality?: number;
 }
 
-/** Base URI of the wrapper (the CORS-enabled host — fetched directly, no dev proxy).
- * Read lazily so importing this module for the pure parsers (tests) never touches
- * `import.meta.env`. */
+/** Base IRI of linked-wetterdienst — delegates to the registry resolver (env-overridable). */
 export function linkedWeatherBase(): string {
-  // Cast (not bare `import.meta.env`) so deno's type-checker accepts it; Vite injects
-  // `import.meta.env` for the browser build. Same pattern as `regionalCube.ts`.
-  const env =
-    (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.VITE_WEATHER_API_URI || "https://wunderfacts.com/wetterdienst/";
+  return sourceBase("wetterdienst");
 }
 
 /**
@@ -185,7 +180,7 @@ export async function fetchNearestStations(
   parameters: string,
 ): Promise<WeatherStation[]> {
   const url = weatherStationsUrl(latitude, longitude, rank, parameters);
-  const res = await trackedFetch(
+  const res = await getSourceGateway().fetch(
     url,
     { headers: { Accept: "text/turtle" } },
     "weather stations",
@@ -200,7 +195,7 @@ export async function fetchStationValues(
   parameters: string,
 ): Promise<WeatherObservation[]> {
   const url = weatherValuesUrl(stationId, parameters);
-  const res = await trackedFetch(
+  const res = await getSourceGateway().fetch(
     url,
     { headers: { Accept: "text/turtle" } },
     "weather data",

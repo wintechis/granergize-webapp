@@ -52,7 +52,14 @@ test.describe("palette: share building by year across two pods", () => {
   test.skip(!pair.ok, pair.ok ? "" : pair.reason);
 
   test("⌘K form → Share with the 2022–2024 years; B sees it shared with them", async ({ browser }) => {
-    test.setTimeout(T.testSharing);
+    // Three logins (A+B parallel, then B fresh) PLUS a heavy setup — add building,
+    // three annual energy years through the inline editor, the palette share form —
+    // before the cross-pod read-back even starts. The flat sharing budget left too
+    // little for B's drain+reload convergence under full-suite load (the read-back
+    // ran out of wall-clock mid-`reloadUntil`, never a propagation failure: B did
+    // receive the grant — see plans/flakes.md). Add login headroom like the other
+    // multi-login sharing specs (peer-benchmark).
+    test.setTimeout(T.testSharing + 2 * T.login);
     // Keep B's first session open through the share so B's inbox is provisioned
     // (ensureOwnInbox runs async post-login) and A can POST the grant; B then
     // re-logs in fresh to drain it.

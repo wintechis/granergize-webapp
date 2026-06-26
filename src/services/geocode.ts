@@ -1,5 +1,6 @@
 import { type GeocodePrecision } from "./rdf/vocabularies.ts";
-import { trackedFetch } from "../lib/networkActivity.ts";
+import { sourceBase } from "../constants/dataSources.ts";
+import { getSourceGateway } from "./sources/sourceGateway.ts";
 import { fetchContainingGemeindeAgs } from "./regionGeometry.ts";
 import { logError } from "../lib/logError.ts";
 
@@ -40,8 +41,10 @@ export async function geocodeFields(
     if (!first) await new Promise((r) => setTimeout(r, 1100));
     first = false;
     try {
-      const res = await trackedFetch(
-        `https://nominatim.openstreetmap.org/search?q=${
+      // Nominatim returns JSON, not RDF — a non-vocabulary read, so it uses the
+      // gateway's bare fetch (env-overridable base via `sourceBase("osm")`).
+      const res = await getSourceGateway().fetch(
+        `${sourceBase("osm")}search?q=${
           encodeURIComponent(query)
         }&format=json&limit=1`,
         { headers: { "User-Agent": "Granergize/1.0 (thomas.wehr@fau.de)" } },

@@ -1,12 +1,21 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
+import { parseRdfText } from "./rdf/rdfHelpers.ts";
+import {
+  _setSourceGatewayForTesting,
+} from "./sources/sourceGateway.ts";
+import { makeFakeSourceGateway } from "./testing/fakeSourceGateway.ts";
 import {
   eegNumberFromIri,
+  fetchInstallationsByAgs,
   kreisFromInstallations,
   parseEegNumber,
   parseNearbyInstallations,
   parseUnitDetail,
 } from "./mastrNearby.ts";
+
+/** Parse a fixture to a Store the way the gateway helpers do. */
+const store = (ttl: string, base: string) => parseRdfText(ttl, base);
 
 // A faithful slice of a linked-mastr `bbox` listing (Nürnberg): one resource per
 // generation unit carrying rdfs:label, WGS84 geo:lat/long, dcterms:spatial →
@@ -44,15 +53,15 @@ const FIXTURE = `
 const LAT = 49.4521, LONG = 11.0767;
 
 Deno.test("parseNearbyInstallations: keeps renewables, drops combustion, sorts by distance", () => {
-  const near = parseNearbyInstallations(FIXTURE, BASE, LAT, LONG);
+  const near = parseNearbyInstallations(store(FIXTURE, BASE), LAT, LONG);
   // The Wärme/combustion unit (2413) is dropped; three renewables remain.
   assert.deepEqual(near.map((u) => u.label), ["PV Roof A", "Windpark B", "PV Roof Far"]);
   assert.deepEqual(near.map((u) => u.kind), ["solar", "wind", "solar"]);
-  // Distances increase (sorted).
-  assert.ok(near[0].distanceKm < near[1].distanceKm);
-  assert.ok(near[1].distanceKm < near[2].distanceKm);
+  // Distances increase (sorted). The nearby read always sets distanceKm.
+  assert.ok(near[0].distanceKm! < near[1].distanceKm!);
+  assert.ok(near[1].distanceKm! < near[2].distanceKm!);
   // The nearest is within a kilometre; carries its IRI + AGS.
-  assert.ok(near[0].distanceKm < 1);
+  assert.ok(near[0].distanceKm! < 1);
   assert.equal(near[0].iri, "https://wunderfacts.com/mastr/see/100#it");
   assert.equal(near[0].ags, "09564000");
 });
@@ -63,11 +72,11 @@ Deno.test("parseNearbyInstallations: no renewables → empty", () => {
 @prefix geo:  <http://www.w3.org/2003/01/geo/wgs84_pos#> .
 @prefix mastr:<https://wunderfacts.com/mastr/mastr#> .
 <urn:x> rdfs:label "Gas" ; geo:lat 49.4 ; geo:long 11.0 ; mastr:Energietraeger "2413" .`;
-  assert.deepEqual(parseNearbyInstallations(onlyCombustion, BASE, LAT, LONG), []);
+  assert.deepEqual(parseNearbyInstallations(store(onlyCombustion, BASE), LAT, LONG), []);
 });
 
 Deno.test("kreisFromInstallations: majority 5-digit prefix wins over a lone border unit", () => {
-  const near = parseNearbyInstallations(FIXTURE, BASE, LAT, LONG);
+  const near = parseNearbyInstallations(store(FIXTURE, BASE), LAT, LONG);
   // Two units in 09564xxx, one in 09563xxx → Kreis 09564.
   assert.equal(kreisFromInstallations(near), "09564");
 });
@@ -102,11 +111,11 @@ Deno.test("eegNumberFromIri: trailing number from an eeg/{number} IRI", () => {
 });
 
 Deno.test("parseEegNumber: a renewable unit yields its EEG number", () => {
-  assert.equal(parseEegNumber(SEE_RENEWABLE, SEE_BASE), "934354845027");
+  assert.equal(parseEegNumber(store(SEE_RENEWABLE, SEE_BASE)), "934354845027");
 });
 
 Deno.test("parseEegNumber: a non-EEG (combustion) unit → null", () => {
-  assert.equal(parseEegNumber(SEE_COMBUSTION, SEE_BASE), null);
+  assert.equal(parseEegNumber(store(SEE_COMBUSTION, SEE_BASE)), null);
 });
 
 Deno.test("parseUnitDetail: master data from a unit /see doc", () => {
@@ -119,10 +128,32 @@ Deno.test("parseUnitDetail: master data from a unit /see doc", () => {
   mastr:EegMaStRNummer <../eeg/926794091751#it> ;
   mastr:Energietraeger <../cl/148#2495> .
 `;
-  const d = parseUnitDetail(full, SEE_BASE);
+  const d = parseUnitDetail(store(full, SEE_BASE));
   assert.equal(d.label, "PV Roof X");
   assert.equal(d.capacityKw, 249.75);
   assert.equal(d.kind, "solar"); // carrier 2495, from the catalog IRI fragment
   assert.equal(d.locality, "Nürnberg");
   assert.equal(d.eegNumber, "926794091751");
+});
+
+// ── fetchInstallationsByAgs: the /filter region read (gateway-stubbed) ──────────
+Deno.test("fetchInstallationsByAgs lists a region's units via /filter (no distance)", async () => {
+  // The fake serves the listing as-is for any URL (server-side AGS filtering is
+  // the wrapper's job, tested in linked-mastr) — here we assert the fetch→parse.
+  const fake = makeFakeSourceGateway({ respond: () => new Response(FIXTURE) });
+  _setSourceGatewayForTesting(fake.gateway);
+  try {
+    const units = await fetchInstallationsByAgs("09564");
+    assert.deepEqual(
+      units.map((u) => u.label).sort(),
+      ["PV Roof A", "PV Roof Far", "Windpark B"],
+    );
+    assert.equal(units[0].distanceKm, undefined); // region read carries no distance
+    assert.ok(
+      fake.calls.some((c) => c.url.includes("filter?ags=09564")),
+      "requested /filter?ags=",
+    );
+  } finally {
+    _setSourceGatewayForTesting(null);
+  }
 });

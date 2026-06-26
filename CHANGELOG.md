@@ -20,6 +20,20 @@ All notable changes to the Granergize WebApp project will be documented in this 
   `dLon=r/(111·cosφ)`), the `ownDataAnchor` 1 km margin + [2 km, 20 km] clamp, and the
   regional `data/{tableId}` + `ags/{ags}` construction. README + architecture.md keep their
   pipeline (how-it-translates) spine and cross-link the provenance lens; ~15 references swept.
+- **The demo seed carries electricity generation, so the map's generation lens has data
+  (and its e2e is no longer parked).** The cube's measure axis offers an `electricityGeneration`
+  metric (magnitude-framed), but the demo buildings only had consumption + PV *capacity*
+  metadata — so the generation lens read "No data" everywhere and its strongest e2e
+  (`cube-metric-selector` "generation recolours buildings the consumption lens left blank")
+  was a `test.fixme`. The cold store (Hafenstraße 12, 480 kWp rooftop PV) now seeds annual
+  generation figures, so it gets a magnitude band where a pure-consumption building reads
+  "none". Mechanism: a serializer-only `_inv_gen_<year>` field that folds
+  `electricityGeneration` into the SAME per-year actual dataset as consumption (mirrors the
+  existing `_inv_renew` special-case — NOT an `INV_YEAR_ROW_STEMS` row, so it stays out of
+  the partner XLSX import/export; a separate dataset would clash on `byYear.set(year, …)` in
+  `useAnnualEnergyByYear`). The host is deliberately the non-self-operated building, so the
+  operator-average (Betreiber) benchmark is untouched. `fixme`→`test`; covered by two
+  `annualDatasetsFromFields` unit cases and a full ripple run (aggregations + both cube cuts).
 - **The open tier's map layers anchor to your own buildings (concentric), not the free
   map viewport.** The Buildings/Observations finders' `open` layers (LoD2 rooftops, MaStR/
   netztransparenz plants) fetched by the map viewport (`?c`/`?z`) — so panning to a city

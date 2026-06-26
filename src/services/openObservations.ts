@@ -18,7 +18,8 @@ import {
 } from "./mastrNearby.ts";
 import { fetchPlantGenerationByYear } from "./netztransparenz.ts";
 import { mapPooled } from "../lib/pool.ts";
-import { trackedFetch } from "../lib/networkActivity.ts";
+import { getSourceGateway } from "./sources/sourceGateway.ts";
+import { deref } from "./sources/capabilities.ts";
 import { logError } from "../lib/logError.ts";
 
 /** A nearby renewable installation's open settled generation (fetched, never stored). */
@@ -62,13 +63,17 @@ export async function fetchOpenObservation(
   iri: string,
 ): Promise<OpenObservationDetail | null> {
   const docUri = iri.split("#")[0];
-  const res = await trackedFetch(
-    docUri,
-    { headers: { Accept: "text/turtle" } },
-    "open observation unit (MaStR)",
-  );
-  if (!res.ok) return null;
-  const detail = parseUnitDetail(await res.text(), docUri);
+  let detail;
+  try {
+    const store = await deref(
+      getSourceGateway(),
+      docUri,
+      "open observation unit (MaStR)",
+    );
+    detail = parseUnitDetail(store);
+  } catch {
+    return null; // best-effort: a non-OK unit fetch drops out
+  }
   const byYear = detail.eegNumber
     ? await fetchPlantGenerationByYear(detail.eegNumber)
     : new Map<number, number>();

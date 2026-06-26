@@ -2,6 +2,7 @@
 import { strict as assert } from "node:assert";
 import { DataFactory, Parser, Store } from "n3";
 import { parseNearbyInstallations } from "../mastrNearby.ts";
+import { parseRdfText } from "./rdfHelpers.ts";
 import { serializeBuildingToTurtle } from "./building/buildingSerializer.ts";
 import { parseBuildings } from "./building/buildingParser.ts";
 
@@ -44,7 +45,11 @@ Deno.test("a MaStR PV unit maps 1:1 onto our :PVSystem node (shape in-line)", ()
   mastr:Energietraeger "2495" ;
   mastr:Bruttoleistung "750"^^xsd:decimal .
 `;
-  const [unit] = parseNearbyInstallations(mastrTtl, MASTR_BASE, 49.454, 11.078);
+  const [unit] = parseNearbyInstallations(
+    parseRdfText(mastrTtl, MASTR_BASE),
+    49.454,
+    11.078,
+  );
   assert.ok(unit, "the MaStR parser recognised the solar unit");
 
   // --- Our side: a building whose <#pv> IS that same installation. ---

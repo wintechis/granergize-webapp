@@ -16,9 +16,11 @@
  * loading indicator and retries transient throttling. The parse is split out
  * pure for offline unit-testing.
  */
+import type { Store } from "n3";
 import { QB_NS, RDF_TYPE, SKOS_NS } from "./rdf/vocabularies.ts";
-import { parseRdfText } from "./rdf/rdfHelpers.ts";
-import { trackedFetch } from "../lib/networkActivity.ts";
+import { sourceBase } from "../constants/dataSources.ts";
+import { getSourceGateway } from "./sources/sourceGateway.ts";
+import { deref } from "./sources/capabilities.ts";
 import type { MessageId } from "../lib/messages.ts";
 
 /** One (year, value) point of a regional measure, with its source unit (e.g. "Prozent"). */
@@ -138,16 +140,9 @@ export const REGIONAL_TABLES: RegionalTable[] = [
   },
 ];
 
-/** Base URI of the wrapper (the CORS-enabled host — fetched directly, no dev proxy).
- * Read lazily so importing this module for the pure parser test never touches
- * `import.meta.env`. */
+/** Base IRI of linked-regionalstatistik — delegates to the registry resolver (env-overridable). */
 function regionalstatistikBase(): string {
-  // Cast (not bare `import.meta.env`) so deno's type-checker — which lacks Vite's
-  // ImportMeta typing — accepts it; Vite still injects `import.meta.env` for the
-  // browser build. Same pattern as `solidUtils.ts`.
-  const env =
-    (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.VITE_REGIONALSTATISTIK_API_URI || "https://wunderfacts.com/regionalstatistik/";
+  return sourceBase("regionalstatistik");
 }
 
 /**
@@ -157,8 +152,7 @@ function regionalstatistikBase(): string {
  * the table's geo style) AND every `selector` dimension matches its fixed member.
  */
 export function parseRegionalObservations(
-  turtle: string,
-  baseIri: string,
+  store: Store,
   table: RegionalTable,
   agsCode: string,
 ): RegionalObservation[] {
@@ -166,7 +160,6 @@ export function parseRegionalObservations(
   const geoCodeStyle = table.geoCodeStyle ?? "ags";
   const selectors = table.selectors ?? [];
 
-  const store = parseRdfText(turtle, baseIri);
   const observations = store.getQuads(
     null,
     RDF_TYPE,
@@ -217,14 +210,12 @@ export async function fetchRegionalObservations(
   table: RegionalTable,
   agsCode: string,
 ): Promise<RegionalObservation[]> {
-  const url = regionalTableDataUrl(table.tableId);
-  const res = await trackedFetch(
-    url,
-    { headers: { Accept: "text/turtle" } },
+  const store = await deref(
+    getSourceGateway(),
+    regionalTableDataUrl(table.tableId),
     `regional statistics ${table.tableId}`,
   );
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching regional table ${table.tableId}`);
-  return parseRegionalObservations(await res.text(), url, table, agsCode);
+  return parseRegionalObservations(store, table, agsCode);
 }
 
 /**
@@ -236,8 +227,7 @@ export async function fetchRegionalObservations(
  * the network-free half of {@link fetchRegionalChoropleth}.
  */
 export function parseRegionalChoropleth(
-  turtle: string,
-  baseIri: string,
+  store: Store,
   table: RegionalTable,
   maxYear?: number,
 ): Map<string, RegionalObservation> {
@@ -245,7 +235,6 @@ export function parseRegionalChoropleth(
   const geoCodeStyle = table.geoCodeStyle ?? "ags";
   const selectors = table.selectors ?? [];
 
-  const store = parseRdfText(turtle, baseIri);
   const observations = store.getQuads(null, RDF_TYPE, `${QB_NS}Observation`, null);
 
   const byAgs = new Map<string, RegionalObservation>();
@@ -291,14 +280,12 @@ export async function fetchRegionalChoropleth(
   table: RegionalTable,
   maxYear?: number,
 ): Promise<Map<string, RegionalObservation>> {
-  const url = regionalTableDataUrl(table.tableId);
-  const res = await trackedFetch(
-    url,
-    { headers: { Accept: "text/turtle" } },
+  const store = await deref(
+    getSourceGateway(),
+    regionalTableDataUrl(table.tableId),
     `regional choropleth ${table.tableId}`,
   );
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching regional table ${table.tableId}`);
-  return parseRegionalChoropleth(await res.text(), url, table, maxYear);
+  return parseRegionalChoropleth(store, table, maxYear);
 }
 
 /** The table's dereferenceable **linked-data** IRI — the RDF Data Cube resource we
@@ -344,10 +331,11 @@ const SKOS_PREF_LABEL = `${SKOS_NS}prefLabel`;
 let kreisNamesPromise: Promise<Map<string, string>> | null = null;
 
 async function loadKreisNames(): Promise<Map<string, string>> {
-  const url = `${regionalstatistikBase()}cl/geo`;
-  const res = await trackedFetch(url, { headers: { Accept: "text/turtle" } }, "regional geo codelist");
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching geo codelist`);
-  const store = parseRdfText(await res.text(), url);
+  const store = await deref(
+    getSourceGateway(),
+    `${regionalstatistikBase()}cl/geo`,
+    "regional geo codelist",
+  );
   const names = new Map<string, string>();
   for (const q of store.getQuads(null, SKOS_NOTATION, null, null)) {
     const label = store.getQuads(q.subject, SKOS_PREF_LABEL, null, null)[0]?.object.value;

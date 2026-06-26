@@ -10,26 +10,18 @@
  * per (year × Veräußerungsform), so a year's generation is the SUM of `strommengeKWh`
  * across its disposal forms. The parse is split out pure for offline unit-testing.
  */
-import { parseRdfText } from "./rdf/rdfHelpers.ts";
-import { trackedFetch } from "../lib/networkActivity.ts";
+import type { Store } from "n3";
+import { sourceBase } from "../constants/dataSources.ts";
+import { getSourceGateway } from "./sources/sourceGateway.ts";
+import { deref } from "./sources/capabilities.ts";
 
 /** Matched by suffix so they're independent of the (configurable) wrapper base. */
 const STROMMENGE_SUFFIX = "#strommengeKWh";
 const YEAR_SUFFIX = "#year";
 
-/** Base URI of the linked-netztransparenz wrapper (CORS-enabled; fetched directly). Read
- *  lazily so importing this module for the pure parser test never touches
- *  `import.meta.env` (same pattern as {@link import("./mastrNearby.ts")}). */
-function netztransparenzBase(): string {
-  const env =
-    (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.VITE_NETZTRANSPARENZ_API_URI ||
-    "https://wunderfacts.com/netztransparenz/";
-}
-
-/** The per-plant document IRI for an EEG number — fetched, and the source link. */
+/** The per-plant document IRI for an EEG number — dereferenced, and the source link. */
 export function plantUrl(eegNumber: string): string {
-  return `${netztransparenzBase()}eeg/${eegNumber}`;
+  return `${sourceBase("netztransparenz")}eeg/${eegNumber}`;
 }
 
 /**
@@ -38,11 +30,7 @@ export function plantUrl(eegNumber: string): string {
  * network-free half, unit-tested with a fixture. Each settlement node carries one
  * `strommengeKWh`; its `year` is read off the same node.
  */
-export function parsePlantSettlements(
-  turtle: string,
-  baseIri: string,
-): Map<number, number> {
-  const store = parseRdfText(turtle, baseIri);
+export function parsePlantSettlements(store: Store): Map<number, number> {
   const byYear = new Map<number, number>();
   for (const q of store.getQuads(null, null, null, null)) {
     if (!q.predicate.value.endsWith(STROMMENGE_SUFFIX)) continue;
@@ -69,12 +57,15 @@ export function parsePlantSettlements(
 export async function fetchPlantGenerationByYear(
   eegNumber: string,
 ): Promise<Map<number, number>> {
-  const url = plantUrl(eegNumber);
-  const res = await trackedFetch(
-    url,
-    { headers: { Accept: "text/turtle" } },
-    "plant generation (netztransparenz)",
-  );
-  if (!res.ok) return new Map();
-  return parsePlantSettlements(await res.text(), url);
+  try {
+    const store = await deref(
+      getSourceGateway(),
+      plantUrl(eegNumber),
+      "plant generation (netztransparenz)",
+    );
+    return parsePlantSettlements(store);
+  } catch {
+    // A plant in MaStR but absent from the settled dump 404s — empty, not an error.
+    return new Map();
+  }
 }

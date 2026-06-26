@@ -17,7 +17,8 @@
  */
 import { GEO_LAT, GEO_LONG } from "./rdf/vocabularies.ts";
 import { parseRdfText } from "./rdf/rdfHelpers.ts";
-import { trackedFetch } from "../lib/networkActivity.ts";
+import { sourceBase } from "../constants/dataSources.ts";
+import { getSourceGateway } from "./sources/sourceGateway.ts";
 import { computePotential, type RoofSurface } from "./rooftopPv.ts";
 import { parseWktPolygon } from "./rdf/wkt.ts";
 
@@ -65,12 +66,9 @@ export const DEFAULT_RADIUS_M = 60;
 export const NEARBY_ROOFTOP_RADIUS_M = 250;
 export const NEARBY_ROOFTOP_LIMIT = 60;
 
-/** Base URI of the linked-lod2-by wrapper. Read lazily so the pure-parser tests never
- *  touch `import.meta.env` (same pattern as {@link mastrNearby}). */
+/** Base IRI of linked-lod2-by — delegates to the registry resolver (env-overridable). */
 function lod2Base(): string {
-  const env =
-    (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.VITE_LOD2_API_URI || "https://wunderfacts.com/lod2-by/";
+  return sourceBase("lod2-by");
 }
 
 function haversineKm(lat1: number, lon1: number, lat2: number, lon2: number): number {
@@ -224,7 +222,7 @@ export async function fetchRooftopPotential(
   radiusM = DEFAULT_RADIUS_M,
 ): Promise<RooftopPotential | null> {
   const pointUrl = rooftopPointUrl(lat, long, radiusM);
-  const res = await trackedFetch(
+  const res = await getSourceGateway().fetch(
     pointUrl,
     { headers: { Accept: "text/turtle" } },
     "rooftop-PV geometry (LoD2-BY)",
@@ -234,7 +232,7 @@ export async function fetchRooftopPotential(
   const nearest = parseNearestBuilding(await res.text(), pointUrl, lat, long);
   if (!nearest) return null;
 
-  const detail = await trackedFetch(
+  const detail = await getSourceGateway().fetch(
     nearest.iri,
     { headers: { Accept: "text/turtle" } },
     "rooftop-PV geometry detail (LoD2-BY)",
@@ -272,7 +270,7 @@ export function isOpenBuildingIri(iri: string): boolean {
 export async function fetchOpenBuilding(
   iri: string,
 ): Promise<RooftopPotential | null> {
-  const res = await trackedFetch(
+  const res = await getSourceGateway().fetch(
     iri,
     { headers: { Accept: "text/turtle" } },
     "open building (LoD2-BY)",
@@ -305,7 +303,7 @@ export async function fetchNearbyRooftops(
   limit = NEARBY_ROOFTOP_LIMIT,
 ): Promise<NearbyRooftop[]> {
   const pointUrl = rooftopPointUrl(lat, long, radiusM);
-  const res = await trackedFetch(
+  const res = await getSourceGateway().fetch(
     pointUrl,
     { headers: { Accept: "text/turtle" } },
     "nearby rooftops (LoD2-BY)",
@@ -362,7 +360,7 @@ export async function fetchNearbyRooftopGeometry(
   const summary = await fetchNearbyRooftops(lat, long, radiusM, limit);
   return mapLimit(summary, NEARBY_GEOM_CONCURRENCY, async (r) => {
     try {
-      const res = await trackedFetch(
+      const res = await getSourceGateway().fetch(
         r.iri,
         { headers: { Accept: "text/turtle" } },
         "nearby rooftop geometry (LoD2-BY)",

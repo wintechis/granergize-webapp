@@ -2,7 +2,8 @@ import type { PodGateway } from "../pod/podGateway.ts";
 import { DataFactory, Parser, Store } from "n3";
 import { loadProfileStoreFor } from "../pod/profileDocument.ts";
 import { logError } from "../../lib/logError.ts";
-import { trackedFetch } from "../../lib/networkActivity.ts";
+import { sourceBase } from "../../constants/dataSources.ts";
+import { getSourceGateway } from "../sources/sourceGateway.ts";
 import { fetchWikidataLogo, wikidataEntityId } from "./wikidataLogo.ts";
 import {
   FOAF_HOMEPAGE,
@@ -245,7 +246,7 @@ async function loadAgentStore(
   if (qid) {
     try {
       const res = await fetchFn(
-        `https://www.wikidata.org/wiki/Special:EntityData/${qid}.ttl`,
+        `${sourceBase("wikidata")}wiki/Special:EntityData/${qid}.ttl`,
       );
       if (!res.ok) return null;
       return new Store(new Parser({ format: "text/turtle" }).parse(await res.text()));
@@ -265,7 +266,7 @@ async function loadAgentStore(
 export async function resolveAgent(
   webId: string,
   gateway: PodGateway,
-  fetchFn: typeof fetch = trackedFetch,
+  fetchFn: typeof fetch = getSourceGateway().fetch,
 ): Promise<ResolvedAgent> {
   const fallbackName = webIdFragment(webId);
   const qid = wikidataEntityId(webId);
@@ -344,7 +345,7 @@ export interface ResolvedOrg {
 export async function resolveAgentOrg(
   webId: string,
   gateway: PodGateway,
-  fetchFn: typeof fetch = trackedFetch,
+  fetchFn: typeof fetch = getSourceGateway().fetch,
 ): Promise<ResolvedOrg | null> {
   let store: Store | null;
   try {

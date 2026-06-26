@@ -1,12 +1,19 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
+import { parseRdfText } from "./rdf/rdfHelpers.ts";
+import { _setSourceGatewayForTesting } from "./sources/sourceGateway.ts";
+import { makeFakeSourceGateway } from "./testing/fakeSourceGateway.ts";
 import {
   gemeindeAgsFromContains,
   normalizeRegionGeometry,
+  parseRegionMatches,
   type RegionFeatureCollection,
   regionContainsUrl,
   regionGeometryUrl,
+  searchRegions,
 } from "./regionGeometry.ts";
+
+const store = (ttl: string, base: string) => parseRdfText(ttl, base);
 
 // --- regionGeometryUrl: grain → NUTS level + German scope --------------------
 
@@ -128,11 +135,45 @@ Deno.test("gemeindeAgsFromContains: the containing Gemeinde's AGS from the SKOS 
   skos:notation "DE_09564000" ; skos:prefLabel "Nürnberg"@de .
 [ a geo:Point ; geosparql:sfWithin <lau/DE_09564000#it> ; geo:lat 49.4521 ; geo:long 11.0767 ] .
 `;
-  assert.equal(gemeindeAgsFromContains(hit, BASE), "09564000");
+  assert.equal(gemeindeAgsFromContains(store(hit, BASE)), "09564000");
   // Nothing contains the point → no concept → null.
-  assert.equal(gemeindeAgsFromContains("", BASE), null);
+  assert.equal(gemeindeAgsFromContains(store("", BASE)), null);
   // Coarser-only notations (NUTS codes) don't yield 8 digits → null.
   const nutsOnly =
     `@prefix skos: <http://www.w3.org/2004/02/skos/core#> .\n<n> a skos:Concept ; skos:notation "DE254" .`;
-  assert.equal(gemeindeAgsFromContains(nutsOnly, BASE), null);
+  assert.equal(gemeindeAgsFromContains(store(nutsOnly, BASE)), null);
+});
+
+// ── searchRegions: the LAU keyword discovery that opens the exploration path ────
+const LAU_SEARCH = `
+@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+<https://wunderfacts.com/lau/lau/DE_09562000#it> a skos:Concept ;
+  skos:notation "DE_09562000" ; skos:prefLabel "Erlangen"@de .
+<https://wunderfacts.com/lau/lau/DE_09572127#it> a skos:Concept ;
+  skos:notation "DE_09572127" ; skos:prefLabel "Erlangen-Höchstadt (VGem)"@de .`;
+
+Deno.test("parseRegionMatches: LAU notation → 8-digit AGS, label", () => {
+  const matches = parseRegionMatches(store(LAU_SEARCH, "https://wunderfacts.com/lau/search"));
+  const erlangen = matches.find((m) => m.notation === "DE_09562000");
+  assert.ok(erlangen);
+  assert.equal(erlangen!.ags, "09562000");
+  assert.equal(erlangen!.label, "Erlangen");
+  // A NUTS code yields no AGS.
+  const nuts = parseRegionMatches(
+    store(`@prefix skos: <http://www.w3.org/2004/02/skos/core#> .
+<x> skos:notation "DE254" .`, "x"),
+  );
+  assert.equal(nuts[0].ags, "");
+});
+
+Deno.test("searchRegions hits /search?q= and parses matches (gateway-stubbed)", async () => {
+  const fake = makeFakeSourceGateway({ respond: () => new Response(LAU_SEARCH) });
+  _setSourceGatewayForTesting(fake.gateway);
+  try {
+    const matches = await searchRegions("lau", "erlangen");
+    assert.ok(matches.some((m) => m.ags === "09562000"));
+    assert.ok(fake.calls.some((c) => c.url.includes("lau/search?q=erlangen")));
+  } finally {
+    _setSourceGatewayForTesting(null);
+  }
 });
