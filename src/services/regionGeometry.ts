@@ -15,8 +15,10 @@
  * retry), like the weather and regionalstatistik clients. The shape-normalising half
  * is split out pure for offline unit-testing.
  */
-import { trackedFetch } from "../lib/networkActivity.ts";
-import { parseRdfText } from "./rdf/rdfHelpers.ts";
+import type { Store } from "n3";
+import { sourceBase } from "../constants/dataSources.ts";
+import { getSourceGateway } from "./sources/sourceGateway.ts";
+import { contains, search } from "./sources/capabilities.ts";
 import { SKOS_NS } from "./rdf/vocabularies.ts";
 
 /**
@@ -57,15 +59,6 @@ export interface RegionFeatureCollection {
   features: RegionFeature[];
 }
 
-/** Base URI of a wrapper (CORS-enabled — fetched directly, no dev proxy). Read
- *  lazily so importing this module for the pure test never touches
- *  `import.meta.env`. Mirrors `regionalstatistikBase()`. */
-function wrapperBase(envKey: string, fallback: string): string {
-  const env =
-    (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.[envKey] || fallback;
-}
-
 /** Where a Gemeinde fetch is scoped — the LAU endpoint can't load the whole layer,
  *  so it takes either one parent Kreis (`parent`, a NUTS-3 code) or a viewport
  *  `bbox` ("minLon,minLat,maxLon,maxLat"). Ignored for land/kreis. */
@@ -82,12 +75,12 @@ export interface RegionScope {
  */
 export function regionGeometryUrl(grain: RegionGrain, scope?: RegionScope): string {
   if (grain === "gemeinde") {
-    const base = wrapperBase("VITE_LAU_API_URI", "https://wunderfacts.com/lau/");
+    const base = sourceBase("lau");
     if (scope?.parent) return `${base}geojson?parent=${encodeURIComponent(scope.parent)}`;
     if (scope?.bbox) return `${base}geojson?bbox=${encodeURIComponent(scope.bbox)}`;
     throw new Error("gemeinde geometry requires a parent Kreis or a bbox");
   }
-  const base = wrapperBase("VITE_NUTS_API_URI", "https://wunderfacts.com/nuts/");
+  const base = sourceBase("nuts");
   const level = grain === "land" ? 1 : 3;
   return `${base}geojson?level=${level}&parent=DE`;
 }
@@ -134,8 +127,10 @@ export async function fetchRegionGeometry(
   grain: RegionGrain,
   scope?: RegionScope,
 ): Promise<RegionFeatureCollection> {
+  // The bulk geojson feed is JSON, not RDF — a non-vocabulary read, so it uses
+  // the gateway's bare fetch rather than a capability helper.
   const url = regionGeometryUrl(grain, scope);
-  const res = await trackedFetch(
+  const res = await getSourceGateway().fetch(
     url,
     { headers: { Accept: "application/geo+json" } },
     `region geometry ${grain}`,
@@ -153,7 +148,7 @@ export async function fetchRegionGeometry(
  * isn't needed here.
  */
 export function regionContainsUrl(lat: number, long: number): string {
-  const base = wrapperBase("VITE_LAU_API_URI", "https://wunderfacts.com/lau/");
+  const base = sourceBase("lau");
   return `${base}contains?lat=${lat}&lon=${long}`;
 }
 
@@ -165,7 +160,7 @@ export function regionContainsUrl(lat: number, long: number): string {
  * levels use. There is no national choropleth polygon, so this never shades on the Kreis/Land map.
  */
 export function nationalRegionUrl(): string {
-  const base = wrapperBase("VITE_NUTS_API_URI", "https://wunderfacts.com/nuts/");
+  const base = sourceBase("nuts");
   return `${base}nuts/DE#it`;
 }
 
@@ -176,8 +171,7 @@ export function nationalRegionUrl(): string {
  * the entry that yields exactly 8 (the Gemeinde — coarser NUTS concepts, if present, notate as
  * `DE25`/`DE254`, which don't). Pure.
  */
-export function gemeindeAgsFromContains(turtle: string, baseIri: string): string | null {
-  const store = parseRdfText(turtle, baseIri);
+export function gemeindeAgsFromContains(store: Store): string | null {
   for (const q of store.getQuads(null, `${SKOS_NS}notation`, null, null)) {
     const digits = q.object.value.replace(/\D/g, "");
     if (digits.length === 8) return digits;
@@ -194,12 +188,61 @@ export async function fetchContainingGemeindeAgs(
   lat: number,
   long: number,
 ): Promise<string | null> {
-  const url = regionContainsUrl(lat, long);
-  const res = await trackedFetch(
-    url,
-    { headers: { Accept: "text/turtle" } },
-    "region contains (LAU)",
-  );
-  if (!res.ok) return null;
-  return gemeindeAgsFromContains(await res.text(), url);
+  try {
+    const store = await contains(getSourceGateway(), "lau", { lat, lon: long });
+    return gemeindeAgsFromContains(store);
+  } catch {
+    return null; // best-effort: outside coverage / unreachable → no region
+  }
+}
+
+/** A region match from a geo wrapper's `/search` (a lean SKOS concept). */
+export interface RegionMatch {
+  /** The region concept IRI (`…/nuts/{code}#it` or `…/lau/{giscoId}#it`). */
+  iri: string;
+  /** `skos:notation` — the NUTS code (`DE254`) or LAU GISCO_ID (`DE_09562000`). */
+  notation: string;
+  /** The 8-digit German AGS, for a LAU GISCO_ID (`DE_09562000` → `09562000`);
+   *  "" for a NUTS code (whose digits are not an AGS). Drives `/filter?ags=`. */
+  ags: string;
+  label: string;
+}
+
+/** Parse the lean SKOS concepts of a `/search` response into region matches. */
+export function parseRegionMatches(store: Store): RegionMatch[] {
+  const out: RegionMatch[] = [];
+  for (const q of store.getQuads(null, `${SKOS_NS}notation`, null, null)) {
+    const notation = q.object.value;
+    // A LAU GISCO_ID is `CC_<digits>`; its digits are the AGS. A NUTS code
+    // (`DE254`) has no clean AGS, so leave it empty.
+    const lau = notation.match(/^[A-Z]{2}_(\d+)$/);
+    const label =
+      store.getObjects(q.subject, `${SKOS_NS}prefLabel`, null)[0]?.value ?? "";
+    out.push({
+      iri: q.subject.value,
+      notation,
+      ags: lau ? lau[1] : "",
+      label,
+    });
+  }
+  return out;
+}
+
+/**
+ * Keyword-search the NUTS or LAU classification by region code/name, returning
+ * the matching region concepts — the discovery half of the exploration path
+ * (`searchRegions("lau", "erlangen")` → its AGS → `fetchInstallationsByAgs`).
+ * Best-effort: a non-OK response → `[]`.
+ */
+export async function searchRegions(
+  source: "nuts" | "lau",
+  q: string,
+  params: Record<string, string | number> = {},
+): Promise<RegionMatch[]> {
+  try {
+    const store = await search(getSourceGateway(), source, q, params);
+    return parseRegionMatches(store);
+  } catch {
+    return [];
+  }
 }

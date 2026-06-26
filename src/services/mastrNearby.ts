@@ -23,9 +23,11 @@
  * renewables (solar/wind/hydro/biomass). Per-unit Bruttoleistung and authoritative
  * `vocab:#…Unit` typing would need a follow-up deref of each `…/see/{id}` record.
  */
-import { GEO_LAT, GEO_LONG, DCTERMS_NS, RDFS_NS } from "./rdf/vocabularies.ts";
-import { parseRdfText } from "./rdf/rdfHelpers.ts";
-import { trackedFetch } from "../lib/networkActivity.ts";
+import { DCTERMS_NS, GEO_LAT, GEO_LONG, RDFS_NS } from "./rdf/vocabularies.ts";
+import type { Store } from "n3";
+import { sourceBase } from "../constants/dataSources.ts";
+import { getSourceGateway } from "./sources/sourceGateway.ts";
+import { bbox, type Box, deref, filter } from "./sources/capabilities.ts";
 
 const RDFS_LABEL = `${RDFS_NS}label`;
 const DCTERMS_SPATIAL = `${DCTERMS_NS}spatial`;
@@ -68,8 +70,9 @@ export interface NearbyInstallation {
   long: number;
   /** The 8-digit municipality AGS from `dcterms:spatial` (Kreis = first 5). */
   ags: string;
-  /** Great-circle distance from the query point, in kilometres. */
-  distanceKm: number;
+  /** Great-circle distance from the query point, in kilometres — present for the
+   *  nearby (point-anchored) read, omitted for the by-AGS (region) read. */
+  distanceKm?: number;
 }
 
 export interface NearbyOptions {
@@ -85,13 +88,13 @@ const DEFAULT_LIMIT = 25;
 /** Hard cap on the bbox listing the wrapper returns (a dense city is huge). */
 const FETCH_CAP = 500;
 
-/** Base URI of the linked-mastr wrapper (CORS-enabled; fetched directly). Read
- *  lazily so importing this module for the pure parser test never touches
- *  `import.meta.env` (same pattern as {@link regionalCube}). */
-function mastrBase(): string {
-  const env =
-    (import.meta as unknown as { env?: Record<string, string | undefined> }).env;
-  return env?.VITE_MASTR_API_URI || "https://wunderfacts.com/mastr/";
+/** The WGS84 bounding box of half-width `radiusKm` around a point (~111 km per
+ *  degree latitude; longitude shrinks by cos). Shared by the fetch and the
+ *  dev-link URL so they can't diverge. */
+function boxAround(lat: number, long: number, radiusKm: number): Box {
+  const dLat = radiusKm / 111;
+  const dLon = radiusKm / (111 * Math.cos((lat * Math.PI) / 180));
+  return { w: long - dLon, s: lat - dLat, e: long + dLon, n: lat + dLat };
 }
 
 /** Great-circle distance between two WGS84 points, in kilometres. */
@@ -117,18 +120,12 @@ function agsFromSpatial(iri: string): string {
 }
 
 /**
- * Parse a `bbox` Turtle document into the renewable installations near
- * (`fromLat`, `fromLong`), nearest first. Pure — the network-free half,
- * unit-tested with a fixture. A unit is kept only when it has coordinates and a
- * recognised renewable carrier code.
+ * Parse the renewable installations from a `bbox`/`filter` listing `Store`
+ * (no query point). Pure — the network-free half, unit-tested with a fixture. A
+ * unit is kept only when it has coordinates and a recognised renewable carrier
+ * code. Order is the Store's; the nearby variant sorts by distance.
  */
-export function parseNearbyInstallations(
-  turtle: string,
-  baseIri: string,
-  fromLat: number,
-  fromLong: number,
-): NearbyInstallation[] {
-  const store = parseRdfText(turtle, baseIri);
+export function parseInstallations(store: Store): NearbyInstallation[] {
   const out: NearbyInstallation[] = [];
   // Subjects with a latitude are the units (the lean listing has no rdf:type).
   for (const latQuad of store.getQuads(null, GEO_LAT, null, null)) {
@@ -148,32 +145,35 @@ export function parseNearbyInstallations(
       }
     }
     if (kind && long != null && !Number.isNaN(lat) && !Number.isNaN(long)) {
-      out.push({
-        iri: subject.value,
-        label,
-        kind,
-        lat,
-        long,
-        ags,
-        distanceKm: haversineKm(fromLat, fromLong, lat, long),
-      });
+      out.push({ iri: subject.value, label, kind, lat, long, ags });
     }
   }
-  return out.sort((a, b) => a.distanceKm - b.distanceKm);
+  return out;
 }
 
-/** The bbox query IRI for a point — fetched, and the Developer-mode source link. */
+/**
+ * As {@link parseInstallations}, but anchored to a query point: each unit gets a
+ * `distanceKm` and the list is sorted nearest-first.
+ */
+export function parseNearbyInstallations(
+  store: Store,
+  fromLat: number,
+  fromLong: number,
+): NearbyInstallation[] {
+  return parseInstallations(store)
+    .map((u) => ({ ...u, distanceKm: haversineKm(fromLat, fromLong, u.lat, u.long) }))
+    .sort((a, b) => (a.distanceKm ?? 0) - (b.distanceKm ?? 0));
+}
+
+/** The bbox query IRI for a point — the Developer-mode source link (matches what
+ *  {@link fetchNearbyInstallations} fetches through the gateway). */
 export function nearbyInstallationsUrl(
   lat: number,
   long: number,
   radiusKm = DEFAULT_RADIUS_KM,
 ): string {
-  // Box around the point: ~111 km per degree latitude; longitude shrinks by cos.
-  const dLat = radiusKm / 111;
-  const dLon = radiusKm / (111 * Math.cos((lat * Math.PI) / 180));
-  const w = long - dLon, s = lat - dLat, e = long + dLon, n = lat + dLat;
-  const bbox = `${w},${s},${e},${n}`;
-  return `${mastrBase()}bbox?bbox=${bbox}&count=${FETCH_CAP}`;
+  const b = boxAround(lat, long, radiusKm);
+  return `${sourceBase("mastr")}bbox?bbox=${b.w},${b.s},${b.e},${b.n}&count=${FETCH_CAP}`;
 }
 
 /**
@@ -186,15 +186,29 @@ export async function fetchNearbyInstallations(
   opts: NearbyOptions = {},
 ): Promise<NearbyInstallation[]> {
   const { radiusKm = DEFAULT_RADIUS_KM, limit = DEFAULT_LIMIT } = opts;
-  const url = nearbyInstallationsUrl(lat, long, radiusKm);
-  const res = await trackedFetch(
-    url,
-    { headers: { Accept: "text/turtle" } },
-    "nearby installations (MaStR)",
+  const store = await bbox(
+    getSourceGateway(),
+    "mastr",
+    boxAround(lat, long, radiusKm),
+    { count: FETCH_CAP },
   );
-  if (!res.ok) throw new Error(`HTTP ${res.status} fetching nearby installations`);
-  const all = parseNearbyInstallations(await res.text(), url, lat, long);
-  return all.slice(0, limit);
+  return parseNearbyInstallations(store, lat, long).slice(0, limit);
+}
+
+/**
+ * The renewable installations IN a region by AGS prefix (2-digit Land / 5-digit
+ * Kreis / 8-digit Gemeinde) — the exploration counterpart of
+ * {@link fetchNearbyInstallations} with no query point (so no distance/sort).
+ * Pairs with the geo wrappers' `/search`: resolve a place name to a region, take
+ * its AGS, list its units. Throws on a non-OK response.
+ */
+export async function fetchInstallationsByAgs(
+  ags: string,
+  opts: { limit?: number } = {},
+): Promise<NearbyInstallation[]> {
+  const store = await filter(getSourceGateway(), "mastr", { ags, count: FETCH_CAP });
+  const units = parseInstallations(store);
+  return opts.limit != null ? units.slice(0, opts.limit) : units;
 }
 
 /** The trailing plant number from a `…/eeg/{number}#it` IRI (the netztransparenz key),
@@ -205,11 +219,10 @@ export function eegNumberFromIri(iri: string): string | null {
   return m ? m[1] : null;
 }
 
-/** Pure: the EEG plant number a unit document declares via `mastr:EegMaStRNummer`, or
+/** Pure: the EEG plant number a unit `Store` declares via `mastr:EegMaStRNummer`, or
  *  null — non-EEG units (e.g. combustion) omit the predicate. The network-free half of
  *  {@link fetchEegNumber}, unit-tested with a fixture. */
-export function parseEegNumber(turtle: string, baseIri: string): string | null {
-  const store = parseRdfText(turtle, baseIri);
+export function parseEegNumber(store: Store): string | null {
   for (const q of store.getQuads(null, null, null, null)) {
     if (q.predicate.value.endsWith(EEG_MASTR_NR_SUFFIX)) {
       return eegNumberFromIri(q.object.value);
@@ -231,10 +244,9 @@ export interface UnitDetail {
   eegNumber: string | null;
 }
 
-/** Pure: parse a unit document's master data (label, capacity, kind, locality, EEG
+/** Pure: parse a unit `Store`'s master data (label, capacity, kind, locality, EEG
  *  number). One pass over the quads; missing fields default. */
-export function parseUnitDetail(turtle: string, baseIri: string): UnitDetail {
-  const store = parseRdfText(turtle, baseIri);
+export function parseUnitDetail(store: Store): UnitDetail {
   let label = "", locality = "", capacityKw: number | null = null;
   let kind: InstallationKind | null = null, eegNumber: string | null = null;
   for (const q of store.getQuads(null, null, null, null)) {
@@ -262,13 +274,16 @@ export async function fetchEegNumber(
   installationIri: string,
 ): Promise<string | null> {
   const docUri = installationIri.split("#")[0]; // …/see/{id}
-  const res = await trackedFetch(
-    docUri,
-    { headers: { Accept: "text/turtle" } },
-    "installation detail (MaStR)",
-  );
-  if (!res.ok) return null;
-  return parseEegNumber(await res.text(), docUri);
+  try {
+    const store = await deref(
+      getSourceGateway(),
+      docUri,
+      "installation detail (MaStR)",
+    );
+    return parseEegNumber(store);
+  } catch {
+    return null; // best-effort: a down/404 unit drops out quietly
+  }
 }
 
 /**

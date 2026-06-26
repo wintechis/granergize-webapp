@@ -1,5 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
+import { parseRdfText } from "./rdf/rdfHelpers.ts";
+const store = (ttl: string, base: string) => parseRdfText(ttl, base);
 import { areaUrl, parseAreaProfile } from "./standortEnergieprofil.ts";
 import { gemeindeFromInstallations, type NearbyInstallation } from "./mastrNearby.ts";
 
@@ -39,7 +41,7 @@ const AREA_TTL = `
 `;
 
 Deno.test("parseAreaProfile assembles every served card", () => {
-  const p = parseAreaProfile(AREA_TTL, AREA_BASE);
+  const p = parseAreaProfile(store(AREA_TTL, AREA_BASE));
   assert.ok(p);
   assert.equal(p!.name, "Nürnberg");
 
@@ -68,7 +70,7 @@ Deno.test("parseAreaProfile returns null without an AreaPotential thing", () => 
   const ttl = `
 @prefix vocab: <https://wunderfacts.com/energieatlas/vocab#> .
 <#it> vocab:name "X" ; vocab:pvPotentialCapacityMWp 10.0 .`;
-  assert.equal(parseAreaProfile(ttl, AREA_BASE), null);
+  assert.equal(parseAreaProfile(store(ttl, AREA_BASE)), null);
 });
 
 Deno.test("gemeindeFromInstallations picks the most frequent 8-digit AGS", () => {

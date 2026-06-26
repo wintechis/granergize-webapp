@@ -38,7 +38,7 @@ export default function OpenBuildingDetail({ iri }: { iri: string }) {
           title={t("openBuildingDetailTitle")}
         >
           <RooftopBuildingCardView data={data} />
-          <SourceNote variant="caption" sources={[SOURCES.lod2, SOURCES.pvgis]} />
+          <SourceNote variant="caption" sources={[SOURCES["lod2-by"], SOURCES.pvgis]} />
           <RdfSourceLink href={iri} />
         </DetailCard>
       )}

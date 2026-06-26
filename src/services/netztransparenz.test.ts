@@ -1,5 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
+import { parseRdfText } from "./rdf/rdfHelpers.ts";
+const store = (ttl: string, base: string) => parseRdfText(ttl, base);
 import { parsePlantSettlements } from "./netztransparenz.ts";
 
 // A faithful slice of a linked-netztransparenz plant document: one `vocab:Settlement`
@@ -23,12 +25,12 @@ const FIXTURE = `
 `;
 
 Deno.test("parsePlantSettlements: sums strommengeKWh per year across disposal forms", () => {
-  const byYear = parsePlantSettlements(FIXTURE, BASE);
+  const byYear = parsePlantSettlements(store(FIXTURE, BASE));
   assert.equal(byYear.size, 2);
   assert.equal(byYear.get(2023), 7255); // 7000 + 255 across two disposal forms
   assert.equal(byYear.get(2024), 93718);
 });
 
 Deno.test("parsePlantSettlements: an empty document → an empty map", () => {
-  assert.equal(parsePlantSettlements("", BASE).size, 0);
+  assert.equal(parsePlantSettlements(store("", BASE)).size, 0);
 });

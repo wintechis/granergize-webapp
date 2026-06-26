@@ -121,7 +121,7 @@ export default function NearbyInstallationsSection(
                       color="text.secondary"
                       sx={{ flexShrink: 0 }}
                     >
-                      {t("niDistance", { km: u.distanceKm.toFixed(1) })}
+                      {t("niDistance", { km: (u.distanceKm ?? 0).toFixed(1) })}
                     </Typography>
                   </Box>
                   {/* Per-unit RDF resource on linked-mastr — the only "detail" a

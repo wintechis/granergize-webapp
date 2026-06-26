@@ -1,5 +1,7 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
+import { parseRdfText } from "./rdf/rdfHelpers.ts";
+const store = (ttl: string, base: string) => parseRdfText(ttl, base);
 import {
   parseRegionalChoropleth,
   parseRegionalObservations,
@@ -33,7 +35,7 @@ const LAND_FIXTURE = `
 `;
 
 Deno.test("land table: filters by AGS, sorts by year, carries unit", () => {
-  const bayern = parseRegionalObservations(LAND_FIXTURE, LAND_BASE, landTable(), "09");
+  const bayern = parseRegionalObservations(store(LAND_FIXTURE, LAND_BASE), landTable(), "09");
   assert.deepEqual(bayern, [
     { year: 2021, value: 55.0, unit: "Prozent" },
     { year: 2023, value: 61.5, unit: "Prozent" },
@@ -41,14 +43,14 @@ Deno.test("land table: filters by AGS, sorts by year, carries unit", () => {
 });
 
 Deno.test("land table: a different region selects only its rows", () => {
-  const bb = parseRegionalObservations(LAND_FIXTURE, LAND_BASE, landTable(), "12");
+  const bb = parseRegionalObservations(store(LAND_FIXTURE, LAND_BASE), landTable(), "12");
   assert.equal(bb.length, 1);
   assert.equal(bb[0].value, 88.0);
 });
 
 Deno.test("land table: unknown region / no observations → empty", () => {
-  assert.deepEqual(parseRegionalObservations(LAND_FIXTURE, LAND_BASE, landTable(), "99"), []);
-  assert.deepEqual(parseRegionalObservations("@prefix x: <urn:x#> .", LAND_BASE, landTable(), "09"), []);
+  assert.deepEqual(parseRegionalObservations(store(LAND_FIXTURE, LAND_BASE), landTable(), "99"), []);
+  assert.deepEqual(parseRegionalObservations(store("@prefix x: <urn:x#> .", LAND_BASE), landTable(), "09"), []);
 });
 
 // --- Kreis grain: 43531-01-02-4 (industrial energy use) ----------------------
@@ -82,14 +84,14 @@ const KREIS_TTL = KREIS_FIXTURE
   .replace(/cl:ENRNW1-(\w+)/g, "<https://wunderfacts.com/regionalstatistik/cl/ENRNW1#$1>");
 
 Deno.test("kreis table: alternate geo dim + carrier selector pick one series", () => {
-  const rows = parseRegionalObservations(KREIS_TTL, KREIS_BASE, kreisTable(), "09564");
+  const rows = parseRegionalObservations(store(KREIS_TTL, KREIS_BASE), kreisTable(), "09564");
   assert.deepEqual(rows, [{ year: 2024, value: 1234, unit: "Tsd. MJ" }]);
 });
 
 Deno.test("kreis table: a Kreis with no renewable row → empty", () => {
   // 08221 only appears with the renewable carrier here, so it DOES match — assert
   // instead that an absent Kreis yields nothing.
-  assert.deepEqual(parseRegionalObservations(KREIS_TTL, KREIS_BASE, kreisTable(), "09999"), []);
+  assert.deepEqual(parseRegionalObservations(store(KREIS_TTL, KREIS_BASE), kreisTable(), "09999"), []);
 });
 
 // --- regionalGeoUrl: the place's dereferenceable IRI (the leaf handoff) -------
@@ -111,7 +113,7 @@ Deno.test("regionalGeoUrl: frag-style kreis grain → …/cl/{scheme}#{code}", (
 // --- parseRegionalChoropleth: one value per region (the whole-table read) ----
 
 Deno.test("choropleth: ags-style → latest year per region, keyed by AGS", () => {
-  const m = parseRegionalChoropleth(LAND_FIXTURE, LAND_BASE, landTable());
+  const m = parseRegionalChoropleth(store(LAND_FIXTURE, LAND_BASE), landTable());
   assert.equal(m.size, 2);
   // 09 has 2021 + 2023 → keeps the latest (2023).
   assert.deepEqual(m.get("09"), { year: 2023, value: 61.5, unit: "Prozent" });
@@ -119,14 +121,14 @@ Deno.test("choropleth: ags-style → latest year per region, keyed by AGS", () =
 });
 
 Deno.test("choropleth: maxYear caps the chosen year per region", () => {
-  const m = parseRegionalChoropleth(LAND_FIXTURE, LAND_BASE, landTable(), 2021);
+  const m = parseRegionalChoropleth(store(LAND_FIXTURE, LAND_BASE), landTable(), 2021);
   // 09's 2023 is excluded → falls back to 2021; 12 only has 2023 → dropped.
   assert.deepEqual(m.get("09"), { year: 2021, value: 55.0, unit: "Prozent" });
   assert.equal(m.has("12"), false);
 });
 
 Deno.test("choropleth: frag-style geo + selector → AGS-keyed, carrier-filtered", () => {
-  const m = parseRegionalChoropleth(KREIS_TTL, KREIS_BASE, kreisTable());
+  const m = parseRegionalChoropleth(store(KREIS_TTL, KREIS_BASE), kreisTable());
   // Both Kreise appear with the renewable carrier; the Heizöl row (o2) is excluded.
   assert.deepEqual(m.get("09564"), { year: 2024, value: 1234, unit: "Tsd. MJ" });
   assert.deepEqual(m.get("08221"), { year: 2024, value: 5555, unit: "Tsd. MJ" });
@@ -134,5 +136,5 @@ Deno.test("choropleth: frag-style geo + selector → AGS-keyed, carrier-filtered
 });
 
 Deno.test("choropleth: no observations → empty map", () => {
-  assert.equal(parseRegionalChoropleth("@prefix x: <urn:x#> .", LAND_BASE, landTable()).size, 0);
+  assert.equal(parseRegionalChoropleth(store("@prefix x: <urn:x#> .", LAND_BASE), landTable()).size, 0);
 });
