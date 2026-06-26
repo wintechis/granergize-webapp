@@ -30,6 +30,15 @@ All notable changes to the Granergize WebApp project will be documented in this 
   - *One back-link.* `DetailView.BackLink` renders an MUI `ArrowBackIcon` + `btnBack` instead
     of a raw `🠠` glyph; `DataSources` reuses `<BackLink>` (dropping the bespoke `dsBack`
     "← Back" glyph-in-copy entry).
+  - *Split the 3291-line `messages.ts` catalog into per-area slices.* The single giant
+    `MESSAGES` object (787 ids) is now nine themed modules under `src/lib/messages/`
+    (`navFinders`, `buildingForms`, `energyRegional`, `buildingDetail`, `cubeObservation`,
+    `shellAuth`, `detailRooms`, `dialogsShare`, `notifications`) merged by spread in
+    `messages.ts`, which keeps only the lookup machinery (94 lines) and the unchanged public
+    API (`msg`/`translate`/`MessageId`). Shared `Message`/`PluralForms` types live in
+    `messages/messageTypes.ts`. A new `messages.test.ts` guard asserts the slices *partition*
+    the catalog (slice key-counts sum to the merged count) so no id can be silently shadowed
+    by a spread. Pure mechanical move — same 787 ids, no call-site changes.
 - **Open tier: opt-in exploration mode.** An "Explore this area" toggle (`?explore=1`,
   shown when the open tier is ticked) anchors the open layers to the map **viewport**
   instead of your own buildings (`viewportAnchor` reading `?c`/`?z`) — browse open data

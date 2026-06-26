@@ -1,6 +1,15 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
 import { MESSAGES, translate } from "./messages.ts";
+import { navFinders } from "./messages/navFinders.ts";
+import { buildingForms } from "./messages/buildingForms.ts";
+import { energyRegional } from "./messages/energyRegional.ts";
+import { buildingDetail } from "./messages/buildingDetail.ts";
+import { cubeObservation } from "./messages/cubeObservation.ts";
+import { shellAuth } from "./messages/shellAuth.ts";
+import { detailRooms } from "./messages/detailRooms.ts";
+import { dialogsShare } from "./messages/dialogsShare.ts";
+import { notifications } from "./messages/notifications.ts";
 
 Deno.test("translate: resolves a plain message per language", () => {
   assert.equal(translate("en", "uiLanguage"), "Language");
@@ -26,6 +35,35 @@ Deno.test("translate: plural selection via Intl.PluralRules", () => {
 
 Deno.test("translate: a missing param is left visible, not dropped", () => {
   assert.equal(translate("en", "buildingCount", {}), "{count} buildings");
+});
+
+Deno.test("the per-area slices partition the catalog — no id shadowed by a spread", () => {
+  // MESSAGES is `{ ...sliceA, ...sliceB, ... }`, so a key duplicated across two
+  // slices would silently override and shrink the merged catalog (and one surface
+  // would unexpectedly read another's text). Guard: the slice key-counts must sum
+  // to the merged key-count, i.e. the slices are a true partition.
+  const slices = {
+    navFinders,
+    buildingForms,
+    energyRegional,
+    buildingDetail,
+    cubeObservation,
+    shellAuth,
+    detailRooms,
+    dialogsShare,
+    notifications,
+  };
+  const seen = new Map<string, string>();
+  let total = 0;
+  for (const [name, slice] of Object.entries(slices)) {
+    for (const key of Object.keys(slice)) {
+      total++;
+      const prev = seen.get(key);
+      assert.ok(!prev, `id "${key}" is in both ${prev} and ${name}`);
+      seen.set(key, name);
+    }
+  }
+  assert.equal(total, Object.keys(MESSAGES).length, "slice keys must sum to MESSAGES");
 });
 
 Deno.test("every catalog entry carries de/en/fr", () => {
