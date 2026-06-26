@@ -1,28 +1,20 @@
 import { msg } from "../../lib/messages.ts";
-import { buildingDisplayName, buildingSearchText } from "../../lib/buildingDisplay.ts";
+import { buildingSearchText } from "../../lib/buildingDisplay.ts";
 import { filterByText } from "../../lib/textSearch.ts";
 import { useListSearch } from "../../hooks/useListSearch.ts";
 import { useListFacet } from "../../hooks/useListFacet.ts";
 import { useOpenBuildings } from "../../hooks/openBuildings.ts";
 import { useOpenObservations } from "../../hooks/openObservations.ts";
 import { ownDataAnchor, viewportAnchor } from "../../services/openBuildings.ts";
-import { getStoredViewport, setStoredViewport } from "../../lib/mapViewport.ts";
+import { getStoredViewport } from "../../lib/mapViewport.ts";
 import { TIER_VALUES } from "../../constants/tiers.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { buildingRoute, observationRoute } from "../../routes.ts";
 import { useTrailState } from "../../hooks/navTrail.ts";
-import { BuildingType } from "../../types.ts";
 import MarkerClusterGroup from "./MarkerClusterGroup.tsx";
-import {
-  MapContainer,
-  Marker,
-  Tooltip,
-  useMap,
-  useMapEvents,
-  WMSTileLayer,
-} from "react-leaflet";
+import { MapContainer, Marker, Tooltip, WMSTileLayer } from "react-leaflet";
 import "leaflet/dist/leaflet.css";
 import L from "leaflet";
 import Typography from "@mui/material/Typography";
@@ -30,20 +22,13 @@ import Box from "@mui/material/Box";
 import Slider from "@mui/material/Slider";
 import IconButton from "@mui/material/IconButton";
 import MuiTooltip from "@mui/material/Tooltip";
-import {
-  useAnnualEnergyByYear,
-  useResolveAgent,
-  useResolveOrg,
-  useSolidData,
-} from "../../hooks/queries.ts";
-import CorporateFareIcon from "@mui/icons-material/CorporateFare";
+import { useAnnualEnergyByYear, useSolidData } from "../../hooks/queries.ts";
 import PlayArrowIcon from "@mui/icons-material/PlayArrow";
 import PauseIcon from "@mui/icons-material/Pause";
 import {
   beginActivity,
   endActivity,
 } from "../../lib/networkActivity.ts";
-import { safeImageSrc } from "../../lib/safeHref.ts";
 import {
   clampYear,
   type LensBand,
@@ -68,12 +53,14 @@ import {
 } from "../../services/regionGeometry.ts";
 import { buildingsByRegion } from "./buildingsByRegion.ts";
 import { dominantBand } from "./markerClusterTint.ts";
-
-/** What the map markers' colour encodes: ownership (owned/shared, the default) or
- * the energy band at the chosen year. The cube's `space=map` renderer; the `rows`
- * surfaces (List, over-time heatmap) live in the finder. (The trend lens and the
- * compare-years view were dropped.) */
-type MapLens = "ownership" | "energy";
+import { BuildingMarker, type MapLens } from "./BuildingMarker.tsx";
+import {
+  BoundsWatcher,
+  FitToBuildings,
+  InvalidateOnActive,
+  ViewportUrlSync,
+  ZoomWatcher,
+} from "./mapViewportLayers.tsx";
 
 /** Region-LOD thresholds. Below {@link CHOROPLETH_BELOW} the map shades regions (a
  *  portfolio overview) instead of markers/clusters; the choropleth grain is Kreis at/above
@@ -95,297 +82,6 @@ const BASEMAP_DE = {
     '&copy; <a href="https://basemap.de/">basemap.de</a> / &copy; <a href="https://www.bkg.bund.de/">BKG</a>',
 } as const;
 
-
-/**
- * Energy-lens marker: a filled circle tinted by the building's energy **band** for
- * the selected metric — an efficiency tier (consumption) or a neutral magnitude
- * bucket (generation). Shown for EVERY building (not just those with a producer
- * logo) so the categorisation is always legible. The band is baked into the
- * `className` (`energy-marker energy-<band>`) so the e2e spec can assert it.
- */
-const categoryIconCache = new Map<string, L.DivIcon>();
-function createCategoryIcon(band: LensBand, framing: MetricFraming): L.DivIcon {
-  const key = `${framing}:${band}`;
-  const hit = categoryIconCache.get(key);
-  if (hit) return hit;
-  const shadow = "box-shadow:0 1px 4px rgba(0,0,0,0.45);";
-  const icon = L.divIcon({
-    className: `energy-marker energy-${band}`,
-    html:
-      `<div style="width:28px;height:28px;border-radius:50%;background:${
-        bandColor(band, framing)
-      };border:3px solid #fff;${shadow}"></div>`,
-    iconSize: [34, 34],
-    iconAnchor: [17, 17],
-    popupAnchor: [0, -17],
-  });
-  categoryIconCache.set(key, icon);
-  return icon;
-}
-
-/**
- * One map marker. A dedicated component so the per-producer org-logo lookup
- * (`useResolveOrg`) is a single hook call per marker rather than inside the
- * buildings `.map()`. The marker itself is an owned/shared-coloured pin; the
- * producer's (`attributedTo`) organisation — name and logo, when they resolve —
- * shows in the hover card, as does the operator (`operatedBy`) agent's name and
- * logo when present. A click navigates to the building's detail page.
- */
-function BuildingMarker(
-  { building, position, onClick, lens, band, framing }: {
-    building: BuildingType;
-    position: [number, number];
-    onClick: () => void;
-    lens: MapLens;
-    band: LensBand;
-    framing: MetricFraming;
-  },
-) {
-  const { data: org } = useResolveOrg(building.attributedTo);
-  // The logo URL is the raw `foaf:logo` value from a THIRD PARTY's profile
-  // (shared-in buildings resolve foreign producers) — sanitize before rendering.
-  const logoSrc = org?.logoUrl ? safeImageSrc(org.logoUrl) : null;
-  // The operator (`operatedBy`) is resolved against the agent's OWN document
-  // (`foaf:name` + `foaf:img`/logo), which is where these operator-org nodes
-  // state their name and logo — they carry no `org:memberOf` for resolveAgentOrg.
-  const { data: operator } = useResolveAgent(building.operatedBy);
-  const operatorName = operator?.name && building.operatedBy ? operator.name : null;
-  const operatorLogoSrc = operator?.avatarUrl
-    ? safeImageSrc(operator.avatarUrl)
-    : null;
-  const icon = lens === "energy"
-    ? createCategoryIcon(band, framing)
-    : buildingPin(building.isShared ?? false);
-  const tooltipOffset: [number, number] = lens === "ownership"
-    ? [0, -38]
-    : [0, -20];
-  return (
-    <Marker
-      position={position}
-      icon={icon}
-      eventHandlers={{ click: onClick }}
-    >
-      <Tooltip direction="top" offset={tooltipOffset}>
-        <Box sx={{ display: "flex", gap: 1 }}>
-          <CorporateFareIcon fontSize="small" />
-          <span>
-            <strong>{buildingDisplayName(building)}</strong>
-            {building.streetAddress &&
-              building.streetAddress !== buildingDisplayName(building) && (
-              <>
-                <br />
-                {building.streetAddress}
-              </>
-            )}
-            <br />
-            {`${building.postalCode ?? ""} ${building.locality ?? ""}${
-              building.region ? `, ${building.region}` : ""
-            }`}
-            {org?.name && (
-              <>
-                <br />
-                <em>{org.name}</em>
-              </>
-            )}
-            {logoSrc && (
-              <img
-                src={logoSrc}
-                alt={msg("markerProducerLogoAlt")}
-                // A Wikidata→Commons logo carries an attribution obligation; a
-                // native title surfaces it (this is a Leaflet tooltip, not MUI).
-                title={org?.logoSource === "commons"
-                  ? msg("logoViaCommons")
-                  : undefined}
-                style={{
-                  display: "block",
-                  height: 20,
-                  maxWidth: 140,
-                  objectFit: "contain",
-                  marginTop: 4,
-                }}
-                // A foreign producer's logo may not be publicly readable —
-                // hide the broken image, the org name line still identifies.
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
-            )}
-            {operatorName && (
-              <>
-                <br />
-                Operated by <em>{operatorName}</em>
-              </>
-            )}
-            {operatorLogoSrc && (
-              <img
-                src={operatorLogoSrc}
-                alt={msg("markerOperatorLogoAlt")}
-                style={{
-                  display: "block",
-                  height: 20,
-                  maxWidth: 140,
-                  objectFit: "contain",
-                  marginTop: 4,
-                }}
-                // The operator's logo may not be publicly readable — hide the
-                // broken image, the operator name line still identifies.
-                onError={(e) => {
-                  e.currentTarget.style.display = "none";
-                }}
-              />
-            )}
-          </span>
-        </Box>
-      </Tooltip>
-    </Marker>
-  );
-}
-
-/**
- * Leaflet miscalculates its size when its container was hidden (display:none).
- * When this map's tab becomes active again, recompute the size once it's visible.
- */
-function InvalidateOnActive({ active }: { active: boolean }) {
-  const map = useMap();
-  useEffect(() => {
-    if (active) {
-      setTimeout(() => map.invalidateSize(), 0);
-    }
-  }, [active, map]);
-  return null;
-}
-
-/**
- * Frame the map on the located buildings — once. Runs the first time the tab is
- * active and at least one building has coordinates; afterwards the user's
- * panning/zooming sticks (we never re-fit). Does nothing when no building has
- * coordinates, leaving the current view untouched.
- */
-function FitToBuildings(
-  { active, buildings }: { active: boolean; buildings: BuildingType[] },
-) {
-  const map = useMap();
-  const done = useRef(false);
-  const [searchParams] = useSearchParams();
-  useEffect(() => {
-    if (done.current || !active) return;
-    // A remembered viewport (the in-session store, surviving a detail drill) or one
-    // seeded in the URL (?c=&z=, a shared/deep link) wins over the auto-fit — the map
-    // shouldn't be reframed to the markers. ViewportUrlSync applies it; we stand down.
-    if (getStoredViewport() || (searchParams.get("c") && searchParams.get("z"))) {
-      done.current = true;
-      return;
-    }
-    const pts = buildings
-      .filter((b) => b.lat != null && b.long != null)
-      .map((b) => [b.lat as number, b.long as number] as [number, number]);
-    if (pts.length === 0) return;
-    done.current = true;
-    // Defer so it runs after invalidateSize() has corrected the container size.
-    setTimeout(() => map.fitBounds(L.latLngBounds(pts), { padding: [40, 40] }), 0);
-  }, [active, buildings, map, searchParams]);
-  return null;
-}
-
-/** Write the map's centre+zoom to the URL (`?c=<lat>,<lng>&z=<zoom>`), REPLACE so
- * panning doesn't spam history (a later navigation still captures the latest view). */
-function writeViewport(
-  map: L.Map,
-  setSearchParams: ReturnType<typeof useSearchParams>[1],
-) {
-  const c = map.getCenter();
-  // Preserved component state: remember the viewport so a re-mount (after a detail
-  // drill) restores it, independent of the URL. The `?c`/`?z` write below stays for the
-  // open-data fetch + deep-link seed.
-  setStoredViewport({ lat: c.lat, long: c.lng }, map.getZoom());
-  setSearchParams((prev) => {
-    const sp = new URLSearchParams(prev);
-    sp.set("c", `${c.lat.toFixed(5)},${c.lng.toFixed(5)}`);
-    sp.set("z", String(Math.round(map.getZoom() * 100) / 100));
-    return sp;
-  }, { replace: true });
-}
-
-/**
- * Two-way sync of the map viewport with the URL. On mount, a viewport present in
- * the URL (`?c=&z=`) is applied once (so a shared link / Back restores the exact
- * view, ahead of FitToBuildings). On every pan/zoom settle the current view is
- * written back. Makes the map a real, bookmarkable URI.
- */
-function ViewportUrlSync() {
-  const [searchParams, setSearchParams] = useSearchParams();
-  const map = useMapEvents({
-    moveend: () => writeViewport(map, setSearchParams),
-    zoomend: () => writeViewport(map, setSearchParams),
-  });
-  const applied = useRef(false);
-  useEffect(() => {
-    if (applied.current) return;
-    applied.current = true; // apply at most once (and never re-fire on our own write)
-    // Preferred: the in-session stored viewport — it survives the finder's unmount on a
-    // detail drill, so coming back restores the exact view (no snap-to-fit). Falls back
-    // to `?c`/`?z` for a fresh deep link / shared map URL.
-    const stored = getStoredViewport();
-    if (stored) {
-      setTimeout(
-        () => map.setView([stored.centre.lat, stored.centre.long], stored.zoom),
-        0,
-      );
-      return;
-    }
-    const c = searchParams.get("c");
-    const z = searchParams.get("z");
-    if (!c || !z) return;
-    const [lat, lng] = c.split(",").map(Number);
-    const zoom = Number(z);
-    if ([lat, lng, zoom].every(Number.isFinite)) {
-      setTimeout(() => map.setView([lat, lng], zoom), 0);
-    }
-  }, [map, searchParams]);
-  return null;
-}
-
-/**
- * Reports the map's current bounding box to the parent whenever the user pans
- * or zooms (and once the map becomes visible, since invalidateSize changes the
- * visible bounds without firing a move event).
- */
-function BoundsWatcher(
-  { active, onChange }: {
-    active: boolean;
-    onChange: (bounds: L.LatLngBounds) => void;
-  },
-) {
-  const map = useMapEvents({
-    moveend: () => onChange(map.getBounds()),
-    zoomend: () => onChange(map.getBounds()),
-  });
-  useEffect(() => {
-    if (active) {
-      const t = setTimeout(() => onChange(map.getBounds()), 50);
-      return () => clearTimeout(t);
-    }
-  }, [active, map, onChange]);
-  return null;
-}
-
-/** Reports the map's current zoom to the parent (the LOD branch: choropleth ⇄ clusters ⇄
- *  pins). Mirrors {@link BoundsWatcher}; a separate watcher keeps the zoom a plain number. */
-function ZoomWatcher(
-  { active, onChange }: { active: boolean; onChange: (zoom: number) => void },
-) {
-  const map = useMapEvents({
-    zoomend: () => onChange(map.getZoom()),
-    moveend: () => onChange(map.getZoom()),
-  });
-  useEffect(() => {
-    if (active) {
-      const t = setTimeout(() => onChange(map.getZoom()), 50);
-      return () => clearTimeout(t);
-    }
-  }, [active, map, onChange]);
-  return null;
-}
 
 interface BuildingsMapProps {
   /** Whether the Buildings tab is visible (the map stays mounted while hidden). */

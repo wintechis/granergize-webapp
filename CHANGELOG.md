@@ -30,6 +30,11 @@ All notable changes to the Granergize WebApp project will be documented in this 
   - *One back-link.* `DetailView.BackLink` renders an MUI `ArrowBackIcon` + `btnBack` instead
     of a raw `🠠` glyph; `DataSources` reuses `<BackLink>` (dropping the bespoke `dsBack`
     "← Back" glyph-in-copy entry).
+  - *Decompose `BuildingsMap.tsx` (903 → 599 lines).* Two pure extractions: the marker
+    component + its icon cache + the `MapLens` type → `BuildingMarker.tsx`, and the six
+    non-rendering Leaflet viewport/sync helpers (`InvalidateOnActive`, `FitToBuildings`,
+    `ViewportUrlSync`, `BoundsWatcher`, `ZoomWatcher`) → `mapViewportLayers.tsx`. No
+    behaviour change; the map body is now about the cube surface, not Leaflet plumbing.
   - *Split the 3291-line `messages.ts` catalog into per-area slices.* The single giant
     `MESSAGES` object (787 ids) is now nine themed modules under `src/lib/messages/`
     (`navFinders`, `buildingForms`, `energyRegional`, `buildingDetail`, `cubeObservation`,
