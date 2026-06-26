@@ -138,6 +138,7 @@ const SOLO_SPECS = [
   "**/map-viewport.spec.ts",
   "**/map-clustering.spec.ts",
   "**/map-region-choropleth.spec.ts",
+  "**/map-explore.spec.ts",
   "**/nearby-installations.spec.ts",
   "**/dev-source-links.spec.ts",
   "**/seed-demos.spec.ts",

@@ -5,7 +5,7 @@ import { useListSearch } from "../../hooks/useListSearch.ts";
 import { useListFacet } from "../../hooks/useListFacet.ts";
 import { useOpenBuildings } from "../../hooks/openBuildings.ts";
 import { useOpenObservations } from "../../hooks/openObservations.ts";
-import { ownDataAnchor } from "../../services/openBuildings.ts";
+import { ownDataAnchor, viewportAnchor } from "../../services/openBuildings.ts";
 import { getStoredViewport, setStoredViewport } from "../../lib/mapViewport.ts";
 import { TIER_VALUES } from "../../constants/tiers.ts";
 import { buildingPin } from "../../lib/buildingPin.ts";
@@ -425,11 +425,13 @@ export default function BuildingsMap(
   // open count + list.
   const openOn = tierFacet.isSelected("open");
   const onObservation = target === "observation";
-  // Open layers are anchored to the user's OWN buildings (the concentric ring), not the
-  // free map viewport — so panning to a city you own nothing in shows no open rows.
+  // Open layers anchor to the user's OWN buildings (the concentric default), or to the map
+  // viewport when exploration mode (`?explore=1`) is on — then panning loads open data
+  // wherever you look.
+  const exploreOn = searchParams.get("explore") === "1";
   const { centre: openCentre, radiusM: openRadius } = useMemo(
-    () => ownDataAnchor(buildings),
-    [buildings],
+    () => (exploreOn ? viewportAnchor(searchParams) : ownDataAnchor(buildings)),
+    [exploreOn, searchParams, buildings],
   );
   const { data: openBuildings = [] } = useOpenBuildings(
     openCentre,

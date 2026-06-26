@@ -41,6 +41,7 @@ import { RefLink } from "../components/detail/DetailView.tsx";
 import { useT } from "../context/I18nProvider.tsx";
 import ResourceRow from "../components/ResourceRow.tsx";
 import FinderHeader from "../components/FinderHeader.tsx";
+import ExploreControl from "../components/ExploreControl.tsx";
 import Pager from "../components/Pager.tsx";
 import { usePaging } from "../hooks/usePaging.ts";
 import { useListSearch } from "../hooks/useListSearch.ts";
@@ -51,7 +52,7 @@ import TierFilter from "../components/TierFilter.tsx";
 import TierDot from "../components/TierDot.tsx";
 import { OBSERVATION_TIERS } from "../constants/tiers.ts";
 import { useOpenObservations } from "../hooks/openObservations.ts";
-import { ownDataAnchor } from "../services/openBuildings.ts";
+import { ownDataAnchor, viewportAnchor } from "../services/openBuildings.ts";
 import { RdfSourceLink } from "../components/detail/DetailView.tsx";
 import CubeAxisBar from "../components/cube/CubeAxisBar.tsx";
 import ObservationsMatrix from "../components/observation/ObservationsMatrix.tsx";
@@ -154,10 +155,13 @@ export default function ObservationsFinder() {
   // (netztransparenz, joined via MaStR), fetched around the user's OWN buildings (the
   // concentric ring) only when `open` is ticked.
   // Read-only, and a SEPARATE List section (not the building-keyed cube) — like the
-  // building-less loose section. Anchored to the user's OWN buildings (the concentric
-  // ring), not the free map viewport — see `ownDataAnchor`.
+  // building-less loose section. Anchored to the user's OWN buildings (concentric default),
+  // or to the map viewport when exploration mode (`?explore=1`) is on.
   const openOn = tierFacet.isSelected("open");
-  const { centre: openCentre, radiusM: openRadius } = ownDataAnchor(buildings);
+  const exploreOn = searchParams.get("explore") === "1";
+  const { centre: openCentre, radiusM: openRadius } = exploreOn
+    ? viewportAnchor(searchParams)
+    : ownDataAnchor(buildings);
   const { data: openObs = [] } = useOpenObservations(openCentre, openRadius, openOn);
   const filtered = filterByText(byTier, query, buildingSearchText);
   const paging = usePaging(filtered);
@@ -252,6 +256,7 @@ export default function ObservationsFinder() {
               open: openObs.length,
             }}
           />
+          {openOn && <ExploreControl />}
           {/* The metric (electricity / heat / …) is a query/filter, not a view
               control, so it sits on the LEFT with search + tier — and shows on every
               view incl. the map (to compare metrics there), i.e. all but the List. */}
@@ -459,7 +464,7 @@ export default function ObservationsFinder() {
               and List-only (the building-comparison views don't plot it). */}
           {!isLoading && view === "list" && openOn && !openCentre && (
             <Typography variant="body2" color="text.secondary" sx={{ mt: 3 }}>
-              {t("openNeedsOwnBuilding")}
+              {t(exploreOn ? "exploreChooseArea" : "openNeedsOwnBuilding")}
             </Typography>
           )}
           {!isLoading && view === "list" && openObs.length > 0 && (

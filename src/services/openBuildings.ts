@@ -63,6 +63,39 @@ export function ownDataAnchor(
   return { centre: { lat: snap(lat), long: snap(long) }, radiusM };
 }
 
+/** The open-data fetch radius (m) for a Leaflet zoom — wider view → bigger box, closer
+ *  view → smaller — so an *exploration* fetch tracks how much map is shown. Clamped to a
+ *  sane band (the wrapper caps dense results anyway). */
+export function viewportRadiusForZoom(zoom: number): number {
+  return Math.round(Math.min(20000, Math.max(500, 40_000_000 / 2 ** zoom)));
+}
+
+/**
+ * The **viewport anchor** for the open tier's opt-in *exploration* mode (`?explore=1`):
+ * a centre + radius read from the map's URL viewport (`?c` centre, `?z` zoom), so open
+ * data is fetched around **wherever the user is looking** rather than their own buildings.
+ * The deliberate, opt-in counterpart to {@link ownDataAnchor} (it re-introduces the
+ * viewport anchoring the concentric default removed). The centre is snapped to a ~110 m
+ * grid so micro-pans reuse the cached fetch; `centre` is `null` until the map has written
+ * a `?c` (the finder then shows a "pan or search to choose an area" hint).
+ */
+export function viewportAnchor(
+  params: URLSearchParams,
+): { centre: MapCentre | null; radiusM: number } {
+  const z = Number(params.get("z"));
+  const radiusM = Number.isFinite(z) && z > 0
+    ? viewportRadiusForZoom(z)
+    : OPEN_BUILDINGS_RADIUS_M;
+  const c = params.get("c");
+  if (!c) return { centre: null, radiusM };
+  const [lat, long] = c.split(",").map(Number);
+  if (!Number.isFinite(lat) || !Number.isFinite(long)) {
+    return { centre: null, radiusM };
+  }
+  const snap = (n: number) => Math.round(n * 1000) / 1000;
+  return { centre: { lat: snap(lat), long: snap(long) }, radiusM };
+}
+
 /**
  * Adapt a LoD2 `NearbyRooftop` (the `linked-lod2-by` open-data rooftop summary) into
  * the finder's `BuildingType`, flagged `isOpen` so it lands in the **open** source

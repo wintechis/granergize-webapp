@@ -4,6 +4,8 @@ import {
   OPEN_BUILDINGS_RADIUS_M,
   ownDataAnchor,
   openRooftopToBuilding,
+  viewportAnchor,
+  viewportRadiusForZoom,
 } from "./openBuildings.ts";
 import { type NearbyRooftop } from "./lod2Rooftop.ts";
 
@@ -66,4 +68,27 @@ Deno.test("ownDataAnchor: a spread portfolio clamps the radius to the 20 km ceil
     { lat: 52.52, long: 13.40 },
   ]);
   assert.equal(radiusM, 20000);
+});
+
+Deno.test("viewportRadiusForZoom: wider view → bigger radius, clamped to [500, 20000]", () => {
+  assert.equal(viewportRadiusForZoom(6), 20000, "country view clamps to the max");
+  assert.equal(viewportRadiusForZoom(20), 500, "street view clamps to the min");
+  assert.ok(viewportRadiusForZoom(13) > viewportRadiusForZoom(15));
+});
+
+Deno.test("viewportAnchor: snaps the URL centre to a ~110 m grid + zoom radius", () => {
+  const { centre, radiusM } = viewportAnchor(
+    new URLSearchParams("c=49.45123,11.08456&z=13"),
+  );
+  assert.deepEqual(centre, { lat: 49.451, long: 11.085 }, "snapped to 3 decimals");
+  assert.equal(radiusM, viewportRadiusForZoom(13));
+});
+
+Deno.test("viewportAnchor: no centre → null (explore mode shows the choose-an-area hint)", () => {
+  const noC = viewportAnchor(new URLSearchParams("z=13"));
+  assert.equal(noC.centre, null);
+  assert.equal(noC.radiusM, viewportRadiusForZoom(13));
+  const noZ = viewportAnchor(new URLSearchParams(""));
+  assert.equal(noZ.centre, null);
+  assert.equal(noZ.radiusM, OPEN_BUILDINGS_RADIUS_M);
 });

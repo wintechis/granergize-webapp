@@ -87,8 +87,12 @@ own buildings), the building page's
 (`useOpenBuildings`) + **open observations** (`useOpenObservations`) layers (anchored via
 `ownDataAnchor` above). Panning to a city you own nothing in shows no open rows; with no
 located building the open tier is empty (no own data → no context). Free-viewport
-*exploration* — browsing open data beyond your own extent, via the wrappers' `/search` /
-`/bbox` — is a separate, opt-in mode; not built, a direction only.
+*exploration* — browsing open data beyond your own extent — is a separate, **opt-in** mode
+behind the open tier's "Explore this area" toggle (`ExploreControl`): with `?explore=1` the
+open layers anchor to the map **viewport** (`viewportAnchor`, reading `?c`/`?z`) instead of
+your own data, and a place-search box geocodes a name and recentres the map there. The
+concentric default is untouched; explore is the deliberate deviation — it pairs the
+viewport `/bbox`·`/point` fetch with the geocoder's `/search`.
 
 The **Agents** finder reads the same facet via the shared `TierFilter`, but an agent isn't
 a Pod resource with a ring of its own, so its ring is *derived* from where it appears

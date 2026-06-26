@@ -15,7 +15,7 @@ import { useListSearch } from "../hooks/useListSearch.ts";
 import { useListFacet } from "../hooks/useListFacet.ts";
 import { rememberedValue, rememberValue } from "../lib/facetMemory.ts";
 import { useOpenBuildings } from "../hooks/openBuildings.ts";
-import { ownDataAnchor } from "../services/openBuildings.ts";
+import { ownDataAnchor, viewportAnchor } from "../services/openBuildings.ts";
 import SearchField from "../components/SearchField.tsx";
 import TierFilter from "../components/TierFilter.tsx";
 import { BUILDING_TIERS } from "../constants/tiers.ts";
@@ -55,6 +55,7 @@ import AddBuildingDialog from "../components/AddBuildingDialog.tsx";
 import { ShareBuildingDialog } from "../components/BuildingDialogs.tsx";
 import TierDot from "../components/TierDot.tsx";
 import FinderHeader from "../components/FinderHeader.tsx";
+import ExploreControl from "../components/ExploreControl.tsx";
 
 const BuildingsMap = lazy(() => import("../components/building/BuildingsMap.tsx"));
 
@@ -105,11 +106,13 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
   // (the concentric ring), ONLY when the open tier is ticked, then unioned in. Read-only,
   // off-Pod, Bavaria-only (empty elsewhere). The map renders them as its own marker layer.
   const openOn = tierFacet.isSelected("open");
-  // Open data is fetched as context around the user's OWN buildings (the concentric
-  // ring), not the free map viewport — see `ownDataAnchor` / notes/data-architecture.md.
+  // Open data is context around the user's OWN buildings (the concentric default) — or,
+  // when exploration mode (`?explore=1`) is on, around the map viewport instead, so the
+  // user can browse open data elsewhere (notes/data-architecture.md §Reaching the outer ring).
+  const exploreOn = searchParams.get("explore") === "1";
   const { centre: openCentre, radiusM: openRadius } = useMemo(
-    () => ownDataAnchor(buildings),
-    [buildings],
+    () => (exploreOn ? viewportAnchor(searchParams) : ownDataAnchor(buildings)),
+    [exploreOn, searchParams, buildings],
   );
   const { data: openBuildings = [] } = useOpenBuildings(
     openCentre,
@@ -246,6 +249,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
                 open: openBuildings.length,
               }}
             />
+            {openOn && <ExploreControl />}
             <Box sx={{ flexGrow: 1 }} />
             <CubeAxisBar
               space={{
@@ -291,7 +295,7 @@ export default function BuildingsFinder({ session }: BuildingsFinderProps) {
               color="text.secondary"
               sx={{ mb: 1 }}
             >
-              {t("openNeedsOwnBuilding")}
+              {t(exploreOn ? "exploreChooseArea" : "openNeedsOwnBuilding")}
             </Typography>
           )}
           {buildingsLoading

@@ -2,6 +2,21 @@
 
 All notable changes to the Granergize WebApp project will be documented in this file.
 
+## [2026-06-26]
+- **Open tier: opt-in exploration mode.** An "Explore this area" toggle (`?explore=1`,
+  shown when the open tier is ticked) anchors the open layers to the map **viewport**
+  instead of your own buildings (`viewportAnchor` reading `?c`/`?z`) — browse open data
+  anywhere — plus a place-search box that geocodes a name and recentres the map there. The
+  concentric default is untouched; explore is the deliberate, opt-in deviation. Reuses the
+  existing `/bbox`·`/point` fetch + the geocoder's `/search`; new `ExploreControl`. New
+  `map-explore` e2e.
+- **Buildings map: region choropleth at low zoom (LOD).** Below zoom 10 the map shades
+  Land/Kreis polygons instead of markers/clusters (10–16 cluster, ≥16 pins) — a portfolio
+  overview extending the band-tinted clusters: ownership shades by building-count density,
+  energy by each region's dominant band (reusing `dominantBand`). Buildings grouped by their
+  stored `regionAgs` (no network); unplaced surfaced (the caption sits top-right, clear of
+  the zoom control). New `map-region-choropleth` e2e.
+
 ## [2026-06-25]
 - **Buildings map: marker clustering.** Dense pins (the ~370-building import + the open
   layers) collapse into count bubbles that expand on zoom (`leaflet.markercluster` via a

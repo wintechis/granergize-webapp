@@ -1861,6 +1861,31 @@ export const MESSAGES = {
     de: "Offene Daten erscheinen rund um Ihre eigenen Gebäude — fügen Sie eines mit Standort hinzu, um sie zu sehen.",
     fr: "Les données ouvertes apparaissent autour de vos propres bâtiments — ajoutez-en un avec une localisation pour les voir.",
   },
+  exploreToggle: {
+    en: "Explore this area",
+    de: "Diesen Bereich erkunden",
+    fr: "Explorer cette zone",
+  },
+  explorePlacePlaceholder: {
+    en: "Search a place…",
+    de: "Ort suchen…",
+    fr: "Rechercher un lieu…",
+  },
+  exploreSearchBtn: {
+    en: "Search",
+    de: "Suchen",
+    fr: "Rechercher",
+  },
+  exploreNoMatch: {
+    en: 'No place found for "{place}".',
+    de: 'Kein Ort für „{place}" gefunden.',
+    fr: 'Aucun lieu trouvé pour « {place} ».',
+  },
+  exploreChooseArea: {
+    en: "Exploring open data — pan the map or search a place to choose an area.",
+    de: "Offene Daten erkunden — Karte verschieben oder einen Ort suchen, um einen Bereich zu wählen.",
+    fr: "Exploration des données ouvertes — déplacez la carte ou recherchez un lieu pour choisir une zone.",
+  },
   filterNoMatch: {
     en: "Nothing matches the current filter.",
     de: "Nichts entspricht dem aktuellen Filter.",
