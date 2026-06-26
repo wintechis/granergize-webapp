@@ -62,16 +62,16 @@ const ORG_ORGANIZATION_PRED = `${ORG_NS}organization`;
 export interface Organization {
   /** Display name (foaf:name). */
   name?: string;
-  /** Logo image URL (foaf:logo). */
+  /** Logo image IRI (foaf:logo). */
   logoUrl?: string;
-  /** Homepage URL (foaf:homepage). */
+  /** Homepage IRI (foaf:homepage). */
   homepage?: string;
   /** The organisation's own WebID/IRI, if any (owl:sameAs). */
   sameAs?: string;
 }
 
 
-/** The WebID document URL (the WebID without its `#me` fragment). */
+/** The WebID document IRI (the WebID without its `#me` fragment). */
 function profileDocUri(webId: string): string {
   return webId.split("#")[0];
 }
@@ -310,7 +310,7 @@ export async function saveOrganization(
 
 /**
  * Upload an image as the organisation's logo and link it via `foaf:logo` on the
- * `<#org>` node (creating the membership/type if absent). Returns the logo URL.
+ * `<#org>` node (creating the membership/type if absent). Returns the logo IRI.
  * @operation mutation
  */
 export async function uploadOrgLogo(

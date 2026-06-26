@@ -485,10 +485,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
         signal: controller.signal,
       });
       if (aborted) {
-        showNotification(
-          "Removal cancelled — some data may already be deleted",
-          "warning",
-        );
+        showNotification(msg("removalCancelled"), "warning");
         return;
       }
       // Stay logged in: the Pod is now a fresh, empty granergize/ (the caches
@@ -808,7 +805,7 @@ export default function AppShell({ session, onLogout }: AppShellProps) {
                 onClick={declineDemos}
                 disabled={seedBuildingsMut.isPending}
               >
-                No thanks
+                {t("btnNoThanks")}
               </Button>
             </Box>
           }

@@ -2,8 +2,10 @@ import type { BuildingType } from "../../../types.ts";
 import {
   BUILDING_NS,
   FOAF_AGENT,
+  RDFS_LABEL,
   REC_NS,
   REC_OWNED_BY,
+  SCHEMA_CUSTOMER,
   VCARD_NS,
   XSD_BOOLEAN,
   XSD_DECIMAL,
@@ -37,10 +39,10 @@ interface FieldDesc {
 }
 
 export const BUILDING_FIELDS: FieldDesc[] = [
-  // NOTE: schema.org is inconsistently http/https across the codebase. Left as
-  // http here to preserve matching of existing Pod data — reconciling it is a
-  // separate, data-affecting change.
-  { field: "customer", iri: "http://schema.org/customer" },
+  // SCHEMA_CUSTOMER stays on the http:// schema.org namespace (see SCHEMA_NS) to
+  // keep matching existing Pod data; reconciling http/https is a separate,
+  // data-affecting change.
+  { field: "customer", iri: SCHEMA_CUSTOMER },
   // Coordinates are NOT mapped here — they live on a `geo:Point` blank node
   // (`addGeoPoint` / parser pass-2), never as flat `geo:lat`/`geo:long` on the building.
   { field: "locality", iri: `${VCARD_NS}locality` },
@@ -49,7 +51,7 @@ export const BUILDING_FIELDS: FieldDesc[] = [
   { field: "postalCode", iri: `${VCARD_NS}postal-code` },
   { field: "region", iri: `${VCARD_NS}region` },
   { field: "streetAddress", iri: `${VCARD_NS}street-address` },
-  { field: "label", iri: "http://www.w3.org/2000/01/rdf-schema#label" },
+  { field: "label", iri: RDFS_LABEL },
   { field: "buildingArea", iri: `${BUILDING_NS}hasBuildingArea`, range: XSD_INTEGER },
   { field: "landArea", iri: `${BUILDING_NS}hasLandArea`, range: XSD_INTEGER },
   // PV is no longer a flat field — it's the `<#pv>` :PVSystem node (bldg:hasSystem),

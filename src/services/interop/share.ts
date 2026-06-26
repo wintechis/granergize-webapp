@@ -614,7 +614,7 @@ export async function shareAggregation(
 
   // Log first (ground truth), then enforcement, then notify — the same ordering
   // rationale as shareBuildingData. The aggregationId is recoverable from the snapshot
-  // URL (`aggregations/snapshots/<aggregationId>.ttl`), so it isn't carried separately.
+  // IRI (`aggregations/snapshots/<aggregationId>.ttl`), so it isn't carried separately.
   await recordAggregationSharing(snapshotUri, webId, gateway);
   await grantReadAccess(snapshotUri, webId, gateway);
   await postAggregationGrantToInbox(snapshotUri, webId, gateway);

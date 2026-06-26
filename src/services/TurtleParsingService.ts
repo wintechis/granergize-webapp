@@ -78,7 +78,7 @@ async function loadTtlFromMultipleSources(
           baseIRI: uri,
         });
 
-        // Parse with default graph set to the URL
+        // Parse with default graph set to the IRI
         const quads = parser.parse(text);
 
         // Unique prefix for blank nodes from this source, to avoid ID collisions
@@ -93,7 +93,7 @@ async function loadTtlFromMultipleSources(
 
         // Add source information to each quad
         const quadsWithGraph = quads.map((quad: Quad) => {
-          // Create a new quad with the source URL as the graph and scoped blank nodes
+          // Create a new quad with the source IRI as the graph and scoped blank nodes
           return DataFactory.quad(
             scopedNode(quad.subject) as Quad["subject"],
             quad.predicate,

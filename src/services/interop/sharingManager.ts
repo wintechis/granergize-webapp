@@ -105,7 +105,7 @@ export function sharedAggregationsFromGrants(grants: ActiveGrant[]): SharedAggre
  * Buildings the user has shared with others, grouped by building → recipients.
  * Derived by folding the `shared-out/` event log (grant minus revocation); the
  * `.acl` remains the enforcement truth, this log is the app's record. A building
- * URL is `interop:forResource` with `gran:kind rec:Building`.
+ * IRI is `interop:forResource` with `gran:kind rec:Building`.
  *
  * NON-HOOK callers only (headless tasks, service-internal reads): it folds the
  * whole log for itself. Hook code derives from the `sharedOutLog` query via
@@ -385,7 +385,7 @@ async function notifyAccessRevoked(
 
 /**
  * Record an outgoing aggregation share (a grant on the snapshot) in `shared-out/`. The
- * aggregationId is recoverable from the snapshot URL, so it isn't stored separately.
+ * aggregationId is recoverable from the snapshot IRI, so it isn't stored separately.
  * @operation mutation
  */
 export async function recordAggregationSharing(
@@ -414,7 +414,7 @@ interface SharedAggregation {
 }
 
 export interface ReceivedAggregation {
-  /** The sharer's snapshot URL (`…/aggregations/snapshots/<aggregationId>.ttl`); we have Read on it. */
+  /** The sharer's snapshot IRI (`…/aggregations/snapshots/<aggregationId>.ttl`); we have Read on it. */
   snapshotUri: string;
   aggregationId: string;
   sharedBy: string;
@@ -425,7 +425,7 @@ export interface ReceivedAggregation {
  * {@link getSharedAggregations}. Folds the `shared-in/` log (where `drainInbox` archives
  * grants received in the inbox) for `gran:kind cons:Aggregation`. Only the computed
  * snapshot is granted (not the definition), so each entry is just the snapshot
- * URL + who shared it; render it with {@link loadComputedSnapshot}.
+ * IRI + who shared it; render it with {@link loadComputedSnapshot}.
  *
  * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via
  * {@link receivedAggregationsFromGrants} from the `sharedInLog` query.
@@ -445,7 +445,7 @@ export async function getReceivedAggregations(
 
 /**
  * Aggregations the user has shared with others, by folding the `shared-out/` log for
- * `gran:kind cons:Aggregation` grants. The aggregationId is recovered from the snapshot URL
+ * `gran:kind cons:Aggregation` grants. The aggregationId is recovered from the snapshot IRI
  * (`aggregations/snapshots/<aggregationId>.ttl`).
  *
  * NON-HOOK callers only — see {@link getSharedBuildings}; hook code derives via

@@ -705,7 +705,6 @@ export const MESSAGES = {
     fr:
       "L'application combine des données de ces sources externes, chacune avec sa licence. L'attribution est transmise avec chaque bâtiment partagé.",
   },
-  dsBack: { en: "← Back", de: "← Zurück", fr: "← Retour" },
   // Building header: the ownership badge uses the shared tier labels
   // (tierMine / tierShared) via TierBadge.
   // Master-data section heading + inline edit.
@@ -1678,6 +1677,21 @@ export const MESSAGES = {
   },
   onboardAddExamples: { en: "Add examples", de: "Beispiele hinzufügen", fr: "Ajouter des exemples" },
   btnNoThanks: { en: "No thanks", de: "Nein danke", fr: "Non merci" },
+  appErrorLoadingData: {
+    en: "Error loading data: {error}",
+    de: "Fehler beim Laden der Daten: {error}",
+    fr: "Erreur lors du chargement des données : {error}",
+  },
+  buildingNotFoundOrNoAccess: {
+    en: "Building not found or you don’t have access to view this building.",
+    de: "Gebäude nicht gefunden oder Sie haben keinen Zugriff auf dieses Gebäude.",
+    fr: "Bâtiment introuvable ou vous n’avez pas accès à ce bâtiment.",
+  },
+  removalCancelled: {
+    en: "Removal cancelled — some data may already be deleted",
+    de: "Entfernung abgebrochen — einige Daten wurden möglicherweise bereits gelöscht",
+    fr: "Suppression annulée — certaines données ont peut-être déjà été supprimées",
+  },
   onboardBanner: {
     en: "No buildings yet — add a couple of example buildings (with energy data) to explore?",
     de: "Noch keine Gebäude — ein paar Beispielgebäude (mit Energiedaten) zum Erkunden hinzufügen?",
@@ -1752,6 +1766,24 @@ export const MESSAGES = {
     en: "Clear local data",
     de: "Lokale Daten löschen",
     fr: "Effacer les données locales",
+  },
+  loginCouldNotSignInTo: {
+    en: "Couldn’t sign in to {idp}.",
+    de: "Anmeldung bei {idp} fehlgeschlagen.",
+    fr: "Échec de la connexion à {idp}.",
+  },
+  loginCouldNotSignIn: {
+    en: "Couldn’t sign in.",
+    de: "Anmeldung fehlgeschlagen.",
+    fr: "Échec de la connexion.",
+  },
+  loginEnterIdpHint: {
+    en:
+      "Enter your identity provider’s web address — for example https://login.inrupt.com or https://solidcommunity.net — not your email or WebID.",
+    de:
+      "Geben Sie die Web-Adresse Ihres Identitätsanbieters ein — zum Beispiel https://login.inrupt.com oder https://solidcommunity.net — nicht Ihre E-Mail oder WebID.",
+    fr:
+      "Saisissez l’adresse web de votre fournisseur d’identité — par exemple https://login.inrupt.com ou https://solidcommunity.net — et non votre e-mail ou WebID.",
   },
   loginSignIn: { en: "Sign in", de: "Anmelden", fr: "Se connecter" },
   loginSignInAgainWith: {

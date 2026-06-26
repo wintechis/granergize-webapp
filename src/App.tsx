@@ -102,14 +102,14 @@ function BuildingRouteGuard(
 
   if (isLoading) return <FullPageSpinner />;
   if (error) {
-    return <Typography color="error">Error loading data: {error}</Typography>;
-  }
-  if (!building) {
     return (
-      <Typography>
-        Building not found or you don't have access to view this building.
+      <Typography color="error">
+        {msg("appErrorLoadingData", { error: String(error) })}
       </Typography>
     );
+  }
+  if (!building) {
+    return <Typography>{msg("buildingNotFoundOrNoAccess")}</Typography>;
   }
   return <>{children(building, selectedBuilding)}</>;
 }

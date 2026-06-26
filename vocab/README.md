@@ -2,7 +2,7 @@
 
 The app models Pod data with three Granergize vocabularies, partitioned by
 subject (not by stakeholder). Their
-IRIs are absolute URLs on the FAU Solid Pod, but **the editable source of truth
+IRIs are absolute IRIs on the FAU Solid Pod, but **the editable source of truth
 is these files in the repo** — the published documents are a deploy target, not
 the master copy. The app itself only *references* these IRIs (as constants in
 `src/services/rdf/vocabularies.ts`); it never fetches these documents at runtime.

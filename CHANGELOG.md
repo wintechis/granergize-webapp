@@ -3,6 +3,33 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-26]
+- **Clarity & consistency sweep (code-review follow-up).** No behaviour change —
+  internal clarity/consistency only; typecheck, lint, and the touched unit suites stay
+  green (and `session-restore.spec.ts` e2e passes 2/2 for the `Login` change).
+  - *Energy-dataset serialization via the n3 `Writer`.* `serializeEnergyDataset` was
+    hand-built Turtle string templates; it now builds quads and emits them through the
+    n3 `Writer` like `buildingSerializer`, which drops the inlined XSD namespace and
+    types `cons:granularity` as `^^xsd:duration` (the building-file restatements too).
+    Quads go straight to the `Writer` (not via an n3 `Store`, which mangles a
+    document-relative IRI) so a relative `featureOfInterest` like `../../buildings/x.ttl#pv`
+    round-trips verbatim. New `XSD_DURATION` constant.
+  - *Centralized inlined IRIs.* `SCHEMA_CUSTOMER`, `RDFS_LABEL` (`buildingConfig`) and
+    `PIM_NS` (`solidUtils`) now come from `vocabularies.ts` instead of inline IRI strings.
+  - *User-facing strings → message catalog.* Hardcoded English in `App.tsx`, `AppShell.tsx`
+    and the `Login.tsx` sign-in error now resolve through `messages.ts` (six new en/de/fr
+    entries; the sign-in hint split from its conditional `{idp}` clause so it stays DRY).
+  - *"URL" → "IRI" terminology.* ~25 comments/docs across the data layer where the referent
+    is an RDF/Solid resource identity (Pod-resource / WebID / storage-root IRIs, dereferenced
+    linked-data IRIs, the named-graph source IRI, `foaf:logo`/`foaf:homepage`); genuine
+    browser-address / HTTP-request / blob `URL`s left as-is. Honours the URI/IRI education
+    mandate.
+  - *`Login.tsx` timer lifecycle.* All four deferred timers (watchdog, route-restore,
+    restore-decision, loading-clear) route through one tracked `schedule()` helper the effect
+    cleanup cancels at unmount — the same discipline as its event listeners; removed the dead
+    `setClearInitialLoad` state (its value was never read).
+  - *One back-link.* `DetailView.BackLink` renders an MUI `ArrowBackIcon` + `btnBack` instead
+    of a raw `🠠` glyph; `DataSources` reuses `<BackLink>` (dropping the bespoke `dsBack`
+    "← Back" glyph-in-copy entry).
 - **Open tier: opt-in exploration mode.** An "Explore this area" toggle (`?explore=1`,
   shown when the open tier is ticked) anchors the open layers to the map **viewport**
   instead of your own buildings (`viewportAnchor` reading `?c`/`?z`) — browse open data

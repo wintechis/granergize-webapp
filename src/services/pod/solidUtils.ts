@@ -1,14 +1,12 @@
 /**
- * Utility functions for working with Solid POD URLs and WebIDs
+ * Utility functions for working with Solid POD IRIs and WebIDs
  */
 import type { PodGateway } from "./podGateway.ts";
 import { DataFactory } from "n3";
 import { fetchStoreWithHeaders } from "./podFetch.ts";
 import { loadProfileStore } from "./profileDocument.ts";
-import { RDF_TYPE } from "../rdf/vocabularies.ts";
+import { PIM_NS, RDF_TYPE } from "../rdf/vocabularies.ts";
 import { logError } from "../../lib/logError.ts";
-
-const PIM_NS = "http://www.w3.org/ns/pim/space#";
 
 /**
  * Fallback storage discovery for Pods whose WebID profile omits `pim:storage`
@@ -64,7 +62,7 @@ const storageRootCache = new Map<string, string>();
  * root but doesn't advertise the triple (e.g. a fresh CSS Pod) still resolves.
  * Throws only if neither yields a root. (Previously: throw on missing `pim:storage`.)
  *
- * @returns the storage root URL with a trailing slash
+ * @returns the storage root IRI with a trailing slash
  * @operation query
  */
 export async function resolveStorageRoot(gateway: PodGateway): Promise<string> {
@@ -109,8 +107,8 @@ export async function resolveStorageRoot(gateway: PodGateway): Promise<string> {
  * Throws if not yet resolved — callers must run (and await) `resolveStorageRoot`
  * once at login before any path is built. There is no WebID string-munge fallback.
  *
- * @param webId - The WebID URL (with or without fragment)
- * @returns The storage root URL with trailing slash
+ * @param webId - The WebID IRI (with or without fragment)
+ * @returns The storage root IRI with trailing slash
  */
 export function getStorageRoot(webId: string): string {
   const root = storageRootCache.get(webId);
@@ -171,7 +169,7 @@ export function appRoot(webId: string): string {
 }
 
 /**
- * Extract the base URL from a WebID (parent directory of the WebID document)
+ * Extract the base IRI from a WebID (parent directory of the WebID document)
  * Example:
  *   Input: https://solid.ti.rw.fau.de/homer/profile/card#me
  *   Output: https://solid.ti.rw.fau.de/homer/profile/
@@ -179,15 +177,15 @@ export function appRoot(webId: string): string {
  * This is useful when you need the directory containing the WebID document,
  * not the storage root.
  *
- * @param webId - The WebID URL (with or without fragment)
- * @returns The base URL with trailing slash
+ * @param webId - The WebID IRI (with or without fragment)
+ * @returns The base IRI with trailing slash
  */
 export function getPodBaseUri(webId: string): string {
   return webId.substring(0, webId.lastIndexOf("/") + 1);
 }
 
 /**
- * Canonical URLs of the app's on-Pod RDF resources for a WebID. Single source of
+ * Canonical IRIs of the app's on-Pod RDF resources for a WebID. Single source of
  * truth — every app resource lives under one root, `getStorageRoot + "granergize/"`,
  * so callers never re-derive paths (which previously mixed `getPodBaseUri` and
  * `getStorageRoot`, desyncing for non-`/profile/card` WebIDs). The org logo is the
