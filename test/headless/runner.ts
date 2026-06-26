@@ -14,6 +14,7 @@ import { type SessionSource, sessionSource } from "./sessionSource.ts";
 import { podGateway } from "../../src/services/pod/podGateway.ts";
 import { resolveStorageRoot } from "../../src/services/pod/solidUtils.ts";
 import { ensureOwnInbox } from "../../src/services/interop/inbox.ts";
+import { installHeadlessSourceStub } from "./sourceStub.ts";
 import {
   type Actor,
   makeHarness,
@@ -53,6 +54,10 @@ const TASKS: TaskModule[] = [
   contacts,
   seedDemos,
 ];
+
+// Hermetic on external sources: redirect all public-source reads (geocoding, …)
+// to deterministic fixtures so the run never touches the network.
+installHeadlessSourceStub();
 
 const harness = makeHarness();
 console.log("starting session source…");
