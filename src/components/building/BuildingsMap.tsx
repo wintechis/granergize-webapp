@@ -52,17 +52,36 @@ import {
 } from "../../services/energy/energyTimeCut.ts";
 import {
   clampMetric,
+  magnitudeCategoriserFor,
   type MetricFraming,
   metricFraming,
 } from "../../services/energy/energyMetric.ts";
 import { bandColor, bandLabelKey, legendBands } from "../../constants/lensBand.ts";
 import { useT } from "../../context/I18nProvider.tsx";
+import { useQuery } from "@tanstack/react-query";
+import MagnitudeChoroplethLayer from "../region/MagnitudeChoroplethLayer.tsx";
+import MagnitudeLegend from "../region/MagnitudeLegend.tsx";
+import {
+  fetchRegionGeometry,
+  type RegionFeatureProps,
+  type RegionGrain,
+} from "../../services/regionGeometry.ts";
+import { buildingsByRegion } from "./buildingsByRegion.ts";
+import { dominantBand } from "./markerClusterTint.ts";
 
 /** What the map markers' colour encodes: ownership (owned/shared, the default) or
  * the energy band at the chosen year. The cube's `space=map` renderer; the `rows`
  * surfaces (List, over-time heatmap) live in the finder. (The trend lens and the
  * compare-years view were dropped.) */
 type MapLens = "ownership" | "energy";
+
+/** Region-LOD thresholds. Below {@link CHOROPLETH_BELOW} the map shades regions (a
+ *  portfolio overview) instead of markers/clusters; the choropleth grain is Kreis at/above
+ *  {@link ZOOM_KREIS}, coarser Land below it. (Clusters then run up to z16, pins above —
+ *  `disableClusteringAtZoom`.) */
+const CHOROPLETH_BELOW = 10;
+const ZOOM_KREIS = 7;
+const DAY = 24 * 60 * 60 * 1000;
 
 // Basemap: the official German basemap.de Web Raster (BKG) via its WMS endpoint
 // (CRS EPSG:3857, Leaflet's default). The "farbe" (colour) layer; switch to
@@ -350,6 +369,24 @@ function BoundsWatcher(
   return null;
 }
 
+/** Reports the map's current zoom to the parent (the LOD branch: choropleth ⇄ clusters ⇄
+ *  pins). Mirrors {@link BoundsWatcher}; a separate watcher keeps the zoom a plain number. */
+function ZoomWatcher(
+  { active, onChange }: { active: boolean; onChange: (zoom: number) => void },
+) {
+  const map = useMapEvents({
+    zoomend: () => onChange(map.getZoom()),
+    moveend: () => onChange(map.getZoom()),
+  });
+  useEffect(() => {
+    if (active) {
+      const t = setTimeout(() => onChange(map.getZoom()), 50);
+      return () => clearTimeout(t);
+    }
+  }, [active, map, onChange]);
+  return null;
+}
+
 interface BuildingsMapProps {
   /** Whether the Buildings tab is visible (the map stays mounted while hidden). */
   active?: boolean;
@@ -549,6 +586,53 @@ export default function BuildingsMap(
   const bandFor = (id: string): LensBand =>
     lensAtYear ? lensAtYear.band(id) : "none";
 
+  // Region-LOD (#2): below CHOROPLETH_BELOW the map shades regions instead of drawing
+  // markers/clusters — a portfolio-wide overview that coarsens to Land as you zoom out.
+  const [zoom, setZoom] = useState(() => getStoredViewport()?.zoom ?? 6.5);
+  const showChoropleth = zoom < CHOROPLETH_BELOW;
+  const grain: RegionGrain = zoom < ZOOM_KREIS ? "land" : "kreis";
+  const regionGeo = useQuery({
+    queryKey: ["regionGeometry", grain],
+    queryFn: () => fetchRegionGeometry(grain),
+    // Only when the choropleth is actually shown AND the tab is visible (the map stays
+    // mounted-hidden on other tabs — don't fetch geometry for an off-screen map).
+    enabled: showChoropleth && active,
+    staleTime: DAY,
+  });
+  // Group the shown buildings into regions (free — from each building's stored AGS).
+  const regionGrouping = useMemo(
+    () => buildingsByRegion(shownBuildings, grain),
+    [shownBuildings, grain],
+  );
+  // Ownership lens shades by building COUNT (a magnitude ramp over the per-region counts);
+  // energy lens shades each region by its DOMINANT band (the rule the clusters use).
+  const choroplethFraming: MetricFraming = lens === "energy" ? framing : "magnitude";
+  const countBand = useMemo(
+    () =>
+      magnitudeCategoriserFor(
+        [...regionGrouping.byAgs.values()].map((bs) => bs.length),
+      ),
+    [regionGrouping],
+  );
+  const regionBandOf = (p: RegionFeatureProps): LensBand => {
+    const bs = regionGrouping.byAgs.get(p.ags);
+    if (!bs || bs.length === 0) return "none";
+    return lens === "energy"
+      ? dominantBand(bs.map((b) => bandFor(b.id)), framing)
+      : countBand(bs.length);
+  };
+  const regionTooltip = (p: RegionFeatureProps): string => {
+    const head = `<strong>${p.label || p.code || ""}</strong>`;
+    const bs = regionGrouping.byAgs.get(p.ags);
+    if (!bs || bs.length === 0) return `${head}<br/>${t("lensBandNoData")}`;
+    const count = t("buildingCount", { count: bs.length });
+    if (lens === "energy") {
+      const band = dominantBand(bs.map((b) => bandFor(b.id)), framing);
+      return `${head}<br/>${count} · ${t(bandLabelKey(band, framing))}`;
+    }
+    return `${head}<br/>${count}`;
+  };
+
   // Navigate to a building's detail page — the map is a pure finder, so a
   // marker click leaves the map for `/building/:id` (the same as a List row).
   const openBuilding = (id: string) =>
@@ -613,21 +697,35 @@ export default function BuildingsMap(
         <FitToBuildings active={active} buildings={shownBuildings} />
         <ViewportUrlSync />
         <BoundsWatcher active={active} onChange={setBbox} />
-        <MarkerClusterGroup ref={buildingClusterRef}>
-          {shownBuildings.map((building) => (
-            building.lat != null && building.long != null && (
-              <BuildingMarker
-                key={building.id}
-                building={building}
-                position={[building.lat, building.long]}
-                lens={lens}
-                band={bandFor(building.id)}
-                framing={framing}
-                onClick={() => openBuilding(building.id)}
-              />
-            )
-          ))}
-        </MarkerClusterGroup>
+        <ZoomWatcher active={active} onChange={setZoom} />
+        {showChoropleth
+          ? (regionGeo.data && (
+            <MagnitudeChoroplethLayer
+              data={regionGeo.data}
+              bandOf={regionBandOf}
+              tooltip={regionTooltip}
+              framing={choroplethFraming}
+              remountKey={grain}
+              styleVersion={`${lens}:${framing}:${activeYear ?? ""}:${regionGrouping.byAgs.size}`}
+            />
+          ))
+          : (
+            <MarkerClusterGroup ref={buildingClusterRef}>
+              {shownBuildings.map((building) => (
+                building.lat != null && building.long != null && (
+                  <BuildingMarker
+                    key={building.id}
+                    building={building}
+                    position={[building.lat, building.long]}
+                    lens={lens}
+                    band={bandFor(building.id)}
+                    framing={framing}
+                    onClick={() => openBuilding(building.id)}
+                  />
+                )
+              ))}
+            </MarkerClusterGroup>
+          )}
         {/* Open-data layers (LoD2 buildings + nearby settled-generation observations) —
             read-only green markers, shown only when the `open` tier is ticked. Off-Pod,
             anchored to the user's own buildings; a click drills to the in-app read-only
@@ -677,6 +775,32 @@ export default function BuildingsMap(
           </MarkerClusterGroup>
         )}
       </MapContainer>
+        {/* Count-density legend for the ownership-lens choropleth (the energy choropleth
+            reuses the band legend below). */}
+        {showChoropleth && lens === "ownership" && (
+          <MagnitudeLegend framing="magnitude" />
+        )}
+        {/* Buildings the choropleth can't place (no stored region) — surfaced, not hidden. */}
+        {showChoropleth && regionGrouping.unplaced > 0 && (
+          <Typography
+            variant="caption"
+            color="text.secondary"
+            sx={{
+              // Top-RIGHT: the Leaflet zoom control sits top-left and must stay clickable.
+              position: "absolute",
+              right: 8,
+              top: 8,
+              zIndex: 1000,
+              bgcolor: "background.paper",
+              border: 1,
+              borderColor: "divider",
+              borderRadius: 1,
+              px: 1,
+            }}
+          >
+            {t("mapChoroplethUnplaced", { count: regionGrouping.unplaced })}
+          </Typography>
+        )}
         {/* Energy band legend — overlaid in the map's bottom-left corner. Ownership
             needs no swatch: the Mine/Shared tier dots above carry that colour key. */}
         {lens === "energy" && (

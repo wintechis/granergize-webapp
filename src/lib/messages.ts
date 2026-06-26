@@ -2057,6 +2057,11 @@ export const MESSAGES = {
     de: "Nicht verortet ({count}) — keine gemeinsame Region oder nur ein Bundesland:",
     fr: "Non localisées ({count}) — pas de région commune, ou seulement un Land :",
   },
+  mapChoroplethUnplaced: {
+    en: { one: "{count} building without a region", other: "{count} buildings without a region" },
+    de: { one: "{count} Gebäude ohne Region", other: "{count} Gebäude ohne Region" },
+    fr: { one: "{count} bâtiment sans région", other: "{count} bâtiments sans région" },
+  },
   bldgsAutofillFromFile: {
     en: "Autofill from file",
     de: "Aus Datei ausfüllen",
