@@ -1,6 +1,10 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { classifyMutationError, classifyQueryError } from "./queryErrors.ts";
+import {
+  classifyMutationError,
+  classifyQueryError,
+  classifyQueryNotification,
+} from "./queryErrors.ts";
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
 import { ConflictError } from "../services/pod/podWrite.ts";
 import {
@@ -101,6 +105,32 @@ Deno.test("classifyMutationError: a non-silent mutation error while expired → 
   } finally {
     resetSessionGate();
   }
+});
+
+Deno.test("classifyQueryNotification: silent → null; otherwise classifies like a query error", () => {
+  // A best-effort query (the region-choropleth geometry) tagged silent suppresses
+  // the toast entirely — a wrapper outage drops the overlay, never alarms.
+  assert.equal(
+    classifyQueryNotification(
+      new Error("HTTP 404 fetching region geometry (land)"),
+      { silent: true },
+    ),
+    null,
+    "silent suppresses the toast entirely",
+  );
+  // silent beats the classified warnings too.
+  assert.equal(
+    classifyQueryNotification(new SessionExpiredError("token gone"), {
+      silent: true,
+    }),
+    null,
+  );
+  // No meta (or non-silent) → today's behaviour: a plain error notification.
+  const note = classifyQueryNotification(
+    new Error("HTTP 404 fetching region geometry (land)"),
+  );
+  assert.equal(note?.severity, "error");
+  assert.equal(note?.message, "HTTP 404 fetching region geometry (land)");
 });
 
 Deno.test("classifyMutationError: honours meta (action phrasing, silent → null)", () => {

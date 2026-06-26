@@ -9,7 +9,7 @@ import {
 import { SessionExpiredError } from "../services/TurtleParsingService.ts";
 import {
   classifyMutationError,
-  classifyQueryError,
+  classifyQueryNotification,
 } from "../hooks/queryErrors.ts";
 import { _setAppQueryClient } from "../lib/appQueryClient.ts";
 import { useNotification } from "./NotificationContext.tsx";
@@ -26,13 +26,16 @@ export function QueryProvider({ children }: { children: React.ReactNode }) {
   const { showNotification } = useNotification();
 
   const [client] = useState(() => {
-    const notify = (error: unknown) => {
-      const { message, severity } = classifyQueryError(error);
-      showNotification(message, severity);
-    };
-
     return new QueryClient({
-      queryCache: new QueryCache({ onError: notify }),
+      // A query carries QueryNotificationMeta: `silent` suppresses the toast for a
+      // best-effort read that should degrade in place (e.g. the region-choropleth
+      // geometry — omit the overlay, don't alarm), mirroring the mutation `silent`.
+      queryCache: new QueryCache({
+        onError: (error, query) => {
+          const note = classifyQueryNotification(error, query.meta);
+          if (note) showNotification(note.message, note.severity);
+        },
+      }),
       // Mutations carry MutationNotificationMeta: `action` gives the toast the
       // standard "Failed to {action}: {detail}" phrasing; `silent` hands the
       // error to the dialog's inline <Alert> instead of toasting.

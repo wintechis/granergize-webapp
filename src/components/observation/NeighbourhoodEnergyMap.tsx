@@ -65,6 +65,8 @@ export default function NeighbourhoodEnergyMap(
     queryFn: () => fetchRegionGeometry("gemeinde", { bbox: bbox! }),
     enabled: Boolean(bbox),
     staleTime: DAY,
+    // Best-effort decorative overlay: a wrapper outage drops the choropleth, never toasts.
+    meta: { silent: true },
   });
   const fc = geo.data;
 

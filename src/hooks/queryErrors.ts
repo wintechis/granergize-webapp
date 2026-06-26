@@ -30,9 +30,22 @@ export interface MutationNotificationMeta {
   silent?: boolean;
 }
 
+/**
+ * Meta a query declares to steer the central error toast (`QueryProvider`'s
+ * QueryCache): `silent` suppresses the toast for a **best-effort** read whose
+ * failure should degrade in place rather than alarm the user — e.g. the
+ * decorative region-choropleth geometry, which simply omits the overlay when the
+ * geo wrapper is unreachable. The query-side peer of `MutationNotificationMeta`'s
+ * `silent`.
+ */
+export interface QueryNotificationMeta {
+  silent?: boolean;
+}
+
 declare module "@tanstack/react-query" {
   interface Register {
     mutationMeta: MutationNotificationMeta;
+    queryMeta: QueryNotificationMeta;
   }
 }
 
@@ -95,4 +108,17 @@ export function classifyMutationError(
 ): { message: string; severity: ErrorSeverity } | null {
   if (meta?.silent) return null;
   return classifyQueryError(error, meta?.action);
+}
+
+/**
+ * The central query-error → notification mapping: honours the query's
+ * {@link QueryNotificationMeta} (`silent` → no toast). Returns `null` when
+ * nothing should be shown. The query-side peer of {@link classifyMutationError}.
+ */
+export function classifyQueryNotification(
+  error: unknown,
+  meta?: QueryNotificationMeta,
+): { message: string; severity: ErrorSeverity } | null {
+  if (meta?.silent) return null;
+  return classifyQueryError(error);
 }

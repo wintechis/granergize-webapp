@@ -7,6 +7,7 @@ import {
   clearFinderMemory,
   verifyAndReset,
 } from "../helpers/cleanSlate.ts";
+import { watchAppErrors } from "../helpers/errorGuard.ts";
 import { T } from "../helpers/timeouts.ts";
 
 /**
@@ -92,5 +93,72 @@ test.describe("map region choropleth (LOD)", () => {
       expect(await page.locator(".pin-owned").count()).toBe(1);
     }).toPass({ timeout: T.poll, intervals: [300] });
     await expect(page.locator("path.leaflet-interactive")).toHaveCount(0);
+  });
+});
+
+/**
+ * Best-effort degrade: when the geometry wrapper is DOWN (every `/geojson` 404s — the
+ * real-world squashfs-mount-lost / transient-outage case that tripped the logout spec),
+ * the region choropleth is a decorative overlay, so its fetch is marked `meta.silent`
+ * (QueryProvider) — the overlay simply doesn't draw and NO error toast is raised. This
+ * is the deterministic regression for that fix: forcing the 404 rather than waiting for
+ * the live wrapper to happen to be down. Alice (account A).
+ */
+test.describe("map region choropleth — geometry outage degrades silently", () => {
+  test.skip(
+    !hasAccount(ACC),
+    `Set WEBID_A_USERNAME / WEBID_A_PASSWORD (a throwaway Solid Pod) to run the map-region-choropleth e2e.`,
+  );
+
+  let page: Page;
+  let assertNoAppErrors: () => void;
+
+  test.beforeAll(async ({ browser }) => {
+    test.setTimeout(T.setup);
+    page = await newCapturedPage(browser, "map-region-choropleth-outage");
+    page.on("dialog", (d) => d.accept().catch(() => {}));
+    ({ assertNoAppErrors } = watchAppErrors(page));
+    // The geo wrapper is down: every region-geometry read (nuts/lau `/geojson`) 404s.
+    await page.route(/\/(nuts|lau)\/geojson/, (route) =>
+      route.fulfill({ status: 404, headers: CORS, body: "" }));
+    await login(page, ACC);
+    await assertCleanStart(page);
+  });
+
+  test.afterAll(async () => {
+    await page.unroute(/\/(nuts|lau)\/geojson/).catch(() => {});
+    await verifyAndReset(page, "map-region-choropleth-outage");
+    await page.close();
+  });
+
+  test("a 404 from the geometry wrapper drops the choropleth without an error toast", async () => {
+    test.setTimeout(T.testSolo);
+    await clearFinderMemory(page);
+
+    await addBuilding(page, "Outage E2E Strasse 1");
+    await openBuildingsMap(page);
+    await expect(page.locator(".pin-owned")).toHaveCount(1, { timeout: T.action });
+
+    // Zoom OUT below the threshold → region-LOD fetches geometry, which 404s. The overlay
+    // can't draw (no polygon) and the pin is hidden — but the read must stay silent.
+    const zoomOut = page.locator(".leaflet-control-zoom-out");
+    await expect(async () => {
+      await zoomOut.click();
+      expect(await page.locator(".pin-owned").count()).toBe(0);
+    }).toPass({ timeout: T.poll, intervals: [300] });
+    await expect(page.locator("path.leaflet-interactive")).toHaveCount(0);
+
+    // The decisive assertion: the failed geometry read raised NO error notification
+    // (pre-fix this toasted "HTTP 404 fetching region geometry (…)"). Grace period first
+    // so a straggling toast — incl. the retried fetch's second failure — would surface.
+    await page.waitForTimeout(1_000);
+    assertNoAppErrors();
+
+    // And the map is still usable — zoom back IN restores the pin.
+    const zoomIn = page.locator(".leaflet-control-zoom-in");
+    await expect(async () => {
+      await zoomIn.click();
+      expect(await page.locator(".pin-owned").count()).toBe(1);
+    }).toPass({ timeout: T.poll, intervals: [300] });
   });
 });

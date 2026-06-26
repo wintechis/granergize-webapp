@@ -77,6 +77,8 @@ export default function RegionalMetricsMap(
     queryKey: ["regionGeometry", grain, null],
     queryFn: () => fetchRegionGeometry(grain),
     staleTime: DAY,
+    // Best-effort decorative overlay: a wrapper outage drops the choropleth, never toasts.
+    meta: { silent: true },
   });
   const fc = geo.data;
   const values = useQuery({

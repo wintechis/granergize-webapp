@@ -25,6 +25,7 @@ import * as dataRoom from "./tasks/data-room.ts";
 import * as shareBuilding from "./tasks/share-building.ts";
 import * as shareBuildingByYear from "./tasks/share-building-by-year.ts";
 import * as shareAggregation from "./tasks/share-aggregation.ts";
+import * as aggregationTimeline from "./tasks/aggregation-timeline.ts";
 import * as addBuilding from "./tasks/add-building.ts";
 import * as excelRoundtrip from "./tasks/excel-roundtrip.ts";
 import * as attachmentShare from "./tasks/attachment-share.ts";
@@ -42,6 +43,7 @@ const TASKS: TaskModule[] = [
   shareBuilding,
   shareBuildingByYear,
   shareAggregation,
+  aggregationTimeline,
   addBuilding,
   excelRoundtrip,
   attachmentShare,

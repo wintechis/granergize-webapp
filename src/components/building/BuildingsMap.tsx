@@ -600,6 +600,8 @@ export default function BuildingsMap(
     // mounted-hidden on other tabs — don't fetch geometry for an off-screen map).
     enabled: showChoropleth && active,
     staleTime: DAY,
+    // Best-effort decorative overlay: a wrapper outage drops the choropleth, never toasts.
+    meta: { silent: true },
   });
   // Group the shown buildings into regions (free — from each building's stored AGS).
   const regionGrouping = useMemo(
