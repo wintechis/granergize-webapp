@@ -6,7 +6,9 @@ import {
   DialogContent,
   DialogTitle,
 } from "@mui/material";
-import { shouldDialogClose } from "../lib/dialogGuard.ts";
+import { dialogCloseDecision } from "../lib/dialogGuard.ts";
+import { useConfirm } from "../context/ConfirmContext.tsx";
+import { msg } from "../lib/messages.ts";
 
 export interface ModalProps {
   open: boolean;
@@ -47,7 +49,9 @@ export interface ModalProps {
  * `Dialog`, it fixes one structure (title / content / actions / optional
  * overlay), defaults (`fullWidth`, width preset), and the close-guard semantics
  * (backdrop never closes; Escape confirms while `dirty`; suppressed while
- * `busy`) via {@link shouldDialogClose}, so every dialog behaves identically.
+ * `busy`) via {@link dialogCloseDecision}, so every dialog behaves identically.
+ * The dirty-Escape confirmation is the shared in-app confirm (ConfirmContext) —
+ * a themed dialog above this one — not a native `window.confirm`.
  */
 export default function Modal({
   open,
@@ -61,11 +65,25 @@ export default function Modal({
   busy = false,
   dismissable = false,
 }: ModalProps) {
+  const { confirm } = useConfirm();
   return (
     <Dialog
       open={open}
       onClose={(_event, reason) => {
-        if (shouldDialogClose(reason, { dirty, busy, dismissable })) onClose();
+        const decision = dialogCloseDecision(reason, { dirty, busy, dismissable });
+        if (decision === "close") {
+          onClose();
+        } else if (decision === "confirm") {
+          // Unsaved input + Escape: ask before discarding, via the shared confirm
+          // dialog (rendered above this one). Close only if the user confirms.
+          void confirm({
+            title: msg("dlgDiscardTitle"),
+            message: msg("dlgDiscardBody"),
+            confirmLabel: msg("btnDiscard"),
+          }).then((ok) => {
+            if (ok) onClose();
+          });
+        }
       }}
       fullWidth
       maxWidth={maxWidth}

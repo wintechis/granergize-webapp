@@ -30,6 +30,16 @@ All notable changes to the Granergize WebApp project will be documented in this 
   - *One back-link.* `DetailView.BackLink` renders an MUI `ArrowBackIcon` + `btnBack` instead
     of a raw `🠠` glyph; `DataSources` reuses `<BackLink>` (dropping the bespoke `dsBack`
     "← Back" glyph-in-copy entry).
+  - *Dialog discard-guard uses the in-app confirm, not native `window.confirm`.* The last
+    native `confirm()` (the Escape-while-dirty "Discard changes?" prompt in `dialogGuard`)
+    now goes through the shared themed `ConfirmContext` dialog like every other confirm.
+    `dialogGuard` stays pure/unit-tested by returning a decision (`close` / `keepOpen` /
+    `confirm`) instead of calling `confirm()` itself; `<Modal>` runs the async confirm on a
+    `"confirm"` result (a themed dialog above the form). New `dlgDiscardTitle`/`dlgDiscardBody`/
+    `btnDiscard` catalog entries. The full `e2e:local` suite stays green with no spec changes
+    (Escape in the edit forms is consumed by the autocomplete popper, and cleanup closes only
+    non-dirty dialogs); the `confirmDialog` helper gained a `"Discard"` verb for any future
+    spec that Escape-closes a dirty dialog.
   - *Decompose `AppShell.tsx` (831 → 656 lines).* The ~170-line account dropdown moved to a
     presentational `AccountMenu.tsx` (it reads/toggles the locale + dev-mode signals itself;
     every action is a prop owned by the shell), and the fresh-Pod demo banner to

@@ -1,44 +1,37 @@
 /// <reference lib="deno.ns" />
 import { strict as assert } from "node:assert";
-import { shouldDialogClose } from "./dialogGuard.ts";
+import { dialogCloseDecision } from "./dialogGuard.ts";
 
-Deno.test("shouldDialogClose: a backdrop click never closes", () => {
-  assert.equal(shouldDialogClose("backdropClick"), false);
-  assert.equal(shouldDialogClose("backdropClick", { dirty: false }), false);
-  assert.equal(shouldDialogClose("backdropClick", { dirty: true }), false);
+Deno.test("dialogCloseDecision: a backdrop click never closes", () => {
+  assert.equal(dialogCloseDecision("backdropClick"), "keepOpen");
+  assert.equal(dialogCloseDecision("backdropClick", { dirty: false }), "keepOpen");
+  assert.equal(dialogCloseDecision("backdropClick", { dirty: true }), "keepOpen");
 });
 
-Deno.test("shouldDialogClose: busy suppresses all closing", () => {
-  assert.equal(shouldDialogClose("escapeKeyDown", { busy: true }), false);
-  assert.equal(shouldDialogClose("backdropClick", { busy: true }), false);
+Deno.test("dialogCloseDecision: busy suppresses all closing", () => {
+  assert.equal(dialogCloseDecision("escapeKeyDown", { busy: true }), "keepOpen");
+  assert.equal(dialogCloseDecision("backdropClick", { busy: true }), "keepOpen");
   assert.equal(
-    shouldDialogClose("escapeKeyDown", { busy: true, dirty: false }),
-    false,
+    dialogCloseDecision("escapeKeyDown", { busy: true, dirty: true }),
+    "keepOpen",
   );
 });
 
-Deno.test("shouldDialogClose: dismissable closes on backdrop (info popups)", () => {
-  assert.equal(shouldDialogClose("backdropClick", { dismissable: true }), true);
+Deno.test("dialogCloseDecision: dismissable closes on backdrop (info popups)", () => {
+  assert.equal(dialogCloseDecision("backdropClick", { dismissable: true }), "close");
   // still suppressed while busy, even when dismissable
   assert.equal(
-    shouldDialogClose("backdropClick", { dismissable: true, busy: true }),
-    false,
+    dialogCloseDecision("backdropClick", { dismissable: true, busy: true }),
+    "keepOpen",
   );
 });
 
-Deno.test("shouldDialogClose: Escape closes when not dirty", () => {
-  assert.equal(shouldDialogClose("escapeKeyDown"), true);
-  assert.equal(shouldDialogClose("escapeKeyDown", { dirty: false }), true);
+Deno.test("dialogCloseDecision: Escape closes when not dirty", () => {
+  assert.equal(dialogCloseDecision("escapeKeyDown"), "close");
+  assert.equal(dialogCloseDecision("escapeKeyDown", { dirty: false }), "close");
 });
 
-Deno.test("shouldDialogClose: Escape while dirty confirms (declined keeps open)", () => {
-  const original = globalThis.confirm;
-  try {
-    globalThis.confirm = () => false;
-    assert.equal(shouldDialogClose("escapeKeyDown", { dirty: true }), false);
-    globalThis.confirm = () => true;
-    assert.equal(shouldDialogClose("escapeKeyDown", { dirty: true }), true);
-  } finally {
-    globalThis.confirm = original;
-  }
+Deno.test("dialogCloseDecision: Escape while dirty asks to confirm", () => {
+  // The intent to confirm — Modal runs the actual async confirm via ConfirmContext.
+  assert.equal(dialogCloseDecision("escapeKeyDown", { dirty: true }), "confirm");
 });

@@ -332,6 +332,19 @@ export const detailRooms = {
     de: "Bitte bestätigen",
     fr: "Veuillez confirmer",
   },
+  // The unsaved-input guard shown when Escape is pressed in a dirty dialog
+  // (the in-app confirm that replaced the native `window.confirm`).
+  dlgDiscardTitle: {
+    en: "Discard changes?",
+    de: "Änderungen verwerfen?",
+    fr: "Abandonner les modifications ?",
+  },
+  dlgDiscardBody: {
+    en: "You have unsaved changes. Discard them?",
+    de: "Sie haben ungespeicherte Änderungen. Verwerfen?",
+    fr: "Vous avez des modifications non enregistrées. Les abandonner ?",
+  },
+  btnDiscard: { en: "Discard", de: "Verwerfen", fr: "Abandonner" },
   btnRestore: { en: "Restore", de: "Wiederherstellen", fr: "Restaurer" },
   btnRemoveAll: { en: "Remove all", de: "Alle entfernen", fr: "Tout supprimer" },
   saveRoles: { en: "Save roles", de: "Rollen speichern", fr: "Enregistrer les rôles" },

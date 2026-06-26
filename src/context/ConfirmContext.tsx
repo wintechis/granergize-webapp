@@ -38,9 +38,8 @@ const ConfirmContext = createContext<ConfirmContextValue | null>(null);
  * `NotificationContext`. `useConfirm()` returns an async `confirm(options)` that
  * opens one shared `Modal` and resolves to the user's choice, so a call site
  * reads `if (!await confirm({ … })) return;` — replacing the unstyled,
- * unthemeable, un-e2e-testable native `window.confirm`. (The lone remaining
- * native confirm is the Escape-while-dirty guard in `dialogGuard.ts`, which must
- * stay synchronous.)
+ * unthemeable, un-e2e-testable native `window.confirm` everywhere, including the
+ * Escape-while-dirty guard in `<Modal>` (which now asks through this dialog too).
  */
 export function ConfirmProvider({ children }: { children: React.ReactNode }) {
   const [options, setOptions] = useState<ConfirmOptions | null>(null);
