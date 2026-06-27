@@ -3,6 +3,15 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **e2e cleanup (stumble follow-ups).** Two test-suite tidies, no app change:
+  - The inline "close the energy-year editor" step (the snackbar-X-vs-editor "Close"
+    disambiguation) was hand-copied across `energy-entry`, `palette-add-and-energy` and
+    `manage.ts` — extracted to one `closeEnergyEditor(page)` helper (6 call sites; the two
+    end-of-test copies now also assert the editor closed).
+  - `support/screenshots.spec.ts` (handbuch figures): scoped its 5 ambiguous "Map" toggle
+    clicks to the Buildings-view group (`getByLabel(bldgsViewAria)`, matching
+    `openBuildingsMap`) so they don't strict-mode-match a building detail page's own "Map"
+    toggle, and converted 17 literal nav-tab names to `en(navId)` (drift-proofing).
 - **e2e specs partition by FOLDER, not a hand-maintained list.** The `SOLO_SPECS` /
   `DUO_SPECS` / `TRIO_SPECS` arrays in `playwright.config.ts` are gone; specs now live in
   `test/e2e/{solo,duo,trio}/` (and `stress/`) and each project's `testMatch` is its folder

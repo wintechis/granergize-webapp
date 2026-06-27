@@ -4,6 +4,7 @@ import { metricT, t, tPattern } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import {
   addEnergyYear,
+  closeEnergyEditor,
   buildingRoute,
   openBuildingsList,
   openObservationsView,
@@ -176,10 +177,7 @@ test.describe("energy entry + Soll-Ist", () => {
     await expect(page.getByText(t("energySaved")).first())
       .toBeVisible({ timeout: T.action });
     // Saving keeps the editor open now — close it (Close flips back to the charts view).
-    await page.getByRole("button", { name: t("btnClose"), exact: true })
-      .filter({ hasText: t("btnClose") }).click();
-    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
-      .toBeHidden({ timeout: T.action });
+    await closeEnergyEditor(page);
 
     // Re-open once more: BOTH figures persisted — electricity was not zeroed.
     await openYearDialog();
@@ -187,8 +185,7 @@ test.describe("energy entry + Soll-Ist", () => {
       .toHaveValue("55555");
     await expect(page.getByRole("spinbutton", { name: metricT("heatConsumption") }))
       .toHaveValue("33333");
-    await page.getByRole("button", { name: t("btnClose"), exact: true })
-      .filter({ hasText: t("btnClose") }).click();
+    await closeEnergyEditor(page);
   });
 
   test("the dialog lists stored years and can delete one", async () => {
@@ -224,8 +221,7 @@ test.describe("energy entry + Soll-Ist", () => {
     await expect(page.getByText(t("energyYearDeleted")).first())
       .toBeVisible({ timeout: T.action });
     await expect(yearRow).toBeHidden({ timeout: T.action });
-    await page.getByRole("button", { name: t("btnClose"), exact: true })
-      .filter({ hasText: t("btnClose") }).click();
+    await closeEnergyEditor(page);
   });
 
   test("a PV unit records its own per-year observation, separate from the building", async () => {
@@ -281,10 +277,7 @@ test.describe("energy entry + Soll-Ist", () => {
 
     // 6) Close the editor → the observation page surfaces the per-unit observations
     // section with the PV's figure (240.000 kWh, de-DE) under its own unit.
-    await page.getByRole("button", { name: t("btnClose"), exact: true })
-      .filter({ hasText: t("btnClose") }).click();
-    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
-      .toBeHidden({ timeout: T.action });
+    await closeEnergyEditor(page);
     await expect(page.getByRole("heading", { name: t("unitObsHeading") }))
       .toBeVisible({ timeout: T.action });
     await expect(page.getByText(/240\.000/).first())

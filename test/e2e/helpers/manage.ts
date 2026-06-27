@@ -206,6 +206,20 @@ export async function addBuilding(
  * button. `scenario` matches the Scenario option (e.g. /^Actual$/, /^Planned/).
  * Returns to the shell afterwards so a caller's next `openBuildingsList` works.
  */
+
+/**
+ * Close the inline energy-year editor and confirm it's gone. Clicking "Close" is
+ * ambiguous — the success snackbar's icon-only Alert X answers to the SAME accessible
+ * name (its aria-label) — so disambiguate to the editor's button by its visible text.
+ * The year field hidden is the closed postcondition.
+ */
+export async function closeEnergyEditor(page: Page): Promise<void> {
+  await page.getByRole("button", { name: t("btnClose"), exact: true })
+    .filter({ hasText: t("btnClose") }).click();
+  await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
+    .toBeHidden({ timeout: T.action });
+}
+
 export async function addEnergyYear(
   page: Page,
   street: string,
@@ -233,14 +247,8 @@ export async function addEnergyYear(
   await expect(page.getByText(t("energySaved")).first())
     .toBeVisible({ timeout: T.action });
   // Saving keeps the editor open (so its table reflects the new year); close it so
-  // each call is self-contained (Close flips back to the charts view). Two controls
-  // answer to "Close" right now — the editor's text Button and the success snackbar's
-  // icon-only Alert X (the `energySaved` toast we just awaited). Disambiguate to the
-  // editor's: it's the only one carrying the visible text (the X's name is its aria-label).
-  await page.getByRole("button", { name: t("btnClose"), exact: true })
-    .filter({ hasText: t("btnClose") }).click();
-  await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
-    .toBeHidden({ timeout: T.action });
+  // each call is self-contained (Close flips back to the charts view).
+  await closeEnergyEditor(page);
   // /observation/:id is a standalone route (no app shell) — return to the shell.
   await page.goto("/");
 }

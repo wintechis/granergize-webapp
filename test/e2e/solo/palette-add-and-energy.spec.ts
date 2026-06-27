@@ -3,7 +3,7 @@ import { account, hasAccount, login } from "../helpers/login.ts";
 import { metricT, t } from "../helpers/i18n.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { assertCleanStart, verifyAndReset } from "../helpers/cleanSlate.ts";
-import { buildingIdOf, openBuildingsList } from "../helpers/manage.ts";
+import { buildingIdOf, closeEnergyEditor, openBuildingsList } from "../helpers/manage.ts";
 import { openPalette, paletteInput } from "../helpers/palette.ts";
 import { ACTION_PARAM, observationRoute, withAction } from "../../../src/routes.ts";
 import { T } from "../helpers/timeouts.ts";
@@ -142,9 +142,6 @@ test.describe("palette: add building + enter energy", () => {
     await expect(page.getByText(YEAR).first()).toBeVisible({
       timeout: T.action,
     });
-    await page.getByRole("button", { name: t("btnClose"), exact: true })
-      .filter({ hasText: t("btnClose") }).click();
-    await expect(page.getByRole("spinbutton", { name: t("lblYear"), exact: true }))
-      .toBeHidden({ timeout: T.action });
+    await closeEnergyEditor(page);
   });
 });
