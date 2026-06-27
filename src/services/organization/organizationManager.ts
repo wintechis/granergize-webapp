@@ -1,4 +1,5 @@
 import type { PodGateway } from "../pod/podGateway.ts";
+import type { Organization } from "../../types/agent.ts";
 import { DataFactory, Store } from "n3";
 import { readModifyWrite } from "../pod/podWrite.ts";
 import { invalidateProfile, loadProfileStore } from "../pod/profileDocument.ts";
@@ -59,16 +60,9 @@ const ORG_MEMBER = `${ORG_NS}member`;
 // distinct from `ORG_ORGANIZATION` above, which is the `org:Organization` CLASS.
 const ORG_ORGANIZATION_PRED = `${ORG_NS}organization`;
 
-export interface Organization {
-  /** Display name (foaf:name). */
-  name?: string;
-  /** Logo image IRI (foaf:logo). */
-  logoUrl?: string;
-  /** Homepage IRI (foaf:homepage). */
-  homepage?: string;
-  /** The organisation's own WebID/IRI, if any (owl:sameAs). */
-  sameAs?: string;
-}
+// `Organization` now lives in the central object model (src/types/agent.ts); re-exported
+// here for this module's existing importers.
+export type { Organization };
 
 
 /** The WebID document IRI (the WebID without its `#me` fragment). */
