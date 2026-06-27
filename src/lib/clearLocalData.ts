@@ -11,6 +11,36 @@
  * Best-effort: a store that refuses to clear is swallowed so the others still
  * run. Resolves once IndexedDB deletion has settled.
  */
+/**
+ * Whether there is any client-side storage that {@link clearLocalData} would wipe
+ * — so the "Trouble signing in?" remedy is offered only when clearing would
+ * actually do something. The sync stores are checked immediately; IndexedDB
+ * (where the auth library keeps its OIDC client registration + DPoP keys) is
+ * enumerated asynchronously. Best-effort: a store that refuses inspection is
+ * treated as empty.
+ */
+export async function hasLocalData(): Promise<boolean> {
+  try {
+    if (localStorage.length > 0) return true;
+  } catch {
+    // ignore — try the next store
+  }
+  try {
+    if (sessionStorage.length > 0) return true;
+  } catch {
+    // ignore
+  }
+  if (typeof indexedDB !== "undefined" && indexedDB.databases) {
+    try {
+      const dbs = await indexedDB.databases();
+      if (dbs.some((d) => Boolean(d.name))) return true;
+    } catch {
+      // ignore — enumeration is best-effort
+    }
+  }
+  return false;
+}
+
 export async function clearLocalData(): Promise<void> {
   try {
     localStorage.clear();

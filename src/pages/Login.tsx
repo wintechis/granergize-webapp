@@ -16,7 +16,7 @@ import Alert from "@mui/material/Alert";
 import ActivityScreen from "../components/ActivityScreen.tsx";
 import { shouldRestoreSession } from "../services/pod/sessionRestore.ts";
 import { logError } from "../lib/logError.ts";
-import { clearLocalData } from "../lib/clearLocalData.ts";
+import { clearLocalData, hasLocalData } from "../lib/clearLocalData.ts";
 import { normalizeIssuer } from "../lib/normalizeIssuer.ts";
 import { msg } from "../lib/messages.ts";
 
@@ -131,6 +131,22 @@ export const Login: React.FC<LoginProps> = ({
   // the login form.
   const [restoreError, setRestoreError] = useState<string | null>(null);
   const [clearing, setClearing] = useState(false);
+  // Whether there is any local storage worth clearing — gates the "Trouble
+  // signing in?" remedy so it shows only when the wipe would do something (a
+  // pristine browser has nothing to clear). Re-checked on mount; after a wipe the
+  // page reloads, so it re-evaluates to false on its own.
+  const [localDataPresent, setLocalDataPresent] = useState(false);
+  useEffect(() => {
+    let active = true;
+    hasLocalData()
+      .then((present) => {
+        if (active) setLocalDataPresent(present);
+      })
+      .catch(() => {});
+    return () => {
+      active = false;
+    };
+  }, []);
   // The provider the user just picked: `session.login` does OIDC discovery +
   // client registration (a couple of network round-trips) before it navigates
   // away, so without this the button would sit dead for a second or two. Set on
@@ -700,8 +716,9 @@ export const Login: React.FC<LoginProps> = ({
                   Whenever the user gets back to the chooser, this lets them wipe
                   the stale OIDC client registration without DevTools/Esc timing.
                   Hidden while the Alert is shown so there is only one clear
-                  button at a time. */}
-              {!restoreError && (
+                  button at a time, and only when there is actually local data to
+                  clear (a pristine browser has nothing to remedy). */}
+              {!restoreError && localDataPresent && (
                 <Typography variant="body2" color="text.secondary">
                   {msg("loginTroublePrefix")}
                   <Button

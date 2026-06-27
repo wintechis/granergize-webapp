@@ -1,6 +1,6 @@
 /// <reference lib="deno.ns" />
 import assert from "node:assert";
-import { clearLocalData } from "./clearLocalData.ts";
+import { clearLocalData, hasLocalData } from "./clearLocalData.ts";
 
 /** Minimal Storage fake recording whether `clear()` ran. */
 function fakeStorage() {
@@ -8,6 +8,9 @@ function fakeStorage() {
   let cleared = false;
   return {
     storage: {
+      get length() {
+        return map.size;
+      },
       getItem: (k: string) => (map.has(k) ? map.get(k)! : null),
       setItem: (k: string, v: string) => {
         map.set(k, v);
@@ -134,4 +137,38 @@ Deno.test("a failing store does not stop the others", async () => {
 
   assert.ok(session.wasCleared());
   assert.deepStrictEqual(idb.deleted, ["db"]);
+});
+
+Deno.test("hasLocalData: false on a pristine browser (all stores empty)", async () => {
+  install(fakeStorage(), fakeStorage(), fakeIndexedDb([]));
+  assert.strictEqual(await hasLocalData(), false);
+});
+
+Deno.test("hasLocalData: true when localStorage holds anything", async () => {
+  const local = fakeStorage();
+  local.storage.setItem("solidClientAuthn:1", "{}");
+  install(local, fakeStorage(), fakeIndexedDb([]));
+  assert.strictEqual(await hasLocalData(), true);
+});
+
+Deno.test("hasLocalData: true when only sessionStorage holds anything", async () => {
+  const session = fakeStorage();
+  session.storage.setItem("oidc.state", "x");
+  install(fakeStorage(), session, fakeIndexedDb([]));
+  assert.strictEqual(await hasLocalData(), true);
+});
+
+Deno.test("hasLocalData: true when only a named IndexedDB database exists", async () => {
+  install(fakeStorage(), fakeStorage(), fakeIndexedDb(["solid-client-authn"]));
+  assert.strictEqual(await hasLocalData(), true);
+});
+
+Deno.test("hasLocalData: ignores unnamed IndexedDB databases", async () => {
+  install(fakeStorage(), fakeStorage(), fakeIndexedDb([undefined]));
+  assert.strictEqual(await hasLocalData(), false);
+});
+
+Deno.test("hasLocalData: false when IndexedDB is unavailable and web storage empty", async () => {
+  install(fakeStorage(), fakeStorage(), undefined);
+  assert.strictEqual(await hasLocalData(), false);
 });
