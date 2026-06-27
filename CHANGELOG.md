@@ -3,6 +3,17 @@
 All notable changes to the Granergize WebApp project will be documented in this file.
 
 ## [2026-06-27]
+- **Building master-data field labels are vocab-driven (one source, no read/edit drift).**
+  The read view (`MasterDataSection`) and edit form (`BuildingDetailFields`) sourced field
+  labels from three families (`md*` ids, `lbl*` ids, raw `fieldLabel()`), so a field's
+  wording was authored twice and could diverge. Both now read `fieldLabel(field)` from the
+  vocab: the `building.ttl` `rdfs:label`s were made display-ready (Title Case; units kept in
+  the label, consistent across de/en/fr) and labels were minted for the reused REC/schema
+  IRIs (`rec:operatedBy`/`rec:ownedBy`/`schema:customer`/`rec:nace-code`); the read-view value
+  drops the now-redundant unit; agent edit fields append a "(WebID)" input hint
+  (`withWebId`). Removed the 21 master-data `md*` + 6 agent `lbl*` catalog ids. Regenerated
+  `vocabLabels.generated.ts`; new e2e helper `agentFieldT`. (Closes stumble [165], folded into
+  the vocab-driven-labels lane.)
 - **e2e cleanup (stumble follow-ups).** Two test-suite tidies, no app change:
   - The inline "close the energy-year editor" step (the snackbar-X-vs-editor "Close"
     disambiguation) was hand-copied across `energy-entry`, `palette-add-and-energy` and

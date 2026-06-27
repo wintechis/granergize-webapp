@@ -22,6 +22,7 @@ import {
 } from "../BuildingDetailFields.tsx";
 import { ADDRESS_FIELDS } from "../../constants/addressFields.ts";
 import { buildingFileUri } from "../../services/rdf/building/buildingId.ts";
+import { fieldLabel } from "../../services/rdf/vocabLabels.ts";
 import { INVESTOR_CERT_SYSTEMS } from "../../services/xlsx/buildingTemplates.ts";
 import { AgentLabel } from "../AgentLabel.tsx";
 import { DetailRow, SectionTitle } from "../detail/DetailView.tsx";
@@ -47,91 +48,91 @@ function ReadView({ building }: { building: BuildingType }) {
     <>
       {hasValue(building.operatedBy) && (
         <DetailRow
-          label={msg("mdOperatedBy")}
+          label={fieldLabel("operatedBy")}
           value={<AgentLabel value={building.operatedBy as string} />}
         />
       )}
       {hasValue(building.ownedBy) && (
         <DetailRow
-          label={msg("mdOwnedBy")}
+          label={fieldLabel("ownedBy")}
           value={<AgentLabel value={building.ownedBy as string} />}
         />
       )}
       {hasValue(building.investor) && (
         <DetailRow
-          label={msg("mdInvestor")}
+          label={fieldLabel("investor")}
           value={<AgentLabel value={building.investor as string} />}
         />
       )}
       {hasValue(building.facilityManagedBy) && (
         <DetailRow
-          label={msg("mdFacilityManager")}
+          label={fieldLabel("facilityManagedBy")}
           value={<AgentLabel value={building.facilityManagedBy as string} />}
         />
       )}
       {hasValue(building.developedBy) && (
         <DetailRow
-          label={msg("mdDevelopedBy")}
+          label={fieldLabel("developedBy")}
           value={<AgentLabel value={building.developedBy as string} />}
         />
       )}
       {hasValue(building.consultedBy) && (
         <DetailRow
-          label={msg("mdConsultant")}
+          label={fieldLabel("consultedBy")}
           value={<AgentLabel value={building.consultedBy as string} />}
         />
       )}
       {building.buildingArea != null && (
-        <DetailRow label={msg("mdBuildingArea")} value={`${building.buildingArea} m²`} />
+        <DetailRow label={fieldLabel("buildingArea")} value={building.buildingArea} />
       )}
       {building.landArea != null && (
-        <DetailRow label={msg("mdLandArea")} value={`${building.landArea} m²`} />
+        <DetailRow label={fieldLabel("landArea")} value={building.landArea} />
       )}
       {building.hallArea != null && (
-        <DetailRow label={msg("mdHallArea")} value={`${building.hallArea} m²`} />
+        <DetailRow label={fieldLabel("hallArea")} value={building.hallArea} />
       )}
       {building.officeSocialArea != null && (
         <DetailRow
-          label={msg("mdOfficeArea")}
-          value={`${building.officeSocialArea} m²`}
+          label={fieldLabel("officeSocialArea")}
+          value={building.officeSocialArea}
         />
       )}
       {building.buildingHeight != null && (
-        <DetailRow label={msg("mdBuildingHeight")} value={`${building.buildingHeight} m`} />
+        <DetailRow label={fieldLabel("buildingHeight")} value={building.buildingHeight} />
       )}
       {building.numberOfLoadingDocks != null && (
-        <DetailRow label={msg("mdLoadingDocks")} value={building.numberOfLoadingDocks} />
+        <DetailRow label={fieldLabel("numberOfLoadingDocks")} value={building.numberOfLoadingDocks} />
       )}
       {building.yearOfConstruction != null && (
         <DetailRow
-          label={msg("mdYearConstruction")}
+          label={fieldLabel("yearOfConstruction")}
           value={building.yearOfConstruction}
         />
       )}
       {building.yearOfRenovation != null && (
-        <DetailRow label={msg("mdYearRenovation")} value={building.yearOfRenovation} />
+        <DetailRow label={fieldLabel("yearOfRenovation")} value={building.yearOfRenovation} />
       )}
       {hasValue(building.shiftRegime) && (
-        <DetailRow label={msg("mdShiftRegime")} value={building.shiftRegime} />
+        <DetailRow label={fieldLabel("shiftRegime")} value={building.shiftRegime} />
       )}
       {hasValue(building.tenancyType) && (
-        <DetailRow label={msg("mdTenancyType")} value={building.tenancyType} />
+        <DetailRow label={fieldLabel("tenancyType")} value={building.tenancyType} />
       )}
       {hasValue(building.leaseType) && (
-        <DetailRow label={msg("mdLeaseType")} value={building.leaseType} />
+        <DetailRow label={fieldLabel("leaseType")} value={building.leaseType} />
       )}
       {hasValue(building.tenantIndustry) && (
-        <DetailRow label={msg("mdTenantIndustry")} value={building.tenantIndustry} />
+        <DetailRow label={fieldLabel("tenantIndustry")} value={building.tenantIndustry} />
       )}
       {hasValue(building.customer) && (
-        <DetailRow label={msg("mdCustomer")} value={building.customer} />
+        <DetailRow label={fieldLabel("customer")} value={building.customer} />
       )}
       {hasValue(building.naceCode) && (
-        <DetailRow label={msg("mdNaceCode")} value={building.naceCode} />
+        <DetailRow label={fieldLabel("naceCode")} value={building.naceCode} />
       )}
       {hasValue(building.indoorTemperatureClass) && (
         <DetailRow
-          label={msg("mdIndoorTemp")}
+          label={fieldLabel("indoorTemperatureClass")}
           value={building.indoorTemperatureClass}
         />
       )}

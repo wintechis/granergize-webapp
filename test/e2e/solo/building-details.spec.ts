@@ -1,6 +1,6 @@
 import { expect, type Page, test } from "@playwright/test";
 import { account, hasAccount, login } from "../helpers/login.ts";
-import { t } from "../helpers/i18n.ts";
+import { agentFieldT, t } from "../helpers/i18n.ts";
 import { confirmDialog } from "../helpers/confirm.ts";
 import { newCapturedPage } from "../helpers/consoleLog.ts";
 import { ensureDemoBuildings } from "../helpers/seed.ts";
@@ -99,7 +99,7 @@ test.describe("building details", () => {
       .locator("xpath=..")
       .getByRole("button")
       .click();
-    await page.getByLabel(t("lblOperatedBy")).fill(OP_WEBID);
+    await page.getByLabel(agentFieldT("operatedBy")).fill(OP_WEBID);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("buildingUpdated")))

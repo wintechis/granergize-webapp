@@ -137,34 +137,4 @@ export const buildingForms = {
     de: "BHKW-Betreiber (WebID)",
     fr: "Exploitant de la cogénération (WebID)",
   },
-  lblOperatedBy: {
-    en: "Operated by (WebID)",
-    de: "Betrieben von (WebID)",
-    fr: "Exploité par (WebID)",
-  },
-  lblOwnedBy: {
-    en: "Owned by (WebID)",
-    de: "Eigentümer (WebID)",
-    fr: "Propriétaire (WebID)",
-  },
-  lblInvestor: {
-    en: "Investor (WebID)",
-    de: "Investor (WebID)",
-    fr: "Investisseur (WebID)",
-  },
-  lblFacilityManager: {
-    en: "Facility manager (WebID)",
-    de: "Facility Manager (WebID)",
-    fr: "Gestionnaire technique (WebID)",
-  },
-  lblDevelopedBy: {
-    en: "Developed by (WebID)",
-    de: "Entwickelt von (WebID)",
-    fr: "Développé par (WebID)",
-  },
-  lblConsultant: {
-    en: "Consultant / broker (WebID)",
-    de: "Berater / Makler (WebID)",
-    fr: "Conseiller / courtier (WebID)",
-  },
 } satisfies Record<string, Message>;

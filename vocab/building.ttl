@@ -47,11 +47,11 @@
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :yearOfConstruction rdf:type owl:DatatypeProperty ;
-    rdfs:label "year of construction"@en ; rdfs:label "Baujahr"@de ; rdfs:label "année de construction"@fr ;
+    rdfs:label "Year of construction"@en ; rdfs:label "Baujahr"@de ; rdfs:label "Année de construction"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :yearOfRenovation rdf:type owl:DatatypeProperty ;
-    rdfs:label "year of renovation"@en ; rdfs:label "Sanierungsjahr"@de ; rdfs:label "année de rénovation"@fr ;
+    rdfs:label "Year of renovation"@en ; rdfs:label "Sanierungsjahr"@de ; rdfs:label "Année de rénovation"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 # Areas are flat literals (m²). REC models areas on a component node
@@ -59,62 +59,62 @@
 # as structured entity properties — a different shape, so no formal relation is
 # asserted (a flat building→m² literal does not subsume the node-based form).
 :hasBuildingArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "building area (m²)"@en ; rdfs:label "Gebäudefläche"@de ; rdfs:label "surface du bâtiment (m²)"@fr ;
+    rdfs:label "Building area (m²)"@en ; rdfs:label "Gebäudefläche (m²)"@de ; rdfs:label "Surface du bâtiment (m²)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :hasLandArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "land area (m²)"@en ; rdfs:label "Grundstücksfläche"@de ; rdfs:label "surface du terrain (m²)"@fr ;
+    rdfs:label "Land area (m²)"@en ; rdfs:label "Grundstücksfläche (m²)"@de ; rdfs:label "Surface du terrain (m²)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :officeArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "office area (m²)"@en ; rdfs:label "Bürofläche"@de ; rdfs:label "surface de bureaux (m²)"@fr ;
+    rdfs:label "Office area (m²)"@en ; rdfs:label "Bürofläche (m²)"@de ; rdfs:label "Surface de bureaux (m²)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :hallArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "hall area (m²)"@en ; rdfs:label "Hallenfläche (m²)"@de ; rdfs:label "surface de hall (m²)"@fr ;
+    rdfs:label "Hall area (m²)"@en ; rdfs:label "Hallenfläche (m²)"@de ; rdfs:label "Surface de hall (m²)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 :officeSocialArea rdf:type owl:DatatypeProperty ;
-    rdfs:label "office & social area (m²)"@en ; rdfs:label "Büro- und Sozialfläche (m²)"@de ; rdfs:label "surface de bureaux et locaux sociaux (m²)"@fr ;
+    rdfs:label "Office & social area (m²)"@en ; rdfs:label "Büro- und Sozialfläche (m²)"@de ; rdfs:label "Surface de bureaux et locaux sociaux (m²)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 :buildingHeight rdf:type owl:DatatypeProperty ;
-    rdfs:label "building height (m)"@en ; rdfs:label "Gebäudehöhe (m)"@de ; rdfs:label "hauteur du bâtiment (m)"@fr ;
+    rdfs:label "Building height (m)"@en ; rdfs:label "Gebäudehöhe (m)"@de ; rdfs:label "Hauteur du bâtiment (m)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 :numberOfLoadingDocks rdf:type owl:DatatypeProperty ;
-    rdfs:label "number of loading docks"@en ; rdfs:label "Anzahl der Ladetore"@de ; rdfs:label "nombre de quais de chargement"@fr ;
+    rdfs:label "Number of loading docks"@en ; rdfs:label "Anzahl der Ladetore"@de ; rdfs:label "Nombre de quais de chargement"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:integer .
 
 :usedAs rdf:type owl:DatatypeProperty ;
-    rdfs:label "used as"@en ; rdfs:label "genutzt als"@de ; rdfs:label "utilisé comme"@fr ;
+    rdfs:label "Used as"@en ; rdfs:label "Genutzt als"@de ; rdfs:label "Utilisé comme"@fr ;
     rdfs:comment "Free-text usage of the building."@en ;
     rdfs:comment "Freitext-Nutzung des Gebäudes."@de ;
     rdfs:comment "Usage du bâtiment en texte libre."@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :logisticsFunction rdf:type owl:DatatypeProperty ;
-    rdfs:label "logistics function"@en ; rdfs:label "Logistikfunktion"@de ; rdfs:label "fonction logistique"@fr ;
+    rdfs:label "Logistics function"@en ; rdfs:label "Logistikfunktion"@de ; rdfs:label "Fonction logistique"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :climateControlType rdf:type owl:DatatypeProperty ;
-    rdfs:label "climate control type"@en ; rdfs:label "Art der Klimatisierung"@de ; rdfs:label "type de régulation climatique"@fr ;
+    rdfs:label "Climate control type"@en ; rdfs:label "Art der Klimatisierung"@de ; rdfs:label "Type de régulation climatique"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :greenLeaseShare rdf:type owl:DatatypeProperty ;
-    rdfs:label "green lease share (%)"@en ; rdfs:label "Anteil Green Lease (%)"@de ; rdfs:label "part de bail vert (%)"@fr ;
+    rdfs:label "Green lease share (%)"@en ; rdfs:label "Anteil Green Lease (%)"@de ; rdfs:label "Part de bail vert (%)"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:decimal .
 
 :leaseType rdf:type owl:DatatypeProperty ;
-    rdfs:label "lease type"@en ; rdfs:label "Mietvertragsart"@de ; rdfs:label "type de bail"@fr ;
+    rdfs:label "Lease type"@en ; rdfs:label "Mietvertragsart"@de ; rdfs:label "Type de bail"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :tenantIndustry rdf:type owl:DatatypeProperty ;
-    rdfs:label "tenant industry"@en ; rdfs:label "Branche des Mieters"@de ; rdfs:label "secteur du locataire"@fr ;
+    rdfs:label "Tenant industry"@en ; rdfs:label "Branche des Mieters"@de ; rdfs:label "Secteur du locataire"@fr ;
     rdfs:domain rec:Building ; rdfs:range xsd:string .
 
 :companyName rdf:type owl:DatatypeProperty ;
-    rdfs:label "company name"@en ; rdfs:label "Firmenname"@de ; rdfs:label "nom de l'entreprise"@fr ;
+    rdfs:label "Company name"@en ; rdfs:label "Firmenname"@de ; rdfs:label "Nom de l'entreprise"@fr ;
     rdfs:comment "Denormalised name of the company behind the building; candidate for retirement in favour of the agent's profile."@en ;
     rdfs:comment "Denormalisierter Name des Unternehmens hinter dem Gebäude; Kandidat für die Abschaffung zugunsten des Agentenprofils."@de ;
     rdfs:comment "Nom dénormalisé de l'entreprise derrière le bâtiment ; candidat à la suppression au profit du profil de l'agent."@fr ;
@@ -125,32 +125,39 @@
 # which the app reuses directly. These are relationships of a building, NOT
 # roles of a person (roles exist only as data-room membership).
 :investor rdf:type owl:ObjectProperty ;
-    rdfs:label "investor"@en ; rdfs:label "Investor"@de ; rdfs:label "investisseur"@fr ;
+    rdfs:label "Investor"@en ; rdfs:label "Investor"@de ; rdfs:label "Investisseur"@fr ;
     rdfs:comment "The building's investor, identified by WebID."@en ;
     rdfs:comment "Der Investor des Gebäudes, identifiziert per WebID."@de ;
     rdfs:comment "L'investisseur du bâtiment, identifié par WebID."@fr ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
 :facilityManagedBy rdf:type owl:ObjectProperty ;
-    rdfs:label "facility managed by"@en ; rdfs:label "Facility Manager"@de ; rdfs:label "géré par (facility management)"@fr ;
+    rdfs:label "Facility manager"@en ; rdfs:label "Facility Manager"@de ; rdfs:label "Gestionnaire d'installations"@fr ;
     rdfs:comment "The building's facility manager, identified by WebID. Distinct from rec:operatedBy (the operator running the building's use)."@en ;
     rdfs:comment "Der Facility Manager des Gebäudes, identifiziert per WebID. Abzugrenzen von rec:operatedBy (der Betreiber, der die Nutzung des Gebäudes führt)."@de ;
     rdfs:comment "Le gestionnaire d'installations du bâtiment, identifié par WebID. Distinct de rec:operatedBy (l'exploitant qui assure l'usage du bâtiment)."@fr ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
 :developedBy rdf:type owl:ObjectProperty ;
-    rdfs:label "developed by"@en ; rdfs:label "Projektentwickler"@de ; rdfs:label "développé par"@fr ;
+    rdfs:label "Developed by"@en ; rdfs:label "Entwickelt von"@de ; rdfs:label "Développé par"@fr ;
     rdfs:comment "The project developer that developed the building, identified by WebID."@en ;
     rdfs:comment "Der Projektentwickler, der das Gebäude entwickelt hat, identifiziert per WebID."@de ;
     rdfs:comment "Le promoteur qui a développé le bâtiment, identifié par WebID."@fr ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
 
 :consultedBy rdf:type owl:ObjectProperty ;
-    rdfs:label "consulted by"@en ; rdfs:label "Berater/Makler"@de ; rdfs:label "conseillé par"@fr ;
+    rdfs:label "Consultant / broker"@en ; rdfs:label "Berater / Makler"@de ; rdfs:label "Conseiller / courtier"@fr ;
     rdfs:comment "A consultant or broker advising on / marketing the building, identified by WebID."@en ;
     rdfs:comment "Ein Berater oder Makler, der das Gebäude berät / vermarktet, identifiziert per WebID."@de ;
     rdfs:comment "Un conseiller ou courtier qui conseille sur / commercialise le bâtiment, identifié par WebID."@fr ;
     rdfs:domain rec:Building ; rdfs:range foaf:Agent .
+
+# Reused external terms — a display label (de/en/fr) in our profile so the app's
+# fieldLabel() resolves these REC/schema.org IRIs (we only annotate rendering).
+rec:operatedBy rdfs:label "Operated by"@en ; rdfs:label "Betrieben von"@de ; rdfs:label "Exploité par"@fr .
+rec:ownedBy rdfs:label "Owned by"@en ; rdfs:label "Eigentümer"@de ; rdfs:label "Propriétaire"@fr .
+rec:nace-code rdfs:label "NACE code"@en ; rdfs:label "NACE-Code"@de ; rdfs:label "Code NACE"@fr .
+schema:customer rdfs:label "Customer"@en ; rdfs:label "Kunde"@de ; rdfs:label "Client"@fr .
 
 ############################
 ###   Technical systems  ###
@@ -242,12 +249,12 @@
 ############################
 
 :shiftRegime rdf:type owl:ObjectProperty ;
-    rdfs:label "shift regime"@en ; rdfs:label "Schichtbetrieb"@de ; rdfs:label "régime de postes"@fr ; rdfs:domain rec:Building ; rdfs:range :ShiftRegime .
+    rdfs:label "Shift regime"@en ; rdfs:label "Schichtbetrieb"@de ; rdfs:label "Régime de postes"@fr ; rdfs:domain rec:Building ; rdfs:range :ShiftRegime .
 :tenancyType rdf:type owl:ObjectProperty ;
-    rdfs:label "tenancy type"@en ; rdfs:label "Mietverhältnisart"@de ; rdfs:label "type de location"@fr ;
+    rdfs:label "Tenancy type"@en ; rdfs:label "Mietverhältnisart"@de ; rdfs:label "Type de location"@fr ;
     rdfs:domain rec:Building ; rdfs:range :TenancyType .
 :indoorTemperatureClass rdf:type owl:ObjectProperty ;
-    rdfs:label "indoor temperature class"@en ; rdfs:label "Innentemperaturklasse"@de ; rdfs:label "classe de température intérieure"@fr ; rdfs:domain rec:Building ; rdfs:range :IndoorTemperatureClass .
+    rdfs:label "Indoor temperature class"@en ; rdfs:label "Innentemperaturklasse"@de ; rdfs:label "Classe de température intérieure"@fr ; rdfs:domain rec:Building ; rdfs:range :IndoorTemperatureClass .
 
 :ShiftRegime rdf:type rdfs:Class ; rdfs:label "Shift regime"@en ; rdfs:label "Schichtbetrieb"@de ; rdfs:label "Régime de postes"@fr .
 :OneShift   rdf:type :ShiftRegime ; rdfs:label "1-Shift"@en ; rdfs:label "1-Schicht"@de ; rdfs:label "1 poste"@fr .

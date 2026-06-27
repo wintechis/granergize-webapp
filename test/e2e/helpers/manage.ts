@@ -1,5 +1,5 @@
 import { expect, type Locator, type Page } from "@playwright/test";
-import { metricT, roleT, t } from "./i18n.ts";
+import { agentFieldT, metricT, roleT, t } from "./i18n.ts";
 import { T } from "./timeouts.ts";
 import { confirmDialog } from "./confirm.ts";
 import {
@@ -186,7 +186,7 @@ export async function addBuilding(
       .locator("xpath=..")
       .getByRole("button")
       .click();
-    await page.getByLabel(t("lblOperatedBy")).fill(opts.operatedBy);
+    await page.getByLabel(agentFieldT("operatedBy")).fill(opts.operatedBy);
     await page.keyboard.press("Escape");
     await page.getByRole("button", { name: t("btnSave"), exact: true }).click();
     await expect(page.getByText(t("buildingUpdated")))
